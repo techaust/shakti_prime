@@ -331,18 +331,20 @@ grant execute on function app.handover_assign(smallint, uuid, uuid, uuid) to app
 --> statement-breakpoint
 
 -- 10. Work routed to the Sales Team Lead when no converter qualified: an Agent Inbox item of kind
---     routed_work on the lead's customer, for the team lead and their team, with the lead's segment.
+--     routed_work on the qualified lead itself (subject_type opportunity, so the card says a lead
+--     is waiting, not that a customer asked again), for the team lead and their team, with the
+--     lead's segment.
 create or replace function app.handover_route_to_team_lead(p_entity smallint, p_opportunity uuid,
                                                            p_assignee uuid, p_team uuid)
   returns uuid
   language plpgsql volatile security definer set search_path = '' as $$
 declare
   v_item uuid := pg_catalog.gen_random_uuid();
-  v_account uuid;
+  v_lead uuid;
   v_segment text;
 begin
   perform app.require_handover(p_entity);
-  select o.account_id, p.segment into v_account, v_segment
+  select o.id, p.segment into v_lead, v_segment
     from public.opportunities o join public.pipelines p on p.id = o.pipeline_id
    where o.id = p_opportunity and o.entity_id = p_entity and o.archived_at is null;
   if not found then
@@ -350,7 +352,7 @@ begin
   end if;
   insert into public.inbox_items (id, entity_id, kind, assignee_id, team_id, subject_type, subject_id,
                                   state, segment, created_by)
-    values (v_item, p_entity, 'routed_work', p_assignee, p_team, 'account', v_account, 'open',
+    values (v_item, p_entity, 'routed_work', p_assignee, p_team, 'opportunity', v_lead, 'open',
             v_segment, app.user_id());
   return v_item;
 end

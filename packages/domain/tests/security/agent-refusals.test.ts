@@ -241,6 +241,17 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       'agents.killswitch.set',
     ].map((name) => [name, INPUTS[name]]),
   ),
+  // The handover: a profile, a person's own presence and moving a leaving person's leads.
+  'crm.caller_profile.set': {
+    entityId: 1,
+    userId: newId(),
+    isConverter: true,
+    maxOpen: null,
+    languages: [],
+    segments: [],
+  },
+  'crm.caller_profile.set_presence': { entityId: 1, presence: 'present' },
+  'crm.lead.reassign_all': { entityId: 1, fromUserId: newId(), toUserId: null },
   'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
   // Routed work and a person's own notices, settings and browsers (docs/03-roadmap-appendix/phase1.md §8.1).
   'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', phone: '9800000000' },

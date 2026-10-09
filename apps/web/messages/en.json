@@ -3038,6 +3038,7 @@
       "crm_duplicates_scan": "Look for duplicate customers and leads each night",
       "sales_quote_expire": "Mark quotes past their validity as expired each day",
       "knowledge_index": "Read Knowledge Vault files so they can be searched",
+      "crm_handover_run": "Give a qualified lead to a Lead Converter",
       "sales_credit_write": "Enter dealer credit limits and outstanding",
       "notifications_send": "Send notices to the people who act on them"
     },
@@ -3708,6 +3709,8 @@
       "dueHelper": "Date and time in India.",
       "titleHelper": "Up to {max} characters. Leave it empty for no note.",
       "routedFrom": "Enquiry passed to you",
+      "handoverFrom": "Qualified lead with no Lead Converter free",
+      "handoverFor": "{customer} is ready for a quote",
       "routedFor": "{customer} asked again",
       "routedUnknown": "A customer you look after asked again",
       "routedInterest": "Interested in",

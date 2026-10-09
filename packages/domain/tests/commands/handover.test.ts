@@ -449,12 +449,12 @@ describe('the handover', () => {
           }[]
         >`
           select kind, assignee_id, subject_type, segment, state from inbox_items
-           where subject_id = ${lead.account.id} and entity_id = ${CO}`,
+           where subject_id = ${lead.id} and entity_id = ${CO}`,
     );
     expect(item).toMatchObject({
       kind: 'routed_work',
       assignee_id: teamLead.id,
-      subject_type: 'account',
+      subject_type: 'opportunity',
       segment: 'farmer_pumps',
       state: 'open',
     });

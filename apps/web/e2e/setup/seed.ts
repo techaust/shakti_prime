@@ -402,8 +402,20 @@ await asMigrator((m) =>
       await tx`insert into teams (id, entity_id, name) values (${teamId}, 1, ${CALLING_TEAM})`;
     }
     await tx`update user_entity_roles set team_id = ${teamId}
-              where entity_id = 1 and user_id in (${ids.teleCaller ?? ''}, ${ids.teamLead ?? ''})`;
+              where entity_id = 1
+                and user_id in (${ids.teleCaller ?? ''}, ${ids.teamLead ?? ''}, ${ids.converter ?? ''})`;
   }),
+);
+
+progress('the lead converter');
+// Present and taking every language and business line, so a qualified lead of company 1 goes to
+// her (handover.spec.ts); every run starts her present with no cap.
+await asMigrator(
+  (m) => m`insert into caller_profiles (id, user_id, entity_id, is_converter, presence)
+             values (${newId()}, ${ids.converter ?? ''}, 1, true, 'present')
+             on conflict (user_id, entity_id) do update
+               set is_converter = true, presence = 'present', max_open = null,
+                   languages = '{}', segments = '{}'`,
 );
 
 const setPasswordLinks = {} as Record<ProjectName, string>;
@@ -433,6 +445,32 @@ for (const project of PROJECTS) {
   const profileId = await ensureUser(profile, `E2E profile ${project}`, 'accounts', [1]);
   await setPassword(profile);
   profileUsers[project] = { email: profile, secret: await enrolAuthenticator(profileId, profile) };
+}
+
+progress('the leaving callers');
+// Per project, a caller with two open leads of their own in company 1, made afresh on every run
+// (the Move all leads journey moves them away), so the Team members list always has one to move.
+for (const project of PROJECTS) {
+  const email = emailFor(`leaver-${project}`);
+  const leaverId = await ensureUser(email, `E2E leaver ${project}`, 'tele_caller_cc', [1]);
+  const principal = principalFor('tele_caller_cc', [1], { id: leaverId });
+  for (const n of [1, 2]) {
+    const digits = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+    await executeCommand(principal, {}, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Leaver customer ${project} ${String(n)}`, phone: digits },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village: 'Kishangarh', pin: '305801' },
+      consent: {
+        channel: 'whatsapp',
+        purpose: 'service',
+        source: 'walk_in_form',
+        textVersion: 'v1',
+      },
+      sourceCode: 'walk_in',
+    });
+  }
 }
 
 progress('the leads');

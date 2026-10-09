@@ -9,6 +9,7 @@ import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { fakeEmbedding } from '../../src/ai/transport';
 import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
+import { listCallerProfiles, loadOwnPresence } from '../../src/queries/crm/caller-profiles';
 import { loadNotificationSettings } from '../../src/queries/notifications/settings';
 import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
@@ -168,6 +169,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listNotices: (ctx) => listNotices(ctx, { limit: 20 }),
   countNotices: (ctx) => countNotices(ctx),
   loadNotificationSettings: (ctx) => loadNotificationSettings(ctx),
+  listCallerProfiles: (ctx) => listCallerProfiles(ctx, { entityId: 1 }),
+  loadOwnPresence: (ctx) => loadOwnPresence(ctx, { entityId: 1 }),
   loadAgentSettings: (ctx) => loadAgentSettings(ctx, { now: new Date(NOW) }),
   listKnowledgeFiles: (ctx) => listKnowledgeFiles(ctx, {}),
   searchKnowledge: (ctx) => searchKnowledge(ctx, fakeEmbedding('solar pump care')),

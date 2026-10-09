@@ -67,6 +67,7 @@ describe('row actions', () => {
       false,
       false,
       false,
+      false,
     ]);
   });
 
