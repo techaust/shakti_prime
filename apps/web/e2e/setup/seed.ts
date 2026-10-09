@@ -577,12 +577,12 @@ progress('the orders and dealers');
 const orders = await ensureOrderJourneys(ids.executive ?? '');
 
 progress('the Lead Converter workspace');
-// One converter of company 1 per project, none of them a handover target, each with three leads
+// One converter of company 2 per project, none of them a handover target, each with three leads
 // of their own (converting.spec.ts).
 const converterIds: string[] = [];
 for (const project of PROJECTS) {
   const email = emailFor(converterKey(project));
-  converterIds.push(await ensureUser(email, CONVERTER_NAME, 'tele_caller_lc', [1]));
+  converterIds.push(await ensureUser(email, CONVERTER_NAME, 'tele_caller_lc', [2]));
   await setPassword(email);
 }
 await ensureConvertingJourneys(converterIds, ids.executive ?? '');

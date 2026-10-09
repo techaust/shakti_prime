@@ -1,24 +1,26 @@
 // The Lead Converter journeys' fixtures (`e2e/converting.spec.ts`), written by the seed on the host.
-// Per project, one converter of company 1 of their own (so the boards never share) who is not a
+// Per project, one converter of company 2 of their own (so the boards never share) who is not a
 // handover target, with three rooftop leads made afresh on every run, all at Qualified:
 // - the first, with a callback that fell due three hours ago and no sizing, which the journey works;
 // - the second, sized, with a sent quote that runs out in twelve hours;
 // - the third, sized, with an order held for credit.
-// The price tier, item and price list of company 1 that the quote is made from are test values for
+// The price tier, item and price list of company 2 that the quote is made from are test values for
 // the journeys alone, never a client figure (PRICE-2, PRICE-4); the tier says so in its name.
 import { newId } from '@shakti/contracts';
 import { asMigrator, principalFor } from '@shakti/db/testing';
 import { createLead, executeCommand, recordSizing, setAccountTier } from '@shakti/domain';
 import { CONVERTING_ITEM, CONVERTING_LEADS, CONVERTING_TIER } from '../converting-fixtures';
 
-const ENTITY = 1;
+// Shakti Motor Pumps, where the quote journeys work too: the security suite's fixtures own the
+// quote series of company 1 and fail if a journey has numbered a quote there.
+const ENTITY = 2;
 const id = (n: number) => `0199e2e0-0000-7000-8000-0000000c1${n.toString(16).padStart(3, '0')}`;
 const IDS = { tier: id(1), item: id(2), rate: id(3), list: id(4), price: id(5) };
 const SEEDED_AT = '2026-04-01T00:00:00+05:30';
 const HOUR = 3_600_000;
 const ROOFTOP = { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 } as const;
 
-/** The tier, the item, its GST rate and the price list of company 1, made once and kept as they are. */
+/** The tier, the item, its GST rate and the price list of company 2, made once and kept as they are. */
 async function ensureCatalogue(executiveId: string): Promise<void> {
   await asMigrator((m) =>
     m.begin(async (tx) => {

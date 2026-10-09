@@ -112,29 +112,6 @@ test.describe('converting as a Lead Converter', () => {
       mask: [page.getByRole('region', { name: 'Recent activity' })],
     });
 
-    // The call: D shows the number, C sets the callback with the time asked for in a dialog.
-    if (inCallingHours()) {
-      await page.keyboard.press('d');
-      await expect(page.getByText('Number to dial')).toBeVisible();
-      await page.keyboard.press('c');
-      const dialog = page.getByRole('dialog');
-      await expect(
-        dialog.getByRole('heading', { name: 'When should we call back?' }),
-      ).toBeVisible();
-      await expect(dialog.getByLabel('Call back at')).toBeFocused();
-      await expectNoAxeViolations(page, { include: '[role="dialog"]' });
-      await page.keyboard.press('Enter');
-      await expect(dialog).toBeHidden();
-      await toast(page, /^Call saved\. Call back /);
-      // The callback that was due is done and the new one is for tomorrow, so its row is gone.
-      await expect(rows(page).filter({ hasText: 'Call back due' })).toHaveCount(0);
-      await expect(rows(page)).toHaveCount(3);
-    } else {
-      // Outside 9 AM to 9 PM the number stays hidden and no call can be saved.
-      await page.keyboard.press('d');
-      await expect(page.getByText(HOURS_SENTENCE)).toBeVisible();
-    }
-
     // The sizing: S opens it on the rooftop tab; the figures are typed and Enter saves.
     await press(page, 's', async () => {
       await expect(page.getByLabel('Units used a month (kWh)')).toBeVisible({ timeout: 1_000 });
@@ -168,14 +145,38 @@ test.describe('converting as a Lead Converter', () => {
     await expect(made.getByRole('link', { name: 'Open quote' })).toBeVisible();
     await expect(page).toHaveURL(/\/converting$/);
     await expect(card(page, 'work')).toContainText('Not sent yet');
-    // A quote of thirty days or so is not about to run out: the list holds the other two leads' rows.
-    await expect(rows(page).filter({ hasText: name('work') })).toHaveCount(
-      inCallingHours() ? 0 : 1,
-    );
+    // A quote with days left is not about to run out: the list is the three rows left, the call
+    // back of this lead among them, whatever the hour.
+    await expect(rows(page)).toHaveCount(3);
+    await expect(rows(page).filter({ hasText: name('work') })).toHaveCount(1);
     await expectNoAxeViolations(page);
     await snap(page, 'converting-quote', {
       mask: [page.getByRole('region', { name: 'Recent activity' })],
     });
+
+    // The call, last, since the hour of the day decides what it does: D shows the number and C sets
+    // the callback, with the time asked for in a dialog.
+    if (inCallingHours()) {
+      await page.keyboard.press('d');
+      await expect(page.getByText('Number to dial')).toBeVisible();
+      await page.keyboard.press('c');
+      const dialog = page.getByRole('dialog');
+      await expect(
+        dialog.getByRole('heading', { name: 'When should we call back?' }),
+      ).toBeVisible();
+      await expect(dialog.getByLabel('Call back at')).toBeFocused();
+      await expectNoAxeViolations(page, { include: '[role="dialog"]' });
+      await page.keyboard.press('Enter');
+      await expect(dialog).toBeHidden();
+      await toast(page, /^Call saved\. Call back /);
+      // The callback that was due is done and the new one is for tomorrow, so its row is gone.
+      await expect(rows(page).filter({ hasText: 'Call back due' })).toHaveCount(0);
+      await expect(rows(page)).toHaveCount(2);
+    } else {
+      // Outside 9 AM to 9 PM the number stays hidden and no call can be saved.
+      await page.keyboard.press('d');
+      await expect(page.getByText(HOURS_SENTENCE)).toBeVisible();
+    }
 
     // N opens the first row of the list; each row opens its lead at the part it is about.
     const first = inCallingHours() ? 'expiring' : 'work';
