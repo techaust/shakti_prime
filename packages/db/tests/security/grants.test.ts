@@ -451,6 +451,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.stale_upload_entities(integer)',
       // The targets' progress: a caller's own figures, a team lead's team's (0125).
       'app.target_actuals(smallint,timestamp with time zone,timestamp with time zone,uuid[])',
+      // Whether a person is in a team now and may be set a target (the targets' policies, 0125).
+      'app.target_caller_in_team(uuid,smallint,uuid)',
+      'app.target_caller_ok(uuid,smallint,uuid)',
       'app.user_is_active(uuid)',
       // A vault upload is read with a vault file the reader may read (files_knowledge_read, 0123).
       'app.vault_upload_readable(uuid)',

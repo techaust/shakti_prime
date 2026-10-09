@@ -586,7 +586,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${merge}, ${e}, ${account}, ${twin}, '{}'::jsonb, ${ownerId})`;
         await tx`insert into user_entity_roles (id, user_id, entity_id, role_id, team_id, created_by) values
           (${ownerRole}, ${ownerId}, ${e}, ${MATRIX_ROLE}, ${team}, ${ownerId}),
-          (${otherRole}, ${otherUserId}, ${e}, ${MATRIX_ROLE}, null, ${ownerId})`;
+          (${otherRole}, ${otherUserId}, ${e}, ${MATRIX_ROLE}, ${team}, ${ownerId})`;
 
         rows.entities.push({ key: e.toString(), entities: only });
         rows.teams.push({ key: team, entities: only });
