@@ -38,8 +38,16 @@ describe('the journeys’ test clock', () => {
 
   it('is refused on every hosted runtime', () => {
     const hosted: NodeJS.ProcessEnv[] = [
-      { NODE_ENV: 'production', BOS_ENVIRONMENT: 'production', BETTER_AUTH_URL: 'https://bos.example.in' },
-      { NODE_ENV: 'production', BOS_ENVIRONMENT: 'staging', BETTER_AUTH_URL: 'http://localhost:3031' },
+      {
+        NODE_ENV: 'production',
+        BOS_ENVIRONMENT: 'production',
+        BETTER_AUTH_URL: 'https://bos.example.in',
+      },
+      {
+        NODE_ENV: 'production',
+        BOS_ENVIRONMENT: 'staging',
+        BETTER_AUTH_URL: 'http://localhost:3031',
+      },
       // The marker with an address that is not this machine, or none.
       { ...LOCAL, BETTER_AUTH_URL: 'https://bos.example.in' },
       { NODE_ENV: 'production', BOS_ENVIRONMENT: 'local' },

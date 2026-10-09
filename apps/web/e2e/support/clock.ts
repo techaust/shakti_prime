@@ -16,7 +16,7 @@ const MINUTE_MS = 60_000;
 
 /** Minutes since midnight in India. */
 function istMinute(at: Date): number {
-  return Math.floor((((at.getTime() + IST_OFFSET_MS) % DAY_MS) + DAY_MS) % DAY_MS / MINUTE_MS);
+  return Math.floor(((((at.getTime() + IST_OFFSET_MS) % DAY_MS) + DAY_MS) % DAY_MS) / MINUTE_MS);
 }
 
 /** The shift, in milliseconds, that makes the server's time of day `minute` at or after `now`. */

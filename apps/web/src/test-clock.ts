@@ -25,7 +25,8 @@ export function testClockFrom(
   env: NodeJS.ProcessEnv = process.env,
 ): Date | undefined {
   if (cookie === undefined || cookie === '') return undefined;
-  if (hostedRuntime(env)) throw new DomainError('forbidden', 'the test clock is not available here');
+  if (hostedRuntime(env))
+    throw new DomainError('forbidden', 'the test clock is not available here');
   if (!localRuntime(env)) return undefined;
   if (!/^\d{1,10}$/.test(cookie)) return undefined;
   const shift = Number(cookie);

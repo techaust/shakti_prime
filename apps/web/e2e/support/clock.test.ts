@@ -6,7 +6,7 @@ const MINUTE_MS = 60_000;
 
 /** Minutes since midnight in India. */
 function istMinute(at: number): number {
-  return Math.floor((((at + IST_OFFSET_MS) % 86_400_000) + 86_400_000) % 86_400_000 / MINUTE_MS);
+  return Math.floor(((((at + IST_OFFSET_MS) % 86_400_000) + 86_400_000) % 86_400_000) / MINUTE_MS);
 }
 
 describe('the journeys’ calling-hours clock', () => {
@@ -17,9 +17,10 @@ describe('the journeys’ calling-hours clock', () => {
       expect(shift).toBeGreaterThanOrEqual(0);
       for (const later of [0, 5 * MINUTE_MS, 10 * MINUTE_MS]) {
         const minute = istMinute(at + shift + later);
-        expect(minute, `at ${new Date(at).toISOString()} + ${String(later)}`).toBeGreaterThanOrEqual(
-          9 * 60,
-        );
+        expect(
+          minute,
+          `at ${new Date(at).toISOString()} + ${String(later)}`,
+        ).toBeGreaterThanOrEqual(9 * 60);
         expect(minute).toBeLessThan(21 * 60);
       }
     }
