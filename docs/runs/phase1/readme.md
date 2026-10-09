@@ -45,6 +45,9 @@ Each slice on the PC takes a slot, and the slot gives its Postgres and app ports
 Wave 4's last slice, built on the PC (its run file is on its branch until it merges):
 - T2 handover, branch `feat/t2-handover`, slot 19
 
+Wave 5, beside T2 (owner, 09-10-2026: two builders for this run):
+- R1 targets and home pages, branch `feat/r1-targets`, slot 20
+
 ## Merged (slices built with a run file; wave 1, C1, X1 and C2 predate run files)
 - [P4 print and letterhead](p4-print.md) (#99)
 - [C4 sizing](c4-sizing.md) (#100)
