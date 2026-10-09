@@ -1,3 +1,4 @@
+import type * as Domain from '@shakti/domain';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The home actions are public endpoints: the companies they read come from the session, never
@@ -22,7 +23,7 @@ vi.mock('../auth/current-principal', () => ({
     ),
 }));
 vi.mock('@shakti/domain', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@shakti/domain')>()),
+  ...(await importOriginal<typeof Domain>()),
   executeQuery: (
     _principal: unknown,
     scope: { entityIds?: readonly number[] },

@@ -18,6 +18,7 @@ import {
   homePipeline,
   homeResponseTimes,
   homeSales,
+  responseTimeSql,
 } from '../../src/queries/home/home';
 
 // The home pages' reads (docs/03-roadmap-appendix/phase1.md §9): the caller's queue and calls
@@ -203,30 +204,25 @@ describe('homeResponseTimes', () => {
   });
 
   it('reads the limit as set for a company with no open lead and no recent lead', async () => {
-    // A company with nothing in the window the counts cover: its limit is still set (AUDIT: the
-    // answer comes from the pipelines, not from the leads that happen to be in the window).
-    const [quiet] = await asMigrator(
-      (m) => m<{ id: number }[]>`select e.id from entities e
-        where not exists (select 1 from opportunities o where o.entity_id = e.id
-                            and (o.state = 'open' or o.created_at >= ${NOW}::timestamptz - interval '31 days'))
-        order by e.id limit 1`,
-    );
-    if (!quiet) throw new Error('every company has an open or recent lead');
-    const user = await createTestUser([{ entityId: quiet.id, roleKey: 'general_manager' }], {
-      name: 'Quiet GM',
-    });
-    const quietGm = await createTestPrincipal('general_manager', [quiet.id], { id: user.id });
+    // The answer comes from the pipelines, not from the leads that fall in the window: a company
+    // with no lead at all still has its limit set. 999999 is a company no lead belongs to.
     await asMigrator(
       (m) => m`update pipelines set first_contact_sla_minutes = 60
                 where entity_id is null and segment = 'farmer_pumps'`,
     );
-    const [row] = await read(quietGm, (c) => homeResponseTimes(c, NOW));
-    expect(row).toMatchObject({
-      entityId: quiet.id,
-      limitSet: true,
-      waitingPastLimit: 0,
-      calledLate: 0,
-    });
+    const rows = (await asPrincipal(gm, (c) =>
+      c.tx.execute(responseTimeSql([E, 999_999], NOW)),
+    )) as unknown as {
+      entity_id: number;
+      waiting_past_limit: number;
+      called_late: number;
+      pipelines_with_limit: number;
+    }[];
+    const empty = rows.find((r) => r.entity_id === 999_999);
+    expect(empty).toBeDefined();
+    expect(empty?.pipelines_with_limit).toBeGreaterThan(0);
+    expect(empty?.waiting_past_limit).toBe(0);
+    expect(empty?.called_late).toBe(0);
   });
 });
 
