@@ -319,7 +319,7 @@ function SearchSection() {
       <h2 id="knowledge-search" className="text-h3">
         {t('search.heading')}
       </h2>
-      <form role="search" onSubmit={submit} className="flex flex-wrap items-end gap-3">
+      <form role="search" onSubmit={submit} className="flex flex-wrap items-start gap-3">
         <Field
           id="knowledge-query"
           label={t('search.label')}
@@ -336,7 +336,8 @@ function SearchSection() {
             }}
           />
         </Field>
-        <Button type="submit" pending={search.pending}>
+        {/* Level with the box, not the helper: the label's line (20 px) and the field's gap (6 px). */}
+        <Button type="submit" pending={search.pending} className="mt-[1.625rem]">
           {t('search.search')}
         </Button>
       </form>

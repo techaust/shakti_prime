@@ -155,7 +155,7 @@ export function CustomersScreen({
     <div className="flex min-w-0 flex-col gap-4">
       <form
         onSubmit={search}
-        className="flex flex-wrap items-end gap-2"
+        className="flex flex-wrap items-start gap-2"
         role="search"
         aria-label={t('searchLabel')}
         noValidate
@@ -165,7 +165,8 @@ export function CustomersScreen({
             <Input name="q" type="search" maxLength={80} autoComplete="off" />
           </Field>
         </div>
-        <div className="flex gap-2 pb-6">
+        {/* Level with the box, not the helper: the label's line (20 px) and the field's gap (6 px). */}
+        <div className="mt-[1.625rem] flex gap-2">
           <Button type="submit" pending={pending && rows.length === 0}>
             {t('search')}
           </Button>
