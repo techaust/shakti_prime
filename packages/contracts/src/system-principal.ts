@@ -14,9 +14,8 @@ export const SYSTEM_WORKERS_PRINCIPAL_ID = '01990000-0000-7000-8000-000000000501
  * which needs `imports.process`. Each slice that gives the workers a command adds its grant here and in
  * SECURITY §3.3.
  *
- * The workers hold no `crm.*` permission a person may hold: until the owner decides at T2 they
- * follow an agent's customer rules (ADR 0020), and the rules of C2 that test agents only rely on
- * it.
+ * The workers hold no `crm.*` permission a person may hold: they follow an agent's customer
+ * reading rules (ADR 0020), and the rules of C2 that test agents only rely on it.
  */
 export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = {
   'system:workers': [
@@ -38,5 +37,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // `notifications.push.record`): it finds who a notice is for and writes it through definers,
     // nothing more.
     { key: 'notifications.send', scope: 'all' },
+    // The handover of a qualified lead (`crm.opportunity.hand_over`): it reads the lead's facts and
+    // the people who could take it and gives it over through definers, nothing more. Unlike the
+    // others it moves the customer relationship too (ADR 0020, the owner's decision of 09-10-2026).
+    { key: 'crm.handover.run', scope: 'all' },
   ],
 };

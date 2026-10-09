@@ -137,6 +137,8 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // A notice is written only by the notify worker's definer; a person changes its read time
     // alone (notifications.test.ts).
     notifications: { i: false, u: false },
+    // A profile changes only its settings and presence (column grants, 0125); never deleted.
+    caller_profiles: { i: true, u: false },
   };
 
   /**

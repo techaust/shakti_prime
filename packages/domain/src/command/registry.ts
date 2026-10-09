@@ -17,6 +17,9 @@ import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
 import { logCall } from '../commands/calls/log-call';
 import { assignOpportunity } from '../commands/crm/assign-opportunity';
+import { setCallerProfile, setPresence } from '../commands/crm/caller-profiles';
+import { handOverLead } from '../commands/crm/hand-over-lead';
+import { reassignAllLeads } from '../commands/crm/reassign-all';
 import { createLead } from '../commands/crm/create-lead';
 import { loseOpportunity } from '../commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
@@ -112,6 +115,10 @@ export const commands = {
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
   [assignOpportunity.name]: assignOpportunity,
+  [setCallerProfile.name]: setCallerProfile,
+  [setPresence.name]: setPresence,
+  [handOverLead.name]: handOverLead,
+  [reassignAllLeads.name]: reassignAllLeads,
   [nurtureOpportunity.name]: nurtureOpportunity,
   [reopenOpportunity.name]: reopenOpportunity,
   [winOpportunity.name]: winOpportunity,

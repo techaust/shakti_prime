@@ -314,6 +314,8 @@ export const ENTITY_TABLES = [
   'knowledge_chunks',
   // a person's own notices in the request's companies (docs/03-roadmap-appendix/phase1.md §8.1)
   'notifications',
+  // a person's own profile, and others' to whoever manages them (docs/03-roadmap-appendix/phase1.md §8.2)
+  'caller_profiles',
 ] as const;
 
 /**
