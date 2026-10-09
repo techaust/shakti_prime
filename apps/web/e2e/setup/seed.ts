@@ -450,16 +450,42 @@ for (const project of PROJECTS) {
 progress('the leaving callers');
 // Per project, a caller with two open leads of their own in company 1, made afresh on every run
 // (the Move all leads journey moves them away), so the Team members list always has one to move.
+// A second caller per project sits in the calling team, so the Sales Team Lead's own move of a
+// leaving caller's leads (Lead converters, handover.spec.ts) has two leads of the team to move.
+const [callingTeam] = await asMigrator(
+  (m) => m<{ id: string }[]>`select id from teams where entity_id = 1 and name = ${CALLING_TEAM}`,
+);
 for (const project of PROJECTS) {
-  const email = emailFor(`leaver-${project}`);
-  const leaverId = await ensureUser(email, `E2E leaver ${project}`, 'tele_caller_cc', [1]);
-  const principal = principalFor('tele_caller_cc', [1], { id: leaverId });
+  for (const inTeam of [false, true]) {
+    if (inTeam && callingTeam === undefined) continue;
+    const email = emailFor(`${inTeam ? 'team-leaver' : 'leaver'}-${project}`);
+    const leaverId = await ensureUser(
+      email,
+      `${inTeam ? 'E2E team leaver' : 'E2E leaver'} ${project}`,
+      'tele_caller_cc',
+      [1],
+    );
+    if (inTeam) {
+      await asMigrator(
+        (m) => m`update user_entity_roles set team_id = ${callingTeam?.id ?? ''}
+                  where user_id = ${leaverId} and entity_id = 1`,
+      );
+    }
+    const principal = principalFor('tele_caller_cc', [1], {
+      id: leaverId,
+      ...(inTeam && callingTeam !== undefined ? { teamId: callingTeam.id } : {}),
+    });
+    await leaverLeads(principal, inTeam ? `team ${project}` : project);
+  }
+}
+
+async function leaverLeads(principal: ReturnType<typeof principalFor>, label: string) {
   for (const n of [1, 2]) {
     const digits = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
     await executeCommand(principal, {}, createLead, {
       entityId: 1,
       pipelineKey: 'farmer_pumps',
-      contact: { name: `Leaver customer ${project} ${String(n)}`, phone: digits },
+      contact: { name: `Leaver customer ${label} ${String(n)}`, phone: digits },
       account: { type: 'farm' },
       site: { type: 'borewell', village: 'Kishangarh', pin: '305801' },
       consent: {

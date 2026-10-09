@@ -197,3 +197,30 @@ test.describe('a leaving caller', () => {
     await expect(page.getByText(`${leaver} had no leads to move.`)).toBeVisible();
   });
 });
+
+test.describe('a leaving caller of the team lead’s own team', () => {
+  test.use(signedInAs('teamLead'));
+
+  test('has all their leads moved from the Lead converters page', async ({ page }) => {
+    test.slow();
+    const leaver = `E2E team leaver ${projectName()}`;
+    await page.goto('/converters');
+    const table = dataGrid(page, 'People who work on leads and their part in the handover');
+    const row = table.locator('tr, li').filter({ hasText: leaver }).first();
+    await row.getByRole('button', { name: `Move all leads from ${leaver}` }).click();
+    const dialog = page.getByRole('dialog', { name: `Move all leads from ${leaver}` });
+    await dialog.getByLabel('Give the leads to').selectOption({ label: 'Kishan Verma' });
+    await expectNoAxeViolations(page, { include: '[role="dialog"]' });
+    await dialog.getByRole('button', { name: 'Move leads' }).click();
+    await expect(
+      page.getByText(`2 leads moved from ${leaver}. Leads outside your team stay with ${leaver}.`),
+    ).toBeVisible({ timeout: 30_000 });
+
+    // Nothing of the team is left with them: a second run finds no lead to move.
+    await row.getByRole('button', { name: `Move all leads from ${leaver}` }).click();
+    const again = page.getByRole('dialog', { name: `Move all leads from ${leaver}` });
+    await again.getByLabel('Give the leads to').selectOption({ label: 'Kishan Verma' });
+    await again.getByRole('button', { name: 'Move leads' }).click();
+    await expect(page.getByText(`${leaver} had no leads to move.`).first()).toBeVisible();
+  });
+});
