@@ -223,6 +223,71 @@ const frameworkImports = {
 // the values it needs are copied in apps/web/src/screens/contract-values.ts, whose test keeps them
 // equal to the contracts. The rule checks every 'use client' file, and with `everyFile` every file
 // of the folders whose modules the browser loads.
+// A button that acts on a form field sits on the field's own line, in `Field`'s `actions` row
+// (docs/08-design-system.md §6). Lining it up by the container's `items-end`/`items-baseline`, or
+// by `self-end`, a top margin, top padding or a nudge on the button, puts it level with the
+// bottom of the field block, helper text and error included, so it sits below the box. The
+// journeys measure the result (apps/web/e2e/support/alignment.ts); this rule stops the pattern
+// as it is written.
+const FIELD_ELEMENTS = new Set(['Field']);
+const BUTTON_ELEMENTS = new Set(['Button', 'button']);
+const CONTAINER_ALIGN = /(^|\s)([\w-]+:)*items-(end|baseline)(\s|$)/;
+const BUTTON_NUDGE =
+  /(^|\s)([\w-]+:)*(self-(end|baseline)|-?mt-\S+|pt-\S+|-?translate-y-\S+)(\s|$)/;
+function jsxName(node) {
+  return node.openingElement.name.type === 'JSXIdentifier' ? node.openingElement.name.name : '';
+}
+function classNameOf(node) {
+  const attr = node.openingElement.attributes.find(
+    (a) => a.type === 'JSXAttribute' && a.name.name === 'className',
+  );
+  if (!attr || !attr.value) return '';
+  if (attr.value.type === 'Literal') return String(attr.value.value);
+  const expr = attr.value.type === 'JSXExpressionContainer' ? attr.value.expression : undefined;
+  if (expr?.type === 'Literal') return String(expr.value);
+  if (expr?.type === 'TemplateLiteral') return expr.quasis.map((q) => q.value.cooked).join(' ');
+  return '';
+}
+const fieldButtonAlignment = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      container:
+        "A button beside a Field is not lined up by `{{cls}}`: it lands level with the helper text, below the box. Put the button in the Field's `actions` (docs/08-design-system.md §6).",
+      button:
+        "A button beside a Field is not nudged into line with `{{cls}}`: put it in the Field's `actions` (docs/08-design-system.md §6).",
+    },
+  },
+  create(context) {
+    return {
+      JSXElement(node) {
+        const kids = node.children.filter((c) => c.type === 'JSXElement');
+        if (!kids.some((c) => FIELD_ELEMENTS.has(jsxName(c)))) return;
+        const buttons = kids.filter((c) => BUTTON_ELEMENTS.has(jsxName(c)));
+        if (buttons.length === 0) return;
+        const container = classNameOf(node).match(CONTAINER_ALIGN);
+        if (container) {
+          context.report({
+            node: node.openingElement,
+            messageId: 'container',
+            data: { cls: container[0].trim() },
+          });
+        }
+        for (const b of buttons) {
+          const nudge = classNameOf(b).match(BUTTON_NUDGE);
+          if (nudge)
+            context.report({
+              node: b.openingElement,
+              messageId: 'button',
+              data: { cls: nudge[0].trim() },
+            });
+        }
+      },
+    };
+  },
+};
+
 const CONTRACTS_MODULE = /^@shakti\/contracts(\/|$)/;
 const browserContractTypes = {
   meta: {
@@ -486,8 +551,15 @@ export default tseslint.config(
     // Browser code takes only types from the contracts (see browserContractTypes above).
     files: ['apps/web/src/**/*.{ts,tsx}', 'packages/ui/src/**/*.{ts,tsx}'],
     ignores: ['**/*.test.{ts,tsx}'],
-    plugins: { shakti: { rules: { 'browser-contract-types': browserContractTypes } } },
-    rules: { 'shakti/browser-contract-types': 'error' },
+    plugins: {
+      shakti: {
+        rules: {
+          'browser-contract-types': browserContractTypes,
+          'field-button-alignment': fieldButtonAlignment,
+        },
+      },
+    },
+    rules: { 'shakti/browser-contract-types': 'error', 'shakti/field-button-alignment': 'error' },
   },
   {
     // The folders whose modules client components import, with or without 'use client'. The

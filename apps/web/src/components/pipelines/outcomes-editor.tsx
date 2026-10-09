@@ -76,7 +76,7 @@ export function OutcomesEditor({
           {drafts.map((d, i) => (
             <li
               key={d.rowId}
-              className="border-border grid gap-3 rounded-lg border p-3 sm:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+              className="border-border grid gap-3 rounded-lg border p-3 sm:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)] sm:items-start"
             >
               <Field id={`outcome-${d.rowId}-key`} label={t('outcomeKey')}>
                 <Select
@@ -104,7 +104,35 @@ export function OutcomesEditor({
                   }}
                 />
               </Field>
-              <Field id={`outcome-${d.rowId}-next`} label={t('outcomeNext')}>
+              <Field
+                id={`outcome-${d.rowId}-next`}
+                label={t('outcomeNext')}
+                actions={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    aria-label={
+                      d.label.trim() === ''
+                        ? t('removeUnnamed')
+                        : t('removeLabel', { name: d.label.trim() })
+                    }
+                    onClick={() => {
+                      setDrafts((all) => all.filter((x) => x.rowId !== d.rowId));
+                      // Focus stays in the list: on the row that takes this one's place.
+                      setTimeout(() => {
+                        const next = drafts[i + 1] ?? drafts[i - 1];
+                        document
+                          .getElementById(
+                            next === undefined ? 'outcomes-add' : `outcome-${next.rowId}-key`,
+                          )
+                          ?.focus();
+                      });
+                    }}
+                  >
+                    {t('remove')}
+                  </Button>
+                }
+              >
                 <Select
                   value={d.nextAction}
                   onChange={(e) => {
@@ -118,29 +146,6 @@ export function OutcomesEditor({
                   ))}
                 </Select>
               </Field>
-              <Button
-                type="button"
-                variant="ghost"
-                aria-label={
-                  d.label.trim() === ''
-                    ? t('removeUnnamed')
-                    : t('removeLabel', { name: d.label.trim() })
-                }
-                onClick={() => {
-                  setDrafts((all) => all.filter((x) => x.rowId !== d.rowId));
-                  // Focus stays in the list: on the row that takes this one's place.
-                  setTimeout(() => {
-                    const next = drafts[i + 1] ?? drafts[i - 1];
-                    document
-                      .getElementById(
-                        next === undefined ? 'outcomes-add' : `outcome-${next.rowId}-key`,
-                      )
-                      ?.focus();
-                  });
-                }}
-              >
-                {t('remove')}
-              </Button>
             </li>
           ))}
         </ul>

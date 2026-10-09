@@ -31,7 +31,7 @@ You are a building agent on Shakti Prime BOS. The lead session (on the owner's P
 - Weaken, skip or delete a test to make it pass; disable a lint rule, RLS, a policy or a check; add `eslint-disable` without a written reason the lead session would accept.
 - Invent client data (tax rates, prices, numbering, scripts, targets). A client input becomes a named default in `packages/domain/src/workshop-defaults.ts` only when your brief says so.
 - Write user-facing text outside `apps/web/messages/en.json`, or text that is not final plain English (`docs/08-design-system.md` §11).
-- Line a button up with a field by `items-end`, `pb-*` or a fixed margin: a button that acts on a field goes in the field's `actions` (`docs/08-design-system.md` §6); the journeys' accessibility check fails a button out of line with its box.
+- Line a button up with a field by `items-end`, `pb-*` or a fixed margin: a button that acts on a field goes in the field's `actions` (`docs/08-design-system.md` §6); lint (`shakti/field-button-alignment`) rejects the pattern and the journeys' accessibility check fails a button out of line with its box.
 
 ## Migrations
 Generate them normally (`pnpm db:generate`, then `drizzle-kit generate --custom` for RLS, grants and functions). Your numbers start after `main`'s last; the lead session renumbers them at the merge, so never cite a migration number in code. Never edit a migration that exists on `main`.

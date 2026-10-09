@@ -353,19 +353,18 @@ function AddStageForm({
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-2">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <Field
-          id={`${pipelineId}-new-stage`}
-          label={t('newStage')}
-          error={fieldError('name')}
-          className="sm:flex-1"
-        >
-          <Input name="name" required minLength={2} maxLength={60} autoComplete="off" />
-        </Field>
-        <Button type="submit" variant="secondary" pending={pending}>
-          {t('addStage')}
-        </Button>
-      </div>
+      <Field
+        id={`${pipelineId}-new-stage`}
+        label={t('newStage')}
+        error={fieldError('name')}
+        actions={
+          <Button type="submit" variant="secondary" pending={pending}>
+            {t('addStage')}
+          </Button>
+        }
+      >
+        <Input name="name" required minLength={2} maxLength={60} autoComplete="off" />
+      </Field>
       <FailureMessage failure={formFailure} />
     </form>
   );
