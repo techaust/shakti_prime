@@ -129,6 +129,30 @@ revoke execute on function app.caller_profile_people(smallint) from public, read
 grant execute on function app.caller_profile_people(smallint) to app_user, app_reader;
 --> statement-breakpoint
 
+-- 4b. A version 7 id for the rows a definer writes (the contracts accept only version 7 ids): the
+--     millisecond clock in the first six bytes, random bits after, as newId() makes them.
+create or replace function app.new_uuid7() returns uuid
+  language sql volatile set search_path = '' as $$
+  select pg_catalog.encode(
+    pg_catalog.set_bit(
+      pg_catalog.set_bit(
+        overlay(
+          pg_catalog.uuid_send(pg_catalog.gen_random_uuid())
+          placing substring(
+            pg_catalog.int8send(
+              pg_catalog.floor(extract(epoch from pg_catalog.clock_timestamp()) * 1000)::bigint)
+            from 3)
+          from 1 for 6),
+        52, 1),
+      53, 1),
+    'hex')::uuid
+$$;
+--> statement-breakpoint
+revoke execute on function app.new_uuid7() from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.new_uuid7() to app_user;
+--> statement-breakpoint
+
 -- 5. Shared check of the handover definers: the handover permission (platform-only, held by
 --    system:workers alone) and a company of the request.
 create or replace function app.require_handover(p_entity smallint) returns void
@@ -294,7 +318,7 @@ begin
   v_until := pg_catalog.now() + pg_catalog.make_interval(hours => v_hours);
 
   insert into public.activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id, payload_json)
-    values (pg_catalog.gen_random_uuid(), p_entity, p_opportunity, v_lead.account_id, 'assigned', v_actor,
+    values (app.new_uuid7(), p_entity, p_opportunity, v_lead.account_id, 'assigned', v_actor,
             pg_catalog.jsonb_build_object('fromOwnerId', v_lead.owner_id, 'ownerId', p_owner,
                                           'teamId', v_team, 'handoverEventId', p_event));
 
@@ -304,15 +328,15 @@ begin
        and t.kind in ('callback', 'nurture') and t.assignee_id <> p_owner
      order by t.due_at, t.id
   loop
-    v_new := pg_catalog.gen_random_uuid();
+    v_new := app.new_uuid7();
     v_due := greatest(v_task.due_at, pg_catalog.now());
     insert into public.tasks (id, entity_id, opportunity_id, account_id, assignee_id, team_id, kind, title, due_at, created_by)
       values (v_new, p_entity, p_opportunity, v_lead.account_id, p_owner, v_team, v_task.kind, v_task.title, v_due, v_actor);
     update public.tasks set state = 'cancelled', updated_by = v_actor where id = v_task.id;
     insert into public.activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id, payload_json) values
-      (pg_catalog.gen_random_uuid(), p_entity, p_opportunity, v_lead.account_id, 'task_created', v_actor,
+      (app.new_uuid7(), p_entity, p_opportunity, v_lead.account_id, 'task_created', v_actor,
        pg_catalog.jsonb_build_object('taskId', v_new, 'kind', v_task.kind, 'dueAt', v_due, 'assigneeId', p_owner)),
-      (pg_catalog.gen_random_uuid(), p_entity, p_opportunity, v_lead.account_id, 'task_cancelled', v_actor,
+      (app.new_uuid7(), p_entity, p_opportunity, v_lead.account_id, 'task_cancelled', v_actor,
        pg_catalog.jsonb_build_object('taskId', v_task.id, 'kind', v_task.kind));
     v_moved := v_moved || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
       'oldId', v_task.id, 'newId', v_new, 'kind', v_task.kind, 'dueAt', v_due));
@@ -339,7 +363,7 @@ create or replace function app.handover_route_to_team_lead(p_entity smallint, p_
   returns uuid
   language plpgsql volatile security definer set search_path = '' as $$
 declare
-  v_item uuid := pg_catalog.gen_random_uuid();
+  v_item uuid := app.new_uuid7();
   v_lead uuid;
   v_segment text;
 begin

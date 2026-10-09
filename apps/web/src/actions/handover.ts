@@ -37,9 +37,10 @@ async function change<T>(
     const principal = await signedIn();
     const input = parseInput(schema, rawInput);
     const meta = await requestMeta();
+    // Narrowed to the one company the input names, so a team lead's team scope applies there.
     return (await executeCommand(
       principal,
-      { requestId: meta.requestId },
+      { requestId: meta.requestId, entityIds: [(input as { entityId: number }).entityId] },
       command,
       input,
       commandOptions(meta, idempotencyKey),
@@ -55,9 +56,14 @@ export async function listCallerProfiles(
     const principal = await signedIn();
     const input = parseInput(CallerCompanyInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => listQuery(context, input), {
-      name: 'listCallerProfiles',
-    });
+    return executeQuery(
+      principal,
+      { requestId, entityIds: [input.entityId] },
+      (context) => listQuery(context, input),
+      {
+        name: 'listCallerProfiles',
+      },
+    );
   });
 }
 

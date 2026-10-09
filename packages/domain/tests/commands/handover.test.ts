@@ -1,5 +1,6 @@
 import {
   AGENT_PRINCIPAL_IDS,
+  IdSchema,
   newId,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   type Principal,
@@ -328,6 +329,14 @@ describe('the handover', () => {
     expect(timeline.map((r) => r.type)).toEqual(
       expect.arrayContaining(['assigned', 'task_created', 'task_cancelled']),
     );
+    // The contracts read only version 7 ids, so the rows a definer writes carry them.
+    const written = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        select id::text from activities where opportunity_id = ${lead.id}
+        union all select id::text from tasks where opportunity_id = ${lead.id}`,
+    );
+    expect(written.length).toBeGreaterThan(3);
+    for (const row of written) expect(IdSchema.safeParse(row.id).success).toBe(true);
     const audited = await asMigrator(
       (m) =>
         m<{ aggregate_type: string }[]>`

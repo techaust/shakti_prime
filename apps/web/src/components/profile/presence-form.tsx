@@ -3,7 +3,7 @@
 import type { CallerPresence } from '@shakti/contracts';
 import { toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { savePresence } from '../../actions/handover';
 import { FailureMessage } from '../screens/failure';
 import { useCommand } from '../screens/use-command';
@@ -26,13 +26,16 @@ export function PresenceForm({ rows }: { rows: PresenceRow[] }) {
 
   function change(row: PresenceRow, present: boolean) {
     const presence: CallerPresence = present ? 'present' : 'away';
+    // The switch moves at once and goes back when the change is not saved.
+    setState((all) => all.map((r) => (r.entityId === row.entityId ? { ...r, presence } : r)));
     run({ entityId: row.entityId, presence }, (saved) => {
-      setState((all) =>
-        all.map((r) => (r.entityId === row.entityId ? { ...r, presence: saved.presence } : r)),
-      );
       toast.success(t(saved.presence, { company: row.company }));
     });
   }
+
+  useEffect(() => {
+    if (failure !== undefined) setState(rows);
+  }, [failure, rows]);
 
   return (
     <div className="flex flex-col gap-3">
