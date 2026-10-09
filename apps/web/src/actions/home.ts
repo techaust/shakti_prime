@@ -30,7 +30,6 @@ import { requestMeta, signedInIn } from './support';
  * every read answers one entry per company of its request.
  */
 async function inEach<T>(
-  name: string,
   entityIds: readonly number[],
   query: (context: Parameters<Parameters<typeof executeQuery>[2]>[0]) => Promise<T[]>,
 ): Promise<T[]> {
@@ -38,7 +37,9 @@ async function inEach<T>(
   const parts = await Promise.all(
     entityIds.map(async (entityId) => {
       const principal = await signedInIn(entityId);
-      return executeQuery(principal, { entityIds: [entityId], requestId }, query, { name });
+      return executeQuery(principal, { entityIds: [entityId], requestId }, query, {
+        name: 'homeSection',
+      });
     }),
   );
   return parts.flat();
@@ -48,18 +49,14 @@ async function inEach<T>(
 export async function homeCaller(
   entityIds: readonly number[],
 ): Promise<ActionResult<CallerHomeDto[]>> {
-  return toResult('homeCaller', () =>
-    inEach('homeCaller', entityIds, (context) => homeCallerQuery(context)),
-  );
+  return toResult('homeCaller', () => inEach(entityIds, (context) => homeCallerQuery(context)));
 }
 
 /** The open leads by stage of each pipeline. */
 export async function homePipeline(
   entityIds: readonly number[],
 ): Promise<ActionResult<PipelineStagesDto[]>> {
-  return toResult('homePipeline', () =>
-    inEach('homePipeline', entityIds, (context) => homePipelineQuery(context)),
-  );
+  return toResult('homePipeline', () => inEach(entityIds, (context) => homePipelineQuery(context)));
 }
 
 /** First calls past their limit, per company. */
@@ -67,7 +64,7 @@ export async function homeResponseTimes(
   entityIds: readonly number[],
 ): Promise<ActionResult<ResponseTimeDto[]>> {
   return toResult('homeResponseTimes', () =>
-    inEach('homeResponseTimes', entityIds, (context) => homeResponseTimesQuery(context)),
+    inEach(entityIds, (context) => homeResponseTimesQuery(context)),
   );
 }
 
@@ -75,16 +72,12 @@ export async function homeResponseTimes(
 export async function homeSales(
   entityIds: readonly number[],
 ): Promise<ActionResult<SalesHomeDto[]>> {
-  return toResult('homeSales', () =>
-    inEach('homeSales', entityIds, (context) => homeSalesQuery(context)),
-  );
+  return toResult('homeSales', () => inEach(entityIds, (context) => homeSalesQuery(context)));
 }
 
 /** Dealer credit, per company. */
 export async function homeCredit(
   entityIds: readonly number[],
 ): Promise<ActionResult<CreditHomeDto[]>> {
-  return toResult('homeCredit', () =>
-    inEach('homeCredit', entityIds, (context) => homeCreditQuery(context)),
-  );
+  return toResult('homeCredit', () => inEach(entityIds, (context) => homeCreditQuery(context)));
 }

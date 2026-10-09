@@ -7,7 +7,7 @@
 | Runs on | PC only, beside T2 (owner, 09-10-2026: two builders this run), heavy commands through the PC's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | B (permissions, home pages over existing commands): build Sonnet medium, review Opus |
 | Usage | build (Sonnet, medium, 09-10-2026): 75 % of the week at its start; review fixes (Sonnet, medium, 09-10-2026): 81 % at its start |
-| State | built, checks pass; Linux baselines not made |
+| State | built, reviewed, review fixes done; Linux baselines not made |
 | Next step | review (Opus) |
 
 ## Brief
@@ -82,6 +82,23 @@ Small tables (`targets`, `teams`) plan as sequential scans.
 - The two calls the seed logs for the tele-caller stand in for in-hours calling.
 - At merge after T2: renumber 0124 and 0125, and check matrix offsets 0x46 to 0x48 and `nav.ts`.
 - The scroll regions of my tables are focusable (axe); the existing team-queues table was not changed.
+
+### Review fixes, 09-10-2026, PC (Sonnet, medium)
+Migrations 0124/0125 edited in place (applied nowhere hosted); the slot database was migrated and seeded after the edit.
+- **1** Each home section now reads once in each company where the person's role gives it (`sectionEntities()`), as the person acts there: the new `principalForEntity()` (domain `resolve-principal.ts`) gives that company's role, grants and team, and the actions `homeCaller`, `homePipeline`, `homeResponseTimes`, `homeSales`, `homeCredit`, `myProgress`, `teamProgress` and `listTeamQueues` use it. Tests: a mixed-roles person (team lead in company 2, caller in company 1) has no `sales.targets.write` in All companies, has it in company 2 and gets a team view with no failure; `sectionEntities` unit test.
+- **2** Two definers in 0125, `app.target_caller_in_team()` and `app.target_caller_ok()`; the read policy lets a team lead read a caller's rows by the caller's current team (`team_id` stays as a record). Tests in db and domain: a moved caller shows on the new lead's leaderboard, Targets page and own home, and not for the old lead; the old lead can no longer set. The matrix fixture's "other user" now sits in the team (it was in none, so the lead's rule saw no row).
+- **3** `responseTimeSql` scans open leads or leads of the last 30 days; `pipelines_with_limit` is now counted from `pipelines` (otherwise a limit with no recent lead read as "no limit"). EXPLAIN (ANALYZE) with a 60-minute limit set in the spike (about 5,800 leads, all inside 30 days, so the filter cannot narrow here, the worst case): 35 to 41 ms on a quiet PC, 98 ms while T2's journeys ran; index scan on `opportunities_queue_idx`, one `calls_opportunity_started_idx` probe per lead.
+- **4** At integration (the lead converts "Save target" to `Field`'s `actions` row once main has it).
+- **5** `ScrollTable` (client, `useScrolls()`) wraps the three tables; focusable only while they scroll.
+- **6** The history says "The 30 targets set most recently" under "Recently set".
+- **7** The Executive table is headed "Quotes and orders"; its columns say which are this month's.
+- **8** The command and the insert policy accept an active person who holds `calls.log` for a caller target. Tests for an offboarded person and a field engineer, in the command and the policy.
+- **9** Blank lines around "Built (R1)" in phase1.md; the text also describes the 30 newest and per-company sections.
+- **10** Three `target_actuals` cases: a call, a lead order and a dealer order exactly at the period's end count nowhere; a sizing made after the confirmation does not change the kW; the system principal is refused.
+- **11** Follow-up only (seed at midnight IST).
+Also: `grants.test.ts` lists the two definers; docs DATABASE and SECURITY, `docs/data` regenerated.
+
+**Checks.** Typecheck clean. `pnpm test`: contracts 181, tokens 134, ui 105, copy-lint 17, db 129, domain 1,977, web 724 plus the repaired query-name check. `pnpm test:security`: db 39 files and 1,173 tests, domain 68 and 879, web 20 and 297, all passed. `db:docs`, `machines:docs`, `copy-lint`, `format:check`, `pnpm build`, `js-budget` clean. Journeys `targets.spec.ts`, `access.spec.ts`, `leads.spec.ts` seeded: 80 passed. `pnpm lint` clean (last). The executive heading change needs the `home-executive` Linux baseline remade with the other new shots.
 
 ## Review
 | # | Severity | Finding | State |
