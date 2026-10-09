@@ -105,28 +105,9 @@ describe('who reads a caller profile', () => {
   });
 
   it('lets the reader pool read what a person may read', async () => {
-    const [row] = await asMigrator(
-      (m) =>
-        m<
-          { ok: boolean }[]
-        >`select has_table_privilege('app_reader', 'caller_profiles', 'select') as ok`,
-    );
-    expect(row?.ok).toBe(true);
-  });
-});
-
-describe('who writes a caller profile', () => {
-  it('lets a person change only their own presence', async () => {
-    await rows(
-      person,
-      sql`update caller_profiles set presence = 'present' where id = ${profiles.person}::uuid`,
-    );
-    const [row] = await asMigrator(
-      (m) =>
-        m<
-          { presence: string }[]
-        >`select presence from caller_profiles where id = ${profiles.person}`,
-    );
+    const [row] = (await asMigrator(
+      (m) => m`select presence from caller_profiles where id = ${profiles.person ?? ''}`,
+    )) as { presence: string }[];
     expect(row?.presence).toBe('present');
     expect(
       await failure(

@@ -362,8 +362,14 @@ export function MoveLeadsForm({
   };
   // Loaded once when the dialog opens.
   useEffect(() => {
-    fetchPeople(entityId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- first load only; a change of company loads in its handler
+    load(
+      () => listCallerProfiles({ entityId }),
+      (list) => {
+        setPeople(list.filter((p) => p.userId !== user.id));
+      },
+    );
+    // First load only; a change of company loads in its own handler.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {

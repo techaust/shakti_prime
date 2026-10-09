@@ -1,4 +1,4 @@
-import { HandOverLeadDto, type DeliveredEvent } from '@shakti/contracts';
+import type { DeliveredEvent, HandOverLeadDto } from '@shakti/contracts';
 import { executeCommand, handOverLead, type KeyValue } from '@shakti/domain';
 import type { EventHandlerContext } from '../events/registry';
 

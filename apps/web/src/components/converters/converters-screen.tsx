@@ -73,7 +73,7 @@ export function ConvertersScreen({
       id: 'capacity',
       header: t('columns.capacity'),
       numeric: true,
-      cell: (p) => (p.maxOpen === null ? t('noLimit') : p.maxOpen),
+      cell: (p) => p.maxOpen ?? t('noLimit'),
     },
     {
       id: 'languages',

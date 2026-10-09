@@ -3,7 +3,7 @@
 import type { CallerPresence } from '@shakti/contracts';
 import { toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { savePresence } from '../../actions/handover';
 import { FailureMessage } from '../screens/failure';
 import { useCommand } from '../screens/use-command';
@@ -22,20 +22,20 @@ export interface PresenceRow {
 export function PresenceForm({ rows }: { rows: PresenceRow[] }) {
   const t = useTranslations('profile.presence');
   const [state, setState] = useState(rows);
+  const [asked, setAsked] = useState<{ entityId: number; presence: CallerPresence } | undefined>();
   const { run, pending, failure } = useCommand(savePresence);
 
   function change(row: PresenceRow, present: boolean) {
     const presence: CallerPresence = present ? 'present' : 'away';
-    // The switch moves at once and goes back when the change is not saved.
-    setState((all) => all.map((r) => (r.entityId === row.entityId ? { ...r, presence } : r)));
+    // The switch moves at once and goes back on its own when the change is not saved.
+    setAsked({ entityId: row.entityId, presence });
     run({ entityId: row.entityId, presence }, (saved) => {
+      setState((all) =>
+        all.map((r) => (r.entityId === row.entityId ? { ...r, presence: saved.presence } : r)),
+      );
       toast.success(t(saved.presence, { company: row.company }));
     });
   }
-
-  useEffect(() => {
-    if (failure !== undefined) setState(rows);
-  }, [failure, rows]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -46,7 +46,10 @@ export function PresenceForm({ rows }: { rows: PresenceRow[] }) {
           <input
             type="checkbox"
             className="accent-accent size-4"
-            checked={row.presence === 'present'}
+            checked={
+              (pending && asked?.entityId === row.entityId ? asked.presence : row.presence) ===
+              'present'
+            }
             disabled={pending}
             onChange={(e) => {
               change(row, e.currentTarget.checked);

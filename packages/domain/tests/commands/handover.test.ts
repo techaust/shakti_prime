@@ -97,6 +97,13 @@ function run<T = unknown>(principal: Principal, command: AnyCommand, input: unkn
   ) as Promise<T>;
 }
 
+/** The one lead a list holds. */
+function only(list: Lead[]): Lead {
+  const first = list[0];
+  if (!first) throw new Error('no lead');
+  return first;
+}
+
 function refusal(work: Promise<unknown>): Promise<unknown> {
   return work.then(
     () => undefined,
@@ -626,7 +633,7 @@ describe('crm.lead.reassign_all', () => {
       run(gm, reassignAllLeads, { entityId: CO, fromUserId: leaver.id, toUserId: null }),
     );
     expect(reason(none)).toBe('reassign_no_converter');
-    expect((await leadState(mine[0] as Lead)).owner_id).toBe(leaver.id);
+    expect((await leadState(only(mine))).owner_id).toBe(leaver.id);
 
     const suspended = await createTestUser(
       [{ entityId: CO, roleKey: 'tele_caller_lc', teamId: team }],
@@ -668,6 +675,6 @@ describe('crm.lead.reassign_all', () => {
     if ((result as { moved?: number }).moved !== undefined) {
       expect((result as { moved: number }).moved).toBe(0);
     }
-    expect((await leadState(mine[0] as Lead)).owner_id).toBe(leaver.id);
+    expect((await leadState(only(mine))).owner_id).toBe(leaver.id);
   });
 });
