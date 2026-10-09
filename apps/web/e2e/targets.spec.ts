@@ -200,8 +200,6 @@ test.describe('the Executive’s home', () => {
     ).toBeVisible();
     await expect(page.getByText(/margin|profit/i)).toHaveCount(0);
     await expectNoAxeViolations(page);
-    await snap(page, 'home-executive', {
-      mask: [page.locator('main table'), page.locator('main dl'), page.locator('time')],
-    });
+    // No screenshot: the page shows figures other journeys make, in an order CI does not fix (STATUS follow-up).
   });
 });
