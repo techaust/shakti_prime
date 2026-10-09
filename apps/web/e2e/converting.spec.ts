@@ -158,7 +158,7 @@ test.describe('converting as a Lead Converter', () => {
     // the callback, with the time asked for in a dialog.
     if (inCallingHours()) {
       await page.keyboard.press('d');
-      await expect(page.getByText('Number to dial')).toBeVisible();
+      await expect(page.getByText('Number to dial', { exact: true })).toBeVisible();
       await page.keyboard.press('c');
       const dialog = page.getByRole('dialog');
       await expect(
