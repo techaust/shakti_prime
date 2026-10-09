@@ -68,7 +68,11 @@ export function appliedAutonomy(
     )
     .sort((a, b) => specificity(b) - specificity(a))[0];
   if (isShadowOnly(actionType)) {
-    return { autonomy: 'shadow', source: found === undefined ? 'default' : sourceOf(found), automaticHeld: false };
+    return {
+      autonomy: 'shadow',
+      source: found === undefined ? 'default' : sourceOf(found),
+      automaticHeld: false,
+    };
   }
   if (found === undefined) {
     return { autonomy: startingAutonomy(agent), source: 'default', automaticHeld: false };

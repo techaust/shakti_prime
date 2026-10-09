@@ -3954,7 +3954,7 @@
         "qualified": "Reached Qualified, score {score}",
         "lost": "Lost, score {score}",
         "nurture": "In nurture, score {score}",
-        "open": "Still open, score {score}",
+        "stillOpen": "Still open, score {score}",
         "merged": "Merged as one",
         "dismissed": "Set aside as not the same",
         "openCard": "Not decided yet",

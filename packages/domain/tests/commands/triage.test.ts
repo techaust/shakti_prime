@@ -140,7 +140,13 @@ async function leadRow(id: string) {
 async function actionsOf(runIds: string[]) {
   return asMigrator(
     (m) => m<
-      { id: string; action_type: string; autonomy: string; state: string; input: Record<string, unknown> }[]
+      {
+        id: string;
+        action_type: string;
+        autonomy: string;
+        state: string;
+        input: Record<string, unknown>;
+      }[]
     >`select id, action_type, autonomy, state, input_json as input from agent_actions
         where run_id = any(${runIds}) order by action_type`,
   );
@@ -212,7 +218,14 @@ describe('the Triage agent in shadow', () => {
       const { transport, deps } = provider([fakeReply(GOOD)]);
       await runTriage(triage(lead.id), deps);
       const sent = JSON.stringify(transport.requests);
-      for (const text of [NAME, 'Ramesh', 'Ignore your rules', 'Sanganer', '9812345678', lead.phone]) {
+      for (const text of [
+        NAME,
+        'Ramesh',
+        'Ignore your rules',
+        'Sanganer',
+        '9812345678',
+        lead.phone,
+      ]) {
         expect(sent).not.toContain(text);
       }
       // People and leads only as labels.
@@ -244,9 +257,21 @@ describe('the Triage agent in shadow', () => {
       );
       expect(rows).toEqual([
         { action_type: 'crm.duplicate.suggest', outcome: 'nothing_to_do', filter_reason: null },
-        { action_type: 'crm.opportunity.assign', outcome: 'filtered', filter_reason: 'unknown_person' },
-        { action_type: 'triage.pipeline.choose', outcome: 'filtered', filter_reason: 'unknown_pipeline' },
-        { action_type: 'triage.score.adjust', outcome: 'filtered', filter_reason: 'score_out_of_bounds' },
+        {
+          action_type: 'crm.opportunity.assign',
+          outcome: 'filtered',
+          filter_reason: 'unknown_person',
+        },
+        {
+          action_type: 'triage.pipeline.choose',
+          outcome: 'filtered',
+          filter_reason: 'unknown_pipeline',
+        },
+        {
+          action_type: 'triage.score.adjust',
+          outcome: 'filtered',
+          filter_reason: 'score_out_of_bounds',
+        },
       ]);
       expect(await actionsOf(ids)).toEqual([]);
     } finally {

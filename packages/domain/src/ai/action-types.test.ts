@@ -52,9 +52,7 @@ describe('AGENT_ACTION_TYPES', () => {
     const triage = Object.values(AGENT_ACTION_TYPES).filter((t) =>
       t.agents.includes('agent:triage'),
     );
-    expect(triage.map((t) => t.name).sort()).toEqual(
-      Object.values(TRIAGE_ACTION_TYPES).sort(),
-    );
+    expect(triage.map((t) => t.name).sort()).toEqual(Object.values(TRIAGE_ACTION_TYPES).sort());
     expect(isShadowOnly(TRIAGE_ACTION_TYPES.pipeline)).toBe(true);
     expect(isShadowOnly(TRIAGE_ACTION_TYPES.score)).toBe(true);
     expect(isShadowOnly(TRIAGE_ACTION_TYPES.assignee)).toBe(false);

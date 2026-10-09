@@ -44,7 +44,10 @@ describe.each(['eval', 'injection'] as const)('the Triage agent’s %s set', (se
       expect(decision !== null && !('filtered' in decision)).toBe(true);
       if (decision !== null && !('filtered' in decision)) {
         expect(decision.input).toMatchObject(input);
-        expect(decision).toMatchObject({ subjectType: 'opportunity', subjectId: c.facts.opportunityId });
+        expect(decision).toMatchObject({
+          subjectType: 'opportunity',
+          subjectId: c.facts.opportunityId,
+        });
       }
     }
 

@@ -136,9 +136,7 @@ export async function loadAgentSettings(
         actionTypes: Object.values(AGENT_ACTION_TYPES)
           .filter((t) => t.agents.includes(agent))
           .map((t) => {
-            const record = records.find(
-              (x) => x.agent === agent && x.actionType === t.name,
-            );
+            const record = records.find((x) => x.agent === agent && x.actionType === t.name);
             return {
               actionType: t.name,
               shadowOnly: t.command === undefined,

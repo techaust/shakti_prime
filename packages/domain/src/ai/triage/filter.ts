@@ -71,14 +71,14 @@ export function noteProblem(note: string): AgentFilterReason | undefined {
 }
 
 /** The note as kept: trimmed, or left out when empty. */
-function keptNote(raw: string | null | undefined):
-  | { ok: true; note: string | undefined }
-  | { ok: false; reason: AgentFilterReason } {
+function keptNote(
+  raw: string | null | undefined,
+): { ok: true; note: string | undefined } | { ok: false; problem: AgentFilterReason } {
   const note = raw?.trim() ?? '';
   if (note === '') return { ok: true, note: undefined };
-  if (note.length > 160) return { ok: false, reason: 'text_has_instruction' };
+  if (note.length > 160) return { ok: false, problem: 'text_has_instruction' };
   const problem = noteProblem(note);
-  return problem === undefined ? { ok: true, note } : { ok: false, reason: problem };
+  return problem === undefined ? { ok: true, note } : { ok: false, problem };
 }
 
 const about = (facts: TriageFacts) =>
@@ -91,7 +91,7 @@ function pipeline(answer: Answer, facts: TriageFacts): TriageDecision {
     return { filtered: 'unknown_pipeline' };
   }
   const note = keptNote(p.note);
-  if (!note.ok) return { filtered: note.reason };
+  if (!note.ok) return { filtered: note.problem };
   return {
     input: {
       entityId: facts.entityId,
@@ -115,7 +115,7 @@ function score(answer: Answer, facts: TriageFacts): TriageDecision {
   const next = facts.score + change;
   if (next < 0 || next > 100) return { filtered: 'score_out_of_bounds' };
   const note = keptNote(s.note);
-  if (!note.ok) return { filtered: note.reason };
+  if (!note.ok) return { filtered: note.problem };
   return {
     input: {
       entityId: facts.entityId,
@@ -149,7 +149,11 @@ function assignee(answer: Answer, facts: TriageFacts): TriageDecision {
   const person = facts.people.find((p) => p.label === a.person);
   if (person === undefined) return { filtered: 'unknown_person' };
   return {
-    input: { entityId: facts.entityId, opportunityId: facts.opportunityId, ownerId: person.personId },
+    input: {
+      entityId: facts.entityId,
+      opportunityId: facts.opportunityId,
+      ownerId: person.personId,
+    },
     ...about(facts),
   };
 }

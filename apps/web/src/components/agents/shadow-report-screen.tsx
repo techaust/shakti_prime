@@ -70,9 +70,7 @@ export function ShadowReportScreen({
 
   const kindName = (kind: TriageProposalKind) => t(`kinds.${kind}`);
   const pipelineName = (key: string | null) =>
-    key !== null && oneOf(SEGMENTS, key)
-      ? activity(`values.segment.${key}`)
-      : t('otherPipeline');
+    key !== null && oneOf(SEGMENTS, key) ? activity(`values.segment.${key}`) : t('otherPipeline');
 
   function apply(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -140,7 +138,7 @@ export function ShadowReportScreen({
         if (r.leadState === 'nurture') return t('happened.nurture', { score });
         return r.reachedQualified === true
           ? t('happened.qualified', { score })
-          : t('happened.open', { score });
+          : t('happened.stillOpen', { score });
       case 'duplicate':
         return r.duplicateState === 'merged'
           ? t('happened.merged')

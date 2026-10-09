@@ -361,11 +361,11 @@ describe('Shadow (A1)', () => {
     );
     // Nobody decides on it: the update policy needs a proposed action, and the owner's trigger
     // keeps it as recorded.
-    const decided = (await runAs(
+    const decided = await runAs(
       executive,
       sql`update agent_actions set state = 'rejected', decided_by = ${executive.id}, decided_at = now()
            where id = ${action} returning id`,
-    )) as unknown[];
+    );
     expect(decided).toEqual([]);
     expect(
       await failure(
@@ -384,9 +384,9 @@ describe('Shadow (A1)', () => {
       ['shadowed', 'suggest'],
       ['proposed', 'shadow'],
     ] as const) {
-      expect(
-        await failure(runAs(agent(), insertAction(newId(), run, state, autonomy))),
-      ).toMatch(/agent_actions_shadow_check/);
+      expect(await failure(runAs(agent(), insertAction(newId(), run, state, autonomy)))).toMatch(
+        /agent_actions_shadow_check/,
+      );
     }
   });
 

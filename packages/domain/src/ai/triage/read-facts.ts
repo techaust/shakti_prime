@@ -59,9 +59,7 @@ export async function readTriageFacts(
     .innerJoin(p, eq(p.id, o.pipelineId))
     .innerJoin(st, eq(st.id, o.stageId))
     .leftJoin(ls, eq(ls.id, o.sourceId))
-    .where(
-      and(eq(o.id, lead.opportunityId), eq(o.entityId, lead.entityId), isNull(o.archivedAt)),
-    )
+    .where(and(eq(o.id, lead.opportunityId), eq(o.entityId, lead.entityId), isNull(o.archivedAt)))
     .limit(1);
   const segment = row === undefined ? undefined : segmentOf(row.segment);
   if (row === undefined || segment === undefined || row.state !== 'open') return undefined;

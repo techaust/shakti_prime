@@ -14,7 +14,10 @@ import { firstFailure } from '../../../../../screens/result';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return screenTitle(navRequires('admin-agents'), (await getTranslations('agents'))('shadow.title'));
+  return screenTitle(
+    navRequires('admin-agents'),
+    (await getTranslations('agents'))('shadow.title'),
+  );
 }
 
 /**
