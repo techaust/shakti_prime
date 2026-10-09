@@ -83,10 +83,7 @@ async function LeadPart({
 
 /** The General Manager's first-call response times and pipeline. */
 async function ManagerPart({ companies }: { companies: Companies }) {
-  const [response, pipelines] = await Promise.all([
-    homeResponseTimes(),
-    homePipeline('manager'),
-  ]);
+  const [response, pipelines] = await Promise.all([homeResponseTimes(), homePipeline('manager')]);
   if (!response.ok || !pipelines.ok) {
     return <FailureMessage failure={firstFailure(response, pipelines)} />;
   }

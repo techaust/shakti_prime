@@ -60,9 +60,7 @@ export async function homeCaller(): Promise<ActionResult<CallerHomeDto[]>> {
  * The open leads by stage of each pipeline, for the General Manager's or the Executive's
  * companies. Anything but those two sections is refused.
  */
-export async function homePipeline(
-  section: unknown,
-): Promise<ActionResult<PipelineStagesDto[]>> {
+export async function homePipeline(section: unknown): Promise<ActionResult<PipelineStagesDto[]>> {
   return toResult('homePipeline', () => {
     if (section !== 'manager' && section !== 'executive') {
       throw new DomainError('validation_failed', 'invalid section');
