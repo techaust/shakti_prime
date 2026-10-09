@@ -124,7 +124,9 @@ export function responseTimeSql(entityIds: readonly number[], now: Date) {
            count(*) filter (where fc.first_call is not null
                               and fc.first_call > o.created_at + make_interval(mins => pl.first_contact_sla_minutes)
                               and o.created_at >= ${at}::timestamptz - interval '30 days')::int as called_late,
-           count(distinct pl.id)::int as pipelines_with_limit
+           (select count(*)::int from pipelines p2
+             where p2.first_contact_sla_minutes is not null and p2.archived_at is null
+               and (p2.entity_id is null or p2.entity_id = o.entity_id)) as pipelines_with_limit
       from opportunities o
       join pipelines pl on pl.id = o.pipeline_id and pl.first_contact_sla_minutes is not null
       left join lateral (select min(c.started_at) as first_call from calls c

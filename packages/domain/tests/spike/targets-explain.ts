@@ -191,7 +191,21 @@ async function main() {
   await explain('home queue counts, a caller', caller, teamQueueCountsSql([caller.id], [E], NOW));
   await explain('pipeline by stage, the GM', gm, pipelineByStageSql([E]));
   await explain('pipeline by stage, the Executive', exec, pipelineByStageSql([1, 2, 3, 4]));
-  await explain('response times, the GM', gm, responseTimeSql([E], NOW));
+  // The pipeline's first-contact limit is set for this plan, then put back as it was.
+  const [before] = await asMigrator(
+    (m) =>
+      m<
+        { sla: number | null }[]
+      >`select first_contact_sla_minutes as sla from pipelines where id = ${pipeline.id}`,
+  );
+  await asMigrator(
+    (m) => m`update pipelines set first_contact_sla_minutes = 60 where id = ${pipeline.id}`,
+  );
+  await explain('response times, the GM, a limit set', gm, responseTimeSql([E], NOW));
+  await asMigrator(
+    (m) =>
+      m`update pipelines set first_contact_sla_minutes = ${before?.sla ?? null} where id = ${pipeline.id}`,
+  );
   await explain(
     'sales this month, the Executive',
     exec,
