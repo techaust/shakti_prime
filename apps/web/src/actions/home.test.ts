@@ -1,13 +1,15 @@
-import type { Principal } from '@shakti/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The home actions are public endpoints: the companies they read come from the session, never
 // from the caller's arguments, and a missing session is `unauthorized`.
-const state = vi.hoisted(() => ({
-  principal: undefined,
-  session: undefined,
-  calls: [] as { entityIds: readonly number[] | undefined; name: string | undefined }[],
-}));
+interface State {
+  principal: { id: string; entityIds: number[] } | undefined;
+  session:
+    | { access: { entities: { entityId: number; roleKey: string; entityName: string }[] } }
+    | undefined;
+  calls: { entityIds: readonly number[] | undefined; name: string | undefined }[];
+}
+const state = vi.hoisted((): State => ({ principal: undefined, session: undefined, calls: [] }));
 
 vi.mock('next/headers', () => ({ headers: () => Promise.resolve(new Headers()) }));
 vi.mock('../workers/outbox', () => ({ nudgeOutbox: () => undefined }));
@@ -16,9 +18,7 @@ vi.mock('../auth/current-principal', () => ({
   currentSession: () => Promise.resolve(state.session),
   currentPrincipalIn: (entityId: number) =>
     Promise.resolve(
-      (state.principal as Principal | undefined) === undefined
-        ? undefined
-        : { ...(state.principal as Principal), entityIds: [entityId] },
+      state.principal === undefined ? undefined : { ...state.principal, entityIds: [entityId] },
     ),
 }));
 vi.mock('@shakti/domain', async (importOriginal) => ({
@@ -38,7 +38,7 @@ const { homeCaller, homeCredit, homePipeline, homeResponseTimes } = await import
 const { myProgress } = await import('./targets');
 
 function signIn(roles: { entityId: number; roleKey: string }[], viewed: number[]): void {
-  state.principal = { id: 'u1', entityIds: viewed } as unknown;
+  state.principal = { id: 'u1', entityIds: viewed };
   state.session = { access: { entities: roles.map((r) => ({ ...r, entityName: 'Company' })) } };
 }
 

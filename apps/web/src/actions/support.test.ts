@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const state = vi.hoisted(() => ({ principal: undefined, held: true }));
+const state = vi.hoisted((): { principal: { id: string } | undefined; held: boolean } => ({
+  principal: undefined,
+  held: true,
+}));
 
 vi.mock('next/headers', () => ({ headers: () => Promise.resolve(new Headers()) }));
 vi.mock('../workers/outbox', () => ({ nudgeOutbox: () => undefined }));
