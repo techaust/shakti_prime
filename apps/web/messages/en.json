@@ -101,6 +101,9 @@
     "lead_missing": "We couldn't find this lead. It may have moved to a colleague or to another company.",
     "stage_not_open": "To close this lead, mark it as won or lost instead of moving it to that stage.",
     "assignee_not_eligible": "This person doesn't work on leads in this company. Choose someone who does.",
+    "profile_person_missing": "This person is not on your team in this company, so you can't change their settings.",
+    "reassign_no_converter": "No Lead Converter is present to take these leads. Choose a person instead.",
+    "reassign_same_person": "Choose someone other than the person who is leaving.",
     "sizing_incomplete": "The sizing is not finished. Complete the pump or solar sizing, then make the quote.",
     "pump_curve_out_of_bounds": "This pump can't lift the water at this depth and flow. Choose another pump or check the sizing.",
     "dcr_rule_failed": "This system doesn't meet the sanctioned load or the made-in-India panel rule for the subsidy. Check the sizing and the panels.",
@@ -425,7 +428,8 @@
     "adminAgents": "Agents",
     "knowledge": "Knowledge",
     "orders": "Orders",
-    "dealerCredit": "Dealer credit"
+    "dealerCredit": "Dealer credit",
+    "converters": "Lead converters"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -495,12 +499,20 @@
       "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
       "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
-      "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe."
+      "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
+      "converters": "Choose who takes qualified leads, how many each person takes and who is present."
     }
   },
   "profile": {
     "title": "Your profile",
-    "intro": "How the screens look for you, and your password."
+    "intro": "How the screens look for you, your password and whether you take new leads.",
+    "presence": {
+      "heading": "Taking new leads",
+      "intro": "When you are present, a qualified lead can be given to you if your manager has made you a Lead Converter. Switch to away when you cannot take more.",
+      "label": "I am present in {company}",
+      "present": "You are present in {company}.",
+      "away": "You are away in {company}."
+    }
   },
   "mail": {
     "setPassword": {
@@ -1247,7 +1259,20 @@
       "suspend": "Suspend",
       "reactivate": "Reactivate",
       "resetAuthenticator": "Reset authenticator app",
-      "liftLock": "Lift sign-in lock"
+      "liftLock": "Lift sign-in lock",
+      "moveLeads": "Move all leads"
+    },
+    "moveLeadsDialog": {
+      "title": "Move all leads from {name}",
+      "intro": "Every open lead and every lead set aside to follow up later goes to one person, with its calls. The customer goes with each lead.",
+      "company": "Company",
+      "target": "Give the leads to",
+      "choose": "Choose a person",
+      "inTurn": "Share them between the Lead Converters who are present",
+      "loading": "Finding people",
+      "nobody": "No one else works on leads in this company.",
+      "submit": "Move leads",
+      "done": "{count, plural, =0 {{name} had no leads to move.} one {# lead moved from {name}.} other {# leads moved from {name}.}}"
     },
     "rolesField": {
       "legend": "Role in each company",
@@ -1452,6 +1477,10 @@
       "customerMerge": "Customers merged",
       "customerUnmerge": "Customer merge undone",
       "leadMerge": "Leads merged",
+      "callerProfileSet": "Lead converter settings changed",
+      "callerProfileSetPresence": "Presence changed",
+      "leadHandOver": "Qualified lead given to a Lead Converter",
+      "leadReassignAll": "All leads of a person moved",
       "accountTierSet": "Customer's price tier set",
       "quoteCreate": "Quote made",
       "quoteSend": "Quote marked as sent",
@@ -1558,6 +1587,11 @@
       "empty": "Not set"
     },
     "fields": {
+      "isConverter": "Takes qualified leads",
+      "presence": "Presence",
+      "maxOpen": "Most open leads",
+      "languages": "Languages",
+      "segments": "Business lines",
       "displayName": "Name",
       "email": "Email",
       "phone": "Phone",
@@ -4018,6 +4052,53 @@
       "quantityTooLarge": "One line takes at most {max}. Lower the quantity on this line.",
       "back": "Back to the dealer",
       "made": "Order {number} made."
+    }
+  },
+  "converters": {
+    "title": "Lead converters",
+    "intro": "A qualified lead goes to a Lead Converter who is present, has room and takes the customer's language and business line, starting with the one who holds the fewest open leads. If no one qualifies, it goes to the Sales Team Lead.",
+    "caption": "People who work on leads and their part in the handover",
+    "company": "Company",
+    "empty": "No one works on leads in this company yet.",
+    "columns": {
+      "name": "Name",
+      "converter": "Lead Converter",
+      "presence": "Presence",
+      "capacity": "Most open leads",
+      "languages": "Languages",
+      "segments": "Business lines",
+      "actions": "Actions"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "present": "Present",
+    "away": "Away",
+    "noLimit": "No limit",
+    "allLanguages": "All languages",
+    "allSegments": "All business lines",
+    "edit": "Edit",
+    "editLabel": "Edit settings for {name}",
+    "language": {
+      "hinglish": "Hindi and English mixed",
+      "en": "English"
+    },
+    "segment": {
+      "farmer_pumps": "Farmer pumps",
+      "residential_rooftop": "Home rooftop solar",
+      "commercial_epc": "Commercial solar projects",
+      "dealer_wholesale": "Dealers and wholesale"
+    },
+    "dialog": {
+      "title": "Settings for {name}",
+      "intro": "Presence is switched by the person themself on their profile.",
+      "isConverter": "Takes qualified leads",
+      "maxOpen": "Most open leads",
+      "maxOpenHelper": "Leave empty for no limit.",
+      "languages": "Languages taken",
+      "segments": "Business lines taken",
+      "takesAllHelper": "Choose none to take all.",
+      "submit": "Save",
+      "done": "Settings for {name} are saved."
     }
   },
   "dealerCredit": {

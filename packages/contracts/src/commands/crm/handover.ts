@@ -111,3 +111,7 @@ export const HandOverLeadDto = z
   })
   .strict();
 export type HandOverLeadDto = z.infer<typeof HandOverLeadDto>;
+
+/** The company a converters read is for: `listCallerProfiles` and `ownPresence`. */
+export const CallerCompanyInput = z.object({ entityId: EntityIdSchema }).strict();
+export type CallerCompanyInput = z.infer<typeof CallerCompanyInput>;
