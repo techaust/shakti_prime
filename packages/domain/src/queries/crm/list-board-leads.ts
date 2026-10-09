@@ -296,7 +296,10 @@ async function ownersOf(ctx: BoardContext, ids: readonly string[]): Promise<Map<
  * When each lead last moved stage (`stage_moved` on its timeline, read with the lead), for the
  * card's time in stage; a lead that never moved has none and counts from when it was made.
  */
-async function stageMovesOf(ctx: BoardContext, ids: readonly string[]): Promise<Map<string, Date>> {
+export async function stageMovesOf(
+  ctx: BoardContext,
+  ids: readonly string[],
+): Promise<Map<string, Date>> {
   if (ids.length === 0) return new Map();
   const a = schema.activities;
   const rows = await ctx.tx
@@ -312,7 +315,7 @@ async function stageMovesOf(ctx: BoardContext, ids: readonly string[]): Promise<
  * board's follow-up): a pump's standard HP or a rooftop system's recommended kWp, from today's
  * engine only (an older engine's result has another shape), recorded by a person (SECURITY §3.3).
  */
-async function sizesOf(
+export async function sizesOf(
   ctx: BoardContext,
   ids: readonly string[],
 ): Promise<Map<string, NonNullable<BoardLeadDto['size']>>> {
