@@ -38,6 +38,8 @@ import {
   InviteForm,
   LiftLockForm,
   MoveLeadsForm,
+  moveLeadsCompanies,
+  useMoveLeadsNotice,
   ReactivateForm,
   ResetAuthenticatorForm,
   RolesForm,
@@ -86,6 +88,7 @@ export function UsersScreen({
   const t = useTranslations('users');
   const common = useTranslations('common');
   const roles = useTranslations('roles');
+  const moveNotice = useMoveLeadsNotice();
   const [rows, setRows] = useState(initial.items);
   const [nextCursor, setNextCursor] = useState(initial.nextCursor);
   const [open, setOpen] = useState<Open | undefined>(
@@ -307,13 +310,11 @@ export function UsersScreen({
             ) : dialog.kind === 'moveLeads' ? (
               <MoveLeadsForm
                 user={dialog.user}
-                companies={companies}
+                offered={moveLeadsCompanies(dialog.user, companies)}
                 onCancel={close}
-                onDone={(moved) => {
+                onDone={(result) => {
                   close();
-                  toast.success(
-                    t('moveLeadsDialog.done', { count: moved, name: dialog.user.displayName }),
-                  );
+                  toast.success(moveNotice(result, dialog.user.displayName));
                 }}
               />
             ) : dialog.kind === 'reset' ? (

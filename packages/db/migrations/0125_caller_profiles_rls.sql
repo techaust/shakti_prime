@@ -203,14 +203,18 @@ grant execute on function app.handover_lead_facts(smallint, uuid) to app_user;
 
 -- 7. The people who could take a lead: active, with a role in the company that works on leads,
 --    with their profile (not a converter, away, when they have none) and their open leads now.
---    Also read by a manager who gives a leaving caller's leads out in turn (crm.lead.reassign_all).
+--    Also read by a manager who gives a leaving caller's leads out in turn (crm.lead.reassign_all):
+--    a manager who holds crm.lead.assign at team scope only (a Sales Team Lead) is answered the
+--    people of their own team alone, the General Manager, an Executive and the workers the company's.
 create or replace function app.handover_candidates(p_entity smallint)
   returns table (user_id uuid, team_id uuid, is_converter boolean, presence text, max_open integer,
                  languages text[], segments text[], open_leads integer)
   language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_company boolean := app.has_perm('crm.handover.run:entity') or app.has_perm('crm.lead.assign:entity');
 begin
   if app.user_id() is null
-     or not (app.has_perm('crm.handover.run:entity') or app.has_perm('crm.lead.assign:team')) then
+     or not (v_company or app.has_perm('crm.lead.assign:team')) then
     raise exception 'crm.handover.run or crm.lead.assign is required' using errcode = '42501';
   end if;
   if coalesce(pg_catalog.current_setting('app.role', true), '') like 'agent:%' then
@@ -233,6 +237,7 @@ begin
                      order by uer.id limit 1) w on true
       left join public.caller_profiles cp on cp.user_id = u.id and cp.entity_id = p_entity
      where u.status = 'active'
+       and (v_company or (w.team_id is not null and w.team_id = app.team_id()))
      order by u.id;
 end
 $$;
@@ -273,9 +278,14 @@ grant execute on function app.handover_team_lead(smallint, uuid) to app_user;
 --    to them (a new task at the same time, or now when it is due; the old one cancelled), and
 --    writes the lead's timeline rows. A handover already made for the event (its id is in the
 --    lead's timeline row) answers 'already' and changes nothing; a lead no longer open answers
---    'not_open'. The customer relationship is moved by app.hand_over_customer() after it.
+--    'not_open'; a lead that has left the stage of the event (p_stage), whose lock still runs,
+--    that was given to someone after the event (p_event_at), or whose owner the command found to
+--    qualify as a converter (p_keep) answers 'kept' and stays where it is. The lock hours are the
+--    pipeline's, else p_default_hours (the workshop default, passed by the command). The customer relationship is moved by app.hand_over_customer() after it.
 create or replace function app.handover_assign(p_entity smallint, p_opportunity uuid,
-                                               p_owner uuid, p_event uuid)
+                                               p_owner uuid, p_event uuid, p_stage uuid,
+                                               p_event_at timestamptz, p_keep boolean,
+                                               p_default_hours integer)
   returns table (status text, previous_owner uuid, previous_team uuid, team_id uuid,
                  locked_until timestamptz, lock_hours integer, moved jsonb)
   language plpgsql volatile security definer set search_path = '' as $$
@@ -308,6 +318,15 @@ begin
     return query select 'not_open'::text, v_lead.owner_id, v_lead.team_id, v_lead.team_id, v_lead.locked_until, null::integer, '[]'::jsonb;
     return;
   end if;
+  if v_lead.stage_id is distinct from p_stage
+     or p_keep
+     or (v_lead.owner_id is not null and v_lead.locked_until is not null and v_lead.locked_until > pg_catalog.now())
+     or exists (select 1 from public.activities a
+                 where a.opportunity_id = p_opportunity and a.type = 'assigned'
+                   and a.created_at > p_event_at) then
+    return query select 'kept'::text, v_lead.owner_id, v_lead.team_id, v_lead.team_id, v_lead.locked_until, null::integer, '[]'::jsonb;
+    return;
+  end if;
   select uer.team_id into v_team
     from public.user_entity_roles uer
     join public.role_permissions rp on rp.role_id = uer.role_id and rp.permission_key = 'crm.lead.write'
@@ -318,7 +337,7 @@ begin
     return query select 'not_eligible'::text, v_lead.owner_id, v_lead.team_id, null::uuid, null::timestamptz, null::integer, '[]'::jsonb;
     return;
   end if;
-  select coalesce(p.lock_hours, 48)::integer into v_hours from public.pipelines p where p.id = v_lead.pipeline_id;
+  select coalesce(p.lock_hours, p_default_hours)::integer into v_hours from public.pipelines p where p.id = v_lead.pipeline_id;
   v_until := pg_catalog.now() + pg_catalog.make_interval(hours => v_hours);
 
   insert into public.activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id, payload_json)
@@ -353,9 +372,9 @@ begin
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.handover_assign(smallint, uuid, uuid, uuid) from public, readonly_reporter;
+revoke execute on function app.handover_assign(smallint, uuid, uuid, uuid, uuid, timestamptz, boolean, integer) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.handover_assign(smallint, uuid, uuid, uuid) to app_user;
+grant execute on function app.handover_assign(smallint, uuid, uuid, uuid, uuid, timestamptz, boolean, integer) to app_user;
 --> statement-breakpoint
 
 -- 10. Work routed to the Sales Team Lead when no converter qualified: an Agent Inbox item of kind
@@ -393,7 +412,8 @@ grant execute on function app.handover_route_to_team_lead(smallint, uuid, uuid, 
 
 -- 11. The owner's decision of 09-10-2026 (ADR 0020): the round-robin handover, run as
 --     system:workers, moves the customer relationship to the lead's new owner as a person's
---     handover does. An agent's handover still never moves it. Everything else is 0064's.
+--     handover does. An agent's handover still never moves it, nor does a system request without
+--     crm.handover.run. Everything else is 0064's.
 create or replace function app.hand_over_customer(p_opportunity uuid, p_previous_owner uuid)
   returns table (status text, relationship_id uuid, previous_team_id uuid)
   language plpgsql volatile security definer set search_path = '' as $$
@@ -411,9 +431,15 @@ begin
   if v_actor is null or not (app.has_perm('crm.lead.assign:own') or v_handover) then
     raise exception 'permission crm.lead.assign:own required' using errcode = '42501';
   end if;
+  -- 0064's refusal of every service request (an agent, or a system role or principal) stands,
+  -- except the handover's own (crm.handover.run, held by system:workers alone).
   if coalesce(pg_catalog.current_setting('app.role', true), '') like 'agent:%'
      or exists (select 1 from public.principals p
-                 where p.id = v_actor and p.kind = 'agent') then
+                 where p.id = v_actor and p.kind = 'agent')
+     or (not v_handover
+         and (coalesce(pg_catalog.current_setting('app.role', true), '') like 'system:%'
+              or exists (select 1 from public.principals p
+                          where p.id = v_actor and p.kind = 'system'))) then
     return query select 'unchanged'::text, null::uuid, null::uuid;
     return;
   end if;

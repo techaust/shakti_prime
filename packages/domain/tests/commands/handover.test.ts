@@ -16,6 +16,7 @@ import {
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { WORKSHOP_DEFAULTS } from '../../src/workshop-defaults';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
@@ -154,15 +155,36 @@ function profile(
   });
 }
 
-function handOver(lead: Lead, eventId: string = newId(), cursor: string | null = null) {
+/** The database's own clock, so the event times in these tests never differ from the rows' by a skew. */
+async function dbNow(): Promise<string> {
+  const [row] = await asMigrator((m) => m<{ now: Date }[]>`select clock_timestamp() as now`);
+  if (!row) throw new Error('no clock');
+  return row.now.toISOString();
+}
+
+/** The worker's handover for an event: at the lead's stage now, and at the time given or now. */
+async function handOver(
+  lead: Lead,
+  eventId: string = newId(),
+  cursor: string | null = null,
+  event: { eventAt?: string; stageId?: string } = {},
+) {
   return run<{ outcome: string; ownerId: string | null; cursor: string | null }>(
     workers,
     handOverLead,
-    { entityId: CO, opportunityId: lead.id, eventId, cursor },
+    {
+      entityId: CO,
+      opportunityId: lead.id,
+      eventId,
+      stageId: event.stageId ?? (await leadState(lead)).stage_id,
+      eventAt: event.eventAt ?? (await dbNow()),
+      cursor,
+    },
   );
 }
 
 interface LeadState {
+  stage_id: string;
   owner_id: string | null;
   team_id: string | null;
   locked_until: Date | null;
@@ -173,7 +195,7 @@ async function leadState(lead: Lead): Promise<LeadState> {
     (m) =>
       m<
         LeadState[]
-      >`select owner_id, team_id, locked_until, state from opportunities where id = ${lead.id}`,
+      >`select stage_id, owner_id, team_id, locked_until, state from opportunities where id = ${lead.id}`,
   );
   if (!row) throw new Error('lead missing');
   return row;
@@ -499,7 +521,14 @@ describe('the handover', () => {
 
   it('refuses anyone but the worker and a company outside the request', async () => {
     const lead = await newLead();
-    const input = { entityId: CO, opportunityId: lead.id, eventId: newId(), cursor: null };
+    const input = {
+      entityId: CO,
+      opportunityId: lead.id,
+      eventId: newId(),
+      stageId: (await leadState(lead)).stage_id,
+      eventAt: new Date().toISOString(),
+      cursor: null,
+    };
     expect(code(await refusal(run(gm, handOverLead, input)))).toBe('forbidden');
     expect(code(await refusal(run(teamLead, handOverLead, input)))).toBe('forbidden');
     expect(
@@ -525,6 +554,127 @@ describe('the handover', () => {
     });
     expect((await leadState(lead)).owner_id).toBe(converterX.id);
     expect(await relationshipOwner(lead)).toBe(caller.id);
+  });
+});
+
+describe('the handover leaves a lead that has moved on', () => {
+  /** Only these converters are present: the rest are away. */
+  async function onlyPresent(...people: Principal[]) {
+    await asMigrator(
+      (m) => m`update caller_profiles set presence = 'away' where entity_id = ${CO}`,
+    );
+    for (const person of people) {
+      await profile(person.id);
+      await run(person, setPresence, { entityId: CO, presence: 'present' });
+    }
+  }
+
+  it('does not hand a lead again that was qualified again during its lock', async () => {
+    await onlyPresent(converterX);
+    const lead = await newLead();
+    expect((await handOver(lead)).outcome).toBe('converter');
+    expect((await leadState(lead)).owner_id).toBe(converterX.id);
+    // The lead is qualified again (a new event) while X holds it and Y is the one present.
+    await onlyPresent(converterY);
+    const again = await handOver(lead, newId());
+    expect(again.outcome).toBe('kept');
+    expect((await leadState(lead)).owner_id).toBe(converterX.id);
+    // Once the lock has run out, a new event hands it on.
+    await asMigrator(
+      (m) =>
+        m`update opportunities set locked_until = now() - interval '1 hour' where id = ${lead.id}`,
+    );
+    expect(await handOver(lead, newId())).toMatchObject({
+      outcome: 'converter',
+      ownerId: converterY.id,
+    });
+  });
+
+  it('does not overwrite a manual assignment made before a delayed delivery', async () => {
+    await onlyPresent(converterX);
+    const lead = await newLead();
+    const eventAt = await dbNow();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await run(teamLead, assignOpportunity, {
+      entityId: CO,
+      opportunityId: lead.id,
+      ownerId: converterY.id,
+    });
+    // The lock the assignment set is lifted, so only the assignment after the event stops the handover.
+    await asMigrator(
+      (m) => m`update opportunities set locked_until = null where id = ${lead.id}`,
+    );
+    const late = await handOver(lead, newId(), null, { eventAt });
+    expect(late.outcome).toBe('kept');
+    expect((await leadState(lead)).owner_id).toBe(converterY.id);
+    // For an event made after the assignment the lead is handed over.
+    expect((await handOver(lead, newId())).outcome).toBe('converter');
+    expect((await leadState(lead)).owner_id).toBe(converterX.id);
+  });
+
+  it('leaves a lead that is no longer at the stage of the event', async () => {
+    await onlyPresent(converterX);
+    const lead = await newLead();
+    const stageId = (await leadState(lead)).stage_id;
+    await asMigrator(
+      (m) => m`update opportunities set stage_id = (
+                 select s.id from stages s join opportunities o on o.pipeline_id = s.pipeline_id
+                  where o.id = ${lead.id} and s.id <> ${stageId} order by s.position limit 1)
+               where id = ${lead.id}`,
+    );
+    const result = await handOver(lead, newId(), null, { stageId });
+    expect(result.outcome).toBe('kept');
+    expect((await leadState(lead)).owner_id).toBe(caller.id);
+  });
+
+  it('lets a converter who qualifies for their own lead keep it', async () => {
+    await onlyPresent(converterX, converterY);
+    const lead = await newLead();
+    await run(teamLead, assignOpportunity, {
+      entityId: CO,
+      opportunityId: lead.id,
+      ownerId: converterX.id,
+    });
+    // The lock is over; Y may hold fewer leads, yet X keeps the lead they qualify for.
+    await asMigrator(
+      (m) => m`update opportunities set locked_until = null where id = ${lead.id}`,
+    );
+    const result = await handOver(lead);
+    expect(result).toMatchObject({ outcome: 'kept', ownerId: converterX.id });
+    expect((await leadState(lead)).owner_id).toBe(converterX.id);
+    expect(await relationshipOwner(lead)).toBe(converterX.id);
+  });
+
+  it('locks a handover for the workshop default hours, and a change of the default changes the lock', async () => {
+    await onlyPresent(converterX);
+    const defaults = WORKSHOP_DEFAULTS.opportunity as { handoverLockHours: number };
+    const original = defaults.handoverLockHours;
+    try {
+      defaults.handoverLockHours = original / 2;
+      const lead = await newLead();
+      const before = Date.now();
+      await handOver(lead);
+      const hours = (((await leadState(lead)).locked_until?.getTime() ?? 0) - before) / 3_600_000;
+      expect(hours).toBeGreaterThan(original / 2 - 0.1);
+      expect(hours).toBeLessThan(original / 2 + 0.1);
+    } finally {
+      defaults.handoverLockHours = original;
+    }
+  });
+
+  it('queues two handovers of one company, so a converter with one place left takes one', async () => {
+    const solo = await createTestUser(
+      [{ entityId: CO, roleKey: 'tele_caller_lc', teamId: team }],
+      { name: 'Zara Solo Converter' },
+    );
+    const soloPrincipal = principalFor('tele_caller_lc', [CO], { id: solo.id, teamId: team });
+    await onlyPresent();
+    await profile(solo.id, { maxOpen: 1 });
+    await run(soloPrincipal, setPresence, { entityId: CO, presence: 'present' });
+    const [first, second] = [await newLead(), await newLead()];
+    const outcomes = await Promise.all([handOver(first), handOver(second)]);
+    expect(outcomes.map((o) => o.outcome).sort()).toEqual(['converter', 'team_lead']);
+    expect(outcomes.find((o) => o.outcome === 'converter')?.ownerId).toBe(solo.id);
   });
 });
 
@@ -671,15 +821,80 @@ describe('crm.lead.reassign_all', () => {
 
   it('moves only the leads of the team a Sales Team Lead covers', async () => {
     const { leaver, mine } = await leaverWith(1, 0);
-    const result = await run<{ moved: number }>(otherTeamLead, reassignAllLeads, {
+    // A named target outside the team is refused plainly, not with a permission error.
+    const outside = await refusal(
+      run(otherTeamLead, reassignAllLeads, {
+        entityId: CO,
+        fromUserId: leaver.id,
+        toUserId: converterX.id,
+      }),
+    );
+    expect(code(outside)).toBe('validation_failed');
+    expect(reason(outside)).toBe('assignee_not_eligible');
+    // A target of their own team is allowed, but the leaver's leads are in another team: none move.
+    const neighbour = await createTestUser(
+      [{ entityId: CO, roleKey: 'tele_caller_lc', teamId: otherTeam }],
+      { name: 'Olga Other Team' },
+    );
+    const result = await run<{ moved: number; remaining: number; teamOnly: boolean }>(
+      otherTeamLead,
+      reassignAllLeads,
+      { entityId: CO, fromUserId: leaver.id, toUserId: neighbour.id },
+    );
+    expect(result).toMatchObject({ moved: 0, remaining: 0, teamOnly: true });
+    expect((await leadState(only(mine))).owner_id).toBe(leaver.id);
+  });
+
+  it('gives a Sales Team Lead only the converters of their team, in turn', async () => {
+    await asMigrator(
+      (m) => m`update caller_profiles set presence = 'away' where entity_id = ${CO}`,
+    );
+    // An in-team converter, and one of another team with no leads at all, both present.
+    const inTeam = await createTestUser(
+      [{ entityId: CO, roleKey: 'tele_caller_lc', teamId: team }],
+      { name: 'Ira In Team' },
+    );
+    const outTeam = await createTestUser(
+      [{ entityId: CO, roleKey: 'tele_caller_lc', teamId: otherTeam }],
+      { name: 'Oren Out Of Team' },
+    );
+    for (const [person, teamId] of [
+      [inTeam, team],
+      [outTeam, otherTeam],
+    ] as const) {
+      await profile(person.id);
+      await run(principalFor('tele_caller_lc', [CO], { id: person.id, teamId }), setPresence, {
+        entityId: CO,
+        presence: 'present',
+      });
+    }
+    const held = await newLead();
+    await run(teamLead, assignOpportunity, {
+      entityId: CO,
+      opportunityId: held.id,
+      ownerId: inTeam.id,
+    });
+    const { leaver, mine } = await leaverWith(2, 0);
+    const result = await run<{ moved: number; remaining: number; teamOnly: boolean }>(
+      teamLead,
+      reassignAllLeads,
+      { entityId: CO, fromUserId: leaver.id, toUserId: null },
+    );
+    expect(result).toMatchObject({ moved: 2, remaining: 0, teamOnly: true });
+    for (const lead of mine) expect((await leadState(lead)).owner_id).toBe(inTeam.id);
+    const named = await refusal(
+      run(teamLead, reassignAllLeads, {
+        entityId: CO,
+        fromUserId: leaver.id,
+        toUserId: outTeam.id,
+      }),
+    );
+    expect(reason(named)).toBe('assignee_not_eligible');
+    const company = await run<{ teamOnly: boolean }>(gm, reassignAllLeads, {
       entityId: CO,
       fromUserId: leaver.id,
-      toUserId: converterX.id,
-    }).catch((e: unknown) => e);
-    // Outside their team the lead is neither seen nor moved: nothing moves, or the target is refused.
-    if ((result as { moved?: number }).moved !== undefined) {
-      expect((result as { moved: number }).moved).toBe(0);
-    }
-    expect((await leadState(only(mine))).owner_id).toBe(leaver.id);
+      toUserId: null,
+    });
+    expect(company.teamOnly).toBe(false);
   });
 });

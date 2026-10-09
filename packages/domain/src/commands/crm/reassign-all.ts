@@ -1,6 +1,7 @@
 import {
   CustomerLanguageSchema,
   DomainError,
+  hasGrant,
   newId,
   ReassignAllDto,
   ReassignAllInput,
@@ -10,7 +11,7 @@ import { sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { pickConverter } from '../../crm/handover';
 import { assignOpportunity } from './assign-opportunity';
-import { loadCandidates } from './hand-over-lead';
+import { loadCandidates, lockHandovers } from './hand-over-lead';
 import { requireEntity } from './opportunity-shared';
 
 /** How many leads one `crm.lead.reassign_all` moves; a longer list takes a second run. */
@@ -31,8 +32,11 @@ interface LeadRow {
  * its callbacks and nurture calls, the customer relationship (the caller's own, when the leaver
  * held it) and the new owner's notice. The caller sees and moves only the leads their own scope
  * covers: a Sales Team Lead the team's, a General Manager the company's, an Executive any.
- * Refuses a target who is not active in the company, or a round that finds no converter present;
- * answers how many leads moved, at most `REASSIGN_ALL_LIMIT` a run.
+ * A caller whose assign right covers a team only is offered, and may name, the people of that
+ * team. Refuses a target who is not among them, or a round that finds no converter present;
+ * answers how many leads moved (at most `REASSIGN_ALL_LIMIT` a run), how many of the leaver's
+ * leads the caller can see still remain, and whether the caller's reach is a team's.
+ * Queues behind the company's other handovers.
  */
 export const reassignAllLeads = defineCommand({
   name: 'crm.lead.reassign_all',
@@ -50,6 +54,7 @@ export const reassignAllLeads = defineCommand({
         reason: 'reassign_same_person',
       });
     }
+    await lockHandovers(ctx, input.entityId);
     const candidates = (await loadCandidates(ctx, input.entityId)).filter(
       (c) => c.userId !== input.fromUserId,
     );
@@ -111,6 +116,19 @@ export const reassignAllLeads = defineCommand({
       before: null,
       after: { movedLeads: moved },
     });
-    return { entityId: input.entityId, moved };
+    const [left] = (await ctx.tx.execute(
+      sql`select count(*)::integer as remaining
+            from opportunities o
+           where o.entity_id = ${input.entityId}::smallint
+             and o.owner_id = ${input.fromUserId}::uuid
+             and o.state in ('open', 'nurture')
+             and o.archived_at is null`,
+    )) as unknown as { remaining: number }[];
+    return {
+      entityId: input.entityId,
+      moved,
+      remaining: left?.remaining ?? 0,
+      teamOnly: !hasGrant(ctx.principal.permissions, 'crm.lead.assign', 'entity'),
+    };
   },
 });

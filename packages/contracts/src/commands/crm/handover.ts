@@ -73,33 +73,47 @@ export const ReassignAllInput = z
   .strict();
 export type ReassignAllInput = z.infer<typeof ReassignAllInput>;
 
-/** What `crm.lead.reassign_all` answers: how many leads moved. Strict. */
+/**
+ * What `crm.lead.reassign_all` answers: how many leads moved, how many of the leaver's leads the
+ * caller can see are still with them (a run moves at most 500), and whether the caller's scope
+ * is a team's, so leads outside the team stay where they are. Strict.
+ */
 export const ReassignAllDto = z
-  .object({ entityId: EntityIdSchema, moved: z.number().int().min(0) })
+  .object({
+    entityId: EntityIdSchema,
+    moved: z.number().int().min(0),
+    remaining: z.number().int().min(0),
+    teamOnly: z.boolean(),
+  })
   .strict();
 export type ReassignAllDto = z.infer<typeof ReassignAllDto>;
 
 /**
  * `crm.opportunity.hand_over`, run by the handover worker for a `crm.opportunity.stage_moved`
  * event with `handover: true`. `cursor` is the person the round-robin chose last in the company
- * (kept in Redis by the worker), null when there is none.
+ * (kept in Redis by the worker), null when there is none. `stageId` is the stage the event moved
+ * the lead to and `eventAt` the time of the event: a lead that has left the stage, is locked, or
+ * was given to someone after the event is left alone.
  */
 export const HandOverLeadInput = z
   .object({
     entityId: EntityIdSchema,
     opportunityId: IdSchema,
     eventId: IdSchema,
+    stageId: IdSchema,
+    eventAt: z.string().datetime(),
     cursor: IdSchema.nullable(),
   })
   .strict();
 export type HandOverLeadInput = z.infer<typeof HandOverLeadInput>;
 
-/** How a handover ended; `already` and `not_open` changed nothing. */
+/** How a handover ended; `already`, `not_open` and `kept` changed nothing. */
 export const HANDOVER_OUTCOMES = [
   'converter',
   'team_lead',
   'already',
   'not_open',
+  'kept',
   'no_one',
 ] as const;
 export const HandOverLeadDto = z

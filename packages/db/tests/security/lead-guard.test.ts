@@ -249,20 +249,44 @@ describe('app.hand_over_customer(): who may call it and what it moves', () => {
       permissions: handover,
     });
     const taker = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_lc' }]);
-    const give = sql`select status from app.handover_assign(1::smallint, ${lead}::uuid, ${taker.id}::uuid, ${newId()}::uuid)`;
+    const give = sql`select status from app.handover_assign(1::smallint, ${lead}::uuid, ${taker.id}::uuid, ${newId()}::uuid, (select stage_id from opportunities where id = ${lead}::uuid), now() - interval '1 minute', false, 48)`;
     const [moved] = await inRollback(worker, [give, handOverFull]);
     expect(moved).toMatchObject({ status: 'moved' });
-    // A request of the system kind without the permission is refused, whatever else it holds.
-    const without = principalFor('system:workers', [1], {
+  });
+
+  it('answers unchanged to a system request without the handover permission, though it holds the assign and write of a person (0064)', async () => {
+    const lead = fx.leads.b[0] ?? '';
+    const handOverFull = sql`select status, relationship_id as "relationshipId"
+      from app.hand_over_customer(${lead}::uuid, ${fx.principals.b.id}::uuid)`;
+    const assign = [
+      { key: 'crm.lead.assign' as const, scope: 'entity' as const },
+      { key: 'crm.lead.write' as const, scope: 'entity' as const },
+      { key: 'crm.lead.read' as const, scope: 'entity' as const },
+    ];
+    // By the role key (the principal row is a person's), and by the principal row (the role key is a person's).
+    const byKey = principalFor('system:workers', [1], {
       id: fx.principals.l.id,
-      permissions: [
-        { key: 'crm.lead.write' as const, scope: 'entity' as const },
-        { key: 'crm.lead.read' as const, scope: 'entity' as const },
-      ],
+      permissions: assign,
     });
-    await expect(
-      inRollback(without, [giveLead(lead, fx.principals.a), handOverFull]),
-    ).rejects.toThrow();
+    const byRow = principalFor('sales_team_lead', [1], {
+      id: SYSTEM_WORKERS_PRINCIPAL_ID,
+      teamId: fx.teams.t1,
+      permissions: assign,
+    });
+    for (const who of [byKey, byRow]) {
+      expect(await inRollback(who, [giveLead(lead, fx.principals.a), handOverFull])).toEqual([
+        { status: 'unchanged', relationshipId: null },
+      ]);
+    }
+    // The same request with the handover permission added moves it: the permission is what is narrowed.
+    const withPermission = principalFor('system:workers', [1], {
+      id: SYSTEM_WORKERS_PRINCIPAL_ID,
+      permissions: [...assign, { key: 'crm.handover.run' as const, scope: 'all' as const }],
+    });
+    const taker = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_lc' }]);
+    const give = sql`select status from app.handover_assign(1::smallint, ${lead}::uuid, ${taker.id}::uuid, ${newId()}::uuid, (select stage_id from opportunities where id = ${lead}::uuid), now() - interval '1 minute', false, 48)`;
+    const [result] = await inRollback(withPermission, [give, handOverFull]);
+    expect(result).toMatchObject({ status: 'moved' });
   });
 });
 

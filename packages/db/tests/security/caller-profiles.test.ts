@@ -283,7 +283,7 @@ describe('the handover definers', () => {
         await failure(
           rows(
             principal,
-            sql`select * from app.handover_assign(${CO}::smallint, ${lead}::uuid, ${principal.id}::uuid, ${newId()}::uuid)`,
+            sql`select * from app.handover_assign(${CO}::smallint, ${lead}::uuid, ${principal.id}::uuid, ${newId()}::uuid, ${newId()}::uuid, now(), false, 48)`,
           ),
         ),
       ).toMatch(/crm.handover.run is required/);
@@ -317,6 +317,26 @@ describe('the handover definers', () => {
         await failure(rows(principal, sql`select * from app.handover_candidates(${CO}::smallint)`)),
       ).toMatch(/is required|an agent/);
     }
+  });
+
+  it('answers a Sales Team Lead the people of their own team and a General Manager the company', async () => {
+    const ids = async (who: Principal) =>
+      (
+        await rows<{ user_id: string }>(
+          who,
+          sql`select user_id from app.handover_candidates(${CO}::smallint)`,
+        )
+      ).map((r) => r.user_id);
+    const own = await ids(teamLead);
+    expect(own).toEqual(expect.arrayContaining([person.id, colleague.id, teamLead.id]));
+    expect(own).not.toContain(outsider.id);
+    expect(own).not.toContain(otherTeamLead.id);
+    const all = await ids(gm);
+    expect(all).toEqual(
+      expect.arrayContaining([person.id, outsider.id, teamLead.id, otherTeamLead.id]),
+    );
+    const worker = await ids(workers([CO]));
+    expect(worker).toEqual(expect.arrayContaining([person.id, outsider.id, otherTeamLead.id]));
   });
 
   it('lists the people of a manager’s scope for the converters page and nobody else’s', async () => {

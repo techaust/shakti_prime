@@ -1264,7 +1264,8 @@
     },
     "moveLeadsDialog": {
       "title": "Move all leads from {name}",
-      "intro": "Every open lead and every lead set aside to follow up later goes to one person, with its calls. The customer goes with each lead.",
+      "intro": "Every open lead and every lead set aside to follow up later goes to the person you choose, with its calls. The customer goes with each lead.",
+      "introInTurn": "Every open lead and every lead set aside to follow up later is shared between the Lead Converters who are present and take it, with its calls. The customer goes with each lead.",
       "company": "Company",
       "target": "Give the leads to",
       "choose": "Choose a person",
@@ -1272,7 +1273,8 @@
       "loading": "Finding people",
       "nobody": "No one else works on leads in this company.",
       "submit": "Move leads",
-      "done": "{count, plural, =0 {{name} had no leads to move.} one {# lead moved from {name}.} other {# leads moved from {name}.}}"
+      "done": "{count, plural, =0 {{name} had no leads to move.} one {# lead moved from {name}.} other {# leads moved from {name}.}}{remaining, plural, =0 {} one { One lead is still with {name}. Run Move all leads again to move it.} other { # leads are still with {name}. Run Move all leads again to move them.}}",
+      "doneTeamOnly": "Leads outside your team stay with {name}."
     },
     "rolesField": {
       "legend": "Role in each company",
@@ -4081,6 +4083,8 @@
     "allSegments": "All business lines",
     "edit": "Edit",
     "editLabel": "Edit settings for {name}",
+    "moveLeads": "Move all leads",
+    "moveLeadsLabel": "Move all leads from {name}",
     "language": {
       "hinglish": "Hindi and English mixed",
       "en": "English"

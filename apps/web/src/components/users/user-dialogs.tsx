@@ -1,6 +1,6 @@
 'use client';
 
-import type { CallerProfilePersonDto, UserDto } from '@shakti/contracts';
+import type { CallerProfilePersonDto, ReassignAllDto, UserDto } from '@shakti/contracts';
 import {
   Button,
   DialogDescription,
@@ -331,18 +331,18 @@ export function LiftLockForm(props: {
  */
 export function MoveLeadsForm({
   user,
-  companies,
+  offered,
   onDone,
   onCancel,
 }: {
-  user: UserDto;
-  companies: Companies;
-  onDone: (moved: number) => void;
+  /** The leaving person. */
+  user: { id: string; displayName: string };
+  /** The companies to choose between: the ones the person works in. */
+  offered: Companies;
+  onDone: (result: ReassignAllDto) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations('users.moveLeadsDialog');
-  const own = companies.filter((c) => user.entityRoles.some((r) => r.entityId === c.id));
-  const offered = own.length === 0 ? companies : own;
   const [entityId, setEntityId] = useState(offered[0]?.id ?? 0);
   const [target, setTarget] = useState('');
   const [people, setPeople] = useState<CallerProfilePersonDto[] | undefined>(undefined);
@@ -376,7 +376,7 @@ export function MoveLeadsForm({
     e.preventDefault();
     if (pending || target === '') return;
     run({ entityId, fromUserId: user.id, toUserId: target === TURN ? null : target }, (result) => {
-      onDone(result.moved);
+      onDone(result);
     });
   }
 
@@ -384,7 +384,7 @@ export function MoveLeadsForm({
     <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
       <DialogHeader>
         <DialogTitle>{t('title', { name: user.displayName })}</DialogTitle>
-        <DialogDescription>{t('intro')}</DialogDescription>
+        <DialogDescription>{target === TURN ? t('introInTurn') : t('intro')}</DialogDescription>
       </DialogHeader>
       {offered.length > 1 ? (
         <Field id="move-leads-company" label={t('company')}>
@@ -435,6 +435,21 @@ export function MoveLeadsForm({
       </Footer>
     </form>
   );
+}
+
+/** What to tell a manager once the leads have moved: how many, and what is left behind. */
+export function useMoveLeadsNotice(): (result: ReassignAllDto, name: string) => string {
+  const t = useTranslations('users.moveLeadsDialog');
+  return (result, name) => {
+    const done = t('done', { count: result.moved, remaining: result.remaining, name });
+    return result.teamOnly ? `${done} ${t('doneTeamOnly', { name })}` : done;
+  };
+}
+
+/** The companies a leaving person works in; all of them when they work in none. */
+export function moveLeadsCompanies(user: UserDto, companies: Companies): Companies {
+  const own = companies.filter((c) => user.entityRoles.some((r) => r.entityId === c.id));
+  return own.length === 0 ? companies : own;
 }
 
 /** The choice that shares the leads between the present converters instead of naming a person. */

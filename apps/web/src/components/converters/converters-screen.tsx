@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
 import { saveCallerProfile } from '../../actions/handover';
+import { MoveLeadsForm, useMoveLeadsNotice } from '../users/user-dialogs';
 import { CUSTOMER_LANGUAGES, SEGMENTS } from '../../screens/contract-values';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { useCommand } from '../screens/use-command';
@@ -51,6 +52,8 @@ export function ConvertersScreen({
   const router = useRouter();
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<CallerProfilePersonDto | undefined>(undefined);
+  const [moving, setMoving] = useState<CallerProfilePersonDto | undefined>(undefined);
+  const moveNotice = useMoveLeadsNotice();
   const places = useFocusTargets<string>();
 
   const columns: DataGridColumn<CallerProfilePersonDto>[] = [
@@ -96,17 +99,30 @@ export function ConvertersScreen({
       header: <span className="sr-only">{t('columns.actions')}</span>,
       align: 'end',
       cell: (p) => (
-        <Button
-          ref={places.ref(p.userId)}
-          variant="ghost"
-          size="sm"
-          aria-label={t('editLabel', { name: p.name })}
-          onClick={() => {
-            setEditing(p);
-          }}
-        >
-          {t('edit')}
-        </Button>
+        <div className="flex justify-end gap-1">
+          <Button
+            ref={places.ref(p.userId)}
+            variant="ghost"
+            size="sm"
+            aria-label={t('editLabel', { name: p.name })}
+            onClick={() => {
+              setEditing(p);
+            }}
+          >
+            {t('edit')}
+          </Button>
+          <Button
+            ref={places.ref(`move:${p.userId}`)}
+            variant="ghost"
+            size="sm"
+            aria-label={t('moveLeadsLabel', { name: p.name })}
+            onClick={() => {
+              setMoving(p);
+            }}
+          >
+            {t('moveLeads')}
+          </Button>
+        </div>
       ),
     },
   ];
@@ -172,6 +188,31 @@ export function ConvertersScreen({
                 );
                 setEditing(undefined);
                 toast.success(t('dialog.done', { name: editing.name }));
+              }}
+            />
+          </DialogContent>
+        )}
+      </Dialog>
+      <Dialog
+        open={moving !== undefined}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setMoving(undefined);
+        }}
+      >
+        {moving === undefined ? null : (
+          <DialogContent
+            closeLabel={common('close')}
+            returnFocusTo={() => [places.get(`move:${moving.userId}`)]}
+          >
+            <MoveLeadsForm
+              user={{ id: moving.userId, displayName: moving.name }}
+              offered={[{ id: entityId, name: companies[entityId] ?? String(entityId) }]}
+              onCancel={() => {
+                setMoving(undefined);
+              }}
+              onDone={(result) => {
+                setMoving(undefined);
+                toast.success(moveNotice(result, moving.name));
               }}
             />
           </DialogContent>

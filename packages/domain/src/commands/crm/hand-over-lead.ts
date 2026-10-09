@@ -9,9 +9,10 @@ import {
 import { sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import type { CommandContext } from '../../command/context';
-import { pickConverter, type ConverterCandidate } from '../../crm/handover';
+import { pickConverter, qualifiesAsConverter, type ConverterCandidate } from '../../crm/handover';
 import { transition } from '../../state-machines/define-machine';
 import { opportunityMachine } from '../../state-machines/machines/opportunity';
+import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { requireEntity } from './opportunity-shared';
 
 interface LeadFacts {
@@ -35,7 +36,7 @@ export interface CandidateRow {
 }
 
 interface AssignRow {
-  status: 'assigned' | 'already' | 'not_open' | 'not_eligible' | 'missing';
+  status: 'assigned' | 'already' | 'not_open' | 'kept' | 'not_eligible' | 'missing';
   previous_owner: string | null;
   previous_team: string | null;
   team_id: string | null;
@@ -55,6 +56,20 @@ export function toCandidates(rows: readonly CandidateRow[]): ConverterCandidate[
     segments: r.segments.map((s) => SegmentSchema.parse(s)),
     openLeads: r.open_leads,
   }));
+}
+
+/**
+ * Queues the handovers and the moves of a leaving caller's leads of one company: a lock held to the
+ * end of the transaction, taken before the candidates are read, so two of them never read the same
+ * open-lead counts and take one converter past their cap.
+ */
+export async function lockHandovers(
+  ctx: Pick<CommandContext, 'tx'>,
+  entityId: number,
+): Promise<void> {
+  await ctx.tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`handover:${String(entityId)}`}, 0))`,
+  );
 }
 
 /** The people who might take a lead in a company, with their profiles and open leads. */
@@ -86,7 +101,9 @@ export async function loadCandidates(
  *   decision of 09-10-2026, `app.hand_over_customer()`); the new owner is told by the notify worker.
  *
  * The handover made for an event is made once: a repeat answers `already`, a lead no longer open
- * `not_open`, and neither changes anything.
+ * `not_open`; a lead that has left the event's stage, is locked, was given to someone after the
+ * event, or belongs to a converter who qualifies for it answers `kept`; none of them changes
+ * anything. The lock hours are the pipeline's, else the workshop default.
  */
 export const handOverLead = defineCommand({
   name: 'crm.opportunity.hand_over',
@@ -97,6 +114,7 @@ export const handOverLead = defineCommand({
   auditFields: ['lockedUntil', 'state', 'dueAt'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    await lockHandovers(ctx, input.entityId);
     const [facts] = (await ctx.tx.execute(
       sql`select state, owner_id, team_id, account_id, segment, language
             from app.handover_lead_facts(${input.entityId}::smallint, ${input.opportunityId}::uuid)`,
@@ -110,23 +128,25 @@ export const handOverLead = defineCommand({
       return { outcome: 'not_open' as const, ownerId: facts.owner_id, cursor: input.cursor };
     }
 
-    const pick = pickConverter(
-      await loadCandidates(ctx, input.entityId),
-      {
-        language: CustomerLanguageSchema.parse(facts.language),
-        segment: SegmentSchema.parse(facts.segment),
-      },
-      input.cursor,
-    );
+    const candidates = await loadCandidates(ctx, input.entityId);
+    const lead = {
+      language: CustomerLanguageSchema.parse(facts.language),
+      segment: SegmentSchema.parse(facts.segment),
+    };
+    // A converter who already holds the lead and qualifies for it keeps it (their count includes it).
+    const holder = candidates.find((c) => c.userId === facts.owner_id);
+    const keep =
+      holder !== undefined && qualifiesAsConverter({ ...holder, openLeads: holder.openLeads - 1 }, lead);
+    const pick = keep ? facts.owner_id : pickConverter(candidates, lead, input.cursor);
     let ownerId = pick;
     if (ownerId === null) {
-      const [lead] = (await ctx.tx.execute(
+      const [teamLead] = (await ctx.tx.execute(
         sql`select user_id from app.handover_team_lead(${input.entityId}::smallint, ${input.opportunityId}::uuid)`,
       )) as unknown as { user_id: string }[];
-      if (lead === undefined) {
+      if (teamLead === undefined) {
         return { outcome: 'no_one' as const, ownerId: facts.owner_id, cursor: input.cursor };
       }
-      ownerId = lead.user_id;
+      ownerId = teamLead.user_id;
     }
 
     // The machine's `assign`, fired as the platform: the lock never stops a handover.
@@ -148,14 +168,20 @@ export const handOverLead = defineCommand({
     const [assigned] = (await ctx.tx.execute(
       sql`select status, previous_owner, previous_team, team_id, locked_until, lock_hours, moved
             from app.handover_assign(${input.entityId}::smallint, ${input.opportunityId}::uuid,
-                                     ${ownerId}::uuid, ${input.eventId}::uuid)`,
+                                     ${ownerId}::uuid, ${input.eventId}::uuid, ${input.stageId}::uuid,
+                                     ${input.eventAt}::timestamptz, ${keep},
+                                     ${WORKSHOP_DEFAULTS.opportunity.handoverLockHours}::integer)`,
     )) as unknown as AssignRow[];
     if (assigned === undefined || assigned.status === 'missing') {
       throw new DomainError('not_found', `opportunity ${input.opportunityId} is not found`, {
         reason: 'lead_missing',
       });
     }
-    if (assigned.status === 'already' || assigned.status === 'not_open') {
+    if (
+      assigned.status === 'already' ||
+      assigned.status === 'not_open' ||
+      assigned.status === 'kept'
+    ) {
       return {
         outcome: assigned.status,
         ownerId: assigned.previous_owner,
@@ -217,7 +243,7 @@ export const handOverLead = defineCommand({
       payload: {
         ownerId,
         teamId: assigned.team_id,
-        lockHours: assigned.lock_hours ?? 48,
+        lockHours: assigned.lock_hours ?? WORKSHOP_DEFAULTS.opportunity.handoverLockHours,
         assignedById: ctx.principal.id,
       },
     });

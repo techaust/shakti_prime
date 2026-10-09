@@ -1,4 +1,4 @@
-import type { DeliveredEvent, HandOverLeadDto } from '@shakti/contracts';
+import { idTime, type DeliveredEvent, type HandOverLeadDto } from '@shakti/contracts';
 import { executeCommand, handOverLead, type KeyValue } from '@shakti/domain';
 import type { EventHandlerContext } from '../events/registry';
 
@@ -15,7 +15,8 @@ export const handoverCursorKey = (entityId: number): string =>
  * is given to a Lead Converter, or to the Sales Team Lead when none qualifies, as `system:workers`
  * of the event's company (`crm.opportunity.hand_over`), with the cursor the round-robin keeps in
  * Redis per company; the cursor moves to the converter chosen. The event's id is the handover's
- * own, so a repeat delivery changes nothing.
+ * own, so a repeat delivery changes nothing; its stage and time (the moment its id was made) let
+ * the command leave a lead that has moved on, or been given to someone since, where it is.
  */
 export async function handleHandoverEvent(
   event: DeliveredEvent,
@@ -23,6 +24,8 @@ export async function handleHandoverEvent(
   keyValue: KeyValue = ctx.keyValue,
 ): Promise<HandOverLeadDto | undefined> {
   if (event.payload.handover !== true) return undefined;
+  const stageId = event.payload.toStageId;
+  if (typeof stageId !== 'string') return undefined;
   const key = handoverCursorKey(event.entityId);
   const cursor = await keyValue.get(key);
   const result = await executeCommand(
@@ -33,6 +36,8 @@ export async function handleHandoverEvent(
       entityId: event.entityId,
       opportunityId: event.aggregateId,
       eventId: event.id,
+      stageId,
+      eventAt: idTime(event.id).toISOString(),
       cursor,
     },
   );
