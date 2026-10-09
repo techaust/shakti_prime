@@ -77,6 +77,7 @@ export function ShadowReportScreen({
     problem === 'periodTooLong' ||
     problem === 'periodReversed' ||
     (problem === 'periodMissing' && problemFrom !== undefined);
+  const periodMessage = problem === undefined ? undefined : t(`filters.${problem}`);
   const kindName = (kind: TriageProposalKind) => t(`kinds.${kind}`);
   const pipelineName = (key: string | null) =>
     key !== null && oneOf(SEGMENTS, key) ? activity(`values.segment.${key}`) : t('otherPipeline');
@@ -224,7 +225,7 @@ export function ShadowReportScreen({
           id="shadow-from"
           label={t('filters.from')}
           helper={t('filters.dateHelper')}
-          error={fromProblem ? t(`filters.${problem ?? 'periodMissing'}`) : undefined}
+          error={fromProblem ? periodMessage : undefined}
         >
           <DateInput
             defaultValue={initial.from}
@@ -236,7 +237,7 @@ export function ShadowReportScreen({
           id="shadow-to"
           label={t('filters.to')}
           helper={t('filters.dateHelper')}
-          error={toProblem ? t(`filters.${problem ?? 'periodMissing'}`) : undefined}
+          error={toProblem ? periodMessage : undefined}
           actions={
             <Button type="submit" pending={reader.pending}>
               {t('filters.apply')}

@@ -70,7 +70,10 @@ test.describe('as an Executive', () => {
     await page.getByLabel('From').fill('01-01-2099');
     await page.getByRole('button', { name: 'Show', exact: true }).click();
     await expect(page.getByText('The end date is before the start date.')).toHaveCount(1);
-    await expect(page.getByLabel('To')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByRole('textbox', { name: 'To', exact: true })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
 
     // Nothing of it reached the Agent Inbox.
     await page.goto('/inbox');
