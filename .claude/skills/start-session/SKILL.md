@@ -26,6 +26,7 @@ Say in one short paragraph where things stand, then continue from the next item 
 
 ## How we work
 - Before starting any agent, read the usage and apply the budget gate; start it with the model and effort its slice's tier sets ([models-and-usage §3](../../../docs/runbooks/models-and-usage.md#3-who-runs-what)), and record the weekly percentage at its start and end in the run file's Usage line. Searches go to `code-finder`, the lead's suites to `test-runner`. Say when a task needs the lead on high effort, and when to switch back.
+- **PC:** when the first agent starts, list every merged slice's slug in `D:/shakti-wt/.done` and run `bash tools/integration/watchdog.sh` under a monitor, arming it again at each 30-minute expiry until the last agent ends; when an agent ends, check its worktree is committed and that it left no process running, and stop its slot's database.
 - While builders run, report on them only when one finishes, one stalls for 20 minutes with the heavy-command lock free, or the PC runs low on memory; send no progress check-ins between ([CLAUDE.md](../../../CLAUDE.md)).
 - A decision that belongs to the client or the owner is asked as a multiple-choice question, recommended option first; routine engineering decisions are taken and stated. Every owner decision becomes a row in `docs/11-decisions.md`.
 - Build in vertical slices: contract → command → tests → server action or route → screen → end-to-end journey. Never leave a layer half wired. Follow AGENTS.md for conventions, recipes and the definition of done (§10).

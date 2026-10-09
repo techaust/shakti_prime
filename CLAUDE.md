@@ -22,6 +22,8 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
   - Every slice is built, reviewed, merged with `main`, integrated and given its Linux baselines on the PC. Docker Desktop runs only the slices' databases and the Playwright image.
   - The lead session opens the pull requests and runs the hosted steps.
   - At most two slice builders run at once.
+  - While any agent runs, the watchdog `bash tools/integration/watchdog.sh` runs under a monitor, armed again at each 30-minute expiry, with merged slices listed in `D:/shakti-wt/.done` ([slice-integration §3](docs/runbooks/slice-integration.md#3-build)).
+  - The lead owns the slots' Docker containers: builders never run `docker` or `fresh-db.sh`, and the lead stops each slot's database when its agent ends.
   - Every heavy command (whole-repository lint, typecheck, build, the security suite, journeys) waits its turn through the PC-wide lock `bash tools/integration/heavy.sh <command>`, because the PC has 8 GB of memory.
   - A whole-repository lint runs once, as a builder's final check.
   - The cloud procedure waits in [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) for when cloud sessions resume; a cloud session has `CLAUDE_CODE_REMOTE=true` and none of the PC's plugins or MCP servers.
