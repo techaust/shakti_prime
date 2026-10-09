@@ -27,13 +27,16 @@ export function useFieldControl(): FieldControl | undefined {
 
 /**
  * A labelled control (docs/08-design-system.md §6): the label above, a helper line or an error below. The error
- * is in the danger colour with an icon, so it does not rely on colour alone.
+ * is in the danger colour with an icon, so it does not rely on colour alone. Buttons that act on the
+ * control (Search, Clear) go in `actions`, on the control's own line and centred on it, so a helper
+ * or an error below never moves them out of line with the box.
  */
 export function Field({
   id,
   label,
   helper,
   error,
+  actions,
   className,
   children,
 }: {
@@ -42,6 +45,8 @@ export function Field({
   helper?: ReactNode;
   /** A sentence from the message catalogue; its presence marks the control wrong. */
   error?: ReactNode;
+  /** Buttons beside the control, level with it (docs/08-design-system.md §6, a field with its action). */
+  actions?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
@@ -57,7 +62,14 @@ export function Field({
         <label htmlFor={id} className="text-text-muted text-sm font-medium">
           {label}
         </label>
-        {children}
+        {actions === undefined ? (
+          children
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">{children}</div>
+            <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          </div>
+        )}
         {helper === undefined ? null : (
           <p id={ids.helper} className="text-text-subtle text-xs">
             {helper}

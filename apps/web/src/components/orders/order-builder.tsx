@@ -102,7 +102,7 @@ export function OrderBuilder({ builder }: { builder: SalesOrderBuilderDto }) {
             {lines.map((line, index) => (
               <li
                 key={line.key}
-                className="border-border grid grid-cols-1 items-end gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_auto]"
+                className="border-border grid grid-cols-1 items-start gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,3fr)_minmax(14rem,1fr)]"
               >
                 <Field id={`order-line-${String(line.key)}-item`} label={t('item')}>
                   <Select
@@ -126,6 +126,21 @@ export function OrderBuilder({ builder }: { builder: SalesOrderBuilderDto }) {
                 <Field
                   id={`order-line-${String(line.key)}-qty`}
                   label={t('quantity')}
+                  actions={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={t('removeLine', { n: index + 1 })}
+                      disabled={lines.length === 1}
+                      onClick={() => {
+                        setPreview(undefined);
+                        setLines((all) => all.filter((l) => l.key !== line.key));
+                      }}
+                    >
+                      <X aria-hidden className="size-4" />
+                      {t('remove')}
+                    </Button>
+                  }
                   error={
                     incomplete && tooLarge(line)
                       ? t('quantityTooLarge', { max: formatCount(QUOTE_MAX_QTY) })
@@ -142,19 +157,6 @@ export function OrderBuilder({ builder }: { builder: SalesOrderBuilderDto }) {
                     }}
                   />
                 </Field>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={t('removeLine', { n: index + 1 })}
-                  disabled={lines.length === 1}
-                  onClick={() => {
-                    setPreview(undefined);
-                    setLines((all) => all.filter((l) => l.key !== line.key));
-                  }}
-                >
-                  <X aria-hidden className="size-4" />
-                  {t('remove')}
-                </Button>
               </li>
             ))}
           </ol>

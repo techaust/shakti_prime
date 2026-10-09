@@ -199,7 +199,7 @@ export function ActivityScreen({
     <div className="flex min-w-0 flex-col gap-4">
       <form
         onSubmit={apply}
-        className="border-border bg-surface grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto] lg:items-start"
+        className="border-border bg-surface grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.6fr)] lg:items-start"
         noValidate
       >
         <Field
@@ -237,7 +237,15 @@ export function ActivityScreen({
             ))}
           </Select>
         </Field>
-        <Field id="activity-person" label={t('filters.person')}>
+        <Field
+          id="activity-person"
+          label={t('filters.person')}
+          actions={
+            <Button type="submit" pending={reader.pending && !loadingMore}>
+              {t('filters.apply')}
+            </Button>
+          }
+        >
           <Select name="actor" defaultValue="">
             <option value="">{t('filters.any')}</option>
             {people.map((p) => (
@@ -247,9 +255,6 @@ export function ActivityScreen({
             ))}
           </Select>
         </Field>
-        <Button type="submit" className="self-end lg:mt-6" pending={reader.pending && !loadingMore}>
-          {t('filters.apply')}
-        </Button>
       </form>
       <FailureMessage failure={reader.failure ?? peopleReader.failure} />
       <DataGrid
