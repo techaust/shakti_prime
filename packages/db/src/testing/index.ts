@@ -317,6 +317,8 @@ export const ENTITY_TABLES = [
   // a caller's or a team's targets: the subject, their team lead, the GM and the Executive read
   // them (docs/03-roadmap-appendix/phase1.md §9)
   'targets',
+  // a person's own profile, and others' to whoever manages them (docs/03-roadmap-appendix/phase1.md §8.2)
+  'caller_profiles',
 ] as const;
 
 /**

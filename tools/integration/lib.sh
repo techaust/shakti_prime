@@ -23,8 +23,13 @@ fi
 # The main checkout (the parent of the shared .git), from any worktree of it.
 main_checkout() { dirname "$(git rev-parse --path-format=absolute --git-common-dir)"; }
 
-# Where slice worktrees live: $WT_ROOT, else a `shakti-wt` folder beside the main checkout.
-wt_root() { echo "${WT_ROOT:-$(dirname "$(main_checkout)")/shakti-wt}"; }
+# Where slice worktrees live: $WT_ROOT, else D:/shakti-wt where it exists (the owner's PC, whose
+# checkout path has spaces), else a `shakti-wt` folder beside the main checkout.
+wt_root() {
+  if [ -n "${WT_ROOT:-}" ]; then echo "$WT_ROOT"
+  elif [ -d /d/shakti-wt ]; then echo "D:/shakti-wt"
+  else echo "$(dirname "$(main_checkout)")/shakti-wt"; fi
+}
 
 # The Postgres image the local stack uses (compose.yaml), so every throwaway database matches it.
 pg_image() { grep -m1 -oE 'supabase/postgres:[^[:space:]]+' "$(main_checkout)/compose.yaml"; }

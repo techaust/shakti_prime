@@ -13,7 +13,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | State | Kind | Notes |
 |---|---|---|
 | `open` | initial | Being worked; stage moves and assignment happen here. |
-| `nurture` | – | Parked on a nurture cadence with a reason (`crm.opportunity.nurture`); `crm.opportunity.reopen` brings it back to open. |
+| `nurture` | – | Parked on a nurture cadence with a reason (`crm.opportunity.nurture`); it can be assigned to another owner and stays here; `crm.opportunity.reopen` brings it back to open. |
 | `won` | terminal | Closed with an accepted quote or a confirmed order. |
 | `lost` | – | Closed without a sale; may be reopened for a limited time. |
 
@@ -23,7 +23,8 @@ Items marked *proposed* are not named in the governing documents; they were chos
 |---|---|---|---|---|---|
 | `create` *(proposed)* | (new) → `open` | `crm.lead.write` or the platform | – | – | `crm.lead.created` |
 | `stage.move` | `open` → `open` | `crm.lead.write` | the target stage belongs to the opportunity pipeline; the exit rules of the current stage are met (its required fields are filled) | `set_stage`: update `stage_id`; `handover_if_qualified`: when the target stage is `qualified`, run the handover: weighted round-robin over Lead Converters by presence, capacity, language and segment (TEL-02), within 10 s | `crm.opportunity.stage_moved` |
-| `assign` | `open` → `open` | `crm.lead.assign` or the platform | the ownership lock has passed, or the caller holds crm.lead.assign at team scope or wider; the platform handover always passes | `set_owner`: set `owner_id` and `team_id`; `lock_owner`: set `locked_until` = now + the pipeline's `lock_hours` (48 h, the workshop default, when the pipeline has none); `move_call_tasks`: the open lead's callbacks go to the new owner; a nurtured lead's owner and nurture calls are T2's to settle | `crm.opportunity.assigned` |
+| `assign` | `open` → `open` | `crm.lead.assign` or the platform | the ownership lock has passed, or the caller holds crm.lead.assign at team scope or wider; the platform handover always passes | `set_owner`: set `owner_id` and `team_id`; `lock_owner`: set `locked_until` = now + the pipeline's `lock_hours` (48 h, the workshop default, when the pipeline has none); `move_call_tasks`: the open lead's callbacks go to the new owner | `crm.opportunity.assigned` |
+| `assign` | `nurture` → `nurture` | `crm.lead.assign` or the platform | the ownership lock has passed, or the caller holds crm.lead.assign at team scope or wider; the platform handover always passes | `set_owner`: set `owner_id` and `team_id`; `lock_owner`: set `locked_until` = now + the pipeline's `lock_hours` (48 h, the workshop default, when the pipeline has none); `move_call_tasks`: the lead's nurture calls go to the new owner | `crm.opportunity.assigned` |
 | `nurture` | `open` → `nurture` | `crm.lead.write` | a reason is given | `schedule_nurture`: nurture call tasks for the lead's owner on day 7, 30, 90 after the lead enters nurture, at the start of calling hours (the owner's default for workshop CALL-5), after any still open are cancelled; a workflow engine is a later choice | `crm.opportunity.nurtured` |
 | `reopen` | `nurture`, `lost` → `open` | `crm.lead.write` | from lost: lost within the last 30 days | `first_open_stage`: stage = the first open stage; `end_nurture_calls`: cancel the lead's open nurture calls | `crm.opportunity.reopened` |
 | `win` | `open` → `won` | `crm.lead.write` | an accepted quote or a confirmed sales order references the opportunity | – | `crm.opportunity.won` |
@@ -34,6 +35,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 ## Notes
 
 - `create`: Created by `crm.lead.create` (manual entry) or by lead ingestion (the platform).
+- `assign`: A leaving caller's nurtured leads move with their open ones (`crm.lead.reassign_all`); the lead stays in nurture.
 
 ## Diagram
 
@@ -42,6 +44,7 @@ stateDiagram-v2
   [*] --> open : create
   open --> open : stage.move
   open --> open : assign
+  nurture --> nurture : assign
   open --> nurture : nurture
   nurture --> open : reopen
   lost --> open : reopen

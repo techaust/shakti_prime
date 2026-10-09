@@ -124,7 +124,7 @@ Every move goes through a pushed branch: commit and push before moving.
 ## 8. What stays on the PC, and why
 - **Hosted steps:** migrating dev and staging and checking them ([DEPLOY §2](deploy.md#2-every-deploy), the `migrate-hosted` skill). The migration count and any other look at a hosted project use the Supabase, Vercel, Upstash, AWS and Sentry tools signed in on the PC ([tooling](tooling.md)).
 - **The pull request:** the lead checks the pushed branch against the session's report first; a cloud session never opens one.
-- **Worktrees and their ports:** `D:/shakti-wt` (`WT_ROOT=/d/shakti-wt`), one Postgres container and app port per slice ([slice-integration §1](slice-integration.md#1-machines-and-ports)). A cloud session has one checkout, Postgres on 54322 and the app on 3000.
+- **Worktrees and their ports:** `D:/shakti-wt` (the scripts' default where it exists), one Postgres container and app port per slice ([slice-integration §1](slice-integration.md#1-machines-and-ports)). A cloud session has one checkout, Postgres on 54322 and the app on 3000.
 - **The browser pane** (`.claude/launch.json`, the preview logs) is part of the desktop app.
 
 ## 9. A reclaimed VM or a usage limit

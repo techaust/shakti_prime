@@ -1016,6 +1016,27 @@ describe('guards that let some actors through', () => {
     ).toBe('open');
   });
 
+  it('assign: a nurtured lead is assigned and stays in nurture; a won or lost lead is not', () => {
+    const base = setup(fixtureOf('opportunity'), 'nurture', 'assign');
+    const actor = holding([{ key: 'crm.lead.assign', scope: 'team' }]);
+    expect(
+      transition(opportunityMachine, base.record as never, 'assign', {
+        actor,
+        now: NOW,
+        params: {},
+      }).to,
+    ).toBe('nurture');
+    for (const state of ['won', 'lost']) {
+      expect(() =>
+        transition(opportunityMachine, { ...base.record, state } as never, 'assign', {
+          actor,
+          now: NOW,
+          params: {},
+        }),
+      ).toThrow();
+    }
+  });
+
   it('reopen: from nurture there is no time limit; from lost exactly 30 days still counts', () => {
     const base = setup(fixtureOf('opportunity'), 'nurture', 'reopen');
     const old = { ...base.record, stateChangedAt: new Date(NOW.getTime() - 400 * DAY) };

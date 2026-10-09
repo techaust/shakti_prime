@@ -335,7 +335,10 @@
     "order_not_held": "This order is not held for credit, so there is nothing to release.",
     "order_credit_clear": "This order is within the dealer's credit, so it can be confirmed.",
     "credit_not_dealer": "Credit limits and outstanding are only kept for dealers.",
-    "outstanding_date_future": "The date of the outstanding cannot be after today. Enter the date the figure stands at."
+    "outstanding_date_future": "The date of the outstanding cannot be after today. Enter the date the figure stands at.",
+    "profile_person_missing": "This person is not on your team in this company, so you can't change their settings.",
+    "reassign_no_converter": "No Lead Converter is present to take these leads. Choose a person instead.",
+    "reassign_same_person": "Choose someone other than the person who is leaving."
   },
   "auth": {
     "signIn": {
@@ -430,7 +433,8 @@
     "knowledge": "Knowledge",
     "orders": "Orders",
     "dealerCredit": "Dealer credit",
-    "targets": "Targets"
+    "targets": "Targets",
+    "converters": "Lead converters"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -501,7 +505,8 @@
       "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
-      "targets": "Set what each caller and team is aiming for, and see what was set before."
+      "targets": "Set what each caller and team is aiming for, and see what was set before.",
+      "converters": "Choose who takes qualified leads, how many each person takes and who is present."
     },
     "progress": {
       "period": {
@@ -572,7 +577,14 @@
   },
   "profile": {
     "title": "Your profile",
-    "intro": "How the screens look for you, and your password."
+    "intro": "How the screens look for you, your password and whether you take new leads.",
+    "presence": {
+      "heading": "Taking new leads",
+      "intro": "When you are present, a qualified lead can be given to you if your manager has made you a Lead Converter. Switch to away when you cannot take more.",
+      "label": "I am present in {company}",
+      "present": "You are present in {company}.",
+      "away": "You are away in {company}."
+    }
   },
   "mail": {
     "setPassword": {
@@ -1319,7 +1331,8 @@
       "suspend": "Suspend",
       "reactivate": "Reactivate",
       "resetAuthenticator": "Reset authenticator app",
-      "liftLock": "Lift sign-in lock"
+      "liftLock": "Lift sign-in lock",
+      "moveLeads": "Move all leads"
     },
     "rolesField": {
       "legend": "Role in each company",
@@ -1391,6 +1404,20 @@
         "absolute_expiry": "Signed in for seven days",
         "timedOut": "Not used for a while"
       }
+    },
+    "moveLeadsDialog": {
+      "title": "Move all leads from {name}",
+      "intro": "Every open lead and every lead set aside to follow up later goes to the person you choose, with its calls. The customer goes with each lead.",
+      "introInTurn": "Every open lead and every lead set aside to follow up later is shared between the Lead Converters who are present and take it, with its calls. The customer goes with each lead.",
+      "company": "Company",
+      "target": "Give the leads to",
+      "choose": "Choose a person",
+      "inTurn": "Share them between the Lead Converters who are present",
+      "loading": "Finding people",
+      "nobody": "No one else works on leads in this company.",
+      "submit": "Move leads",
+      "done": "{count, plural, =0 {{name} had no leads to move.} one {# lead moved from {name}.} other {# leads moved from {name}.}}{remaining, plural, =0 {} one { One lead is still with {name}. Run Move all leads again to move it.} other { # leads are still with {name}. Run Move all leads again to move them.}}",
+      "doneTeamOnly": "Leads outside your team stay with {name}."
     }
   },
   "activity": {
@@ -1559,7 +1586,11 @@
       "noticesReadAll": "All notices marked as read",
       "noticeSettingsSet": "Notification settings changed",
       "pushSubscribe": "Alerts turned on for a browser",
-      "pushUnsubscribe": "Alerts turned off for a browser"
+      "pushUnsubscribe": "Alerts turned off for a browser",
+      "callerProfileSet": "Lead converter settings changed",
+      "callerProfileSetPresence": "Presence changed",
+      "leadHandOver": "Qualified lead given to a Lead Converter",
+      "leadReassignAll": "All leads of a person moved"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1838,7 +1869,12 @@
       "targetMetric": "What it counts",
       "targetPeriod": "Period",
       "startsOn": "From",
-      "targetValue": "Target"
+      "targetValue": "Target",
+      "isConverter": "Takes qualified leads",
+      "presence": "Presence",
+      "maxOpen": "Most open leads",
+      "languages": "Languages",
+      "segments": "Business lines"
     },
     "values": {
       "percent": "{value}%",
@@ -3084,7 +3120,8 @@
       "knowledge_index": "Read Knowledge Vault files so they can be searched",
       "sales_credit_write": "Enter dealer credit limits and outstanding",
       "sales_targets_write": "Set the targets of callers and teams",
-      "notifications_send": "Send notices to the people who act on them"
+      "notifications_send": "Send notices to the people who act on them",
+      "crm_handover_run": "Give a qualified lead to a Lead Converter"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3759,7 +3796,9 @@
       "routedNote": "Note",
       "routedReceived": "Passed on",
       "routedComplete": "Done",
-      "routedDone": "Marked done."
+      "routedDone": "Marked done.",
+      "handoverFrom": "Qualified lead with no Lead Converter free",
+      "handoverFor": "{customer} is ready for a quote"
     },
     "admin": {
       "title": "Agents",
@@ -4241,6 +4280,55 @@
         "caller": "Caller",
         "team": "Team"
       }
+    }
+  },
+  "converters": {
+    "title": "Lead converters",
+    "intro": "A qualified lead goes to a Lead Converter who is present, has room and takes the customer's language and business line, starting with the one who holds the fewest open leads. If no one qualifies, it goes to the Sales Team Lead.",
+    "caption": "People who work on leads and their part in the handover",
+    "company": "Company",
+    "empty": "No one works on leads in this company yet.",
+    "columns": {
+      "name": "Name",
+      "converter": "Lead Converter",
+      "presence": "Presence",
+      "capacity": "Most open leads",
+      "languages": "Languages",
+      "segments": "Business lines",
+      "actions": "Actions"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "present": "Present",
+    "away": "Away",
+    "noLimit": "No limit",
+    "allLanguages": "All languages",
+    "allSegments": "All business lines",
+    "edit": "Edit",
+    "editLabel": "Edit settings for {name}",
+    "moveLeads": "Move all leads",
+    "moveLeadsLabel": "Move all leads from {name}",
+    "language": {
+      "hinglish": "Hindi and English mixed",
+      "en": "English"
+    },
+    "segment": {
+      "farmer_pumps": "Farmer pumps",
+      "residential_rooftop": "Home rooftop solar",
+      "commercial_epc": "Commercial solar projects",
+      "dealer_wholesale": "Dealers and wholesale"
+    },
+    "dialog": {
+      "title": "Settings for {name}",
+      "intro": "Presence is switched by the person themself on their profile.",
+      "isConverter": "Takes qualified leads",
+      "maxOpen": "Most open leads",
+      "maxOpenHelper": "Leave empty for no limit.",
+      "languages": "Languages taken",
+      "segments": "Business lines taken",
+      "takesAllHelper": "Choose none to take all.",
+      "submit": "Save",
+      "done": "Settings for {name} are saved."
     }
   }
 }

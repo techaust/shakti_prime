@@ -42,12 +42,11 @@ Done when: the slice-specific checks beyond AGENTS §10.
 Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. A cloud session, when they resume, uses the defaults of its own VM (Postgres 54322, app 3000).
 
 ## Slices in flight
-Wave 4, built on the PC beside each other (their run files are on their branches until they merge):
-- N1 notifications, branch `feat/n1-notifications`, slot 16
-- S2 orders, acceptance and credit, branch `feat/s2-orders`, slot 17
-- K1 knowledge vault, branch `feat/k1-knowledge`, slot 18
+Wave 4's last slice, built on the PC (its run file is on its branch until it merges):
+- T2 handover, branch `feat/t2-handover`, slot 19
 
-T2 starts after N1 merges.
+Wave 5, beside T2 (owner, 09-10-2026: two builders for this run):
+- R1 targets and home pages, branch `feat/r1-targets`, slot 20
 
 ## Merged (slices built with a run file; wave 1, C1, X1 and C2 predate run files)
 - [P4 print and letterhead](p4-print.md) (#99)
@@ -58,3 +57,6 @@ T2 starts after N1 merges.
 - [S1 quotes](s1-quotes.md) (#115)
 - [D1 duplicates](d1-duplicates.md) (#118)
 - [T1 cold caller workspace](t1-calling.md) (#119)
+- [S2 orders, acceptance and credit](s2-orders.md) (#133)
+- [N1 notifications](n1-notifications.md) (#134)
+- [K1 knowledge vault](k1-knowledge.md) (#135)

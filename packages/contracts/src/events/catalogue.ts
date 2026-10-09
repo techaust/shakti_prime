@@ -105,7 +105,8 @@ const eventCatalogue = {
     meaning:
       'An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`.',
     emittedBy: ['calls.call.log', 'crm.opportunity.stage.move'],
-    subscribed: false,
+    // The handover worker gives a qualified lead to a Lead Converter (docs/03-roadmap-appendix/phase1.md §8.2).
+    subscribed: true,
     payload: z
       .object({
         fromStageId: IdSchema,
@@ -119,7 +120,7 @@ const eventCatalogue = {
   'crm.opportunity.assigned': {
     meaning:
       'A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves.',
-    emittedBy: ['crm.opportunity.assign'],
+    emittedBy: ['crm.lead.reassign_all', 'crm.opportunity.assign', 'crm.opportunity.hand_over'],
     // The notify worker tells the new owner (docs/03-roadmap-appendix/phase1.md §8.1).
     subscribed: true,
     payload: z

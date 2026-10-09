@@ -139,6 +139,8 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // A notice is written only by the notify worker's definer; a person changes its read time
     // alone (notifications.test.ts).
     notifications: { i: false, u: false },
+    // A profile changes only its settings and presence (column grants, 0125); never deleted.
+    caller_profiles: { i: true, u: false },
   };
 
   /**
@@ -433,6 +435,10 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
        order by 1
     `);
     expect(rows.map((r) => r.fn)).toEqual([
+      // A caller profile is read by its person and by whoever manages them, and the converters
+      // page lists the people of a manager's scope (0125).
+      'app.caller_profile_manages(uuid,smallint)',
+      'app.caller_profile_people(smallint)',
       'app.customer_search_ids(text,text,integer)',
       // The dealer credit screen's figures, the one place the exposure is worked out (0117).
       'app.dealer_credit_position(smallint,uuid,uuid)',

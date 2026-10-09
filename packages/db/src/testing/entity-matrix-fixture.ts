@@ -96,6 +96,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   referral_partners: 'x.account_id::text',
   duplicate_candidates: 'x.id::text',
   customer_merges: 'x.id::text',
+  caller_profiles: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -181,6 +182,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`alter table targets disable trigger targets_append_only`;
       await tx`delete from targets where id::text like ${like}`;
       await tx`alter table targets enable trigger targets_append_only`;
+      await tx`delete from caller_profiles where id::text like ${like}`;
       await tx`delete from agent_configs where id::text like ${like}`;
       await tx`delete from user_entity_roles where id::text like ${like}`;
       await tx`delete from users where id::text like ${like}`;
@@ -315,6 +317,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     referral_partners: [{ key: shared.account, entities: [1, 2], leadIn: [2] }],
     duplicate_candidates: [],
     customer_merges: [],
+    caller_profiles: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -419,6 +422,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         // The company's vault file (staff knowledge) on its vault upload, with one chunk.
         const vaultFile = per(e, 0x42);
         const vaultChunk = per(e, 0x43);
+        // The owner's caller profile and another person's.
+        const ownProfile = per(e, 0x44);
+        const othersProfile = per(e, 0x45);
         const sizing = per(e, 0x1b);
         const call = per(e, 0x30);
         const quote = per(e, 0x1c);
@@ -515,6 +521,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${vaultFile}, ${e}, ${per(e, 0x17)}, ${`matrix vault file ${e.toString()}`}, 'staff_ai_ok', 'pdf', 'indexed', ${ownerId})`;
         await tx`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
           values (${vaultChunk}, ${vaultFile}, ${e}, 'staff_ai_ok', 0, 'matrix passage', array_fill(0.1::real, array[1024])::vector)`;
+        await tx`insert into caller_profiles (id, user_id, entity_id, is_converter, presence) values
+          (${ownProfile}, ${ownerId}, ${e}, true, 'present'),
+          (${othersProfile}, ${otherUserId}, ${e}, false, 'away')`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -649,6 +658,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.agent_runs.push({ key: agentRun, entities: only });
         rows.agent_actions.push({ key: agentAction, entities: only });
         rows.inbox_items.push({ key: inboxItem, entities: only });
+        rows.caller_profiles.push(
+          { key: ownProfile, entities: only },
+          { key: othersProfile, entities: only, othersOwn: true },
+        );
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
         rows.targets.push(

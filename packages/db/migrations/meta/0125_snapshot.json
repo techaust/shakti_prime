@@ -1,6 +1,6 @@
 {
-  "id": "dea6a7be-9405-4c8a-ac4c-fc120369b42a",
-  "prevId": "1ecd9829-4441-43ba-9ea1-36f360680331",
+  "id": "e54871c2-eea2-46d5-96c4-12bf8da98029",
+  "prevId": "18c32bce-feb1-4fce-87b0-98cb8e3c7bbb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -699,28 +699,6 @@
           "isUnique": false,
           "with": {},
           "method": "btree",
-          "concurrently": false
-        },
-        "activities_stage_actor_idx": {
-          "name": "activities_stage_actor_idx",
-          "columns": [
-            {
-              "expression": "actor_principal_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"activities\".\"type\" = 'stage_moved'",
           "concurrently": false
         },
         "activities_opportunity_created_idx": {
@@ -2262,6 +2240,174 @@
         "call_dispositions_position_check": {
           "name": "call_dispositions_position_check",
           "value": "\"call_dispositions\".\"position\" between 1 and 9"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.caller_profiles": {
+      "name": "caller_profiles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_converter": {
+          "name": "is_converter",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "presence": {
+          "name": "presence",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'away'"
+        },
+        "max_open": {
+          "name": "max_open",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "languages": {
+          "name": "languages",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "segments": {
+          "name": "segments",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "caller_profiles_converters_idx": {
+          "name": "caller_profiles_converters_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"caller_profiles\".\"is_converter\" and \"caller_profiles\".\"presence\" = 'present'",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "caller_profiles_user_id_principals_id_fk": {
+          "name": "caller_profiles_user_id_principals_id_fk",
+          "tableFrom": "caller_profiles",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "principals",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "caller_profiles_entity_id_entities_id_fk": {
+          "name": "caller_profiles_entity_id_entities_id_fk",
+          "tableFrom": "caller_profiles",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "tableTo": "entities",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "caller_profiles_updated_by_principals_id_fk": {
+          "name": "caller_profiles_updated_by_principals_id_fk",
+          "tableFrom": "caller_profiles",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "tableTo": "principals",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "caller_profiles_user_entity_unique": {
+          "name": "caller_profiles_user_entity_unique",
+          "columns": [
+            "user_id",
+            "entity_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "caller_profiles_presence_check": {
+          "name": "caller_profiles_presence_check",
+          "value": "\"caller_profiles\".\"presence\" in ('present', 'away')"
+        },
+        "caller_profiles_max_open_check": {
+          "name": "caller_profiles_max_open_check",
+          "value": "\"caller_profiles\".\"max_open\" is null or \"caller_profiles\".\"max_open\" between 1 and 1000"
+        },
+        "caller_profiles_languages_check": {
+          "name": "caller_profiles_languages_check",
+          "value": "\"caller_profiles\".\"languages\" <@ array['hinglish', 'en']::text[]"
+        },
+        "caller_profiles_segments_check": {
+          "name": "caller_profiles_segments_check",
+          "value": "\"caller_profiles\".\"segments\" <@ array['farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale']::text[]"
         }
       },
       "isRLSEnabled": false
@@ -12573,28 +12719,6 @@
           "with": {},
           "method": "btree",
           "concurrently": false
-        },
-        "sales_orders_confirmed_by_idx": {
-          "name": "sales_orders_confirmed_by_idx",
-          "columns": [
-            {
-              "expression": "confirmed_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "confirmed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"sales_orders\".\"confirmed_at\" is not null",
-          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -13354,245 +13478,6 @@
         "tags_name_length_check": {
           "name": "tags_name_length_check",
           "value": "char_length(\"tags\".\"name\") between 1 and 40"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.targets": {
-      "name": "targets",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_id": {
-          "name": "subject_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "team_id": {
-          "name": "team_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "metric": {
-          "name": "metric",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "period": {
-          "name": "period",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "starts_on": {
-          "name": "starts_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "set_by": {
-          "name": "set_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "set_at": {
-          "name": "set_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "targets_subject_idx": {
-          "name": "targets_subject_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "scope",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "subject_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "metric",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "period",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "starts_on",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "set_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "targets_team_idx": {
-          "name": "targets_team_idx",
-          "columns": [
-            {
-              "expression": "team_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "set_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "targets_set_by_idx": {
-          "name": "targets_set_by_idx",
-          "columns": [
-            {
-              "expression": "set_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "targets_entity_id_entities_id_fk": {
-          "name": "targets_entity_id_entities_id_fk",
-          "tableFrom": "targets",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "targets_team_id_teams_id_fk": {
-          "name": "targets_team_id_teams_id_fk",
-          "tableFrom": "targets",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "tableTo": "teams",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "targets_set_by_principals_id_fk": {
-          "name": "targets_set_by_principals_id_fk",
-          "tableFrom": "targets",
-          "columnsFrom": [
-            "set_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "targets_scope_check": {
-          "name": "targets_scope_check",
-          "value": "\"targets\".\"scope\" in ('caller', 'team')"
-        },
-        "targets_metric_check": {
-          "name": "targets_metric_check",
-          "value": "\"targets\".\"metric\" in ('calls', 'qualified', 'orders', 'kw')"
-        },
-        "targets_period_check": {
-          "name": "targets_period_check",
-          "value": "\"targets\".\"period\" in ('day', 'week', 'month')"
-        },
-        "targets_value_check": {
-          "name": "targets_value_check",
-          "value": "\"targets\".\"value\" >= 0"
-        },
-        "targets_starts_on_check": {
-          "name": "targets_starts_on_check",
-          "value": "(\"targets\".\"period\" = 'day')\n        or (\"targets\".\"period\" = 'week' and extract(isodow from \"targets\".\"starts_on\") = 1)\n        or (\"targets\".\"period\" = 'month' and extract(day from \"targets\".\"starts_on\") = 1)"
-        },
-        "targets_team_subject_check": {
-          "name": "targets_team_subject_check",
-          "value": "\"targets\".\"scope\" <> 'team' or \"targets\".\"subject_id\" = \"targets\".\"team_id\""
         }
       },
       "isRLSEnabled": false

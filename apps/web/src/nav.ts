@@ -17,6 +17,7 @@ import {
   Palette,
   Percent,
   ScrollText,
+  Shuffle,
   Store,
   Target,
   ShieldCheck,
@@ -144,6 +145,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // A team lead sets the targets of their team, the GM those of the company, the Executive any
     // (sales.target.set); the page reads what the grant's scope reaches.
     requires: [{ key: 'sales.targets.write', scope: 'team' }],
+  },
+  {
+    id: 'converters',
+    href: '/converters',
+    label: 'converters',
+    icon: Shuffle,
+    group: 'work',
+    // A team lead and above choose who takes qualified leads (crm.lead.assign, SECURITY §3.2).
+    requires: [{ key: 'crm.lead.assign', scope: 'team' }],
   },
   {
     id: 'leads-new',
