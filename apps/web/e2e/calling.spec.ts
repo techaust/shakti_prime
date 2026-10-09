@@ -142,7 +142,11 @@ test.describe('calling as a tele-caller', () => {
     await findLead(page, qualified);
     await page.keyboard.press('8');
     await toast(page, 'Call saved. The lead moved to Qualified.');
-    await expect(page.getByText(/Farmer Pumps, Qualified/)).toBeVisible();
+    // A present Lead Converter takes a qualified lead within a moment (handover.spec.ts), so the
+    // page shows the lead at Qualified or already says it has moved to a colleague.
+    await expect(
+      page.getByText(/Farmer Pumps, Qualified/).or(page.getByText(/We couldn't find this lead/)),
+    ).toBeVisible();
 
     // N opens the next lead of the queue.
     await page.keyboard.press('n');

@@ -470,6 +470,7 @@ for (const project of PROJECTS) {
         (m) => m`update user_entity_roles set team_id = ${callingTeam?.id ?? ''}
                   where user_id = ${leaverId} and entity_id = 1`,
       );
+      await asMigrator((m) => m`update users set status = 'active' where id = ${leaverId}`);
     }
     const principal = principalFor('tele_caller_cc', [1], {
       id: leaverId,
