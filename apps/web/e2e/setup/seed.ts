@@ -481,6 +481,12 @@ for (const project of PROJECTS) {
 }
 
 async function leaverLeads(principal: ReturnType<typeof principalFor>, label: string) {
+  // Leads an earlier run left with them (a journey that did not run, or failed) are set aside, so
+  // every run starts with exactly two to move.
+  await asMigrator(
+    (m) => m`update opportunities set archived_at = now()
+              where owner_id = ${principal.id} and archived_at is null`,
+  );
   for (const n of [1, 2]) {
     const digits = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
     await executeCommand(principal, {}, createLead, {
