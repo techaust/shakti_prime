@@ -21,7 +21,7 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
 - **Where work runs: the PC only.** Cloud sessions are paused ([DECISIONS](docs/11-decisions.md#standing-rules-in-force)).
   - Every slice is built, reviewed, merged with `main`, integrated and given its Linux baselines on the PC. Docker Desktop runs only the slices' databases and the Playwright image.
   - The lead session opens the pull requests and runs the hosted steps.
-  - At most two slice builders run at once.
+  - At most two slice builders run at once; while two run, every lint, typecheck and test of both, folder-level ones too, goes through the lock, since two builders' checks beside a journey run used up the 8 GB on 09-10-2026.
   - While any agent runs, the watchdog `bash tools/integration/watchdog.sh` runs under a monitor, armed again at each 30-minute expiry, with merged slices listed in `D:/shakti-wt/.done` ([slice-integration §3](docs/runbooks/slice-integration.md#3-build)).
   - The lead owns the slots' Docker containers: builders never run `docker` or `fresh-db.sh`, and the lead stops each slot's database when its agent ends.
   - Every heavy command (whole-repository lint, typecheck, build, the security suite, journeys) waits its turn through the PC-wide lock `bash tools/integration/heavy.sh <command>`, because the PC has 8 GB of memory.

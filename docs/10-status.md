@@ -2,12 +2,12 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [11-decisions.md](11-decisions.md); open follow-ups have their single home here.
 
-**09-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Waves 1 to 3 are merged; in wave 4, S2 (#133), N1 (#134) and K1 (#135) merged on 08-10 and 09-10-2026 and are on dev and staging, and T2 is being built. Migrations on `main`: 0000 to 0123. Tests: security suite 2,294 (database 1,147, domain 850, web 297) and unit tests 3,232, from K1's integration on 09-10-2026. The GitHub repository is public for now, since the free Actions minutes of that month were used up ([DECISIONS](11-decisions.md#standing-rules-in-force)).
+**09-10-2026, afternoon.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Waves 1 to 3 are merged; in wave 4, S2 (#133), N1 (#134) and K1 (#135) are merged and on dev and staging, and T2 is in its last fixes; in wave 5, R1 is in its last fixes beside it (the owner allowed two builders for this run). An alignment check for every journey screen waits on its branch. Migrations on `main`: 0000 to 0123. Tests: security suite 2,294 (database 1,147, domain 850, web 297) and unit tests 3,232, from K1's integration on 09-10-2026. The GitHub repository is public for now, since the free Actions minutes of that month were used up ([DECISIONS](11-decisions.md#standing-rules-in-force)).
 
 ## Phase 1
 - **Design:** [docs/03-roadmap-appendix/phase1.md](03-roadmap-appendix/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](03-roadmap-appendix/phase1.md#3-slices).
 - **Merged (17 of the 23 slices):** set-up #79, #80; wave 1: #81 P3, #82 P1, #84 CI economy, #85 P2; wave 2: #87 C1, #88 X1, #89 C2, #99 P4, #100 C4, #103 C3, #105 P2b; wave 3: #108 AI0, #115 S1, #118 D1, #119 T1; wave 4: #133 S2, #134 N1, #135 K1; tooling #107, #109, #111, #112, #113, #116, #117; dependency bumps #101, #102, #127, #128; documents #83, #86, #90 to #98, #104, #106, #110, #114, #120 to #126, #129 to #132 ([CHANGELOG](../CHANGELOG.md)).
-- **Next:** T2's build, then its review (Opus), fixes, integration and pull request; then waves 5 and 6 (L1, R1, A1; M1, G1). The models-and-usage review after S2, N1 and K1 is due (Waiting on the owner).
+- **Next, in order, today:** T2 integrated, merged and migrated on dev and staging; the alignment branch audited (a full journey run with the check), fixed, its screenshots reviewed and the menu baselines remade, merged; R1 merged with `main` (its migrations after T2's, "Save target" on `Field`'s actions), integrated, merged and migrated; then the end-of-day documents. L1 and A1 wait for Monday's usage reset (the week passed 84 % on 09-10-2026). The models-and-usage review after S2, N1 and K1 is due (Waiting on the owner).
 - **Work split:** the PC only, heavy commands one at a time through the lock, the watchdog under a monitor while any agent runs, the lead owning the slots' containers ([CLAUDE.md](../CLAUDE.md#session-routine)); how many agents run at once, and on which model and effort, follows [models-and-usage](runbooks/models-and-usage.md). Cloud sessions are paused; S1, D1 and T1 showed the cloud procedure works ([hybrid §10](runbooks/hybrid.md#10-the-trial)).
 
 ### In progress
@@ -15,7 +15,9 @@ Each slice's run file is `docs/runs/phase1/<slug>.md` on its branch and reaches 
 
 | Slice | Branch | Run file | Where | State | Next step |
 |---|---|---|---|---|---|
-| T2 Handover | `feat/t2-handover` | `t2-handover.md` | PC worktree `D:/shakti-wt/t2-handover`, slot 19 (Postgres 54349, app 3049) | Building since 09-10-2026 (Sonnet, medium; Tier B), from `main` at #135; carries the owner's decision that a round-robin handover moves the customer relationship | The builder stops for a fresh database before its final checks; then review (Opus) |
+| T2 Handover | `feat/t2-handover` | `t2-handover.md` | PC worktree `D:/shakti-wt/t2-handover`, slot 19 (Postgres 54349, app 3049) | Built; reviewed (Opus, medium: 4 medium, 5 low), fixed, re-checked (one high: a lock kept a non-converter's lead; fixed); final checks running | The lead reads the last fix, then integration, pull request and `migrate-hosted` (0124–0125 on `main` after the merge) |
+| R1 Targets and home pages | `feat/r1-targets` | `r1-targets.md` | PC worktree `D:/shakti-wt/r1-targets`, slot 20 (Postgres 54350, app 3050) | Built; reviewed (3 medium, 8 low), fixed, re-checked (1 medium: home actions took a company list from the browser; being fixed with 3 lows) | Merge with `main` after T2 and the alignment branch, renumber its migrations, integration, pull request, `migrate-hosted` |
+| Alignment check | `fix/search-button-align` | — | the main checkout | `Field`'s `actions` row, `expectAligned` in every journey's accessibility check, the rule in the design system and the agents' rules; unit-tested | A full journey run with the check, fixes, a by-eye review of every Linux screenshot, the menu baselines remade, pull request |
 
 ## Hosted environments
 | | Dev | Staging |
@@ -55,7 +57,7 @@ Every item below, with step-by-step guides and shared ticks, is on the private c
 ## Open follow-ups
 | Follow-up | Phase / slice |
 |---|---|
-| `main`'s Linux baselines that show the menu lack the items and top-bar changes of S2 (Orders, Dealer credit), N1 (the bell) and K1 (Knowledge): they pass under the 1 % allowance, but [slice-integration §10](runbooks/slice-integration.md#10-lessons) asks for every desktop staff baseline showing the menu to be remade when a menu item is added; remake them on a fresh database, one spec at a time with `--update-snapshots=all --grep`, and check each | 1 / next integration |
+| `main`'s Linux baselines that show the menu lack the items and top-bar changes of S2 (Orders, Dealer credit), N1 (the bell) and K1 (Knowledge): they pass under the 1 % allowance, but [slice-integration §10](runbooks/slice-integration.md#10-lessons) asks for every desktop staff baseline showing the menu to be remade when a menu item is added; remake them on a fresh database, one spec at a time with `--update-snapshots=all --grep`, and check each | 1 / the alignment branch, 09-10-2026 |
 | The OCR model bundled with the hosted worker (`OCR_LANG_PATH`), so the Vault takes PDFs and photos on dev and staging; masking timed on a Vercel function | 1 / any slice |
 | A Vault page whose turn begins late (25 s) can outrun the route's 60 s with its own 45 s once; bound the page's time by what is left of the delivery (K1) | 1 / any slice |
 | Read again on a file waiting six minutes can race QStash's redelivery and read it twice (K1 review #13) | 1 / any slice |
@@ -68,7 +70,12 @@ Every item below, with step-by-step guides and shared ticks, is on the private c
 | The orders snapshot journey's page load can pass 60 s on a loaded PC (passed on retry, 09-10-2026) | 1 / any slice |
 | The whole-repository lint needed a 6 GB heap after N1 (`package.json`); watch it as the repository grows | 1 / any slice |
 | `drizzle-kit generate` needs a terminal for a column rename, so a builder patches the snapshot by script; a non-interactive way to answer its prompt | 1 / any slice |
-| `tools/integration/setup-worktree.sh` placed T2 beside the checkout before `wt_root()` preferred `D:/shakti-wt`; check the next worktree lands there | 1 / any slice |
+| `tools/integration/setup-worktree.sh` placed T2 beside the checkout before `wt_root()` preferred `D:/shakti-wt`; R1's worktree landed in `D:/shakti-wt` on 09-10-2026 | 1 / any slice |
+| `pipelines.lock_hours` is `not null default 48`, so `WORKSHOP_DEFAULTS.opportunity.handoverLockHours` is never reached; the lock length has two copies of 48 (the column default and the workshop default) | 1 / any slice |
+| The handover's state-machine check runs on a made-up lead record and can never refuse; the database function holds the real check (T2 review #9) | 1 / any slice |
+| The R1 journey seed logs the caller's calls at seed time; a seed and journey that straddle midnight IST fail the progress check (R1 review #11) | 1 / any slice |
+| `orders.test.ts` timed out once in a full domain run and passed alone; `mask-pdf-pages.test.ts`'s timing case failed once in a full unit run and passed alone (09-10-2026, two builders sharing the PC) | 1 / any slice |
+| A per-phase list of what the client must give for Phases 2 to 7 (WhatsApp templates, Exotel, the catalogue and opening stock, project and DISCOM papers, the chart of accounts, HR rules, agent autonomy, go-live sign-off), beside `13-client-packs/client-actions.md` | owner / documents |
 | A nurtured lead's owner and nurture calls on reassignment (`crm.opportunity.assign` runs only from open), and the handover tested with a callback open: as `system:workers`, which holds no `crm.lead.write`, `moveCallTasks` moves nothing | 1 / T2 |
 | The journeys are not repeatable on a used database: a run leaves the shared Executive's selected company on another company and the pipelines journey's stages behind, so a second run fails in other journeys (N1 and K1, 07-10-2026); reset that state in the journeys' set-up | 1 / any slice |
 | `/settings/profile` is at 192.3 kB against its 200 kB budget (186.0 on 29-09-2026; the bell is part of the growth) | 1 / any slice |
