@@ -46,7 +46,7 @@ export const agentConfigs = pgTable(
     check('agent_configs_agent_check', sql`${t.agent} like 'agent:%'`),
     check(
       'agent_configs_autonomy_check',
-      sql`${t.autonomy} in ('suggest', 'needs_approval', 'automatic')`,
+      sql`${t.autonomy} in ('shadow', 'suggest', 'needs_approval', 'automatic')`,
     ),
     check('agent_configs_cap_check', sql`${t.dailySpendCapPaise} >= 0`),
     check(
@@ -84,6 +84,11 @@ export const agentRuns = pgTable(
     costPaise: bigint('cost_paise', { mode: 'number' }).notNull().default(0),
     outcome: text('outcome').notNull(),
     durationMs: integer('duration_ms').notNull().default(0),
+    /**
+     * Why the deterministic output filter refused what the model proposed (A1), as a code; null
+     * for every other outcome. Never the proposal itself.
+     */
+    filterReason: text('filter_reason'),
     requestId: text('request_id').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -92,7 +97,16 @@ export const agentRuns = pgTable(
     check('agent_runs_agent_check', sql`${t.agent} like 'agent:%'`),
     check(
       'agent_runs_outcome_check',
-      sql`${t.outcome} in ('proposed', 'acted', 'nothing_to_do', 'switched_off', 'cap_reached', 'unavailable', 'failed')`,
+      sql`${t.outcome} in ('proposed', 'shadowed', 'acted', 'nothing_to_do', 'filtered', 'switched_off', 'cap_reached', 'unavailable', 'failed')`,
+    ),
+    check(
+      'agent_runs_filter_reason_check',
+      sql`${t.filterReason} in ('unreadable_answer', 'unknown_pipeline', 'score_out_of_bounds', 'unknown_candidate', 'unknown_person', 'text_has_phone', 'text_has_identity_number', 'text_has_instruction')`,
+    ),
+    // A run the output filter stopped names its reason, and only such a run names one.
+    check(
+      'agent_runs_filtered_check',
+      sql`(${t.outcome} = 'filtered') = (${t.filterReason} is not null)`,
     ),
     check(
       'agent_runs_counts_check',
@@ -141,11 +155,17 @@ export const agentActions = pgTable(
     check('agent_actions_agent_check', sql`${t.agent} like 'agent:%'`),
     check(
       'agent_actions_autonomy_check',
-      sql`${t.autonomy} in ('suggest', 'needs_approval', 'automatic')`,
+      sql`${t.autonomy} in ('shadow', 'suggest', 'needs_approval', 'automatic')`,
     ),
     check(
       'agent_actions_state_check',
-      sql`${t.state} in ('proposed', 'executed', 'approved', 'rejected', 'dismissed')`,
+      sql`${t.state} in ('proposed', 'shadowed', 'executed', 'approved', 'rejected', 'dismissed')`,
+    ),
+    // A shadowed action is one recorded under Shadow, and every action under Shadow is shadowed:
+    // it never acts and never reaches the inbox (A1).
+    check(
+      'agent_actions_shadow_check',
+      sql`(${t.state} = 'shadowed') = (${t.autonomy} = 'shadow')`,
     ),
     check(
       'agent_actions_decided_check',
@@ -170,6 +190,10 @@ export const agentActions = pgTable(
     index('agent_actions_record_idx')
       .on(t.entityId, t.agent, t.actionType, t.decidedAt)
       .where(sql`${t.autonomy} = 'needs_approval' and ${t.state} in ('approved', 'rejected')`),
+    // The shadow report: one company's shadowed proposals of one agent, newest first (A1).
+    index('agent_actions_shadow_idx')
+      .on(t.entityId, t.agent, t.createdAt.desc(), t.id.desc())
+      .where(sql`${t.state} = 'shadowed'`),
   ],
 );
 

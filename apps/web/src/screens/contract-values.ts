@@ -193,6 +193,7 @@ export const AGENT_ROLES = [
 
 /** How far an agent may go with one action type (BLUEPRINT §9.3). */
 export const AGENT_AUTONOMY_LEVELS = [
+  'shadow',
   'suggest',
   'needs_approval',
   'automatic',
@@ -201,6 +202,7 @@ export const AGENT_AUTONOMY_LEVELS = [
 /** What became of an action an agent proposed or took. */
 export const AGENT_ACTION_STATE_VALUES = [
   'proposed',
+  'shadowed',
   'executed',
   'approved',
   'rejected',
@@ -219,8 +221,10 @@ export const AGENT_SETTING_SOURCE_VALUES = [
 /** How an agent run ended. */
 export const AGENT_RUN_OUTCOME_VALUES = [
   'proposed',
+  'shadowed',
   'acted',
   'nothing_to_do',
+  'filtered',
   'switched_off',
   'cap_reached',
   'unavailable',

@@ -137,12 +137,13 @@ export async function loadAgentSettings(
           .filter((t) => t.agents.includes(agent))
           .map((t) => {
             const record = records.find(
-              (x) => x.agent === agent && x.actionType === t.command.name,
+              (x) => x.agent === agent && x.actionType === t.name,
             );
             return {
-              actionType: t.command.name,
-              autonomy: (at(agent, t.command.name)?.autonomy as AgentAutonomy | undefined) ?? null,
-              ...applied(agent, t.command.name),
+              actionType: t.name,
+              shadowOnly: t.command === undefined,
+              autonomy: (at(agent, t.name)?.autonomy as AgentAutonomy | undefined) ?? null,
+              ...applied(agent, t.name),
               decided: record?.decided ?? 0,
               approvedUnedited: record?.approvedUnedited ?? 0,
             };

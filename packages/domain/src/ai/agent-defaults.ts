@@ -63,6 +63,35 @@ export const AGENT_DEFAULTS = {
   } satisfies PromotionRule,
 
   /**
+   * Where an agent starts when no setting names its autonomy (PRD AI-04: shadow, then approval,
+   * then automatic). The Triage agent starts in Shadow (A1): it records what it would propose and
+   * never acts or fills an inbox; raising an action type to Suggest or Needs approval is an
+   * Executive's choice on Admin › Agents. Every other agent starts at Suggest.
+   */
+  startingAutonomy: { 'agent:triage': 'shadow' },
+
+  /**
+   * The Triage agent (A1). Each value is flagged for the owner to confirm; a change moves only how
+   * far the agent may go:
+   * - `scoreAdjustmentMax`: the most a proposal may move a lead's rules-based score, up or down,
+   *   in points (BLUEPRINT "refined within bounds by the Triage agent"); the score it gives stays
+   *   between 0 and 100 as `scoreLead()` holds it;
+   * - `peopleOffered` and `candidatesOffered`: the most people (fewest open leads first) and
+   *   duplicate cards (surest first) one run shows the model;
+   * - `maxTokens` and `totalTimeoutMs`: the answer's length and the whole call's time, every
+   *   attempt included, inside the event route's minute;
+   * - `promptVersion`: named on every eval run, changed with any change of the prompt.
+   */
+  triage: {
+    scoreAdjustmentMax: 10,
+    peopleOffered: 30,
+    candidatesOffered: 5,
+    maxTokens: 400,
+    totalTimeoutMs: 40_000,
+    promptVersion: 'triage-1',
+  },
+
+  /**
    * The Knowledge Vault's model work (docs/03-roadmap-appendix/phase1.md §8.4), which no agent principal does:
    * the index job reads vault files (PDFs and photos by Claude) and embeds their passages, and the
    * staff search embeds each question. Each is counted under its own name in the spend totals and

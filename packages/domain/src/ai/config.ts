@@ -1,7 +1,7 @@
 import type { AgentAutonomy, AgentRoleKey, AgentSettingSource } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
-import { AUTOMATIC_AVAILABLE, DEFAULT_AUTONOMY } from './action-types';
+import { AUTOMATIC_AVAILABLE, isShadowOnly, startingAutonomy } from './action-types';
 import type { SpendCap } from './provider';
 
 // How the settings of `agent_configs` apply to one agent, action type and company (docs/03-roadmap-appendix/
@@ -47,9 +47,10 @@ export interface AppliedAutonomy {
 }
 
 /**
- * The autonomy that applies, from the most specific row of the agent's own that sets one. While
- * Automatic is not available (`AUTOMATIC_AVAILABLE`), a stored Automatic applies as Needs approval,
- * and says so.
+ * The autonomy that applies, from the most specific row of the agent's own that sets one, else
+ * where the agent starts (`startingAutonomy()`: Shadow for the Triage agent, Suggest otherwise).
+ * While Automatic is not available (`AUTOMATIC_AVAILABLE`), a stored Automatic applies as Needs
+ * approval, and says so. A shadow-only action type is Shadow whatever is set.
  */
 export function appliedAutonomy(
   rows: readonly AgentConfigRow[],
@@ -66,8 +67,11 @@ export function appliedAutonomy(
         (r.entityId === null || r.entityId === entityId),
     )
     .sort((a, b) => specificity(b) - specificity(a))[0];
+  if (isShadowOnly(actionType)) {
+    return { autonomy: 'shadow', source: found === undefined ? 'default' : sourceOf(found), automaticHeld: false };
+  }
   if (found === undefined) {
-    return { autonomy: DEFAULT_AUTONOMY, source: 'default', automaticHeld: false };
+    return { autonomy: startingAutonomy(agent), source: 'default', automaticHeld: false };
   }
   const held = found.autonomy === 'automatic' && !AUTOMATIC_AVAILABLE;
   return {

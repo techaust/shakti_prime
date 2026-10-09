@@ -1,8 +1,10 @@
 import {
   AgentRunDto,
   DomainError,
+  hasGrant,
   newId,
   RecordAgentRunInput,
+  type AgentAutonomy,
   type AgentRunOutcome,
   type PermissionKey,
 } from '@shakti/contracts';
@@ -25,11 +27,7 @@ import { requireEntity } from '../crm/opportunity-shared';
 
 /** The permission of the command an action type runs, which the agent must hold itself. */
 export function actionRequirement(type: AgentActionType): Requirement {
-  const permission = type.command.permission;
-  if (typeof permission !== 'string') {
-    throw new DomainError('internal', `${type.command.name} names its permission by input`);
-  }
-  return { permission, minScope: type.command.minScope ?? 'own' };
+  return type.requirements[0];
 }
 
 const ACTION_PERMISSIONS: PermissionKey[] = [
@@ -37,7 +35,7 @@ const ACTION_PERMISSIONS: PermissionKey[] = [
 ];
 
 /** What the run's model work and the settings make of it. */
-type Plan = 'record_only' | 'propose' | 'act';
+type Plan = 'record_only' | 'shadow' | 'propose' | 'act';
 
 /**
  * `agents.run.record` (docs/03-roadmap-appendix/phase1.md §7.1): an agent records one run for one action type
@@ -47,7 +45,9 @@ type Plan = 'record_only' | 'propose' | 'act';
  * records the run as stopped; Suggest and Needs approval file the action with an inbox item;
  * Automatic runs the command as the agent, under its own permissions, at once. Automatic is not
  * available in Phase 1 (`AUTOMATIC_AVAILABLE`): a stored Automatic resolves, and files, as Needs
- * approval (`appliedAutonomy()`).
+ * approval (`appliedAutonomy()`). Shadow (A1) records the action shadowed, with no inbox item:
+ * nothing runs and nobody decides on it. A run whose proposal the agent's output filter refused
+ * records the filter's reason and no action (`filtered`).
  *
  * The permission is the one of the command the action runs, so an agent proposes nothing it could
  * not do itself; only the agent named in the input may record its run.
@@ -65,7 +65,7 @@ export const recordAgentRun = defineCommand({
   },
   input: RecordAgentRunInput,
   output: AgentRunDto,
-  auditFields: ['agent', 'actionType', 'autonomy', 'state', 'outcome'],
+  auditFields: ['agent', 'actionType', 'autonomy', 'state', 'outcome', 'filterReason'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     if (!isAgent(ctx.principal) || ctx.principal.roleKey !== input.agent) {
@@ -77,17 +77,31 @@ export const recordAgentRun = defineCommand({
         reason: 'agent_action_not_open',
       });
     }
+    // The guard checked the first; the agent holds the rest itself too, or proposes nothing.
+    for (const r of type.requirements) {
+      if (!hasGrant(ctx.principal.permissions, r.permission, r.minScope)) {
+        throw new DomainError('forbidden', `${input.agent} lacks ${r.permission}`);
+      }
+    }
 
-    let outcome: AgentRunOutcome = input.ended === 'completed' ? 'nothing_to_do' : input.ended;
+    let outcome: AgentRunOutcome =
+      input.ended !== 'completed'
+        ? input.ended
+        : input.filterReason === undefined
+          ? 'nothing_to_do'
+          : 'filtered';
     let plan: Plan = 'record_only';
-    let autonomy: 'suggest' | 'needs_approval' | 'automatic' = 'suggest';
+    let autonomy: AgentAutonomy = 'suggest';
     if (input.proposal !== undefined) {
       await lockAgentSettings(ctx.tx, input.agent);
       const config = await loadAgentConfig(ctx.tx, input.agent, input.actionType, input.entityId);
       // A stored Automatic resolves as Needs approval while it is not available (`appliedAutonomy`).
       autonomy = config.autonomy;
       if (!config.enabled) outcome = 'switched_off';
-      else {
+      else if (autonomy === 'shadow') {
+        plan = 'shadow';
+        outcome = 'shadowed';
+      } else {
         plan = autonomy === 'automatic' ? 'act' : 'propose';
         outcome = plan === 'act' ? 'acted' : 'proposed';
       }
@@ -107,6 +121,7 @@ export const recordAgentRun = defineCommand({
       tokensOut: input.tokensOut,
       costPaise: input.costPaise,
       outcome,
+      filterReason: outcome === 'filtered' ? (input.filterReason ?? null) : null,
       durationMs: input.durationMs,
       requestId: ctx.requestId,
     });
@@ -114,7 +129,12 @@ export const recordAgentRun = defineCommand({
       aggregateType: 'agent_run',
       aggregateId: runId,
       entityId: input.entityId,
-      after: { agent: input.agent, actionType: input.actionType, outcome },
+      after: {
+        agent: input.agent,
+        actionType: input.actionType,
+        outcome,
+        ...(outcome === 'filtered' ? { filterReason: input.filterReason } : {}),
+      },
     });
 
     const proposal = input.proposal;
@@ -131,6 +151,14 @@ export const recordAgentRun = defineCommand({
       params: {},
       requirement,
     });
+    if (plan === 'shadow') {
+      transition(agentActionMachine, { state: 'proposed' }, 'shadow', {
+        actor,
+        now: ctx.now,
+        params: {},
+        requirement,
+      });
+    }
     if (plan === 'act') {
       transition(agentActionMachine, { state: 'proposed' }, 'execute', {
         actor,
@@ -138,12 +166,16 @@ export const recordAgentRun = defineCommand({
         params: {},
         requirement,
       });
+      // A shadow-only kind always resolves to Shadow, so an action that acts has a command.
+      if (type.command === undefined) {
+        throw new DomainError('internal', `${type.name} runs no command`);
+      }
       // As the agent, under its own permissions: the command's guard and the policies decide.
       await ctx.run(type.command, proposed.input);
     }
 
     const actionId = newId();
-    const state = plan === 'act' ? 'executed' : 'proposed';
+    const state = plan === 'act' ? 'executed' : plan === 'shadow' ? 'shadowed' : 'proposed';
     await ctx.tx.insert(schema.agentActions).values({
       id: actionId,
       entityId: input.entityId,
@@ -161,7 +193,9 @@ export const recordAgentRun = defineCommand({
       entityId: input.entityId,
       after: { agent: input.agent, actionType: input.actionType, autonomy, state },
     });
-    if (plan === 'act') return { runId, outcome, actionId, inboxItemId: null };
+    if (plan === 'act' || plan === 'shadow') {
+      return { runId, outcome, actionId, inboxItemId: null };
+    }
 
     transition(inboxItemMachine, { state: null }, 'file', {
       actor,
@@ -241,7 +275,7 @@ async function checkedProposal(
     });
   const input = withAssignee(type, proposal.input, proposal.assigneeId);
   if (input === undefined) throw refused();
-  const parsed = type.command.input.safeParse(input);
+  const parsed = type.input.safeParse(input);
   if (
     !parsed.success ||
     input.entityId !== entityId ||
