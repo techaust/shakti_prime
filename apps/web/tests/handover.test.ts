@@ -218,6 +218,9 @@ describe('the handover worker', () => {
     await run(converter, setPresence as never, { entityId: CO, presence: 'present' });
     const lead = await newLead();
     const keyValue = memoryKeyValue();
+    const [at] = await asMigrator(
+      (m) => m<{ stage_id: string }[]>`select stage_id from opportunities where id = ${lead.id}`,
+    );
     const event = (handover: boolean): DeliveredEvent =>
       ({
         id: newId(),
@@ -225,7 +228,7 @@ describe('the handover worker', () => {
         entityId: CO,
         aggregateType: 'opportunity',
         aggregateId: lead.id,
-        payload: { fromStageId: newId(), toStageId: newId(), toStageKey: 'x', handover },
+        payload: { fromStageId: newId(), toStageId: at?.stage_id, toStageKey: 'x', handover },
         sequence: '1',
         createdAt: new Date().toISOString(),
       }) as unknown as DeliveredEvent;
