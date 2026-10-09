@@ -592,8 +592,12 @@ async function leaverLeads(principal: ReturnType<typeof principalFor>, label: st
 }
 
 progress('the leads');
-const secondCompanyLead = 'Ramesh Choudhary';
-// Fixed numbers, made once: the list shows the same rows on every run.
+// A new lead of company 2 on every run, with a number of its own: the lists show the newest leads
+// first, so a lead made once would fall past the first page as the journeys add leads, and the
+// company switcher journey (access.spec.ts) would no longer find it on a database earlier runs used.
+const secondCompanyLead = `Ramesh Choudhary ${String(Date.now()).slice(-6)}`;
+const secondCompanyPhone = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+// The other leads have fixed numbers and are made once: the lists show the same rows on every run.
 await ensureLead(
   { id: ids.teleCaller ?? '', roleKey: 'tele_caller_cc', entityIds: [1] },
   1,
@@ -610,7 +614,7 @@ await ensureLead(
   { id: ids.executive ?? '', roleKey: 'executive', entityIds: [1, 2, 3, 4] },
   2,
   secondCompanyLead,
-  '98765 40002',
+  secondCompanyPhone,
 );
 
 progress('the tele-caller’s calls today');
