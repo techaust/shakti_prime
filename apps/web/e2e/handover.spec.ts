@@ -83,18 +83,17 @@ test.describe('a lead a tele-caller qualifies', () => {
     // The converter's bell counts the lead, and the notice opens the customer, who is now hers.
     const context = await browser.newContext({ storageState: storageStatePath('converter') });
     const converter = await context.newPage();
-    await converter.goto('/home');
-    const bell = converter.getByRole('button', {
-      name: /^Notifications, (\d+|100 or more) unread$/,
-    });
-    await expect(async () => {
-      await converter.reload();
-      await expect(bell).toBeVisible({ timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
-    await bell.click();
+    // Other journeys give her leads too, so her bell may count others first: the centre is opened
+    // again until it lists this lead's notice.
     const centre = converter.getByRole('dialog', { name: 'Notifications' });
     const notice = centre.getByRole('listitem').filter({ hasText: name }).first();
-    await expect(notice.getByRole('link', { name: 'A lead was given to you' })).toBeVisible();
+    await expect(async () => {
+      await converter.goto('/home');
+      await converter.getByRole('button', { name: /^Notifications/ }).click();
+      await expect(notice.getByRole('link', { name: 'A lead was given to you' })).toBeVisible({
+        timeout: 3_000,
+      });
+    }).toPass({ timeout: 40_000 });
     await expectNoAxeViolations(converter, { include: '[role="dialog"]' });
     await notice.getByRole('link', { name: 'A lead was given to you' }).click();
     await expect(converter.getByRole('heading', { name, level: 1 })).toBeVisible();
