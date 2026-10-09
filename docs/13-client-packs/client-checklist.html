@@ -1,0 +1,429 @@
+<title>Shakti Prime Client Checklist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: the app's own shell. A quiet sidebar with the parts and progress, a single column of items, each a card that opens. */
+:root {
+  --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F6F6F8; --surface-3: #EDECEF;
+  --text: #1D1D21; --text-muted: #626163; --text-subtle: #706F72;
+  --border: #E4E4E6; --border-strong: #908F92;
+  --accent: #5E6AD2; --accent-hover: #4C5BC1; --accent-text: #5563CA; --accent-fg: #FFFFFF; --accent-soft: #F1EFFF;
+  --success: #15803D; --success-soft: #DCFCE7; --warning: #B45309; --warning-soft: #FEF3C7;
+  --danger: #B91C1C; --danger-soft: #FEE2E2;
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --radius: 8px; --radius-sm: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #08090A; --surface: #111014; --surface-2: #18171B; --surface-3: #1E1E21;
+    --text: #F8F8FA; --text-muted: #929196; --text-subtle: #828185;
+    --border: #262529; --border-strong: #646468;
+    --accent: #5E6AD2; --accent-hover: #4C5BC1; --accent-text: #888FFC; --accent-fg: #FFFFFF; --accent-soft: #2E2E48;
+    --success: #4ADE80; --success-soft: #0F2E1A; --warning: #FBBF24; --warning-soft: #3A2A08;
+    --danger: #F87171; --danger-soft: #3B1111;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #08090A; --surface: #111014; --surface-2: #18171B; --surface-3: #1E1E21;
+  --text: #F8F8FA; --text-muted: #929196; --text-subtle: #828185;
+  --border: #262529; --border-strong: #646468;
+  --accent: #5E6AD2; --accent-hover: #4C5BC1; --accent-text: #888FFC; --accent-fg: #FFFFFF; --accent-soft: #2E2E48;
+  --success: #4ADE80; --success-soft: #0F2E1A; --warning: #FBBF24; --warning-soft: #3A2A08;
+  --danger: #F87171; --danger-soft: #3B1111;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.55; margin: 0; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100%; }
+aside { background: var(--surface-2); border-right: 1px solid var(--border); padding: 20px 14px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow: auto; display: flex; flex-direction: column; gap: 18px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+.mark { width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav a { color: var(--text-muted); text-decoration: none; padding: 6px 8px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; gap: 8px; font-weight: 500; }
+.nav a:hover { background: var(--surface-3); color: var(--text); }
+.nav .count { color: var(--text-subtle); font-variant-numeric: tabular-nums; font-weight: 400; }
+.side-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-subtle); padding: 0 8px; }
+.meter { padding: 0 8px; display: flex; flex-direction: column; gap: 6px; }
+.bar { height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--success); width: 0; transition: width .3s; }
+.meter-text { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+main { padding-block: 32px 64px; padding-inline: 32px; min-width: 0; }
+.wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.eyebrow { font-size: 12px; color: var(--text-subtle); }
+.title { font-size: 1.875rem; line-height: 2.25rem; font-weight: 600; letter-spacing: -0.01em; }
+.lede { color: var(--text-muted); max-width: 65ch; margin: 6px 0 0; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.send { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+.send h2 { font-size: 15px; font-weight: 600; }
+.send p { margin: 4px 0 0; color: var(--text-muted); }
+.addr { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.addr code { font-family: var(--font); font-weight: 600; font-size: 15px; background: var(--accent-soft); color: var(--accent-text); padding: 6px 10px; border-radius: var(--radius-sm); user-select: all; }
+.rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 12px 0 0; padding: 0; list-style: none; color: var(--text-muted); }
+.rules li { display: flex; gap: 8px; }
+.rules li::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-top: 8px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 500; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.sm { height: 28px; padding: 0 10px; font-size: 13px; }
+.btn[disabled] { opacity: .5; cursor: default; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { height: 30px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); cursor: pointer; font-weight: 500; font-size: 13px; }
+.chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.notice { border-radius: var(--radius); padding: 10px 14px; background: var(--warning-soft); color: var(--text); font-size: 13px; }
+section.part { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 16px; }
+.part-head h2 { font-size: 1.125rem; font-weight: 600; }
+.part-head p { margin: 2px 0 0; color: var(--text-muted); }
+.item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.item[data-state="received"] { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+.item > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; }
+.item > summary::-webkit-details-marker { display: none; }
+.num { font-variant-numeric: tabular-nums; color: var(--text-subtle); font-weight: 600; font-size: 13px; }
+.item-title { font-weight: 600; font-size: 14.5px; }
+.item-who { color: var(--text-subtle); font-size: 12.5px; }
+.pill { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+.pill.open { background: var(--surface-3); color: var(--text-muted); }
+.pill.sent { background: var(--warning-soft); color: var(--warning); }
+.pill.received { background: var(--success-soft); color: var(--success); }
+.body { padding: 0 16px 16px 62px; display: flex; flex-direction: column; gap: 14px; }
+.facts { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 12px; margin: 0; }
+.facts dt { color: var(--text-subtle); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding-top: 2px; }
+.facts dd { margin: 0; }
+.facts ul { margin: 2px 0 0; padding-left: 18px; }
+.block { border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.block h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-subtle); font-weight: 600; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.subject { font-size: 12.5px; color: var(--text-muted); }
+.subject b { color: var(--text); font-weight: 600; user-select: all; }
+.status-btns { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.status-btns button { border: 0; background: var(--surface); padding: 0 12px; height: 30px; cursor: pointer; color: var(--text-muted); font-weight: 500; font-size: 13px; }
+.status-btns button + button { border-left: 1px solid var(--border); }
+.status-btns button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
+.status-btns button[disabled] { cursor: default; opacity: .55; }
+.byline { font-size: 12px; color: var(--text-subtle); }
+.list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.list li { background: var(--surface-2); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.list .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.list a { color: var(--accent-text); font-weight: 500; overflow-wrap: anywhere; }
+.empty { color: var(--text-subtle); font-size: 13px; }
+textarea { width: 100%; min-height: 64px; resize: vertical; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); padding: 8px 10px; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text-muted); }
+.check input { accent-color: var(--accent); width: 15px; height: 15px; }
+.answer-hint { font-size: 12.5px; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--accent-text); }
+.answer-hint.mail { background: var(--surface-2); color: var(--text-muted); }
+.list li .top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.link-btn { border: 0; background: none; color: var(--text-subtle); font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline; }
+.hint { font-size: 12px; color: var(--text-subtle); }
+.err { font-size: 12.5px; color: var(--danger); }
+footer { color: var(--text-subtle); font-size: 12.5px; border-top: 1px solid var(--border); padding-top: 14px; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; }
+@media (max-width: 860px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+  .nav { flex-direction: row; flex-wrap: wrap; }
+  main { padding-inline: 16px; padding-block: 20px 48px; }
+  .send { grid-template-columns: minmax(0, 1fr); }
+  .rules { grid-template-columns: minmax(0, 1fr); }
+  .body { padding: 0 14px 14px 14px; }
+  .item > summary { grid-template-columns: 26px minmax(0, 1fr); padding: 12px 14px; }
+  .item > summary .pill { grid-column: 2; justify-self: start; }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+</style>
+
+<div class="shell">
+  <aside aria-label="Sections">
+    <div class="brand"><span class="mark" aria-hidden="true">S</span>Shakti Prime</div>
+    <div class="meter">
+      <div class="bar" aria-hidden="true"><span id="meter-bar"></span></div>
+      <div class="meter-text" id="meter-text">0 of 18 received</div>
+    </div>
+    <div>
+      <div class="side-label">Parts</div>
+      <nav class="nav" id="nav"></nav>
+    </div>
+  </aside>
+
+  <main>
+    <div class="wrap">
+      <header>
+        <div class="eyebrow">For the Shakti group · from TECHAUST TECHNOLOGIES</div>
+        <h1 class="title">What we need from you</h1>
+        <p class="lede">We are building Shakti Prime, the system that will run sales, calling, quotes, orders, stock, projects, accounts and staff for Shakti Supreme, Shakti Motor Pumps, Agro Solar Hub and RCREF. Only your team can give us the 18 things below. Each one says what it is, why we need it and how to send it.</p>
+      </header>
+
+      <section class="panel" aria-labelledby="send-title">
+        <div class="send">
+          <div>
+            <h2 id="send-title">Send everything by email</h2>
+            <p>Use the <b>Email this</b> button on each item. It fills in the subject, so every mail reaches us sorted.</p>
+          </div>
+          <div class="addr">
+            <code id="addr">r4rupak1997@gmail.com</code>
+            <button class="btn sm" type="button" id="copy-addr">Copy address</button>
+          </div>
+        </div>
+        <ul class="rules">
+          <li>One email per item, with its number in the subject.</li>
+          <li>Excel or Google Sheets for lists; PDF or a clear photo for papers.</li>
+          <li>Name files clearly, such as “Agro Solar Hub – price list – Oct 2026”.</li>
+          <li>Never send passwords or bank logins. We ask to be added to accounts instead.</li>
+          <li>After sending or answering, mark the item <b>Sent</b> here. We mark it <b>Received</b> once checked.</li>
+          <li>Short answers (names, numbers, dates, an approval) can be written on the item itself instead of emailed.</li>
+        </ul>
+      </section>
+
+      <div class="notice" id="access-note" hidden></div>
+
+      <div class="filters" role="group" aria-label="Show">
+        <button class="chip" type="button" data-filter="all" aria-pressed="true">All</button>
+        <button class="chip" type="button" data-filter="open" aria-pressed="false">To send</button>
+        <button class="chip" type="button" data-filter="sent" aria-pressed="false">Sent</button>
+        <button class="chip" type="button" data-filter="received" aria-pressed="false">Received</button>
+      </div>
+
+      <div id="parts"></div>
+
+      <footer>Questions about any item: write to r4rupak1997@gmail.com or call us, and we will go through it together. Prepared by TECHAUST TECHNOLOGIES for the Shakti group.</footer>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const EMAIL = 'r4rupak1997@gmail.com';
+const PARTS = [
+  { id: 'now', title: 'Part 1: Needed now', note: 'For the first stage: calling, leads, customers, quotes, orders and dealer credit. Much of it is built and runs on our starting settings until these arrive.' },
+  { id: 'later', title: 'Part 2: For the later stages', note: 'Not needed yet. Listed so you know what is coming; we remind you before each stage.' },
+];
+const ITEMS = [
+  { n: 1, words: true, part: 'now', t: 'Your working rules', who: 'Owner, sales head and Accounts',
+    what: ['The steps a lead goes through, from new enquiry to won', 'What callers record after each call', 'How many times to call back a customer who does not answer', 'How long a lead stays with one caller', 'How quotes are numbered, and how commissions work'],
+    why: 'The system follows these rules every day. Today it runs on our starting guesses, for example three tries for an unanswered lead, then follow-ups after 7, 30 and 90 days.',
+    how: 'A 2-hour meeting with us. We bring the questions and write down your answers. Email us two or three times that suit you.' },
+  { n: 2, words: false, part: 'now', t: 'Your items, prices and tax rates', who: 'Accounts and the owner',
+    what: ['Every product you sell (pumps, panels, kits)', 'Its HSN code (the tax code on your invoices) and GST rate', 'Your price lists for each type of customer, such as dealer and retail', 'Your kit prices'],
+    why: 'A quote cannot show a price or tax until the item and its price are in the system.',
+    how: 'An Excel file per company, or your price list files as they are. We load them.' },
+  { n: 3, words: false, part: 'now', t: 'How GST is worked out, checked by your CA', who: 'Your CA',
+    what: ['Which state’s tax applies', 'How amounts are rounded', 'How solar jobs are split 70:30 between goods and installation', '5 to 10 past invoices, with customer names removed'],
+    why: 'The system must calculate tax exactly as your invoices do. We test it against your real invoices so it never shows a wrong amount.',
+    how: 'PDFs of the invoices with names blacked out, and a short call with your CA.' },
+  { n: 4, words: true, part: 'now', t: 'Engineering values for pump and rooftop sizing', who: 'Your engineering head',
+    what: ['The values your engineers use to choose a pump or a solar system, such as pipe losses, pump efficiency and hours of sun'],
+    why: 'The system suggests the right pump or rooftop size for each customer. It must use your values, not general ones.',
+    how: 'We email a one-page form with today’s values filled in. Your engineer corrects anything that differs and sends it back.' },
+  { n: 5, words: false, part: 'now', t: 'Letterhead, logo and bank details', who: 'Accounts',
+    what: ['For each of the four companies: the letterhead', 'The logo, and a light version for dark backgrounds if you have one', 'The bank account details and UPI ID to print on quotes'],
+    why: 'Quotes print on each company’s own letterhead with the right payment details.',
+    how: 'The logo as a PNG image, the letterhead as PDF or Word, the bank details on a scanned cancelled cheque.' },
+  { n: 6, words: true, part: 'now', t: 'Look at the screens and approve them', who: 'An owner, with one caller and one field or store person',
+    what: ['A look at the colours, text and layout', 'A 30 to 40 minute review with one or two people from each role'],
+    why: 'The people who use the system every day should find it easy before more screens are built the same way.',
+    how: 'A video call or a visit. Email us the names and a time.' },
+  { n: 7, words: false, part: 'now', t: 'Your current customer and lead data', who: 'The sales head',
+    what: ['An export from your current CRM or sheets: a few hundred rows first, the full files later', 'A list of the sheets you use today'],
+    why: 'Your existing customers and leads move into the new system, so nobody starts from zero.',
+    how: 'Excel or CSV files as they are. We match the columns ourselves.' },
+  { n: 8, words: true, part: 'now', t: 'Dealer credit limits', who: 'Accounts',
+    what: ['For each dealer and company: the credit limit and the days to pay', 'The name of the person who will enter dealer balances until the Tally link is ready'],
+    why: 'Before an order is confirmed, the system checks the dealer is within their limit.',
+    how: 'One Excel sheet with these columns: dealer, company, limit, days.' },
+  { n: 9, words: true, part: 'now', t: 'Targets for callers and teams', who: 'The sales head and the owner',
+    what: ['How many calls, qualified leads, orders or kW each caller and team should aim for per day, week or month'],
+    why: 'Each person’s home page shows their target and progress. No target is set until you give one.',
+    how: 'A short list by email, or your managers set them in the system themselves.' },
+  { n: 10, words: true, part: 'now', t: 'Customer consent and privacy wording', who: 'The owner',
+    what: ['The privacy notice', 'The words a caller uses to ask for consent', 'The notice that calls are recorded'],
+    why: 'Indian law requires customers’ consent for calls and messages. The system records who agreed and when.',
+    how: 'We email draft wording. You or your lawyer approve or correct it.' },
+  { n: 11, words: true, part: 'now', t: 'People for the final testing', who: 'The owner',
+    what: ['The names of the people who will test the system for each role', 'They also run the old sheets and the new system side by side for two weeks'],
+    why: 'The first stage ends only when your own people confirm it works for their daily work.',
+    how: 'A list of names and roles by email.' },
+  { n: 12, words: false, part: 'later', t: 'Voice samples', who: 'Managers',
+    what: ['20 to 30 short recordings of managers speaking as they would to a voice assistant, in Hindi, Hinglish and English'],
+    why: 'To test that the voice assistant understands your team before we build it.',
+    how: 'Phone voice notes, attached to an email.' },
+  { n: 13, words: true, part: 'later', t: 'WhatsApp message wording', who: 'The owner',
+    what: ['The messages you want to send customers, such as quote sent, payment reminder and installation date'],
+    why: 'Meta approves each message’s wording before it can be sent.',
+    how: 'We draft them; you approve them by reply.' },
+  { n: 14, words: false, part: 'later', t: 'Opening stock and a label printer', who: 'Stores and the printer supplier',
+    what: ['The stock in each store on the day we start', 'The model of label printer and labels you will use'],
+    why: 'So stock in the system matches the shelves, and every item can carry a printed label.',
+    how: 'A stock count in Excel; your printer supplier can name the model.' },
+  { n: 15, words: false, part: 'later', t: 'Project and subsidy papers, and document photos', who: 'The project manager',
+    what: ['Examples of the forms for subsidies and electricity company (DISCOM) approvals', 'A few real document photos, with the customers’ permission'],
+    why: 'The system prepares these papers for each project, and hides Aadhaar numbers automatically. We test that on real photos.',
+    how: 'Scans or photos, attached to an email.' },
+  { n: 16, words: true, part: 'later', t: 'Tally access', who: 'Accounts',
+    what: ['A visit to the computer that runs Tally', 'A copy of one company’s Tally data for testing', 'Your chart of accounts (the list of ledger heads)'],
+    why: 'The system reads your accounts from Tally to show balances and reports. It never changes anything in Tally.',
+    how: 'Accounts emails us a date for the visit.' },
+  { n: 17, words: false, part: 'later', t: 'Staff and HR rules', who: 'The owner and HR',
+    what: ['Your staff list', 'Leave rules, working hours and attendance rules', 'How salaries and incentives are worked out'],
+    why: 'The HR part follows your own rules.',
+    how: 'Excel lists and your HR policy document.' },
+  { n: 18, words: true, part: 'later', t: 'What the AI assistants may do alone, and the final go-ahead', who: 'The owner',
+    what: ['For each AI assistant: only suggest, wait for a person’s approval, or act on its own', 'Your written approval before each stage goes live'],
+    why: 'You stay in control of what the system does by itself. Nothing goes live without your sign-off.',
+    how: 'A short meeting before each stage goes live.' },
+];
+
+const state = { status: {}, notes: [], filter: 'all', open: new Set() };
+let db = null, user = null, me = { id: null, isOwner: false }, canWrite = false, names = {};
+
+const pad = (n) => String(n).padStart(2, '0');
+const subjectOf = (it) => `Shakti Prime – Item ${pad(it.n)} – ${it.t}`;
+const fmtDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`; };
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids.flat()) if (c != null) e.append(c); return e; };
+const statusOf = (n) => state.status[pad(n)]?.state || 'open';
+const nameOf = (id) => (id && names[id]?.name) || 'Someone';
+
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 2600); }
+async function copy(text, done) { try { await navigator.clipboard.writeText(text); toast(done); } catch { toast('Select the text and copy it'); } }
+
+function render() {
+  // Keep a note being typed, and the focus, across a live update.
+  const drafts = {}; for (const t of document.querySelectorAll('textarea')) if (t.value) drafts[t.id] = t.value;
+  const focused = document.activeElement?.id;
+  renderAll();
+  for (const [id, v] of Object.entries(drafts)) { const t = document.getElementById(id); if (t) t.value = v; }
+  if (focused) document.getElementById(focused)?.focus();
+}
+
+function renderAll() {
+  const counts = { open: 0, sent: 0, received: 0 };
+  for (const it of ITEMS) counts[statusOf(it.n)]++;
+  document.getElementById('meter-bar').style.width = `${(counts.received / ITEMS.length) * 100}%`;
+  document.getElementById('meter-text').textContent = `${counts.received} of ${ITEMS.length} received · ${counts.sent} sent`;
+  const nav = document.getElementById('nav'); nav.replaceChildren();
+  for (const p of PARTS) {
+    const its = ITEMS.filter((i) => i.part === p.id);
+    const done = its.filter((i) => statusOf(i.n) === 'received').length;
+    nav.append(el('a', { href: `#${p.id}` }, el('span', { text: p.title.split(': ')[1] }), el('span', { class: 'count', text: `${done}/${its.length}` })));
+  }
+  const root = document.getElementById('parts'); root.replaceChildren();
+  for (const p of PARTS) {
+    const its = ITEMS.filter((i) => i.part === p.id && (state.filter === 'all' || statusOf(i.n) === state.filter));
+    if (!its.length) continue;
+    root.append(el('section', { class: 'part', id: p.id },
+      el('div', { class: 'part-head' }, el('h2', { text: p.title }), el('p', { text: p.note })),
+      its.map(itemCard)));
+  }
+  if (!root.children.length) root.append(el('p', { class: 'empty', text: 'No items here.' }));
+}
+
+function itemCard(it) {
+  const key = pad(it.n), st = statusOf(it.n), rec = state.status[key];
+  const labels = { open: 'To send', sent: 'Sent', received: 'Received' };
+  const d = el('details', { class: 'item', 'data-state': st, open: state.open.has(key) });
+  d.addEventListener('toggle', () => { d.open ? state.open.add(key) : state.open.delete(key); });
+  d.append(el('summary', {},
+    el('span', { class: 'num', text: key }),
+    el('span', {}, el('div', { class: 'item-title', text: it.t }), el('div', { class: 'item-who', text: it.who })),
+    el('span', { class: `pill ${st}`, text: labels[st] })));
+  const body = el('div', { class: 'body' });
+  body.append(el('dl', { class: 'facts' },
+    el('dt', { text: 'What' }), el('dd', {}, it.what.length > 1 ? el('ul', {}, it.what.map((w) => el('li', { text: w }))) : it.what[0]),
+    el('dt', { text: 'Why' }), el('dd', { text: it.why }),
+    el('dt', { text: 'How' }), el('dd', { text: it.how })));
+
+  const mail = `mailto:${EMAIL}?subject=${encodeURIComponent(subjectOf(it))}`;
+  body.append(el('div', { class: 'block' }, el('h4', { text: 'Send it' }),
+    el('div', { class: 'row' },
+      el('a', { class: 'btn primary sm', href: mail, target: '_blank', rel: 'noopener' }, 'Email this'),
+      el('button', { class: 'btn sm', type: 'button', onclick: () => copy(subjectOf(it), 'Subject copied') }, 'Copy subject')),
+    el('div', { class: 'subject' }, 'To ', el('b', { text: EMAIL }), ' · subject ', el('b', { text: subjectOf(it) }))));
+
+  const sb = el('div', { class: 'status-btns', role: 'group', 'aria-label': `Status of item ${key}` });
+  for (const s of ['open', 'sent', 'received']) {
+    const locked = !canWrite || (s === 'received' && !me.isOwner) || (st === 'received' && !me.isOwner);
+    sb.append(el('button', { type: 'button', 'aria-pressed': String(st === s), disabled: locked, onclick: () => setStatus(key, s) }, labels[s]));
+  }
+  const statusBlock = el('div', { class: 'block' }, el('h4', { text: 'Status' }), el('div', { class: 'row' }, sb));
+  if (rec?.by) statusBlock.append(el('div', { class: 'byline', text: `${labels[st]} · ${nameOf(rec.by)}, ${fmtDate(rec.at)}` }));
+  if (canWrite && !me.isOwner) statusBlock.append(el('div', { class: 'hint', text: 'TECHAUST TECHNOLOGIES marks an item Received once it is checked.' }));
+  body.append(statusBlock);
+
+  const notes = state.notes.filter((x) => x.item === key);
+  const nb = el('div', { class: 'block' }, el('h4', { text: 'Answer or notes' }));
+  nb.append(el('div', { class: `answer-hint${it.words ? '' : ' mail'}`, text: it.words
+    ? 'You can answer this here in words instead of emailing.'
+    : 'This one needs files or papers, so please send it by email. Notes here are for anything to add.' }));
+  nb.append(notes.length ? el('ul', { class: 'list' }, notes.map((x) => el('li', {},
+    el('div', { class: 'top' }, el('span', { class: 'text', text: x.text }),
+      canWrite && x.by && x.by === me.id ? el('button', { class: 'link-btn', type: 'button', onclick: () => removeNote(x._id) }, 'Delete') : null),
+    el('span', { class: 'byline', text: `${nameOf(x.by)}, ${fmtDate(x.at)}` })))) : el('div', { class: 'empty', text: 'Nothing written yet.' }));
+  if (canWrite) {
+    const ta = el('textarea', { id: `note-${key}`, 'aria-label': `Answer or note for item ${key}`, placeholder: it.words ? 'Write the answer here' : 'A contact name, or when it will be sent' });
+    const tick = el('input', { type: 'checkbox', id: `answers-${key}` });
+    const err = el('div', { class: 'err', hidden: true });
+    const add = el('button', { class: 'btn sm', type: 'button', onclick: async () => {
+      const text = ta.value.trim(); if (!text) return; add.disabled = true; err.hidden = true;
+      try {
+        await db.collection('notes').add({ item: key, text: text.slice(0, 4000), by: me.id, at: new Date().toISOString() });
+        ta.value = '';
+        if (tick.checked && statusOf(it.n) === 'open') await setStatus(key, 'sent'); else toast('Saved');
+        tick.checked = false;
+      } catch (e) { err.textContent = e?.code === 'quota_exceeded' ? 'The list is full. Email it instead.' : 'Not saved. Check your connection and try again.'; err.hidden = false; }
+      add.disabled = false; } }, 'Save');
+    nb.append(ta, el('div', { class: 'row' }, add,
+      st === 'open' ? el('label', { class: 'check', for: `answers-${key}` }, tick, 'This answers the item, mark it Sent') : null), err);
+  }
+  body.append(nb);
+  d.append(body);
+  return d;
+}
+
+async function removeNote(id) {
+  if (!id) return;
+  try { await db.collection('notes').doc(id).delete(); toast('Deleted'); } catch { toast('Not deleted. Try again.'); }
+}
+
+async function setStatus(key, s) {
+  if (!canWrite) return;
+  try { await db.collection('status').doc(key).set({ state: s, by: me.id, at: new Date().toISOString() }); toast(s === 'open' ? 'Marked To send' : s === 'sent' ? 'Marked Sent' : 'Marked Received'); }
+  catch { toast('Not saved. Check your connection and try again.'); }
+}
+
+async function refreshNames() {
+  if (!user) return;
+  const ids = new Set();
+  for (const r of Object.values(state.status)) if (r.by) ids.add(r.by);
+  for (const x of state.notes) if (x.by) ids.add(x.by);
+  if (!ids.size) return;
+  names = await user.profiles([...ids]);
+  render();
+}
+
+document.getElementById('copy-addr').addEventListener('click', () => copy(EMAIL, 'Address copied'));
+for (const c of document.querySelectorAll('.chip')) c.addEventListener('click', () => {
+  state.filter = c.dataset.filter;
+  for (const o of document.querySelectorAll('.chip')) o.setAttribute('aria-pressed', String(o === c));
+  render();
+});
+render();
+
+(async () => {
+  const note = document.getElementById('access-note');
+  const cl = window.claude;
+  if (!cl?.use) { note.textContent = 'Open this page from its claude.ai link to mark items and write answers. Email works from anywhere.'; note.hidden = false; return; }
+  [db, user] = await Promise.all([cl.use('db'), cl.use('user')]);
+  if (user) { const m = await user.me(); me = { id: m.id, isOwner: m.isOwner }; }
+  if (!db) { note.textContent = 'Sign in to claude.ai with the invitation you received to mark items and write answers. Email works without signing in.'; note.hidden = false; return; }
+  const w = user ? await user.can('data.write') : null;
+  canWrite = !!me.id && w !== false;
+  if (!canWrite) { note.textContent = 'You can read this page but not change it. Ask TECHAUST TECHNOLOGIES for edit access, or send everything by email.'; note.hidden = false; }
+  const fail = () => { note.textContent = 'Live updates stopped. Reload the page to see the latest.'; note.hidden = false; };
+  db.collection('status').onSnapshot((snap) => { const s = {}; for (const d of snap.docs) s[d.id] = d.data(); state.status = s; render(); refreshNames(); }, fail);
+  db.collection('notes').orderBy('at').onSnapshot((snap) => { state.notes = snap.docs.map((d) => ({ ...d.data(), _id: d.id })); render(); refreshNames(); }, fail);
+})();
+</script>
