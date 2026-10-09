@@ -42,6 +42,47 @@ Not in R1: incentives and statements (Phase 5), margins and P&L (Phases 3 and 5)
 
 ## Report
 
+### 09-10-2026, PC (Sonnet, medium)
+Skills: `add-table` and `add-command` were read from the repository and followed; no plugin skill was invoked.
+
+**Built.** Migrations `0124_targets` (the table, plus indexes `activities_stage_actor_idx` and `sales_orders_confirmed_by_idx`) and `0125_targets_rls` (append-only trigger, read and insert policies, grants, definer `app.target_actuals()`). Permission `sales.targets.write` (Executive all, GM entity, Team Lead team; agent-forbidden). Command `sales.target.set` (people only, audited). Pure `packages/domain/src/sales/targets.ts`; queries `queries/sales/targets.ts` and `queries/home/home.ts`; actions `actions/targets.ts` and `actions/home.ts`; home sections (`components/home`), the `/targets` page, nav item, session gate, client namespace, en.json, audit labels. Documents: DATABASE, SECURITY, phase1 §9 Built (R1), PRD trace, workshop CALL-6 Today line, `db:docs`.
+
+**Decisions the brief left open.**
+- History is append-only rows. The row with the latest `starts_on` not after a period's first day (then the latest `set_at`) counts, so a target holds for later periods until replaced; a value of 0 removes it. Weeks run Monday to Sunday in IST.
+- `team_id` is stored on each row (the subject's team when set), so a team lead reads their callers' targets without reading identity tables; the insert policy verifies membership.
+- Metric rules: calls logged; leads moved to the stage keyed qualified (each once, credited to the mover); orders confirmed and not cancelled (credited to the confirmer); kW per lead whose order the person confirmed (once): the recommended kWp of the newest in-bounds rooftop sizing made before the confirmation, or the standard motor kW of a pump sizing.
+- Home sections follow the roles held in the viewed companies. The team view acts one company at a time (the database team scope needs a narrowed request). GM response times show only where a pipeline sets a first-contact limit. No margins on the Executive page.
+
+**Checks (all through the heavy lock).**
+- Typecheck of contracts, db, domain and web: clean. `pnpm test`: green (web 96 files and 724 tests; db 129; ui 105; contracts 181; tokens 134; copy-lint 17).
+- `pnpm test:security`: db 39 files and 1,171 tests, domain 68 and 874, web 20 and 297, all passed.
+- New tests: db `targets.test.ts` (20), domain `tests/commands/targets.test.ts` (17), `tests/queries/home.test.ts`, `sales/targets.test.ts` (13), web `screens/home.test.ts`, reader-parity entries for the new reads.
+- `db:docs` and `machines:docs` run (docs/data changed; no machine changed). `copy-lint`, `format:check` clean; `pnpm build` ok; `js-budget`: all 43 pages within budget.
+- Journeys `targets.spec.ts`, `access.spec.ts`, `leads.spec.ts`, seeded first, three projects: 79 passed, 1 flaky (leads "adds a lead", passed on retry). The full journey suite was not run.
+- Whole-repository `pnpm lint`, then `format:check` and the domain typecheck: clean.
+
+**EXPLAIN (ANALYZE)** (`pnpm --filter @shakti/domain spike:targets`; company 2 with 25 callers, about 6,400 leads, 30,000 calls, 4,000 stage moves, 3,000 orders, 200 dealers, 600 targets; under each role's policies):
+
+| Read | Time |
+|---|---|
+| `target_actuals`, a caller for themselves, today | 7.5 ms |
+| `target_actuals`, team lead for 25 callers, today / this month | 3.9 / 15.8 ms |
+| targets in force, 25 callers / self | 1.5 / 0.2 ms |
+| history, team lead / GM | 1.5 / 1.2 ms |
+| caller queue counts | 10.1 ms |
+| pipeline by stage, GM / Executive (four companies) | 9.2 / 5.7 ms |
+| sales this month, Executive | 14.9 ms |
+| dealer credit counts, Accounts (200 dealers) | 35.5 ms |
+| response times, GM | 0.14 ms (no limit set in that run, so the leads were not reached; exercised for correctness in `home.test.ts`) |
+
+Small tables (`targets`, `teams`) plan as sequential scans.
+
+**Not done and follow-ups.**
+- The Linux screenshot baselines for the new shots (`targets`, `home-team-lead`, `home-caller-with-target`, `home-caller-no-target`, `home-general-manager`, `home-accounts`, `home-executive`) and the changed existing home baselines (`access.spec` and others) need the Linux image.
+- The two calls the seed logs for the tele-caller stand in for in-hours calling.
+- At merge after T2: renumber 0124 and 0125, and check matrix offsets 0x46 to 0x48 and `nav.ts`.
+- The scroll regions of my tables are focusable (axe); the existing team-queues table was not changed.
+
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
