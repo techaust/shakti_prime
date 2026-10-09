@@ -2,7 +2,7 @@
 name: slice-reviewer
 description: Adversarial review of one Shakti Prime BOS slice branch before it merges, against the architecture rules, security, the design and the PRD criteria. Give it the branch (or worktree) and the slice's run file. It reports ranked findings with evidence and changes no code; asked to, it writes the findings into the run file's Review section.
 tools: Read, Grep, Glob, Bash, Edit
-model: opus
+model: claude-opus-5-5
 effort: high
 ---
 

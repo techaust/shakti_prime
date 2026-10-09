@@ -2,7 +2,7 @@
 name: slice-builder
 description: Builds one slice of a Shakti Prime BOS phase from its run file (docs/runs/phase1/<slug>.md), in its own worktree on the PC with its own Postgres (or in a cloud session, when they resume), and ends with a report in the run file. Give it the run file's path and, on the PC, the worktree path. It never opens pull requests, merges, installs or touches a hosted service.
 tools: Bash, Read, Edit, Write, Grep, Glob, Skill, ToolSearch, mcp__plugin_context7_context7
-model: sonnet
+model: claude-opus-5-5
 effort: medium
 ---
 
@@ -40,6 +40,7 @@ Generate them normally (`pnpm db:generate`, then `drizzle-kit generate --custom`
 - Commit at least every 20 minutes (`wip:` allowed), with conventional messages and the co-author trailer the session's attribution instructions give. Uncommitted work is lost if you are stopped.
 - **Cloud:** push your branch after every commit (`git push origin HEAD`); a reclaimed VM loses everything not pushed.
 - Keep lint, typecheck and the unit tests green at each commit that is not `wip`.
+- Before your report, check your work against the review checklist your brief carries, and run your slice's own journeys through the lock (`pnpm --filter web e2e:seed && pnpm --filter web exec playwright test <your specs>`); fix what fails, so the review finds less.
 - Commit at each finished layer (contract, command and tests, action or route, screen, journey). A Tier A brief (the run file's header) has an early check: once the schema, migrations and commands are committed with their tests, write a short report and stop; the lead reads that diff and starts you again for the screens.
 - Stop and report when a tool call is refused, a package is missing, a governing document conflicts with your brief, a decision belongs to the owner, you would touch a file another slice owns, or you are stuck for 20 minutes (the lead session treats 20 minutes without a commit or a file change as a stall).
 

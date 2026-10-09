@@ -42,6 +42,7 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
 5. Commit the merge (`chore: merge main (<what>) into <slice>; its migrations move to NNNN to MMMM`).
 
 ## 6. Integrate
+- On a PC day, set `E2E_SPECS` to the slice's own journeys (for example `E2E_SPECS="targets.spec.ts access.spec.ts"`); CI runs every journey and compares every screenshot on the pull request ([models-and-usage §3](models-and-usage.md#3-who-runs-what)).
 - Start `bash tools/integration/heavy.sh bash tools/integration/integrate.sh <worktree> <log>` in the background (30 to 60 minutes; the lock keeps every other heavy command waiting meanwhile, and clears itself after 90 minutes, so a longer run is split with `INTEGRATE_STEPS`).
 - It runs install, lint, format, copy lint, the generated-files check, typecheck, unit tests, the security suite, `db:verify`, the audit, the build with `.env` aside, the JavaScript budget, the secret scan over the branch's own commits and the end-to-end journeys, all on a fresh Postgres on 54340. It does not run Lighthouse or compare screenshots; CI runs Lighthouse on the pull request, and the screenshots are §7.
 - The last line of `<log>` is `INTEGRATION PASSED` or `INTEGRATION FAILED`; a failed step's output is in `<log>.<step>`.
@@ -49,7 +50,7 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
 ## 7. Linux screenshot baselines
 - Only on a fresh database: `bash tools/integration/fresh-db.sh shakti-pg-<slug> <db-port>` (in a cloud session, `docker compose down -v && docker compose up -d --wait`), then `pnpm db:migrate && pnpm db:seed`, then `bash tools/integration/heavy.sh pnpm build`.
 - `bash tools/integration/heavy.sh pnpm --filter web e2e:snap -- --update-snapshots=missing` writes the baselines of new screens. A screen the slice changes on purpose (a new menu item) needs its old baseline deleted first, and the new one looked at before it is committed.
-- Run `bash tools/integration/heavy.sh pnpm --filter web e2e:snap` once more without updating: every screenshot must match. Text that changes between runs is masked in the spec (`snap(page, name, { mask })`), never accepted as a flaky difference.
+- Run `bash tools/integration/heavy.sh pnpm --filter web e2e:snap` once more without updating (on a PC day, `-- --grep` with the slice's own journeys, unless a menu item changed every desktop baseline): every screenshot must match. Text that changes between runs is masked in the spec (`snap(page, name, { mask })`), never accepted as a flaky difference.
 
 ## 8. Pull request and merge
 - Push the branch and open the pull request from the [template](../../.github/pull_request_template.md): what it builds, its migrations, the definition-of-done list, its checks and anything left for the owner. End the body with the Claude Code line.

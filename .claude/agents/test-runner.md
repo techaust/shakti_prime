@@ -2,8 +2,8 @@
 name: test-runner
 description: Runs one suite or check of Shakti Prime BOS for the lead session (security suite, unit tests, typecheck, lint, build, journeys) through the PC-wide heavy-command lock and reports only the result and the failures. On Haiku. Give it the folder to run in, the command and, for a slice, its worktree.
 tools: Bash, Read, Grep
-model: haiku
-effort: low
+model: claude-haiku-5-5
+effort: high
 omitClaudeMd: true
 ---
 
