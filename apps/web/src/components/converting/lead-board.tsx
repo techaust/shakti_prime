@@ -4,7 +4,7 @@ import type { ConvertingBoardDto, ConvertingLeadDto, NextActionDto } from '@shak
 import { Button, cn, EmptyState, StatusBadge } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import type { RefObject } from 'react';
-import { formatCount, formatDateTime } from '../../screens/format';
+import { formatCount } from '../../screens/format';
 import { groupByStage, leadKey } from '../../screens/converting';
 import { QUOTE_STATE_TONE } from '../../screens/quotes';
 import { DateTime } from '../date-time';
@@ -53,9 +53,13 @@ export function NextActions({
               >
                 <span className="w-full truncate font-medium">{action.customerName}</span>
                 <span className="text-text-muted w-full text-sm font-normal whitespace-normal">
-                  {t(`rule.${action.rule}`, {
-                    when: action.at === null ? '' : formatDateTime(action.at),
-                  })}
+                  {t(`rule.${action.rule}`)}
+                  {action.at === null ? null : (
+                    <>
+                      {' '}
+                      <DateTime value={action.at} />
+                    </>
+                  )}
                 </span>
               </Button>
             </li>

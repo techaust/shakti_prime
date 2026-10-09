@@ -7,6 +7,7 @@ import {
   leadKey,
   movedIndex,
   panelsFor,
+  sizingKindFor,
 } from './converting';
 
 const key = (k: string, extra: object = {}) => ({
@@ -123,5 +124,14 @@ describe('panelsFor and the addresses', () => {
   it('names a lead by company and id, and a converter by person and company', () => {
     expect(leadKey({ entityId: 2, opportunityId: 'abc' })).toBe('2:abc');
     expect(converterHref('p1', 3)).toBe('/converting?owner=p1&company=3');
+  });
+});
+
+describe('sizingKindFor', () => {
+  it('opens the sizing on the kind the business line needs', () => {
+    expect(sizingKindFor('farmer_pumps')).toBe('pump');
+    expect(sizingKindFor('residential_rooftop')).toBe('rooftop');
+    expect(sizingKindFor('commercial_epc')).toBe('rooftop');
+    expect(sizingKindFor('dealer_wholesale')).toBe('pump');
   });
 });

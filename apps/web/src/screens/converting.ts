@@ -1,7 +1,7 @@
 // The Lead Converter workspace (`/converting`, PRD TEL-03, docs/03-roadmap-appendix/phase1.md §9): pure helpers
 // the screen and its tests share. Browser code, so only types come from the contracts.
 
-import type { ConvertingLeadDto, ConvertingPanel } from '@shakti/contracts';
+import type { ConvertingLeadDto, ConvertingPanel, Segment, SizingKind } from '@shakti/contracts';
 import type { Route } from 'next';
 
 /** What a key pressed on the workspace asks for. */
@@ -125,4 +125,9 @@ export function panelsFor(
 /** The page of one converter's board, for a team lead looking at a person of their team. */
 export function converterHref(ownerId: string, entityId: number): Route {
   return `/converting?owner=${ownerId}&company=${String(entityId)}` as Route;
+}
+
+/** The sizing a business line needs, which the sizing panel opens on: pumps for farmers, rooftop systems for the rest. */
+export function sizingKindFor(segment: Segment): SizingKind {
+  return segment === 'residential_rooftop' || segment === 'commercial_epc' ? 'rooftop' : 'pump';
 }

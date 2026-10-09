@@ -4367,9 +4367,9 @@
       "title": "What to do next",
       "empty": "Nothing needs you right now.",
       "rule": {
-        "callback_due": "Call back due {when}",
-        "quote_expiring": "Quote runs out {when}",
-        "order_held": "Order held for credit since {when}",
+        "callback_due": "Call back due",
+        "quote_expiring": "Quote runs out",
+        "order_held": "Order held for credit since",
         "sizing_missing": "Sizing needed before a quote"
       }
     },
@@ -4384,7 +4384,7 @@
       "quote": "Quote",
       "order": "Order",
       "noQuote": "No quote yet",
-      "quoteLine": "{number}, {state}, valid until {date}",
+      "quoteLine": "{number}, {state}, valid until",
       "noOrder": "None held",
       "orderHeld": "{number} is held for credit",
       "sizingNone": "Not sized yet",
@@ -4406,8 +4406,9 @@
       "cannot": "You can see this lead but quotes on it are made by its owner."
     },
     "order": {
-      "held": "The credit check is holding order {number} for {amount}. It was held on {when}. An Executive can release it.",
-      "open": "Open order"
+      "held": "The credit check is holding order {number} for {amount}. An Executive can release it.",
+      "open": "Open order",
+      "heldSince": "Held since"
     },
     "keys": {
       "title": "Keyboard shortcuts",

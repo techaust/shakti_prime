@@ -7,11 +7,11 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useId, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { customerHref } from '../../screens/customers';
-import { formatCount, formatDate, formatRupees } from '../../screens/format';
+import { formatCount, formatRupees } from '../../screens/format';
 import { orderHref } from '../../screens/orders';
 import { QUOTE_STATE_TONE } from '../../screens/quotes';
 import { nextTab } from '../../screens/sizing';
-import { panelsFor } from '../../screens/converting';
+import { panelsFor, sizingKindFor } from '../../screens/converting';
 import { DialNumber, Outcomes, Panel } from '../calling/calling-parts';
 import { TimelineRow } from '../customers/timeline-row';
 import { DateTime } from '../date-time';
@@ -79,8 +79,8 @@ function Summary({ lead, facts }: { lead: CallLeadDto; facts: ConvertingLeadDto 
                 {t('lead.quoteLine', {
                   number: facts.quote.quoteNo,
                   state: quotes(facts.quote.state),
-                  date: formatDate(facts.quote.validUntil),
-                })}
+                })}{' '}
+                <DateTime value={facts.quote.validUntil} />
               </span>
               <StatusBadge tone={QUOTE_STATE_TONE[facts.quote.state]}>
                 {formatRupees(facts.quote.grandTotal)}
@@ -151,11 +151,8 @@ function OrderPanel({ facts }: { facts: ConvertingLeadDto | undefined }) {
   return (
     <div className="flex flex-col items-start gap-3">
       <p>
-        {t('held', {
-          number: order.soNo,
-          amount: formatRupees(order.grandTotal),
-          when: formatDate(order.heldAt),
-        })}
+        {t('held', { number: order.soNo, amount: formatRupees(order.grandTotal) })} {t('heldSince')}{' '}
+        <DateTime value={order.heldAt} />
       </p>
       <Button asChild variant="secondary">
         <Link href={orderHref(facts.entityId, order.id)}>{t('open')}</Link>
@@ -217,6 +214,7 @@ export function LeadWorkspace({
         entityId={lead.entityId}
         opportunityId={lead.opportunityId}
         canWrite={canWrite}
+        initialKind={sizingKindFor(lead.segment)}
         onSaved={(saved) => {
           onChanged(saved);
         }}

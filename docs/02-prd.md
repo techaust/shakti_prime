@@ -375,7 +375,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 | CRM-10 | 1, 2 | C2 | `packages/domain/tests/commands/consent.test.ts`, `apps/web/e2e/customers.spec.ts` |
 | TEL-01 | 1 | T1 | `packages/domain/tests/commands/calls.test.ts`, `packages/domain/tests/queries/call-queue.test.ts`, `packages/db/tests/security/calls.test.ts`, `apps/web/e2e/calling.spec.ts` |
 | TEL-02 | 1 | T2 | `packages/domain/src/crm/handover.test.ts`, `packages/domain/tests/commands/handover.test.ts`, `packages/db/tests/security/caller-profiles.test.ts`, `apps/web/tests/handover.test.ts` (within 10 seconds of the event), the lock cases of `crm.opportunity.assign`: `packages/domain/tests/commands/opportunity.test.ts`, `packages/domain/src/state-machines/machines.test.ts`, `apps/web/e2e/handover.spec.ts` |
-| TEL-03 | 1, 2 | L1 | — |
+| TEL-03 | 1, 2 | L1 | The rules: `packages/domain/src/crm/next-best-action.test.ts`; the board's reads: `packages/domain/tests/queries/converting-board.test.ts`, `packages/domain/tests/queries/reader-parity.test.ts`; the keys: `apps/web/src/screens/converting.test.ts`; journey `apps/web/e2e/converting.spec.ts` |
 | TEL-04 | 2 | — | `packages/domain/src/telecom/dial-policy.test.ts`, `apps/web/src/integrations/exotel/exotel.test.ts` |
 | TEL-05 | 2 | — | — |
 | TEL-06 | 1 | R1 | `packages/domain/src/sales/targets.test.ts`, `packages/domain/tests/commands/targets.test.ts`, `packages/db/tests/security/targets.test.ts`, `apps/web/e2e/targets.spec.ts` |
