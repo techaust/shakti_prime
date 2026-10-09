@@ -385,6 +385,9 @@ describe('progress', () => {
     });
     expect(lead.history[0]?.setByName).toBeTruthy();
     expect(lead.periodStarts).toEqual(STARTS);
+    expect(lead.nextStarts.day > STARTS.day).toBe(true);
+    expect(lead.nextStarts.week > STARTS.week).toBe(true);
+    expect(lead.nextStarts.month > STARTS.month).toBe(true);
 
     const manager = await asPrincipal(gm, (ctx) => targetsScreen(ctx, { entityId: E }, NOW));
     const teams = manager.subjects.filter((s) => s.scope === 'team').map((s) => s.id);

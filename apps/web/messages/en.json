@@ -109,6 +109,10 @@
     "quote_acceptance_missing": "Record how the customer accepted the quote: a WhatsApp reply, a WhatsApp code or a signed copy.",
     "quote_still_valid": "This quote is still valid, so it can't be marked as expired yet.",
     "order_needs_accepted_quote": "An order needs a quote the customer has accepted. Only dealers can order without a quote.",
+    "target_period_start": "A day, a Monday for a week or the 1st for a month starts a target. Choose this period or the next one.",
+    "target_subject_missing": "We could not find this person or team in the company. Refresh the page and choose again.",
+    "target_caller_no_team": "This person is not in a team yet, so a target cannot be set for them. Ask an Executive to add them to a team.",
+    "target_other_team": "You can set targets only for your own team and its callers.",
     "credit_limit_missing": "This dealer has no credit limit yet. Ask Accounts to set one, or ask an Executive to release the order.",
     "credit_limit_exceeded": "This order takes the dealer over their credit limit. Collect a payment first, or ask an Executive to release the order.",
     "credit_overdue": "This dealer has an invoice unpaid beyond their credit days. Collect that payment first, or ask an Executive to release the order.",
@@ -425,7 +429,8 @@
     "adminAgents": "Agents",
     "knowledge": "Knowledge",
     "orders": "Orders",
-    "dealerCredit": "Dealer credit"
+    "dealerCredit": "Dealer credit",
+    "targets": "Targets"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -495,7 +500,74 @@
       "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
       "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
-      "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe."
+      "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
+      "targets": "Set what each caller and team is aiming for, and see what was set before."
+    },
+    "progress": {
+      "period": {
+        "day": "Today",
+        "week": "This week",
+        "month": "This month"
+      },
+      "range": "{from} to {to}",
+      "of": "{actual} of {target}",
+      "ofShort": "of {target} ({percent}%)",
+      "met": "Target met"
+    },
+    "caller": {
+      "queueHeading": "Your calls",
+      "callsToday": "Calls today",
+      "due": "Calls due now",
+      "late": "First calls late",
+      "waiting": "Leads waiting",
+      "openQueue": "Open your calls",
+      "targetsHeading": "Your targets",
+      "targetsEmpty": "No target is set for you yet. Your team lead sets your targets, and they show here with your progress."
+    },
+    "lead": {
+      "teamHeading": "Your team",
+      "periodLabel": "Period",
+      "setTargets": "Set targets",
+      "noTeam": "You are not in a team yet. Ask an Executive to add you to one.",
+      "teamTargets": "Targets of {team}",
+      "teamNoTarget": "No target is set for the team. Set one on the Targets page.",
+      "noCallers": "No callers in this team yet.",
+      "leaderboardCaption": "Callers of your team with their {metric} for {period}, each against their target",
+      "rank": "Rank",
+      "caller": "Caller",
+      "queuesHeading": "Queues of your team"
+    },
+    "manager": {
+      "responseHeading": "First calls",
+      "noLimit": "No time limit for the first call is set. Set one for each pipeline on Pipelines in Settings.",
+      "waitingPastLimit": "Leads still waiting for a first call past the limit",
+      "calledLate": "First calls made late in the last 30 days",
+      "pipelineHeading": "Open leads by stage"
+    },
+    "pipeline": {
+      "empty": "There are no open leads yet.",
+      "caption": "Open leads in each stage of {pipeline}",
+      "pipelineIn": "{pipeline} in {company}",
+      "stage": "Stage",
+      "leads": "Open leads"
+    },
+    "accounts": {
+      "heading": "Dealer credit",
+      "open": "Open dealer credit",
+      "held": "Orders held for credit",
+      "overLimit": "Dealers over their limit",
+      "overdue": "Dealers with an overdue invoice"
+    },
+    "executive": {
+      "salesHeading": "Quotes and orders this month",
+      "caption": "Quotes and orders this month, by company",
+      "company": "Company",
+      "quotesSent": "Quotes waiting for an answer",
+      "quotesAccepted": "Quotes accepted",
+      "ordersConfirmed": "Orders confirmed",
+      "ordersValue": "Value of orders confirmed",
+      "group": "All companies",
+      "pipelineHeading": "Open leads by stage"
     }
   },
   "profile": {
@@ -1477,6 +1549,7 @@
       "orderCancel": "Order cancelled",
       "dealerTermsSet": "Dealer's credit limit and days entered",
       "dealerOutstandingRecord": "Dealer's outstanding entered",
+      "targetSet": "Target set for a caller or a team",
       "inboxComplete": "Passed-on enquiry marked done",
       "enquiryRoute": "Enquiry passed to the colleague who looks after the customer",
       "noticesSend": "Notices sent",
@@ -1760,7 +1833,12 @@
       "centreOff": "Kinds of notice hidden",
       "pushOff": "Kinds of notice not sent as alerts",
       "quietFrom": "Quiet from",
-      "quietTo": "Quiet until"
+      "quietTo": "Quiet until",
+      "targetScope": "Target for",
+      "targetMetric": "What it counts",
+      "targetPeriod": "Period",
+      "startsOn": "From",
+      "targetValue": "Target"
     },
     "values": {
       "percent": "{value}%",
@@ -3005,6 +3083,7 @@
       "sales_quote_expire": "Mark quotes past their validity as expired each day",
       "knowledge_index": "Read Knowledge Vault files so they can be searched",
       "sales_credit_write": "Enter dealer credit limits and outstanding",
+      "sales_targets_write": "Set the targets of callers and teams",
       "notifications_send": "Send notices to the people who act on them"
     },
     "empty": "There are no roles to show.",
@@ -4086,6 +4165,82 @@
       "noOutstanding": "No outstanding entered yet.",
       "outstandingLine": "{amount} as of {date}",
       "entered": "Entered {time} by {name}"
+    }
+  },
+  "targets": {
+    "title": "Targets",
+    "intro": "Set what each caller and each team is aiming for: calls, leads qualified, orders confirmed and kW sold. Progress shows on their home page as they work.",
+    "introCompany": "Set what each caller and each team of {company} is aiming for. Progress shows on their home page as they work.",
+    "companyLabel": "Company",
+    "metric": {
+      "calls": "Calls",
+      "qualified": "Leads qualified",
+      "orders": "Orders confirmed",
+      "kw": "kW sold"
+    },
+    "period": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
+    },
+    "scope": {
+      "caller": "Caller",
+      "team": "Team"
+    },
+    "form": {
+      "heading": "Set a target",
+      "noSubjects": "There are no callers or teams to set a target for yet. Add people to a team in Team members.",
+      "subject": "For",
+      "subjectChoose": "Choose a caller or a team",
+      "subjectMissing": "Choose who the target is for.",
+      "teams": "Teams",
+      "callers": "Callers",
+      "metric": "What to count",
+      "period": "Every",
+      "from": "Starting",
+      "fromHelper": "The target holds for this period and every one after it, until you set a new one.",
+      "thisPeriod": {
+        "day": "Today ({date})",
+        "week": "This week, from {date}",
+        "month": "This month, from {date}"
+      },
+      "nextPeriod": {
+        "day": "Tomorrow ({date})",
+        "week": "Next week, from {date}",
+        "month": "Next month, from {date}"
+      },
+      "value": "Target",
+      "valueHelper": "A number, such as 40 calls or 12.5 kW. Enter 0 to take a target away.",
+      "valueInvalid": "Enter a number with at most two decimals, such as 40 or 12.5.",
+      "save": "Save target",
+      "saved": "The target is saved.",
+      "removed": "The target is taken away."
+    },
+    "current": {
+      "heading": "Targets now",
+      "caption": "Targets in force today",
+      "empty": "No targets are set yet. Choose who it is for and what to count above."
+    },
+    "history": {
+      "heading": "Everything set so far",
+      "intro": "Every target ever set, newest first. A newer target replaces an older one from its starting date.",
+      "caption": "Targets set, newest first",
+      "empty": "Nothing has been set yet."
+    },
+    "table": {
+      "subject": "For",
+      "metric": "Counts",
+      "period": "Every",
+      "from": "Starting",
+      "value": "Target",
+      "setByHeading": "Set by",
+      "setBy": "{name}, {time}",
+      "removedValue": "Taken away",
+      "unknownPerson": "Someone no longer here",
+      "scope": {
+        "caller": "Caller",
+        "team": "Team"
+      }
     }
   }
 }

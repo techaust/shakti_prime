@@ -18,6 +18,7 @@ import {
   Percent,
   ScrollText,
   Store,
+  Target,
   ShieldCheck,
   ShoppingCart,
   UserPlus,
@@ -133,6 +134,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Accounts enter dealer terms and outstanding (sales.dealer_terms.set,
     // sales.dealer_outstanding.record) and read the exposure (app.dealer_credit_position()).
     requires: [{ key: 'sales.credit.write', scope: 'entity' }],
+  },
+  {
+    id: 'targets',
+    href: '/targets',
+    label: 'targets',
+    icon: Target,
+    group: 'work',
+    // A team lead sets the targets of their team, the GM those of the company, the Executive any
+    // (sales.target.set); the page reads what the grant's scope reaches.
+    requires: [{ key: 'sales.targets.write', scope: 'team' }],
   },
   {
     id: 'leads-new',

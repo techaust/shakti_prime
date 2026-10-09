@@ -1,11 +1,31 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { listTeamQueues } from '../../../actions/calling';
+import {
+  homeCaller,
+  homeCredit,
+  homePipeline,
+  homeResponseTimes,
+  homeSales,
+} from '../../../actions/home';
+import { myProgress, teamProgress } from '../../../actions/targets';
+import {
+  AccountsSection,
+  CallerSection,
+  ExecutiveSection,
+  LeadSection,
+  ManagerSection,
+} from '../../../components/home/sections';
+import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
 import type { RoleNameKey } from '../../../i18n/types';
 import { navRequires } from '../../../nav';
+import { companyNames, screenAccess, screenTitle } from '../../../screens/access';
+import { TARGET_METRICS } from '../../../screens/contract-values';
+import { homeSections, periodParam, type HomeSection } from '../../../screens/home';
 import { visibleNav } from '../../../screens/menu-access';
-import { screenAccess, screenTitle } from '../../../screens/access';
+import { firstFailure } from '../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,13 +33,79 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenTitle(navRequires('home'), (await getTranslations('auth.home'))('title'));
 }
 
+type Companies = Record<number, string>;
+
+/** The caller's queue and targets; a failed read shows its sentence in the section's place. */
+async function CallerPart({ companies }: { companies: Companies }) {
+  const [queue, progress] = await Promise.all([homeCaller(), myProgress()]);
+  if (!queue.ok || !progress.ok) return <FailureMessage failure={firstFailure(queue, progress)} />;
+  return <CallerSection queue={queue.data} progress={progress.data} companies={companies} />;
+}
+
+/** The team lead's team progress, leaderboard and queues. */
+async function LeadPart({
+  companies,
+  period,
+  metric,
+}: {
+  companies: Companies;
+  period: ReturnType<typeof periodParam>;
+  metric: (typeof TARGET_METRICS)[number];
+}) {
+  const [teams, queues] = await Promise.all([teamProgress({ period, metric }), listTeamQueues({})]);
+  if (!teams.ok || !queues.ok) return <FailureMessage failure={firstFailure(teams, queues)} />;
+  return (
+    <LeadSection
+      teams={teams.data}
+      queues={queues.data}
+      period={period}
+      metric={metric}
+      companies={companies}
+    />
+  );
+}
+
+/** The General Manager's first-call response times and pipeline. */
+async function ManagerPart({ companies }: { companies: Companies }) {
+  const [response, pipelines] = await Promise.all([homeResponseTimes(), homePipeline()]);
+  if (!response.ok || !pipelines.ok) {
+    return <FailureMessage failure={firstFailure(response, pipelines)} />;
+  }
+  return (
+    <ManagerSection response={response.data} pipelines={pipelines.data} companies={companies} />
+  );
+}
+
+/** Accounts' dealer credit. */
+async function AccountsPart({ companies }: { companies: Companies }) {
+  const credit = await homeCredit();
+  if (!credit.ok) return <FailureMessage failure={firstFailure(credit)} />;
+  return <AccountsSection credit={credit.data} companies={companies} />;
+}
+
+/** The Executive's quotes, orders and pipeline. */
+async function ExecutivePart({ companies }: { companies: Companies }) {
+  const [sales, pipelines] = await Promise.all([homeSales(), homePipeline()]);
+  if (!sales.ok || !pipelines.ok) {
+    return <FailureMessage failure={firstFailure(sales, pipelines)} />;
+  }
+  return <ExecutiveSection sales={sales.data} pipelines={pipelines.data} companies={companies} />;
+}
+
 /**
- * The landing inside the shell: who you are, in which role and company, and a shortcut to every
- * screen your grants open (the same list as the sidebar). The theme and the password change live
- * on the profile screen, reached from the profile menu.
+ * The landing inside the shell: who you are, in which role and company, what your role works on
+ * (the caller's queue and targets, the team lead's team, the General Manager's and Executive's
+ * overview, Accounts' dealer credit; docs/03-roadmap-appendix/phase1.md §9) and a shortcut to every
+ * screen your grants open (the same list as the sidebar). A person with several roles sees the
+ * sections of each. The theme and the password change live on the profile screen.
  */
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { principal, access } = await screenAccess(navRequires('home'));
+  const query = await searchParams;
   const t = await getTranslations('home');
   const auth = await getTranslations('auth.home');
   const nav = await getTranslations('nav');
@@ -29,6 +115,20 @@ export default async function HomePage() {
       ? access.entities.find((e) => e.entityId === principal.entityIds[0])
       : undefined;
   const shortcuts = visibleNav(principal.permissions).filter((item) => item.id !== 'home');
+  const companies = companyNames(access);
+  const held = homeSections(
+    access.entities.filter((e) => principal.entityIds.includes(e.entityId)).map((e) => e.roleKey),
+  );
+  const period = periodParam(query.period);
+  const metricParam = typeof query.metric === 'string' ? query.metric : undefined;
+  const metric = TARGET_METRICS.find((m) => m === metricParam) ?? 'calls';
+  const part: Record<HomeSection, React.ReactNode> = {
+    caller: <CallerPart companies={companies} />,
+    lead: <LeadPart companies={companies} period={period} metric={metric} />,
+    manager: <ManagerPart companies={companies} />,
+    accounts: <AccountsPart companies={companies} />,
+    executive: <ExecutivePart companies={companies} />,
+  };
   return (
     <Page
       width="detail"
@@ -47,6 +147,11 @@ export default async function HomePage() {
         </>
       }
     >
+      {held.map((section) => (
+        <div key={section} className="flex flex-col gap-6">
+          {part[section]}
+        </div>
+      ))}
       <section aria-labelledby="home-shortcuts" className="flex flex-col gap-3">
         <h2 id="home-shortcuts" className="text-h3">
           {t('shortcutsTitle')}

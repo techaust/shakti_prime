@@ -68,6 +68,12 @@ export const TargetDto = z
   .strict();
 export type TargetDto = z.infer<typeof TargetDto>;
 
+/** One first day for each length of period. */
+export const PeriodStartsDto = z
+  .object({ day: CalendarDateSchema, week: CalendarDateSchema, month: CalendarDateSchema })
+  .strict();
+export type PeriodStartsDto = z.infer<typeof PeriodStartsDto>;
+
 /** `targets.screen`: what the Targets page of one company shows. */
 export const TargetsScreenInput = z
   .object({ entityId: EntityIdSchema, historyLimit: z.number().int().min(1).max(100).default(30) })
@@ -85,7 +91,6 @@ export const TargetSubjectDto = z
   .strict();
 export type TargetSubjectDto = z.infer<typeof TargetSubjectDto>;
 
-/** The first day of each period that holds today, for the form's default. */
 export const TargetsScreenDto = z
   .object({
     entityId: EntityIdSchema,
@@ -94,7 +99,9 @@ export const TargetsScreenDto = z
     current: z.array(TargetDto),
     /** The newest targets set, a value of 0 included, newest first. */
     history: z.array(TargetDto),
-    periodStarts: z.object({ day: CalendarDateSchema, week: CalendarDateSchema, month: CalendarDateSchema }),
+    /** The first day of the day, week and month that hold today, and of the next ones. */
+    periodStarts: PeriodStartsDto,
+    nextStarts: PeriodStartsDto,
   })
   .strict();
 export type TargetsScreenDto = z.infer<typeof TargetsScreenDto>;

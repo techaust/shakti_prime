@@ -53,6 +53,13 @@ export function currentStarts(now: Date): Starts {
   };
 }
 
+/** The first day of the period after each of `starts`. */
+function nextStarts(starts: Starts): Starts {
+  const next = (period: TargetPeriod): string =>
+    periodStartOn(period, periodBounds(period, starts[period]).to);
+  return { day: next('day'), week: next('week'), month: next('month') };
+}
+
 const keyOf = (subjectId: string, metric: string, period: string): string =>
   `${subjectId}|${metric}|${period}`;
 
@@ -458,6 +465,7 @@ export async function targetsScreen(
     current,
     history: historyRows.map(toDto),
     periodStarts: starts,
+    nextStarts: nextStarts(starts),
   });
 }
 
