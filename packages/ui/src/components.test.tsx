@@ -42,6 +42,25 @@ describe('Field', () => {
     expect(html).toContain('id="phone-error"');
   });
 
+  it('puts its actions on the control’s own line, centred on it, above the helper and error', () => {
+    const html = renderToStaticMarkup(
+      <Field
+        id="q"
+        label="Find"
+        helper="Three letters at least"
+        error="Please check it"
+        actions={<Button>Search</Button>}
+      >
+        <Input name="q" />
+      </Field>,
+    );
+    const row = html.indexOf('flex items-center gap-2');
+    expect(row).toBeGreaterThan(html.indexOf('for="q"'));
+    expect(html.indexOf('>Search<')).toBeGreaterThan(html.indexOf('id="q"'));
+    expect(html.indexOf('>Search<')).toBeLessThan(html.indexOf('id="q-helper"'));
+    expect(html.indexOf('>Search<')).toBeLessThan(html.indexOf('id="q-error"'));
+  });
+
   it('leaves a control without an error unmarked', () => {
     const html = renderToStaticMarkup(
       <Field id="name" label="Name">

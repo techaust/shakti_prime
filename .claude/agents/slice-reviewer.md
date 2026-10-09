@@ -22,10 +22,11 @@ The branch or worktree, and the slice's run file `docs/runs/phase1/<slug>.md` (i
 4. **Races and money:** concurrent writes (locks, unique constraints, `constraintReasons`), lost updates, money in paise inside and `numeric(14,2)` in the database, no discounts, prices only from Price Master tiers, tax only from the engine.
 5. **The web layer:** reads only through `executeQuery()` with a name, writes only through `executeCommand()`; `screenAccess(navRequires())` on menu pages; browser code imports only types from `@shakti/contracts`; nothing opens a connection or reads a secret at import time.
 6. **Copy and accessibility:** every string in `en.json`, plain and final (`docs/08-design-system.md` §11); axe checks and snapshots for the new screens; light, dark and phone width.
-7. **Tests that prove nothing:** assertions that cannot fail, mocks that hide the behaviour under test, skipped or weakened tests, magic sleeps.
-8. **Performance:** `EXPLAIN` evidence for new lists and searches under RLS; the page's JavaScript budget.
-9. **Design and PRD:** everything the design section and the PRD criteria promise for this slice is there, and nothing outside the brief.
-10. **Documents:** DATABASE, API, SECURITY and the design's "Built" record match the code; no change-log wording; generated documents regenerated.
+7. **Layout:** look at every new or changed screenshot (the Linux baselines, or the builder's): a button out of line with the box beside it, text cut off or running past its box, overlapping elements, uneven spacing in a row; a field with a button uses `Field`'s `actions` (`docs/08-design-system.md` §6).
+8. **Tests that prove nothing:** assertions that cannot fail, mocks that hide the behaviour under test, skipped or weakened tests, magic sleeps.
+9. **Performance:** `EXPLAIN` evidence for new lists and searches under RLS; the page's JavaScript budget.
+10. **Design and PRD:** everything the design section and the PRD criteria promise for this slice is there, and nothing outside the brief.
+11. **Documents:** DATABASE, API, SECURITY and the design's "Built" record match the code; no change-log wording; generated documents regenerated.
 
 ## Report (end your turn with it)
 A table of findings ranked by severity (critical, high, medium, low): file and line, what is wrong, a concrete failure scenario, and the fix. Mark each finding *confirmed* (you reproduced it or read the code path end to end) or *plausible*. Then what you checked and found sound, and anything you could not check. Do not inflate: a style preference is not a finding. Critical and high findings block the merge; medium and low ones become follow-ups unless the fix is one line.

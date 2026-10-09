@@ -155,34 +155,38 @@ export function CustomersScreen({
     <div className="flex min-w-0 flex-col gap-4">
       <form
         onSubmit={search}
-        className="flex flex-wrap items-start gap-2"
+        className="flex"
         role="search"
         aria-label={t('searchLabel')}
         noValidate
       >
-        <div className="min-w-0 flex-1 sm:max-w-sm">
-          <Field id="customers-search" label={t('searchLabel')} helper={t('searchHelper')}>
-            <Input name="q" type="search" maxLength={80} autoComplete="off" />
-          </Field>
-        </div>
-        {/* Level with the box, not the helper: the label's line (20 px) and the field's gap (6 px). */}
-        <div className="mt-[1.625rem] flex gap-2">
-          <Button type="submit" pending={pending && rows.length === 0}>
-            {t('search')}
-          </Button>
-          {query === undefined ? null : (
-            <Button
-              type="reset"
-              variant="secondary"
-              onClick={() => {
-                setQuery(undefined);
-                readFirst({ sort: readWith.current.sort, q: undefined });
-              }}
-            >
-              {t('clearSearch')}
-            </Button>
-          )}
-        </div>
+        <Field
+          id="customers-search"
+          label={t('searchLabel')}
+          helper={t('searchHelper')}
+          className="min-w-0 flex-1 sm:max-w-xl"
+          actions={
+            <>
+              <Button type="submit" pending={pending && rows.length === 0}>
+                {t('search')}
+              </Button>
+              {query === undefined ? null : (
+                <Button
+                  type="reset"
+                  variant="secondary"
+                  onClick={() => {
+                    setQuery(undefined);
+                    readFirst({ sort: readWith.current.sort, q: undefined });
+                  }}
+                >
+                  {t('clearSearch')}
+                </Button>
+              )}
+            </>
+          }
+        >
+          <Input name="q" type="search" maxLength={80} autoComplete="off" />
+        </Field>
       </form>
       <FailureMessage failure={failure} />
       {truncated ? (

@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
+import { expectAligned } from './alignment';
 
 /** WCAG 2.1 levels A and AA, the bar docs/08-design-system.md §9 sets for every screen. */
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
@@ -27,7 +28,11 @@ export interface AxeOptions {
   include?: string;
 }
 
-/** Fails the test with every WCAG 2.1 A or AA violation axe finds on the page as it stands. */
+/**
+ * Fails the test with every WCAG 2.1 A or AA violation axe finds on the page as it stands, and
+ * with every button out of line with the box beside it (`expectAligned`, docs/08-design-system.md
+ * §6), within `include` when it is given.
+ */
 export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}): Promise<void> {
   if (options.removeFrames !== undefined) {
     await page.locator(options.removeFrames).evaluateAll((frames) => {
@@ -66,4 +71,5 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
     targets: v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary ?? ''}`),
   }));
   expect(summary, 'accessibility violations (WCAG 2.1 A and AA)').toEqual([]);
+  await expectAligned(page, options.include);
 }

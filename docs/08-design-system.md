@@ -119,6 +119,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 |---|---|
 | Button | Five variants: primary (accent fill), secondary (surface + border), ghost, danger, link (text style). Sizes default, sm and icon. Height 36 px desktop, 44 px phone. Icon buttons are square. Loading state keeps width. |
 | Input / select / date | 36 px, `--border-strong`, label above, helper or error below. Errors in `--danger` with icon. DD-MM-YYYY date picker. |
+| A field with its action | A button that acts on one field (Search, Clear, Save beside a limit) sits on the control's own line, centred on it: `Field`'s `actions` in `packages/ui/src/field.tsx`, never a row lined up with the bottom of the field or nudged by a fixed margin, since a helper or an error below the box changes the field's height. Every end-to-end accessibility check also checks this (`expectAligned`, `apps/web/e2e/support/alignment.ts`): a button beside a text box or select whose centre is more than 2 px off the box's fails the journey. |
 | Data grid | Sticky header, tabular numerals, right-aligned amounts, keyset "Load more", column chooser, row selection, saved views. Sortable columns show a single chevron. |
 | Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. Each stage shows its newest 100 cards with the stage's total, and "Load more" at the foot of a column adds the next 100. |
 | Status badge | Soft tint background + base status text, 12 px, radius-sm. |
