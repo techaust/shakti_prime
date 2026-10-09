@@ -215,7 +215,7 @@ describe('homeResponseTimes', () => {
     const user = await createTestUser([{ entityId: quiet.id, roleKey: 'general_manager' }], {
       name: 'Quiet GM',
     });
-    const quietGm = createTestPrincipal('general_manager', [quiet.id], { id: user.id });
+    const quietGm = await createTestPrincipal('general_manager', [quiet.id], { id: user.id });
     await asMigrator(
       (m) => m`update pipelines set first_contact_sla_minutes = 60
                 where entity_id is null and segment = 'farmer_pumps'`,
