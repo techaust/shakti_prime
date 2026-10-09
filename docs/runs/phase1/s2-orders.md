@@ -5,8 +5,8 @@
 | Branch | `feat/s2-orders` on GitHub, from `main` at f74caff0 (#121) |
 | PC worktree | `s2-orders`, slot 17: Postgres 54347, app 3047 (`bash tools/integration/setup-worktree.sh s2-orders feat/s2-orders 54347 3047`) |
 | Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
-| State | integrated 08-10-2026: every check passes; pull request open |
-| Next step | the merge workflow merges it; then `migrate-hosted` for 0116 and 0117 |
+| State | merged (#133) on 08-10-2026; migrations 0116 and 0117 on dev and staging the same day |
+| Next step | none |
 | Usage | finishing run (Sonnet, medium, 08-10-2026): 67 % of the week at its start, 68 % at its end; review (Opus, high): 68 % to 68 %; fixes (Sonnet, medium): 68 % to 68 %; re-check of the fix diff (Opus, medium): 68 % to 68 %; the lead's integration: 68 % to 69 % |
 
 ## Brief

@@ -4,13 +4,14 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ## Contents
 
-- [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
+- [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 4](#phase-1-wave-4) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
 - [Phase 0](#phase-0): [hosted environments and the close](#phase-0-hosted-environments-and-the-close) · [gap-closing waves](#phase-0-gap-closing-waves) · [completeness pass and tooling](#phase-0-completeness-pass-and-tooling) · [weeks 4 to 8](#phase-0-weeks-4-to-8) · [weeks 1 to 3](#phase-0-weeks-1-to-3) · [production-readiness audit](#phase-0-production-readiness-audit) · [before pull requests](#phase-0-before-pull-requests)
 
 ## Phase 1
 
 ### Phase 1 status documents
 
+- **#132** (08-10-2026) The Phase 1 status at 08-10-2026 (the models-and-usage plan approved, no slice work that day), CHANGELOG lines for #130 and #131, the DECISIONS row switching off the claude.ai connectors that duplicate the user-scope servers and plugins, and the tooling runbook's connection note.
 - **#131** (08-10-2026) Models and usage per task: the runbook `docs/runbooks/models-and-usage.md` with three slice tiers, each task's model and effort, and the budget gate on the weekly pace and the 5-hour window; the `slice-builder` tool list, Sonnet at medium by default and an early stop for Tier A slices; the `slice-reviewer` re-check mode for fix diffs, blocking only on critical and high findings; the Haiku agents `code-finder`, `test-runner` and `doc-clerk`; `start-session` applying the gate and `end-session` handing drafts to `doc-clerk`; and the DECISIONS row.
 - **#130** (07-10-2026) The Phase 1 status at 07-10-2026 (N1 and K1 built, S2 waiting for a builder), CHANGELOG lines for #126 to #129, and DECISIONS rows.
 - **#129** (07-10-2026) The last old document names in comments: `.env.example`, the stylesheets, the realtime spike SQL and plans, and the prototype; applied migrations keep theirs, since `db:verify` compares them as written.
@@ -36,6 +37,12 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 - **#90** (04-10-2026) Phase 1 status at 04-10-2026: counts 1,605 and 2,452, C1, X1 and C2 merged, migrations 0000 to 0089, the merge-and-renumber rule for slice branches.
 - **#86** (03-10-2026) Phase 1 status at 03-10-2026.
 - **#83** (03-10-2026) Phase 1 progress recorded in `CLAUDE.md`.
+
+### Phase 1 wave 4
+
+- **#135** (09-10-2026) K1 Knowledge Vault: `/knowledge` (menu item Knowledge) where staff search what the business knows and read the passages with their file, and people with `knowledge.vault.write` add Word, text, PDF and photo files with a sensitivity (all staff, management, Executives), archive them and have them read again; `knowledge_files` and `knowledge_chunks` (pgvector 0.8, HNSW, iterative scan) read under row-level security by company and sensitivity, inside the nearest-match search before ranking; the index job as `system:workers` with the platform-only `knowledge.index`; identity numbers masked before any model sees them: text line by line before it is cut into passages and again per passage, photos by the OCR step, PDFs drawn page by page with PDFium (MIT) and masked one page per delivery (`files.file.continue_check`), only the masked pages stored and sent and the original deleted, PDFs and photos refused at once where no masking step is set up; daily caps of ₹500 for reading and ₹100 for search with ₹20 a person, a reading deadline that settles the spend, Read again for a stuck file; the journeys' servers (local, Linux snapshots and CI) on the stand-in AI transport. Migrations 0121 to 0123.
+- **#134** (08-10-2026) N1 notifications: the bell and the notification centre in the top bar; notices for a lead given to you, a possible duplicate, a call due, a quote lapsing within a day, a first call running late, an enquiry passed to you and a dealer order held for credit; `/settings/notifications` with the kinds, alerts and quiet hours; browser alerts by web push (VAPID) only to a person's own browsers on known push services; the scan `notifications.due.scan` every five minutes, sending alerts eight at a time within its budget and later sending any a cut-off run left, planned again at resend time; a walk-in or new lead of a colleague's customer passed to that colleague's Agent Inbox with a notice; the whole-repository lint's heap at 6 GB. Migrations 0118 to 0120.
+- **#133** (08-10-2026) S2 orders, acceptance and credit: Record acceptance with the signed copy on a sent quote, making the order draft with the quote's lines, prices and tax; a dealer's own order priced from its tier's live list; confirming runs the credit check (limit and days per dealer and company, the newest outstanding entry, the orders confirmed since; confirms of one dealer queued on a lock), holds the order and names the limit or the oldest unpaid invoice with its age, wins the lead, ends its callbacks and records the referral commission by the rule in force; the Executive's release, cancel by the General Manager or Executive; `/orders`, the order page, orders on Account 360 and `/dealer-credit` (row actions in a menu); a customer merge moves a dealer's orders and, where the kept customer has none, its terms and outstanding. Migrations 0116 and 0117.
 
 ### Phase 1 wave 3
 
