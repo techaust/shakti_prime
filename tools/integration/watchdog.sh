@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # watchdog.sh: every 5 minutes, one line per slice worktree idle for 20 minutes (no commit, no
-# file change, no running node process). Run it under a monitor. Slugs listed one per line in
-# $WT_ROOT/.done are skipped.
+# file change, no running node process and no shell waiting for the heavy-command lock). Run it
+# under a monitor. Slugs listed one per line in $WT_ROOT/.done are skipped.
 . "$(dirname "$0")/lib.sh"
 ROOT="$(wt_root)"
 
 node_procs() {
   if command -v powershell.exe >/dev/null 2>&1; then
-    powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"name='node.exe'\" | ForEach-Object { \$_.CommandLine }" 2>/dev/null
+    powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"name='node.exe' or name='bash.exe'\" | ForEach-Object { \$_.CommandLine }" 2>/dev/null
   else
-    ps -eo args 2>/dev/null | grep -E '(^|/)node '
+    ps -eo args 2>/dev/null | grep -E '(^|/)node |heavy\.sh'
   fi
 }
 
