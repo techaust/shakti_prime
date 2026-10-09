@@ -27,6 +27,8 @@ const runAddress = `10.${String(Math.floor(Math.random() * 250))}.${String(Math.
 
 export default defineConfig({
   testDir: './e2e',
+  // The support helpers' own unit tests (`e2e/support/*.test.ts`) run in vitest, not here.
+  testIgnore: 'support/**',
   outputDir: './e2e/test-results',
   snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{testFilePath}/{arg}{ext}',
   fullyParallel: true,
