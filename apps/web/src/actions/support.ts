@@ -2,7 +2,8 @@ import { DomainError, IdempotencyKeySchema, newId, type Principal } from '@shakt
 import type { ClientMeta, ExecuteOptions } from '@shakti/domain';
 import { headers } from 'next/headers';
 import { clientMeta, platformRequestId } from '../auth/client-address';
-import { currentPrincipal, currentPrincipalIn } from '../auth/current-principal';
+import { currentPrincipal, currentPrincipalIn, currentSession } from '../auth/current-principal';
+import { sectionEntities, type HomeSection } from '../screens/home';
 import { nudgeOutbox } from '../workers/outbox';
 
 /** The caller of an action; `unauthorized` when nobody is signed in. */
@@ -14,9 +15,25 @@ export async function signedIn(): Promise<Principal> {
 
 /** The caller as they act in one company they hold a role in (their grants and team there). */
 export async function signedInIn(entityId: number): Promise<Principal> {
+  // Nobody signed in is `unauthorized`, as `signedIn()` says; only a company not held is `forbidden`.
+  if ((await currentPrincipal()) === undefined) throw new DomainError('unauthorized');
   const principal = await currentPrincipalIn(entityId);
   if (!principal) throw new DomainError('forbidden', `no role in company ${entityId}`);
   return principal;
+}
+
+/**
+ * The companies, among those the caller views, where their role gives them a home section. Worked
+ * out from the session alone: a server action is a public endpoint, so it never takes the list
+ * from the browser, and a caller cannot make it read more companies than they hold roles in.
+ */
+export async function sessionSectionEntities(section: HomeSection): Promise<number[]> {
+  const principal = await signedIn();
+  const session = await currentSession();
+  const viewed = (session?.access.entities ?? []).filter((e) =>
+    principal.entityIds.includes(e.entityId),
+  );
+  return [...new Set(sectionEntities(viewed, section))];
 }
 
 /**

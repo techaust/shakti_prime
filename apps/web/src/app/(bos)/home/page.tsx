@@ -41,14 +41,8 @@ export async function generateMetadata(): Promise<Metadata> {
 type Companies = Record<number, string>;
 
 /** The caller's queue and targets; a failed read shows its sentence in the section's place. */
-async function CallerPart({
-  companies,
-  entityIds,
-}: {
-  companies: Companies;
-  entityIds: readonly number[];
-}) {
-  const [queue, progress] = await Promise.all([homeCaller(entityIds), myProgress(entityIds)]);
+async function CallerPart({ companies }: { companies: Companies }) {
+  const [queue, progress] = await Promise.all([homeCaller(), myProgress()]);
   if (!queue.ok || !progress.ok) return <FailureMessage failure={firstFailure(queue, progress)} />;
   return <CallerSection queue={queue.data} progress={progress.data} companies={companies} />;
 }
@@ -88,16 +82,10 @@ async function LeadPart({
 }
 
 /** The General Manager's first-call response times and pipeline. */
-async function ManagerPart({
-  companies,
-  entityIds,
-}: {
-  companies: Companies;
-  entityIds: readonly number[];
-}) {
+async function ManagerPart({ companies }: { companies: Companies }) {
   const [response, pipelines] = await Promise.all([
-    homeResponseTimes(entityIds),
-    homePipeline(entityIds),
+    homeResponseTimes(),
+    homePipeline('manager'),
   ]);
   if (!response.ok || !pipelines.ok) {
     return <FailureMessage failure={firstFailure(response, pipelines)} />;
@@ -108,27 +96,15 @@ async function ManagerPart({
 }
 
 /** Accounts' dealer credit. */
-async function AccountsPart({
-  companies,
-  entityIds,
-}: {
-  companies: Companies;
-  entityIds: readonly number[];
-}) {
-  const credit = await homeCredit(entityIds);
+async function AccountsPart({ companies }: { companies: Companies }) {
+  const credit = await homeCredit();
   if (!credit.ok) return <FailureMessage failure={firstFailure(credit)} />;
   return <AccountsSection credit={credit.data} companies={companies} />;
 }
 
 /** The Executive's quotes, orders and pipeline. */
-async function ExecutivePart({
-  companies,
-  entityIds,
-}: {
-  companies: Companies;
-  entityIds: readonly number[];
-}) {
-  const [sales, pipelines] = await Promise.all([homeSales(entityIds), homePipeline(entityIds)]);
+async function ExecutivePart({ companies }: { companies: Companies }) {
+  const [sales, pipelines] = await Promise.all([homeSales(), homePipeline('executive')]);
   if (!sales.ok || !pipelines.ok) {
     return <FailureMessage failure={firstFailure(sales, pipelines)} />;
   }
@@ -166,7 +142,7 @@ export default async function HomePage({
   const metricParam = typeof query.metric === 'string' ? query.metric : undefined;
   const metric = TARGET_METRICS.find((m) => m === metricParam) ?? 'calls';
   const part: Record<HomeSection, React.ReactNode> = {
-    caller: <CallerPart companies={companies} entityIds={entitiesOf('caller')} />,
+    caller: <CallerPart companies={companies} />,
     lead: (
       <LeadPart
         companies={companies}
@@ -175,9 +151,9 @@ export default async function HomePage({
         metric={metric}
       />
     ),
-    manager: <ManagerPart companies={companies} entityIds={entitiesOf('manager')} />,
-    accounts: <AccountsPart companies={companies} entityIds={entitiesOf('accounts')} />,
-    executive: <ExecutivePart companies={companies} entityIds={entitiesOf('executive')} />,
+    manager: <ManagerPart companies={companies} />,
+    accounts: <AccountsPart companies={companies} />,
+    executive: <ExecutivePart companies={companies} />,
   };
   return (
     <Page

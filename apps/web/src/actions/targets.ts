@@ -18,7 +18,14 @@ import {
   teamProgress as teamProgressQuery,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn, signedInIn } from './support';
+import {
+  commandOptions,
+  parseInput,
+  requestMeta,
+  sessionSectionEntities,
+  signedIn,
+  signedInIn,
+} from './support';
 
 /** A team lead, the GM or an Executive sets a caller's or a team's target. */
 export async function setTarget(
@@ -54,11 +61,13 @@ export async function targetsScreen(rawInput: unknown): Promise<ActionResult<Tar
   });
 }
 
-/** The signed-in person's targets and progress in each company given, as they act there. */
-export async function myProgress(
-  entityIds: readonly number[],
-): Promise<ActionResult<MyProgressDto[]>> {
+/**
+ * The signed-in person's targets and progress in each company where they are a caller, as they
+ * act there. The companies come from the session, not from the caller's arguments.
+ */
+export async function myProgress(): Promise<ActionResult<MyProgressDto[]>> {
   return toResult('myProgress', async () => {
+    const entityIds = await sessionSectionEntities('caller');
     const { requestId } = await requestMeta();
     const parts = await Promise.all(
       entityIds.map(async (entityId) => {

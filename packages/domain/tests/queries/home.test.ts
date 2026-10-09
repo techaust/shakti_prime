@@ -201,6 +201,33 @@ describe('homeResponseTimes', () => {
     expect((after?.waitingPastLimit ?? 0) - (before?.waitingPastLimit ?? 0)).toBe(1);
     expect((after?.calledLate ?? 0) - (before?.calledLate ?? 0)).toBe(1);
   });
+
+  it('reads the limit as set for a company with no open lead and no recent lead', async () => {
+    // A company with nothing in the window the counts cover: its limit is still set (AUDIT: the
+    // answer comes from the pipelines, not from the leads that happen to be in the window).
+    const [quiet] = await asMigrator(
+      (m) => m<{ id: number }[]>`select e.id from entities e
+        where not exists (select 1 from opportunities o where o.entity_id = e.id
+                            and (o.state = 'open' or o.created_at >= ${NOW}::timestamptz - interval '31 days'))
+        order by e.id limit 1`,
+    );
+    if (!quiet) throw new Error('every company has an open or recent lead');
+    const user = await createTestUser([{ entityId: quiet.id, roleKey: 'general_manager' }], {
+      name: 'Quiet GM',
+    });
+    const quietGm = createTestPrincipal('general_manager', [quiet.id], { id: user.id });
+    await asMigrator(
+      (m) => m`update pipelines set first_contact_sla_minutes = 60
+                where entity_id is null and segment = 'farmer_pumps'`,
+    );
+    const [row] = await read(quietGm, (c) => homeResponseTimes(c, NOW));
+    expect(row).toMatchObject({
+      entityId: quiet.id,
+      limitSet: true,
+      waitingPastLimit: 0,
+      calledLate: 0,
+    });
+  });
 });
 
 describe('homeSales', () => {
