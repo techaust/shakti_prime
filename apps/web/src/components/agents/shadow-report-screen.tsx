@@ -272,9 +272,7 @@ function KindSummary({ summary, name }: { summary: ShadowKindSummaryDto; name: s
   return (
     <li className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-4">
       <p className="font-medium">{name}</p>
-      <p className="text-h3" data-dynamic>
-        {share === undefined ? t('noneDecided') : `${String(share)}%`}
-      </p>
+      <p className="text-h3">{share === undefined ? t('noneDecided') : `${String(share)}%`}</p>
       <p className="text-text-muted text-sm">
         {t('agreed', {
           agreed: formatCount(summary.agreed),

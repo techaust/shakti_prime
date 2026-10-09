@@ -70,7 +70,12 @@ test.describe('as an Executive', () => {
     // Nothing of it reached the Agent Inbox.
     await page.goto('/inbox');
     await expect(page.getByRole('heading', { name: 'Agent Inbox', level: 1 })).toBeVisible();
-    await expect(page.getByText('Intake and Triage suggests')).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('listitem')
+        .filter({ hasText: 'Intake and Triage suggests' })
+        .filter({ hasText: TRIAGE_JOURNEY.customer }),
+    ).toHaveCount(0);
   });
 
   test('Integration health shows the AI spend per agent and company', async ({ page }) => {
@@ -94,7 +99,8 @@ test.describe('as a General Manager', () => {
     await expect(
       page.getByRole('heading', { name: 'What the Triage agent proposed', level: 1 }),
     ).toBeVisible();
-    await expect(dataGrid(page, REPORT)).toBeVisible();
+    // The GM's company has no proposals in the journeys.
+    await expect(page.getByRole('heading', { name: 'How often people agreed' })).toBeVisible();
     await expectNoAxeViolations(page);
   });
 });

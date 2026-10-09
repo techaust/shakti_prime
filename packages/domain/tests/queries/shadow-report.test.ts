@@ -22,12 +22,12 @@ import { memoryLogger } from '../../src/ports/logger';
 import { loadShadowReport } from '../../src/queries/agents/shadow-report';
 import { readAgentSpend } from '../../src/queries/agents/spend';
 
-// The shadow report and the AI spend per agent (A1) on Postgres, company 3: the Triage agent
+// The shadow report and the AI spend per agent (A1) on Postgres, company 4: the Triage agent
 // records its proposals for two leads in Shadow; people then lose one; the report sets each
 // proposal beside what became of its lead. Other suites' runs of the same day may be in the
 // period too, so the tests look for their own rows.
 
-const ENTITY = 3;
+const ENTITY = 4;
 const madeConfigs: string[] = [];
 let caller: Principal;
 let executive: Principal;

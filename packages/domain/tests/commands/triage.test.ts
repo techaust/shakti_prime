@@ -25,9 +25,9 @@ import { memoryLogger } from '../../src/ports/logger';
 
 // The Triage agent end to end on Postgres (A1): a lead is made, the agent reads it as itself,
 // asks the fake transport, and records each proposal as a shadowed action, with no inbox item
-// and no change to the lead. The tests use company 3 and remove the settings they write.
+// and no change to the lead. The tests use company 4 and remove the settings and inbox items they write.
 
-const ENTITY = 3;
+const ENTITY = 4;
 const madeConfigs: string[] = [];
 let caller: Principal;
 let executive: Principal;
@@ -378,6 +378,10 @@ describe('the Triage agent in shadow', () => {
           select assignee_id from inbox_items where id = ${runs.assignee?.inboxItemId ?? ''}`,
       );
       expect(item).toEqual({ assignee_id: null });
+      // The company's inbox is left as it was.
+      await asMigrator(
+        (m) => m`delete from inbox_items where id = ${runs.assignee?.inboxItemId ?? ''}`,
+      );
     } finally {
       await drop(raised);
       await drop(cap);
