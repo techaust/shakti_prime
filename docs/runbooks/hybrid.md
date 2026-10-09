@@ -2,37 +2,39 @@
 
 How Shakti Prime BOS work is split between Claude Code cloud sessions and the owner's Windows PC, and how a piece of work moves between them. This page is the one owner of that split.
 
-**Cloud sessions are paused** (owner, 06-10-2026): Phase 1 continues on the PC only, with Docker Desktop and the rules in [CLAUDE.md](../../CLAUDE.md) ([DECISIONS](../11-decisions.md)). This page holds the procedure for when they resume: slices are built, reviewed, merged with `main`, integrated and given their Linux baselines in cloud sessions (the trial of [§10](#10-the-trial) passed); the pull request and every hosted step stay on the PC; a step that fails in the cloud runs again in a new cloud session.
+**Each working session runs wholly on the PC or wholly in a cloud session, as the owner chooses that day** (owner, 09-10-2026, [DECISIONS](../11-decisions.md)). A PC day follows [CLAUDE.md](../../CLAUDE.md) and [slice-integration](slice-integration.md) on the PC. This page is the cloud day: the lead session, its builders and reviewers, the merge with `main`, integration, baselines, pull requests, the hosted steps and the end-of-day documents all run in one cloud session. The trial of [§10](#10-the-trial) showed each part works.
 
 The slice procedure itself (brief, build, review, merge with `main`, integration, baselines, pull request) is [slice-integration](slice-integration.md); the hosted migration is [DEPLOY §2](deploy.md#2-every-deploy).
 
-**Contents:** [1. What runs where](#1-what-runs-where) · [2. What a cloud session has and lacks](#2-what-a-cloud-session-has-and-lacks) · [3. The cloud environment, once](#3-the-cloud-environment-once) · [4. Starting a builder or a reviewer](#4-starting-a-builder-or-a-reviewer) · [5. How many at once](#5-how-many-at-once) · [6. How a cloud session ends](#6-how-a-cloud-session-ends) · [7. Moving a session between the cloud and the PC](#7-moving-a-session-between-the-cloud-and-the-pc) · [8. What stays on the PC, and why](#8-what-stays-on-the-pc-and-why) · [9. A reclaimed VM or a usage limit](#9-a-reclaimed-vm-or-a-usage-limit) · [10. The trial](#10-the-trial)
+**Contents:** [1. What runs where](#1-what-runs-where) · [2. What a cloud session has and lacks](#2-what-a-cloud-session-has-and-lacks) · [3. The cloud environment, once](#3-the-cloud-environment-once) · [4. Starting a builder or a reviewer](#4-starting-a-builder-or-a-reviewer) · [5. How many at once](#5-how-many-at-once) · [6. How a cloud day ends](#6-how-a-cloud-day-ends) · [7. Moving a session between the cloud and the PC](#7-moving-a-session-between-the-cloud-and-the-pc) · [8. What only the PC has](#8-what-only-the-pc-has) · [9. A reclaimed VM or a usage limit](#9-a-reclaimed-vm-or-a-usage-limit) · [10. The trial](#10-the-trial)
 
 ## 1. What runs where
-While cloud sessions are paused, every row runs on the PC. When they resume, the table says where each task runs.
+On a cloud day everything runs in the cloud: the lead session is itself a cloud session, and nothing waits on the PC.
 
-| Task | Where | Why |
+| Task | Where on a cloud day | How |
 |---|---|---|
-| Write a slice's run file (its brief) | PC, the lead session | The lead plans and reviews every slice; the run file is pushed on the slice's branch before a cloud session starts |
-| Build a slice | Cloud (a new cloud session as fallback) | Each session is its own VM with Docker and its own Postgres, so slices share no ports, memory or database |
-| Review a slice | Cloud (a new cloud session as fallback) | Read-only; it runs the suites on its own database |
-| Take `main` into a slice, renumber its migrations | Cloud (a new cloud session as fallback) | The 8 GB PC cannot run these beside other work |
-| The integration run (`integrate.sh`) | Cloud (a new cloud session as fallback) | It runs 30 to 60 minutes, longer than a cloud command may run ([§2](#2-what-a-cloud-session-has-and-lacks)), so a cloud session runs it in parts with `INTEGRATE_STEPS` (for example `install lint format copylint generated typecheck`, then `unit`, then `security dbverify`, then `audit build jsbudget gitleaks`, then `e2e`), each under 30 minutes |
-| Linux screenshot baselines (`e2e:snap`) | Cloud (a new cloud session as fallback) | The VM is Linux, as the baselines are |
-| Push for review, open the pull request | PC, the lead session | The lead checks the diff first; a cloud session never opens a pull request |
-| Migrate dev and staging, check health | PC | The owner's rule that hosted steps stay on the PC ([DECISIONS](../11-decisions.md)); the migration count reads the hosted database through the Supabase tools, which exist only on the PC |
-| Any other change to a hosted service | PC, with the owner's go-ahead | The standing go-ahead and its scope: [DECISIONS](../11-decisions.md) |
-| STATUS, CHANGELOG and DECISIONS at the end of a session | PC, the lead session | The `end-session` skill |
-| Look up a library's documentation with Context7 | PC | Context7 is a plugin signed in on the PC; in the cloud, read the installed package's types and README under `node_modules` |
+| Start the day | The lead's cloud session on `main` | The owner opens claude.ai/code (environment `shakti_prime`, branch `main`) and types "start the day"; the `start-session` skill runs as on the PC |
+| Write a slice's run file (its brief) | The lead session | Committed on the slice's branch and pushed before any agent starts |
+| Build, review and fix a slice | Subagents of the lead session in the same VM, each slice in its own worktree with its own Postgres container | `bash tools/integration/setup-worktree.sh <slug> <branch> <db-port> <app-port>` puts the worktree beside the checkout ([slice-integration §2](slice-integration.md#2-set-up-a-slice)); the models and efforts of [models-and-usage §3](models-and-usage.md#3-who-runs-what) |
+| Take `main` into a slice, renumber its migrations | The lead session | [slice-integration §5](slice-integration.md#5-take-main-into-the-slice) |
+| The integration run (`integrate.sh`) | The lead session | In parts with `INTEGRATE_STEPS` (for example `install lint format copylint generated typecheck`, then `unit`, then `security dbverify`, then `audit build jsbudget gitleaks`, then `e2e`), each under the 30-minute limit of [§2](#2-what-a-cloud-session-has-and-lacks); `E2E_SPECS` for the slice's own journeys |
+| Linux screenshot baselines (`e2e:snap`) | The lead session | The Playwright image in the VM's Docker, the slice's own screens |
+| Push, open the pull request | The lead session | `gh pr create` (signed in through the GitHub proxy); the merge workflow merges on green |
+| Migrate dev and staging, check health | The lead session | `gh workflow run migrate.yml` as [DEPLOY §2](deploy.md#2-every-deploy) says; the workflow's `db:verify` is the migration check, since the Supabase tools are on the PC only; health with `curl` (both sites are on the environment's network list) |
+| Any other change to a hosted service | The owner, with the lead's steps | The cloud has no Vercel, Upstash, AWS or Sentry tools; the standing go-ahead and its scope: [DECISIONS](../11-decisions.md) |
+| STATUS, CHANGELOG and DECISIONS at the end of the day | The lead session | The `end-session` skill, its pull request opened with `gh` |
+| Look up a library's documentation | Any session | No Context7 in the cloud: read the installed package's types and README under `node_modules` |
 
 ```mermaid
 flowchart LR
-  A[Lead on PC: run file, push branch] --> B[Cloud: builder]
-  B -->|report in run file, push| C[Lead on PC: read report]
-  C --> D[Cloud: reviewer]
-  D -->|findings in run file, push| E[Lead on PC: fixes by a builder, then merge main, integrate, baselines]
-  E --> F[Pull request, merge on green]
-  F --> G[PC: migrate dev, then staging]
+  A[Owner: cloud session on main, start the day] --> B[Lead: run file, worktree, push]
+  B --> C[Builder subagent]
+  C --> D[Reviewer subagent, once]
+  D --> E[One fix round; lead reads the diff]
+  E --> F[Lead: merge main, integrate in parts, baselines]
+  F --> G[Lead: pull request, merge on green]
+  G --> H[Lead: migrate dev, then staging, health]
+  H --> I[Lead: end the day, documents pull request]
 ```
 
 ## 2. What a cloud session has and lacks
@@ -106,14 +108,16 @@ then commit and push. Never open a pull request, merge, or touch a hosted servic
 ```
 
 ## 5. How many at once
-- At most two cloud sessions at a time beside the lead session on the PC (the Max 5x plan, [DECISIONS](../11-decisions.md)), for example one builder and one reviewer.
-- One session per slice, and one session per branch: two sessions pushing one branch overwrite each other's work.
-- Builders on the PC count against the same plan: while two cloud sessions run, the PC runs no builder.
+- Up to three builders at once on a cloud day ([models-and-usage §3](models-and-usage.md#3-who-runs-what)), each in its own worktree and Postgres container in the lead's VM; heavy commands still take turns through `bash tools/integration/heavy.sh <command>`, since the VM has 16 GB and 4 vCPUs.
+- One agent per slice and per branch: two agents pushing one branch overwrite each other's work.
+- A builder started instead as its own cloud session (the first messages of [§4](#4-starting-a-builder-or-a-reviewer)) counts toward the three.
+- No cloud session runs while a PC session works, and the reverse: a day is wholly one or the other.
 
-## 6. How a cloud session ends
-- A builder writes its report into the run file's Report section, commits and pushes its branch. A reviewer writes its findings into the Review section, commits and pushes.
-- A cloud session never opens a pull request, merges, pushes to `main`, force-pushes, deletes a remote branch, or touches a hosted service.
-- The lead session on the PC fetches the branch, reads the report or the findings, verifies them, and decides the next step (fixes, review, or the merge with `main` in [slice-integration §5](slice-integration.md#5-take-main-into-the-slice)).
+## 6. How a cloud day ends
+- The lead runs the `end-session` skill in the cloud: STATUS, CHANGELOG, DECISIONS and the run files, a documents pull request opened with `gh`, merged on green.
+- Every branch is pushed and every pull request merged or recorded in STATUS before the session closes: the VM and anything not pushed are lost when it is reclaimed.
+- A cloud session never force-pushes, deletes a remote branch or pushes to `main`; the merge workflow merges.
+- The PC's Claude memory does not reach a cloud session: the repository's documents are the whole record.
 
 ## 7. Moving a session between the cloud and the PC
 Every move goes through a pushed branch: commit and push before moving.
@@ -121,11 +125,10 @@ Every move goes through a pushed branch: commit and push before moving.
 - **Cloud to PC:** `claude --teleport <session id>` in a terminal, or `/teleport` inside Claude Code, brings the cloud session and its branch to the PC. On the PC, a slice's work continues in its worktree ([slice-integration §2](slice-integration.md#2-set-up-a-slice)), which has its own Postgres and ports.
 - A branch that GitHub refuses to update without a force push (history rewritten on one side) goes up under a fresh name, such as `feat/c3-pipelines-r2`; the run file names the branch in use.
 
-## 8. What stays on the PC, and why
-- **Hosted steps:** migrating dev and staging and checking them ([DEPLOY §2](deploy.md#2-every-deploy), the `migrate-hosted` skill). The migration count and any other look at a hosted project use the Supabase, Vercel, Upstash, AWS and Sentry tools signed in on the PC ([tooling](tooling.md)).
-- **The pull request:** the lead checks the pushed branch against the session's report first; a cloud session never opens one.
-- **Worktrees and their ports:** `D:/shakti-wt` (the scripts' default where it exists), one Postgres container and app port per slice ([slice-integration §1](slice-integration.md#1-machines-and-ports)). A cloud session has one checkout, Postgres on 54322 and the app on 3000.
-- **The browser pane** (`.claude/launch.json`, the preview logs) is part of the desktop app.
+## 8. What only the PC has
+- **The Supabase, Vercel, Upstash, AWS and Sentry tools** ([tooling](tooling.md)): on a cloud day the migrate workflow's `db:verify` replaces the migration count, and any other look at a hosted service is done by the owner from the steps the lead gives.
+- **Context7 and the browser pane** (`.claude/launch.json`, the preview logs).
+- **The owner's secret scripts** (hidden-prompt PowerShell scripts): a step that needs a secret is done by the owner on the PC or in the service's own console.
 
 ## 9. A reclaimed VM or a usage limit
 - **The VM was reclaimed or paused:** the conversation is kept, the running commands are not. Reopen the session (or start a fresh one on the branch with the same first message); the session-start hook brings Postgres back, and the suites prepare the database again. Work committed and pushed survives; anything else is lost, which is why a cloud builder pushes after every commit.
@@ -137,4 +140,4 @@ The trial showed that the cloud can run the steps of [§1](#1-what-runs-where) m
 
 It passed with S1, D1 and T1 (#115, #118, #119). Each took `main` by a merge commit, renumbered its migrations, ran `integrate.sh` in five parts (none near the 30-minute limit) and made its baselines in the Linux image; each merge with `main` found a clash the plain merge did not show and fixed it ([slice-integration §10](slice-integration.md#10-lessons)).
 
-Whether to go fully cloud is the owner's decision once cloud sessions resume; it becomes a row in [DECISIONS](../11-decisions.md).
+The owner decided on 09-10-2026 that a session runs wholly in the cloud or wholly on the PC, chosen each day ([DECISIONS](../11-decisions.md)).

@@ -5,7 +5,7 @@ description: Start or resume work on Shakti Prime BOS, in a cloud session or on 
 
 # Start a session on Shakti Prime BOS
 
-You are the lead engineer on Shakti Prime BOS: you own this codebase end to end. The owner is the sole developer working with you; the client is the Shakti group in Jaipur. Cloud sessions are paused, so the session runs on the PC under the PC rule and the model rules in `CLAUDE.md`. Each step below says where it applies: **both**, **PC** or **cloud**; the cloud steps hold for when cloud sessions resume ([docs/runbooks/hybrid.md](../../../docs/runbooks/hybrid.md); a cloud session has `CLAUDE_CODE_REMOTE=true`).
+You are the lead engineer on Shakti Prime BOS: you own this codebase end to end. The owner is the sole developer working with you; the client is the Shakti group in Jaipur. The owner runs each day wholly on the PC or wholly in a cloud session; a cloud session has `CLAUDE_CODE_REMOTE=true` and follows [docs/runbooks/hybrid.md](../../../docs/runbooks/hybrid.md) for the whole day, a PC session the PC rule in `CLAUDE.md`. Each step below says where it applies: **both**, **PC** or **cloud**.
 
 ## 1. Read, in this order (both)
 1. `CLAUDE.md` (the rules; already loaded).
@@ -23,7 +23,7 @@ You are the lead engineer on Shakti Prime BOS: you own this codebase end to end.
 - **PC:** Docker Desktop must be running (it holds each slice's database and the Playwright image); if it is not, tell the owner to start it. Check each slice in flight by its run file and its worktree's branch (`git -C <worktree> log -5`; `git fetch` and `git log origin/<branch>` for a branch built elsewhere).
 
 ## 3. Then (both)
-Say in one short paragraph where things stand, then continue from the next item in STATUS that the current phase allows and that this place may run (while cloud sessions are paused, everything runs on the PC; [hybrid §1](../../../docs/runbooks/hybrid.md#1-what-runs-where) says what a resumed cloud session may run). For anything touching more than one file, present a plan (numbered steps with files, commands, tests and migrations) and wait for approval, unless the owner has already approved the plan this work belongs to.
+Say in one short paragraph where things stand, then continue from the next item in STATUS that the current phase allows and that this place may run (on a cloud day everything runs in the cloud session, as [hybrid §1](../../../docs/runbooks/hybrid.md#1-what-runs-where) says). For anything touching more than one file, present a plan (numbered steps with files, commands, tests and migrations) and wait for approval, unless the owner has already approved the plan this work belongs to.
 
 ## How we work
 - Before starting any agent, read the usage and apply the budget gate; start it with the model and effort its slice's tier sets ([models-and-usage §3](../../../docs/runbooks/models-and-usage.md#3-who-runs-what)), and record the weekly percentage at its start and end in the run file's Usage line. Searches go to `code-finder`, the lead's suites to `test-runner`. Say when a task needs the lead on high effort, and when to switch back.
@@ -34,4 +34,4 @@ Say in one short paragraph where things stand, then continue from the next item 
 - Report honestly: what ran, what passed, what was not verified. Never report the security suite as verified without running it on the local Postgres.
 - Never install plugins, MCP servers or dependencies without the owner's go-ahead. Never write to the database outside a domain command. Never put a colour, price or tax calculation in UI code. Never invent client inputs.
 - Every user-facing word follows `docs/08-design-system.md` §11: plain final English, Roman-script Hinglish only for caller scripts, voice speech and training.
-- Keep the phase discipline in `docs/03-roadmap.md`. End a lead session on the PC with the `end-session` skill; a cloud session ends as [hybrid §6](../../../docs/runbooks/hybrid.md#6-how-a-cloud-session-ends) says.
+- Keep the phase discipline in `docs/03-roadmap.md`. End a lead session, on the PC or in the cloud, with the `end-session` skill ([hybrid §6](../../../docs/runbooks/hybrid.md#6-how-a-cloud-day-ends)).

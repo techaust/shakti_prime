@@ -1,6 +1,6 @@
 ---
 name: integrate-slice
-description: Bring a built and reviewed slice branch of Shakti Prime BOS onto main, on the PC while cloud sessions are paused (in a cloud session when they resume; the PC opens the pull request). Use when a slice's builder has finished and its review findings are fixed. Takes main into the branch, renumbers its migrations, runs every check, makes the Linux screenshot baselines and opens the pull request.
+description: Bring a built and reviewed slice branch of Shakti Prime BOS onto main, in the day's lead session, on the PC or in the cloud. Use when a slice's builder has finished and its review findings are fixed. Takes main into the branch, renumbers its migrations, runs every check, makes the Linux screenshot baselines and opens the pull request.
 ---
 
 # Integrate a slice
