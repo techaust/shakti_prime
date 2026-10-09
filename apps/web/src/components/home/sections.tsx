@@ -244,7 +244,9 @@ export async function PipelineBlocks({
               : pipeline.pipelineName}
           </h3>
           <table className="w-full text-sm">
-            <caption className="sr-only">{t('caption', { pipeline: pipeline.pipelineName })}</caption>
+            <caption className="sr-only">
+              {t('caption', { pipeline: pipeline.pipelineName })}
+            </caption>
             <thead className="text-text-muted">
               <tr>
                 <th scope="col" className="py-1 text-left font-medium">

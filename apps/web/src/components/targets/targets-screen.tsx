@@ -1,11 +1,6 @@
 'use client';
 
-import type {
-  TargetDto,
-  TargetMetric,
-  TargetPeriod,
-  TargetsScreenDto,
-} from '@shakti/contracts';
+import type { TargetDto, TargetMetric, TargetPeriod, TargetsScreenDto } from '@shakti/contracts';
 import { Button, EmptyState, Field, Input, Select, toast } from '@shakti/ui';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -200,7 +195,9 @@ function TargetRows({ rows, withSetBy }: { rows: readonly TargetDto[]; withSetBy
         <tr key={r.id} className="border-border border-t">
           <th scope="row" className="px-3 py-2 text-left font-medium">
             {r.subjectName ?? t('unknownPerson')}
-            <span className="text-text-muted block text-xs font-normal">{t(`scope.${r.scope}`)}</span>
+            <span className="text-text-muted block text-xs font-normal">
+              {t(`scope.${r.scope}`)}
+            </span>
           </th>
           <td className="px-3 py-2">{metrics(r.metric)}</td>
           <td className="px-3 py-2">{periods(r.period)}</td>
@@ -210,7 +207,10 @@ function TargetRows({ rows, withSetBy }: { rows: readonly TargetDto[]; withSetBy
           </td>
           {withSetBy ? (
             <td className="px-3 py-2">
-              {t('setBy', { name: r.setByName ?? t('unknownPerson'), time: formatDateTime(r.setAt) })}
+              {t('setBy', {
+                name: r.setByName ?? t('unknownPerson'),
+                time: formatDateTime(r.setAt),
+              })}
             </td>
           ) : null}
         </tr>

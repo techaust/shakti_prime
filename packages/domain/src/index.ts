@@ -57,7 +57,13 @@ export {
   homeResponseTimes,
   homeSales,
 } from './queries/home/home';
-export { isPeriodStart, periodBounds, periodEndOn, periodStartOn, progressFraction } from './sales/targets';
+export {
+  isPeriodStart,
+  periodBounds,
+  periodEndOn,
+  periodStartOn,
+  progressFraction,
+} from './sales/targets';
 export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
 export { dismissDuplicate, scanDuplicates, suggestDuplicate } from './commands/crm/duplicates';
 export { mergeCustomers, mergeLeads, unmergeCustomers } from './commands/crm/merges';
