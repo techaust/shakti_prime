@@ -378,7 +378,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 | TEL-03 | 1, 2 | L1 | — |
 | TEL-04 | 2 | — | `packages/domain/src/telecom/dial-policy.test.ts`, `apps/web/src/integrations/exotel/exotel.test.ts` |
 | TEL-05 | 2 | — | — |
-| TEL-06 | 1 | R1 | — |
+| TEL-06 | 1 | R1 | `packages/domain/src/sales/targets.test.ts`, `packages/domain/tests/commands/targets.test.ts`, `packages/db/tests/security/targets.test.ts`, `apps/web/e2e/targets.spec.ts` |
 | SAL-01 | 1 | C1 | `packages/domain/tests/commands/set-price.test.ts`, `packages/domain/tests/commands/price-lists.test.ts`, `packages/db/tests/security/catalogue-scope.test.ts`, `apps/web/e2e/price-master.spec.ts` |
 | SAL-02 | 1 | C1 | `packages/domain/src/tax/tax.test.ts`, `packages/domain/src/tax/golden.test.ts`, `packages/domain/tests/commands/tax.test.ts`, `apps/web/e2e/catalogue.spec.ts` |
 | SAL-03 | 1 | S1 | Quote machine: `packages/domain/src/state-machines/machines/quote.test.ts`; numbering `packages/domain/tests/numbering/next-document-no.test.ts`; prices from the list and a price in the input refused: `packages/domain/tests/commands/quotes.test.ts`, `packages/domain/src/sales/quote-pricing.test.ts`; policies `packages/db/tests/security/quotes.test.ts`; journey `apps/web/e2e/quotes.spec.ts` |
@@ -401,7 +401,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 | FIN-04 to FIN-06 | 5 | — | Cost gate: `packages/db/tests/security/cost-permissions.test.ts` |
 | FIN-07 | 5 | — | Expense-claim machine: `packages/domain/src/state-machines/machines.test.ts` |
 | HR-01 to HR-04 | 5 | — | — |
-| RPT-01 | 1, 5 | R1 | — |
+| RPT-01 | 1, 5 | R1 | `packages/domain/tests/queries/home.test.ts`, `apps/web/src/screens/home.test.ts`, `apps/web/e2e/targets.spec.ts` |
 | RPT-02 | With each module's reports | — | — (no export exists) |
 | RPT-03 | 0, 1, 3 | S1 | `packages/domain/tests/queries/search.test.ts`, `packages/domain/tests/queries/search-equivalence.test.ts`, `packages/db/tests/security/lead-search-candidates.test.ts`; quote numbers `packages/domain/tests/commands/quotes.test.ts`, `packages/db/tests/security/quotes.test.ts`, `apps/web/e2e/quotes.spec.ts`; timing `pnpm spike:lists`, `pnpm --filter @shakti/domain spike:quotes` |
 | RPT-04 | 1, 4 | N1 | — |

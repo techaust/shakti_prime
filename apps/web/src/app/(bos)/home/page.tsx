@@ -42,22 +42,33 @@ async function CallerPart({ companies }: { companies: Companies }) {
   return <CallerSection queue={queue.data} progress={progress.data} companies={companies} />;
 }
 
-/** The team lead's team progress, leaderboard and queues. */
+/**
+ * The team lead's team progress, leaderboard and queues, one company at a time: a team is the
+ * lead's team in one company, so each read acts in that company.
+ */
 async function LeadPart({
   companies,
+  entityIds,
   period,
   metric,
 }: {
   companies: Companies;
+  entityIds: readonly number[];
   period: ReturnType<typeof periodParam>;
   metric: (typeof TARGET_METRICS)[number];
 }) {
-  const [teams, queues] = await Promise.all([teamProgress({ period, metric }), listTeamQueues({})]);
-  if (!teams.ok || !queues.ok) return <FailureMessage failure={firstFailure(teams, queues)} />;
+  const results = await Promise.all(
+    entityIds.map(async (entityId) => ({
+      teams: await teamProgress({ entityId, period, metric }),
+      queues: await listTeamQueues({ entityId }),
+    })),
+  );
+  const failed = firstFailure(...results.flatMap((r) => [r.teams, r.queues]));
+  if (failed !== undefined) return <FailureMessage failure={failed} />;
   return (
     <LeadSection
-      teams={teams.data}
-      queues={queues.data}
+      teams={results.flatMap((r) => (r.teams.ok ? r.teams.data : []))}
+      queues={results.flatMap((r) => (r.queues.ok ? r.queues.data : []))}
       period={period}
       metric={metric}
       companies={companies}
@@ -119,12 +130,17 @@ export default async function HomePage({
   const held = homeSections(
     access.entities.filter((e) => principal.entityIds.includes(e.entityId)).map((e) => e.roleKey),
   );
+  const leadEntities = access.entities
+    .filter((e) => principal.entityIds.includes(e.entityId) && e.roleKey === 'sales_team_lead')
+    .map((e) => e.entityId);
   const period = periodParam(query.period);
   const metricParam = typeof query.metric === 'string' ? query.metric : undefined;
   const metric = TARGET_METRICS.find((m) => m === metricParam) ?? 'calls';
   const part: Record<HomeSection, React.ReactNode> = {
     caller: <CallerPart companies={companies} />,
-    lead: <LeadPart companies={companies} period={period} metric={metric} />,
+    lead: (
+      <LeadPart companies={companies} entityIds={leadEntities} period={period} metric={metric} />
+    ),
     manager: <ManagerPart companies={companies} />,
     accounts: <AccountsPart companies={companies} />,
     executive: <ExecutivePart companies={companies} />,

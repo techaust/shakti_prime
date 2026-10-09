@@ -65,14 +65,20 @@ export async function myProgress(): Promise<ActionResult<MyProgressDto[]>> {
   });
 }
 
-/** A team lead's team progress and leaderboard for a period. */
+/**
+ * A team lead's team progress and leaderboard for a period. A request for one company acts with
+ * the caller's team there (AUDIT M24), which the database's team scope needs to count a team.
+ */
 export async function teamProgress(rawInput: unknown): Promise<ActionResult<TeamProgressDto[]>> {
   return toResult('teamProgress', async () => {
     const principal = await signedIn();
     const input = parseInput(TeamProgressInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => teamProgressQuery(context, input), {
-      name: 'teamProgress',
-    });
+    return executeQuery(
+      principal,
+      input.entityId === undefined ? { requestId } : { entityIds: [input.entityId], requestId },
+      (context) => teamProgressQuery(context, input),
+      { name: 'teamProgress' },
+    );
   });
 }
