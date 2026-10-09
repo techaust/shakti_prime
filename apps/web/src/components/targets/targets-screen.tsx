@@ -172,14 +172,14 @@ function SetTargetForm({ data }: { data: TargetsScreenDto }) {
           label={t('value')}
           helper={t('valueHelper')}
           error={problem === 'value' ? t('valueInvalid') : fieldError('value')}
+          actions={
+            <Button type="submit" pending={pending}>
+              {t('save')}
+            </Button>
+          }
         >
           <Input name="value" inputMode="decimal" autoComplete="off" maxLength={10} />
         </Field>
-        <div className="flex items-end">
-          <Button type="submit" pending={pending}>
-            {t('save')}
-          </Button>
-        </div>
         <div className="md:col-span-2 lg:col-span-3">
           <FailureMessage failure={formFailure} />
         </div>
