@@ -951,7 +951,12 @@ describe('the quote reads', () => {
         expect.objectContaining({ sku: 'QT-CABLE' }),
       ],
     });
-    expect(JSON.stringify(printed)).not.toMatch(/\+91|96\d{8}/);
+    // Ids are left out of the search: a random UUID can hold 96 and eight digits of its own.
+    const printedText = JSON.stringify(printed).replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g,
+      '<id>',
+    );
+    expect(printedText).not.toMatch(/\+91|96\d{8}/);
     await expect(
       asPrincipal(lc, (context) => loadQuoteForPrint(context, quote.id)),
     ).rejects.toThrow();
