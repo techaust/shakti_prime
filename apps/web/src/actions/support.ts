@@ -1,9 +1,10 @@
 import { DomainError, IdempotencyKeySchema, newId, type Principal } from '@shakti/contracts';
 import type { ClientMeta, ExecuteOptions } from '@shakti/domain';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { clientMeta, platformRequestId } from '../auth/client-address';
 import { currentPrincipal, currentPrincipalIn, currentSession } from '../auth/current-principal';
 import { sectionEntities, type HomeSection } from '../screens/home';
+import { TEST_CLOCK_COOKIE, testClockFrom } from '../test-clock';
 import { nudgeOutbox } from '../workers/outbox';
 
 /** The caller of an action; `unauthorized` when nobody is signed in. */
@@ -45,6 +46,14 @@ export async function sessionSectionEntities(section: HomeSection): Promise<numb
 export async function requestMeta(): Promise<{ requestId: string; client: ClientMeta }> {
   const h = await headers();
   return { requestId: platformRequestId(h) ?? newId(), client: clientMeta(h) };
+}
+
+/**
+ * The time the journeys set as now for the calling-hours rule, or `undefined` for the server's own
+ * clock (always, except on a local runtime; `src/test-clock.ts`).
+ */
+export async function testNow(): Promise<Date | undefined> {
+  return testClockFrom((await cookies()).get(TEST_CLOCK_COOKIE)?.value);
 }
 
 /**

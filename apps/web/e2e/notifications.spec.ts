@@ -7,7 +7,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { storageStatePath, type ProjectName } from './support/users';
+import { SNAPSHOT_LEADS, storageStatePath, type ProjectName } from './support/users';
 
 /** The one project that marks all of the shared tele-caller's notices read. */
 const MARK_ALL_PROJECT: ProjectName = 'desktop-light';
@@ -127,7 +127,8 @@ test.describe('notices as a tele-caller', () => {
       .click();
     await expect(notice.getByText('Not read yet')).toHaveCount(0);
     // No screenshot here: the centre lists whatever the other journeys left, so its height and its
-    // Mark all as read button change from run to run.
+    // Mark all as read button change from run to run. The snapshot caller's centre is compared at
+    // the end of this file.
     await expectNoAxeViolations(page, { include: '[role="dialog"]' });
   });
 
@@ -206,5 +207,30 @@ test.describe('all notices read at once, as a store manager', () => {
     await expect(centre.getByText('Not read yet')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+  });
+});
+
+// The picture of the notification centre: the snapshot caller's own, whose three notices the seed
+// writes (a team lead gave her each of her leads) and leaves unread on every run. No journey writes
+// notices in that company or reads hers.
+test.describe('the notification centre of the snapshot company’s caller', () => {
+  test.use(signedInAs('snapshotCaller'));
+
+  test('lists the leads she was given, not read yet', async ({ page }) => {
+    await page.goto('/home');
+    const bell = page.getByRole('button', { name: 'Notifications, 3 unread' });
+    await expect(bell).toBeVisible();
+    await bell.click();
+    const centre = page.getByRole('dialog', { name: 'Notifications' });
+    await expect(centre).toBeVisible();
+    for (const lead of SNAPSHOT_LEADS) {
+      await expect(
+        centre.getByRole('listitem').filter({ hasText: lead.name }).getByText('Not read yet'),
+      ).toBeVisible();
+    }
+    await expectNoAxeViolations(page, { include: '[role="dialog"]' });
+    await snap(page, 'notification-centre', {
+      mask: [page.getByText(/\b20\d\d\b/), page.locator('time')],
+    });
   });
 });
