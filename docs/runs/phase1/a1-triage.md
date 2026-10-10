@@ -6,9 +6,9 @@
 | PC worktree | cloud day: `/home/user/shakti-wt/a1-triage`, slot 3: Postgres 54333 (container `shakti-pg-a1-triage`), app 3033 |
 | Runs on | cloud, beside L1 and the journey fixes (owner, 09-10-2026: all pending Phase 1 work at once), heavy commands through the VM's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | A (AI agent principal, row-level security): build Opus 5.5 medium, review Opus 5.5 high |
-| Usage | not readable in the cloud session; the owner ran the day past the budget gate by instruction |
-| State | building |
-| Next step | build |
+| Usage | weekly use 86 % at the owner's reading during the build (the cloud session cannot read it); the owner ran the day past the budget gate; reviews on Fable 5.1 by the owner's choice for this week |
+| State | merged (#146) on 10-10-2026; dev and staging migrated through 0129 the same night |
+| Next step | none |
 
 ## Brief
 Read first:
@@ -91,7 +91,7 @@ Skills loaded: `add-command`, `add-table`, `claude-api` (model id check: the wra
 | 3 | Low | **The report names a pipeline through the segment list** (plausible). `shadow-report-screen.tsx:72-73` renders a pipeline *key* as `activity.values.segment.<key>` and "Another pipeline" otherwise; it works only because the four seeded pipelines carry their segment's key. A company pipeline with its own key (C3's `crm.config.write` covers pipelines; no command creates one yet) would show "Another pipeline / In Another pipeline / Agreed". Fix: carry `pipelines.name` for the proposed and the current pipeline in `ShadowProposalDto`. Follow-up. | follow-up |
 | 4 | Low | **One assertion cannot fail.** `packages/domain/tests/queries/shadow-report.test.ts:154-158` asserts the assignee agreement by recomputing it from the DTO's own `ownerId` and `proposedOwnerId`. Fix: after the run, assign the kept lead to the proposed person with `crm.opportunity.assign` and assert `agree` (and another person, `disagree`). Follow-up. | fixed, re-checked 10-10-2026 |
 | 5 | Low | **The period error sits under "From" while "To" is marked invalid.** `shadow-report-screen.tsx:217` puts `error` on the From field and `:234` sets `invalid` on the To input: a screen reader on To hears "invalid" with no message, and "The end date is before the start date" reads under From. Fix: `error` on the field the problem names (both for `periodTooLong`). Follow-up or one line. | fixed, re-checked 10-10-2026 |
-| 6 | Low | **DATABASE names the trigger's migration as "A1 (after 0127)"** (`docs/05-database.md:177`) where every other exception row carries its number. Fix at the lead's renumbering: the migration's final number. | follow-up (lead, at renumbering) |
+| 6 | Low | **DATABASE names the trigger's migration as "A1 (after 0127)"** (`docs/05-database.md` (line 177)) where every other exception row carries its number. Fix at the lead's renumbering: the migration's final number. | fixed in the documents of 10-10-2026: 0129 (A1) |
 | 7 | Low | **A redelivery after a partial run asks the model again.** The answer lives only in the closure of `runTriage()` (`run-triage.ts:54-67`); if the worker dies after one or two of the four steps have recorded, the redelivery answers those from their runs and calls the model once more for the rest, paying twice for the lead. Accepted for Phase 1 (the cap bounds it); a follow-up could keep the answer in the key-value store under the event id. | follow-up |
 
 **Checked and sound (with evidence):**
