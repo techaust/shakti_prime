@@ -23,7 +23,11 @@ SRC="$MAIN/.env"
 sed -E "s#@(localhost|127\.0\.0\.1):[0-9]+/#@127.0.0.1:${PORT}/#g" "$SRC" > "$WT/.env"
 # The app runs on its own port; the journeys follow BETTER_AUTH_URL and E2E_BASE_URL there.
 sed -i -E "s#^BETTER_AUTH_URL=.*#BETTER_AUTH_URL=http://localhost:${APPPORT}#" "$WT/.env"
-grep -q '^E2E_BASE_URL=' "$WT/.env" || echo "E2E_BASE_URL=http://localhost:${APPPORT}" >> "$WT/.env"
+if grep -q '^E2E_BASE_URL=' "$WT/.env"; then
+  sed -i -E "s#^E2E_BASE_URL=.*#E2E_BASE_URL=http://localhost:${APPPORT}#" "$WT/.env"
+else
+  echo "E2E_BASE_URL=http://localhost:${APPPORT}" >> "$WT/.env"
+fi
 
 BAD=$(grep -E '^DATABASE_URL' "$WT/.env" | grep -v ":${PORT}/" || true)
 if [ -n "$BAD" ]; then echo "ENV CHECK FAILED: a database URL does not use port $PORT"; exit 1; fi

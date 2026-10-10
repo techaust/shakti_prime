@@ -25,7 +25,7 @@ import {
   searchLeads,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn, signedInIn } from './support';
+import { commandOptions, parseInput, requestMeta, signedIn, signedInIn, testNow } from './support';
 
 /** The leads the workspace's search shows: a short list the eye takes in. */
 const SEARCH_HITS = 8;
@@ -72,10 +72,11 @@ export async function dialNumber(rawInput: unknown): Promise<ActionResult<DialNu
     const principal = await signedIn();
     const input = parseInput(DialNumberInput, rawInput);
     const { requestId } = await requestMeta();
+    const now = await testNow();
     return executeQuery(
       principal,
       { entityIds: [input.entityId], requestId },
-      (context) => dialNumberQuery(context, input),
+      (context) => dialNumberQuery(context, input, now),
       { name: 'dialNumber' },
     );
   });
@@ -123,12 +124,13 @@ export async function logCall(
     const principal = await signedIn();
     const input = parseInput(LogCallInput, rawInput);
     const meta = await requestMeta();
+    const now = await testNow();
     return executeCommand(
       principal,
       { entityIds: [input.entityId], requestId: meta.requestId },
       logCallCommand,
       input,
-      commandOptions(meta, idempotencyKey),
+      { ...commandOptions(meta, idempotencyKey), ...(now === undefined ? {} : { now }) },
     );
   });
 }

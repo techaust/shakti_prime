@@ -120,11 +120,15 @@ test.describe('as an Executive', () => {
       `999001,Kherovan B.O,Sotikul,Balvanti,Rajasthan,${freshMobile()}`,
       `999001,Mandravi B.O,Sotikul,Balvanti,Rajasthan,${freshMobile()}`,
     ]);
+    // The notice that the file was read goes away on its own; axe waits until it has, since a
+    // notice fading out is measured against the page behind it.
+    const read = page.getByText(/^We read 2 rows from pin-codes\.csv\.$/);
     await page.getByRole('button', { name: 'Check the rows' }).click();
     await page.getByRole('button', { name: 'Add 2 offices' }).click({ timeout: 30_000 });
     await expect(page.getByRole('heading', { name: 'PIN codes added' })).toBeVisible({
       timeout: 45_000,
     });
+    await expect(read).toBeHidden({ timeout: 15_000 });
     await expectNoAxeViolations(page);
 
     await page.goto('/leads/new');

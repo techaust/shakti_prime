@@ -22,8 +22,10 @@ import {
   memoryKeyValue,
   memoryLogger,
   memoryMailer,
+  notifyEvent,
   parseImportFile,
   setReferralPartner,
+  setTarget,
 } from '@shakti/domain';
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -35,6 +37,7 @@ import { readWordText } from '../../src/workers/knowledge/read-word';
 import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
 import { ensureOrderJourneys } from './orders';
+import { resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
@@ -54,6 +57,7 @@ import {
   SNAPSHOT_IMPORT_FILE,
   SNAPSHOT_LEADS,
   SNAPSHOT_SUGGESTIONS,
+  SNAPSHOT_TEAM,
   SNAPSHOT_VAULT,
   type ProjectName,
   type SeededUsers,
@@ -222,6 +226,66 @@ async function leadId(ownerId: string, entityId: number, name: string): Promise<
   if (found === undefined)
     throw new Error(`no seeded lead for ${name} in company ${String(entityId)}`);
   return found.id;
+}
+
+/** The team the person belongs to in a company. */
+async function teamOf(userId: string, entityId: number): Promise<string> {
+  const [found] = await asMigrator(
+    (m) => m<{ team_id: string | null }[]>`
+      select team_id from user_entity_roles where user_id = ${userId} and entity_id = ${entityId}`,
+  );
+  if (found?.team_id == null)
+    throw new Error(`${userId} is in no team of company ${String(entityId)}`);
+  return found.team_id;
+}
+
+const IST_OFFSET_MS = 330 * 60_000;
+const DAY_MS = 86_400_000;
+
+/** The start of the Indian day `days` after today's (0 is today), as milliseconds since 1970. */
+function istDayStart(days: number): number {
+  return Math.floor((Date.now() + IST_OFFSET_MS) / DAY_MS) * DAY_MS - IST_OFFSET_MS + days * DAY_MS;
+}
+
+/** The same id for the same label on every run, so a row written again is found, not doubled. */
+function stableId(label: string): string {
+  const h = createHash('sha1').update(label).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-7${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+/**
+ * Calls a person logged on one lead "today", written as the table owner so they exist whatever the
+ * hour (calling itself is possible only from 9 AM to 9 PM; the journeys' own calls run on a shifted
+ * clock, never these). Written for today and for tomorrow of the Indian calendar, at 10 AM: a seed
+ * that runs just before midnight and journeys that run just after it each find the same figure
+ * "today", and a seed run again the same day writes nothing more (fixed ids per day).
+ */
+async function seedCalls(
+  label: string,
+  who: { callerId: string; entityId: number; opportunityId: string; count: number },
+): Promise<void> {
+  const [outcome] = await asMigrator(
+    (m) => m<{ id: string }[]>`
+      select id from call_dispositions
+       where entity_id is null and segment is null and archived_at is null
+       order by position limit 1`,
+  );
+  if (outcome === undefined) throw new Error('no call outcome seeded');
+  for (const day of [0, 1]) {
+    const dayStart = istDayStart(day);
+    const date = new Date(dayStart + IST_OFFSET_MS).toISOString().slice(0, 10);
+    for (let n = 0; n < who.count; n += 1) {
+      const startedAt = new Date(dayStart + 10 * 3_600_000 + n * 60_000).toISOString();
+      await asMigrator(
+        (m) => m`insert into calls (id, entity_id, opportunity_id, caller_id, direction,
+                                   number_series, disposition_id, attempt_no, started_at)
+                 values (${stableId(`${label}:${date}:${String(n)}`)}, ${who.entityId},
+                         ${who.opportunityId}, ${who.callerId}, 'outbound', 'manual',
+                         ${outcome.id}, 1, ${startedAt}::timestamptz)
+                 on conflict (id) do nothing`,
+      );
+    }
+  }
 }
 
 /**
@@ -408,6 +472,27 @@ await asMigrator((m) =>
   }),
 );
 
+progress('the snapshot company’s team');
+// The snapshot team lead and the tracked caller share a team there (users.ts, SNAPSHOT_TEAM).
+await asMigrator((m) =>
+  m.begin(async (tx) => {
+    const [found] = await tx<{ id: string }[]>`
+      select id from teams where entity_id = ${SNAPSHOT_COMPANY.entityId}
+                             and name = ${SNAPSHOT_TEAM.name}`;
+    const teamId = found?.id ?? newId();
+    if (found === undefined) {
+      await tx`insert into teams (id, entity_id, name)
+               values (${teamId}, ${SNAPSHOT_COMPANY.entityId}, ${SNAPSHOT_TEAM.name})`;
+    }
+    await tx`update user_entity_roles set team_id = ${teamId}
+              where entity_id = ${SNAPSHOT_COMPANY.entityId}
+                and user_id in (${ids.snapshotLead ?? ''}, ${ids.snapshotTracker ?? ''})`;
+    // A target is set only for an active person, and the seed sets it before anyone signs in.
+    await tx`update users set status = 'active'
+              where id in (${ids.snapshotLead ?? ''}, ${ids.snapshotTracker ?? ''})`;
+  }),
+);
+
 progress('the lead converter');
 // Present and taking every language and business line, so a qualified lead of company 1 goes to
 // her (handover.spec.ts); every run starts her present with no cap.
@@ -508,8 +593,12 @@ async function leaverLeads(principal: ReturnType<typeof principalFor>, label: st
 }
 
 progress('the leads');
-const secondCompanyLead = 'Ramesh Choudhary';
-// Fixed numbers, made once: the list shows the same rows on every run.
+// A new lead of company 2 on every run, with a number of its own: the lists show the newest leads
+// first, so a lead made once would fall past the first page as the journeys add leads, and the
+// company switcher journey (access.spec.ts) would no longer find it on a database earlier runs used.
+const secondCompanyLead = `Ramesh Choudhary ${String(Date.now()).slice(-6)}`;
+const secondCompanyPhone = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+// The other leads have fixed numbers and are made once: the lists show the same rows on every run.
 await ensureLead(
   { id: ids.teleCaller ?? '', roleKey: 'tele_caller_cc', entityIds: [1] },
   1,
@@ -526,27 +615,21 @@ await ensureLead(
   { id: ids.executive ?? '', roleKey: 'executive', entityIds: [1, 2, 3, 4] },
   2,
   secondCompanyLead,
-  '98765 40002',
+  secondCompanyPhone,
 );
 
 progress('the tele-caller’s calls today');
-// Two calls the tele-caller logged today on her lead, written as the table owner so they exist
-// whatever the hour: the home page's progress counts them (targets.spec.ts). Calling itself is
-// possible only from 9 AM to 9 PM, so a journey cannot make them.
-await asMigrator(async (m) => {
-  const lead = await leadId(ids.teleCaller ?? '', 1, 'Kavita Saini');
-  const [outcome] = await m<{ id: string }[]>`
-    select id from call_dispositions
-     where entity_id is null and segment is null and archived_at is null
-     order by position limit 1`;
-  if (outcome === undefined) throw new Error('no call outcome seeded');
-  for (let n = 0; n < 2; n += 1) {
-    await m`insert into calls (id, entity_id, opportunity_id, caller_id, direction, number_series,
-                             disposition_id, attempt_no, started_at)
-            values (${newId()}, 1, ${lead}, ${ids.teleCaller ?? ''}, 'outbound', 'manual',
-                    ${outcome.id}, 1, now())`;
-  }
+// Two calls the tele-caller logged today on her lead: the home page's progress counts them
+// (targets.spec.ts).
+await seedCalls('tele-caller', {
+  callerId: ids.teleCaller ?? '',
+  entityId: 1,
+  opportunityId: await leadId(ids.teleCaller ?? '', 1, 'Kavita Saini'),
+  count: 2,
 });
+
+progress('the pipelines’ stages');
+await resetPipelineStages(ids.executive ?? '');
 
 progress('the referral partner');
 await ensureReferralPartner(ids.executive ?? '');
@@ -574,6 +657,68 @@ const quotes = await ensureQuoteJourneys(ids.executive ?? '');
 
 progress('the orders and dealers');
 const orders = await ensureOrderJourneys(ids.executive ?? '');
+
+progress('the snapshot team’s target, calls and notices');
+const snapshotPrincipals = {
+  lead: principalFor('sales_team_lead', [SNAPSHOT_COMPANY.entityId], {
+    id: ids.snapshotLead ?? '',
+    teamId: await teamOf(ids.snapshotLead ?? '', SNAPSHOT_COMPANY.entityId),
+  }),
+};
+// The tracked caller's daily call target, set once through the command by her team lead; it holds
+// from a fixed day until a newer one is set, and no journey sets one in this company.
+const [haveTarget] = await asMigrator(
+  (m) => m<{ n: number }[]>`select count(*)::int as n from targets
+                            where entity_id = ${SNAPSHOT_COMPANY.entityId}
+                              and subject_id = ${ids.snapshotTracker ?? ''}`,
+);
+if ((haveTarget?.n ?? 0) === 0) {
+  await executeCommand(
+    snapshotPrincipals.lead,
+    { entityIds: [SNAPSHOT_COMPANY.entityId] },
+    setTarget,
+    {
+      entityId: SNAPSHOT_COMPANY.entityId,
+      scope: 'caller',
+      subjectId: ids.snapshotTracker ?? '',
+      metric: 'calls',
+      period: 'day',
+      startsOn: '2026-01-01',
+      value: SNAPSHOT_TEAM.dailyCallTarget,
+    },
+  );
+}
+// Her calls today, on the sized lead of the snapshot company (a lead no queue shows).
+await seedCalls('snapshot-tracker', {
+  callerId: ids.snapshotTracker ?? '',
+  entityId: SNAPSHOT_COMPANY.entityId,
+  opportunityId: quotes.snapshotLeadId,
+  count: SNAPSHOT_TEAM.callsToday,
+});
+// The snapshot caller's notices: her team lead gave her each of her three leads, as the notify
+// worker writes it (fixed event ids, so a notice is made once). Every run leaves them unread.
+for (const [n, lead] of SNAPSHOT_LEADS.entries()) {
+  await executeCommand(
+    principalFor('system:workers', [SNAPSHOT_COMPANY.entityId], {
+      id: SYSTEM_WORKERS_PRINCIPAL_ID,
+    }),
+    { entityIds: [SNAPSHOT_COMPANY.entityId] },
+    notifyEvent,
+    {
+      event: 'crm.opportunity.assigned',
+      entityId: SNAPSHOT_COMPANY.entityId,
+      eventId: stableId(`snapshot-assigned:${lead.name}`),
+      opportunityId: await leadId(ids.snapshotCaller ?? '', SNAPSHOT_COMPANY.entityId, lead.name),
+      ownerId: ids.snapshotCaller ?? '',
+      assignedById: ids.snapshotLead ?? '',
+    },
+  );
+  progress(`a notice for the snapshot caller (${String(n + 1)})`);
+}
+await asMigrator(
+  (m) => m`update notifications set read_at = null
+            where user_id = ${ids.snapshotCaller ?? ''} and read_at is not null`,
+);
 
 progress('the held-back updates');
 // Integration health: one fixed update held back in the snapshot company, and one per project

@@ -77,12 +77,23 @@ function onThisMachine(url: string | undefined): boolean {
   }
 }
 
+/**
+ * True for a runtime that carries the local marker (`BOS_ENVIRONMENT=local`) with its address on
+ * this machine and is not on Vercel: the only runtime that may honour a test-only switch, such as
+ * the journeys' calling-hours clock (`src/test-clock.ts`). A development server without the marker
+ * is not one.
+ */
+export function localRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
+  const onVercel = env.VERCEL !== undefined && env.VERCEL !== '';
+  return (
+    !onVercel && env.BOS_ENVIRONMENT === LOCAL_PRODUCTION && onThisMachine(env.BETTER_AUTH_URL)
+  );
+}
+
 /** True at runtime of a hosted deployment; false locally, in tests and during `next build`. */
 export function hostedRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
   if (env.NODE_ENV !== 'production' || env.NEXT_PHASE === 'phase-production-build') return false;
-  const onVercel = env.VERCEL !== undefined && env.VERCEL !== '';
-  const local = env.BOS_ENVIRONMENT === LOCAL_PRODUCTION && onThisMachine(env.BETTER_AUTH_URL);
-  return onVercel || !local;
+  return !localRuntime(env);
 }
 
 /** The problems that stop a hosted deployment from starting; empty when it may start. */

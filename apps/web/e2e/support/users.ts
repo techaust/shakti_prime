@@ -63,6 +63,37 @@ export const SIGNED_IN_ROLES = [
     entityIds: [3],
     twoFactor: false,
   },
+  // The snapshot company's own team, for the screenshots of the home pages, Targets and the
+  // notification centre (SNAPSHOT_TEAM): synthetic people in a company only the seed writes to, so
+  // the figures they show are the seed's alone.
+  {
+    key: 'snapshotLead',
+    name: 'Snapshot Team Lead',
+    roleKey: 'sales_team_lead',
+    entityIds: [3],
+    twoFactor: false,
+  },
+  {
+    key: 'snapshotTracker',
+    name: 'Snapshot Tracked Caller',
+    roleKey: 'tele_caller_cc',
+    entityIds: [3],
+    twoFactor: false,
+  },
+  {
+    key: 'snapshotManager',
+    name: 'Snapshot General Manager',
+    roleKey: 'general_manager',
+    entityIds: [3],
+    twoFactor: true,
+  },
+  {
+    key: 'snapshotExecutive',
+    name: 'Snapshot Executive',
+    roleKey: 'executive',
+    entityIds: [3],
+    twoFactor: true,
+  },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
 
@@ -73,6 +104,18 @@ export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
  * gives the journeys a fresh one.
  */
 export const SNAPSHOT_COMPANY = { entityId: 3, name: 'Agro Solar Hub' } as const;
+
+/**
+ * The team of the snapshot company that the home pages' and Targets' screenshots show: the lead and
+ * the tracked caller are its two people (users.ts, `snapshotLead` and `snapshotTracker`). The seed
+ * sets the caller's daily call target and logs her calls on the quote lead below, relative to the
+ * Indian day of each run. The target is a value for these journeys alone, never a client target.
+ */
+export const SNAPSHOT_TEAM = {
+  name: 'Snapshot calling team',
+  dailyCallTarget: 25,
+  callsToday: 2,
+} as const;
 
 /** The leads the seed keeps in the snapshot company, all the snapshot caller's. */
 export const SNAPSHOT_LEADS = [
