@@ -58,6 +58,7 @@ What the setup has to work around:
 - The Node download from nodejs.org, the Docker daemon and the Postgres and Playwright image pulls work.
 - The image's `PLAYWRIGHT_BROWSERS_PATH` holds an older Chromium than `@playwright/test` runs, so `ensure_playwright_browsers` copies the builds from the Playwright image.
 - The proxy refuses `ghcr.io`'s blob host and Docker Hub sometimes answers 429, so `ensure_gitleaks_image` takes the same gitleaks release from Docker Hub and is retried after a minute when it fails.
+- When turbo stops every task with "Exec format error", pnpm's self-install was cut short and left its placeholder in `~/.local/share/pnpm/.tools/pnpm/<version>_tmp_*/node_modules/pnpm/pnpm`; run `node install.js` in that folder (it links the native binary already downloaded beside it, nothing new) and check `pnpm exec turbo run typecheck --filter=@shakti/tokens` (10-10-2026).
 - A branch made before `lib.sh` put `/usr/local/bin` first in `PATH` takes `main` first; otherwise pnpm must be installed with npm.
 
 ## 3. The cloud environment, once
@@ -112,6 +113,7 @@ then commit and push. Never open a pull request, merge, or touch a hosted servic
 - One agent per slice and per branch: two agents pushing one branch overwrite each other's work.
 - A builder started instead as its own cloud session (the first messages of [§4](#4-starting-a-builder-or-a-reviewer)) counts toward the three.
 - No cloud session runs while a PC session works, and the reverse: a day is wholly one or the other.
+- The heavy-command lock goes to whichever waiting command retries first, not to the one that waited longest: with three builders one waited about 90 minutes on 09-10-2026. When a builder has waited 30 minutes, the lead tells the others to let its queued command go next.
 
 ## 6. How a cloud day ends
 - The lead runs the `end-session` skill in the cloud: STATUS, CHANGELOG, DECISIONS and the run files, a documents pull request opened with `gh`, merged on green.
@@ -132,6 +134,7 @@ Every move goes through a pushed branch: commit and push before moving.
 
 ## 9. A reclaimed VM or a usage limit
 - **The VM was reclaimed or paused:** the conversation is kept, the running commands are not. Reopen the session (or start a fresh one on the branch with the same first message); the session-start hook brings Postgres back, and the suites prepare the database again. Work committed and pushed survives; anything else is lost, which is why a cloud builder pushes after every commit.
+- **The container restarted:** the lead's agents, background commands and monitors stop; files on disk and the slots' containers survive (start them again with `docker start shakti-pg-<slug>`). Commit what an agent left on disk, push, then resume each agent with a message (it keeps its context) and start the integration steps again from the part that did not finish (10-10-2026).
 - **The usage limit stopped the session:** every session on the plan stops at once. After the limit resets, continue the same session, or start a fresh one with the first message of [§4](#4-starting-a-builder-or-a-reviewer); the run file and the branch say where it stopped.
 - **A session is stuck** (no tool call for about 20 minutes): stop it and start a fresh one from the last pushed commit, with the run file updated to say what is left.
 
