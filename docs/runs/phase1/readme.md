@@ -58,3 +58,6 @@ None.
 - [K1 knowledge vault](k1-knowledge.md) (#135)
 - [T2 handover](t2-handover.md) (#138)
 - [R1 targets and home pages](r1-targets.md) (#140)
+- [Journey fixes and home-page screenshots](journey-fixes.md) (#145)
+- [A1 triage in shadow](a1-triage.md) (#146)
+- [L1 lead converter workspace](l1-converting.md) (#147)

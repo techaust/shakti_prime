@@ -6,8 +6,8 @@
 | PC worktree | cloud day: `/home/user/shakti-wt/fixes`, slot 1: Postgres 54331 (container `shakti-pg-fixes`), app 3031 |
 | Runs on | cloud, beside L1 and A1 (owner, 09-10-2026), heavy commands through the VM's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | C (tests and seeds): build Sonnet 5.5 high; the lead reads the diff |
-| State | built, awaiting review |
-| Next step | review |
+| State | merged (#145) on 10-10-2026 |
+| Next step | none |
 
 ## Brief
 Read first: STATUS's open follow-ups (the rows on `calling.spec.ts` across 21:00 IST, the Customers consent and task timeouts, the home pages' and the notification centre's screenshots, the journeys not repeatable on a used database), [TESTING §5](../../09-testing.md#5-end-to-end-and-later-layers), [slice-integration §10](../../runbooks/slice-integration.md#10-lessons), `apps/web/e2e/support`, `apps/web/playwright.config.ts`, `apps/web/e2e/setup`.
