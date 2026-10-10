@@ -73,7 +73,9 @@ Each is a rule that a past slice earned.
 - `--update-snapshots=changed` keeps a screen whose change is under the 1 % allowance, so an intended change (a note removed, a menu item added) can stay unrecorded: update that spec's screenshots with `--update-snapshots=all --grep "<test>"`, never the whole suite, which rewrites every image with rendering noise. A screen that shows figures other journeys create (the home pages, Targets) is remade in a run of its whole project with `--update-snapshots=changed`, never with `--grep`: alone it shows less data and a shorter page than CI's full run.
 - The journeys' server is started in three places, and a variable a journey needs goes in all three: `playwright.config.ts`'s `webServer`, `e2e/setup/snap-in-linux.ts` and CI's "Start the app" step (K1's `AI_TRANSPORT=fake` was missing from the last two).
 - A full-page screenshot after `page.reload()` keeps the scroll position, which draws the fixed menu across the page: scroll to the top first. A screenshot of a list that other journeys fill (the notification centre) changes from run to run: leave it out or mask the whole list.
-- A journey that chooses a branch by the time of day (calling hours) fails when a run crosses the boundary (21:00 IST); run it again before treating it as a defect.
+- A journey that depends on the time of day sets the server's clock with the journeys' test clock (`bos-test-clock`, honoured only on a local production run; `e2e/support/clock.ts`) and runs every branch on every run, never choosing a branch by the wall clock (#145).
+- A slice's seed rows show in other journeys' screenshots when they land where those screens read (L1's converting catalogue item appears on the catalogue, tax rates and price master): seed a slice's rows where only its own journeys read them.
+- When two slices merge on the same day, the second takes the first's screenshots too: A1's new Triage proposals picture was remade for L1's menu item. Run the full `e2e:snap` after taking `main`, not only the slice's own journeys.
 
 **Merging with main**
 - Renumber migrations after `pnpm install`: run before it, the script's `drizzle-kit` runs against stale packages and writes nothing, the last moved snapshot is a copy of the one before, and `pnpm db:generate` then writes a migration. Fold that generated snapshot into the last moved migration's (keeping its `id` and `prevId`) and delete the generated SQL, snapshot and journal entry.
@@ -85,6 +87,8 @@ Each is a rule that a past slice earned.
 **Memory, stalls and limits**
 - Never run two heavy commands together (see [§1](#1-machines-and-ports)): three agents each linting the whole repository used all of the 8 GB and stopped Docker. Lint one folder at a time until the final whole-repository lint, and run at most two builders while an integration run goes.
 - Rerun a test that hits vitest's 20-second limit, or a journey its 60 seconds, alone, and the suite with nothing else running, before treating it as a defect.
+- A check that looks for a phone number with a digit pattern leaves ids out first: a random UUID can hold `96` and eight digits (a quote print test failed on one, 10-10-2026).
+- A failure in one package's security suite stops the packages after it: run the whole suite again after the fix, so every package is verified, before calling it green.
 - Before a full `e2e:snap` run, pause every other agent and stop their databases: with builders beside it the Playwright container ran out of memory and died.
 - Stop an agent that has made no tool call for about 20 minutes and start a fresh one from the last commit with a precise list; the watchdog of [§3](#3-build) reports the stall.
 - An agent's background wait (an `until` loop on a log line) has a time limit and is stopped before the agent reports: on 09-10-2026 one waited five hours for a line a failed run never wrote, and kept its agent from finishing.
