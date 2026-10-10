@@ -39,6 +39,7 @@ import {
   listDuplicates,
   countMergeMoves,
 } from '../../src/queries/crm/duplicates';
+import { loadConvertingBoard } from '../../src/queries/crm/converting-board';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 import { latestSizing } from '../../src/queries/crm/latest-sizing';
@@ -134,6 +135,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listBoardLeads: (ctx) => listBoardLeads(ctx, { pipelineKey: PIPELINE }),
   listBoardStageLeads: (ctx) =>
     listBoardStageLeads(ctx, { pipelineKey: PIPELINE, stageId: STAGE, cursor: 'bm8' }),
+  loadConvertingBoard: (ctx) => loadConvertingBoard(ctx, {}, new Date(NOW)),
   listLeadAssignees: (ctx) => listLeadAssignees(ctx, { entityId: 1 }),
   listLeads: (ctx) => listLeads(ctx, { limit: 20 }),
   countLeads: (ctx) => countLeads(ctx),

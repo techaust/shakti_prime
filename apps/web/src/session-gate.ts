@@ -28,6 +28,7 @@ export const BOS_PREFIXES = [
   '/dealer-credit',
   '/targets',
   '/converters',
+  '/converting',
   '/inbox',
   '/imports',
   '/price-master',

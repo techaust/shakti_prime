@@ -197,17 +197,20 @@ export function SizingPanel({
   opportunityId,
   canWrite,
   onSaved,
+  initialKind = 'pump',
 }: Lead & {
   /** The caller may write the lead (`crm.lead.write`); the server decides again on save. */
   canWrite: boolean;
   /** Told of each sizing saved, so the page around the panel can read its history again. */
   onSaved?: (sizing: SizingDto) => void;
+  /** The tab the panel opens on: the kind of sizing the lead's business line needs. */
+  initialKind?: SizingKind;
 }) {
   const t = useTranslations('sizing');
   const id = useId();
   const { load, pending, failure } = useQuery<SizingPanelData>();
   const [data, setData] = useState<{ latest: Latest; pumps: SizingPumpDto[] } | undefined>();
-  const [tab, setTab] = useState<SizingKind>('pump');
+  const [tab, setTab] = useState<SizingKind>(initialKind);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const lead = { entityId, opportunityId };
 

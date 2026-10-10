@@ -7,6 +7,7 @@ import {
   Contact,
   FileText,
   FileUp,
+  Handshake,
   House,
   Inbox,
   IndianRupee,
@@ -85,6 +86,21 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'work',
     // The Cold Caller workspace: the caller's queue and calls.log, at the caller's own scope.
     requires: [{ key: 'calls.log', scope: 'own' }],
+  },
+  {
+    id: 'converting',
+    href: '/converting',
+    label: 'converting',
+    icon: Handshake,
+    group: 'work',
+    // The Lead Converter workspace: the converter's leads (crm.lead.read), the calls and
+    // callbacks saved on them (calls.log) and the quotes made from the workspace
+    // (sales.quote.create); sizing follows crm.lead.write and is checked by its command.
+    requires: [
+      { key: 'crm.lead.read', scope: 'own' },
+      { key: 'calls.log', scope: 'own' },
+      { key: 'sales.quote.create', scope: 'own' },
+    ],
   },
   {
     id: 'customers',

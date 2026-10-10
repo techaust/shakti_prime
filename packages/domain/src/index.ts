@@ -216,6 +216,8 @@ export { listLeads, countLeads } from './queries/crm/list-leads';
 export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
 export { listBoardLeads, listBoardStageLeads } from './queries/crm/list-board-leads';
 export { listLeadAssignees } from './queries/crm/list-lead-assignees';
+export { nextBestActions, rulesMet } from './crm/next-best-action';
+export { loadConvertingBoard } from './queries/crm/converting-board';
 export { latestSizing } from './queries/crm/latest-sizing';
 export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
