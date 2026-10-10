@@ -7,22 +7,13 @@ import {
   snap,
   test,
 } from './support/fixtures';
+import { insideCallingHours, outsideCallingHours, setServerClock } from './support/clock';
 import { SNAPSHOT_LEADS, storageStatePath } from './support/users';
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
 function freshMobile(): string {
   const digits = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
   return `${digits.slice(0, 5)} ${digits.slice(5)}`;
-}
-
-/**
- * Calls may be saved and numbers shown only from 9 AM to 9 PM in India (TRAI). The journey runs
- * whenever CI runs, so outside those hours it checks that the workspace says so instead.
- */
-function inCallingHours(at = new Date()): boolean {
-  const minutes = (Math.floor(at.getTime() / 60_000) + 330) % 1440;
-  // A margin at each end, so the hour does not change in the middle of the journey.
-  return minutes >= 9 * 60 + 5 && minutes < 21 * 60 - 10;
 }
 
 /** A lead of the tele-caller's own, added through the lead form; answers the customer's name. */
@@ -75,11 +66,36 @@ test.describe('calling as a tele-caller', () => {
     await expectNoAxeViolations(page);
   });
 
+  test('keeps the number hidden and saves no call outside calling hours', async ({
+    page,
+    context,
+  }) => {
+    // The server's clock says 11 PM, whatever the wall clock is: calls are allowed from 9 AM to
+    // 9 PM in India (TRAI), and the workspace says so instead.
+    await setServerClock(context, outsideCallingHours());
+    const lead = await addLead(page, 'Mohan Lal Saini');
+    await page.goto('/calling');
+    await expect(page.getByRole('heading', { name: 'Calling', level: 1 })).toBeVisible();
+    await findLead(page, lead);
+    const refusal = page.getByText(
+      'Calls can be made only between 9 AM and 9 PM. Try again during calling hours.',
+    );
+    await page.keyboard.press('d');
+    await expect(refusal.first()).toBeVisible();
+    await expect(page.getByText('Number to dial')).toHaveCount(0);
+    await page.keyboard.press('3');
+    await expect(refusal.last()).toBeVisible();
+    await expect(page.getByText('Tries without an answer: 1 of 3')).toHaveCount(0);
+  });
+
   test('works leads from the keyboard: an unanswered call, a callback and a qualified lead', async ({
     page,
+    context,
     browser,
   }) => {
     test.setTimeout(180_000);
+    // The server's clock says 11 AM, inside the calling hours, whatever the wall clock is.
+    await setServerClock(context, insideCallingHours());
     const unanswered = await addLead(page, 'Mohan Lal Saini');
     const callback = await addLead(page, 'Geeta Devi Yadav');
     const qualified = await addLead(page, 'Ramesh Kumar Meena');
@@ -95,25 +111,6 @@ test.describe('calling as a tele-caller', () => {
       ),
     ).toBeVisible();
     await expectNoAxeViolations(page);
-
-    if (!inCallingHours()) {
-      // Outside 9 AM to 9 PM the number stays hidden and no call can be saved.
-      await page.keyboard.press('d');
-      await expect(
-        page.getByText(
-          'Calls can be made only between 9 AM and 9 PM. Try again during calling hours.',
-        ),
-      ).toBeVisible();
-      await page.keyboard.press('3');
-      await expect(
-        page
-          .getByText(
-            'Calls can be made only between 9 AM and 9 PM. Try again during calling hours.',
-          )
-          .last(),
-      ).toBeVisible();
-      return;
-    }
 
     // D shows the number to dial.
     await page.keyboard.press('d');

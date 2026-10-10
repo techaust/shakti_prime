@@ -1,9 +1,13 @@
 import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
+import { SNAPSHOT_TEAM } from './support/users';
 
 // Targets and the home pages (docs/03-roadmap-appendix/phase1.md §9, PRD TEL-06 and RPT-01). The
 // tele-caller and the team lead share the seed's calling team in company 1, and the seed logs two
 // calls for the tele-caller today (calling is possible only from 9 AM to 9 PM, so a journey
-// cannot). The figure of 40 is a value for these journeys alone, never a client target.
+// cannot; the seed logs them for today and tomorrow of the Indian calendar, so a run that crosses
+// midnight finds them too). The figure of 40 is a value for these journeys alone, never a client
+// target. The pages whose figures other journeys change are compared as pictures only for the
+// snapshot company's own team, at the end of this file.
 
 const DAILY_TARGET = '40';
 
@@ -40,7 +44,7 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       await expectNoAxeViolations(page);
       // The saved notice gone, and the starting date (today's) masked, so the picture holds every day.
       await expect(page.getByText('The target is saved.')).toBeHidden();
-      // No screenshot: the page shows figures other journeys make, in an order CI does not fix (STATUS follow-up).
+      // Targets is compared as a picture for the snapshot company's own team, below.
     });
 
     test('sees the team on the home page: its targets, the leaderboard and the queues', async ({
@@ -86,11 +90,23 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       await expect(page.getByRole('heading', { name: 'Today', level: 3 })).toBeVisible();
       const meter = page.getByRole('progressbar', { name: /^Calls: \d+ of 40$/ });
       await expect(meter).toBeVisible();
-      const label = (await meter.getAttribute('aria-label')) ?? '';
-      const done = Number(/: (\d+) of/.exec(label)?.[1] ?? '-1');
-      // The two calls the seed logged today, and any a calling journey saved.
-      expect(done).toBeGreaterThanOrEqual(2);
-      await expect(meter).toHaveAttribute('aria-valuenow', String(Math.round((done / 40) * 100)));
+      // The two calls the seed logged today, and any a calling journey saved; the bar stops at full
+      // once the day's calls pass the target, as they do on a database several runs have used.
+      // The label and the bar are read together, since a calling journey may save a call between.
+      const read = () =>
+        meter.evaluate((el) => ({
+          label: el.getAttribute('aria-label') ?? '',
+          now: el.getAttribute('aria-valuenow') ?? '',
+        }));
+      const { label } = await read();
+      expect(Number(/: (\d+) of/.exec(label)?.[1] ?? '-1')).toBeGreaterThanOrEqual(2);
+      await expect
+        .poll(async () => {
+          const { label: seen, now } = await read();
+          const done = Number(/: (\d+) of/.exec(seen)?.[1] ?? '-1');
+          return now === String(Math.min(100, Math.round((done / 40) * 100)));
+        })
+        .toBe(true);
       await expect(
         page.getByText('Your team lead sets your targets', { exact: false }),
       ).toHaveCount(0);
@@ -153,7 +169,7 @@ test.describe('the General Manager’s home', () => {
         .or(page.getByText('Leads still waiting for a first call past the limit')),
     ).toBeVisible();
     await expectNoAxeViolations(page);
-    // No screenshot: the page shows figures other journeys make, in an order CI does not fix (STATUS follow-up).
+    // Its picture is the snapshot company's own General Manager's, at the end of this file.
   });
 
   test('may set the targets of any team and caller of the company', async ({ page }) => {
@@ -200,6 +216,84 @@ test.describe('the Executive’s home', () => {
     ).toBeVisible();
     await expect(page.getByText(/margin|profit/i)).toHaveCount(0);
     await expectNoAxeViolations(page);
-    // No screenshot: the page shows figures other journeys make, in an order CI does not fix (STATUS follow-up).
+    // Its picture is the snapshot company's own Executive's, at the end of this file.
+  });
+});
+
+// The pictures of Targets and of the home pages whose figures other journeys change in company 1
+// and 2. The snapshot company has a team of its own (users.ts, SNAPSHOT_TEAM): a team lead, a caller
+// with a daily target and calls logged today, a General Manager and an Executive of that company
+// alone. Only the seed writes there, so each page shows the same figures on every run; dates and
+// times are masked.
+test.describe('the snapshot company’s team lead sets targets', () => {
+  test.use(signedInAs('snapshotLead'));
+
+  test('Targets shows the caller’s target and the targets set', async ({ page }) => {
+    await page.goto('/targets');
+    await expect(page.getByRole('heading', { name: 'Targets', level: 1 })).toBeVisible();
+    const now = page.getByRole('table', { name: 'Targets in force today' });
+    await expect(
+      now.getByRole('row', {
+        name: new RegExp(
+          `Snapshot Tracked Caller.*Calls.*Day.*${String(SNAPSHOT_TEAM.dailyCallTarget)}`,
+        ),
+      }),
+    ).toBeVisible();
+    await expectNoAxeViolations(page);
+    // The form's starting day is today's, a date that changes every day.
+    await snap(page, 'targets', {
+      mask: [page.getByLabel('Starting'), page.getByText(/\b20\d\d\b/), page.locator('time')],
+    });
+  });
+});
+
+test.describe('the snapshot company’s tele-caller with a target', () => {
+  test.use(signedInAs('snapshotTracker'));
+
+  test('sees the progress of the calls logged today', async ({ page }) => {
+    await page.goto('/home');
+    await expect(page.getByRole('heading', { name: 'Your targets', level: 2 })).toBeVisible();
+    const meter = page.getByRole('progressbar', {
+      name: `Calls: ${String(SNAPSHOT_TEAM.callsToday)} of ${String(SNAPSHOT_TEAM.dailyCallTarget)}`,
+    });
+    await expect(meter).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'home-caller-progress', {
+      mask: [page.getByText(/\b20\d\d\b/), page.locator('time')],
+    });
+  });
+});
+
+test.describe('the snapshot company’s General Manager', () => {
+  test.use(signedInAs('snapshotManager'));
+
+  test('sees the first-call limits and the pipeline of the company', async ({ page }) => {
+    await page.goto('/home');
+    await expect(page.getByRole('heading', { name: 'First calls', level: 2 })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Open leads by stage', level: 2 }),
+    ).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'home-general-manager', {
+      mask: [page.getByText(/\b20\d\d\b/), page.locator('time')],
+    });
+  });
+});
+
+test.describe('the snapshot company’s Executive', () => {
+  test.use(signedInAs('snapshotExecutive'));
+
+  test('sees the quotes, the orders and the pipeline of the company', async ({ page }) => {
+    await page.goto('/home');
+    await expect(page.getByRole('heading', { name: 'Quotes and orders', level: 2 })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Quotes and orders by company' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Open leads by stage', level: 2 }),
+    ).toBeVisible();
+    await expect(page.getByText(/margin|profit/i)).toHaveCount(0);
+    await expectNoAxeViolations(page);
+    await snap(page, 'home-executive', {
+      mask: [page.getByText(/\b20\d\d\b/), page.locator('time')],
+    });
   });
 });
