@@ -274,7 +274,9 @@ export function AgentsScreen({
                     )}
                   </div>
                   <div className="flex w-72 max-w-full flex-col gap-1">
-                    {canSetAutonomy ? (
+                    {type.shadowOnly ? (
+                      <p className="text-text-muted text-sm">{t('admin.shadowOnly')}</p>
+                    ) : canSetAutonomy ? (
                       <Select
                         aria-label={t('admin.actionTypeLabel', {
                           agent: name(row.agent),

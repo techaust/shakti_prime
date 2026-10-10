@@ -252,6 +252,12 @@ describe('an import batch set-based and row by row', () => {
 
     for (const table of Object.keys(right)) expect(left[table], table).toEqual(right[table]);
     expect(Object.keys(left)).toEqual(Object.keys(right));
+    // Both paths mark the lead as imported, so the Triage agent leaves it alone (A1).
+    for (const side of [left, right]) {
+      for (const event of side.outbox_events ?? []) {
+        expect((event.payload_json as Row).imported).toBe(true);
+      }
+    }
   });
 
   it('leaves a consent, a customer the group knows or a referral code to crm.lead.create', async () => {

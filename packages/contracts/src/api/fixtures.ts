@@ -848,9 +848,13 @@ export const API_FIXTURES: Record<
         byAgent: [
           {
             agent: 'triage',
+            entityId: 1,
             today: '38.20',
             monthToDate: '910.75',
+            runsToday: 212,
+            runsMonthToDate: 4810,
             dailyCap: '500.00',
+            groupDailyCap: null,
             stoppedByCap: false,
           },
         ],

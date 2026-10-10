@@ -351,6 +351,9 @@ export const createLead = defineCommand({
         pipelineKey: input.pipelineKey,
         sourceCode: input.sourceCode ?? null,
         existingAccount: input.existingAccountId !== undefined,
+        // A row an import commits one at a time is history brought in, as the batch path marks it
+        // (`commitLeadBatch`); no agent triages it.
+        ...(ctx.inImportBatch === true ? { imported: true as const } : {}),
       },
     });
 

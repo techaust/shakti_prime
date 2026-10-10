@@ -1,7 +1,7 @@
 import { AGENT_ACTION_STATES, type AgentActionState } from '@shakti/contracts';
 import { defineMachine } from '../define-machine';
 
-export type AgentActionEvent = 'propose' | 'execute' | 'approve' | 'reject' | 'dismiss';
+export type AgentActionEvent = 'propose' | 'shadow' | 'execute' | 'approve' | 'reject' | 'dismiss';
 
 export interface AgentActionRecord {
   state: AgentActionState | null;
@@ -12,6 +12,7 @@ export interface AgentActionRecord {
  * Needs approval file it as proposed, with an inbox item: a person approves (as it is, or edited)
  * or rejects a Needs approval one once, and dismisses a Suggest one, which they act on themselves.
  * Automatic files it and runs the command as the agent at once; it is not available in Phase 1.
+ * Shadow records it shadowed, with no inbox item: it never acts and nobody decides on it (A1).
  */
 export const agentActionMachine = defineMachine<
   AgentActionState,
@@ -24,14 +25,14 @@ export const agentActionMachine = defineMachine<
   summary:
     '`agent_actions.state`. What an agent proposed or did with one action type, the command it runs and its input; append-only except the decision, which the inbox commands record once.',
   sources: [
-    'docs/03-roadmap-appendix/phase1.md §7.1',
+    'docs/03-roadmap-appendix/phase1.md §7.1, §9',
     'BLUEPRINT §9.3',
     'PRD AI-04',
     'DATABASE §6.9',
   ],
   states: AGENT_ACTION_STATES,
   initial: 'proposed',
-  terminal: ['executed', 'approved', 'rejected', 'dismissed'],
+  terminal: ['shadowed', 'executed', 'approved', 'rejected', 'dismissed'],
   stored: { table: 'agent_actions', stateColumn: 'state', changedAtColumn: 'decided_at' },
   transitions: [
     {
@@ -41,6 +42,14 @@ export const agentActionMachine = defineMachine<
       permission: null,
       permissionByInput: 'the permission of the command the action runs (`agents.run.record`)',
       note: 'Filed by the agent itself when its autonomy for the action type is Suggest or Needs approval and no kill switch is off; an inbox item comes with it.',
+    },
+    {
+      from: ['proposed'],
+      event: 'shadow',
+      to: 'shadowed',
+      permission: null,
+      permissionByInput: 'the permission of the command the action runs (`agents.run.record`)',
+      note: 'At once, in the same run, when the autonomy for the action type is Shadow and no kill switch is off: no inbox item is filed, nothing runs and nobody decides on it. The shadow report sets it beside what people did with the lead.',
     },
     {
       from: ['proposed'],

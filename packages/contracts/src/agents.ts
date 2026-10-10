@@ -5,20 +5,27 @@ import { AgentRoleKeySchema } from './roles';
 
 // The agent runtime and the Agent Inbox (docs/03-roadmap-appendix/phase1.md §7.1, BLUEPRINT §9.3, SECURITY §6).
 
-/** How far an agent may go with one action type (BLUEPRINT §9.3). */
-export const AGENT_AUTONOMY = ['suggest', 'needs_approval', 'automatic'] as const;
+/**
+ * How far an agent may go with one action type (BLUEPRINT §9.3, PRD AI-04: shadow, then approval,
+ * then automatic). Shadow, below Suggest, records what the agent would propose as an action that
+ * never acts and never reaches the Agent Inbox, so its proposals can be compared with what people
+ * did (the shadow report, A1).
+ */
+export const AGENT_AUTONOMY = ['shadow', 'suggest', 'needs_approval', 'automatic'] as const;
 export const AgentAutonomySchema = z.enum(AGENT_AUTONOMY);
 export type AgentAutonomy = z.infer<typeof AgentAutonomySchema>;
 
 /**
- * How one agent run ended (`agent_runs.outcome`): it proposed an action, acted on its own, found
- * nothing to do, was stopped by a kill switch or its daily spend cap, found the model unavailable,
- * or failed.
+ * How one agent run ended (`agent_runs.outcome`): it proposed an action, recorded one in shadow,
+ * acted on its own, found nothing to do, had what the model proposed refused by the output filter,
+ * was stopped by a kill switch or its daily spend cap, found the model unavailable, or failed.
  */
 export const AGENT_RUN_OUTCOMES = [
   'proposed',
+  'shadowed',
   'acted',
   'nothing_to_do',
+  'filtered',
   'switched_off',
   'cap_reached',
   'unavailable',
@@ -40,10 +47,12 @@ export type AgentRunEnding = z.infer<typeof AgentRunEndingSchema>;
 
 /**
  * `agent_actions.state`, the `agent_action` machine: a Needs approval suggestion is approved or
- * rejected; a Suggest one, which a person acts on themselves, is dismissed.
+ * rejected; a Suggest one, which a person acts on themselves, is dismissed; a Shadow one is
+ * recorded shadowed and never changes.
  */
 export const AGENT_ACTION_STATES = [
   'proposed',
+  'shadowed',
   'executed',
   'approved',
   'rejected',
@@ -51,6 +60,25 @@ export const AGENT_ACTION_STATES = [
 ] as const;
 export const AgentActionStateSchema = z.enum(AGENT_ACTION_STATES);
 export type AgentActionState = z.infer<typeof AgentActionStateSchema>;
+
+/**
+ * Why the deterministic output filter refused what the model proposed (`agent_runs.filter_reason`):
+ * an answer that could not be read, a pipeline, candidate or person the run did not offer, a score
+ * change outside its bounds, or a text field carrying a phone number, an identity number or an
+ * instruction.
+ */
+export const AGENT_FILTER_REASONS = [
+  'unreadable_answer',
+  'unknown_pipeline',
+  'score_out_of_bounds',
+  'unknown_candidate',
+  'unknown_person',
+  'text_has_phone',
+  'text_has_identity_number',
+  'text_has_instruction',
+] as const;
+export const AgentFilterReasonSchema = z.enum(AGENT_FILTER_REASONS);
+export type AgentFilterReason = z.infer<typeof AgentFilterReasonSchema>;
 
 /** `inbox_items.kind`: an agent's suggestion, or work routed to a person. */
 export const INBOX_ITEM_KINDS = ['agent_suggestion', 'routed_work'] as const;
@@ -218,12 +246,18 @@ export const RecordAgentRunInput = z
     durationMs: Count,
     ended: AgentRunEndingSchema,
     proposal: AgentProposalSchema.optional(),
+    /** The model work completed, but the output filter refused what it proposed. */
+    filterReason: AgentFilterReasonSchema.optional(),
   })
   .strict()
   .refine((i) => i.proposal === undefined || i.ended === 'completed', {
     path: ['proposal'],
     message: 'proposal_needs_completed_run',
-  });
+  })
+  .refine(
+    (i) => i.filterReason === undefined || (i.ended === 'completed' && i.proposal === undefined),
+    { path: ['filterReason'], message: 'filter_reason_needs_completed_run' },
+  );
 export type RecordAgentRunInput = z.infer<typeof RecordAgentRunInput>;
 
 /** What `agents.run.record` answers. */
@@ -338,6 +372,11 @@ export type AppliedAutonomyDto = z.infer<typeof AppliedAutonomyDto>;
 export const AgentActionTypeSettingDto = z
   .object({
     actionType: AgentActionTypeSchema,
+    /**
+     * The action type runs no command of its own (the Triage agent's pipeline and score), so it
+     * stays in Shadow whatever is set.
+     */
+    shadowOnly: z.boolean(),
     /** The autonomy set for this action type at this level, if any. */
     autonomy: AgentAutonomySchema.nullable(),
     /** What applies here, and where it comes from. */

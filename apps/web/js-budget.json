@@ -149,6 +149,10 @@
     "/inbox": {
       "maxKb": 204,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Agent Inbox's suggestion cards; the edit dialog loads when first opened. Measured 193.4 kB on 05-10-2026, plus 5 %."
+    },
+    "/admin/agents/shadow": {
+      "maxKb": 248,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Triage agent's shadow report: the company and period filters with the date inputs, the agreement summary and the proposals grid. Measured 235.6 kB on 09-10-2026, plus 5 %."
     }
   }
 }

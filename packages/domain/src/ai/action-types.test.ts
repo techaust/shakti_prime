@@ -3,7 +3,7 @@ import {
   AGENT_PRINCIPAL_IDS,
   hasGrant,
   SYSTEM_WORKERS_PRINCIPAL_ID,
-  type PermissionKey,
+  TRIAGE_ACTION_TYPES,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -12,6 +12,8 @@ import {
   AUTOMATIC_AVAILABLE,
   automaticEarned,
   editableFields,
+  isShadowOnly,
+  startingAutonomy,
   summaryFields,
   wasEdited,
   withAssignee,
@@ -22,18 +24,46 @@ import { AGENT_DEFAULTS } from './agent-defaults';
 // a command for people only, and a person may change only the fields its type names.
 
 describe('AGENT_ACTION_TYPES', () => {
-  it('names each type by its command, open to agents that hold its permission', () => {
+  it('names each type by its command, or as a shadow-only kind, open to agents that hold its permissions', () => {
     for (const [name, type] of Object.entries(AGENT_ACTION_TYPES)) {
-      expect(type.command.name).toBe(name);
-      expect(type.command.peopleOnly).not.toBe(true);
-      expect(typeof type.command.permission).toBe('string');
+      expect(type.name).toBe(name);
+      if (type.command !== undefined) {
+        expect(type.command.name).toBe(name);
+        expect(type.command.peopleOnly).not.toBe(true);
+        expect(type.command.permission).toBe(type.requirements[0].permission);
+        expect(type.input).toBe(type.command.input);
+      }
       expect(type.agents.length).toBeGreaterThan(0);
-      const permission = type.command.permission as PermissionKey;
       for (const agent of type.agents) {
-        const holds = hasGrant(AGENT_MATRIX[agent], permission, type.command.minScope ?? 'own');
-        expect({ agent, name, holds }).toEqual({ agent, name, holds: true });
+        for (const r of type.requirements) {
+          const holds = hasGrant(AGENT_MATRIX[agent], r.permission, r.minScope);
+          expect({ agent, name, permission: r.permission, holds }).toEqual({
+            agent,
+            name,
+            permission: r.permission,
+            holds: true,
+          });
+        }
       }
     }
+  });
+
+  it('gives the Triage agent its four kinds, the pipeline and score in Shadow only', () => {
+    const triage = Object.values(AGENT_ACTION_TYPES).filter((t) =>
+      t.agents.includes('agent:triage'),
+    );
+    expect(triage.map((t) => t.name).sort()).toEqual(Object.values(TRIAGE_ACTION_TYPES).sort());
+    expect(isShadowOnly(TRIAGE_ACTION_TYPES.pipeline)).toBe(true);
+    expect(isShadowOnly(TRIAGE_ACTION_TYPES.score)).toBe(true);
+    expect(isShadowOnly(TRIAGE_ACTION_TYPES.assignee)).toBe(false);
+    expect(isShadowOnly(TRIAGE_ACTION_TYPES.duplicate)).toBe(false);
+    expect(isShadowOnly('crm.task.create')).toBe(false);
+    expect(isShadowOnly('no.such.type')).toBe(false);
+  });
+
+  it('starts the Triage agent in Shadow and every other agent at Suggest', () => {
+    expect(startingAutonomy('agent:triage')).toBe('shadow');
+    expect(startingAutonomy('agent:copilot')).toBe('suggest');
   });
 });
 

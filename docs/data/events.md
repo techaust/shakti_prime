@@ -46,7 +46,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-49 types, 9 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+49 types, 10 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -58,7 +58,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.lead.create`, `imports.job.commit_batch` | `POST /api/v1/workers/outbox/crm.lead.created` (QStash URL group `evt-crm.lead.created`) |
 | [`crm.lead.attached`](#crmleadattached) | A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates. | `crm.lead.create`, `imports.job.commit_batch` | none |
 | [`crm.duplicate.found`](#crmduplicatefound) | Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates. | `crm.lead.create`, `crm.duplicate.scan`, `crm.duplicate.suggest`, `imports.job.commit_batch` | `POST /api/v1/workers/outbox/crm.duplicate.found` (QStash URL group `evt-crm.duplicate.found`) |
 | [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `calls.call.log`, `crm.opportunity.stage.move` | `POST /api/v1/workers/outbox/crm.opportunity.stage_moved` (QStash URL group `evt-crm.opportunity.stage_moved`) |
@@ -172,6 +172,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | `pipelineKey` | text from 1 to 40 characters |
 | `sourceCode` | text from 1 to 40 characters or null |
 | `existingAccount` | true or false |
+| `imported` | always `?` (optional) |
 
 ### crm.lead.attached
 

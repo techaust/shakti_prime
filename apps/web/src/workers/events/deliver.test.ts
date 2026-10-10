@@ -74,7 +74,7 @@ describe('the worker registry and the event catalogue', () => {
 
   it('knows no worker for a type outside the catalogue or one nobody handles', () => {
     expect(workerFor('crm.lead.vanished')).toBeUndefined();
-    expect(workerFor('crm.lead.created')).toBeUndefined();
+    expect(workerFor('pricing.price.changed')).toBeUndefined();
     expect(workerFor('toString')).toBeUndefined();
     expect(workerFor('platform.probe.requested')?.ordering ?? 'every').toBe('every');
   });
@@ -219,7 +219,7 @@ describe('deliverEvent', () => {
   });
 
   it('refuses a type no worker handles as not_found', async () => {
-    const event = probeEvent({ type: 'crm.lead.created' });
+    const event = probeEvent({ type: 'pricing.price.changed' });
     await expect(
       deliverEvent(event, { keyValue: memoryKeyValue(), requestId: 'r' }),
     ).rejects.toMatchObject({ code: 'not_found' });

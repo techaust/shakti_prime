@@ -184,6 +184,12 @@ export const setAgentConfig = defineCommand({
           reason: 'agent_action_unknown',
         });
       }
+      // A kind that runs no command is recorded only in Shadow (A1).
+      if (type.command === undefined && input.autonomy != null && input.autonomy !== 'shadow') {
+        throw new DomainError('validation_failed', `${type.name} stays in Shadow`, {
+          reason: 'agent_action_shadow_only',
+        });
+      }
     }
     if (input.autonomy === 'automatic') await checkAutomatic(ctx, input);
     const key = { agent: input.agent, actionType: input.actionType, entityId: input.entityId };

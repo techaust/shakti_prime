@@ -6,6 +6,7 @@ export * from './principal';
 export * from './system-principal';
 export * from './agent-principals';
 export * from './agents';
+export * from './triage';
 export * from './knowledge';
 export * from './auth/enums';
 export * from './audit/audit';

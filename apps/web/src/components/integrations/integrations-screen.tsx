@@ -1,6 +1,7 @@
 'use client';
 
 import type {
+  AgentSpend,
   DeadLetteredEvent,
   DeliveryCheck,
   IntegrationHealthResponse,
@@ -12,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { integrationHealth, deliveryCheck, runDeliveryCheck } from '../../actions/integrations';
 import { replayDeadLetter } from '../../actions/admin';
 import { eventNameKey } from '../../screens/audit';
-import { formatCount, formatDateTime } from '../../screens/format';
+import { formatCount, formatDateTime, formatRupees } from '../../screens/format';
 import { CHECK_POLL_MS, CHECK_POLL_TRIES, heldReason } from '../../screens/integrations';
 import { DateTime } from '../date-time';
 import { FailureMessage } from '../screens/failure';
@@ -96,6 +97,7 @@ export function IntegrationsScreen({
       </section>
       <DeliverySpeed initial={initial.deliveryCheck} />
       <HeldUpdates initial={initial.deadLetters} companies={companies} />
+      <AiSpend spend={initial.aiSpend} companies={companies} />
     </div>
   );
 }
@@ -268,6 +270,103 @@ function HeldUpdates({
         }
       />
       <FailureMessage failure={replay.failure ?? more.failure} />
+    </section>
+  );
+}
+
+/**
+ * AI spend per agent and company (A1): today's and this month's spend and runs, from the agents'
+ * own runs, beside the daily limits that apply there. Spend changes with every run, so screenshots
+ * mask the figures.
+ */
+function AiSpend({
+  spend,
+  companies,
+}: {
+  spend: IntegrationHealthResponse['aiSpend'];
+  companies: Record<number, string>;
+}) {
+  const t = useTranslations('integrations');
+  const agents = useTranslations('agents');
+  const limit = (r: AgentSpend) => {
+    if (r.dailyCap !== null && r.groupDailyCap !== null) {
+      return t('aiSpend.bothLimits', {
+        company: formatRupees(r.dailyCap),
+        group: formatRupees(r.groupDailyCap),
+      });
+    }
+    if (r.dailyCap !== null) return formatRupees(r.dailyCap);
+    if (r.groupDailyCap !== null) {
+      return t('aiSpend.groupLimit', { amount: formatRupees(r.groupDailyCap) });
+    }
+    return t('aiSpend.noLimit');
+  };
+  const columns: DataGridColumn<AgentSpend>[] = [
+    {
+      id: 'agent',
+      header: t('columns.agent'),
+      cell: (r) => agents(`names.${r.agent}`),
+      primary: true,
+    },
+    {
+      id: 'company',
+      header: t('columns.company'),
+      cell: (r) => companies[r.entityId] ?? t('aiSpend.otherCompany'),
+    },
+    {
+      id: 'today',
+      header: t('columns.spentToday'),
+      numeric: true,
+      cell: (r) => <span data-dynamic>{formatRupees(r.today)}</span>,
+    },
+    {
+      id: 'runsToday',
+      header: t('columns.runsToday'),
+      numeric: true,
+      cell: (r) => <span data-dynamic>{formatCount(r.runsToday)}</span>,
+    },
+    {
+      id: 'month',
+      header: t('columns.spentMonth'),
+      numeric: true,
+      cell: (r) => <span data-dynamic>{formatRupees(r.monthToDate)}</span>,
+    },
+    {
+      id: 'runsMonth',
+      header: t('columns.runsMonth'),
+      numeric: true,
+      cell: (r) => <span data-dynamic>{formatCount(r.runsMonthToDate)}</span>,
+    },
+    { id: 'limit', header: t('columns.dailyLimit'), cell: limit },
+    {
+      id: 'stopped',
+      header: t('columns.limitReached'),
+      cell: (r) =>
+        r.stoppedByCap ? (
+          <StatusBadge tone="warning">{t('aiSpend.reached')}</StatusBadge>
+        ) : (
+          <span className="text-text-muted">{t('aiSpend.notReached')}</span>
+        ),
+    },
+  ];
+  return (
+    <section aria-labelledby="integrations-ai" className="flex flex-col gap-3">
+      <h2 id="integrations-ai" className="text-h3">
+        {t('aiSpend.heading')}
+      </h2>
+      <p data-dynamic className="text-text-muted">
+        {t('aiSpend.total', {
+          today: formatRupees(spend.today),
+          month: formatRupees(spend.monthToDate),
+        })}
+      </p>
+      <DataGrid
+        caption={t('aiSpend.caption')}
+        columns={columns}
+        rows={spend.byAgent}
+        rowKey={(r) => `${r.agent}-${String(r.entityId)}`}
+        empty={<EmptyState message={t('aiSpend.empty')} />}
+      />
     </section>
   );
 }

@@ -4,6 +4,7 @@ import {
   AgentRunDto,
   DomainError,
   newId,
+  type AgentFilterReason,
   type AgentProposal,
   type AgentRoleKey,
   type AgentRunEnding,
@@ -53,9 +54,18 @@ export interface AgentStep {
   purpose: string;
   /** The action type the run may propose or take (`AGENT_ACTION_TYPES`). */
   actionType: string;
-  /** The agent's own work: the action it proposes, or null for nothing to do. */
-  decide: (model: RunModel) => Promise<AgentProposal | null>;
+  /**
+   * The agent's own work: the action it proposes, null for nothing to do, or the reason its own
+   * output filter refused what the model proposed (`{ filtered }`), which is recorded as such.
+   */
+  decide: (model: RunModel) => Promise<AgentDecision>;
 }
+
+/** What one step's work comes to. */
+export type AgentDecision = AgentProposal | null | { filtered: AgentFilterReason };
+
+const isFiltered = (d: AgentDecision): d is { filtered: AgentFilterReason } =>
+  d !== null && 'filtered' in d;
 
 export interface AgentStepDeps {
   provider: AiProvider;
@@ -135,6 +145,7 @@ export async function runAgentStep(step: AgentStep, deps: AgentStepDeps): Promis
   let costPaise = 0;
   let ended: AgentRunEnding = 'completed';
   let proposal: AgentProposal | null = null;
+  let filterReason: AgentFilterReason | undefined;
 
   if (!config.enabled) ended = 'switched_off';
   else if (config.caps.length === 0 || config.caps.some((c) => c.paise === 0)) {
@@ -159,7 +170,9 @@ export async function runAgentStep(step: AgentStep, deps: AgentStepDeps): Promis
       },
     };
     try {
-      proposal = await step.decide(runModel);
+      const decision = await step.decide(runModel);
+      if (isFiltered(decision)) filterReason = decision.filtered;
+      else proposal = decision;
     } catch (error) {
       ended = endingOf(error);
       if (ended === 'failed') {
@@ -193,7 +206,12 @@ export async function runAgentStep(step: AgentStep, deps: AgentStepDeps): Promis
       throw error;
     }
   };
-  if (proposal === null) return record({ ...base, ended }, scope);
+  if (proposal === null) {
+    return record(
+      { ...base, ended, ...(filterReason === undefined ? {} : { filterReason }) },
+      scope,
+    );
+  }
   try {
     return await record({ ...base, ended, proposal }, scope);
   } catch (error) {

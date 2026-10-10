@@ -351,6 +351,7 @@ export async function commitLeadBatch(
         pipelineKey: row.input.pipelineKey,
         sourceCode: row.input.sourceCode ?? null,
         existingAccount: false,
+        imported: true,
       },
     });
   }
