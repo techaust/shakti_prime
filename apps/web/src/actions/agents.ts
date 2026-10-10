@@ -8,12 +8,14 @@ import {
   ListInboxInput,
   SetAgentConfigInput,
   SetKillSwitchInput,
+  ShadowReportInput,
   type AgentConfigDto,
   type AgentSettingsDto,
   type InboxCountDto,
   type InboxDecisionDto,
   type InboxItemDoneDto,
   type InboxPageDto,
+  type ShadowReportDto,
 } from '@shakti/contracts';
 import {
   approveInboxItem as approveCommand,
@@ -28,6 +30,7 @@ import {
   rejectInboxItem as rejectCommand,
   setAgentConfig as setAgentConfigCommand,
   setKillSwitch as setKillSwitchCommand,
+  loadShadowReport as shadowReportQuery,
   type AnyCommand,
 } from '@shakti/domain';
 import { inboxCountKey, inboxCounts } from './inbox-count-cache';
@@ -136,6 +139,24 @@ export async function agentSettings(): Promise<ActionResult<AgentSettingsDto>> {
     return executeQuery(principal, { requestId }, (context) => loadAgentSettingsQuery(context), {
       name: 'agentSettings',
     });
+  });
+}
+
+/**
+ * The shadow report of one company and period (A1): the Triage agent's shadowed proposals beside
+ * what people did, in a request for that company.
+ */
+export async function shadowReport(rawInput: unknown): Promise<ActionResult<ShadowReportDto>> {
+  return toResult('shadowReport', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ShadowReportInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (context) => shadowReportQuery(context, input),
+      { name: 'shadowReport' },
+    );
   });
 }
 

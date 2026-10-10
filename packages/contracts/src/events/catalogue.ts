@@ -66,12 +66,14 @@ const eventCatalogue = {
     meaning:
       'A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer.',
     emittedBy: ['crm.lead.create', 'imports.job.commit_batch'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         pipelineKey: Code,
         sourceCode: Code.nullable(),
         existingAccount: z.boolean(),
+        /** A row of an import batch: history brought in, not new intake, so no agent triages it. */
+        imported: z.literal(true).optional(),
       })
       .strict(),
   },

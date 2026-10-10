@@ -439,6 +439,7 @@ describe('imports: commit and rollback', () => {
     // One audit row for the batch, with its range and counts; none per lead (design §8).
     const requestId = newId();
     const committed: string[] = [];
+    const imported: unknown[] = [];
     await executeCommand(
       gm,
       { entityIds: [1], requestId },
@@ -447,6 +448,7 @@ describe('imports: commit and rollback', () => {
       {
         onCommitted: (events) => {
           committed.push(...events.map((e) => e.type));
+          imported.push(...events.map((e) => (e.payload as { imported?: unknown }).imported));
         },
       },
     );
@@ -470,6 +472,8 @@ describe('imports: commit and rollback', () => {
     ]);
     // Each lead is still made as one typed in, with its own event after the commit.
     expect(committed).toEqual(['crm.lead.created', 'crm.lead.created']);
+    // Marked as brought in, so the Triage agent leaves them alone (A1).
+    expect(imported).toEqual([true, true]);
     const done = await run(gm, commitImportBatch, { entityId: 1, jobId: job.id, batchSize: 2 });
     expect(done).toMatchObject({ state: 'committed', committedRows: 5 });
     // Nothing more to do once committed.

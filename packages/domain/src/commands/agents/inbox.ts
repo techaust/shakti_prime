@@ -151,6 +151,10 @@ async function approve(
   const proposed = action.inputJson as Record<string, unknown>;
   const runInput = changes === undefined ? proposed : applyEdits(type, proposed, changes);
   const edited = wasEdited(type, proposed, runInput);
+  // A shadow-only kind is never filed in an inbox (it stays in Shadow), so it never gets here.
+  if (type.command === undefined) {
+    throw new DomainError('internal', `${type.name} runs no command`);
+  }
   await ctx.run(type.command, edited ? runInput : proposed);
   return record(ctx, item, action, {
     state: 'approved',

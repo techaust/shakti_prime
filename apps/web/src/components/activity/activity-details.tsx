@@ -13,6 +13,7 @@ import {
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import type { ErrorKey, PermissionNameKey, RoleNameKey } from '../../i18n/types';
+import { actionTypeName } from '../../screens/agents';
 import {
   actionKey,
   auditChanges,
@@ -31,6 +32,7 @@ import {
   ACCOUNT_TYPES,
   AGENT_ACTION_STATE_VALUES,
   AGENT_AUTONOMY_LEVELS,
+  AGENT_FILTER_REASON_VALUES,
   AGENT_ROLES,
   AGENT_RUN_OUTCOME_VALUES,
   agentNameKey,
@@ -511,7 +513,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'agent':
         return oneOf(AGENT_ROLES, value) ? agents(`names.${agentNameKey(value)}`) : wordsOf(value);
       case 'agentAction': {
-        // An action type is the command it runs, named as the Activity log names that command.
+        // An action type is named as the agents screens name it, else as the Activity log names
+        // the command it runs.
+        const typeKey = actionTypeName(value);
+        if (typeKey !== undefined) return agents(`actionTypes.${typeKey}`);
         const key = actionKey(value);
         return key === 'other' ? wordsOf(value.replaceAll('.', ' ')) : t(`actions.${key}`);
       }
@@ -519,6 +524,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(AGENT_AUTONOMY_LEVELS, value) ? agents(`autonomy.${value}`) : wordsOf(value);
       case 'runOutcome':
         return oneOf(AGENT_RUN_OUTCOME_VALUES, value) ? agents(`outcome.${value}`) : wordsOf(value);
+      case 'agentFilterReason':
+        return oneOf(AGENT_FILTER_REASON_VALUES, value)
+          ? agents(`filterReason.${value}`)
+          : wordsOf(value);
       case 'knowledgeState':
         return oneOf(KNOWLEDGE_FILE_STATE_VALUES, value)
           ? knowledge(`state.${value}`)

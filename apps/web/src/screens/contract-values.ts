@@ -3,6 +3,7 @@ import type {
   ActivityType,
   AgentActionState,
   AgentAutonomy,
+  AgentFilterReason,
   AgentRoleKey,
   AgentRunOutcome,
   AgentSettingSource,
@@ -36,6 +37,7 @@ import type {
   KitPriceSort,
   KitSort,
   LeadSort,
+  TriageProposalKind,
   OpportunityLostReason,
   OpportunityNurtureReason,
   OpportunityState,
@@ -193,6 +195,7 @@ export const AGENT_ROLES = [
 
 /** How far an agent may go with one action type (BLUEPRINT §9.3). */
 export const AGENT_AUTONOMY_LEVELS = [
+  'shadow',
   'suggest',
   'needs_approval',
   'automatic',
@@ -201,6 +204,7 @@ export const AGENT_AUTONOMY_LEVELS = [
 /** What became of an action an agent proposed or took. */
 export const AGENT_ACTION_STATE_VALUES = [
   'proposed',
+  'shadowed',
   'executed',
   'approved',
   'rejected',
@@ -219,13 +223,38 @@ export const AGENT_SETTING_SOURCE_VALUES = [
 /** How an agent run ended. */
 export const AGENT_RUN_OUTCOME_VALUES = [
   'proposed',
+  'shadowed',
   'acted',
   'nothing_to_do',
+  'filtered',
   'switched_off',
   'cap_reached',
   'unavailable',
   'failed',
 ] as const satisfies readonly AgentRunOutcome[];
+
+/** Why the Triage agent's output filter refused a proposal, each named under `agents.filterReason`. */
+export const AGENT_FILTER_REASON_VALUES = [
+  'unreadable_answer',
+  'unknown_pipeline',
+  'score_out_of_bounds',
+  'unknown_candidate',
+  'unknown_person',
+  'text_has_phone',
+  'text_has_identity_number',
+  'text_has_instruction',
+] as const satisfies readonly AgentFilterReason[];
+
+/** The kinds of proposal the Triage agent makes, each named under `agents.shadow.kinds`. */
+export const TRIAGE_PROPOSAL_KIND_VALUES = [
+  'pipeline',
+  'score',
+  'duplicate',
+  'assignee',
+] as const satisfies readonly TriageProposalKind[];
+
+/** The longest period the shadow report covers, in days (`SHADOW_REPORT_MAX_DAYS`). */
+export const SHADOW_REPORT_MAX_DAYS_VALUE = 92;
 
 /** A Knowledge Vault file's status, each named under `knowledge.state`. */
 export const KNOWLEDGE_FILE_STATE_VALUES = [

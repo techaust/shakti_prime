@@ -1,6 +1,7 @@
 import {
   AGENT_ACTION_STATES,
   AGENT_AUTONOMY,
+  AGENT_FILTER_REASONS,
   AGENT_RUN_OUTCOMES,
   INBOX_ITEM_KINDS,
   INBOX_ITEM_STATES,
@@ -81,6 +82,7 @@ const PAIRS: Record<string, readonly string[]> = {
   agent_actions_state_check: AGENT_ACTION_STATES,
   agent_configs_autonomy_check: AGENT_AUTONOMY,
   agent_runs_outcome_check: AGENT_RUN_OUTCOMES,
+  agent_runs_filter_reason_check: AGENT_FILTER_REASONS,
   inbox_items_kind_check: INBOX_ITEM_KINDS,
   inbox_items_state_check: INBOX_ITEM_STATES,
   inbox_items_subject_type_check: INBOX_SUBJECT_TYPES,

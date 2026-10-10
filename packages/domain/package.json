@@ -24,7 +24,9 @@
     "spike:knowledge": "tsx tests/spike/knowledge-explain.ts",
     "spike:notifications": "tsx tests/spike/notifications-explain.ts",
     "spike:orders": "tsx tests/spike/orders-explain.ts",
-    "spike:targets": "tsx tests/spike/targets-explain.ts"
+    "spike:targets": "tsx tests/spike/targets-explain.ts",
+    "spike:shadow": "tsx tests/spike/shadow-explain.ts",
+    "eval:triage": "tsx scripts/eval-triage.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

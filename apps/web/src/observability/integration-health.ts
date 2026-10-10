@@ -8,6 +8,7 @@ import {
 import {
   executeCommand,
   executeQuery,
+  readAgentSpend,
   readOutboxHealth,
   runDeliveryProbe,
   type ExecuteOptions,
@@ -16,9 +17,6 @@ import {
 import { logger } from '../log';
 import { readDeliveryCheck, rememberProbe } from '../workers/events/probe';
 import { lastPublisherRun } from '../workers/outbox';
-
-/** Rupees as the contract writes them, for the spend no agent has made yet. */
-const NO_SPEND = '0.00';
 
 /**
  * The page's own permission (docs/06-api.md §3.7). The outbox part is checked again in the database
@@ -43,9 +41,9 @@ async function fromStore<T>(requestId: string, read: () => Promise<T>): Promise<
 
 /**
  * Integration Health (`GET /api/v1/admin/integrations` and the page): the outbox by type and the
- * dead letters from the database, the last publisher run and the delivery check from the store.
- * Webhooks, Tally connectors, WhatsApp numbers and AI spend have no source yet (Phase 2, 5 and
- * the Triage agent), so they answer empty and zero.
+ * dead letters from the database, the AI spend per agent and company from the agents' runs (A1),
+ * the last publisher run and the delivery check from the store. Webhooks, Tally connectors and
+ * WhatsApp numbers have no source yet (Phase 2 and 5), so they answer empty.
  */
 export async function readIntegrationHealth(
   principal: Principal,
@@ -61,6 +59,12 @@ export async function readIntegrationHealth(
     (context) => readOutboxHealth(context, query),
     { name: 'readIntegrationHealth' },
   );
+  const aiSpend = await executeQuery(
+    principal,
+    { requestId },
+    (context) => readAgentSpend(context, now),
+    { name: 'readAgentSpend' },
+  );
   const [lastRun, check] = await Promise.all([
     fromStore(requestId, () => lastPublisherRun(keyValue)),
     fromStore(requestId, () => readDeliveryCheck(keyValue, now)),
@@ -73,7 +77,7 @@ export async function readIntegrationHealth(
     deadLetters: outbox.deadLetters,
     connectors: [],
     whatsapp: [],
-    aiSpend: { today: NO_SPEND, monthToDate: NO_SPEND, byAgent: [] },
+    aiSpend,
   });
 }
 

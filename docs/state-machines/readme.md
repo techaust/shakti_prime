@@ -24,7 +24,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Expense claim | no | 6 | 6 | 7 | [expense-claim.md](expense-claim.md) |
 | Playbook directive | no | 3 | 4 | 1 | [playbook-directive.md](playbook-directive.md) |
 | Tally voucher | no | 5 | 7 | 6 | [tally-voucher.md](tally-voucher.md) |
-| Agent action | **yes** | 5 | 5 | 0 | [agent-action.md](agent-action.md) |
+| Agent action | **yes** | 6 | 6 | 0 | [agent-action.md](agent-action.md) |
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
 | Knowledge Vault file | **yes** | 5 | 6 | 0 | [knowledge-file.md](knowledge-file.md) |
 

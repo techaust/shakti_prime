@@ -2,21 +2,28 @@ import {
   AGENT_PRINCIPAL_IDS,
   DomainError,
   SYSTEM_WORKERS_PRINCIPAL_ID,
+  TRIAGE_ACTION_TYPES,
+  TriagePipelineProposalInput,
+  TriageScoreProposalInput,
   type AgentAutonomy,
   type AgentRoleKey,
   type InboxFieldDto,
   type InboxSubjectType,
   type InboxSummaryDto,
 } from '@shakti/contracts';
-import type { AnyCommand } from '../command/define-command';
+import type { z } from 'zod';
+import type { AnyCommand, Requirement } from '../command/define-command';
+import { suggestDuplicate } from '../commands/crm/duplicates';
+import { assignOpportunity } from '../commands/crm/assign-opportunity';
 import { createTask } from '../commands/crm/tasks';
 import { AGENT_DEFAULTS } from './agent-defaults';
 
-// The actions an agent may propose or take (docs/03-roadmap-appendix/phase1.md §7.1). An action type is the name
-// of the command the action runs: approving it runs that command as the person who approves, and
-// Automatic (not in Phase 1) runs it as the agent. A command joins this list with the slice whose
-// agent needs it (A1 adds the Triage agent's); each agent named here must hold the command's
-// permission itself, and none is a command for people only (`action-types.test.ts`).
+// The actions an agent may propose or take (docs/03-roadmap-appendix/phase1.md §7.1, §9). An action
+// type is the name of the command the action runs: approving it runs that command as the person who
+// approves, and Automatic (not in Phase 1) runs it as the agent. A shadow-only kind runs no command
+// (no command moves a lead between pipelines or changes a score by hand): it is only ever recorded
+// in Shadow, whatever autonomy is set. Each agent named here must hold the permissions the action
+// needs itself, and none is a command for people only (`action-types.test.ts`).
 
 /** A field of a suggestion a person may change before approving it (`agents.inbox.edit`). */
 export interface EditableField {
@@ -33,8 +40,14 @@ export interface SummaryField {
 }
 
 export interface AgentActionType {
-  /** The command the action runs; its name is the action type's. */
-  command: AnyCommand;
+  /** The action type: the command's name, or a shadow-only kind's own. */
+  name: string;
+  /** The command the action runs; undefined for a shadow-only kind, which never runs. */
+  command: AnyCommand | undefined;
+  /** What a proposal's input must be: the command's input, or the shadow-only kind's. */
+  input: z.ZodType;
+  /** The permissions the agent itself must hold to propose it, the first the command's own. */
+  requirements: readonly [Requirement, ...Requirement[]];
   /** The agents that may propose or take it. */
   agents: readonly AgentRoleKey[];
   /** What an inbox item for it is about. */
@@ -51,24 +64,87 @@ export interface AgentActionType {
   editable: readonly EditableField[];
 }
 
-export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = {
-  // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3).
-  'crm.task.create': {
-    command: createTask,
-    agents: ['agent:copilot'],
-    subjectType: 'opportunity',
-    subjectKey: 'opportunityId',
-    assigneeKey: 'assigneeId',
-    summary: [
-      { name: 'assigneeId', kind: 'person' },
-      { name: 'kind', kind: 'code' },
+type Details = Omit<AgentActionType, 'name' | 'command' | 'input' | 'requirements'>;
+
+/** An action type that runs a command: named by it, with its input and its permissions. */
+function commanded(command: AnyCommand, details: Details): AgentActionType {
+  const permission = command.permission;
+  if (typeof permission !== 'string') {
+    throw new DomainError('internal', `${command.name} names its permission by input`);
+  }
+  return {
+    name: command.name,
+    command,
+    input: command.input,
+    requirements: [
+      { permission, minScope: command.minScope ?? 'own' },
+      ...(command.alsoRequires ?? []),
     ],
-    editable: [
-      { name: 'dueAt', kind: 'date_time' },
-      { name: 'title', kind: 'text', maxLength: 80 },
-    ],
-  },
-};
+    ...details,
+  };
+}
+
+/** A shadow-only kind: recorded in Shadow under the permission it names, never run. */
+function shadowOnly(
+  name: string,
+  input: z.ZodType,
+  requirement: Requirement,
+  details: Details,
+): AgentActionType {
+  return { name, command: undefined, input, requirements: [requirement], ...details };
+}
+
+/** The Triage agent's proposals are about a lead and are for nobody in particular. */
+const ABOUT_A_LEAD = { subjectType: 'opportunity', subjectKey: 'opportunityId' } as const;
+
+export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Object.fromEntries(
+  [
+    // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3).
+    commanded(createTask, {
+      agents: ['agent:copilot'],
+      subjectType: 'opportunity',
+      subjectKey: 'opportunityId',
+      assigneeKey: 'assigneeId',
+      summary: [
+        { name: 'assigneeId', kind: 'person' },
+        { name: 'kind', kind: 'code' },
+      ],
+      editable: [
+        { name: 'dueAt', kind: 'date_time' },
+        { name: 'title', kind: 'text', maxLength: 80 },
+      ],
+    }),
+    // The Triage agent (A1, SECURITY §3.3): who should take a new lead, among the people of the
+    // company who work on leads. The item, under Suggest or Needs approval, is for whoever acts
+    // on the company's inbox, never the person proposed.
+    commanded(assignOpportunity, {
+      agents: ['agent:triage'],
+      ...ABOUT_A_LEAD,
+      summary: [{ name: 'ownerId', kind: 'person' }],
+      editable: [],
+    }),
+    // Two open leads of one customer and segment that D1 already put forward, which the agent
+    // would link as one enquiry.
+    commanded(suggestDuplicate, {
+      agents: ['agent:triage'],
+      ...ABOUT_A_LEAD,
+      summary: [],
+      editable: [],
+    }),
+    shadowOnly(
+      TRIAGE_ACTION_TYPES.pipeline,
+      TriagePipelineProposalInput,
+      { permission: 'crm.lead.write', minScope: 'entity' },
+      { agents: ['agent:triage'], ...ABOUT_A_LEAD, summary: [], editable: [] },
+    ),
+    shadowOnly(
+      TRIAGE_ACTION_TYPES.score,
+      TriageScoreProposalInput,
+      { permission: 'crm.lead.write', minScope: 'entity' },
+      { agents: ['agent:triage'], ...ABOUT_A_LEAD, summary: [], editable: [] },
+    ),
+  ].map((t) => [t.name, t]),
+);
 
 /** The action type, or `validation_failed` with `agent_action_unknown`. */
 export function actionTypeOf(name: string): AgentActionType {
@@ -79,6 +155,11 @@ export function actionTypeOf(name: string): AgentActionType {
     });
   }
   return found;
+}
+
+/** Whether an action type is only ever recorded in Shadow (it runs no command). */
+export function isShadowOnly(name: string): boolean {
+  return Object.hasOwn(AGENT_ACTION_TYPES, name) && AGENT_ACTION_TYPES[name]?.command === undefined;
 }
 
 /** The principals no work may be for: the agents and the event workers. */
@@ -216,3 +297,12 @@ export function automaticEarned(decided: number, approvedUnedited: number): bool
 
 /** The autonomy that applies when no setting names one: the agent only suggests. */
 export const DEFAULT_AUTONOMY: AgentAutonomy = 'suggest';
+
+/**
+ * The autonomy an agent starts at when no setting names one (`AGENT_DEFAULTS.startingAutonomy`):
+ * the Triage agent in Shadow, every other agent at Suggest.
+ */
+export function startingAutonomy(agent: AgentRoleKey): AgentAutonomy {
+  const starting: Partial<Record<AgentRoleKey, AgentAutonomy>> = AGENT_DEFAULTS.startingAutonomy;
+  return starting[agent] ?? DEFAULT_AUTONOMY;
+}

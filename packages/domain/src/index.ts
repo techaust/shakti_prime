@@ -487,11 +487,23 @@ export type {
 } from './ai/transport';
 export { vendorTransports } from './ai/env';
 export { costInPaise, DEFAULT_CLAUDE_MODEL, DEFAULT_EMBEDDING_MODEL } from './ai/models';
-export { AGENT_ACTION_TYPES, AUTOMATIC_AVAILABLE, automaticEarned } from './ai/action-types';
+export {
+  AGENT_ACTION_TYPES,
+  AUTOMATIC_AVAILABLE,
+  automaticEarned,
+  isShadowOnly,
+} from './ai/action-types';
 export { AGENT_DEFAULTS } from './ai/agent-defaults';
 export { resolveAgentConfig } from './ai/config';
 export { agentPrincipal, agentStepKey, runAgentStep } from './ai/runtime';
-export type { AgentStep, AgentStepDeps, RunModel } from './ai/runtime';
+export type { AgentDecision, AgentStep, AgentStepDeps, RunModel } from './ai/runtime';
+export { runTriage, TRIAGE_PURPOSE } from './ai/triage/run-triage';
+export type { TriageLead, TriageResult } from './ai/triage/run-triage';
+export { buildTriagePrompt, TRIAGE_SYSTEM } from './ai/triage/prompt';
+export { filterTriageAnswer, noteProblem, parseTriageAnswer } from './ai/triage/filter';
+export type { TriageDecision, TriageVerdicts } from './ai/triage/filter';
+export type { TriageFacts } from './ai/triage/facts';
+export { readTriageFacts } from './ai/triage/read-facts';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
 export {
@@ -523,6 +535,8 @@ export {
 export { setAgentConfig, setKillSwitch } from './commands/agents/config';
 export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';
+export { loadShadowReport } from './queries/agents/shadow-report';
+export { readAgentSpend } from './queries/agents/spend';
 export {
   addKnowledgeFile,
   archiveKnowledgeFile,
