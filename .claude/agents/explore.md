@@ -1,6 +1,6 @@
 ---
-name: code-finder
-description: Finds where code lives in Shakti Prime BOS and answers "where is X / what calls Y" with file paths and line numbers. Read-only, on Haiku; use it in place of the built-in Explore agent, which runs on Opus on this plan. Give it the question and how broad to search.
+name: Explore
+description: Finds where code lives in Shakti Prime BOS and answers "where is X / what calls Y" with file paths and line numbers. Read-only, on Haiku; it takes the place of the built-in Explore agent, which runs on the lead's model. Give it the question and how broad to search.
 tools: Read, Grep, Glob, Bash
 model: claude-haiku-5-5
 effort: high
