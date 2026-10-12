@@ -6,6 +6,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
+import { expectDocumentWithinBudget } from './support/document-weight';
 import { submitCode, submitSignIn, waitForBotCheck } from './support/sign-in';
 import { totpCode } from './support/totp';
 import { E2E_PASSWORD, emailFor, seededUsers } from './support/users';
@@ -26,6 +27,12 @@ test('the sign-in screen', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await expectNoAxeViolations(page);
   await snap(page, 'sign-in');
+});
+
+test('the sign-in page sends only the words it uses, within its weight (WEB-1)', async ({
+  page,
+}) => {
+  await expectDocumentWithinBudget(page, '/sign-in');
 });
 
 test('sign-in refuses a wrong password and keeps the email', async ({ page }) => {

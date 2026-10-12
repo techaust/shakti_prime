@@ -6,6 +6,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
+import { expectDocumentWithinBudget } from './support/document-weight';
 import { SNAPSHOT_LEADS } from './support/users';
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
@@ -59,10 +60,16 @@ for (const { role, title } of ROLES) {
   });
 }
 
-test.describe('a mobile number the server refuses', () => {
+test.describe('the lead screens as a tele-caller', () => {
   test.use(signedInAs('teleCaller'));
 
-  test('is read out under the field, and focus moves to it (WEB-2)', async ({ page }) => {
+  test('the leads list sends only the words its screen uses, within its weight (WEB-1)', async ({
+    page,
+  }) => {
+    await expectDocumentWithinBudget(page, '/leads');
+  });
+
+  test('a mobile number the server refuses is read out and focused (WEB-2)', async ({ page }) => {
     await page.goto('/leads/new');
     await expect(page.getByRole('heading', { name: 'Add a lead', level: 1 })).toBeVisible();
     await page.getByLabel('Customer name').fill(`Mohan Lal ${String(Date.now()).slice(-5)}`);

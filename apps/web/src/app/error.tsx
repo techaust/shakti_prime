@@ -1,8 +1,8 @@
 'use client';
 
+import { Button } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { Button } from '../components/form';
 import { referenceFromDigest } from '../reference';
 
 /**
@@ -35,9 +35,7 @@ export default function ErrorScreen({
         )}
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={retry ?? reset}>
-          {t('retry')}
-        </Button>
+        <Button onClick={retry ?? reset}>{t('retry')}</Button>
         <Link
           href="/home"
           className="text-accent-text inline-flex min-h-9 items-center underline-offset-4 hover:underline max-md:min-h-11"

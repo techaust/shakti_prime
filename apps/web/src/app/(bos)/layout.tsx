@@ -10,6 +10,7 @@ import { currentSession } from '../../auth/current-principal';
 import { AppShell } from '../../components/shell/app-shell';
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from '../../components/shell/sidebar-state';
 import { ContrastSync, ThemeSync } from '../../components/theme';
+import { ClientMessages } from '../../i18n/client-messages';
 import type { RoleNameKey } from '../../i18n/types';
 import { canSearch, visibleActions, visibleNav } from '../../screens/menu-access';
 import { CONTRAST_COOKIE, isHighContrast } from '../../theme';
@@ -41,7 +42,8 @@ export default async function BosLayout({ children }: { children: ReactNode }) {
     noticeCount(),
   ]);
   return (
-    <>
+    // The shell's words; each screen adds its own in its folder's layout (WEB-1).
+    <ClientMessages scope="bos">
       <ThemeSync saved={theme} />
       {contrastStale ? <ContrastSync saved={high} /> : null}
       <AppShell
@@ -63,6 +65,6 @@ export default async function BosLayout({ children }: { children: ReactNode }) {
       >
         {children}
       </AppShell>
-    </>
+    </ClientMessages>
   );
 }

@@ -21,9 +21,14 @@ export interface RouteBudget {
 }
 
 export interface Budgets {
-  /** The budget of every route the file does not name. */
-  defaultKb: number;
+  /** Every page's first-load JavaScript budget; a page with none fails the check (ARCH-6). */
   routes: Record<string, RouteBudget>;
+  /**
+   * The gzip weight of a first visit's HTML, the server's payload for the page inline, of a few
+   * pages: the message catalogue rides in it, which the JavaScript sizes do not see (WEB-1).
+   * Checked by the journeys, which serve the build (`checkDocument`).
+   */
+  documents: Record<string, RouteBudget>;
 }
 
 export interface RouteSize {
@@ -34,8 +39,8 @@ export interface RouteSize {
 }
 
 export interface BudgetRow extends RouteSize {
-  budgetKb: number;
-  named: boolean;
+  /** Undefined for a page with no budget, which is itself a problem. */
+  budgetKb: number | undefined;
   over: boolean;
 }
 
@@ -81,14 +86,11 @@ export function parseRouteStats(json: unknown): RouteStat[] {
   });
 }
 
-/** Reads `js-budget.json`: a positive default and, per named route, a budget with its reason. */
-export function parseBudgets(json: unknown): Budgets {
-  if (!isRecord(json) || typeof json.defaultKb !== 'number' || !(json.defaultKb > 0)) {
-    throw new Error('js-budget.json needs a positive defaultKb');
-  }
-  const routes: Record<string, RouteBudget> = {};
-  const named = json.routes ?? {};
-  if (!isRecord(named)) throw new Error('js-budget.json routes must be an object');
+/** One section of `js-budget.json`: per route, a positive budget with its reason. */
+function parseSection(json: Record<string, unknown>, name: string): Record<string, RouteBudget> {
+  const out: Record<string, RouteBudget> = {};
+  const named = json[name] ?? {};
+  if (!isRecord(named)) throw new Error(`js-budget.json ${name} must be an object`);
   for (const [route, entry] of Object.entries(named)) {
     if (
       !route.startsWith('/') ||
@@ -100,9 +102,18 @@ export function parseBudgets(json: unknown): Budgets {
     ) {
       throw new Error(`js-budget.json: ${route} needs a positive maxKb and a reason`);
     }
-    routes[route] = { maxKb: entry.maxKb, reason: entry.reason };
+    out[route] = { maxKb: entry.maxKb, reason: entry.reason };
   }
-  return { defaultKb: json.defaultKb, routes };
+  return out;
+}
+
+/** Reads `js-budget.json`: per page a JavaScript budget, and per measured page a document one. */
+export function parseBudgets(json: unknown): Budgets {
+  if (!isRecord(json)) throw new Error('js-budget.json is not an object');
+  if ('defaultKb' in json) {
+    throw new Error('js-budget.json has no default: every page names its own budget (ARCH-6)');
+  }
+  return { routes: parseSection(json, 'routes'), documents: parseSection(json, 'documents') };
 }
 
 /** The page routes of the build, from `app-path-routes-manifest.json` (route handlers left out). */
@@ -143,9 +154,10 @@ export function measureRoutes(
 }
 
 /**
- * Each measured route against its budget. Also a problem: a page of the build with no
- * measurement (the statistics stopped covering it) and a named budget for a route the build no
- * longer has (a stale entry would hide the next route of that name).
+ * Each measured route against its budget. Also a problem: a page with no budget of its own (its
+ * measured size plus 5 %, with the reason, ARCH-6), a page of the build with no measurement (the
+ * statistics stopped covering it) and a budget for a route the build no longer has (a stale entry
+ * would hide the next route of that name).
  */
 export function checkBudgets(
   sizes: readonly RouteSize[],
@@ -154,13 +166,11 @@ export function checkBudgets(
 ): BudgetReport {
   const rows = sizes
     .map((size) => {
-      const named = budgets.routes[size.route];
-      const budgetKb = named?.maxKb ?? budgets.defaultKb;
+      const budgetKb = budgets.routes[size.route]?.maxKb;
       return {
         ...size,
         budgetKb,
-        named: named !== undefined,
-        over: size.gzipBytes > Math.round(budgetKb * 1000),
+        over: budgetKb !== undefined && size.gzipBytes > Math.round(budgetKb * 1000),
       };
     })
     .sort((a, b) => b.gzipBytes - a.gzipBytes || a.route.localeCompare(b.route));
@@ -170,16 +180,45 @@ export function checkBudgets(
       (r) =>
         `${r.route} loads ${kb(r.gzipBytes)} kB of JavaScript (gzip), over its budget of ${String(r.budgetKb)} kB`,
     );
+  for (const r of rows) {
+    if (r.budgetKb === undefined) {
+      problems.push(
+        `${r.route} loads ${kb(r.gzipBytes)} kB of JavaScript (gzip) and has no budget: add its size plus 5 % with the reason`,
+      );
+    }
+  }
   const measured = new Set(sizes.map((s) => s.route));
   for (const page of builtPages) {
     if (!measured.has(page)) problems.push(`${page} is a page of the build with no measurement`);
   }
   const built = new Set(builtPages);
-  for (const route of Object.keys(budgets.routes)) {
+  for (const route of [...Object.keys(budgets.routes), ...Object.keys(budgets.documents)]) {
     if (!built.has(route))
       problems.push(`js-budget.json names ${route}, which the build does not have`);
   }
   return { rows, problems };
+}
+
+/** The gzip size of a page's HTML as a first visit receives it. */
+export function documentBytes(html: string | Uint8Array): number {
+  return gzipSync(html).byteLength;
+}
+
+/**
+ * A first visit's HTML against its document budget (WEB-1): undefined when it fits, the problem
+ * otherwise, and a problem for a route with no document budget.
+ */
+export function checkDocument(
+  route: string,
+  html: string | Uint8Array,
+  budgets: Budgets,
+): string | undefined {
+  const budget = budgets.documents[route];
+  const bytes = documentBytes(html);
+  if (budget === undefined) return `${route} has no document budget in js-budget.json`;
+  return bytes > Math.round(budget.maxKb * 1000)
+    ? `${route} sends ${kb(bytes)} kB of HTML (gzip), over its document budget of ${String(budget.maxKb)} kB`
+    : undefined;
 }
 
 export function kb(bytes: number): string {
@@ -194,8 +233,8 @@ export function formatTable(rows: readonly BudgetRow[]): string {
     String(r.chunks),
     kb(r.rawBytes),
     kb(r.gzipBytes),
-    `${String(r.budgetKb)}${r.named ? '' : ' (default)'}`,
-    r.over ? 'OVER' : 'ok',
+    r.budgetKb === undefined ? 'none' : String(r.budgetKb),
+    r.over ? 'OVER' : r.budgetKb === undefined ? 'NO BUDGET' : 'ok',
   ]);
   const widths = header.map((h, i) => Math.max(h.length, ...lines.map((l) => (l[i] ?? '').length)));
   const pad = (cells: string[]) =>
