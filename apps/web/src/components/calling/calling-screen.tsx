@@ -82,8 +82,8 @@ function Queue({
         <ol className="flex flex-col gap-1">
           {page.items.map((item) => {
             const selected = item.opportunityId === current;
-            // --accent-soft carries --text at AA but not --text-muted in the dark theme, so the
-            // selected row's secondary lines take the full text colour.
+            // The selected row's secondary lines take the full text colour, so the row reads as one
+            // block on the soft tint (muted text also passes AA there, WEB-6).
             const muted = selected ? 'text-text' : 'text-text-muted';
             return (
               <li key={item.opportunityId}>
