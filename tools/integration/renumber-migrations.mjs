@@ -104,7 +104,9 @@ if (fs.existsSync(generated)) {
   const said = out.split('\n').find((line) => /nothing to migrate/i.test(line));
   if (!said) {
     console.error(out);
-    throw new Error('drizzle-kit wrote no migration and did not say "nothing to migrate"; see its output above.');
+    throw new Error(
+      'drizzle-kit wrote no migration and did not say "nothing to migrate"; see its output above.',
+    );
   }
   console.log(`drizzle-kit: ${said.trim()}`);
   console.log(
