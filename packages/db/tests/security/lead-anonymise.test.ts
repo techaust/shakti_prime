@@ -129,7 +129,11 @@ beforeAll(async () => {
       await tx`delete from import_jobs where id in (${IMPORT_JOB}, ${IMPORT_JOB_2})`;
       await tx`delete from sales_orders where id::text like ${like}`;
       await tx`delete from quotes where id::text like ${like}`;
-      await tx`delete from duplicate_candidates where id::text like ${like}`;
+      // The nightly duplicate search of other suites may have paired this file's leads.
+      await tx`delete from duplicate_candidates
+                where id::text like ${like} or opportunity_id::text like ${like}
+                   or other_opportunity_id::text like ${like} or account_id::text like ${like}
+                   or other_account_id::text like ${like}`;
       await tx`delete from tasks where id::text like ${like}`;
       await tx`delete from consents where id::text like ${like}`;
       await tx`delete from opportunities where id::text like ${like}`;

@@ -57,6 +57,10 @@ beforeAll(async () => {
       await tx`alter table activities disable trigger activities_append_only`;
       await tx`delete from activities where account_id::text like ${like}`;
       await tx`alter table activities enable trigger activities_append_only`;
+      // The nightly duplicate search of other suites may have paired this file's lead.
+      await tx`delete from duplicate_candidates
+                where opportunity_id::text like ${like} or other_opportunity_id::text like ${like}
+                   or account_id::text like ${like} or other_account_id::text like ${like}`;
       await tx`delete from opportunities where id::text like ${like}`;
       await tx`delete from account_contacts where account_id::text like ${like}`;
       await tx`delete from account_entities where account_id::text like ${like}`;
