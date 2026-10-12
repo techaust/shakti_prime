@@ -260,6 +260,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 
 **FIN-2 · Record retention periods** — CA
 - *Proposed (from the blueprint):* financial records, proformas, sales orders and audit records 8 years; customer identity copies and subsidy documents the life of the project plus 8 years; call recordings 12 months (the written summary is kept); WhatsApp media 3 years; leads with no sale 24 months after the last contact, then anonymised; field photos the life of the project plus 5 years.
+- *In the system until answered:* the 24 months for leads with no sale (`WORKSHOP_DEFAULTS.retention.unqualifiedLeadMonths`); the nightly job keeps the fact of a consent with its signed form, which holds the person's name, and the CA says whether that form is kept or deleted too.
 - *Needed:* the CA's confirmation or changes.
 
 ### B8. People (HR) — needed before Phase 5
