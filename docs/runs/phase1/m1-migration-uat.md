@@ -40,6 +40,55 @@ Not in M1: G1 (production accounts), the real parallel run and UAT (they need th
 
 ## Report
 
+### Early check, 12-10-2026, cloud VM (worktree `/home/user/shakti-wt/m1-migration-uat`, Postgres 54331)
+Tier A stop: schema, migrations, the anonymisation definers, the command and both queries are committed with their tests; no worker route, screen, runbook, pack or journey yet. Skills loaded: `add-command`, `add-table`, `supabase-postgres-best-practices`.
+
+**Built**
+- Permission `crm.retention.run`, platform-only: `packages/contracts/src/permissions.ts` (key, scope `all`, `PLATFORM_ONLY_PERMISSIONS`), `system-principal.ts` (`SYSTEM_MATRIX`), `packages/db/seeds/permissions.ts` and `role-permissions.ts` (no staff role), its role-editor label in `en.json`, SECURITY §3.2 row, §3.1 list and §3.3 row.
+- Schema (`0130_m1_retention`, generated): `opportunities.anonymised_at`, `accounts.anonymised_at`, partial index `opportunities_retention_idx (entity_id, updated_at, id) where anonymised_at is null and state <> 'won'`.
+- `0131_m1_retention_rls` (custom): `app.platform_only_permissions()` with main's eight keys plus `crm.retention.run`; `app.lead_is_stale(lead, cutoff)` (plain SQL, executable by no request role); `app.stale_leads(entity, months, after_at, after_id, limit)` (definer, read only, `app_user` and `app_reader`); `app.activities_append_only()` (0113's merge exception kept, plus the delete of a `note` of the customer named by `app.lead_anonymise`, only as the anonymiser's owner); `app.anonymise_stale_leads(entity, months, leads[])` (definer, `app_user` only).
+- Domain: `WORKSHOP_DEFAULTS.retention.unqualifiedLeadMonths = 24`; command `crm.lead.anonymise` (`commands/crm/anonymise-stale-leads.ts`, registered, audit field `anonymisedAt` labelled); dry-run query `countStaleLeads` (`queries/crm/stale-leads.ts`); reconciliation query `getImportReconciliation` (`queries/imports/import-queries.ts`).
+- Contracts: `commands/crm/retention.ts` (cursor, input, `LeadAnonymiseBatchDto`, `StaleLeadCountDto`), `ImportReconciliationDto` (refuses counts that do not add up), `LeadAnonymiseWorkerBody` and `LeadAnonymiseWorkerResponse` for the route still to come.
+- Documents so far: DATABASE §4.1 (both definers), §5, §6.2 (`anonymised_at`), §6.10, §7; SECURITY; `pnpm db:docs` and `machines:docs` regenerated.
+
+**Tests** (new: 19)
+- `packages/db/tests/security/lead-anonymise.test.ts` (13): refused to every staff role, every agent and the workers without the permission; fail-closed with no context; company outside the request and a period under 12 months refused; no role holds the permission; the reader may count but not anonymise; exactly the right leads stale among 15 fixture leads plus a customer's second lead (quote, order, won, other company, Qualified stage, second lead, dealer, future task, shared person, open duplicate card, recent call, recent note); window order and cursor; a failure recorded as `failed with code P0001` only, changing nothing, while the error message carried the name; personal details removed and facts kept, field by field, import rows included; every other lead untouched; idempotent; the timeline delete refused to a request and to the owner without the setting.
+- `packages/domain/tests/commands/lead-anonymise.test.ts` (3): denied to people, wrong company, happy path with one audit row per lead and no personal value, the dry run on a read-only request, a second run with no new audit row.
+- `packages/domain/tests/queries/import-reconciliation.test.ts` (3): every bucket and reason counted, totals add up; every staff role in company 1 and 2 (only importers in the job's company read it); another company's job not found.
+- Changed: `caller-profiles.test.ts` (nine platform keys), `grants.test.ts` (reader may call `app.stale_leads`), `agent-refusals.test.ts` (`CHECKS` entry), `crm-scoring-referrals.test.ts` (the workers' platform keys), `reader-parity.test.ts` (both queries), `workshop-defaults.test.ts`.
+
+**Checks** (all through `heavy.sh`)
+- `eslint packages/contracts packages/db packages/domain apps/web/src/screens --max-warnings 0`: clean; `eslint packages/domain/tests`: clean.
+- Typecheck `@shakti/contracts`, `@shakti/db`, `@shakti/domain`, `web`: clean.
+- Unit: contracts 181 passed; db 131 passed; domain 2057 passed (76 files); web `audit.test.ts` 17 passed; copy lint clean.
+- Security suite on the slot's Postgres: db 1208 passed (41 files); web 303 passed (22 files); domain 937 of 938: the one failure is `import-kinds.test.ts` "adds the different site of a repeated row", which uses the fixed name "Two Sites" in "Sikar" and on a second run against the same database finds the first run's customer by name and village. It passed in the first full run on this database and touches nothing of M1; on a fresh database it passes.
+
+**`EXPLAIN (ANALYZE)` evidence** (slot Postgres, transactions rolled back)
+- Window of `app.stale_leads`, 80,000 leads idle 30 months spread over the four companies: `Index Only Scan using opportunities_retention_idx`, `Index Cond: (entity_id = 4) AND (updated_at < now() - '2 years')`, 500 rows, 0.6 ms; the next batch's cursor is part of the index condition (`ROW(updated_at, id) > ROW(...)`), 0.8 ms. The 500 eligibility checks (`app.lead_is_stale`, each about 25 index probes, read by `auto_explain` nested plans: `opportunities_id_entity_unique`, `quotes_opportunity_idx`, `quotes_account_idx`, `sales_orders_*_idx`, `account_entities_account_entity_key`, `opportunities_account_idx`, `customer_merges_*`, `duplicate_candidates_*`, per-partition `activities_*_account_id_created_at_id_idx` with `created_at >= cutoff`, `calls_opportunity_started_idx`, `tasks_opportunity_idx`) take 112 to 125 ms per batch, about 0.25 ms per lead. With every old lead in one company the planner takes `opportunities_keyset_idx` instead (13 rows filtered).
+- Reconciliation, as `app_user` with a General Manager's settings over a 50,000-row job: one `Seq Scan on import_rows` (the job is 99.97% of the table, so the scan is the right plan) under `import_rows_read` (job lookup a hashed subplan over the company's jobs), `HashAggregate` to 3 groups, 55.9 ms.
+
+**Decisions the brief did not settle**
+1. Unqualified: never won and at a stage before the pipeline's live Qualified stage, as well as the brief's no quote, order or commission; a lead at Qualified or later is kept even without a quote.
+2. "Another company or record uses it": the lead is never touched when its customer deals with another company, has any other lead, is a dealer or referral partner (type, `referral_partners`, `dealer_terms`, `dealer_outstanding`), is in a merge that stands or an open duplicate card, or shares a person with another customer. So a customer is anonymised only with its only lead, never partly.
+3. Last activity: nothing changed since the cutoff on the lead (made, changed, state), the customer and its company relationships, people, phones, consents and sites, nor any timeline row, call, sizing or task (changed or due); an open task due later keeps the lead.
+4. Removed: customer name (to empty) and GSTIN; people's names (to empty), email addresses and phone numbers (rows deleted); sites' address, village, PIN, map point and technical notes; the lead's campaign fields; task titles; the customer's notes (deleted, since a replacement text in the database would be copy outside the catalogue); what import rows that made the lead or customer said, and later rows of the file skipped as their repeat (state, counts and reasons kept, so the reconciliation still adds up). Kept: the lead row (state, stage, pipeline, score), customer type, tehsil, district and state code, calls, sizings, tags, consents, company relationships. The lead, customer, people and sites are archived, so every list and search leaves them out; the lead and the customer carry `anonymised_at`.
+5. The definers refuse a period outside 12 to 120 months, so no call can reach a lead changed within the last year.
+6. `retention_runs`: one row per batch (job `leads-anonymise`), a batch with nothing to do included; the error is `failed with code <SQLSTATE>[ on <constraint>]` and nothing else; a failure changes nothing else (a block that rolls back) and the batch answers `failed`. The dry run writes nothing, not even a run row, and runs as a read-only query (on the reader pool when it is set).
+7. Concurrency: the leads and customers are held `for update skip locked`, then their people, and each lead is checked again in a new statement; a lead a quote, order or new lead is being written for (a key lock) waits for the next night.
+8. Batches of 500 leads, oldest last change first, cursor `(updated_at, id)` to the microsecond; a run out of time leaves the rest to the next night, as the quote expiry does (no hand-over).
+9. Reconciliation buckets: `created` (committed and made a lead, customer or PIN office), `attached` (committed and linked to a customer, or made nothing new), `skipped`, `refused` (invalid, or the row a failed commit stopped at, `commit_failed`), `waiting` (pending or valid), `undone` (rolled back); each refused row counts once under its first finding, so the reasons add up to `refused`. No column added: every count is recoverable. No completion notice exists (`imports.job.committed` has no subscriber and no notification), so none was changed.
+10. Platform-only permission named `crm.retention.run`; the command `crm.lead.anonymise`.
+
+**For the owner or the CA**
+- Consent evidence files (a signed form or recording holds the person) are kept with the consent as proof of consent; whether they are deleted at anonymisation is for the CA.
+- Audit rows written before the anonymisation keep what they recorded (redacted values such as the last four digits, and the before and after of customer edits) for the eight years of BLUEPRINT §7.9; not touched.
+- Rows of import files that were refused or never became a lead keep what the file said indefinitely; outside M1.
+
+**Notes for the lead**
+- I edited `0131_m1_retention_rls.sql` after it ran on the slot database (the anonymiser now answers `{ leads, error }`): I replaced that one function by hand and updated its recorded hash, so the slot passes `assertAllApplied`; a fresh database applies the file as committed. A fresh-database apply is still to be shown.
+- DATABASE cites the migrations as 0130 and 0131; they move at the merge.
+- Left for after the check: the nightly worker and route (`/api/v1/workers/crm/anonymise`, QStash schedule `lead-anonymise-<environment>`, the dry run by body `{ "dryRun": true }`), the reconciliation section and CSV on the import job page, API and design "Built" records, PRD trace rows, TESTING, the cutover runbook, the parallel-run and UAT packs, and the journeys.
+
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
