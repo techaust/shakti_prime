@@ -166,6 +166,7 @@ const ACTIONS = {
   'crm.score_rule.set': 'scoreRulesSet',
   'crm.lead.rescore': 'leadRescore',
   'crm.lead.score_refresh': 'leadScoreRefresh',
+  'crm.lead.anonymise': 'leadAnonymise',
   'crm.duplicate.scan': 'duplicateScan',
   'crm.duplicate.dismiss': 'duplicateDismiss',
   'crm.duplicate.suggest': 'duplicateSuggest',
@@ -571,6 +572,8 @@ const FIELD_KINDS = [
   ['movedConsents', 'number'],
   ['movedActivities', 'number'],
   ['undoneAt', 'time'],
+  // Retention
+  ['anonymisedAt', 'time'],
   // Quotes
   ['quoteNo', 'text'],
   ['lineCount', 'number'],

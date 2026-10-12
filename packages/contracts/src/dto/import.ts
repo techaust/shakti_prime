@@ -147,3 +147,41 @@ export const ImportTemplateDto = z
   })
   .strict();
 export type ImportTemplateDto = z.infer<typeof ImportTemplateDto>;
+
+/** The rows of a job refused for one reason: each refused row counts once, under its first finding. */
+export const ImportRefusalCountDto = z
+  .object({ reason: ImportRowErrorCodeSchema, rows: Count })
+  .strict();
+export type ImportRefusalCountDto = z.infer<typeof ImportRefusalCountDto>;
+
+/**
+ * The reconciliation of one import job (IMP-01, IMP-02): every row of the file counted once, by
+ * what became of it, all read from what the import stored. `created` made a new record; `attached`
+ * was added to a record already there (a customer the number belongs to, a lead's repeat enquiry,
+ * an office of the PIN code list corrected); `skipped` repeated an earlier row of the file;
+ * `refused` could not be imported; `waiting` is checked but not added yet; `undone` was added and
+ * taken back by the job's rollback. The six add up to `rowsIn`, and `refusedByReason` to `refused`.
+ */
+export const ImportReconciliationDto = z
+  .object({
+    jobId: IdSchema,
+    entityId: EntityIdSchema,
+    kind: ImportKindSchema,
+    state: ImportJobStateSchema,
+    rowsIn: Count,
+    created: Count,
+    attached: Count,
+    skipped: Count,
+    refused: Count,
+    waiting: Count,
+    undone: Count,
+    refusedByReason: z.array(ImportRefusalCountDto),
+  })
+  .strict()
+  .refine(
+    (r) =>
+      r.created + r.attached + r.skipped + r.refused + r.waiting + r.undone === r.rowsIn &&
+      r.refusedByReason.reduce((sum, x) => sum + x.rows, 0) === r.refused,
+    { message: 'the counts do not add up to the rows of the file' },
+  );
+export type ImportReconciliationDto = z.infer<typeof ImportReconciliationDto>;

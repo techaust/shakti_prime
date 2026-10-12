@@ -98,6 +98,7 @@ import { recordDealerOutstanding, setDealerTerms } from '../commands/sales/deale
 import { setTarget } from '../commands/sales/set-target';
 import { createQuote } from '../commands/sales/create-quote';
 import { expireQuotes } from '../commands/sales/expire-quotes';
+import { anonymiseStaleLeads } from '../commands/crm/anonymise-stale-leads';
 import { releaseCredit } from '../commands/sales/release-credit';
 import { requoteQuote } from '../commands/sales/requote';
 import { sendQuote } from '../commands/sales/send-quote';
@@ -208,6 +209,7 @@ export const commands = {
   [requoteQuote.name]: requoteQuote,
   [withdrawQuote.name]: withdrawQuote,
   [expireQuotes.name]: expireQuotes,
+  [anonymiseStaleLeads.name]: anonymiseStaleLeads,
   [attachQuotePdf.name]: attachQuotePdf,
   [acceptQuote.name]: acceptQuote,
   [createSalesOrder.name]: createSalesOrder,

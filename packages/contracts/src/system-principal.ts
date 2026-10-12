@@ -41,5 +41,8 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // the people who could take it and gives it over through definers, nothing more. Unlike the
     // others it moves the customer relationship too (ADR 0020, the owner's decision of 09-10-2026).
     { key: 'crm.handover.run', scope: 'all' },
+    // The nightly anonymisation of unqualified leads idle for the retention period
+    // (`crm.lead.anonymise`): it finds and anonymises them through one definer, nothing more.
+    { key: 'crm.retention.run', scope: 'all' },
   ],
 };

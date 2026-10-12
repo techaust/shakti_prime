@@ -60,6 +60,11 @@ export const opportunities = pgTable(
     /** When `state` last changed; the reopen window of a lost lead counts from here. */
     stateChangedAt: timestamp('state_changed_at', { withTimezone: true }).notNull().defaultNow(),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    /**
+     * When the retention job removed the personal details of this unqualified lead and its
+     * customer (BLUEPRINT §7.9, `app.anonymise_stale_leads()`); the lead is archived with it.
+     */
+    anonymisedAt: timestamp('anonymised_at', { withTimezone: true }),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
@@ -109,6 +114,11 @@ export const opportunities = pgTable(
     // opportunities_keyset_idx (docs/04-architecture-appendix/lists.md, the score cases).
     index('opportunities_score_keyset_idx').on(t.score, t.id),
     // The notification scan: a company's open leads by age, for the first-contact limit.
+    // The retention job: a company's leads not yet anonymised and never won, oldest last change
+    // first (`app.anonymise_stale_leads()`).
+    index('opportunities_retention_idx')
+      .on(t.entityId, t.updatedAt, t.id)
+      .where(sql`${t.anonymisedAt} is null and ${t.state} <> 'won'`),
     index('opportunities_open_created_idx')
       .on(t.entityId, t.createdAt)
       .where(sql`${t.state} = 'open' and ${t.archivedAt} is null`),

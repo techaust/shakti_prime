@@ -47,6 +47,8 @@ export { sendQuote } from './commands/sales/send-quote';
 export { requoteQuote } from './commands/sales/requote';
 export { withdrawQuote } from './commands/sales/withdraw-quote';
 export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
+export { anonymiseStaleLeads, LEAD_RETENTION_BATCH } from './commands/crm/anonymise-stale-leads';
+export { countStaleLeads } from './queries/crm/stale-leads';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { acceptQuote } from './commands/sales/accept-quote';
 export { createSalesOrder } from './commands/sales/create-order';
@@ -137,6 +139,7 @@ export { checkAccountRow, companyNames, foldAccountRows } from './imports/accoun
 export { checkPinCodeRow, localityName } from './imports/pin-codes';
 export {
   getImportJob,
+  getImportReconciliation,
   listImportJobs,
   listImportRows,
   listImportTemplates,

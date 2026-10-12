@@ -1542,6 +1542,7 @@
       "scoreRulesSet": "Lead score rules changed",
       "leadRescore": "Lead scored again",
       "leadScoreRefresh": "Lead scores brought up to date overnight",
+      "leadAnonymise": "Personal details of an old lead removed overnight",
       "referralPartnerSet": "Referral code set",
       "commissionRuleSet": "Commission rule set",
       "fileRendered": "Document printed to a file",
@@ -1817,6 +1818,7 @@
       "confidence": "Match, out of 100",
       "duplicateReason": "Why it was put forward",
       "undoneAt": "Undone on",
+      "anonymisedAt": "Personal details removed on",
       "movedContacts": "Contacts moved",
       "movedSites": "Sites moved",
       "movedRelationships": "Companies moved",
@@ -3144,7 +3146,8 @@
       "sales_credit_write": "Enter dealer credit limits and outstanding",
       "sales_targets_write": "Set the targets of callers and teams",
       "notifications_send": "Send notices to the people who act on them",
-      "crm_handover_run": "Give a qualified lead to a Lead Converter"
+      "crm_handover_run": "Give a qualified lead to a Lead Converter",
+      "crm_retention_run": "Remove the personal details of old leads that never went ahead"
     },
     "empty": "There are no roles to show.",
     "locked": {

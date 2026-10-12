@@ -113,6 +113,33 @@ export const QuoteExpireWorkerResponse = z
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
 
 /**
+ * The nightly anonymisation of unqualified leads idle for the retention period
+ * (`crm.lead.anonymise`, BLUEPRINT §7.9), called by the QStash schedule
+ * `lead-anonymise-<environment>` with an empty body: every company in turn, each batch in its own
+ * transaction as `system:workers`. `dryRun` counts the leads it would anonymise and changes
+ * nothing (the cutover rehearsal). Leads a run leaves for want of time are anonymised the next
+ * night.
+ */
+export const LeadAnonymiseWorkerBody = z.object({ dryRun: z.boolean().optional() }).strict();
+export type LeadAnonymiseWorkerBody = z.infer<typeof LeadAnonymiseWorkerBody>;
+
+/**
+ * What one run did: the batches it ran, the leads it looked at, those it anonymised (or, in a dry
+ * run, would anonymise), the batches that failed and were recorded, and whether it finished.
+ */
+export const LeadAnonymiseWorkerResponse = z
+  .object({
+    dryRun: z.boolean(),
+    batches: Count,
+    examined: Count,
+    anonymised: Count,
+    failedBatches: Count,
+    done: z.boolean(),
+  })
+  .strict();
+export type LeadAnonymiseWorkerResponse = z.infer<typeof LeadAnonymiseWorkerResponse>;
+
+/**
  * The notification scan (`notifications.due.scan`, docs/03-roadmap-appendix/phase1.md §8.1), called by the QStash
  * schedule `notification-scan-<environment>` every five minutes with an empty body: every company
  * in turn, each batch in its own transaction as `system:workers`. A run out of time hands the rest
