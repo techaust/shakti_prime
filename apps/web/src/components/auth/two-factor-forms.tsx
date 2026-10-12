@@ -1,6 +1,5 @@
 'use client';
 
-import { colors } from '@shakti/tokens';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
@@ -194,9 +193,9 @@ export function EnrolForm() {
           alt={t('scanTitle')}
           width={220}
           height={220}
-          // A QR code scans only on a light background, whatever the theme (docs/08-design-system.md §7).
-          style={{ backgroundColor: colors.surface.light }}
-          className="self-start rounded-md p-2"
+          // A QR code scans only on a light background, whatever the theme (docs/08-design-system.md §7):
+          // the light theme's own surface, set by its class rather than the token generator (WEB-9).
+          className="theme-light bg-surface self-start rounded-md p-2"
         />
         <p className="text-text-muted text-sm">{t('secretLabel')}</p>
         {/* In groups of four, so it wraps and can be typed without losing the place (AUDIT L37). */}

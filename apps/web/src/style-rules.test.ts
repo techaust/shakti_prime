@@ -46,6 +46,14 @@ describe('web source rules', () => {
     }
   });
 
+  it('keeps the token generator out of the browser: a client component imports only its types (WEB-9)', () => {
+    const valueImport = /^import\s+(?!type\s)[^;]*from '@shakti\/tokens';/m;
+    const offenders = sources
+      .filter(({ text }) => /^'use client';/.test(text) && valueImport.test(text))
+      .map(({ name }) => name);
+    expect(offenders).toEqual([]);
+  });
+
   it('lists only exceptions that are still in use', () => {
     for (const exception of EXCEPTIONS) {
       const source = sources.find((s) => s.name === exception.name);
