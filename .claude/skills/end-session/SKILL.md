@@ -7,7 +7,7 @@ description: Close a lead session on Shakti Prime BOS, on the PC or in a cloud s
 
 **The lead session, on the PC or in the cloud:** it pushes and opens a pull request with `gh`. A builder or reviewer agent never runs this skill; it ends with its report or findings in the run file, committed and pushed ([hybrid §6](../../../docs/runbooks/hybrid.md#6-how-a-cloud-day-ends)).
 
-0. **Drafts:** hand the mechanical parts of steps 1, 2 and 4 (the status page's tables, the run files' list, the CHANGELOG lines, link fixes) to the `doc-clerk` agent with the facts it needs; check its draft line by line before committing, and write the summary line, Waiting on the owner and the follow-ups yourself.
+0. **Drafts:** hand the mechanical parts of steps 1, 2 and 5 (the status page's tables, the run files' list, the CHANGELOG lines, link fixes) to the `doc-clerk` agent with the facts it needs; check its draft line by line before committing, and write the summary line, Waiting on the owner and the follow-ups yourself.
 1. **STATUS:** replace the content of `docs/10-status.md` with the state now. Keep its sections (the dated summary line, Phase N with In progress, hosted environments, deferred gate items, waiting on the owner, open follow-ups). Never append to it, and never write status or history into `CLAUDE.md`.
    - Counts come from a run in this session (the security suite's three totals, the unit-test total); if none ran, keep the old counts with their date.
    - Migrations on `main` and on each hosted environment: the highest number in `packages/db/migrations` and the last migrate run per environment.
@@ -15,7 +15,8 @@ description: Close a lead session on Shakti Prime BOS, on the PC or in a cloud s
    - The run files' list: in `docs/runs/phase1/readme.md`, move each slice merged in the session from *Slices in flight* to *Merged* with its pull request number, and add each slice started in the session to *Slices in flight*; set the merged slice's own header to merged (#N) with next step none.
 2. **CHANGELOG:** one line per pull request merged in the session, newest first, under its phase and wave in `CHANGELOG.md`: `- **#N** (DD-MM-YYYY) what it built, in final words; migrations if any`.
 3. **DECISIONS:** a row for every decision the owner took in the session that is not there yet.
-4. **Links:** `python3 tools/integration/check-doc-links.py` from the repository root (after `. tools/integration/lib.sh`, which maps `python3` to `python` where Git Bash has only that) prints `bad 0`.
-5. **Pull request:** branch `docs/status-<DD-MM>`, commit, push, open the pull request; the merge workflow merges it when CI passes (documents only: about two minutes).
-6. **Tell the owner** in a few plain lines: what was done, what was verified and how, what is waiting on them, and the next step.
-7. With slice agents still running on the PC or in the cloud, stop nothing without the owner's word; say which are still running.
+4. **Usage:** `python3 tools/integration/agent-usage.py --since <the session's first reading> --week-delta <points the week moved>` ([models-and-usage §7](../../../docs/runbooks/models-and-usage.md#7-measuring)). Check every row's model and effort against its setting in models-and-usage §3 and the lead's against the day's; record a run off its setting in its run file, and each run's share of the week in its Usage line; tell the owner of any run off its setting or over its limit.
+5. **Links:** `python3 tools/integration/check-doc-links.py` from the repository root (after `. tools/integration/lib.sh`, which maps `python3` to `python` where Git Bash has only that) prints `bad 0`.
+6. **Pull request:** branch `docs/status-<DD-MM>`, commit, push, open the pull request; the merge workflow merges it when CI passes (documents only: about two minutes).
+7. **Tell the owner** in a few plain lines: what was done, what was verified and how, what is waiting on them, and the next step.
+8. With slice agents still running on the PC or in the cloud, stop nothing without the owner's word; say which are still running.

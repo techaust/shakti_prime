@@ -116,7 +116,7 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 
 | Where | Use it for |
 |---|---|
-| `tools/integration/` | The scripts those runbooks use: worktree set-up, the heavy-command lock, the integration run, the merge helpers, the migration renumbering, the cloud setup and the document link check (`check-doc-links.py`). |
+| `tools/integration/` | The scripts those runbooks use: worktree set-up, the heavy-command lock, the integration run, the merge helpers, the migration renumbering, the cloud setup, the document link check (`check-doc-links.py`) and the usage count per agent (`agent-usage.py`). |
 | Skills in `.claude/skills/` | [start-session](.claude/skills/start-session/SKILL.md) and [end-session](.claude/skills/end-session/SKILL.md) (a session's start and close), [integrate-slice](.claude/skills/integrate-slice/SKILL.md) and [migrate-hosted](.claude/skills/migrate-hosted/SKILL.md) (a slice onto `main` and the hosted environments), [add-command](.claude/skills/add-command/SKILL.md) and [add-table](.claude/skills/add-table/SKILL.md) (the two recipes' checklists). |
 | Agents in `.claude/agents/` | [slice-builder](.claude/agents/slice-builder.md) (builds a slice from its run file) and [slice-reviewer](.claude/agents/slice-reviewer.md) (reviews a slice before it merges); on Haiku, [Explore](.claude/agents/explore.md) (in place of the built-in one), [test-runner](.claude/agents/test-runner.md) and [doc-clerk](.claude/agents/doc-clerk.md) for the lead's searches, suites and document drafts ([models-and-usage](docs/runbooks/models-and-usage.md)). |
 
