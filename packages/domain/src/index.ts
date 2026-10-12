@@ -514,6 +514,7 @@ export {
   rejectInboxItem,
 } from './commands/agents/inbox';
 export { routeEnquiry } from './commands/crm/route-enquiry';
+export { takeEnquiry } from './commands/crm/take-enquiry';
 export { notifyEvent, recordPush, scanNotices } from './commands/notifications/notify';
 export {
   markAllNoticesRead,

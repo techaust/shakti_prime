@@ -16,13 +16,14 @@ import {
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { databaseAuditSink as audit } from '../../src/audit/sink';
+import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { completeInboxItem } from '../../src/commands/agents/inbox';
 import { assignOpportunity } from '../../src/commands/crm/assign-opportunity';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { routeEnquiry } from '../../src/commands/crm/route-enquiry';
+import { takeEnquiry } from '../../src/commands/crm/take-enquiry';
 import { notifyEvent, recordPush, scanNotices } from '../../src/commands/notifications/notify';
 import {
   markAllNoticesRead,
@@ -770,6 +771,52 @@ describe('an enquiry for a colleague’s customer (crm.enquiry.route, RPT-04 cri
       existingAccountId: lead.account.id,
     });
     expect(routed).toMatchObject({ colleagueName: 'Asha Caller', segment: 'residential_rooftop' });
+  });
+});
+
+describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
+  const enquiry = (number: string, entityId = 1) => ({
+    entityId,
+    pipelineKey: 'farmer_pumps',
+    contact: { name: `Notice customer ${RUN}`, phone: number },
+    account: { type: 'farm' },
+    site: { type: 'borewell', village: 'Notice village', pin: '422001' },
+  });
+
+  it('is refused to a role without lead rights and outside the request', async () => {
+    const hr = await createTestPrincipal('hr_admin', [1]);
+    await expect(run(hr, takeEnquiry, enquiry(phone()))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(callerB, takeEnquiry, enquiry(phone(), 2))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
+  it('adds the lead when no colleague looks after the customer', async () => {
+    const taken = await run<{ outcome: string; id: string }>(callerB, takeEnquiry, enquiry(phone()));
+    expect(taken).toMatchObject({ outcome: 'created' });
+  });
+
+  it("passes a colleague's customer to them in one change, with no refused lead left or logged", async () => {
+    const number = phone();
+    const lead = await newLead(callerA, 'farmer_pumps', number);
+    const recorded = memoryAuditSink();
+    const routed = await asPrincipal(callerB, (context) =>
+      runCommand(takeEnquiry, { context, audit: recorded, outbox }, enquiry(number)),
+    );
+    expect(routed).toMatchObject({ outcome: 'routed', colleagueName: 'Asha Caller' });
+    // The attempt's lead and its records went with its savepoint: only the routing is recorded,
+    // and nothing reads as a failed lead.
+    const commands = recorded.records.map((r) => [r.command, r.outcome]);
+    expect(commands).toContainEqual(['crm.enquiry.route', 'ok']);
+    expect(commands.filter(([command]) => command === 'crm.lead.create')).toEqual([]);
+    expect(recorded.records.every((r) => r.outcome === 'ok')).toBe(true);
+    const [leads] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from opportunities
+                                  where account_id = ${lead.account.id}`,
+    );
+    expect(leads?.n).toBe(1);
   });
 });
 

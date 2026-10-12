@@ -1585,6 +1585,7 @@
       "targetSet": "Target set for a caller or a team",
       "inboxComplete": "Passed-on enquiry marked done",
       "enquiryRoute": "Enquiry passed to the colleague who looks after the customer",
+      "enquiryTake": "Enquiry taken: a lead added, or passed to a colleague",
       "noticesSend": "Notices sent",
       "noticesScan": "Due calls, quotes about to lapse and late first calls looked for",
       "pushRecord": "Phone and computer alerts recorded",
