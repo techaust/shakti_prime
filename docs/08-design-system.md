@@ -45,15 +45,15 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 | `--surface-2` | One step from `--surface` toward the text | Table header, sidebar, inset areas |
 | `--surface-3` | Two steps from `--surface` toward the text | Hover rows, pressed states |
 | `--text` | The high-contrast end of the ladder | Primary text |
-| `--text-muted` | Ladder, AA on every surface | Secondary text, labels |
-| `--text-subtle` | Ladder, 4.5:1 on every surface (AA): less prominent than `--text-muted` in the standard themes, about the same as it in the high-contrast variants, where both reach 7:1 | Placeholders, helpers, metadata |
+| `--text-muted` | Ladder, AA on every surface, the hover grey (`--surface-3`) and `--accent-soft` included | Secondary text, labels |
+| `--text-subtle` | Ladder, 4.5:1 on `--bg`, `--surface` and `--surface-2` (AA; not on the hover grey, where hints use `--text-muted`): less prominent than `--text-muted` in the standard themes, about the same as it in the high-contrast variants, where both reach 7:1 | Placeholders, helpers, metadata |
 | `--border` | Ladder, one step from `--surface-2` | Default borders |
 | `--border-strong` | Ladder, 3:1 against `--surface` | Inputs, focused containers |
 | `--accent` | Accent | Buttons, active states, links on surfaces |
 | `--accent-hover` | Accent, one step darker in both themes, so the white label on it stays AA | Hover |
 | `--accent-text` | Accent, adjusted to AA on `--surface`, `--surface-2` and `--accent-soft` (lighter in dark) | Accent-coloured text |
 | `--accent-fg` | `#FFFFFF` in both themes (4.7:1 on `#5E6AD2`); in the dark high-contrast variant the lighter accent fill takes the page's near-black `#08090A`, because white on it would fall below the variant's 7:1 | Text on accent fills |
-| `--accent-soft` | Accent at low chroma, near the base | Accent tints, selected rows |
+| `--accent-soft` | Accent at low chroma, near the base, deep enough in dark for `--text-muted` on it to reach AA | Accent tints, selected rows |
 | `--focus` | Accent | Focus ring (2 px, offset 2 px) |
 
 ### 2.3 Status
