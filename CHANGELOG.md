@@ -11,6 +11,7 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#163** (12-10-2026) The Phase 1 status at 12-10-2026 (the models plan final, today's CI failures fixed), CHANGELOG lines for #149 to #162, and DECISIONS rows (the day's fixes under the owner's instruction, the PC's working folders kept).
 - **#157** (12-10-2026) The models and usage plan final for the whole project: the lead on Opus 5.5 at medium every day, at xhigh for a named task in a conversation of its own; Tier B builds stay on Opus 5.5; no trials, checkpoints or spending limits that step a setting down, the budget gate sets the pace; the pins stay on the 5.5 versions and only a retired model is replaced by its same-family successor; every phase's slices tiered by the same table; `CLAUDE.md`, both session skills, STATUS and a DECISIONS row.
 - **#156** (12-10-2026) The models plan measured: `tools/integration/agent-usage.py` counts each run's model, effort and tokens from the session's transcripts and shares out the week between runs that ran at once; `end-session` runs it and flags a run off its setting; the slice history in the runbook corrected from the run files and commits (S2 and K1 built on Opus 5.5, fixed on Sonnet 5.5 at medium).
 - **#155** (12-10-2026) Models and usage on Opus 5.5, Sonnet 5.5 and Haiku 5.5 only, Fable 5.1 not used: effort by one rule (medium to carry out, high for judgement, xhigh where a miss reaches production); Tier A built at high and reviewed at xhigh; agent files default to the Tier A settings; `code-finder` becomes the project's `Explore` agent on Haiku 5.5; the gate reads two bars with the Fable bar at 0 %. Replaces the plan of #154, closed unmerged.
@@ -51,6 +52,8 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 wave 5
 
+- **#165** (12-10-2026) Dependabot: the development group, 2 updates (`eslint-config-next` 16.4.0, `typescript-eslint` 8.71.1).
+- **#164** (12-10-2026) Dependabot: the production group, 14 updates, without Playwright.
 - **#162** (12-10-2026) Dependabot leaves `@playwright/test` and `playwright-core` alone: they move by hand, together with the Playwright image in `ci.yml` and `snap-in-linux.ts` and remade screenshot baselines (#158's group had not taken them out of the open group pull requests).
 - **#161** (12-10-2026) The printed quote's no-phone check looks for the whole number anywhere in the page and for its last five digits only in the text a reader sees, so five digits found by chance in styles or ids cannot fail it (CI on `main` after #151).
 - **#160** (12-10-2026) The AI provider ends a call when an attempt runs into its deadline, however the abort timer and the wall clock round: no 1 ms attempt after the deadline, and the error keeps its `ai_deadline_exceeded` reason; a test with the clock frozen.
