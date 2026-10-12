@@ -7,8 +7,8 @@
 | Runs on | cloud, beside M1 and the database follow-ups (owner, 12-10-2026: all pending Phase 0–1 work at once), heavy commands through the VM's lock |
 | Tier | B (tooling and tests, no schema): build Opus 5.5 medium, review Opus 5.5 high |
 | Usage | no reading posted at the start; the owner said to proceed (12-10-2026) |
-| State | built; report written (12-10-2026) |
-| Next step | lead: review, then the Linux baselines listed in the report |
+| State | integrating: every check passed; pull request opened (12-10-2026) |
+| Next step | merge on green |
 
 ## Brief
 Open follow-ups from [STATUS](../../10-status.md#open-follow-ups) on the scripts and on tests that fail by order or time. No migration, no product behaviour change.
@@ -99,3 +99,4 @@ Six commits, c1b3c832 to 122dcb4f. Skills: none of the repository's skills cover
 
 ## Integration notes
 - Screenshot baselines that lose the converting item are remade in the Linux image at the integration.
+- 12-10-2026, lead: `main` was already in the branch (no merge, no migrations). `integrate.sh` in five parts on 54340: install, lint, copy lint, generated, typecheck, security, `db:verify`, audit, build, `js-budget` and gitleaks passed; format failed on the lead's review fix (fixed by Prettier); unit failed only on `mask-pdf-pages.test.ts`'s timing case under the load of three builders, which then passed 3 of 3 alone (the known follow-up); the journeys on the host failed only on screenshots, which do not count off the Linux image. On a fresh 54333: the six baselines of catalogue and price master in three projects deleted and written by `e2e:snap -- --update-snapshots=missing` (looked at: the converting item is gone), then `e2e:snap` without updating: 391 passed, 1 flaky (`pipelines.spec.ts` "lists the referral partners…", passed on retry), 14 skipped.
