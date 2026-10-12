@@ -452,6 +452,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.quote_search_ids(text,integer)',
       // The catalogue and GST rates screens ask it before they offer a change (0072).
       'app.request_covers_group()',
+      // The retention job's dry run counts a company's stale leads on the reader pool, as the
+      // worker (lead-anonymise.test.ts); the anonymisation itself is app_user's alone.
+      'app.stale_leads(smallint,integer,timestamp with time zone,uuid,integer)',
       // The sweep of abandoned uploads asks which companies to visit, as the worker
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',
