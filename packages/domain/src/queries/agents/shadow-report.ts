@@ -93,7 +93,11 @@ export function shadowedSql(
     select a.created_at::text as t, a.id, a.action_type, a.created_at, a.input_json as input,
            (a.input_json ->> 'opportunityId')::uuid as opportunity_id,
            o.account_id, acc.name as customer_name, p.key as pipeline_key, p.name as pipeline_name,
-           proposed_pipeline.name as proposed_pipeline_name, o.score,
+           -- The proposed pipeline's name, by its unique key, outside the joins the planner orders.
+           (select pp.name from pipelines pp
+             where a.action_type = ${pipeline} and pp.key = a.input_json ->> 'pipelineKey'
+               and (pp.entity_id is null or pp.entity_id = a.entity_id)) as proposed_pipeline_name,
+           o.score,
            o.state as lead_state,
            case when o.id is null then null
                 else o.state = 'won' or (o.state = 'open' and st.position >= q.position) end
@@ -131,9 +135,6 @@ export function shadowedSql(
       left join opportunities o
         on o.id = (a.input_json ->> 'opportunityId')::uuid and o.entity_id = a.entity_id
       left join pipelines p on p.id = o.pipeline_id
-      left join pipelines proposed_pipeline
-        on a.action_type = ${pipeline} and proposed_pipeline.key = a.input_json ->> 'pipelineKey'
-       and (proposed_pipeline.entity_id is null or proposed_pipeline.entity_id = a.entity_id)
       left join pipeline_stages st on st.id = o.stage_id
       left join lateral (
         select q.position from pipeline_stages q
