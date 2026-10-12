@@ -13,12 +13,6 @@ updates:
       timezone: Asia/Kolkata
     open-pull-requests-limit: 5
     groups:
-      # The test runner and its browser core move together: `@playwright/test` (development) and
-      # `playwright-core` (production) at different versions give two `Page` types and fail the
-      # typecheck. A dependency joins the first group it matches, so this one comes first.
-      playwright:
-        patterns: ['@playwright/test', 'playwright-core', 'playwright']
-        update-types: [minor, patch]
       production:
         dependency-type: production
         update-types: [minor, patch]
@@ -26,6 +20,12 @@ updates:
         dependency-type: development
         update-types: [minor, patch]
     ignore:
+      # Playwright moves only by hand: `@playwright/test` and `playwright-core` together, with the
+      # Playwright image in .github/workflows/ci.yml and apps/web/e2e/setup/snap-in-linux.ts and the
+      # screenshot baselines remade. A bump of one package alone fails the typecheck (two `Page`
+      # types), and a bump of both still runs in the old image.
+      - dependency-name: '@playwright/test'
+      - dependency-name: playwright-core
       - dependency-name: typescript
         update-types: [version-update:semver-major]
       - dependency-name: eslint
