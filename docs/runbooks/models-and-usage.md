@@ -42,7 +42,7 @@ The lead passes the model and effort for the slice's tier when it starts the age
 | Check the fix diff | the lead | the lead | the lead |
 | Re-check the fix diff (`slice-reviewer`), only when the review found a critical or high finding | the review's model | the review's model | the review's model |
 
-A Tier A review is on the strongest model because one missed finding in money, tax, row-level security or an agent principal is a production defect; it costs about 2 % of the week. A Tier B review on Opus 5.5 at high found S2's and N1's defects for under 1 %. Builds stay on Opus 5.5 for Tiers A and B (the 09-10-2026 decision), with the one measured lever of §7.
+A Tier A review is on the strongest model because one missed finding in money, tax, row-level security or an agent principal is a production defect; it costs about 2 % of the week. Reviews on Opus 5.5 found S2's defects at high and N1's at medium for under 1 % each. Builds stay on Opus 5.5 for Tiers A and B (the 09-10-2026 decision), with the one measured lever of §7.
 
 ### How many at once
 At most two builders on a PC day (8 GB, every heavy command through the lock) and three on a cloud day (a 16 GB VM).
@@ -98,14 +98,14 @@ From the run files' Usage lines, as a share of the week:
 
 | Work | Cost | Recorded in |
 |---|---|---|
-| A Tier B build, Sonnet 5.5 at medium | 6 % | R1, 75 to 81 |
-| Five Sonnet fix rounds on one slice | 5 % | K1, 70 to 75 |
-| A review, Opus 5.5 at high | under 1 % | S2, 68 to 68 |
-| Two reviews and two re-checks on Fable 5.1 | about 5 % (the Fable bar 0 to 10) | A1 and L1, 10-10-2026 |
+| A Tier B build on Sonnet 5.5 at medium with its review on Opus 5.5 | 6 % | R1, 75 at the build's start to 81 at the fixes' start |
+| A slice's fix rounds, merge with `main`, re-check fixes and integration, after its build | 5 % | K1, 70 to 75 |
+| A review, Opus 5.5 at high or medium | under 1 % | S2 (high), 68 to 68; N1 (medium), 69 to 69 |
+| A1's and L1's reviews and re-checks on Fable 5.1 | about 5 % of the week (the Fable bar 0 to 10) | 10-10-2026 |
 | The lead's integration of one slice | 1 % | S2, N1, K1 |
-| Three builds and a fix slice in one cloud day | 13 % | 10-10-2026, 86 to 99 |
+| A cloud day: A1, L1 and the journey fixes built by three agents, reviewed on Fable 5.1, integrated, with the day's documents | 13 % | 10-10-2026, 86 during the builds to 99 |
 
-A slice is 10 to 12 % of the week end to end, so a week holds about six slices with the lead's work, the documents and the hosted steps.
+A slice built on Sonnet 5.5 with one fix round is about 9 % of the week (R1, 75 to 82 plus its integration); a slice with several fix rounds reaches about 20 % (S2, N1 and K1 with their fix rounds, the documents and the lead took the week of 06-10-2026 to 67 % in two days). A week holds four to six slices with the lead's work, the documents and the hosted steps.
 
 ### How it is measured
 1. Each agent run records the three bars at its start and end, and its model, in the run file's Usage line (`build Opus 20→26, fable 0→0`).
