@@ -2,11 +2,13 @@
 
 Which Claude model and effort level each task runs on, the budget gate the lead session checks before starting any agent, and how usage is measured. The owner approved this plan on 12-10-2026 ([DECISIONS](../11-decisions.md)).
 
-**At a glance.** Opus 5.5 builds and checks, Sonnet 5.5 builds screens, Haiku 5.5 searches, runs suites and drafts documents; Fable 5.1 is not used. Effort is medium to carry out, high for judgement, xhigh where a miss reaches production. The lead names the day's model in its opening paragraph, so the owner only follows it. Before any agent, the lead reads the gate (§5); after the session, `tools/integration/agent-usage.py` shows what each run cost and whether it ran at its setting (§7).
+**At a glance.** Opus 5.5 runs the lead session, builds and checks; Sonnet 5.5 builds screens; Haiku 5.5 searches, runs suites and drafts documents; Fable 5.1 is not used. Effort is medium to carry out, high for judgement, xhigh where a miss reaches production. Before any agent, the lead reads the gate (§5); after the session, `tools/integration/agent-usage.py` shows what each run cost and whether it ran at its setting (§7).
+
+**The plan is final for the whole project** (12-10-2026). Its models, efforts, tiers and gate do not change in any phase. What a slice costs changes only how many slices a week holds, which the gate decides; a model or an effort never moves to save usage, so quality stays where this plan sets it.
 
 ## 1. Principles
 - The plan is Claude Max 5x: one weekly allowance shared by every model, reset each Monday at 10:00 UTC (15:30 IST), and a 5-hour window. Extra usage stays off; only the owner switches it on.
-- Three models do all the work: Opus 5.5, Sonnet 5.5 and Haiku 5.5, each pinned by its id (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`) in the agent files. Fable 5.1 is not used. At the start of a session the lead says when a newer version exists, and the owner decides whether to move the pins.
+- Three models do all the work: Opus 5.5, Sonnet 5.5 and Haiku 5.5, each pinned by its id (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`) in the agent files. Fable 5.1 is not used. The pins stay on these versions for the whole project; only when Anthropic retires one does its successor in the same family take its place, at the same effort, and the lead tells the owner.
 - The cheapest model and effort that get a task right the first time run it. Rework and test re-runs cost more than any model choice (§7), so the brief carries the review's checklist and builders test their own screens before they report.
 - Effort follows one rule:
 
@@ -21,7 +23,7 @@ Which Claude model and effort level each task runs on, the budget gate the lead 
 - A session runs entirely on the PC or entirely in a cloud session, as the owner chooses that day; the models and the gate are the same in both places.
 
 ## 2. Slice tiers
-The lead sets the tier when it writes the brief, and the run file's header records it.
+The lead sets the tier when it writes the brief, and the run file's header records it. A slice takes the highest tier of anything it holds. Every phase's slices are tiered by this table: for example the Tally connector, payments and stock (A), the voice agent and the WhatsApp Concierge as agent principals (A), the field app's offline writes and their sync (B), and the field app's screens over existing commands (C).
 
 | Tier | What puts a slice in it | Phase 1 slices |
 |---|---|---|
@@ -32,15 +34,12 @@ The lead sets the tier when it writes the brief, and the run file's header recor
 ## 3. Who runs what
 
 ### The lead session
-The owner sets the lead's model and effort in the app when a conversation starts, on the PC or in the cloud. Each named task runs in a conversation of its own, since a model switch in the middle of a conversation reads its whole context again; the lead says when a task calls for one.
+The owner sets Opus 5.5 at medium in the app for every lead conversation, on the PC or in the cloud. A named task runs at xhigh in a conversation of its own, which the lead asks for; a change of effort in the middle of a conversation reads its whole context again.
 
 | Day or task | Model and effort |
 |---|---|
-| A build day: Tier B and C briefs, starting agents, Tier B early checks, fix diffs, routine integration, pull requests | Opus 5.5, medium |
-| An operations day: merging, `migrate-hosted`, documents, a start or end of day with no agent | Sonnet 5.5, medium |
+| Every day: starting and ending the day, Tier B and C briefs, starting agents, Tier B early checks, fix diffs, integration, pull requests, merging, `migrate-hosted`, documents | Opus 5.5, medium |
 | A named task: a Tier A brief or early check; taking `main` into a slice whose migrations move or redefine a function, check constraint or foreign key; an unexplained failure; designing a phase or wave | Opus 5.5, xhigh |
-
-On an operations day, a failed check, a merge conflict or an error from a hosted step is an unexplained failure: the Sonnet conversation stops and hands it, with a short note, to a new Opus 5.5 conversation at xhigh.
 
 ### Agents per slice
 The lead passes the model and effort for the slice's tier when it starts the agent. The agent files hold the Tier A settings as defaults: `slice-builder` Opus 5.5 at high, `slice-reviewer` Opus 5.5 at xhigh.
@@ -55,7 +54,7 @@ The lead passes the model and effort for the slice's tier when it starts the age
 | Check the fix diff | the lead | the lead | the lead |
 | Re-check the fix diff (`slice-reviewer`), only when the review found a critical or high finding | the review's model and effort | the review's model and effort | the review's model and effort |
 
-A Tier A slice builds at high and is reviewed at xhigh because one missed finding in money, tax, row-level security, an agent principal or deleted data is a production defect, and a fix round costs more than the extra effort. Reviews on Opus 5.5 found S2's defects at high and N1's at medium for under 1 % of the week each.
+A Tier A slice builds at high and is reviewed at xhigh because one missed finding in money, tax, row-level security, an agent principal or deleted data is a production defect, and a fix round costs more than the extra effort. Reviews on Opus 5.5 found S2's defects at high and N1's at medium for under 1 % of the week each. Tier B stays on Opus 5.5 for its builds: a Sonnet build saves little against a fix round on state machines, permissions or workers.
 
 ### Built-in agents
 The built-in `Plan` and `general-purpose` agents run on the lead's own model, so the lead does not use them: it plans in its own conversation and gives building to `slice-builder`. The built-in `Explore` agent is replaced by the project's `Explore` agent on Haiku (below).
@@ -129,21 +128,6 @@ What the reviews found: S2 and K1, built on Opus 5.5 and finished or fixed on So
 
 ### How it is measured
 1. Each agent run records its model and effort and the two bars at its start and end in the run file's Usage line (`build Opus high 20→27, 5h 10→48`).
-2. `python3 tools/integration/agent-usage.py` (from the repository root, after `. tools/integration/lib.sh`) reads the session's own transcripts and prints, for the lead and each agent it started, the model and effort of every request and its tokens, counted per request. Agents that ran at the same time are told apart: `--since` and `--until` take the time the bars were read, and `--week-delta <points>` shares out what the week's bar moved by, weighted by each row's cost at the API's list prices. The end of each session runs it ([end-session](../../.claude/skills/end-session/SKILL.md)); a cloud session keeps its transcripts in the VM, and its first run there confirms the script finds them.
-3. A run whose model or effort differs from its setting in §3 is recorded in its run file and told to the owner, with the reason.
-4. M1 calibrates the shares: its build and its review each run with no other agent at the same time, so the week's bar movement belongs to that run and the lead, whose rows the script prints apart; the bar's points per API dollar over those rows check the script's weights, and the lead records them here.
-5. M1 is the first Tier A slice built at high and reviewed at xhigh; its cost and its review's findings are compared with A1's (built at medium, 1 high finding; A1's review ran on Fable 5.1 at high, so the two are compared by their high and critical findings only).
-6. Phase 2's first Tier B slice is a measured trial of a build on Sonnet 5.5 at high; Tier B builds move to Sonnet only when that slice's fix round is no larger than an Opus-built slice's.
-7. The first operations day on Sonnet 5.5 is a trial: the lead records anything an Opus conversation had to redo; one redo, and operations days return to Opus 5.5 at medium.
-8. After M1 and G1, the lead compares the week against the tables above and proposes at most two changes; each becomes a DECISIONS row.
-
-### Limits that correct the plan
-A run that costs more than its limit runs one effort step lower in the next slice of its tier, and the lead tells the owner. A slice over its limit steps down the run that cost it the most, by the script's shares. A review steps down only when it found no critical or high finding; one that found one keeps its effort.
-
-| Work | Limit, in points of the week |
-|---|---|
-| A Tier A build on Opus 5.5 at high, to its report | 9 |
-| A review on Opus 5.5 at xhigh, with its re-check | 2 |
-| A Tier A slice from its brief to its merge | 15 |
-| A Tier B slice from its brief to its merge | 12 |
-| A Tier C slice from its brief to its merge | 8 |
+2. `python3 tools/integration/agent-usage.py` (from the repository root, after `. tools/integration/lib.sh`) reads the session's own transcripts and prints, for the lead and each agent it started, the model and effort of every request and its tokens, counted per request. Agents that ran at the same time are told apart: `--since` and `--until` take the time the bars were read, and `--week-delta <points>` shares out what the week's bar moved by, weighted by each row's cost at the API's list prices. The end of each session runs it ([end-session](../../.claude/skills/end-session/SKILL.md)); a cloud session keeps its transcripts in the VM, and where the script finds none there, the bars in the Usage lines are the record.
+3. A run whose model or effort differs from its setting in §3 is recorded in its run file and told to the owner, and the next run goes back to its setting.
+4. What a run costs is a record: it decides how many slices the gate lets a week hold, never a model or an effort.
