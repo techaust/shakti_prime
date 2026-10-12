@@ -20,7 +20,7 @@ When the slice merges, its file stays on `main` as the record of the run, with t
 | PC worktree | `<slug>`, slot <n>: Postgres <port>, app <port> |
 | Runs on | PC or cloud, as the owner chose for the day |
 | Tier | A, B or C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
-| Usage | weekly % at each agent run's start and end, for example `build 67→72, review 72→75` |
+| Usage | the week's % and the Fable bar's % at each agent run's start and end, with the model, for example `build Opus 20→26, fable 0→0; review Fable 26→27, fable 0→4` |
 | State | brief / building / built / reviewed / fixed / integrating / merged (#N) |
 | Next step | one line |
 
