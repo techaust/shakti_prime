@@ -58,7 +58,7 @@ What the setup has to work around:
 - The Node download from nodejs.org, the Docker daemon and the Postgres and Playwright image pulls work.
 - The image's `PLAYWRIGHT_BROWSERS_PATH` holds an older Chromium than `@playwright/test` runs, so `ensure_playwright_browsers` copies the builds from the Playwright image.
 - The proxy refuses `ghcr.io`'s blob host and Docker Hub sometimes answers 429, so `ensure_gitleaks_image` takes the same gitleaks release from Docker Hub and is retried after a minute when it fails.
-- When turbo stops every task with "Exec format error", pnpm's self-install was cut short and left its placeholder in `~/.local/share/pnpm/.tools/pnpm/<version>_tmp_*/node_modules/pnpm/pnpm`; run `node install.js` in that folder (it links the native binary already downloaded beside it, nothing new) and check `pnpm exec turbo run typecheck --filter=@shakti/tokens` (10-10-2026).
+- When pnpm's self-install is cut short it leaves its placeholder in `~/.local/share/pnpm/.tools/pnpm/<version>*/node_modules/pnpm/pnpm`, and turbo stops every task with "Exec format error"; the session hook runs `node install.js` in that folder (`repair_pnpm_self_install` in `lib.sh`; it links the native binary already downloaded beside it, nothing new) and checks `pnpm exec turbo run typecheck --filter=@shakti/tokens`. In a running session, `. tools/integration/lib.sh && repair_pnpm_self_install` does the same.
 - A branch made before `lib.sh` put `/usr/local/bin` first in `PATH` takes `main` first; otherwise pnpm must be installed with npm.
 
 ## 3. The cloud environment, once

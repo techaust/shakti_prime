@@ -20,6 +20,29 @@ if ! python3 -c '' >/dev/null 2>&1 && command -v python >/dev/null 2>&1; then
   python3() { python "$@"; }
 fi
 
+# repair_pnpm_self_install: pnpm's switch to the version of package.json installs it under
+# ~/.local/share/pnpm/.tools/pnpm/<version> (first as <version>_tmp_*), and its last step replaces
+# the shebang-less placeholder file node_modules/pnpm/pnpm with the native binary downloaded beside
+# it. When that step is cut short the placeholder stays, and turbo, which starts pnpm without a
+# shell, stops every task with "Exec format error". Runs pnpm's own install.js in each folder still
+# holding the placeholder (it links the binary already there, nothing is downloaded) and prints
+# the folders it repaired; returns 1 when one could not be repaired.
+repair_pnpm_self_install() {
+  local root="${PNPM_HOME:-$HOME/.local/share/pnpm}/.tools/pnpm" dir status=0
+  [ -d "$root" ] || return 0
+  for dir in "$root"/*/node_modules/pnpm; do
+    [ -f "$dir/pnpm" ] && [ -f "$dir/install.js" ] || continue
+    head -c 40 "$dir/pnpm" | grep -q "^# pnpm's native binary" || continue
+    if (cd "$dir" && node install.js >/dev/null 2>&1) && ! head -c 40 "$dir/pnpm" | grep -q "^# pnpm's native binary"; then
+      echo "$dir"
+    else
+      echo "could not repair $dir" >&2
+      status=1
+    fi
+  done
+  return "$status"
+}
+
 # The main checkout (the parent of the shared .git), from any worktree of it.
 main_checkout() { dirname "$(git rev-parse --path-format=absolute --git-common-dir)"; }
 
