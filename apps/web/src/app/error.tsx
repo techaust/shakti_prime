@@ -7,14 +7,19 @@ import { referenceFromDigest } from '../reference';
 
 /**
  * Any screen that fails unexpectedly (AUDIT M38): the plain sentence, the reference support can
- * look up (logged by `onRequestError` from the same digest), a retry and a way home.
+ * look up (logged by `onRequestError` from the same digest), a retry and a way home. The retry
+ * reads the screen afresh from the server (`retry`), since `reset` alone renders the same failed
+ * answer again and cannot recover once an outage has ended.
  */
 export default function ErrorScreen({
   error,
   reset,
+  retry,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
+  /** Reads the screen again from the server, then clears the error (Next.js 16). */
+  retry?: () => void;
 }) {
   const t = useTranslations('errorPage');
   const app = useTranslations('app');
@@ -30,7 +35,7 @@ export default function ErrorScreen({
         )}
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={reset}>
+        <Button type="button" onClick={retry ?? reset}>
           {t('retry')}
         </Button>
         <Link
