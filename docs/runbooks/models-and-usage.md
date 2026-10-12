@@ -41,7 +41,6 @@ The owner sets Opus 5.5 at medium in the app for every lead conversation, on the
 | Every day: starting and ending the day, Tier B and C briefs, starting agents, Tier B early checks, fix diffs, integration, pull requests, merging, `migrate-hosted`, documents | Opus 5.5, medium |
 | A named task: a Tier A brief or early check; taking `main` into a slice whose migrations move or redefine a function, check constraint or foreign key; an unexplained failure; designing a phase or wave | Opus 5.5, xhigh |
 
-
 ### Agents per slice
 The lead passes the model and effort for the slice's tier when it starts the agent. The agent files hold the Tier A settings as defaults: `slice-builder` Opus 5.5 at high, `slice-reviewer` Opus 5.5 at xhigh.
 
