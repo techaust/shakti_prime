@@ -535,7 +535,7 @@ Key columns only; every table also has the standard columns from §2. Every colu
 
 ## 7. Partitioning, indexes, retention
 - **Monthly partitions:** `activities` and `audit_logs` (built); `whatsapp_messages` (Phase 2).
-  - `audit_logs`: the pg_cron job `audit-logs-partitions` runs `app.ensure_audit_partitions(3)` on the 25th of each month at 03:00 UTC, making the current month's partition and the next three.
+  - `audit_logs`: the pg_cron job `audit-logs-partitions` runs `app.ensure_audit_partitions(3)` every day at 03:00 UTC, making the current month's partition and the next three, each month apart, so a month that fails leaves the later ones made and is tried again the next day; it records each run in `retention_runs` with the partitions made and the months that failed.
   - `activities`: its partitions live in the schema `crm_partitions` with a default partition; the job `activities-partitions` runs `app.ensure_activity_partitions(3)` on the 25th at 03:05 UTC, making each month apart, so a month that fails leaves the later ones made, and records each run in `retention_runs` with the partitions made and the months that failed. Its partitions are kept until a retention job of their own exists.
   - Audit archive: the job `audit-logs-detach` runs `call app.detach_audit_partitions()` on the 1st of each month at 03:30 UTC and detaches every monthly partition whose month ended more than eight years ago (BLUEPRINT §7.9) into the schema `audit_archive`, which no request role may use, logging the run and the number of partitions in `retention_runs` (0062).
 - **Indexes:**
