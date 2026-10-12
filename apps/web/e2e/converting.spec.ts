@@ -110,6 +110,7 @@ test.describe('converting as a Lead Converter', () => {
     await expectNoAxeViolations(page);
     await snap(page, 'converting-board', {
       mask: [page.getByRole('region', { name: 'Recent activity' })],
+      fixedTimes: true,
     });
 
     // The sizing: S opens it on the rooftop tab; the figures are typed and Enter saves.
@@ -152,6 +153,7 @@ test.describe('converting as a Lead Converter', () => {
     await expectNoAxeViolations(page);
     await snap(page, 'converting-quote', {
       mask: [page.getByRole('region', { name: 'Recent activity' })],
+      fixedTimes: true,
     });
 
     // The call, last, since the hour of the day decides what it does: D shows the number and C sets
