@@ -10,14 +10,15 @@ export function converterKey(project: ProjectName): string {
   return `converting-${project}`;
 }
 
-/** The price tier, item and price the converter's quotes are made from: test values for the journeys alone. */
-export const CONVERTING_TIER = 'Converting prices';
+/**
+ * The item the converter's quote is made from: the quote journeys' module on their tier, whose
+ * company 2 price list (`e2e/setup/quotes.ts`) prices it at ₹12,000 with 12% GST, test values for
+ * the journeys alone. Reusing it keeps a catalogue item of this journey's own out of the catalogue,
+ * GST rates and price list screenshots.
+ */
 export const CONVERTING_ITEM = {
-  sku: 'CNV-MOD-540',
-  name: 'Converting solar module 540 Wp',
-  price: '12000.00',
   /** The option the quote form shows for it. */
-  option: 'Converting solar module 540 Wp (CNV-MOD-540), ₹12,000.00',
+  option: 'Solar module 540 Wp (JRN-MOD-540), ₹12,000.00',
 } as const;
 
 /**
