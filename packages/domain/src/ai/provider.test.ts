@@ -1,5 +1,5 @@
 import { DomainError } from '@shakti/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { memoryKeyValue } from '../ports/key-value';
 import { memoryLogger } from '../ports/logger';
 import { costInPaise, DEFAULT_CLAUDE_MODEL, maxCostInPaise, PAISE_PER_USD } from './models';
@@ -117,6 +117,25 @@ describe('createAiProvider', () => {
     expect(transport.requests).toHaveLength(1);
     expect(await keyValue.get(spendKey('agent:copilot', 1, istDay(NOW)))).toBe('0');
     expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
+  });
+
+  it('ends the call when an attempt runs into the deadline, even when the clock reads short of it', async () => {
+    // The clock stands still, so it never shows the deadline as passed: only the attempt's own
+    // timeout, set to the time left, can end the call. Before, a clock a millisecond behind the
+    // abort timer started another attempt (the test above failed that way under load).
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(NOW.getTime());
+    try {
+      const { provider, transport } = setup(['hang', 'hang', 'hang']);
+      await expect(
+        provider.complete(call({ timeoutMs: 5_000, totalTimeoutMs: 60 })),
+      ).rejects.toMatchObject({
+        code: 'integration_unavailable',
+        details: { reason: 'ai_deadline_exceeded' },
+      });
+      expect(transport.requests).toHaveLength(1);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it('does not retry a refused request', async () => {
