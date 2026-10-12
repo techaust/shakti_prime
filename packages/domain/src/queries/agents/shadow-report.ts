@@ -55,6 +55,8 @@ interface Row {
   account_id: string | null;
   customer_name: string | null;
   pipeline_key: string | null;
+  pipeline_name: string | null;
+  proposed_pipeline_name: string | null;
   score: number | null;
   lead_state: 'open' | 'nurture' | 'won' | 'lost' | null;
   reached_qualified: boolean | null;
@@ -90,7 +92,8 @@ export function shadowedSql(
   return sql`
     select a.created_at::text as t, a.id, a.action_type, a.created_at, a.input_json as input,
            (a.input_json ->> 'opportunityId')::uuid as opportunity_id,
-           o.account_id, acc.name as customer_name, p.key as pipeline_key, o.score,
+           o.account_id, acc.name as customer_name, p.key as pipeline_key, p.name as pipeline_name,
+           proposed_pipeline.name as proposed_pipeline_name, o.score,
            o.state as lead_state,
            case when o.id is null then null
                 else o.state = 'won' or (o.state = 'open' and st.position >= q.position) end
@@ -128,6 +131,9 @@ export function shadowedSql(
       left join opportunities o
         on o.id = (a.input_json ->> 'opportunityId')::uuid and o.entity_id = a.entity_id
       left join pipelines p on p.id = o.pipeline_id
+      left join pipelines proposed_pipeline
+        on a.action_type = ${pipeline} and proposed_pipeline.key = a.input_json ->> 'pipelineKey'
+       and (proposed_pipeline.entity_id is null or proposed_pipeline.entity_id = a.entity_id)
       left join pipeline_stages st on st.id = o.stage_id
       left join lateral (
         select q.position from pipeline_stages q
@@ -158,6 +164,7 @@ function toDto(row: Row, kind: TriageProposalKind): ShadowProposalDto {
     accountId: row.account_id,
     customerName: row.customer_name,
     proposedPipelineKey: kind === 'pipeline' ? text(input.pipelineKey) : null,
+    proposedPipelineName: kind === 'pipeline' ? row.proposed_pipeline_name : null,
     proposedScoreChange: kind === 'score' ? int(input.adjustment) : null,
     proposedScore: kind === 'score' ? int(input.score) : null,
     otherOpportunityId: kind === 'duplicate' ? text(input.otherOpportunityId) : null,
@@ -165,6 +172,7 @@ function toDto(row: Row, kind: TriageProposalKind): ShadowProposalDto {
     proposedOwnerName: kind === 'assignee' ? row.proposed_owner_name : null,
     note: text(input.note),
     pipelineKey: row.pipeline_key,
+    pipelineName: row.pipeline_name,
     score: row.score,
     leadState: row.lead_state,
     reachedQualified: row.reached_qualified,
