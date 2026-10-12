@@ -1,4 +1,4 @@
-import { NextIntlClientProvider } from 'next-intl';
+import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { PUBLIC_ERROR_KEYS } from '../auth/public-errors';
@@ -19,11 +19,18 @@ export async function ClientMessages({
 }) {
   const namespaces: readonly string[] = CLIENT_SCOPES[scope];
   if (namespaces.length === 0) return children;
-  const all = await getMessages();
-  const picked = Object.fromEntries(namespaces.map((ns) => [ns, all[ns]]));
+  const all = (await getMessages()) as AbstractIntlMessages;
+  const picked: AbstractIntlMessages = Object.fromEntries(
+    namespaces.flatMap((ns) => {
+      const group = all[ns];
+      return group === undefined ? [] : [[ns, group]];
+    }),
+  );
   if (scope === 'public') {
     const errors = all.errors as Record<string, string>;
-    picked.errors = Object.fromEntries(PUBLIC_ERROR_KEYS.map((key) => [key, errors[key]]));
+    picked.errors = Object.fromEntries(
+      PUBLIC_ERROR_KEYS.flatMap((key) => (errors[key] === undefined ? [] : [[key, errors[key]]])),
+    );
   }
   return scope === 'root' ? (
     <NextIntlClientProvider messages={picked}>{children}</NextIntlClientProvider>
