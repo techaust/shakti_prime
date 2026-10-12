@@ -1,5 +1,5 @@
 {
-  "id": "1f9ab057-fb91-48f6-b2c1-70517163087c",
+  "id": "885c5198-369f-46fd-b6b1-9bc57e6b1383",
   "prevId": "3d8dd4d2-cb42-443e-9454-8b6fa5205e9f",
   "version": "7",
   "dialect": "postgresql",
@@ -955,6 +955,21 @@
           ],
           "isUnique": false,
           "where": "\"agent_actions\".\"autonomy\" = 'needs_approval' and \"agent_actions\".\"state\" in ('approved', 'rejected')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_actions_opportunity_idx": {
+          "name": "agent_actions_opportunity_idx",
+          "columns": [
+            {
+              "expression": "(\"input_json\" ->> 'opportunityId')",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -6585,6 +6600,21 @@
             },
             {
               "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "inbox_items_subject_idx": {
+          "name": "inbox_items_subject_idx",
+          "columns": [
+            {
+              "expression": "subject_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

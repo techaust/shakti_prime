@@ -23,7 +23,8 @@ $$;
 --    deals with the lead's company only, has no other lead, is no dealer or referral partner, is
 --    in no merge that stands and no open duplicate card, and shares none of its people with
 --    another customer; and nothing about the lead, its customer, the customer's people and sites,
---    its calls, tasks, sizings or timeline has changed since the cutoff. Payments and projects
+--    its calls, tasks, sizings, timeline, Agent Inbox items or agent proposals has changed since
+--    the cutoff. Payments and projects
 --    arrive in later phases: their slices add their tables here. A plain function, run only by
 --    the two definers below as their owner.
 create or replace function app.lead_is_stale(p_lead uuid, p_cutoff timestamptz) returns boolean
@@ -92,6 +93,13 @@ create or replace function app.lead_is_stale(p_lead uuid, p_cutoff timestamptz) 
                         where x.opportunity_id = o.id and x.created_at >= p_cutoff)
        and not exists (select 1 from public.account_entities x
                         where x.account_id = a.id and x.updated_at >= p_cutoff)
+       and not exists (select 1 from public.inbox_items x
+                        where x.subject_id = o.id and x.updated_at >= p_cutoff)
+       and not exists (select 1 from public.inbox_items x
+                        where x.subject_id = a.id and x.updated_at >= p_cutoff)
+       and not exists (select 1 from public.agent_actions x
+                        where x.input_json ->> 'opportunityId' = o.id::text
+                          and (x.created_at >= p_cutoff or x.decided_at >= p_cutoff))
        and not exists (select 1 from public.customer_sites x
                         where x.account_id = a.id and x.updated_at >= p_cutoff)
        and not exists (select 1
@@ -156,11 +164,27 @@ revoke execute on function app.stale_leads(smallint, integer, timestamptz, uuid,
 grant execute on function app.stale_leads(smallint, integer, timestamptz, uuid, integer) to app_user, app_reader;
 --> statement-breakpoint
 
--- 4. A note's text is free text about a customer: the timeline stays append-only, except that the
---    anonymisation below removes the notes of a customer it anonymises, while its setting names
---    that customer and only when run as its owner. The customer-merge exception of 0113 is kept.
+-- 4. Which customers and leads the anonymisation is working on in this transaction: one row each,
+--    written and removed by app.anonymise_stale_leads() alone, which no request role can read or
+--    write. The append-only triggers of the timeline and of agent proposals (definers, so they may
+--    read it whoever writes) open their one exception only for a row named here in the current
+--    transaction, so no setting a request can make, and no other definer, can open it.
+create table app.lead_anonymise_scope (
+  tx xid8 not null,
+  account_id uuid,
+  lead_id uuid
+);
+--> statement-breakpoint
+revoke all on app.lead_anonymise_scope from public;
+--> statement-breakpoint
+create index lead_anonymise_scope_tx_idx on app.lead_anonymise_scope (tx);
+--> statement-breakpoint
+
+-- 5. A note's text is free text about a customer: the timeline stays append-only, except that the
+--    anonymisation removes the notes of a customer it is anonymising in this transaction. The
+--    customer-merge exception of 0113 and 0117 is kept as it is.
 create or replace function app.activities_append_only() returns trigger
-  language plpgsql set search_path = '' as $$
+  language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'UPDATE'
      and coalesce(pg_catalog.current_setting('app.customer_merge', true), '') <> ''
@@ -169,31 +193,70 @@ begin
   end if;
   if tg_op = 'DELETE'
      and old.type = 'note'
-     and pg_catalog.current_setting('app.lead_anonymise', true) = old.account_id::text
-     and current_user = (select pg_catalog.pg_get_userbyid(p.proowner)
-                           from pg_catalog.pg_proc p
-                           join pg_catalog.pg_namespace n on n.oid = p.pronamespace
-                          where n.nspname = 'app' and p.proname = 'anonymise_stale_leads') then
+     and exists (select 1 from app.lead_anonymise_scope s
+                  where s.tx = pg_catalog.pg_current_xact_id()
+                    and s.account_id = old.account_id) then
     return old;
   end if;
   raise exception '% is append-only', tg_table_name using errcode = 'insufficient_privilege';
 end
 $$;
 --> statement-breakpoint
+revoke execute on function app.activities_append_only() from public, readonly_reporter;
+--> statement-breakpoint
 
--- 5. Anonymises the named leads of one company of the request, each only if, once it, its
+-- 6. An agent's proposal changes only its decision, once (0108), except that the anonymisation
+--    removes the agent's note from a proposal about a lead it is anonymising in this transaction,
+--    and changes nothing else.
+create or replace function app.agent_actions_append_only() returns trigger
+  language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'DELETE' then
+    raise exception 'agent_actions is append-only' using errcode = '42501';
+  end if;
+  if new.input_json = old.input_json - 'note'
+     and new.decided_input_json is not distinct from (old.decided_input_json - 'note')
+     and (pg_catalog.to_jsonb(new) - 'input_json' - 'decided_input_json')
+         = (pg_catalog.to_jsonb(old) - 'input_json' - 'decided_input_json')
+     and exists (select 1 from app.lead_anonymise_scope s
+                  where s.tx = pg_catalog.pg_current_xact_id()
+                    and s.lead_id::text = old.input_json ->> 'opportunityId') then
+    return new;
+  end if;
+  if old.state <> 'proposed'
+     or new.id <> old.id or new.entity_id <> old.entity_id or new.run_id <> old.run_id
+     or new.agent <> old.agent or new.action_type <> old.action_type
+     or new.input_json <> old.input_json or new.autonomy <> old.autonomy
+     or new.created_at <> old.created_at or new.created_by <> old.created_by then
+    raise exception 'agent_actions changes only its decision, once' using errcode = '42501';
+  end if;
+  return new;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.agent_actions_append_only() from public, readonly_reporter;
+--> statement-breakpoint
+
+-- 7. Anonymises the named leads of one company of the request, each only if, once it, its
 --    customer and the customer's people are held, it is still stale (`app.lead_is_stale()`, read
 --    again after the locks); a lead or customer a person is changing now is skipped until the
---    next night. The lead, its customer, their companies, calls, tasks, sizings and consents stay
---    as facts without the person: the customer's name and GSTIN, its people's names, email
---    addresses and phone numbers, its sites' addresses, villages, PIN codes, map points and
---    technical notes, the lead's campaign fields, its tasks' titles, the customer's notes, and
---    what the import files that made them said are removed; the lead, the customer, its people
---    and sites are archived, the lead and the customer marked anonymised. A consent stays as the
---    fact of consent, with its evidence file. Every call is one row of retention_runs (job
---    leads-anonymise): the leads anonymised, or the failure's code and constraint, never a value;
---    a failure changes nothing else. Answers `{ leads, error }`: the leads it anonymised, and the
---    failure recorded, null when there was none.
+--    next night.
+--    Removed: the customer's name (left empty) and GSTIN; its people's names (left empty, so the
+--    generated `name_key` is empty too), email addresses and phone numbers; its sites' address,
+--    village (so the generated `village_key` is null), PIN, map point and technical notes; the
+--    lead's campaign fields; its tasks' titles; the customer's notes on the timeline; the notes
+--    of Agent Inbox items about the lead or the customer; the agent's note on proposals about the
+--    lead; and what the import rows that made the lead or the customer said.
+--    Kept, as facts without the person: the lead (state, stage, pipeline, score), the customer's
+--    type, the sites' tehsil, district and state code (coarse geography for reports), the
+--    companies, calls, sizings (numbers only), tags, timeline rows other than notes (ids and codes
+--    only), duplicate cards (signal codes only), notices (ids only), and consents as the fact of
+--    consent with their evidence file. The lead, the customer, its people and sites are archived,
+--    the lead and the customer marked anonymised.
+--    Every call is one row of retention_runs (job leads-anonymise): the leads anonymised, or the
+--    failure's code and constraint, never a value; a failure changes nothing else. Answers
+--    `{ leads, error }`: the leads it anonymised, and the failure recorded, null when there was
+--    none.
 create or replace function app.anonymise_stale_leads(p_entity smallint, p_months integer,
                                                      p_leads uuid[])
   returns jsonb
@@ -206,7 +269,6 @@ declare
   v_leads uuid[] := '{}';
   v_accounts uuid[] := '{}';
   v_contacts uuid[] := '{}';
-  v_account uuid;
   v_state text;
   v_constraint text;
   v_error text;
@@ -259,12 +321,26 @@ begin
       from public.account_contacts ac
      where ac.account_id = any (v_accounts);
 
+    -- Name the customers and leads for the append-only triggers' one exception (step 4).
+    insert into app.lead_anonymise_scope (tx, account_id, lead_id)
+    select pg_catalog.pg_current_xact_id(), o.account_id, o.id
+      from public.opportunities o where o.id = any (v_leads);
+
     -- The customers' notes.
-    foreach v_account in array v_accounts loop
-      perform pg_catalog.set_config('app.lead_anonymise', v_account::text, true);
-      delete from public.activities x where x.account_id = v_account and x.type = 'note';
-    end loop;
-    perform pg_catalog.set_config('app.lead_anonymise', '', true);
+    delete from public.activities x where x.account_id = any (v_accounts) and x.type = 'note';
+
+    -- The agent's note on its proposals about the leads.
+    update public.agent_actions x
+       set input_json = x.input_json - 'note',
+           decided_input_json = x.decided_input_json - 'note'
+     where x.input_json ->> 'opportunityId' = any (array(select l::text from pg_catalog.unnest(v_leads) l))
+       and (x.input_json ? 'note' or coalesce(x.decided_input_json ? 'note', false));
+
+    -- The notes of Agent Inbox items about the leads or the customers.
+    update public.inbox_items x
+       set note = null, updated_by = v_actor
+     where (x.subject_id = any (v_leads) or x.subject_id = any (v_accounts))
+       and x.note is not null;
 
     update public.tasks x
        set title = null, updated_by = v_actor
@@ -306,6 +382,8 @@ begin
        and (s.row_no = r.row_no
             or (s.state = 'skipped'
                 and s.dedupe_json ->> 'inFileRowNo' = r.row_no::text));
+
+    delete from app.lead_anonymise_scope s where s.tx = pg_catalog.pg_current_xact_id();
   exception when others then
     get stacked diagnostics v_state = returned_sqlstate, v_constraint = constraint_name;
     v_error := 'failed with code ' || v_state

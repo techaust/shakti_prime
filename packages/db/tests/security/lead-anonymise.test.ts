@@ -8,6 +8,7 @@ import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { tierId } from '../../seeds/price-tiers';
 import {
+  AGENT_PRINCIPAL_SEED,
   asMigrator,
   asPrincipal,
   closeDb,
@@ -36,6 +37,16 @@ const IMPORT_JOB = id(0xff2);
 const ACTOR = id(0xff3);
 const OTHER_ACCOUNT = id(0xff4);
 const OTHER_CONTACT = id(0xff5);
+const IMPORT_FILE_2 = id(0xff7);
+const IMPORT_JOB_2 = id(0xff8);
+const EVIDENCE_FILE = id(0xff9);
+const AGENT_RUN = id(0xffa);
+const AGENT_ACTION = id(0xffb);
+const INBOX_ITEM = id(0xffc);
+const TRIAGE = AGENT_PRINCIPAL_SEED.find((a) => a.roleKey === 'agent:triage')?.id ?? '';
+/** This run's marker, written into every free-text field of the `marked` lead, and its phone. */
+const MARK = `zqxm${Math.random().toString(36).slice(2, 10)}`;
+const MARK_DIGITS = `97${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
 
 /** The database's message for a refused statement (drizzle wraps it as the cause). */
 async function failure(promise: Promise<unknown>): Promise<string> {
@@ -72,6 +83,7 @@ const KINDS = [
   'openDuplicate',
   'recentCall',
   'failing',
+  'marked',
 ] as const;
 type Kind = (typeof KINDS)[number];
 
@@ -106,9 +118,15 @@ beforeAll(async () => {
       await tx`alter table calls disable trigger calls_append_only`;
       await tx`delete from calls where id::text like ${like}`;
       await tx`alter table calls enable trigger calls_append_only`;
-      await tx`delete from import_rows where job_id = ${IMPORT_JOB}`;
-      await tx`delete from import_jobs where id = ${IMPORT_JOB}`;
-      await tx`delete from files where id = ${IMPORT_FILE}`;
+      await tx`alter table agent_actions disable trigger agent_actions_append_only`;
+      await tx`delete from agent_actions where id = ${AGENT_ACTION}`;
+      await tx`alter table agent_actions enable trigger agent_actions_append_only`;
+      await tx`alter table agent_runs disable trigger agent_runs_append_only`;
+      await tx`delete from agent_runs where id = ${AGENT_RUN}`;
+      await tx`alter table agent_runs enable trigger agent_runs_append_only`;
+      await tx`delete from inbox_items where id = ${INBOX_ITEM}`;
+      await tx`delete from import_rows where job_id in (${IMPORT_JOB}, ${IMPORT_JOB_2})`;
+      await tx`delete from import_jobs where id in (${IMPORT_JOB}, ${IMPORT_JOB_2})`;
       await tx`delete from sales_orders where id::text like ${like}`;
       await tx`delete from quotes where id::text like ${like}`;
       await tx`delete from duplicate_candidates where id::text like ${like}`;
@@ -121,6 +139,7 @@ beforeAll(async () => {
       await tx`delete from contact_phones where id::text like ${like}`;
       await tx`delete from accounts where id::text like ${like}`;
       await tx`delete from contacts where id::text like ${like}`;
+      await tx`delete from files where id in (${IMPORT_FILE}, ${IMPORT_FILE_2}, ${EVIDENCE_FILE})`;
       await tx`delete from price_lists where id = ${PRICE_LIST}`;
       await tx`delete from principals where id = ${ACTOR}`;
 
@@ -154,47 +173,61 @@ beforeAll(async () => {
           site: id(base + 4),
         };
         leads[kind] = lead;
+        // The marked lead carries this run's marker in every free-text field and its own number.
+        const label = kind === 'marked' ? MARK : kind;
         await tx`insert into contacts (id, name, email, created_by, created_at, updated_at)
-                 values (${lead.contact}, ${`retention person ${kind}`}, ${`${kind}@example.in`},
+                 values (${lead.contact}, ${`retention person ${label}`}, ${`${label}@example.in`},
                          ${ACTOR}, ${at}, ${at})`;
         await tx`insert into contact_phones (id, contact_id, e164, is_primary, created_by, created_at, updated_at)
-                 values (${id(base + 5)}, ${lead.contact}, ${`+9197000${String(10000 + n)}`}, true,
+                 values (${id(base + 5)}, ${lead.contact},
+                         ${kind === 'marked' ? `+91${MARK_DIGITS}` : `+9197000${String(10000 + n)}`}, true,
                          ${ACTOR}, ${at}, ${at})`;
         await tx`insert into accounts (id, type, name, gstin, created_by, created_at, updated_at)
                  values (${lead.account}, ${kind === 'dealer' ? 'dealer' : 'farm'},
-                         ${`retention customer ${kind}`}, null, ${ACTOR}, ${at}, ${at})`;
+                         ${`retention customer ${label}`}, null, ${ACTOR}, ${at}, ${at})`;
         await tx`insert into account_entities (id, account_id, entity_id, created_by, created_at, updated_at)
                  values (${id(base + 6)}, ${lead.account}, 1, ${ACTOR}, ${at}, ${at})`;
         await tx`insert into account_contacts (account_id, contact_id, role, created_by, created_at, updated_at)
                  values (${lead.account}, ${lead.contact}, 'owner', ${ACTOR}, ${at}, ${at})`;
-        await tx`insert into customer_sites (id, account_id, type, address, village, pin, lat, lng,
-                                             created_by, created_at, updated_at)
-                 values (${lead.site}, ${lead.account}, 'borewell', ${`${kind} house`},
-                         ${`${kind} village`}, '999931', 21.1, 79.1, ${ACTOR}, ${at}, ${at})`;
+        await tx`insert into customer_sites (id, account_id, type, address, village, tehsil, district,
+                                             state_code, pin, lat, lng, technical_json, created_by,
+                                             created_at, updated_at)
+                 values (${lead.site}, ${lead.account}, 'borewell', ${`${label} house`},
+                         ${`${label} village`}, 'retention tehsil', 'retention district', '27',
+                         '999931', 21.1, 79.1, ${tx.json({ remark: `${label} borewell by the well` })}::jsonb,
+                         ${ACTOR}, ${at}, ${at})`;
+        if (kind === 'marked') {
+          // The signed form the consent rests on, kept as proof of consent.
+          await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size,
+                                      sha256, status, created_by)
+                   values (${EVIDENCE_FILE}, 1, 'consent_evidence', 'memory',
+                           ${`1/consent_evidence/${EVIDENCE_FILE}.pdf`}, ${`${MARK} consent form.pdf`},
+                           'application/pdf', 100, ${'c7'.repeat(32)}, 'ready', ${ACTOR})`;
+        }
         await tx`insert into consents (id, contact_id, channel, purpose, source, text_version,
-                                       given_at, created_by, created_at, updated_at)
+                                       given_at, evidence_file_id, created_by, created_at, updated_at)
                  values (${id(base + 7)}, ${lead.contact}, 'call', 'service', 'walk_in_form', 'v1',
-                         ${at}, ${ACTOR}, ${at}, ${at})`;
+                         ${at}, ${kind === 'marked' ? EVIDENCE_FILE : null}, ${ACTOR}, ${at}, ${at})`;
         await tx`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id,
                                             state, campaign_json, created_by, created_at, updated_at,
                                             state_changed_at)
                  values (${lead.lead}, 1, ${lead.account}, ${lead.site}, ${pipeline.id},
                          ${kind === 'qualified' ? stages.qualified : stages.first},
                          ${kind === 'won' ? 'won' : kind === 'staleLost' ? 'lost' : 'open'},
-                         ${tx.json({ remarks: `${kind} called about a pump` })}::jsonb,
+                         ${tx.json({ remarks: `${label} called about a pump` })}::jsonb,
                          ${ACTOR}, ${at}, ${at}, ${at})`;
         // Every lead has an old note, an old task with a title and an old call.
         await tx`insert into activities (id, entity_id, opportunity_id, account_id, type,
                                          actor_principal_id, body, created_at)
                  values (${id(base + 8)}, 1, ${lead.lead}, ${lead.account}, 'note', ${ACTOR},
-                         ${`${kind} asked for a call after harvest`}, ${at})`;
+                         ${`${label} asked for a call after harvest`}, ${at})`;
         await tx`insert into activities (id, entity_id, opportunity_id, account_id, type,
                                          actor_principal_id, created_at)
                  values (${id(base + 9)}, 1, ${lead.lead}, ${lead.account}, 'lead_created', ${ACTOR}, ${at})`;
         await tx`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, kind,
                                     title, due_at, state, created_by, created_at, updated_at)
                  values (${id(base + 10)}, 1, ${lead.lead}, ${lead.account}, ${ACTOR}, 'callback',
-                         ${`call ${kind} back`},
+                         ${`call ${label} back`},
                          ${kind === 'futureTask' ? tx`now() + interval '7 days'` : at},
                          'open', ${ACTOR}, ${at}, ${at})`;
         await tx`insert into calls (id, entity_id, opportunity_id, caller_id, direction, number_series,
@@ -243,6 +276,36 @@ beforeAll(async () => {
                                                  reason, confidence, created_by, created_at, updated_at)
                values (${id(0xfd5)}, 1, 'customer', ${low ?? ''}, ${high ?? ''}, 'phone', 90,
                        ${ACTOR}, '2001-01-01', '2001-01-01')`;
+      // The marked lead's import file, its routed work and the Triage agent's proposal with a note.
+      const marked = leads.marked;
+      await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size,
+                                  sha256, status, created_by)
+               values (${IMPORT_FILE_2}, 1, 'import', 'memory', ${`1/import/${IMPORT_FILE_2}.csv`},
+                       'customers.csv', 'text/csv', 100, ${'b7'.repeat(32)}, 'ready', ${ACTOR})`;
+      await tx`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, state,
+                                        total_rows, valid_rows, committed_rows, created_by)
+               values (${IMPORT_JOB_2}, 1, 'leads', ${IMPORT_FILE_2}, 'csv', '["Name","Mobile"]',
+                       'committed', 1, 1, 1, ${ACTOR})`;
+      await tx`insert into import_rows (job_id, entity_id, row_no, raw_json, normalised_json, dedupe_json,
+                                        state, created_type, created_id, committed_batch, created_by)
+               values (${IMPORT_JOB_2}, 1, 1, ${tx.json({ Name: MARK, Mobile: MARK_DIGITS })}::jsonb,
+                       ${tx.json({ name: MARK, phone: `+91${MARK_DIGITS}` })}::jsonb,
+                       ${tx.json({ inFileRowNo: null, existing: [] })}::jsonb,
+                       'committed', 'opportunity', ${marked.lead}, 1, ${ACTOR})`;
+      await tx`insert into inbox_items (id, entity_id, kind, subject_type, subject_id, segment, note,
+                                        created_by, created_at, updated_at)
+               values (${INBOX_ITEM}, 1, 'routed_work', 'opportunity', ${marked.lead}, 'farmer_pumps',
+                       ${`${MARK} wants a pump for the far field`}, ${ACTOR},
+                       '2001-02-01', '2001-02-01')`;
+      await tx`insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type,
+                                       outcome, request_id, created_at)
+               values (${AGENT_RUN}, 1, 'agent:triage', ${TRIAGE}, 'triage', 'triage.pipeline.choose',
+                       'shadowed', 'retention-fixture', '2001-02-01')`;
+      await tx`insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json,
+                                          autonomy, state, created_by, created_at)
+               values (${AGENT_ACTION}, 1, ${AGENT_RUN}, 'agent:triage', 'triage.pipeline.choose',
+                       ${tx.json({ entityId: 1, opportunityId: marked.lead, pipelineKey: 'farmer_pumps', note: `${MARK} sounds keen` })}::jsonb,
+                       'shadow', 'shadowed', ${TRIAGE}, '2001-02-01')`;
       // An import file whose row made `stale`, and a later row skipped as its repeat.
       await tx`insert into import_rows (job_id, entity_id, row_no, raw_json, normalised_json, state,
                                         created_type, created_id, committed_batch, created_by)
@@ -258,7 +321,7 @@ beforeAll(async () => {
 });
 
 /** The fixture leads the job may anonymise: the two that never went ahead and nothing else uses. */
-const ELIGIBLE: Kind[] = ['stale', 'staleLost', 'failing'];
+const ELIGIBLE: Kind[] = ['stale', 'staleLost', 'failing', 'marked'];
 
 async function staleFlags(): Promise<Record<string, boolean>> {
   const found = await rows<{ lead_id: string; stale: boolean }>(
@@ -455,9 +518,11 @@ describe('the anonymisation', () => {
       (m) => m<Record<string, unknown>[]>`
         select a.name as "accountName", a.gstin, a.archived_at is not null as "accountArchived",
                a.anonymised_at is not null as "accountAnonymised",
-               c.name as "contactName", c.email, c.archived_at is not null as "contactArchived",
+               c.name as "contactName", c.name_key as "nameKey", c.email,
+               c.archived_at is not null as "contactArchived",
                (select count(*)::int from contact_phones where contact_id = c.id) as phones,
-               s.address, s.village, s.pin, s.lat, s.lng, s.technical_json as technical,
+               s.address, s.village, s.village_key as "villageKey", s.pin, s.lat, s.lng,
+               s.technical_json as technical, s.tehsil, s.district, s.state_code as "stateCode",
                s.archived_at is not null as "siteArchived",
                o.campaign_json as campaign, o.archived_at is not null as "leadArchived",
                o.state, o.account_id = a.id as "sameCustomer",
@@ -485,15 +550,21 @@ describe('the anonymisation', () => {
       accountArchived: true,
       accountAnonymised: true,
       contactName: '',
+      nameKey: '',
       email: null,
       contactArchived: true,
       phones: 0,
       address: null,
       village: null,
+      villageKey: null,
       pin: null,
       lat: null,
       lng: null,
       technical: {},
+      // Coarse geography for reports stays.
+      tehsil: 'retention tehsil',
+      district: 'retention district',
+      stateCode: '27',
       siteArchived: true,
       campaign: {},
       leadArchived: true,
@@ -560,8 +631,43 @@ describe('the anonymisation', () => {
   });
 });
 
-describe('the timeline stays append-only', () => {
-  it('refuses a note’s removal to a request and to the owner without the anonymisation', async () => {
+describe('nothing of the person is left', () => {
+  it('finds the marker and the phone number nowhere but in the kept consent evidence', async () => {
+    // Every text, character and json column of every table, partitions read through their parent.
+    const columns = await asMigrator(
+      (m) => m<{ table: string; column: string }[]>`
+        select c.table_name as table, c.column_name as column
+          from information_schema.columns c
+          join information_schema.tables t
+            on t.table_schema = c.table_schema and t.table_name = c.table_name
+         where c.table_schema = 'public' and t.table_type = 'BASE TABLE'
+           and c.data_type in ('text', 'character varying', 'character', 'json', 'jsonb', 'ARRAY')
+         order by 1, 2`,
+    );
+    expect(columns.length).toBeGreaterThan(100);
+    const hits: string[] = [];
+    await asMigrator(async (m) => {
+      for (const { table, column } of columns) {
+        const [row] = await m.unsafe<{ n: number }[]>(
+          `select count(*)::int as n from public."${table}"
+            where "${column}"::text like '%' || $1 || '%' or "${column}"::text like '%' || $2 || '%'`,
+          [MARK, MARK_DIGITS],
+        );
+        if ((row?.n ?? 0) > 0) hits.push(`${table}.${column}`);
+      }
+    });
+    // The consent's signed form is kept as proof of consent, with its file name.
+    expect(hits).toEqual(['files.name']);
+    const [evidence] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from files where name like ${`%${MARK}%`} and id = ${EVIDENCE_FILE}`,
+    );
+    expect(evidence?.n).toBe(1);
+  }, 120_000);
+});
+
+describe('the append-only exceptions open only for the anonymisation', () => {
+  it('refuses a note’s removal to a request, and to the owner outside the anonymisation, whatever it sets', async () => {
     const note = leads.recentNote;
     expect(
       await failure(
@@ -573,8 +679,33 @@ describe('the timeline stays append-only', () => {
     ).toMatch(/permission denied/);
     expect(
       await failure(
-        asMigrator((m) => m`delete from activities where account_id = ${note.account} and type = 'note'`),
+        asMigrator((m) =>
+          m.begin(async (tx) => {
+            await tx`select set_config('app.lead_anonymise', ${note.account}, true)`;
+            await tx`delete from activities where account_id = ${note.account} and type = 'note'`;
+          }),
+        ),
       ),
     ).toMatch(/append-only/);
+  });
+
+  it('refuses a change to an agent’s proposal outside the anonymisation, and a request may not name its scope', async () => {
+    expect(
+      await failure(
+        asMigrator(
+          (m) => m`update agent_actions set input_json = input_json - 'pipelineKey'
+                    where id = ${AGENT_ACTION}`,
+        ),
+      ),
+    ).toMatch(/changes only its decision/);
+    expect(
+      await failure(
+        asPrincipal(principalFor('executive'), ({ tx }) =>
+          tx.execute(
+            sql`insert into app.lead_anonymise_scope (tx, account_id) values (pg_current_xact_id(), ${leads.recentNote.account}::uuid)`,
+          ),
+        ),
+      ),
+    ).toMatch(/permission denied/);
   });
 });

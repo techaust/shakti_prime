@@ -191,6 +191,8 @@ export const agentActions = pgTable(
     index('agent_actions_record_idx')
       .on(t.entityId, t.agent, t.actionType, t.decidedAt)
       .where(sql`${t.autonomy} = 'needs_approval' and ${t.state} in ('approved', 'rejected')`),
+    // The actions about one lead: the retention job reads them and removes the agent's note.
+    index('agent_actions_opportunity_idx').using('btree', sql`(${t.inputJson} ->> 'opportunityId')`),
     // The shadow report: one company's shadowed proposals of one agent, newest first (A1).
     index('agent_actions_shadow_idx')
       .on(t.entityId, t.agent, t.createdAt.desc(), t.id.desc())
@@ -256,6 +258,8 @@ export const inboxItems = pgTable(
     index('inbox_items_assignee_open_idx').on(t.assigneeId, t.state, t.createdAt, t.id),
     index('inbox_items_team_open_idx').on(t.teamId, t.state, t.createdAt, t.id),
     index('inbox_items_entity_open_idx').on(t.entityId, t.state, t.createdAt, t.id),
+    // The items about one lead or customer: the retention job reads and clears their notes.
+    index('inbox_items_subject_idx').on(t.subjectId),
   ],
 );
 

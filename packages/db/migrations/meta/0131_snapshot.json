@@ -1,6 +1,6 @@
 {
-  "id": "eecd3494-c2ff-49b4-a581-471d713d4fbf",
-  "prevId": "1f9ab057-fb91-48f6-b2c1-70517163087c",
+  "id": "686709f5-0eff-486a-b39a-ba3e13266153",
+  "prevId": "885c5198-369f-46fd-b6b1-9bc57e6b1383",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -957,6 +957,21 @@
           "with": {},
           "method": "btree",
           "where": "\"agent_actions\".\"autonomy\" = 'needs_approval' and \"agent_actions\".\"state\" in ('approved', 'rejected')",
+          "concurrently": false
+        },
+        "agent_actions_opportunity_idx": {
+          "name": "agent_actions_opportunity_idx",
+          "columns": [
+            {
+              "expression": "(\"input_json\" ->> 'opportunityId')",
+              "isExpression": true,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
           "concurrently": false
         },
         "agent_actions_shadow_idx": {
@@ -6585,6 +6600,21 @@
             },
             {
               "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "inbox_items_subject_idx": {
+          "name": "inbox_items_subject_idx",
+          "columns": [
+            {
+              "expression": "subject_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
