@@ -275,21 +275,31 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
     let last: ModelCallError | undefined;
     const began = Date.now();
     const remaining = () => (totalMs === undefined ? Infinity : totalMs - (Date.now() - began));
+    // Set when an attempt's timeout was the time left and it ran out: the deadline has passed,
+    // whatever the clocks say. Comparing `Date.now()` again can read a millisecond short of it
+    // (the abort timer and the wall clock round apart) and start an attempt of 1 ms.
+    let deadlineReached = false;
     for (let i = 0; i <= retries; i += 1) {
-      if (remaining() <= 0) break;
+      const left = remaining();
+      if (left <= 0) break;
+      const signal = AbortSignal.timeout(Math.min(perAttemptMs, left));
       try {
-        const answer = await send(AbortSignal.timeout(Math.min(perAttemptMs, remaining())));
+        const answer = await send(signal);
         await keyValue.del(breakerFailuresKey(vendor)).catch(() => undefined);
         return answer;
       } catch (error) {
         last =
           error instanceof ModelCallError ? error : new ModelCallError('network', { cause: error });
+        if (signal.aborted && left <= perAttemptMs) {
+          deadlineReached = true;
+          break;
+        }
         if (!last.retryable) break;
         if (i < retries) await sleep(Math.min(BACKOFF_MS * 2 ** i, Math.max(0, remaining())));
       }
     }
     const failed = last ?? new ModelCallError('timeout');
-    const pastDeadline = remaining() <= 0;
+    const pastDeadline = deadlineReached || remaining() <= 0;
     if (failed.retryable) {
       try {
         const failures = await keyValue.incr(breakerFailuresKey(vendor), BREAKER_WINDOW_SECONDS);
