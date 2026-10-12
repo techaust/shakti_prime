@@ -542,6 +542,7 @@
       "teamTargets": "Targets of {team}",
       "teamNoTarget": "No target is set for the team. Set one on the Targets page.",
       "noCallers": "No callers in this team yet.",
+      "rankBy": "Rank by",
       "leaderboardCaption": "Callers of your team with their {metric} for {period}, each against their target",
       "rank": "Rank",
       "caller": "Caller",

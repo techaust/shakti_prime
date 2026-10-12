@@ -54,6 +54,14 @@ describe('web source rules', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('turns every table wider than a phone into cards below md (docs/08-design-system.md §5, WEB-4)', () => {
+    const wide = /<table[^>]*className="[^"]*\bmin-w-/;
+    const offenders = sources
+      .filter(({ name, text }) => name.endsWith('.tsx') && wide.test(text) && !text.includes('<CardList'))
+      .map(({ name }) => name);
+    expect(offenders).toEqual([]);
+  });
+
   it('lists only exceptions that are still in use', () => {
     for (const exception of EXCEPTIONS) {
       const source = sources.find((s) => s.name === exception.name);
