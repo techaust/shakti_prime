@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formKeyFor, runKeyFor, type FormKey } from './use-command';
+import { formKeyFor, runKeyFor, signInAfter, type FormKey } from './use-command';
 
 describe('formKeyFor', () => {
   let made = 0;
@@ -53,5 +53,19 @@ describe('runKeyFor (WEB-5)', () => {
   it('keeps the key for a retry after a failure, when nothing is in flight', () => {
     const a = runKeyFor(undefined, undefined, rowA, new Map(), fresh);
     expect(runKeyFor(a, undefined, rowB, new Map(), fresh)).toBe(a);
+  });
+});
+
+describe('signInAfter (WEB-7, WEB-V1)', () => {
+  it('sends an ended sign-in to sign-in, back to this screen afterwards', () => {
+    expect(signInAfter('unauthorized', '/calling')).toBe(
+      '/sign-in?reason=session_ended&returnTo=%2Fcalling',
+    );
+  });
+
+  it('keeps every other failure on the screen', () => {
+    expect(signInAfter('forbidden', '/calling')).toBeUndefined();
+    expect(signInAfter('totp_required', '/calling')).toBeUndefined();
+    expect(signInAfter('internal', '/calling')).toBeUndefined();
   });
 });

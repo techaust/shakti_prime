@@ -39,7 +39,7 @@ import { requireFileStore } from '../files/uploads';
 import { logger } from '../log';
 import { scheduleImportCommit } from '../workers/imports';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn } from './support';
+import { commandOptions, parseInput, requestMeta, signedIn, signedInQuietly } from './support';
 
 /**
  * Thin wrappers for the import screens (docs/06-api.md §4, docs/03-roadmap-appendix/phase1.md §6.3): session →
@@ -243,9 +243,13 @@ export async function rollbackImportJob(
   });
 }
 
+/**
+ * One import job, for its page and for the progress check the page repeats while rows are added;
+ * that check is not the person's doing, so it never extends their session (WEB-8).
+ */
 export async function getImportJob(rawInput: unknown): Promise<ActionResult<ImportJobDto>> {
   return toResult('getImportJob', async () => {
-    const principal = await signedIn();
+    const principal = await signedInQuietly();
     const input = parseInput(GetImportJobInput, rawInput);
     const { requestId } = await requestMeta();
     return executeQuery(

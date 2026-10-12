@@ -50,12 +50,34 @@ export function hasSessionCookie(cookie: (name: string) => string | undefined): 
   return [SESSION_COOKIE, SECURE_SESSION_COOKIE].some((name) => (cookie(name) ?? '') !== '');
 }
 
-/** True when the proxy should send this request to sign-in before any screen code runs. */
+/**
+ * True when the proxy should send this request to sign-in before any screen code runs. A server
+ * action's call (a POST naming the action) is never redirected: an action asked of an ended
+ * session answers `unauthorized` itself, and the screen sends the person to sign in from where
+ * they were (WEB-7). A redirect would turn that answer into an unreadable one.
+ */
 export function needsSignIn(
   pathname: string,
   cookie: (name: string) => string | undefined,
+  serverAction = false,
 ): boolean {
-  return isBosPath(pathname) && !hasSessionCookie(cookie);
+  return !serverAction && isBosPath(pathname) && !hasSessionCookie(cookie);
+}
+
+/** The header Next.js sends with a server action's call. */
+export const SERVER_ACTION_HEADER = 'next-action';
+
+/**
+ * The sign-in screen that brings the person back to `from` (a BOS screen; anything else goes
+ * home) once they have signed in, saying why they are there when `reason` names a sign-in reason.
+ */
+export function signInPath(from: string, reason?: 'session_ended'): string {
+  const back = safeReturnPath(from);
+  const query = new URLSearchParams();
+  if (reason !== undefined) query.set('reason', reason);
+  if (back !== '/home') query.set('returnTo', back);
+  const text = query.toString();
+  return text === '' ? '/sign-in' : `/sign-in?${text}`;
 }
 
 /**

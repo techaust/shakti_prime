@@ -16,7 +16,14 @@ const backLink =
   'text-accent-text inline-flex min-h-9 items-center self-start text-sm underline-offset-4 hover:underline max-md:min-h-11';
 
 /** Code entry, used both at sign-in and to confirm a fresh enrolment. */
-export function VerifyCodeForm({ atSignIn = false }: { atSignIn?: boolean }) {
+export function VerifyCodeForm({
+  atSignIn = false,
+  returnTo,
+}: {
+  atSignIn?: boolean;
+  /** The BOS screen to come back to once the code is done (WEB-7). */
+  returnTo?: string | undefined;
+}) {
   const t = useTranslations('auth.twoFactor');
   const [state, action, pending] = useActionState<FormState, FormData>(verifyTwoFactor, {});
   const { errorId, attempt, formRef } = useFormFeedback(state);
@@ -24,6 +31,7 @@ export function VerifyCodeForm({ atSignIn = false }: { atSignIn?: boolean }) {
   if (useBackup) {
     return (
       <BackupCodeForm
+        returnTo={returnTo}
         onBack={() => {
           setUseBackup(false);
         }}
@@ -37,6 +45,7 @@ export function VerifyCodeForm({ atSignIn = false }: { atSignIn?: boolean }) {
       onSubmit={blockWhilePending(pending)}
       className="flex flex-col gap-4"
     >
+      <ReturnTo path={returnTo} />
       <Field label={t('codeLabel')} id="code">
         <TextInput
           id="code"
@@ -80,7 +89,18 @@ export function VerifyCodeForm({ atSignIn = false }: { atSignIn?: boolean }) {
 }
 
 /** One of the backup codes kept at enrolment; each works once. */
-function BackupCodeForm({ onBack }: { onBack: () => void }) {
+/** The screen a sign-in form returns to, sent with the form. */
+function ReturnTo({ path }: { path: string | undefined }) {
+  return path === undefined ? null : <input type="hidden" name="returnTo" value={path} />;
+}
+
+function BackupCodeForm({
+  onBack,
+  returnTo,
+}: {
+  onBack: () => void;
+  returnTo: string | undefined;
+}) {
   const t = useTranslations('auth.twoFactor');
   const [state, action, pending] = useActionState<FormState, FormData>(verifyBackupCode, {});
   const { errorId, attempt, formRef } = useFormFeedback(state);
@@ -91,6 +111,7 @@ function BackupCodeForm({ onBack }: { onBack: () => void }) {
       onSubmit={blockWhilePending(pending)}
       className="flex flex-col gap-4"
     >
+      <ReturnTo path={returnTo} />
       <Field label={t('backupCodeLabel')} id="code">
         {/* Phones must not capitalise or correct a code (AUDIT M51). */}
         <TextInput

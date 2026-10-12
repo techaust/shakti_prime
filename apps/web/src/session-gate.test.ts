@@ -7,6 +7,7 @@ import {
   isBosPath,
   needsSignIn,
   safeReturnPath,
+  signInPath,
   SECURE_SESSION_COOKIE,
   SESSION_COOKIE,
 } from './session-gate';
@@ -49,6 +50,11 @@ describe('needsSignIn', () => {
     expect(needsSignIn('/home', jar({ [SECURE_SESSION_COOKIE]: 'abc' }))).toBe(false);
   });
 
+  it("lets a server action's call through, so the action answers unauthorized itself (WEB-7)", () => {
+    expect(needsSignIn('/calling', jar({}), true)).toBe(false);
+    expect(needsSignIn('/calling', jar({}), false)).toBe(true);
+  });
+
   it('leaves public pages alone', () => {
     for (const path of ['/', '/sign-in', '/forgot-password', '/set-password', '/two-factor']) {
       expect(needsSignIn(path, jar({}))).toBe(false);
@@ -76,5 +82,20 @@ describe('safeReturnPath', () => {
     ]) {
       expect(safeReturnPath(raw)).toBe('/home');
     }
+  });
+});
+
+describe('signInPath', () => {
+  it('brings the person back to the BOS screen they were on, and says why when asked', () => {
+    expect(signInPath('/leads/3/abc')).toBe('/sign-in?returnTo=%2Fleads%2F3%2Fabc');
+    expect(signInPath('/calling', 'session_ended')).toBe(
+      '/sign-in?reason=session_ended&returnTo=%2Fcalling',
+    );
+  });
+
+  it('never returns to another site or a public page', () => {
+    expect(signInPath('/home')).toBe('/sign-in');
+    expect(signInPath('//evil.example/home')).toBe('/sign-in');
+    expect(signInPath('/sign-in', 'session_ended')).toBe('/sign-in?reason=session_ended');
   });
 });

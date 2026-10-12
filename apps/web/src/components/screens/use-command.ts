@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState, useTransition } from 'react';
 import type { ActionResult } from '../../actions/result';
+import { signInPath } from '../../session-gate';
 import { settle } from './settle';
 
 /** A failed answer as a form shows it: the catalogue key, the reference and the field. */
@@ -30,6 +31,21 @@ export function formKeyFor(
   fresh: () => string,
 ): FormKey {
   return last !== undefined && last.form === form ? last : { form, key: fresh() };
+}
+
+/**
+ * Where a failed answer sends the person, if anywhere: an ended sign-in (`unauthorized`) goes to
+ * sign-in, which brings them back to this screen afterwards (WEB-7, WEB-V1). Any other failure
+ * stays on the screen.
+ */
+export function signInAfter(error: string, pathname: string): string | undefined {
+  return error === 'unauthorized' ? signInPath(pathname, 'session_ended') : undefined;
+}
+
+/** Leaves for sign-in when the answer says the person's sign-in has ended. */
+function leaveIfSignedOut(error: string): void {
+  const to = signInAfter(error, window.location.pathname);
+  if (to !== undefined) window.location.assign(to);
 }
 
 /**
@@ -99,6 +115,7 @@ export function useCommand<T, I = unknown>(
           onDone(result.data);
           return;
         }
+        leaveIfSignedOut(result.error);
         setFailed((previous) => ({
           form,
           failure: {
@@ -131,6 +148,7 @@ export function useQuery<T>() {
         onDone(result.data);
         return;
       }
+      leaveIfSignedOut(result.error);
       setFailure((previous) => ({
         error: result.error,
         reference: result.reference,
