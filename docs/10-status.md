@@ -37,7 +37,7 @@ S2's 0116–0117 and N1's 0118–0120 were applied to both on 08-10-2026; K1's 0
 Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](13-client-packs/exit-gate-actions.md). What Shakti's people must do, in business words: [client-actions](13-client-packs/client-actions.md). Nothing from the client has arrived yet: no workshop answers, no CA golden set, no design sign-off, no vendor quotes.
 
 ## Waiting on the owner
-- **Set the lead's model when each conversation starts:** Opus 5.5 at medium on a build day, Sonnet 5.5 at medium on an operations day, and Opus 5.5 at xhigh for a named task the lead asks for, in a conversation of its own ([models-and-usage §3](runbooks/models-and-usage.md#3-who-runs-what)).
+- **Keep the lead on Opus 5.5 at medium in the app** for every conversation (the conversation of 12-10-2026 ran at high), and at xhigh only for a named task the lead asks for, in a conversation of its own ([models-and-usage §3](runbooks/models-and-usage.md#3-who-runs-what)).
 - **Confirm the Triage agent's named defaults** in `AGENT_DEFAULTS.triage` when convenient: a score change of at most ±10 points, 30 people and 5 duplicate cards offered per lead, 400 output tokens and 40 seconds a call; Triage makes no call until a daily limit is set on Admin › Agents.
 - **G1's accounts, which take days:** a paid production Supabase project, Vercel Pro (or the client's Pro team), the client's domain verified for Amazon SES and SES production access, and a GitHub plan with environments.
 
