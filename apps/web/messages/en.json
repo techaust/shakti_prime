@@ -1271,6 +1271,8 @@
       "label": "Score {score} out of 100, see why",
       "base": "Every lead starts at 50. No rule has changed this score.",
       "changed": "Last changed {when}",
+      "changedBy": "Last changed {when} by {name}",
+      "changedOvernight": "Last changed {when}, when every score was brought up to date overnight",
       "reasons": {
         "source": "Where the lead came from",
         "segment": "Business line",
