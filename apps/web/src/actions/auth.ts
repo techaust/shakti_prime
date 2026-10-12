@@ -104,7 +104,9 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   // Back to the screen the person was on when their sign-in ended (WEB-7), after the code if any.
   const back = returnPath(formData);
   if (!twoFactor) redirect(back);
-  redirect(back === '/home' ? '/two-factor' : `/two-factor?${new URLSearchParams({ returnTo: back })}`);
+  redirect(
+    back === '/home' ? '/two-factor' : `/two-factor?${new URLSearchParams({ returnTo: back })}`,
+  );
 }
 
 export async function signOut(): Promise<void> {

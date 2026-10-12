@@ -168,6 +168,9 @@ export const salesOrders = pgTable(
     index('sales_orders_opportunity_idx').on(t.opportunityId),
     // Account 360's orders, newest first.
     index('sales_orders_account_idx').on(t.accountId, t.entityId, t.createdAt),
+    // ⌘K and `/orders` find an order by any part of its number (RPT-03), through
+    // `app.order_search_ids()`; the policies decide the rows afterwards.
+    index('sales_orders_so_no_trgm_idx').using('gin', t.soNo.op('gin_trgm_ops')),
     // A dealer's exposure: the orders confirmed and not yet paid, since a date (SALE-5).
     index('sales_orders_exposure_idx')
       .on(t.entityId, t.accountId, t.confirmedAt)

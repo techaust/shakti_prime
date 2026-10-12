@@ -1,0 +1,55 @@
+-- ⌘K and /orders find an order by any part of its number (RPT-03). `ilike` is not leakproof, so
+-- under the policies the planner cannot use the trigram index of `so_no` and reads every order of
+-- the request's companies. As for quotes (app.quote_search_ids()), this definer finds the
+-- candidates on the index, at most p_limit (200 at most) of them, and the query then reads them
+-- under `sales_orders_read`. The rows a caller reads are narrowed before the limit as the policy
+-- narrows them, from the same settings: a company of the request, then an order of a lead the
+-- caller reads (crm.lead.read at company scope, the caller's team, or their own) or a dealer's
+-- order of a customer the caller reads (crm.account.read at company scope, the relationship's
+-- team, or their own). Otherwise a caller who reads few orders would get the 200 newest matches of
+-- the company and miss their own. The text is escaped for LIKE as containsPattern() escapes it.
+-- Ids only.
+create or replace function app.order_search_ids(p_text text, p_limit integer) returns setof uuid
+  language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_user uuid := app.user_id();
+  v_team uuid := app.team_id();
+  v_entities int[] := coalesce(app.entity_ids(), '{}'::int[]);
+  v_lead_entity boolean := app.has_perm('crm.lead.read:entity');
+  v_lead_team boolean := app.has_perm('crm.lead.read:team');
+  v_lead_own boolean := app.has_perm('crm.lead.read:own');
+  v_account_entity boolean := app.has_perm('crm.account.read:entity');
+  v_account_team boolean := app.has_perm('crm.account.read:team');
+  v_account_own boolean := app.has_perm('crm.account.read:own');
+  v_pattern text := '%' || replace(replace(replace(coalesce(p_text, ''),
+                      '\', '\\'), '%', '\%'), '_', '\_') || '%';
+begin
+  if v_user is null or not (v_lead_own or v_account_own) then
+    raise exception 'crm.lead.read or crm.account.read is required' using errcode = '42501';
+  end if;
+  return query
+    select so.id
+      from public.sales_orders so
+      left join public.opportunities o on o.id = so.opportunity_id
+      left join public.account_entities ae
+        on so.opportunity_id is null
+       and ae.account_id = so.account_id
+       and ae.entity_id = so.entity_id
+     where so.entity_id = any (v_entities)
+       and so.so_no ilike v_pattern
+       and ((so.opportunity_id is not null
+             and (v_lead_entity
+                  or (v_lead_team and v_team is not null and o.team_id = v_team)
+                  or (v_lead_own and o.owner_id = v_user)))
+         or (so.opportunity_id is null
+             and (v_account_entity
+                  or (v_account_team and v_team is not null and ae.team_id = v_team)
+                  or (v_account_own and ae.owner_id = v_user))))
+     order by lower(so.so_no) = lower(p_text) desc, so.created_at desc, so.id desc
+     limit least(greatest(coalesce(p_limit, 0), 0), 200);
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.order_search_ids(text, integer) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.order_search_ids(text, integer) to app_user, app_reader;

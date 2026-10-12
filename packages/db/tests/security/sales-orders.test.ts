@@ -196,6 +196,50 @@ describe('sales_orders and sales_order_lines (0117)', () => {
   });
 });
 
+describe('the order number search candidates (app.order_search_ids, RPT-03)', () => {
+  const ids = async (who: Principal, text: string) => {
+    const rows = await asPrincipal(who, ({ tx }) =>
+      tx.execute(sql`select app.order_search_ids(${text}, 200) as id`),
+    );
+    return (rows as unknown as { id: string }[]).map((r) => r.id);
+  };
+
+  it('keep to the orders the caller reads before the limit, so an own older order is not crowded out', async () => {
+    const tag = `ORSM${newId().slice(-6)}`;
+    const own = newId();
+    const theirs = await customer('dealer', colleague);
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id, price_list_id,
+                   place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst, tax_total,
+                   round_off, grand_total, created_by, created_at)
+                 values (${own}, ${E}, ${`${tag}/own`}, '2098-99', ${dealer}, ${tierId('dealer')},
+                         ${LIST}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${lc.id}, now() - interval '1 day')`;
+        // 205 newer matches of a dealer a colleague of another team looks after.
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id, price_list_id,
+                   place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst, tax_total,
+                   round_off, grand_total, created_by)
+                 select app.uuid_v7(), ${E}, ${tag} || '/' || g, '2098-99', ${theirs}, ${tierId('dealer')},
+                        ${LIST}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${colleague.id}
+                   from generate_series(1, 205) g`;
+      }),
+    );
+    mergeDealers.push(theirs);
+    expect(await ids(lc, tag)).toEqual([own]);
+    // A General Manager reads every dealer of the company: the 200 newest, the number typed whole first.
+    const all = await ids(gm, tag);
+    expect(all).toHaveLength(200);
+    expect(await ids(gm, `${tag}/own`)).toEqual([own]);
+    // The text stands for itself: a percent sign matches only a percent sign.
+    expect(await ids(lc, '%')).toEqual([]);
+  });
+
+  it('is refused outside a signed-in request with crm.lead.read or crm.account.read', async () => {
+    const hr = await createTestPrincipal('hr_admin', [E]);
+    expect(await failure(ids(hr, 'ORLS'))).toMatch(/crm.lead.read or crm.account.read is required/);
+  });
+});
+
 describe('dealer_terms and dealer_outstanding (0117)', () => {
   const terms = (by: Principal, account: string) =>
     asPrincipal(by, async ({ tx }) =>

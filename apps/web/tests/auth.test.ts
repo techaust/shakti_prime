@@ -589,7 +589,12 @@ describe('session limits', () => {
       return r;
     };
 
-    const quiet = await resolveSessionPrincipal(clientHeaders({ cookie }), undefined, deps, 'quiet');
+    const quiet = await resolveSessionPrincipal(
+      clientHeaders({ cookie }),
+      undefined,
+      deps,
+      'quiet',
+    );
     expect(quiet?.session.sessionId).toBe(sessionId);
     expect(await row()).toEqual({ expires_at: aged, last_seen_at: seen });
 

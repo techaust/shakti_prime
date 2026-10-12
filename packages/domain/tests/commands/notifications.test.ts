@@ -794,7 +794,11 @@ describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
   });
 
   it('adds the lead when no colleague looks after the customer', async () => {
-    const taken = await run<{ outcome: string; id: string }>(callerB, takeEnquiry, enquiry(phone()));
+    const taken = await run<{ outcome: string; id: string }>(
+      callerB,
+      takeEnquiry,
+      enquiry(phone()),
+    );
     expect(taken).toMatchObject({ outcome: 'created' });
   });
 

@@ -43,7 +43,7 @@ The Requirements column names the PRD requirements each slice delivers (NFR IDs 
 | 3 | D1 Duplicates | C2 | CRM-03 |
 | 4 | N1 Notifications | AI0, T1 | RPT-04 |
 | 4 | T2 Handover | N1 | TEL-02 |
-| 4 | S2 Orders, acceptance and credit | S1, C3 | SAL-05 (signed copy), SAL-06, SAL-07, CRM-09 (accrual) |
+| 4 | S2 Orders, acceptance and credit | S1, C3 | SAL-05 (signed copy), SAL-06, SAL-07, CRM-09 (accrual), RPT-03 (order numbers) |
 | 4 | K1 Knowledge Vault | P2, AI0 | AI-01 |
 | 5 | L1 Lead Converter workspace | T2, S2, C4 | TEL-03 |
 | 5 | R1 Targets and home pages | T1, S2 | TEL-06, RPT-01 |

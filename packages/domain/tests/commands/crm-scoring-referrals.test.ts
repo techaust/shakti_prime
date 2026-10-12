@@ -300,7 +300,8 @@ describe('crm.lead.rescore', () => {
     );
     await run(caller, rescoreLead, { entityId: 1, opportunityId: l.id });
     const [me] = await asMigrator(
-      (m) => m<{ name: string }[]>`select display_name as name from principals where id = ${caller.id}`,
+      (m) =>
+        m<{ name: string }[]>`select display_name as name from principals where id = ${caller.id}`,
     );
     expect((await listed())?.scoreChangedBy).toEqual({ kind: 'person', name: me?.name });
 

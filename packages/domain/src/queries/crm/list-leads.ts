@@ -1,9 +1,4 @@
-import {
-  hasGrant,
-  LeadListItemDto,
-  type LeadSort,
-  type ScoreChanger,
-} from '@shakti/contracts';
+import { hasGrant, LeadListItemDto, type LeadSort, type ScoreChanger } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
@@ -96,7 +91,9 @@ export async function listLeads(
   );
   const changers = await scoreChangers(
     ctx,
-    page.flatMap((r) => (r.opportunity.scoreChangedBy === null ? [] : [r.opportunity.scoreChangedBy])),
+    page.flatMap((r) =>
+      r.opportunity.scoreChangedBy === null ? [] : [r.opportunity.scoreChangedBy],
+    ),
   );
   const last = page.at(-1);
   return {
@@ -139,7 +136,10 @@ async function scoreChangers(
     .from(p)
     .where(inArray(p.id, unique));
   for (const row of rows) {
-    out.set(row.id, row.kind === 'system' ? { kind: 'overnight' } : { kind: 'person', name: row.name });
+    out.set(
+      row.id,
+      row.kind === 'system' ? { kind: 'overnight' } : { kind: 'person', name: row.name },
+    );
   }
   return out;
 }

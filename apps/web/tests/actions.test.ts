@@ -639,11 +639,17 @@ describe('command and query actions answer a result, never a thrown error (revie
     expect(forExecutive.people.map((p) => p.id)).toEqual([person.id]);
     expect(forExecutive.leads.map((l) => l.id)).toContain(created.id);
 
-    // Quotes are found by their number for whoever reads leads; nobody's number holds the tag.
+    // Quotes and orders are found by their number for whoever reads leads; nobody's number holds the tag.
     expect(forExecutive.quotes).toEqual([]);
+    expect(forExecutive.orders).toEqual([]);
 
     request.principal = await createTestPrincipal('hr_admin', [1]);
-    expect(ok(await searchPalette({ q: tag }))).toEqual({ leads: [], quotes: [], people: [] });
+    expect(ok(await searchPalette({ q: tag }))).toEqual({
+      leads: [],
+      quotes: [],
+      orders: [],
+      people: [],
+    });
   });
 
   it('list team members and their sign-ins for an Executive only', async () => {

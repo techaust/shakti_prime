@@ -40,6 +40,7 @@ import {
   accountSalesOrders,
   getSalesOrder,
   listSalesOrders,
+  searchSalesOrders,
 } from '../../src/queries/sales/list-orders';
 import { loadSalesOrderBuilder, previewSalesOrder } from '../../src/queries/sales/order-facts';
 
@@ -1194,6 +1195,36 @@ describe('the order lists', () => {
       listSalesOrders(context, { entityId: E, limit: 100 }),
     );
     expect(theirs.items.some((row) => row.id === order.id)).toBe(false);
+  });
+
+  it('finds an order by any part of its number, in ⌘K and on /orders, only for whoever reads it (RPT-03)', async () => {
+    const dealer = await newDealer();
+    const order = await dealerOrder(dealer, 1);
+    const tail = order.soNo.slice(-6);
+    const hits = await asPrincipal(lc, (context) =>
+      searchSalesOrders(context, { q: order.soNo, limit: 8 }),
+    );
+    // The number typed whole comes first.
+    expect(hits[0]).toMatchObject({ id: order.id, soNo: order.soNo, state: order.state });
+    const byPart = await asPrincipal(lc, (context) =>
+      searchSalesOrders(context, { q: tail, limit: 20 }),
+    );
+    expect(byPart.map((hit) => hit.id)).toContain(order.id);
+    const listed = await asPrincipal(lc, (context) =>
+      listSalesOrders(context, { entityId: E, q: order.soNo, limit: 100 }),
+    );
+    expect(listed.items.map((row) => row.id)).toEqual([order.id]);
+    const theirs = await asPrincipal(otherLc, (context) =>
+      searchSalesOrders(context, { q: order.soNo, limit: 8 }),
+    );
+    expect(theirs).toEqual([]);
+  });
+
+  it('refuses the number search to a role that reads neither leads nor customers', async () => {
+    const hr = await createTestPrincipal('hr_admin', [E]);
+    await expect(
+      asPrincipal(hr, (context) => searchSalesOrders(context, { q: 'SO/2026', limit: 8 })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
 
