@@ -14,6 +14,7 @@ import {
   type ImportJobDto,
   type ImportJobPage,
   type ImportKind,
+  type ImportReconciliationDto,
   type ImportRowPage,
   type ImportTemplateDto,
   type Principal,
@@ -25,6 +26,7 @@ import {
   executeCommand,
   executeQuery,
   getImportJob as getImportJobQuery,
+  getImportReconciliation as getImportReconciliationQuery,
   getStoredFile,
   listImportJobs as listImportJobsQuery,
   listImportRows as listImportRowsQuery,
@@ -253,6 +255,26 @@ export async function getImportJob(rawInput: unknown): Promise<ActionResult<Impo
       { entityIds: [input.entityId], requestId },
       (ctx) => getImportJobQuery(ctx, input),
       { name: 'getImportJob' },
+    );
+  });
+}
+
+/**
+ * What became of every row of one import (IMP-01, IMP-02): the counts the job page shows and the
+ * importer downloads for the cutover's count check.
+ */
+export async function getImportReconciliation(
+  rawInput: unknown,
+): Promise<ActionResult<ImportReconciliationDto>> {
+  return toResult('getImportReconciliation', async () => {
+    const principal = await signedIn();
+    const input = parseInput(GetImportJobInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (ctx) => getImportReconciliationQuery(ctx, input),
+      { name: 'getImportReconciliation' },
     );
   });
 }

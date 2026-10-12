@@ -25,6 +25,9 @@ export const DUPLICATE_SCAN_PATH = '/api/v1/workers/crm/duplicates';
 /** Where the daily schedule calls the quote expiry worker (docs/03-roadmap-appendix/phase1.md §7.3). */
 export const QUOTE_EXPIRE_PATH = '/api/v1/workers/quotes/expire';
 
+/** Where the nightly schedule calls the anonymisation of old unqualified leads (BLUEPRINT §7.9). */
+export const LEAD_ANONYMISE_PATH = '/api/v1/workers/crm/anonymise';
+
 /** Where QStash calls the render worker with a `PdfRenderJob` (ADR 0009). */
 export const PDF_RENDER_PATH = '/api/v1/workers/pdf/render';
 

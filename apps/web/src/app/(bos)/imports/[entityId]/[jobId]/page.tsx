@@ -5,7 +5,12 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { leadFormOptions } from '../../../../../actions/crm';
-import { getImportJob, listImportRows, listImportTemplates } from '../../../../../actions/imports';
+import {
+  getImportJob,
+  getImportReconciliation,
+  listImportRows,
+  listImportTemplates,
+} from '../../../../../actions/imports';
 import type { ActionResult } from '../../../../../actions/result';
 import { JobScreen } from '../../../../../components/imports/job-screen';
 import { FailureMessage } from '../../../../../components/screens/failure';
@@ -67,7 +72,9 @@ export default async function ImportJobPage({ params }: { params: Promise<Params
   const canMap = job.state === 'uploaded' || job.state === 'mapped' || job.state === 'previewed';
   const view = initialRowView(job);
   const state = rowStateOf(view);
-  const [templates, top, options, rows] = await Promise.all([
+  // What became of every row, once they are checked (IMP-01, IMP-02).
+  const unchecked = job.state === 'uploaded' || job.state === 'mapped' || job.state === 'committing';
+  const [templates, top, options, rows, reconciliation] = await Promise.all([
     canMap ? listImportTemplates({ entityId, kind: job.kind }) : notNeeded([]),
     canMap
       ? listImportRows({ entityId, jobId, limit: 1 })
@@ -76,11 +83,12 @@ export default async function ImportJobPage({ params }: { params: Promise<Params
     job.state === 'uploaded' || job.state === 'mapped'
       ? notNeeded({ rows: [], nextAfter: null, customers: {} })
       : listImportRows({ entityId, jobId, limit: 50, ...(state === undefined ? {} : { state }) }),
+    unchecked ? notNeeded(undefined) : getImportReconciliation({ entityId, jobId }),
   ]);
 
   return (
     <Page title={t('job.title', { file: job.file.name })} actions={back} width="detail">
-      {templates.ok && top.ok && options.ok && rows.ok ? (
+      {templates.ok && top.ok && options.ok && rows.ok && reconciliation.ok ? (
         <JobScreen
           // A fresh page for each change of the job, so every step starts from what was read.
           key={`${job.state}-${job.updatedAt}`}
@@ -96,9 +104,10 @@ export default async function ImportJobPage({ params }: { params: Promise<Params
           initialRows={rows.data}
           initialView={view}
           batchSize={IMPORT_LIMITS.batchSize}
+          reconciliation={reconciliation.data}
         />
       ) : (
-        <FailureMessage failure={firstFailure(templates, top, options, rows)} />
+        <FailureMessage failure={firstFailure(templates, top, options, rows, reconciliation)} />
       )}
     </Page>
   );

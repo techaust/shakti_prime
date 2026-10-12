@@ -2292,6 +2292,36 @@
       "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
       "company_unknown": "We don't recognise this company. Use the company's short code or name, or leave it blank for this company.",
       "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code."
+    },
+    "reconcile": {
+      "title": "What happened to each row",
+      "intro": "Every row of the file is counted once. The counts add up to the rows in the file, so you can check them against the file you sent.",
+      "lines": {
+        "rowsIn": "Rows in the file",
+        "created": "Added as new records",
+        "attached": "Added to records already in the list",
+        "skipped": "Repeated in the file",
+        "refused": "Not added",
+        "waiting": "Checked, not added yet",
+        "undone": "Added, then taken back"
+      },
+      "reasonsTitle": "Why rows were not added",
+      "reasons": {
+        "required": "Something required was missing",
+        "invalid": "A value was not recognised",
+        "too_long": "A value was too long",
+        "phone_invalid": "The phone number was wrong",
+        "pipeline_unknown": "The pipeline was not set up",
+        "source_unknown": "The lead source was not in the list",
+        "commit_failed": "The row stopped the adding",
+        "customer_held_by_colleague": "A colleague looks after the customer",
+        "company_unknown": "The company was not recognised",
+        "state_unknown": "The state was not recognised"
+      },
+      "csvLine": "What happened",
+      "csvRows": "Rows",
+      "csvFileName": "{file} row counts.csv",
+      "downloadCsv": "Download as CSV"
     }
   },
   "customers": {

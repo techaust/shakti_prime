@@ -2,6 +2,7 @@
 
 import type {
   ImportJobDto,
+  ImportReconciliationDto,
   ImportRowPage,
   ImportTemplateDto,
   LeadSourceDto,
@@ -20,6 +21,7 @@ import {
 import { CheckPanel, CommitPanel, OutcomePanel, ProgressPanel } from './job-panels';
 import { ImportSteps } from './import-steps';
 import { MapStep, type PipelineChoice } from './map-step';
+import { ReconciliationPanel } from './reconciliation';
 import { RowsGrid } from './rows-grid';
 
 /**
@@ -36,6 +38,7 @@ export function JobScreen({
   initialRows,
   initialView,
   batchSize,
+  reconciliation,
 }: {
   job: ImportJobDto;
   company: string;
@@ -46,6 +49,8 @@ export function JobScreen({
   initialRows: ImportRowPage;
   initialView: RowView;
   batchSize: number;
+  /** What became of every row, once the rows are checked; undefined before. */
+  reconciliation?: ImportReconciliationDto | undefined;
 }) {
   const t = useTranslations('imports');
   const router = useRouter();
@@ -116,6 +121,9 @@ export function JobScreen({
             <ProgressPanel job={job} refreshing={refreshing} onChanged={refresh} />
           ) : (
             <OutcomePanel job={job} batchSize={batchSize} onDone={refresh} />
+          )}
+          {reconciliation === undefined || isCommitting(job.state) ? null : (
+            <ReconciliationPanel reconciliation={reconciliation} fileName={job.file.name} />
           )}
           {isCommitting(job.state) ? null : (
             <RowsGrid job={job} initial={initialRows} initialView={initialView} />
