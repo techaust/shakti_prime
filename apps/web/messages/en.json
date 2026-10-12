@@ -3364,7 +3364,7 @@
     },
     "result": {
       "title": "Latest result",
-      "savedAt": "Worked out on",
+      "savedAt": "Worked out on <time>{when}</time>",
       "inBounds": "Within limits",
       "outOfBounds": "Outside limits",
       "advice": "Advice",
@@ -3446,7 +3446,7 @@
       "title": "Queue",
       "count": "{count, plural, =0 {No leads to call} one {# lead to call} other {# leads to call}}",
       "empty": "No calls due right now. New leads appear here as they come in.",
-      "asOf": "As of",
+      "asOf": "As of <time>{when}</time>",
       "refresh": "Refresh"
     },
     "reason": {
@@ -3805,7 +3805,7 @@
       "suggests": "{agent} suggests",
       "forCustomer": "For {customer}",
       "forUnknown": "For a lead you cannot open",
-      "received": "Suggested",
+      "received": "Suggested <time>{when}</time>",
       "companyLine": "In {company}",
       "openCustomer": "Open customer",
       "approve": "Approve",
@@ -3825,7 +3825,7 @@
       "routedUnknown": "A customer you look after asked again",
       "routedInterest": "Interested in",
       "routedNote": "Note",
-      "routedReceived": "Passed on",
+      "routedReceived": "Passed on <time>{when}</time>",
       "routedComplete": "Done",
       "routedDone": "Marked done.",
       "handoverFrom": "Qualified lead with no Lead Converter free",
@@ -4456,7 +4456,7 @@
     "board": {
       "title": "Your leads",
       "count": "{count, plural, =0 {No open leads} one {# open lead} other {# open leads}}",
-      "asOf": "As of",
+      "asOf": "As of <time>{when}</time>",
       "refresh": "Refresh",
       "empty": "No leads are with you right now. Qualified leads are given to you as they come in.",
       "truncated": "Showing the 200 leads that changed most recently.",
@@ -4490,7 +4490,7 @@
       "quote": "Quote",
       "order": "Order",
       "noQuote": "No quote yet",
-      "quoteLine": "{number}, {state}, valid until",
+      "quoteLine": "{number}, {state}, valid until <time>{when}</time>",
       "orderHeld": "{number} is held for credit",
       "sizingNone": "Not sized yet",
       "sizingStale": "Needs sizing again",
@@ -4513,7 +4513,7 @@
     "order": {
       "held": "The credit check is holding order {number} for {amount}. An Executive can release it.",
       "open": "Open order",
-      "heldSince": "Held since"
+      "heldSince": "Held since <time>{when}</time>"
     },
     "keys": {
       "title": "Keyboard shortcuts",

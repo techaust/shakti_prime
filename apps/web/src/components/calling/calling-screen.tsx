@@ -22,7 +22,7 @@ import {
 } from '../../screens/calling';
 import { customerHref } from '../../screens/customers';
 import { TimelineRow } from '../customers/timeline-row';
-import { DateTime } from '../date-time';
+import { DateTime, momentValues } from '../date-time';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
 import { DialNumber, Key, Outcomes, Panel, Search, savedMessage } from './calling-parts';
@@ -73,8 +73,8 @@ function Queue({
         </Button>
       </div>
       <p className="text-text-muted text-sm" aria-live="polite">
-        {t('queue.count', { count: page.items.length })} · {t('queue.asOf')}{' '}
-        <DateTime value={page.asOf} />
+        {t('queue.count', { count: page.items.length })} ·{' '}
+        {t.rich('queue.asOf', momentValues(page.asOf))}
       </p>
       {page.items.length === 0 ? (
         <EmptyState message={t('queue.empty')} className="py-8" />

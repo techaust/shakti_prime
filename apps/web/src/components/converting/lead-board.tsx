@@ -7,7 +7,7 @@ import type { RefObject } from 'react';
 import { formatCount } from '../../screens/format';
 import { groupByStage, leadKey } from '../../screens/converting';
 import { QUOTE_STATE_TONE } from '../../screens/quotes';
-import { DateTime } from '../date-time';
+import { DateTime, momentValues } from '../date-time';
 
 /** A lead's size in words: a pump's horsepower or a rooftop system's kilowatts. */
 function useSizeText() {
@@ -170,7 +170,7 @@ export function StageBoard({
         </Button>
       </div>
       <p className="text-text-muted text-sm" aria-live="polite">
-        {t('count', { count: board.leads.length })} · {t('asOf')} <DateTime value={board.asOf} />
+        {t('count', { count: board.leads.length })} · {t.rich('asOf', momentValues(board.asOf))}
       </p>
       {board.truncated ? <p className="text-text-muted text-sm">{t('truncated')}</p> : null}
       {groups.length === 0 ? (
