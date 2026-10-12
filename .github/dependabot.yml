@@ -13,6 +13,12 @@ updates:
       timezone: Asia/Kolkata
     open-pull-requests-limit: 5
     groups:
+      # The test runner and its browser core move together: `@playwright/test` (development) and
+      # `playwright-core` (production) at different versions give two `Page` types and fail the
+      # typecheck. A dependency joins the first group it matches, so this one comes first.
+      playwright:
+        patterns: ['@playwright/test', 'playwright-core', 'playwright']
+        update-types: [minor, patch]
       production:
         dependency-type: production
         update-types: [minor, patch]
