@@ -447,8 +447,18 @@ describe('printing a quote (docs/03-roadmap-appendix/phase1.md §7.3)', () => {
     ]) {
       expect(page?.html).toContain(text);
     }
-    // No phone number of the customer, no CGST row for an inter-state supply, no QR code.
-    expect(page?.html).not.toContain(phone.slice(-5));
+    // No phone number of the customer, no CGST row for an inter-state supply, no QR code. The whole
+    // number in either printed form is looked for in the page; its last five digits only in the
+    // text a reader sees, since styles, embedded fonts and ids can hold five given digits by chance.
+    const html = page?.html ?? '';
+    for (const form of [phone, `${phone.slice(0, 5)} ${phone.slice(5)}`]) {
+      expect(html).not.toContain(form);
+    }
+    const visibleText = html
+      .replace(/<(style|script)\b[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<[^>]*>/g, ' ');
+    expect(visibleText).toContain('Render test customer');
+    expect(visibleText).not.toContain(phone.slice(-5));
     expect(page?.html).not.toContain('CGST');
     expect(page?.html).not.toContain('class="qr"');
 
