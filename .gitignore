@@ -89,3 +89,7 @@ Desktop.ini
 
 # Playwright MCP browser session files
 .playwright-mcp/
+
+# Python bytecode
+__pycache__/
+*.pyc
