@@ -103,7 +103,7 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 - **Who may hold a permission** is fixed, whoever writes (BLUEPRINT §7.1 to §7.3; `roleMayHold()` in `@shakti/contracts` and `app.role_may_hold()`, which a security test compares for every role and permission):
   - every `admin.*` permission and `integrations.dlq.replay`: the Executive role only (`EXECUTIVE_ONLY_PERMISSIONS`);
   - `finance.cost.read`: Executive and Accounts only; `procurement.rate.read`: Executive, Inventory Manager and Accounts only (`COST_PERMISSION_HOLDERS`);
-  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`, `knowledge.index`, `crm.handover.run`): a system role only.
+  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`, `knowledge.index`, `crm.handover.run`, `crm.retention.run`): a system role only.
 - The command refuses any other holder (`permission_not_for_role`, `permission_platform_only`), the trigger `role_permissions_holder_guard` refuses it in the database, the seed included, and the editor shows such a permission locked with its reason.
 - Each permission is offered only at the scopes it honours (`PERMISSION_SCOPES`, the scopes the matrix in §3.2 uses for it: `admin.*` all companies, the cost permissions a company or all; `scope_not_offered`).
 - The Executive role always keeps `admin.roles.write:all` and `admin.users.write:all` (`EXECUTIVE_KEPT_GRANTS`, `executive_keeps_admin`), which a deferred constraint trigger also checks at the end of every transaction, so the group cannot lock itself out.
@@ -177,6 +177,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `notifications.send` | – | – | – | – | – | – | – | – | – | – | – |
 | `knowledge.index` | – | – | – | – | – | – | – | – | – | – | – |
 | `crm.handover.run` | – | – | – | – | – | – | – | – | – | – | – |
+| `crm.retention.run` | – | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
 
@@ -255,6 +256,7 @@ The duplicates and merges ([phase 1 design §7.4](03-roadmap-appendix/phase1.md#
 | `notifications.send` | The notify worker and its scan (`notifications.event.notify`, `notifications.due.scan`, `notifications.push.record`): they find who a notice is for, write it and record its push only through the notification definers (`app.notice_*()`, `app.write_notices()`, `app.record_notice_push()`) |
 | `crm.handover.run` | The handover worker (`crm.opportunity.hand_over`): it reads the facts of a lead that reached Qualified and the people who could take it, gives the lead over (owner, team, lock, callbacks and nurture calls, timeline) and files routed work for the Sales Team Lead only through the handover definers, and moves the customer relationship through `app.hand_over_customer()`; it holds no `crm.*` permission a person may hold |
 | `knowledge.index` | The Knowledge Vault's index job (`knowledge.file.record_index`): it reads the facts of a vault file waiting to be read and records its passages only through the vault definers (`app.knowledge_files_waiting_on()`, `app.knowledge_file_for_index()`, `app.record_knowledge_index()`), and never reads a vault file by its sensitivity |
+| `crm.retention.run` | The nightly anonymisation of unqualified leads idle for the retention period (`crm.lead.anonymise`, BLUEPRINT §7.9) and its dry run (`countStaleLeads`): it reads which of one company's leads are stale through `app.stale_leads()` and removes their personal details through `app.anonymise_stale_leads()`, which checks each lead again under lock and records every batch in `retention_runs`; it never reads a customer row of its own |
 
 The delivery check's worker writes no row.
 

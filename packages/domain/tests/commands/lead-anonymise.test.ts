@@ -120,11 +120,12 @@ describe('crm.lead.anonymise', () => {
   });
 
   it('anonymises a batch as system:workers, with one audit row per lead and no personal value', async () => {
-    const batch = await run<{ anonymised: number; failed: boolean; next: unknown }>(
-      workers(),
-      anonymiseStaleLeads,
-      { entityId: E, after: null },
-    );
+    // The audit rows are never cleaned, so this run's are found by its own request id.
+    let requestId = '';
+    const batch = (await asPrincipal(workers(), (context) => {
+      requestId = context.requestId;
+      return runCommand(anonymiseStaleLeads, { context, audit, outbox }, { entityId: E, after: null });
+    })) as { anonymised: number; failed: boolean; next: unknown };
     expect(batch).toMatchObject({ failed: false, next: null });
     expect(batch.anonymised).toBeGreaterThanOrEqual(1);
     const [lead] = await asMigrator(
@@ -137,7 +138,7 @@ describe('crm.lead.anonymise', () => {
       (m) => m<{ command: string; actor: string; before: unknown; after: unknown; text: string }[]>`
         select command, actor_principal_id as actor, before_json as before, after_json as after,
                row_to_json(l)::text as text
-          from audit_logs l where aggregate_id = ${LEAD}`,
+          from audit_logs l where aggregate_id = ${LEAD} and request_id = ${requestId}`,
     );
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -150,14 +151,19 @@ describe('crm.lead.anonymise', () => {
       expect(rows[0]?.text).not.toContain(value);
     }
 
-    // A second run finds the lead done.
+    // A second run finds the lead done and records nothing more about it.
+    const count = async () =>
+      (
+        await asMigrator(
+          (m) => m<{ n: number }[]>`
+            select count(*)::int as n from audit_logs where aggregate_id = ${LEAD}`,
+        )
+      )[0]?.n;
+    const before = await count();
     const again = await run<{ anonymised: number }>(workers(), anonymiseStaleLeads, {
       entityId: E,
     });
     expect(again.anonymised).toBe(0);
-    const after = await asMigrator(
-      (m) => m<{ n: number }[]>`select count(*)::int as n from audit_logs where aggregate_id = ${LEAD}`,
-    );
-    expect(after[0]?.n).toBe(1);
+    expect(await count()).toBe(before);
   });
 });
