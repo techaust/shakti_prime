@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formKeyFor, type FormKey } from './use-command';
+import { formKeyFor, runKeyFor, type FormKey } from './use-command';
 
 describe('formKeyFor', () => {
   let made = 0;
@@ -27,5 +27,31 @@ describe('formKeyFor', () => {
     expect(formKeyFor(saved, 'lead-a', fresh).key).not.toBe(before.key);
     const unnamed = formKeyFor(undefined, undefined, fresh);
     expect(formKeyFor(unnamed, undefined, fresh)).toBe(unnamed);
+  });
+});
+
+describe('runKeyFor (WEB-5)', () => {
+  let made = 0;
+  const fresh = () => {
+    made += 1;
+    return `run-${String(made)}`;
+  };
+  const rowA = JSON.stringify({ taskId: 'a' });
+  const rowB = JSON.stringify({ taskId: 'b' });
+
+  it("gives a second row's run its own key while the first row's is in flight", () => {
+    const a = runKeyFor(undefined, undefined, rowA, new Map(), fresh);
+    const b = runKeyFor(a, undefined, rowB, new Map([[rowA, a.key]]), fresh);
+    expect(b.key).not.toBe(a.key);
+  });
+
+  it('keeps the key for a double press with the same details, so it acts once', () => {
+    const a = runKeyFor(undefined, undefined, rowA, new Map(), fresh);
+    expect(runKeyFor(a, undefined, rowA, new Map([[rowA, a.key]]), fresh)).toBe(a);
+  });
+
+  it('keeps the key for a retry after a failure, when nothing is in flight', () => {
+    const a = runKeyFor(undefined, undefined, rowA, new Map(), fresh);
+    expect(runKeyFor(a, undefined, rowB, new Map(), fresh)).toBe(a);
   });
 });

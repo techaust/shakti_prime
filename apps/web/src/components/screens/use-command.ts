@@ -33,6 +33,36 @@ export function formKeyFor(
 }
 
 /**
+ * The key for a run with `input` (its serialised details): the form's key, unless another run of
+ * the same hook still waits for its answer under that key with other details (a second row's
+ * button pressed while the first row's is in flight). That run gets a key of its own, so two
+ * inputs never claim one key and the second is not refused as a mismatch (WEB-5). The same
+ * details again (a double press) keep the key and act once.
+ */
+export function runKeyFor(
+  last: FormKey | undefined,
+  form: string | undefined,
+  input: string,
+  inFlight: ReadonlyMap<string, string>,
+  fresh: () => string,
+): FormKey {
+  const key = formKeyFor(last, form, fresh);
+  for (const [details, flying] of inFlight) {
+    if (flying === key.key && details !== input) return { form, key: fresh() };
+  }
+  return key;
+}
+
+/** An input's details, to tell a double press from another row's run. */
+function detailsOf(input: unknown): string {
+  try {
+    return JSON.stringify(input) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Runs a command action from a form or a confirmation (docs/06-api.md §1): one idempotency key per
  * rendered form, sent as the action's second argument, so a double press or a retry after a lost
  * answer acts once. A form is rendered afresh (a dialog opens again, a page loads) for the next
@@ -47,15 +77,22 @@ export function useCommand<T, I = unknown>(
   form?: string,
 ) {
   const sent = useRef<FormKey | undefined>(undefined);
+  // The runs waiting for their answer: their details and the key each was sent with.
+  const inFlight = useRef(new Map<string, string>());
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState<{ form: string | undefined; failure: CommandFailure }>();
 
   const run = useCallback(
     (input: I, onDone: (data: T) => void) => {
-      const current = formKeyFor(sent.current, form, () => crypto.randomUUID());
+      const details = detailsOf(input);
+      const current = runKeyFor(sent.current, form, details, inFlight.current, () =>
+        crypto.randomUUID(),
+      );
       sent.current = current;
+      inFlight.current.set(details, current.key);
       startTransition(async () => {
         const result = await settle(() => action(input, current.key));
+        if (inFlight.current.get(details) === current.key) inFlight.current.delete(details);
         if (result.ok) {
           setFailed(undefined);
           if (sent.current === current) sent.current = undefined;
