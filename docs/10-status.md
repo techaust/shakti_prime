@@ -48,7 +48,7 @@ The owner's remaining items follow. What the client must give, with why and how,
 - **Approve the vendor quote letters** once the development team prepares them.
 - **Hand the workshop pack to the client** and set dates for its "Blocking work now" box; the calling scripts (CALL-2) and the confirmation of the calling defaults (CALL-3, CALL-4's 48-hour lock, CALL-5) are among its questions.
 - **Before the client's customer file:** add the PIN code list, or every site with a PIN shows that its PIN is not in the list.
-- Optional: delete the superseded remote branches `feat/p2-files-storage`, `feat/c3-pipelines-scoring`, `feat/c4-sizing` and the local backup branches.
+- Optional: delete the superseded remote branches `feat/p2-files-storage`, `feat/c3-pipelines-scoring`, `feat/c4-sizing`, `docs/models-plan-opus-sonnet-haiku` (pushed again after #155 merged; its work is in the pull request that follows #155) and the local backup branches.
 
 ## Open follow-ups
 | Follow-up | Phase / slice |
