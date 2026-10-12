@@ -99,6 +99,14 @@ if (fs.existsSync(generated)) {
   after.entries.at(-1).when = last.when;
   after.entries.at(-1).breakpoints = last.breakpoints;
 } else {
+  // Nothing written is success only when drizzle-kit said so; anything else (drizzle-kit not
+  // installed, a schema it could not read) stops here instead of writing a wrong snapshot.
+  const said = out.split('\n').find((line) => /nothing to migrate/i.test(line));
+  if (!said) {
+    console.error(out);
+    throw new Error('drizzle-kit wrote no migration and did not say "nothing to migrate"; see its output above.');
+  }
+  console.log(`drizzle-kit: ${said.trim()}`);
   console.log(
     `drizzle-kit wrote nothing (no schema change in ${last.tag}): its snapshot is the one before with a fresh id, and that is correct.`,
   );

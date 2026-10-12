@@ -18,6 +18,9 @@ POLL="${HEAVY_POLL:-5}"
 STALE_LOCK_SECONDS=5400
 # A ticket whose process number is not written yet counts as gone after this long.
 UNWRITTEN_TICKET_SECONDS=60
+# Each waiter touches its ticket on every check; one untouched for this long belongs to a waiter
+# that is stopped (Ctrl-Z) or whose process number was reused, and is skipped.
+STALE_TICKET_SECONDS=$(( POLL * 12 > 120 ? POLL * 12 : 120 ))
 
 mkdir -p "$QUEUE"
 
@@ -48,7 +51,7 @@ first_live_ticket() {
     pid=$(cat "$QUEUE/$n/pid" 2>/dev/null)
     if [ -z "$pid" ]; then
       if [ "$(age_of "$QUEUE/$n")" -gt "$UNWRITTEN_TICKET_SECONDS" ]; then rm -rf "${QUEUE:?}/$n"; continue; fi
-    elif ! kill -0 "$pid" 2>/dev/null; then
+    elif ! kill -0 "$pid" 2>/dev/null || [ "$(age_of "$QUEUE/$n")" -gt "$STALE_TICKET_SECONDS" ]; then
       rm -rf "${QUEUE:?}/$n"; continue
     fi
     echo "$n"
@@ -68,6 +71,9 @@ trap 'exit 143' TERM
 
 take_ticket
 while :; do
+  # A ticket removed under us (the queue folder deleted by hand, or skipped while this waiter was
+  # stopped) is taken again, at the back of the queue; otherwise it is marked alive.
+  if [ -d "$QUEUE/$TICKET" ]; then touch "$QUEUE/$TICKET"; else mkdir -p "$QUEUE"; take_ticket; fi
   if [ "$(first_live_ticket)" = "$TICKET" ]; then
     # A lock older than 90 minutes is from a stopped agent: clear it.
     if [ -d "$LOCK" ] && [ "$(age_of "$LOCK")" -gt "$STALE_LOCK_SECONDS" ]; then rm -rf "$LOCK"; fi
