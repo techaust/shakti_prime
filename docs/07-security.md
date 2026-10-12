@@ -71,7 +71,7 @@ Each arrow into the BOS crosses a check: a session with its second factor, a pro
   - An Executive can lift an account's locks through the audited command `admin.user.lock.clear`.
   - The trade-off: a spread-out guessing attempt meets Turnstile, the caps and the owner's alert rather than a hard lock. A suspended account locks like an active one, so the lock does not reveal it, and no session is created for an inactive user.
 - **Sessions:**
-  - Database sessions with rotation on privilege change; idle timeout 12 h; absolute 7 d; admins can force logout; a role change revokes sessions.
+  - Database sessions with rotation on privilege change; idle timeout 12 h, which only what the person does extends (a page they open, an action they take), never a background read such as the bell's count (`signedInQuietly()`); absolute 7 d; admins can force logout; a role change revokes sessions. An action whose sign-in has ended answers `unauthorized` (the proxy lets action calls through), and the screen sends the person to sign in and back to where they were.
   - A revoked or expired session is refused on every auth route and in-process call, not only in `currentPrincipal()`; no device is ever remembered past the second factor.
   - The session token column is readable by the auth module's database role only; application code sees session metadata, never the token.
 - **Cookies:** HttpOnly, Secure, SameSite=Lax, with the `__Host-` prefix in production.
