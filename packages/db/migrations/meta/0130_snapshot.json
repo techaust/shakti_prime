@@ -1,5 +1,5 @@
 {
-  "id": "c13c8162-c473-4612-99f0-cdad715f46ff",
+  "id": "23477223-5718-4951-9def-2357ba9c988f",
   "prevId": "3d8dd4d2-cb42-443e-9454-8b6fa5205e9f",
   "version": "7",
   "dialect": "postgresql",
@@ -1865,6 +1865,38 @@
           ],
           "isUnique": false,
           "where": "\"audit_logs\".\"input_json\" ? 'opportunityId'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_logs_input_proposal_opportunity_idx": {
+          "name": "audit_logs_input_proposal_opportunity_idx",
+          "columns": [
+            {
+              "expression": "(\"input_json\" #>> '{proposal,input,opportunityId}')",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"audit_logs\".\"input_json\" ? 'proposal'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_logs_input_existing_account_idx": {
+          "name": "audit_logs_input_existing_account_idx",
+          "columns": [
+            {
+              "expression": "(\"input_json\" ->> 'existingAccountId')",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"audit_logs\".\"input_json\" ? 'existingAccountId'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8472,9 +8504,21 @@
           "primaryKey": false,
           "notNull": false
         },
+        "qualified_at": {
+          "name": "qualified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "retention_kept_at": {
           "name": "retention_kept_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retention_kept_reason": {
+          "name": "retention_kept_reason",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -9014,6 +9058,14 @@
         "opportunities_score_check": {
           "name": "opportunities_score_check",
           "value": "\"opportunities\".\"score\" between 0 and 100"
+        },
+        "opportunities_retention_kept_reason_check": {
+          "name": "opportunities_retention_kept_reason_check",
+          "value": "\"opportunities\".\"retention_kept_reason\" is null or \"opportunities\".\"retention_kept_reason\" in ('won', 'qualified', 'quote', 'order', 'commission', 'dealer_credit', 'referral_partner', 'other_lead', 'customer', 'dealer', 'merge')"
+        },
+        "opportunities_retention_kept_check": {
+          "name": "opportunities_retention_kept_check",
+          "value": "(\"opportunities\".\"retention_kept_at\" is null) = (\"opportunities\".\"retention_kept_reason\" is null)"
         }
       },
       "isRLSEnabled": false

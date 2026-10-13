@@ -88,6 +88,8 @@ const KINDS = [
   'marked',
   'qualifiedThenLost',
   'twoStale',
+  'twoCompanies',
+  'merged',
 ] as const;
 type Kind = (typeof KINDS)[number];
 
@@ -103,8 +105,20 @@ const leads = {} as Record<Kind, FixtureLead>;
 const SECOND_LEAD = id(0xfe0);
 /** The second lead of `twoStale`'s customer, as idle as the first, so both go together. */
 const TWO_SIBLING = id(0xfe1);
+/** The lead in company 2 of `twoCompanies`' customer, as idle as the first: both go together. */
+const SECOND_COMPANY_LEAD = id(0xfe9);
+/** The customer merged into `merged`'s, and the merge, which stands. */
+const MERGED_AWAY = id(0xfe7);
+const MERGE = id(0xfe8);
 /** This run's audit rows about the fixture, written before the anonymisation. */
-const AUDIT = { staleLead: randomUUID(), staleNote: randomUUID(), keptLead: randomUUID() };
+const AUDIT = {
+  staleLead: randomUUID(),
+  staleNote: randomUUID(),
+  keptLead: randomUUID(),
+  triageRun: randomUUID(),
+  refusedForCustomer: randomUUID(),
+  refusedByPhone: randomUUID(),
+};
 
 beforeAll(async () => {
   const pipeline = PIPELINE_SEED[0];
@@ -144,6 +158,7 @@ beforeAll(async () => {
                 where id::text like ${like} or opportunity_id::text like ${like}
                    or other_opportunity_id::text like ${like} or account_id::text like ${like}
                    or other_account_id::text like ${like}`;
+      await tx`delete from customer_merges where id::text like ${like}`;
       await tx`delete from tasks where id::text like ${like}`;
       await tx`delete from consents where id::text like ${like}`;
       await tx`delete from opportunities where id::text like ${like}`;
@@ -226,14 +241,16 @@ beforeAll(async () => {
                                        given_at, evidence_file_id, created_by, created_at, updated_at)
                  values (${id(base + 7)}, ${lead.contact}, 'call', 'service', 'walk_in_form', 'v1',
                          ${at}, ${kind === 'marked' ? EVIDENCE_FILE : null}, ${ACTOR}, ${at}, ${at})`;
+        // `crm.opportunity.stage.move` stamps `qualified_at` when a lead reaches Qualified.
+        const qualifiedAt = kind === 'qualified' || kind === 'qualifiedThenLost' ? at : null;
         await tx`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id,
-                                            state, campaign_json, created_by, created_at, updated_at,
-                                            state_changed_at)
+                                            state, campaign_json, qualified_at, created_by,
+                                            created_at, updated_at, state_changed_at)
                  values (${lead.lead}, 1, ${lead.account}, ${lead.site}, ${pipeline.id},
                          ${kind === 'qualified' ? stages.qualified : lostKinds.includes(kind) ? stages.lost : stages.first},
                          ${kind === 'won' ? 'won' : lostKinds.includes(kind) ? 'lost' : 'open'},
                          ${tx.json({ remarks: `${label} called about a pump` })}::jsonb,
-                         ${ACTOR}, ${at}, ${at}, ${at})`;
+                         ${qualifiedAt}, ${ACTOR}, ${at}, ${at}, ${at})`;
         // Every lead has an old note, an old task with a title and an old call.
         await tx`insert into activities (id, entity_id, opportunity_id, account_id, type,
                                          actor_principal_id, body, created_at)
@@ -316,7 +333,38 @@ beforeAll(async () => {
                       (${AUDIT.keptLead}, 1, ${ACTOR}, 'user', 'crm.lead.create', 'opportunity',
                        ${leads.qualified.lead}, 'ok',
                        ${tx.json({ entityId: 1, contact: { name: 'retention person qualified' } })}::jsonb,
+                       null),
+                      (${AUDIT.triageRun}, 1, ${TRIAGE}, 'agent', 'agents.run.record', 'agent_run',
+                       ${randomUUID()}, 'ok',
+                       ${tx.json({ entityId: 1, agent: 'agent:triage', proposal: { input: { entityId: 1, opportunityId: leads.stale.lead, pipelineKey: 'farmer_pumps', note: 'stale sounds keen' } } })}::jsonb,
+                       null),
+                      (${AUDIT.refusedForCustomer}, 1, ${ACTOR}, 'user', 'crm.lead.create', null, null,
+                       'failed',
+                       ${tx.json({ entityId: 1, pipelineKey: 'farmer_pumps', existingAccountId: leads.stale.account, site: { village: 'stale village' } })}::jsonb,
                        null)`;
+      // Written as the runner wrote a refusal before it removed the personal fields: the
+      // migration's clean-up and its exception are tested on it.
+      await tx`alter table audit_logs disable trigger audit_logs_append_only`;
+      await tx`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command,
+                                       outcome, error_code, input_json)
+               values (${AUDIT.refusedByPhone}, 1, ${ACTOR}, 'user', 'crm.lead.create', 'failed',
+                       'conflict',
+                       ${tx.json({ entityId: 1, pipelineKey: 'farmer_pumps', contact: { name: 'retention walk-in', phone: '********4321', preferredLanguage: 'hinglish' }, account: { type: 'farm' } })}::jsonb)`;
+      await tx`alter table audit_logs enable trigger audit_logs_append_only`;
+      // `twoCompanies`' customer has an idle lead in company 2 as well.
+      await tx`insert into account_entities (id, account_id, entity_id, created_by, created_at, updated_at)
+               values (${id(0xfea)}, ${leads.twoCompanies.account}, 2, ${ACTOR}, '2001-01-01', '2001-01-01')`;
+      await tx`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, created_by,
+                                          created_at, updated_at, state_changed_at)
+               values (${SECOND_COMPANY_LEAD}, 2, ${leads.twoCompanies.account}, ${pipeline.id},
+                       ${stages.first}, ${ACTOR}, '2001-03-02', '2001-03-02', '2001-03-02')`;
+      // `merged`'s customer took another one in, and the merge stands.
+      await tx`insert into accounts (id, type, name, archived_at, created_by, created_at, updated_at)
+               values (${MERGED_AWAY}, 'farm', '', '2001-01-01', ${ACTOR}, '2001-01-01', '2001-01-01')`;
+      await tx`insert into customer_merges (id, entity_id, kept_account_id, merged_account_id,
+                                            moved_json, created_by, created_at, updated_at)
+               values (${MERGE}, 1, ${leads.merged.account}, ${MERGED_AWAY}, '{}'::jsonb, ${ACTOR},
+                       '2001-01-01', '2001-01-01')`;
       await tx`insert into account_contacts (account_id, contact_id, role, created_by, created_at, updated_at)
                values (${OTHER_ACCOUNT}, ${leads.sharedContact.contact}, 'family', ${ACTOR},
                        '2001-01-01', '2001-01-01')`;
@@ -373,9 +421,21 @@ beforeAll(async () => {
  * The fixture leads the job may anonymise: those that never went ahead and that nothing else uses,
  * a lead lost before Qualified among them, and a customer whose two leads are both idle.
  */
-const ELIGIBLE: Kind[] = ['stale', 'staleLost', 'failing', 'marked', 'twoStale'];
-/** The leads kept for good: Qualified reached (lost after or not), a quote, an order, a dealer. */
-const KEPT: Kind[] = ['qualified', 'qualifiedThenLost', 'withQuote', 'withOrder', 'dealer'];
+const ELIGIBLE: Kind[] = ['stale', 'staleLost', 'failing', 'marked', 'twoStale', 'twoCompanies'];
+/**
+ * The leads kept, with the reason marked on them: Qualified reached (lost after or not), a quote
+ * (the lead with an order has one too), a dealer, a company that knows the customer with no lead
+ * there, and a merge that stands.
+ */
+const KEPT: Partial<Record<Kind, string>> = {
+  qualified: 'qualified',
+  qualifiedThenLost: 'qualified',
+  withQuote: 'quote',
+  withOrder: 'quote',
+  dealer: 'dealer',
+  otherCompany: 'customer',
+  merged: 'merge',
+};
 
 async function windowFlags(): Promise<Record<string, { stale: boolean; kept: boolean }>> {
   const found = await rows<{ lead_id: string; stale: boolean; kept: boolean }>(
@@ -479,7 +539,7 @@ describe('which leads the job reaches', () => {
     for (const kind of KINDS) {
       expect({ kind, kept: window[leads[kind].lead]?.kept ?? false }).toEqual({
         kind,
-        kept: KEPT.includes(kind),
+        kept: kind in KEPT,
       });
     }
     // A won lead is never even looked at.
@@ -505,9 +565,22 @@ describe('which leads the job reaches', () => {
 
 describe('the anonymisation', () => {
   const all = (): string[] => [...KINDS.map((k) => leads[k].lead), SECOND_LEAD, TWO_SIBLING];
-  const anonymised = (): string[] => [...ELIGIBLE.map((k) => leads[k].lead), TWO_SIBLING];
+  /** Every lead the run anonymises, with its company: `twoCompanies`' second lead is company 2's. */
+  const anonymised = (): { id: string; entityId: number }[] =>
+    [
+      ...ELIGIBLE.map((k) => ({ id: leads[k].lead, entityId: 1 })),
+      { id: TWO_SIBLING, entityId: 1 },
+      { id: SECOND_COMPANY_LEAD, entityId: 2 },
+    ].sort((a, b) => a.id.localeCompare(b.id));
   const run = (ids: string[], kept: string[] = []) =>
-    rows<{ result: { leads: string[]; kept: number; failed: number; error: string | null } }>(
+    rows<{
+      result: {
+        leads: { id: string; entityId: number }[];
+        kept: number;
+        failed: number;
+        error: string | null;
+      };
+    }>(
       workers(),
       sql`select app.anonymise_stale_leads(1::smallint, ${MONTHS}, ${`{${ids.join(',')}}`}::uuid[],
                                            ${`{${kept.join(',')}}`}::uuid[]) as result`,
@@ -571,31 +644,39 @@ describe('the anonymisation', () => {
       (m) => m<{ id: string; updated_at: Date }[]>`
         select id, updated_at from opportunities where id = any(${all()}::uuid[]) order by id`,
     );
+    // One call of company 1: the customer company 2 knows too goes with its company 2 lead.
     const result = await run(all(), all());
-    expect([...(result?.leads ?? [])].sort()).toEqual(anonymised().sort());
-    expect(result).toMatchObject({ kept: KEPT.length, failed: 0, error: null });
+    expect(result?.leads).toEqual(anonymised());
+    expect(result).toMatchObject({ kept: Object.keys(KEPT).length, failed: 0, error: null });
     expect(await lastRun()).toEqual({ rows_affected: anonymised().length, error: null });
-    // The kept leads are marked, and nothing else about them changed.
+    // The kept leads are marked with their reason, and nothing else about them changed.
     const kept = await asMigrator(
-      (m) => m<{ id: string; kept: boolean; updated_at: Date }[]>`
-        select id, retention_kept_at is not null as kept, updated_at from opportunities
-         where id = any(${all()}::uuid[]) order by id`,
+      (m) => m<{ id: string; reason: string | null; marked: boolean; updated_at: Date }[]>`
+        select id, retention_kept_reason as reason, retention_kept_at is not null as marked,
+               updated_at
+          from opportunities where id = any(${all()}::uuid[]) order by id`,
     );
     for (const row of kept) {
-      const isKept = KEPT.some((k) => leads[k].lead === row.id);
-      expect({ id: row.id, kept: row.kept }).toEqual({ id: row.id, kept: isKept });
-      if (isKept) {
+      const kind = KINDS.find((k) => leads[k].lead === row.id);
+      const reason = kind === undefined ? null : (KEPT[kind] ?? null);
+      expect({ id: row.id, reason: row.reason, marked: row.marked }).toEqual({
+        id: row.id,
+        reason,
+        marked: reason !== null,
+      });
+      if (reason !== null) {
         expect(row.updated_at).toEqual(before.find((b) => b.id === row.id)?.updated_at);
       }
     }
 
+    const ids = anonymised().map((l) => l.id);
     const touched = await asMigrator(
       (m) => m<{ id: string; anonymised: boolean }[]>`
         select id, anonymised_at is not null as anonymised from opportunities
-         where id = any(${all()}::uuid[])`,
+         where id = any(${[...all(), SECOND_COMPANY_LEAD]}::uuid[])`,
     );
     expect(Object.fromEntries(touched.map((r) => [r.id, r.anonymised]))).toEqual(
-      Object.fromEntries(all().map((lead) => [lead, anonymised().includes(lead)])),
+      Object.fromEntries([...all(), SECOND_COMPANY_LEAD].map((lead) => [lead, ids.includes(lead)])),
     );
   });
 
@@ -718,6 +799,50 @@ describe('the anonymisation', () => {
   });
 });
 
+describe('a kept mark whose reason lapses', () => {
+  const mark = (kind: Kind) =>
+    asMigrator(
+      (m) => m<{ reason: string | null; marked: boolean }[]>`
+        select retention_kept_reason as reason, retention_kept_at is not null as marked
+          from opportunities where id = ${leads[kind].lead}`,
+    ).then((r) => r[0]);
+
+  it('is cleared when the customer stops being a dealer, and the window looks at the lead again', async () => {
+    expect(await mark('dealer')).toEqual({ reason: 'dealer', marked: true });
+    expect((await windowFlags())[leads.dealer.lead]).toBeUndefined();
+    // The type alone changes, as `crm.account.update` changes it; the customer's last change is
+    // put back so the lead's idleness is judged as before.
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`update accounts set type = 'farm' where id = ${leads.dealer.account}`;
+        await tx`alter table accounts disable trigger set_updated_at`;
+        await tx`update accounts set updated_at = '2001-02-01' where id = ${leads.dealer.account}`;
+        await tx`alter table accounts enable trigger set_updated_at`;
+      }),
+    );
+    expect(await mark('dealer')).toEqual({ reason: null, marked: false });
+    expect((await windowFlags())[leads.dealer.lead]).toEqual({ stale: true, kept: false });
+    // A permanent reason stays when the type changes.
+    await asMigrator(
+      (m) => m`update accounts set type = 'dealer' where id = ${leads.qualified.account}`,
+    );
+    await asMigrator(
+      (m) => m`update accounts set type = 'farm' where id = ${leads.qualified.account}`,
+    );
+    expect(await mark('qualified')).toEqual({ reason: 'qualified', marked: true });
+  });
+
+  it('is cleared when the merge is undone', async () => {
+    expect(await mark('merged')).toEqual({ reason: 'merge', marked: true });
+    await asMigrator(
+      (m) => m`update customer_merges set undone_at = now(), undone_by = ${ACTOR}
+                where id = ${MERGE}`,
+    );
+    expect(await mark('merged')).toEqual({ reason: null, marked: false });
+    expect((await windowFlags())[leads.merged.lead]).toEqual({ stale: true, kept: false });
+  });
+});
+
 describe('nothing of the person is left', () => {
   it('finds the marker and the phone number nowhere but in the kept consent evidence', async () => {
     // Every text, character and json column of every table, partitions read through their parent.
@@ -810,7 +935,7 @@ describe('the audit trail of an anonymised customer (owner, 13-10-2026)', () => 
         }[]
       >`
         select id, command, aggregate_id, input_json as input, after_json as after
-          from audit_logs where id in (${AUDIT.staleLead}, ${AUDIT.staleNote}, ${AUDIT.keptLead})`,
+          from audit_logs where id = any(${Object.values(AUDIT)}::uuid[])`,
     );
     const byId = Object.fromEntries(found.map((r) => [r.id, r]));
     expect(byId[AUDIT.staleLead]).toEqual({
@@ -828,10 +953,82 @@ describe('the audit trail of an anonymised customer (owner, 13-10-2026)', () => 
       command: 'crm.note.add',
       input: { entityId: 'removed', accountId: leads.stale.account, body: 'removed' },
     });
+    // The Triage agent's run about the lead, found by the lead inside its proposal.
+    expect(byId[AUDIT.triageRun]?.input).toEqual({
+      entityId: 'removed',
+      agent: 'removed',
+      proposal: {
+        input: {
+          entityId: 'removed',
+          opportunityId: leads.stale.lead,
+          pipelineKey: 'removed',
+          note: 'removed',
+        },
+      },
+    });
+    // A lead refused for the known customer, found by `existingAccountId`.
+    expect(byId[AUDIT.refusedForCustomer]?.input).toEqual({
+      entityId: 'removed',
+      pipelineKey: 'removed',
+      existingAccountId: leads.stale.account,
+      site: { village: 'removed' },
+    });
     // A kept customer's history is left as it was.
     expect(byId[AUDIT.keptLead]).toMatchObject({
       input: { entityId: 1, contact: { name: 'retention person qualified' } },
     });
+  });
+
+  it('lets the clean-up of a refusal remove its personal fields, named by its own id, and nothing else', async () => {
+    // As the migration's clean-up does it: the row named in the scope, its input's personal
+    // fields removed, the scope emptied, in one statement.
+    const cleanUp = (target: string, to: string) =>
+      asMigrator(
+        (m) => m.unsafe(`
+          do $$
+          begin
+            insert into app.lead_anonymise_scope (tx, subject_id)
+            values (pg_current_xact_id(), '${target}'::uuid);
+            update audit_logs set input_json = ${to}(input_json) where id = '${target}'::uuid;
+            delete from app.lead_anonymise_scope where tx = pg_current_xact_id();
+          end
+          $$`),
+      );
+    // Anything but the removal of its personal fields is refused, even for the refusal named.
+    expect(await failure(cleanUp(AUDIT.refusedByPhone, 'app.audit_blank'))).toMatch(/append-only/);
+    // A row that is not a refusal is never opened this way.
+    expect(await failure(cleanUp(AUDIT.keptLead, 'app.audit_without_personal'))).toMatch(
+      /append-only/,
+    );
+    // Without the scope, nothing.
+    expect(
+      await failure(
+        asMigrator(
+          (m) => m`update audit_logs set input_json = app.audit_without_personal(input_json)
+                    where id = ${AUDIT.refusedByPhone}`,
+        ),
+      ),
+    ).toMatch(/append-only/);
+    await cleanUp(AUDIT.refusedByPhone, 'app.audit_without_personal');
+    const [row] = await asMigrator(
+      (m) => m<{ input: unknown; outcome: string; error_code: string }[]>`
+        select input_json as input, outcome, error_code from audit_logs
+         where id = ${AUDIT.refusedByPhone}`,
+    );
+    expect(row).toEqual({
+      outcome: 'failed',
+      error_code: 'conflict',
+      input: {
+        entityId: 1,
+        pipelineKey: 'farmer_pumps',
+        contact: { name: 'removed', phone: 'removed', preferredLanguage: 'hinglish' },
+        account: { type: 'farm' },
+      },
+    });
+    const [left] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from app.lead_anonymise_scope`,
+    );
+    expect(left?.n).toBe(0);
   });
 
   it('refuses any change to an audit row outside the anonymisation, even the same blanking', async () => {
@@ -897,15 +1094,28 @@ describe('no write lands on an anonymised customer', () => {
       }),
     );
     await holding;
+    // Written out in full, so the waiting session can be told by its statement.
     const write = failure(
-      asMigrator(
-        (m) => m`insert into activities (id, entity_id, opportunity_id, account_id, type,
-                                         actor_principal_id, body)
-                 values (${id(0xfe6)}, 1, null, ${account}, 'note', ${ACTOR}, 'written meanwhile')`,
+      asMigrator((m) =>
+        m.unsafe(`insert into activities (id, entity_id, opportunity_id, account_id, type,
+                                          actor_principal_id, body)
+                  values ('${id(0xfe6)}', 1, null, '${account}', 'note', '${ACTOR}',
+                          'written meanwhile')`),
       ),
     );
-    // The write is waiting on the job's lock, not done.
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // The write is waiting on the job's lock: its session is seen waiting before the job ends.
+    let waiting = false;
+    for (let tries = 0; tries < 100 && !waiting; tries += 1) {
+      const [seen] = await asMigrator(
+        (m) => m<{ n: number }[]>`
+          select count(*)::int as n from pg_stat_activity
+           where wait_event_type = 'Lock' and query like '%written meanwhile%'
+             and pid <> pg_backend_pid()`,
+      );
+      waiting = (seen?.n ?? 0) > 0;
+      if (!waiting) await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(waiting).toBe(true);
     release();
     await job;
     expect(await write).toMatch(/details were removed by the retention rule/);

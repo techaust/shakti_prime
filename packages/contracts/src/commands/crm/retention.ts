@@ -7,6 +7,30 @@ import { EntityIdSchema, IdSchema } from '../../ids';
 // ahead. A dry run counts them and changes nothing.
 
 /**
+ * Why the retention job keeps a lead (`opportunities.retention_kept_reason`), so its window passes
+ * the lead by. Most reasons never come undone: the lead won or reached Qualified, a quote, an order
+ * or a commission of it or its customer, the customer's dealer credit or referral partner record,
+ * another lead of the customer that went ahead (`other_lead`), or a company that knows the customer
+ * with no lead of it there (`customer`). Two can lapse, and the change that ends them clears the
+ * mark: the customer's type as a dealer or referral partner (`dealer`, cleared when the type
+ * changes back) and a merge that stands (`merge`, cleared when it is undone).
+ */
+export const LEAD_RETENTION_KEPT_REASONS = [
+  'won',
+  'qualified',
+  'quote',
+  'order',
+  'commission',
+  'dealer_credit',
+  'referral_partner',
+  'other_lead',
+  'customer',
+  'dealer',
+  'merge',
+] as const;
+export type LeadRetentionKeptReason = (typeof LEAD_RETENTION_KEPT_REASONS)[number];
+
+/**
  * Where the next batch starts: after the last lead the previous batch looked at, by the time of
  * its last change (exact to the microsecond, as the database writes it) and its id.
  */

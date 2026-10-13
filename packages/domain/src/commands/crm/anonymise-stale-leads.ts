@@ -34,7 +34,7 @@ export interface StaleWindow {
  * The next `LEAD_RETENTION_BATCH` leads of one company not yet anonymised, not kept for good and
  * never won, whose last change is older than the retention period, oldest change first after the
  * cursor (`app.stale_leads()`), each with whether it may be anonymised now (`app.lead_is_stale()`)
- * and whether it is kept for good (`app.lead_group_kept()`).
+ * and whether something keeps it (`app.lead_kept_reason()`).
  */
 export async function readStaleWindow(
   tx: RequestTx,
@@ -69,10 +69,10 @@ const uuidArray = (ids: readonly string[]) => `{${ids.join(',')}}`;
  * runs it batch by batch as `system:workers`, which holds the platform-only `crm.retention.run`
  * and no `crm.*` permission a person may hold (ADR 0020): it reaches leads and customers only
  * through two definers, `app.stale_leads()`, which answers the batch's leads, which are stale and
- * which are kept for good, and `app.anonymise_stale_leads()`, which marks the kept ones, checks
- * each customer again under lock, removes its personal details with those of all its leads and
- * their audit rows, skips a customer that fails (recording it) and records the batch in
- * `retention_runs`. One audit row per anonymised lead records the time and no personal value; no
+ * which are kept, and `app.anonymise_stale_leads()`, which marks the kept ones with their
+ * reason, checks each customer again under lock, removes its personal details with those of all
+ * its leads in every company and their audit rows, skips a customer that fails (recording it) and
+ * records the batch in `retention_runs`. One audit row per anonymised lead records the time and no personal value; no
  * event is sent, since nothing waits on it.
  */
 export const anonymiseStaleLeads = defineCommand({
@@ -91,15 +91,23 @@ export const anonymiseStaleLeads = defineCommand({
                                            ${uuidArray(window.stale)}::uuid[],
                                            ${uuidArray(window.kept)}::uuid[]) as result`,
     )) as unknown as {
-      result: { leads: string[]; kept: number; failed: number; error: string | null };
+      result: {
+        leads: { id: string; entityId: number }[];
+        kept: number;
+        failed: number;
+        error: string | null;
+      };
     }[];
     const result = answer?.result ?? { leads: [], kept: 0, failed: 0, error: null };
     const at = ctx.now.toISOString();
-    for (const leadId of result.leads) {
+    for (const lead of result.leads) {
+      // A lead of another company, anonymised with the customer the companies share, is
+      // recorded with no company: this request is the one company's (the audit policy), and a
+      // row of no company is read by those who read every company's (`audit.read:all`).
       ctx.audit({
         aggregateType: 'opportunity',
-        aggregateId: leadId,
-        entityId: input.entityId,
+        aggregateId: lead.id,
+        entityId: lead.entityId === input.entityId ? input.entityId : null,
         before: { anonymisedAt: null },
         after: { anonymisedAt: at },
       });

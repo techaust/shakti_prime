@@ -66,12 +66,20 @@ export const opportunities = pgTable(
      */
     anonymisedAt: timestamp('anonymised_at', { withTimezone: true }),
     /**
-     * When the retention job found this lead kept for good (won, Qualified reached, a quote, an
-     * order, a commission, a dealer or referral partner, or such a lead of the same customer), so
-     * its window passes it by from then on (`app.anonymise_stale_leads()`). A change of it alone is
+     * When the lead first reached its pipeline's Qualified stage or a later open one, stamped by
+     * `crm.opportunity.stage.move` and never cleared: the retention rule keeps a lead that got
+     * that far (BLUEPRINT §7.9), whatever later happens to the stages' order. A change of it alone
+     * is not an edit of the lead: `updated_at` stays.
+     */
+    qualifiedAt: timestamp('qualified_at', { withTimezone: true }),
+    /**
+     * When, and why (`LEAD_RETENTION_KEPT_REASONS`), the retention job found this lead kept, so its
+     * window passes it by (`app.anonymise_stale_leads()`). A reason that can lapse (`dealer`,
+     * `merge`) is cleared by the change that ends it; the others stand. A change of these alone is
      * not an edit of the lead: `updated_at` stays.
      */
     retentionKeptAt: timestamp('retention_kept_at', { withTimezone: true }),
+    retentionKeptReason: text('retention_kept_reason'),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
@@ -85,6 +93,15 @@ export const opportunities = pgTable(
       foreignColumns: [pipelineStages.id, pipelineStages.pipelineId],
     }),
     check('opportunities_score_check', sql`${t.score} between 0 and 100`),
+    check(
+      'opportunities_retention_kept_reason_check',
+      sql`${t.retentionKeptReason} is null or ${t.retentionKeptReason} in ('won', 'qualified', 'quote', 'order', 'commission', 'dealer_credit', 'referral_partner', 'other_lead', 'customer', 'dealer', 'merge')`,
+    ),
+    // A kept mark always carries its reason.
+    check(
+      'opportunities_retention_kept_check',
+      sql`(${t.retentionKeptAt} is null) = (${t.retentionKeptReason} is null)`,
+    ),
     // The key a child of the lead (`sizings`) points at, so it stays in the lead's company.
     unique('opportunities_id_entity_unique').on(t.id, t.entityId),
     // The target of the composite keys of a lead's tasks and tags (docs/05-database.md §2).

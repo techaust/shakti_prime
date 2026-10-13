@@ -70,5 +70,13 @@ export const auditLogs = pgTable(
     index('audit_logs_input_opportunity_idx')
       .using('btree', sql`(${t.inputJson} ->> 'opportunityId')`)
       .where(sql`${t.inputJson} ? 'opportunityId'`),
+    // An agent's run names its lead inside the proposal it records (`agents.run.record`), and a
+    // lead made for, or refused for, a known customer names it as `existingAccountId`.
+    index('audit_logs_input_proposal_opportunity_idx')
+      .using('btree', sql`(${t.inputJson} #>> '{proposal,input,opportunityId}')`)
+      .where(sql`${t.inputJson} ? 'proposal'`),
+    index('audit_logs_input_existing_account_idx')
+      .using('btree', sql`(${t.inputJson} ->> 'existingAccountId')`)
+      .where(sql`${t.inputJson} ? 'existingAccountId'`),
   ],
 );

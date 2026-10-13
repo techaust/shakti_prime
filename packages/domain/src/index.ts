@@ -1,7 +1,13 @@
 export { defineCommand } from './command/define-command';
 export type { AnyCommand, Command, PermissionByInput, Requirement } from './command/define-command';
 export type { AuditChange, CommandContext, DomainEvent, NestedRunOptions } from './command/context';
-export { runCommand, checkPermission, failureOf, RUNNER_REASONS } from './command/run-command';
+export {
+  runCommand,
+  checkPermission,
+  failureOf,
+  RUNNER_REASONS,
+  SHARED_CONSTRAINT_REASONS,
+} from './command/run-command';
 export type { FailureStage, RunOptions } from './command/run-command';
 export { AUTH_EVENT_FIELDS, redactAuthEvent, redactForAudit } from './audit/redact';
 export { auditDevice, auditIp, databaseAuditSink, memoryAuditSink } from './audit/sink';

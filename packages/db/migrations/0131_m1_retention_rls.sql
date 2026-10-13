@@ -4,10 +4,10 @@
 -- The nightly job runs as the worker principal `system:workers`, which holds no crm.* permission a
 -- person may hold (ADR 0020). It holds instead the platform-only permission crm.retention.run,
 -- which no person's role and no agent may hold, and reaches leads and customers only through the
--- two definers below: one answers which of a company's leads are stale (and which are kept for
--- good), the other checks each customer again under lock and removes its personal details. The
--- period is a workshop default in packages/domain (`WORKSHOP_DEFAULTS.retention`), passed in by
--- the command. A customer is anonymised with all its leads, all at once, or not at all.
+-- two definers below: one answers which of a company's leads are stale (and which are kept), the
+-- other checks each customer again under lock and removes its personal details. The period is a
+-- workshop default in packages/domain (`WORKSHOP_DEFAULTS.retention`), passed in by the command.
+-- A customer is anonymised with all its leads, in every company, all at once, or not at all.
 
 -- 1. The platform-only permissions: main's eight kept, crm.retention.run added.
 create or replace function app.platform_only_permissions() returns text[]
@@ -18,60 +18,109 @@ create or replace function app.platform_only_permissions() returns text[]
 $$;
 --> statement-breakpoint
 
--- 2. Whether a lead ever reached its pipeline's live Qualified stage: it stands at an open stage at
---    or after Qualified, or its timeline records a move to one. A lead lost or won stands at the
---    pipeline's lost or won stage, whose position says nothing, so its history decides. A pipeline
---    with no live Qualified stage has no qualified leads.
-create or replace function app.lead_reached_qualified(p_lead uuid) returns boolean
-  language sql stable set search_path = '' as $$
-  select exists (
-    select 1
-      from public.opportunities o
-      join public.pipeline_stages q
-        on q.pipeline_id = o.pipeline_id and q.key = 'qualified' and q.archived_at is null
-     where o.id = p_lead
-       and (exists (select 1 from public.pipeline_stages s
-                     where s.id = o.stage_id and s.kind = 'open' and s.position >= q.position)
-            or exists (select 1
-                         from public.activities x
-                         join public.pipeline_stages t
-                           on t.id::text = x.payload_json ->> 'toStageId'
-                        where x.opportunity_id = o.id and x.type = 'stage_moved'
-                          and t.pipeline_id = q.pipeline_id and t.kind = 'open'
-                          and t.position >= q.position)))
+-- 2. A lead whose only change is when it reached Qualified, or that the retention job found it
+--    kept, is not edited: its updated_at stays, as for a change of its score alone (0100).
+create or replace function app.opportunities_set_updated_at() returns trigger
+  language plpgsql set search_path = '' as $$
+begin
+  if ((new.score, new.score_reasons_json, new.score_changed_at, new.score_changed_by,
+       new.qualified_at, new.retention_kept_at, new.retention_kept_reason)
+        is distinct from
+      (old.score, old.score_reasons_json, old.score_changed_at, old.score_changed_by,
+       old.qualified_at, old.retention_kept_at, old.retention_kept_reason))
+     and to_jsonb(new) - array['score', 'score_reasons_json', 'score_changed_at',
+                               'score_changed_by', 'qualified_at', 'retention_kept_at',
+                               'retention_kept_reason', 'updated_at', 'updated_by']
+       = to_jsonb(old) - array['score', 'score_reasons_json', 'score_changed_at',
+                               'score_changed_by', 'qualified_at', 'retention_kept_at',
+                               'retention_kept_reason', 'updated_at', 'updated_by'] then
+    new.updated_at := old.updated_at;
+    new.updated_by := old.updated_by;
+  else
+    new.updated_at := now();
+  end if;
+  return new;
+end
 $$;
 --> statement-breakpoint
-revoke execute on function app.lead_reached_qualified(uuid) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
+
+-- 3. When each lead first reached Qualified, for the leads that did before `qualified_at` existed
+--    (from now on `crm.opportunity.stage.move` stamps it): a lead standing at an open stage at or
+--    after its pipeline's live Qualified stage, or whose timeline records a move to one, judged by
+--    the stages' positions today, the best evidence there is before an archive or a reorder can
+--    change them. The time is that of the first such move, or the lead's last change when only its
+--    stage shows it. Won and lost stages say nothing by their position.
+update public.opportunities o
+   set qualified_at = coalesce(
+         (select pg_catalog.min(x.created_at)
+            from public.activities x
+            join public.pipeline_stages t on t.id::text = x.payload_json ->> 'toStageId'
+           where x.opportunity_id = o.id and x.type = 'stage_moved'
+             and t.pipeline_id = q.pipeline_id and t.kind = 'open' and t.position >= q.position),
+         o.updated_at)
+  from public.pipeline_stages q
+ where q.pipeline_id = o.pipeline_id and q.key = 'qualified' and q.archived_at is null
+   and o.qualified_at is null
+   and (exists (select 1 from public.pipeline_stages s
+                 where s.id = o.stage_id and s.kind = 'open' and s.position >= q.position)
+        or exists (select 1
+                     from public.activities x
+                     join public.pipeline_stages t on t.id::text = x.payload_json ->> 'toStageId'
+                    where x.opportunity_id = o.id and x.type = 'stage_moved'
+                      and t.pipeline_id = q.pipeline_id and t.kind = 'open'
+                      and t.position >= q.position));
 --> statement-breakpoint
 
--- 3. Whether a lead is kept for good, whatever the time: won, Qualified reached, a quote, an
---    order or a commission of it, or a customer that is a dealer or referral partner or has a
---    quote, an order or dealer credit. These never come undone, so the retention window passes a
---    kept lead by from then on (`retention_kept_at`).
-create or replace function app.lead_kept(p_lead uuid) returns boolean
+-- 4. Why a lead is kept, whatever the time, or null when nothing keeps it. First the reasons that
+--    never come undone: won; Qualified reached (`qualified_at`); a quote, an order or a commission
+--    of it or its customer; the customer's dealer credit or referral partner record; another lead
+--    of the customer that won or reached Qualified (`other_lead`); a company that knows the
+--    customer with no lead of it there, such as a customers file or a dealer (`customer`). Then
+--    the two that can lapse, each cleared by the change that ends it (step 12): the customer's
+--    type as a dealer or referral partner (`dealer`) and a merge that stands (`merge`). Payments and
+--    projects arrive in later phases: their slices add their tables here.
+create or replace function app.lead_kept_reason(p_lead uuid) returns text
   language sql stable set search_path = '' as $$
-  select exists (
-    select 1
-      from public.opportunities o
-      join public.accounts a on a.id = o.account_id
-     where o.id = p_lead
-       and (o.state = 'won'
-            or a.type not in ('household', 'farm', 'business')
-            or app.lead_reached_qualified(o.id)
-            or exists (select 1 from public.quotes x where x.opportunity_id = o.id)
-            or exists (select 1 from public.quotes x where x.account_id = a.id)
-            or exists (select 1 from public.sales_orders x where x.opportunity_id = o.id)
-            or exists (select 1 from public.sales_orders x where x.account_id = a.id)
-            or exists (select 1 from public.commission_accruals x where x.opportunity_id = o.id)
-            or exists (select 1 from public.dealer_terms x where x.account_id = a.id)
-            or exists (select 1 from public.dealer_outstanding x where x.account_id = a.id)
-            or exists (select 1 from public.referral_partners x where x.account_id = a.id)))
+  select case
+           when o.state = 'won' then 'won'
+           when o.qualified_at is not null then 'qualified'
+           when exists (select 1 from public.quotes x where x.opportunity_id = o.id)
+             or exists (select 1 from public.quotes x where x.account_id = a.id) then 'quote'
+           when exists (select 1 from public.sales_orders x where x.opportunity_id = o.id)
+             or exists (select 1 from public.sales_orders x where x.account_id = a.id) then 'order'
+           when exists (select 1 from public.commission_accruals x where x.opportunity_id = o.id)
+             then 'commission'
+           when exists (select 1 from public.dealer_terms x where x.account_id = a.id)
+             or exists (select 1 from public.dealer_outstanding x where x.account_id = a.id)
+             then 'dealer_credit'
+           when exists (select 1 from public.referral_partners x where x.account_id = a.id)
+             then 'referral_partner'
+           when exists (select 1 from public.opportunities x
+                         where x.account_id = a.id and x.id <> o.id
+                           and (x.state = 'won' or x.qualified_at is not null))
+             then 'other_lead'
+           when exists (select 1 from public.account_entities e
+                         where e.account_id = a.id
+                           and not exists (select 1 from public.opportunities x
+                                            where x.account_id = a.id
+                                              and x.entity_id = e.entity_id))
+             then 'customer'
+           when a.type not in ('household', 'farm', 'business') then 'dealer'
+           when exists (select 1 from public.customer_merges x
+                         where x.kept_account_id = a.id and x.undone_at is null)
+             or exists (select 1 from public.customer_merges x
+                         where x.merged_account_id = a.id and x.undone_at is null)
+             then 'merge'
+         end
+    from public.opportunities o
+    join public.accounts a on a.id = o.account_id
+   where o.id = p_lead
 $$;
 --> statement-breakpoint
-revoke execute on function app.lead_kept(uuid) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
+revoke execute on function app.lead_kept_reason(uuid) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
 --> statement-breakpoint
 
--- 4. Whether nothing about one lead itself has changed since the cutoff and nothing still uses it:
+-- 5. Whether nothing about one lead itself has changed since the cutoff and nothing still uses it:
 --    not yet anonymised; made, changed and moved before the cutoff; no call, task (changed or due),
 --    sizing, Agent Inbox item or agent proposal since; no open duplicate card of leads.
 create or replace function app.lead_idle(p_lead uuid, p_cutoff timestamptz) returns boolean
@@ -106,11 +155,12 @@ $$;
 revoke execute on function app.lead_idle(uuid, timestamptz) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
 --> statement-breakpoint
 
--- 5. Whether nothing about a customer has changed since the cutoff and nothing else uses it
---    (ADR 0008): it deals with one company only, is in no merge that stands and no open duplicate
---    card, shares none of its people with another customer, and its timeline, relationship,
---    people, phones, consents, sites and Agent Inbox items are older than the cutoff.
-create or replace function app.customer_idle(p_account uuid, p_entity smallint, p_cutoff timestamptz)
+-- 6. Whether nothing about a customer has changed since the cutoff and nothing else uses it now:
+--    in no open duplicate card, sharing none of its people with another customer, and its
+--    timeline, relationships with every company, people, phones, consents, sites and Agent Inbox
+--    items older than the cutoff. A second company or a merge is judged as a reason to keep
+--    (step 4); a customer several companies know goes once every company's leads of it are stale.
+create or replace function app.customer_idle(p_account uuid, p_cutoff timestamptz)
   returns boolean
   language sql stable set search_path = '' as $$
   select exists (
@@ -119,12 +169,6 @@ create or replace function app.customer_idle(p_account uuid, p_entity smallint, 
      where a.id = p_account
        and a.anonymised_at is null
        and a.updated_at < p_cutoff
-       and not exists (select 1 from public.account_entities x
-                        where x.account_id = a.id and x.entity_id <> p_entity)
-       and not exists (select 1 from public.customer_merges x
-                        where x.kept_account_id = a.id and x.undone_at is null)
-       and not exists (select 1 from public.customer_merges x
-                        where x.merged_account_id = a.id and x.undone_at is null)
        and not exists (select 1 from public.duplicate_candidates x
                         where x.account_id = a.id and x.state = 'open')
        and not exists (select 1 from public.duplicate_candidates x
@@ -153,14 +197,13 @@ create or replace function app.customer_idle(p_account uuid, p_entity smallint, 
                                            where k.contact_id = c.id and k.updated_at >= p_cutoff))))
 $$;
 --> statement-breakpoint
-revoke execute on function app.customer_idle(uuid, smallint, timestamptz) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
+revoke execute on function app.customer_idle(uuid, timestamptz) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
 --> statement-breakpoint
 
--- 6. Whether a lead may be anonymised now: its customer is idle and every lead of that customer,
---    this one included, is idle and not kept. A customer is anonymised with all its leads at once
---    (several stale leads, say from two imported lists, go together); one live or kept lead, a
---    second company or a standing merge keeps the customer and all its leads. Payments and
---    projects arrive in later phases: their slices add their tables to `app.lead_kept()`.
+-- 7. Whether a lead may be anonymised now: nothing keeps it or its customer (step 4), its customer
+--    is idle, and every lead of that customer, in every company, this one included, is idle. A
+--    customer is anonymised with all its leads at once (several stale leads, say from two imported
+--    lists or two companies, go together); one live lead keeps the customer and all its leads.
 create or replace function app.lead_is_stale(p_lead uuid, p_cutoff timestamptz) returns boolean
   language sql stable set search_path = '' as $$
   select exists (
@@ -168,25 +211,14 @@ create or replace function app.lead_is_stale(p_lead uuid, p_cutoff timestamptz) 
       from public.opportunities o
      where o.id = p_lead
        and o.anonymised_at is null
-       and app.customer_idle(o.account_id, o.entity_id, p_cutoff)
+       and app.lead_kept_reason(o.id) is null
+       and app.customer_idle(o.account_id, p_cutoff)
        and not exists (select 1 from public.opportunities x
                         where x.account_id = o.account_id
-                          and (app.lead_kept(x.id) or not app.lead_idle(x.id, p_cutoff))))
+                          and not app.lead_idle(x.id, p_cutoff)))
 $$;
 --> statement-breakpoint
 revoke execute on function app.lead_is_stale(uuid, timestamptz) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
---> statement-breakpoint
-
--- 7. Whether a lead's customer has a lead kept for good, so the lead can never be anonymised.
-create or replace function app.lead_group_kept(p_lead uuid) returns boolean
-  language sql stable set search_path = '' as $$
-  select exists (select 1
-                   from public.opportunities o
-                   join public.opportunities x on x.account_id = o.account_id
-                  where o.id = p_lead and app.lead_kept(x.id))
-$$;
---> statement-breakpoint
-revoke execute on function app.lead_group_kept(uuid) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
 --> statement-breakpoint
 
 -- 8. The window of one batch: the next p_limit leads of one company of the request (500 at most)
@@ -220,7 +252,7 @@ begin
            pg_catalog.to_char(pg_catalog.timezone('UTC', w.updated_at),
                               'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
            app.lead_is_stale(w.id, v_cutoff),
-           app.lead_group_kept(w.id)
+           app.lead_kept_reason(w.id) is not null
       from (select o.id, o.updated_at
               from public.opportunities o
              where o.entity_id = p_entity
@@ -240,31 +272,7 @@ revoke execute on function app.stale_leads(smallint, integer, timestamptz, uuid,
 grant execute on function app.stale_leads(smallint, integer, timestamptz, uuid, integer) to app_user, app_reader;
 --> statement-breakpoint
 
--- 9. A lead whose only change is that the retention job found it kept is not edited: its
---    updated_at stays, as for a change of its score alone (0100).
-create or replace function app.opportunities_set_updated_at() returns trigger
-  language plpgsql set search_path = '' as $$
-begin
-  if ((new.score, new.score_reasons_json, new.score_changed_at, new.score_changed_by,
-       new.retention_kept_at)
-        is distinct from
-      (old.score, old.score_reasons_json, old.score_changed_at, old.score_changed_by,
-       old.retention_kept_at))
-     and to_jsonb(new) - array['score', 'score_reasons_json', 'score_changed_at',
-                               'score_changed_by', 'retention_kept_at', 'updated_at', 'updated_by']
-       = to_jsonb(old) - array['score', 'score_reasons_json', 'score_changed_at',
-                               'score_changed_by', 'retention_kept_at', 'updated_at', 'updated_by'] then
-    new.updated_at := old.updated_at;
-    new.updated_by := old.updated_by;
-  else
-    new.updated_at := now();
-  end if;
-  return new;
-end
-$$;
---> statement-breakpoint
-
--- 10. What the anonymisation is working on in this transaction: one row per lead, customer,
+-- 9. What the anonymisation is working on in this transaction: one row per lead, customer,
 --     person, site, relationship, task, call, sizing, consent and Agent Inbox item, written and
 --     removed by app.anonymise_stale_leads() alone, which no request role can read or write. The
 --     append-only triggers of the timeline, agent proposals and the audit trail open their one
@@ -293,7 +301,7 @@ $$;
 revoke execute on function app.in_lead_anonymise_scope(text) from public, readonly_reporter;
 --> statement-breakpoint
 
--- 11. A note's text is free text about a customer: the timeline stays append-only, except that the
+-- 10. A note's text is free text about a customer: the timeline stays append-only, except that the
 --     anonymisation removes the notes of a customer it is anonymising in this transaction. The
 --     customer-merge exception of 0113 and 0117 is kept as it is.
 create or replace function app.activities_append_only() returns trigger
@@ -316,7 +324,7 @@ $$;
 revoke execute on function app.activities_append_only() from public, readonly_reporter;
 --> statement-breakpoint
 
--- 12. An agent's proposal changes only its decision, once (0108), except that the anonymisation
+-- 11. An agent's proposal changes only its decision, once (0108), except that the anonymisation
 --     removes the agent's note and a follow-up's title (the free text a proposal can carry) from
 --     a proposal about a lead it is anonymising in this transaction, and changes nothing else.
 create or replace function app.agent_actions_append_only() returns trigger
@@ -346,6 +354,48 @@ $$;
 revoke execute on function app.agent_actions_append_only() from public, readonly_reporter;
 --> statement-breakpoint
 
+-- 12. The kept marks that can lapse are cleared by the change that ends them, so the window looks
+--     at the lead again: a customer's type changed back from dealer or referral partner clears
+--     `dealer`; an undone merge clears every mark of both customers' leads but the lead's own
+--     facts (won, Qualified reached), since leads, quotes and orders moved back with it. Those
+--     still kept are marked again on the next run. Definers, as the leads may be in any company.
+create or replace function app.retention_kept_lapse_type() returns trigger
+  language plpgsql security definer set search_path = '' as $$
+begin
+  if old.type not in ('household', 'farm', 'business')
+     and new.type in ('household', 'farm', 'business') then
+    update public.opportunities o
+       set retention_kept_at = null, retention_kept_reason = null
+     where o.account_id = new.id and o.retention_kept_reason = 'dealer';
+  end if;
+  return null;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.retention_kept_lapse_type() from public, readonly_reporter;
+--> statement-breakpoint
+create trigger accounts_retention_kept_lapse after update of type on public.accounts
+  for each row execute function app.retention_kept_lapse_type();
+--> statement-breakpoint
+create or replace function app.retention_kept_lapse_merge() returns trigger
+  language plpgsql security definer set search_path = '' as $$
+begin
+  if old.undone_at is null and new.undone_at is not null then
+    update public.opportunities o
+       set retention_kept_at = null, retention_kept_reason = null
+     where o.account_id in (new.kept_account_id, new.merged_account_id)
+       and o.retention_kept_reason not in ('won', 'qualified');
+  end if;
+  return null;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.retention_kept_lapse_merge() from public, readonly_reporter;
+--> statement-breakpoint
+create trigger customer_merges_retention_kept_lapse after update of undone_at on public.customer_merges
+  for each row execute function app.retention_kept_lapse_merge();
+--> statement-breakpoint
+
 -- 13. The audit trail keeps every row, but by the owner's decision of 13-10-2026 (DECISIONS) an
 --     anonymised customer's history keeps no personal value: every text and number in a row's
 --     input, before and after about the customer, its leads, people, sites and their records is
@@ -372,23 +422,70 @@ $$;
 revoke execute on function app.audit_blank(jsonb) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
 --> statement-breakpoint
 
--- The audit trail stays append-only, except that the anonymisation replaces, with exactly
--- `app.audit_blank()` of what was there, the input, before and after of a row about a subject it
--- is anonymising in this transaction (by the row's record, or the customer or lead its input
--- names). The trigger on the partitioned table reaches every partition.
+-- A refused command's row keeps the reason and what is not personal: the value of every field
+-- named as a person's name, phone, email, village, PIN, address or note, at any depth, is
+-- "removed" (the runner does the same when it writes the row, `withoutPersonalDetails()` in
+-- packages/domain/src/audit/redact.ts, so a refusal that names no customer keeps nothing of the
+-- person either).
+create or replace function app.audit_without_personal(p_value jsonb) returns jsonb
+  language sql immutable set search_path = '' as $$
+  select case pg_catalog.jsonb_typeof(p_value)
+           when 'object' then
+             coalesce((select pg_catalog.jsonb_object_agg(
+                                e.key,
+                                case when pg_catalog.lower(pg_catalog.translate(e.key, '_-', ''))
+                                            = any (array['name', 'fullname', 'contactname',
+                                                         'customername', 'phone', 'phones',
+                                                         'mobile', 'whatsapp', 'e164', 'email',
+                                                         'village', 'pin', 'pincode', 'address',
+                                                         'note'])
+                                          and pg_catalog.jsonb_typeof(e.value) <> 'null'
+                                     then '"removed"'::jsonb
+                                     else app.audit_without_personal(e.value) end)
+                         from pg_catalog.jsonb_each(p_value) e), '{}'::jsonb)
+           when 'array' then
+             coalesce((select pg_catalog.jsonb_agg(app.audit_without_personal(e.value) order by e.n)
+                         from pg_catalog.jsonb_array_elements(p_value) with ordinality e(value, n)),
+                      '[]'::jsonb)
+           else p_value
+         end
+$$;
+--> statement-breakpoint
+revoke execute on function app.audit_without_personal(jsonb) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
+--> statement-breakpoint
+
+-- The audit trail stays append-only, with one exception through `app.lead_anonymise_scope`, open
+-- only to the owner (the anonymisation, and this migration's clean-up below), in two forms:
+-- the anonymisation replaces, with exactly `app.audit_blank()` of what was there, the input,
+-- before and after of a row about a subject it is anonymising in this transaction (by the row's
+-- record, or the customer or lead its input names: `accountId`, `opportunityId`,
+-- `existingAccountId`, or the lead of an agent's proposal); and a refused command's row named
+-- there by its own id may have the personal fields of its input removed
+-- (`app.audit_without_personal()`), nothing else. The trigger on the partitioned table reaches
+-- every partition.
 create or replace function app.audit_logs_append_only() returns trigger
   language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'UPDATE'
      and (pg_catalog.to_jsonb(new) - array['input_json', 'before_json', 'after_json'])
-         = (pg_catalog.to_jsonb(old) - array['input_json', 'before_json', 'after_json'])
-     and new.input_json is not distinct from app.audit_blank(old.input_json)
-     and new.before_json is not distinct from app.audit_blank(old.before_json)
-     and new.after_json is not distinct from app.audit_blank(old.after_json)
-     and (app.in_lead_anonymise_scope(old.aggregate_id)
-          or app.in_lead_anonymise_scope(old.input_json ->> 'accountId')
-          or app.in_lead_anonymise_scope(old.input_json ->> 'opportunityId')) then
-    return new;
+         = (pg_catalog.to_jsonb(old) - array['input_json', 'before_json', 'after_json']) then
+    if new.input_json is not distinct from app.audit_blank(old.input_json)
+       and new.before_json is not distinct from app.audit_blank(old.before_json)
+       and new.after_json is not distinct from app.audit_blank(old.after_json)
+       and (app.in_lead_anonymise_scope(old.aggregate_id)
+            or app.in_lead_anonymise_scope(old.input_json ->> 'accountId')
+            or app.in_lead_anonymise_scope(old.input_json ->> 'opportunityId')
+            or app.in_lead_anonymise_scope(old.input_json ->> 'existingAccountId')
+            or app.in_lead_anonymise_scope(old.input_json #>> '{proposal,input,opportunityId}')) then
+      return new;
+    end if;
+    if old.outcome <> 'ok'
+       and new.input_json is not distinct from app.audit_without_personal(old.input_json)
+       and new.before_json is not distinct from old.before_json
+       and new.after_json is not distinct from old.after_json
+       and app.in_lead_anonymise_scope(old.id::text) then
+      return new;
+    end if;
   end if;
   raise exception '% is append-only', tg_table_name using errcode = 'insufficient_privilege';
 end
@@ -400,6 +497,25 @@ drop trigger audit_logs_append_only on public.audit_logs;
 --> statement-breakpoint
 create trigger audit_logs_append_only before update or delete on public.audit_logs
   for each row execute function app.audit_logs_append_only();
+--> statement-breakpoint
+
+-- The refused commands' rows already written keep no personal value either: each is named in the
+-- scope by its own id, its input's personal fields removed, and the scope emptied, in one
+-- statement, so in one transaction. Sign-in events are the auth module's and name staff only.
+do $$
+begin
+  insert into app.lead_anonymise_scope (tx, subject_id)
+  select pg_catalog.pg_current_xact_id(), l.id
+    from public.audit_logs l
+   where l.outcome <> 'ok' and l.command not like 'auth.%'
+     and l.input_json is distinct from app.audit_without_personal(l.input_json);
+  update public.audit_logs l
+     set input_json = app.audit_without_personal(l.input_json)
+   where l.outcome <> 'ok' and l.command not like 'auth.%'
+     and l.input_json is distinct from app.audit_without_personal(l.input_json);
+  delete from app.lead_anonymise_scope s where s.tx = pg_catalog.pg_current_xact_id();
+end
+$$;
 --> statement-breakpoint
 
 -- 14. No write may land on a customer the anonymisation has emptied. A writer that read the
@@ -459,10 +575,11 @@ create index import_rows_skipped_repeat_idx on public.import_rows (job_id, (dedu
 --> statement-breakpoint
 
 -- 15. Anonymises the customers of the named leads of one company of the request, one customer at
---     a time, each with all its leads, and marks kept for good the named leads in p_kept that are
---     (so the window passes them by). For each customer: its leads, the customer and its people
---     are held, skipping a customer any of whose rows a write holds now (it waits for the next
---     night); every lead is checked again (`app.lead_is_stale()`); then
+--     a time, each with all its leads in every company, and marks kept, with the reason, the
+--     named leads in p_kept that are (so the window passes them by). For each customer: its
+--     leads, the customer and its people are held, skipping a customer any of whose rows a write
+--     holds now (it waits for the next night); every lead is checked again
+--     (`app.lead_is_stale()`); then
 --     removed: the customer's name (left empty) and GSTIN; its people's names (so the generated
 --     `name_key` is empty), email addresses and phone numbers; its sites' address, village (so
 --     the generated `village_key` is null), PIN, map point and technical notes; the leads'
@@ -470,7 +587,8 @@ create index import_rows_skipped_repeat_idx on public.import_rows (job_id, (dedu
 --     Agent Inbox items about the leads or the customer; the agent's note and a follow-up's title
 --     on proposals about the leads; what the import rows that made them said; and every text and
 --     number in the input, before and after of the audit rows about the customer, its leads,
---     people, sites, relationships, tasks, calls, sizings, consents and inbox items (owner,
+--     people, sites, relationships, tasks, calls, sizings, consents and inbox items, including the
+--     agents' runs about the leads and the leads made or refused for the known customer (owner,
 --     13-10-2026).
 --     Kept, as facts without the person: the leads (state, stage, pipeline, score), the
 --     customer's type, the sites' tehsil, district and state code (coarse geography for
@@ -482,7 +600,9 @@ create index import_rows_skipped_repeat_idx on public.import_rows (job_id, (dedu
 --     A customer whose anonymisation fails changes nothing and is counted; the others go on.
 --     Every call is one row of retention_runs (job leads-anonymise): the leads anonymised and,
 --     when a customer failed, how many and the last failure's code and constraint, never a value.
---     Answers `{ leads, kept, failed, error }`.
+--     Answers `{ leads: [{ id, entityId }], kept, failed, error }`: a customer several companies
+--     know is anonymised by the call of whichever company finds it first, so a lead may be of
+--     another company than the call's.
 create or replace function app.anonymise_stale_leads(p_entity smallint, p_months integer,
                                                      p_leads uuid[], p_kept uuid[])
   returns jsonb
@@ -517,15 +637,18 @@ begin
   end if;
   v_cutoff := pg_catalog.now() - pg_catalog.make_interval(months => p_months);
 
-  -- The leads found kept for good: the window passes them by from now on.
+  -- The leads found kept, each with its reason: the window passes them by until a reason that
+  -- can lapse does (step 12).
   update public.opportunities o
-     set retention_kept_at = pg_catalog.now()
-   where o.entity_id = p_entity
-     and o.id = any (coalesce(p_kept, '{}'::uuid[]))
-     and o.retention_kept_at is null
-     and o.anonymised_at is null
-     and o.state <> 'won'
-     and app.lead_group_kept(o.id);
+     set retention_kept_at = pg_catalog.now(), retention_kept_reason = k.reason
+    from (select x.id, app.lead_kept_reason(x.id) as reason
+            from public.opportunities x
+           where x.entity_id = p_entity
+             and x.id = any (coalesce(p_kept, '{}'::uuid[]))
+             and x.retention_kept_at is null
+             and x.anonymised_at is null
+             and x.state <> 'won') k
+   where o.id = k.id and k.reason is not null;
   get diagnostics v_kept = row_count;
 
   for v_account in
@@ -535,8 +658,9 @@ begin
      order by 1
   loop
     begin
-      -- Hold the customer and every lead of it; a quote, an order, a lead or any other write
-      -- being made for one of them holds a lock on it, and the customer waits for the next night.
+      -- Hold the customer and every lead of it, in every company; a quote, an order, a lead or any
+      -- other write being made for one of them holds a lock on it, and the customer waits for the
+      -- next night.
       select coalesce(pg_catalog.array_agg(l.id), '{}'), pg_catalog.count(*)
         into v_leads, v_held
         from (select o.id
@@ -641,7 +765,8 @@ begin
          and s.dedupe_json ->> 'inFileRowNo' = made.row_no::text;
 
       -- The audit rows about any of the subjects: by their record, or by the customer or lead
-      -- their input names (a note, a task), each found on its own index.
+      -- their input names (a note, a task, a lead made or refused for the known customer, an
+      -- agent's run about a lead), each found on its own index.
       update public.audit_logs l
          set input_json = app.audit_blank(l.input_json),
              before_json = app.audit_blank(l.before_json),
@@ -659,6 +784,15 @@ begin
                select x.id, x.created_at from public.audit_logs x
                 where x.input_json ? 'opportunityId'
                   and x.input_json ->> 'opportunityId'
+                      = any (array(select l::text from pg_catalog.unnest(v_leads) l))
+               union
+               select x.id, x.created_at from public.audit_logs x
+                where x.input_json ? 'existingAccountId'
+                  and x.input_json ->> 'existingAccountId' = v_account::text
+               union
+               select x.id, x.created_at from public.audit_logs x
+                where x.input_json ? 'proposal'
+                  and x.input_json #>> '{proposal,input,opportunityId}'
                       = any (array(select l::text from pg_catalog.unnest(v_leads) l)));
 
       delete from app.lead_anonymise_scope s where s.tx = v_tx;
@@ -679,7 +813,9 @@ begin
                else v_error || ' for ' || v_failed::text
                     || case when v_failed = 1 then ' customer' else ' customers' end end);
   return pg_catalog.jsonb_build_object(
-    'leads', pg_catalog.to_jsonb(v_done),
+    'leads', coalesce((select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+                                'id', o.id, 'entityId', o.entity_id) order by o.id)
+                         from public.opportunities o where o.id = any (v_done)), '[]'::jsonb),
     'kept', v_kept,
     'failed', v_failed,
     'error', case when v_failed = 0 then null else v_error end);
