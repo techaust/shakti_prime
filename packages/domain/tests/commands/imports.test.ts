@@ -362,7 +362,7 @@ describe('imports: create, map and preview', () => {
     });
   });
 
-  it('adds a dealer only for an Executive: a General Manager's dealer rows are refused (DOM-1)', async () => {
+  it('adds a dealer only for an Executive: a General Manager’s dealer rows are refused (DOM-1)', async () => {
     const dealers = {
       columns: { contactName: 'Name', phone: 'Mobile', village: 'Village' },
       defaults: { pipelineKey: 'farmer_pumps', accountType: 'dealer', siteType: 'borewell' },
