@@ -189,6 +189,21 @@ test.describe('customers as a tele-caller', () => {
     await expectNoAxeViolations(page, DIALOG_ONLY);
   });
 
+  test('may not make their customer a dealer, and is told who can (DOM-1)', async ({ page }) => {
+    await addCustomer(page, 'Kesar Meena');
+    await page.getByRole('button', { name: 'Edit details' }).click();
+    const dialog = page.getByRole('dialog');
+    const type = dialog.getByLabel('Type of customer');
+    await expect(type).toBeEnabled();
+    await expect(type.locator('option', { hasText: 'Dealer' })).toHaveCount(0);
+    await expect(dialog.getByText('Only an Executive can make a customer a dealer.')).toBeVisible();
+    await expectNoAxeViolations(page, DIALOG_ONLY);
+    // Another type is theirs to choose.
+    await type.selectOption({ label: 'Business' });
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog).toBeHidden();
+  });
+
   test('sizes a lead from Account 360 and sees it in the history', async ({ page }) => {
     const { name } = await addCustomer(page, 'Bhagirath Jat');
     const leads = section(page, 'Leads');

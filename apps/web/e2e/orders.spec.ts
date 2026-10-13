@@ -63,6 +63,23 @@ test.describe('as an Executive, a signed quote to a confirmed order', () => {
     await expect(page.getByText('The quote document is ready.')).toBeVisible({ timeout: 60_000 });
     await page.getByRole('button', { name: 'Mark as sent' }).click();
     await expect(page.getByText('Quote marked as sent.')).toBeVisible();
+    const acceptedNo = (await quoteTitle.textContent()) ?? '';
+    const acceptedUrl = page.url();
+
+    // A second quote of the lead, still a draft, is withdrawn when the first is accepted (DOM-4).
+    await page.goto(
+      `/quotes/new?company=${String(QUOTE_JOURNEY_COMPANY.entityId)}&lead=${lead.leadId}`,
+    );
+    await page
+      .getByLabel('Item or kit')
+      .selectOption({ label: 'Solar module 540 Wp (JRN-MOD-540), ₹12,000.00' });
+    await page.getByLabel('Quantity').fill('3');
+    await page.getByRole('button', { name: 'Work out the quote' }).click();
+    await page.getByRole('button', { name: 'Make the quote' }).click();
+    await expect(quoteTitle).not.toHaveText(acceptedNo, { timeout: 60_000 });
+    const otherUrl = page.url();
+    await page.goto(acceptedUrl);
+    await expect(quoteTitle).toHaveText(acceptedNo);
 
     // The customer's signed copy accepts the quote and makes its order (SAL-05).
     await page.getByRole('button', { name: 'Record acceptance' }).click();
@@ -102,6 +119,13 @@ test.describe('as an Executive, a signed quote to a confirmed order', () => {
     });
     await expect(section(page, 'Leads').getByText('Won', { exact: true })).toBeVisible();
     await expect(section(page, 'Orders').getByRole('link', { name: orderNo })).toBeVisible();
+
+    // The other quote says it was withdrawn when the customer accepted the first.
+    await page.goto(otherUrl);
+    await expect(page.getByText('Withdrawn', { exact: true })).toBeVisible();
+    await expect(page.getByText('Withdrawn when the customer accepted')).toBeVisible();
+    await expect(page.getByRole('link', { name: acceptedNo })).toBeVisible();
+    await expectNoAxeViolations(page);
   });
 });
 

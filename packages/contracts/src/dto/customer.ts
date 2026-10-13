@@ -203,6 +203,11 @@ export const Account360Dto = z
     canManageTags: z.boolean(),
     /** Whether the caller may set the customer's price tier (`crm.account.tier.set`). */
     canSetTier: z.boolean(),
+    /**
+     * Whether the caller may make the customer a dealer, or a dealer another kind of customer
+     * (`sales.credit.write` at company scope besides the customer write scope, DOM-1).
+     */
+    canChangeDealer: z.boolean(),
     /** Whether the caller may make a quote on the customer's leads (`sales.quote.create`). */
     canQuote: z.boolean(),
     /** The customer's newest quotes in this company (`sales.quote.*`, read with their leads). */

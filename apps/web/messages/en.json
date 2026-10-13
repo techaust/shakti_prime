@@ -2461,6 +2461,8 @@
       "accountIntro": "These details are shared by every company that deals with this customer.",
       "name": "Customer name",
       "type": "Type of customer",
+      "typeDealerLocked": "Only an Executive can change a dealer to another kind of customer, since it changes how their orders are checked for credit.",
+      "typeNoDealer": "Only an Executive can make a customer a dealer.",
       "gstin": "GSTIN",
       "gstinHelper": "15 characters, starting with the two-digit state code. Leave it empty if there is none.",
       "billingState": "Billing state code",
@@ -3697,6 +3699,7 @@
       "replaces": "Replaces",
       "replacedBy": "Replaced by",
       "withdrawnBecause": "Withdrawn because",
+      "withdrawnFor": "Withdrawn when the customer accepted",
       "linesCaption": "Items on this quote",
       "lineColumns": {
         "position": "No.",
