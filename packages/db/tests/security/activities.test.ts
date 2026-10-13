@@ -319,7 +319,11 @@ describe('monthly partitions (docs/05-database.md §7)', () => {
       `,
     );
     expect(jobs).toEqual([
-      { schedule: '5 3 25 * *', command: 'select app.ensure_activity_partitions(3)' },
+      {
+        schedule: '5 3 25 * *',
+        command:
+          "set lock_timeout = '5s'; set statement_timeout = '2min'; select app.ensure_activity_partitions(3)",
+      },
     ]);
   });
 });
