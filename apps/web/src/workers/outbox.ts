@@ -30,9 +30,11 @@ export const OUTBOX_RUN_BUDGET_MS = 30_000;
 
 /**
  * How long a nudge keeps claiming where no queue is configured (local development, CI and the
- * journeys), where no minute schedule follows it: long enough to work through a backlog of a few
- * hundred events ahead of the change that nudged, short enough that the action waiting on it
- * answers promptly.
+ * journeys), where no minute schedule follows it, so a nudge is the only thing that drains the
+ * outbox. On a developer's machine the dev server shares its database with the suites, which
+ * leave thousands of events pending; without the loop each later change's events would wait one
+ * nudge per hundred ahead of them. Long enough to work through such a backlog, short enough that
+ * the action waiting on it answers promptly; a claim that is not full ends it at once.
  */
 export const LOCAL_NUDGE_BUDGET_MS = 10_000;
 
