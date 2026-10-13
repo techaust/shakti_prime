@@ -33,11 +33,15 @@ describe('the hourly check of the scheduled jobs (audit 2026-10, DATA-3)', () =>
   });
 
   it('tells of a run that has gone on past its time limit as stuck (review M2)', async () => {
-    // pg_cron's record of a run of the idempotency purge that started an hour ago and never ended.
+    // pg_cron's record of a run of the idempotency purge that started an hour ago and never ended,
+    // numbered past every real run (the table owner may not draw from pg_cron's sequence).
     const [run] = await asMigrator(
       (m) => m<{ runid: string }[]>`
-        insert into cron.job_run_details (jobid, database, username, command, status, start_time)
-        select j.jobid, j.database, j.username, j.command, 'running', now() - interval '1 hour'
+        insert into cron.job_run_details (jobid, runid, database, username, command, status,
+                                          start_time)
+        select j.jobid,
+               (select coalesce(max(d.runid), 0) + 1000000 from cron.job_run_details d),
+               j.database, j.username, j.command, 'running', now() - interval '1 hour'
           from cron.job j where j.jobname = 'idempotency-keys-purge'
         returning runid::text`,
     );
