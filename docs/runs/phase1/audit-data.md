@@ -110,8 +110,57 @@ After the early check passed. Skills as before (`supabase-postgres-best-practice
 - The migration rule applies to every check dropped and added again, a widening or not: a narrowing is then added `NOT VALID` and validated after the deploy, as DATABASE §8 says.
 
 ## Review
+13-10-2026, cloud, of `fix/audit-data` at 77d49697 (Opus 5.5 xhigh). No critical or high finding: nothing blocks the merge. M1 and L1 are one-line fixes.
+
 | # | Severity | Finding | State |
 |---|---|---|---|
+| M1 | medium | **Customer data reaches Sentry through the rebuilt stack** (`apps/web/src/observability/error-reports.ts:28`). `errorOf()` keeps every line of `raw.stack` after the first. A failed query through drizzle-orm 0.45 throws `DrizzleQueryError`, whose message has several lines (`Failed query: <sql>` then `params: <values>`), so the SQL and the raw parameter values are copied into the stack unredacted. That bypasses the rule in `redaction.ts:220` that turns `params:` into `params: [redacted]`. Sentry's Node stack parser makes a frame of any line containing `at `, and `scrubFrame()` cleans only `vars` and query strings. *Confirmed* with `@sentry/node` 11.6.0's `defaultStackParser`: a parameters line holding a note ("…asked us to call at home on +919876543210 after six") became the frame `filename` and `module` "home on +919876543210 after six". Any `error` line carrying a failed query whose parameters hold free text sends that text to Sentry's US region. **Fix:** keep only the frame lines (`raw.stack.split('\n').filter((l) => /^\s+at /.test(l))`), and add a test with a two-line message. | open |
+| M2 | medium | **A pg_cron run that never finishes is never reported** (`packages/domain/src/queries/platform/scheduled-jobs.ts:94`, `apps/web/src/workers/jobs-check.ts:40`). The job's state is decided as `running` before `late` is ever checked, and the hourly check skips `running`. pg_cron does not start a job while its previous run is still active, and none of the five jobs sets `lock_timeout` or `statement_timeout`. So a run stuck behind a lock stops the job for good: `activities-partitions` making a partition behind a long transaction, or `audit-logs-detach` detaching one. The page shows "Running now" and no `job.problem` is raised. This is DATA-3's "a job missing for more than its period". *Confirmed* by reading; that a run hangs is *plausible*. **Fix:** count an unfinished run that started more than its period plus margin ago as `late` (or a `stuck` state that alerts), with a unit case. | open |
+| L1 | low | **A worker's refusal can still be lost (the rest of DATA-4)** (`packages/db/src/outbox-client.ts:188`). `leased` requires `claimed_until > now()`. Suppose a run sends an event and dies before it records it. Once the two-minute lease lapses, and before the next run claims the event again, the failure callback answers `unchanged` with a 200, and QStash drops the callback. The next run sends the event under the same deduplication id, QStash answers `deduplicated`, and with `attempts > 0` the publisher marks it delivered: no dead letter and no alert. *Confirmed*: on the slot database, the statement against a pending row (attempts 1, lease lapsed 10 s ago) answered held f, leased f. The publisher step is confirmed by reading. `outbox.test.ts:738` asserts this case as `unchanged` on purpose. **Fix:** answer `leased` (503) for any row neither delivered nor dead-lettered, by dropping `claimed_until > now()`, and change that assertion. | open |
+| L2 | low | **`auditWhen: 'changed'` hides one real change** (`packages/domain/src/commands/notifications/notify.ts:228`). `notifications.due.scan` settles pending pushes through `app.record_notice_push()`, which updates `notifications.channel_sent_json`, and names no change for it. A scan whose only work was that settling now leaves no audit row, where before it left the call's row. The other three commands audit everything they write: `app.expire_quotes`, `app.record_duplicates` (whose search, `app.duplicate_facts`, is `stable`) and `app.write_lead_scores` (which answers its row count). *Confirmed* by reading. **Fix:** when `settled.length > 0`, call `ctx.audit()` with a `push_batch` change and its count. | open |
+| L3 | low | **The NOT VALID GST checks have no one to validate them, and older rows break on update first** (0133, DEPLOY §2 step 8, DATABASE §8 item 7). (a) A NOT VALID check is still enforced on every later update. *Confirmed* on the slot database: on an intra quote holding IGST, `update quotes set updated_at = now()` failed with 23514. Such a row makes every change to it fail, for example the nightly `sales.quote.expire` batch that contains it. Step 8 says to validate after the deploy and correct a refused row then; it does not say to look for such rows before the deploy. (b) DATABASE §8 gives the `alter table … validate constraint` to "the lead session" in the SQL editor. The lead's Supabase access is read-only on the PC and absent in the cloud, and the standing go-ahead covers only migration, redeploy and health checks (DECISIONS), so as written nobody runs it. **Fix:** in step 8, a pre-deploy query that counts the rows breaking each check; validate the checks in a migration of the next deploy (SHARE UPDATE EXCLUSIVE, small tables), or make validation an owner step. | open |
+| L4 | low | **Nudges hide a deleted minute schedule from Sentry** (`apps/web/src/app/api/v1/workers/outbox/publish/route.ts:50`). `nudgeViaQStash()` calls the same `publishUrl` as the minute schedule (`qstash.ts:241`), and every call checks in `ok` to `outbox-publish`. While commands commit through the working day, the monitor sees a check-in in every window even with the schedule deleted, so the missed run shows only once activity stops. *Confirmed* by reading; Sentry's handling of extra check-ins is *plausible*. **Fix:** check in only for the schedule's calls, for example from a header or body field that the schedule sets and the nudge does not. | open |
+| L5 | low | **DEPLOY §2 step 6 does not list `jobs-check`**: it names the schedules the script makes, and the owner creates them from that list in the Upstash console, but the new hourly `jobs-check` at :41 is missing from it. *Confirmed*. **Fix:** add it to the sentence. | open |
+| L6 | low | **A missing job shows the wrong period** (`scheduled-jobs.ts:73`): a `missing` job is given `everyHours: 24`, so Scheduled upkeep says "Every day" for a missing monthly job (`activities-partitions`, `audit-logs-detach`). *Confirmed* by reading. **Fix:** keep each expected job's period beside `DATABASE_JOBS`, or show no period for a missing job. | open |
+| L7 | low | **The local nudge's 10 s loop is a timing fix for a test-isolation problem** (`apps/web/src/workers/outbox.ts:37`, `apps/web/tests/actions.test.ts:279`). That test's event sits behind whatever backlog earlier files leave pending, and it passes only if one action's nudge drains that backlog within 10 s. A bigger backlog or a busier shared machine fails it again. Every local and CI action may also wait those 10 s plus the in-process deliveries of the claim already started. *Plausible*. **Fix:** make the test independent of the backlog (publish until its own row is delivered, or drain the outbox before it), and keep or drop the 10 s on its own merits. The test's comment "No worker listens to this event yet" is stale, since Triage does. | open |
+| L8 | low | **A jobs-check assertion could pass with nothing checked** (`apps/web/tests/jobs-check.test.ts:19`): `alerted === problems` and the loop over the alerts still pass with zero problems. Today `retention_runs` rows keep it from passing empty. **Fix:** add `expect(first.problems).toBeGreaterThan(0)`. | open |
+
+**Checked and sound**
+- Redefinitions against main:
+  - 0131's `app.outbox_delivery_only()` is 0064's with only the two `replays` rules added.
+  - 0131's `app.replay_dead_letter()` is 0054's plus `replays + 1`, with the revokes widened.
+  - 0132's `app.platform_only_permissions()` is 0125's eight keys plus `platform.jobs.check`.
+  - Main's new 0130–0133 redefine no function this slice touches.
+- Reproduced on the slot database (port 54337), in rolled-back transactions:
+  - The trigger refuses a `replays` change outside a replay, a hand-made replay, and a jump of two under `app.dlq_replay`.
+  - `outbox_publisher` cannot update `replays`.
+  - `app.scheduled_jobs()` refuses `app_user` and `app_reader` with no settings, with empty permissions, and with `platform.jobs.check:entity`.
+  - `ADD … NOT VALID` on the partitioned `activities` reaches every partition, and partitions made afterwards are created valid.
+- DATA-1: each delivery generation has its own deduplication id. The first try of a replayed generation answered `deduplicated` is held back; a later try counts as delivered. The tests assert `<id>:1` and `<id>:2` against the real outbox.
+- DATA-2:
+  - Only Triage subscribes to `crm.lead.created`, and `imported` is set only on the import path.
+  - The loop stops on a claim that is not full, on a claim whose every event failed, and at the budget. The last claim of a run ends well inside the 60 s route limit and the two-minute lease.
+- DATA-3 and OPS-3: `scheduleEveryHours()` reads main's new daily `audit-logs-partitions` correctly, and `retention_runs` job names match the cron job names.
+- OPS-8: the flush test holds `report()` open until `flush` resolves. Alerts are awaited before the route answers.
+- OPS-9: the reader probe and its refused-password test.
+- `migration-rules.test.ts` catches drizzle-kit's drop-and-add form, upper or lower case. `renumber-migrations.mjs` keeps SQL verbatim, so the hand-written NOT VALID survives the move.
+- The role editor hides platform-only keys. Copy is in `en.json` with no new button.
+- The hot-reads record meets the brief's volume and states its gaps (quote volume, hosted stack).
+- Tests run through the lock, all passing:
+  - db `migration-rules.test.ts`: 2.
+  - domain `scheduled-jobs`, `publisher` and `run-command`: 80.
+  - db security `outbox`, `dead-letter-replay`, `scheduled-jobs`, `gst-split`, `grants` and `caller-profiles`: 6 files, 226.
+  - web security `outbox-replay`, `jobs-check`, `ready` and `integration-health`: 4 files, 23.
+
+**Not checked**
+- The layout of Scheduled upkeep: no baseline or builder screenshot exists yet.
+- Live, with no network: QStash's 90-day deduplication window and its retries of a failure callback, and Sentry's cron monitors and uptime monitor.
+- The whole security suite: only the files above were run.
+
+**For integration**
+- `main` has its own 0130–0133 since this branch started (followups-db, #168), so this slice's migrations move to 0134–0137. Their citations follow: DATABASE §4.1's 0131 and 0132, and every "0133" in DATABASE, DEPLOY and `docs/data`, which must be regenerated.
+- `migration-rules.test.ts` keeps its rule from 130: main's 0130–0133 drop and re-add no check.
+- Main's 0133 runs `audit-logs-partitions` daily and records its runs in `retention_runs`. Scheduled upkeep reads the period from the schedule, so nothing changes.
 
 ## Integration notes
 - The Sentry alert rules and uptime monitors are created by the owner (hosted).
