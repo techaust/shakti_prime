@@ -10,6 +10,7 @@ import {
   requirePrincipal,
   resolveSessionPrincipal,
   type ResolvedSession,
+  type SessionUse,
 } from './session-principal';
 
 /** The entity switcher's cookie: absent means "All entities". */
@@ -29,14 +30,37 @@ async function activeEntityId(): Promise<number | undefined> {
  * per request: the layout and the page both ask, and each answer costs a round of auth queries
  * and cache calls (AUDIT M34).
  */
-export const currentSession = cache(async (): Promise<ResolvedSession | undefined> => {
-  const deps = defaultAuthDeps();
-  return resolveSessionPrincipal(await headers(), await activeEntityId(), {
-    auth,
-    keyValue: deps.keyValue,
-    now: deps.now,
-  });
+export const currentSession = cache((): Promise<ResolvedSession | undefined> => {
+  const lookups = sessionLookups();
+  lookups.extend ??= resolveSession('extend');
+  return lookups.extend;
 });
+
+/**
+ * The session for a background read (the bell's poll, a progress check): checked, never extended
+ * (`SessionUse`), so only what the person does keeps a session alive (WEB-8). Within a page the
+ * layout has already resolved the session as the person's own use, and that answer is reused.
+ */
+export function currentSessionQuietly(): Promise<ResolvedSession | undefined> {
+  const lookups = sessionLookups();
+  lookups.quiet ??= lookups.extend ?? resolveSession('quiet');
+  return lookups.quiet;
+}
+
+/** This request's session lookups, by use; one each at most (AUDIT M34). */
+const sessionLookups = cache(
+  (): Partial<Record<SessionUse, Promise<ResolvedSession | undefined>>> => ({}),
+);
+
+async function resolveSession(use: SessionUse): Promise<ResolvedSession | undefined> {
+  const deps = defaultAuthDeps();
+  return resolveSessionPrincipal(
+    await headers(),
+    await activeEntityId(),
+    { auth, keyValue: deps.keyValue, now: deps.now },
+    use,
+  );
+}
 
 /**
  * Resolves the signed-in principal for a server action or route. Undefined when nobody is
@@ -45,6 +69,13 @@ export const currentSession = cache(async (): Promise<ResolvedSession | undefine
  */
 export async function currentPrincipal(): Promise<Principal | undefined> {
   const principal = requirePrincipal(await currentSession());
+  if (principal !== undefined) await tagSentryPrincipal(principal.id);
+  return principal;
+}
+
+/** `currentPrincipal()` for a background read: the session is checked but not extended. */
+export async function currentPrincipalQuietly(): Promise<Principal | undefined> {
+  const principal = requirePrincipal(await currentSessionQuietly());
   if (principal !== undefined) await tagSentryPrincipal(principal.id);
   return principal;
 }

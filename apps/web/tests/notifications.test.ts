@@ -52,6 +52,7 @@ vi.mock('next/headers', () => ({
 }));
 vi.mock('../src/auth/current-principal', () => ({
   currentPrincipal: () => Promise.resolve(request.principal),
+  currentPrincipalQuietly: () => Promise.resolve(request.principal),
   currentSession: () => Promise.resolve(undefined),
   forgetPrincipal: () => Promise.resolve(),
 }));

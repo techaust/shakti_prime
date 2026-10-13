@@ -4,6 +4,7 @@ import { AccountTypeSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { CalendarDateSchema, StateCodeSchema, SupplyKindSchema } from '../tax/engine';
 import { QuoteChoiceDto, QuoteLineDto, QuoteTotalsDto } from './quote';
+import { SearchTextSchema } from './search-text';
 
 /**
  * Where a sales order stands (docs/03-roadmap-appendix/phase1.md §8.3, the sales order machine). Phase 1 moves
@@ -119,7 +120,12 @@ export const SalesOrderRowDto = z
 export type SalesOrderRowDto = z.infer<typeof SalesOrderRowDto>;
 
 export const SalesOrderPageDto = z
-  .object({ items: z.array(SalesOrderRowDto), nextCursor: z.string().nullable() })
+  .object({
+    items: z.array(SalesOrderRowDto),
+    nextCursor: z.string().nullable(),
+    /** A number search took its most candidates (200), so older matches may be left out. */
+    searchCapped: z.boolean(),
+  })
   .strict();
 export type SalesOrderPageDto = z.infer<typeof SalesOrderPageDto>;
 
@@ -128,11 +134,25 @@ export const ListSalesOrdersInput = z
   .object({
     entityId: EntityIdSchema.optional(),
     state: SalesOrderStateSchema.optional(),
+    /** Any part of the order number (RPT-03); the matches come newest first, one page. */
+    q: SearchTextSchema.optional(),
     cursor: z.string().max(512).optional(),
     limit: z.number().int().min(1).max(100).default(50),
   })
   .strict();
 export type ListSalesOrdersInput = z.input<typeof ListSalesOrdersInput>;
+
+/** An order the ⌘K search found by its number (RPT-03). */
+export const OrderSearchHitDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    soNo: z.string(),
+    customerName: z.string(),
+    state: SalesOrderStateSchema,
+  })
+  .strict();
+export type OrderSearchHitDto = z.infer<typeof OrderSearchHitDto>;
 
 /** The dealer's order form: the tier and list it would be priced from, and the priced choices. */
 export const SalesOrderBuilderDto = z

@@ -1,0 +1,1 @@
+CREATE INDEX "sales_orders_so_no_trgm_idx" ON "sales_orders" USING gin ("so_no" gin_trgm_ops);

@@ -12,6 +12,7 @@ import { CreateLeadOutcomeSchema } from '../../crm/duplicates';
 import { LeadDto } from '../../dto/lead';
 import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
+import { RoutedEnquiryDto } from '../../notifications';
 
 const Name = z.string().trim().min(2).max(120);
 
@@ -87,3 +88,10 @@ export type CreateLeadInput = z.infer<typeof CreateLeadInput>;
  */
 export const CreateLeadResultDto = LeadDto.extend({ outcome: CreateLeadOutcomeSchema }).strict();
 export type CreateLeadResultDto = z.infer<typeof CreateLeadResultDto>;
+
+/**
+ * What `crm.enquiry.take` answers: the lead `crm.lead.create` made or attached, or, for a customer
+ * a colleague looks after in the company, the routed work `crm.enquiry.route` filed for them.
+ */
+export const TakenEnquiryDto = z.union([CreateLeadResultDto, RoutedEnquiryDto]);
+export type TakenEnquiryDto = z.infer<typeof TakenEnquiryDto>;

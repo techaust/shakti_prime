@@ -1,18 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { contentSecurityPolicy, fileUploadOrigins, sentryIngestOrigin } from './csp';
-import { needsSignIn } from './session-gate';
+import { needsSignIn, PATH_HEADER, SERVER_ACTION_HEADER, signInPath } from './session-gate';
 
 /**
  * Runs before every page request. A BOS screen asked for without a session cookie goes to
- * sign-in at once (ARCHITECTURE §4; only the cookie's presence is checked here, the full check
- * stays in the `(bos)` layout and `currentPrincipal()`). Every other page gets a fresh nonce and
+ * sign-in at once, which brings them back to it (ARCHITECTURE §4; only the cookie's presence is
+ * checked here, the full check stays in the `(bos)` layout and `currentPrincipal()`). A server
+ * action's call goes through, so the action itself answers `unauthorized` (WEB-7). Every other page gets a fresh nonce and
  * the Content-Security-Policy that trusts it (AUDIT L43): Next.js adds the nonce to its own
  * scripts from the request header; a page reads it through `requestNonce()` for scripts it loads
  * itself.
  */
 export function proxy(request: NextRequest): NextResponse {
-  if (needsSignIn(request.nextUrl.pathname, (name) => request.cookies.get(name)?.value)) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+  const serverAction = request.method === 'POST' && request.headers.has(SERVER_ACTION_HEADER);
+  const { pathname } = request.nextUrl;
+  if (needsSignIn(pathname, (name) => request.cookies.get(name)?.value, serverAction)) {
+    return NextResponse.redirect(new URL(signInPath(pathname), request.url));
   }
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const csp = contentSecurityPolicy(
@@ -23,6 +26,9 @@ export function proxy(request: NextRequest): NextResponse {
   );
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
+  // The path asked for, for the `(bos)` layout's sign-in redirect (`expiredSignInPath`); set here,
+  // so a value the browser sent is replaced.
+  requestHeaders.set(PATH_HEADER, pathname);
   requestHeaders.set('Content-Security-Policy', csp);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);

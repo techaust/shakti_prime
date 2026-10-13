@@ -3,7 +3,8 @@
 // in company 2 (customers named `EXPLO customer …`, dealers `EXPLO dealer …`, numbers under
 // `EXPLO/`): 2,000 orders of accepted quotes and 18,000 orders of 200 dealers, each dealer with
 // terms and an outstanding entry. Then prints `EXPLAIN (ANALYZE, BUFFERS)` for `/orders`, its
-// status filter, Account 360's orders, `/dealer-credit` and the confirmation's credit position,
+// status filter and number search, the ⌘K order search (RPT-03), Account 360's orders,
+// `/dealer-credit` and the confirmation's credit position,
 // run under the policies as an Executive, a General Manager, a Lead Converter and Accounts, as the
 // screens run them. Everything it made is removed at the end. Local database only
 // (prepareDatabase refuses any other host). Not part of CI; it lives under tests/ for the helpers.
@@ -20,7 +21,7 @@ import {
 import { sql, type SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { dealerCreditQuery } from '../../src/queries/sales/dealer-credit';
-import { salesOrderListQuery } from '../../src/queries/sales/list-orders';
+import { orderSearchQuery, salesOrderListQuery } from '../../src/queries/sales/list-orders';
 
 const ENTITY = 2;
 const LEADS = 2000;
@@ -195,6 +196,22 @@ async function main(): Promise<void> {
   );
   await explain('/orders, Lead Converter (own leads and dealers), company 2', lc, (ctx) =>
     salesOrderListQuery(ctx, { ...firstPage, entityId: ENTITY }),
+  );
+  // RPT-03: an order by its number, in ⌘K and on /orders (candidates from app.order_search_ids()).
+  await explain('⌘K, an order number typed whole, Executive', exec, (ctx) =>
+    orderSearchQuery(ctx, { q: 'EXPLO/D/009001', limit: 8 }),
+  );
+  await explain('⌘K, the last digits of a number, General Manager', gm, (ctx) =>
+    orderSearchQuery(ctx, { q: '9001', limit: 8 }),
+  );
+  await explain('⌘K, a number, Lead Converter (own leads and dealers)', lc, (ctx) =>
+    orderSearchQuery(ctx, { q: 'EXPLO/D/0000', limit: 8 }),
+  );
+  await explain('/orders searched by number, Executive, company 2', exec, (ctx) =>
+    salesOrderListQuery(
+      { ...ctx, entityIds: [ENTITY] },
+      { ...firstPage, entityId: ENTITY, q: 'EXPLO/L/1' },
+    ),
   );
   const [dealer] = await asMigrator(
     (m) => m<{ id: string }[]>`select id from accounts where name = 'EXPLO dealer 0001'`,

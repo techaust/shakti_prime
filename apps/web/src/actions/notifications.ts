@@ -31,7 +31,14 @@ import {
 import { inboxCountKey } from './inbox-count-cache';
 import { noticeCounts } from './notice-count-cache';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from './support';
+import {
+  commandOptions,
+  parseInput,
+  requestMeta,
+  signedIn,
+  signedInQuietly,
+  type Schema,
+} from './support';
 
 /** The caller's notices in the companies being viewed, newest first, a page at a time. */
 export async function listNotices(rawInput: unknown): Promise<ActionResult<NoticePageDto>> {
@@ -48,11 +55,12 @@ export async function listNotices(rawInput: unknown): Promise<ActionResult<Notic
 /**
  * How many unread notices the caller has, for the bell: read on every staff page and every 15
  * seconds while a page is in view, so it is reused for a few seconds per person and company
- * scope (`notice-count-cache.ts`), and cleared when the person reads a notice.
+ * scope (`notice-count-cache.ts`), and cleared when the person reads a notice. The poll is not
+ * the person's doing, so it never extends their session (WEB-8).
  */
 export async function noticeCount(): Promise<ActionResult<NoticeCountDto>> {
   return toResult('noticeCount', async () => {
-    const principal = await signedIn();
+    const principal = await signedInQuietly();
     const key = inboxCountKey(principal.id, principal.entityIds);
     const kept = noticeCounts.get(key, Date.now());
     if (kept !== undefined) return { unread: kept };

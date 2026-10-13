@@ -3,8 +3,10 @@ import {
   dataGrid,
   expect,
   expectNoAxeViolations,
+  rowOf,
   signedInAs,
   snap,
+  tableOrCards,
   test,
 } from './support/fixtures';
 import { insideCallingHours, outsideCallingHours, setServerClock } from './support/clock';
@@ -176,8 +178,8 @@ test.describe('calling as a sales team lead', () => {
   test('sees the team’s queues and opens a caller’s queue', async ({ page }) => {
     await page.goto('/calling?view=team');
     await expect(page.getByRole('heading', { name: 'Calling', level: 1 })).toBeVisible();
-    const table = page.getByRole('table', { name: 'Team queues' });
-    await expect(table.getByRole('rowheader', { name: 'Neha Saini' })).toBeVisible();
+    const table = tableOrCards(page, 'Team queues');
+    await expect(rowOf(table, 'Neha Saini')).toBeVisible();
     await expectNoAxeViolations(page);
     await table.getByRole('link', { name: "Open Neha Saini's queue" }).click();
     await expect(page.getByRole('heading', { name: "Neha Saini's queue", level: 1 })).toBeVisible();

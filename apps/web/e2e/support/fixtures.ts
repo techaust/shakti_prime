@@ -46,11 +46,22 @@ export const signedOut = { storageState: { cookies: [], origins: [] } };
  * A data grid by its caption: the table on wider screens, the list of cards on a phone
  * (packages/ui/src/data-grid.tsx), whichever the project shows.
  */
-export function dataGrid(page: Page, caption: string): Locator {
+export function dataGrid(page: Page, caption: string | RegExp): Locator {
   return page
     .getByRole('table', { name: caption })
     .or(page.getByRole('list', { name: caption }))
     .filter({ visible: true });
+}
+
+/**
+ * A table by its caption, as `dataGrid` finds one: the table on wider screens, the list of cards
+ * on a phone (`CardList`, docs/08-design-system.md §5).
+ */
+export const tableOrCards = dataGrid;
+
+/** The row or card of a table or card list that holds `text`. */
+export function rowOf(table: Locator, text: string | RegExp): Locator {
+  return table.getByRole('row').or(table.getByRole('listitem')).filter({ hasText: text });
 }
 
 /**

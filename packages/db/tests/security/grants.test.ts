@@ -445,6 +445,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',
+      // The ⌘K and /orders search's candidate orders (RPT-03).
+      'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // The quote print loader of the render worker (0110).
       'app.quote_for_print(uuid)',

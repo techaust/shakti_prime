@@ -9,6 +9,7 @@ import {
   type KnowledgeFileDto,
   type KnowledgeFilePageDto,
   type KnowledgeSearchDto,
+  type Principal,
 } from '@shakti/contracts';
 import {
   addKnowledgeFile as addKnowledgeFileCommand,
@@ -25,7 +26,7 @@ import { countRequest, type CapRule } from '../auth/request-cap';
 import { defaultAuthDeps } from '../auth/deps';
 import { aiProvider } from '../integrations/ai';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn } from './support';
+import { commandOptions, parseInput, requestMeta, signedIn, signedInQuietly } from './support';
 
 /*
  * The Knowledge Vault (docs/03-roadmap-appendix/phase1.md §8.4): thin wrappers (docs/06-api.md §4). Each runs with
@@ -43,17 +44,26 @@ const SEARCH_CAP: CapRule = { window: 60, max: 30 };
 export async function listKnowledgeFiles(
   rawInput: unknown,
 ): Promise<ActionResult<KnowledgeFilePageDto>> {
-  return toResult('listKnowledgeFiles', async () => {
-    const principal = await signedIn();
-    const input = parseInput(ListKnowledgeFilesInput, rawInput);
-    const { requestId } = await requestMeta();
-    return executeQuery(
-      principal,
-      { requestId },
-      (context) => listKnowledgeFilesQuery(context, input),
-      { name: 'listKnowledgeFiles' },
-    );
-  });
+  return toResult('listKnowledgeFiles', async () => listFiles(await signedIn(), rawInput));
+}
+
+/**
+ * The first page again, read while a file is still being read: not the person's doing, so it never
+ * extends their session (WEB-8).
+ */
+export async function recheckKnowledgeFiles(): Promise<ActionResult<KnowledgeFilePageDto>> {
+  return toResult('recheckKnowledgeFiles', async () => listFiles(await signedInQuietly(), {}));
+}
+
+async function listFiles(principal: Principal, rawInput: unknown): Promise<KnowledgeFilePageDto> {
+  const input = parseInput(ListKnowledgeFilesInput, rawInput);
+  const { requestId } = await requestMeta();
+  return executeQuery(
+    principal,
+    { requestId },
+    (context) => listKnowledgeFilesQuery(context, input),
+    { name: 'listKnowledgeFiles' },
+  );
 }
 
 /**

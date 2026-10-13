@@ -45,15 +45,15 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 | `--surface-2` | One step from `--surface` toward the text | Table header, sidebar, inset areas |
 | `--surface-3` | Two steps from `--surface` toward the text | Hover rows, pressed states |
 | `--text` | The high-contrast end of the ladder | Primary text |
-| `--text-muted` | Ladder, AA on every surface | Secondary text, labels |
-| `--text-subtle` | Ladder, 4.5:1 on every surface (AA): less prominent than `--text-muted` in the standard themes, about the same as it in the high-contrast variants, where both reach 7:1 | Placeholders, helpers, metadata |
+| `--text-muted` | Ladder, AA on every surface, the hover grey (`--surface-3`) and `--accent-soft` included | Secondary text, labels |
+| `--text-subtle` | Ladder, 4.5:1 on `--bg`, `--surface` and `--surface-2` (AA; not on the hover grey, where hints use `--text-muted`): less prominent than `--text-muted` in the standard themes, about the same as it in the high-contrast variants, where both reach 7:1 | Placeholders, helpers, metadata |
 | `--border` | Ladder, one step from `--surface-2` | Default borders |
 | `--border-strong` | Ladder, 3:1 against `--surface` | Inputs, focused containers |
 | `--accent` | Accent | Buttons, active states, links on surfaces |
 | `--accent-hover` | Accent, one step darker in both themes, so the white label on it stays AA | Hover |
 | `--accent-text` | Accent, adjusted to AA on `--surface`, `--surface-2` and `--accent-soft` (lighter in dark) | Accent-coloured text |
 | `--accent-fg` | `#FFFFFF` in both themes (4.7:1 on `#5E6AD2`); in the dark high-contrast variant the lighter accent fill takes the page's near-black `#08090A`, because white on it would fall below the variant's 7:1 | Text on accent fills |
-| `--accent-soft` | Accent at low chroma, near the base | Accent tints, selected rows |
+| `--accent-soft` | Accent at low chroma, near the base, deep enough in dark for `--text-muted` on it to reach AA | Accent tints, selected rows |
 | `--focus` | Accent | Focus ring (2 px, offset 2 px) |
 
 ### 2.3 Status
@@ -121,9 +121,10 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Input / select / date | 36 px, `--border-strong`, label above, helper or error below. Errors in `--danger` with icon. DD-MM-YYYY date picker. |
 | A field with its action | A button that acts on one field (Search, Clear, Save beside a limit) sits on the control's own line, centred on it: `Field`'s `actions` in `packages/ui/src/field.tsx`, never a row lined up with the bottom of the field or nudged by a fixed margin, since a helper or an error below the box changes the field's height. Every end-to-end accessibility check also checks this (`expectAligned`, `apps/web/e2e/support/alignment.ts`): a button beside a text box or select whose centre is more than 2 px off the box's fails the journey. Before that, lint rejects the pattern as it is written (`shakti/field-button-alignment` in `eslint.config.mjs`): a container with `items-end` or `items-baseline` holding a `Field` and a button (or a wrapper of buttons lined up that way beside a `Field`), or a button beside a `Field` with `self-end`, a top margin, top padding or a vertical nudge. |
 | Data grid | Sticky header, tabular numerals, right-aligned amounts, keyset "Load more", column chooser, row selection, saved views. Sortable columns show a single chevron. |
+| Card list | `CardList` in `packages/ui/src/card-list.tsx`: below `md`, the rows of a table that is not a data grid (quote and order lines, team queues, targets, the home page's tables) as cards, drawn as the data grid draws its phone cards: the row's title, then each column as a label and its value, and the row's actions. The table stays for wider screens. A table wider than a phone without one fails `style-rules.test.ts`. |
 | Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. Each stage shows its newest 100 cards with the stage's total, and "Load more" at the foot of a column adds the next 100. |
 | Status badge | Soft tint background + base status text, 12 px, radius-sm. |
-| Command palette (⌘K) | Groups: Go to, Search, Actions. Searches phone, name, village, document numbers, serials; tolerant of spelling variants of Indian names. Quote numbers are searched (Phase 1, built); order numbers join with sales orders (slice S2) and serials with inventory (Phase 3). |
+| Command palette (⌘K) | Groups: Go to, Search, Actions. Searches phone, name, village, document numbers, serials; tolerant of spelling variants of Indian names. Quote and order numbers are searched (Phase 1, built; `/orders` searches order numbers too); serials join with inventory (Phase 3). |
 | Dialog / sheet | Dialogs for confirmations and short forms; side sheets for records opened from grids. On closing, focus returns to what opened it ([returning focus](#returning-focus-from-a-dialog)). |
 | Uploader | `Uploader` in `packages/ui/src/uploader.tsx`, one file at a time: a labelled "Choose a file" button (the hidden file input is not in the tab order) inside a dashed drop area that takes the accent tint while a file is dragged over it, the purpose's limits as a hint under it, and a progress bar while the bytes go. A file of the wrong type, empty or too large is refused before any byte is sent. The outcome is said in words in a polite live region: started, halfway, waiting for its checks, done (`--success`), refused or failed (`--danger`); Cancel while sending, Retry after a failure the caller marks retryable. Every word comes from the caller's catalogue. |
 | Avatar | `Avatar` in `packages/ui/src/avatar.tsx`: a 24 px circle in `--accent-soft` with `--accent-text` initials (the first letters of the first and last words; "R. K. Sharma" is RS), whose accessible name and tooltip are the full name; nothing is drawn for a name with no letters. Used for the owner on board cards. |

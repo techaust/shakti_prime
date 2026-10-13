@@ -1,4 +1,12 @@
-import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
+import {
+  expect,
+  expectNoAxeViolations,
+  rowOf,
+  signedInAs,
+  snap,
+  tableOrCards,
+  test,
+} from './support/fixtures';
 import { SNAPSHOT_TEAM } from './support/users';
 
 // Targets and the home pages (docs/03-roadmap-appendix/phase1.md §9, PRD TEL-06 and RPT-01). The
@@ -35,12 +43,10 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       await form.getByRole('button', { name: 'Save target' }).click();
       await expect(page.getByText('The target is saved.')).toBeVisible();
 
-      const now = page.getByRole('table', { name: 'Targets in force today' });
-      await expect(now.getByRole('row', { name: /Neha Saini.*Calls.*Day.*40/ })).toBeVisible();
-      const history = page.getByRole('table', { name: 'Targets set, newest first' });
-      await expect(
-        history.getByRole('row', { name: /Neha Saini.*Calls.*Day.*40/ }).first(),
-      ).toBeVisible();
+      const now = tableOrCards(page, 'Targets in force today');
+      await expect(rowOf(now, /Neha Saini.*Calls.*Day.*40/)).toBeVisible();
+      const history = tableOrCards(page, 'Targets set, newest first');
+      await expect(rowOf(history, /Neha Saini.*Calls.*Day.*40/).first()).toBeVisible();
       await expectNoAxeViolations(page);
       // The saved notice gone, and the starting date (today's) masked, so the picture holds every day.
       await expect(page.getByText('The target is saved.')).toBeHidden();
@@ -58,24 +64,26 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       await expect(
         page.getByText('No target is set for the team. Set one on the Targets page.'),
       ).toBeVisible();
-      const board = page.getByRole('table', { name: /^Callers of your team with their Calls/ });
-      const row = board.getByRole('row', { name: /Neha Saini/ });
+      const board = tableOrCards(page, /^Callers of your team with their Calls/);
+      const row = rowOf(board, /Neha Saini/);
       await expect(row).toBeVisible();
       await expect(row).toContainText('of 40');
       await expect(
         page.getByRole('heading', { name: 'Queues of your team', level: 2 }),
       ).toBeVisible();
-      await expect(page.getByRole('table', { name: 'Team queues' })).toBeVisible();
+      await expect(tableOrCards(page, 'Team queues')).toBeVisible();
       await expectNoAxeViolations(page);
+      // Other journeys change the team's figures: only the figures are masked, so the callers'
+      // names, the headings and the layout of the tables and cards are compared (WEB-13).
       await snap(page, 'home-team-lead', {
-        mask: [page.getByRole('table'), page.locator('main dl'), page.locator('time')],
+        mask: [page.locator('main td'), page.locator('main dd'), page.locator('time')],
       });
 
       // The week and the month are one click away.
       await page.getByRole('link', { name: 'This week' }).click();
       await expect(page).toHaveURL(/period=week/);
       await expect(
-        page.getByRole('table', { name: /^Callers of your team with their Calls for This week/ }),
+        tableOrCards(page, /^Callers of your team with their Calls for This week/),
       ).toBeVisible();
     });
   });
@@ -209,8 +217,8 @@ test.describe('the Executive’s home', () => {
   }) => {
     await page.goto('/home');
     await expect(page.getByRole('heading', { name: 'Quotes and orders', level: 2 })).toBeVisible();
-    const table = page.getByRole('table', { name: 'Quotes and orders by company' });
-    await expect(table.getByRole('rowheader', { name: 'All companies' })).toBeVisible();
+    const table = tableOrCards(page, 'Quotes and orders by company');
+    await expect(rowOf(table, 'All companies')).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Open leads by stage', level: 2 }),
     ).toBeVisible();
@@ -231,13 +239,12 @@ test.describe('the snapshot company’s team lead sets targets', () => {
   test('Targets shows the caller’s target and the targets set', async ({ page }) => {
     await page.goto('/targets');
     await expect(page.getByRole('heading', { name: 'Targets', level: 1 })).toBeVisible();
-    const now = page.getByRole('table', { name: 'Targets in force today' });
+    const now = tableOrCards(page, 'Targets in force today');
     await expect(
-      now.getByRole('row', {
-        name: new RegExp(
-          `Snapshot Tracked Caller.*Calls.*Day.*${String(SNAPSHOT_TEAM.dailyCallTarget)}`,
-        ),
-      }),
+      rowOf(
+        now,
+        new RegExp(`Snapshot Tracked Caller.*Calls.*Day.*${String(SNAPSHOT_TEAM.dailyCallTarget)}`),
+      ),
     ).toBeVisible();
     await expectNoAxeViolations(page);
     // The form's starting day is today's, a date that changes every day.
@@ -286,7 +293,7 @@ test.describe('the snapshot company’s Executive', () => {
   test('sees the quotes, the orders and the pipeline of the company', async ({ page }) => {
     await page.goto('/home');
     await expect(page.getByRole('heading', { name: 'Quotes and orders', level: 2 })).toBeVisible();
-    await expect(page.getByRole('table', { name: 'Quotes and orders by company' })).toBeVisible();
+    await expect(tableOrCards(page, 'Quotes and orders by company')).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Open leads by stage', level: 2 }),
     ).toBeVisible();

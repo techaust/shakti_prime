@@ -126,7 +126,7 @@ test.describe('as an Executive, a dealer order over its limit', () => {
     await page.getByRole('button', { name: 'Work out the order' }).click();
     // One module at ₹12,000 with 12% GST in the company's own state.
     const preview = section(page, 'The order as it will be made');
-    await expect(preview.getByText('₹13,440.00').first()).toBeVisible();
+    await expect(preview.getByText('₹13,440.00').filter({ visible: true }).first()).toBeVisible();
     await expectNoAxeViolations(page);
     await page.getByRole('button', { name: 'Make the order' }).click();
 
@@ -194,7 +194,7 @@ test.describe('as Accounts, dealer credit', () => {
     await expect(page.getByText('Outstanding saved.')).toBeVisible();
     await expect(dialog).toBeHidden();
     const grid = dataGrid(page, 'Dealers');
-    await expect(grid.getByText('₹12,500.00').first()).toBeVisible();
+    await expect(grid.getByText('₹12,500.00').filter({ visible: true }).first()).toBeVisible();
     // The invoice is 40 days old today, and the row says so.
     await expect(grid.getByText('RCREF/SI/JOURNEY/0001, 40 days old').first()).toBeVisible();
 

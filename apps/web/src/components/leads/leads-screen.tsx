@@ -1,6 +1,6 @@
 'use client';
 
-import type { LeadDto, LeadSort, PipelineDto } from '@shakti/contracts';
+import type { LeadDto, LeadListItemDto, LeadSort, PipelineDto } from '@shakti/contracts';
 import type { LeadPage } from '@shakti/domain';
 import {
   Button,
@@ -92,7 +92,7 @@ export function LeadsScreen({
   }
 
   const notRecorded = <span className="text-text-muted">{t('notRecorded')}</span>;
-  const columns: DataGridColumn<LeadDto>[] = [
+  const columns: DataGridColumn<LeadListItemDto>[] = [
     {
       id: 'customer',
       header: t('columns.customer'),
@@ -201,10 +201,22 @@ export function LeadsScreen({
 
 /**
  * A lead's score (CRM-06) as a disclosure: the number, and on press (mouse, keyboard or touch) why
- * the lead has it, each matching rule's points and when the score last changed.
+ * the lead has it, each matching rule's points, and when and by whom the score last changed.
  */
-function ScoreCell({ lead }: { lead: Pick<LeadDto, 'score' | 'scoreReasons' | 'scoreChangedAt'> }) {
+function ScoreCell({
+  lead,
+}: {
+  lead: Pick<LeadListItemDto, 'score' | 'scoreReasons' | 'scoreChangedAt' | 'scoreChangedBy'>;
+}) {
   const t = useTranslations('leads.score');
+  const changedLine = (at: string) => {
+    const when = formatDateTime(at);
+    const by = lead.scoreChangedBy;
+    if (by === null) return t('changed', { when });
+    return by.kind === 'overnight'
+      ? t('changedOvernight', { when })
+      : t('changedBy', { when, name: by.name });
+  };
   const lines =
     lead.scoreReasons.length === 0
       ? [t('base')]
@@ -216,9 +228,7 @@ function ScoreCell({ lead }: { lead: Pick<LeadDto, 'score' | 'scoreReasons' | 's
               points: r.points,
             }),
           ),
-          ...(lead.scoreChangedAt === null
-            ? []
-            : [t('changed', { when: formatDateTime(lead.scoreChangedAt) })]),
+          ...(lead.scoreChangedAt === null ? [] : [changedLine(lead.scoreChangedAt)]),
         ];
   return (
     <details className="group">
