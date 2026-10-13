@@ -2,6 +2,7 @@ import { CreateImportJobInput, DomainError, ImportJobDto, newId } from '@shakti/
 import { schema } from '@shakti/db';
 import { and, eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { withoutIdentityNumbers } from '../../imports/identity-columns';
 import {
   assertContentNotImported,
   assertEntityInScope,
@@ -20,8 +21,12 @@ const INSERT_CHUNK = 1000;
  * and a file whose content was already added in the company (a job adding it, done, or stopped
  * with rows added) is refused, so the same list is not imported twice; a job left before adding,
  * or undone, does not count; `imports.job.commit` asks the same again. The PIN code master is imported only by an
- * Executive in a request for every company. The audit row records the file and the counts, never
- * the rows, which carry customers' names and numbers in columns the redaction cannot recognise.
+ * Executive in a request for every company. No identity number is stored: the rows are read again
+ * by `withoutIdentityNumbers` (as the reader already did), a column of Aadhaar numbers is left
+ * out and any other keeps only its last four digits, and the job records the columns left out
+ * and how many values were masked, for the screen to say so. The audit row records the file and
+ * the counts, never the rows, which carry customers' names and numbers in columns the redaction
+ * cannot recognise.
  */
 export const createImportJob = defineCommand({
   name: 'imports.job.create',
@@ -29,7 +34,7 @@ export const createImportJob = defineCommand({
   minScope: 'entity',
   input: CreateImportJobInput,
   output: ImportJobDto,
-  auditFields: ['state', 'kind', 'format', 'totalRows'],
+  auditFields: ['state', 'kind', 'format', 'totalRows', 'leftOutColumns', 'maskedValues'],
   auditInput: (input) => ({
     entityId: input.entityId,
     kind: input.kind,
@@ -37,6 +42,8 @@ export const createImportJob = defineCommand({
     format: input.format,
     columns: input.columns.length,
     rows: input.rows.length,
+    leftOutColumns: input.leftOutColumns.length,
+    maskedValues: input.maskedValues,
   }),
   constraintReasons: { import_jobs_file_unique: 'import_file_duplicate' },
   async handler(ctx, input) {
@@ -46,7 +53,14 @@ export const createImportJob = defineCommand({
 
     const f = schema.files;
     const [file] = await ctx.tx
-      .select({ id: f.id, name: f.name, size: f.size, sha256: f.sha256, status: f.status })
+      .select({
+        id: f.id,
+        name: f.name,
+        size: f.size,
+        sha256: f.sha256,
+        status: f.status,
+        deletedAt: f.deletedAt,
+      })
       .from(f)
       .where(
         and(
@@ -57,7 +71,7 @@ export const createImportJob = defineCommand({
         ),
       )
       .limit(1);
-    if (!file) {
+    if (!file || file.deletedAt !== null) {
       throw new DomainError('not_found', 'the import file is not available', {
         reason: 'import_file_missing',
       });
@@ -71,6 +85,16 @@ export const createImportJob = defineCommand({
     // The same content was already added in this company (another upload of the same file); the
     // commit asks again, since two jobs of one content may both be waiting by then.
     await assertContentNotImported(ctx.tx, input.entityId, file);
+    // The reader left the identity numbers out; whatever reached the command another way is
+    // left out here, so none is ever stored.
+    const clean = withoutIdentityNumbers(input.columns, input.rows);
+    if (clean.columns.length === 0) {
+      throw new DomainError('validation_failed', 'every column holds identity numbers', {
+        reason: 'import_only_identity_numbers',
+      });
+    }
+    const leftOutColumns = [...new Set([...input.leftOutColumns, ...clean.leftOutColumns])];
+    const maskedValues = input.maskedValues + clean.maskedValues;
     const j = schema.importJobs;
 
     const [job] = await ctx.tx
@@ -81,22 +105,24 @@ export const createImportJob = defineCommand({
         kind: input.kind,
         fileId: file.id,
         format: input.format,
-        columnsJson: input.columns,
+        columnsJson: clean.columns,
         state: 'uploaded',
-        totalRows: input.rows.length,
+        totalRows: clean.rows.length,
+        leftOutColumns,
+        maskedValues,
         createdBy: actor,
       })
       .returning();
     if (!job) throw new DomainError('internal', 'import job insert returned no row');
 
-    for (let start = 0; start < input.rows.length; start += INSERT_CHUNK) {
-      const chunk = input.rows.slice(start, start + INSERT_CHUNK);
+    for (let start = 0; start < clean.rows.length; start += INSERT_CHUNK) {
+      const chunk = clean.rows.slice(start, start + INSERT_CHUNK);
       await ctx.tx.insert(schema.importRows).values(
         chunk.map((cells, i) => ({
           jobId: job.id,
           entityId: input.entityId,
           rowNo: start + i + 1,
-          rawJson: Object.fromEntries(input.columns.map((c, k) => [c, cells[k] ?? ''])),
+          rawJson: Object.fromEntries(clean.columns.map((c, k) => [c, cells[k] ?? ''])),
           createdBy: actor,
         })),
       );
@@ -112,9 +138,14 @@ export const createImportJob = defineCommand({
         fileId: file.id,
         format: job.format,
         totalRows: job.totalRows,
+        leftOutColumns: job.leftOutColumns.length,
+        maskedValues: job.maskedValues,
       },
     });
 
-    return toImportJobDto({ job, file: { id: file.id, name: file.name, size: file.size } });
+    return toImportJobDto({
+      job,
+      file: { id: file.id, name: file.name, size: file.size, deletedAt: file.deletedAt },
+    });
   },
 });

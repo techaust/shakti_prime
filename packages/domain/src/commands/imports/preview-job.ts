@@ -20,6 +20,7 @@ import { checkPinCodeRow } from '../../imports/pin-codes';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertNotPurged,
   implementedKind,
   jobState,
   loadJob,
@@ -435,6 +436,7 @@ export const previewImportJob = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
+    assertNotPurged(loaded.job);
     const before = jobState(loaded.job);
     assertImportJobMove(before, 'previewed');
     if (loaded.job.mappingJson === null) {

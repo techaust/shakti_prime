@@ -17,7 +17,7 @@ import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, gt, inArray, ne, or, sql } from 'drizzle-orm';
 
 type JobRow = typeof schema.importJobs.$inferSelect;
-type FileRow = Pick<typeof schema.files.$inferSelect, 'id' | 'name' | 'size'>;
+type FileRow = Pick<typeof schema.files.$inferSelect, 'id' | 'name' | 'size' | 'deletedAt'>;
 
 export interface LoadedJob {
   job: JobRow;
@@ -104,7 +104,7 @@ export async function loadJob(
   const j = schema.importJobs;
   const f = schema.files;
   const query = tx
-    .select({ job: j, file: { id: f.id, name: f.name, size: f.size } })
+    .select({ job: j, file: { id: f.id, name: f.name, size: f.size, deletedAt: f.deletedAt } })
     .from(j)
     .innerJoin(f, eq(f.id, j.fileId))
     .where(and(eq(j.id, jobId), eq(j.entityId, entityId)))
@@ -170,6 +170,18 @@ export async function assertGroupImport(ctx: {
   }
 }
 
+/**
+ * A job whose rows the import purge cleared (`imports.job.purge`) holds nothing to map, check or
+ * add any more; the screen says so and offers a new upload.
+ */
+export function assertNotPurged(job: Pick<JobRow, 'purgedAt'>): void {
+  if (job.purgedAt !== null) {
+    throw new DomainError('conflict', 'the rows of this import were cleared', {
+      reason: 'import_job_purged',
+    });
+  }
+}
+
 export function jobState(job: JobRow): ImportJobState {
   return job.state as ImportJobState;
 }
@@ -181,7 +193,12 @@ export function toImportJobDto({ job, file }: LoadedJob): ImportJobDto {
     entityId: job.entityId,
     kind: job.kind,
     state: job.state,
-    file: { id: file.id, name: file.name, size: file.size },
+    file: {
+      id: file.id,
+      name: file.name,
+      size: file.size,
+      deletedAt: file.deletedAt?.toISOString() ?? null,
+    },
     format: job.format,
     templateId: job.templateId,
     columns: job.columnsJson,
@@ -193,6 +210,9 @@ export function toImportJobDto({ job, file }: LoadedJob): ImportJobDto {
     committedRows: job.committedRows,
     failedBatch: job.failedBatch,
     entityIds: job.entityIds,
+    leftOutColumns: job.leftOutColumns,
+    maskedValues: job.maskedValues,
+    purgedAt: job.purgedAt?.toISOString() ?? null,
     createdBy: job.createdBy,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),

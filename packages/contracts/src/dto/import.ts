@@ -26,6 +26,8 @@ export const ImportJobDto = z
         id: IdSchema,
         name: z.string(),
         size: Count,
+        /** When the file's bytes were deleted from the store, once the job no longer needed them. */
+        deletedAt: z.iso.datetime().nullable(),
       })
       .strict(),
     format: ImportFormatSchema,
@@ -45,6 +47,15 @@ export const ImportJobDto = z
      * and undoing them need a request that acts for all of them.
      */
     entityIds: z.array(EntityIdSchema).nullable(),
+    /** The file's columns left out because they hold Aadhaar numbers, by their names. */
+    leftOutColumns: z.array(z.string()),
+    /** Cells in which an Aadhaar number written among other text was masked to its last four. */
+    maskedValues: Count,
+    /**
+     * When what the file's rows said was cleared, the reconciliation period after the job ended
+     * (or was left); each row's state, what it made and why it was refused stay.
+     */
+    purgedAt: z.iso.datetime().nullable(),
     createdBy: IdSchema,
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),

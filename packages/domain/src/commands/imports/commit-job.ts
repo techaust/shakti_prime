@@ -27,6 +27,7 @@ import {
   assertEntityInScope,
   assertGroupImport,
   assertJobCompaniesCovered,
+  assertNotPurged,
   countRows,
   implementedKind,
   jobState,
@@ -117,6 +118,7 @@ export const commitImportJob = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
+    assertNotPurged(loaded.job);
     const before = jobState(loaded.job);
     if (before === 'committing') return toImportJobDto(loaded);
     assertImportJobMove(before, 'committing');

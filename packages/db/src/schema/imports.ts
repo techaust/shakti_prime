@@ -9,6 +9,7 @@ import {
   primaryKey,
   smallint,
   text,
+  timestamp,
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -78,6 +79,19 @@ export const importJobs = pgTable(
      * exactly these. Null until the rows are checked.
      */
     entityIds: smallint('entity_ids').array(),
+    /**
+     * The file's columns left out because they hold Aadhaar numbers, by the names the file gave
+     * them: they are never stored, and the screen tells the importer which (audit SEC-1).
+     */
+    leftOutColumns: text('left_out_columns').array().notNull().default(sql`'{}'::text[]`),
+    /** Cells in which an Aadhaar number written among other text was masked to its last four. */
+    maskedValues: integer('masked_values').notNull().default(0),
+    /**
+     * When the import purge cleared what the rows said (`raw_json`, `normalised_json`), the
+     * reconciliation period after the job ended or was left; the rows' states, what they made and
+     * why they were refused stay. A purged job is not mapped, checked or added again.
+     */
+    purgedAt: timestamp('purged_at', { withTimezone: true }),
     ...timestamps,
     ...actorsRequired,
   },
@@ -96,6 +110,10 @@ export const importJobs = pgTable(
     ),
     check('import_jobs_failed_batch_check', sql`${t.failedBatch} is null or ${t.failedBatch} >= 1`),
     check('import_jobs_batch_count_check', sql`${t.batchCount} >= 0`),
+    check(
+      'import_jobs_left_out_columns_check',
+      sql`cardinality(${t.leftOutColumns}) <= 50 and ${t.maskedValues} >= 0`,
+    ),
     check(
       'import_jobs_entity_ids_check',
       sql`${t.entityIds} is null or cardinality(${t.entityIds}) between 1 and 20`,
@@ -116,6 +134,10 @@ export const importJobs = pgTable(
     // One uploaded file starts one job.
     unique('import_jobs_file_unique').on(t.fileId),
     index('import_jobs_template_idx').on(t.templateId),
+    // The import purge: a company's jobs not yet purged, by their last change.
+    index('import_jobs_purge_idx')
+      .on(t.entityId, t.updatedAt)
+      .where(sql`${t.purgedAt} is null and ${t.state} <> 'committing'`),
   ],
 );
 

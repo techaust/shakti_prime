@@ -13,6 +13,7 @@ import { assertImportJobMove } from '../../imports/job-state';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertNotPurged,
   implementedKind,
   jobState,
   loadJob,
@@ -39,6 +40,7 @@ export const mapImportJob = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
+    assertNotPurged(loaded.job);
     const before = jobState(loaded.job);
     assertImportJobMove(before, 'mapped');
     const kind = implementedKind(loaded.job);

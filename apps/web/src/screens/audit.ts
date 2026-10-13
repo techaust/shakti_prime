@@ -575,8 +575,12 @@ const FIELD_KINDS = [
   ['movedConsents', 'number'],
   ['movedActivities', 'number'],
   ['undoneAt', 'time'],
+  ['leftOutColumns', 'number'],
+  ['maskedValues', 'number'],
   // Retention
   ['anonymisedAt', 'time'],
+  ['purgedAt', 'time'],
+  ['deletedAt', 'time'],
   // Quotes
   ['quoteNo', 'text'],
   ['lineCount', 'number'],
