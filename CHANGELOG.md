@@ -4,10 +4,16 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ## Contents
 
-- [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 5](#phase-1-wave-5) · [wave 4](#phase-1-wave-4) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
+- [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 6 and the Phase 0–1 audit](#phase-1-wave-6-and-the-phase-01-audit) · [wave 5](#phase-1-wave-5) · [wave 4](#phase-1-wave-4) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
 - [Phase 0](#phase-0): [hosted environments and the close](#phase-0-hosted-environments-and-the-close) · [gap-closing waves](#phase-0-gap-closing-waves) · [completeness pass and tooling](#phase-0-completeness-pass-and-tooling) · [weeks 4 to 8](#phase-0-weeks-4-to-8) · [weeks 1 to 3](#phase-0-weeks-1-to-3) · [production-readiness audit](#phase-0-production-readiness-audit) · [before pull requests](#phase-0-before-pull-requests)
 
 ## Phase 1
+
+### Phase 1 wave 6 and the Phase 0–1 audit
+
+- **#169** (13-10-2026) The queued PDF masking test waits 1,000 ms per mask against a 1,600 ms limit, so a slow runner no longer refuses the first page (it failed on #168's unit job and under load).
+- **#168** (13-10-2026) Database follow-ups: a push address held by another person is never claimed, in one spelling only (0131); `commission_accruals.measure` is `numeric(15,3)` (0132); `app.ensure_audit_partitions()` makes each month on its own and records failures, run daily at 03:00 UTC (0133); the Triage shadow report shows pipeline names; `notifications_entity_dedupe_idx` dropped (0130). Dev and staging migrated through 0133.
+- **#167** (13-10-2026) Tooling and test stability: `heavy.sh` serves waiting commands in order (a ticket queue, stale tickets skipped); the cloud hook repairs a cut-short pnpm self-install; `renumber-migrations.mjs` accepts "nothing to migrate" only when drizzle-kit says so; the converting journey runs both calling-hours branches on the test clock and its seed no longer shows in the catalogue and price screenshots; `files.spec.ts` and the shared axe helper wait for the page and the toast; `import-kinds`, `enum-sync` and `reader-parity` no longer depend on order.
 
 ### Phase 1 status documents
 
