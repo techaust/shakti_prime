@@ -90,7 +90,30 @@ This is the one procedure for bringing a hosted database and site up to `main`; 
    - The app makes each subscribed type's QStash URL group itself: before the first event of a type a process publishes, it adds the endpoint `<BETTER_AUTH_URL>/api/v1/workers/outbox/<type>` to the group `evt-<type>` (creating the group, or leaving it as it is), once per process. A failed attempt is logged as `outbox.url_group_failed` and tried again on the next run, while the events wait under the usual backoff. So `BETTER_AUTH_URL` must be the environment's public address before the first event goes out.
    - Every event is published with the failure callback `<BETTER_AUTH_URL>/api/v1/workers/outbox/failed`, which needs no setting in the console either: an event its worker refuses for good, or that still fails after QStash's retries, comes back there and is held back with `worker_refused` or `worker_failed`.
    - After a deploy that switches on a worker, open Admin › Integration health and press **Check delivery speed**: the check arrives within seconds.
-8. **Checks added NOT VALID** (after a migration that adds one, DATABASE §8): once the environment is migrated, run `alter table <table> validate constraint <check>;` for each in the project's SQL editor. It reads the table under a lock that lets reads and writes go on; a refusal names a row that breaks the check, which the developer corrects first. The GST split checks are `quotes_gst_split_check`, `quote_lines_gst_split_check`, `sales_orders_gst_split_check` and `sales_order_lines_gst_split_check`.
+8. **Checks added NOT VALID** (a migration that adds one, DATABASE §8). A check added `NOT VALID` is still enforced on every later change of a row, so an older row that breaks it can no longer be changed (the nightly quote expiry skips such a quote, counts it and records it with its reason, and goes on).
+   - **Before the migration**, the lead session runs this read-only query in the project's SQL editor (or as `readonly_reporter`) for the GST split checks. Any row it lists is corrected by the developer before the deploy, with the owner's go-ahead:
+
+     ```sql
+     select 'quotes' as table_name, id from quotes
+      where not ((supply_kind = 'intra' and igst = 0) or (supply_kind = 'inter' and cgst = 0 and sgst = 0))
+     union all
+     select 'quote_lines', id from quote_lines where not (igst = 0 or (cgst = 0 and sgst = 0))
+     union all
+     select 'sales_orders', id from sales_orders
+      where not ((supply_kind = 'intra' and igst = 0) or (supply_kind = 'inter' and cgst = 0 and sgst = 0))
+     union all
+     select 'sales_order_lines', id from sales_order_lines where not (igst = 0 or (cgst = 0 and sgst = 0));
+     ```
+
+   - **After the migration**, once the same query returns nothing, **the owner** validates the checks in the project's SQL editor (Supabase dashboard › SQL Editor), on dev and then on staging: the lead's access to the hosted databases is read-only, and the standing go-ahead covers migrations, redeploys and health checks only ([DECISIONS](../11-decisions.md)). Each statement reads its table under a lock that lets reads and writes go on; a refusal names a row that breaks the check, which goes back to the step above. Listed in [exit-gate-actions](../13-client-packs/exit-gate-actions.md) §2.
+
+     ```sql
+     alter table quotes validate constraint quotes_gst_split_check;
+     alter table quote_lines validate constraint quote_lines_gst_split_check;
+     alter table sales_orders validate constraint sales_orders_gst_split_check;
+     alter table sales_order_lines validate constraint sales_order_lines_gst_split_check;
+     ```
+
 9. Record the environment's last migration and the date in [STATUS](../10-status.md#hosted-environments).
 
 ## 3. A migration that builds an index concurrently
