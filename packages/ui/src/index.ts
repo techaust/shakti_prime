@@ -14,6 +14,7 @@ export { formatDmy, maskDmy, parseDmy } from './date';
 export { StatusBadge, statusBadgeVariants, type StatusTone } from './status-badge';
 export { Skeleton } from './skeleton';
 export { EmptyState } from './empty-state';
+export { CardList, type CardField, type CardListItem } from './card-list';
 export {
   Dialog,
   DialogClose,

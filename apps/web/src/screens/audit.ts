@@ -149,6 +149,7 @@ const ACTIONS = {
   'knowledge.file.record_index': 'knowledgeFileIndexed',
   'agents.inbox.complete': 'inboxComplete',
   'crm.enquiry.route': 'enquiryRoute',
+  'crm.enquiry.take': 'enquiryTake',
   'notifications.event.notify': 'noticesSend',
   'notifications.due.scan': 'noticesScan',
   'notifications.push.record': 'pushRecord',

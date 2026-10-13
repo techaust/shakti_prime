@@ -84,6 +84,7 @@ import {
   accountSalesOrders,
   getSalesOrder,
   listSalesOrders,
+  searchSalesOrders,
 } from '../../src/queries/sales/list-orders';
 import { loadSalesOrderBuilder, previewSalesOrder } from '../../src/queries/sales/order-facts';
 import { loadQuoteBuilder, previewQuote } from '../../src/queries/sales/quote-builder';
@@ -208,6 +209,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   loadQuoteForPrint: (ctx) => loadQuoteForPrint(ctx, newId()),
   listPriceTierOptions: (ctx) => listPriceTierOptions(ctx),
   listSalesOrders: (ctx) => listSalesOrders(ctx, { limit: 20 }),
+  searchSalesOrders: (ctx) => searchSalesOrders(ctx, { q: 'SO/2026', limit: 8 }),
   getSalesOrder: (ctx) => getSalesOrder(ctx, { entityId: 1, orderId: newId() }, QUOTES_AT),
   loadSalesOrderBuilder: (ctx) =>
     loadSalesOrderBuilder(ctx, { entityId: 1, accountId: newId() }, QUOTES_AT),

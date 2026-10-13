@@ -4,6 +4,7 @@
 
 import type {
   LeadSearchHitDto,
+  OrderSearchHitDto,
   PaletteSearchDto,
   PermissionGrant,
   PersonSearchHitDto,
@@ -14,6 +15,7 @@ import type en from '../../messages/en.json';
 import type { NavItem } from '../nav';
 import { SEARCH_MIN_CHARS } from './contract-values';
 import { boardHref } from './lead-board';
+import { orderHref } from './orders';
 import { quoteHref } from './quotes';
 
 /** How long typing must pause before the palette searches, so each key press is not a read. */
@@ -73,6 +75,7 @@ export type PaletteEntry =
   | { kind: 'page'; id: string; href: Route; item: NavItem }
   | { kind: 'lead'; id: string; href: Route; hit: LeadSearchHitDto }
   | { kind: 'quote'; id: string; href: Route; hit: QuoteSearchHitDto }
+  | { kind: 'order'; id: string; href: Route; hit: OrderSearchHitDto }
   | { kind: 'person'; id: string; href: Route; hit: PersonSearchHitDto }
   | { kind: 'action'; id: string; href: Route; action: PaletteAction };
 
@@ -86,7 +89,8 @@ export interface PaletteSection {
 /**
  * The palette's sections in docs/08-design-system.md order. Go to lists the screens the caller may open, less
  * any screen an action already opens (New lead is an action, not a second page entry). Search
- * holds the leads and then the team members found, and is left out when nothing was searched.
+ * holds the leads, the quotes, the orders and then the team members found, and is left out when
+ * nothing was searched.
  */
 export function paletteSections(input: {
   nav: readonly NavItem[];
@@ -120,6 +124,12 @@ export function paletteSections(input: {
           href: quoteHref(hit.entityId, hit.id),
           hit,
         })),
+        ...input.found.orders.map((hit): PaletteEntry => ({
+          kind: 'order',
+          id: `order-${hit.id}`,
+          href: orderHref(hit.entityId, hit.id),
+          hit,
+        })),
         ...input.found.people.map((hit): PaletteEntry => ({
           kind: 'person',
           id: `person-${hit.id}`,
@@ -144,5 +154,5 @@ export function paletteSections(input: {
 
 /** How many records the search found, for the sentence read out to screen readers. */
 export function foundCount(found: PaletteSearchDto): number {
-  return found.leads.length + found.quotes.length + found.people.length;
+  return found.leads.length + found.quotes.length + found.orders.length + found.people.length;
 }

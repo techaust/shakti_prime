@@ -45,6 +45,15 @@ const FOUND: PaletteSearchDto = {
       state: 'sent',
     },
   ],
+  orders: [
+    {
+      id: id(5),
+      entityId: 1,
+      soNo: 'SS/SO/2026-27/0042',
+      customerName: 'Ramesh Traders',
+      state: 'confirmed',
+    },
+  ],
   people: [{ id: id(3), displayName: 'Ramesh Kale', email: 'ramesh.kale@shakti.test' }],
 };
 
@@ -89,9 +98,9 @@ describe('the palette search', () => {
     );
   });
 
-  it('counts the leads, the quotes and the team members found', () => {
-    expect(foundCount(FOUND)).toBe(4);
-    expect(foundCount({ leads: [], quotes: [], people: [] })).toBe(0);
+  it('counts the leads, the quotes, the orders and the team members found', () => {
+    expect(foundCount(FOUND)).toBe(5);
+    expect(foundCount({ leads: [], quotes: [], orders: [], people: [] })).toBe(0);
   });
 });
 
@@ -119,7 +128,7 @@ describe('paletteSections', () => {
     expect(goto?.entries.map((e) => e.id)).toEqual(['home', 'leads-new']);
   });
 
-  it('puts the leads, the quotes and then the team members found between Go to and Actions, as found', () => {
+  it('puts the leads, the quotes, the orders and then the team members found between Go to and Actions, as found', () => {
     const sections = paletteSections({ nav: [], actions: [], found: FOUND });
     expect(sections.map((s) => s.id)).toEqual(['goto', 'search', 'actions']);
     const search = sections[1];
@@ -128,6 +137,7 @@ describe('paletteSections', () => {
       ['lead', `lead-${id(1)}`, '/leads/board?company=2&pipeline=farmer_pumps'],
       ['lead', `lead-${id(2)}`, '/leads/board?company=1&pipeline=solar_rooftop&show=nurture'],
       ['quote', `quote-${id(4)}`, `/quotes/2/${id(4)}`],
+      ['order', `order-${id(5)}`, `/orders/1/${id(5)}`],
       ['person', `person-${id(3)}`, '/admin/users'],
     ]);
   });
@@ -136,7 +146,7 @@ describe('paletteSections', () => {
     const sections = paletteSections({
       nav: [],
       actions: [],
-      found: { leads: [], quotes: [], people: [] },
+      found: { leads: [], quotes: [], orders: [], people: [] },
     });
     expect(sections.find((s) => s.id === 'search')?.entries).toEqual([]);
   });

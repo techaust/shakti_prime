@@ -1,4 +1,4 @@
-import { hasGrant, type LeadDto, type LeadSort } from '@shakti/contracts';
+import { hasGrant, LeadListItemDto, type LeadSort, type ScoreChanger } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
@@ -18,7 +18,7 @@ export interface ListLeadsOptions {
 }
 
 export interface LeadPage {
-  items: LeadDto[];
+  items: LeadListItemDto[];
   nextCursor: string | null;
 }
 
@@ -89,15 +89,27 @@ export async function listLeads(
     ctx,
     page.map((r) => r.opportunity.accountId),
   );
+  const changers = await scoreChangers(
+    ctx,
+    page.flatMap((r) =>
+      r.opportunity.scoreChangedBy === null ? [] : [r.opportunity.scoreChangedBy],
+    ),
+  );
   const last = page.at(-1);
   return {
     // A lead's customer is always readable to whoever reads the lead (AUDIT M25); one that is
     // not is left out rather than shown half-empty.
     items: page.flatMap((r) => {
       const customer = customers.get(r.opportunity.accountId);
-      return customer === undefined
-        ? []
-        : [toLeadDto(r.opportunity, customer.account, customer.contact, customer.phone)];
+      if (customer === undefined) return [];
+      const lead = toLeadDto(r.opportunity, customer.account, customer.contact, customer.phone);
+      const by = r.opportunity.scoreChangedBy;
+      return [
+        LeadListItemDto.parse({
+          ...lead,
+          scoreChangedBy: by === null ? null : (changers.get(by) ?? null),
+        }),
+      ];
     }),
     nextCursor: nextCursor(
       order,
@@ -105,6 +117,31 @@ export async function listLeads(
       last === undefined ? undefined : { value: last.sortValue, id: last.opportunity.id },
     ),
   };
+}
+
+/**
+ * Who changed the scores of one page of leads (CRM-06): a person by name, or the overnight
+ * rescoring for the workers' principal. One read of the page's distinct changers.
+ */
+async function scoreChangers(
+  ctx: LeadContext,
+  ids: readonly string[],
+): Promise<Map<string, ScoreChanger>> {
+  const out = new Map<string, ScoreChanger>();
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return out;
+  const p = schema.principals;
+  const rows = await ctx.tx
+    .select({ id: p.id, kind: p.kind, name: p.displayName })
+    .from(p)
+    .where(inArray(p.id, unique));
+  for (const row of rows) {
+    out.set(
+      row.id,
+      row.kind === 'system' ? { kind: 'overnight' } : { kind: 'person', name: row.name },
+    );
+  }
+  return out;
 }
 
 /** The customers of one page of leads: account, its one owner contact and that contact's main phone. */

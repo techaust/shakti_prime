@@ -125,7 +125,7 @@ export function CommandPalette({
                         {item.icon ?? null}
                         <span className="min-w-0 flex-1 truncate">{item.label}</span>
                         {item.hint === undefined ? null : (
-                          <span className="text-text-subtle text-xs">{item.hint}</span>
+                          <span className="text-text-muted text-xs">{item.hint}</span>
                         )}
                       </Command.Item>
                     ))}

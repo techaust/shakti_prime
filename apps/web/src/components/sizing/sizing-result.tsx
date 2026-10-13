@@ -13,7 +13,7 @@ import type { ReactNode } from 'react';
 import { oneOf } from '../../screens/audit';
 import { SIZING_ADVISORIES, SIZING_REASONS } from '../../screens/contract-values';
 import { formatQuantity } from '../../screens/sizing';
-import { DateTime } from '../date-time';
+import { momentValues } from '../date-time';
 
 type Row = readonly [label: string, value: ReactNode];
 
@@ -196,9 +196,7 @@ export function SizingResult({ sizing }: { sizing: SizingDto }) {
           {sizing.inBounds ? t('inBounds') : t('outOfBounds')}
         </StatusBadge>
       </header>
-      <p className="text-text-muted text-sm">
-        {t('savedAt')} <DateTime value={sizing.createdAt} />
-      </p>
+      <p className="text-text-muted text-sm">{t.rich('savedAt', momentValues(sizing.createdAt))}</p>
       <Reasons reasons={sizing.reasons} />
       {sizing.kind === 'pump' ? (
         <PumpFacts result={sizing.result} />

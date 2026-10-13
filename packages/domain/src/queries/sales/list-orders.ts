@@ -1,14 +1,16 @@
 import {
   DomainError,
   ListSalesOrdersInput,
+  OrderSearchHitDto,
   SalesOrderPageDto,
   SalesOrderRefInput,
+  SearchInput,
   type SalesOrderDto,
   type SalesOrderRowDto,
   type SalesOrderState,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, sql } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 import {
   keysetOrder,
@@ -19,6 +21,7 @@ import {
   type SortKeys,
 } from '../keyset-sort';
 import { parseQueryInput } from '../parse-input';
+import { containsPattern } from '../search-text';
 import { readSalesOrder, SALES_ORDER_ROW_COLUMNS, toSalesOrderRow } from './order-dto';
 
 type OrderListContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -54,7 +57,8 @@ function checkOrderRead(ctx: OrderListContext): void {
 
 /**
  * `/orders` (docs/03-roadmap-appendix/phase1.md §8.3): the orders the caller can read, newest first, of one
- * company or every company of the request, optionally of one state. Keyset paging on
+ * company or every company of the request, optionally of one state and of a number holding `q`
+ * (RPT-03, candidates from `orderNumberMatches`). Keyset paging on
  * `sales_orders_entity_created_idx` (one company) or `sales_orders_created_idx` (several), read
  * backwards; the customer's name from the customer row, readable through the lead or the
  * relationship.
@@ -70,6 +74,7 @@ export async function listSalesOrders(
   const last = page.at(-1);
   return SalesOrderPageDto.parse({
     items: page.map(toSalesOrderRow),
+    searchCapped: input.q === undefined ? false : await searchReachedCap(ctx, input.q, input.state),
     nextCursor: nextCursor(
       order,
       rows.length > input.limit,
@@ -87,6 +92,7 @@ export function salesOrderListQuery(
   input: {
     entityId?: number | undefined;
     state?: SalesOrderState | undefined;
+    q?: string | undefined;
     cursor?: string | undefined;
     limit: number;
   },
@@ -103,6 +109,7 @@ export function salesOrderListQuery(
       and(
         inArray(so.entityId, companies(ctx, input.entityId)),
         input.state === undefined ? undefined : eq(so.state, input.state),
+        input.q === undefined ? undefined : orderNumberMatches(input.q, input.state),
         afterCursor(order, input.cursor),
       ),
     )
@@ -138,4 +145,70 @@ export async function getSalesOrder(
   const input = parseQueryInput(SalesOrderRefInput, rawInput, 'sales.order.get');
   checkOrderRead(ctx);
   return readSalesOrder({ ...ctx, now }, input.entityId, input.orderId);
+}
+
+/** The most candidates a number search takes, the newest first (`app.order_search_ids()`). */
+const SEARCH_CAP = 200;
+
+/**
+ * The orders whose number holds `text` (RPT-03). Under the policies `ilike` is never an index
+ * condition, so the candidates come first from the definer `app.order_search_ids()`, which finds at
+ * most 200 on the trigram index of `so_no` among the orders the caller reads, of one state when the
+ * list asks for one (before the limit); the query reads only those, under the policies, and the
+ * text is applied again here.
+ */
+function orderNumberMatches(text: string, state?: SalesOrderState) {
+  const so = schema.salesOrders;
+  return and(
+    inArray(so.id, sql`(select app.order_search_ids(${text}, ${state ?? null}, ${SEARCH_CAP}))`),
+    ilike(so.soNo, containsPattern(text)),
+  );
+}
+
+/**
+ * Whether the number search found as many candidates as it takes, so older matches may have been
+ * left out: `/orders` then says so (`searchCapped`).
+ */
+async function searchReachedCap(
+  ctx: OrderListContext,
+  text: string,
+  state: SalesOrderState | undefined,
+): Promise<boolean> {
+  const rows = (await ctx.tx.execute(
+    sql`select count(*)::int as n from app.order_search_ids(${text}, ${state ?? null}, ${SEARCH_CAP})`,
+  )) as unknown as { n: number }[];
+  return (rows[0]?.n ?? 0) >= SEARCH_CAP;
+}
+
+/**
+ * The ⌘K search for orders by number (RPT-03): the orders the caller can read whose number holds
+ * the typed text, a number that is the text first, then the newest. Bounded by `limit`.
+ */
+export async function searchSalesOrders(
+  ctx: OrderListContext,
+  rawInput: unknown,
+): Promise<OrderSearchHitDto[]> {
+  const input = parseQueryInput(SearchInput, rawInput, 'sales.order.search');
+  const rows = await orderSearchQuery(ctx, input);
+  return rows.map((row) => OrderSearchHitDto.parse(row));
+}
+
+/** The query `searchSalesOrders` runs, unexecuted, so the plan can be read. Checks the permission. */
+export function orderSearchQuery(ctx: OrderListContext, input: { q: string; limit: number }) {
+  checkOrderRead(ctx);
+  const so = schema.salesOrders;
+  const a = schema.accounts;
+  return ctx.tx
+    .select({
+      id: so.id,
+      entityId: so.entityId,
+      soNo: so.soNo,
+      customerName: a.name,
+      state: so.state,
+    })
+    .from(so)
+    .innerJoin(a, eq(a.id, so.accountId))
+    .where(and(orderNumberMatches(input.q), inArray(so.entityId, [...ctx.entityIds])))
+    .orderBy(sql`lower(${so.soNo}) = lower(${input.q}) desc`, desc(so.createdAt), desc(so.id))
+    .limit(input.limit);
 }

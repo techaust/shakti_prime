@@ -14,7 +14,7 @@ import { nextTab } from '../../screens/sizing';
 import { panelsFor, sizingKindFor } from '../../screens/converting';
 import { DialNumber, Outcomes, Panel } from '../calling/calling-parts';
 import { TimelineRow } from '../customers/timeline-row';
-import { DateTime } from '../date-time';
+import { DateTime, momentValues } from '../date-time';
 import { FailureMessage } from '../screens/failure';
 import type { useCallLogging } from './use-call-logging';
 
@@ -76,11 +76,11 @@ function Summary({ lead, facts }: { lead: CallLeadDto; facts: ConvertingLeadDto 
           ) : (
             <>
               <span>
-                {t('lead.quoteLine', {
+                {t.rich('lead.quoteLine', {
                   number: facts.quote.quoteNo,
                   state: quotes(facts.quote.state),
-                })}{' '}
-                <DateTime value={facts.quote.validUntil} />
+                  ...momentValues(facts.quote.validUntil),
+                })}
               </span>
               <StatusBadge tone={QUOTE_STATE_TONE[facts.quote.state]}>
                 {formatRupees(facts.quote.grandTotal)}
@@ -151,8 +151,8 @@ function OrderPanel({ facts }: { facts: ConvertingLeadDto | undefined }) {
   return (
     <div className="flex flex-col items-start gap-3">
       <p>
-        {t('held', { number: order.soNo, amount: formatRupees(order.grandTotal) })} {t('heldSince')}{' '}
-        <DateTime value={order.heldAt} />
+        {t('held', { number: order.soNo, amount: formatRupees(order.grandTotal) })}{' '}
+        {t.rich('heldSince', momentValues(order.heldAt))}
       </p>
       <Button asChild variant="secondary">
         <Link href={orderHref(facts.entityId, order.id)}>{t('open')}</Link>
