@@ -57,7 +57,11 @@ export function NewLeadForm({
   const offered = entityId === undefined ? [] : pipelinesFor(pipelines, entityId);
   // Dealer is offered only where the person may make one; anyone else enters a dealer's enquiry
   // as a business, and an Executive makes them a dealer when their terms are set (DOM-1).
-  const mayMakeDealer = companies.find((c) => c.id === entityId)?.mayMakeDealer ?? false;
+  // Before a company is chosen, Dealer is offered when every company the person may choose allows it.
+  const mayMakeDealer =
+    entityId === undefined
+      ? companies.every((c) => c.mayMakeDealer)
+      : (companies.find((c) => c.id === entityId)?.mayMakeDealer ?? false);
   const accountTypes = mayMakeDealer
     ? ACCOUNT_TYPES
     : ACCOUNT_TYPES.filter((type) => type !== 'dealer');
