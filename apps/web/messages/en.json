@@ -1504,6 +1504,8 @@
       "importCommitBatch": "Import rows added",
       "importRollback": "Import undone",
       "importFail": "Import stopped after its last try",
+      "importPurge": "What an import file said cleared after its check period",
+      "importFileDeleted": "Import file deleted once it was no longer needed",
       "deadLetterReplay": "Held update sent again",
       "viewSave": "Saved a list view",
       "viewDelete": "Removed a list view",
