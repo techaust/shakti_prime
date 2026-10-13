@@ -36,7 +36,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 ## Notes
 
 - `expire`: A daily job, plus a lazy check when the quote is read.
-- `order.cancel`: `sales.order.cancel` of the draft order an accepted quote made withdraws the quote with the cancel reason, keeping how it was accepted, so the lead may be quoted, accepted or merged again (DOM-4); a confirmed order cancelled leaves its quote accepted and its lead won.
+- `order.cancel`: `sales.order.cancel` of the order an accepted quote made, draft or confirmed, withdraws the quote with the cancel reason, keeping how it was accepted, so the lead may be quoted and accepted again (DOM-4); the lead of a confirmed order stays won.
 
 ## Diagram
 

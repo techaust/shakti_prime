@@ -317,16 +317,40 @@ describe('calls.log: what every call records', () => {
         ist('2030-03-04T21:01:00'),
       ),
     ).rejects.toMatchObject(reason('outside_calling_hours'));
-    // A start that leaves no room for the call's length, or one far older than any call.
-    await expect(
-      log(
+    // A given start never runs past now less the call's length: it is clamped, not refused, so
+    // a device clock running fast changes nothing and a retry with the same start is taken.
+    for (const attempt of [1, 2]) {
+      const clamped = await log(
         caller,
         await leadOf(caller),
         'retry',
         { startedAt: ist('2030-03-04T20:58:00').toISOString(), durationSeconds: 600 },
         ist('2030-03-04T21:01:00'),
+      );
+      expect([attempt, clamped.call.startedAt]).toEqual([
+        attempt,
+        ist('2030-03-04T20:51:00').toISOString(),
+      ]);
+    }
+    const ahead = await log(
+      caller,
+      await leadOf(caller),
+      'retry',
+      { startedAt: ist('2030-03-04T10:05:00').toISOString() },
+      ist('2030-03-04T10:00:00'),
+    );
+    expect(ahead.call.startedAt).toBe(ist('2030-03-04T10:00:00').toISOString());
+    // Logged at 08:59 with a start of 09:00:30 from a fast clock: the call started before 9 AM.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: ist('2030-03-04T09:00:30').toISOString() },
+        ist('2030-03-04T08:59:00'),
       ),
-    ).rejects.toMatchObject(reason('call_start_invalid'));
+    ).rejects.toMatchObject(reason('outside_calling_hours'));
+    // A start far older than any call is not this call's.
     await expect(
       log(
         caller,
@@ -336,6 +360,21 @@ describe('calls.log: what every call records', () => {
         ist('2030-03-04T15:00:00'),
       ),
     ).rejects.toMatchObject(reason('call_start_invalid'));
+  });
+
+  it('takes a Lead Converter’s 20:58 call, logged on the Converting workspace at 21:01 (DOM-6)', async () => {
+    const converter = await createTestPrincipal('tele_caller_lc', [ENTITY], { teamId });
+    const logged = await log(
+      converter,
+      await leadOf(converter),
+      'retry',
+      { startedAt: ist('2030-03-04T20:58:00').toISOString() },
+      ist('2030-03-04T21:01:00'),
+    );
+    expect(logged.call).toMatchObject({
+      callerId: converter.id,
+      startedAt: ist('2030-03-04T20:58:00').toISOString(),
+    });
   });
 
   it('is refused for a customer who withdrew consent to calls, until a new consent', async () => {

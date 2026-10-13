@@ -38,29 +38,28 @@ function refuse(code: 'validation_failed' | 'conflict', reason: string, message:
   throw new DomainError(code, message, { reason });
 }
 
-/** How far ahead of the server's clock a device's clock may run when it gives a call's start. */
-const DEVICE_CLOCK_SLACK_MS = 2 * 60_000;
-
 /**
- * When the call started (DOM-6): the start the calling screen gives, which must leave room for the
- * call's duration before now (a device clock a little fast is allowed for) and fall no earlier
- * than the longest call plus the logging grace before now; else now less the duration.
+ * When the call started (DOM-6): the start the calling screen gives (when Dial showed the number),
+ * but never later than now less the call's duration, so a device clock running fast neither moves
+ * a call past 9 AM nor makes a call start after it was logged, and a retry with the same start is
+ * taken. A given start older than the longest call and the logging grace is not a call's start
+ * (`call_start_invalid`). Without one, the call started its duration before now.
  */
 function callStart(now: Date, durationS: number | null, given: string | undefined): Date {
-  if (given === undefined) return new Date(now.getTime() - (durationS ?? 0) * 1000);
-  const at = new Date(given);
-  const latest = now.getTime() - (durationS ?? 0) * 1000 + DEVICE_CLOCK_SLACK_MS;
+  const latest = now.getTime() - (durationS ?? 0) * 1000;
+  if (given === undefined) return new Date(latest);
+  const at = new Date(given).getTime();
   const earliest =
     now.getTime() -
     ((durationS ?? CALL_DURATION_MAX_SECONDS) + WORKSHOP_DEFAULTS.calling.logGraceMinutes * 60) *
       1000;
-  if (at.getTime() > latest || at.getTime() < earliest) {
+  if (at < earliest) {
     throw new DomainError('validation_failed', 'the call start is not possible', {
       reason: 'call_start_invalid',
       issues: [{ path: 'startedAt', message: 'call_start_invalid' }],
     });
   }
-  return at;
+  return new Date(Math.min(at, latest));
 }
 
 /** What the outcome needs beyond itself, checked before anything is written. */
@@ -204,8 +203,8 @@ async function before(
  * in this transaction, so it is guarded, audited and on the timeline as when done by hand.
  * Refused for a call that started outside calling hours (`outside_calling_hours`: the start is the
  * time the calling screen gives, when Dial was pressed, else now less the duration, and is what the
- * call keeps; a start that leaves no room for the duration, or is older than the longest call and
- * the grace, is `call_start_invalid`), or logged more than
+ * call keeps, never later than now less the duration; a start older than the longest call and the
+ * grace is `call_start_invalid`), or logged more than
  * `WORKSHOP_DEFAULTS.calling.logGraceMinutes` (CALL-8) after calling hours ended on its day
  * (`call_logged_too_late`), and for a customer who withdrew consent to calls
  * (`call_consent_withdrawn`). For people only.

@@ -478,6 +478,43 @@ describe('one accepted quote, one order and one commission a lead (DOM-4)', () =
     expect(counts).toEqual({ accepted: 1, drafts: 1 });
   });
 
+  it('cancelling a confirmed order withdraws its quote too, so the won lead may sell again', async () => {
+    const { id: leadId } = await sizedLead();
+    const first = await sentQuote(leadId, 5);
+    const orderId = (await accept(first.id)).orderId ?? '';
+    expect((await confirm(orderId)).outcome).toBe('confirmed');
+    await run(gm, cancelSalesOrder, { entityId: E, orderId, reason: 'Customer moved away' });
+    const [row] = await asMigrator(
+      (m) => m<{ state: string; withdrawn_reason: string | null }[]>`
+        select state, withdrawn_reason from quotes where id = ${first.id}`,
+    );
+    expect(row).toEqual({ state: 'withdrawn', withdrawn_reason: 'Customer moved away' });
+    const second = await sentQuote(leadId, 8);
+    const next = await accept(second.id);
+    expect((await confirm(next.orderId ?? '')).outcome).toBe('confirmed');
+    const [lead] = await asMigrator(
+      (m) => m<{ state: string }[]>`select state from opportunities where id = ${leadId}`,
+    );
+    expect(lead?.state).toBe('won');
+  });
+
+  it('quotes a teammate’s lead for a role that may quote it but not write it', async () => {
+    const base = principalFor('sales_team_lead', [E], { teamId });
+    const quoter = await createTestPrincipal('sales_team_lead', [E], {
+      teamId,
+      permissions: base.permissions.map((g) =>
+        g.key === 'crm.lead.write' ? { ...g, scope: 'own' as const } : g,
+      ),
+    });
+    const { id: leadId } = await sizedLead();
+    const quote = await run<QuoteDto>(quoter, createQuote, {
+      entityId: E,
+      opportunityId: leadId,
+      lines: [{ itemId: ids.module, qty: '4' }],
+    });
+    expect(quote).toMatchObject({ opportunityId: leadId, state: 'draft' });
+  });
+
   it('holds one accepted quote a lead in the database, whatever writes it', async () => {
     const { id: leadId } = await sizedLead();
     const first = await sentQuote(leadId, 5);

@@ -226,7 +226,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       system: true,
       emits: 'sales.quote.withdrawn',
       guard: reasonGiven(),
-      note: '`sales.order.cancel` of the draft order an accepted quote made withdraws the quote with the cancel reason, keeping how it was accepted, so the lead may be quoted, accepted or merged again (DOM-4); a confirmed order cancelled leaves its quote accepted and its lead won.',
+      note: '`sales.order.cancel` of the order an accepted quote made, draft or confirmed, withdraws the quote with the cancel reason, keeping how it was accepted, so the lead may be quoted and accepted again (DOM-4); the lead of a confirmed order stays won.',
     },
   ],
 });

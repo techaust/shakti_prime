@@ -346,7 +346,7 @@
     "merge_leads_has_sale": "The lead you are merging away has an open quote or an order. Keep that lead instead, or first withdraw its quote or cancel its order.",
     "call_logged_too_late": "A call that started before 9 PM can be logged until 9:15 PM. Log each call as soon as it ends.",
     "merge_dealer_mismatch": "One of these customers is a dealer and the other is not. Ask an Executive to make them the same kind of customer first.",
-    "call_start_invalid": "The time this call started does not fit. Check the clock on this device, then log the call again."
+    "call_start_invalid": "This call started too long ago to be logged now. Log each call as soon as it ends."
   },
   "auth": {
     "signIn": {

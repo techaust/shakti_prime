@@ -946,6 +946,13 @@
       "when": 1791884191049,
       "tag": "0138_audit_sales_fix_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1791902901678,
+      "tag": "0139_audit_sales_fix2_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -444,7 +444,7 @@ const eventCatalogue = {
   },
   'sales.quote.withdrawn': {
     meaning:
-      'A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose draft order was cancelled.',
+      'A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose order was cancelled.',
     emittedBy: ['sales.order.cancel', 'sales.quote.accept', 'sales.quote.withdraw'],
     subscribed: false,
     payload: z.object({ opportunityId: IdSchema }).strict(),

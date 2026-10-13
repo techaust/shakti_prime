@@ -144,7 +144,7 @@ export const quotes = pgTable(
       'quotes_accepted_via_check',
       sql`${t.acceptedVia} is null or ${t.acceptedVia} in ('whatsapp_reply', 'whatsapp_otp', 'signed_upload')`,
     ),
-    // An accepted quote says how; so does one withdrawn when its draft order was cancelled, which
+    // An accepted quote says how; so does one withdrawn when its order was cancelled, which
     // keeps the record of its acceptance (DOM-4); a signed copy is named exactly when it was the way.
     check(
       'quotes_acceptance_check',

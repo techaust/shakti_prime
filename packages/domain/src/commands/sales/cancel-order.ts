@@ -12,9 +12,9 @@ import { lockSalesOrder, writeSalesOrder } from './order-shared';
 import { lockQuote, quoteRecordOf } from './quote-shared';
 
 /**
- * The accepted quote of a cancelled draft order is withdrawn with the cancel reason (the quote
- * machine's `order.cancel`), keeping how it was accepted, so its lead has no accepted quote left
- * and may be quoted, accepted or merged again (DOM-4).
+ * The accepted quote of a cancelled order, draft or confirmed, is withdrawn with the cancel reason
+ * (the quote machine's `order.cancel`), keeping how it was accepted, so its lead has no accepted
+ * quote left and may be quoted and accepted again (DOM-4), and merged while it is open.
  */
 async function withdrawAcceptedQuote(
   ctx: CommandContext,
@@ -54,9 +54,10 @@ async function withdrawAcceptedQuote(
  * `sales.order.cancel` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-06): the General Manager or the
  * Executive cancels a draft or confirmed order, with a reason. A confirmed order's referral
  * commission is cancelled with it (`app.cancel_commission_accrual()`). A credit hold ends with the
- * order (DOM-5): the audit row keeps the rule it was held for. A draft order's accepted quote is
- * withdrawn with the reason, so the lead may take another sale (DOM-4). A confirmed order's lead
- * stays won, with its quote accepted: the opportunity machine has no move out of won. People only.
+ * order (DOM-5): the audit row keeps the rule it was held for. The order's accepted quote is
+ * withdrawn with the reason, so the lead may take another sale (DOM-4); the lead of a confirmed
+ * order stays won, since the opportunity machine has no move out of won, and its next confirmed
+ * order earns its own commission, the cancelled one's being cancelled. People only.
  */
 export const cancelSalesOrder = defineCommand({
   name: 'sales.order.cancel',
@@ -89,7 +90,7 @@ export const cancelSalesOrder = defineCommand({
       creditHoldReason: null,
       creditHoldJson: null,
     });
-    if (cancelled.from === 'draft' && row.quoteId !== null && row.opportunityId !== null) {
+    if (row.quoteId !== null && row.opportunityId !== null) {
       await withdrawAcceptedQuote(ctx, row.entityId, row.quoteId, input.reason);
       ctx.emit({
         type: 'sales.quote.withdrawn',

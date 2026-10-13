@@ -16,7 +16,7 @@ import {
   type TaxRateRow,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { and, eq, gt, inArray, isNotNull, isNull, lte, or, type SQL } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { z } from 'zod';
 import { istCalendarDate } from '../../numbering/financial-year';
 import { priceQuote, type PricedQuote, type PricedSource } from '../../sales/quote-pricing';
@@ -59,9 +59,11 @@ export interface QuoteLead {
 /**
  * The lead, its customer, its site and its company. A lead the caller cannot read, of another
  * company or archived is `lead_missing`: RLS decides what the caller sees, and a customer the
- * caller cannot read through the lead is not quoted. A command holds the lead `for share` until it
- * ends (`holdLead`), so a quote made while the lead is being merged away or rolled back waits for
- * that to finish and then finds the lead archived, rather than landing on it (DOM-2, DOM-3).
+ * caller cannot read through the lead is not quoted. A command first holds the lead `for share`
+ * until it ends (`holdLead`, through `app.hold_quote_lead()`, which asks `sales.quote.create` over
+ * the lead rather than the right to write it), so a quote made while the lead is being merged away
+ * or rolled back waits for that to finish and then finds the lead archived, rather than landing on
+ * it (DOM-2, DOM-3).
  */
 export async function loadQuoteLead(
   ctx: QuoteReadContext,
@@ -72,12 +74,17 @@ export async function loadQuoteLead(
   if (!ctx.entityIds.includes(entityId)) {
     throw new DomainError('forbidden', 'entity outside the request scope', { entityId });
   }
+  if (holdLead) {
+    await ctx.tx.execute(
+      sql`select app.hold_quote_lead(${entityId}::smallint, ${opportunityId}::uuid)`,
+    );
+  }
   const o = schema.opportunities;
   const p = schema.pipelines;
   const a = schema.accounts;
   const cs = schema.customerSites;
   const e = schema.entities;
-  const query = ctx.tx
+  const [row] = await ctx.tx
     .select({
       id: o.id,
       entityId: o.entityId,
@@ -99,9 +106,7 @@ export async function loadQuoteLead(
     .innerJoin(e, eq(e.id, o.entityId))
     .leftJoin(cs, eq(cs.id, o.siteId))
     .where(and(eq(o.id, opportunityId), eq(o.entityId, entityId), isNull(o.archivedAt)))
-    .limit(1)
-    .$dynamic();
-  const [row] = holdLead ? await query.for('share', { of: o }) : await query;
+    .limit(1);
   if (!row) {
     throw new DomainError('not_found', `opportunity ${opportunityId} is not visible`, {
       reason: 'lead_missing',
