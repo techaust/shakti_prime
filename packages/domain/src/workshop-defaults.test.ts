@@ -43,8 +43,9 @@ describe('workshop defaults', () => {
         scoreRules: [],
         firstContactSlaMinutes: null,
       },
-      // The owner's defaults of 05-10-2026 for CALL-3 and CALL-5, for the sales head to confirm.
-      calling: { attemptDays: [0, 1, 2], nurtureCallDays: [7, 30, 90] },
+      // The owner's defaults of 05-10-2026 for CALL-3 and CALL-5, and the 15-minute log grace of
+      // 13-10-2026 for CALL-8, for the sales head to confirm.
+      calling: { attemptDays: [0, 1, 2], nurtureCallDays: [7, 30, 90], logGraceMinutes: 15 },
       sizing: {
         hazenWilliamsC: { hdpe: 140, gi: 120 },
         fittingsLossFraction: 0.1,

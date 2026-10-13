@@ -56,6 +56,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `crm.firstContactSlaMinutes` | null |
 | `calling.attemptDays` | 0, 1, 2 |
 | `calling.nurtureCallDays` | 7, 30, 90 |
+| `calling.logGraceMinutes` | 15 |
 | `sizing.hazenWilliamsC.hdpe` | 140 |
 | `sizing.hazenWilliamsC.gi` | 120 |
 | `sizing.fittingsLossFraction` | 0.1 |
