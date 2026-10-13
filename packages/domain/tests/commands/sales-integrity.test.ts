@@ -40,6 +40,7 @@ import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { homeCredit } from '../../src/queries/home/home';
 import { listDealerCredit } from '../../src/queries/sales/dealer-credit';
 import { getSalesOrder } from '../../src/queries/sales/list-orders';
+import { getQuote } from '../../src/queries/sales/list-quotes';
 
 // The sales-integrity fixes of the Phase 0–1 audit (12-10-2026): DOM-1 to DOM-5, DOM-V1 and
 // ARCH-5, each through the real commands on real Postgres. Orders are made in company 4, as in
@@ -362,6 +363,15 @@ describe('one accepted quote, one order and one commission a lead (DOM-4)', () =
          where type = 'sales.quote.withdrawn' and aggregate_id in (${second.id}, ${draft.id})`,
     );
     expect(events).toHaveLength(2);
+    const shown = await asPrincipal(lc, (context) =>
+      getQuote(context, { entityId: E, quoteId: second.id }),
+    );
+    expect(shown).toMatchObject({
+      state: 'withdrawn',
+      withdrawnReason: null,
+      withdrawnForId: first.id,
+      withdrawnForNo: first.quoteNo,
+    });
     // The withdrawn quote can no longer be accepted.
     await expect(accept(second.id)).rejects.toMatchObject({ code: 'conflict' });
     // Nor can a quote made after the acceptance: the lead has its sale.
