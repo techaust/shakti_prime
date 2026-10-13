@@ -117,6 +117,76 @@ Done when: the checks of AGENTS §10 pass on the branch; the security suite pass
 
 **For the hosted migration:** on dev and staging, check `select opportunity_id from quotes where state = 'accepted' group by 1 having count(*) > 1` before migrating; the new unique index will not build if it returns a row.
 
+### 13-10-2026, cloud (lead's VM), fix round
+
+Each of the review's eight findings is fixed, with the lead's decisions.
+
+**1. Only an Executive makes a customer a dealer, at creation too.**
+- `accounts_type_guard` is now `before insert or update of type` (migration `0138_audit_sales_fix_rls.sql`, section 1). A new dealer row needs `sales.credit.write` at company scope, as a change does.
+- `crm.lead.create` refuses a new dealer without it (`account_type_needs_credit`).
+- The leads and customers import previews mark such a row `dealer_needs_executive` (a new row code, with its sentence under `imports.rowErrors`).
+- The New lead form offers Dealer only where the person has the right. Elsewhere it shows "Enter a dealer as a business. An Executive makes them a dealer when their credit terms are set."
+- A tele-caller's dealer enquiry enters the Dealer/Wholesale pipeline as a `business`. The Account 360 sentences stay true.
+- Tests: the Lead Converter's refused create, the tele-caller's raw insert refused by the trigger, the Executive's create, and a converter's Dealer/Wholesale enquiry as a business (all in `sales-integrity.test.ts`). The General Manager's import refused while the Executive's passes is in `imports.test.ts`, the import row rule in `leads.test.ts`, and the form option in the journey `customers.spec.ts`.
+
+**2. Customer merge across dealer status.**
+- `app.merge_customers()` is redefined from 0117 verbatim, plus a `dealer_mismatch` refusal (`merge_dealer_mismatch`, with its sentence).
+- Test: `duplicates.test.ts`, both ways round.
+
+**3. The DOM-6 grace.**
+- `LogCallInput` takes an optional `startedAt`, which the calling screen fills when Dial shows the number. Calling hours are checked on it and the call keeps it.
+- A start that leaves no room for the call's duration (allowing a 2-minute fast device clock), or is older than the longest call plus the grace, is `call_start_invalid`. Without a start, the start is now less the duration.
+- Test: `calls.test.ts`. A call from 20:58 logged at 21:01 with no duration and with 30 s is accepted. The same call logged at 21:15:01, a start of 21:00, and two impossible starts are each refused. The CALL-8 wording still holds.
+
+**4. A cancelled draft order.**
+- The quote machine has a new move `order.cancel`, from accepted to withdrawn (`sales.order.cancel`, a reason). Accepted is no longer final.
+- `sales.order.cancel` of a draft order withdraws its quote with the cancel reason and emits `sales.quote.withdrawn`; the catalogue's `emittedBy` now names it.
+- The quote keeps how it was accepted: `quotes_acceptance_check` is relaxed in migration `0137_audit_sales_fix.sql`, generated from the schema.
+- The lead can then be quoted, accepted or merged again. A confirmed order's quote stays accepted.
+- The machine and data documents are regenerated, and the two sentences rewritten:
+  - `quote_lead_already_accepted`: "…and its order stands. Open that order, or cancel it first if the customer wants a different quote."
+  - `merge_leads_has_sale`: "…has an open quote or an order. Keep that lead instead, or first withdraw its quote or cancel its order."
+- Tests: the cancel frees the lead for a second acceptance, and a merge after the cancel.
+
+**5. The concurrency test** now asserts that the refusal's reason is `quote_transition_not_allowed` or `quote_lead_already_accepted`.
+
+**6. The lead read when a quote is made.** `loadQuoteLead` reads the lead `for share` (`of opportunities`) when `sales.quote.create` or `sales.quote.requote` builds a quote. The read-only preview takes no lock.
+
+**7. The importer in `app.import_leads_in_use()`.** It compares each lead against its own `created_by`, the person whose commit made it (migration 0138, section 3).
+- Test: `imports.test.ts` (security), with a job uploaded by one General Manager and committed by another.
+- `app.import_accounts_in_use()` is unchanged (job creator, as since 0106), as the lead asked.
+
+**8. Documents.**
+- `07-security.md` line 198 now says the definer answers the figures and `creditStanding()` works out exposure and overdue.
+- The three code comments are corrected.
+- The comment in `0135_audit_sales_rls.sql` (lines 8–9) is not edited. 0135 is applied on the slot's database, and a changed file fails `assertAllApplied`, which I may not reset. Section 1 of 0138 states the rule. Correct that comment when you renumber, if you like.
+- SECURITY, DATABASE and the Built record now state the creation, merge, real-start and cancel rules.
+
+**Also fixed:**
+- `enum-sync.test.ts` now pairs the relaxed acceptance check.
+- `import-kinds.test.ts` "adds the different site…" failed on a second run against the same database, because an earlier run's "Two Sites" customer in Sikar was suggested. It now names its customer per run. This was not a regression of this branch.
+- The New lead form showed the dealer line to a multi-company Executive before a company was chosen. That moved the form and failed the Executive's lead-form alignment check in `imports.spec.ts`. Dealer is now judged across all their companies until one is chosen.
+
+**Checks** (all through the lock):
+- `pnpm db:migrate`: 0137 and 0138 applied.
+- Typecheck contracts, db, domain and web: clean.
+- eslint `packages/contracts`, `packages/db`, `packages/domain` and `apps/web`: clean.
+- `copy-lint`: clean.
+- Unit tests: domain 2081 passed, web 765 passed and 1 skipped.
+- Security suites:
+  - db (`activities`, `imports`, `grants`, `enum-sync`, `quotes`, `sales-orders`, `crm-scope`, `duplicates`): 316 tests. The one enum-sync failure was fixed; the rerun passed 4 of 4.
+  - domain (`sales-integrity`, `calls`, `duplicates`, `imports`, `import-kinds`, `orders`, `quotes`, `create-lead`, `customer-edits`, `lead-flows`, `tests/security`): 249 tests. The one import-kinds failure was fixed; the rerun passed 22 of 22.
+  - web, whole suite: 303 passed.
+- `pnpm build`: passed.
+- Journeys with `--ignore-snapshots`:
+  - `customers`, `orders`, `calling`, `leads`, `imports` and `quotes`: 125 passed, with 2 failures (the alignment above, on desktop-light and desktop-dark).
+  - After the fix, `imports`, `customers` and `leads`: 82 passed.
+- Whole-repository `pnpm lint`, last: exit 0.
+
+**Baselines:** none new. `quote-page.png` (desktop-light) and `customers-list.png` (phone) are still the two to remake in Linux, as before.
+
+**Not run:** the whole `pnpm test:security` this round (only the affected files, as above), and EXPLAIN. No list or search query changed this round; the import definers keep their indexed keys.
+
 ## Review
 
 ### 13-10-2026, cloud (lead's VM), slice-reviewer (Opus 5.5 xhigh), head 61bff719
@@ -125,14 +195,14 @@ Reviewed `git diff origin/main...fix/audit-sales` against the brief, the audit f
 
 | # | Severity | Finding | State |
 |---|---|---|---|
-| 1 | high | The owner's rule that only the Executive makes or unmakes a dealer holds only for an edit: any lead creator makes a new customer a dealer | open |
-| 2 | medium | A customer merge unmakes a dealer without the Executive, and the dealer's credit drops off Accounts' lists | open |
-| 3 | medium | The DOM-6 grace works only when the logged duration runs right up to the moment of logging | open |
-| 4 | medium | After a draft order is cancelled, its lead can take no other sale, and both new sentences name a step that cannot be taken | open |
-| 5 | low | The "two acceptances at once" test would pass without the lead lock | open |
-| 6 | low | A quote made while its lead is being merged away or rolled back still lands on the archived lead | open |
-| 7 | low | A leads rollback keeps every lead when someone other than the uploader committed the job | open |
-| 8 | low | SECURITY and four code comments contradict the code | open |
+| 1 | high | The owner's rule that only the Executive makes or unmakes a dealer holds only for an edit: any lead creator makes a new customer a dealer | fixed in ddbb3b50, 880261b4 |
+| 2 | medium | A customer merge unmakes a dealer without the Executive, and the dealer's credit drops off Accounts' lists | fixed in ddbb3b50 |
+| 3 | medium | The DOM-6 grace works only when the logged duration runs right up to the moment of logging | fixed in ddbb3b50 |
+| 4 | medium | After a draft order is cancelled, its lead can take no other sale, and both new sentences name a step that cannot be taken | fixed in ddbb3b50, 22072433 |
+| 5 | low | The "two acceptances at once" test would pass without the lead lock | fixed in ddbb3b50 |
+| 6 | low | A quote made while its lead is being merged away or rolled back still lands on the archived lead | fixed in ddbb3b50 |
+| 7 | low | A leads rollback keeps every lead when someone other than the uploader committed the job | fixed in ddbb3b50 |
+| 8 | low | SECURITY and four code comments contradict the code | fixed in ddbb3b50 (the 0135 comment stays; see the Fix round) |
 
 **1 (high, confirmed). The rule holds only for an edit.**
 - **Where:**
