@@ -64,6 +64,7 @@ After a pull request with migrations merges and CI on `main` is green: migrate d
 Each is a rule that a past slice earned.
 
 **Databases and baselines**
+- Edit a moved migration only after `renumber-migrations.mjs` has run: it writes each moved file from the slice's own commit, so an edit made during the merge is lost (M1, 14-10-2026, dropped `main`'s `platform.jobs.check` from `app.platform_only_permissions()` until the security suite caught it). Run `pnpm db:docs` after the last edit of `05-database.md`, since the data dictionary reads it.
 - Make baselines only on a fresh database; a database the security suite used shows leftover rows.
 - Wait until several queries in a row succeed before migrating a fresh database: `pg_isready` answers while the Supabase image is still starting.
 - A worktree's `.env` needs `E2E_BASE_URL` on its own port and the reader pair (`DATABASE_URL_READER`, `APP_READER_PASSWORD`).
