@@ -15,6 +15,7 @@ import {
   createTestTeam,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -88,7 +89,7 @@ async function newLead(owner: Principal = caller): Promise<string> {
     pipelineKey: 'farmer_pumps',
     contact: {
       name: 'Sizing test customer',
-      phone: `97${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+      phone: testPhone(),
     },
     account: { type: 'farm' },
     site: { type: 'borewell', village: 'Sizing test village', pin: '422001' },

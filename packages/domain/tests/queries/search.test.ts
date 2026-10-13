@@ -6,6 +6,7 @@ import {
   createTestTeam,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -24,7 +25,7 @@ const newTag = () => `t${newId().slice(-12)}${newId().slice(-12)}`;
 const tag = newTag();
 /** The tag with one character dropped: no longer contained in a name, only close in spelling. */
 const misspelt = (text: string) => `${text.slice(0, 10)}${text.slice(11)}`;
-const phone = () => `95${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`;
+const phone = () => testPhone();
 
 let people: Record<'caller' | 'teammate' | 'teamLead' | 'gm' | 'other', Principal>;
 let ids: { mine: string; teammate: string; otherCompany: string };

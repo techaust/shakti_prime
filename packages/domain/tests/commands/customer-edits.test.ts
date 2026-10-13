@@ -9,6 +9,7 @@ import {
   PIPELINE_SEED,
   principalFor,
   stageId,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -43,7 +44,7 @@ function run(principal: Principal, command: AnyCommand, input: unknown): Promise
   );
 }
 
-const phone = (): string => `94${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+const phone = (): string => testPhone();
 const reason = (r: string) => ({ details: { reason: r } });
 
 interface Customer {

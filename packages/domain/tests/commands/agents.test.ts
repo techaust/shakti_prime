@@ -7,6 +7,7 @@ import {
   createTestTeam,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -78,7 +79,7 @@ async function drop(id: string): Promise<void> {
   await asMigrator((m) => m`delete from agent_configs where id = ${id}`);
 }
 
-const phone = (): string => `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+const phone = (): string => testPhone();
 
 async function leadOf(owner: Principal, entityId = 1): Promise<string> {
   const lead = (await run(owner, createLead, {

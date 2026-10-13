@@ -12,6 +12,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -191,7 +192,7 @@ async function newLead(
     pipelineKey,
     contact: {
       name: 'Quote test customer',
-      phone: `96${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+      phone: testPhone(),
     },
     account: { type: 'household' },
     site: {

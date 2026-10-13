@@ -1,5 +1,5 @@
 import { DomainError, newId } from '@shakti/contracts';
-import { asOutboxPublisher, closeDb, createTestPrincipal } from '@shakti/db/testing';
+import { asOutboxPublisher, closeDb, createTestPrincipal, testPhone } from '@shakti/db/testing';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { defineCommand } from '../../src/command/define-command';
@@ -54,7 +54,7 @@ const lead = {
   // A number no earlier run used: one a colleague's customer has is refused (0055).
   contact: {
     name: 'Outbox test customer',
-    phone: `98${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+    phone: testPhone(),
   },
   account: { type: 'farm' },
 };

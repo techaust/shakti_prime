@@ -8,6 +8,7 @@ import {
   prepareDatabase,
   principalFor,
   stageId,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -248,7 +249,7 @@ describe('stages', () => {
       pipelineKey: p.key,
       contact: {
         name: 'Stage rule customer',
-        phone: `97${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+        phone: testPhone(),
       },
       account: { type: 'farm' },
     })) as { id: string };
@@ -501,7 +502,7 @@ describe('stages', () => {
         pipelineKey,
         contact: {
           name: 'Stage lock customer',
-          phone: `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+          phone: testPhone(),
         },
         account: { type: 'farm' },
       })) as { id: string };
@@ -586,7 +587,7 @@ describe('stages', () => {
         pipelineKey: p.key,
         contact: {
           name: 'Stage lock customer',
-          phone: `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+          phone: testPhone(),
         },
         account: { type: 'farm' },
       });

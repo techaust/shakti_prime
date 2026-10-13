@@ -7,6 +7,7 @@ import {
   createTestTeam,
   createTestUser,
   stageId,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
@@ -58,7 +59,7 @@ async function newLead(pipelineKey = 'farmer_pumps', owner: Principal = caller):
     // A number no earlier lead has: one a colleague's customer has is refused (0055).
     contact: {
       name: 'Opportunity test customer',
-      phone: `98${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+      phone: testPhone(),
     },
     account: { type: 'farm' },
     site: { type: 'borewell', village: 'Opportunity test village', pin: '422001' },

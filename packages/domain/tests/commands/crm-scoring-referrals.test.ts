@@ -11,6 +11,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -84,7 +85,7 @@ function refusal(promise: Promise<unknown>): Promise<unknown> {
 }
 
 function phone(): string {
-  return `96${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+  return testPhone();
 }
 
 /** A lead of company 1 owned by `caller`, its site in this run's district. */

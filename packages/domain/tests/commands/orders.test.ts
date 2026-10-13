@@ -14,6 +14,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql as sqlTag } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -226,7 +227,7 @@ async function sizedLead(): Promise<{ id: string; accountId: string }> {
     pipelineKey: 'residential_rooftop',
     contact: {
       name: 'Order test customer',
-      phone: `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+      phone: testPhone(),
     },
     account: { type: 'household' },
     site: { type: 'rooftop', village: 'Order test village' },

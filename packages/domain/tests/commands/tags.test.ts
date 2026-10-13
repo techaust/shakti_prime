@@ -7,6 +7,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -42,7 +43,7 @@ function run(principal: Principal, command: AnyCommand, input: unknown): Promise
 }
 
 const unique = (label: string): string => `${label} ${newId().slice(-6)}`;
-const phone = (): string => `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+const phone = (): string => testPhone();
 const reason = (r: string) => ({ details: { reason: r } });
 
 async function leadOf(owner: Principal, entityId = 1): Promise<string> {

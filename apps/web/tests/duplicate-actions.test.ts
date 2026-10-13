@@ -1,7 +1,7 @@
 import { newId, type Principal } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
 import { closeOutboxDb } from '@shakti/db/outbox';
-import { asMigrator, closeDb, createTestPrincipal } from '@shakti/db/testing';
+import { asMigrator, closeDb, createTestPrincipal, testPhone } from '@shakti/db/testing';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The duplicate actions outside a Next.js request, as in list-actions.test.ts: the headers and
@@ -53,7 +53,7 @@ function ok<T>(result: { ok: true; data: T } | { ok: false; error: string }): T 
 }
 
 const tag = newId().slice(-8);
-const phone = () => `96${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`;
+const phone = () => testPhone();
 
 let caller1: Principal;
 let caller2: Principal;

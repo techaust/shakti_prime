@@ -8,6 +8,7 @@ import {
   createTestTeam,
   createTestUser,
   grantsForRole,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -19,7 +20,7 @@ import { listLeads } from '../../src/queries/crm/list-leads';
 
 afterAll(closeDb);
 
-const phone = () => `98${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`;
+const phone = () => testPhone();
 const newCustomer = (entityId: number) => ({
   entityId,
   pipelineKey: 'farmer_pumps',
