@@ -3144,7 +3144,8 @@
       "sales_credit_write": "Enter dealer credit limits and outstanding",
       "sales_targets_write": "Set the targets of callers and teams",
       "notifications_send": "Send notices to the people who act on them",
-      "crm_handover_run": "Give a qualified lead to a Lead Converter"
+      "crm_handover_run": "Give a qualified lead to a Lead Converter",
+      "integrations_jobs_check": "Check that the scheduled upkeep tasks ran"
     },
     "empty": "There are no roles to show.",
     "locked": {

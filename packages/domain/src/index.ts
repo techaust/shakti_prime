@@ -198,6 +198,8 @@ export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
+export { readScheduledJobs, scheduledJobHealth, scheduleEveryHours } from './queries/platform/scheduled-jobs';
+export type { ScheduledJobReport, ScheduledJobRow } from './queries/platform/scheduled-jobs';
 export type { OutboxHealth } from './queries/platform/outbox-health';
 export { ENTITY_COLUMNS, toEntityDto } from './queries/org/entity-dto';
 export type { EntityRow } from './queries/org/entity-dto';

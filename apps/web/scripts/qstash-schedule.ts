@@ -1,7 +1,7 @@
 // Creates or updates the QStash schedules (docs/runbooks/deploy.md): the outbox publisher every
 // minute, the safety net behind the nudge each command sends, the sweep of abandoned uploads every
 // hour, the lead rescoring and the duplicate search each night, the quote expiry each day and the
-// notification scan every five minutes.
+// notification scan every five minutes, and the check of the database's scheduled jobs every hour.
 // Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT and
 // BETTER_AUTH_URL set.
 // Usage: pnpm --filter web qstash-schedule
@@ -9,6 +9,7 @@ import { Client } from '@upstash/qstash';
 import {
   DUPLICATE_SCAN_PATH,
   FILES_SWEEP_PATH,
+  JOBS_CHECK_PATH,
   LEAD_RESCORE_PATH,
   NOTIFICATION_SCAN_PATH,
   QUOTE_EXPIRE_PATH,
@@ -139,3 +140,20 @@ await client.schedules.create({
   timeout: 60,
 });
 console.log(`schedule ${NOTIFICATION_SCAN_SCHEDULE_ID} calls ${noticeScanUrl} every five minutes`);
+
+// The check of the database's scheduled jobs (audit 2026-10, DATA-3) every hour, away from the
+// top of the hour and from the sweep: a job that failed, is late, paused or missing is told to
+// the owner. A missed run is covered by the next hour's.
+const JOBS_CHECK_SCHEDULE_ID = `jobs-check-${environment}`;
+const JOBS_CHECK_CRON = '41 * * * *';
+const jobsCheckUrl = workerUrl(config, JOBS_CHECK_PATH);
+await client.schedules.create({
+  scheduleId: JOBS_CHECK_SCHEDULE_ID,
+  destination: jobsCheckUrl,
+  cron: JOBS_CHECK_CRON,
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  retries: 0,
+  timeout: 30,
+});
+console.log(`schedule ${JOBS_CHECK_SCHEDULE_ID} calls ${jobsCheckUrl} every hour`);

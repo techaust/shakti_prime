@@ -119,6 +119,54 @@ export const AgentSpend = z
   .strict();
 export type AgentSpend = z.infer<typeof AgentSpend>;
 
+/**
+ * The database's scheduled jobs (pg_cron, docs/05-database.md §7), by their job names. The check and
+ * the page expect each of them; a job the database no longer schedules is `missing`.
+ */
+export const DATABASE_JOBS = [
+  'activities-partitions',
+  'audit-logs-detach',
+  'audit-logs-partitions',
+  'idempotency-keys-purge',
+  'outbox-events-purge',
+] as const;
+export const DatabaseJobSchema = z.enum(DATABASE_JOBS);
+export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
+
+/**
+ * Where a scheduled job stands, worst first:
+ * - `missing`: the database no longer schedules it;
+ * - `paused`: it is scheduled but switched off;
+ * - `failed`: its last run failed, as pg_cron recorded it or as the job recorded it itself;
+ * - `running`: its last run has not finished;
+ * - `late`: it has not run for longer than its period and a margin;
+ * - `waiting`: it has never run, and its first run is not yet due;
+ * - `ok`: its last run finished without an error.
+ */
+export const SCHEDULED_JOB_STATES = [
+  'missing',
+  'paused',
+  'failed',
+  'running',
+  'late',
+  'waiting',
+  'ok',
+] as const;
+export const ScheduledJobStateSchema = z.enum(SCHEDULED_JOB_STATES);
+export type ScheduledJobState = z.infer<typeof ScheduledJobStateSchema>;
+
+/** One scheduled job on Integration Health: its state, its last run and how often it runs. */
+export const ScheduledJobHealth = z
+  .object({
+    job: DatabaseJobSchema,
+    state: ScheduledJobStateSchema,
+    lastRunAt: Instant.nullable(),
+    lastFinishedAt: Instant.nullable(),
+    everyHours: z.number().int().min(1),
+  })
+  .strict();
+export type ScheduledJobHealth = z.infer<typeof ScheduledJobHealth>;
+
 /** `GET /admin/integrations?cursor=&limit=`: the cursor pages the dead letters, newest first. */
 export const IntegrationHealthQuery = z
   .object({

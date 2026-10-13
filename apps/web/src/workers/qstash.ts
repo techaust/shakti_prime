@@ -36,6 +36,9 @@ export const NOTIFY_PATH = '/api/v1/workers/notify';
 /** Where the five-minute schedule calls the notification scan, and a run hands on the rest. */
 export const NOTIFICATION_SCAN_PATH = '/api/v1/workers/notifications/scan';
 
+/** Where the hourly schedule calls the check of the database's scheduled jobs. */
+export const JOBS_CHECK_PATH = '/api/v1/workers/jobs/check';
+
 /**
  * Event types whose worker has a route and a body of its own (docs/06-api.md §3.6) instead of the
  * event worker route: the publisher sends each such event to its route as the job it stands for,

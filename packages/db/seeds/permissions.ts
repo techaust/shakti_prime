@@ -80,6 +80,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.index': 'Read Knowledge Vault files so they can be searched',
   'notifications.send': 'Send notices to the people who act on them',
   'crm.handover.run': 'Give a qualified lead to a Lead Converter',
+  'integrations.jobs.check': 'Check that the scheduled upkeep tasks ran',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({
