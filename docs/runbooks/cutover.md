@@ -2,7 +2,9 @@
 
 How the Shakti group moves from its old records to the BOS (PRD IMP-02): two rehearsals, the count check of every file, the cutover weekend hour by hour, the go/no-go rule, the way back, and who does what. Production itself (the paid Supabase project with point-in-time recovery, Vercel Pro, the group's domain) is slice G1; this runbook starts once production exists and the [parallel run](../13-client-packs/parallel-run.md) follows it.
 
-**Where the real files go.** A real customer file never goes to staging or dev: staging holds synthetic or anonymised data only (BLUEPRINT §7.10), and the design places the reconciliation on real data in production (phase 1 design §10, G1). So the rehearsal is done twice: on staging with **anonymised copies** of the files (the format, the matching and the timings), and on **production before go-live** with the real files, after which production is put back to the moment before the rehearsal by point-in-time recovery (DATABASE §10), checked by counts.
+**Where the real files go.** A real customer file never goes to staging or dev: staging holds synthetic or anonymised data only (BLUEPRINT §7.10), and the design places the reconciliation on real data in production (phase 1 design §10, G1). So the rehearsal is done twice: on staging with **anonymised copies** of the files (the format, the matching, passing the leads on and the timings), and on **production before go-live** with the real files, after which production is restored in place to the moment before the rehearsal by point-in-time recovery, under a freeze, and checked by counts (§2.2).
+
+**Where the real files are kept.** The data owner holds the real files on the group's own storage: a folder the group controls, shared with the cutover lead for the cutover only. They never go into the code repository, onto staging or dev, into email or into chat. The cutover lead opens them only from there, to make the anonymised copies (§2.1) and to import them on production (§2.2, §3), and keeps no copy on their own machine afterwards. The rehearsal's uploads in production's files bucket are deleted on the day of the restore (§2.2 step 7); the weekend's uploads stay as the record of each import.
 
 **Roles** (never a person's name; the group names the people in [client actions](../13-client-packs/client-actions.md)):
 - **Cutover lead:** the lead developer of the development team. Runs the plan, keeps the log, calls each checkpoint.
@@ -30,7 +32,7 @@ How the Shakti group moves from its old records to the BOS (PRD IMP-02): two reh
 ## 2. The rehearsals
 
 ### 2.1 Staging, with anonymised copies
-1. The cutover lead makes an anonymised copy of each file on the developer's own machine: every name, mobile number, email, address and village replaced by a made-up value of the same shape (a 10-digit number that starts with 6 to 9; a name of two words), each row kept, the columns and the row count unchanged, and repeated numbers kept repeated, so the file's repeats and refusals behave as the real file's do. The real files are never copied to staging.
+1. The cutover lead makes an anonymised copy of each file, working from the group's folder: every name, mobile number, email, address and village replaced by a made-up value of the same shape (a 10-digit number that starts with 6 to 9; a name of two words), each row kept, the columns and the row count unchanged, and repeated numbers kept repeated, so the file's repeats and refusals behave as the real file's do. Only the anonymised copies leave the group's folder.
 2. Each anonymised file is imported on staging in the order of §3, by a person of the importer's role, and each caller's leads are passed on with **Move all leads**.
 3. For each file, "What happened to each row" is downloaded as CSV and kept with the file. **Rows in the file** must equal the file's rows (the count check, §4).
 4. The data owner and Accounts read the rows **Not added** with their reasons and decide, for each reason, to correct the file or leave the rows out.
@@ -38,11 +40,17 @@ How the Shakti group moves from its old records to the BOS (PRD IMP-02): two reh
 6. The rehearsal's rows stay on staging: they are anonymised, which staging allows (BLUEPRINT §7.10). The cutover log records how many customers and leads each company gained (Customers and Leads, before and after).
 
 ### 2.2 Production, before go-live, with the real files
-1. Before anything is imported, the cutover lead notes the time (the restore point) and the counts of customers and leads per company, shown on Customers and Leads, and of import jobs, shown on Imports.
-2. The real files are imported in the order of §3, with the count check (§4) for each, and each file's CSV kept.
-3. The lead anonymisation's dry run is run (the worker route `/api/v1/workers/crm/anonymise` with `{ "dryRun": true }`, signed by QStash, [API §3.6](../06-api.md)) and its count recorded: an imported lead's last activity is its import date, so the count must be 0. A count above 0 means imported dates need checking before the weekend.
-4. **Put back**: production is restored by point-in-time recovery to the restore point (DATABASE §10, the restore drill's steps 1 to 3 on production itself), which removes everything the rehearsal made, customers, leads, import jobs, rows and timeline included. The file store keeps the rehearsal's uploaded files: the developer on call deletes each from the files bucket, where it is kept under the company's number, `import` and the file's id (the id the cutover log took from each import's address on the Imports screen), and the cutover log lists them.
-5. **Checked by counts**: after the restore, the counts of step 1 are read again and must be equal, company by company; Imports shows none of the rehearsal's jobs. Any difference stops the plan until it is explained.
+This rehearsal checks the real files against the real set-up: their counts, refusals and timings. Passing leads on with **Move all leads** is rehearsed on staging only (§2.1), so no caller is sent a notice about leads that are then taken away.
+
+1. **Freeze.** The cutover lead announces the freeze to the group's GMs and the development team: from the restore point to the end of the restore (step 6), nobody but the cutover lead and the importer signs in to production, and nothing is set up or changed there; a change made in that time is lost by the restore without notice. The owner of the group's Upstash account pauses production's QStash schedules (the nightly jobs), so none runs on the rehearsal's data.
+2. **Restore point.** The cutover lead writes down the time (the restore point, in IST and UTC) and the counts of customers and leads per company, shown on Customers and Leads, and of import jobs, shown on Imports, in the cutover log.
+3. The importer imports the real files in the order of §3, with the count check (§4) for each, and each file's CSV is kept in the group's folder. The cutover lead writes down each import's file id (from its address on the Imports screen).
+4. The lead anonymisation's dry run is run (the worker route `/api/v1/workers/crm/anonymise` with `{ "dryRun": true }`, signed by QStash, [API §3.6](../06-api.md)) and its count recorded: an imported lead's last change is its import date, so the count must be 0. A count above 0 means imported dates need checking before the weekend.
+5. The data owner gives the go-ahead for the restore in the cutover log.
+6. **Restore in place.** The cutover lead, as an owner or administrator of the group's Supabase organisation, restores production by point-in-time recovery to the restore point, on the production project itself (the Supabase dashboard's point-in-time restore of the project; DATABASE §10 has the drill that restores into a scratch project, which this is not). Production is offline while it restores, and the restore cannot be undone. It removes everything the rehearsal made in the database: customers, leads, import jobs and rows, the timeline, notices and the audit rows.
+7. **The files bucket.** The database restore does not reach the file store: the developer on call deletes each of the rehearsal's uploads from production's files bucket (kept under the company's number, `import` and the file's id, the ids of step 3), and the cutover log lists them.
+8. **Checked by counts.** The counts of step 2 are read again and must be equal, company by company, and Imports shows none of the rehearsal's jobs. Any difference stops the plan until it is explained.
+9. **Freeze ends.** The owner of the Upstash account starts the QStash schedules again, Integration health shows no waiting or failed messages, and the cutover lead tells the GMs and the development team that production is open again.
 
 ## 3. The cutover weekend
 
@@ -79,7 +87,7 @@ At Saturday 18:00 the data owner decides, on the cutover lead's report:
 
 ## 6. The way back
 
-- **Before Monday 09:00:** production is restored by point-in-time recovery to Friday 19:00's restore point, as in §2.2 steps 4 and 5, counts checked; the weekend's uploaded files are deleted from the files bucket. **Undo this import** is not the way back: by its own words it keeps the customers a leads file made and any customer with a lead, a consent or another company. The old system is unfrozen.
+- **Before Monday 09:00:** production is restored in place by point-in-time recovery to Friday 19:00's restore point, as in §2.2 steps 6 to 9 (the freeze holds until the restore ends), counts checked; the weekend's uploaded files are deleted from the files bucket. **Undo this import** is not the way back: by its own words it keeps the customers a leads file made and any customer with a lead, a consent or another company. The old system is unfrozen.
 - **During the parallel run:** the BOS is not rolled back. A difference is logged and corrected in the BOS ([parallel run](../13-client-packs/parallel-run.md) §3); the old system stays read-only as the reference.
 
 ## 7. After the weekend
