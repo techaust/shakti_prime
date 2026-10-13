@@ -31,9 +31,10 @@ Fix, each with a test that fails before the fix:
 13. **ARCH-2 (medium):** order numbers searchable in ⌘K and on the orders list (an index on the order number under the order's policies, `EXPLAIN (ANALYZE)` under RLS in the report); RPT-03 (order numbers) in the PRD §8 trace and the design's slice table.
 14. **ARCH-3:** the lead's score shows who last changed it (a person's name, or the overnight job in plain words).
 15. **ARCH-4:** the enquiry routing for a colleague's customer moves from `apps/web/src/actions/crm.ts` into a domain command (savepoint around `crm.lead.create`, route in the same transaction), with the add-command recipe's tests; the action becomes a thin wrapper.
+17. **WEB-12 (owner, 13-10-2026: "Order"):** the role editor's permission labels `adminRoles.permissions.sales_order_*` say "orders" (for example "Create orders"); the design rule already says Order. No other copy changes.
 16. **ARCH-6:** the seven pages without a JavaScript budget get measured entries (+5 %), and `js-budget` fails on an app page with no entry.
 
-Not here: WEB-12 ("Order" or "Sales Order") waits on the owner's choice. Anything M1 builds (`feat/m1-migration-uat`: the import job page's reconciliation section, anonymisation, the role journeys) and the database follow-ups (`fix/followups-db`: notifications, commission accruals, the Triage shadow report, audit partitions). Shared lists are append-only.
+Anything M1 builds (`feat/m1-migration-uat`: the import job page's reconciliation section, anonymisation, the role journeys) and the database follow-ups (`fix/followups-db`: notifications, commission accruals, the Triage shadow report, audit partitions). Shared lists are append-only.
 
 Done when: the checks of AGENTS §10 pass on the branch; every changed journey passes twice in a row on the same database; `js-budget` holds for every page.
 
