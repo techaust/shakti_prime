@@ -12,6 +12,8 @@ export const JOB_SCHEDULES = {
   'lead-rescore': '30 21 * * *',
   // Half an hour after the rescoring.
   'duplicate-scan': '0 22 * * *',
+  // Half an hour after the duplicate search, so the night's merges are in before old leads go.
+  'lead-anonymise': '30 22 * * *',
   // Five minutes after midnight in India, when the day's last valid quotes have lapsed.
   'quote-expire': '35 18 * * *',
   'notification-scan': '*/5 * * * *',

@@ -100,6 +100,10 @@ export const PERMISSION_KEYS = [
   // the platform's worker principal, which picks a Lead Converter and gives the lead over through
   // narrow definers, nothing more.
   'crm.handover.run',
+  // The nightly anonymisation of unqualified leads idle for the retention period (BLUEPRINT §7.9):
+  // held only by the platform's worker principal, which finds and anonymises them through one
+  // narrow definer, nothing more.
+  'crm.retention.run',
   // The hourly check of the database's scheduled jobs (audit 2026-10, DATA-3): held only by the
   // platform's worker principal, which reads each job's last run through one definer, nothing more.
   'platform.jobs.check',
@@ -169,6 +173,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'knowledge.index',
   'notifications.send',
   'crm.handover.run',
+  'crm.retention.run',
   'platform.jobs.check',
 ];
 
@@ -309,6 +314,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'knowledge.index': ['all'],
   'notifications.send': ['all'],
   'crm.handover.run': ['all'],
+  'crm.retention.run': ['all'],
   'platform.jobs.check': ['all'],
 };
 

@@ -80,6 +80,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.index': 'Read Knowledge Vault files so they can be searched',
   'notifications.send': 'Send notices to the people who act on them',
   'crm.handover.run': 'Give a qualified lead to a Lead Converter',
+  'crm.retention.run': 'Remove the personal details of old leads that never went ahead',
   'platform.jobs.check': 'Check that the scheduled upkeep tasks ran',
 };
 

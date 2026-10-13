@@ -231,6 +231,7 @@ sequenceDiagram
   | `lead-rescore` | 21:30 UTC | `/workers/crm/rescore` |
   | `duplicate-scan` | 22:00 UTC | `/workers/crm/duplicates` |
   | `quote-expire` | 18:35 UTC (00:05 IST) | `/workers/quotes/expire` |
+  | `lead-anonymise` | 22:30 UTC (04:00 IST) | `/workers/crm/anonymise` |
 
   The nightly workers take one company at a time; what each does when its time runs out is in API §3.6.
 

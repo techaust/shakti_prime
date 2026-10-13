@@ -65,6 +65,7 @@ import {
   KNOWLEDGE_FILE_STATES,
   KNOWLEDGE_SENSITIVITIES,
   KNOWLEDGE_SOURCE_TYPES,
+  LEAD_RETENTION_KEPT_REASONS,
   USER_STATUSES,
   newId,
 } from '@shakti/contracts';
@@ -127,6 +128,7 @@ const PAIRS: Record<string, readonly string[]> = {
   items_category_check: ItemCategorySchema.options,
   lead_sources_channel_check: LeadChannelSchema.options,
   opportunities_state_check: OpportunityStateSchema.options,
+  opportunities_retention_kept_reason_check: LEAD_RETENTION_KEPT_REASONS,
   pipeline_stages_kind_check: StageKindSchema.options,
   pipelines_segment_check: SegmentSchema.options,
   principals_kind_check: PrincipalKindSchema.options,

@@ -697,6 +697,7 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },
+    'crm.lead.anonymise': { entityId: 1, after: null },
     'notifications.event.notify': {
       event: 'crm.duplicate.found',
       entityId: 1,

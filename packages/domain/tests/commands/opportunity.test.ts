@@ -212,6 +212,30 @@ describe('the opportunity commands (design §7.2)', () => {
       });
     });
 
+    it('records when the lead first reaches Qualified, and only then (BLUEPRINT §7.9)', async () => {
+      const qualifiedAt = async (id: string) => {
+        const [found] = await asMigrator(
+          (m) => m<{ at: Date | null }[]>`select qualified_at as at from opportunities
+                                           where id = ${id}`,
+        );
+        return found?.at ?? null;
+      };
+      const move = (id: string, stage: string) =>
+        run(caller, moveOpportunityStage, { entityId: 1, opportunityId: id, stageId: stage });
+      const id = await newLead();
+      await move(id, stageId(1, 2));
+      expect(await qualifiedAt(id)).toBeNull();
+      await move(id, stageId(1, 3));
+      expect(await qualifiedAt(id)).toBeInstanceOf(Date);
+      // Once recorded it stays as it was.
+      const again = await newLead();
+      await asMigrator(
+        (m) => m`update opportunities set qualified_at = '2001-01-01' where id = ${again}`,
+      );
+      await move(again, stageId(1, 3));
+      expect(await qualifiedAt(again)).toEqual(new Date('2001-01-01T00:00:00Z'));
+    });
+
     it('refuses a closing stage, a stage of another pipeline and an unknown stage', async () => {
       const id = await newLead();
       const move = (target: string) =>

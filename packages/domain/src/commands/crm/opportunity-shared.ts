@@ -170,7 +170,7 @@ export async function firstStage(
 type OpportunityChange = Partial<
   Pick<
     OpportunityRow,
-    'state' | 'stateChangedAt' | 'stageId' | 'ownerId' | 'teamId' | 'lockedUntil'
+    'state' | 'stateChangedAt' | 'stageId' | 'ownerId' | 'teamId' | 'lockedUntil' | 'qualifiedAt'
   >
 >;
 

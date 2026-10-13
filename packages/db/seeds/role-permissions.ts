@@ -297,6 +297,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'notifications.send': {},
   // The platform's round-robin handover of qualified leads; no person's role holds it (SECURITY §3.3).
   'crm.handover.run': {},
+  // The platform's nightly anonymisation of old unqualified leads; no person's role holds it
+  // (SECURITY §3.3).
+  'crm.retention.run': {},
   'platform.jobs.check': {},
 };
 
