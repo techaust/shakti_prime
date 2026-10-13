@@ -1,13 +1,14 @@
 // `pnpm --filter web e2e:snap`: the journeys with their screenshots, in the Linux image CI uses.
 // The seed has run on the host (`e2e:seed`); this starts the production build on the host when it
-// is not already answering, then runs the Playwright runner inside
-// mcr.microsoft.com/playwright:v1.63.0-noble against it. Extra arguments go to `playwright test`
+// is not already answering, then runs the Playwright runner inside the image below, pinned by its
+// digest as in .github/workflows/ci.yml, against it. Extra arguments go to `playwright test`
 // (for example `-- --update-snapshots` to make the baselines, or a spec path).
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble';
+const IMAGE =
+  'mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27';
 const webDir = resolve(import.meta.dirname, '../..');
 const repoDir = resolve(webDir, '../..');
 const rootEnv = resolve(repoDir, '.env');

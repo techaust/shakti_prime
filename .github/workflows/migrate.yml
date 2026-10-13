@@ -36,18 +36,12 @@ jobs:
       group: migrate-${{ inputs.environment }}
       cancel-in-progress: false
     env:
-      # Secret names are case-insensitive, so `_dev` reads `DATABASE_URL_MIGRATOR_DEV`. A missing
-      # secret reads as empty and the check below stops the run; nothing falls back to another one.
-      DATABASE_URL_MIGRATOR: ${{ secrets[format('DATABASE_URL_MIGRATOR_{0}', inputs.environment)] }}
-      APP_USER_PASSWORD: ${{ secrets[format('APP_USER_PASSWORD_{0}', inputs.environment)] }}
-      AUTH_SERVICE_PASSWORD: ${{ secrets[format('AUTH_SERVICE_PASSWORD_{0}', inputs.environment)] }}
-      OUTBOX_PUBLISHER_PASSWORD: ${{ secrets[format('OUTBOX_PUBLISHER_PASSWORD_{0}', inputs.environment)] }}
-      # Optional: without it the role app_reader exists with no password, and the app reads on
-      # app_user (docs/runbooks/deploy.md §1).
-      APP_READER_PASSWORD: ${{ secrets[format('APP_READER_PASSWORD_{0}', inputs.environment)] }}
-      DATABASE_CA_CERT: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
       # The Supabase project each choice must reach; a secret pasted under the wrong suffix stops here.
       PROJECT_REF: ${{ inputs.environment == 'dev' && 'pgjwtygifnwxdkzdjsup' || 'azydxxvlboivablvvojp' }}
+    # The secrets reach only the steps that use them, never checkout or `pnpm install` and its
+    # packages' install scripts. Secret names are case-insensitive, so `_dev` reads
+    # `DATABASE_URL_MIGRATOR_DEV`. A missing secret reads as empty and the first step stops the
+    # run; nothing falls back to another one.
     steps:
       - name: Only from main
         if: github.ref != 'refs/heads/main'
@@ -71,6 +65,11 @@ jobs:
           esac
         env:
           ENVIRONMENT: ${{ inputs.environment }}
+          DATABASE_URL_MIGRATOR: ${{ secrets[format('DATABASE_URL_MIGRATOR_{0}', inputs.environment)] }}
+          APP_USER_PASSWORD: ${{ secrets[format('APP_USER_PASSWORD_{0}', inputs.environment)] }}
+          AUTH_SERVICE_PASSWORD: ${{ secrets[format('AUTH_SERVICE_PASSWORD_{0}', inputs.environment)] }}
+          OUTBOX_PUBLISHER_PASSWORD: ${{ secrets[format('OUTBOX_PUBLISHER_PASSWORD_{0}', inputs.environment)] }}
+          DATABASE_CA_CERT: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -78,13 +77,28 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm db:migrate
-        if: ${{ !inputs.rotate_passwords }}
-      # The migrator sets a role's password only when it creates the role, or on this flag
-      # (packages/db/src/migrate.ts); docs/runbooks/deploy.md §5 says when to tick it.
-      - run: pnpm db:migrate --rotate-passwords
-        if: ${{ inputs.rotate_passwords }}
-      - run: pnpm db:verify
+      # The migrator sets a role's password only when it creates the role, or with
+      # --rotate-passwords (packages/db/src/migrate.ts); docs/runbooks/deploy.md §5 says when to
+      # tick it.
+      - name: Migrate
+        run: pnpm db:migrate ${{ inputs.rotate_passwords && '--rotate-passwords' || '' }}
+        env:
+          DATABASE_URL_MIGRATOR: ${{ secrets[format('DATABASE_URL_MIGRATOR_{0}', inputs.environment)] }}
+          DATABASE_CA_CERT: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
+          APP_USER_PASSWORD: ${{ secrets[format('APP_USER_PASSWORD_{0}', inputs.environment)] }}
+          AUTH_SERVICE_PASSWORD: ${{ secrets[format('AUTH_SERVICE_PASSWORD_{0}', inputs.environment)] }}
+          OUTBOX_PUBLISHER_PASSWORD: ${{ secrets[format('OUTBOX_PUBLISHER_PASSWORD_{0}', inputs.environment)] }}
+          # Optional: without it the role app_reader exists with no password, and the app reads on
+          # app_user (docs/runbooks/deploy.md §1).
+          APP_READER_PASSWORD: ${{ secrets[format('APP_READER_PASSWORD_{0}', inputs.environment)] }}
+      - name: Every migration applied as it is on disk
+        run: pnpm db:verify
+        env:
+          DATABASE_URL_MIGRATOR: ${{ secrets[format('DATABASE_URL_MIGRATOR_{0}', inputs.environment)] }}
+          DATABASE_CA_CERT: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
       - name: Seed
         if: inputs.seed
         run: pnpm db:seed
+        env:
+          DATABASE_URL_MIGRATOR: ${{ secrets[format('DATABASE_URL_MIGRATOR_{0}', inputs.environment)] }}
+          DATABASE_CA_CERT: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
