@@ -10,6 +10,7 @@ import {
   executeQuery,
   readAgentSpend,
   readOutboxHealth,
+  readScheduledJobs,
   runDeliveryProbe,
   type ExecuteOptions,
   type KeyValue,
@@ -42,6 +43,7 @@ async function fromStore<T>(requestId: string, read: () => Promise<T>): Promise<
 /**
  * Integration Health (`GET /api/v1/admin/integrations` and the page): the outbox by type and the
  * dead letters from the database, the AI spend per agent and company from the agents' runs (A1),
+ * the database's scheduled jobs with their last run (`app.scheduled_jobs()`),
  * the last publisher run and the delivery check from the store. Webhooks, Tally connectors and
  * WhatsApp numbers have no source yet (Phase 2 and 5), so they answer empty.
  */
@@ -65,6 +67,12 @@ export async function readIntegrationHealth(
     (context) => readAgentSpend(context, now),
     { name: 'readAgentSpend' },
   );
+  const jobs = await executeQuery(
+    principal,
+    { requestId },
+    (context) => readScheduledJobs(context, now),
+    { name: 'readScheduledJobs' },
+  );
   const [lastRun, check] = await Promise.all([
     fromStore(requestId, () => lastPublisherRun(keyValue)),
     fromStore(requestId, () => readDeliveryCheck(keyValue, now)),
@@ -77,6 +85,7 @@ export async function readIntegrationHealth(
     deadLetters: outbox.deadLetters,
     connectors: [],
     whatsapp: [],
+    jobs: jobs.map((j) => j.health),
     aiSpend,
   });
 }

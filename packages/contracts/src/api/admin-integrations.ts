@@ -243,6 +243,8 @@ export const IntegrationHealthResponse = z
       .strict(),
     connectors: z.array(ConnectorHealth),
     whatsapp: z.array(WhatsAppNumberHealth),
+    /** The database's scheduled jobs, each with its state and last run (audit 2026-10, DATA-3). */
+    jobs: z.array(ScheduledJobHealth),
     aiSpend: z
       .object({
         today: MoneySchema,

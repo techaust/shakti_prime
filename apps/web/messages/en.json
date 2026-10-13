@@ -2567,7 +2567,11 @@
       "spentMonth": "This month",
       "runsMonth": "Runs this month",
       "dailyLimit": "Daily limit",
-      "limitReached": "Limit today"
+      "limitReached": "Limit today",
+      "task": "Task",
+      "state": "State",
+      "lastRun": "Last run",
+      "runs": "Runs"
     },
     "lastRun": {
       "heading": "Last sending round",
@@ -2619,6 +2623,29 @@
       "reached": "Reached",
       "notReached": "Not reached",
       "otherCompany": "Another company"
+    },
+    "jobs": {
+      "heading": "Scheduled upkeep",
+      "intro": "Tasks the system runs on its own to keep its records in order. A task that failed or has stopped is also sent to the owner by email.",
+      "caption": "Scheduled upkeep tasks and their last run",
+      "names": {
+        "activities-partitions": "Make room for next months’ customer history",
+        "audit-logs-partitions": "Make room for next months’ activity log",
+        "audit-logs-detach": "Archive activity log entries older than eight years",
+        "idempotency-keys-purge": "Clear out old records of forms already sent",
+        "outbox-events-purge": "Clear out updates sent more than 30 days ago"
+      },
+      "state": {
+        "ok": "Ran well",
+        "running": "Running now",
+        "waiting": "Not run yet",
+        "late": "Overdue",
+        "failed": "Failed",
+        "paused": "Switched off",
+        "missing": "Not set up"
+      },
+      "every": "{hours, select, 1 {Every hour} 24 {Every day} 168 {Every week} other {Every month}}",
+      "never": "Not yet"
     }
   },
   "files": {
