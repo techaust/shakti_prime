@@ -1,6 +1,6 @@
 {
-  "id": "686709f5-0eff-486a-b39a-ba3e13266153",
-  "prevId": "885c5198-369f-46fd-b6b1-9bc57e6b1383",
+  "id": "42c703cc-761b-408a-b7af-d7a144ace2df",
+  "prevId": "c13c8162-c473-4612-99f0-cdad715f46ff",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1835,6 +1835,38 @@
           "isUnique": false,
           "with": {},
           "method": "btree",
+          "concurrently": false
+        },
+        "audit_logs_input_account_idx": {
+          "name": "audit_logs_input_account_idx",
+          "columns": [
+            {
+              "expression": "(\"input_json\" ->> 'accountId')",
+              "isExpression": true,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"audit_logs\".\"input_json\" ? 'accountId'",
+          "concurrently": false
+        },
+        "audit_logs_input_opportunity_idx": {
+          "name": "audit_logs_input_opportunity_idx",
+          "columns": [
+            {
+              "expression": "(\"input_json\" ->> 'opportunityId')",
+              "isExpression": true,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"audit_logs\".\"input_json\" ? 'opportunityId'",
           "concurrently": false
         }
       },
@@ -8440,6 +8472,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "retention_kept_at": {
+          "name": "retention_kept_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -8748,7 +8786,7 @@
           "isUnique": false,
           "with": {},
           "method": "btree",
-          "where": "\"opportunities\".\"anonymised_at\" is null and \"opportunities\".\"state\" <> 'won'",
+          "where": "\"opportunities\".\"anonymised_at\" is null and \"opportunities\".\"retention_kept_at\" is null and \"opportunities\".\"state\" <> 'won'",
           "concurrently": false
         },
         "opportunities_open_created_idx": {

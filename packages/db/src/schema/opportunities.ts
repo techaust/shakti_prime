@@ -65,6 +65,13 @@ export const opportunities = pgTable(
      * customer (BLUEPRINT §7.9, `app.anonymise_stale_leads()`); the lead is archived with it.
      */
     anonymisedAt: timestamp('anonymised_at', { withTimezone: true }),
+    /**
+     * When the retention job found this lead kept for good (won, Qualified reached, a quote, an
+     * order, a commission, a dealer or referral partner, or such a lead of the same customer), so
+     * its window passes it by from then on (`app.anonymise_stale_leads()`). A change of it alone is
+     * not an edit of the lead: `updated_at` stays.
+     */
+    retentionKeptAt: timestamp('retention_kept_at', { withTimezone: true }),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
@@ -118,7 +125,9 @@ export const opportunities = pgTable(
     // first (`app.anonymise_stale_leads()`).
     index('opportunities_retention_idx')
       .on(t.entityId, t.updatedAt, t.id)
-      .where(sql`${t.anonymisedAt} is null and ${t.state} <> 'won'`),
+      .where(
+        sql`${t.anonymisedAt} is null and ${t.retentionKeptAt} is null and ${t.state} <> 'won'`,
+      ),
     index('opportunities_open_created_idx')
       .on(t.entityId, t.createdAt)
       .where(sql`${t.state} = 'open' and ${t.archivedAt} is null`),
