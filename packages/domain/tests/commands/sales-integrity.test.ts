@@ -269,6 +269,36 @@ describe("a customer's type and the dealer credit check (DOM-1)", () => {
     expect(await typeOf(dealer)).toBe('business');
   });
 
+  it('makes a new customer a dealer only for the Executive, in the command and the database', async () => {
+    const lead = (who: Principal) =>
+      run<{ account: { id: string } }>(who, createLead, {
+        entityId: E,
+        pipelineKey: 'dealer_wholesale',
+        contact: { name: 'Integrity new dealer', phone: phone() },
+        account: { type: 'dealer' },
+      });
+    await expect(lead(lc)).rejects.toMatchObject(refused('forbidden', 'account_type_needs_credit'));
+    const made = await lead(exec);
+    expect(await typeOf(made.account.id)).toBe('dealer');
+    // A tele-caller writing the row by hand is refused by the trigger.
+    const id = newId();
+    await expect(
+      asPrincipal(lc, ({ tx }) =>
+        tx.execute(sql`insert into accounts (id, type, name, created_by)
+                        values (${id}, 'dealer', 'Integrity raw dealer', ${lc.id})`),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
+    expect(await typeOf(id)).toBeUndefined();
+    // A dealer's enquiry from the converter enters as a business, for the Executive to make a dealer.
+    const business = await run<{ account: { id: string } }>(lc, createLead, {
+      entityId: E,
+      pipelineKey: 'dealer_wholesale',
+      contact: { name: 'Integrity wholesale enquiry', phone: phone() },
+      account: { type: 'business' },
+    });
+    expect(await typeOf(business.account.id)).toBe('business');
+  });
+
   it('is refused by the database to a request without sales.credit.write, whatever the path', async () => {
     const dealer = await newDealer();
     const write = (who: Principal, type: string) =>
@@ -398,13 +428,54 @@ describe('one accepted quote, one order and one commission a lead (DOM-4)', () =
       ),
     );
     expect(outcomes.filter((o) => o.status === 'fulfilled')).toHaveLength(1);
-    expect(outcomes.filter((o) => o.status === 'rejected')).toHaveLength(1);
+    const refusals = outcomes.flatMap((o) =>
+      o.status === 'rejected'
+        ? [(o.reason as { details?: { reason?: unknown } }).details?.reason]
+        : [],
+    );
+    // Refused by the lead lock and the command's own checks, never by a deadlock or the index.
+    expect(refusals).toHaveLength(1);
+    expect(['quote_transition_not_allowed', 'quote_lead_already_accepted']).toContain(refusals[0]);
     const [counts] = await asMigrator(
       (m) => m<{ accepted: number; orders: number }[]>`
         select (select count(*)::int from quotes where opportunity_id = ${leadId} and state = 'accepted') as accepted,
                (select count(*)::int from sales_orders where opportunity_id = ${leadId}) as orders`,
     );
     expect(counts).toEqual({ accepted: 1, orders: 1 });
+  });
+
+  it('cancelling a draft order withdraws its quote with the reason, so the lead may sell again', async () => {
+    const { id: leadId } = await sizedLead();
+    const first = await sentQuote(leadId, 5);
+    const orderId = (await accept(first.id)).orderId ?? '';
+    await run(gm, cancelSalesOrder, {
+      entityId: E,
+      orderId,
+      reason: 'Customer wants a larger system',
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ state: string; withdrawn_reason: string | null; accepted_via: string | null }[]>`
+        select state, withdrawn_reason, accepted_via from quotes where id = ${first.id}`,
+    );
+    expect(row).toEqual({
+      state: 'withdrawn',
+      withdrawn_reason: 'Customer wants a larger system',
+      accepted_via: 'signed_upload',
+    });
+    const events = await asOutboxPublisher(
+      (p) => p<{ type: string }[]>`
+        select type from outbox_events where aggregate_id = ${first.id} and type = 'sales.quote.withdrawn'`,
+    );
+    expect(events).toHaveLength(1);
+    // The lead takes the next quote's acceptance and its order.
+    const second = await sentQuote(leadId, 8);
+    expect((await accept(second.id)).state).toBe('accepted');
+    const [counts] = await asMigrator(
+      (m) => m<{ accepted: number; drafts: number }[]>`
+        select (select count(*)::int from quotes where opportunity_id = ${leadId} and state = 'accepted') as accepted,
+               (select count(*)::int from sales_orders where opportunity_id = ${leadId} and state = 'draft') as drafts`,
+    );
+    expect(counts).toEqual({ accepted: 1, drafts: 1 });
   });
 
   it('holds one accepted quote a lead in the database, whatever writes it', async () => {
@@ -471,6 +542,11 @@ describe('a lead merge never strands a sale (DOM-2)', () => {
     });
     const twin = await twinLead(dropped);
     await merge(twin, dropped);
+    // A lead whose draft order was cancelled has no sale left, so it may be merged away.
+    const { id: cancelled } = await sizedLead();
+    const orderId = (await accept((await sentQuote(cancelled)).id)).orderId ?? '';
+    await run(gm, cancelSalesOrder, { entityId: E, orderId, reason: 'Entered twice' });
+    await merge(await twinLead(cancelled), cancelled);
   });
 });
 

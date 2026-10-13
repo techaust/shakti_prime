@@ -342,9 +342,11 @@
     "agent_action_shadow_only": "There is no action for this proposal yet, so it stays in Shadow.",
     "account_type_needs_credit": "Making a customer a dealer, or a dealer another kind of customer, changes how their orders are checked for credit. Ask an Executive to make this change.",
     "account_type_moves_tier": "This change would move the customer to another price list. Ask an Executive to make it.",
-    "quote_lead_already_accepted": "The customer has already accepted another quote for this lead. Work from the order of that quote.",
-    "merge_leads_has_sale": "The lead you are merging away has a quote or an order. Keep that lead instead, or withdraw the quote or cancel the order first.",
-    "call_logged_too_late": "A call that started before 9 PM can be logged until 9:15 PM. Log each call as soon as it ends."
+    "quote_lead_already_accepted": "The customer has already accepted another quote for this lead, and its order stands. Open that order, or cancel it first if the customer wants a different quote.",
+    "merge_leads_has_sale": "The lead you are merging away has an open quote or an order. Keep that lead instead, or first withdraw its quote or cancel its order.",
+    "call_logged_too_late": "A call that started before 9 PM can be logged until 9:15 PM. Log each call as soon as it ends.",
+    "merge_dealer_mismatch": "One of these customers is a dealer and the other is not. Ask an Executive to make them the same kind of customer first.",
+    "call_start_invalid": "The time this call started does not fit. Check the clock on this device, then log the call again."
   },
   "auth": {
     "signIn": {
@@ -1120,6 +1122,7 @@
       "phone": "Mobile number",
       "phoneHelper": "The 10-digit mobile number",
       "accountType": "Type of customer",
+      "accountTypeHelper": "Enter a dealer as a business. An Executive makes them a dealer when their credit terms are set.",
       "accountName": "Farm or business name",
       "accountNameHelper": "Leave it empty to use the customer's name",
       "language": "Language for calls",
@@ -2294,7 +2297,8 @@
       "commit_failed": "This row could not be added, so the rows added with it were taken back. Undo the import, correct the row in your file and add it again.",
       "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
       "company_unknown": "We don't recognise this company. Use the company's short code or name, or leave it blank for this company.",
-      "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code."
+      "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code.",
+      "dealer_needs_executive": "Only an Executive can add a dealer. Enter this customer as a business; an Executive makes them a dealer when their credit terms are set."
     }
   },
   "customers": {

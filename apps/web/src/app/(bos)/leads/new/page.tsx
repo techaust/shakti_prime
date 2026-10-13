@@ -30,7 +30,12 @@ export default async function NewLeadPage() {
         hasGrant(e.grants, 'crm.lead.write', 'own') &&
         hasGrant(e.grants, 'crm.account.write', 'own'),
     )
-    .map((e) => ({ id: e.entityId, name: e.entityName }));
+    .map((e) => ({
+      id: e.entityId,
+      name: e.entityName,
+      // Only an Executive makes a customer a dealer (the owner's decision of 13-10-2026).
+      mayMakeDealer: hasGrant(e.grants, 'sales.credit.write', 'entity'),
+    }));
   const options = await leadFormOptions();
   return (
     <Page title={t('title')} description={t('intro')} width="form">

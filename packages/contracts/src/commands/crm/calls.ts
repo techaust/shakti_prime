@@ -51,6 +51,12 @@ export const LogCallInput = z
     ...LeadRef,
     dispositionId: IdSchema,
     durationSeconds: z.number().int().min(0).max(CALL_DURATION_MAX_SECONDS).optional(),
+    /**
+     * When the call started, as the calling screen took it when Dial was pressed (DOM-6): calling
+     * hours are checked on it and the call keeps it. Left out, the call started its duration
+     * before it is logged.
+     */
+    startedAt: z.iso.datetime({ offset: true }).optional(),
     callbackAt: z.iso.datetime({ offset: true }).optional(),
     lostReason: OpportunityLostReasonSchema.optional(),
     nurtureReason: OpportunityNurtureReasonSchema.optional(),

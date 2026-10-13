@@ -116,7 +116,8 @@ function checkTypeChange(
 
 /**
  * `crm.account.update`: the customer's name, type, GSTIN and billing state code. Making a customer
- * a dealer, or a dealer something else, is for Accounts and the Executive (`sales.credit.write`),
+ * a dealer, or a dealer something else, is the Executive's (`sales.credit.write`, which with today's
+ * roles only the Executive holds together with the customer write scope),
  * and a type that would move the customer to another price tier is for the Executive
  * (`pricing.write`), as the tier itself is (DOM-1).
  */

@@ -189,6 +189,21 @@ test.describe('customers as a tele-caller', () => {
     await expectNoAxeViolations(page, DIALOG_ONLY);
   });
 
+  test('is not offered Dealer on the New lead form, and is told how a dealer enters (DOM-1)', async ({
+    page,
+  }) => {
+    await page.goto('/leads/new');
+    const type = page.getByLabel('Type of customer');
+    await hydrated(type);
+    await expect(type.locator('option', { hasText: 'Dealer' })).toHaveCount(0);
+    await expect(
+      page.getByText(
+        'Enter a dealer as a business. An Executive makes them a dealer when their credit terms are set.',
+      ),
+    ).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+
   test('may not make their customer a dealer, and is told who can (DOM-1)', async ({ page }) => {
     await addCustomer(page, 'Kesar Meena');
     await page.getByRole('button', { name: 'Edit details' }).click();

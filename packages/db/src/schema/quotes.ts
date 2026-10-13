@@ -144,10 +144,12 @@ export const quotes = pgTable(
       'quotes_accepted_via_check',
       sql`${t.acceptedVia} is null or ${t.acceptedVia} in ('whatsapp_reply', 'whatsapp_otp', 'signed_upload')`,
     ),
-    // An accepted quote says how; a signed copy is named exactly when it was the way.
+    // An accepted quote says how; so does one withdrawn when its draft order was cancelled, which
+    // keeps the record of its acceptance (DOM-4); a signed copy is named exactly when it was the way.
     check(
       'quotes_acceptance_check',
-      sql`(${t.state} = 'accepted') = (${t.acceptedVia} is not null)
+      sql`(${t.state} <> 'accepted' or ${t.acceptedVia} is not null)
+       and (${t.acceptedVia} is null or ${t.state} in ('accepted', 'withdrawn'))
        and (${t.signedFileId} is not null) = (${t.acceptedVia} is not distinct from 'signed_upload')`,
     ),
     // `/quotes` pages newest first, for one company or every company of the request: read

@@ -95,6 +95,10 @@ function refusal(status: string): DomainError {
       return new DomainError('validation_failed', 'a referral partner is never merged away', {
         reason: 'merge_partner_account',
       });
+    case 'dealer_mismatch':
+      return new DomainError('conflict', 'one customer of the pair is a dealer', {
+        reason: 'merge_dealer_mismatch',
+      });
     case 'undone_already':
       return new DomainError('conflict', 'the merge was already undone', {
         reason: 'merge_undone_already',
@@ -173,8 +177,9 @@ async function relatedHere(
  * consents, its leads with their tasks and tags, and its timeline move; it is archived; and the
  * merge is recorded in `customer_merges` with every id it moved, so `crm.customer.unmerge` can put
  * them back. Refused when a colleague looks after either customer in any of its companies, or any
- * of the merged customer's leads (`customer_held_by_colleague`, SECURITY §4), and for a referral
- * partner. Made from a card, the card is closed as merged.
+ * of the merged customer's leads (`customer_held_by_colleague`, SECURITY §4), for a referral
+ * partner, and for a pair of which one is a dealer and the other not (`merge_dealer_mismatch`:
+ * only the Executive makes or unmakes a dealer). Made from a card, the card is closed as merged.
  */
 export const mergeCustomers = defineCommand({
   name: 'crm.customer.merge',

@@ -508,6 +508,26 @@ describe('app.import_leads_in_use: the leads a rollback keeps (DOM-3)', () => {
     expect(await inUse(gm1, jobId, [ownNote, quiet])).toEqual([]);
   });
 
+  it('takes the importer from each lead, so a job another person committed is not all in use', async () => {
+    // Uploaded by gm1, committed by another holder of imports.write: the leads are theirs.
+    const { jobId, ids } = await leadsJob(2);
+    const committer = await createTestPrincipal('general_manager', [1]);
+    const [quiet = '', noted = ''] = ids;
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`update opportunities set created_by = ${committer.id}, updated_by = ${committer.id}
+                  where id = any(${ids}::uuid[])`;
+        await tx`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id)
+          select ${newId()}, 1, o.id, o.account_id, 'lead_created', ${committer.id}
+            from opportunities o where o.id = ${quiet}`;
+        await tx`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id, body)
+          select ${newId()}, 1, o.id, o.account_id, 'note', ${gm2.id}, 'Called back'
+            from opportunities o where o.id = ${noted}`;
+      }),
+    );
+    expect(await inUse(gm1, jobId, ids)).toEqual([noted]);
+  });
+
   it('answers only the job’s own leads among those given', async () => {
     const { jobId } = await leadsJob(1);
     const other = await leadsJob(1);

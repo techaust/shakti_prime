@@ -932,6 +932,20 @@
       "when": 1791857055858,
       "tag": "0136_audit_sales_order_type",
       "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1791884168669,
+      "tag": "0137_audit_sales_fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1791884191049,
+      "tag": "0138_audit_sales_fix_rls",
+      "breakpoints": true
     }
   ]
 }

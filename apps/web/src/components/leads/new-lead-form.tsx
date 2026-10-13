@@ -44,7 +44,7 @@ export function NewLeadForm({
   pipelines,
   sources,
 }: {
-  companies: { id: number; name: string }[];
+  companies: { id: number; name: string; mayMakeDealer: boolean }[];
   pipelines: PipelineDto[];
   sources: LeadSourceDto[];
 }) {
@@ -55,6 +55,12 @@ export function NewLeadForm({
   const { fieldError, formFailure } = useFieldFailure(failure, FIELDS);
   const [entityId, setEntityId] = useState(companies.length === 1 ? companies[0]?.id : undefined);
   const offered = entityId === undefined ? [] : pipelinesFor(pipelines, entityId);
+  // Dealer is offered only where the person may make one; anyone else enters a dealer's enquiry
+  // as a business, and an Executive makes them a dealer when their terms are set (DOM-1).
+  const mayMakeDealer = companies.find((c) => c.id === entityId)?.mayMakeDealer ?? false;
+  const accountTypes = mayMakeDealer
+    ? ACCOUNT_TYPES
+    : ACCOUNT_TYPES.filter((type) => type !== 'dealer');
   const { setPin, found } = usePinLookup();
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
@@ -156,10 +162,15 @@ export function NewLeadForm({
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="lead-account-type" label={t('accountType')} error={fieldError('account.type')}>
+          <Field
+            id="lead-account-type"
+            label={t('accountType')}
+            helper={mayMakeDealer ? undefined : t('accountTypeHelper')}
+            error={fieldError('account.type')}
+          >
             <Select name="accountType" required defaultValue="">
               <option value="">{t('choose')}</option>
-              {ACCOUNT_TYPES.map((type) => (
+              {accountTypes.map((type) => (
                 <option key={type} value={type}>
                   {leads(`accountType.${type}`)}
                 </option>

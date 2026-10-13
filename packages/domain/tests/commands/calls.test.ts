@@ -286,6 +286,58 @@ describe('calls.log: what every call records', () => {
     ).rejects.toMatchObject(reason('outside_calling_hours'));
   });
 
+  it('checks hours on the real start the screen gives, so a short call from 20:58 logs at 21:01 (DOM-6)', async () => {
+    const started = ist('2030-03-04T20:58:00');
+    for (const extra of [{}, { durationSeconds: 30 }]) {
+      const logged = await log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: started.toISOString(), ...extra },
+        ist('2030-03-04T21:01:00'),
+      );
+      expect(logged.call.startedAt).toBe(started.toISOString());
+    }
+    // The same call logged after the grace, or a start from 21:00, is refused.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: started.toISOString() },
+        ist('2030-03-04T21:15:01'),
+      ),
+    ).rejects.toMatchObject(reason('call_logged_too_late'));
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: ist('2030-03-04T21:00:00').toISOString() },
+        ist('2030-03-04T21:01:00'),
+      ),
+    ).rejects.toMatchObject(reason('outside_calling_hours'));
+    // A start that leaves no room for the call's length, or one far older than any call.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: ist('2030-03-04T20:58:00').toISOString(), durationSeconds: 600 },
+        ist('2030-03-04T21:01:00'),
+      ),
+    ).rejects.toMatchObject(reason('call_start_invalid'));
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: ist('2030-03-04T09:00:00').toISOString(), durationSeconds: 60 },
+        ist('2030-03-04T15:00:00'),
+      ),
+    ).rejects.toMatchObject(reason('call_start_invalid'));
+  });
+
   it('is refused for a customer who withdrew consent to calls, until a new consent', async () => {
     const lead = await leadOf(caller);
     const [contact] = await asMigrator(

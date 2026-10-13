@@ -686,6 +686,35 @@ describe('crm.customer.merge and crm.customer.unmerge', () => {
       ),
     ).toMatchObject(reason('merge_partner_account'));
   });
+
+  it('never merges a dealer with a customer who is not one, either way round (DOM-1)', async () => {
+    const { kept, merged } = await pair();
+    // Only the Executive makes a dealer; the fixture does it as the table's owner.
+    await asMigrator((m) => m`update accounts set type = 'dealer' where id = ${merged.account.id}`);
+    for (const [keptId, mergedId] of [
+      [kept.account.id, merged.account.id],
+      [merged.account.id, kept.account.id],
+    ]) {
+      expect(
+        await refusal(
+          run(leadA, mergeCustomers, {
+            entityId: 1,
+            keptAccountId: keptId,
+            mergedAccountId: mergedId,
+          }),
+        ),
+      ).toMatchObject({ code: 'conflict', ...reason('merge_dealer_mismatch') });
+    }
+    const types = await asMigrator(
+      (m) => m<{ type: string; archived: boolean }[]>`
+        select type, archived_at is not null as archived from accounts
+         where id in (${kept.account.id}, ${merged.account.id}) order by type`,
+    );
+    expect(types).toEqual([
+      { type: 'dealer', archived: false },
+      { type: 'farm', archived: false },
+    ]);
+  });
 });
 
 describe('crm.lead.merge', () => {

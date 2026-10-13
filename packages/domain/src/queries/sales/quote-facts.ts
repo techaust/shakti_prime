@@ -59,12 +59,15 @@ export interface QuoteLead {
 /**
  * The lead, its customer, its site and its company. A lead the caller cannot read, of another
  * company or archived is `lead_missing`: RLS decides what the caller sees, and a customer the
- * caller cannot read through the lead is not quoted.
+ * caller cannot read through the lead is not quoted. A command holds the lead `for share` until it
+ * ends (`holdLead`), so a quote made while the lead is being merged away or rolled back waits for
+ * that to finish and then finds the lead archived, rather than landing on it (DOM-2, DOM-3).
  */
 export async function loadQuoteLead(
   ctx: QuoteReadContext,
   entityId: number,
   opportunityId: string,
+  holdLead = false,
 ): Promise<QuoteLead> {
   if (!ctx.entityIds.includes(entityId)) {
     throw new DomainError('forbidden', 'entity outside the request scope', { entityId });
@@ -74,7 +77,7 @@ export async function loadQuoteLead(
   const a = schema.accounts;
   const cs = schema.customerSites;
   const e = schema.entities;
-  const [row] = await ctx.tx
+  const query = ctx.tx
     .select({
       id: o.id,
       entityId: o.entityId,
@@ -96,7 +99,9 @@ export async function loadQuoteLead(
     .innerJoin(e, eq(e.id, o.entityId))
     .leftJoin(cs, eq(cs.id, o.siteId))
     .where(and(eq(o.id, opportunityId), eq(o.entityId, entityId), isNull(o.archivedAt)))
-    .limit(1);
+    .limit(1)
+    .$dynamic();
+  const [row] = holdLead ? await query.for('share', { of: o }) : await query;
   if (!row) {
     throw new DomainError('not_found', `opportunity ${opportunityId} is not visible`, {
       reason: 'lead_missing',
@@ -419,10 +424,14 @@ export interface BuiltQuote {
  * and the quote machine's `create` guards (the tier and list first, then the sizing, the pump
  * curve and the DCR rule, SAL-04), then the prices from the list and the tax from the engine with
  * the place of supply from the site (ADR 0007), and the 15-day validity. The preview runs it read
- * only; the commands save what it answers.
+ * only; the commands save what it answers, holding the lead `for share` (`holdLead`).
  */
-export async function buildQuote(ctx: QuoteReadContext, input: QuoteInput): Promise<BuiltQuote> {
-  const lead = await loadQuoteLead(ctx, input.entityId, input.opportunityId);
+export async function buildQuote(
+  ctx: QuoteReadContext,
+  input: QuoteInput,
+  holdLead = false,
+): Promise<BuiltQuote> {
+  const lead = await loadQuoteLead(ctx, input.entityId, input.opportunityId, holdLead);
   const tier = await quoteTier(ctx, lead);
   const day = istCalendarDate(ctx.now);
   const priceListId = tier === null ? null : await livePriceList(ctx, tier.id, lead.entityId, day);

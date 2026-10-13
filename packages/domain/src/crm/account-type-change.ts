@@ -6,7 +6,8 @@ export interface AccountTypeChangeNeeds {
   /**
    * The customer becomes or stops being a dealer, which decides whether the dealer credit check
    * runs and whether an order may skip the quote (SAL-07, SAL-04): `sales.credit.write` at
-   * company scope (Accounts, the Executive). The database refuses it too (`accounts_type_guard`).
+   * company scope (with today's roles the Executive alone, since Accounts may not change customers;
+   * the owner's decision of 13-10-2026). The database refuses it too (`accounts_type_guard`).
    */
   credit: boolean;
   /**

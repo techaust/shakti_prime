@@ -1,4 +1,5 @@
 import {
+  CALL_DURATION_MAX_SECONDS,
   CALLBACK_MAX_DAYS,
   DispositionNextActionSchema,
   DomainError,
@@ -26,6 +27,7 @@ import { nurtureOpportunity } from '../crm/nurture-opportunity';
 import { lockOpportunity, requireEntity, type OpportunityRow } from '../crm/opportunity-shared';
 import { reopenOpportunity } from '../crm/reopen-opportunity';
 import { completeTask } from '../crm/tasks';
+import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 
 const DAY_MS = 86_400_000;
 
@@ -34,6 +36,31 @@ const QUALIFIED_STAGE = 'qualified';
 
 function refuse(code: 'validation_failed' | 'conflict', reason: string, message: string): never {
   throw new DomainError(code, message, { reason });
+}
+
+/** How far ahead of the server's clock a device's clock may run when it gives a call's start. */
+const DEVICE_CLOCK_SLACK_MS = 2 * 60_000;
+
+/**
+ * When the call started (DOM-6): the start the calling screen gives, which must leave room for the
+ * call's duration before now (a device clock a little fast is allowed for) and fall no earlier
+ * than the longest call plus the logging grace before now; else now less the duration.
+ */
+function callStart(now: Date, durationS: number | null, given: string | undefined): Date {
+  if (given === undefined) return new Date(now.getTime() - (durationS ?? 0) * 1000);
+  const at = new Date(given);
+  const latest = now.getTime() - (durationS ?? 0) * 1000 + DEVICE_CLOCK_SLACK_MS;
+  const earliest =
+    now.getTime() -
+    ((durationS ?? CALL_DURATION_MAX_SECONDS) + WORKSHOP_DEFAULTS.calling.logGraceMinutes * 60) *
+      1000;
+  if (at.getTime() > latest || at.getTime() < earliest) {
+    throw new DomainError('validation_failed', 'the call start is not possible', {
+      reason: 'call_start_invalid',
+      issues: [{ path: 'startedAt', message: 'call_start_invalid' }],
+    });
+  }
+  return at;
 }
 
 /** What the outcome needs beyond itself, checked before anything is written. */
@@ -175,10 +202,13 @@ async function before(
  * A nurtured lead called on its nurture call is opened again for a callback or a qualified
  * outcome; other outcomes leave it in nurture or lose it. Each step runs through its own command
  * in this transaction, so it is guarded, audited and on the timeline as when done by hand.
- * Refused for a call that started outside calling hours (`outside_calling_hours`: the start is now
- * less the duration, and is what the call keeps), or logged more than `WORKSHOP_DEFAULTS.calling.logGraceMinutes` (CALL-8)
- * after calling hours ended on its day (`call_logged_too_late`), and for a customer who withdrew
- * consent to calls (`call_consent_withdrawn`). For people only.
+ * Refused for a call that started outside calling hours (`outside_calling_hours`: the start is the
+ * time the calling screen gives, when Dial was pressed, else now less the duration, and is what the
+ * call keeps; a start that leaves no room for the duration, or is older than the longest call and
+ * the grace, is `call_start_invalid`), or logged more than
+ * `WORKSHOP_DEFAULTS.calling.logGraceMinutes` (CALL-8) after calling hours ended on its day
+ * (`call_logged_too_late`), and for a customer who withdrew consent to calls
+ * (`call_consent_withdrawn`). For people only.
  */
 export const logCall = defineCommand({
   name: 'calls.call.log',
@@ -195,9 +225,10 @@ export const logCall = defineCommand({
     if (state !== 'open' && state !== 'nurture') {
       refuse('conflict', 'call_lead_closed', `lead ${lead.id} is ${state}`);
     }
-    // Calling hours hold for the call's start: logged now, it started its duration ago (DOM-6).
+    // Calling hours hold for the call's real start (DOM-6): the time Dial was pressed, else its
+    // duration before now.
     const durationS = input.durationSeconds ?? null;
-    const startedAt = new Date(ctx.now.getTime() - (durationS ?? 0) * 1000);
+    const startedAt = callStart(ctx.now, durationS, input.startedAt);
     const late = callLogRefusal(startedAt, ctx.now);
     if (late !== undefined) {
       refuse('validation_failed', late, 'a call is logged for a start in calling hours');
