@@ -7,8 +7,8 @@
 | Runs on | cloud, beside the follow-up bundles `fix/followups-db` and `fix/followups-tooling` (owner, 12-10-2026: all pending Phase 0–1 work at once), heavy commands through the VM's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | A (deleting or anonymising data): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | no reading posted at the start; the owner said to proceed (12-10-2026) |
-| State | second fix round done (rows 14 to 21 fixed; the import file in the file store stays out of scope); waiting for the re-review and integration |
-| Next step | lead: the re-review of the second fix round, then integration (take `main`, renumber 0130 and 0131 after `main`'s last (0135 today), apply on a fresh database, make the `imports-row-counts` baseline in Linux); the owner makes the QStash schedule `lead-anonymise-<environment>` on dev and staging after the merge |
+| State | integrated with `main` (#167 to #171), migrations 0141 and 0142; pull request open |
+| Next step | merge on green, then `migrate-hosted` (0141, 0142); the owner creates the `lead-anonymise-<env>` QStash schedule and the eighth Sentry cron monitor alert |
 
 ## Brief
 Read first:
