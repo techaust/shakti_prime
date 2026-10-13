@@ -142,6 +142,7 @@ const PAIRS: Record<string, readonly string[]> = {
   quotes_accepted_via_check: QuoteAcceptedViaSchema.options,
   // An accepted quote says how; the signed copy is named exactly for a signed upload.
   quotes_acceptance_check: ['accepted', 'signed_upload'],
+  sales_orders_account_type_check: AccountTypeSchema.options,
   sales_orders_state_check: SalesOrderStateSchema.options,
   sales_orders_supply_kind_check: SupplyKindSchema.options,
   // A draft is not confirmed; every state past it but a cancel keeps when it was.
