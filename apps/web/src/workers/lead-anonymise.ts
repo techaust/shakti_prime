@@ -1,7 +1,10 @@
 import {
   LeadAnonymiseWorkerResponse,
+  type AnonymiseStaleLeadsInput,
+  type LeadAnonymiseBatchDto,
   type LeadAnonymiseWorkerBody,
   type LeadRetentionCursor,
+  type StaleLeadCountDto,
 } from '@shakti/contracts';
 import {
   anonymiseStaleLeads,
@@ -65,9 +68,9 @@ export async function runLeadAnonymise(
         logger.log('info', 'crm.anonymise_stopped', { requestId, entityId, ...result });
         return LeadAnonymiseWorkerResponse.parse({ ...result, done: false });
       }
-      const input = { entityId, after };
+      const input: AnonymiseStaleLeadsInput = { entityId, after };
       if (dryRun) {
-        const batch = await executeQuery(
+        const batch: StaleLeadCountDto = await executeQuery(
           principal,
           scope(entityId),
           (context) => countStaleLeads(context, input),
@@ -77,7 +80,12 @@ export async function runLeadAnonymise(
         result.examined += batch.examined;
         after = batch.next;
       } else {
-        const batch = await executeCommand(principal, scope(entityId), anonymiseStaleLeads, input);
+        const batch: LeadAnonymiseBatchDto = await executeCommand(
+          principal,
+          scope(entityId),
+          anonymiseStaleLeads,
+          input,
+        );
         result.anonymised += batch.anonymised;
         result.examined += batch.examined;
         if (batch.failed) {
