@@ -141,9 +141,19 @@ describe('the reader check (audit 2026-10, OPS-9)', () => {
     }
   });
 
-  it('is down when the reader does not answer within its time', async () => {
-    // A limit no round trip can meet stands in for a reader that hangs or refuses its password.
-    expect(await checkReaderReady(0)).toBe('down');
+  it('is down when the reader refuses its password, as after a rotation that missed Vercel', async () => {
+    const url = new URL(process.env.DATABASE_URL_READER ?? '');
+    url.password = 'not-the-reader-password';
+    await closeDb();
+    vi.stubEnv('DATABASE_URL_READER', url.toString());
+    try {
+      expect(await checkReaderReady()).toBe('down');
+      expect((await readiness.checkReadiness()).reader).toBe('down');
+    } finally {
+      vi.unstubAllEnvs();
+      await closeDb();
+    }
+    expect(await checkReaderReady()).toBe('ok');
   });
 });
 

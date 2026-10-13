@@ -6,10 +6,10 @@ import { describe, expect, it } from 'vitest';
 const migrations = join(dirname(fileURLToPath(import.meta.url)), '../migrations');
 
 /**
- * Migrations that widened a check by dropping and adding it whole, written before the rule
- * (audit 2026-10, DATA-5). An applied migration is never edited, so they stay as they are.
+ * The rule holds from the first migration after `0129_a1_triage_shadow_rls` (audit 2026-10,
+ * DATA-5); the earlier ones are applied and never edited, so they stay as they are.
  */
-const WIDENED_BEFORE_THE_RULE = new Set(['0094_sizing_timeline', '0112_duplicates', '0114_calls']);
+const RULE_FROM = 130;
 
 /**
  * Every check constraint a migration drops and adds again: drizzle-kit writes a widened list (a
@@ -22,15 +22,18 @@ function rewrittenChecks(sql: string): { name: string; notValid: boolean }[] {
   );
   return [...sql.matchAll(/ADD CONSTRAINT "?([a-z0-9_]+)"? CHECK \(([\s\S]*?)(?:;|-->)/gi)]
     .filter((m) => dropped.has(m[1]))
-    .map((m) => ({ name: m[1] ?? '', notValid: /\)\s*NOT VALID\s*$/i.test((m[0] ?? '').replace(/(;|-->)$/, '')) }));
+    .map((m) => ({
+      name: m[1] ?? '',
+      notValid: /\)\s*NOT VALID\s*$/i.test(m[0].replace(/(;|-->)$/, '')),
+    }));
 }
 
 describe('the migrations keep the deploy short (audit 2026-10, DATA-5)', () => {
-  it('add a widened check NOT VALID: rows that met the narrower check meet the wider one', () => {
+  it('add a check they drop and add again NOT VALID: a widening needs no scan, a change is validated after the deploy', () => {
     const offending: string[] = [];
     for (const file of readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort()) {
       const tag = file.replace(/\.sql$/, '');
-      if (WIDENED_BEFORE_THE_RULE.has(tag)) continue;
+      if (Number(tag.slice(0, 4)) < RULE_FROM) continue;
       const sql = readFileSync(join(migrations, file), 'utf8');
       for (const check of rewrittenChecks(sql)) {
         if (!check.notValid) offending.push(`${tag}: ${check.name}`);
