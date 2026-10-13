@@ -1,6 +1,6 @@
 {
-  "id": "32cf7e83-aebc-405e-9c59-6a6f5e23edf6",
-  "prevId": "9c7fec27-ee37-4e7a-94e4-9fc2193157d1",
+  "id": "918d7193-8b06-4f37-954d-be1af919fd03",
+  "prevId": "16c082f0-839c-4e36-888c-fcc428929bdc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2756,7 +2756,7 @@
         },
         "measure": {
           "name": "measure",
-          "type": "numeric(14, 3)",
+          "type": "numeric(15, 3)",
           "primaryKey": false,
           "notNull": true
         },
@@ -5463,6 +5463,21 @@
         }
       },
       "indexes": {
+        "files_entity_idx": {
+          "name": "files_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
         "files_entity_purpose_created_idx": {
           "name": "files_entity_purpose_created_idx",
           "columns": [
@@ -8158,27 +8173,6 @@
           "where": "\"notifications\".\"read_at\" is null",
           "concurrently": false
         },
-        "notifications_entity_dedupe_idx": {
-          "name": "notifications_entity_dedupe_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "dedupe_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
         "notifications_push_pending_idx": {
           "name": "notifications_push_pending_idx",
           "columns": [
@@ -9126,13 +9120,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        },
-        "replays": {
-          "name": "replays",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {
@@ -9203,10 +9190,6 @@
         "outbox_events_attempts_check": {
           "name": "outbox_events_attempts_check",
           "value": "\"outbox_events\".\"attempts\" >= 0"
-        },
-        "outbox_events_replays_check": {
-          "name": "outbox_events_replays_check",
-          "value": "\"outbox_events\".\"replays\" >= 0"
         },
         "outbox_events_last_error_length_check": {
           "name": "outbox_events_last_error_length_check",
@@ -10935,10 +10918,6 @@
         "quote_lines_amounts_check": {
           "name": "quote_lines_amounts_check",
           "value": "\"quote_lines\".\"unit_price\" >= 0 and \"quote_lines\".\"taxable_value\" >= 0 and \"quote_lines\".\"cgst\" >= 0 and \"quote_lines\".\"sgst\" >= 0 and \"quote_lines\".\"igst\" >= 0 and \"quote_lines\".\"line_total\" = \"quote_lines\".\"taxable_value\" + \"quote_lines\".\"cgst\" + \"quote_lines\".\"sgst\" + \"quote_lines\".\"igst\""
-        },
-        "quote_lines_gst_split_check": {
-          "name": "quote_lines_gst_split_check",
-          "value": "\"quote_lines\".\"igst\" = 0 or (\"quote_lines\".\"cgst\" = 0 and \"quote_lines\".\"sgst\" = 0)"
         }
       },
       "isRLSEnabled": false
@@ -11632,10 +11611,6 @@
         "quotes_totals_check": {
           "name": "quotes_totals_check",
           "value": "\"quotes\".\"subtotal\" >= 0 and \"quotes\".\"cgst\" >= 0 and \"quotes\".\"sgst\" >= 0 and \"quotes\".\"igst\" >= 0 and \"quotes\".\"tax_total\" = \"quotes\".\"cgst\" + \"quotes\".\"sgst\" + \"quotes\".\"igst\" and \"quotes\".\"grand_total\" = \"quotes\".\"subtotal\" + \"quotes\".\"tax_total\" + \"quotes\".\"round_off\""
-        },
-        "quotes_gst_split_check": {
-          "name": "quotes_gst_split_check",
-          "value": "(\"quotes\".\"supply_kind\" = 'intra' and \"quotes\".\"igst\" = 0) or (\"quotes\".\"supply_kind\" = 'inter' and \"quotes\".\"cgst\" = 0 and \"quotes\".\"sgst\" = 0)"
         },
         "quotes_round_off_check": {
           "name": "quotes_round_off_check",
@@ -12416,10 +12391,6 @@
         "sales_order_lines_amounts_check": {
           "name": "sales_order_lines_amounts_check",
           "value": "\"sales_order_lines\".\"unit_price\" >= 0 and \"sales_order_lines\".\"taxable_value\" >= 0 and \"sales_order_lines\".\"cgst\" >= 0 and \"sales_order_lines\".\"sgst\" >= 0 and \"sales_order_lines\".\"igst\" >= 0 and \"sales_order_lines\".\"line_total\" = \"sales_order_lines\".\"taxable_value\" + \"sales_order_lines\".\"cgst\" + \"sales_order_lines\".\"sgst\" + \"sales_order_lines\".\"igst\""
-        },
-        "sales_order_lines_gst_split_check": {
-          "name": "sales_order_lines_gst_split_check",
-          "value": "\"sales_order_lines\".\"igst\" = 0 or (\"sales_order_lines\".\"cgst\" = 0 and \"sales_order_lines\".\"sgst\" = 0)"
         }
       },
       "isRLSEnabled": false
@@ -13020,10 +12991,6 @@
         "sales_orders_totals_check": {
           "name": "sales_orders_totals_check",
           "value": "\"sales_orders\".\"subtotal\" >= 0 and \"sales_orders\".\"cgst\" >= 0 and \"sales_orders\".\"sgst\" >= 0 and \"sales_orders\".\"igst\" >= 0 and \"sales_orders\".\"tax_total\" = \"sales_orders\".\"cgst\" + \"sales_orders\".\"sgst\" + \"sales_orders\".\"igst\" and \"sales_orders\".\"grand_total\" = \"sales_orders\".\"subtotal\" + \"sales_orders\".\"tax_total\" + \"sales_orders\".\"round_off\""
-        },
-        "sales_orders_gst_split_check": {
-          "name": "sales_orders_gst_split_check",
-          "value": "(\"sales_orders\".\"supply_kind\" = 'intra' and \"sales_orders\".\"igst\" = 0) or (\"sales_orders\".\"supply_kind\" = 'inter' and \"sales_orders\".\"cgst\" = 0 and \"sales_orders\".\"sgst\" = 0)"
         },
         "sales_orders_round_off_check": {
           "name": "sales_orders_round_off_check",

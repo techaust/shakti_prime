@@ -174,6 +174,9 @@ export const salesOrders = pgTable(
     index('sales_orders_opportunity_idx').on(t.opportunityId),
     // Account 360's orders, newest first.
     index('sales_orders_account_idx').on(t.accountId, t.entityId, t.createdAt),
+    // ⌘K and `/orders` find an order by any part of its number (RPT-03), through
+    // `app.order_search_ids()`; the policies decide the rows afterwards.
+    index('sales_orders_so_no_trgm_idx').using('gin', t.soNo.op('gin_trgm_ops')),
     // A dealer's exposure: the orders confirmed and not yet paid, since a date (SALE-5).
     index('sales_orders_exposure_idx')
       .on(t.entityId, t.accountId, t.confirmedAt)
@@ -370,8 +373,11 @@ export const commissionAccruals = pgTable(
     /** The rule's basis and rate when the commission was worked out. */
     basis: text('basis').notNull(),
     rate: money('rate').notNull(),
-    /** What the rate was applied to: the order's taxable value, the lead's kW or HP, or 1. */
-    measure: numeric('measure', { precision: 14, scale: 3 }).notNull(),
+    /**
+     * What the rate was applied to: the order's taxable value, the lead's kW or HP, or 1. Three
+     * decimals for a size, and one digit more than a money column, so it holds any taxable value.
+     */
+    measure: numeric('measure', { precision: 15, scale: 3 }).notNull(),
     amount: money('amount').notNull(),
     state: text('state').notNull().default('accrued'),
     releasedAt: timestamp('released_at', { withTimezone: true }),

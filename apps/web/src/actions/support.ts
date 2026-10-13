@@ -2,7 +2,12 @@ import { DomainError, IdempotencyKeySchema, newId, type Principal } from '@shakt
 import type { ClientMeta, ExecuteOptions } from '@shakti/domain';
 import { cookies, headers } from 'next/headers';
 import { clientMeta, platformRequestId } from '../auth/client-address';
-import { currentPrincipal, currentPrincipalIn, currentSession } from '../auth/current-principal';
+import {
+  currentPrincipal,
+  currentPrincipalIn,
+  currentPrincipalQuietly,
+  currentSession,
+} from '../auth/current-principal';
 import { sectionEntities, type HomeSection } from '../screens/home';
 import { TEST_CLOCK_COOKIE, testClockFrom } from '../test-clock';
 import { nudgeOutbox } from '../workers/outbox';
@@ -10,6 +15,16 @@ import { nudgeOutbox } from '../workers/outbox';
 /** The caller of an action; `unauthorized` when nobody is signed in. */
 export async function signedIn(): Promise<Principal> {
   const principal = await currentPrincipal();
+  if (!principal) throw new DomainError('unauthorized');
+  return principal;
+}
+
+/**
+ * The caller of a background read the person did not ask for (the bell's poll, a progress check):
+ * `unauthorized` when nobody is signed in, and the session is never extended by it (WEB-8).
+ */
+export async function signedInQuietly(): Promise<Principal> {
+  const principal = await currentPrincipalQuietly();
   if (!principal) throw new DomainError('unauthorized');
   return principal;
 }

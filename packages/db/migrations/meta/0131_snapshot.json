@@ -1,6 +1,6 @@
 {
-  "id": "17131234-dafe-43a7-8b82-d3f69943de1c",
-  "prevId": "8f2dae17-bc7c-419b-a26f-70bff579bfed",
+  "id": "79dbc818-9193-43a0-81d3-ab816dfb1985",
+  "prevId": "552ca143-4c7f-478d-a51d-b42b890d4244",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8173,27 +8173,6 @@
           "where": "\"notifications\".\"read_at\" is null",
           "concurrently": false
         },
-        "notifications_entity_dedupe_idx": {
-          "name": "notifications_entity_dedupe_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "dedupe_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
         "notifications_push_pending_idx": {
           "name": "notifications_push_pending_idx",
           "columns": [
@@ -9141,13 +9120,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        },
-        "replays": {
-          "name": "replays",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {
@@ -9218,10 +9190,6 @@
         "outbox_events_attempts_check": {
           "name": "outbox_events_attempts_check",
           "value": "\"outbox_events\".\"attempts\" >= 0"
-        },
-        "outbox_events_replays_check": {
-          "name": "outbox_events_replays_check",
-          "value": "\"outbox_events\".\"replays\" >= 0"
         },
         "outbox_events_last_error_length_check": {
           "name": "outbox_events_last_error_length_check",

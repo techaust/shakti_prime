@@ -149,7 +149,9 @@ describe('shadowReport', () => {
 
     expect(of(kept, 'pipeline')).toMatchObject({
       proposedPipelineKey: 'farmer_pumps',
+      proposedPipelineName: 'Farmer Pumps',
       pipelineKey: 'farmer_pumps',
+      pipelineName: 'Farmer Pumps',
       agreement: 'agree',
       customerName: 'Report customer',
     });
@@ -168,6 +170,38 @@ describe('shadowReport', () => {
     const times = items.map((i) => i.createdAt);
     expect([...times].sort().reverse()).toEqual(times);
     expect(new Set(items.map((i) => i.actionId)).size).toBe(items.length);
+  });
+
+  it('names a company pipeline by its own name, whatever its key', async () => {
+    const id = newId();
+    const key = `own_pipeline_${id.slice(-8)}`;
+    const name = `Borewell service ${id.slice(-4)}`;
+    await asMigrator(
+      (m) => m`insert into pipelines (id, entity_id, key, name, segment)
+               values (${id}, ${ENTITY}, ${key}, ${name}, 'farmer_pumps')`,
+    );
+    try {
+      const lead = await newLead();
+      const provider = createAiProvider({
+        claude: fakeModelTransport([fakeReply(JSON.stringify({ pipeline: { key } }))]),
+        voyage: undefined,
+        keyValue: memoryKeyValue(),
+        logger: memoryLogger(),
+      });
+      await runTriage(
+        { eventId: newId(), entityId: ENTITY, opportunityId: lead, existingCustomer: false },
+        { provider, logger: memoryLogger() },
+      );
+      const items = await allItems(executive);
+      expect(items.find((i) => i.opportunityId === lead && i.kind === 'pipeline')).toMatchObject({
+        proposedPipelineKey: key,
+        proposedPipelineName: name,
+        pipelineName: 'Farmer Pumps',
+        agreement: 'disagree',
+      });
+    } finally {
+      await asMigrator((m) => m`delete from pipelines where id = ${id}`);
+    }
   });
 
   it('agrees on the assignee when people give the lead to the person proposed, and not otherwise', async () => {

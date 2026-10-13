@@ -49,6 +49,8 @@ export const notifications = pgTable(
     channelSentJson: jsonb('channel_sent_json').notNull().default({}),
   },
   (t) => [
+    // One notice per person and reason; also how the scan and the definers leave out what they
+    // already told someone.
     unique('notifications_user_dedupe_unique').on(t.userId, t.dedupeKey),
     check('notifications_type_check', sql`${t.type} in ${NOTICE_TYPES}`),
     check(
@@ -64,8 +66,6 @@ export const notifications = pgTable(
     index('notifications_unread_idx')
       .on(t.userId, t.entityId)
       .where(sql`${t.readAt} is null`),
-    // The scan leaves out what it already told someone, by reason, in the company.
-    index('notifications_entity_dedupe_idx').on(t.entityId, t.dedupeKey),
     // The pushes a cut-off scan left pending, for the next scan to send (a small set at any time).
     index('notifications_push_pending_idx')
       .on(t.entityId, t.createdAt)

@@ -18,7 +18,12 @@ import {
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { listKnowledgeFiles, reindexKnowledgeFile, searchKnowledge } from '../../actions/knowledge';
+import {
+  listKnowledgeFiles,
+  recheckKnowledgeFiles,
+  reindexKnowledgeFile,
+  searchKnowledge,
+} from '../../actions/knowledge';
 import { formatDate } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
@@ -90,7 +95,7 @@ export function KnowledgeScreen({
     const timer = setInterval(() => {
       setNow(Date.now());
       reload(
-        () => listKnowledgeFiles({}),
+        () => recheckKnowledgeFiles(),
         (page) => {
           setFiles((all) => mergeFirstPage(all, page.files));
         },

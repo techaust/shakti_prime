@@ -1,7 +1,7 @@
 'use client';
 
 import type { TargetDto, TargetMetric, TargetPeriod, TargetsScreenDto } from '@shakti/contracts';
-import { Button, EmptyState, Field, Input, Select, toast } from '@shakti/ui';
+import { Button, CardList, EmptyState, Field, Input, Select, toast } from '@shakti/ui';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
@@ -232,8 +232,65 @@ function Table({
   withSetBy: boolean;
 }) {
   const t = useTranslations('targets.table');
+  const metrics = useTranslations('targets.metric');
+  const periods = useTranslations('targets.period');
   return (
-    <ScrollTable label={caption}>
+    <>
+      {/* A card per target on a phone (docs/08-design-system.md §5); the table on wider screens. */}
+      <CardList
+        label={caption}
+        items={rows.map((r) => ({
+          key: r.id,
+          title: (
+            <>
+              {r.subjectName ?? t('unknownPerson')}
+              <span className="text-text-muted block text-xs font-normal">
+                {t(`scope.${r.scope}`)}
+              </span>
+            </>
+          ),
+          fields: [
+            { id: 'metric', label: t('metric'), value: metrics(r.metric) },
+            { id: 'period', label: t('period'), value: periods(r.period) },
+            { id: 'from', label: t('from'), value: formatDate(r.startsOn) },
+            {
+              id: 'value',
+              label: t('value'),
+              value: r.value === 0 ? t('removedValue') : metricNumber(r.metric, r.value),
+              numeric: true,
+            },
+            ...(withSetBy
+              ? [
+                  {
+                    id: 'setBy',
+                    label: t('setByHeading'),
+                    value: t('setBy', {
+                      name: r.setByName ?? t('unknownPerson'),
+                      time: formatDateTime(r.setAt),
+                    }),
+                  },
+                ]
+              : []),
+          ],
+        }))}
+      />
+      <TargetsTable caption={caption} rows={rows} withSetBy={withSetBy} />
+    </>
+  );
+}
+
+function TargetsTable({
+  caption,
+  rows,
+  withSetBy,
+}: {
+  caption: string;
+  rows: readonly TargetDto[];
+  withSetBy: boolean;
+}) {
+  const t = useTranslations('targets.table');
+  return (
+    <ScrollTable label={caption} className="hidden md:block">
       <table className="w-full min-w-xl text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-surface-2 text-text-muted">

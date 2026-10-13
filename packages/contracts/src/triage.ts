@@ -93,6 +93,8 @@ export const ShadowProposalDto = z
     customerName: z.string().nullable(),
     /** What the agent proposed: one of these is set, by kind. */
     proposedPipelineKey: z.string().nullable(),
+    /** The proposed pipeline's name in the company, when one has the key. */
+    proposedPipelineName: z.string().nullable(),
     proposedScoreChange: z.number().int().nullable(),
     proposedScore: z.number().int().nullable(),
     otherOpportunityId: IdSchema.nullable(),
@@ -101,6 +103,7 @@ export const ShadowProposalDto = z
     note: z.string().nullable(),
     /** The lead now, when the viewer reads it. */
     pipelineKey: z.string().nullable(),
+    pipelineName: z.string().nullable(),
     score: z.number().int().nullable(),
     leadState: z.enum(['open', 'nurture', 'won', 'lost']).nullable(),
     /** Whether the lead reached Qualified or a later stage of its pipeline. */

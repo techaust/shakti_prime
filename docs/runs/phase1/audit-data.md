@@ -178,3 +178,4 @@ All ten findings fixed with the coordinator's decisions; the migrations are left
 
 ## Integration notes
 - The Sentry alert rules and uptime monitors are created by the owner (hosted).
+- 13-10-2026, lead: `main` (#167 to #170) taken by a merge commit; the migrations move to 0136 to 0140 (`replays` 0136, its rules 0137, `app.scheduled_jobs()` 0138, the GST checks and the dropped index 0139, the job limits 0140); DATABASE cites the new numbers. No function, check or job here is redefined by `main`'s 0130 to 0135.

@@ -37,15 +37,28 @@ interface Deps {
 }
 
 /**
+ * Whether reading the session counts as the person's activity. `extend` (a page they open, an
+ * action they take) rolls the 12-hour idle expiry forward and records them as seen. `quiet` (a
+ * background read such as the bell's poll) checks the session and changes nothing, no cookie
+ * included, so an unattended tab still reaches the idle limit (docs/07-security.md §2, WEB-8).
+ */
+export type SessionUse = 'extend' | 'quiet';
+
+/**
  * Loads the Better Auth session behind the request and applies the app's own rules: a revoked
  * row, a row past the 7-day absolute limit (docs/07-security.md §2) or an unknown session answers
- * undefined. `last_seen_at` is written at most once a minute.
+ * undefined. `last_seen_at` is written at most once a minute, and only for the person's own use.
  */
-async function loadSession(headers: Headers, deps: Deps): Promise<SessionInfo | undefined> {
+async function loadSession(
+  headers: Headers,
+  deps: Deps,
+  use: SessionUse,
+): Promise<SessionInfo | undefined> {
   // A session the app has ended is refused by the auth routes themselves (create-auth.ts). Only
   // that refusal means "signed out"; a database or network failure is an outage and reaches the
   // error screen, instead of sending the person round the sign-in page (AUDIT M36).
-  const result = await deps.auth.api.getSession({ headers }).catch((e: unknown) => {
+  const query = use === 'quiet' ? { query: { disableRefresh: true } } : {};
+  const result = await deps.auth.api.getSession({ headers, ...query }).catch((e: unknown) => {
     if (e instanceof APIError && (e.statusCode === 401 || e.statusCode === 403)) return null;
     throw e;
   });
@@ -65,8 +78,8 @@ async function loadSession(headers: Headers, deps: Deps): Promise<SessionInfo | 
   }
   const lastSeen = row.lastSeenAt == null ? undefined : new Date(row.lastSeenAt);
   if (
-    lastSeen === undefined ||
-    now.getTime() - lastSeen.getTime() > LAST_SEEN_BUMP_SECONDS * 1000
+    use === 'extend' &&
+    (lastSeen === undefined || now.getTime() - lastSeen.getTime() > LAST_SEEN_BUMP_SECONDS * 1000)
   ) {
     await authDb().update(s).set({ lastSeenAt: now }).where(eq(s.id, row.id));
   }
@@ -79,7 +92,8 @@ export async function invalidatePrincipal(keyValue: KeyValue, userId: string): P
 }
 
 /**
- * Resolves the caller of a server action (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.3). Throws
+ * Resolves the caller of a server action (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.3), as
+ * the person's own use of the session or a background read (`use`). Throws
  * `unauthorized` with reason `totp_required` when the role demands an authenticator app that is
  * not enrolled yet; answers undefined when there is no usable session.
  */
@@ -87,8 +101,9 @@ export async function resolveSessionPrincipal(
   headers: Headers,
   activeEntityId: number | undefined,
   deps: Deps,
+  use: SessionUse = 'extend',
 ): Promise<ResolvedSession | undefined> {
-  const session = await loadSession(headers, deps);
+  const session = await loadSession(headers, deps, use);
   if (!session) return undefined;
 
   const cache = principalCache(deps.keyValue);
