@@ -594,6 +594,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Triggers**
 
+- `account_contacts_refuse_anonymised`: before insert, runs `app.refuse_anonymised_customer()`
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
 **Row-level security:** enabled and forced; 3 policies.
@@ -643,6 +644,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Triggers**
 
+- `account_entities_refuse_anonymised`: before insert, runs `app.refuse_anonymised_customer()`
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
 **Row-level security:** enabled and forced; 3 policies.
@@ -745,6 +747,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Triggers**
 
 - `activities_append_only`: before update or delete, runs `app.activities_append_only()`
+- `activities_refuse_anonymised`: before insert, runs `app.refuse_anonymised_customer()`
 
 **Row-level security:** enabled and forced; 2 policies.
 
@@ -1284,6 +1287,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Triggers**
 
 - `customer_sites_pin_fill`: before insert or update, runs `app.customer_sites_pin_fill()`
+- `customer_sites_refuse_anonymised`: before insert or update, runs `app.refuse_anonymised_customer()`
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
 **Row-level security:** enabled and forced; 3 policies.
@@ -1481,6 +1485,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `state_changed_at` | timestamp with time zone | no | `now()` |  |
 | `locked_until` | timestamp with time zone | yes |  |  |
 | `anonymised_at` | timestamp with time zone | yes |  |  |
+| `retention_kept_at` | timestamp with time zone | yes |  |  |
 | `archived_at` | timestamp with time zone | yes |  |  |
 | `created_at` | timestamp with time zone | no | `now()` |  |
 | `updated_at` | timestamp with time zone | no | `now()` |  |
@@ -1528,13 +1533,14 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `opportunities_pipeline_stage_idx` (btree): `pipeline_id, stage_id`
 - `opportunities_queue_idx` (btree): `entity_id, stage_id, owner_id, updated_at desc`
 - `opportunities_referral_partner_idx` (btree): `referral_partner_id`
-- `opportunities_retention_idx` (btree): `entity_id, updated_at, id` where `"opportunities"."anonymised_at" is null and "opportunities"."state" <> 'won'`
+- `opportunities_retention_idx` (btree): `entity_id, updated_at, id` where `"opportunities"."anonymised_at" is null and "opportunities"."retention_kept_at" is null and "opportunities"."state" <> 'won'`
 - `opportunities_score_keyset_idx` (btree): `score, id`
 - `opportunities_site_idx` (btree): `site_id`
 - `opportunities_source_idx` (btree): `source_id`
 
 **Triggers**
 
+- `opportunities_refuse_anonymised`: before insert, runs `app.refuse_anonymised_customer()`
 - `set_updated_at`: before update, runs `app.opportunities_set_updated_at()`
 
 **Row-level security:** enabled and forced; 3 policies.
@@ -1913,6 +1919,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Triggers**
 
 - `set_updated_at`: before update, runs `app.set_updated_at()`
+- `tasks_refuse_anonymised`: before insert, runs `app.refuse_anonymised_customer()`
 
 **Row-level security:** enabled and forced; 3 policies.
 
@@ -2475,12 +2482,14 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `audit_logs_actor_created_idx` (btree): `actor_principal_id, created_at desc`
 - `audit_logs_aggregate_created_idx` (btree): `aggregate_type, aggregate_id, created_at desc`
 - `audit_logs_entity_created_idx` (btree): `entity_id, created_at desc`
+- `audit_logs_input_account_idx` (btree): `("input_json" ->> 'accountId')` where `"audit_logs"."input_json" ? 'accountId'`
+- `audit_logs_input_opportunity_idx` (btree): `("input_json" ->> 'opportunityId')` where `"audit_logs"."input_json" ? 'opportunityId'`
 - `audit_logs_on_behalf_of_idx` (btree): `on_behalf_of_user_id`
 - `audit_logs_request_idx` (btree): `request_id`
 
 **Triggers**
 
-- `audit_logs_append_only`: before update or delete, runs `app.raise_append_only()`
+- `audit_logs_append_only`: before update or delete, runs `app.audit_logs_append_only()`
 
 **Row-level security:** enabled and forced; 3 policies.
 
@@ -3710,6 +3719,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Triggers**
 
+- `quotes_refuse_anonymised`: before insert, runs `app.refuse_anonymised_customer()`
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
 **Row-level security:** enabled and forced; 3 policies.
@@ -3885,6 +3895,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Triggers**
 
+- `sales_orders_refuse_anonymised`: before insert, runs `app.refuse_anonymised_customer()`
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
 **Row-level security:** enabled and forced; 3 policies.

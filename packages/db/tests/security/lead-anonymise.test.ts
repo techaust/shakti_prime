@@ -155,9 +155,10 @@ beforeAll(async () => {
       await tx`delete from contacts where id::text like ${like}`;
       await tx`delete from files where id in (${IMPORT_FILE}, ${IMPORT_FILE_2}, ${EVIDENCE_FILE})`;
       await tx`delete from price_lists where id = ${PRICE_LIST}`;
-      await tx`delete from principals where id = ${ACTOR}`;
 
-      await tx`insert into principals (id, kind, display_name) values (${ACTOR}, 'user', 'retention fixture')`;
+      // The actor stays from one run to the next: the audit rows it wrote are append-only.
+      await tx`insert into principals (id, kind, display_name)
+               values (${ACTOR}, 'user', 'retention fixture') on conflict (id) do nothing`;
       await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at)
                values (${PRICE_LIST}, ${tierId('retail')}, 1, 9131, '2090-01-01', now())`;
       await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size,
@@ -854,13 +855,13 @@ describe('no write lands on an anonymised customer', () => {
     const writes: ((m: postgres.Sql) => Promise<unknown>)[] = [
       (m) => m`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, kind,
                                   due_at, created_by)
-               values (${randomUUID()}, 1, ${lead.lead}, ${lead.account}, ${ACTOR}, 'callback',
+               values (${id(0xfe2)}, 1, ${lead.lead}, ${lead.account}, ${ACTOR}, 'callback',
                        now(), ${ACTOR})`,
       (m) => m`insert into activities (id, entity_id, opportunity_id, account_id, type,
                                        actor_principal_id, body)
-               values (${randomUUID()}, 1, null, ${lead.account}, 'note', ${ACTOR}, 'called again')`,
+               values (${id(0xfe3)}, 1, null, ${lead.account}, 'note', ${ACTOR}, 'called again')`,
       (m) => m`insert into customer_sites (id, account_id, type, village, created_by)
-               values (${randomUUID()}, ${lead.account}, 'borewell', 'again', ${ACTOR})`,
+               values (${id(0xfe4)}, ${lead.account}, 'borewell', 'again', ${ACTOR})`,
       (m) => m`update customer_sites set village = 'again' where id = ${lead.site}`,
     ];
     for (const write of writes) {
@@ -873,7 +874,8 @@ describe('no write lands on an anonymised customer', () => {
   it('makes a write that started before the anonymisation wait for it, then refuses it', async () => {
     // The race the job closes: one session holds the customer as the job does and marks it
     // anonymised; a note written meanwhile waits for it, then sees the result and is refused.
-    const account = randomUUID();
+    // A fixture id, so the clean-up at the start of the next run removes it.
+    const account = id(0xfe5);
     await asMigrator(
       (m) => m`insert into accounts (id, type, name, created_by)
                values (${account}, 'farm', 'retention raced customer', ${ACTOR})`,
@@ -899,7 +901,7 @@ describe('no write lands on an anonymised customer', () => {
       asMigrator(
         (m) => m`insert into activities (id, entity_id, opportunity_id, account_id, type,
                                          actor_principal_id, body)
-                 values (${randomUUID()}, 1, null, ${account}, 'note', ${ACTOR}, 'written meanwhile')`,
+                 values (${id(0xfe6)}, 1, null, ${account}, 'note', ${ACTOR}, 'written meanwhile')`,
       ),
     );
     // The write is waiting on the job's lock, not done.
