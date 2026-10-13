@@ -53,6 +53,10 @@ export function misaligned(boxes: readonly Box[]): string[] {
  */
 export async function expectAligned(page: Page, scope?: string): Promise<void> {
   const boxes = await page.evaluate((root) => {
+    // Measured with the page at its top: a page scrolled to a focused field would otherwise put
+    // the sticky header's buttons level with a box far down the page, as if they stood beside it.
+    const scrolled = { x: window.scrollX, y: window.scrollY };
+    window.scrollTo(0, 0);
     const base: ParentNode =
       root === undefined ? document : (document.querySelector(root) ?? document);
     const visible = (el: Element): boolean => {
@@ -109,6 +113,7 @@ export async function expectAligned(page: Page, scope?: string): Promise<void> {
         height: r.height,
       });
     }
+    window.scrollTo(scrolled.x, scrolled.y);
     return out;
   }, scope);
   expect(misaligned(boxes), 'buttons out of line with the box beside them').toEqual([]);
