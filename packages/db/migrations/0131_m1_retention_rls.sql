@@ -452,6 +452,12 @@ create trigger sales_orders_refuse_anonymised before insert on public.sales_orde
   for each row execute function app.refuse_anonymised_customer();
 --> statement-breakpoint
 
+-- The skipped rows of an import that repeat an earlier row, by that row's number: the
+-- anonymisation clears them with the row they repeat (step 15).
+create index import_rows_skipped_repeat_idx on public.import_rows (job_id, (dedupe_json ->> 'inFileRowNo'))
+  where state = 'skipped';
+--> statement-breakpoint
+
 -- 15. Anonymises the customers of the named leads of one company of the request, one customer at
 --     a time, each with all its leads, and marks kept for good the named leads in p_kept that are
 --     (so the window passes them by). For each customer: its leads, the customer and its people
@@ -517,6 +523,8 @@ begin
    where o.entity_id = p_entity
      and o.id = any (coalesce(p_kept, '{}'::uuid[]))
      and o.retention_kept_at is null
+     and o.anonymised_at is null
+     and o.state <> 'won'
      and app.lead_group_kept(o.id);
   get diagnostics v_kept = row_count;
 
@@ -612,19 +620,25 @@ begin
              archived_at = coalesce(x.archived_at, pg_catalog.now()), updated_by = v_actor
        where x.id = any (v_leads);
 
-      -- The import rows that made the leads or the customer, and the later rows of the same
-      -- files skipped as repeats of them: what the file said is removed; the row's state, what it
+      -- The import rows that made the leads or the customer (on `import_rows_created_idx`), then
+      -- the later rows of the same files skipped as repeats of them (on
+      -- `import_rows_skipped_repeat_idx`): what the file said is removed; the row's state, what it
       -- made and why it was refused stay, so the job's reconciliation still adds up.
+      with made as (
+        update public.import_rows r
+           set raw_json = '{}'::jsonb, normalised_json = null, dedupe_json = null,
+               updated_by = v_actor
+         where (r.created_type = 'opportunity' and r.created_id = any (v_leads))
+            or (r.created_type in ('account', 'account_link') and r.created_id = v_account)
+        returning r.job_id, r.row_no
+      )
       update public.import_rows s
          set raw_json = '{}'::jsonb, normalised_json = null, dedupe_json = null,
              updated_by = v_actor
-        from public.import_rows r
-       where ((r.created_type = 'opportunity' and r.created_id = any (v_leads))
-              or (r.created_type in ('account', 'account_link') and r.created_id = v_account))
-         and s.job_id = r.job_id
-         and (s.row_no = r.row_no
-              or (s.state = 'skipped'
-                  and s.dedupe_json ->> 'inFileRowNo' = r.row_no::text));
+        from made
+       where s.job_id = made.job_id
+         and s.state = 'skipped'
+         and s.dedupe_json ->> 'inFileRowNo' = made.row_no::text;
 
       -- The audit rows about any of the subjects: by their record, or by the customer or lead
       -- their input names (a note, a task), each found on its own index.

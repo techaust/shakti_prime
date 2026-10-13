@@ -124,7 +124,7 @@ describe('POST /api/v1/workers/crm/anonymise', () => {
   });
 
   it('refuses for good a body it does not know', async () => {
-    const body = JSON.stringify({ entityId: 2 });
+    const body = JSON.stringify({ companyId: 2 });
     const response = await call(body, sign(body));
     expect(response.status).toBe(400);
     expect(response.headers.get('upstash-nonretryable-error')).toBe('true');

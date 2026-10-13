@@ -5,11 +5,14 @@ import {
   expectNoAxeViolations,
   projectName,
   signedInAs,
+  snap,
   test,
 } from './support/fixtures';
 import { insideCallingHours, setServerClock } from './support/clock';
+import { solidPng } from './support/png';
 import {
   QUOTE_JOURNEY_COMPANY,
+  QUOTE_TIER,
   seededUsers,
   storageStatePath,
   type SignedInRole,
@@ -59,6 +62,23 @@ async function openLead(page: Page, name: string): Promise<void> {
   await expect(page.getByRole('heading', { name, level: 2 })).toBeFocused();
 }
 
+/** The quote builder's word for a customer with no price tier yet. */
+const TIER_MISSING =
+  "This customer has no price tier yet. Ask an Executive to set it on the customer's page.";
+
+/** S opens the lead's sizing on the rooftop's figures; they are typed and Enter saves. */
+async function sizeRooftop(page: Page): Promise<void> {
+  await press(page, 's', async () => {
+    await expect(page.getByLabel('Units used a month (kWh)')).toBeVisible({ timeout: 1_000 });
+  });
+  await expect(page.getByLabel('Units used a month (kWh)')).toBeFocused({ timeout: 10_000 });
+  await page.getByLabel('Units used a month (kWh)').fill('300');
+  await page.getByLabel('Shade-free roof area (m²)').fill('40');
+  await page.getByLabel('Sanctioned load (kW)').fill('5');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Sizing saved.').first()).toBeVisible();
+}
+
 /** Finds a customer on Customers and opens their page. */
 async function openCustomer(page: Page, name: string): Promise<void> {
   await page.goto('/customers');
@@ -79,6 +99,7 @@ test.describe('UAT: a Cold Caller qualifies a lead and the Lead Converter takes 
     test.setTimeout(180_000);
     await setServerClock(context, insideCallingHours());
     const name = fresh('Bhanwar Lal Jat');
+    // A rooftop enquiry, so the converter's sizing is the rooftop's three figures.
 
     // Home, then the lead form.
     await page.goto('/home');
@@ -87,8 +108,8 @@ test.describe('UAT: a Cold Caller qualifies a lead and the Lead Converter takes 
     await page.goto('/leads/new');
     await page.getByLabel('Customer name').fill(name);
     await page.getByLabel('Mobile number').fill(freshMobile());
-    await page.getByLabel('Line of business').selectOption({ label: 'Farmer Pumps' });
-    await page.getByLabel('Type of customer').selectOption({ label: 'Farm' });
+    await page.getByLabel('Line of business').selectOption({ label: 'Residential Rooftop' });
+    await page.getByLabel('Type of customer').selectOption({ label: 'Household' });
     await expectNoAxeViolations(page);
     await page.getByRole('button', { name: 'Save lead' }).click();
     await expect(page.getByText(`Lead saved for ${name}.`)).toBeVisible({ timeout: 30_000 });
@@ -121,6 +142,17 @@ test.describe('UAT: a Cold Caller qualifies a lead and the Lead Converter takes 
       }),
     ).not.toHaveCount(0);
     await expectNoAxeViolations(converter);
+
+    // The converter sizes the roof from the keyboard; the quote then waits for the customer's
+    // price tier, which only an Executive sets (the Executive's journey below goes on from there).
+    await sizeRooftop(converter);
+    await press(converter, 'q', async () => {
+      await expect(converter.getByRole('tab', { name: 'Quote', selected: true })).toBeVisible({
+        timeout: 1_000,
+      });
+    });
+    await expect(converter.getByText(TIER_MISSING).first()).toBeVisible();
+    await expectNoAxeViolations(converter);
     await converter.context().close();
   });
 });
@@ -137,7 +169,7 @@ test.describe('UAT: a Store Manager serves a walk-in customer', () => {
     await expect(page.getByRole('heading', { name: 'Walk-in customer', level: 1 })).toBeVisible();
     await page.getByLabel('Customer name').fill(name);
     await page.getByLabel('Mobile number').fill(freshMobile());
-    await page.getByLabel('Interested in').selectOption({ label: 'Farmer Pumps' });
+    await page.getByLabel('Interested in').selectOption({ label: 'Residential Rooftop' });
     await page.getByLabel('PIN code').fill('302001');
     await page.getByLabel('Village or town').fill('Chomu');
     await expectNoAxeViolations(page);
@@ -162,17 +194,101 @@ test.describe('UAT: a Store Manager serves a walk-in customer', () => {
     await page.goto('/converting');
     await expect(page.getByRole('heading', { name: 'Converting', level: 1 })).toBeVisible();
     await openLead(page, name);
+    await sizeRooftop(page);
+    await press(page, 'q', async () => {
+      await expect(page.getByRole('tab', { name: 'Quote', selected: true })).toBeVisible({
+        timeout: 1_000,
+      });
+    });
+    await expect(page.getByText(TIER_MISSING).first()).toBeVisible();
     await expectNoAxeViolations(page);
   });
 });
 
-test.describe('UAT: the Executive’s day', () => {
+test.describe('UAT: the Executive takes a lead from enquiry to a confirmed order', () => {
   test.use(signedInAs('executive'));
 
-  test('home, the Activity log and Integration health', async ({ page }) => {
+  test('new lead, price tier, sizing, quote, signed copy, order confirmed and the lead won', async ({
+    page,
+  }) => {
+    // A long journey: the quote is printed in the app before it can be sent and accepted.
+    test.setTimeout(300_000);
     await page.goto('/home');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);
+
+    // The enquiry, in the journeys' company, whose price list the seed keeps.
+    const name = fresh('Om Prakash Sharma');
+    await page.goto('/leads/new');
+    await page.getByLabel('Company', { exact: true }).selectOption({ label: QUOTE_JOURNEY_COMPANY.name });
+    await page.getByLabel('Customer name').fill(name);
+    await page.getByLabel('Mobile number').fill(freshMobile());
+    await page.getByLabel('Line of business').selectOption({ label: 'Residential Rooftop' });
+    await page.getByLabel('Type of customer').selectOption({ label: 'Household' });
+    await page.getByRole('button', { name: 'Save lead' }).click();
+    await expect(page.getByText(`Lead saved for ${name}.`)).toBeVisible({ timeout: 30_000 });
+
+    // The customer's page: the price tier, then the sizing.
+    await openCustomer(page, name);
+    await page.getByRole('button', { name: 'Set price tier' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Price tier').selectOption({ label: QUOTE_TIER });
+    await dialog.getByRole('button', { name: 'Save the tier' }).click();
+    await expect(page.getByText('Price tier saved.')).toBeVisible();
+    const leadsPart = page.getByRole('region', { name: 'Leads' });
+    await leadsPart.getByRole('button', { name: 'Size this lead' }).click();
+    const sizing = page.getByRole('region', { name: 'Sizing' });
+    await sizing.getByRole('tab', { name: 'Rooftop solar' }).click();
+    await sizing.getByLabel('Units used a month (kWh)').fill('300');
+    await sizing.getByLabel('Shade-free roof area (m²)').fill('40');
+    await sizing.getByLabel('Sanctioned load (kW)').fill('5');
+    await sizing.getByRole('button', { name: 'Work out size' }).click();
+    await expect(page.getByText('Sizing saved.').first()).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    // The quote, priced from the tier's list, printed, sent, then accepted by the signed copy.
+    await leadsPart.getByRole('link', { name: 'Make a quote' }).click();
+    await expect(page.getByRole('heading', { name: `Quote for ${name}`, level: 1 })).toBeVisible();
+    await page
+      .getByLabel('Item or kit')
+      .selectOption({ label: 'Solar module 540 Wp (JRN-MOD-540), ₹12,000.00' });
+    await page.getByLabel('Quantity').fill('2');
+    await page.getByRole('button', { name: 'Work out the quote' }).click();
+    await expect(
+      page.getByRole('region', { name: 'The quote as it will be made' }).getByText('₹26,880.00').first(),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Make the quote' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: /\/Q\// })).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(page.getByText('The quote document is ready.')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Mark as sent' }).click();
+    await expect(page.getByText('Quote marked as sent.')).toBeVisible();
+    await page.getByRole('button', { name: 'Record acceptance' }).click();
+    const accept = page.getByRole('dialog');
+    await accept.locator('input[type="file"]').setInputFiles({
+      name: 'Signed quote.png',
+      mimeType: 'image/png',
+      buffer: solidPng(320, 200, [240, 240, 235]),
+    });
+    await expect(accept.getByText('The signed copy is ready.')).toBeVisible({ timeout: 45_000 });
+    await accept.getByRole('button', { name: 'Record acceptance' }).click();
+    await expect(page.getByText(/^Quote accepted\. Order /)).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    // The order, confirmed: the credit check passes a household, and the lead is won.
+    await page.getByRole('link', { name: /\/SO\// }).click();
+    await expect(page.getByRole('heading', { level: 1, name: /\/SO\// })).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.getByRole('button', { name: 'Confirm the order' }).click();
+    await expect(page.getByText('Order confirmed.')).toBeVisible();
+    await expectNoAxeViolations(page);
+    await page.getByRole('link', { name }).click();
+    await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible({ timeout: 30_000 });
+    await expect(leadsPart.getByText('Won', { exact: true })).toBeVisible();
+
+    // The day's record: the Activity log and Integration health.
     await page.goto('/admin/activity');
     await expect(page.getByRole('heading', { name: 'Activity log', level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);
@@ -228,6 +344,11 @@ test.describe('UAT: a customers file and its row counts, as the cutover checks t
     await expect(line('Not added')).toContainText('1');
     await expect(line('The phone number was wrong')).toContainText('1');
     await expectNoAxeViolations(page);
+    // The section's picture; the file's name and the times change from run to run. Its Linux
+    // baseline is made by the lead in the Playwright image (`e2e:snap -- --update-snapshots`).
+    await snap(page, 'imports-row-counts', {
+      mask: [page.getByRole('heading', { level: 1 }), page.getByText(/, started /)],
+    });
 
     const download = page.waitForEvent('download');
     await counts.getByRole('button', { name: 'Download as CSV' }).click();

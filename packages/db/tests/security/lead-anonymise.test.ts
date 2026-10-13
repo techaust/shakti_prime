@@ -392,7 +392,7 @@ async function staleFlags(): Promise<Record<string, boolean>> {
 describe('who may reach the definers', () => {
   const statements = [
     sql`select * from app.stale_leads(1::smallint, ${MONTHS}, null, null, 10)`,
-    sql`select app.anonymise_stale_leads(1::smallint, ${MONTHS}, array[]::uuid[])`,
+    sql`select app.anonymise_stale_leads(1::smallint, ${MONTHS}, array[]::uuid[], array[]::uuid[])`,
   ];
 
   it('refuses every person’s role, every agent and the workers without crm.retention.run', async () => {
@@ -426,13 +426,13 @@ describe('who may reach the definers', () => {
   it('refuses a company outside the request and a period under a year', async () => {
     for (const statement of [
       sql`select * from app.stale_leads(2::smallint, ${MONTHS}, null, null, 10)`,
-      sql`select app.anonymise_stale_leads(2::smallint, ${MONTHS}, array[]::uuid[])`,
+      sql`select app.anonymise_stale_leads(2::smallint, ${MONTHS}, array[]::uuid[], array[]::uuid[])`,
     ]) {
       expect(await failure(rows(workers([1]), statement))).toMatch(/outside the request/);
     }
     for (const statement of [
       sql`select * from app.stale_leads(1::smallint, 6, null, null, 10)`,
-      sql`select app.anonymise_stale_leads(1::smallint, 11, array[]::uuid[])`,
+      sql`select app.anonymise_stale_leads(1::smallint, 11, array[]::uuid[], array[]::uuid[])`,
     ]) {
       expect(await failure(rows(workers([1]), statement))).toMatch(/between 12 and 120 months/);
     }
@@ -457,7 +457,7 @@ describe('who may reach the definers', () => {
       select has_function_privilege('app_reader',
                'app.stale_leads(smallint, integer, timestamptz, uuid, integer)', 'EXECUTE') as count,
              has_function_privilege('app_reader',
-               'app.anonymise_stale_leads(smallint, integer, uuid[])', 'EXECUTE') as write`);
+               'app.anonymise_stale_leads(smallint, integer, uuid[], uuid[])', 'EXECUTE') as write`);
     expect(grants[0]).toEqual({ count: true, write: false });
   });
 });
@@ -788,7 +788,7 @@ describe('the append-only exceptions open only for the anonymisation', () => {
       await failure(
         asPrincipal(principalFor('executive'), ({ tx }) =>
           tx.execute(
-            sql`insert into app.lead_anonymise_scope (tx, account_id) values (pg_current_xact_id(), ${leads.recentNote.account}::uuid)`,
+            sql`insert into app.lead_anonymise_scope (tx, subject_id) values (pg_current_xact_id(), ${leads.recentNote.account}::uuid)`,
           ),
         ),
       ),
