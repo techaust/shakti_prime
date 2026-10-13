@@ -45,6 +45,7 @@ import { archiveTag, createTag, tagLead, untagLead } from '../commands/crm/tags'
 import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
 import { winOpportunity } from '../commands/crm/win-opportunity';
 import { routeEnquiry } from '../commands/crm/route-enquiry';
+import { takeEnquiry } from '../commands/crm/take-enquiry';
 import { notifyEvent, recordPush, scanNotices } from '../commands/notifications/notify';
 import {
   markAllNoticesRead,
@@ -232,6 +233,7 @@ export const commands = {
   [recordKnowledgeIndex.name]: recordKnowledgeIndex,
   [completeInboxItem.name]: completeInboxItem,
   [routeEnquiry.name]: routeEnquiry,
+  [takeEnquiry.name]: takeEnquiry,
   [notifyEvent.name]: notifyEvent,
   [scanNotices.name]: scanNotices,
   [recordPush.name]: recordPush,

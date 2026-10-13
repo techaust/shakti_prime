@@ -16,13 +16,14 @@ import {
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { databaseAuditSink as audit } from '../../src/audit/sink';
+import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { completeInboxItem } from '../../src/commands/agents/inbox';
 import { assignOpportunity } from '../../src/commands/crm/assign-opportunity';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { routeEnquiry } from '../../src/commands/crm/route-enquiry';
+import { takeEnquiry } from '../../src/commands/crm/take-enquiry';
 import { notifyEvent, recordPush, scanNotices } from '../../src/commands/notifications/notify';
 import {
   markAllNoticesRead,
@@ -691,6 +692,29 @@ describe('a person’s own notices', () => {
       }),
     ).rejects.toMatchObject({ code: 'validation_failed' });
   });
+
+  it('refuses a browser another person receives alerts on, and renews the caller’s own', async () => {
+    const shared = `https://fcm.googleapis.com/fcm/send/${newId()}`;
+    const keys = { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) };
+    await run(callerA, subscribePush, { endpoint: shared, keys });
+    expect(
+      await refusal(
+        run(callerB, subscribePush, {
+          endpoint: shared,
+          keys: { p256dh: 'C'.repeat(87), auth: 'D'.repeat(22) },
+        }),
+      ),
+    ).toMatchObject({ code: 'conflict', details: { reason: 'push_browser_taken' } });
+    await expect(run(callerA, subscribePush, { endpoint: shared, keys })).resolves.toEqual({
+      subscribed: true,
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ user_id: string; auth: string }[]>`
+        select user_id, auth from push_subscriptions where endpoint = ${shared}`,
+    );
+    expect(row).toEqual({ user_id: callerA.id, auth: keys.auth });
+    await run(callerA, unsubscribePush, { endpoint: shared });
+  });
 });
 
 describe('an enquiry for a colleague’s customer (crm.enquiry.route, RPT-04 criterion 2)', () => {
@@ -770,6 +794,83 @@ describe('an enquiry for a colleague’s customer (crm.enquiry.route, RPT-04 cri
       existingAccountId: lead.account.id,
     });
     expect(routed).toMatchObject({ colleagueName: 'Asha Caller', segment: 'residential_rooftop' });
+  });
+});
+
+describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
+  const enquiry = (number: string, entityId = 1) => ({
+    entityId,
+    pipelineKey: 'farmer_pumps',
+    contact: { name: `Notice customer ${RUN}`, phone: number },
+    account: { type: 'farm' },
+    site: { type: 'borewell', village: 'Notice village', pin: '422001' },
+  });
+
+  it('is refused to a role without lead rights and outside the request', async () => {
+    const hr = await createTestPrincipal('hr_admin', [1]);
+    await expect(run(hr, takeEnquiry, enquiry(phone()))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(callerB, takeEnquiry, enquiry(phone(), 2))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
+  it('adds the lead when no colleague looks after the customer', async () => {
+    const taken = await run<{ outcome: string; id: string }>(
+      callerB,
+      takeEnquiry,
+      enquiry(phone()),
+    );
+    expect(taken).toMatchObject({ outcome: 'created' });
+  });
+
+  it("passes a colleague's customer to them in one change, with no refused lead left or logged", async () => {
+    const number = phone();
+    const lead = await newLead(callerA, 'farmer_pumps', number);
+    const [mark] = await asMigrator(
+      (m) =>
+        m<{ last: string }[]>`select coalesce(max(sequence), 0)::text as last from outbox_events`,
+    );
+    const recorded = memoryAuditSink();
+    const routed = await asPrincipal(callerB, (context) =>
+      runCommand(takeEnquiry, { context, audit: recorded, outbox }, enquiry(number)),
+    );
+    expect(routed).toMatchObject({ outcome: 'routed', colleagueName: 'Asha Caller' });
+    // The attempt's lead and its records went with its savepoint: only the routing is recorded,
+    // and nothing reads as a failed lead.
+    const commands = recorded.records.map((r) => [r.command, r.outcome]);
+    expect(commands).toContainEqual(['crm.enquiry.route', 'ok']);
+    expect(commands.filter(([command]) => command === 'crm.lead.create')).toEqual([]);
+    expect(recorded.records.every((r) => r.outcome === 'ok')).toBe(true);
+    const [leads] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from opportunities
+                                  where account_id = ${lead.account.id}`,
+    );
+    expect(leads?.n).toBe(1);
+    // The outbox holds the routing's event and none of the refused attempt's: an event written
+    // since, other suites' included, always names a record that exists (the attempt's lead and
+    // duplicate pairs went with the savepoint).
+    const since = await asMigrator(
+      (m) => m<
+        { type: string; aggregate_type: string; aggregate_id: string; account: string | null }[]
+      >`
+        select type, aggregate_type, aggregate_id, payload_json->>'accountId' as account
+          from outbox_events where sequence > ${mark?.last ?? '0'}::bigint`,
+    );
+    expect(
+      since.filter((e) => e.type === 'crm.enquiry.routed' && e.account === lead.account.id),
+    ).toHaveLength(1);
+    const orphans = await asMigrator(
+      (m) => m<{ type: string }[]>`
+        select e.type from outbox_events e
+         where e.sequence > ${mark?.last ?? '0'}::bigint
+           and ((e.aggregate_type = 'opportunity'
+                 and not exists (select 1 from opportunities o where o.id::text = e.aggregate_id))
+             or (e.aggregate_type = 'duplicate_candidate'
+                 and not exists (select 1 from duplicate_candidates d where d.id::text = e.aggregate_id)))`,
+    );
+    expect(orphans).toEqual([]);
   });
 });
 

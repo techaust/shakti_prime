@@ -1,0 +1,2 @@
+ALTER TABLE "outbox_events" ADD COLUMN "replays" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "outbox_events" ADD CONSTRAINT "outbox_events_replays_check" CHECK ("outbox_events"."replays" >= 0);

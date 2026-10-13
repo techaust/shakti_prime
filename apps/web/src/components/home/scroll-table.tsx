@@ -1,6 +1,6 @@
 'use client';
 
-import { useScrolls } from '@shakti/ui';
+import { cn, useScrolls } from '@shakti/ui';
 import type { ReactNode } from 'react';
 
 /**
@@ -8,7 +8,16 @@ import type { ReactNode } from 'react';
  * wider than its box, so the keyboard can scroll it (WCAG 2.1.1) and a table that fits is no tab
  * stop.
  */
-export function ScrollTable({ label, children }: { label: string; children: ReactNode }) {
+export function ScrollTable({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  /** `hidden md:block` for a table whose rows are cards on a phone (`CardList`). */
+  className?: string;
+}) {
   const [box, scrolls] = useScrolls();
   return (
     <div
@@ -16,7 +25,10 @@ export function ScrollTable({ label, children }: { label: string; children: Reac
       role="region"
       aria-label={label}
       tabIndex={scrolls ? 0 : undefined}
-      className="border-border bg-surface focus-visible:outline-focus overflow-x-auto rounded-lg border focus-visible:outline-2 focus-visible:outline-offset-2"
+      className={cn(
+        'border-border bg-surface focus-visible:outline-focus overflow-x-auto rounded-lg border focus-visible:outline-2 focus-visible:outline-offset-2',
+        className,
+      )}
     >
       {children}
     </div>

@@ -29,7 +29,7 @@ import {
 } from '../../screens/agents';
 import { AGENT_ROLES, agentNameKey, SEGMENTS, TASK_KINDS } from '../../screens/contract-values';
 import { customerHref, isOneOf } from '../../screens/customers';
-import { DateTime } from '../date-time';
+import { DateTime, momentValues } from '../date-time';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
 
@@ -354,7 +354,7 @@ function InboxCard({
         })}
       </dl>
       <p className="text-text-muted text-sm">
-        {t('inbox.received')} <DateTime value={item.createdAt} />
+        {t.rich('inbox.received', momentValues(item.createdAt))}
         {company === undefined ? null : ` · ${t('inbox.companyLine', { company })}`}
       </p>
       {yourself ? <p className="text-text-muted text-sm">{t('inbox.actYourself')}</p> : null}
@@ -498,7 +498,7 @@ function RoutedCard({
         </dl>
       )}
       <p className="text-text-muted text-sm">
-        {t('inbox.routedReceived')} <DateTime value={item.createdAt} />
+        {t.rich('inbox.routedReceived', momentValues(item.createdAt))}
         {company === undefined ? null : ` · ${t('inbox.companyLine', { company })}`}
       </p>
       <FailureMessage failure={complete.failure} />

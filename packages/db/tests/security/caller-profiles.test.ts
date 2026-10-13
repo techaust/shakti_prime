@@ -268,6 +268,7 @@ describe('the handover definers', () => {
         'knowledge.index',
         'crm.handover.run',
         'crm.retention.run',
+        'platform.jobs.check',
       ]),
     );
     expect(list?.keys).toHaveLength(9);

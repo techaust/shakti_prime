@@ -101,6 +101,8 @@ export function PushToggle({ publicKey }: { publicKey: string | null }) {
           ),
         );
         if (!result.ok) {
+          // The browser keeps no subscription the app refused: one another person holds
+          // (`push_browser_taken`) is dropped here, so the next tap makes this browser a new one.
           await subscription.unsubscribe();
           failed(result.error);
           return;

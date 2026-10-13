@@ -33,6 +33,12 @@ interface CatalogueEntrySpec {
   meaning: string;
   emittedBy: readonly string[];
   subscribed: boolean;
+  /**
+   * A payload flag that, when true, marks an event no worker of the type acts on (an import's
+   * leads, which Triage leaves alone): it is written as delivered and never sent, so a large
+   * import neither waits in the outbox ahead of every later event nor costs a queue message each.
+   */
+  undeliveredWhen?: string;
   payload: z.ZodType;
 }
 
@@ -65,8 +71,9 @@ const eventCatalogue = {
   'crm.lead.created': {
     meaning:
       'A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer.',
-    emittedBy: ['crm.lead.create', 'imports.job.commit_batch'],
+    emittedBy: ['crm.enquiry.take', 'crm.lead.create', 'imports.job.commit_batch'],
     subscribed: true,
+    undeliveredWhen: 'imported',
     payload: z
       .object({
         pipelineKey: Code,
@@ -80,7 +87,7 @@ const eventCatalogue = {
   'crm.lead.attached': {
     meaning:
       "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates.",
-    emittedBy: ['crm.lead.create', 'imports.job.commit_batch'],
+    emittedBy: ['crm.enquiry.take', 'crm.lead.create', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ pipelineKey: Code, sourceCode: Code.nullable() }).strict(),
   },
@@ -88,9 +95,10 @@ const eventCatalogue = {
     meaning:
       'Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates.',
     emittedBy: [
-      'crm.lead.create',
       'crm.duplicate.scan',
       'crm.duplicate.suggest',
+      'crm.enquiry.take',
+      'crm.lead.create',
       'imports.job.commit_batch',
     ],
     // The notify worker tells the owners of the leads (docs/03-roadmap-appendix/phase1.md §8.1).
@@ -137,7 +145,7 @@ const eventCatalogue = {
   'crm.enquiry.routed': {
     meaning:
       'An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04); the notify worker tells them.',
-    emittedBy: ['crm.enquiry.route'],
+    emittedBy: ['crm.enquiry.route', 'crm.enquiry.take'],
     subscribed: true,
     payload: z.object({ assigneeId: IdSchema, accountId: IdSchema }).strict(),
   },
@@ -152,6 +160,7 @@ const eventCatalogue = {
       "A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, by a call on a nurtured lead that ends in a callback or a qualified outcome (`calls.call.log` runs `crm.opportunity.reopen`), or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead.",
     emittedBy: [
       'calls.call.log',
+      'crm.enquiry.take',
       'crm.lead.create',
       'crm.opportunity.reopen',
       'imports.job.commit_batch',
@@ -552,6 +561,17 @@ export function isEventType(type: string): type is EventType {
 
 export function isSubscribed(type: string): boolean {
   return isEventType(type) && eventCatalogue[type].subscribed;
+}
+
+/**
+ * Whether an event goes to its workers: its type is subscribed and its payload does not carry the
+ * type's `undeliveredWhen` flag. An event that does not is marked delivered without being sent.
+ */
+export function isDelivered(type: string, payload: Readonly<Record<string, unknown>>): boolean {
+  if (!isEventType(type)) return false;
+  const entry: CatalogueEntrySpec = eventCatalogue[type];
+  if (!entry.subscribed) return false;
+  return entry.undeliveredWhen === undefined || payload[entry.undeliveredWhen] !== true;
 }
 
 export type ParsedEvent =

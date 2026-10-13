@@ -39,6 +39,9 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
       for (const frame of frames) frame.remove();
     });
   }
+  // A notice (a toast) is drawn first in its hidden state and starts fading in a moment later, when
+  // it is marked mounted; until then its fade is not an animation the wait below can see.
+  await expect(page.locator('[data-sonner-toast][data-mounted="false"]')).toHaveCount(0);
   // A dialog fading in shows its colours blended with the page behind it, which axe would measure
   // as low contrast; every animation that ends is let finish first (a spinner never ends, so it is
   // left running).

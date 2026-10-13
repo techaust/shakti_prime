@@ -16,8 +16,8 @@ interface Holder {
 /**
  * `crm.enquiry.route` (PRD RPT-04 criterion 2, docs/03-roadmap-appendix/phase1.md §8.1): a lead refused as
  * `customer_held_by_colleague` becomes routed work for the colleague who looks after the customer
- * in the company. The refusal rolls its own transaction back, so the lead and walk-in forms' server
- * action runs this command in a fresh one: it finds the colleague (`app.enquiry_holder()`, for the
+ * in the company. `crm.enquiry.take` (the lead and walk-in forms' save) runs it in the same
+ * transaction once the lead's savepoint has rolled the refusal back: it finds the colleague (`app.enquiry_holder()`, for the
  * known customer or the live customer with the typed number), files an `inbox_items` row of kind
  * `routed_work` on the customer for them and their team, with the enquiry's interest (the
  * pipeline's segment) and its note, and sends `crm.enquiry.routed`, whose notice tells them. It

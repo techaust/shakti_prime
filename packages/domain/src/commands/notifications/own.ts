@@ -141,9 +141,11 @@ export const setNotificationSettings = defineCommand({
 });
 
 /**
- * `notifications.push.subscribe`: this browser receives the caller's pushes from now on, taken
- * over from whoever used it before (`app.claim_push_subscription()`). Only a push service the app
- * knows is accepted (`isPushServiceEndpoint`, in the input).
+ * `notifications.push.subscribe`: this browser receives the caller's pushes from now on
+ * (`app.claim_push_subscription()`). A browser address another person holds is refused
+ * (`push_browser_taken`) and stays theirs, whatever keys come with it; the caller's own is renewed
+ * with the browser's keys. Only a push service the app knows is accepted (`isPushServiceEndpoint`,
+ * in the input).
  */
 export const subscribePush = defineCommand({
   name: 'notifications.push.subscribe',
@@ -153,6 +155,7 @@ export const subscribePush = defineCommand({
   input: PushSubscribeInput,
   output: PushSubscriptionDto,
   auditFields: [],
+  constraintReasons: { push_subscriptions_endpoint_unique: 'push_browser_taken' },
   // The browser's address works as a key to its pushes: the audit row records none of it.
   auditInput: () => ({}),
   async handler(ctx, input) {

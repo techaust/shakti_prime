@@ -158,7 +158,7 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
 | Lint, format and copy | `pnpm lint`, `pnpm format:check`, `pnpm copy-lint`, the generated-files check |
 | Typecheck | `pnpm typecheck` |
 | Unit tests | `pnpm test` (unit, property, contract fixture and generated-file tests) |
-| Production build | `pnpm build`, with no `.env` present, then `pnpm --filter web js-budget`, which fails when a page's first-load JavaScript (gzip) passes its budget in `apps/web/js-budget.json` |
+| Production build | `pnpm build`, with no `.env` present, then `pnpm --filter web js-budget`, which fails when a page's first-load JavaScript (gzip) passes its budget in `apps/web/js-budget.json` or the page has none |
 | Secrets and advisories | gitleaks over the whole history; `pnpm audit --audit-level=moderate` |
 | Security suite | `pnpm test:security` on a fresh `supabase/postgres` service, then `pnpm db:verify` |
 | End-to-end journeys, accessibility and screenshots | One job per project (desktop light, desktop dark, phone) in `mcr.microsoft.com/playwright:v1.63.0-noble`, each with its own fresh `supabase/postgres` service and 25 minutes (the steps are below) |
@@ -173,7 +173,7 @@ The end-to-end job's steps, each with its own time limit and output as it happen
 
 The app's log, the report and the screenshot differences are kept when a job fails.
 
-Each page's budget in [`apps/web/js-budget.json`](../apps/web/js-budget.json) is its measured size plus 5 %, rounded up, with its reason and the date it was measured written beside it; a page not named there gets the file's `defaultKb`, the aim of `docs/08-design-system.md` §10. What the framework and the shared app shell add to a page is in each route's reason.
+Each page's budget in [`apps/web/js-budget.json`](../apps/web/js-budget.json) is its measured size plus 5 %, rounded up, with its reason and the date it was measured written beside it; a page with no budget fails the check, so a new page is measured before it merges. What the framework and the shared app shell add to a page is in each route's reason. The file's `documents` section budgets the gzip weight of a first visit's HTML for `/sign-in` and `/leads`, where the message catalogue rides in the server's payload, which no JavaScript size sees; the journeys check them against the served build (`public.spec.ts`, `leads.spec.ts`).
 
 `.github/workflows/audit.yml` repeats the dependency audit weekly.
 

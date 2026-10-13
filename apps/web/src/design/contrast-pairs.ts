@@ -39,6 +39,11 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { fg: 'accent-fg', bg: 'accent', kind: 'text' },
   { fg: 'accent-fg', bg: 'accent-hover', kind: 'text' },
   { fg: 'text', bg: 'accent-soft', kind: 'text' },
+  // Selected cards and ticked rows carry muted labels on the soft tint.
+  { fg: 'text-muted', bg: 'accent-soft', kind: 'text' },
+  // The hover grey: highlighted menu and search items, the current menu entry, hovered buttons.
+  { fg: 'text', bg: 'surface-3', kind: 'text' },
+  { fg: 'text-muted', bg: 'surface-3', kind: 'text' },
   { fg: 'success', bg: 'success-soft', kind: 'text' },
   { fg: 'warning', bg: 'warning-soft', kind: 'text' },
   { fg: 'danger', bg: 'danger-soft', kind: 'text' },

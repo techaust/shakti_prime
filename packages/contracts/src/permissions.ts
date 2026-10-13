@@ -104,6 +104,9 @@ export const PERMISSION_KEYS = [
   // held only by the platform's worker principal, which finds and anonymises them through one
   // narrow definer, nothing more.
   'crm.retention.run',
+  // The hourly check of the database's scheduled jobs (audit 2026-10, DATA-3): held only by the
+  // platform's worker principal, which reads each job's last run through one definer, nothing more.
+  'platform.jobs.check',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -171,6 +174,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'notifications.send',
   'crm.handover.run',
   'crm.retention.run',
+  'platform.jobs.check',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -311,6 +315,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'notifications.send': ['all'],
   'crm.handover.run': ['all'],
   'crm.retention.run': ['all'],
+  'platform.jobs.check': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

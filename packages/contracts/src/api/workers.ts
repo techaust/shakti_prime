@@ -109,7 +109,7 @@ export type QuoteExpireWorkerBody = z.infer<typeof QuoteExpireWorkerBody>;
 
 /** What one expiry run did: the batches it ran, the quotes it expired, and whether it finished. */
 export const QuoteExpireWorkerResponse = z
-  .object({ batches: Count, expired: Count, done: z.boolean() })
+  .object({ batches: Count, expired: Count, skipped: Count, done: z.boolean() })
   .strict();
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
 
@@ -185,3 +185,18 @@ export const NotificationScanWorkerResponse = z
   .object({ batches: Count, created: Count, done: z.boolean() })
   .strict();
 export type NotificationScanWorkerResponse = z.infer<typeof NotificationScanWorkerResponse>;
+
+/**
+ * The hourly check of the database's scheduled jobs (`platform.jobs.check`, audit 2026-10
+ * DATA-3), called by the QStash schedule `jobs-check-<environment>` with an empty body: it reads
+ * each job's last run as `system:workers` and tells the owner of a job that failed, is late, is
+ * paused or is missing (`job.problem`), once per job, problem and run.
+ */
+export const JobsCheckWorkerBody = z.object({}).strict();
+export type JobsCheckWorkerBody = z.infer<typeof JobsCheckWorkerBody>;
+
+/** What one check found: the jobs it read and those with a problem, and the alerts it raised. */
+export const JobsCheckWorkerResponse = z
+  .object({ jobs: Count, problems: Count, alerted: Count })
+  .strict();
+export type JobsCheckWorkerResponse = z.infer<typeof JobsCheckWorkerResponse>;

@@ -199,7 +199,7 @@ describe('notification settings and browsers are a person’s own', () => {
     ).toMatch(/notification_preferences_quiet_check/);
   });
 
-  it('adds a browser only through the claim, which takes it over from whoever had it', async () => {
+  it('adds a browser only through the claim, which never moves another person’s browser', async () => {
     const endpoint = ENDPOINT();
     expect(
       await failure(
@@ -210,33 +210,81 @@ describe('notification settings and browsers are a person’s own', () => {
         ),
       ),
     ).toMatch(/permission denied/);
-    const claim = (principal: Principal) =>
-      rows(
+    const claim = (principal: Principal, p256dh = P256DH, auth = AUTH) =>
+      rows<{ id: string }>(
         principal,
-        sql`select app.claim_push_subscription(${endpoint}, ${P256DH}, ${AUTH}, null) as id`,
+        sql`select app.claim_push_subscription(${endpoint}, ${p256dh}, ${auth}, null) as id`,
       );
-    await claim(caller);
+    const [first] = await claim(caller);
     const seen = (principal: Principal) =>
       rows(principal, sql`select 1 from push_subscriptions where endpoint = ${endpoint}`);
     expect(await seen(caller)).toHaveLength(1);
     expect(await seen(other)).toHaveLength(0);
-    await claim(other);
-    expect(await seen(caller)).toHaveLength(0);
-    expect(await seen(other)).toHaveLength(1);
+    const stored = () =>
+      asMigrator(
+        (m) => m<{ id: string; user_id: string; p256dh: string; auth: string }[]>`
+          select id, user_id, p256dh, auth from push_subscriptions where endpoint = ${endpoint}`,
+      );
+
+    // Another person who knows the address is refused, with the browser's own keys or new ones,
+    // and the browser stays the caller's with its keys as they were.
+    const otherKeys = ['C'.repeat(87), 'D'.repeat(22)] as const;
+    for (const keys of [[P256DH, AUTH], otherKeys] as const) {
+      expect(await failure(claim(other, ...keys))).toMatch(
+        /another person receives alerts on this browser/,
+      );
+    }
+    expect(await stored()).toEqual([
+      { id: first?.id, user_id: caller.id, p256dh: P256DH, auth: AUTH },
+    ]);
+    expect(await seen(other)).toHaveLength(0);
+    // The refusal names the address's unique constraint, which the command maps to its reason.
+    const refusal = await claim(other).then(
+      () => undefined,
+      (e: unknown) => (e instanceof Error && e.cause instanceof Error ? e.cause : e),
+    );
+    expect(refusal).toMatchObject({
+      code: '23505',
+      constraint_name: 'push_subscriptions_endpoint_unique',
+    });
+
+    // The caller's own browser registers again with the keys it gives now, as the same row.
+    const [again] = await claim(caller, ...otherKeys);
+    expect(again?.id).toBe(first?.id);
+    expect(await stored()).toEqual([
+      { id: first?.id, user_id: caller.id, p256dh: otherKeys[0], auth: otherKeys[1] },
+    ]);
+
+    // Nobody without a request, no agent, and no one without profile.write claims a browser.
     expect(
-      await rows(
-        caller,
-        sql`delete from push_subscriptions where endpoint = ${endpoint} returning id`,
+      await failure(
+        withoutContext(
+          sql`select app.claim_push_subscription(${ENDPOINT()}, ${P256DH}, ${AUTH}, null) as id`,
+        ),
       ),
-    ).toHaveLength(0);
+    ).toMatch(/a person with profile.write is required|permission denied/);
+    const agent = principalFor('agent:copilot', [1], { id: caller.id });
+    expect(await failure(claim(agent))).toMatch(/a person with profile.write is required/);
+    const noProfile = principalFor('tele_caller_cc', [1], { id: other.id, permissions: [] });
+    expect(await failure(claim(noProfile))).toMatch(/a person with profile.write is required/);
+    expect(await stored()).toHaveLength(1);
+
+    // Only the person whose browser it is removes it.
     expect(
       await rows(
         other,
         sql`delete from push_subscriptions where endpoint = ${endpoint} returning id`,
       ),
+    ).toHaveLength(0);
+    expect(
+      await rows(
+        caller,
+        sql`delete from push_subscriptions where endpoint = ${endpoint} returning id`,
+      ),
     ).toHaveLength(1);
-    const agent = principalFor('agent:copilot', [1], { id: caller.id });
-    expect(await failure(claim(agent))).toMatch(/a person with profile.write is required/);
+    // Once the caller has removed it, the address is free for the next person.
+    expect(await claim(other)).toHaveLength(1);
+    expect(await seen(other)).toHaveLength(1);
   });
 });
 

@@ -6,6 +6,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
+import { expectDocumentWithinBudget } from './support/document-weight';
 import { SNAPSHOT_LEADS } from './support/users';
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
@@ -58,6 +59,39 @@ for (const { role, title } of ROLES) {
     });
   });
 }
+
+test.describe('the lead screens as a tele-caller', () => {
+  test.use(signedInAs('teleCaller'));
+
+  test('the leads list sends only the words its screen uses, within its weight (WEB-1)', async ({
+    page,
+  }) => {
+    await expectDocumentWithinBudget(page, '/leads');
+  });
+
+  test('a mobile number the server refuses is read out and focused (WEB-2)', async ({ page }) => {
+    await page.goto('/leads/new');
+    await expect(page.getByRole('heading', { name: 'Add a lead', level: 1 })).toBeVisible();
+    await page.getByLabel('Customer name').fill(`Mohan Lal ${String(Date.now()).slice(-5)}`);
+    // Too short for a mobile number: the form sends it as typed and the server refuses it.
+    await page.getByLabel('Mobile number').fill('12345');
+    const company = page.getByLabel('Company', { exact: true });
+    if (await company.isVisible()) await company.selectOption({ label: 'Shakti Supreme' });
+    await page.getByLabel('Line of business').selectOption({ index: 1 });
+    await page.getByLabel('Type of customer').selectOption({ label: 'Farm' });
+    const save = page.getByRole('button', { name: 'Save lead' });
+    await save.click();
+    const mobile = page.getByLabel('Mobile number');
+    await expect(mobile).toBeFocused();
+    await expect(mobile).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByRole('alert').filter({ hasText: /\S/ })).toBeVisible();
+    await expectNoAxeViolations(page);
+    // A further try with the same mistake is read out and focused again.
+    await save.focus();
+    await save.click();
+    await expect(mobile).toBeFocused();
+  });
+});
 
 // The screenshots of the list and the board: the snapshot caller's leads, which only the seed
 // writes (users.ts), so every run shows the same rows and only times are masked.

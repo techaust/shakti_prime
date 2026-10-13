@@ -44,5 +44,8 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The nightly anonymisation of unqualified leads idle for the retention period
     // (`crm.lead.anonymise`): it finds and anonymises them through one definer, nothing more.
     { key: 'crm.retention.run', scope: 'all' },
+    // The check of the database's scheduled jobs (`jobs-check`): it reads each job's last run and
+    // error through one definer, and nothing of any company.
+    { key: 'platform.jobs.check', scope: 'all' },
   ],
 };

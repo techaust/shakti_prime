@@ -790,6 +790,67 @@ describe('sales.quote.expire (the daily job)', () => {
     expect(still.state).toBe('draft');
   });
 
+  it('skips, counts and records a quote a check refuses, and expires the rest (review L3)', async () => {
+    const good = await sizedRooftopQuote();
+    const bad = await sizedRooftopQuote();
+    await asMigrator(
+      (m) => m`update quotes set valid_until = now() - interval '1 minute'
+                where id in (${good.id}, ${bad.id})`,
+    );
+    // An older row that breaks the GST split: written as it could have been before the check, which
+    // is added back NOT VALID as its migration adds it.
+    const breakSplit = (sign: 1 | -1) =>
+      asMigrator((m) =>
+        m.begin(async (tx) => {
+          const [check] = await tx<{ def: string }[]>`
+            select pg_get_constraintdef(oid) as def from pg_constraint
+             where conname = 'quotes_gst_split_check'`;
+          await tx`alter table quotes drop constraint quotes_gst_split_check`;
+          await tx`update quotes
+                      set igst = igst + ${sign} * (case when supply_kind = 'intra' then 1 else 0 end),
+                          cgst = cgst + ${sign} * (case when supply_kind = 'inter' then 1 else 0 end),
+                          tax_total = tax_total + ${sign}, grand_total = grand_total + ${sign}
+                    where id = ${bad.id}`;
+          const def = (check?.def ?? 'CHECK (false)').replace(/\s+NOT VALID$/, '');
+          await tx.unsafe(
+            `alter table quotes add constraint quotes_gst_split_check ${def} not valid`,
+          );
+        }),
+      );
+    await breakSplit(1);
+    try {
+      let expired = 0;
+      let skipped = 0;
+      let afterId: string | null = null;
+      do {
+        const batch: { expired: number; skipped: number; nextAfterId: string | null } = await run(
+          workers(),
+          expireQuotes,
+          { entityId: E, afterId },
+        );
+        expired += batch.expired;
+        skipped += batch.skipped;
+        afterId = batch.nextAfterId;
+      } while (afterId !== null);
+      expect(expired).toBeGreaterThanOrEqual(1);
+      expect(skipped).toBe(1);
+      const states = await asMigrator(
+        (m) => m<{ id: string; state: string }[]>`
+          select id, state from quotes where id in (${good.id}, ${bad.id})`,
+      );
+      expect(states.find((r) => r.id === good.id)?.state).toBe('expired');
+      expect(states.find((r) => r.id === bad.id)?.state).toBe('draft');
+      const recorded = await asMigrator(
+        (m) => m<{ after_json: Record<string, unknown> }[]>`
+          select after_json from audit_logs
+           where command = 'sales.quote.expire' and aggregate_id = ${bad.id}`,
+      );
+      expect(recorded.map((r) => r.after_json)).toEqual([{ expiryRefused: 'gst_split_mismatch' }]);
+    } finally {
+      await breakSplit(-1);
+    }
+  });
+
   it('cannot reach a company outside its request', async () => {
     expect(await failure(workers(1), expireQuotes, { entityId: E })).toMatchObject({
       code: 'forbidden',

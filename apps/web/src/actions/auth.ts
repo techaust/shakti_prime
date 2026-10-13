@@ -83,6 +83,11 @@ async function requestHeaders(turnstileToken?: string): Promise<Headers> {
   return h;
 }
 
+/** The BOS screen a sign-in form returns to (`returnTo`), or home; never another site. */
+function returnPath(formData: FormData): string {
+  return safeReturnPath(field(formData, 'returnTo') || undefined);
+}
+
 export async function signIn(_prev: FormState, formData: FormData): Promise<FormState> {
   let twoFactor = false;
   try {
@@ -96,7 +101,12 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   }
   // A company chosen by whoever used this browser before does not narrow this person (AUDIT L10).
   (await cookies()).delete(ACTIVE_ENTITY_COOKIE);
-  redirect(twoFactor ? '/two-factor' : '/home');
+  // Back to the screen the person was on when their sign-in ended (WEB-7), after the code if any.
+  const back = returnPath(formData);
+  if (!twoFactor) redirect(back);
+  redirect(
+    back === '/home' ? '/two-factor' : `/two-factor?${new URLSearchParams({ returnTo: back })}`,
+  );
 }
 
 export async function signOut(): Promise<void> {
@@ -206,7 +216,7 @@ export async function verifyTwoFactor(_prev: FormState, formData: FormData): Pro
   } catch (e) {
     return failure('verifyTwoFactor', e);
   }
-  redirect('/home');
+  redirect(returnPath(formData));
 }
 
 /** Sign-in with one of the backup codes kept at enrolment, when the phone is not at hand. */
@@ -219,7 +229,7 @@ export async function verifyBackupCode(_prev: FormState, formData: FormData): Pr
   } catch (e) {
     return failure('verifyBackupCode', e);
   }
-  redirect('/home');
+  redirect(returnPath(formData));
 }
 
 export async function changePassword(

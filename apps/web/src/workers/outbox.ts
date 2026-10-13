@@ -20,6 +20,24 @@ import { nudgeViaQStash, qstashConfig, qstashEventPublisher } from './qstash';
 /** A due event waiting longer than this means no publisher is running. */
 const OUTBOX_MAX_DUE_SECONDS = 300;
 
+/**
+ * How long one call of the publisher route keeps claiming while each claim comes back full. A
+ * claim calls the queue once (5 seconds at most) and records in two short transactions, so the
+ * last one started inside this budget ends well within the route's 60 seconds and the rows'
+ * two-minute lease.
+ */
+export const OUTBOX_RUN_BUDGET_MS = 30_000;
+
+/**
+ * How long a nudge keeps claiming where no queue is configured (local development, CI and the
+ * journeys), where no minute schedule follows it, so a nudge is the only thing that drains the
+ * outbox. On a developer's machine the dev server shares its database with the suites, which
+ * leave thousands of events pending; without the loop each later change's events would wait one
+ * nudge per hundred ahead of them. Long enough to work through such a backlog, short enough that
+ * the action waiting on it answers promptly; a claim that is not full ends it at once.
+ */
+export const LOCAL_NUDGE_BUDGET_MS = 10_000;
+
 /** Runs in a row that deliver nothing before the owner is told (docs/03-roadmap-appendix/phase1.md §5.2). */
 export const FAILING_RUNS_ALERT = 3;
 /** Ids an alert names at most; the count gives the rest. */
@@ -80,6 +98,8 @@ export function inProcessEventPublisher(keyValue: KeyValue, requestId?: string):
 export interface PublishOutboxOptions {
   publisher?: EventPublisher;
   requestId?: string;
+  /** Claim again while claims come back full, for this long (`OUTBOX_RUN_BUDGET_MS`); once if left out. */
+  budgetMs?: number;
   /** Where the counters and the last run are kept; the app's shared store by default. */
   keyValue?: KeyValue;
   /** Where the outbox alerts go; Sentry by default. */
@@ -106,9 +126,10 @@ export async function publishOutbox(
   const now = options.now ?? (() => new Date());
   const publisher = options.publisher ?? defaultPublisher(keyValue, requestId);
   const deadIds: string[] = [];
-  const reportDead = () => {
+  // Awaited, so the alert is sent before the route answers and the function may be frozen.
+  const reportDead = async () => {
     if (deadIds.length === 0) return;
-    alerts.report('outbox.dead_lettered', {
+    await alerts.report('outbox.dead_lettered', {
       count: deadIds.length,
       ids: deadIds.slice(0, ALERT_IDS),
     });
@@ -120,20 +141,21 @@ export async function publishOutbox(
       publisher,
       logger,
       requestId,
+      ...(options.budgetMs === undefined ? {} : { budgetMs: options.budgetMs }),
       onDeadLettered: (ids) => {
         deadIds.push(...ids);
       },
     });
   } catch (error) {
     // The events the claim dead-lettered stay dead-lettered whatever failed afterwards.
-    reportDead();
+    await reportDead();
     await countFailingRun(keyValue, alerts, { requestId, failed: 0 });
     throw error;
   }
   if (counts.claimed > 0 || counts.deadLettered > 0) {
     logger.log('info', 'outbox.publish', { requestId, ...counts });
   }
-  reportDead();
+  await reportDead();
   await keep('outbox.last_run_not_kept', requestId, () =>
     keyValue.set(
       LAST_RUN_KEY,
@@ -173,7 +195,7 @@ async function countFailingRun(
   });
   // Once per streak: the count keeps rising until a run delivers, and only the third run reports.
   if (runs === FAILING_RUNS_ALERT) {
-    alerts.report('outbox.publisher_failing', { runs, failed: run.failed });
+    await alerts.report('outbox.publisher_failing', { runs, failed: run.failed });
   }
 }
 
@@ -199,8 +221,9 @@ function defaultPublisher(keyValue: KeyValue, requestId: string | undefined): Ev
 /**
  * After a command commits with events (`executeCommand`'s `onCommitted`): hosted, QStash is
  * asked to run the publisher at once; locally, with no queue, the run happens in this process
- * and delivers subscribed events to their workers here. The minute schedule catches anything a
- * lost nudge leaves behind.
+ * and delivers subscribed events to their workers here, claiming again while claims come back
+ * full (`LOCAL_NUDGE_BUDGET_MS`), since no schedule follows it. Hosted, the minute schedule
+ * catches anything a lost nudge leaves behind.
  */
 export async function nudgeOutbox(): Promise<void> {
   const config = qstashConfig();
@@ -208,5 +231,5 @@ export async function nudgeOutbox(): Promise<void> {
     await nudgeViaQStash(config);
     return;
   }
-  if (!hostedRuntime()) await publishOutbox();
+  if (!hostedRuntime()) await publishOutbox({ budgetMs: LOCAL_NUDGE_BUDGET_MS });
 }

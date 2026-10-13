@@ -16,7 +16,7 @@ export { databaseOutboxSink, memoryOutboxSink } from './outbox/sink';
 export type { OutboxRecord, OutboxSink } from './outbox/sink';
 export { OUTBOX_BATCH_SIZE, OUTBOX_MAX_ATTEMPTS, runOutboxPublisher } from './outbox/publisher';
 export type { OutboxPublisherOptions } from './outbox/publisher';
-export { memoryEventPublisher } from './ports/event-publisher';
+export { deliveryDeduplicationId, memoryEventPublisher } from './ports/event-publisher';
 export { canonicalJson, inputHash } from './idempotency/hash';
 export { databaseIdempotencyStore, memoryIdempotencyStore } from './idempotency/store';
 export type { IdempotencyClaim, IdempotencyStore } from './idempotency/store';
@@ -207,6 +207,13 @@ export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
+export {
+  JOB_RUN_LIMIT_MINUTES,
+  readScheduledJobs,
+  scheduledJobHealth,
+  scheduleEveryHours,
+} from './queries/platform/scheduled-jobs';
+export type { ScheduledJobReport, ScheduledJobRow } from './queries/platform/scheduled-jobs';
 export type { OutboxHealth } from './queries/platform/outbox-health';
 export { ENTITY_COLUMNS, toEntityDto } from './queries/org/entity-dto';
 export type { EntityRow } from './queries/org/entity-dto';
@@ -236,7 +243,9 @@ export {
   accountSalesOrders,
   getSalesOrder,
   listSalesOrders,
+  orderSearchQuery,
   salesOrderListQuery,
+  searchSalesOrders,
 } from './queries/sales/list-orders';
 export { loadSalesOrderBuilder, previewSalesOrder } from './queries/sales/order-facts';
 export {
@@ -523,6 +532,7 @@ export {
   rejectInboxItem,
 } from './commands/agents/inbox';
 export { routeEnquiry } from './commands/crm/route-enquiry';
+export { takeEnquiry } from './commands/crm/take-enquiry';
 export { notifyEvent, recordPush, scanNotices } from './commands/notifications/notify';
 export {
   markAllNoticesRead,

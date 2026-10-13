@@ -300,6 +300,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // The platform's nightly anonymisation of old unqualified leads; no person's role holds it
   // (SECURITY §3.3).
   'crm.retention.run': {},
+  'platform.jobs.check': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

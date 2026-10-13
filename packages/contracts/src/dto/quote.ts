@@ -248,6 +248,8 @@ export const QuoteExpiryBatchDto = z
   .object({
     entityId: EntityIdSchema,
     expired: z.number().int().min(0),
+    /** Quotes a check refused to change (an older row breaking a check added later), left as they are. */
+    skipped: z.number().int().min(0),
     nextAfterId: IdSchema.nullable(),
   })
   .strict();

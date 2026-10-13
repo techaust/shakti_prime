@@ -481,10 +481,12 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
     );
   }
 
-  // One row per changed aggregate, or one row for the call when the handler named none.
+  // One row per changed aggregate, or one row for the call when the handler named none, unless
+  // the command records only what changed (a scheduled scan that found nothing).
   const base = auditBase(context.principal, command.name, context.requestId, options.client);
   const input = auditedInput(command, parsed.data);
-  const rows: Partial<AuditChange>[] = changes.length > 0 ? changes : [{}];
+  const rows: Partial<AuditChange>[] =
+    changes.length > 0 ? changes : command.auditWhen === 'changed' ? [] : [{}];
   const records: AuditRecord[] = rows.map((change) => ({
     ...base,
     outcome: 'ok',

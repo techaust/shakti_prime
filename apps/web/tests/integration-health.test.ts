@@ -26,6 +26,7 @@ vi.mock('../src/auth/current-principal', () => ({
   ACTIVE_ENTITY_COOKIE: 'entity',
   TWO_FACTOR_PENDING_COOKIE: 'shakti.two_factor',
   currentPrincipal: () => Promise.resolve(request.principal),
+  currentPrincipalQuietly: () => Promise.resolve(request.principal),
   currentSession: () => Promise.resolve(undefined),
   forgetPrincipal: () => Promise.resolve(),
 }));
@@ -93,6 +94,14 @@ describe('GET /api/v1/admin/integrations (docs/06-api.md §3.7)', () => {
       body.outbox.byType.find((t) => t.type === 'admin.user.reactivated')?.deadLettered,
     ).toBeGreaterThanOrEqual(1);
     expect(body.webhooks).toEqual([]);
+    // Every scheduled job of the database, by its state, never with an error's text (DATA-3).
+    expect(body.jobs.map((j) => j.job)).toEqual([
+      'activities-partitions',
+      'audit-logs-detach',
+      'audit-logs-partitions',
+      'idempotency-keys-purge',
+      'outbox-events-purge',
+    ]);
     // The agents' spend, from their runs; the suites' own runs may be in it.
     expect(body.aiSpend.today).toMatch(/^\d+\.\d{2}$/);
     expect(body.aiSpend.monthToDate).toMatch(/^\d+\.\d{2}$/);

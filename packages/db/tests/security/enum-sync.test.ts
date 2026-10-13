@@ -67,10 +67,11 @@ import {
   KNOWLEDGE_SOURCE_TYPES,
   LEAD_RETENTION_KEPT_REASONS,
   USER_STATUSES,
+  newId,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
-import { asMigrator, closeDb, withoutContext } from '../../src/testing/index';
+import { asMigrator, closeDb, createTestPrincipal, withoutContext } from '../../src/testing/index';
 
 afterAll(closeDb);
 
@@ -138,6 +139,8 @@ const PAIRS: Record<string, readonly string[]> = {
   quotes_state_check: QuoteStateSchema.options,
   quotes_scheme_check: SubsidySchemeSchema.options,
   quotes_supply_kind_check: SupplyKindSchema.options,
+  // The GST split names each kind of supply once (audit 2026-10, DATA-7).
+  quotes_gst_split_check: SupplyKindSchema.options,
   // Only a withdrawn quote carries the reason it was withdrawn.
   quotes_withdrawn_reason_check: QuoteStateSchema.extract(['withdrawn']).options,
   quote_lines_unit_check: ItemUnitSchema.options,
@@ -146,6 +149,7 @@ const PAIRS: Record<string, readonly string[]> = {
   quotes_acceptance_check: ['accepted', 'signed_upload'],
   sales_orders_state_check: SalesOrderStateSchema.options,
   sales_orders_supply_kind_check: SupplyKindSchema.options,
+  sales_orders_gst_split_check: SupplyKindSchema.options,
   // A draft is not confirmed; every state past it but a cancel keeps when it was.
   sales_orders_confirmed_check: SalesOrderStateSchema.exclude(['cancelled']).options,
   sales_orders_credit_hold_check: CreditHoldReasonSchema.options,
@@ -226,11 +230,17 @@ describe('value ranges the database holds (AUDIT L3)', () => {
   });
 
   it('a site point is on the globe', async () => {
+    // A customer of this test's own, so the check is reached on a database no other file has used.
+    const owner = await createTestPrincipal('tele_caller_cc', [1]);
+    const account = newId();
+    await asMigrator(
+      (m) => m`insert into accounts (id, type, name, created_by)
+        values (${account}, 'farm', 'globe check', ${owner.id})`,
+    );
     await expect(
       asMigrator(
         (m) => m`insert into customer_sites (id, account_id, type, lat, lng, created_by)
-          select '01990000-0000-7000-8000-0000000e1703', a.id, 'borewell', 95.0, 75.0, a.created_by
-            from accounts a limit 1`,
+          values ('01990000-0000-7000-8000-0000000e1703', ${account}, 'borewell', 95.0, 75.0, ${owner.id})`,
       ),
     ).rejects.toMatchObject({ constraint_name: 'customer_sites_point_check' });
   });

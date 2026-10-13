@@ -234,6 +234,13 @@ describe('monthly partitions (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.
       (m) => m<{ n: number }[]>`select app.ensure_audit_partitions(3) as n`,
     );
     expect(again?.n).toBe(0);
+    // Each run is recorded, with the months that failed.
+    const [run] = await asMigrator(
+      (m) => m<{ rows_affected: number; error: string | null; finished: boolean }[]>`
+        select rows_affected, error, finished_at is not null as finished from retention_runs
+         where job = 'audit-logs-partitions' order by started_at desc limit 1`,
+    );
+    expect(run).toEqual({ rows_affected: 0, error: null, finished: true });
     expect(
       await failure(
         asPrincipal(principalFor('executive'), ({ tx }) =>
@@ -243,14 +250,69 @@ describe('monthly partitions (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.
     ).toMatch(/permission denied/);
   });
 
-  it('keeps the partitions coming every month', async () => {
+  it('makes the other months when one fails, and records the failed month', async () => {
+    const now = new Date();
+    const monthName = (ahead: number) => {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + ahead, 1));
+      return `audit_logs_${d.getUTCFullYear()}_${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    };
+    const fifth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 5, 15));
+    // In one transaction, rolled back: a row of the fifth month ahead waits in the default
+    // partition, so that month's partition cannot be made; the fourth and sixth still are.
+    const rollback = new Error('roll back');
+    let seen:
+      | {
+          made: number;
+          parts: string[];
+          run: { rows_affected: number; error: string | null; finished: boolean } | undefined;
+        }
+      | undefined;
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`
+          insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command, outcome, created_at)
+          values (${newId()}, 1, ${actor.id}, 'user', ${TAG}, 'ok', ${fifth.toISOString()})`;
+        const [made] = await tx<{ n: number }[]>`select app.ensure_audit_partitions(6) as n`;
+        const parts = await tx<{ name: string }[]>`
+          select c.relname as name from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'audit_partitions'`;
+        const [run] = await tx<
+          { rows_affected: number; error: string | null; finished: boolean }[]
+        >`select rows_affected, error, finished_at is not null as finished from retention_runs
+           where job = 'audit-logs-partitions' order by started_at desc limit 1`;
+        seen = { made: made?.n ?? -1, parts: parts.map((p) => p.name), run };
+        throw rollback;
+      }),
+    ).catch((e: unknown) => {
+      if (e !== rollback) throw e;
+    });
+    expect(seen?.made).toBe(2);
+    expect(seen?.parts).toEqual(expect.arrayContaining([monthName(4), monthName(6)]));
+    expect(seen?.parts).not.toContain(monthName(5));
+    expect(seen?.run).toMatchObject({ rows_affected: 2, finished: true });
+    expect(seen?.run?.error).toMatch(new RegExp(`^${monthName(5)}: `));
+    // Nothing of it stayed.
+    const kept = await asMigrator(
+      (m) => m<{ name: string }[]>`
+        select c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = 'audit_partitions' and c.relname = any(${[4, 5, 6].map(monthName)})`,
+    );
+    expect(kept).toEqual([]);
+  });
+
+  it('keeps the partitions coming every day', async () => {
     const jobs = await asMigrator(
       (m) => m<{ schedule: string; command: string }[]>`
         select schedule, command from cron.job where jobname = 'audit-logs-partitions'
       `,
     );
     expect(jobs).toEqual([
-      { schedule: '0 3 25 * *', command: 'select app.ensure_audit_partitions(3)' },
+      {
+        schedule: '0 3 * * *',
+        command:
+          "set lock_timeout = '5s'; set statement_timeout = '2min'; select app.ensure_audit_partitions(3)",
+      },
     ]);
   });
 });
