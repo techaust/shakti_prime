@@ -244,6 +244,76 @@ Reviewer: slice-reviewer (Opus 5.5), 13-10-2026, on `de83903d` against `origin/m
 
 **For the integration:** the slice also redefines `app.activities_append_only()` and `app.agent_actions_append_only()`. Check both against `main`'s latest at the merge, as well as `app.platform_only_permissions()`. `fix/followups-db` touches none of the three.
 
+### Second review, of the fix round
+Reviewer: slice-reviewer (Opus 5.5), 13-10-2026, on `7dccb4f5` against `origin/main` at 16ee04ac (#168). Findings: 1 high, 2 medium, 5 low. Rows 1, 3, 4 and 6 to 13 are fixed. Rows 2 and 5 are fixed only in part (rows 14 and 16).
+
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 14 | High | *Confirmed.* **Two kinds of audit row about the person are not blanked, so row 2 is fixed only in part.** The finders (`0131:645-662`) and the exception in `app.audit_logs_append_only()` (`0131:388-390`) reach a row in two ways: by its record, for 11 aggregate types, or by an `accountId` or `opportunityId` at the top of its input. (a) `agents.run.record` puts the Triage agent's proposal into the input of two audit rows, `agent_run` and `agent_action`. The proposal holds the agent's free-text `note` (`TriageNoteSchema`, up to 160 characters, written by the model from the lead and checked only for phone numbers, identity numbers and instructions), and the lead sits at `proposal.input.opportunityId`. Triage runs for every lead made through a form. (b) A refused call writes a row with no record and the redacted input (`execute.ts:136-143`). Every walk-in that becomes routed work because a colleague holds the customer starts with a refused `crm.lead.create` (`takeEnquiry`, `apps/web/src/actions/crm.ts:124`). Its input holds the contact's name, the site's village and the phone's last four digits, and names the customer only as `existingAccountId`, or not at all. Reproduced on 54331 in a rolled-back transaction: customer `01a132b0-f606-…` of company 4 was aged 30 months and `app.anonymise_stale_leads(4, 24, …)` was called with the workers' settings. The lead's `crm.lead.create` and `crm.opportunity.assign` rows read "removed", and the note left `agent_actions`, but both `agents.run.record` rows still read "Pump enquiry from a farm.". The slot also holds 25 refused `crm.lead.create` rows with `contact.name` and the last four digits, and none has an `accountId`. The Activity log shows `input`. This goes against the owner's decision of 13-10-2026, DATABASE §4.1 and FIN-2 ("everywhere, the history of changes included"). Neither completeness test runs the Triage worker or a refused create. Fix: the finder and the trigger also match `input_json #>> '{proposal,input,opportunityId}'` and `input_json ->> 'existingAccountId'`, each on an expression index like the two already added. For a refusal that names no customer (a create by phone alone), either record no contact details on `crm.lead.create`'s refusal row, or state the gap in the decision row and FIN-2. Add a Triage run and a routed walk-in to `lead-anonymise-complete.test.ts`. | Open |
+| 15 | Medium | *Confirmed.* **Archiving or reordering a stage changes which leads count as having reached Qualified, and those leads are then kept for good.** The history branch of `app.lead_reached_qualified()` (`0131:35-41`) compares each stage's position today. `crm.stage.archive` moves an archived stage after every live one, won and lost included (`pipeline-settings.ts:157-164`). Only New, Qualified and Quoted are protected (`packages/contracts/src/crm/enums.ts:92`). Reproduced in a rolled-back transaction: for a lead lost from Contacted, the function answers false. Once Contacted is archived and renumbered as the command does it, it answers true, and so does `app.lead_kept()`. The next night therefore marks `retention_kept_at` on every lead that ever passed through the archived stage, and the mark is never cleared. `crm.stage.reorder` re-judges past moves the same way, in both directions. Fix: record the fact when it happens. For example, add `qualified_at` on the lead, stamped by `crm.opportunity.move` when the lead reaches an open stage at or after Qualified and filled from the history by the migration, and judge by it. Leaving archived stages out of the comparison alone would turn a later stage, once archived, into a reason to anonymise. | Open |
+| 16 | Medium | *Confirmed* (code path read end to end; the fixture `otherCompany` asserts it). **Row 5 is fixed only in part: a customer known to a second company, or in a merge that stands, is never anonymised, and neither is any of its leads.** `app.customer_idle()` (`0131:122-127`) refuses such a customer even when every one of its leads, in every company, is idle, never qualified and has no quote, order or commission. The leads are not marked kept either, so the window looks at them again every night. This misses the customers the companies share (ADR 0008; the cutover's customer files come one per company) and the kept customer of every confirmed duplicate. The brief keeps the account when another company uses it, but the lead's own details still go. Fix: when another company or a standing merge keeps the customer, still clear the lead's own text (campaign fields, its tasks' titles, its notes and proposals, and its audit rows found by `opportunityId`). Or anonymise the customer once its leads in every company are stale. Otherwise, record the rule in DECISIONS and state it in FIN-2. | Open |
+| 17 | Low | *Confirmed.* **The "kept for good" mark can outlive its reason.** `app.lead_kept()` reads the customer's type, which `crm.account.update` can change from dealer or referral partner back to household, farm or business (`customer.ts:86-130`). `crm.customer.unmerge` takes a lead back from a customer whose quote or order kept it. `retention_kept_at` is never cleared, and the window passes marked leads by (`0131:228`). Reproduced: after the fixture's `dealer` customer is changed to farm, its lead stays marked and `app.stale_leads()` never returns it. Fix: mark only for reasons that cannot be undone (won, a quote, order, commission or dealer credit), and judge the type and merges each night. Or clear the mark when the type changes or a merge is undone. | Open |
+| 18 | Low | **The way the production rehearsal is put back is not fully written** (`docs/runbooks/cutover.md:44`). The runbook cites "the restore drill's steps 1 to 3 on production itself", but step 1 of DATABASE §10 restores into a new scratch project. It does not describe the restore of production itself: who in the Supabase organisation runs it, that production is offline meanwhile, and that it cannot be undone. Nothing keeps production unchanged between the restore point and the restore, so a setup change made that day is lost without notice. During the rehearsal, **Move all leads** sends callers notices about leads that then disappear. The runbook also does not say where the real files are kept while their anonymised copies are made, or when they are deleted. The rest holds: no real file goes to staging, and the counts are read before and after, company by company. Fix: write out the restore of production itself, add a freeze on production from the restore point to the restore, and say where the real files are kept and when they are deleted. | Open |
+| 19 | Low | **FIN-2 tells the CA that "leads with no sale" are anonymised** (`docs/13-client-packs/workshop-pack.md:263`). Several kinds of lead with no sale are kept: a lead that reached Qualified, a dealer's or referral partner's lead, and a lead whose customer is in a second company or a standing merge. The CA confirms the period against this sentence. Fix: state the rule in plain words, as DATABASE §4.1 does. | Open |
+| 20 | Low | *Confirmed.* **The two-session test can pass without testing the wait** (`packages/db/tests/security/lead-anonymise.test.ts:907-911`). It sleeps 500 ms, then lets the job commit. If the write's connection only starts after the commit, the write is refused without having waited, and the test passes all the same. Fix: before letting the job commit, poll `pg_stat_activity` until the write's backend waits on a lock. | Open |
+| 21 | Low | *Confirmed.* **The new shared reason is outside the catalogue test.** `apps/web/src/errors-catalogue.test.ts:54-55` checks `RUNNER_REASONS` and each command's `constraintReasons`, but not `SHARED_CONSTRAINT_REASONS` (`packages/domain/src/command/run-command.ts:233`, which the package does not export). A shared reason added later could be missing from `en.json` without a failing test. Fix: export the map and add its values to the test's list. | Open |
+
+**Checked and found sound**
+- **The scope table and the three exceptions:**
+  - No request role has a grant on `app.lead_anonymise_scope`.
+  - `pg_proc` shows `app.anonymise_stale_leads()` as its only writer, and no definer that runs dynamic SQL.
+  - Every `continue` comes before the scope's insert. The scope is emptied for each customer, and a failed block takes it back.
+  - Only the owner may update `audit_logs`: `app_user` holds select and insert, and `auth_service` insert. The anonymiser is the only definer that updates it.
+  - `app.in_lead_anonymise_scope()` is executable by `app_user` (the default privileges of schema `app`), but it answers only for the caller's own transaction.
+- **The four redefined functions against `origin/main` at 16ee04ac:**
+  - `app.platform_only_permissions()` keeps 0125's eight keys.
+  - `app.activities_append_only()` keeps 0113's merge clause.
+  - `app.agent_actions_append_only()` keeps 0108's rule.
+  - `app.audit_logs_append_only()` adds only the one exception to 0033's refusal of every change.
+  - `app.opportunities_set_updated_at()` keeps 0100's rule.
+  - `main`'s 0130 to 0133 redefine none of them. 0133 makes its partitions `partition of public.audit_logs`, so they take the trigger that 0131, renumbered after it, makes again. 0132 changes only `commission_accruals.measure`.
+- **The slot database matches the committed 0131.** The md5 of every function body equals the file's, and the eight refusal triggers, the audit trigger on the table and its partitions, and the seven indexes are present.
+- **The refusal of writes:**
+  - `account_id` is not null on all eight tables.
+  - The trigger reads the customer `for key share`, which waits for the job's `for update` and then reads its result.
+  - The customer edits take `app.hold_customer()` first, so the job's `skip locked` passes over a customer being edited.
+  - The two-session test uses two connections.
+- **Reached Qualified, through every writer of a stage:**
+  - A new lead starts at the first open stage.
+  - A move writes `stage_moved` with `toStageId`.
+  - Reopening goes to the first stage.
+  - The hand-over definer refuses a stage change.
+  - No command moves a lead to another pipeline.
+  - Qualified cannot be archived.
+- **The hand-over:**
+  - The company and the cursor travel in the body that QStash signs. The route verifies it with its own address (Upstash `Receiver`, `clockTolerance: 5`), so forging a hand-over needs the signing keys.
+  - A replay within the token's life runs an idempotent range again, and each customer is checked again under lock.
+  - After a hand-over the worker goes on to the later companies.
+- **Completeness, apart from row 14:**
+  - Every text, JSON and array column of the customer, lead and person tables is covered.
+  - Timeline payloads on the slot hold codes only.
+  - No foreign key points at `contact_phones` or `activities`, and no trigger copies customer rows to another schema.
+  - Audit partitions are detached only after 8 years.
+  - The files bucket expires earlier versions after a day.
+  - `app.recheck_site_pins()` skips archived sites.
+- **The cutover runbook:**
+  - No real file goes to staging.
+  - The production rehearsal is put back and then checked by counts per company.
+  - The runbook's screen words are the catalogue's.
+  - Imported leads do not start Triage, so the rehearsal calls no model.
+- **Tests run on 54331, through the lock:**
+  - db `lead-anonymise.test.ts`: 19 passed.
+  - domain `lead-anonymise.test.ts`, `lead-anonymise-complete.test.ts` and `import-reconciliation.test.ts`: 7 passed.
+  - web `tests/lead-anonymise.test.ts`: 9 passed.
+
+**Not checked**
+- 0130 and 0131 applied on a fresh database. The slot's were applied by hand; the integration shows it.
+- The full security suite, the journeys, the build and the lint.
+- How long the eligibility checks take since the fix round added the stage history, the kept checks for every lead of the customer, and the inbox and proposal lookups. The report repeats the earlier 125 ms; only one lookup's plan was read here (the timeline's lead index, partition by partition).
+- The layout of "What happened to each row", which has no baseline yet.
+
+**Out of scope, noted:** the uploaded import file's bytes and the import's refused rows still hold personal details (the privacy batch, audit SEC-1).
+
 ## Integration notes
 - Migrations from 0130 move after `main`'s last one at the merge; `app.platform_only_permissions()` is redefined: check it against `main`'s latest definition.
 - The nightly anonymisation schedule on dev and staging is made by the owner after the merge (QStash is on the PC's tools).
