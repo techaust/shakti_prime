@@ -66,10 +66,11 @@ import {
   KNOWLEDGE_SENSITIVITIES,
   KNOWLEDGE_SOURCE_TYPES,
   USER_STATUSES,
+  newId,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
-import { asMigrator, closeDb, withoutContext } from '../../src/testing/index';
+import { asMigrator, closeDb, createTestPrincipal, withoutContext } from '../../src/testing/index';
 
 afterAll(closeDb);
 
@@ -224,11 +225,17 @@ describe('value ranges the database holds (AUDIT L3)', () => {
   });
 
   it('a site point is on the globe', async () => {
+    // A customer of this test's own, so the check is reached on a database no other file has used.
+    const owner = await createTestPrincipal('tele_caller_cc', [1]);
+    const account = newId();
+    await asMigrator(
+      (m) => m`insert into accounts (id, type, name, created_by)
+        values (${account}, 'farm', 'globe check', ${owner.id})`,
+    );
     await expect(
       asMigrator(
         (m) => m`insert into customer_sites (id, account_id, type, lat, lng, created_by)
-          select '01990000-0000-7000-8000-0000000e1703', a.id, 'borewell', 95.0, 75.0, a.created_by
-            from accounts a limit 1`,
+          values ('01990000-0000-7000-8000-0000000e1703', ${account}, 'borewell', 95.0, 75.0, ${owner.id})`,
       ),
     ).rejects.toMatchObject({ constraint_name: 'customer_sites_point_check' });
   });
