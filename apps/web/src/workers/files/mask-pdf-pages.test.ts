@@ -175,9 +175,10 @@ describe('masking a vault PDF one page per delivery', () => {
     const first = await pdfOf(['One']);
     const second = await pdfOf(['Two']);
     const order: string[] = [];
-    const shared = queuedMasker(150, order);
-    // The mask limit is shorter than the two masks together, but longer than one.
-    const limits = { startMs: 5_000, maskMs: 250, turnMs: 5_000 };
+    const shared = queuedMasker(1_000, order);
+    // The mask limit is shorter than the two masks together (over 2 s), but longer than one, with
+    // 600 ms left for the masking work itself on a slow or busy runner.
+    const limits = { startMs: 10_000, maskMs: 1_600, turnMs: 10_000 };
     const a = setup(shared, { limits });
     const b = setup(shared, { limits });
     const [one, two] = await Promise.all([
