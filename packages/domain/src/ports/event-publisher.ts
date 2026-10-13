@@ -5,8 +5,7 @@ import type { DeliveredEvent } from '@shakti/contracts';
  * says the queue already held a message under the same deduplication id and sent nothing now.
  */
 export type PublishResult =
-  | { id: string; ok: true; deduplicated?: boolean }
-  | { id: string; ok: false; error: string };
+  { id: string; ok: true; deduplicated?: boolean } | { id: string; ok: false; error: string };
 
 /**
  * Hands events to the queue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2). QStash implements it in

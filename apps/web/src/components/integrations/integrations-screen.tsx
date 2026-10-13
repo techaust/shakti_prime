@@ -421,7 +421,11 @@ function ScheduledUpkeep({ jobs }: { jobs: readonly ScheduledJobHealth[] }) {
         </span>
       ),
     },
-    { id: 'runs', header: t('columns.runs'), cell: (r) => t('jobs.every', { hours: r.everyHours }) },
+    {
+      id: 'runs',
+      header: t('columns.runs'),
+      cell: (r) => t('jobs.every', { hours: r.everyHours }),
+    },
   ];
   return (
     <section aria-labelledby="integrations-jobs" className="flex flex-col gap-3">

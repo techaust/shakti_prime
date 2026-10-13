@@ -81,12 +81,19 @@ describe('the GST split of quotes and orders (audit 2026-10, DATA-7)', () => {
           `create temp table split (supply_kind text, cgst numeric(14,2), sgst numeric(14,2),
                                     igst numeric(14,2)) on commit drop`,
         );
-        await tx.unsafe(`alter table split add constraint ${name} ${found?.def ?? 'CHECK (false)'}`);
+        await tx.unsafe(
+          `alter table split add constraint ${name} ${found?.def ?? 'CHECK (false)'}`,
+        );
         const answers: string[] = [];
         for (const [supply, cgst, sgst, igst] of cases[kind]) {
           await tx.unsafe('savepoint row');
           try {
-            await tx.unsafe('insert into split values ($1, $2, $3, $4)', [supply, cgst, sgst, igst]);
+            await tx.unsafe('insert into split values ($1, $2, $3, $4)', [
+              supply,
+              cgst,
+              sgst,
+              igst,
+            ]);
             answers.push('ok');
           } catch (e) {
             await tx.unsafe('rollback to savepoint row');

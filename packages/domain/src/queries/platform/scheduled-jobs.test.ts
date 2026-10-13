@@ -103,12 +103,12 @@ describe('scheduledJobHealth (audit 2026-10, DATA-3)', () => {
     expect(state(row({ ...unfinished, runStartedAt: started(10) }))).toBe('running');
     expect(state(row({ ...unfinished, runStartedAt: started(31) }))).toBe('stuck');
     // A partition maker has a two-minute statement limit, so three minutes is its most.
-    expect(
-      state(row({ ...unfinished, runStartedAt: started(4) }), 'activities-partitions'),
-    ).toBe('stuck');
-    expect(
-      state(row({ ...unfinished, runStartedAt: started(2) }), 'activities-partitions'),
-    ).toBe('running');
+    expect(state(row({ ...unfinished, runStartedAt: started(4) }), 'activities-partitions')).toBe(
+      'stuck',
+    );
+    expect(state(row({ ...unfinished, runStartedAt: started(2) }), 'activities-partitions')).toBe(
+      'running',
+    );
     // Stuck for days is still stuck, not late: its run never ended.
     expect(state(row({ ...unfinished, runStartedAt: started(5 * 24 * 60) }))).toBe('stuck');
   });

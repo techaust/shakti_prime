@@ -68,7 +68,7 @@ describe('error lines reach Sentry (audit 2026-10, OPS-3)', () => {
     expect(next.after).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps only the frame lines of a stack, so a failed query\'s second line never reaches Sentry (review M1)', async () => {
+  it("keeps only the frame lines of a stack, so a failed query's second line never reaches Sentry (review M1)", async () => {
     quiet();
     vi.stubEnv('SENTRY_DSN', DSN);
     // As drizzle-orm writes a failed query: the SQL, then the parameters, on lines of their own.

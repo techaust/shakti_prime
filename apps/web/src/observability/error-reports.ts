@@ -6,10 +6,7 @@ import { ALERT_NAMES, SENTRY_FLUSH_MS } from './sentry-on';
  * Error lines Sentry already receives another way, so they are not sent twice: the alerts
  * (`sentryAlertSink`) and the errors no request handled (`onRequestError`).
  */
-const REPORTED_ELSEWHERE: ReadonlySet<string> = new Set<string>([
-  ...ALERT_NAMES,
-  'request.failed',
-]);
+const REPORTED_ELSEWHERE: ReadonlySet<string> = new Set<string>([...ALERT_NAMES, 'request.failed']);
 
 /** Sends still on their way, so a caller outside a request can wait for them. */
 const pending = new Set<Promise<void>>();

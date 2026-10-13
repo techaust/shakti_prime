@@ -262,7 +262,10 @@ export const salesOrderLines = pgTable(
       sql`${t.unitPrice} >= 0 and ${t.taxableValue} >= 0 and ${t.cgst} >= 0 and ${t.sgst} >= 0 and ${t.igst} >= 0 and ${t.lineTotal} = ${t.taxableValue} + ${t.cgst} + ${t.sgst} + ${t.igst}`,
     ),
     // A line's GST is CGST and SGST or IGST, never both (DATA-7); its header names which.
-    check('sales_order_lines_gst_split_check', sql`${t.igst} = 0 or (${t.cgst} = 0 and ${t.sgst} = 0)`),
+    check(
+      'sales_order_lines_gst_split_check',
+      sql`${t.igst} = 0 or (${t.cgst} = 0 and ${t.sgst} = 0)`,
+    ),
     index('sales_order_lines_item_idx').on(t.itemId),
     index('sales_order_lines_kit_idx').on(t.kitId),
   ],

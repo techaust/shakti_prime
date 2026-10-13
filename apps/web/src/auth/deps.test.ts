@@ -68,9 +68,7 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
   it('refuses production without SES', () => {
     expect(
       productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT: 'production', SENTRY_DSN: DSN }),
-    ).toEqual([
-      'MAILER=log is not a mail provider; production needs ses',
-    ]);
+    ).toEqual(['MAILER=log is not a mail provider; production needs ses']);
   });
 
   it('accepts SES from its verified sender, in production and elsewhere', () => {

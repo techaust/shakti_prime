@@ -82,7 +82,13 @@ describe('runOutboxPublisher', () => {
 
   it('marks an imported lead as delivered without sending it: no worker acts on it', async () => {
     const imported = row({
-      payload: { v: 1, pipelineKey: 'pump', sourceCode: null, existingAccount: false, imported: true },
+      payload: {
+        v: 1,
+        pipelineKey: 'pump',
+        sourceCode: null,
+        existingAccount: false,
+        imported: true,
+      },
     });
     const fresh = row();
     const { claim, seen } = claimOf([imported, fresh]);

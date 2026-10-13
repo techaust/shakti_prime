@@ -31,7 +31,9 @@ function rewrittenChecks(sql: string): { name: string; notValid: boolean }[] {
 describe('the migrations keep the deploy short (audit 2026-10, DATA-5)', () => {
   it('add a check they drop and add again NOT VALID: a widening needs no scan, a change is validated after the deploy', () => {
     const offending: string[] = [];
-    for (const file of readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort()) {
+    for (const file of readdirSync(migrations)
+      .filter((f) => f.endsWith('.sql'))
+      .sort()) {
       const tag = file.replace(/\.sql$/, '');
       if (Number(tag.slice(0, 4)) < RULE_FROM) continue;
       const sql = readFileSync(join(migrations, file), 'utf8');

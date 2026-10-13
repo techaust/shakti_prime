@@ -812,7 +812,9 @@ describe('sales.quote.expire (the daily job)', () => {
                           tax_total = tax_total + ${sign}, grand_total = grand_total + ${sign}
                     where id = ${bad.id}`;
           const def = (check?.def ?? 'CHECK (false)').replace(/\s+NOT VALID$/, '');
-          await tx.unsafe(`alter table quotes add constraint quotes_gst_split_check ${def} not valid`);
+          await tx.unsafe(
+            `alter table quotes add constraint quotes_gst_split_check ${def} not valid`,
+          );
         }),
       );
     await breakSplit(1);

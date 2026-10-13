@@ -66,7 +66,10 @@ function run() {
 
 /** The deduplication ids this event was sent under, in order. */
 function sentUnder(id: string): string[] {
-  return queue.batches.flat().filter((m) => m.body.id === id).map((m) => m.deduplicationId);
+  return queue.batches
+    .flat()
+    .filter((m) => m.body.id === id)
+    .map((m) => m.deduplicationId);
 }
 
 async function row(id: string) {

@@ -103,7 +103,7 @@ describe('scrubEvent (docs/03-roadmap-appendix/phase1.md §5.2)', () => {
     );
   });
 
-  it('scrubs a frame\'s file, function and module text as any other text (review M1)', () => {
+  it("scrubs a frame's file, function and module text as any other text (review M1)", () => {
     // A stack line holding a message part becomes a frame whose names carry that text.
     const event = scrubEvent({
       exception: {

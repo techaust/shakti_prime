@@ -732,7 +732,8 @@ describe('a worker QStash gave up on turns its event back into a dead letter (00
     expect(await rowAsPublisher(id)).toMatchObject({ published_at: null, dead_lettered_at: null });
     // Once the run records it delivered, the callback QStash sends again holds it back.
     await asOutboxPublisher(
-      (p) => p`update outbox_events set published_at = now(), claimed_until = null where id = ${id}`,
+      (p) =>
+        p`update outbox_events set published_at = now(), claimed_until = null where id = ${id}`,
     );
     expect(await holdBackFailedEvent(id, 'worker_refused')).toBe('held');
     // A run that sent it and died: its lease has lapsed and no run has claimed it again yet. The
@@ -743,9 +744,13 @@ describe('a worker QStash gave up on turns its event back into a dead letter (00
                 where id = ${lapsed}`,
     );
     expect(await holdBackFailedEvent(lapsed, 'worker_failed')).toBe('leased');
-    expect(await rowAsPublisher(lapsed)).toMatchObject({ published_at: null, dead_lettered_at: null });
+    expect(await rowAsPublisher(lapsed)).toMatchObject({
+      published_at: null,
+      dead_lettered_at: null,
+    });
     await asOutboxPublisher(
-      (p) => p`update outbox_events set published_at = now(), claimed_until = null where id = ${lapsed}`,
+      (p) =>
+        p`update outbox_events set published_at = now(), claimed_until = null where id = ${lapsed}`,
     );
     expect(await holdBackFailedEvent(lapsed, 'worker_failed')).toBe('held');
   });

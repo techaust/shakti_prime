@@ -129,7 +129,7 @@ describe('GET /api/v1/health/ready', () => {
 });
 
 describe('the reader check (audit 2026-10, OPS-9)', () => {
-  it('asks the queries\' own pool when it is set, and is ok when the queries read on app_user', async () => {
+  it("asks the queries' own pool when it is set, and is ok when the queries read on app_user", async () => {
     expect(process.env.DATABASE_URL_READER).toBeTruthy();
     expect(await checkReaderReady()).toBe('ok');
     expect((await readiness.checkReadiness()).reader).toBe('ok');

@@ -15,7 +15,9 @@ describe('recordJobOutcome (audit 2026-10, OPS-3)', () => {
         scheduled: false,
       });
     }
-    expect(alerts.alerts).toEqual([{ name: 'job.failing', fields: { job: 'quote-expire', runs: 3 } }]);
+    expect(alerts.alerts).toEqual([
+      { name: 'job.failing', fields: { job: 'quote-expire', runs: 3 } },
+    ]);
   });
 
   it('starts the count again after a call that did its work, and keeps each job apart', async () => {
@@ -30,7 +32,9 @@ describe('recordJobOutcome (audit 2026-10, OPS-3)', () => {
     await recordJobOutcome('files-sweep', 'failed', options);
     expect(alerts.alerts).toEqual([]);
     await recordJobOutcome('files-sweep', 'failed', options);
-    expect(alerts.alerts).toEqual([{ name: 'job.failing', fields: { job: 'files-sweep', runs: 3 } }]);
+    expect(alerts.alerts).toEqual([
+      { name: 'job.failing', fields: { job: 'files-sweep', runs: 3 } },
+    ]);
   });
 
   it('checks the schedule’s calls in to the job’s monitor, ok or error, and no other call', async () => {
