@@ -78,7 +78,7 @@ Skills loaded: none of the listed ones applied (no table, no new command, no scr
 **Workflow changes, tested on sample payloads** (`scratchpad` scripts, not committed):
 - The merge rule extracted from `automerge.yml` with `yq`/Python and run with jq 1.7: 31 of 31 cases as wanted (up to date → merge; main moved → update; newer head, hold, draft, fork, base, closed, stranger; `.github/` file, `turbo.json` at the root and not nested, `vitest.config.ts`, `vitest.security.config.ts`, `vitest.config.mjs`, `playwright.config.ts`, a spec named playwright not a config, a rename out of `.github/`, more files than listed, with and without `checks-ok`; checks-ok with hold; Dependabot group, minor, major, a SHA-titled actions bump, an actions minor bump waiting for `checks-ok`).
 - The whole step run with bash against a stand-in `gh` (answers from scenario files, every call logged): 8 of 8 — merge with delete and CI on main; main moved → `update-branch` with `expected_head_sha`, waits for the new head, `gh workflow run ci.yml --ref fix/a`; a conflicting update → plain line and exit 1; a fork's same-named PR ignored; a workflow change without the label waits; a scheduled look over a failed run, a passed run with `checks-ok` (merged) and a run in progress; a dispatch for one PR; a dispatch with something other than a number refused.
-- *What changed* run in a scratch git repository: a `packages/x.ts` → `docs/x.ts` rename lists both paths and gives `code=true` (before: `docs/x.ts` only); documents only → `code=false`; a dispatch on a branch compares with `origin/main` the same way; push and dispatch on main → `code=true`.
+- *What changed* run in a scratch git repository: a module moved from `packages/` into `docs/` lists both paths and gives `code=true` (before: only its new path); documents only → `code=false`; a dispatch on a branch compares with `origin/main` the same way; push and dispatch on main → `code=true`.
 - Every workflow parses as YAML, every `uses:` is pinned by SHA, every `needs` exists. `actionlint` and `shellcheck` are not installed here, so neither ran.
 - **Not verifiable here:** GitHub's own behaviour — that `update-branch` by the workflow's token is allowed when `main`'s new commits change a workflow file (the token has no `workflows` scope; if refused, the run fails with the "take main into it by hand" line), that a dispatch run on the branch shows on the PR, and the schedule. The image digests were read from this VM's containerd store (the index blobs' own SHA-256, which matches their names; the gitleaks digest found there equals the one `ci.yml` already pins); confirm them with `docker buildx imagetools inspect` where the registry is reachable.
 
@@ -149,7 +149,7 @@ No critical or high finding. Three medium (two in the `checks-ok` rule, one in t
 - *Images:*
   - Pinned and equal in `ci.yml` (three), `compose.yaml` and `snap-in-linux.ts`, and held by `ci-images.test.ts`.
   - Both digests equal this VM's `docker image inspect` `RepoDigests`, recorded at pull.
-  - `tools/integration/lib.sh:63,68` still extract the references, digest included.
+  - `tools/integration/lib.sh` (lines 63 and 68) still extract the references, digest included.
 - *Command-layer fences:*
   - The lint probes hold. `executeCommand()` refuses a command that is not the registry's, and the registry test ties every exported command to that same object, so no web path breaks.
   - The way around them is #7.

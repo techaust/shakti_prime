@@ -6,20 +6,21 @@ name: Merge on green
 # runs nothing from the pull request; every value it reads reaches the shell through `env` or a
 # jq argument. GitHub runs this file from main only, so a change to it takes effect after it merges.
 #
-# A pull request merges only onto the main it was tested with (docs/09-testing.md §6): when main
+# A pull request merges only on the main it was tested with (docs/09-testing.md §6): when main
 # has moved since, its branch takes main by a merge commit and CI runs again on it. A commit made
 # with this workflow's token starts no `pull_request` run, so that run is started here by hand
-# (`workflow_dispatch` on the branch), and its success brings the pull request back here.
+# (`workflow_dispatch` on the branch); a head left with no CI run at all is given one at the next
+# look. Each look judges every open pull request, so a look dropped by the concurrency group costs
+# nothing: the next CI completion, the schedule or a look by hand makes the same decisions.
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-  # A pull request left open by a dropped pending run, or labelled `checks-ok` after its run, is
-  # looked at again four times a day; each look is one short job (GitHub's Actions minutes are
-  # limited per month).
+  # Twice a day, for a pull request labelled `checks-ok` after its run and anything a dropped look
+  # left; each look is one short job (GitHub's Actions minutes are limited per month).
   schedule:
-    - cron: '23 1,5,9,13 * * *'
-  # The owner looks at one pull request again at once, for example right after adding `checks-ok`
+    - cron: '23 1,9 * * *'
+  # The owner looks at one pull request at once, for example right after adding `checks-ok`
   # (`gh workflow run automerge.yml -f pull_request=<number>`); with no number, every open one.
   workflow_dispatch:
     inputs:
@@ -33,20 +34,15 @@ permissions: {}
 jobs:
   merge:
     name: Merge a green pull request
-    # A CI run counts when it passed on a branch of this repository other than main, started by a
-    # pull request or by this workflow after it took main into the branch.
+    # A CI run of this repository that passed, on a pull request's branch or on main (which may
+    # leave other pull requests behind it), starts a look; a failed one decides nothing.
     if: >-
       github.event_name != 'workflow_run' || (
         github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_repository.full_name == github.repository &&
-        github.event.workflow_run.head_branch != 'main' &&
-        (github.event.workflow_run.event == 'pull_request' ||
-         github.event.workflow_run.event == 'workflow_dispatch'))
+        github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # On the job, not the workflow, so only runs that decide something wait their turn: every CI
-    # completion starts this workflow, and a run whose job is skipped no longer queues (a newer
-    # pending run cancels an older pending one). The schedule picks up a decision dropped all the same.
+    # On the job, not the workflow, so only runs that decide something wait their turn.
     concurrency:
       group: merge-on-green
       cancel-in-progress: false
@@ -57,18 +53,18 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      EVENT: ${{ github.event_name }}
-      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
       ONE_PULL_REQUEST: ${{ inputs.pull_request }}
       # Judges one pull request against the commit CI passed on and answers `merge`, `update`
       # (main moved: take it into the branch and test again) or `skip: <why>`.
       # $pr: the pull request; $files: every path it adds, changes, removes or renames, from and to;
-      # $tested: the commit CI passed on; $behind: the commits of main that commit does not hold.
+      # $scripts: the package.json files whose `scripts` it changes; $tested: the commit CI passed
+      # on; $behind: the commits of main that commit does not hold.
       # Only the owner's pull requests and Dependabot's minor and patch bumps merge; a Dependabot
       # group is minor and patch by .github/dependabot.yml, a single bump needs the same major. A
-      # pull request that changes the checks themselves (.github/, turbo.json, a vitest or
-      # Playwright config) waits for the owner's `checks-ok` label (owner, 13-10-2026).
+      # pull request that changes the checks themselves waits for the owner's `checks-ok` label
+      # (owner, 13-10-2026): `checks_path` below, kept equal to the one in checks-ok-lapse.yml
+      # (apps/web/src/merge-workflows.test.ts), and the `scripts` of any package.json, so a
+      # dependency bump still merges on green.
       MERGE_RULE: |
         def major: ltrimstr("v") | split(".")[0];
         def same_major:
@@ -76,10 +72,17 @@ jobs:
           | any;
         def checks_path:
           test("^\\.github/")
-          or . == "turbo.json"
-          or test("(^|/)(vitest|playwright)(\\.[^/]+)?\\.config\\.[cm]?[jt]s$");
+          or test("(^|/)turbo\\.jsonc?$")
+          or test("(^|/)(vitest|playwright)(\\.[^/]+)?\\.config\\.[cm]?[jt]s$")
+          or test("(^|/)eslint\\.config\\.[cm]?[jt]s$")
+          or . == ".gitleaksignore"
+          or . == "pnpm-workspace.yaml"
+          or test("(^|/)js-budget\\.json$")
+          or test("(^|/)lighthouserc\\.json$");
         def labelled($name): any($pr.labels[]; .name == $name);
-        ([$files[] | .filename, (.previous_filename // empty)] | map(select(checks_path)) | unique) as $checks
+        ([$files[] | .filename, (.previous_filename // empty)] | map(select(checks_path)))
+          + [$scripts[] | "\(.) (scripts)"]
+        | unique as $checks
         | if $pr.state != "OPEN" then "skip: not open"
           elif $pr.isDraft then "skip: draft"
           elif $pr.baseRefName != "main" then "skip: base is \($pr.baseRefName), not main"
@@ -100,38 +103,69 @@ jobs:
           else "merge"
           end
     steps:
-      - name: Decide, then merge or test again
+      - name: Look at the open pull requests, then merge or test again
         run: |
           set -euo pipefail
           main_sha() { gh api "repos/${GH_REPO}/git/ref/heads/main" --jq .object.sha; }
           main=$(main_sha)
           status=0
+          say() { echo "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
 
-          # The commit the latest CI run of a pull request passed on: its head when that run
-          # succeeded (started by the pull request or by this workflow), or nothing.
-          passed_head() {
+          # The state of the latest CI run on a commit, started by a pull request or by this
+          # workflow: none, running, passed or failed.
+          run_state() {
             gh api "repos/${GH_REPO}/actions/workflows/ci.yml/runs?head_sha=$1&per_page=20" --jq \
               '[.workflow_runs[] | select(.event == "pull_request" or .event == "workflow_dispatch")]
-               | first // {} | if .status == "completed" and .conclusion == "success" then .head_sha else "" end'
+               | if length == 0 then "none"
+                 else first | if .status != "completed" then "running"
+                   elif .conclusion == "success" then "passed" else "failed" end
+                 end'
+          }
+
+          # The `scripts` of a package.json at a commit, or null where the file is not.
+          scripts_at() {
+            gh api "repos/${GH_REPO}/contents/$1?ref=$2" --jq .content 2> /dev/null \
+              | base64 -d | jq -c '.scripts // {}' || echo null
+          }
+
+          # Starts CI on a branch; a commit made with this workflow's token starts none itself.
+          start_ci() {
+            if gh workflow run ci.yml --ref "$1"; then
+              say "Started CI on $1; its success brings the pull request back here."
+            else
+              say "Could not start CI on $1; the next look starts it."
+              status=1
+            fi
           }
 
           judge() {
-            local number=$1 tested=$2 pr files behind decision branch head
+            local number=$1 tested=$2 pr files compared behind base path scripts decision branch head
             pr=$(gh pr view "$number" --json number,state,isDraft,baseRefName,isCrossRepository,labels,headRefOid,headRefName,author,title,changedFiles)
             files=$(gh api --paginate "repos/${GH_REPO}/pulls/${number}/files?per_page=100" \
               --jq '[.[] | {filename, previous_filename}]' | jq -s 'add // []')
-            behind=$(gh api "repos/${GH_REPO}/compare/${main}...${tested}" --jq .behind_by)
-            decision=$(jq -n -r --argjson pr "$pr" --argjson files "$files" --arg tested "$tested" \
-              --argjson behind "$behind" "$MERGE_RULE")
+            compared=$(gh api "repos/${GH_REPO}/compare/${main}...${tested}" \
+              --jq '{behind: .behind_by, base: .merge_base_commit.sha}')
+            behind=$(jq -r .behind <<< "$compared")
+            base=$(jq -r .base <<< "$compared")
+            scripts='[]'
+            while IFS= read -r path; do
+              [ -n "$path" ] || continue
+              if [ "$(scripts_at "$path" "$base")" != "$(scripts_at "$path" "$tested")" ]; then
+                scripts=$(jq -c --arg p "$path" '. + [$p]' <<< "$scripts")
+              fi
+            done < <(jq -r '[.[] | .filename, (.previous_filename // empty)]
+                            | map(select(test("(^|/)package\\.json$"))) | unique[]' <<< "$files")
+            decision=$(jq -n -r --argjson pr "$pr" --argjson files "$files" --argjson scripts "$scripts" \
+              --arg tested "$tested" --argjson behind "$behind" "$MERGE_RULE")
             branch=$(jq -r .headRefName <<< "$pr")
-            echo "Pull request ${number} on ${branch} at ${tested}: ${decision}" | tee -a "$GITHUB_STEP_SUMMARY"
+            say "Pull request ${number} on ${branch} at ${tested}: ${decision}"
             case "$decision" in
               merge)
                 gh pr merge "$number" --merge --match-head-commit "$tested"
                 gh api -X DELETE "repos/${GH_REPO}/git/refs/heads/${branch}"
                 # A merge made with this workflow's token starts no push run, so CI is started on main here.
                 gh workflow run ci.yml --ref main
-                echo "Merged, deleted ${branch} and started CI on main." | tee -a "$GITHUB_STEP_SUMMARY"
+                say "Merged, deleted ${branch} and started CI on main."
                 main=$(main_sha)
                 ;;
               update)
@@ -139,7 +173,7 @@ jobs:
                 # when someone pushed in the meantime. A conflict is left to a person.
                 if ! gh api -X PUT "repos/${GH_REPO}/pulls/${number}/update-branch" \
                   -f expected_head_sha="$tested" > /dev/null; then
-                  echo "Pull request ${number}: main moved and could not be taken into ${branch}; take main into it by hand." | tee -a "$GITHUB_STEP_SUMMARY"
+                  say "Pull request ${number}: main moved and could not be taken into ${branch}; take main into it by hand."
                   status=1
                   return
                 fi
@@ -150,44 +184,41 @@ jobs:
                   sleep 2
                 done
                 if [ "$head" = "$tested" ]; then
-                  echo "Pull request ${number}: ${branch} did not take main within a minute; the next look tries again." | tee -a "$GITHUB_STEP_SUMMARY"
+                  say "Pull request ${number}: ${branch} has not taken main within a minute; the next look finds its new head with no CI run and starts one."
                   status=1
                   return
                 fi
-                gh workflow run ci.yml --ref "$branch"
-                echo "Took main into ${branch} (now ${head}) and started CI on it; its success brings it back here." | tee -a "$GITHUB_STEP_SUMMARY"
+                say "Took main into ${branch} (now ${head})."
+                start_ci "$branch"
                 ;;
             esac
           }
 
-          if [ "$EVENT" = workflow_run ]; then
-            # The open pull requests of this repository from the tested branch (a fork's pull
-            # request with the same branch name is not one of them).
-            numbers=$(gh pr list --head "$HEAD_BRANCH" --state open --json number,isCrossRepository \
-              --jq '.[] | select(.isCrossRepository | not) | .number')
-            if [ -z "$numbers" ]; then
-              echo "No open pull request from ${HEAD_BRANCH} at ${HEAD_SHA}." | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -n "$ONE_PULL_REQUEST" ]; then
+            if ! [[ "$ONE_PULL_REQUEST" =~ ^[0-9]+$ ]]; then
+              echo "Name the pull request by its number, such as 172."
+              exit 1
             fi
-            for number in $numbers; do judge "$number" "$HEAD_SHA"; done
+            numbers=$ONE_PULL_REQUEST
           else
-            if [ -n "$ONE_PULL_REQUEST" ]; then
-              if ! [[ "$ONE_PULL_REQUEST" =~ ^[0-9]+$ ]]; then
-                echo "Name the pull request by its number, such as 172."
-                exit 1
-              fi
-              numbers=$ONE_PULL_REQUEST
-            else
-              numbers=$(gh pr list --state open --base main --json number,isCrossRepository,isDraft \
-                --jq '.[] | select((.isCrossRepository or .isDraft) | not) | .number')
-            fi
-            for number in $numbers; do
-              head=$(gh pr view "$number" --json headRefOid --jq .headRefOid)
-              tested=$(passed_head "$head")
-              if [ -z "$tested" ]; then
-                echo "Pull request ${number} at ${head}: skip: its latest CI run has not passed" | tee -a "$GITHUB_STEP_SUMMARY"
-                continue
-              fi
-              judge "$number" "$tested"
-            done
+            numbers=$(gh pr list --state open --base main --json number,isCrossRepository,isDraft \
+              --jq '.[] | select((.isCrossRepository or .isDraft) | not) | .number')
           fi
+          for number in $numbers; do
+            view=$(gh pr view "$number" --json headRefOid,headRefName,isCrossRepository,isDraft,state)
+            head=$(jq -r .headRefOid <<< "$view")
+            branch=$(jq -r .headRefName <<< "$view")
+            case "$(run_state "$head")" in
+              passed) judge "$number" "$head" ;;
+              running) say "Pull request ${number} at ${head}: skip: its CI run has not finished" ;;
+              failed) say "Pull request ${number} at ${head}: skip: its latest CI run did not pass" ;;
+              none)
+                # A head this workflow made (taking main in) whose CI did not start, or not yet.
+                if [ "$(jq -r '.state == "OPEN" and (.isCrossRepository or .isDraft | not)' <<< "$view")" = true ]; then
+                  say "Pull request ${number} at ${head}: no CI run on its head."
+                  start_ci "$branch"
+                fi
+                ;;
+            esac
+          done
           exit "$status"

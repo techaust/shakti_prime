@@ -17,44 +17,44 @@ const root = fileURLToPath(new URL('../../../../', import.meta.url));
 const SUITES = ['packages/domain/tests', 'packages/db/tests', 'apps/web/tests'];
 
 const REVIEWED: Record<string, string> = {
-  "catalogue.item.archive":
-    "Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts \"refuses a GM or an Inventory Manager acting for one company, in every command\".",
-  "catalogue.item.update":
-    "Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts \"refuses a GM or an Inventory Manager acting for one company, in every command\".",
-  "catalogue.kit.archive":
-    "Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts \"refuses a GM or an Inventory Manager acting for one company, in every command\".",
-  "catalogue.kit.create":
-    "Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts \"refuses a GM or an Inventory Manager acting for one company, in every command\".",
-  "catalogue.kit.update":
-    "Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts \"refuses a GM or an Inventory Manager acting for one company, in every command\".",
-  "catalogue.pump_curve.set":
-    "Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts \"refuses a GM or an Inventory Manager acting for one company, in every command\".",
-  "crm.commission_rule.set":
-    "Commission rules are set for the whole group (`assertConfigScope(ctx, null)`): the company case is an Executive acting for one company, refused with `config_group_scope` in crm-scoring-referrals.test.ts.",
-  "files.file.recheck":
-    "Sends every waiting file of every company back to its checks: only an Executive acting for every company may (`minScope: 'all'`), refused otherwise in files.test.ts \"is denied to anyone but an Executive acting for every company\".",
-  "notifications.notice.read":
+  'catalogue.item.archive':
+    'Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts "refuses a GM or an Inventory Manager acting for one company, in every command".',
+  'catalogue.item.update':
+    'Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts "refuses a GM or an Inventory Manager acting for one company, in every command".',
+  'catalogue.kit.archive':
+    'Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts "refuses a GM or an Inventory Manager acting for one company, in every command".',
+  'catalogue.kit.create':
+    'Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts "refuses a GM or an Inventory Manager acting for one company, in every command".',
+  'catalogue.kit.update':
+    'Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts "refuses a GM or an Inventory Manager acting for one company, in every command".',
+  'catalogue.pump_curve.set':
+    'Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts "refuses a GM or an Inventory Manager acting for one company, in every command".',
+  'crm.commission_rule.set':
+    'Commission rules are set for the whole group (`assertConfigScope(ctx, null)`): the company case is an Executive acting for one company, refused with `config_group_scope` in crm-scoring-referrals.test.ts.',
+  'files.file.recheck':
+    'Sends every waiting file of every company back to its checks: only an Executive acting for every company may (`minScope: \'all\'`), refused otherwise in files.test.ts "is denied to anyone but an Executive acting for every company".',
+  'notifications.notice.read':
     "A person's own notices, by id: the input names no company and every person's role holds profile.write:own. notifications.test.ts refuses another person's notices.",
-  "notifications.notice.read_all":
+  'notifications.notice.read_all':
     "A person's own notices: the input names no company and every person's role holds profile.write:own. It marks only the caller's own rows, and an agent is refused in notifications.test.ts.",
-  "notifications.preferences.set":
+  'notifications.preferences.set':
     "A person's own notification settings: the input names no company and every person's role holds profile.write:own.",
-  "notifications.push.subscribe":
+  'notifications.push.subscribe':
     "A person's own browser: the input names no company and every person's role holds profile.write:own.",
-  "notifications.push.unsubscribe":
+  'notifications.push.unsubscribe':
     "A person's own browser: the input names no company and every person's role holds profile.write:own.",
-  "profile.contrast.set":
+  'profile.contrast.set':
     "A person's own display setting: the input names no company and every person's role holds profile.write:own.",
-  "profile.theme.set":
+  'profile.theme.set':
     "A person's own display setting: the input names no company and every person's role holds profile.write:own.",
-  "profile.view.delete":
+  'profile.view.delete':
     "A person's own saved view: the input names no company and every person's role holds profile.write:own. saved-views tests refuse another person's view.",
-  "profile.view.save":
+  'profile.view.save':
     "A person's own saved view: the input names no company and every person's role holds profile.write:own.",
-  "tax.composite.set":
-    "Tax rates are shared by every company: the company case is a request for fewer than every company, refused in tax.test.ts (\"is refused to Accounts … acting for fewer than every company\" and \"… acting for one company\").",
-  "tax.rate.set":
-    "Tax rates are shared by every company: the company case is a request for fewer than every company, refused in tax.test.ts (\"is refused to Accounts … acting for fewer than every company\" and \"… acting for one company\").",
+  'tax.composite.set':
+    'Tax rates are shared by every company: the company case is a request for fewer than every company, refused in tax.test.ts ("is refused to Accounts … acting for fewer than every company" and "… acting for one company").',
+  'tax.rate.set':
+    'Tax rates are shared by every company: the company case is a request for fewer than every company, refused in tax.test.ts ("is refused to Accounts … acting for fewer than every company" and "… acting for one company").',
 };
 
 const DENIED = "'forbidden'";

@@ -1,0 +1,80 @@
+name: Checks-ok lapses
+
+# The owner's `checks-ok` label approves a pull request's changes to the checks as they stood when
+# the owner read them (owner, 13-10-2026). A later push that changes the checks again takes the
+# label off, so the owner reads the pull request again before it can merge. Only the owner adds
+# the label (AGENTS.md §8).
+#
+# It runs from main (`pull_request_target`), checks out nothing and runs nothing from the pull
+# request; every value reaches the shell through `env`. A commit the merge workflow makes when it
+# takes main into a branch uses the workflow's token, which starts no workflow, so the label stays.
+on:
+  pull_request_target:
+    types: [synchronize]
+
+permissions: {}
+
+jobs:
+  lapse:
+    name: Take checks-ok off after a push that changes the checks
+    if: contains(github.event.pull_request.labels.*.name, 'checks-ok')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # Reading the pushed files and the package.json files of a private repository.
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NUMBER: ${{ github.event.pull_request.number }}
+      BEFORE: ${{ github.event.before }}
+      AFTER: ${{ github.event.after }}
+      # The paths that define the checks, kept equal to `checks_path` in automerge.yml
+      # (apps/web/src/merge-workflows.test.ts); the `scripts` of a package.json are compared below.
+      CHECKS: |
+        def checks_path:
+          test("^\\.github/")
+          or test("(^|/)turbo\\.jsonc?$")
+          or test("(^|/)(vitest|playwright)(\\.[^/]+)?\\.config\\.[cm]?[jt]s$")
+          or test("(^|/)eslint\\.config\\.[cm]?[jt]s$")
+          or . == ".gitleaksignore"
+          or . == "pnpm-workspace.yaml"
+          or test("(^|/)js-budget\\.json$")
+          or test("(^|/)lighthouserc\\.json$");
+        [.[] | .filename, (.previous_filename // empty)] | map(select(checks_path)) | unique
+    steps:
+      - name: Read the push, and take the label off when it changes the checks
+        run: |
+          set -euo pipefail
+          say() { echo "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
+          lapse() {
+            say "Pull request ${NUMBER}: $1; checks-ok taken off for the owner to read it again."
+            gh pr edit "$NUMBER" --remove-label checks-ok
+            exit 0
+          }
+          # The `scripts` of a package.json at a commit, or null where the file is not.
+          scripts_at() {
+            gh api "repos/${GH_REPO}/contents/$1?ref=$2" --jq .content 2> /dev/null \
+              | base64 -d | jq -c '.scripts // {}' || echo null
+          }
+          # Every file the push changed (GitHub lists at most 300; a longer push counts as changing
+          # the checks). A push that cannot be compared, a force push of lost commits for one,
+          # counts the same way.
+          if ! pushed=$(gh api "repos/${GH_REPO}/compare/${BEFORE}...${AFTER}" \
+            --jq '[.files[]? | {filename, previous_filename}]'); then
+            lapse "the push could not be compared with the commit before it"
+          fi
+          if [ "$(jq length <<< "$pushed")" -ge 300 ]; then
+            lapse "the push changed more files than GitHub lists"
+          fi
+          checks=$(jq -r "$CHECKS | join(\", \")" <<< "$pushed")
+          if [ -n "$checks" ]; then lapse "the push changed ${checks}"; fi
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            if [ "$(scripts_at "$path" "$BEFORE")" != "$(scripts_at "$path" "$AFTER")" ]; then
+              lapse "the push changed the scripts of ${path}"
+            fi
+          done < <(jq -r '[.[] | .filename, (.previous_filename // empty)]
+                          | map(select(test("(^|/)package\\.json$"))) | unique[]' <<< "$pushed")
+          say "Pull request ${NUMBER}: the push changed no check; checks-ok stays."

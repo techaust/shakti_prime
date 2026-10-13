@@ -45,7 +45,7 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/eslint.config.mjs",
         "$TURBO_ROOT$/infra/aws/files.yaml",
-        "$TURBO_ROOT$/.github/workflows/ci.yml",
+        "$TURBO_ROOT$/.github/workflows/**",
         "$TURBO_ROOT$/compose.yaml"
       ]
     },
