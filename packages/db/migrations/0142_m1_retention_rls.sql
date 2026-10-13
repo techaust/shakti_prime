@@ -14,7 +14,7 @@ create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
                'sales.quote.expire', 'notifications.send', 'knowledge.index',
-               'crm.handover.run', 'crm.retention.run']::text[]
+               'crm.handover.run', 'platform.jobs.check', 'crm.retention.run']::text[]
 $$;
 --> statement-breakpoint
 
