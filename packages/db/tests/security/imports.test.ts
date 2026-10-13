@@ -400,6 +400,28 @@ describe('app.import_accounts_in_use: the customers a rollback keeps', () => {
     expect(await inUse(gm1, jobId, [ownNote, quiet])).toEqual([]);
   });
 
+  it('names a customer with dealer terms, outstanding, or a change by someone else (DOM-V1)', async () => {
+    const { jobId, ids } = await accountsJob([
+      'fixture with terms',
+      'fixture with outstanding',
+      'fixture changed',
+      'fixture changed by importer',
+    ]);
+    const [terms = '', outstanding = '', changed = '', own = ''] = ids;
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        // Company 2's terms count too: the customer is in use in the group.
+        await tx`insert into dealer_terms (id, entity_id, account_id, credit_limit, credit_days, created_by)
+          values (${newId()}, 2, ${terms}, 50000.00, 30, ${gm2.id})`;
+        await tx`insert into dealer_outstanding (id, entity_id, account_id, outstanding, as_of, entered_by)
+          values (${newId()}, 1, ${outstanding}, 100.00, current_date, ${gm1.id})`;
+        await tx`update accounts set updated_by = ${gm2.id} where id = ${changed}`;
+        await tx`update accounts set updated_by = ${gm1.id} where id = ${own}`;
+      }),
+    );
+    expect(await inUse(gm1, jobId, ids)).toEqual([terms, outstanding, changed].sort());
+  });
+
   it('answers only the job’s own customers among those given, and locks them until the end', async () => {
     const { jobId, ids } = await accountsJob(['fixture locked']);
     const [locked = ''] = ids;
@@ -428,6 +450,76 @@ describe('app.import_accounts_in_use: the customers a rollback keeps', () => {
 
   it('is refused outside the job’s company or without imports.write', async () => {
     const { jobId } = await accountsJob(['fixture refused']);
+    const refused = (e: unknown) =>
+      e instanceof Error &&
+      e.cause instanceof Error &&
+      e.cause.message.includes('outside the request scope');
+    await expect(inUse(gm2, jobId, [])).rejects.toSatisfy(refused);
+    await expect(inUse(principalFor('tele_caller_cc', [1]), jobId, [])).rejects.toSatisfy(refused);
+  });
+});
+
+describe('app.import_leads_in_use: the leads a rollback keeps (DOM-3)', () => {
+  /** A leads job with its committed rows, each a new lead of company 1 by the importer. */
+  async function leadsJob(count: number) {
+    const f = await fixture(1, gm1.id);
+    const account = newId();
+    const ids = Array.from({ length: count }, () => newId());
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into accounts (id, type, name, created_by)
+          values (${account}, 'farm', 'fixture lead customer', ${gm1.id})`;
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+          values (${newId()}, ${account}, 1, ${gm1.id}, ${gm1.id})`;
+        await tx`delete from import_rows where job_id = ${f.jobId}`;
+        for (const [i, id] of ids.entries()) {
+          await tx`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, created_by, updated_by)
+            values (${id}, 1, ${account}, ${PIPELINE_SEED[0]?.id ?? ''}, ${stageId(1, 1)}, ${gm1.id}, ${gm1.id}, ${gm1.id})`;
+          await tx`insert into import_rows (job_id, entity_id, row_no, raw_json, state, created_type, created_id, created_by)
+            values (${f.jobId}, 1, ${i + 1}, '{}'::jsonb, 'committed', 'opportunity', ${id}, ${gm1.id})`;
+        }
+      }),
+    );
+    return { jobId: f.jobId, ids, account };
+  }
+
+  const inUseQuery = (jobId: string, ids: readonly string[]) =>
+    sql`select app.import_leads_in_use(${jobId},
+          array(select jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb)::uuid)) as id`;
+  const inUse = (principal: Principal, jobId: string, ids: readonly string[]) =>
+    asPrincipal(principal, async ({ tx }) =>
+      ((await tx.execute(inUseQuery(jobId, ids))) as unknown as { id: string }[])
+        .map((r) => r.id)
+        .sort(),
+    );
+
+  it('names a lead someone else has worked since, not one only the importer touched', async () => {
+    const { jobId, ids, account } = await leadsJob(4);
+    const [moved = '', noted = '', ownNote = '', quiet = ''] = ids;
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`update opportunities set updated_by = ${gm2.id} where id = ${moved}`;
+        await tx`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id, body)
+          values (${newId()}, 1, ${noted}, ${account}, 'note', ${gm2.id}, 'Asked for a site visit'),
+                 (${newId()}, 1, ${ownNote}, ${account}, 'note', ${gm1.id}, 'Checked the list')`;
+      }),
+    );
+    expect(await inUse(gm1, jobId, ids)).toEqual([moved, noted].sort());
+    expect(await inUse(gm1, jobId, [ownNote, quiet])).toEqual([]);
+  });
+
+  it('answers only the job’s own leads among those given', async () => {
+    const { jobId } = await leadsJob(1);
+    const other = await leadsJob(1);
+    const [stranger = ''] = other.ids;
+    await asMigrator(
+      (m) => m`update opportunities set updated_by = ${gm2.id} where id = ${stranger}`,
+    );
+    expect(await inUse(gm1, jobId, [stranger])).toEqual([]);
+  });
+
+  it('is refused outside the job’s company or without imports.write', async () => {
+    const { jobId } = await leadsJob(1);
     const refused = (e: unknown) =>
       e instanceof Error &&
       e.cause instanceof Error &&
