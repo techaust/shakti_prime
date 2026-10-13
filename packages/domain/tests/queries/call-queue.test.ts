@@ -402,7 +402,8 @@ describe('dialNumber', () => {
 
   it('shows the full number inside calling hours', async () => {
     const shown = await dial(caller, leads.due, AS_OF);
-    expect(shown.e164).toMatch(/^\+9194\d{8}$/);
+    // The whole number, not the masked one (testPhone() draws ten digits, 6 to 9 first).
+    expect(shown.e164).toMatch(/^\+91[6-9]\d{9}$/);
   });
 
   it('is refused outside calling hours and for a customer who withdrew consent', async () => {

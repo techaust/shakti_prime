@@ -367,7 +367,7 @@ describe('createAiProvider', () => {
   });
 
   it('counts the day in India', () => {
-    expect(istDay(new Date('2026-10-05T18:29:00Z'))).toBe('2026-10-05');
-    expect(istDay(new Date('2026-10-05T18:31:00Z'))).toBe('2026-10-06');
+    expect(istCalendarDate(new Date('2026-10-05T18:29:00Z'))).toBe('2026-10-05');
+    expect(istCalendarDate(new Date('2026-10-05T18:31:00Z'))).toBe('2026-10-06');
   });
 });
