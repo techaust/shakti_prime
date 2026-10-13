@@ -30,6 +30,31 @@ Skills loaded: none of the listed ones applied (no table, no new command, no scr
 
 **Each finding against the evidence first.** Confirmed in the code at `b45dd07b` and fixed: OPS-1/OPS-V1, OPS-2, OPS-6 (plus nine more missing cases the new check found), OPS-10, OPS-11, OPS-13, OPS-14, OPS-15, OPS-16, OPS-17, OPS-18, OPS-19, ARCH-1, ARCH-7 to ARCH-11. Not fixed: OPS-7 and OPS-12 (refuted by the verdict, as the brief says). No longer applies: "the converting journey's clock" — #167 (`958b045a`) already moved `converting.spec.ts` onto the test clock (`setServerClock`), so nothing was changed there.
 
+**Each finding, its state and its commit**
+| Finding | State | Commit |
+|---|---|---|
+| OPS-1, OPS-V1 (merge only on the tested `main`) | fixed | `945ab839` (workflows), `3e85a2bb` (TESTING §6), `870b96d5` (runbooks) |
+| OPS-2 (`checks-ok`) | fixed | `945ab839`, `3e85a2bb` (AGENTS §8, CLAUDE.md, TESTING §6), `870b96d5` |
+| OPS-6 (denied and wrong-company cases, registry check) | fixed | `aa34b7ef` (the audit's 11 commands), `74953c6d` (the check and the 9 it found), `b70255e5` |
+| OPS-7 | refuted by the verdict, not fixed | — |
+| OPS-10 (a fork's branch name) | fixed | `945ab839` |
+| OPS-11 (job concurrency, a schedule) | fixed | `945ab839` |
+| OPS-12 | refuted by the verdict, not fixed | — |
+| OPS-13 (`--no-renames`) | fixed | `945ab839` |
+| OPS-14 (migrate secrets on their steps) | fixed | `945ab839` |
+| OPS-15 (absolute screenshot limit, cell masks) | fixed; baselines open (Linux image) | `aa34b7ef` |
+| OPS-16 (flaky journeys fail CI; the referral journey) | fixed | `aa34b7ef` (`failOnFlakyTests`), `870b96d5` (hydration) |
+| OPS-16, the converting journey's clock | no longer applies (#167, `958b045a`) | — |
+| OPS-17 (Turbo test inputs) | fixed | `aa34b7ef` |
+| OPS-18 (one phone helper) | fixed | `38d810c3`, `b70255e5` |
+| OPS-19 (images by digest) | fixed; digests to confirm at the registry | `945ab839`, `870b96d5` (Dependabot note) |
+| ARCH-1 (fences, registry check at run time, probes) | fixed | `aa34b7ef`, `74953c6d` |
+| ARCH-7 (PRD trace) | fixed | `3e85a2bb` |
+| ARCH-8 (ROADMAP, README) | fixed | `3e85a2bb` |
+| ARCH-9 (TESTING rows and spike commands) | fixed | `3e85a2bb` |
+| ARCH-10 (ARCHITECTURE lines) | fixed | `3e85a2bb` |
+| ARCH-11 (IST helpers, worker error answer, dead fixture) | fixed; the shared signed-body prelude of three routes open | `b40b557f`, `b70255e5` |
+
 **What was built (files)**
 - **OPS-1, OPS-V1, OPS-2, OPS-10, OPS-11** — `.github/workflows/automerge.yml` rewritten:
   - the rule judges one pull request against the commit CI passed on and answers `merge`, `update` or `skip: <why>`; it reads the PR's full file list (REST, paged, renames from and to) and `compare/<main>...<tested>`'s `behind_by`;
@@ -64,7 +89,7 @@ Skills loaded: none of the listed ones applied (no table, no new command, no scr
 - Folder lint (`packages/domain apps/web/src apps/web/e2e apps/web/tests packages/db`): clean. Whole-repository `pnpm lint` (the final check): passed, no warning.
 - `pnpm build`: passed; `js-budget`: every page within its budget (46 pages).
 - Journeys `pipelines.spec.ts` and `targets.spec.ts` on this Linux host (`E2E_CPU_THROTTLE=4`, after `e2e:seed`): 28 passed, 24 failed, 15 did not run; every failure is `toHaveScreenshot` (48 errors with the retries), because on a Linux host `snap()` compares against the baselines made in the Playwright image, and this slot's database holds stages and rows the security suite left (`settings-pipelines` is 13,474 px tall here against 5,742); the steps before each picture passed. The serial Pipelines group then skipped the referral journey, so it ran alone: `-g "referral partners" --repeat-each 3 --retries 0` under the same throttle, after a fresh `e2e:seed`: every run shown passed (desktop light 3 of 3, desktop dark 2 shown; the listing was cut at 20 lines, so the phone runs and the summary line were not kept). The screenshots are for the lead's run in the Linux image on a fresh database.
-- `check-doc-links.py`: `bad 0`. Prettier on every changed file.
+- `check-doc-links.py`: `bad 0`. After the last commit: `pnpm exec prettier --check .` "All matched files use Prettier code style!", whole-repository `pnpm lint` passed with no warning, `pnpm copy-lint` "catalogues and templates are clean".
 - `EXPLAIN (ANALYZE)`: no list or search was added or changed.
 
 **Unfinished or uncertain**
