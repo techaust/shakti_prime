@@ -7,8 +7,8 @@
 | Runs on | cloud, beside the follow-up bundles `fix/followups-db` and `fix/followups-tooling` (owner, 12-10-2026: all pending Phase 0–1 work at once), heavy commands through the VM's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | A (deleting or anonymising data): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | no reading posted at the start; the owner said to proceed (12-10-2026) |
-| State | built; waiting for review |
-| Next step | lead: the review (Opus 5.5 xhigh), then integration; the owner makes the QStash schedule `lead-anonymise-<environment>` on dev and staging after the merge |
+| State | fix round done (every review finding fixed but the import file in the file store); waiting for the re-review and integration |
+| Next step | lead: the re-review of the fix round, then integration (take `main`, renumber 0130 and 0131 after `fix/followups-db`, apply on a fresh database, make the `imports-row-counts` baseline in Linux); the owner makes the QStash schedule `lead-anonymise-<environment>` on dev and staging after the merge |
 
 ## Brief
 Read first:
@@ -144,6 +144,57 @@ Tier A stop: schema, migrations, the anonymisation definers, the command and bot
 - The import file's bytes in the file store are outside the anonymisation (table above).
 - The two domain tests that fail on a reused database are older than M1; a follow-up could give `import-kinds.test.ts` a name of its own per run.
 - The QStash schedule on dev and staging is the owner's after the merge.
+
+### Fix round, 13-10-2026, cloud VM (worktree `/home/user/shakti-wt/m1-migration-uat`, Postgres 54331)
+
+One round over every finding of the review (`9f814e2c`), on the lead's decisions; commits `68ca643e` (migrations), `2813c02e` (code and tests), `94893946` (documents and runbook), `de2a3a30` (journeys, the repeats index), `2dd60c1e` (format), `19bc141f` (the security fixture re-runnable on one database). `main` not taken in; the migrations are still 0130 and 0131.
+
+**Each finding**
+1. **Lost leads.** `app.lead_reached_qualified()` decides "reached Qualified" from the current stage only when it is an open stage at or after Qualified, otherwise from the lead's `stage_moved` timeline rows (`toStageId` an open stage at or after Qualified). Stages of kind `won` and `lost` never count by position. A lead lost from New or Contacted is anonymised; a lead that was Qualified before it was lost is kept. Fixtures: `staleLost` and `qualifiedThenLost` sit at the pipeline's real `lost` stage with the `lost` timeline row `crm.opportunity.lose` writes, the second with a stage move to Qualified first.
+2. **Audit rows (owner, 13-10-2026).** In the same call, every earlier `audit_logs` row about the customer, its leads, people, sites, relationships, tasks, calls, sizings, consents and inbox items (by `aggregate_id`, or by the `accountId` or `opportunityId` of its input) has every string that is not an id and every number in `input_json`, `before_json` and `after_json` replaced by "removed" (`app.audit_blank()`, recursive; keys, ids, booleans and nulls stay). Action, actor, time, company and record ids stay. `app.audit_logs_append_only()` (a definer, on the partitioned table so every partition) allows only that exact replacement, only for a row whose subject is in `app.lead_anonymise_scope` for the current transaction; any other change or delete is refused as before. The rows are found on two new expression indexes, `audit_logs_input_account_idx` and `audit_logs_input_opportunity_idx`. The new domain test `lead-anonymise-complete.test.ts` makes its lead through `crm.lead.create` (with consent), `crm.contact.update`, `crm.site.upsert`, `crm.note.add` and `crm.task.create`, ages it, runs the command as `system:workers`, and searches every text, json and array column of every public table for the run's marker and phone digits: no hit (audit, outbox and idempotency rows included). DECISIONS has the row of 13-10-2026. DATABASE §4.1 and §5, SECURITY and workshop FIN-2 say so in plain words.
+3. **Cutover rehearsal.** No real file goes to staging. Staging is rehearsed with anonymised copies made on the developer's machine (same columns, rows and repeats). The real files are rehearsed on production before go-live and then put back by point-in-time recovery to a noted restore point, checked by the counts of customers, leads and import jobs per company. The rehearsal's uploaded files are deleted from the files bucket and listed in the cutover log. "Undo this import" is named as not being the way back, with the reason from its own dialog. Of the two choices the lead allowed, this is the one BLUEPRINT §7.10 and the design's G1 line allow without a project of its own.
+4. **Concurrency.** `app.refuse_anonymised_customer()` runs before insert on `opportunities`, `account_entities`, `account_contacts`, `customer_sites` (and on its updates), `tasks`, `activities`, `quotes` and `sales_orders`. It reads the customer `for key share` and refuses with `check_violation` / `customer_anonymised` once `anonymised_at` is set. A writer that read the lead before the job held it waits for the job, then is refused. The catalogue reason `errors.customer_anonymised` is reached through the runner's shared constraint reasons. Tests: four refused writes (task, note, site insert, site update), and a two-session test in which a note written while another session holds and marks the customer waits, then is refused.
+5. **A customer with several leads.** The definer works one customer at a time. It holds every lead of the customer, the customer and its people, and anonymises them together when every lead is stale (idle, never reached Qualified, no quote, order or commission) and nothing else is current. A second company (`account_entities` in another company), a standing merge or an open duplicate card still keeps it. Tests: `twoStale` (two old leads of one customer, both anonymised) and `otherCompany` (kept).
+6. **Fairness.** The worker hands the rest of the night to a fresh QStash call with `{ entityId, after }` when its 40-second budget is spent, as the rescoring does. The call's dedupe id is `lead-anonymise[-dry]-<run date>-<company>-<start or the cursor's lead>`. Leads that can never become eligible (won, Qualified reached, a quote, order or commission, a dealer or referral-partner customer) are marked `retention_kept_at` and leave the window's partial index. None of these ever comes undone, so the mark is final. `opportunities_set_updated_at` ignores that column, so marking does not make a lead look active.
+7. **Owners and stages.** The runbook uses what exists: one leads file per caller per company, imported by an importer (a GM-role team member made for the cutover), then Team members › **Move all leads** to the caller. The old stages are not carried: every lead starts at the pipeline's first stage. An owner and a stage column on the leads import is named as a prerequisite for a later slice if the group wants them.
+8. **A failing lead.** Each customer is its own block. A failure takes back that customer only, is counted, and keeps only its SQLSTATE and constraint (`retention_runs.error`: "failed with code X on c for N customer(s)"). The rest of the batch goes on, and the batch's leads are passed by the cursor.
+9. **Co-pilot titles.** The run removes `title` as well as `note` from proposals about the lead (`input_json` and `decided_input_json`). The `agent_actions` exception allows exactly those two keys. Task titles are cleared too.
+10. **Three checks that could not fail.** `ImportReconciliationDto` carries `fileRows` (the job's stored `total_rows`) and its refine requires `rowsIn = fileRows`. The web test seeds a stale lead of its own in company 4 and checks the dry run's count equals the run's (both at least 1). The worker body `{ entityId: 2 }` is now valid, so the unknown-body test sends `{ companyId: 2 }`.
+11. **EXPLAIN for the writes** (below).
+12. **Copy.** The UAT packs say "sign in as a person with the X role in one company". The runbook names the screen's steps (*Choose the file*, *Match the columns*, *Check the rows*, *Add the rows*). `commit_failed` reads "Adding stopped at this row". FIN-2 names the setting in words, not by its code name.
+13. **Journeys.** The Lead Converter sizes the Cold Caller's Residential Rooftop lead and starts a quote; the lead has no price tier yet, so the screen says so. The Store Manager's walk-in is sized and reaches the same message. The Executive's journey goes end to end in company 2: a new lead, its price tier, sizing, the quote (₹26,880.00), its PDF, sent, the signed copy, the order confirmed, the lead Won, then the Activity log and Integration health. The GM's import journey takes a screenshot of the new section, `imports-row-counts` (heading and start time masked).
+
+**EXPLAIN (ANALYZE) of the anonymiser's writes** (slot database with 50,000 import rows of one job and 100,000 audit rows added in a transaction then rolled back, the statements as the definer runs them for one customer):
+- Import rows (the CTE: rows that made the lead or customer, then the skipped repeats of them): Index Scan on `import_rows_created_idx`, then Index Scan on `import_rows_skipped_repeat_idx` (job, `inFileRowNo`, partial on `skipped`, new in 0131), 0.66 ms.
+- Audit rows (the union of the three finders): per partition, Index Scan on the aggregate index, Bitmap Index Scan on `audit_logs_input_account_idx` and on `audit_logs_input_opportunity_idx`, 0.23 ms.
+- Notes delete: per partition, Index Scan on the timeline's account index, 0.17 ms.
+- Earlier, unchanged: the window on `opportunities_retention_idx` 0.6 ms over 80,000 leads; 500 eligibility checks about 125 ms; the reconciliation 56 ms over 50,000 rows.
+
+**Tests added or changed in the round**
+- `packages/db/tests/security/lead-anonymise.test.ts`: 15 → 19. New: audit trail blanked, audit append-only outside the scope, four refused writes, the two-session race. New fixtures: `qualifiedThenLost`, `twoStale`, and the kept-for-good marking. The fixture now uses ids of its own for every row a test writes and keeps its actor across runs, so the file passes again on the same database.
+- `packages/domain/tests/commands/lead-anonymise-complete.test.ts`: 1, new (the completeness search through the commands).
+- `apps/web/tests/lead-anonymise.test.ts`: 4 → 5 (the hand-over with the cursor and its dedupe id; its own stale lead).
+- `apps/web/e2e/uat.spec.ts`: the same five journeys, three of them longer, and one screenshot.
+
+**Checks** (all through `heavy.sh`, on 54331; this database is the one the lead recreated, with 0130 and 0131 applied by hand after their edits and their hashes and times updated in `drizzle.__drizzle_migrations`. Applying both on a fresh database is still to be shown, at the lead's next recreation or the integration.)
+- `pnpm db:docs`: regenerated (`docs/data/`, committed in `19bc141f`). `pnpm typecheck`: 8 successful. `pnpm format:check`: clean. `pnpm copy-lint`: catalogues and templates are clean.
+- `turbo run test --force`: contracts 181, db 131, domain 2057, tokens 134, ui 106, copy-lint 17 passed; web 768 passed, 1 skipped.
+- `pnpm test:security`: db 1214 passed (41 files). Domain 937 of 939: `import-kinds.test.ts` and `customers.test.ts` failed as they do on any database that has run them before (Still open); `customers.test.ts`, `lead-anonymise.test.ts` and `lead-anonymise-complete.test.ts` alone: 13 passed. `pnpm --filter web test:security`: 311 of 312; `actions.test.ts` (outbox delivery) alone: 41 passed.
+- `pnpm build`: 2 successful. `pnpm --filter web js-budget`: every page is within its budget (46 pages).
+- Journeys, twice in a row on the same database (`e2e:seed`, then `playwright test e2e/uat.spec.ts --ignore-snapshots`): 29 passed (2.3 min), then 29 passed (2.3 min).
+- `pnpm lint` (whole repository, last): clean.
+
+**Decisions the brief and the lead's notes did not settle**
+- The rehearsal is done twice: staging with anonymised copies, production with the real files, then put back by point-in-time recovery. The lead allowed either; this keeps real data off staging and still measures the real files.
+- Owners by **Move all leads**, one file per caller. Stages are not carried.
+- `retention_kept_at` is never cleared, because each reason it records is permanent.
+- `app.audit_blank()` keeps keys, ids (uuid-shaped strings), booleans and nulls, and replaces every other string and every number. A count or an amount in an audit row of the person is blanked with the rest.
+- The refusal trigger also covers a site update (the review's example of an address written back).
+
+**Still open**
+- An import file's bytes in the file store, and the refused rows of an import file, which no record links to the person. The definer cannot reach the store. This is a follow-up for a store sweep, or for the import files' own retention.
+- Two domain tests and one web test fail only on a database that has run them before. `import-kinds.test.ts` uses the fixed name "Two Sites" in Sikar. `customers.test.ts` hits a tag name already taken. `apps/web/tests/actions.test.ts` "have the publisher deliver them after the commit" finds the event unpublished behind this database's 121 waiting events (72 `admin.user.reactivated` at 10 attempts, test-health probes). None touches M1. Results of their runs alone are under Checks.
+- The screenshot `imports-row-counts` has no baseline yet. The lead makes it in Linux (`pnpm --filter web e2e:snap -- --update-snapshots e2e/uat.spec.ts`).
 
 ## Review
 Reviewer: slice-reviewer (Opus 5.5), 13-10-2026, on `de83903d` against `origin/main` at 89e44024 (#167). Findings: 3 high, 4 medium, 6 low.
