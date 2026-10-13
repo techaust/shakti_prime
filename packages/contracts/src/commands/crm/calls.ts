@@ -200,7 +200,11 @@ export type CallLeadDto = z.infer<typeof CallLeadDto>;
 export const DialNumberInput = z.object(LeadRef).strict();
 export type DialNumberInput = z.infer<typeof DialNumberInput>;
 
-export const DialNumberDto = z.object({ e164: z.string() }).strict();
+/**
+ * The number to dial, and when the server showed it: the call's start the workspace sends back
+ * when the call is logged (DOM-6), on the server's clock rather than the device's.
+ */
+export const DialNumberDto = z.object({ e164: z.string(), dialledAt: z.iso.datetime() }).strict();
 export type DialNumberDto = z.infer<typeof DialNumberDto>;
 
 /** The workspace's search (`/`): the caller's leads by name, village or the phone's last digits. */

@@ -479,7 +479,7 @@ export async function dialNumber(
       reason: 'dial_number_missing',
     });
   }
-  return DialNumberDto.parse({ e164: row.e164 });
+  return DialNumberDto.parse({ e164: row.e164, dialledAt: now.toISOString() });
 }
 
 /**

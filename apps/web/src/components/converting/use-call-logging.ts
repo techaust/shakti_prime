@@ -25,7 +25,7 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
     dialledAt: string;
   }>();
   const [picked, setPicked] = useState<{ outcome: DispositionDto; need: OutcomeNeed }>();
-  const dial = useQuery<{ e164: string }>();
+  const dial = useQuery<{ e164: string; dialledAt: string }>();
   // One form per lead: another lead's call is sent under a key of its own.
   const save = useCommand(logCall, lead?.opportunityId);
 
@@ -37,7 +37,7 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
         setNumber({
           opportunityId: lead.opportunityId,
           e164: n.e164,
-          dialledAt: new Date().toISOString(),
+          dialledAt: n.dialledAt,
         });
       },
     );

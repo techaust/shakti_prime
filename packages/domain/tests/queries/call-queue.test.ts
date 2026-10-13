@@ -402,6 +402,8 @@ describe('dialNumber', () => {
   it('shows the full number inside calling hours', async () => {
     const shown = await dial(caller, leads.due, AS_OF);
     expect(shown.e164).toMatch(/^\+9194\d{8}$/);
+    // The call's start the workspace sends back is the server's time of the dial (DOM-6).
+    expect(shown.dialledAt).toBe(AS_OF.toISOString());
   });
 
   it('is refused outside calling hours and for a customer who withdrew consent', async () => {

@@ -212,7 +212,7 @@ export function CallingScreen({
   const leadQuery = useQuery<CallLeadDto>();
   const queueQuery = useQuery<CallQueuePageDto>();
   const moreQuery = useQuery<CallQueuePageDto>();
-  const dial = useQuery<{ e164: string }>();
+  const dial = useQuery<{ e164: string; dialledAt: string }>();
   // One form per lead: another lead's call is sent under a key of its own.
   const save = useCommand(logCall, lead?.opportunityId);
 
@@ -246,7 +246,7 @@ export function CallingScreen({
       () => dialNumber({ entityId: lead.entityId, opportunityId: lead.opportunityId }),
       (n) => {
         setShown(n.e164);
-        setDialledAt(new Date().toISOString());
+        setDialledAt(n.dialledAt);
       },
     );
   }, [dial, lead]);
