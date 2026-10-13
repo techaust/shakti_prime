@@ -110,13 +110,8 @@ export function scheduledJobHealth(
 
 /** A timestamp as the driver answers it through `execute()`: a date or its text, or null. */
 const at = (value: unknown): Date | null =>
-  value === null || value === undefined
-    ? null
-    : value instanceof Date
-      ? value
-      : new Date(String(value));
-const text = (value: unknown): string | null =>
-  value === null || value === undefined ? null : String(value);
+  value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
+const text = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
 /**
  * The database's scheduled jobs (audit 2026-10, DATA-3), each expected job in turn, through
@@ -138,7 +133,7 @@ export async function readScheduledJobs(
     if (!job.success) continue;
     byJob.set(job.data, {
       job: job.data,
-      schedule: String(r.schedule),
+      schedule: text(r.schedule) ?? '',
       active: r.active === true,
       runStatus: text(r.run_status),
       runStartedAt: at(r.run_started_at),

@@ -9,7 +9,9 @@ import { memoryAlertSink } from '../src/observability/alerts';
 // queue says for each message.
 const queue = vi.hoisted(() => ({
   batches: [] as { deduplicationId: string; body: { id?: string } }[][],
-  answer: (_message: { deduplicationId: string }): unknown => [{ messageId: 'm', url: 'u' }],
+  answer: ((): unknown => [{ messageId: 'm', url: 'u' }]) as (message: {
+    deduplicationId: string;
+  }) => unknown,
 }));
 vi.mock('@upstash/qstash', () => ({
   Client: class {
@@ -19,19 +21,25 @@ vi.mock('@upstash/qstash', () => ({
     }
     urlGroups = { addEndpoints: () => Promise.resolve() };
   },
-  Receiver: class {},
+  Receiver: class {
+    verify() {
+      return Promise.resolve(false);
+    }
+  },
 }));
 
 const { qstashConfig, qstashEventPublisher } = await import('../src/workers/qstash');
 const { publishOutbox } = await import('../src/workers/outbox');
 
-const config = qstashConfig({
+const configured = qstashConfig({
+  NODE_ENV: 'test',
   QSTASH_TOKEN: 'outbox-replay-test-token',
   QSTASH_CURRENT_SIGNING_KEY: 'outbox-replay-test-current-signing-key',
   QSTASH_NEXT_SIGNING_KEY: 'outbox-replay-test-next-signing-key',
   BETTER_AUTH_URL: 'https://bos.example.in',
 });
-if (config === undefined) throw new Error('test configuration is incomplete');
+if (configured === undefined) throw new Error('test configuration is incomplete');
+const config = configured;
 
 let executive: Principal;
 
