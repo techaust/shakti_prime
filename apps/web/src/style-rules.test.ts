@@ -49,7 +49,7 @@ describe('web source rules', () => {
   it('keeps the token generator out of the browser: a client component imports only its types (WEB-9)', () => {
     const valueImport = /^import\s+(?!type\s)[^;]*from '@shakti\/tokens';/m;
     const offenders = sources
-      .filter(({ text }) => /^'use client';/.test(text) && valueImport.test(text))
+      .filter(({ text }) => text.startsWith("'use client';") && valueImport.test(text))
       .map(({ name }) => name);
     expect(offenders).toEqual([]);
   });
