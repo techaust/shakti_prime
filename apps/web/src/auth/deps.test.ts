@@ -20,6 +20,9 @@ const GOOD: NodeJS.ProcessEnv = {
   QSTASH_NEXT_SIGNING_KEY: 'qstash-next-value',
 };
 
+/** A DSN of the shape Sentry gives, naming no real project. */
+const DSN = 'https://publickey@o4501.ingest.us.sentry.io/4502';
+
 describe('productionConfigProblems (AUDIT M8, M9)', () => {
   it('accepts a complete hosted configuration that is not production', () => {
     expect(productionConfigProblems(GOOD)).toEqual([]);
@@ -63,7 +66,9 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
   });
 
   it('refuses production without SES', () => {
-    expect(productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT: 'production' })).toEqual([
+    expect(
+      productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT: 'production', SENTRY_DSN: DSN }),
+    ).toEqual([
       'MAILER=log is not a mail provider; production needs ses',
     ]);
   });
@@ -71,7 +76,22 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
   it('accepts SES from its verified sender, in production and elsewhere', () => {
     const ses = { MAILER: 'ses', SES_FROM: 'no-reply@shakti.example.in' };
     for (const BOS_ENVIRONMENT of ['dev', 'staging', 'production']) {
-      expect(productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT })).toEqual([]);
+      expect(
+        productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT, SENTRY_DSN: DSN }),
+      ).toEqual([]);
+    }
+  });
+
+  it('refuses production without a Sentry DSN, and lets dev and staging run without one (OPS-4)', () => {
+    const ses = { MAILER: 'ses', SES_FROM: 'no-reply@shakti.example.in' };
+    expect(productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT: 'production' })).toEqual([
+      'SENTRY_DSN is required in production, or no failure or alert reaches the owner',
+    ]);
+    expect(
+      productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT: 'production', SENTRY_DSN: ' ' }),
+    ).toHaveLength(1);
+    for (const BOS_ENVIRONMENT of ['dev', 'staging']) {
+      expect(productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT })).toEqual([]);
     }
   });
 

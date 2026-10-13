@@ -132,6 +132,11 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
   } else if (mailer !== '' && mailer !== 'log') {
     problems.push('MAILER must be "ses" or "log" on a hosted environment');
   }
+  // Production reports its failures and alerts to the owner through Sentry; without a DSN no
+  // alert is ever sent (audit 2026-10, OPS-4). Dev and staging may run without one.
+  if (environment === 'production' && (env.SENTRY_DSN ?? '').trim() === '') {
+    problems.push('SENTRY_DSN is required in production, or no failure or alert reaches the owner');
+  }
   // The development master key for field encryption never protects hosted data; KMS does.
   if ((env.FIELD_ENCRYPTION_KEY ?? '') !== '') {
     problems.push('FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key');

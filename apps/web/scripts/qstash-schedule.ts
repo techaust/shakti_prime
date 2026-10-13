@@ -16,6 +16,7 @@ import {
   qstashConfig,
   workerUrl,
 } from '../src/workers/qstash';
+import { JOB_SCHEDULES } from '../src/workers/schedules';
 
 const config = qstashConfig();
 if (config === undefined) {
@@ -40,8 +41,7 @@ if (!/^[a-z]+$/.test(environment)) {
 const SCHEDULE_ID = `outbox-publish-${environment}`;
 const SWEEP_SCHEDULE_ID = `files-sweep-${environment}`;
 const RESCORE_SCHEDULE_ID = `lead-rescore-${environment}`;
-/** 21:30 UTC, three in the morning in India, when no one is calling. */
-const RESCORE_CRON = '30 21 * * *';
+const RESCORE_CRON = JOB_SCHEDULES['lead-rescore'];
 
 const client = new Client({
   token: config.token,
@@ -52,7 +52,7 @@ const client = new Client({
 await client.schedules.create({
   scheduleId: SCHEDULE_ID,
   destination: config.publishUrl,
-  cron: '* * * * *',
+  cron: JOB_SCHEDULES['outbox-publish'],
   body: '{}',
   headers: { 'content-type': 'application/json' },
   // A missed minute is covered by the next one; retries would only pile runs up.
@@ -65,8 +65,7 @@ const sweepUrl = workerUrl(config, FILES_SWEEP_PATH);
 await client.schedules.create({
   scheduleId: SWEEP_SCHEDULE_ID,
   destination: sweepUrl,
-  // Seventeen minutes past each hour, away from the top of the hour other jobs favour.
-  cron: '17 * * * *',
+  cron: JOB_SCHEDULES['files-sweep'],
   body: '{}',
   headers: { 'content-type': 'application/json' },
   // A missed run is covered by the next hour's.
@@ -92,7 +91,7 @@ console.log(`schedule ${RESCORE_SCHEDULE_ID} calls ${rescoreUrl} at ${RESCORE_CR
 // The nightly search for duplicate customers and leads (CRM-03), half an hour after the
 // rescoring: two customers an import and a form made at the same moment, and an import's rows.
 const DUPLICATE_SCAN_SCHEDULE_ID = `duplicate-scan-${environment}`;
-const DUPLICATE_SCAN_CRON = '0 22 * * *';
+const DUPLICATE_SCAN_CRON = JOB_SCHEDULES['duplicate-scan'];
 const scanUrl = workerUrl(config, DUPLICATE_SCAN_PATH);
 await client.schedules.create({
   scheduleId: DUPLICATE_SCAN_SCHEDULE_ID,
@@ -110,7 +109,7 @@ console.log(
 // The daily expiry of quotes past their validity (docs/03-roadmap-appendix/phase1.md §7.3), five minutes after
 // midnight in India, when the day's last valid quotes have lapsed.
 const QUOTE_EXPIRE_SCHEDULE_ID = `quote-expire-${environment}`;
-const QUOTE_EXPIRE_CRON = '35 18 * * *';
+const QUOTE_EXPIRE_CRON = JOB_SCHEDULES['quote-expire'];
 const expireUrl = workerUrl(config, QUOTE_EXPIRE_PATH);
 await client.schedules.create({
   scheduleId: QUOTE_EXPIRE_SCHEDULE_ID,
@@ -128,7 +127,7 @@ console.log(
 // The notification scan (docs/03-roadmap-appendix/phase1.md §8.1) every five minutes: calls falling due,
 // quotes about to lapse and first calls running late. A missed run is covered by the next one.
 const NOTIFICATION_SCAN_SCHEDULE_ID = `notification-scan-${environment}`;
-const NOTIFICATION_SCAN_CRON = '*/5 * * * *';
+const NOTIFICATION_SCAN_CRON = JOB_SCHEDULES['notification-scan'];
 const noticeScanUrl = workerUrl(config, NOTIFICATION_SCAN_PATH);
 await client.schedules.create({
   scheduleId: NOTIFICATION_SCAN_SCHEDULE_ID,
@@ -145,7 +144,7 @@ console.log(`schedule ${NOTIFICATION_SCAN_SCHEDULE_ID} calls ${noticeScanUrl} ev
 // top of the hour and from the sweep: a job that failed, is late, paused or missing is told to
 // the owner. A missed run is covered by the next hour's.
 const JOBS_CHECK_SCHEDULE_ID = `jobs-check-${environment}`;
-const JOBS_CHECK_CRON = '41 * * * *';
+const JOBS_CHECK_CRON = JOB_SCHEDULES['jobs-check'];
 const jobsCheckUrl = workerUrl(config, JOBS_CHECK_PATH);
 await client.schedules.create({
   scheduleId: JOBS_CHECK_SCHEDULE_ID,

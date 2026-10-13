@@ -28,6 +28,21 @@ describe('recordJobOutcome (audit 2026-10, OPS-3)', () => {
     expect(alerts.alerts).toEqual([{ name: 'job.failing', fields: { job: 'files-sweep', runs: 3 } }]);
   });
 
+  it('checks every call in to the job’s monitor, ok or error', async () => {
+    const checkIns: [string, string][] = [];
+    const checkIn = (job: string, status: 'ok' | 'error') => {
+      checkIns.push([job, status]);
+      return Promise.resolve();
+    };
+    const options = { requestId: 'r', keyValue: memoryKeyValue(), alerts: memoryAlertSink(), checkIn };
+    await recordJobOutcome('duplicate-scan', 'failed', options);
+    await recordJobOutcome('duplicate-scan', 'ok', options);
+    expect(checkIns).toEqual([
+      ['duplicate-scan', 'error'],
+      ['duplicate-scan', 'ok'],
+    ]);
+  });
+
   it('never fails the call when the store does not answer', async () => {
     const broken: KeyValue = {
       ...memoryKeyValue(),
