@@ -28,6 +28,14 @@ const OUTBOX_MAX_DUE_SECONDS = 300;
  */
 export const OUTBOX_RUN_BUDGET_MS = 30_000;
 
+/**
+ * How long a nudge keeps claiming where no queue is configured (local development, CI and the
+ * journeys), where no minute schedule follows it: long enough to work through a backlog of a few
+ * hundred events ahead of the change that nudged, short enough that the action waiting on it
+ * answers promptly.
+ */
+export const LOCAL_NUDGE_BUDGET_MS = 10_000;
+
 /** Runs in a row that deliver nothing before the owner is told (docs/03-roadmap-appendix/phase1.md §5.2). */
 export const FAILING_RUNS_ALERT = 3;
 /** Ids an alert names at most; the count gives the rest. */
@@ -211,8 +219,9 @@ function defaultPublisher(keyValue: KeyValue, requestId: string | undefined): Ev
 /**
  * After a command commits with events (`executeCommand`'s `onCommitted`): hosted, QStash is
  * asked to run the publisher at once; locally, with no queue, the run happens in this process
- * and delivers subscribed events to their workers here. The minute schedule catches anything a
- * lost nudge leaves behind.
+ * and delivers subscribed events to their workers here, claiming again while claims come back
+ * full (`LOCAL_NUDGE_BUDGET_MS`), since no schedule follows it. Hosted, the minute schedule
+ * catches anything a lost nudge leaves behind.
  */
 export async function nudgeOutbox(): Promise<void> {
   const config = qstashConfig();
@@ -220,5 +229,5 @@ export async function nudgeOutbox(): Promise<void> {
     await nudgeViaQStash(config);
     return;
   }
-  if (!hostedRuntime()) await publishOutbox();
+  if (!hostedRuntime()) await publishOutbox({ budgetMs: LOCAL_NUDGE_BUDGET_MS });
 }
