@@ -3,7 +3,7 @@ import { heldReason } from './integrations';
 
 describe('heldReason', () => {
   it('names the delivery service for its refusals and timeouts', () => {
-    for (const code of ['queue_refused', 'no_answer', 'TimeoutError', 'http_503']) {
+    for (const code of ['queue_refused', 'queue_deduplicated', 'no_answer', 'TimeoutError', 'http_503']) {
       expect(heldReason(code)).toBe('queue');
     }
   });

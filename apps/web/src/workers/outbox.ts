@@ -20,6 +20,14 @@ import { nudgeViaQStash, qstashConfig, qstashEventPublisher } from './qstash';
 /** A due event waiting longer than this means no publisher is running. */
 const OUTBOX_MAX_DUE_SECONDS = 300;
 
+/**
+ * How long one call of the publisher route keeps claiming while each claim comes back full. A
+ * claim calls the queue once (5 seconds at most) and records in two short transactions, so the
+ * last one started inside this budget ends well within the route's 60 seconds and the rows'
+ * two-minute lease.
+ */
+export const OUTBOX_RUN_BUDGET_MS = 30_000;
+
 /** Runs in a row that deliver nothing before the owner is told (docs/03-roadmap-appendix/phase1.md §5.2). */
 export const FAILING_RUNS_ALERT = 3;
 /** Ids an alert names at most; the count gives the rest. */
@@ -80,6 +88,8 @@ export function inProcessEventPublisher(keyValue: KeyValue, requestId?: string):
 export interface PublishOutboxOptions {
   publisher?: EventPublisher;
   requestId?: string;
+  /** Claim again while claims come back full, for this long (`OUTBOX_RUN_BUDGET_MS`); once if left out. */
+  budgetMs?: number;
   /** Where the counters and the last run are kept; the app's shared store by default. */
   keyValue?: KeyValue;
   /** Where the outbox alerts go; Sentry by default. */
@@ -120,6 +130,7 @@ export async function publishOutbox(
       publisher,
       logger,
       requestId,
+      ...(options.budgetMs === undefined ? {} : { budgetMs: options.budgetMs }),
       onDeadLettered: (ids) => {
         deadIds.push(...ids);
       },

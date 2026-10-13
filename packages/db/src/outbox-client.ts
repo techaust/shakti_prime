@@ -46,6 +46,7 @@ type LeasedRow =
       aggregate_id: string;
       payload_json: Record<string, unknown>;
       attempts: number;
+      replays: number;
       created_at: Date;
       lease: string;
     }
@@ -86,11 +87,11 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
           from due
          where o.id = due.id and due.attempts < ${maxAttempts}::int
         returning o.id, o.sequence::text as sequence, o.entity_id, o.type, o.aggregate_type,
-                  o.aggregate_id, o.payload_json, due.attempts, o.created_at,
+                  o.aggregate_id, o.payload_json, due.attempts, o.replays, o.created_at,
                   o.claimed_until::text as lease)
       select false as spent, l.* from leased l
       union all
-      select true, s.id, null, null, null, null, null, null, null, null, null from spent s`;
+      select true, s.id, null, null, null, null, null, null, null, null, null, null from spent s`;
     const leased = answer.filter((r) => !r.spent);
     const deadLettered = answer.filter((r) => r.spent).map((r) => r.id);
     const rows: OutboxRow[] = leased
@@ -103,6 +104,7 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
         aggregateId: r.aggregate_id,
         payload: r.payload_json,
         attempts: r.attempts,
+        replays: r.replays,
         createdAt: r.created_at,
       }))
       .sort((a, b) => {

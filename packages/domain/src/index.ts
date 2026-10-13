@@ -10,7 +10,7 @@ export { databaseOutboxSink, memoryOutboxSink } from './outbox/sink';
 export type { OutboxRecord, OutboxSink } from './outbox/sink';
 export { OUTBOX_BATCH_SIZE, OUTBOX_MAX_ATTEMPTS, runOutboxPublisher } from './outbox/publisher';
 export type { OutboxPublisherOptions } from './outbox/publisher';
-export { memoryEventPublisher } from './ports/event-publisher';
+export { deliveryDeduplicationId, memoryEventPublisher } from './ports/event-publisher';
 export { canonicalJson, inputHash } from './idempotency/hash';
 export { databaseIdempotencyStore, memoryIdempotencyStore } from './idempotency/store';
 export type { IdempotencyClaim, IdempotencyStore } from './idempotency/store';

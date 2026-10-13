@@ -1,5 +1,5 @@
 import type { DeliveredEvent } from '@shakti/contracts';
-import type { EventPublisher, PublishResult } from '@shakti/domain';
+import { deliveryDeduplicationId, type EventPublisher, type PublishResult } from '@shakti/domain';
 import { Client, Receiver } from '@upstash/qstash';
 import { logger } from '../log';
 import { indexJobOf } from './knowledge/job';
@@ -176,27 +176,36 @@ async function ensureUrlGroups(
   }
 }
 
-/** One answer of the batch call: an accepted message, or the queue's reason for refusing it. */
+/**
+ * One answer of the batch call: an accepted message, or the queue's reason for refusing it. An
+ * accepted message the queue already held under its deduplication id is `deduplicated`: nothing
+ * was sent this time.
+ */
 function resultOf(id: string, answer: unknown): PublishResult {
   // A queue group answers one entry per endpoint; every entry must carry a message id.
   const parts: unknown[] = Array.isArray(answer) ? answer : [answer];
   const accepted =
     parts.length > 0 &&
     parts.every((p) => typeof p === 'object' && p !== null && 'messageId' in p && !('error' in p));
-  return accepted ? { id, ok: true } : { id, ok: false, error: 'queue_refused' };
+  if (!accepted) return { id, ok: false, error: 'queue_refused' };
+  const deduplicated = parts.some(
+    (p) => typeof p === 'object' && p !== null && 'deduplicated' in p && p.deduplicated === true,
+  );
+  return deduplicated ? { id, ok: true, deduplicated: true } : { id, ok: true };
 }
 
 /**
  * Sends a run's events in one batch call, each to its type's queue group (made sure of first), or
- * to its own route as a job (`EVENT_JOB_ROUTES`), with the event id as
- * the deduplication id so a retried run never delivers an event twice within QStash's window, and
+ * to its own route as a job (`EVENT_JOB_ROUTES`), with its delivery generation's deduplication id
+ * (`deliveryDeduplicationId`: the event id, then `<id>:<n>` after the nth Send again) so a retried
+ * run never delivers an event twice within QStash's window while a replay is delivered again, and
  * the failure callback, through which an event its worker refuses for good or still fails after
  * QStash's retries comes back as a dead letter (`OUTBOX_FAILED_PATH`).
  */
 export function qstashEventPublisher(config: QStashConfig): EventPublisher {
   const qstash = client(config);
   return {
-    async publish(events: readonly DeliveredEvent[]) {
+    async publish(events: readonly DeliveredEvent[], generations?: ReadonlyMap<string, number>) {
       if (events.length === 0) return [];
       await ensureUrlGroups(
         qstash,
@@ -211,7 +220,7 @@ export function qstashEventPublisher(config: QStashConfig): EventPublisher {
               ...(route === undefined
                 ? { urlGroup: urlGroupFor(event.type), body: event }
                 : { url: workerUrl(config, route.path), body: route.body(event) }),
-              deduplicationId: event.id,
+              deduplicationId: deliveryDeduplicationId(event.id, generations?.get(event.id)),
               failureCallback: workerUrl(config, OUTBOX_FAILED_PATH),
             };
           }),

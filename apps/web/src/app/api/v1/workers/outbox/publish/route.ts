@@ -3,13 +3,14 @@ import en from '../../../../../../../messages/en.json';
 import { logger } from '../../../../../../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
-import { publishOutbox } from '../../../../../../workers/outbox';
+import { OUTBOX_RUN_BUDGET_MS, publishOutbox } from '../../../../../../workers/outbox';
 import { qstashConfig, verifyQStashSignature } from '../../../../../../workers/qstash';
 
 export const dynamic = 'force-dynamic';
 /**
- * A run claims, calls the queue once (5 seconds at most) and records the outcomes. Stopping the
- * function well inside the rows' two-minute lease means no run records after its lease is gone.
+ * A run claims, calls the queue once per claim (5 seconds at most) and records the outcomes, and
+ * claims again only within `OUTBOX_RUN_BUDGET_MS`. Stopping the function well inside the rows'
+ * two-minute lease means no run records after its lease is gone.
  */
 export const maxDuration = 60;
 
@@ -43,7 +44,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const counts = await publishOutbox({ requestId });
+    const counts = await publishOutbox({ requestId, budgetMs: OUTBOX_RUN_BUDGET_MS });
     return Response.json(OutboxPublishResponse.parse(counts), { headers });
   } catch (error) {
     logger.log('error', 'outbox.publish_failed', { requestId, error });
