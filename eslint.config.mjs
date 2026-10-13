@@ -500,7 +500,10 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        { paths: [...rawClientImport.paths, ...webDatabasePaths], patterns: webPatternsOutsideAuth },
+        {
+          paths: [...rawClientImport.paths, ...webDatabasePaths],
+          patterns: webPatternsOutsideAuth,
+        },
       ],
     },
   },

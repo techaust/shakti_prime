@@ -274,6 +274,19 @@ describe('the file checks', () => {
     return slot.fileId;
   }
 
+  /** The checked copy a worker keeps, for `markFileReady`. */
+  const checked = (entityId: number, fileId: string) => ({
+    entityId,
+    fileId,
+    sanitising: 're_encoded',
+    stored: {
+      key: `${String(entityId)}/entity_logo/${fileId}-checked.png`,
+      contentType: 'image/png',
+      size: 1900,
+      sha256: 'e'.repeat(64),
+    },
+  });
+
   it('are refused to a person, even an Executive', async () => {
     const fileId = await scanning();
     await expect(
@@ -282,6 +295,12 @@ describe('the file checks', () => {
     await expect(
       run(executive, rejectFile, { entityId: 1, fileId, reason: 'file_infected' }),
     ).rejects.toMatchObject({ code: 'forbidden' });
+    // Nor does a person keep a checked copy (audit OPS-6).
+    await run(worker, markFileScanned, { entityId: 1, fileId, verdict: 'no_threats_found' });
+    await expect(run(executive, markFileReady, checked(1, fileId))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await status(fileId)).toBe('scanned');
   });
 
   it('are refused for a company outside the request, and for a file of another company', async () => {
@@ -293,6 +312,15 @@ describe('the file checks', () => {
     await expect(
       run(worker, markFileScanned, { entityId: 1, fileId, verdict: 'no_threats_found' }),
     ).rejects.toMatchObject({ code: 'not_found' });
+    // The same for keeping the checked copy (audit OPS-6).
+    await run(worker, markFileScanned, { entityId: 2, fileId, verdict: 'no_threats_found' });
+    await expect(run(workerOfOne, markFileReady, checked(2, fileId))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(worker, markFileReady, checked(1, fileId))).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    expect(await status(fileId)).toBe('scanned');
   });
 
   it('take a clean file to ready with its checked copy, and audit each step', async () => {

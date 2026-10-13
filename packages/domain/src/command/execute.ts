@@ -10,7 +10,7 @@ import { redactForAudit } from '../audit/redact';
 import { databaseAuditSink, type AuditRecord } from '../audit/sink';
 import { databaseOutboxSink, type OutboxRecord, type OutboxSink } from '../outbox/sink';
 import { jsonLogger, type Logger } from '../ports/logger';
-import type { AnyCommand, Command } from './define-command';
+import type { Command } from './define-command';
 import { isRegistered } from './registry';
 import { auditBase, auditedInput, failureOf, runCommand, type RunOptions } from './run-command';
 import { monotonicClock, timed, type Clock, type TimingOptions } from './timing';
@@ -76,7 +76,7 @@ export async function executeCommand<I extends z.ZodType, O extends z.ZodType>(
   input: unknown,
   options: ExecuteOptions = {},
 ): Promise<z.output<O>> {
-  if (!isRegistered(command as unknown as AnyCommand)) {
+  if (!isRegistered(command)) {
     throw new DomainError('internal', `${command.name} is not a command of the registry`, {
       command: command.name,
     });

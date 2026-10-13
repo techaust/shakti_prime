@@ -152,7 +152,10 @@ describe('the import fences', { timeout: 60_000 }, () => {
     ]) {
       for (const name of parts) {
         expect(
-          await fences(file, `import { ${name} } from '@shakti/domain';\nexport const p = ${name};\n`),
+          await fences(
+            file,
+            `import { ${name} } from '@shakti/domain';\nexport const p = ${name};\n`,
+          ),
         ).toEqual(['no-restricted-imports']);
       }
       // Nor reached through the whole module, or by a dynamic import.
