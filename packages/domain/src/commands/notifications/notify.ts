@@ -228,6 +228,15 @@ async function pendingPushes(
       sql`select * from app.record_notice_push(
             ${entityId}::smallint, ${JSON.stringify(settled)}::jsonb, '{}'::text[], '{}'::text[])`,
     );
+    // A change of its own: a scan whose only work was settling these still leaves its row
+    // (`auditWhen: 'changed'`, review L2).
+    ctx.audit({
+      aggregateType: 'push_batch',
+      aggregateId: newId(),
+      entityId,
+      before: null,
+      after: { recorded: settled.length },
+    });
   }
   return resend;
 }
@@ -246,7 +255,7 @@ export const scanNotices = defineCommand({
   minScope: 'entity',
   input: ScanNoticesInput,
   output: NoticeBatchDto,
-  auditFields: ['notices'],
+  auditFields: ['notices', 'recorded'],
   // Run on a timer: a call that changed nothing leaves no audit row (DATA-6).
   auditWhen: 'changed',
   async handler(ctx, input) {
