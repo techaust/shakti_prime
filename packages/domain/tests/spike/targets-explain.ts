@@ -140,9 +140,10 @@ async function main() {
         select gen_random_uuid(), ${E}, 'EXPLT/' || row_number() over (), '2098-99', o.id, o.account_id, ${TIER}, ${LIST}, 'none', '08', 'intra',
                now() + interval '10 days', case when row_number() over () % 3 = 0 then 'sent' else 'draft' end, 0, 0, 0, 0, 0, 0, 0, ${exec.id}
           from (select id, account_id from opportunities where entity_id = ${E} limit 1500) o`;
-      await tx`insert into sales_orders (id, entity_id, so_no, fy, quote_id, opportunity_id, account_id, tier_id, place_of_supply_state, supply_kind,
+      await tx`insert into sales_orders (id, entity_id, so_no, fy, quote_id, opportunity_id, account_id, account_type, tier_id, place_of_supply_state, supply_kind,
                   state, confirmed_at, confirmed_by, subtotal, cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
-        select gen_random_uuid(), ${E}, 'EXPLT/' || row_number() over (), '2098-99', gen_random_uuid(), o.id, o.account_id, ${TIER}, '08', 'intra',
+        select gen_random_uuid(), ${E}, 'EXPLT/' || row_number() over (), '2098-99', gen_random_uuid(), o.id, o.account_id,
+               (select a.type from accounts a where a.id = o.account_id), ${TIER}, '08', 'intra',
                'confirmed', now() - (row_number() over () % 30) * interval '1 day', o.owner_id, 100, 0, 0, 0, 0, 0, 100, ${exec.id}
           from (select id, account_id, owner_id from opportunities where owner_id = any(${ids}::uuid[]) and entity_id = ${E} limit 3000) o`;
     });

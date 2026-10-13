@@ -390,11 +390,12 @@ describe('app.target_actuals()', () => {
       const order = (id: string, state: string, at: string, by: string, lead: boolean) =>
         m.begin(async (tx) => {
           await tx`set local session_replication_role = replica`;
-          await tx`insert into sales_orders (id, entity_id, so_no, fy, quote_id, opportunity_id, account_id, tier_id,
+          await tx`insert into sales_orders (id, entity_id, so_no, fy, quote_id, opportunity_id, account_id, account_type, tier_id,
                       place_of_supply_state, supply_kind, state, cancel_reason, confirmed_at, confirmed_by,
                       subtotal, cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
               values (${id}, ${E}, ${`TGT/${id}`}, '2098-99', ${lead ? newId() : null}, ${lead ? opportunityId : null},
-                      ${lead ? accountId : dealerAccount}, ${tierId('dealer')},
+                      ${lead ? accountId : dealerAccount},
+                      (select type from accounts where id = ${lead ? accountId : dealerAccount}), ${tierId('dealer')},
                       '08', 'intra', ${state}, ${state === 'cancelled' ? 'test' : null}, ${at}, ${by}, 0, 0, 0, 0, 0, 0, 0, ${by})`;
         });
       await order(newId(), 'confirmed', '2031-04-01T14:00:00+05:30', callerA2.id, true);
