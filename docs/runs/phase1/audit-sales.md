@@ -187,6 +187,61 @@ Each of the review's eight findings is fixed, with the lead's decisions.
 
 **Not run:** the whole `pnpm test:security` this round (only the affected files, as above), and EXPLAIN. No list or search query changed this round; the import definers keep their indexed keys.
 
+### 13-10-2026, cloud (lead's VM), second fix round
+
+Findings 9 to 14 are fixed, with the lead's decisions. 15 needs no code.
+
+**9. Walk-in dealer enquiry.** `WALK_IN_KINDS.dealer_wholesale` sends `business`, as the New lead form does. The Executive makes the customer a dealer on Account 360. The comment and `walk-in.test.ts` are updated. The Store Manager's journey "saves a dealer enquiry without asking for a village" passes again on all three projects.
+
+**10. The Converting workspace** keeps the time of the dial in `use-call-logging.ts`, sends it as `startedAt`, and clears it after a save. Test: `calls.test.ts`, a Lead Converter's 20:58 call logged at 21:01.
+
+**11. A late start.**
+- The stored start is the earlier of the given start and (now − duration). Calling hours are checked on that start.
+- A start later than that is clamped, not refused, so a retry with the same start goes through. The 2-minute slack is gone.
+- Only a start older than the longest call plus the grace is `call_start_invalid`, with a reworded sentence.
+- Tests:
+  - 20:58 with 600 s, logged at 21:01, is stored as 20:51, twice (the retry).
+  - A start of 10:05 logged at 10:00 is stored as 10:00.
+  - A start of 09:00:30 logged at 08:59 is `outside_calling_hours`.
+- **Further fix, `c386f2b2`:** the start now comes from the server's clock. `DialNumberDto` carries `dialledAt`, the server's time of the dial, and both workspaces send it back. Before this, the calling journey failed: its server runs on a test clock while the browser used the wall clock, and real devices drift the same way.
+
+**12. A cancelled confirmed order.** I chose the first option: `sales.order.cancel` withdraws the order's quote with the cancel reason, whether the order was draft or confirmed. The order and commission rules allow it:
+- the cancelled order's accrual is cancelled with it;
+- the lead stays won, since there is no move out of won;
+- the next confirmed order on the lead earns its own accrual;
+- one accepted quote per lead still holds.
+
+The quote machine's note, the comments, DATABASE and the Built record say so. The data repair is in a new migration, `0139_audit_sales_fix2_rls.sql`, section 1, not in 0138: 0138 is applied on the slot, and a changed file fails `assertAllApplied`. It withdraws every quote still `accepted` whose order is cancelled, with that order's cancel reason, and is idempotent. Fold it into 0138 when you renumber, if you prefer. Test: the confirmed order cancelled, then a second quote of the won lead accepted and confirmed.
+
+**13. A commit by someone else.** `imports.job.commit_batch` first sets aside every valid dealer row of the job as invalid, with `dealer_needs_executive`, when the committer lacks `sales.credit.write` at company scope. It moves the counts, and the rest of the job commits. Test: `imports.test.ts`, an Executive previews and a General Manager commits. Result: committed 1, invalid 1 with that code.
+
+**14. The lead hold.** `loadQuoteLead` holds the lead through a new definer, `app.hold_quote_lead()` (migration 0139, section 2), instead of a locking read under the policies.
+- The definer asks `sales.quote.create` over the lead, sets `search_path = ''`, is revoked from `public` and `readonly_reporter`, and is listed in DATABASE.
+- Test: a custom Sales Team Lead with `crm.lead.write` narrowed to own quotes a teammate's lead.
+
+**15.** No code. You remake the eight baselines in Linux.
+
+**Checks** (all through the lock):
+- `pnpm db:migrate`: 0139 applied.
+- Typecheck contracts, db, domain and web: clean.
+- eslint `packages/contracts`, `packages/db`, `packages/domain` and `apps/web`: clean.
+- `copy-lint`: clean.
+- Unit tests: domain 2081 passed; web 765 passed and 1 skipped.
+- db security files (`activities`, `imports`, `grants`, `enum-sync`, `quotes`, `sales-orders`, `crm-scope`, `duplicates`): 316 passed.
+- domain security files (`sales-integrity`, `calls`, `duplicates`, `imports`, `import-kinds`, `orders`, `quotes`, `create-lead`, `customer-edits`, `lead-flows`, `tests/queries`, `tests/security`): 445 passed.
+- web security suite: 303 passed.
+- After `c386f2b2`:
+  - domain `calls`, `call-queue` and `reader-parity`: 52 passed;
+  - domain unit 2081 passed;
+  - web unit 765 passed.
+- `pnpm build`: passed.
+- Journeys with `--ignore-snapshots`:
+  - walk-in, converting, quotes, orders, calling, customers and leads: 136 passed, with 3 failures in calling.
+  - After `c386f2b2`, calling and converting: 37 passed.
+- Whole-repository `pnpm lint`, last: exit 0.
+
+**Not run:** the whole `pnpm test:security` (the affected files only, as above), and EXPLAIN (no list or search query changed).
+
 ## Review
 
 ### 13-10-2026, cloud (lead's VM), slice-reviewer (Opus 5.5 xhigh), head 61bff719
@@ -348,15 +403,15 @@ Re-checked the fix round (`git diff 1a69e1cd..81827753`) against the eight rows 
 
 **New findings:**
 
-| # | Severity | Finding |
-|---|---|---|
-| 9 | high | The walk-in form's Dealer/Wholesale enquiry is refused to everyone but the Executive |
-| 10 | medium | The Converting workspace still logs a call with no start, so the DOM-6 grace does not reach Lead Converters |
-| 11 | low | A start later than the moment of logging is accepted and stored |
-| 12 | low | A lead whose confirmed order was cancelled can still be quoted and sent a quote, and the refusal names an order that stands |
-| 13 | low | An import committed by a non-Executive after an Executive previewed it fails the whole job, with a sentence that does not say why |
-| 14 | low | `loadQuoteLead … for share` hides a lead from a customised role that may quote it but not write it |
-| 15 | low | Six New lead baselines change, and nobody has looked at them |
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 9 | high | The walk-in form's Dealer/Wholesale enquiry is refused to everyone but the Executive | fixed in 34485149 |
+| 10 | medium | The Converting workspace still logs a call with no start, so the DOM-6 grace does not reach Lead Converters | fixed in 34485149, c386f2b2 |
+| 11 | low | A start later than the moment of logging is accepted and stored | fixed in 34485149, c386f2b2 |
+| 12 | low | A lead whose confirmed order was cancelled can still be quoted and sent a quote, and the refusal names an order that stands | fixed in 34485149 |
+| 13 | low | An import committed by a non-Executive after an Executive previewed it fails the whole job, with a sentence that does not say why | fixed in 34485149 |
+| 14 | low | `loadQuoteLead … for share` hides a lead from a customised role that may quote it but not write it | fixed in 34485149 |
+| 15 | low | Six New lead baselines change, and nobody has looked at them | no code; the lead remakes the eight baselines in Linux |
 
 **9 (high, confirmed). The walk-in form cannot take a dealer's enquiry.**
 - **Where:**
