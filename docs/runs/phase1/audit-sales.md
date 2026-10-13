@@ -118,8 +118,146 @@ Done when: the checks of AGENTS §10 pass on the branch; the security suite pass
 **For the hosted migration:** on dev and staging, check `select opportunity_id from quotes where state = 'accepted' group by 1 having count(*) > 1` before migrating; the new unique index will not build if it returns a row.
 
 ## Review
+
+### 13-10-2026, cloud (lead's VM), slice-reviewer (Opus 5.5 xhigh), head 61bff719
+
+Reviewed `git diff origin/main...fix/audit-sales` against the brief, the audit files and verdicts (`docs/14-reviews/2026-10-audit/`), and the owner's decision of 13-10-2026. Every bypass was reproduced on the slot's Postgres (54335) as `app_user` inside rolled-back transactions: the verifier's `dom1`–`dom5` scripts rerun against this branch's code, two probes of my own (`dom1x`, `dom4x`) and a SQL script (`sec4.sql`), all in `scratchpad/review-as/`. Afterwards there were no rows from these probes and both test quotes were back in draft.
+
 | # | Severity | Finding | State |
 |---|---|---|---|
+| 1 | high | The owner's rule that only the Executive makes or unmakes a dealer holds only for an edit: any lead creator makes a new customer a dealer | open |
+| 2 | medium | A customer merge unmakes a dealer without the Executive, and the dealer's credit drops off Accounts' lists | open |
+| 3 | medium | The DOM-6 grace works only when the logged duration runs right up to the moment of logging | open |
+| 4 | medium | After a draft order is cancelled, its lead can take no other sale, and both new sentences name a step that cannot be taken | open |
+| 5 | low | The "two acceptances at once" test would pass without the lead lock | open |
+| 6 | low | A quote made while its lead is being merged away or rolled back still lands on the archived lead | open |
+| 7 | low | A leads rollback keeps every lead when someone other than the uploader committed the job | open |
+| 8 | low | SECURITY and four code comments contradict the code | open |
+
+**1 (high, confirmed). The rule holds only for an edit.**
+- **Where:**
+  - `0135_audit_sales_rls.sql:8-9` says "A new customer may be made a dealer", and the trigger at `:25` is `before update of type` only.
+  - `crm.lead.create` takes `account.type` as given (`create-lead.ts:223`).
+  - The New lead form offers Dealer to every lead creator (`screens/lead-form.ts:5-11`, `new-lead-form.tsx:159-164`).
+  - The customers import accepts `dealer` from a General Manager, who holds `imports.write` and `crm.account.write` but not `sales.credit.write`.
+- **Reproduced (`dom1x.mts` (c)):**
+  - A Lead Converter's `crm.lead.create` with `account: { type: 'dealer' }` answers ok with type `dealer`.
+  - The same Lead Converter's `sales.order.create` for that customer, with no quote, answers ok (`accountType` `dealer`). So the order has no sizing, no pump or DCR guard and no signed acceptance.
+  - In `sec4.sql`, a tele-caller's `insert into accounts (… type 'dealer' …)` answers `INSERT 0 1`.
+- **Failure:**
+  - A converter enters a household as a Dealer on the New lead form and makes an order without a quote. Only the missing limit holds it.
+  - Once Accounts enter terms for what looks like a new dealer, the order confirms. This is DOM-1's move (b), done at creation.
+  - Account 360 tells that same person "Only an Executive can make a customer a dealer." The Built record and SECURITY state the rule as enforced.
+- **Fix, one of two, before the merge:**
+  - Enforce the rule at creation:
+    - `accounts_type_guard` becomes `before insert or update of type`, and refuses a new `dealer` row to a request without `sales.credit.write:entity`.
+    - `crm.lead.create` and a customers-import row refuse it with `account_type_needs_credit`.
+    - The lead form offers Dealer only to a person who has that right.
+  - Or the owner narrows the decision to changes only, since PRD CRM's Dealer/Wholesale pipeline takes dealer enquiries through the lead form. Then the two Account 360 sentences, the Built record and SECURITY say so.
+
+**2 (medium, confirmed). A customer merge unmakes a dealer.**
+- **Where:** `app.merge_customers()` (`0117:511-680`) never compares the two customers' types.
+- **Reproduced (`dom1x.mts` (d)):**
+  - The setup: a dealer with ₹1,000 terms and an order held as `credit_limit_exceeded`.
+  - A Sales Team Lead (`crm.lead.merge:team`) merges that dealer into a household customer of the same team: merged.
+  - Afterwards the kept customer is still `household`, but holds the dealer's terms row and order. The dealer is archived.
+  - Neither customer is now a live dealer, so neither appears on `/dealer-credit` or Accounts' home (these show customers of type `dealer` that are not archived). The moved order is still held, because the order keeps its own copy of the type.
+- **Failure:** this is the DOM-V1 harm, a dealer's unpaid exposure that nobody watches. It is reached by a person without the credit right, against the 13-10-2026 decision.
+- **Fix:** redefine `app.merge_customers()` from 0117 to refuse a pair whose dealer status differs. It answers a new status with an `errors.*` sentence asking an Executive to make the types match first. Add a test in `duplicates.test.ts`.
+
+**3 (medium, confirmed by the code path). The grace does not cover the usual late log.**
+- **Where:**
+  - `log-call.ts:199-201` takes the call's start as now − duration.
+  - `callLogRefusal()` (`dial-policy.ts:69`) refuses any start from 21:00.
+- **Failure:**
+  - A call starts at 20:58, rings 30 s unanswered and is logged at 21:01 with duration 0 or 30.
+  - Its start is taken as 21:00:30 or later, so it is refused with `outside_calling_hours`: "Calls can be made only between 9 AM and 9 PM". In fact the call was made in hours.
+  - The new tests pass durations equal to the gap (300 s at 21:03, 1020 s at 21:15), so this case is never tried.
+  - `errors.call_logged_too_late` and workshop CALL-8 promise "A call that started before 9 PM can be logged until 9:15 PM".
+- **Fix:** let the log carry the call's real start. This means an optional `startedAt` in `LogCallInput`, which the calling screen fills when Dial is pressed. It may be no later than now − duration and no earlier than now − (duration + grace). Check calling hours on that start and store it. Add a test of a short call logged after 21:00.
+
+**4 (medium, confirmed). A lead with a cancelled draft order is stuck.**
+- **Reproduced (`dom4x.mts`):**
+  1. Q1 is accepted, and the General Manager cancels its draft order. The lead is still `open`.
+  2. A new quote is made and **sent** (the customer gets its document). Accepting it is refused with `quote_lead_already_accepted`, whose sentence says "Work from the order of that quote", but that order is cancelled.
+  3. Merging the lead away is refused with `merge_leads_has_sale`, whose sentence says "withdraw the quote or cancel the order first". Withdrawing the accepted quote answers `quote_transition_not_allowed`.
+- **Cause:**
+  - `has_sale` counts an accepted quote whatever its order's state (`0135:130-135`).
+  - The index `quotes_opportunity_accepted_unique` keeps the old acceptance.
+  - Accepted is a final state in the quote machine.
+- **Failure:** a customer who changes the size after signing can be sold to only by marking the lead lost with an untrue reason and starting a new lead.
+- **Fix:** the lead or the owner chooses.
+  - Preferred: when a draft order of a quote is cancelled, its quote leaves `accepted` (withdrawn with the cancel reason, or a new final state). That frees the lead under both the index and `has_sale`.
+  - At least: refuse `sales.quote.create` and `sales.quote.send` on a lead with an accepted quote, and rewrite both sentences to name a step the person can take.
+
+**5 (low, plausible). The concurrency test proves only the index.**
+- **Where:** `sales-integrity.test.ts:390-408` asserts one fulfilled and one rejected acceptance, but not the rejection's reason.
+- **Failure:** remove `holdLeadSale` and the two acceptances lock Q1 and Q2 crosswise in `withdrawOtherQuotes` against the index, so Postgres aborts one with a deadlock (40P01). The test still passes.
+- **Fix:** assert that the rejection's `details.reason` is `quote_transition_not_allowed` or `quote_lead_already_accepted`.
+
+**6 (low, plausible). A quote can still be stranded by a race.**
+- **Where:** `loadQuoteLead` (`quote-facts.ts:98`) reads the lead without a lock.
+- **Failure:**
+  - `app.merge_leads()` and `app.import_leads_in_use()` lock the lead `for update` and then look for quotes.
+  - A quote whose insert starts inside that window passes its policy on the earlier snapshot. Its foreign-key check waits for the lock, then succeeds on the archived lead.
+  - That quote is then stranded, as in DOM-2.
+- **Fix:** read the lead `for share` with `archived_at is null` in `loadQuoteLead`. The quote then waits for the merge or rollback to finish and checks the lead again.
+
+**7 (low, plausible). The importer is taken from the job, not the commit.**
+- **Where:** `app.import_leads_in_use()` takes the importer as `import_jobs.created_by` (`0135:262`).
+- **Failure:**
+  - The leads, their `lead_created` rows and their stamps carry the person who asked for the commit (`commit-leads.ts:57`; the worker's `importPrincipal`). Any holder of `imports.write:entity` may commit a job.
+  - When the uploader and the committer differ, every lead counts as in use, and the rollback archives nothing yet answers `rolled_back`.
+  - `app.import_accounts_in_use()` has done the same since 0106.
+- **Fix:** compare against each lead's `o.created_by`, the person whose commit made it, instead of the job's creator.
+
+**8 (low, confirmed). Documents.**
+- `docs/07-security.md:198` still says "The exposure is worked out in one definer, `app.dealer_credit_position()`". Since ARCH-5, `creditStanding()` works out the exposure and the overdue test, and the definer answers only the figures.
+- Four comments say Accounts make dealers: `account-type-change.ts:9`, `customer.ts:119`, `customers.ts:563` and `0135:6`. With today's roles only the Executive can (owner, 13-10-2026).
+
+**Checked and sound:**
+- **The verifier's scripts against this branch:**
+  - DOM-1 (a): the Lead Converter's type change is refused (`account_type_needs_credit`), the second confirm stays held, and the order ends as a draft with no release. DOM-1 (b): the Lead Converter cannot make a household a dealer, and the order without a quote is refused.
+  - DOM-2: the merge is refused, and the order then confirms.
+  - DOM-3: the sold lead is kept, and its order confirms.
+  - DOM-V1: the dealer is kept, and its next order is accepted.
+  - DOM-4, in both orders of steps: 1 accepted quote, 1 confirmed order and 1 commission accrual; the second acceptance is refused.
+  - `dom5` calls the removed `creditSummarySql`; DOM-5 is covered by `sales-integrity.test.ts`, which passed.
+- **The database paths, as `app_user`:**
+  - A caller's `update opportunities set account_id` and `set created_by` are refused ("permission denied"). A stage move still works.
+  - Accounts' `won` row on a lead, and their `customer_updated` row, are refused by RLS.
+  - A type change is refused by the trigger for a caller and for a General Manager. Accounts see no customer row to change, and the Executive succeeds.
+  - With no request settings, the update reaches no row (fails closed).
+  - `sales_orders.account_type` cannot be updated, even by the Executive.
+- **The unique index, in two sessions:**
+  - The second acceptance waited on the first's transaction for 4.5 s until it ended.
+  - Within one transaction the second acceptance fails with 23505 on `quotes_opportunity_accepted_unique`.
+- **Migration 0136 and the redefinitions:**
+  - `merge_leads` (0113), `import_accounts_in_use` (0106), `sales_orders_insert` (0117), `activities_insert` (0088) and `quotes_withdrawn_reason_check` (0109) are main's latest versions with additions only.
+  - `main`'s 0130–0133 touch none of them.
+  - The journal times are after `main`'s 0133. Journal `idx` 130–132 clash with `main`'s and are renumbered at the merge.
+  - The hashes applied on the slot match the files.
+  - The fill trigger runs before the insert policy checks the row.
+  - 0134 holds ACCESS EXCLUSIVE locks on `sales_orders` and `quotes` for the length of the migration transaction. That is fine at today's sizes.
+  - Run the duplicate-acceptance query in the run file before migrate-hosted.
+- **Definers and money:**
+  - `app.import_leads_in_use()` checks its permission, sets `search_path = ''`, revokes from `public` and `readonly_reporter`, locks the leads it answers for, and is listed in DATABASE.
+  - The trigger functions revoke execute as well.
+  - `creditStanding()` works in paise, and the confirmation, Accounts' home and `/dealer-credit` all call it.
+  - The DOM-7 continuation copies the rate and its source, is audited, and leaves no gap or overlap.
+  - Cancelling an order clears its hold, and the reads count only drafts as held.
+  - The event catalogue's `emittedBy` matches the code.
+  - The web layer computes no figures, and every new sentence is in `en.json`.
+- **Suites on the slot, through the lock:**
+  - domain `sales-integrity`, `calls` and `tax`: 53 passed.
+  - domain `quotes`, `orders`, `duplicates`, `imports`, `customer-edits`, `create-lead`, `tasks`, `timeline`, `lead-flows`, `consent`, `handover`, `crm-scoring-referrals`, `opportunity` and `triage`: 242 passed.
+  - db `activities`, `crm-scope`, `imports`, `grants` and `enum-sync`: 276 passed.
+- **Screenshots:** the two failing diffs (`quote-page` desktop-light, `customers-list` phone) are not from this branch. The actual image has a Converting row that the older baseline lacks, and the phone list wraps differently. Both actual images lay out cleanly.
+
+**Not checked:**
+- The journeys were not run. The dialog's new helper line and the quote page's withdrawn line have no screenshot, so their layout in light, dark and phone width is unseen until the Linux baselines are remade.
+- `pnpm copy-lint` waited behind other builders in the heavy-command lock queue, and I stopped it before it ran. The new keys are neither button labels nor titles; the builder's run was clean.
+- I did not run the whole security suite, as instructed, and did not rerun EXPLAIN.
 
 ## Integration notes
 - Migrations from 0134 move after `main`'s last one at the merge.
