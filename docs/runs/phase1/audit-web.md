@@ -7,8 +7,8 @@
 | Runs on | cloud, beside M1 and the database follow-ups (owner, 12-10-2026: a deep audit of Phases 0–1, every finding fixed), heavy commands through the VM's lock |
 | Tier | B (sessions, permissions on screens, one query and index): build Opus 5.5 medium, review Opus 5.5 high |
 | Usage | no reading posted; the owner said to proceed (12-10-2026) |
-| State | built, ready for review |
-| Next step | builder: the findings below |
+| State | merged, #170, 13-10-2026; dev and staging migrated through 0135 |
+| Next step | none |
 
 ## Brief
 The Phase 0–1 audit of 12-10-2026 (report 2026-10-audit in `docs/14-reviews/`, written by the lead when the audit closes) found these in the web app. Each finding's evidence, file and line and proposed fix are in the auditor's file and the verifier's verdict (read both first; the verdict corrects some line numbers and severities):
