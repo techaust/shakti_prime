@@ -271,7 +271,7 @@ describe('the handover definers', () => {
         'platform.jobs.check',
       ]),
     );
-    expect(list?.keys).toHaveLength(9);
+    expect(list?.keys).toHaveLength(10);
   });
 
   it('refuses a caller without it, and a company outside the request', async () => {
