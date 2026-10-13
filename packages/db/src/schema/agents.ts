@@ -192,7 +192,10 @@ export const agentActions = pgTable(
       .on(t.entityId, t.agent, t.actionType, t.decidedAt)
       .where(sql`${t.autonomy} = 'needs_approval' and ${t.state} in ('approved', 'rejected')`),
     // The actions about one lead: the retention job reads them and removes the agent's note.
-    index('agent_actions_opportunity_idx').using('btree', sql`(${t.inputJson} ->> 'opportunityId')`),
+    index('agent_actions_opportunity_idx').using(
+      'btree',
+      sql`(${t.inputJson} ->> 'opportunityId')`,
+    ),
     // The shadow report: one company's shadowed proposals of one agent, newest first (A1).
     index('agent_actions_shadow_idx')
       .on(t.entityId, t.agent, t.createdAt.desc(), t.id.desc())

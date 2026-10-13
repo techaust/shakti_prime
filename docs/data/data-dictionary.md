@@ -3031,7 +3031,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### agent_actions
 
-**Catalogue entry** (05-database.md §6.9; created in 0107; append-only but its decision): `entity_id`, `run_id` (composite key with `entity_id`), `agent`, `action_type`, `input_json`, `autonomy`, `state` (`proposed`, `shadowed`, `executed`, `approved`, `rejected`, `dismissed`, the `agent_action` machine), `edited`, `decided_input_json`, `decided_by`, `decided_at`
+**Catalogue entry** (05-database.md §6.9; created in 0107; append-only but its decision): `entity_id`, `run_id` (composite key with `entity_id`), `agent`, `action_type`, `input_json`, `autonomy`, `state` (`proposed`, `shadowed`, `executed`, `approved`, `rejected`, `dismissed`, the `agent_action` machine), `edited`, `decided_input_json`, `decided_by`, `decided_at`; `agent_actions_opportunity_idx` on `input_json ->> 'opportunityId'`, by which the retention job finds a lead's proposals (0130)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3078,6 +3078,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Indexes**
 
+- `agent_actions_opportunity_idx` (btree): `("input_json" ->> 'opportunityId')`
 - `agent_actions_record_idx` (btree): `entity_id, agent, action_type, decided_at` where `"agent_actions"."autonomy" = 'needs_approval' and "agent_actions"."state" in ('approved', 'rejected')`
 - `agent_actions_run_idx` (btree): `run_id, entity_id`
 - `agent_actions_shadow_idx` (btree): `entity_id, agent, created_at desc, id desc` where `"agent_actions"."state" = 'shadowed'`
@@ -3246,7 +3247,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### inbox_items
 
-**Catalogue entry** (05-database.md §6.9; created in 0107): `entity_id`, `kind` (`agent_suggestion`, `routed_work`), `assignee_id`, `team_id`, `subject_type` (`opportunity`, `account`), `subject_id`, `state` (`open`, `done`, the `inbox_item` machine), `agent_action_id` (composite key with `entity_id`, one item per action), `segment` and `note` (routed work only: the enquiry's interest and the note it came with, up to 500 characters; 0116), `done_by`, `done_at`
+**Catalogue entry** (05-database.md §6.9; created in 0107): `entity_id`, `kind` (`agent_suggestion`, `routed_work`), `assignee_id`, `team_id`, `subject_type` (`opportunity`, `account`), `subject_id`, `state` (`open`, `done`, the `inbox_item` machine), `agent_action_id` (composite key with `entity_id`, one item per action), `segment` and `note` (routed work only: the enquiry's interest and the note it came with, up to 500 characters; 0116), `done_by`, `done_at`; `inbox_items_subject_idx` on `subject_id`, by which the retention job finds the items about a lead or customer (0130)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3301,6 +3302,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `inbox_items_assignee_open_idx` (btree): `assignee_id, state, created_at, id`
 - `inbox_items_entity_open_idx` (btree): `entity_id, state, created_at, id`
+- `inbox_items_subject_idx` (btree): `subject_id`
 - `inbox_items_team_open_idx` (btree): `team_id, state, created_at, id`
 
 **Triggers**
