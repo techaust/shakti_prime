@@ -10,6 +10,7 @@ import type {
 } from '@shakti/contracts';
 import type { Route } from 'next';
 import { localFromIso } from './customers';
+import { IST_OFFSET_MS } from './ist';
 
 /** What an outcome asks the caller for before the call is saved. */
 export type OutcomeNeed = 'callbackTime' | 'lostReason' | 'nurtureReason';
@@ -86,7 +87,6 @@ export function nextLead(
 }
 
 const HOUR_MS = 3_600_000;
-const IST_OFFSET_MS = 330 * 60_000;
 
 /**
  * The time a callback field starts on, as a `datetime-local` value in India time: 10:00 the next

@@ -139,7 +139,7 @@ const percent = (bp: number) => `${bp / 100}%`;
 
 /**
  * The selling company of the spike documents, with a made-up address, GSTIN and bank account, and
- * the logo and letterhead when the caller has them (`spikeImages`).
+ * the logo and letterhead when the caller has them.
  */
 export function spikeCompany(
   images: { logo?: PrintImage; letterhead?: PrintImage } = {},

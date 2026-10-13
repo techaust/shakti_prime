@@ -1,3 +1,4 @@
+import { istDayStart } from '../numbering/financial-year';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 import { nextCallingWindowStart } from './dial-policy';
 
@@ -9,13 +10,6 @@ import { nextCallingWindowStart } from './dial-policy';
 
 const DAY_MS = 86_400_000;
 /** India has one time zone and no daylight saving: a fixed offset is exact. */
-const IST_OFFSET_MS = 330 * 60_000;
-
-/** Midnight IST of the day `at` falls on. */
-export function istDayStart(at: Date): Date {
-  const local = at.getTime() + IST_OFFSET_MS;
-  return new Date(Math.floor(local / DAY_MS) * DAY_MS - IST_OFFSET_MS);
-}
 
 /** The start of calling hours on the IST day `days` after the day of `at` (0 is that day). */
 export function callingStartOnDay(at: Date, days: number): Date {

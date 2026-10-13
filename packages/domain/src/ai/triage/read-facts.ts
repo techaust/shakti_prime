@@ -1,6 +1,7 @@
 import { SegmentSchema, type Segment } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, desc, eq, isNull, ne, or, sql } from 'drizzle-orm';
+import { IST_OFFSET_MS } from '../../numbering/financial-year';
 import { AGENT_DEFAULTS } from '../agent-defaults';
 import type { TriageCandidate, TriageFacts, TriagePerson } from './facts';
 
@@ -11,7 +12,6 @@ import type { TriageCandidate, TriageFacts, TriagePerson } from './facts';
 // read only as an id, a role key and their caller profile.
 
 const DAY_MS = 86_400_000;
-const IST_OFFSET_MS = 330 * 60_000;
 
 const segmentOf = (value: string): Segment | undefined => {
   const parsed = SegmentSchema.safeParse(value);
