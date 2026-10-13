@@ -226,6 +226,14 @@ export const RUNNER_REASONS = [
   'idempotency_mismatch',
 ] as const;
 
+/**
+ * Constraints any command may meet, with their catalogue reason: a write to a customer the
+ * retention job has anonymised (`app.refuse_anonymised_customer()`, BLUEPRINT §7.9).
+ */
+export const SHARED_CONSTRAINT_REASONS: Readonly<Record<string, string>> = {
+  customer_anonymised: 'customer_anonymised',
+};
+
 /** A PostgreSQL SQLSTATE: five digits or capitals. Driver codes such as ECONNREFUSED are not. */
 const SQLSTATE = /^[0-9A-Z]{5}$/;
 
@@ -252,7 +260,10 @@ export function translateDatabaseError(
       ? cause.constraint_name
       : undefined;
   const code = SQLSTATE_CODES[sqlstate] ?? 'internal';
-  const named = constraint === undefined ? undefined : constraintReasons[constraint];
+  const named =
+    constraint === undefined
+      ? undefined
+      : (constraintReasons[constraint] ?? SHARED_CONSTRAINT_REASONS[constraint]);
   const fallback: (typeof RUNNER_REASONS)[number] =
     code === 'conflict' ? 'concurrent_change' : 'database_rejected';
   return new DomainError(
@@ -470,10 +481,12 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
     );
   }
 
-  // One row per changed aggregate, or one row for the call when the handler named none.
+  // One row per changed aggregate, or one row for the call when the handler named none, unless
+  // the command records only what changed (a scheduled scan that found nothing).
   const base = auditBase(context.principal, command.name, context.requestId, options.client);
   const input = auditedInput(command, parsed.data);
-  const rows: Partial<AuditChange>[] = changes.length > 0 ? changes : [{}];
+  const rows: Partial<AuditChange>[] =
+    changes.length > 0 ? changes : command.auditWhen === 'changed' ? [] : [{}];
   const records: AuditRecord[] = rows.map((change) => ({
     ...base,
     outcome: 'ok',

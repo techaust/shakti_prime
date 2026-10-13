@@ -46,6 +46,7 @@ type LeasedRow =
       aggregate_id: string;
       payload_json: Record<string, unknown>;
       attempts: number;
+      replays: number;
       created_at: Date;
       lease: string;
     }
@@ -86,11 +87,11 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
           from due
          where o.id = due.id and due.attempts < ${maxAttempts}::int
         returning o.id, o.sequence::text as sequence, o.entity_id, o.type, o.aggregate_type,
-                  o.aggregate_id, o.payload_json, due.attempts, o.created_at,
+                  o.aggregate_id, o.payload_json, due.attempts, o.replays, o.created_at,
                   o.claimed_until::text as lease)
       select false as spent, l.* from leased l
       union all
-      select true, s.id, null, null, null, null, null, null, null, null, null from spent s`;
+      select true, s.id, null, null, null, null, null, null, null, null, null, null from spent s`;
     const leased = answer.filter((r) => !r.spent);
     const deadLettered = answer.filter((r) => r.spent).map((r) => r.id);
     const rows: OutboxRow[] = leased
@@ -103,6 +104,7 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
         aggregateId: r.aggregate_id,
         payload: r.payload_json,
         attempts: r.attempts,
+        replays: r.replays,
         createdAt: r.created_at,
       }))
       .sort((a, b) => {
@@ -164,18 +166,29 @@ export const claimOutbox: ClaimOutbox = leasedClaim(postgresOutboxLeaseStore);
  * when the queue took it, is held back as a dead letter with the worker's error, so Integration
  * Health lists it, the owner is told and Send again replays it. Only a delivered event that is not
  * already held back changes; the outbox trigger allows exactly this change, and only to this role.
+ *
+ * The callback can arrive before the run that sent the event has recorded it delivered (audit
+ * 2026-10, DATA-4), or after that run died with its lease lapsed and before another run claims the
+ * event again (review L1): the event is then neither delivered nor held back, and answers
+ * `leased`, so the route asks QStash to call again rather than lose the dead letter.
  */
 export async function holdBackFailedEvent(
   eventId: string,
   lastError: 'worker_failed' | 'worker_refused',
-): Promise<'held' | 'unchanged'> {
-  const rows = await outboxSql()`
-    update outbox_events
-       set published_at = null, dead_lettered_at = now(), last_error = ${lastError},
-           next_attempt_at = null, claimed_until = null
-     where id = ${eventId} and published_at is not null and dead_lettered_at is null
-    returning id`;
-  return rows.length === 1 ? 'held' : 'unchanged';
+): Promise<'held' | 'unchanged' | 'leased'> {
+  const [row] = await outboxSql()<{ held: boolean; leased: boolean }[]>`
+    with held as (
+      update outbox_events
+         set published_at = null, dead_lettered_at = now(), last_error = ${lastError},
+             next_attempt_at = null, claimed_until = null
+       where id = ${eventId} and published_at is not null and dead_lettered_at is null
+      returning id)
+    select exists (select 1 from held) as held,
+           exists (select 1 from outbox_events
+                    where id = ${eventId} and published_at is null and dead_lettered_at is null)
+             as leased`;
+  if (row?.held === true) return 'held';
+  return row?.leased === true ? 'leased' : 'unchanged';
 }
 
 export async function outboxLag(): Promise<OutboxLag> {

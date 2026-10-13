@@ -67,6 +67,8 @@ describe('workshop defaults', () => {
         sanctionedLoadRatio: 1,
         dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
       },
+      // BLUEPRINT §7.9, for the CA to confirm.
+      retention: { unqualifiedLeadMonths: 24 },
     });
   });
 

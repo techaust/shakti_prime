@@ -5,6 +5,7 @@ import {
   IntegrationHealthResponse,
   IntegrationHealthQuery,
   IntegrationReplayResponse,
+  ScheduledJobHealth,
 } from './admin-integrations';
 import { API_FIXTURES, IDS } from './fixtures';
 
@@ -25,6 +26,19 @@ describe('the Integration Health contracts (docs/06-api.md §3.7)', () => {
     for (const errorCode of ['http_503 upstream said no', 'rekha@example.com', '', '9876543210']) {
       expect(DeadLetteredEvent.safeParse({ ...deadLetter, errorCode }).success).toBe(false);
     }
+  });
+
+  it('shows a scheduled job by its state and times, never the error behind a failure (DATA-3)', () => {
+    const job = {
+      job: 'outbox-events-purge',
+      state: 'failed',
+      lastRunAt: '2026-09-27T02:45:00.000Z',
+      lastFinishedAt: null,
+      everyHours: 24,
+    };
+    expect(ScheduledJobHealth.safeParse(job).success).toBe(true);
+    expect(ScheduledJobHealth.safeParse({ ...job, error: 'lock timeout' }).success).toBe(false);
+    expect(ScheduledJobHealth.safeParse({ ...job, job: 'a-job-of-the-host' }).success).toBe(false);
   });
 
   it('answers the outbox by type, the last run and the delivery check', () => {

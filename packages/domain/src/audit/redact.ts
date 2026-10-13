@@ -117,6 +117,49 @@ export function redactForAudit(value: unknown): unknown {
 }
 
 /**
+ * The fields of a person's details: a name, a phone number, an email address, a village, a PIN, an
+ * address and a note, compared without case or separators. A refused command's audit row keeps
+ * none of their values (`withoutPersonalDetails`).
+ */
+const PERSONAL_KEYS = new Set([
+  'name',
+  'fullname',
+  'contactname',
+  'customername',
+  'phone',
+  'phones',
+  'mobile',
+  'whatsapp',
+  'e164',
+  'email',
+  'village',
+  'pin',
+  'pincode',
+  'address',
+  'note',
+]);
+
+/**
+ * A refused command's input as its audit row keeps it (BLUEPRINT §7.9; the owner's decision of
+ * 13-10-2026): the value of every personal field, at any depth, is "removed", so a refusal keeps
+ * its reason, its company and its codes and nothing that would identify the person, even when it
+ * names no customer the retention job could later find it by. Migration 0131 does the same to
+ * the rows written before (`app.audit_without_personal()`); the two must stay in step.
+ */
+export function withoutPersonalDetails(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutPersonalDetails);
+  if (value === null || typeof value !== 'object') return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    out[key] =
+      PERSONAL_KEYS.has(normaliseKey(key)) && v !== null && v !== undefined
+        ? 'removed'
+        : withoutPersonalDetails(v);
+  }
+  return out;
+}
+
+/**
  * The fields each auth event may record. Anything else in the request (the password, the
  * one-time code, the link token) is never looked at.
  */

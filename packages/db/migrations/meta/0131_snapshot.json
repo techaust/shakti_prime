@@ -1,6 +1,6 @@
 {
-  "id": "993471de-a94a-42a7-9703-48103f988182",
-  "prevId": "bb2efc74-bf8c-4d86-a9c9-94f556f910d6",
+  "id": "79dbc818-9193-43a0-81d3-ab816dfb1985",
+  "prevId": "552ca143-4c7f-478d-a51d-b42b890d4244",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8173,27 +8173,6 @@
           "where": "\"notifications\".\"read_at\" is null",
           "concurrently": false
         },
-        "notifications_entity_dedupe_idx": {
-          "name": "notifications_entity_dedupe_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "dedupe_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
         "notifications_push_pending_idx": {
           "name": "notifications_push_pending_idx",
           "columns": [
@@ -11221,12 +11200,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "withdrawn_for_id": {
-          "name": "withdrawn_for_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "accepted_via": {
           "name": "accepted_via",
           "type": "text",
@@ -11426,38 +11399,6 @@
           "method": "btree",
           "concurrently": false
         },
-        "quotes_opportunity_accepted_unique": {
-          "name": "quotes_opportunity_accepted_unique",
-          "columns": [
-            {
-              "expression": "opportunity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "where": "\"quotes\".\"state\" = 'accepted'",
-          "concurrently": false
-        },
-        "quotes_withdrawn_for_idx": {
-          "name": "quotes_withdrawn_for_idx",
-          "columns": [
-            {
-              "expression": "withdrawn_for_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"quotes\".\"withdrawn_for_id\" is not null",
-          "concurrently": false
-        },
         "quotes_signed_file_unique": {
           "name": "quotes_signed_file_unique",
           "columns": [
@@ -11624,21 +11565,6 @@
           ],
           "onUpdate": "no action",
           "onDelete": "no action"
-        },
-        "quotes_withdrawn_for_fk": {
-          "name": "quotes_withdrawn_for_fk",
-          "tableFrom": "quotes",
-          "columnsFrom": [
-            "withdrawn_for_id",
-            "entity_id"
-          ],
-          "tableTo": "quotes",
-          "columnsTo": [
-            "id",
-            "entity_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11692,7 +11618,7 @@
         },
         "quotes_withdrawn_reason_check": {
           "name": "quotes_withdrawn_reason_check",
-          "value": "(\"quotes\".\"state\" = 'withdrawn') = (\"quotes\".\"withdrawn_reason\" is not null or \"quotes\".\"withdrawn_for_id\" is not null)\n       and (\"quotes\".\"withdrawn_reason\" is null or \"quotes\".\"withdrawn_for_id\" is null)"
+          "value": "(\"quotes\".\"state\" = 'withdrawn') = (\"quotes\".\"withdrawn_reason\" is not null)"
         },
         "quotes_accepted_via_check": {
           "name": "quotes_accepted_via_check",
@@ -12515,12 +12441,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "account_type": {
-          "name": "account_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "site_id": {
           "name": "site_id",
           "type": "uuid",
@@ -13055,10 +12975,6 @@
         "sales_orders_state_check": {
           "name": "sales_orders_state_check",
           "value": "\"sales_orders\".\"state\" in ('draft', 'confirmed', 'partially_dispatched', 'dispatched', 'invoiced', 'closed', 'cancelled')"
-        },
-        "sales_orders_account_type_check": {
-          "name": "sales_orders_account_type_check",
-          "value": "\"sales_orders\".\"account_type\" in ('household', 'farm', 'business', 'dealer', 'referral_partner')"
         },
         "sales_orders_supply_kind_check": {
           "name": "sales_orders_supply_kind_check",

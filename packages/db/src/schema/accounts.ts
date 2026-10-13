@@ -36,6 +36,11 @@ export const accounts = pgTable(
     /** Two-digit GST state code of the billing address; place of supply falls back to it (design §6). */
     billingStateCode: text('billing_state_code'),
     tierId: uuid('tier_id').references(() => priceTiers.id),
+    /**
+     * When the retention job removed this customer's personal details with those of their only,
+     * unqualified lead (BLUEPRINT §7.9); the customer is archived with it.
+     */
+    anonymisedAt: timestamp('anonymised_at', { withTimezone: true }),
     ...archivable,
     ...timestamps,
     ...actorsRequired,

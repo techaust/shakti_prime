@@ -546,8 +546,9 @@ async function archivedOf(ids: readonly string[]): Promise<Record<string, boolea
 describe('customers files after review', () => {
   it('adds the different site of a repeated row to the customer, and says so', async () => {
     const number = phone();
-    // A name of this run only: an earlier run's customer with the same name in Sikar is suggested.
-    const name = `Two Sites ${number.slice(-4)}`;
+    // A name of this run's own: an earlier run's customer of the same name in Sikar would be
+    // suggested by name and village.
+    const name = `Two Sites ${number.slice(-6).replace(/\d/g, (d) => 'abcdefghij'.charAt(Number(d)))}`;
     const job = await startedJob(
       gm1,
       'accounts',

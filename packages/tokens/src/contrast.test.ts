@@ -77,6 +77,11 @@ describe.each(LEVELS)(
       ['danger', 'danger-soft'],
       ['info', 'info-soft'],
       ['text', 'accent-soft'],
+      // Muted labels on selected cards and ticked rows.
+      ['text-muted', 'accent-soft'],
+      // The hover grey under highlighted menu and search items (a search hit's hint).
+      ['text', 'surface-3'],
+      ['text-muted', 'surface-3'],
     ] as const)(`body text %s on %s is at least ${String(min.text)}:1`, (fg, bg) => {
       expect(contrastRatio(t[fg], t[bg])).toBeGreaterThanOrEqual(AA_TEXT);
     });

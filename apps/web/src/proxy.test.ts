@@ -13,7 +13,23 @@ describe('proxy', () => {
   it('redirects a BOS screen without a session cookie to sign-in', () => {
     const response = proxy(request('/leads'));
     expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe('https://bos.shakti.test/sign-in');
+    // Back to the screen after signing in (WEB-7).
+    expect(response.headers.get('location')).toBe(
+      'https://bos.shakti.test/sign-in?returnTo=%2Fleads',
+    );
+  });
+
+  it("lets a server action's call through without a cookie, so the action answers unauthorized (WEB-7)", () => {
+    const call = new NextRequest(new URL('/calling', 'https://bos.shakti.test'), {
+      method: 'POST',
+      headers: { 'next-action': 'abc123' },
+    });
+    expect(proxy(call).headers.get('location')).toBeNull();
+  });
+
+  it('names the path asked for to the (bos) layout, replacing any value the browser sent', () => {
+    const response = proxy(request('/calling', `${SESSION_COOKIE}=abc`));
+    expect(response.headers.get('x-middleware-request-x-shakti-path')).toBe('/calling');
   });
 
   it('passes a BOS screen with a session cookie on, with a nonce policy', () => {

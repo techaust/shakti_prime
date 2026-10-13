@@ -23,6 +23,9 @@ describe('notification contracts (docs/03-roadmap-appendix/phase1.md §8.1)', ()
       'https://notify.windows.com.example.org/abc',
       'https://169.254.169.254/latest/meta-data',
       'not an address',
+      'https://fcm.googleapis.com/fcm/send/abc#x',
+      'https://FCM.googleapis.com/fcm/send/abc',
+      'https://fcm.googleapis.com/fcm/send/abc#',
     ]) {
       expect(isPushServiceEndpoint(refused)).toBe(false);
     }

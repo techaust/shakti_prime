@@ -42,10 +42,15 @@ export const outboxEvents = pgTable(
     nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
     // The lease of the run publishing it: no other run claims the row until this has passed.
     claimedUntil: timestamp('claimed_until', { withTimezone: true }),
+    // How often Send again put it back in the queue. Each delivery generation carries its own
+    // deduplication id, since the queue keeps an id for 90 days and would drop a replay that
+    // reused it; only `app.replay_dead_letter()` changes it.
+    replays: integer('replays').notNull().default(0),
   },
   (t) => [
     check('outbox_events_type_check', sql`${t.type} ~ '^[a-z]+(\\.[a-z_]+)+$'`),
     check('outbox_events_attempts_check', sql`${t.attempts} >= 0`),
+    check('outbox_events_replays_check', sql`${t.replays} >= 0`),
     check('outbox_events_last_error_length_check', sql`char_length(${t.lastError}) <= 500`),
     check('outbox_events_payload_version_check', sql`${t.payloadJson} ? 'v'`),
     // The publisher's claim: pending rows in delivery order. Whether a row is due (its backoff and

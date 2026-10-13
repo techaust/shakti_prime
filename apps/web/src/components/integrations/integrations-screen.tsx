@@ -6,8 +6,18 @@ import type {
   DeliveryCheck,
   IntegrationHealthResponse,
   OutboxTypeHealth,
+  ScheduledJobHealth,
+  ScheduledJobState,
 } from '@shakti/contracts';
-import { Button, DataGrid, EmptyState, StatusBadge, toast, type DataGridColumn } from '@shakti/ui';
+import {
+  Button,
+  DataGrid,
+  EmptyState,
+  StatusBadge,
+  toast,
+  type DataGridColumn,
+  type StatusTone,
+} from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { integrationHealth, deliveryCheck, runDeliveryCheck } from '../../actions/integrations';
@@ -97,6 +107,7 @@ export function IntegrationsScreen({
       </section>
       <DeliverySpeed initial={initial.deliveryCheck} />
       <HeldUpdates initial={initial.deadLetters} companies={companies} />
+      <ScheduledUpkeep jobs={initial.jobs} />
       <AiSpend spend={initial.aiSpend} companies={companies} />
     </div>
   );
@@ -366,6 +377,69 @@ function AiSpend({
         rows={spend.byAgent}
         rowKey={(r) => `${r.agent}-${String(r.entityId)}`}
         empty={<EmptyState message={t('aiSpend.empty')} />}
+      />
+    </section>
+  );
+}
+
+/** How each state of a scheduled task shows: a problem in red or amber, a good run in green. */
+const JOB_TONES: Record<ScheduledJobState, StatusTone> = {
+  ok: 'success',
+  running: 'info',
+  waiting: 'neutral',
+  late: 'warning',
+  failed: 'danger',
+  stuck: 'danger',
+  paused: 'warning',
+  missing: 'danger',
+};
+
+/**
+ * The database's scheduled upkeep (audit 2026-10, DATA-3): each task, where it stands and when it
+ * last ran. The error behind a failure goes to the owner's alert and the log, never on screen.
+ */
+function ScheduledUpkeep({ jobs }: { jobs: readonly ScheduledJobHealth[] }) {
+  const t = useTranslations('integrations');
+  const columns: DataGridColumn<ScheduledJobHealth>[] = [
+    { id: 'task', header: t('columns.task'), cell: (r) => t(`jobs.names.${r.job}`), primary: true },
+    {
+      id: 'state',
+      header: t('columns.state'),
+      // data-dynamic: a run's state and time change from day to day, so screenshots mask them.
+      cell: (r) => (
+        <span data-dynamic>
+          <StatusBadge tone={JOB_TONES[r.state]}>{t(`jobs.state.${r.state}`)}</StatusBadge>
+        </span>
+      ),
+    },
+    {
+      id: 'lastRun',
+      header: t('columns.lastRun'),
+      cell: (r) => (
+        <span data-dynamic>
+          {r.lastRunAt === null ? t('jobs.never') : <DateTime value={r.lastRunAt} />}
+        </span>
+      ),
+    },
+    {
+      id: 'runs',
+      header: t('columns.runs'),
+      cell: (r) => t('jobs.every', { hours: r.everyHours }),
+    },
+  ];
+  return (
+    <section aria-labelledby="integrations-jobs" className="flex flex-col gap-3">
+      <h2 id="integrations-jobs" className="text-h3">
+        {t('jobs.heading')}
+      </h2>
+      <p className="text-text-muted">{t('jobs.intro')}</p>
+      <DataGrid
+        caption={t('jobs.caption')}
+        columns={columns}
+        rows={[...jobs]}
+        rowKey={(r) => r.job}
+        // Every expected task has a row, a missing one included, so the list is never empty.
+        empty={null}
       />
     </section>
   );

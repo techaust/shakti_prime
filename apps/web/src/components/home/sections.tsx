@@ -10,9 +10,10 @@ import type {
   TeamProgressDto,
   TeamQueueDto,
 } from '@shakti/contracts';
-import { Button, EmptyState } from '@shakti/ui';
+import { Button, CardList, EmptyState } from '@shakti/ui';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { TeamQueues } from '../calling/team-queues';
 import { formatCount, formatDate, formatRupees } from '../../screens/format';
 import { meterPercent, metricNumber, targetMet } from '../../screens/home';
@@ -158,17 +159,79 @@ async function Leaderboard({ team }: { team: TeamProgressDto }) {
   const m = await getTranslations('targets.metric');
   const p = await getTranslations('home.progress');
   if (team.leaderboard.length === 0) return <EmptyState message={t('noCallers')} />;
-  const number = 'px-3 py-2 text-right tabular-nums';
   const caption = t('leaderboardCaption', {
     metric: m(team.metric),
     period: p(`period.${team.period}`),
   });
+  const cell = (c: TeamProgressDto['leaderboard'][number]['metrics'][number]) => (
+    <>
+      <span className={targetMet(c.fraction) ? 'text-success font-medium' : ''}>
+        {metricNumber(c.metric, c.actual)}
+      </span>
+      {c.target === null ? null : (
+        <span className="text-text-muted">
+          {' '}
+          {p('ofShort', {
+            target: metricNumber(c.metric, c.target),
+            percent: meterPercent(c.fraction),
+          })}
+        </span>
+      )}
+    </>
+  );
   return (
-    <ScrollTable label={caption}>
+    <>
+      {/* On a phone: the measure to rank by, then a card per caller (docs/08-design-system.md §5). */}
+      <nav aria-label={t('rankBy')} className="flex flex-wrap gap-x-4 gap-y-1 text-sm md:hidden">
+        {TARGET_METRICS.map((metric) => (
+          <Link
+            key={metric}
+            href={periodHref(team.period, metric)}
+            className="text-accent-text inline-flex min-h-11 items-center underline-offset-4 hover:underline aria-[current=true]:font-semibold"
+            aria-current={metric === team.metric ? 'true' : undefined}
+          >
+            {m(metric)}
+          </Link>
+        ))}
+      </nav>
+      <CardList
+        label={caption}
+        items={team.leaderboard.map((row, index) => ({
+          key: row.callerId,
+          title: row.callerName,
+          fields: [
+            { id: 'rank', label: t('rank'), value: index + 1, numeric: true },
+            ...row.metrics.map((c) => ({
+              id: c.metric,
+              label: m(c.metric),
+              value: cell(c),
+              numeric: true,
+            })),
+          ],
+        }))}
+      />
+      <LeaderboardTable team={team} caption={caption} cell={cell} />
+    </>
+  );
+}
+
+/** The leaderboard as a table, on wider screens; each metric's heading ranks by it. */
+async function LeaderboardTable({
+  team,
+  caption,
+  cell,
+}: {
+  team: TeamProgressDto;
+  caption: string;
+  cell: (c: TeamProgressDto['leaderboard'][number]['metrics'][number]) => ReactNode;
+}) {
+  const t = await getTranslations('home.lead');
+  const m = await getTranslations('targets.metric');
+  const number = 'px-3 py-2 text-right tabular-nums';
+  return (
+    <ScrollTable label={caption} className="hidden md:block">
       <table className="w-full min-w-xl text-sm">
-        <caption className="sr-only">
-          {t('leaderboardCaption', { metric: m(team.metric), period: p(`period.${team.period}`) })}
-        </caption>
+        <caption className="sr-only">{caption}</caption>
         <thead className="bg-surface-2 text-text-muted">
           <tr>
             <th scope="col" className="px-3 py-2 text-left font-medium">
@@ -197,20 +260,9 @@ async function Leaderboard({ team }: { team: TeamProgressDto }) {
               <th scope="row" className="px-3 py-2 text-left font-medium">
                 {row.callerName}
               </th>
-              {row.metrics.map((cell) => (
-                <td key={cell.metric} className={number}>
-                  <span className={targetMet(cell.fraction) ? 'text-success font-medium' : ''}>
-                    {metricNumber(cell.metric, cell.actual)}
-                  </span>
-                  {cell.target === null ? null : (
-                    <span className="text-text-muted">
-                      {' '}
-                      {p('ofShort', {
-                        target: metricNumber(cell.metric, cell.target),
-                        percent: meterPercent(cell.fraction),
-                      })}
-                    </span>
-                  )}
+              {row.metrics.map((c) => (
+                <td key={c.metric} className={number}>
+                  {cell(c)}
                 </td>
               ))}
             </tr>
@@ -367,6 +419,29 @@ export async function ExecutiveSection({
 }) {
   const t = await getTranslations('home.executive');
   const number = 'px-3 py-2 text-right tabular-nums';
+  const salesFields = (
+    s: Pick<SalesHomeDto, 'quotesSent' | 'quotesAccepted' | 'ordersConfirmed' | 'ordersValue'>,
+  ) => [
+    { id: 'quotesSent', label: t('quotesSent'), value: formatCount(s.quotesSent), numeric: true },
+    {
+      id: 'quotesAccepted',
+      label: t('quotesAccepted'),
+      value: formatCount(s.quotesAccepted),
+      numeric: true,
+    },
+    {
+      id: 'ordersConfirmed',
+      label: t('ordersConfirmed'),
+      value: formatCount(s.ordersConfirmed),
+      numeric: true,
+    },
+    {
+      id: 'ordersValue',
+      label: t('ordersValue'),
+      value: formatRupees(s.ordersValue),
+      numeric: true,
+    },
+  ];
   const total = {
     quotesSent: sales.reduce((n, s) => n + s.quotesSent, 0),
     quotesAccepted: sales.reduce((n, s) => n + s.quotesAccepted, 0),
@@ -376,7 +451,21 @@ export async function ExecutiveSection({
   return (
     <>
       <HomeBlock id="home-executive-sales" title={t('salesHeading')}>
-        <ScrollTable label={t('caption')}>
+        {/* A card per company on a phone, the group's total last (docs/08-design-system.md §5). */}
+        <CardList
+          label={t('caption')}
+          items={[
+            ...sales.map((s) => ({
+              key: String(s.entityId),
+              title: companies[s.entityId] ?? '',
+              fields: salesFields(s),
+            })),
+            ...(sales.length > 1
+              ? [{ key: 'group', title: t('group'), fields: salesFields(total) }]
+              : []),
+          ]}
+        />
+        <ScrollTable label={t('caption')} className="hidden md:block">
           <table className="w-full min-w-xl text-sm">
             <caption className="sr-only">{t('caption')}</caption>
             <thead className="bg-surface-2 text-text-muted">

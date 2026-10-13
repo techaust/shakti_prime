@@ -1,6 +1,6 @@
 export { withRequestContext, entityIdsLiteral } from './context';
 export type { RequestContext, RequestOptions, RequestScope, RequestTx } from './context';
-export { checkDatabaseReady, probeReady } from './ready';
+export { checkDatabaseReady, checkReaderReady, probeReady } from './ready';
 export { closeDb, readerConfigured } from './client';
 export * as schema from './schema/index';
 export type { UserGrantRow } from './auth/user-grants';

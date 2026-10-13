@@ -1,7 +1,13 @@
 export { defineCommand } from './command/define-command';
 export type { AnyCommand, Command, PermissionByInput, Requirement } from './command/define-command';
 export type { AuditChange, CommandContext, DomainEvent, NestedRunOptions } from './command/context';
-export { runCommand, checkPermission, failureOf, RUNNER_REASONS } from './command/run-command';
+export {
+  runCommand,
+  checkPermission,
+  failureOf,
+  RUNNER_REASONS,
+  SHARED_CONSTRAINT_REASONS,
+} from './command/run-command';
 export type { FailureStage, RunOptions } from './command/run-command';
 export { AUTH_EVENT_FIELDS, redactAuthEvent, redactForAudit } from './audit/redact';
 export { auditDevice, auditIp, databaseAuditSink, memoryAuditSink } from './audit/sink';
@@ -10,7 +16,7 @@ export { databaseOutboxSink, memoryOutboxSink } from './outbox/sink';
 export type { OutboxRecord, OutboxSink } from './outbox/sink';
 export { OUTBOX_BATCH_SIZE, OUTBOX_MAX_ATTEMPTS, runOutboxPublisher } from './outbox/publisher';
 export type { OutboxPublisherOptions } from './outbox/publisher';
-export { memoryEventPublisher } from './ports/event-publisher';
+export { deliveryDeduplicationId, memoryEventPublisher } from './ports/event-publisher';
 export { canonicalJson, inputHash } from './idempotency/hash';
 export { databaseIdempotencyStore, memoryIdempotencyStore } from './idempotency/store';
 export type { IdempotencyClaim, IdempotencyStore } from './idempotency/store';
@@ -47,6 +53,8 @@ export { sendQuote } from './commands/sales/send-quote';
 export { requoteQuote } from './commands/sales/requote';
 export { withdrawQuote } from './commands/sales/withdraw-quote';
 export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
+export { anonymiseStaleLeads, LEAD_RETENTION_BATCH } from './commands/crm/anonymise-stale-leads';
+export { countStaleLeads } from './queries/crm/stale-leads';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { acceptQuote } from './commands/sales/accept-quote';
 export { createSalesOrder } from './commands/sales/create-order';
@@ -137,6 +145,7 @@ export { checkAccountRow, companyNames, foldAccountRows } from './imports/accoun
 export { checkPinCodeRow, localityName } from './imports/pin-codes';
 export {
   getImportJob,
+  getImportReconciliation,
   listImportJobs,
   listImportRows,
   listImportTemplates,
@@ -198,6 +207,13 @@ export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
+export {
+  JOB_RUN_LIMIT_MINUTES,
+  readScheduledJobs,
+  scheduledJobHealth,
+  scheduleEveryHours,
+} from './queries/platform/scheduled-jobs';
+export type { ScheduledJobReport, ScheduledJobRow } from './queries/platform/scheduled-jobs';
 export type { OutboxHealth } from './queries/platform/outbox-health';
 export { ENTITY_COLUMNS, toEntityDto } from './queries/org/entity-dto';
 export type { EntityRow } from './queries/org/entity-dto';
@@ -227,7 +243,9 @@ export {
   accountSalesOrders,
   getSalesOrder,
   listSalesOrders,
+  orderSearchQuery,
   salesOrderListQuery,
+  searchSalesOrders,
 } from './queries/sales/list-orders';
 export { loadSalesOrderBuilder, previewSalesOrder } from './queries/sales/order-facts';
 export {
@@ -514,6 +532,7 @@ export {
   rejectInboxItem,
 } from './commands/agents/inbox';
 export { routeEnquiry } from './commands/crm/route-enquiry';
+export { takeEnquiry } from './commands/crm/take-enquiry';
 export { notifyEvent, recordPush, scanNotices } from './commands/notifications/notify';
 export {
   markAllNoticesRead,

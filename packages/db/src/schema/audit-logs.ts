@@ -62,5 +62,21 @@ export const auditLogs = pgTable(
     index('audit_logs_actor_created_idx').on(t.actorPrincipalId, t.createdAt.desc()),
     index('audit_logs_on_behalf_of_idx').on(t.onBehalfOfUserId),
     index('audit_logs_request_idx').on(t.requestId),
+    // The rows about a customer or a lead that name it only in their input (a note, a task): the
+    // retention job blanks their personal values with the customer's (BLUEPRINT §7.9).
+    index('audit_logs_input_account_idx')
+      .using('btree', sql`(${t.inputJson} ->> 'accountId')`)
+      .where(sql`${t.inputJson} ? 'accountId'`),
+    index('audit_logs_input_opportunity_idx')
+      .using('btree', sql`(${t.inputJson} ->> 'opportunityId')`)
+      .where(sql`${t.inputJson} ? 'opportunityId'`),
+    // An agent's run names its lead inside the proposal it records (`agents.run.record`), and a
+    // lead made for, or refused for, a known customer names it as `existingAccountId`.
+    index('audit_logs_input_proposal_opportunity_idx')
+      .using('btree', sql`(${t.inputJson} #>> '{proposal,input,opportunityId}')`)
+      .where(sql`${t.inputJson} ? 'proposal'`),
+    index('audit_logs_input_existing_account_idx')
+      .using('btree', sql`(${t.inputJson} ->> 'existingAccountId')`)
+      .where(sql`${t.inputJson} ? 'existingAccountId'`),
   ],
 );

@@ -2,8 +2,18 @@ import { ErrorEnvelope, newId, OutboxPublishResponse } from '@shakti/contracts';
 import { closeOutboxDb } from '@shakti/db/outbox';
 import { asMigrator, asOutboxPublisher, closeDb } from '@shakti/db/testing';
 import { createHash, createHmac } from 'node:crypto';
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { POST } from '../src/app/api/v1/workers/outbox/publish/route';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Sentry's cron check-in, recorded rather than sent.
+const checkIns = vi.hoisted(() => ({ sent: [] as [string, string][] }));
+vi.mock('../src/observability/check-ins', () => ({
+  sendCheckIn: (job: string, status: string) => {
+    checkIns.sent.push([job, status]);
+    return Promise.resolve();
+  },
+}));
+
+const { POST } = await import('../src/app/api/v1/workers/outbox/publish/route');
 
 // Low-entropy phrases, so the secret scan never mistakes them for real keys (CLAUDE.md).
 const CURRENT_KEY = 'outbox-route-test-current-signing-key';
@@ -57,8 +67,13 @@ function sign(body: string, options: { key?: string; url?: string } = {}): strin
   return `${header}.${claims}.${signature}`;
 }
 
-function call(body: string, signature?: string, requestId?: string): Promise<Response> {
-  const headers = new Headers({ 'content-type': 'application/json' });
+function call(
+  body: string,
+  signature?: string,
+  requestId?: string,
+  extra: Record<string, string> = {},
+): Promise<Response> {
+  const headers = new Headers({ 'content-type': 'application/json', ...extra });
   if (signature !== undefined) headers.set('upstash-signature', signature);
   if (requestId !== undefined) headers.set('x-request-id', requestId);
   return POST(new Request(ROUTE_URL, { method: 'POST', headers, body }));
@@ -122,6 +137,17 @@ describe('POST /api/v1/workers/outbox/publish', () => {
     expect(counts.skipped).toBeGreaterThanOrEqual(1);
     // Nobody listens to this event yet: delivered without being sent.
     expect(await publishedAt(id)).toEqual(expect.any(Date));
+  });
+
+  it('checks in to the minute monitor for the schedule’s call only, never for a nudge (review L4)', async () => {
+    checkIns.sent.length = 0;
+    expect((await call('{}', sign('{}'))).status).toBe(200);
+    expect(checkIns.sent).toEqual([]);
+    const scheduled = await call('{}', sign('{}'), undefined, {
+      'upstash-schedule-id': 'outbox-publish-dev',
+    });
+    expect(scheduled.status).toBe(200);
+    expect(checkIns.sent).toEqual([['outbox-publish', 'ok']]);
   });
 
   it("answers with the caller's well-formed request id, and a new one for any other", async () => {

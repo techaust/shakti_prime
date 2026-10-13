@@ -16,6 +16,7 @@ export const maxDuration = 60;
  */
 export const POST = nightlyWorkerRoute({
   path: DUPLICATE_SCAN_PATH,
+  job: 'duplicate-scan',
   logPrefix: 'crm.duplicate_scan',
   body: DuplicateScanWorkerBody,
   budgetMs: DUPLICATE_SCAN_RUN_BUDGET_MS,

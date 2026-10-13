@@ -403,11 +403,11 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 | HR-01 to HR-04 | 5 | — | — |
 | RPT-01 | 1, 5 | R1 | `packages/domain/tests/queries/home.test.ts`, `apps/web/src/screens/home.test.ts`, `apps/web/e2e/targets.spec.ts` |
 | RPT-02 | With each module's reports | — | — (no export exists) |
-| RPT-03 | 0, 1, 3 | S1 | `packages/domain/tests/queries/search.test.ts`, `packages/domain/tests/queries/search-equivalence.test.ts`, `packages/db/tests/security/lead-search-candidates.test.ts`; quote numbers `packages/domain/tests/commands/quotes.test.ts`, `packages/db/tests/security/quotes.test.ts`, `apps/web/e2e/quotes.spec.ts`; timing `pnpm spike:lists`, `pnpm --filter @shakti/domain spike:quotes` |
+| RPT-03 | 0, 1, 3 | S1, S2 | `packages/domain/tests/queries/search.test.ts`, `packages/domain/tests/queries/search-equivalence.test.ts`, `packages/db/tests/security/lead-search-candidates.test.ts`; quote numbers `packages/domain/tests/commands/quotes.test.ts`, `packages/db/tests/security/quotes.test.ts`, `apps/web/e2e/quotes.spec.ts`; order numbers `packages/domain/tests/commands/orders.test.ts`, `packages/db/tests/security/sales-orders.test.ts`, `apps/web/e2e/orders.spec.ts`; timing `pnpm spike:lists`, `pnpm --filter @shakti/domain spike:quotes` |
 | RPT-04 | 1, 4 | N1 | — |
 | RPT-05 | 0, 1 | — | `packages/domain/tests/queries/query-audit.test.ts`, `apps/web/e2e/admin.spec.ts` |
-| IMP-01 | 0, 1 | P2b | `packages/domain/tests/commands/imports.test.ts`, `packages/domain/tests/commands/import-lead-parity.test.ts`, `packages/db/tests/security/imports.test.ts`, `apps/web/tests/imports.test.ts`, `apps/web/e2e/imports.spec.ts`; timing `pnpm spike:import` |
-| IMP-02 | 1 | M1 | — |
+| IMP-01 | 0, 1 | P2b, M1 | `packages/domain/tests/commands/imports.test.ts`, `packages/domain/tests/commands/import-lead-parity.test.ts`, `packages/db/tests/security/imports.test.ts`, `apps/web/tests/imports.test.ts`, `apps/web/e2e/imports.spec.ts`; the row counts of a job (M1) `packages/domain/tests/queries/import-reconciliation.test.ts`, `apps/web/src/screens/import-reconciliation.test.ts`, `apps/web/e2e/uat.spec.ts`; timing `pnpm spike:import` |
+| IMP-02 | 1 | M1 | The cutover runbook (`docs/runbooks/cutover.md`), the parallel-run pack and the UAT packs (`docs/13-client-packs/`); the role journeys `apps/web/e2e/uat.spec.ts`; the count check `packages/domain/tests/queries/import-reconciliation.test.ts`; the anonymisation of old unqualified leads (BLUEPRINT §7.9) `packages/db/tests/security/lead-anonymise.test.ts`, `packages/domain/tests/commands/lead-anonymise.test.ts`, `apps/web/tests/lead-anonymise.test.ts` |
 | AI-01 | 1, 2 | P2, K1 | Upload purposes: `packages/db/tests/security/files.test.ts` |
 | AI-02 | 2 | — | — |
 | AI-03 | 2, 6 | — | — (harness only: `apps/web/src/integrations/voice/voice.test.ts`) |

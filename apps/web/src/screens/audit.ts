@@ -149,6 +149,7 @@ const ACTIONS = {
   'knowledge.file.record_index': 'knowledgeFileIndexed',
   'agents.inbox.complete': 'inboxComplete',
   'crm.enquiry.route': 'enquiryRoute',
+  'crm.enquiry.take': 'enquiryTake',
   'notifications.event.notify': 'noticesSend',
   'notifications.due.scan': 'noticesScan',
   'notifications.push.record': 'pushRecord',
@@ -166,6 +167,7 @@ const ACTIONS = {
   'crm.score_rule.set': 'scoreRulesSet',
   'crm.lead.rescore': 'leadRescore',
   'crm.lead.score_refresh': 'leadScoreRefresh',
+  'crm.lead.anonymise': 'leadAnonymise',
   'crm.duplicate.scan': 'duplicateScan',
   'crm.duplicate.dismiss': 'duplicateDismiss',
   'crm.duplicate.suggest': 'duplicateSuggest',
@@ -514,6 +516,8 @@ const FIELD_KINDS = [
   ['fromRow', 'number'],
   ['toRow', 'number'],
   ['rows', 'number'],
+  ['skipped', 'number'],
+  ['expiryRefused', 'errorCode'],
   ['committedRows', 'number'],
   ['batches', 'number'],
   ['rolledBackRows', 'number'],
@@ -571,6 +575,8 @@ const FIELD_KINDS = [
   ['movedConsents', 'number'],
   ['movedActivities', 'number'],
   ['undoneAt', 'time'],
+  // Retention
+  ['anonymisedAt', 'time'],
   // Quotes
   ['quoteNo', 'text'],
   ['lineCount', 'number'],

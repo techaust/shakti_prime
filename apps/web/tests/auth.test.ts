@@ -565,6 +565,45 @@ describe('session limits', () => {
     ).resolves.toBeDefined();
   });
 
+  it('a background read never extends the session; the person using it does (WEB-8)', async () => {
+    const user = await inviteAndSetPassword([{ entityId: 3, roleKey: 'project_manager' }]);
+    const { cookie } = await signIn(user.email, GOOD_PASSWORD);
+    const first = await resolveSessionPrincipal(clientHeaders({ cookie }), undefined, deps);
+    const sessionId = first?.session.sessionId ?? '';
+    expect(sessionId).not.toBe('');
+    // Ten minutes since the last roll, past the five-minute `updateAge`: the next use rolls it.
+    // Better Auth reads the real clock for this, so the times are set from it.
+    const aged = new Date(Date.now() + 12 * 3600_000 - 10 * 60_000);
+    const seen = new Date(clock.getTime() - 10 * 60_000);
+    await asMigrator(
+      (m) =>
+        m`update sessions set expires_at = ${aged}, last_seen_at = ${seen} where id = ${sessionId}`,
+    );
+    const row = async () => {
+      const [r] = await asMigrator(
+        (m) =>
+          m<
+            { expires_at: Date; last_seen_at: Date | null }[]
+          >`select expires_at, last_seen_at from sessions where id = ${sessionId}`,
+      );
+      return r;
+    };
+
+    const quiet = await resolveSessionPrincipal(
+      clientHeaders({ cookie }),
+      undefined,
+      deps,
+      'quiet',
+    );
+    expect(quiet?.session.sessionId).toBe(sessionId);
+    expect(await row()).toEqual({ expires_at: aged, last_seen_at: seen });
+
+    await resolveSessionPrincipal(clientHeaders({ cookie }), undefined, deps, 'extend');
+    const after = await row();
+    expect(after?.expires_at.getTime()).toBeGreaterThan(aged.getTime());
+    expect(after?.last_seen_at).toEqual(clock);
+  });
+
   it('a browser still holding an ended session can sign in and set a password again', async () => {
     const ip = '10.0.7.1';
     const user = await inviteAndSetPassword([{ entityId: 3, roleKey: 'project_manager' }]);

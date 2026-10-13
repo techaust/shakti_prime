@@ -63,7 +63,7 @@ test.describe('as an Executive, a sized lead to a sent quote', () => {
     await page.getByRole('button', { name: 'Work out the quote' }).click();
     const preview = section(page, 'The quote as it will be made');
     // Five modules at ₹12,000 with 12% GST in the company's own state: CGST and SGST of ₹3,600.
-    await expect(preview.getByText('₹67,200.00').first()).toBeVisible();
+    await expect(preview.getByText('₹67,200.00').filter({ visible: true }).first()).toBeVisible();
     await expect(preview.getByText('CGST')).toBeVisible();
     await expectNoAxeViolations(page);
     await page.getByRole('button', { name: 'Make the quote' }).click();

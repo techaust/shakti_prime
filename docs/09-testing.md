@@ -126,6 +126,7 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
     - gives the snapshot company a team of its own for the screenshots of the home pages, Targets and the notification centre (`SNAPSHOT_TEAM` in `users.ts`: a team lead, a caller with a daily target and two calls logged today, a General Manager and an Executive of that company alone, and three unread notices of the snapshot caller), and logs the two calls of the tele-caller of company 1 for today and tomorrow of the Indian calendar, so a run that crosses midnight finds them;
     - puts the stages `pipelines.spec.ts` adds or renames back, through the stage commands (`e2e/setup/pipelines.ts`);
     - holds back one update per project in RCREF (`SEND_AGAIN_COMPANY`) for the Send again journey of `integrations.spec.ts` (`customers.spec.ts` makes its own customers through the lead form and pictures the snapshot company's);
+    - makes per project a new dealer of the journeys' company with no credit terms for the UAT dealer credit journey (`e2e/setup/uat.ts`), and an Accounts person of that company (`journeyAccounts`);
     - writes what the specs need to the ignored `e2e/.auth/users.json`.
   - `playwright.config.ts` starts the production build (`next start` with `BOS_ENVIRONMENT=local`, the local production run of `apps/web/src/auth/deps.ts`) on the port of `E2E_BASE_URL`, read from the environment or the root `.env`. Unset, it is `http://localhost:3031`.
     - `E2E_BASE_URL` names the same address as `BETTER_AUTH_URL`: the seed's set-password links and the app's own links are built from `BETTER_AUTH_URL`, so the journeys run on that address; `e2e:snap` takes its port from `BETTER_AUTH_URL`.
@@ -141,6 +142,7 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
   - One journey: `pnpm --filter web exec playwright test e2e/leads.spec.ts --project=desktop-light` after `pnpm --filter web e2e:seed` (the set-password links are single-use, so seed again before a rerun); `-g "<title>"` narrows to one test, and `--no-deps` skips the sign-in project once `e2e/.auth/` holds fresh sessions.
   - Screenshots are compared only on Linux: on Windows and macOS `snap` returns without comparing, so no baseline is ever written from them. `pnpm --filter web e2e:snap` seeds on the host, starts the production build on the host when it is not answering, and runs the same specs inside `mcr.microsoft.com/playwright:v1.63.0-noble` against it (the specs and the runner import nothing native, and a forwarder in the container keeps the address `localhost`).
   - `pnpm --filter web e2e:snap -- --update-snapshots` makes the baselines, committed under `e2e/__screenshots__/<project>/`; make them only on a fresh database, never one the security suite has used. CI compares them in the same image.
+  - The role journeys of the UAT packs (`e2e/uat.spec.ts`, M1): a Cold Caller's lead qualified and taken on by the Lead Converter, a Store Manager's walk-in, the Executive's screens, a customers file and its row counts with the CSV download, and a dealer order held for credit from Accounts to the Executive. Each makes its own customers and leads; against staging they need the signed-in people of `users.ts` and the seed's dealers and journey prices.
   - The business journeys of BLUEPRINT §17 (lead → qualify → round-robin → quote → sales order → reservation → schedule → survey → dispatch with e-way bill → install → JIR → Tally invoice reconciled → payment → job-cost margin, and a dealer credit-block path) join as each step's screens are built.
 - **Lighthouse** on the production build, from `treosh/lighthouse-ci-action` pinned by commit, over the public landing and sign-in pages on a mobile profile, with the assertions in `apps/web/lighthouserc.json`: performance at least 0.9, accessibility and best practices at least 0.95. A signed-in page is left out, because the session cookie would have to sit in the Lighthouse settings and so in the uploaded results.
 - **Provider contract tests** with recorded Meta, Exotel, Google and Tally payloads, including duplicates, out-of-order events and Tally deletions, join each integration as its worker is built.
@@ -156,7 +158,7 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
 | Lint, format and copy | `pnpm lint`, `pnpm format:check`, `pnpm copy-lint`, the generated-files check |
 | Typecheck | `pnpm typecheck` |
 | Unit tests | `pnpm test` (unit, property, contract fixture and generated-file tests) |
-| Production build | `pnpm build`, with no `.env` present, then `pnpm --filter web js-budget`, which fails when a page's first-load JavaScript (gzip) passes its budget in `apps/web/js-budget.json` |
+| Production build | `pnpm build`, with no `.env` present, then `pnpm --filter web js-budget`, which fails when a page's first-load JavaScript (gzip) passes its budget in `apps/web/js-budget.json` or the page has none |
 | Secrets and advisories | gitleaks over the whole history; `pnpm audit --audit-level=moderate` |
 | Security suite | `pnpm test:security` on a fresh `supabase/postgres` service, then `pnpm db:verify` |
 | End-to-end journeys, accessibility and screenshots | One job per project (desktop light, desktop dark, phone) in `mcr.microsoft.com/playwright:v1.63.0-noble`, each with its own fresh `supabase/postgres` service and 25 minutes (the steps are below) |
@@ -171,7 +173,7 @@ The end-to-end job's steps, each with its own time limit and output as it happen
 
 The app's log, the report and the screenshot differences are kept when a job fails.
 
-Each page's budget in [`apps/web/js-budget.json`](../apps/web/js-budget.json) is its measured size plus 5 %, rounded up, with its reason and the date it was measured written beside it; a page not named there gets the file's `defaultKb`, the aim of `docs/08-design-system.md` §10. What the framework and the shared app shell add to a page is in each route's reason.
+Each page's budget in [`apps/web/js-budget.json`](../apps/web/js-budget.json) is its measured size plus 5 %, rounded up, with its reason and the date it was measured written beside it; a page with no budget fails the check, so a new page is measured before it merges. What the framework and the shared app shell add to a page is in each route's reason. The file's `documents` section budgets the gzip weight of a first visit's HTML for `/sign-in` and `/leads`, where the message catalogue rides in the server's payload, which no JavaScript size sees; the journeys check them against the served build (`public.spec.ts`, `leads.spec.ts`).
 
 `.github/workflows/audit.yml` repeats the dependency audit weekly.
 

@@ -5,8 +5,10 @@ import { logger } from '../../../../../../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
 import { sweepAbandonedUploads } from '../../../../../../workers/files/sweep-uploads';
+import { recordJobOutcome } from '../../../../../../workers/job-streak';
 import {
   FILES_SWEEP_PATH,
+  fromSchedule,
   qstashConfig,
   verifyQStashSignature,
   workerUrl,
@@ -20,7 +22,8 @@ export const maxDuration = 60;
  * The sweep of abandoned uploads (docs/03-roadmap-appendix/phase1.md §6.3, docs/06-api.md §3.6). Only the QStash
  * schedule calls it, every hour: every call must carry a valid signature for this route and body.
  * The schedule asks for no retries, so a run that fails answers 500 and is not tried again; that
- * is harmless, as the next hour's run carries on where it stopped.
+ * is harmless, as the next hour's run carries on where it stopped; the third failed hour in a row
+ * tells the owner (`recordJobOutcome`).
  */
 export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
@@ -44,11 +47,14 @@ export async function POST(request: Request): Promise<Response> {
     return failure('unauthorized', 401, requestId, headers);
   }
 
+  const scheduled = fromSchedule(request.headers);
   try {
     const swept = await sweepAbandonedUploads({ store: fileStore(), requestId });
+    await recordJobOutcome('files-sweep', 'ok', { requestId, scheduled });
     return Response.json(swept, { headers });
   } catch (error) {
     logger.log('error', 'files.sweep_failed', { requestId, error });
+    await recordJobOutcome('files-sweep', 'failed', { requestId, scheduled });
     return failure('internal', 500, requestId, headers);
   }
 }

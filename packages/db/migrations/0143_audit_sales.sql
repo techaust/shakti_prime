@@ -11,5 +11,5 @@ ALTER TABLE "quotes" ADD CONSTRAINT "quotes_withdrawn_for_fk" FOREIGN KEY ("with
 CREATE UNIQUE INDEX "quotes_opportunity_accepted_unique" ON "quotes" USING btree ("opportunity_id") WHERE "quotes"."state" = 'accepted';--> statement-breakpoint
 CREATE INDEX "quotes_withdrawn_for_idx" ON "quotes" USING btree ("withdrawn_for_id") WHERE "quotes"."withdrawn_for_id" is not null;--> statement-breakpoint
 ALTER TABLE "quotes" ADD CONSTRAINT "quotes_withdrawn_reason_check" CHECK (("quotes"."state" = 'withdrawn') = ("quotes"."withdrawn_reason" is not null or "quotes"."withdrawn_for_id" is not null)
-       and ("quotes"."withdrawn_reason" is null or "quotes"."withdrawn_for_id" is null));--> statement-breakpoint
+       and ("quotes"."withdrawn_reason" is null or "quotes"."withdrawn_for_id" is null)) NOT VALID;--> statement-breakpoint
 ALTER TABLE "sales_orders" ADD CONSTRAINT "sales_orders_account_type_check" CHECK ("sales_orders"."account_type" in ('household', 'farm', 'business', 'dealer', 'referral_partner'));

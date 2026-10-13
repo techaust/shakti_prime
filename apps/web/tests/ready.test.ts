@@ -1,6 +1,6 @@
 import { closeAuthDb } from '@shakti/db/auth';
 import { ErrorEnvelope, newId, ReadyResponse, type ReadyChecks } from '@shakti/contracts';
-import { closeDb } from '@shakti/db';
+import { checkReaderReady, closeDb } from '@shakti/db';
 import { closeOutboxDb } from '@shakti/db/outbox';
 import { asMigrator } from '@shakti/db/testing';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
@@ -21,6 +21,7 @@ afterEach(() => {
 
 const ALL_OK: ReadyChecks = {
   database: 'ok',
+  reader: 'ok',
   auth_database: 'ok',
   key_value: 'ok',
   config: 'ok',
@@ -124,6 +125,35 @@ describe('GET /api/v1/health/ready', () => {
       'health.not_ready',
       expect.objectContaining({ requestId: 'r-store', capUnavailable: true }),
     );
+  });
+});
+
+describe('the reader check (audit 2026-10, OPS-9)', () => {
+  it("asks the queries' own pool when it is set, and is ok when the queries read on app_user", async () => {
+    expect(process.env.DATABASE_URL_READER).toBeTruthy();
+    expect(await checkReaderReady()).toBe('ok');
+    expect((await readiness.checkReadiness()).reader).toBe('ok');
+    vi.stubEnv('DATABASE_URL_READER', '');
+    try {
+      expect(await checkReaderReady()).toBe('ok');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('is down when the reader refuses its password, as after a rotation that missed Vercel', async () => {
+    const url = new URL(process.env.DATABASE_URL_READER ?? '');
+    url.password = 'not-the-reader-password';
+    await closeDb();
+    vi.stubEnv('DATABASE_URL_READER', url.toString());
+    try {
+      expect(await checkReaderReady()).toBe('down');
+      expect((await readiness.checkReadiness()).reader).toBe('down');
+    } finally {
+      vi.unstubAllEnvs();
+      await closeDb();
+    }
+    expect(await checkReaderReady()).toBe('ok');
   });
 });
 

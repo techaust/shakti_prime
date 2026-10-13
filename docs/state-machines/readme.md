@@ -77,3 +77,4 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `sizing.maxPipeVelocityMps` | 2 |
 | `sizing.sanctionedLoadRatio` | 1 |
 | `sizing.dcrSchemes` | pm_surya_ghar, pm_kusum |
+| `retention.unqualifiedLeadMonths` | 24 |

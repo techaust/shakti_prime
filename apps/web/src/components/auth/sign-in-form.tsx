@@ -11,9 +11,12 @@ import { TurnstileWidget } from './turnstile-widget';
 export function SignInForm({
   turnstileSiteKey,
   nonce,
+  returnTo,
 }: {
   turnstileSiteKey: string;
   nonce: string;
+  /** The BOS screen to come back to after signing in, when the sign-in ended on one (WEB-7). */
+  returnTo?: string | undefined;
 }) {
   const t = useTranslations('auth.signIn');
   const [state, action, pending] = useActionState<FormState, FormData>(signIn, {});
@@ -29,6 +32,7 @@ export function SignInForm({
       onSubmit={blockWhilePending(pending)}
       className="flex flex-col gap-4"
     >
+      {returnTo === undefined ? null : <input type="hidden" name="returnTo" value={returnTo} />}
       <Field label={t('email')} id="email">
         <TextInput
           id="email"

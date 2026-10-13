@@ -541,6 +541,14 @@ describe('imports: commit and rollback', () => {
     ]);
     const ids = rows.map((r) => r.createdId ?? '');
     expect(await liveLeadCount(ids)).toBe(5);
+    // No worker acts on an imported lead, so its event is written delivered and never waits in
+    // the outbox ahead of the events that do go out (audit 2026-10, DATA-2).
+    const leadEvents = await asOutboxPublisher(
+      (p) => p<{ type: string; delivered: boolean }[]>`
+        select type, published_at is not null as delivered from outbox_events
+         where aggregate_id = any(${ids}) order by sequence`,
+    );
+    expect(leadEvents).toEqual(ids.map(() => ({ type: 'crm.lead.created', delivered: true })));
 
     const keys = await asMigrator(
       (m) => m<{ key: string }[]>`select key from idempotency_keys

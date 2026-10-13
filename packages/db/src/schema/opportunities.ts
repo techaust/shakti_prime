@@ -60,6 +60,26 @@ export const opportunities = pgTable(
     /** When `state` last changed; the reopen window of a lost lead counts from here. */
     stateChangedAt: timestamp('state_changed_at', { withTimezone: true }).notNull().defaultNow(),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    /**
+     * When the retention job removed the personal details of this unqualified lead and its
+     * customer (BLUEPRINT §7.9, `app.anonymise_stale_leads()`); the lead is archived with it.
+     */
+    anonymisedAt: timestamp('anonymised_at', { withTimezone: true }),
+    /**
+     * When the lead first reached its pipeline's Qualified stage or a later open one, stamped by
+     * `crm.opportunity.stage.move` and never cleared: the retention rule keeps a lead that got
+     * that far (BLUEPRINT §7.9), whatever later happens to the stages' order. A change of it alone
+     * is not an edit of the lead: `updated_at` stays.
+     */
+    qualifiedAt: timestamp('qualified_at', { withTimezone: true }),
+    /**
+     * When, and why (`LEAD_RETENTION_KEPT_REASONS`), the retention job found this lead kept, so its
+     * window passes it by (`app.anonymise_stale_leads()`). A reason that can lapse (`dealer`,
+     * `merge`) is cleared by the change that ends it; the others stand. A change of these alone is
+     * not an edit of the lead: `updated_at` stays.
+     */
+    retentionKeptAt: timestamp('retention_kept_at', { withTimezone: true }),
+    retentionKeptReason: text('retention_kept_reason'),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
@@ -73,6 +93,15 @@ export const opportunities = pgTable(
       foreignColumns: [pipelineStages.id, pipelineStages.pipelineId],
     }),
     check('opportunities_score_check', sql`${t.score} between 0 and 100`),
+    check(
+      'opportunities_retention_kept_reason_check',
+      sql`${t.retentionKeptReason} is null or ${t.retentionKeptReason} in ('won', 'qualified', 'quote', 'order', 'commission', 'dealer_credit', 'referral_partner', 'other_lead', 'customer', 'dealer', 'merge')`,
+    ),
+    // A kept mark always carries its reason.
+    check(
+      'opportunities_retention_kept_check',
+      sql`(${t.retentionKeptAt} is null) = (${t.retentionKeptReason} is null)`,
+    ),
     // The key a child of the lead (`sizings`) points at, so it stays in the lead's company.
     unique('opportunities_id_entity_unique').on(t.id, t.entityId),
     // The target of the composite keys of a lead's tasks and tags (docs/05-database.md §2).
@@ -109,6 +138,13 @@ export const opportunities = pgTable(
     // opportunities_keyset_idx (docs/04-architecture-appendix/lists.md, the score cases).
     index('opportunities_score_keyset_idx').on(t.score, t.id),
     // The notification scan: a company's open leads by age, for the first-contact limit.
+    // The retention job: a company's leads not yet anonymised and never won, oldest last change
+    // first (`app.anonymise_stale_leads()`).
+    index('opportunities_retention_idx')
+      .on(t.entityId, t.updatedAt, t.id)
+      .where(
+        sql`${t.anonymisedAt} is null and ${t.retentionKeptAt} is null and ${t.state} <> 'won'`,
+      ),
     index('opportunities_open_created_idx')
       .on(t.entityId, t.createdAt)
       .where(sql`${t.state} = 'open' and ${t.archivedAt} is null`),

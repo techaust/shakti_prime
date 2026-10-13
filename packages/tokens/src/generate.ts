@@ -165,7 +165,20 @@ export function generateTheme(inputs: ThemeInputs): Record<GeneratedToken, strin
   const min = contrastMinimums(inputs.contrast);
   const textTarget = Math.max(4.5 + inputs.contrast * 0.04, min.text + 0.1);
   const text = neutral(dark ? 97.5 : 11, dark ? 1.2 : 3);
-  const textMuted = reach(surface2, textTarget, accent.h, tint, toward);
+  // The soft accent tint under badges, selected cards and ticked rows. A dark theme keeps it deep
+  // enough that muted text on it reaches the text minimum at the standard contrast.
+  const accentSoft = lchToHex({ l: dark ? 17 : 95, c: dark ? 18 : 10, h: accent.h });
+  // Muted text is also read on the hover grey (a highlighted search hit's hint, an icon in a
+  // highlighted item) and on the soft tint (a selected card), so it reaches the text minimum on
+  // the harder of those as well as its own target on surface-2.
+  const mutedOnSurface = reach(surface2, textTarget, accent.h, tint, toward);
+  const mutedGround = [surface3, accentSoft].reduce((a, b) =>
+    contrastRatio(mutedOnSurface, a) <= contrastRatio(mutedOnSurface, b) ? a : b,
+  );
+  const textMuted =
+    contrastRatio(mutedOnSurface, mutedGround) >= min.text + 0.1
+      ? mutedOnSurface
+      : reach(mutedGround, min.text + 0.1, accent.h, tint, toward);
   // Placeholders, helpers and metadata are still text, so they reach the text minimum too
   // (WCAG 1.4.3); they stay a step lighter than muted text.
   const textSubtle = reach(surface2, min.text + 0.1, accent.h, tint, toward);
@@ -193,7 +206,6 @@ export function generateTheme(inputs: ThemeInputs): Record<GeneratedToken, strin
     c: fill.c,
     h: fill.h,
   });
-  const accentSoft = lchToHex({ l: dark ? 20 : 95, c: dark ? 18 : 10, h: accent.h });
   // Accent text sits on the surfaces and on the soft accent tint (badges, selected rows), so it
   // reaches the text minimum against whichever of them is hardest.
   const textGrounds = [surface, surface2, accentSoft];

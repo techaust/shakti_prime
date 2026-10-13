@@ -1,12 +1,11 @@
 import { ThemeSchema } from '@shakti/contracts';
 import { colors } from '@shakti/tokens';
 import type { Metadata, Viewport } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
-import { CLIENT_NAMESPACES } from '../i18n/client-namespaces';
+import { ClientMessages } from '../i18n/client-messages';
 import { requestNonce } from '../nonce';
 import { browserSentrySettings } from '../observability/sentry-options';
 import { CONTRAST_COOKIE, HIGH_CONTRAST, isHighContrast, THEME_COOKIE } from '../theme';
@@ -43,8 +42,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const jar = await cookies();
   const saved = ThemeSchema.safeParse(jar.get(THEME_COOKIE)?.value);
   const high = isHighContrast(jar.get(CONTRAST_COOKIE)?.value);
-  const messages = await getMessages();
-  const clientMessages = Object.fromEntries(CLIENT_NAMESPACES.map((ns) => [ns, messages[ns]]));
   return (
     <html
       lang="en"
@@ -58,7 +55,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           nonce={await requestNonce()}
           sentry={browserSentrySettings()}
         >
-          <NextIntlClientProvider messages={clientMessages}>{children}</NextIntlClientProvider>
+          {/* Only the root error screen's words here; each part of the app adds its own (WEB-1). */}
+          <ClientMessages scope="root">{children}</ClientMessages>
         </Providers>
       </body>
     </html>

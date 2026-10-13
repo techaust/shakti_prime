@@ -54,6 +54,7 @@ import {
   listScoreRules,
 } from '../../src/queries/crm/pipeline-settings';
 import { searchLeads } from '../../src/queries/crm/search-leads';
+import { countStaleLeads } from '../../src/queries/crm/stale-leads';
 import {
   countFilesAwaitingChecks,
   getFile,
@@ -62,6 +63,7 @@ import {
 } from '../../src/queries/files/file-queries';
 import {
   getImportJob,
+  getImportReconciliation,
   listImportJobs,
   listImportRows,
   listImportTemplates,
@@ -70,6 +72,7 @@ import { readEntityBankDetails, readSealedBankDetails } from '../../src/queries/
 import { loadCompanyForPrint } from '../../src/queries/org/company-print';
 import { listEntities } from '../../src/queries/org/list-entities';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
+import { readScheduledJobs } from '../../src/queries/platform/scheduled-jobs';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
 import { listKitPrices, listPriceChanges } from '../../src/queries/pricing/price-history';
 import { listPriceTierOptions } from '../../src/queries/pricing/price-tiers';
@@ -84,6 +87,7 @@ import {
   accountSalesOrders,
   getSalesOrder,
   listSalesOrders,
+  searchSalesOrders,
 } from '../../src/queries/sales/list-orders';
 import { loadSalesOrderBuilder, previewSalesOrder } from '../../src/queries/sales/order-facts';
 import { loadQuoteBuilder, previewQuote } from '../../src/queries/sales/quote-builder';
@@ -159,6 +163,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listTimeline: (ctx) => listTimeline(ctx, { entityId: 1, accountId: newId() }),
   listMyTasks: (ctx) => listMyTasks(ctx, { limit: 20 }),
   getImportJob: (ctx) => getImportJob(ctx, { entityId: 1, jobId: newId() }),
+  getImportReconciliation: (ctx) => getImportReconciliation(ctx, { entityId: 1, jobId: newId() }),
+  // The retention job's dry run, which only the worker principal may run.
+  countStaleLeads: (ctx) => countStaleLeads(ctx, { entityId: 1 }),
   listImportJobs: (ctx) => listImportJobs(ctx, { entityId: 1, limit: 20 }),
   listImportRows: (ctx) => listImportRows(ctx, { entityId: 1, jobId: newId(), limit: 20 }),
   listImportTemplates: (ctx) => listImportTemplates(ctx, { entityId: 1, kind: 'leads' }),
@@ -167,6 +174,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readEntityBankDetails: (ctx) => readEntityBankDetails(ctx, CIPHER, 1),
   loadCompanyForPrint: (ctx) => loadCompanyForPrint(ctx, 1),
   readOutboxHealth: (ctx) => readOutboxHealth(ctx, { limit: 20 }),
+  readScheduledJobs: (ctx) => readScheduledJobs(ctx, new Date('2026-09-29T00:00:00Z')),
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
   listKitPrices: (ctx) => listKitPrices(ctx, { priceListId: newId(), limit: 20 }),
@@ -208,6 +216,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   loadQuoteForPrint: (ctx) => loadQuoteForPrint(ctx, newId()),
   listPriceTierOptions: (ctx) => listPriceTierOptions(ctx),
   listSalesOrders: (ctx) => listSalesOrders(ctx, { limit: 20 }),
+  searchSalesOrders: (ctx) => searchSalesOrders(ctx, { q: 'SO/2026', limit: 8 }),
   getSalesOrder: (ctx) => getSalesOrder(ctx, { entityId: 1, orderId: newId() }, QUOTES_AT),
   loadSalesOrderBuilder: (ctx) =>
     loadSalesOrderBuilder(ctx, { entityId: 1, accountId: newId() }, QUOTES_AT),
@@ -289,9 +298,14 @@ describe('every query reads the same on the reader pool as on app_user', () => {
     it(`for ${role} in ${entities.join(', ')}`, async () => {
       // One principal row for both pools, so the queries that read "my own" rows match.
       const principal = principalFor(role, entities, { id: newId() });
+      // About a hundred queries, each on both pools: the two pools are asked at once, so a caller
+      // takes the time of one pool's reads, not of both one after the other (an Executive of the
+      // four companies took about 12 s of the 20 s limit on a loaded PC when they were not).
       for (const [name, query] of Object.entries({ ...QUERIES, ...OTHER_READS })) {
-        const reader = await outcome(principal, 'reader', query);
-        const app = await outcome(principal, 'app_user', query);
+        const [reader, app] = await Promise.all([
+          outcome(principal, 'reader', query),
+          outcome(principal, 'app_user', query),
+        ]);
         expect({ name, reader }).toEqual({ name, reader: app });
       }
     });

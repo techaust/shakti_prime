@@ -337,7 +337,7 @@ Reviewed `git diff origin/main...fix/audit-sales` against the brief, the audit f
 - **Fix:** compare against each lead's `o.created_by`, the person whose commit made it, instead of the job's creator.
 
 **8 (low, confirmed). Documents.**
-- `docs/07-security.md:198` still says "The exposure is worked out in one definer, `app.dealer_credit_position()`". Since ARCH-5, `creditStanding()` works out the exposure and the overdue test, and the definer answers only the figures.
+- `docs/07-security.md` (line 198) still says "The exposure is worked out in one definer, `app.dealer_credit_position()`". Since ARCH-5, `creditStanding()` works out the exposure and the overdue test, and the definer answers only the figures.
 - Four comments say Accounts make dealers: `account-type-change.ts:9`, `customer.ts:119`, `customers.ts:563` and `0135:6`. With today's roles only the Executive can (owner, 13-10-2026).
 
 **Checked and sound:**
@@ -552,3 +552,4 @@ Re-checked the fix round (`git diff 1a69e1cd..81827753`) against the eight rows 
 
 ## Integration notes
 - Migrations from 0134 move after `main`'s last one at the merge.
+- 14-10-2026, lead: `main` (#167 to #172) taken by a merge commit; the migrations move to 0143 to 0148. The two checks this slice drops and adds again (`quotes_withdrawn_reason_check` in 0143, `quotes_acceptance_check` in 0146) are added `NOT VALID`, as `main`'s migration rule (DATA-5) asks; both only widen what was allowed, and the owner validates them with the GST checks (DEPLOY §2 step 8, exit-gate action 18). No function, trigger or check here is redefined by `main`'s 0130 to 0142. The conflicts were the message catalogue, three DATABASE rows (kept from both sides) and `import-kinds.test.ts` (`main`'s fix kept).

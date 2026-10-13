@@ -13,6 +13,8 @@ export interface OutboxRow {
    * table, so a failure recorded as `attempts + 1` counts it once.
    */
   attempts: number;
+  /** How often Send again put it back in the queue: its delivery generation. */
+  replays: number;
   createdAt: Date;
 }
 

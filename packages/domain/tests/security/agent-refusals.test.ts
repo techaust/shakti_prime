@@ -265,6 +265,13 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
   // Routed work and a person's own notices, settings and browsers (docs/03-roadmap-appendix/phase1.md §8.1).
   'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', phone: '9800000000' },
+  // An enquiry typed in by a person: a lead, or routed work for a colleague's customer (ARCH-4).
+  'crm.enquiry.take': {
+    entityId: 1,
+    pipelineKey: 'farmer_pumps',
+    contact: { name: 'Refused enquiry', phone: '9800000000' },
+    account: { type: 'farm' },
+  },
   'notifications.notice.read': { ids: [newId()] },
   'notifications.notice.read_all': {},
   'notifications.preferences.set': { types: [], quietFrom: null, quietTo: null },
@@ -472,6 +479,12 @@ const CUSTOMER_INPUTS: Record<string, unknown> = {
   'crm.site.upsert': { ...CUSTOMER, type: 'borewell', village: 'Refused village' },
   // Routed work for a colleague's customer (docs/03-roadmap-appendix/phase1.md §8.1).
   'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', existingAccountId: newId() },
+  'crm.enquiry.take': {
+    entityId: 1,
+    pipelineKey: 'farmer_pumps',
+    contact: { name: 'Refused enquiry', phone: '9800000000' },
+    account: { type: 'farm' },
+  },
   // A merge moves one customer's records to another (D1).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
   'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
@@ -684,6 +697,7 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },
+    'crm.lead.anonymise': { entityId: 1, after: null },
     'notifications.event.notify': {
       event: 'crm.duplicate.found',
       entityId: 1,

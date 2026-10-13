@@ -1,5 +1,10 @@
 import { ERROR_CODES, ImportRowErrorCodeSchema, LeadImportFieldSchema } from '@shakti/contracts';
-import { commands, MACHINE_REASONS, RUNNER_REASONS } from '@shakti/domain';
+import {
+  commands,
+  MACHINE_REASONS,
+  RUNNER_REASONS,
+  SHARED_CONSTRAINT_REASONS,
+} from '@shakti/domain';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,9 +55,11 @@ describe('every error a person can meet has a sentence (AUDIT M30)', () => {
     for (const code of ERROR_CODES) expect(catalogue, code).toHaveProperty(code);
   });
 
-  it('every reason the runner gives and every constraint a command names', () => {
+  it('every reason the runner gives and every constraint a command or every command names', () => {
     const named = Object.values(commands).flatMap((c) => Object.values(c.constraintReasons ?? {}));
-    for (const reason of [...RUNNER_REASONS, ...named]) {
+    const shared = Object.values(SHARED_CONSTRAINT_REASONS);
+    expect(shared).toContain('customer_anonymised');
+    for (const reason of [...RUNNER_REASONS, ...named, ...shared]) {
       expect(catalogue, reason).toHaveProperty(reason);
     }
   });

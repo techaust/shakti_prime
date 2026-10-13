@@ -842,6 +842,22 @@ export const API_FIXTURES: Record<
           updatedAt: '2026-09-26T11:40:00.000Z',
         },
       ],
+      jobs: [
+        {
+          job: 'activities-partitions',
+          state: 'failed',
+          lastRunAt: '2026-09-25T03:05:00.000Z',
+          lastFinishedAt: '2026-09-25T03:05:02.000Z',
+          everyHours: 744,
+        },
+        {
+          job: 'outbox-events-purge',
+          state: 'ok',
+          lastRunAt: '2026-09-27T02:45:00.000Z',
+          lastFinishedAt: '2026-09-27T02:45:01.000Z',
+          everyHours: 24,
+        },
+      ],
       aiSpend: {
         today: '412.50',
         monthToDate: '9840.00',

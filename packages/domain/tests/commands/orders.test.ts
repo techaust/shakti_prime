@@ -40,6 +40,7 @@ import {
   accountSalesOrders,
   getSalesOrder,
   listSalesOrders,
+  searchSalesOrders,
 } from '../../src/queries/sales/list-orders';
 import { loadSalesOrderBuilder, previewSalesOrder } from '../../src/queries/sales/order-facts';
 
@@ -1003,6 +1004,28 @@ describe('the referral commission (CRM-09)', () => {
     expect(await record(lc, order.id, ids.rulePerKw, '2.700', '2700.00')).not.toBeNull();
   });
 
+  it('records the commission of the largest order a money column holds', async () => {
+    const order = await confirmedWithoutAccrual(ids.partnerPercent);
+    // The largest taxable value numeric(14,2) allows, with no tax.
+    const largest = '999999999999.99';
+    await asMigrator(
+      (m) => m`
+        update sales_orders
+           set subtotal = ${largest}, cgst = 0, sgst = 0, igst = 0, tax_total = 0, round_off = 0,
+               grand_total = ${largest}
+         where id = ${order.id}`,
+    );
+    // 2.5% of 999,999,999,999.99 is 24,999,999,999.99975, rounded half-up to the paisa.
+    expect(
+      await record(lc, order.id, ids.rulePercent, `${largest}0`, '25000000000.00'),
+    ).not.toBeNull();
+    expect(await accrualOf(order.id)).toMatchObject({
+      basis: 'percent',
+      measure: '999999999999.990',
+      amount: '25000000000.00',
+    });
+  });
+
   it('uses no rule that is not in force on the confirmation date', async () => {
     for (const partner of [ids.partnerFuture, ids.partnerEnded]) {
       const order = await acceptedOrder(partner);
@@ -1194,6 +1217,47 @@ describe('the order lists', () => {
       listSalesOrders(context, { entityId: E, limit: 100 }),
     );
     expect(theirs.items.some((row) => row.id === order.id)).toBe(false);
+  });
+
+  it('finds an order by any part of its number, in ⌘K and on /orders, only for whoever reads it (RPT-03)', async () => {
+    const dealer = await newDealer();
+    const order = await dealerOrder(dealer, 1);
+    const tail = order.soNo.slice(-6);
+    const hits = await asPrincipal(lc, (context) =>
+      searchSalesOrders(context, { q: order.soNo, limit: 8 }),
+    );
+    // The number typed whole comes first.
+    expect(hits[0]).toMatchObject({ id: order.id, soNo: order.soNo, state: order.state });
+    const byPart = await asPrincipal(lc, (context) =>
+      searchSalesOrders(context, { q: tail, limit: 20 }),
+    );
+    expect(byPart.map((hit) => hit.id)).toContain(order.id);
+    const listed = await asPrincipal(lc, (context) =>
+      listSalesOrders(context, { entityId: E, q: order.soNo, limit: 100 }),
+    );
+    expect(listed.items.map((row) => row.id)).toEqual([order.id]);
+    expect(listed.searchCapped).toBe(false);
+    // The status filter applies before the search's limit: another status finds nothing.
+    const confirmed = await asPrincipal(lc, (context) =>
+      listSalesOrders(context, { entityId: E, q: order.soNo, state: 'confirmed', limit: 100 }),
+    );
+    expect(confirmed.items).toEqual([]);
+    const theirs = await asPrincipal(otherLc, (context) =>
+      searchSalesOrders(context, { q: order.soNo, limit: 8 }),
+    );
+    expect(theirs).toEqual([]);
+    // A request for another company never finds it.
+    const elsewhere = await asPrincipal(principalFor('general_manager', [1]), (context) =>
+      searchSalesOrders(context, { q: order.soNo, limit: 8 }),
+    );
+    expect(elsewhere).toEqual([]);
+  });
+
+  it('refuses the number search to a role that reads neither leads nor customers', async () => {
+    const hr = await createTestPrincipal('hr_admin', [E]);
+    await expect(
+      asPrincipal(hr, (context) => searchSalesOrders(context, { q: 'SO/2026', limit: 8 })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
 

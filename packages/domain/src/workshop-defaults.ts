@@ -54,6 +54,13 @@ export interface WorkshopDefaults {
   };
   readonly calling: CallingDefaults;
   readonly sizing: SizingDefaults;
+  readonly retention: {
+    /**
+     * Months after its last activity when an unqualified lead with no transaction is anonymised
+     * (`crm.lead.anonymise`). The database takes 12 to 120.
+     */
+    readonly unqualifiedLeadMonths: number;
+  };
 }
 
 /** The cold calling rules (docs/03-roadmap-appendix/phase1.md §7.2, §11; workshop CALL-3 and CALL-5). */
@@ -259,5 +266,12 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     sanctionedLoadRatio: 1,
     /** Schemes whose subsidy requires DCR modules: PM Surya Ghar and PM-KUSUM. */
     dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
+  },
+  /**
+   * BLUEPRINT §7.9: unqualified leads with no transaction are anonymised 24 months after their
+   * last activity. Retention periods are confirmed with the CA (docs/13-client-packs/workshop-pack.md).
+   */
+  retention: {
+    unqualifiedLeadMonths: 24,
   },
 };
