@@ -76,10 +76,10 @@ describe('app.scheduled_jobs() (audit 2026-10, DATA-3)', () => {
           ),
         ),
         role,
-      ).toMatch(/integrations\.jobs\.check/);
+      ).toMatch(/platform\.jobs\.check/);
     }
     expect(await failure(withoutContext(sql`select * from app.scheduled_jobs()`))).toMatch(
-      /integrations\.jobs\.check/,
+      /platform\.jobs\.check/,
     );
   });
 
@@ -100,7 +100,10 @@ describe('app.scheduled_jobs() (audit 2026-10, DATA-3)', () => {
   });
 
   it('answers the error a job recorded itself, cut to 200 characters', async () => {
-    const job = `test-job-${newId().slice(-8)}`;
+    // A job name is lower-case words joined by hyphens (`retention_runs_job_check`).
+    const job = `test-job-${newId()
+      .slice(-8)
+      .replace(/[^a-f]/g, 'x')}`;
     // Scheduled, recorded and read in one transaction that is rolled back, so no job is left.
     const rows = await asMigrator(async (m) => {
       try {

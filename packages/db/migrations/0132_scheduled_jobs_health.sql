@@ -9,13 +9,13 @@ create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
                'sales.quote.expire', 'notifications.send', 'knowledge.index',
-               'crm.handover.run', 'integrations.jobs.check']::text[]
+               'crm.handover.run', 'platform.jobs.check']::text[]
 $$;
 --> statement-breakpoint
 
 -- 2. Each scheduled job with its last run as pg_cron recorded it and its last run as the job itself
 --    recorded it in `retention_runs`, for Integration Health (`admin.integrations.write:all`) and the
---    hourly check (`integrations.jobs.check:all`). A definer, because pg_cron shows a role only the
+--    hourly check (`platform.jobs.check:all`). A definer, because pg_cron shows a role only the
 --    runs of its own jobs, and the jobs are the table owner's; it answers the job's name, schedule
 --    and times, and at most 200 characters of each error, never a row of any company.
 --    `history_since` is when pg_cron's oldest recorded run started, so a job that has never run can
@@ -29,8 +29,8 @@ create or replace function app.scheduled_jobs()
                  history_since timestamptz)
   language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not (app.has_perm('admin.integrations.write:all') or app.has_perm('integrations.jobs.check:all')) then
-    raise exception 'admin.integrations.write:all or integrations.jobs.check:all is required'
+  if not (app.has_perm('admin.integrations.write:all') or app.has_perm('platform.jobs.check:all')) then
+    raise exception 'admin.integrations.write:all or platform.jobs.check:all is required'
       using errcode = '42501';
   end if;
   return query

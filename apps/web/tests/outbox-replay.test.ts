@@ -94,7 +94,7 @@ async function heldBackEvent(): Promise<string> {
     (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id,
                                         payload_json)
              values (${id}, 1, 'platform.probe.requested', 'delivery_probe', ${newId()},
-                     ${JSON.stringify({ v: 1, requestedAt: new Date().toISOString() })}::jsonb)`,
+                     ${m.json({ v: 1, requestedAt: new Date().toISOString() })})`,
   );
   await run();
   expect(sentUnder(id)).toEqual([id]);

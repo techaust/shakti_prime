@@ -116,7 +116,7 @@ const text = (value: unknown): string | null => (typeof value === 'string' ? val
 /**
  * The database's scheduled jobs (audit 2026-10, DATA-3), each expected job in turn, through
  * `app.scheduled_jobs()`, which needs `admin.integrations.write:all` (Integration Health) or
- * `integrations.jobs.check:all` (the hourly check). Jobs the database runs that are not ours (a
+ * `platform.jobs.check:all` (the hourly check). Jobs the database runs that are not ours (a
  * hosting provider's own) are left out.
  */
 export async function readScheduledJobs(

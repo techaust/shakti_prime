@@ -142,7 +142,7 @@ export const NotificationScanWorkerResponse = z
 export type NotificationScanWorkerResponse = z.infer<typeof NotificationScanWorkerResponse>;
 
 /**
- * The hourly check of the database's scheduled jobs (`integrations.jobs.check`, audit 2026-10
+ * The hourly check of the database's scheduled jobs (`platform.jobs.check`, audit 2026-10
  * DATA-3), called by the QStash schedule `jobs-check-<environment>` with an empty body: it reads
  * each job's last run as `system:workers` and tells the owner of a job that failed, is late, is
  * paused or is missing (`job.problem`), once per job, problem and run.
