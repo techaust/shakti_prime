@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { LeadRetentionCursorSchema } from '../commands/crm/retention';
 import { ImportJobStateSchema } from '../imports/enums';
 
 const Count = z.number().int().min(0);
@@ -108,9 +109,53 @@ export type QuoteExpireWorkerBody = z.infer<typeof QuoteExpireWorkerBody>;
 
 /** What one expiry run did: the batches it ran, the quotes it expired, and whether it finished. */
 export const QuoteExpireWorkerResponse = z
-  .object({ batches: Count, expired: Count, done: z.boolean() })
+  .object({ batches: Count, expired: Count, skipped: Count, done: z.boolean() })
   .strict();
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
+
+/**
+ * The nightly anonymisation of unqualified leads idle for the retention period
+ * (`crm.lead.anonymise`, BLUEPRINT §7.9), called by the QStash schedule
+ * `lead-anonymise-<environment>` with an empty body: every company in turn, each batch in its own
+ * transaction as `system:workers`. A run out of time hands the rest to the next call with the
+ * company and the place it reached (`after`) and the night it belongs to (`runDate`), so every
+ * company is reached each night. `dryRun` counts the leads it would anonymise and changes
+ * nothing (the cutover rehearsal).
+ */
+export const LeadAnonymiseWorkerBody = z
+  .object({
+    dryRun: z.boolean().optional(),
+    entityId: EntityIdSchema.optional(),
+    after: LeadRetentionCursorSchema.optional(),
+    runDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+  })
+  .strict()
+  .refine((b) => b.after === undefined || b.entityId !== undefined, {
+    message: 'work left over belongs to a company',
+    path: ['after'],
+  });
+export type LeadAnonymiseWorkerBody = z.infer<typeof LeadAnonymiseWorkerBody>;
+
+/**
+ * What one run did: the batches it ran, the leads it looked at, those it anonymised (or, in a dry
+ * run, would anonymise), those found kept for good, the customers that failed and were recorded,
+ * and whether it finished (when not, the rest went to the next call).
+ */
+export const LeadAnonymiseWorkerResponse = z
+  .object({
+    dryRun: z.boolean(),
+    batches: Count,
+    examined: Count,
+    anonymised: Count,
+    kept: Count,
+    failedCustomers: Count,
+    done: z.boolean(),
+  })
+  .strict();
+export type LeadAnonymiseWorkerResponse = z.infer<typeof LeadAnonymiseWorkerResponse>;
 
 /**
  * The notification scan (`notifications.due.scan`, docs/03-roadmap-appendix/phase1.md §8.1), called by the QStash
@@ -140,3 +185,18 @@ export const NotificationScanWorkerResponse = z
   .object({ batches: Count, created: Count, done: z.boolean() })
   .strict();
 export type NotificationScanWorkerResponse = z.infer<typeof NotificationScanWorkerResponse>;
+
+/**
+ * The hourly check of the database's scheduled jobs (`platform.jobs.check`, audit 2026-10
+ * DATA-3), called by the QStash schedule `jobs-check-<environment>` with an empty body: it reads
+ * each job's last run as `system:workers` and tells the owner of a job that failed, is late, is
+ * paused or is missing (`job.problem`), once per job, problem and run.
+ */
+export const JobsCheckWorkerBody = z.object({}).strict();
+export type JobsCheckWorkerBody = z.infer<typeof JobsCheckWorkerBody>;
+
+/** What one check found: the jobs it read and those with a problem, and the alerts it raised. */
+export const JobsCheckWorkerResponse = z
+  .object({ jobs: Count, problems: Count, alerted: Count })
+  .strict();
+export type JobsCheckWorkerResponse = z.infer<typeof JobsCheckWorkerResponse>;

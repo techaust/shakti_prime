@@ -103,6 +103,11 @@ describe('POST /api/v1/workers/quotes/expire', () => {
 
 describe('the expiry run', () => {
   it('stops taking batches when its time is spent, leaving the rest to the next day', async () => {
-    expect(await runQuoteExpiry({ budgetMs: 0 })).toEqual({ batches: 0, expired: 0, done: false });
+    expect(await runQuoteExpiry({ budgetMs: 0 })).toEqual({
+      batches: 0,
+      expired: 0,
+      skipped: 0,
+      done: false,
+    });
   });
 });

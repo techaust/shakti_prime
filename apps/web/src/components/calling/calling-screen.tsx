@@ -22,7 +22,7 @@ import {
 } from '../../screens/calling';
 import { customerHref } from '../../screens/customers';
 import { TimelineRow } from '../customers/timeline-row';
-import { DateTime } from '../date-time';
+import { DateTime, momentValues } from '../date-time';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
 import { DialNumber, Key, Outcomes, Panel, Search, savedMessage } from './calling-parts';
@@ -73,8 +73,8 @@ function Queue({
         </Button>
       </div>
       <p className="text-text-muted text-sm" aria-live="polite">
-        {t('queue.count', { count: page.items.length })} · {t('queue.asOf')}{' '}
-        <DateTime value={page.asOf} />
+        {t('queue.count', { count: page.items.length })} ·{' '}
+        {t.rich('queue.asOf', momentValues(page.asOf))}
       </p>
       {page.items.length === 0 ? (
         <EmptyState message={t('queue.empty')} className="py-8" />
@@ -82,8 +82,8 @@ function Queue({
         <ol className="flex flex-col gap-1">
           {page.items.map((item) => {
             const selected = item.opportunityId === current;
-            // --accent-soft carries --text at AA but not --text-muted in the dark theme, so the
-            // selected row's secondary lines take the full text colour.
+            // The selected row's secondary lines take the full text colour, so the row reads as one
+            // block on the soft tint (muted text also passes AA there, WEB-6).
             const muted = selected ? 'text-text' : 'text-text-muted';
             return (
               <li key={item.opportunityId}>

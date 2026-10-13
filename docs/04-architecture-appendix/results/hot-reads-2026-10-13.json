@@ -1,0 +1,290 @@
+[
+ {
+  "read": "⌘K search \"Ramesh Patel\"",
+  "role": "Executive",
+  "ms": 680.8,
+  "statements": 5,
+  "slowest": 474.6,
+  "items": "-"
+ },
+ {
+  "read": "⌘K search \"Rmesh\"",
+  "role": "Executive",
+  "ms": 714.7,
+  "statements": 5,
+  "slowest": 732.2,
+  "items": "-"
+ },
+ {
+  "read": "⌘K search \"98765\"",
+  "role": "Executive",
+  "ms": 83,
+  "statements": 3,
+  "slowest": 9.5,
+  "items": "-"
+ },
+ {
+  "read": "Lead list",
+  "role": "Executive",
+  "ms": 30.2,
+  "statements": 2,
+  "slowest": 4.7,
+  "items": 50
+ },
+ {
+  "read": "Lead list by score",
+  "role": "Executive",
+  "ms": 25.7,
+  "statements": 2,
+  "slowest": 4.6,
+  "items": 50
+ },
+ {
+  "read": "Lead search \"Suresh\"",
+  "role": "Executive",
+  "ms": 544.2,
+  "statements": 2,
+  "slowest": 656.6,
+  "items": 20
+ },
+ {
+  "read": "Account 360",
+  "role": "Executive",
+  "ms": 72.6,
+  "statements": 13,
+  "slowest": 1,
+  "items": "-"
+ },
+ {
+  "read": "Notification centre",
+  "role": "Executive",
+  "ms": 14.3,
+  "statements": 1,
+  "slowest": 1.2,
+  "items": 20
+ },
+ {
+  "read": "Bell count",
+  "role": "Executive",
+  "ms": 2.6,
+  "statements": 1,
+  "slowest": 0.1,
+  "items": "-"
+ },
+ {
+  "read": "Orders list",
+  "role": "Executive",
+  "ms": 262.1,
+  "statements": 1,
+  "slowest": 189.8,
+  "items": 50
+ },
+ {
+  "read": "⌘K search \"Ramesh Patel\"",
+  "role": "General Manager",
+  "ms": 528.6,
+  "statements": 3,
+  "slowest": 459.4,
+  "items": "-"
+ },
+ {
+  "read": "⌘K search \"Rmesh\"",
+  "role": "General Manager",
+  "ms": 619,
+  "statements": 3,
+  "slowest": 564.5,
+  "items": "-"
+ },
+ {
+  "read": "⌘K search \"98765\"",
+  "role": "General Manager",
+  "ms": 50,
+  "statements": 2,
+  "slowest": 7.4,
+  "items": "-"
+ },
+ {
+  "read": "Lead list",
+  "role": "General Manager",
+  "ms": 21.1,
+  "statements": 2,
+  "slowest": 3.2,
+  "items": 50
+ },
+ {
+  "read": "Lead list by score",
+  "role": "General Manager",
+  "ms": 31.5,
+  "statements": 2,
+  "slowest": 4.2,
+  "items": 50
+ },
+ {
+  "read": "Lead search \"Suresh\"",
+  "role": "General Manager",
+  "ms": 475.5,
+  "statements": 2,
+  "slowest": 455.7,
+  "items": 20
+ },
+ {
+  "read": "Account 360",
+  "role": "General Manager",
+  "ms": 63.4,
+  "statements": 13,
+  "slowest": 0.6,
+  "items": "-"
+ },
+ {
+  "read": "Notification centre",
+  "role": "General Manager",
+  "ms": 9.2,
+  "statements": 1,
+  "slowest": 2.5,
+  "items": 20
+ },
+ {
+  "read": "Bell count",
+  "role": "General Manager",
+  "ms": 2.2,
+  "statements": 1,
+  "slowest": 0.1,
+  "items": "-"
+ },
+ {
+  "read": "Orders list",
+  "role": "General Manager",
+  "ms": 7.7,
+  "statements": 1,
+  "slowest": 1,
+  "items": 50
+ },
+ {
+  "read": "⌘K search \"Ramesh Patel\"",
+  "role": "Tele-caller",
+  "ms": 254,
+  "statements": 3,
+  "slowest": 168.8,
+  "items": "-"
+ },
+ {
+  "read": "⌘K search \"Rmesh\"",
+  "role": "Tele-caller",
+  "ms": 281.8,
+  "statements": 3,
+  "slowest": 242.1,
+  "items": "-"
+ },
+ {
+  "read": "⌘K search \"98765\"",
+  "role": "Tele-caller",
+  "ms": 47.2,
+  "statements": 2,
+  "slowest": 7.6,
+  "items": "-"
+ },
+ {
+  "read": "Lead list",
+  "role": "Tele-caller",
+  "ms": 21.4,
+  "statements": 2,
+  "slowest": 2.5,
+  "items": 50
+ },
+ {
+  "read": "Lead list by score",
+  "role": "Tele-caller",
+  "ms": 26.8,
+  "statements": 2,
+  "slowest": 2.6,
+  "items": 50
+ },
+ {
+  "read": "Lead search \"Suresh\"",
+  "role": "Tele-caller",
+  "ms": 225.8,
+  "statements": 2,
+  "slowest": 188.3,
+  "items": 20
+ },
+ {
+  "read": "Account 360",
+  "role": "Tele-caller",
+  "ms": 50.1,
+  "statements": 13,
+  "slowest": 0.6,
+  "items": "-"
+ },
+ {
+  "read": "Notification centre",
+  "role": "Tele-caller",
+  "ms": 8.5,
+  "statements": 1,
+  "slowest": 2.3,
+  "items": 20
+ },
+ {
+  "read": "Bell count",
+  "role": "Tele-caller",
+  "ms": 1.8,
+  "statements": 1,
+  "slowest": 0.1,
+  "items": "-"
+ },
+ {
+  "read": "Orders list",
+  "role": "Tele-caller",
+  "ms": 15.3,
+  "statements": 1,
+  "slowest": 5.1,
+  "items": 50
+ },
+ {
+  "read": "Calling queue",
+  "role": "Tele-caller",
+  "ms": 156.8,
+  "statements": 2,
+  "slowest": 104.9,
+  "items": 50
+ },
+ {
+  "read": "Calling queue of a team member",
+  "role": "Sales Team Lead",
+  "ms": 178.3,
+  "statements": 2,
+  "slowest": 105.3,
+  "items": 50
+ },
+ {
+  "read": "Calling queue of a caller",
+  "role": "General Manager",
+  "ms": 129.2,
+  "statements": 2,
+  "slowest": 117.3,
+  "items": 50
+ },
+ {
+  "read": "Converting board",
+  "role": "Lead Converter",
+  "ms": 71.8,
+  "statements": 7,
+  "slowest": 9.8,
+  "items": "-"
+ },
+ {
+  "read": "Converting board",
+  "role": "General Manager",
+  "ms": 11.4,
+  "statements": 1,
+  "slowest": 0.6,
+  "items": "-"
+ },
+ {
+  "read": "Converting board",
+  "role": "Executive",
+  "ms": 12.2,
+  "statements": 1,
+  "slowest": 0.7,
+  "items": "-"
+ }
+]

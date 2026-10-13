@@ -6,6 +6,7 @@ import { SIGN_IN_REASONS } from '../../../auth/sign-in-reasons';
 import { SignInForm } from '../../../components/auth/sign-in-form';
 import { Card, FormError } from '../../../components/form';
 import { requestNonce } from '../../../nonce';
+import { safeReturnPath } from '../../../session-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,13 +19,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reason?: string }>;
+  searchParams: Promise<{ reason?: string; returnTo?: string }>;
 }) {
+  const { reason, returnTo } = await searchParams;
+  // The BOS screen the person was on when their sign-in ended (WEB-7); never another site.
+  const back = safeReturnPath(returnTo);
   const session = await currentSession();
   if (session && session.blocked === undefined) {
-    redirect(session.principal ? '/home' : '/two-factor');
+    redirect(session.principal ? back : '/two-factor');
   }
-  const { reason } = await searchParams;
   const known = SIGN_IN_REASONS.find((r) => r === reason);
   const t = await getTranslations('auth.signIn');
   return (
@@ -33,6 +36,7 @@ export default async function SignInPage({
       <SignInForm
         turnstileSiteKey={process.env.TURNSTILE_SITE_KEY ?? ''}
         nonce={await requestNonce()}
+        returnTo={back === '/home' ? undefined : back}
       />
     </Card>
   );

@@ -79,6 +79,7 @@
     "concurrent_change": "Someone else changed this at the same moment. Refresh the page and try again.",
     "idempotency_mismatch": "This form was already sent with different details. Refresh the page and try again.",
     "database_rejected": "Some details don't fit together. Please check them and try again.",
+    "customer_anonymised": "This customer's details were removed because there was no contact for a long time. Add them again as a new customer.",
     "bot_check_unavailable": "We couldn't check that you're a person just now. Please try again in a minute.",
     "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
     "invite_mail_failed": "The invitation is saved, but the email didn't go out. Send the invitation again in a few minutes.",
@@ -321,7 +322,6 @@
     "quiet_hours_empty": "The quiet hours start and end at the same time. Choose two different times.",
     "push_service_unknown": "This browser can't receive alerts from Shakti Prime. Try another browser.",
     "push_failed": "We couldn't change alerts for this browser. Please try again.",
-    "push_browser_taken": "Someone else had alerts on this browser, so theirs are now off here. Choose Turn on alerts again to get yours.",
     "signed_copy_missing": "We couldn't find the signed copy. Upload it again, then record the acceptance.",
     "signed_copy_used": "This signed copy is already recorded for another quote. Upload the copy that belongs to this quote.",
     "signed_copy_refused": "The signed copy didn't pass its checks. Scan or photograph it again and upload the new file.",
@@ -340,7 +340,10 @@
     "profile_person_missing": "This person is not on your team in this company, so you can't change their settings.",
     "reassign_no_converter": "No Lead Converter is present to take these leads. Choose a person instead.",
     "reassign_same_person": "Choose someone other than the person who is leaving.",
-    "agent_action_shadow_only": "There is no action for this proposal yet, so it stays in Shadow."
+    "agent_action_shadow_only": "There is no action for this proposal yet, so it stays in Shadow.",
+    "gst_split_mismatch": "The quote’s tax is split in a way its supply does not allow, so it was left as it was. Ask for its tax to be corrected.",
+    "session_ended": "You were signed out. Sign in again to carry on where you left off.",
+    "push_browser_taken": "Someone else had alerts on this browser, so theirs are now off here. Choose Turn on alerts again to get yours."
   },
   "auth": {
     "signIn": {
@@ -477,7 +480,8 @@
     "inboxWaiting": "{count, plural, one {Agent Inbox, # waiting} other {Agent Inbox, # waiting}}",
     "inboxMore": "99+",
     "inboxMoreLabel": "Agent Inbox, 100 or more waiting",
-    "notificationSettings": "Notification settings"
+    "notificationSettings": "Notification settings",
+    "paletteOrder": "Order for {name}"
   },
   "home": {
     "greeting": "Welcome, {name}",
@@ -544,7 +548,8 @@
       "leaderboardCaption": "Callers of your team with their {metric} for {period}, each against their target",
       "rank": "Rank",
       "caller": "Caller",
-      "queuesHeading": "Queues of your team"
+      "queuesHeading": "Queues of your team",
+      "rankBy": "Rank by"
     },
     "manager": {
       "responseHeading": "First calls",
@@ -1278,7 +1283,9 @@
         "system_size": "System size",
         "age_days": "Days since the lead was added"
       },
-      "reason": "{factor}: {signed} {points, plural, =1 {point} =-1 {point} other {points}}"
+      "reason": "{factor}: {signed} {points, plural, =1 {point} =-1 {point} other {points}}",
+      "changedBy": "Last changed {when} by {name}",
+      "changedOvernight": "Last changed {when}, when every score was brought up to date overnight"
     },
     "walkIn": {
       "title": "Walk-in customer",
@@ -1543,6 +1550,7 @@
       "scoreRulesSet": "Lead score rules changed",
       "leadRescore": "Lead scored again",
       "leadScoreRefresh": "Lead scores brought up to date overnight",
+      "leadAnonymise": "Personal details of an old lead removed overnight",
       "referralPartnerSet": "Referral code set",
       "commissionRuleSet": "Commission rule set",
       "fileRendered": "Document printed to a file",
@@ -1594,7 +1602,8 @@
       "callerProfileSet": "Lead converter settings changed",
       "callerProfileSetPresence": "Presence changed",
       "leadHandOver": "Qualified lead given to a Lead Converter",
-      "leadReassignAll": "All leads of a person moved"
+      "leadReassignAll": "All leads of a person moved",
+      "enquiryTake": "Enquiry taken: a lead added, or passed to a colleague"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1818,6 +1827,7 @@
       "confidence": "Match, out of 100",
       "duplicateReason": "Why it was put forward",
       "undoneAt": "Undone on",
+      "anonymisedAt": "Personal details removed on",
       "movedContacts": "Contacts moved",
       "movedSites": "Sites moved",
       "movedRelationships": "Companies moved",
@@ -1879,7 +1889,9 @@
       "maxOpen": "Most open leads",
       "languages": "Languages",
       "segments": "Business lines",
-      "filterReason": "Why the checks refused it"
+      "filterReason": "Why the checks refused it",
+      "skipped": "Quotes left as they were",
+      "expiryRefused": "Why it was not marked expired"
     },
     "values": {
       "percent": "{value}%",
@@ -2291,6 +2303,36 @@
       "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
       "company_unknown": "We don't recognise this company. Use the company's short code or name, or leave it blank for this company.",
       "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code."
+    },
+    "reconcile": {
+      "title": "What happened to each row",
+      "intro": "Every row of the file is counted once. The counts add up to the rows in the file, so you can check them against the file you sent.",
+      "lines": {
+        "rowsIn": "Rows in the file",
+        "created": "Added as new records",
+        "attached": "Added to records already in the list",
+        "skipped": "Repeated in the file",
+        "refused": "Not added",
+        "waiting": "Checked, not added yet",
+        "undone": "Added, then taken back"
+      },
+      "reasonsTitle": "Why rows were not added",
+      "reasons": {
+        "required": "Something required was missing",
+        "invalid": "A value was not recognised",
+        "too_long": "A value was too long",
+        "phone_invalid": "The phone number was wrong",
+        "pipeline_unknown": "The pipeline was not set up",
+        "source_unknown": "The lead source was not in the list",
+        "commit_failed": "Adding stopped at this row",
+        "customer_held_by_colleague": "A colleague looks after the customer",
+        "company_unknown": "The company was not recognised",
+        "state_unknown": "The state was not recognised"
+      },
+      "csvLine": "What happened",
+      "csvRows": "Rows",
+      "csvFileName": "{file} row counts.csv",
+      "downloadCsv": "Download as CSV"
     }
   },
   "customers": {
@@ -2568,7 +2610,11 @@
       "spentMonth": "This month",
       "runsMonth": "Runs this month",
       "dailyLimit": "Daily limit",
-      "limitReached": "Limit today"
+      "limitReached": "Limit today",
+      "task": "Task",
+      "state": "State",
+      "lastRun": "Last run",
+      "runs": "Runs"
     },
     "lastRun": {
       "heading": "Last sending round",
@@ -2620,6 +2666,30 @@
       "reached": "Reached",
       "notReached": "Not reached",
       "otherCompany": "Another company"
+    },
+    "jobs": {
+      "heading": "Scheduled upkeep",
+      "intro": "Tasks the system runs on its own to keep its records in order. A task that failed or has stopped is also sent to the owner by email.",
+      "caption": "Scheduled upkeep tasks and their last run",
+      "names": {
+        "activities-partitions": "Make room for next months’ customer history",
+        "audit-logs-partitions": "Make room for next months’ activity log",
+        "audit-logs-detach": "Archive activity log entries older than eight years",
+        "idempotency-keys-purge": "Clear out old records of forms already sent",
+        "outbox-events-purge": "Clear out updates sent more than 30 days ago"
+      },
+      "state": {
+        "ok": "Ran well",
+        "running": "Running now",
+        "waiting": "Not run yet",
+        "late": "Overdue",
+        "failed": "Failed",
+        "stuck": "Stuck",
+        "paused": "Switched off",
+        "missing": "Not set up"
+      },
+      "every": "{hours, select, 1 {Every hour} 24 {Every day} 168 {Every week} other {Every month}}",
+      "never": "Not yet"
     }
   },
   "files": {
@@ -3065,7 +3135,8 @@
       "admin": "Running the system",
       "integrations": "Other systems",
       "files": "Uploaded files",
-      "notifications": "Notices"
+      "notifications": "Notices",
+      "platform": "Upkeep"
     },
     "permissions": {
       "crm_lead_read": "See leads",
@@ -3079,9 +3150,9 @@
       "calls_recording_listen": "Listen to call recordings",
       "sales_quote_create": "Create quotes",
       "sales_quote_send": "Send quotes to customers",
-      "sales_order_create": "Create sales orders",
-      "sales_order_confirm": "Confirm sales orders",
-      "sales_order_cancel": "Cancel sales orders",
+      "sales_order_create": "Create orders",
+      "sales_order_confirm": "Confirm orders",
+      "sales_order_cancel": "Cancel orders",
       "sales_credit_release": "Release a dealer credit hold",
       "pricing_read": "See price lists",
       "pricing_write": "Change price lists",
@@ -3145,7 +3216,9 @@
       "sales_credit_write": "Enter dealer credit limits and outstanding",
       "sales_targets_write": "Set the targets of callers and teams",
       "notifications_send": "Send notices to the people who act on them",
-      "crm_handover_run": "Give a qualified lead to a Lead Converter"
+      "crm_handover_run": "Give a qualified lead to a Lead Converter",
+      "crm_retention_run": "Remove the personal details of old leads that never went ahead",
+      "platform_jobs_check": "Check that the scheduled upkeep tasks ran"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3365,7 +3438,7 @@
     },
     "result": {
       "title": "Latest result",
-      "savedAt": "Worked out on",
+      "savedAt": "Worked out on <time>{when}</time>",
       "inBounds": "Within limits",
       "outOfBounds": "Outside limits",
       "advice": "Advice",
@@ -3447,7 +3520,7 @@
       "title": "Queue",
       "count": "{count, plural, =0 {No leads to call} one {# lead to call} other {# leads to call}}",
       "empty": "No calls due right now. New leads appear here as they come in.",
-      "asOf": "As of",
+      "asOf": "As of <time>{when}</time>",
       "refresh": "Refresh"
     },
     "reason": {
@@ -3707,7 +3780,6 @@
       "worksContract": "Supply and installation, taxed {goods}% on goods and {services}% on installation",
       "gstRate": "{rate}%",
       "noHsn": "None",
-      "totalsHeading": "Totals",
       "subtotal": "Taxable value",
       "cgst": "CGST",
       "sgst": "SGST",
@@ -3807,7 +3879,7 @@
       "suggests": "{agent} suggests",
       "forCustomer": "For {customer}",
       "forUnknown": "For a lead you cannot open",
-      "received": "Suggested",
+      "received": "Suggested <time>{when}</time>",
       "companyLine": "In {company}",
       "openCustomer": "Open customer",
       "approve": "Approve",
@@ -3827,7 +3899,7 @@
       "routedUnknown": "A customer you look after asked again",
       "routedInterest": "Interested in",
       "routedNote": "Note",
-      "routedReceived": "Passed on",
+      "routedReceived": "Passed on <time>{when}</time>",
       "routedComplete": "Done",
       "routedDone": "Marked done.",
       "handoverFrom": "Qualified lead with no Lead Converter free",
@@ -4246,7 +4318,14 @@
       "quantityTooLarge": "One line takes at most {max}. Lower the quantity on this line.",
       "back": "Back to the dealer",
       "made": "Order {number} made."
-    }
+    },
+    "searchLabel": "Find an order",
+    "searchHelper": "Any part of the order number, at least 2 characters",
+    "search": "Search",
+    "clearSearch": "Show all",
+    "emptySearch": "No orders have a number like this. Check the number and try again.",
+    "searchTooShort": "Type at least 2 characters of the order number.",
+    "searchCapped": "Only the 200 newest orders with a number like this are shown. Type more of the number to find an older one."
   },
   "dealerCredit": {
     "title": "Dealer credit",
@@ -4458,7 +4537,7 @@
     "board": {
       "title": "Your leads",
       "count": "{count, plural, =0 {No open leads} one {# open lead} other {# open leads}}",
-      "asOf": "As of",
+      "asOf": "As of <time>{when}</time>",
       "refresh": "Refresh",
       "empty": "No leads are with you right now. Qualified leads are given to you as they come in.",
       "truncated": "Showing the 200 leads that changed most recently.",
@@ -4492,8 +4571,7 @@
       "quote": "Quote",
       "order": "Order",
       "noQuote": "No quote yet",
-      "quoteLine": "{number}, {state}, valid until",
-      "noOrder": "None held",
+      "quoteLine": "{number}, {state}, valid until <time>{when}</time>",
       "orderHeld": "{number} is held for credit",
       "sizingNone": "Not sized yet",
       "sizingStale": "Needs sizing again",
@@ -4516,7 +4594,7 @@
     "order": {
       "held": "The credit check is holding order {number} for {amount}. An Executive can release it.",
       "open": "Open order",
-      "heldSince": "Held since"
+      "heldSince": "Held since <time>{when}</time>"
     },
     "keys": {
       "title": "Keyboard shortcuts",

@@ -6,7 +6,7 @@ import {
   type RequestScope,
 } from '@shakti/db';
 import type { z } from 'zod';
-import { redactForAudit } from '../audit/redact';
+import { redactForAudit, withoutPersonalDetails } from '../audit/redact';
 import { databaseAuditSink, type AuditRecord } from '../audit/sink';
 import { databaseOutboxSink, type OutboxRecord, type OutboxSink } from '../outbox/sink';
 import { jsonLogger, type Logger } from '../ports/logger';
@@ -150,7 +150,7 @@ async function recordRefusal<I extends z.ZodType, O extends z.ZodType>(
     aggregateType: null,
     aggregateId: null,
     errorCode: code,
-    input: refusedInput(command, ran, ran ? failure.input : rawInput),
+    input: withoutPersonalDetails(refusedInput(command, ran, ran ? failure.input : rawInput)),
     before: null,
     after: null,
   };
@@ -171,8 +171,9 @@ async function recordRefusal<I extends z.ZodType, O extends z.ZodType>(
 }
 
 /**
- * The input a refusal row records. A command with an audit summary records only the summary;
- * raw input it never parsed is then left out rather than stored whole.
+ * The input a refusal row records, before its personal fields are removed
+ * (`withoutPersonalDetails`). A command with an audit summary records only the summary; raw input
+ * it never parsed is then left out rather than stored whole.
  */
 function refusedInput<I extends z.ZodType, O extends z.ZodType>(
   command: Command<I, O>,

@@ -26,6 +26,7 @@ vi.mock('@upstash/qstash', () => ({
 
 const {
   forgetEnsuredUrlGroups,
+  fromSchedule,
   nudgeViaQStash,
   publishImportCommit,
   qstashConfig,
@@ -217,10 +218,37 @@ describe('qstashEventPublisher', () => {
     expect(queue.addEndpoints).toHaveBeenCalledTimes(2);
   });
 
+  it('sends a replayed event under its generation’s deduplication id, and passes on a deduplicated answer', async () => {
+    const fresh = event('files.file.uploaded');
+    const replayed = event('files.file.uploaded');
+    queue.batchJSON.mockResolvedValue([
+      [{ messageId: 'm1', url: 'u' }],
+      [{ messageId: 'm2', url: 'u', deduplicated: true }],
+    ]);
+    const results = await qstashEventPublisher(config).publish(
+      [fresh, replayed],
+      new Map([[replayed.id, 2]]),
+    );
+    const sent = queue.batchJSON.mock.calls[0]?.[0] as { deduplicationId: string }[];
+    expect(sent.map((m) => m.deduplicationId)).toEqual([fresh.id, `${replayed.id}:2`]);
+    expect(results).toEqual([
+      { id: fresh.id, ok: true },
+      { id: replayed.id, ok: true, deduplicated: true },
+    ]);
+  });
+
   it('sends nothing for an empty run', async () => {
     expect(await qstashEventPublisher(config).publish([])).toEqual([]);
     expect(queue.batchJSON).not.toHaveBeenCalled();
     expect(queue.addEndpoints).not.toHaveBeenCalled();
+  });
+});
+
+describe('fromSchedule (review L4)', () => {
+  it('tells a schedule’s call by the schedule QStash names, and a nudge or a hand-on by its absence', () => {
+    expect(fromSchedule(new Headers({ 'Upstash-Schedule-Id': 'outbox-publish-dev' }))).toBe(true);
+    expect(fromSchedule(new Headers())).toBe(false);
+    expect(fromSchedule(new Headers({ 'upstash-schedule-id': '' }))).toBe(false);
   });
 });
 

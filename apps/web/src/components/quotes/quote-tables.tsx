@@ -1,23 +1,101 @@
 'use client';
 
 import type { QuoteLineDto, QuoteTotalsDto, SupplyKind } from '@shakti/contracts';
+import { CardList } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { formatRupees } from '../../screens/format';
 import { plainQuantity } from '../../screens/quotes';
 
 /**
  * A quote's lines as the server priced and taxed them: every amount comes from the quote or its
- * preview, and nothing is added up here (AGENTS.md §11).
+ * preview, and nothing is added up here (AGENTS.md §11). A table on wider screens and a card per
+ * line on a phone, so each line's amounts stay on screen (docs/08-design-system.md §5).
  */
 export function QuoteLinesTable({ lines, caption }: { lines: QuoteLineDto[]; caption: string }) {
   const t = useTranslations('quotes.page');
+  const gst = (line: QuoteLineDto) =>
+    line.compositeRuleId === null
+      ? t('gstRate', { rate: Number(line.taxRatePct ?? '0') })
+      : t('worksContract', {
+          goods: Number(line.goodsRatePct ?? '0'),
+          services: Number(line.servicesRatePct ?? '0'),
+        });
   return (
-    // A wide table scrolls on a phone: the region takes focus, so the keyboard can scroll it.
+    <>
+      <CardList
+        label={caption}
+        items={lines.map((line) => ({
+          key: String(line.position),
+          title: (
+            <>
+              <span className="block">{line.description}</span>
+              <span className="text-text-muted block text-xs font-normal">{line.sku}</span>
+            </>
+          ),
+          fields: [
+            {
+              id: 'position',
+              label: t('lineColumns.position'),
+              value: line.position,
+              numeric: true,
+            },
+            {
+              id: 'hsn',
+              label: t('lineColumns.hsn'),
+              value: line.hsn ?? t('noHsn'),
+              numeric: true,
+            },
+            {
+              id: 'quantity',
+              label: t('lineColumns.quantity'),
+              value: plainQuantity(line.qty),
+              numeric: true,
+            },
+            {
+              id: 'rate',
+              label: t('lineColumns.rate'),
+              value: formatRupees(line.unitPrice),
+              numeric: true,
+            },
+            {
+              id: 'taxable',
+              label: t('lineColumns.taxable'),
+              value: formatRupees(line.taxableValue),
+              numeric: true,
+            },
+            { id: 'gst', label: t('lineColumns.gst'), value: gst(line) },
+            {
+              id: 'total',
+              label: t('lineColumns.total'),
+              value: formatRupees(line.lineTotal),
+              numeric: true,
+            },
+          ],
+        }))}
+      />
+      <QuoteLinesWide lines={lines} caption={caption} gst={gst} />
+    </>
+  );
+}
+
+/** The lines as a table, on wider screens. */
+function QuoteLinesWide({
+  lines,
+  caption,
+  gst,
+}: {
+  lines: QuoteLineDto[];
+  caption: string;
+  gst: (line: QuoteLineDto) => string;
+}) {
+  const t = useTranslations('quotes.page');
+  return (
+    // A wide table scrolls in a narrow window: the region takes focus, so the keyboard can scroll it.
     <div
       role="region"
       aria-label={caption}
       tabIndex={0}
-      className="border-border overflow-x-auto rounded-lg border"
+      className="border-border hidden overflow-x-auto rounded-lg border md:block"
     >
       <table className="w-full min-w-160 border-collapse text-sm">
         <caption className="sr-only">{caption}</caption>
@@ -63,14 +141,7 @@ export function QuoteLinesTable({ lines, caption }: { lines: QuoteLineDto[]; cap
               <td className="px-3 py-2 text-right tabular-nums">
                 {formatRupees(line.taxableValue)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
-                {line.compositeRuleId === null
-                  ? t('gstRate', { rate: Number(line.taxRatePct ?? '0') })
-                  : t('worksContract', {
-                      goods: Number(line.goodsRatePct ?? '0'),
-                      services: Number(line.servicesRatePct ?? '0'),
-                    })}
-              </td>
+              <td className="px-3 py-2 text-right tabular-nums">{gst(line)}</td>
               <td className="px-3 py-2 text-right tabular-nums">{formatRupees(line.lineTotal)}</td>
             </tr>
           ))}

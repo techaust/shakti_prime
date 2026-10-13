@@ -23,6 +23,7 @@ import { addNote } from '../../src/commands/crm/customer';
 import { setCommissionRule, setReferralPartner } from '../../src/commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../../src/commands/crm/score-rules';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { listLeads } from '../../src/queries/crm/list-leads';
 import {
   listCodedReferralPartners,
   listCommissionRules,
@@ -283,6 +284,38 @@ describe('crm.lead.rescore', () => {
     );
   });
 
+  it('shows on the lead who last changed its score: a person by name, or the overnight rescoring (CRM-06, ARCH-3)', async () => {
+    const district = `Changer ${DISTRICT}`;
+    const l = await lead('farm', district);
+    const listed = async () =>
+      (await asPrincipal(caller, (ctx) => listLeads(ctx, { limit: 200 }))).items.find(
+        (item) => item.id === l.id,
+      );
+    expect((await listed())?.scoreChangedBy).toBeNull();
+
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into lead_score_rules (id, entity_id, segment, factor, match_json, points, position, created_by)
+               values (${newId()}, 1, null, 'district', ${m.json({ districts: [district] })}, 5, 1, ${exec.id})`,
+    );
+    await run(caller, rescoreLead, { entityId: 1, opportunityId: l.id });
+    const [me] = await asMigrator(
+      (m) =>
+        m<{ name: string }[]>`select display_name as name from principals where id = ${caller.id}`,
+    );
+    expect((await listed())?.scoreChangedBy).toEqual({ kind: 'person', name: me?.name });
+
+    await asMigrator(
+      (m) => m`update opportunities set score_changed_by = ${SYSTEM_WORKERS_PRINCIPAL_ID}
+                where id = ${l.id}`,
+    );
+    expect((await listed())?.scoreChangedBy).toEqual({ kind: 'overnight' });
+    await asMigrator(
+      (m) => m`update lead_score_rules set archived_at = now() where created_by = ${exec.id}`,
+    );
+  });
+
   it("is refused to a role without crm.lead.write, and does not reach another company's lead", async () => {
     const l = await lead();
     expect(
@@ -389,7 +422,8 @@ describe('crm.lead.score_refresh', () => {
           g.key.startsWith('crm.') &&
           g.key !== 'crm.score.refresh' &&
           g.key !== 'crm.duplicates.scan' &&
-          g.key !== 'crm.handover.run',
+          g.key !== 'crm.handover.run' &&
+          g.key !== 'crm.retention.run',
       ),
     ).toEqual([]);
     const l = await lead();
@@ -537,6 +571,8 @@ describe('crm.lead.score_refresh', () => {
       // Nothing moved since: the next night writes nothing.
       const again = await sweep(workers(1));
       expect(again.rescored).toBe(0);
+      // Not even an audit row for a batch that changed nothing (audit 2026-10, DATA-6).
+      expect(again.audit).toEqual([]);
     } finally {
       await asMigrator(
         (m) => m`update lead_score_rules set archived_at = now() where created_by = ${exec.id}`,

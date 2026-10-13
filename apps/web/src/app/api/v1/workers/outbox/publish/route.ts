@@ -1,15 +1,21 @@
 import { OutboxPublishResponse } from '@shakti/contracts';
 import { logger } from '../../../../../../log';
+import { sendCheckIn } from '../../../../../../observability/check-ins';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
-import { publishOutbox } from '../../../../../../workers/outbox';
-import { qstashConfig, verifyQStashSignature } from '../../../../../../workers/qstash';
+import { OUTBOX_RUN_BUDGET_MS, publishOutbox } from '../../../../../../workers/outbox';
+import {
+  fromSchedule,
+  qstashConfig,
+  verifyQStashSignature,
+} from '../../../../../../workers/qstash';
 import { NO_RETRY, workerFailure } from '../../../../../../workers/route-answers';
 
 export const dynamic = 'force-dynamic';
 /**
- * A run claims, calls the queue once (5 seconds at most) and records the outcomes. Stopping the
- * function well inside the rows' two-minute lease means no run records after its lease is gone.
+ * A run claims, calls the queue once per claim (5 seconds at most) and records the outcomes, and
+ * claims again only within `OUTBOX_RUN_BUDGET_MS`. Stopping the function well inside the rows'
+ * two-minute lease means no run records after its lease is gone.
  */
 export const maxDuration = 60;
 
@@ -42,11 +48,16 @@ export async function POST(request: Request): Promise<Response> {
     return workerFailure('unauthorized', requestId, headers);
   }
 
+  // Only the minute schedule's call checks in; a nudge after a command would hide a lost schedule.
+  const scheduled = fromSchedule(request.headers);
   try {
-    const counts = await publishOutbox({ requestId });
+    const counts = await publishOutbox({ requestId, budgetMs: OUTBOX_RUN_BUDGET_MS });
+    // Sentry raises a minute the schedule never called (a deleted schedule, an old key).
+    if (scheduled) await sendCheckIn('outbox-publish', 'ok');
     return Response.json(OutboxPublishResponse.parse(counts), { headers });
   } catch (error) {
     logger.log('error', 'outbox.publish_failed', { requestId, error });
+    if (scheduled) await sendCheckIn('outbox-publish', 'error');
     return workerFailure('internal', requestId, headers);
   }
 }

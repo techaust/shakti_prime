@@ -7,7 +7,7 @@ import type { RefObject } from 'react';
 import { formatCount } from '../../screens/format';
 import { groupByStage, leadKey } from '../../screens/converting';
 import { QUOTE_STATE_TONE } from '../../screens/quotes';
-import { DateTime } from '../date-time';
+import { DateTime, momentValues } from '../date-time';
 
 /** A lead's size in words: a pump's horsepower or a rooftop system's kilowatts. */
 function useSizeText() {
@@ -89,8 +89,8 @@ function LeadCard({
   const sizeText = useSizeText();
   const key = leadKey({ entityId: lead.entityId, opportunityId: lead.opportunityId });
   const size = lead.size === null ? undefined : sizeText(lead.size);
-  // --accent-soft carries --text at AA but not --text-muted in the dark theme, so the selected
-  // card's secondary lines take the full text colour.
+  // The selected card's secondary lines take the full text colour, so the card reads as one
+  // block on the soft tint (muted text also passes AA there, WEB-6).
   const muted = selected ? 'text-text' : 'text-text-muted';
   const callDue = lead.nextCall !== null && Date.parse(lead.nextCall.dueAt) <= asOf;
   return (
@@ -170,7 +170,7 @@ export function StageBoard({
         </Button>
       </div>
       <p className="text-text-muted text-sm" aria-live="polite">
-        {t('count', { count: board.leads.length })} · {t('asOf')} <DateTime value={board.asOf} />
+        {t('count', { count: board.leads.length })} · {t.rich('asOf', momentValues(board.asOf))}
       </p>
       {board.truncated ? <p className="text-text-muted text-sm">{t('truncated')}</p> : null}
       {groups.length === 0 ? (

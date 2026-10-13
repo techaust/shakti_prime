@@ -260,6 +260,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 
 **FIN-2 · Record retention periods** — CA
 - *Proposed (from the blueprint):* financial records, proformas, sales orders and audit records 8 years; customer identity copies and subsidy documents the life of the project plus 8 years; call recordings 12 months (the written summary is kept); WhatsApp media 3 years; leads with no sale 24 months after the last contact, then anonymised; field photos the life of the project plus 5 years.
+- *In the system until answered:* a customer and all their leads are anonymised once nothing about them has changed for 24 months, in every company that knows them, provided that no lead of theirs ever reached the Qualified stage or was won, and that they have no quote, order, commission, dealer credit or referral-partner record. A customer is kept, whatever the time, while they are a dealer or referral partner, while a company holds them as a customer without any lead, or while a merge of two customer records into theirs stands. Anonymising removes the person's name, numbers, email, address, village and notes everywhere, the history of changes included, and keeps the fact of each consent with its signed form, which holds the person's name; the CA says whether that form is kept or deleted too. A refused entry in the history of changes keeps none of the person's details from the start.
 - *Needed:* the CA's confirmation or changes.
 
 ### B8. People (HR) — needed before Phase 5

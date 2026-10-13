@@ -2,15 +2,13 @@ import { z } from 'zod';
 import { OpportunityStateSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { QuoteSearchHitDto } from './quote';
+import { OrderSearchHitDto } from './sales-order';
+import { SearchTextSchema } from './search-text';
 
-/** The fewest characters a search looks for: one letter finds half the customers. */
-export const SEARCH_MIN_CHARS = 2;
+export { SEARCH_MIN_CHARS, SearchTextSchema } from './search-text';
 
 /** The most hits one search answers per kind: the palette shows a short list, not a page. */
 export const SEARCH_MAX_HITS = 20;
-
-/** What a person types into the ⌘K search: a name, a village or the last digits of a phone. */
-export const SearchTextSchema = z.string().trim().min(SEARCH_MIN_CHARS).max(80);
 
 /** A bounded search of one kind of record (docs/08-design-system.md §6, Command palette). */
 export const SearchInput = z
@@ -54,6 +52,8 @@ export const PaletteSearchDto = z
     leads: z.array(LeadSearchHitDto),
     /** Quotes by their number (RPT-03). */
     quotes: z.array(QuoteSearchHitDto),
+    /** Orders by their number (RPT-03). */
+    orders: z.array(OrderSearchHitDto),
     people: z.array(PersonSearchHitDto),
   })
   .strict();

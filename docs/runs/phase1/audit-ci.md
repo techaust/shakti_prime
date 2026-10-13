@@ -246,3 +246,4 @@ No critical or high finding. Three medium (two in the `checks-ok` rule, one in t
 - No whole security suite, no journeys and no whole-repository lint were run: the lock was shared with another slice's `e2e:snap`.
 
 ## Integration notes
+- 14-10-2026, lead: `main` (#167 to #172) taken by a merge commit. The worker routes kept both sides: `main`'s job outcomes and check-ins (#171) answered through this slice's `workerFailure()`; the failure callback's `leased` answer too. `quotes/expire` keeps `main`'s `job`. `targets.spec.ts` keeps this slice's whole-table masks, with the `home-team-lead` baselines remade in Linux. The PRD trace takes `main`'s RPT-03, IMP-01 and IMP-02 rows (S2, M1) and this slice's RPT-04, RPT-05 and AI-01 rows. DECISIONS gains the owner's rows of 13-10-2026 (the widened `checks-ok` list among them).

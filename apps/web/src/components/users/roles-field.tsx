@@ -2,6 +2,7 @@
 
 import { Field, Select } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 import type { RoleNameKey } from '../../i18n/types';
 import type { RoleChoices } from '../../screens/user-roles';
 
@@ -22,7 +23,7 @@ export function RolesField({
   roleKeys: readonly string[];
   choices: RoleChoices;
   onChange: (next: RoleChoices) => void;
-  error?: string | undefined;
+  error?: ReactNode;
 }) {
   const t = useTranslations('users.rolesField');
   const roles = useTranslations('roles');

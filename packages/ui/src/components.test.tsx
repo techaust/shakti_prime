@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Avatar, initials } from './avatar';
 import { BoardCard, BoardColumn } from './board';
 import { Button } from './button';
+import { CardList } from './card-list';
 import { DataGrid, type DataGridColumn } from './data-grid';
 import { DateInput } from './date-input';
 import { EmptyState } from './empty-state';
@@ -25,6 +26,28 @@ describe('Button', () => {
   it('is a plain button by default and square as an icon button', () => {
     expect(renderToStaticMarkup(<Button>Go</Button>)).toContain('type="button"');
     expect(renderToStaticMarkup(<Button size="icon">Go</Button>)).toContain('size-control');
+  });
+});
+
+describe('CardList', () => {
+  it("shows a table's rows as labelled cards on a phone only, each with its title and lines", () => {
+    const html = renderToStaticMarkup(
+      <CardList
+        label="Quote lines"
+        items={[
+          {
+            key: '1',
+            title: '5 HP pump',
+            fields: [{ id: 'total', label: 'Amount', value: '₹12,000', numeric: true }],
+            actions: <Button>Open</Button>,
+          },
+        ]}
+      />,
+    );
+    expect(html).toMatch(/<ul class="[^"]*md:hidden[^"]*" aria-label="Quote lines">/);
+    expect(html).toContain('5 HP pump');
+    expect(html).toMatch(/<dt[^>]*>Amount<\/dt><dd class="[^"]*tabular-nums[^"]*">₹12,000<\/dd>/);
+    expect(html).toContain('>Open<');
   });
 });
 

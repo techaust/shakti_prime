@@ -1,6 +1,7 @@
 import { DomainError, MoveOpportunityStageInput, OpportunityDto } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq, isNull } from 'drizzle-orm';
+import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import {
   auditOpportunity,
@@ -16,6 +17,9 @@ import {
 
 /** The stage whose arrival hands the lead to a Lead Converter (TEL-02). */
 const HANDOVER_STAGE = 'qualified';
+
+/** The stage a lead must reach, or pass, to be kept by the retention rule. */
+const QUALIFIED_STAGE = 'qualified';
 
 /**
  * `crm.opportunity.stage.move` (design §7.2): an open lead moves to another open stage of its own
@@ -42,7 +46,13 @@ export const moveOpportunityStage = defineCommand({
     await shareLockStage(ctx.tx, input.stageId);
     const ps = schema.pipelineStages;
     const [target] = await ctx.tx
-      .select({ id: ps.id, pipelineId: ps.pipelineId, key: ps.key, kind: ps.kind })
+      .select({
+        id: ps.id,
+        pipelineId: ps.pipelineId,
+        key: ps.key,
+        kind: ps.kind,
+        position: ps.position,
+      })
       .from(ps)
       .where(and(eq(ps.id, input.stageId), isNull(ps.archivedAt)))
       .limit(1);
@@ -65,7 +75,15 @@ export const moveOpportunityStage = defineCommand({
       toStageId: target.id,
       toStageKey: target.key,
     });
-    const updated = await writeOpportunity(ctx, row, { stageId: target.id });
+    // Reaching Qualified or a later open stage is recorded once, when it happens, and never
+    // cleared: the retention rule keeps a lead that got that far (BLUEPRINT §7.9), and the fact
+    // must not change when a stage is later archived or the stages reordered.
+    const qualifiedAt =
+      row.qualifiedAt === null && (await reachesQualified(ctx, target)) ? ctx.now : undefined;
+    const updated = await writeOpportunity(ctx, row, {
+      stageId: target.id,
+      ...(qualifiedAt === undefined ? {} : { qualifiedAt }),
+    });
     auditOpportunity(ctx, row, { stageId: row.stageId }, { stageId: target.id, handover });
     ctx.emit({
       type: 'crm.opportunity.stage_moved',
@@ -77,3 +95,19 @@ export const moveOpportunityStage = defineCommand({
     return toOpportunityDto(updated);
   },
 });
+
+/** Whether an open stage is the pipeline's live Qualified stage or comes after it. */
+async function reachesQualified(
+  ctx: CommandContext,
+  target: { pipelineId: string; position: number },
+): Promise<boolean> {
+  const ps = schema.pipelineStages;
+  const [qualified] = await ctx.tx
+    .select({ position: ps.position })
+    .from(ps)
+    .where(
+      and(eq(ps.pipelineId, target.pipelineId), eq(ps.key, QUALIFIED_STAGE), isNull(ps.archivedAt)),
+    )
+    .limit(1);
+  return qualified !== undefined && target.position >= qualified.position;
+}

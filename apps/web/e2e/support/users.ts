@@ -94,6 +94,15 @@ export const SIGNED_IN_ROLES = [
     entityIds: [3],
     twoFactor: true,
   },
+  // Accounts of the journeys' company (QUOTE_JOURNEY_COMPANY), where the dealers are priced: the
+  // dealer credit journey of the UAT packs crosses from her to the Executive (uat.spec.ts).
+  {
+    key: 'journeyAccounts',
+    name: 'Lalit Sharma',
+    roleKey: 'accounts',
+    entityIds: [2],
+    twoFactor: true,
+  },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
 
@@ -257,6 +266,22 @@ export const CREDIT_DEALERS: Record<ProjectName, string> = {
   phone: 'Ajmer Pump Centre',
 };
 
+/**
+ * Per project: the dealer of the journeys' company whose credit limit Accounts sets and whose
+ * order the Executive then releases (uat.spec.ts); a new one each seed, so every run starts with
+ * no terms and no orders.
+ */
+export const UAT_DEALERS: Record<ProjectName, string> = {
+  'desktop-light': 'Bassi Solar Mart',
+  'desktop-dark': 'Chaksu Pump Store',
+  phone: 'Phagi Krishi Kendra',
+};
+
+/** What the UAT journeys need of the seed. */
+export interface UatJourneySeed {
+  dealers: Record<ProjectName, { accountId: string; name: string }>;
+}
+
 /** The dealer the seed keeps in the snapshot company, with one draft order, for the screenshots. */
 export const SNAPSHOT_DEALER = 'Shekhawati Solar Distributors';
 
@@ -295,6 +320,8 @@ export interface SeededUsers {
   quotes: QuoteJourneySeed;
   /** The order journeys' fixtures. */
   orders: OrderJourneySeed;
+  /** The UAT journeys' fixtures. */
+  uat: UatJourneySeed;
 }
 
 export const AUTH_DIR = join(import.meta.dirname, '..', '.auth');

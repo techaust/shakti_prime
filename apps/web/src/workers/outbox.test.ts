@@ -38,6 +38,7 @@ function row(overrides: Partial<OutboxRow> = {}): OutboxRow {
     aggregateId: newId(),
     payload: { v: 1, requestedAt: '2026-09-29T10:00:00.000Z' },
     attempts: 0,
+    replays: 0,
     createdAt: new Date(),
     ...overrides,
   };

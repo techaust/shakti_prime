@@ -121,6 +121,7 @@ export const createTag = defineCommand({
 - `peopleOnly` refuses an agent principal (kind `agent` or a role `agent:*`) at the guard, before the handler runs: a customer note, a tag of the company, a role edit.
 - `auditFields` is required: each key needs an Activity log label in `apps/web/src/screens/audit.ts` (checked by `audit.test.ts`), and outside production the runner refuses an undeclared key. `auditInput` says what the audit row records of the input when the input is too large or holds customer data in shapes the redaction cannot recognise (an import file's rows).
 - `constraintReasons` names the catalogue reasons of the unique or check constraints the handler may race against.
+- `auditWhen: 'changed'` is for a command a timer runs (a scan or a nightly batch): a call whose handler named no change writes no audit row, instead of one row for the call.
 
 **The handler.**
 - `ctx` carries the principal, the request's companies, the transaction `ctx.tx`, `ctx.now` and `ctx.requestId`. It never opens its own connection.
@@ -171,6 +172,7 @@ export const createTag = defineCommand({
 ## 6. Database changes
 - Schema in Drizzle (`packages/db/src/schema/*`). Generate migrations with drizzle-kit; RLS policies, triggers and partitions are hand-written SQL migrations in the same numbered sequence.
 - Never edit an applied migration. Use expand/contract for renames and type changes.
+- A widened check constraint (a new value in a list check such as `activities_type_check`, which drizzle-kit writes as `DROP CONSTRAINT` then `ADD CONSTRAINT … CHECK`) is added `NOT VALID` in the generated migration: rows that met the narrower check meet the wider one, so no scan of the table under ACCESS EXCLUSIVE is needed (`migration-rules.test.ts`). A new check that older rows may not meet is added `NOT VALID` too and validated after the deploy ([DATABASE §8](docs/05-database.md#8-migrations)).
 - Every new business table has `entity_id`, RLS enabled and forced, the standard policy from `docs/05-database.md`, and a test in the security suite proving cross-entity reads return nothing.
 - Append-only tables revoke `UPDATE` and `DELETE` from `app_user`.
 - Restricted tables (`item_costs`, `job_cost_entries`, `vendor_quotes`, `po_lines` values, `tally_purchase_vouchers`) get the cost-permission policy in addition to the entity policy.

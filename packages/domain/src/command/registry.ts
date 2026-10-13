@@ -45,6 +45,7 @@ import { archiveTag, createTag, tagLead, untagLead } from '../commands/crm/tags'
 import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
 import { winOpportunity } from '../commands/crm/win-opportunity';
 import { routeEnquiry } from '../commands/crm/route-enquiry';
+import { takeEnquiry } from '../commands/crm/take-enquiry';
 import { notifyEvent, recordPush, scanNotices } from '../commands/notifications/notify';
 import {
   markAllNoticesRead,
@@ -98,6 +99,7 @@ import { recordDealerOutstanding, setDealerTerms } from '../commands/sales/deale
 import { setTarget } from '../commands/sales/set-target';
 import { createQuote } from '../commands/sales/create-quote';
 import { expireQuotes } from '../commands/sales/expire-quotes';
+import { anonymiseStaleLeads } from '../commands/crm/anonymise-stale-leads';
 import { releaseCredit } from '../commands/sales/release-credit';
 import { requoteQuote } from '../commands/sales/requote';
 import { sendQuote } from '../commands/sales/send-quote';
@@ -209,6 +211,7 @@ export const commands = Object.freeze({
   [requoteQuote.name]: requoteQuote,
   [withdrawQuote.name]: withdrawQuote,
   [expireQuotes.name]: expireQuotes,
+  [anonymiseStaleLeads.name]: anonymiseStaleLeads,
   [attachQuotePdf.name]: attachQuotePdf,
   [acceptQuote.name]: acceptQuote,
   [createSalesOrder.name]: createSalesOrder,
@@ -231,6 +234,7 @@ export const commands = Object.freeze({
   [recordKnowledgeIndex.name]: recordKnowledgeIndex,
   [completeInboxItem.name]: completeInboxItem,
   [routeEnquiry.name]: routeEnquiry,
+  [takeEnquiry.name]: takeEnquiry,
   [notifyEvent.name]: notifyEvent,
   [scanNotices.name]: scanNotices,
   [recordPush.name]: recordPush,

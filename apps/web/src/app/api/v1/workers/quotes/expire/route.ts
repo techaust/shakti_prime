@@ -14,6 +14,7 @@ export const maxDuration = 60;
  */
 export const POST = nightlyWorkerRoute({
   path: QUOTE_EXPIRE_PATH,
+  job: 'quote-expire',
   logPrefix: 'sales.quote_expiry',
   body: QuoteExpireWorkerBody,
   budgetMs: QUOTE_EXPIRE_RUN_BUDGET_MS,

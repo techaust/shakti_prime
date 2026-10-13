@@ -445,6 +445,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',
+      // The ⌘K and /orders search's candidate orders (RPT-03).
+      'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // The quote print loader of the render worker (0110).
       'app.quote_for_print(uuid)',
@@ -452,6 +454,11 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.quote_search_ids(text,integer)',
       // The catalogue and GST rates screens ask it before they offer a change (0072).
       'app.request_covers_group()',
+      // Integration Health and the hourly check read each scheduled job's last run (audit 2026-10).
+      'app.scheduled_jobs()',
+      // The retention job's dry run counts a company's stale leads on the reader pool, as the
+      // worker (lead-anonymise.test.ts); the anonymisation itself is app_user's alone.
+      'app.stale_leads(smallint,integer,timestamp with time zone,uuid,integer)',
       // The sweep of abandoned uploads asks which companies to visit, as the worker
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',

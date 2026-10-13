@@ -34,6 +34,7 @@ export async function runQuoteExpiry(
     requestId === undefined ? { entityIds: [entityId] } : { entityIds: [entityId], requestId };
   let batches = 0;
   let expired = 0;
+  let skipped = 0;
   for (let entityId = 1; ; entityId += 1) {
     const principal = systemWorkersPrincipal(entityId);
     const standing = await executeQuery(
@@ -47,8 +48,14 @@ export async function runQuoteExpiry(
     let afterId: string | null = null;
     for (;;) {
       if (options.budgetMs !== undefined && now() - started >= options.budgetMs) {
-        logger.log('info', 'sales.quote_expiry_stopped', { requestId, entityId, batches, expired });
-        return QuoteExpireWorkerResponse.parse({ batches, expired, done: false });
+        logger.log('info', 'sales.quote_expiry_stopped', {
+          requestId,
+          entityId,
+          batches,
+          expired,
+          skipped,
+        });
+        return QuoteExpireWorkerResponse.parse({ batches, expired, skipped, done: false });
       }
       const batch: QuoteExpiryBatchDto = await executeCommand(
         principal,
@@ -61,10 +68,16 @@ export async function runQuoteExpiry(
       );
       batches += 1;
       expired += batch.expired;
+      skipped += batch.skipped;
       afterId = batch.nextAfterId;
       if (afterId === null) break;
     }
   }
-  logger.log('info', 'sales.quote_expiry_run', { requestId, batches, expired });
-  return QuoteExpireWorkerResponse.parse({ batches, expired, done: true });
+  logger.log(skipped > 0 ? 'warn' : 'info', 'sales.quote_expiry_run', {
+    requestId,
+    batches,
+    expired,
+    skipped,
+  });
+  return QuoteExpireWorkerResponse.parse({ batches, expired, skipped, done: true });
 }

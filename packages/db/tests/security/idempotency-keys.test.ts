@@ -148,7 +148,11 @@ describe('expired keys are removed by pg_cron only', () => {
         select schedule, command from cron.job where jobname = 'idempotency-keys-purge'`,
     );
     expect(jobs).toEqual([
-      { schedule: '30 2 * * *', command: 'select app.purge_idempotency_keys()' },
+      {
+        schedule: '30 2 * * *',
+        command:
+          "set lock_timeout = '5s'; set statement_timeout = '5min'; select app.purge_idempotency_keys()",
+      },
     ]);
   });
 });

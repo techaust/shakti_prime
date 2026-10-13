@@ -55,8 +55,8 @@ export const files = pgTable(
     unique('files_bucket_key_unique').on(t.bucket, t.key),
     // The target of the composite keys of rows that use a file (docs/05-database.md §2).
     unique('files_id_entity_unique').on(t.id, t.entityId),
-    index('files_entity_idx').on(t.entityId),
-    // A company's latest file of a purpose (its logo, its letterhead).
+    // A company's latest file of a purpose (its logo, its letterhead); it leads with `entity_id`, so
+    // it also serves the company foreign key and every read by company (DATA-8).
     index('files_entity_purpose_created_idx').on(t.entityId, t.purpose, t.createdAt.desc()),
     // The sweep of abandoned uploads: the oldest of the uploads still pending.
     index('files_pending_created_idx')

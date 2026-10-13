@@ -56,6 +56,13 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
    * refuses an undeclared key outside production, so a list cannot fall behind its command.
    */
   auditFields: readonly string[];
+  /**
+   * When the call writes its audit row: `always` (the default), one row for the call even when the
+   * handler named no change; `changed`, only rows for what the handler named, so a scheduled scan
+   * or batch that found nothing leaves no row (audit 2026-10, DATA-6). Refusals and failures are
+   * recorded either way.
+   */
+  auditWhen?: 'always' | 'changed';
   handler: (ctx: CommandContext, input: z.output<I>) => Promise<z.input<O>>;
 }
 

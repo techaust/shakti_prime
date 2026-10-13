@@ -8,6 +8,8 @@ import {
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  PIPELINE_SEED,
+  stageId,
 } from '../../src/testing/index';
 
 // Orders, dealer credit and commission (docs/05-database.md §6.4, migration 0117): a dealer's order
@@ -193,6 +195,107 @@ describe('sales_orders and sales_order_lines (0117)', () => {
       (m) => m<{ by: string }[]>`select credit_release_by as by from sales_orders where id = ${id}`,
     );
     expect(row?.by).toBe(exec.id);
+  });
+});
+
+describe('the order number search candidates (app.order_search_ids, RPT-03)', () => {
+  const ids = async (who: Principal, text: string) => {
+    const rows = await asPrincipal(who, ({ tx }) =>
+      tx.execute(sql`select app.order_search_ids(${text}, null, 200) as id`),
+    );
+    return (rows as unknown as { id: string }[]).map((r) => r.id);
+  };
+
+  it('keep to the orders the caller reads before the limit, so an own older order is not crowded out', async () => {
+    const tag = `ORSM${newId().slice(-6)}`;
+    const own = newId();
+    const theirs = await customer('dealer', colleague);
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id, price_list_id,
+                   place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst, tax_total,
+                   round_off, grand_total, created_by, created_at)
+                 values (${own}, ${E}, ${`${tag}/own`}, '2098-99', ${dealer}, ${tierId('dealer')},
+                         ${LIST}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${lc.id}, now() - interval '1 day')`;
+        // 205 newer matches of a dealer a colleague of another team looks after.
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id, price_list_id,
+                   place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst, tax_total,
+                   round_off, grand_total, created_by)
+                 select app.uuid_v7(), ${E}, ${tag} || '/' || g, '2098-99', ${theirs}, ${tierId('dealer')},
+                        ${LIST}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${colleague.id}
+                   from generate_series(1, 205) g`;
+      }),
+    );
+    mergeDealers.push(theirs);
+    expect(await ids(lc, tag)).toEqual([own]);
+    // A General Manager reads every dealer of the company: the 200 newest, the number typed whole first.
+    const all = await ids(gm, tag);
+    expect(all).toHaveLength(200);
+    expect(await ids(gm, `${tag}/own`)).toEqual([own]);
+    // The text stands for itself: a percent sign matches only a percent sign.
+    expect(await ids(lc, '%')).toEqual([]);
+  });
+
+  it("finds a dealer's order for a person who works a live lead of that dealer, as the policy reads it", async () => {
+    const tag = `ORLD${newId().slice(-6)}`;
+    const held = await customer('dealer', colleague);
+    const lead = newId();
+    const order = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, created_by)
+                 values (${lead}, ${E}, ${held}, ${PIPELINE_SEED[0]?.id ?? ''}, ${stageId(1, 1)}, ${lc.id}, ${lc.teamId ?? null}, ${lc.id})`;
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id, price_list_id,
+                   place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst, tax_total,
+                   round_off, grand_total, created_by)
+                 values (${order}, ${E}, ${`${tag}/1`}, '2098-99', ${held}, ${tierId('dealer')},
+                         ${LIST}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${colleague.id})`;
+      }),
+    );
+    mergeDealers.push(held);
+    // The policy lets the caller read it through their live lead; the search finds it the same way.
+    const readable = await asPrincipal(lc, ({ tx }) =>
+      tx.execute(sql`select id from sales_orders where id = ${order}`),
+    );
+    expect(readable as unknown as unknown[]).toHaveLength(1);
+    expect(await ids(lc, tag)).toEqual([order]);
+    // Once the lead is archived, neither reads it.
+    await asMigrator((m) => m`update opportunities set archived_at = now() where id = ${lead}`);
+    expect(await ids(lc, tag)).toEqual([]);
+  });
+
+  it('keeps to the companies of the request and to the status asked for', async () => {
+    const tag = `ORCO${newId().slice(-6)}`;
+    const elsewhere = newId();
+    const here = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+                 values (${newId()}, ${dealer}, 3, ${lc.id}, null, ${lc.id}) on conflict do nothing`;
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id, price_list_id,
+                   place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst, tax_total,
+                   round_off, grand_total, created_by)
+                 values (${elsewhere}, 3, ${`${tag}/3`}, '2098-99', ${dealer}, ${tierId('dealer')},
+                         ${LIST}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${lc.id}),
+                        (${here}, ${E}, ${`${tag}/4`}, '2098-99', ${dealer}, ${tierId('dealer')},
+                         ${LIST}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${lc.id})`;
+      }),
+    );
+    // A General Manager of company 4 alone never gets company 3's order.
+    expect(await ids(gm, tag)).toEqual([here]);
+    const ofState = async (state: string) => {
+      const rows = await asPrincipal(gm, ({ tx }) =>
+        tx.execute(sql`select app.order_search_ids(${tag}, ${state}, 200) as id`),
+      );
+      return (rows as unknown as { id: string }[]).map((r) => r.id);
+    };
+    expect(await ofState('draft')).toEqual([here]);
+    expect(await ofState('confirmed')).toEqual([]);
+  });
+
+  it('is refused outside a signed-in request with crm.lead.read or crm.account.read', async () => {
+    const hr = await createTestPrincipal('hr_admin', [E]);
+    expect(await failure(ids(hr, 'ORLS'))).toMatch(/crm.lead.read or crm.account.read is required/);
   });
 });
 

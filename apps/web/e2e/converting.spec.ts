@@ -130,7 +130,7 @@ test.describe('converting as a Lead Converter', () => {
     await page.getByRole('button', { name: 'Work out the quote' }).click();
     const preview = page.getByRole('region', { name: 'The quote as it will be made' });
     // Five modules at ₹12,000 with 12% GST: ₹60,000 and ₹7,200 of tax.
-    await expect(preview.getByText('₹67,200.00').first()).toBeVisible();
+    await expect(preview.getByText('₹67,200.00').filter({ visible: true }).first()).toBeVisible();
     await expectNoAxeViolations(page);
     await page.getByRole('button', { name: 'Make the quote' }).click();
     const made = page.getByRole('status').filter({ hasText: /^Quote .+ is made\./ });
