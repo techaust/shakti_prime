@@ -443,8 +443,9 @@ const eventCatalogue = {
     payload: z.object({ opportunityId: IdSchema, supersededById: IdSchema }).strict(),
   },
   'sales.quote.withdrawn': {
-    meaning: 'A draft or sent quote was withdrawn, with a reason a person gave.',
-    emittedBy: ['sales.quote.withdraw'],
+    meaning:
+      'A draft or sent quote was withdrawn, with a reason a person gave, or because another quote of its lead was accepted.',
+    emittedBy: ['sales.quote.accept', 'sales.quote.withdraw'],
     subscribed: false,
     payload: z.object({ opportunityId: IdSchema }).strict(),
   },

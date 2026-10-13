@@ -64,12 +64,13 @@ async function holdLeadSale(ctx: CommandContext, entityId: number, quoteId: stri
 /**
  * The lead's other draft and sent quotes stop standing once one is accepted (DOM-4): each is
  * withdrawn through the quote machine, naming the accepted quote (`withdrawn_for_id`), so none of
- * them can be sent or accepted into a second order and a second commission.
+ * them can be sent or accepted into a second order and a second commission. Answers the quotes it
+ * withdrew, for the command's events.
  */
 async function withdrawOtherQuotes(
   ctx: CommandContext,
   accepted: { id: string; entityId: number; opportunityId: string; quoteNo: string },
-): Promise<void> {
+): Promise<{ id: string; entityId: number; opportunityId: string }[]> {
   const q = schema.quotes;
   const others = await ctx.tx
     .select()
@@ -109,14 +110,8 @@ async function withdrawOtherQuotes(
       before: { state: other.state },
       after: { state: withdrawn.to, withdrawnForId: accepted.id },
     });
-    ctx.emit({
-      type: 'sales.quote.withdrawn',
-      entityId: other.entityId,
-      aggregateType: 'quote',
-      aggregateId: other.id,
-      payload: { opportunityId: other.opportunityId },
-    });
   }
+  return others;
 }
 
 /**
@@ -206,7 +201,15 @@ export const acceptQuote = defineCommand({
       before: { state: quote.state },
       after: { state: accepted.to, acceptedVia: 'signed_upload', signedFileId: fileId },
     });
-    await withdrawOtherQuotes(ctx, quote);
+    for (const other of await withdrawOtherQuotes(ctx, quote)) {
+      ctx.emit({
+        type: 'sales.quote.withdrawn',
+        entityId: other.entityId,
+        aggregateType: 'quote',
+        aggregateId: other.id,
+        payload: { opportunityId: other.opportunityId },
+      });
+    }
 
     transition(
       salesOrderMachine,
