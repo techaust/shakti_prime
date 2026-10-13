@@ -51,7 +51,7 @@ test.describe('as an Executive', () => {
     const rows = rowsOf(grid).filter({ hasText: TRIAGE_JOURNEY.customer });
     await expect(rows.filter({ hasText: 'Who takes the lead' })).toContainText('Geeta Kumari');
     await expect(rows.filter({ hasText: 'Who takes the lead' })).toContainText('Differed');
-    await expect(rows.filter({ hasText: 'Pipeline' })).toContainText('Farmer pumps');
+    await expect(rows.filter({ hasText: 'Pipeline' })).toContainText('Farmer Pumps');
     await expect(rows.filter({ hasText: 'Pipeline' })).toContainText('Agreed');
     await expect(rows.filter({ hasText: 'Score' })).toContainText('+5 points');
     await expect(rows.filter({ hasText: 'Score' })).toContainText(TRIAGE_JOURNEY.scoreNote);

@@ -55,6 +55,8 @@ interface Row {
   account_id: string | null;
   customer_name: string | null;
   pipeline_key: string | null;
+  pipeline_name: string | null;
+  proposed_pipeline_name: string | null;
   score: number | null;
   lead_state: 'open' | 'nurture' | 'won' | 'lost' | null;
   reached_qualified: boolean | null;
@@ -90,7 +92,12 @@ export function shadowedSql(
   return sql`
     select a.created_at::text as t, a.id, a.action_type, a.created_at, a.input_json as input,
            (a.input_json ->> 'opportunityId')::uuid as opportunity_id,
-           o.account_id, acc.name as customer_name, p.key as pipeline_key, o.score,
+           o.account_id, acc.name as customer_name, p.key as pipeline_key, p.name as pipeline_name,
+           -- The proposed pipeline's name, by its unique key, outside the joins the planner orders.
+           (select pp.name from pipelines pp
+             where a.action_type = ${pipeline} and pp.key = a.input_json ->> 'pipelineKey'
+               and (pp.entity_id is null or pp.entity_id = a.entity_id)) as proposed_pipeline_name,
+           o.score,
            o.state as lead_state,
            case when o.id is null then null
                 else o.state = 'won' or (o.state = 'open' and st.position >= q.position) end
@@ -158,6 +165,7 @@ function toDto(row: Row, kind: TriageProposalKind): ShadowProposalDto {
     accountId: row.account_id,
     customerName: row.customer_name,
     proposedPipelineKey: kind === 'pipeline' ? text(input.pipelineKey) : null,
+    proposedPipelineName: kind === 'pipeline' ? row.proposed_pipeline_name : null,
     proposedScoreChange: kind === 'score' ? int(input.adjustment) : null,
     proposedScore: kind === 'score' ? int(input.score) : null,
     otherOpportunityId: kind === 'duplicate' ? text(input.otherOpportunityId) : null,
@@ -165,6 +173,7 @@ function toDto(row: Row, kind: TriageProposalKind): ShadowProposalDto {
     proposedOwnerName: kind === 'assignee' ? row.proposed_owner_name : null,
     note: text(input.note),
     pipelineKey: row.pipeline_key,
+    pipelineName: row.pipeline_name,
     score: row.score,
     leadState: row.lead_state,
     reachedQualified: row.reached_qualified,

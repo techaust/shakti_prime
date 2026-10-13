@@ -362,8 +362,11 @@ export const commissionAccruals = pgTable(
     /** The rule's basis and rate when the commission was worked out. */
     basis: text('basis').notNull(),
     rate: money('rate').notNull(),
-    /** What the rate was applied to: the order's taxable value, the lead's kW or HP, or 1. */
-    measure: numeric('measure', { precision: 14, scale: 3 }).notNull(),
+    /**
+     * What the rate was applied to: the order's taxable value, the lead's kW or HP, or 1. Three
+     * decimals for a size, and one digit more than a money column, so it holds any taxable value.
+     */
+    measure: numeric('measure', { precision: 15, scale: 3 }).notNull(),
     amount: money('amount').notNull(),
     state: text('state').notNull().default('accrued'),
     releasedAt: timestamp('released_at', { withTimezone: true }),

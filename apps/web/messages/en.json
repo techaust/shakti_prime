@@ -321,6 +321,7 @@
     "quiet_hours_empty": "The quiet hours start and end at the same time. Choose two different times.",
     "push_service_unknown": "This browser can't receive alerts from Shakti Prime. Try another browser.",
     "push_failed": "We couldn't change alerts for this browser. Please try again.",
+    "push_browser_taken": "Someone else had alerts on this browser, so theirs are now off here. Choose Turn on alerts again to get yours.",
     "signed_copy_missing": "We couldn't find the signed copy. Upload it again, then record the acceptance.",
     "signed_copy_used": "This signed copy is already recorded for another quote. Upload the copy that belongs to this quote.",
     "signed_copy_refused": "The signed copy didn't pass its checks. Scan or photograph it again and upload the new file.",
