@@ -329,5 +329,171 @@ Reviewed `git diff origin/main...fix/audit-sales` against the brief, the audit f
 - `pnpm copy-lint` waited behind other builders in the heavy-command lock queue, and I stopped it before it ran. The new keys are neither button labels nor titles; the builder's run was clean.
 - I did not run the whole security suite, as instructed, and did not rerun EXPLAIN.
 
+### 13-10-2026, cloud (lead's VM), slice-reviewer second review (Opus 5.5 xhigh), head 81827753
+
+Re-checked the fix round (`git diff 1a69e1cd..81827753`) against the eight rows above, and attacked what it added. Every case was reproduced on the slot's Postgres (54335) as `app_user` inside rolled-back transactions, running the domain commands, with `walkin.mts`, `calls.mts`, `orders.mts`, `nouser.sql` and `share.sql` in `scratchpad/rev2/p/`. The hashes applied on the slot match the files of 0137 and 0138.
+
+**The first review's rows:**
+
+| # | Verdict |
+|---|---|
+| 1 | Fixed for Account 360, `crm.lead.create`, both imports, raw SQL and merges. But the walk-in form can now take no dealer enquiry at all (finding 9). |
+| 2 | Fixed. `app.merge_customers()` is 0117's text plus the `dealer_mismatch` refusal, made after both customers are locked. No other line differs, and the grants are kept. |
+| 3 | Fixed on the Cold Caller screen only. Still open on the Converting workspace (finding 10). |
+| 4 | Fixed for a draft order. A lead whose confirmed order was cancelled still meets an untrue sentence (finding 12). |
+| 5 | Fixed. A deadlock answers `concurrent_change`, outside the asserted pair, so the test fails without the lead lock. |
+| 6 | Fixed for every seeded role; finding 14 covers a customised one. |
+| 7 | Fixed. 0138's function is 0135's with `o.created_by` in all five comparisons, and the new test fails on 0135. |
+| 8 | Fixed. The 0135 comment waits for the renumbering, as the Fix round says. |
+
+**New findings:**
+
+| # | Severity | Finding |
+|---|---|---|
+| 9 | high | The walk-in form's Dealer/Wholesale enquiry is refused to everyone but the Executive |
+| 10 | medium | The Converting workspace still logs a call with no start, so the DOM-6 grace does not reach Lead Converters |
+| 11 | low | A start later than the moment of logging is accepted and stored |
+| 12 | low | A lead whose confirmed order was cancelled can still be quoted and sent a quote, and the refusal names an order that stands |
+| 13 | low | An import committed by a non-Executive after an Executive previewed it fails the whole job, with a sentence that does not say why |
+| 14 | low | `loadQuoteLead … for share` hides a lead from a customised role that may quote it but not write it |
+| 15 | low | Six New lead baselines change, and nobody has looked at them |
+
+**9 (high, confirmed). The walk-in form cannot take a dealer's enquiry.**
+- **Where:**
+  - `apps/web/src/screens/walk-in.ts:21` maps the Dealer/Wholesale interest to `account.type: 'dealer'`, and the form has no type field.
+  - `crm.lead.create` now refuses a new dealer without `sales.credit.write` (`create-lead.ts:228`).
+  - `walk-in.test.ts:55-63` still asserts `type: 'dealer'`.
+- **Reproduced (`walkin.mts`):**
+  - `buildWalkInInput()` for a Dealer/Wholesale walk-in, run as a Store Manager, answers `forbidden` / `account_type_needs_credit`.
+  - The Executive's same input makes a dealer.
+- **Failure:**
+  - PRD CRM-01's Store Manager can record no new dealer who walks in, and nor can any other role with the walk-in form except the Executive.
+  - The form tells them "Ask an Executive to make this change". The decision of 13-10-2026, the Built record and SECURITY all say that a dealer's enquiry enters as a business.
+- **Fix (one line):**
+  - `dealer_wholesale: { account: 'business', site: undefined }`; the Executive makes the customer a dealer on Account 360 when their terms are set.
+  - Update `walk-in.test.ts`, and add a case of a Store Manager's dealer walk-in, on Postgres or in a journey.
+
+**10 (medium, confirmed). The Converting workspace logs no start.**
+- **Where:**
+  - `apps/web/src/components/converting/use-call-logging.ts:36-46` sends neither `startedAt` nor a duration. Only `calling-screen.tsx` was changed.
+  - `log-call.ts` then takes the start as the moment of logging.
+- **Reproduced (`calls.mts`):**
+  - A Lead Converter's call logged at 21:01 IST with the Converting screen's input answers `outside_calling_hours`.
+  - The same call with the Cold Caller screen's `startedAt` of 20:58 is logged.
+- **Failure:**
+  - Finding 3 stays for the Lead Converters, who log their calls on the Converting workspace.
+  - A call made at 20:58 gets "Calls can be made only between 9 AM and 9 PM", against CALL-8's "can be logged until 9:15 PM".
+- **Fix:** keep the time Dial showed the number in the hook and send it as `startedAt`, as the calling screen does. Set it in `showNumber`, and clear it when the lead changes and after a save.
+
+**11 (low, confirmed). A start later than the log is kept.**
+- **Where:** `log-call.ts:49-63` accepts a given start up to 2 minutes later than now less the duration, and returns it unchanged. That time is the one checked and stored.
+- **Reproduced (`calls.mts`):**
+  - Logged at 08:59:00 IST with `startedAt` 09:00:30: logged, with `started_at` 09:00:30, after the moment it was logged.
+  - The same log without a start answers `outside_calling_hours`.
+- **Failure:**
+  - A call that really started in the two minutes before 9 AM passes the 9 AM rule (DOM-6: "a start before 09:00 IST refused").
+  - The call row says the call started after it was logged.
+  - A device clock more than 2 minutes fast gets `call_start_invalid` on every retry, because the screen keeps the same `dialledAt` until the lead is opened again.
+- **Fix (one line):**
+  - Return `new Date(Math.min(at.getTime(), now.getTime() - (durationS ?? 0) * 1000))`, and drop the refusal on the late side; the slack constant is then not needed.
+  - Stronger: `dialNumber` records the server's own time of the dial, and the log uses that.
+
+**12 (low, confirmed). A lead whose confirmed order was cancelled is still quoted.**
+- **Where:**
+  - Quoting and acceptance read no lead state (`quote-facts.ts`, `accept-quote.ts:160-170`).
+  - By design, cancelling a confirmed order leaves its quote accepted and its lead won.
+  - The sentence is `errors.quote_lead_already_accepted` (`en.json:345`).
+- **Reproduced (`orders.mts` A):**
+  1. The order is confirmed, then cancelled. The lead is `won` and the quote `accepted`.
+  2. A new quote on the lead is made and **sent** to the customer.
+  3. Accepting it answers `quote_lead_already_accepted`: "…and its order stands. Open that order, or cancel it first…". That order is already cancelled.
+- **Failure:** the customer gets a quote that can never be accepted, and the sentence names a step that does not exist. This is the first review's finding 4, for a confirmed order.
+- **Fix, one of two:**
+  - Refuse `sales.quote.create` and `sales.quote.send` on a lead that has an accepted quote, or on a won lead, with a sentence saying to start a new lead.
+  - Or answer a second reason when the accepted quote's order is cancelled.
+
+**13 (low, confirmed by the code path). An import committed by someone else fails.**
+- **Where:**
+  - The preview judges dealer rows by the person who previews (`preview-job.ts:236`, `:294`).
+  - Any holder of `imports.write` may run `imports.job.commit`, and the commit does not judge those rows again.
+  - For a General Manager, the trigger refuses the set-based batch, then `crm.lead.create` or the customers insert refuses the row.
+  - That refusal is not a held-by-colleague one, so `commit-job.ts:356` throws it again and `:374-387` fails the job with `commit_failed`.
+- **Failure:**
+  - An Executive previews a file with dealers, and a General Manager commits it.
+  - The job stops at the first dealer row with "This row could not be added, so the rows added with it were taken back…", which does not say why. Earlier batches stay committed.
+- **Fix, one of two:**
+  - In the commit, mark a dealer row `dealer_needs_executive` for a committer without the right, and set it aside as held rows are.
+  - Or refuse the commit with that reason before it starts.
+
+**14 (low, plausible). The shared lock needs the right to write the lead.**
+- **Where:**
+  - `quote-facts.ts:104` reads the lead `for share`.
+  - Postgres applies the UPDATE policy's `USING` to a locking read, and `opportunities_update` asks `crm.lead.write` over the lead's owner and team.
+  - `quotes_insert` asks `sales.quote.create` instead.
+- **Reproduced (`share.sql`):** with `crm.lead.read:team`, `sales.quote.create:team` and `crm.lead.write:own`, a plain select reads a teammate's lead (1 row), and `for share` does not (0 rows).
+- **Failure:**
+  - No seeded role is affected, since every role's `sales.quote.create` scope equals its `crm.lead.write` scope.
+  - A role given wider quoting than lead writing in the role editor gets `lead_missing` on every teammate's lead it may quote.
+- **Fix, one of two:**
+  - Hold the lead through a definer that checks `sales.quote.create`.
+  - Or, instead of a locking read under RLS, read `archived_at` again after the quote insert, whose foreign-key check has waited for the merge or rollback.
+
+**15 (low, confirmed). Six New lead baselines change.**
+- **Where:**
+  - `leads.spec.ts:47` snaps `leads-new-teleCaller` and `leads-new-teamLead` on desktop-light, desktop-dark and phone.
+  - Neither role holds `sales.credit.write`, so all six now show the new helper line under "Type of customer". The row grows and every field below it moves.
+  - The fix round ran its journeys with `--ignore-snapshots` and says no baseline is new.
+- **Failure:**
+  - The six comparisons fail in the Linux run.
+  - The new line has not been seen in any width or theme.
+  - The helper renders under the select (`packages/ui/src/field.tsx:73`), so the two selects of the row stay level.
+- **Fix:** remake the six in the Linux image, with the two already listed (eight in all), and look at each.
+
+**Checked and sound:**
+- **Every path that makes a dealer, as `app_user`:**
+  - `crm.lead.create`: refused to a Lead Converter; the Executive's makes a dealer.
+  - A raw insert of a dealer under a Store Manager's request is refused by the trigger (42501). With no request settings, RLS refuses it.
+  - With permissions set but no user id, the trigger lets a dealer row in (`nouser.sql`). That adds no path: no request sets permissions without a user id (`withRequestContext` sets both), and a raw session could forge either.
+  - Both imports apply the preview's row rule. The commit runs as the person who commits it (`importPrincipal`), so the trigger holds there.
+  - No definer inserts a customer or changes their type, and an unmerge only un-archives.
+  - The repeat and routed enquiry paths make no customer.
+  - No agent principal and not `system:workers` holds `sales.credit.write`. Accounts hold it without `crm.account.write`, so with today's roles only the Executive makes or changes a dealer.
+- **The New lead form:**
+  - Before a company is chosen, Dealer is offered only when every company on offer allows it.
+  - The page judges each company on its own, while the action runs with the All-companies principal, as it already does for the lead rights themselves. So a person with different roles in different companies may be offered Dealer and then refused. No seeded set-up does this.
+- **The owner's decision of 13-10-2026** is on the lead's branch (`claude/beautiful-dijkstra-ndybwa`), not yet on this branch or on `main`. The code matches it except for finding 9.
+- **`app.merge_customers()`:**
+  - Diffed against origin/main's latest version (0117): identical apart from the seven added lines.
+  - `main`'s 0130–0133 touch none of the objects in 0137 and 0138.
+  - The new status maps to `merge_dealer_mismatch`, which has its sentence, and the test tries both orders.
+- **The quote machine's `order.cancel`:**
+  - Only a draft order's cancel withdraws its quote; a confirmed order's quote stays accepted (`orders.mts` A).
+  - A withdrawn quote cannot be withdrawn or accepted again (`quote_transition_not_allowed`, `orders.mts` B), and `sales.quote.withdraw` fires only `withdraw`, from draft or sent.
+  - Commission accruals are made only at confirmation, so a cancelled draft leaves none. The test's second acceptance makes one draft order, and the index still allows one accepted quote a lead.
+  - The event, the audit row and `auditFields` match the other ways a quote is withdrawn; none of them writes a timeline row.
+  - `quotes_acceptance_check` keeps main's signed-copy clause, and allows `accepted_via` only on accepted and withdrawn quotes.
+  - The old check never held back a raw writer: `app_user` has had update on `accepted_via` and `signed_file_id` since 0117. So relaxing it opens no path.
+  - The cancel locks the order, then the quote. An acceptance of another quote takes the lead lock, then locks only draft and sent quotes, so the two cannot deadlock.
+- **`loadQuoteLead … for share`:** `saveQuote` writes no lead row, so two quotes made at once do not deadlock on the shared lock.
+- **`app.import_leads_in_use()`:**
+  - 0135's function with `o.created_by` in all five comparisons, and its grants unchanged.
+  - `created_by` is outside `app_user`'s column grants, and a score refresh keeps `updated_by`.
+- **Documents:** SECURITY, DATABASE, the Built record and the quote machine's document match the code, except for the walk-in (finding 9).
+- **Suites on the slot, through the lock:**
+  - domain `sales-integrity`, `calls`, `duplicates`, `imports` and `create-lead`: 104 passed.
+  - db `imports`, `enum-sync`, `quotes` and `grants`: 218 passed.
+
+**Not checked:**
+- The journeys and screenshots were not run, so finding 15's images are unseen.
+- Whether dev or staging hold a quote that is still accepted although its draft order was cancelled before 0137:
+  - No backfill moves such a quote, so its lead stays as finding 4 described. The slot has none.
+  - Before migrate-hosted, run `select q.id from quotes q join sales_orders so on so.quote_id = q.id where q.state = 'accepted' and so.state = 'cancelled' and so.confirmed_at is null`.
+- The whole security suite, copy-lint and EXPLAIN.
+
+**Merge:**
+- Blocked by finding 9 (high, a one-line fix).
+- Finding 10 is a change to one hook, and finding 11 is one line, so both are worth fixing with it.
+- The rest are follow-ups.
+
 ## Integration notes
 - Migrations from 0134 move after `main`'s last one at the merge.
