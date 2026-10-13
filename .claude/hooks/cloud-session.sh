@@ -39,6 +39,19 @@ if [ ! -d node_modules ]; then
     say "pnpm install failed (/tmp/cloud-session-install.log); run it before any check"
 fi
 
+# pnpm switches itself to the version of package.json; a switch cut short leaves a placeholder
+# that turbo cannot start (repair_pnpm_self_install in lib.sh), so it is completed and turbo checked.
+if repaired=$(repair_pnpm_self_install 2>/tmp/cloud-session-pnpm-repair.log); then
+  if [ -n "$repaired" ]; then
+    say "pnpm's half-finished self-install completed in $(echo "$repaired" | tr '\n' ' ')"
+    if [ -d node_modules ] && ! pnpm exec turbo run typecheck --filter=@shakti/tokens --force >/tmp/cloud-session-turbo.log 2>&1; then
+      say "turbo still does not run a task (/tmp/cloud-session-turbo.log)"
+    fi
+  fi
+else
+  say "pnpm's half-finished self-install could not be completed (/tmp/cloud-session-pnpm-repair.log)"
+fi
+
 if ! ensure_docker 2>/dev/null; then
   say "Docker did not start, so the local Postgres is down (/tmp/dockerd.log); the unit tests still run"
   exit 0

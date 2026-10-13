@@ -1,0 +1,1 @@
+ALTER TABLE "commission_accruals" ALTER COLUMN "measure" SET DATA TYPE numeric(15, 3);

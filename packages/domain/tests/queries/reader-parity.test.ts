@@ -289,9 +289,14 @@ describe('every query reads the same on the reader pool as on app_user', () => {
     it(`for ${role} in ${entities.join(', ')}`, async () => {
       // One principal row for both pools, so the queries that read "my own" rows match.
       const principal = principalFor(role, entities, { id: newId() });
+      // About a hundred queries, each on both pools: the two pools are asked at once, so a caller
+      // takes the time of one pool's reads, not of both one after the other (an Executive of the
+      // four companies took about 12 s of the 20 s limit on a loaded PC when they were not).
       for (const [name, query] of Object.entries({ ...QUERIES, ...OTHER_READS })) {
-        const reader = await outcome(principal, 'reader', query);
-        const app = await outcome(principal, 'app_user', query);
+        const [reader, app] = await Promise.all([
+          outcome(principal, 'reader', query),
+          outcome(principal, 'app_user', query),
+        ]);
         expect({ name, reader }).toEqual({ name, reader: app });
       }
     });

@@ -58,7 +58,7 @@ What the setup has to work around:
 - The Node download from nodejs.org, the Docker daemon and the Postgres and Playwright image pulls work.
 - The image's `PLAYWRIGHT_BROWSERS_PATH` holds an older Chromium than `@playwright/test` runs, so `ensure_playwright_browsers` copies the builds from the Playwright image.
 - The proxy refuses `ghcr.io`'s blob host and Docker Hub sometimes answers 429, so `ensure_gitleaks_image` takes the same gitleaks release from Docker Hub and is retried after a minute when it fails.
-- When turbo stops every task with "Exec format error", pnpm's self-install was cut short and left its placeholder in `~/.local/share/pnpm/.tools/pnpm/<version>_tmp_*/node_modules/pnpm/pnpm`; run `node install.js` in that folder (it links the native binary already downloaded beside it, nothing new) and check `pnpm exec turbo run typecheck --filter=@shakti/tokens` (10-10-2026).
+- When pnpm's self-install is cut short it leaves its placeholder in `~/.local/share/pnpm/.tools/pnpm/<version>*/node_modules/pnpm/pnpm`, and turbo stops every task with "Exec format error"; the session hook runs `node install.js` in that folder (`repair_pnpm_self_install` in `lib.sh`; it links the native binary already downloaded beside it, nothing new) and checks `pnpm exec turbo run typecheck --filter=@shakti/tokens`. In a running session, `. tools/integration/lib.sh && repair_pnpm_self_install` does the same.
 - A branch made before `lib.sh` put `/usr/local/bin` first in `PATH` takes `main` first; otherwise pnpm must be installed with npm.
 
 ## 3. The cloud environment, once
@@ -113,7 +113,7 @@ then commit and push. Never open a pull request, merge, or touch a hosted servic
 - One agent per slice and per branch: two agents pushing one branch overwrite each other's work.
 - A builder started instead as its own cloud session (the first messages of [§4](#4-starting-a-builder-or-a-reviewer)) counts toward the three.
 - No cloud session runs while a PC session works, and the reverse: a day is wholly one or the other.
-- The heavy-command lock goes to whichever waiting command retries first, not to the one that waited longest: with three builders one waited about 90 minutes on 09-10-2026. When a builder has waited 30 minutes, the lead tells the others to let its queued command go next.
+- The heavy-command lock serves waiting commands in the order they arrived: each takes a numbered ticket beside the lock (`~/.shakti-heavy.lock.queue`), a ticket whose process is gone is skipped, and `bash tools/integration/heavy-queue-test.sh` checks the order.
 
 ## 6. How a cloud day ends
 - The lead runs the `end-session` skill in the cloud: STATUS, CHANGELOG, DECISIONS and the run files, a documents pull request opened with `gh`, merged on green.

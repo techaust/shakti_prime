@@ -193,6 +193,10 @@ export function isPushServiceEndpoint(value: string): boolean {
   if (url.protocol !== 'https:' || url.port !== '' || url.username !== '' || url.password !== '') {
     return false;
   }
+  // One spelling per browser: the address must be written as the URL parser writes it, with no
+  // fragment, so another spelling of a held address (an upper-case host, a `#…`) cannot be claimed
+  // as a new browser. Windows' addresses keep their query.
+  if (url.href !== value || value.includes('#')) return false;
   const host = url.hostname.toLowerCase();
   return (
     (PUSH_SERVICE_HOSTS as readonly string[]).includes(host) ||

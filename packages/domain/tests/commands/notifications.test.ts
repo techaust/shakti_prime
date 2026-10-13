@@ -691,6 +691,29 @@ describe('a person’s own notices', () => {
       }),
     ).rejects.toMatchObject({ code: 'validation_failed' });
   });
+
+  it('refuses a browser another person receives alerts on, and renews the caller’s own', async () => {
+    const shared = `https://fcm.googleapis.com/fcm/send/${newId()}`;
+    const keys = { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) };
+    await run(callerA, subscribePush, { endpoint: shared, keys });
+    expect(
+      await refusal(
+        run(callerB, subscribePush, {
+          endpoint: shared,
+          keys: { p256dh: 'C'.repeat(87), auth: 'D'.repeat(22) },
+        }),
+      ),
+    ).toMatchObject({ code: 'conflict', details: { reason: 'push_browser_taken' } });
+    await expect(run(callerA, subscribePush, { endpoint: shared, keys })).resolves.toEqual({
+      subscribed: true,
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ user_id: string; auth: string }[]>`
+        select user_id, auth from push_subscriptions where endpoint = ${shared}`,
+    );
+    expect(row).toEqual({ user_id: callerA.id, auth: keys.auth });
+    await run(callerA, unsubscribePush, { endpoint: shared });
+  });
 });
 
 describe('an enquiry for a colleague’s customer (crm.enquiry.route, RPT-04 criterion 2)', () => {

@@ -96,3 +96,4 @@ Slices are built and checked on the PC ([CLAUDE.md](../../CLAUDE.md)), which has
   1. Open **File Explorer**, click the address bar, type `%USERPROFILE%` and press Enter.
   2. Turn on *View* › *Show* › *Hidden items* if no folder named `.shakti-heavy.lock` shows.
   3. Right-click `.shakti-heavy.lock` › **Delete**. Its file `owner` says which command held it, if the lead session asks.
+  4. Leave the folder `.shakti-heavy.lock.queue` beside it alone: it holds the waiting commands' places in the queue.
