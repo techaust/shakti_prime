@@ -404,12 +404,21 @@ function ScheduledUpkeep({ jobs }: { jobs: readonly ScheduledJobHealth[] }) {
     {
       id: 'state',
       header: t('columns.state'),
-      cell: (r) => <StatusBadge tone={JOB_TONES[r.state]}>{t(`jobs.state.${r.state}`)}</StatusBadge>,
+      // data-dynamic: a run's state and time change from day to day, so screenshots mask them.
+      cell: (r) => (
+        <span data-dynamic>
+          <StatusBadge tone={JOB_TONES[r.state]}>{t(`jobs.state.${r.state}`)}</StatusBadge>
+        </span>
+      ),
     },
     {
       id: 'lastRun',
       header: t('columns.lastRun'),
-      cell: (r) => (r.lastRunAt === null ? t('jobs.never') : <DateTime value={r.lastRunAt} />),
+      cell: (r) => (
+        <span data-dynamic>
+          {r.lastRunAt === null ? t('jobs.never') : <DateTime value={r.lastRunAt} />}
+        </span>
+      ),
     },
     { id: 'runs', header: t('columns.runs'), cell: (r) => t('jobs.every', { hours: r.everyHours }) },
   ];
@@ -419,17 +428,14 @@ function ScheduledUpkeep({ jobs }: { jobs: readonly ScheduledJobHealth[] }) {
         {t('jobs.heading')}
       </h2>
       <p className="text-text-muted">{t('jobs.intro')}</p>
-      {/* data-dynamic: a run's time and state change from day to day, so screenshots mask them. */}
-      <div data-dynamic>
-        <DataGrid
-          caption={t('jobs.caption')}
-          columns={columns}
-          rows={[...jobs]}
-          rowKey={(r) => r.job}
-          // Every expected task has a row, a missing one included, so the list is never empty.
-          empty={null}
-        />
-      </div>
+      <DataGrid
+        caption={t('jobs.caption')}
+        columns={columns}
+        rows={[...jobs]}
+        rowKey={(r) => r.job}
+        // Every expected task has a row, a missing one included, so the list is never empty.
+        empty={null}
+      />
     </section>
   );
 }
