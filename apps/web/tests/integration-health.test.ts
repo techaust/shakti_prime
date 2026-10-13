@@ -26,6 +26,7 @@ vi.mock('../src/auth/current-principal', () => ({
   ACTIVE_ENTITY_COOKIE: 'entity',
   TWO_FACTOR_PENDING_COOKIE: 'shakti.two_factor',
   currentPrincipal: () => Promise.resolve(request.principal),
+  currentPrincipalQuietly: () => Promise.resolve(request.principal),
   currentSession: () => Promise.resolve(undefined),
   forgetPrincipal: () => Promise.resolve(),
 }));

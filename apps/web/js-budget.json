@@ -1,6 +1,5 @@
 {
-  "description": "First-load JavaScript budgets per page, gzip, in kB of 1,000 bytes (BLUEPRINT §11.4). A page not named here gets defaultKb. Checked by pnpm --filter web js-budget after pnpm build; how it measures is in scripts/js-budget.ts.",
-  "defaultKb": 250,
+  "description": "First-load JavaScript budgets per page, gzip, in kB of 1,000 bytes (BLUEPRINT §11.4): every page names its own, its measured size plus 5 %, and a page with none fails. Checked by pnpm --filter web js-budget after pnpm build; how it measures is in scripts/js-budget.ts. documents: the gzip weight of a first visit's HTML (the message catalogue rides in it), checked by the journeys.",
   "routes": {
     "/": {
       "maxKb": 170,
