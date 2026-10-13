@@ -260,6 +260,7 @@ test.describe('UAT: the Executive takes a lead from enquiry to a confirmed order
       page
         .getByRole('region', { name: 'The quote as it will be made' })
         .getByText('₹26,880.00')
+        .filter({ visible: true })
         .first(),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Make the quote' }).click();
@@ -410,6 +411,7 @@ test.describe('UAT: a dealer order held for credit, from Accounts to the Executi
       page
         .getByRole('region', { name: 'The order as it will be made' })
         .getByText('₹13,440.00')
+        .filter({ visible: true })
         .first(),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Make the order' }).click();
