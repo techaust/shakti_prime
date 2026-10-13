@@ -268,8 +268,8 @@ describe('checkDocument (WEB-1)', () => {
   });
 
   it('fails a page with no document budget', () => {
-    expect(checkDocument('/leads', html, budgets)).toBe(
-      '/leads has no document budget in js-budget.json',
+    expect(checkDocument('/leads', html, budgets)).toMatch(
+      /^\/leads sends [\d.]+ kB of HTML \(gzip\) and has no document budget in js-budget.json$/,
     );
   });
 });

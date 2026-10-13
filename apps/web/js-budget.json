@@ -156,6 +156,44 @@
     "/admin/agents/shadow": {
       "maxKb": 248,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Triage agent's shadow report: the company and period filters with the date inputs, the agreement summary and the proposals grid. Measured 235.6 kB on 09-10-2026, plus 5 %."
+    },
+    "/converters": {
+      "maxKb": 246,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the converters grid with each person's profile switches and limits. Measured 234.1 kB on 13-10-2026, plus 5 %."
+    },
+    "/dealer-credit": {
+      "maxKb": 241,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the dealers' credit grid with its terms and outstanding dialogs. Measured 229.1 kB on 13-10-2026, plus 5 %."
+    },
+    "/orders": {
+      "maxKb": 241,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the orders grid with its number search and status filter. Measured 228.6 kB on 13-10-2026, plus 5 %."
+    },
+    "/orders/[entityId]/[orderId]": {
+      "maxKb": 223,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and one order with its lines (a card per line on a phone), its acceptance, hold, release and cancel. Measured 212.1 kB on 13-10-2026, plus 5 %."
+    },
+    "/orders/new": {
+      "maxKb": 208,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and a dealer's order form with its priced choices and the order as it will be made. Measured 197.4 kB on 13-10-2026, plus 5 %."
+    },
+    "/targets": {
+      "maxKb": 208,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the target form and the targets in force and set (cards on a phone). Measured 197.4 kB on 13-10-2026, plus 5 %."
+    },
+    "/knowledge": {
+      "maxKb": 208,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the vault's files, the upload and the staff search. Measured 197.4 kB on 13-10-2026, plus 5 %."
+    }
+  },
+  "documents": {
+    "/sign-in": {
+      "maxKb": 6,
+      "reason": "A first visit to the public sign-in page: its HTML with the server's payload inline, the words of the sign-in forms and their own error sentences only (WEB-1). Measured 5.6 kB on 13-10-2026, plus 5 %; before the catalogue was cut per part of the app, about 50 kB of messages alone rode in it."
+    },
+    "/leads": {
+      "maxKb": 45,
+      "reason": "A tele-caller's leads list: its HTML with the server's payload inline, up to 50 leads, the shell's words and the leads screen's own (WEB-1). Measured 36.3 kB on 13-10-2026 with the journeys' seed; the budget leaves room for a full first page of 50 leads."
     }
   }
 }
