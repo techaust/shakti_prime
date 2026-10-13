@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 import {
   BOS_PREFIXES,
   isBosPath,
+  expiredSignInPath,
   needsSignIn,
+  PATH_HEADER,
   safeReturnPath,
   signInPath,
   SECURE_SESSION_COOKIE,
@@ -97,5 +99,20 @@ describe('signInPath', () => {
     expect(signInPath('/home')).toBe('/sign-in');
     expect(signInPath('//evil.example/home')).toBe('/sign-in');
     expect(signInPath('/sign-in', 'session_ended')).toBe('/sign-in?reason=session_ended');
+  });
+});
+
+describe('expiredSignInPath', () => {
+  it('sends an ended session to sign-in with the reason, back to the screen the proxy named', () => {
+    expect(expiredSignInPath(new Headers({ [PATH_HEADER]: '/leads/new' }))).toBe(
+      '/sign-in?reason=session_ended&returnTo=%2Fleads%2Fnew',
+    );
+  });
+
+  it('goes home afterwards without the header, and never to another site', () => {
+    expect(expiredSignInPath(new Headers())).toBe('/sign-in?reason=session_ended');
+    expect(expiredSignInPath(new Headers({ [PATH_HEADER]: '//evil.example/leads' }))).toBe(
+      '/sign-in?reason=session_ended',
+    );
   });
 });

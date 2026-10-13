@@ -805,6 +805,10 @@ describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
   it("passes a colleague's customer to them in one change, with no refused lead left or logged", async () => {
     const number = phone();
     const lead = await newLead(callerA, 'farmer_pumps', number);
+    const [mark] = await asMigrator(
+      (m) =>
+        m<{ last: string }[]>`select coalesce(max(sequence), 0)::text as last from outbox_events`,
+    );
     const recorded = memoryAuditSink();
     const routed = await asPrincipal(callerB, (context) =>
       runCommand(takeEnquiry, { context, audit: recorded, outbox }, enquiry(number)),
@@ -821,6 +825,29 @@ describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
                                   where account_id = ${lead.account.id}`,
     );
     expect(leads?.n).toBe(1);
+    // The outbox holds the routing's event and none of the refused attempt's: an event written
+    // since, other suites' included, always names a record that exists (the attempt's lead and
+    // duplicate pairs went with the savepoint).
+    const since = await asMigrator(
+      (m) => m<
+        { type: string; aggregate_type: string; aggregate_id: string; account: string | null }[]
+      >`
+        select type, aggregate_type, aggregate_id, payload_json->>'accountId' as account
+          from outbox_events where sequence > ${mark?.last ?? '0'}::bigint`,
+    );
+    expect(
+      since.filter((e) => e.type === 'crm.enquiry.routed' && e.account === lead.account.id),
+    ).toHaveLength(1);
+    const orphans = await asMigrator(
+      (m) => m<{ type: string }[]>`
+        select e.type from outbox_events e
+         where e.sequence > ${mark?.last ?? '0'}::bigint
+           and ((e.aggregate_type = 'opportunity'
+                 and not exists (select 1 from opportunities o where o.id::text = e.aggregate_id))
+             or (e.aggregate_type = 'duplicate_candidate'
+                 and not exists (select 1 from duplicate_candidates d where d.id::text = e.aggregate_id)))`,
+    );
+    expect(orphans).toEqual([]);
   });
 });
 

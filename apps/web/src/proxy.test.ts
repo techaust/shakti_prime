@@ -27,6 +27,11 @@ describe('proxy', () => {
     expect(proxy(call).headers.get('location')).toBeNull();
   });
 
+  it('names the path asked for to the (bos) layout, replacing any value the browser sent', () => {
+    const response = proxy(request('/calling', `${SESSION_COOKIE}=abc`));
+    expect(response.headers.get('x-middleware-request-x-shakti-path')).toBe('/calling');
+  });
+
   it('passes a BOS screen with a session cookie on, with a nonce policy', () => {
     for (const name of [SESSION_COOKIE, SECURE_SESSION_COOKIE]) {
       const response = proxy(request('/home', `${name}=abc`));

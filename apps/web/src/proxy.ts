@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { contentSecurityPolicy, fileUploadOrigins, sentryIngestOrigin } from './csp';
-import { needsSignIn, SERVER_ACTION_HEADER, signInPath } from './session-gate';
+import { needsSignIn, PATH_HEADER, SERVER_ACTION_HEADER, signInPath } from './session-gate';
 
 /**
  * Runs before every page request. A BOS screen asked for without a session cookie goes to
@@ -26,6 +26,9 @@ export function proxy(request: NextRequest): NextResponse {
   );
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
+  // The path asked for, for the `(bos)` layout's sign-in redirect (`expiredSignInPath`); set here,
+  // so a value the browser sent is replaced.
+  requestHeaders.set(PATH_HEADER, pathname);
   requestHeaders.set('Content-Security-Policy', csp);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);

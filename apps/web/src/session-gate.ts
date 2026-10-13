@@ -64,6 +64,21 @@ export function needsSignIn(
   return !serverAction && isBosPath(pathname) && !hasSessionCookie(cookie);
 }
 
+/**
+ * The request header the proxy sets to the path asked for, so the `(bos)` layout, which is not
+ * told its path, can send a person whose session has ended back to it (`expiredSignInPath`).
+ */
+export const PATH_HEADER = 'x-shakti-path';
+
+/**
+ * Where the `(bos)` layout sends a request whose session cookie names no live session (it expired
+ * or was ended): sign-in, saying why, and back to the screen afterwards (WEB-7). The path comes
+ * from the proxy's header and is checked again by `safeReturnPath`.
+ */
+export function expiredSignInPath(requestHeaders: Headers): string {
+  return signInPath(requestHeaders.get(PATH_HEADER) ?? '/home', 'session_ended');
+}
+
 /** The header Next.js sends with a server action's call. */
 export const SERVER_ACTION_HEADER = 'next-action';
 

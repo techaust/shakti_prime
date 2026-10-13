@@ -74,6 +74,7 @@ export async function listSalesOrders(
   const last = page.at(-1);
   return SalesOrderPageDto.parse({
     items: page.map(toSalesOrderRow),
+    searchCapped: input.q === undefined ? false : await searchReachedCap(ctx, input.q, input.state),
     nextCursor: nextCursor(
       order,
       rows.length > input.limit,
@@ -108,7 +109,7 @@ export function salesOrderListQuery(
       and(
         inArray(so.entityId, companies(ctx, input.entityId)),
         input.state === undefined ? undefined : eq(so.state, input.state),
-        input.q === undefined ? undefined : orderNumberMatches(input.q),
+        input.q === undefined ? undefined : orderNumberMatches(input.q, input.state),
         afterCursor(order, input.cursor),
       ),
     )
@@ -146,18 +147,37 @@ export async function getSalesOrder(
   return readSalesOrder({ ...ctx, now }, input.entityId, input.orderId);
 }
 
+/** The most candidates a number search takes, the newest first (`app.order_search_ids()`). */
+const SEARCH_CAP = 200;
+
 /**
  * The orders whose number holds `text` (RPT-03). Under the policies `ilike` is never an index
  * condition, so the candidates come first from the definer `app.order_search_ids()`, which finds at
- * most 200 on the trigram index of `so_no` among the orders the caller reads; the query reads only
- * those, under the policies, and the text is applied again here.
+ * most 200 on the trigram index of `so_no` among the orders the caller reads, of one state when the
+ * list asks for one (before the limit); the query reads only those, under the policies, and the
+ * text is applied again here.
  */
-function orderNumberMatches(text: string) {
+function orderNumberMatches(text: string, state?: SalesOrderState) {
   const so = schema.salesOrders;
   return and(
-    inArray(so.id, sql`(select app.order_search_ids(${text}, 200))`),
+    inArray(so.id, sql`(select app.order_search_ids(${text}, ${state ?? null}, ${SEARCH_CAP}))`),
     ilike(so.soNo, containsPattern(text)),
   );
+}
+
+/**
+ * Whether the number search found as many candidates as it takes, so older matches may have been
+ * left out: `/orders` then says so (`searchCapped`).
+ */
+async function searchReachedCap(
+  ctx: OrderListContext,
+  text: string,
+  state: SalesOrderState | undefined,
+): Promise<boolean> {
+  const rows = (await ctx.tx.execute(
+    sql`select count(*)::int as n from app.order_search_ids(${text}, ${state ?? null}, ${SEARCH_CAP})`,
+  )) as unknown as { n: number }[];
+  return (rows[0]?.n ?? 0) >= SEARCH_CAP;
 }
 
 /**

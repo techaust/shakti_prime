@@ -13,5 +13,7 @@ const budgets = parseBudgets(
 export async function expectDocumentWithinBudget(page: Page, route: string): Promise<void> {
   const response = await page.request.get(route);
   expect(response.ok()).toBe(true);
+  // A redirect (to sign-in, when the session is gone) would measure another page.
+  expect(new URL(response.url()).pathname).toBe(route);
   expect(checkDocument(route, await response.body(), budgets)).toBeUndefined();
 }

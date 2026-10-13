@@ -45,6 +45,10 @@ export function OrdersScreen({
   const [nextCursor, setNextCursor] = useState(initial.nextCursor);
   const [state, setState] = useState<SalesOrderState | undefined>();
   const [query, setQuery] = useState<string | undefined>();
+  // Whether the last search took its most candidates, so older matches may be left out.
+  const [capped, setCapped] = useState(initial.searchCapped);
+  // A search of fewer letters than a search needs is refused with the reason (not run unseen).
+  const [tooShort, setTooShort] = useState(false);
   const { load, pending, failure } = useQuery<SalesOrderPageDto>();
   // The status and number the rows on screen were read for; an older answer is dropped.
   const readFor = useRef<{ state: SalesOrderState | undefined; q: string | undefined }>({
@@ -69,6 +73,7 @@ export function OrdersScreen({
         if (readFor.current !== next) return;
         setRows((all) => (cursor === null ? page.items : [...all, ...page.items]));
         setNextCursor(page.nextCursor);
+        setCapped(page.searchCapped);
       },
     );
   }
@@ -82,7 +87,12 @@ export function OrdersScreen({
   function search(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     const text = formText(new FormData(e.currentTarget), 'q').trim();
-    const q = text.length >= SEARCH_MIN_CHARS ? text : undefined;
+    if (text.length > 0 && text.length < SEARCH_MIN_CHARS) {
+      setTooShort(true);
+      return;
+    }
+    setTooShort(false);
+    const q = text === '' ? undefined : text;
     setQuery(q);
     readFirst({ state, q });
   }
@@ -150,6 +160,7 @@ export function OrdersScreen({
           id="orders-search"
           label={t('searchLabel')}
           helper={t('searchHelper')}
+          error={tooShort ? t('searchTooShort') : undefined}
           className="min-w-0 flex-1 sm:max-w-xl"
           actions={
             <>
@@ -162,6 +173,7 @@ export function OrdersScreen({
                   variant="secondary"
                   onClick={() => {
                     setQuery(undefined);
+                    setTooShort(false);
                     readFirst({ state, q: undefined });
                   }}
                 >
@@ -195,6 +207,11 @@ export function OrdersScreen({
         </Field>
       </div>
       <FailureMessage failure={failure} />
+      {query !== undefined && capped ? (
+        <p role="status" className="text-text-muted text-sm">
+          {t('searchCapped')}
+        </p>
+      ) : null}
       <DataGrid
         caption={t('caption')}
         columns={columns}

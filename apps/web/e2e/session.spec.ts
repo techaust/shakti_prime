@@ -24,3 +24,18 @@ test('a sign-in that ended while a screen was open goes to sign-in and back to t
   await page.waitForURL('**/leads/new');
   await expect(page.getByRole('heading', { name: 'Add a lead', level: 1 })).toBeVisible();
 });
+
+test('a session cookie that names no live session goes to sign-in and back to the screen (WEB-7)', async ({
+  page,
+}) => {
+  // The browser still sends its session cookie, but the session behind it is gone: the cookie's
+  // value is replaced with one no session has.
+  const cookies = await page.context().cookies();
+  const session = cookies.find((c) => c.name.includes('session'));
+  expect(session).toBeDefined();
+  if (session === undefined) return;
+  await page.context().addCookies([{ ...session, value: 'ended-session' }]);
+  await page.goto('/leads/new');
+  await page.waitForURL('**/sign-in?reason=session_ended&returnTo=%2Fleads%2Fnew');
+  await expect(page.getByText('You were signed out.', { exact: false })).toBeVisible();
+});

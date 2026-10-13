@@ -4148,6 +4148,8 @@
     "search": "Search",
     "clearSearch": "Show all",
     "emptySearch": "No orders have a number like this. Check the number and try again.",
+    "searchTooShort": "Type at least 2 characters of the order number.",
+    "searchCapped": "Only the 200 newest orders with a number like this are shown. Type more of the number to find an older one.",
     "heldForCredit": "Held for credit",
     "fromQuote": "From a quote",
     "fromDealer": "Dealer's own order",

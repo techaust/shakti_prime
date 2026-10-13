@@ -120,7 +120,12 @@ export const SalesOrderRowDto = z
 export type SalesOrderRowDto = z.infer<typeof SalesOrderRowDto>;
 
 export const SalesOrderPageDto = z
-  .object({ items: z.array(SalesOrderRowDto), nextCursor: z.string().nullable() })
+  .object({
+    items: z.array(SalesOrderRowDto),
+    nextCursor: z.string().nullable(),
+    /** A number search took its most candidates (200), so older matches may be left out. */
+    searchCapped: z.boolean(),
+  })
   .strict();
 export type SalesOrderPageDto = z.infer<typeof SalesOrderPageDto>;
 
