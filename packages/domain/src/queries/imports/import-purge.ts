@@ -42,10 +42,7 @@ export async function importFilesToDelete(
               .select({ one: j.id })
               .from(j)
               .where(
-                and(
-                  eq(j.fileId, f.id),
-                  inArray(j.state, ['committed', 'failed', 'rolled_back']),
-                ),
+                and(eq(j.fileId, f.id), inArray(j.state, ['committed', 'failed', 'rolled_back'])),
               ),
           ),
         ),

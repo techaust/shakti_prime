@@ -27,10 +27,7 @@ import { purgeImportRows, recordImportFilesDeleted } from '../../src/commands/im
 import { parseImportFile } from '../../src/imports/parse';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { asciiDigits } from '../../src/privacy/number-shapes';
-import {
-  getImportReconciliation,
-  listImportRows,
-} from '../../src/queries/imports/import-queries';
+import { getImportReconciliation, listImportRows } from '../../src/queries/imports/import-queries';
 import { importFilesToDelete } from '../../src/queries/imports/import-purge';
 import type { z } from 'zod';
 
@@ -110,7 +107,7 @@ async function storedDigits(jobId: string): Promise<string> {
              as text
         from import_rows where job_id = ${jobId}`,
   );
-  return asciiDigits(row?.text ?? '');
+  return asciiDigits(row?.text ?? '').replace(/\D/g, '');
 }
 
 describe('imports.job.create keeps no identity number', () => {
@@ -257,9 +254,11 @@ describe('imports.file.record_deleted and the files to delete', () => {
       await expect(
         run(caller, recordImportFilesDeleted, { entityId: 1, fileIds: [fileId] }),
       ).rejects.toMatchObject({ code: 'forbidden' });
-      await expect(asPrincipal(caller, (ctx) => importFilesToDelete(ctx, 1))).rejects.toMatchObject({
-        code: 'forbidden',
-      });
+      await expect(asPrincipal(caller, (ctx) => importFilesToDelete(ctx, 1))).rejects.toMatchObject(
+        {
+          code: 'forbidden',
+        },
+      );
     }
     await expect(
       run(workers([1]), recordImportFilesDeleted, { entityId: 2, fileIds: [fileId] }),
@@ -338,7 +337,11 @@ describe('no Aadhaar number from an import is found anywhere in the database (au
       ['Gopal', phone(), third.replace(/(\d{4})(?=\d)/g, '$1-'), 'Idar'],
     ]);
     const fromBook = await createdJob(book);
-    expect(fromBook).toMatchObject({ format: 'xlsx', leftOutColumns: ['Aadhaar No'], totalRows: 3 });
+    expect(fromBook).toMatchObject({
+      format: 'xlsx',
+      leftOutColumns: ['Aadhaar No'],
+      totalRows: 3,
+    });
     const fromAddress = await createdJob(
       `Name,Mobile,Village,Address\nMeera,${phone()},Nagaur,"H 9, Main road, Aadhaar ${spaced(fourth)}"\n`,
     );

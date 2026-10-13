@@ -66,27 +66,27 @@ function isAadhaarCell(cell: string, phoneColumn: boolean): boolean {
 
 /** The number as written, every digit but the last four replaced by X, its separators kept. */
 function lastFourOnly(written: string): string {
-  const digits = [...written].filter((c) => /\p{Nd}/u.test(c)).length;
+  const digits = (written.match(/\p{Nd}/gu) ?? []).length;
   let seen = 0;
-  return [...written]
-    .map((c) => {
-      if (!/\p{Nd}/u.test(c)) return c;
-      seen += 1;
-      return seen <= digits - 4 ? 'X' : c;
-    })
-    .join('');
+  return written.replace(/\p{Nd}/gu, (digit) => {
+    seen += 1;
+    return seen <= digits - 4 ? 'X' : digit;
+  });
 }
 
 /** `cell` with its Aadhaar numbers masked, and whether any was. */
 function masked(cell: string, phoneColumn: boolean): { text: string; changed: boolean } {
   const found = aadhaarNumbers(cell, phoneColumn);
   if (found.length === 0) return { text: cell, changed: false };
-  return { text: replaceNumbers(cell, found, (_, written) => lastFourOnly(written)), changed: true };
+  return {
+    text: replaceNumbers(cell, found, (_, written) => lastFourOnly(written)),
+    changed: true,
+  };
 }
 
 /**
  * The file's columns and rows without identity numbers. A column is left out when its header
- * names an Aadhaar number, or when half or more of its filled cells are one (alone, or after a
+ * names an Aadhaar number, or when most of its filled cells are one (alone, or after a
  * short label such as "UID"); every other cell,
  * and every header, keeps only the last four digits of an Aadhaar number written in it. Applying
  * it again changes nothing.
@@ -106,7 +106,7 @@ export function withoutIdentityNumbers(
       filled += 1;
       if (isAadhaarCell(cell, phoneColumn)) holding += 1;
     }
-    return filled > 0 && holding * 2 >= filled;
+    return filled > 0 && holding * 2 > filled;
   });
   const kept = columns.flatMap((_, k) => (leftOut[k] === true ? [] : [k]));
   let maskedValues = 0;

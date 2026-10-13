@@ -46,7 +46,12 @@ export async function purgeImports(deps: ImportPurgeDeps): Promise<ImportPurgeRe
   const now = deps.now ?? Date.now;
   const started = now();
   const spent = () => deps.budgetMs !== undefined && now() - started >= deps.budgetMs;
-  const result: ImportPurgeResult = { companies: 0, filesDeleted: 0, jobsPurged: 0, rowsCleared: 0 };
+  const result: ImportPurgeResult = {
+    companies: 0,
+    filesDeleted: 0,
+    jobsPurged: 0,
+    rowsCleared: 0,
+  };
   const call = (entityId: number) => ({ entityIds: [entityId], requestId: deps.requestId });
   for (let entityId = 1; !spent(); entityId += 1) {
     const principal = systemWorkersPrincipal(entityId);
@@ -78,12 +83,10 @@ export async function purgeImports(deps: ImportPurgeDeps): Promise<ImportPurgeRe
         }
       }
       if (deleted.length > 0) {
-        const recorded = await executeCommand(
-          principal,
-          call(entityId),
-          recordImportFilesDeleted,
-          { entityId, fileIds: deleted },
-        );
+        const recorded = await executeCommand(principal, call(entityId), recordImportFilesDeleted, {
+          entityId,
+          fileIds: deleted,
+        });
         result.filesDeleted += recorded.deleted;
       }
     }

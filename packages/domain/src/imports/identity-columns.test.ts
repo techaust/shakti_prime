@@ -45,7 +45,7 @@ describe('the identity numbers of an import file (audit SEC-1)', () => {
     });
   });
 
-  it('leaves out a column half or more of whose filled cells are an Aadhaar number, in any shape', () => {
+  it('leaves out a column most of whose filled cells are an Aadhaar number, in any shape', () => {
     const out = withoutIdentityNumbers(
       ['Name', 'ID', 'Village'],
       [

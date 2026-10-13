@@ -71,7 +71,7 @@ export const createImportJob = defineCommand({
         ),
       )
       .limit(1);
-    if (!file || file.deletedAt !== null) {
+    if (file?.deletedAt !== null) {
       throw new DomainError('not_found', 'the import file is not available', {
         reason: 'import_file_missing',
       });

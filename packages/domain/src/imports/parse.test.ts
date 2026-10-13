@@ -66,9 +66,9 @@ describe('parseImportFile: CSV', () => {
   });
 
   it('refuses a file of nothing but Aadhaar numbers', async () => {
-    await expect(parseImportFile(text('Aadhaar,UID\n2345 6789 0123,3456 7890 1234\n'))).rejects.toMatchObject(
-      { details: { reason: 'import_only_identity_numbers' } },
-    );
+    await expect(
+      parseImportFile(text('Aadhaar,UID\n2345 6789 0123,3456 7890 1234\n')),
+    ).rejects.toMatchObject({ details: { reason: 'import_only_identity_numbers' } });
   });
 
   it('skips a title line above the table and quotes with commas', async () => {

@@ -83,7 +83,10 @@ export const importJobs = pgTable(
      * The file's columns left out because they hold Aadhaar numbers, by the names the file gave
      * them: they are never stored, and the screen tells the importer which (audit SEC-1).
      */
-    leftOutColumns: text('left_out_columns').array().notNull().default(sql`'{}'::text[]`),
+    leftOutColumns: text('left_out_columns')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     /** Cells in which an Aadhaar number written among other text was masked to its last four. */
     maskedValues: integer('masked_values').notNull().default(0),
     /**

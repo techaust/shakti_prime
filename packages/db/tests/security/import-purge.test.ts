@@ -6,7 +6,13 @@ import {
 } from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { asMigrator, asPrincipal, closeDb, principalFor, withoutContext } from '../../src/testing/index';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  principalFor,
+  withoutContext,
+} from '../../src/testing/index';
 
 // The import purge (audit SEC-1, migration audit_privacy_rls): only the worker principal, through
 // the platform-only imports.process, reaches the two definers. One clears what the rows of an
@@ -213,7 +219,10 @@ describe('who may reach the import purge', () => {
     ).toMatch(/between 1 and 100 jobs/);
     expect(
       await failure(
-        rows(workers(), sql`select app.record_import_files_deleted(1::smallint, 0, array[]::uuid[])`),
+        rows(
+          workers(),
+          sql`select app.record_import_files_deleted(1::smallint, 0, array[]::uuid[])`,
+        ),
       ),
     ).toMatch(/between 1 and 90 days/);
   });
@@ -293,7 +302,12 @@ describe('what the purge clears', () => {
   });
 
   it('leaves a job adding rows, a job within the period and another company’s as they were', async () => {
-    for (const kind of ['committingOld', 'committedRecent', 'leftRecent', 'otherCompany'] as const) {
+    for (const kind of [
+      'committingOld',
+      'committedRecent',
+      'leftRecent',
+      'otherCompany',
+    ] as const) {
       expect(await rowsOf(kind)).toEqual(before[kind]);
       expect(await purgedAt(kind)).toBeNull();
     }

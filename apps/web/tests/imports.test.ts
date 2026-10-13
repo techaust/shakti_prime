@@ -615,7 +615,9 @@ describe('an import keeps no identity number, and not what its file said for lon
     });
     const rows = ok(await listImportRows({ entityId: 1, jobId: job.id }));
     expect(rows.rows[1]?.raw.Address).toBe(`Plot 7, UID XXXXXXXX${inAddress.slice(-4)}`);
-    expect(JSON.stringify(rows)).not.toMatch(new RegExp(`${aadhaar.slice(0, 8)}|${inAddress.slice(0, 8)}`));
+    expect(JSON.stringify(rows)).not.toMatch(
+      new RegExp(`${aadhaar.slice(0, 8)}|${inAddress.slice(0, 8)}`),
+    );
 
     // A second import, only uploaded, keeps its file for the open period.
     const openFile = await uploaded(`Name,Mobile\nSarla,${phone()}\n`, { name: 'open.csv' });
