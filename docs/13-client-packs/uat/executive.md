@@ -2,7 +2,7 @@
 
 The Executive sees every company and sets the group up: people and roles, prices, tax rates, pipelines, agents, and the decisions only an Executive takes, such as releasing an order held for credit.
 
-**Before you start:** sign in as a Executive of one company, on the address the development team gives you (staging until production exists). Use the test customers and leads prepared for the test, never a real customer's details. Tick Pass when the result is what the third column says; tick Fail and write what you saw when it is not. A step that fails does not stop the test: carry on, and give the sheet to the run owner at the end.
+**Before you start:** sign in as a person with the Executive role in one company, on the address the development team gives you (staging until production exists). Use the test customers and leads prepared for the test, never a real customer's details. Tick Pass when the result is what the third column says; tick Fail and write what you saw when it is not. A step that fails does not stop the test: carry on, and give the sheet to the run owner at the end.
 
 | # | Step | Expected result | Pass / Fail |
 |---|---|---|---|

@@ -2,7 +2,7 @@
 
 The Lead Converter takes qualified leads to a quote and an order: calls, sizing, quotes and the signed copy, on one screen.
 
-**Before you start:** sign in as a Lead Converter of one company, on the address the development team gives you (staging until production exists). Use the test customers and leads prepared for the test, never a real customer's details. Tick Pass when the result is what the third column says; tick Fail and write what you saw when it is not. A step that fails does not stop the test: carry on, and give the sheet to the run owner at the end.
+**Before you start:** sign in as a person with the Lead Converter role in one company, on the address the development team gives you (staging until production exists). Use the test customers and leads prepared for the test, never a real customer's details. Tick Pass when the result is what the third column says; tick Fail and write what you saw when it is not. A step that fails does not stop the test: carry on, and give the sheet to the run owner at the end.
 
 | # | Step | Expected result | Pass / Fail |
 |---|---|---|---|

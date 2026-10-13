@@ -2,7 +2,7 @@
 
 Accounts keeps dealer credit: each dealer's limit, credit days and what they owe, which decide whether a dealer's order is held.
 
-**Before you start:** sign in as a Accounts of one company, on the address the development team gives you (staging until production exists). Use the test customers and leads prepared for the test, never a real customer's details. Tick Pass when the result is what the third column says; tick Fail and write what you saw when it is not. A step that fails does not stop the test: carry on, and give the sheet to the run owner at the end.
+**Before you start:** sign in as a person with the Accounts role in one company, on the address the development team gives you (staging until production exists). Use the test customers and leads prepared for the test, never a real customer's details. Tick Pass when the result is what the third column says; tick Fail and write what you saw when it is not. A step that fails does not stop the test: carry on, and give the sheet to the run owner at the end.
 
 | # | Step | Expected result | Pass / Fail |
 |---|---|---|---|
