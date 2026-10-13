@@ -215,7 +215,9 @@ export function checkDocument(
 ): string | undefined {
   const budget = budgets.documents[route];
   const bytes = documentBytes(html);
-  if (budget === undefined) return `${route} has no document budget in js-budget.json`;
+  if (budget === undefined) {
+    return `${route} sends ${kb(bytes)} kB of HTML (gzip) and has no document budget in js-budget.json`;
+  }
   return bytes > Math.round(budget.maxKb * 1000)
     ? `${route} sends ${kb(bytes)} kB of HTML (gzip), over its document budget of ${String(budget.maxKb)} kB`
     : undefined;
