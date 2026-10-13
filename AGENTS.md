@@ -121,6 +121,7 @@ export const createTag = defineCommand({
 - `peopleOnly` refuses an agent principal (kind `agent` or a role `agent:*`) at the guard, before the handler runs: a customer note, a tag of the company, a role edit.
 - `auditFields` is required: each key needs an Activity log label in `apps/web/src/screens/audit.ts` (checked by `audit.test.ts`), and outside production the runner refuses an undeclared key. `auditInput` says what the audit row records of the input when the input is too large or holds customer data in shapes the redaction cannot recognise (an import file's rows).
 - `constraintReasons` names the catalogue reasons of the unique or check constraints the handler may race against.
+- `auditWhen: 'changed'` is for a command a timer runs (a scan or a nightly batch): a call whose handler named no change writes no audit row, instead of one row for the call.
 
 **The handler.**
 - `ctx` carries the principal, the request's companies, the transaction `ctx.tx`, `ctx.now` and `ctx.requestId`. It never opens its own connection.

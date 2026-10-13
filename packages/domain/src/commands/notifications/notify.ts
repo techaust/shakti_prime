@@ -247,6 +247,8 @@ export const scanNotices = defineCommand({
   input: ScanNoticesInput,
   output: NoticeBatchDto,
   auditFields: ['notices'],
+  // Run on a timer: a call that changed nothing leaves no audit row (DATA-6).
+  auditWhen: 'changed',
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const entity = input.entityId;

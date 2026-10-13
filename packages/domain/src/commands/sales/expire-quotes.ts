@@ -59,6 +59,8 @@ export const expireQuotes = defineCommand({
   input: ExpireQuotesInput,
   output: QuoteExpiryBatchDto,
   auditFields: ['rows'],
+  // Run on a timer: a call that changed nothing leaves no audit row (DATA-6).
+  auditWhen: 'changed',
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const lapsed = (await ctx.tx.execute(
