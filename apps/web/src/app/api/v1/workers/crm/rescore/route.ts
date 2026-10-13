@@ -14,6 +14,7 @@ export const maxDuration = 60;
  */
 export const POST = nightlyWorkerRoute({
   path: LEAD_RESCORE_PATH,
+  job: 'lead-rescore',
   logPrefix: 'crm.rescore',
   body: LeadRescoreWorkerBody,
   budgetMs: LEAD_RESCORE_RUN_BUDGET_MS,

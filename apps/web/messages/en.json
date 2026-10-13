@@ -64,6 +64,7 @@
     "self_suspend": "You can't suspend your own access. Ask another Executive.",
     "self_two_factor_reset": "You can't reset your own authenticator app. Use one of your backup codes, or ask another Executive.",
     "self_lock_clear": "You can't lift the sign-in lock on your own account. Ask another Executive.",
+    "gst_split_mismatch": "The quote’s tax is split in a way its supply does not allow, so it was left as it was. Ask for its tax to be corrected.",
     "gstin_state_mismatch": "The GSTIN must start with the company's GST state code. Check both and try again.",
     "session_missing": "This sign-in has already ended.",
     "account_missing": "We couldn't find this customer. Check the customer and try again.",
@@ -1731,6 +1732,8 @@
       "fromRow": "From row",
       "toRow": "To row",
       "rows": "Rows in this group",
+      "skipped": "Quotes left as they were",
+      "expiryRefused": "Why it was not marked expired",
       "committedRows": "Rows added",
       "batches": "Groups of rows",
       "rolledBackRows": "Rows undone",
@@ -2574,7 +2577,11 @@
       "spentMonth": "This month",
       "runsMonth": "Runs this month",
       "dailyLimit": "Daily limit",
-      "limitReached": "Limit today"
+      "limitReached": "Limit today",
+      "task": "Task",
+      "state": "State",
+      "lastRun": "Last run",
+      "runs": "Runs"
     },
     "lastRun": {
       "heading": "Last sending round",
@@ -2626,6 +2633,30 @@
       "reached": "Reached",
       "notReached": "Not reached",
       "otherCompany": "Another company"
+    },
+    "jobs": {
+      "heading": "Scheduled upkeep",
+      "intro": "Tasks the system runs on its own to keep its records in order. A task that failed or has stopped is also sent to the owner by email.",
+      "caption": "Scheduled upkeep tasks and their last run",
+      "names": {
+        "activities-partitions": "Make room for next months’ customer history",
+        "audit-logs-partitions": "Make room for next months’ activity log",
+        "audit-logs-detach": "Archive activity log entries older than eight years",
+        "idempotency-keys-purge": "Clear out old records of forms already sent",
+        "outbox-events-purge": "Clear out updates sent more than 30 days ago"
+      },
+      "state": {
+        "ok": "Ran well",
+        "running": "Running now",
+        "waiting": "Not run yet",
+        "late": "Overdue",
+        "failed": "Failed",
+        "stuck": "Stuck",
+        "paused": "Switched off",
+        "missing": "Not set up"
+      },
+      "every": "{hours, select, 1 {Every hour} 24 {Every day} 168 {Every week} other {Every month}}",
+      "never": "Not yet"
     }
   },
   "files": {
@@ -3071,7 +3102,8 @@
       "admin": "Running the system",
       "integrations": "Other systems",
       "files": "Uploaded files",
-      "notifications": "Notices"
+      "notifications": "Notices",
+      "platform": "Upkeep"
     },
     "permissions": {
       "crm_lead_read": "See leads",
@@ -3151,7 +3183,8 @@
       "sales_credit_write": "Enter dealer credit limits and outstanding",
       "sales_targets_write": "Set the targets of callers and teams",
       "notifications_send": "Send notices to the people who act on them",
-      "crm_handover_run": "Give a qualified lead to a Lead Converter"
+      "crm_handover_run": "Give a qualified lead to a Lead Converter",
+      "platform_jobs_check": "Check that the scheduled upkeep tasks ran"
     },
     "empty": "There are no roles to show.",
     "locked": {

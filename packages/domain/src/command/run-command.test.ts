@@ -223,6 +223,17 @@ describe('runCommand', () => {
     ]);
   });
 
+  it('writes no row for a call that changed nothing when the command records only changes (DATA-6)', async () => {
+    const quiet = defineCommand({ ...echo, name: 'test.quiet_scan', auditWhen: 'changed' });
+    const audit = memoryAuditSink();
+    await runCommand(
+      quiet,
+      { context: context(principal({ entityIds: [1, 2] })), audit, outbox: memoryOutboxSink() },
+      { value: 'x' },
+    );
+    expect(audit.records).toEqual([]);
+  });
+
   it('returns the DTO, audits the call and stores emitted events with their version', async () => {
     const audit = memoryAuditSink();
     const outbox = memoryOutboxSink();

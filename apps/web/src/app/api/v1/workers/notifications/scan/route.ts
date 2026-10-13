@@ -17,6 +17,7 @@ export const maxDuration = 60;
  */
 export const POST = nightlyWorkerRoute({
   path: NOTIFICATION_SCAN_PATH,
+  job: 'notification-scan',
   logPrefix: 'notifications.due.scan',
   body: NotificationScanWorkerBody,
   budgetMs: NOTIFICATION_SCAN_RUN_BUDGET_MS,

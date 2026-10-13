@@ -21,6 +21,7 @@ import {
   memoryKeyValue,
   istMinuteOfDay,
   notifyEvent,
+  scanNotices,
   setNotificationSettings,
   subscribePush as subscribeCommand,
 } from '@shakti/domain';
@@ -417,6 +418,20 @@ describe('pushes a cut-off run left pending', () => {
     await runNotificationScan({}, { sender });
     expect(sender.sent.filter((s) => s.endpoint === pending.endpoint)).toEqual([]);
     expect((await noticesAbout(pending.id))[0]?.channel_sent_json).toMatchObject({ push: 'off' });
+  }, 120_000);
+
+  it('audits a scan whose only work was settling a pending push (review L2)', async () => {
+    const pending = await pendingFor({ pushOff: true });
+    const requestId = newId();
+    await executeCommand(workers, { entityIds: [1], requestId }, scanNotices, { entityId: 1 });
+    expect((await noticesAbout(pending.id))[0]?.channel_sent_json).toMatchObject({ push: 'off' });
+    const rows = await asMigrator(
+      (m) => m<{ aggregate_type: string; after_json: { recorded?: number } }[]>`
+        select aggregate_type, after_json from audit_logs
+         where request_id = ${requestId} and command = 'notifications.due.scan'`,
+    );
+    const settled = rows.find((r) => r.aggregate_type === 'push_batch');
+    expect(settled?.after_json.recorded).toBeGreaterThanOrEqual(1);
   }, 120_000);
 
   it('does not send a pending push to a person who was deactivated, and settles it', async () => {

@@ -1,0 +1,182 @@
+
+=== ⌘K search "Ramesh Patel" as Executive: 680.8 ms, 5 statements, items=-
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 474.6 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 0.6 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 0.4 ms | select "id", "name", "email" from "users" where (exists (select "id" from "user_entity_roles" where ("user_entity_roles"."user_id" = "users"
+
+=== ⌘K search "Rmesh" as Executive: 714.7 ms, 5 statements, items=-
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 732.2 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 0.7 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+--- 0.1 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 0.3 ms | select "id", "name", "email" from "users" where (exists (select "id" from "user_entity_roles" where ("user_entity_roles"."user_id" = "users"
+
+=== ⌘K search "98765" as Executive: 83.0 ms, 3 statements, items=-
+--- 9.5 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 0.7 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+--- 0.2 ms | select "id", "name", "email" from "users" where (exists (select "id" from "user_entity_roles" where ("user_entity_roles"."user_id" = "users"
+
+=== Lead list as Executive: 30.2 ms, 2 statements, items=50
+--- 0.3 ms | select "id", "entity_id", "account_id", "site_id", "pipeline_id", "stage_id", "owner_id", "team_id", "score", "score_reasons_json", "score_c
+--- 4.7 ms | select "accounts"."id", "accounts"."type", "accounts"."name", "contacts"."id", "contacts"."name", "contact_phones"."e164" from "accounts" le
+
+=== Lead list by score as Executive: 25.7 ms, 2 statements, items=50
+--- 0.3 ms | select "id", "entity_id", "account_id", "site_id", "pipeline_id", "stage_id", "owner_id", "team_id", "score", "score_reasons_json", "score_c
+--- 4.6 ms | select "accounts"."id", "accounts"."type", "accounts"."name", "contacts"."id", "contacts"."name", "contact_phones"."e164" from "accounts" le
+
+=== Lead search "Suresh" as Executive: 544.2 ms, 2 statements, items=20
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 656.6 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+
+=== Account 360 as Executive: 72.6 ms, 13 statements, items=-
+--- 0.3 ms | select "account_entities"."entity_id", "account_entities"."owner_id", "account_entities"."team_id", "accounts"."id", "accounts"."name", "acc
+--- 0.0 ms | select "id", "entity_id", "name", "archived_at", "created_at", "updated_at", "created_by", "updated_by" from "tags" where ("tags"."archived_
+--- 0.3 ms | select "activities"."id", "activities"."type", "activities"."opportunity_id", "activities"."actor_principal_id", "principals"."display_name"
+--- 0.5 ms | select "contacts"."id", "account_contacts"."role", "contacts"."name", "contacts"."email", "contacts"."preferred_language" from "account_cont
+--- 0.4 ms | select "contact_phones"."id", "contact_phones"."contact_id", "contact_phones"."e164", "contact_phones"."is_primary", "contact_phones"."is_wh
+--- 0.2 ms | select "id", "account_id", "type", "address", "village", "village_key", "tehsil", "district", "pin", "state_code", "pin_needs_review", "lat"
+--- 0.2 ms | select "opportunities"."id", "pipelines"."name", "pipeline_stages"."name", "opportunities"."state", "opportunities"."owner_id", "principals"
+--- 0.2 ms | select "tasks"."id", "tasks"."entity_id", "tasks"."opportunity_id", "tasks"."account_id", "tasks"."assignee_id", "tasks"."team_id", "tasks".
+--- 1.0 ms | select "consents"."id", "consents"."contact_id", "consents"."channel", "consents"."purpose", "consents"."source", "consents"."text_version",
+--- 0.1 ms | select "opportunity_tags"."opportunity_id", "tags"."id", "tags"."name" from "opportunity_tags" inner join "tags" on "tags"."id" = "opportuni
+--- 0.0 ms | select "display_name" from "principals" where "principals"."id" = '5f6550f4-34af-772a-8368-b7d2d626d51e' limit 1
+--- 0.2 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "quotes"."opportunity_id", "quotes"."account_id", "accounts"."name", "quote
+--- 0.3 ms | select "sales_orders"."id", "sales_orders"."entity_id", "sales_orders"."so_no", "sales_orders"."opportunity_id", "sales_orders"."quote_id", 
+
+=== Notification centre as Executive: 14.3 ms, 1 statements, items=20
+--- 1.2 ms |  select p.id, p.entity_id, p.type, p.subject_type, p.subject_id, p.payload_json, p.created_at, p.created_at::text as created_text, p.read_at
+
+=== Bell count as Executive: 2.6 ms, 1 statements, items=-
+--- 0.1 ms | select count(*)::int from (select 1 from "notifications" where ("notifications"."user_id" = '4a34fca2-5303-7b7b-86c3-c1d5e935a7f2' and "noti
+
+=== Orders list as Executive: 262.1 ms, 1 statements, items=50
+--- 189.8 ms | select "sales_orders"."id", "sales_orders"."entity_id", "sales_orders"."so_no", "sales_orders"."opportunity_id", "sales_orders"."quote_id", 
+
+=== ⌘K search "Ramesh Patel" as General Manager: 528.6 ms, 3 statements, items=-
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 459.4 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 0.3 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+
+=== ⌘K search "Rmesh" as General Manager: 619.0 ms, 3 statements, items=-
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 564.5 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 0.4 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+
+=== ⌘K search "98765" as General Manager: 50.0 ms, 2 statements, items=-
+--- 7.4 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 1.1 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+
+=== Lead list as General Manager: 21.1 ms, 2 statements, items=50
+--- 0.2 ms | select "id", "entity_id", "account_id", "site_id", "pipeline_id", "stage_id", "owner_id", "team_id", "score", "score_reasons_json", "score_c
+--- 3.2 ms | select "accounts"."id", "accounts"."type", "accounts"."name", "contacts"."id", "contacts"."name", "contact_phones"."e164" from "accounts" le
+
+=== Lead list by score as General Manager: 31.5 ms, 2 statements, items=50
+--- 0.4 ms | select "id", "entity_id", "account_id", "site_id", "pipeline_id", "stage_id", "owner_id", "team_id", "score", "score_reasons_json", "score_c
+--- 4.2 ms | select "accounts"."id", "accounts"."type", "accounts"."name", "contacts"."id", "contacts"."name", "contact_phones"."e164" from "accounts" le
+
+=== Lead search "Suresh" as General Manager: 475.5 ms, 2 statements, items=20
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 455.7 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+
+=== Account 360 as General Manager: 63.4 ms, 13 statements, items=-
+--- 0.5 ms | select "account_entities"."entity_id", "account_entities"."owner_id", "account_entities"."team_id", "accounts"."id", "accounts"."name", "acc
+--- 0.1 ms | select "id", "entity_id", "name", "archived_at", "created_at", "updated_at", "created_by", "updated_by" from "tags" where ("tags"."archived_
+--- 0.4 ms | select "activities"."id", "activities"."type", "activities"."opportunity_id", "activities"."actor_principal_id", "principals"."display_name"
+--- 0.5 ms | select "contacts"."id", "account_contacts"."role", "contacts"."name", "contacts"."email", "contacts"."preferred_language" from "account_cont
+--- 0.5 ms | select "contact_phones"."id", "contact_phones"."contact_id", "contact_phones"."e164", "contact_phones"."is_primary", "contact_phones"."is_wh
+--- 0.2 ms | select "id", "account_id", "type", "address", "village", "village_key", "tehsil", "district", "pin", "state_code", "pin_needs_review", "lat"
+--- 0.2 ms | select "opportunities"."id", "pipelines"."name", "pipeline_stages"."name", "opportunities"."state", "opportunities"."owner_id", "principals"
+--- 0.2 ms | select "tasks"."id", "tasks"."entity_id", "tasks"."opportunity_id", "tasks"."account_id", "tasks"."assignee_id", "tasks"."team_id", "tasks".
+--- 0.6 ms | select "consents"."id", "consents"."contact_id", "consents"."channel", "consents"."purpose", "consents"."source", "consents"."text_version",
+--- 0.1 ms | select "opportunity_tags"."opportunity_id", "tags"."id", "tags"."name" from "opportunity_tags" inner join "tags" on "tags"."id" = "opportuni
+--- 0.0 ms | select "display_name" from "principals" where "principals"."id" = '5f6550f4-34af-772a-8368-b7d2d626d51e' limit 1
+--- 0.2 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "quotes"."opportunity_id", "quotes"."account_id", "accounts"."name", "quote
+--- 0.3 ms | select "sales_orders"."id", "sales_orders"."entity_id", "sales_orders"."so_no", "sales_orders"."opportunity_id", "sales_orders"."quote_id", 
+
+=== Notification centre as General Manager: 9.2 ms, 1 statements, items=20
+--- 2.5 ms |  select p.id, p.entity_id, p.type, p.subject_type, p.subject_id, p.payload_json, p.created_at, p.created_at::text as created_text, p.read_at
+
+=== Bell count as General Manager: 2.2 ms, 1 statements, items=-
+--- 0.1 ms | select count(*)::int from (select 1 from "notifications" where ("notifications"."user_id" = '4a34fca2-5303-7b7b-86c3-c1d5e935a7f2' and "noti
+
+=== Orders list as General Manager: 7.7 ms, 1 statements, items=50
+--- 1.0 ms | select "sales_orders"."id", "sales_orders"."entity_id", "sales_orders"."so_no", "sales_orders"."opportunity_id", "sales_orders"."quote_id", 
+
+=== ⌘K search "Ramesh Patel" as Tele-caller: 254.0 ms, 3 statements, items=-
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 168.8 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 0.4 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+
+=== ⌘K search "Rmesh" as Tele-caller: 281.8 ms, 3 statements, items=-
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 242.1 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 0.3 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+
+=== ⌘K search "98765" as Tele-caller: 47.2 ms, 2 statements, items=-
+--- 7.6 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+--- 0.3 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "accounts"."name", "quotes"."state", "quotes"."valid_until" from "quotes" i
+
+=== Lead list as Tele-caller: 21.4 ms, 2 statements, items=50
+--- 0.2 ms | select "id", "entity_id", "account_id", "site_id", "pipeline_id", "stage_id", "owner_id", "team_id", "score", "score_reasons_json", "score_c
+--- 2.5 ms | select "accounts"."id", "accounts"."type", "accounts"."name", "contacts"."id", "contacts"."name", "contact_phones"."e164" from "accounts" le
+
+=== Lead list by score as Tele-caller: 26.8 ms, 2 statements, items=50
+--- 1.3 ms | select "id", "entity_id", "account_id", "site_id", "pipeline_id", "stage_id", "owner_id", "team_id", "score", "score_reasons_json", "score_c
+--- 2.6 ms | select "accounts"."id", "accounts"."type", "accounts"."name", "contacts"."id", "contacts"."name", "contact_phones"."e164" from "accounts" le
+
+=== Lead search "Suresh" as Tele-caller: 225.8 ms, 2 statements, items=20
+--- 0.0 ms | select set_config('pg_trgm.word_similarity_threshold', '0.4', true)
+--- 188.3 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."state", "pipelines"."key", "accounts"."name", "customer_sites"."v
+
+=== Account 360 as Tele-caller: 50.1 ms, 13 statements, items=-
+--- 0.3 ms | select "account_entities"."entity_id", "account_entities"."owner_id", "account_entities"."team_id", "accounts"."id", "accounts"."name", "acc
+--- 0.0 ms | select "id", "entity_id", "name", "archived_at", "created_at", "updated_at", "created_by", "updated_by" from "tags" where ("tags"."archived_
+--- 0.3 ms | select "activities"."id", "activities"."type", "activities"."opportunity_id", "activities"."actor_principal_id", "principals"."display_name"
+--- 0.4 ms | select "contacts"."id", "account_contacts"."role", "contacts"."name", "contacts"."email", "contacts"."preferred_language" from "account_cont
+--- 0.5 ms | select "contact_phones"."id", "contact_phones"."contact_id", "contact_phones"."e164", "contact_phones"."is_primary", "contact_phones"."is_wh
+--- 0.1 ms | select "id", "account_id", "type", "address", "village", "village_key", "tehsil", "district", "pin", "state_code", "pin_needs_review", "lat"
+--- 0.1 ms | select "opportunities"."id", "pipelines"."name", "pipeline_stages"."name", "opportunities"."state", "opportunities"."owner_id", "principals"
+--- 0.1 ms | select "tasks"."id", "tasks"."entity_id", "tasks"."opportunity_id", "tasks"."account_id", "tasks"."assignee_id", "tasks"."team_id", "tasks".
+--- 0.6 ms | select "consents"."id", "consents"."contact_id", "consents"."channel", "consents"."purpose", "consents"."source", "consents"."text_version",
+--- 0.1 ms | select "opportunity_tags"."opportunity_id", "tags"."id", "tags"."name" from "opportunity_tags" inner join "tags" on "tags"."id" = "opportuni
+--- 0.0 ms | select "display_name" from "principals" where "principals"."id" = '5f6550f4-34af-772a-8368-b7d2d626d51e' limit 1
+--- 0.1 ms | select "quotes"."id", "quotes"."entity_id", "quotes"."quote_no", "quotes"."opportunity_id", "quotes"."account_id", "accounts"."name", "quote
+--- 0.3 ms | select "sales_orders"."id", "sales_orders"."entity_id", "sales_orders"."so_no", "sales_orders"."opportunity_id", "sales_orders"."quote_id", 
+
+=== Notification centre as Tele-caller: 8.5 ms, 1 statements, items=20
+--- 2.3 ms |  select p.id, p.entity_id, p.type, p.subject_type, p.subject_id, p.payload_json, p.created_at, p.created_at::text as created_text, p.read_at
+
+=== Bell count as Tele-caller: 1.8 ms, 1 statements, items=-
+--- 0.1 ms | select count(*)::int from (select 1 from "notifications" where ("notifications"."user_id" = '5f6550f4-34af-772a-8368-b7d2d626d51e' and "noti
+
+=== Orders list as Tele-caller: 15.3 ms, 1 statements, items=50
+--- 5.1 ms | select "sales_orders"."id", "sales_orders"."entity_id", "sales_orders"."so_no", "sales_orders"."opportunity_id", "sales_orders"."quote_id", 
+
+=== Calling queue as Tele-caller: 156.8 ms, 2 statements, items=50
+--- 104.9 ms |  select r.id, r.entity_id, r.account_id, r.score, r.created_at, r.created_at::text as created_text, r.state, r.segment, r.stage_name, r.next
+--- 5.2 ms |  select o.id, a.name, s.village, right(p.e164, 4) as last4, exists ( select 1 from account_contacts ac join consents w on w.contact_id = ac.
+
+=== Calling queue of a team member as Sales Team Lead: 178.3 ms, 2 statements, items=50
+--- 105.3 ms |  select r.id, r.entity_id, r.account_id, r.score, r.created_at, r.created_at::text as created_text, r.state, r.segment, r.stage_name, r.next
+--- 4.9 ms |  select o.id, a.name, s.village, right(p.e164, 4) as last4, exists ( select 1 from account_contacts ac join consents w on w.contact_id = ac.
+
+=== Calling queue of a caller as General Manager: 129.2 ms, 2 statements, items=50
+--- 117.3 ms |  select r.id, r.entity_id, r.account_id, r.score, r.created_at, r.created_at::text as created_text, r.state, r.segment, r.stage_name, r.next
+--- 4.7 ms |  select o.id, a.name, s.village, right(p.e164, 4) as last4, exists ( select 1 from account_contacts ac join consents w on w.contact_id = ac.
+
+=== Converting board as Lead Converter: 71.8 ms, 7 statements, items=-
+--- 6.8 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."account_id", "opportunities"."state", "opportunities"."score", "o
+--- 9.8 ms | select "opportunity_id", max("created_at") from "activities" where ("activities"."opportunity_id" in ('a279aa93-a6e1-7685-8dce-d5c18cb8e273'
+--- 0.1 ms | select distinct on ("sizings"."opportunity_id") "sizings"."opportunity_id", "sizings"."kind", "sizings"."result_json" -> 'power' ->> 'standa
+--- 0.1 ms | select distinct "sizings"."opportunity_id" from "sizings" inner join "principals" on ("principals"."id" = "sizings"."created_by" and "princi
+--- 1.1 ms | select "opportunity_id", min("due_at") from "tasks" where ("tasks"."opportunity_id" in ('a279aa93-a6e1-7685-8dce-d5c18cb8e273', 'e52595ec-91
+--- 0.1 ms | select distinct on ("quotes"."opportunity_id") "opportunity_id", "id", "quote_no", "state", "valid_until", "grand_total" from "quotes" where
+--- 0.2 ms | select distinct on ("sales_orders"."opportunity_id") "opportunity_id", "id", "so_no", "credit_held_at", "grand_total" from "sales_orders" wh
+
+=== Converting board as General Manager: 11.4 ms, 1 statements, items=-
+--- 0.6 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."account_id", "opportunities"."state", "opportunities"."score", "o
+
+=== Converting board as Executive: 12.2 ms, 1 statements, items=-
+--- 0.7 ms | select "opportunities"."id", "opportunities"."entity_id", "opportunities"."account_id", "opportunities"."state", "opportunities"."score", "o

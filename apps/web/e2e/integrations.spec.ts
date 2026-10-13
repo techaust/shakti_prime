@@ -11,6 +11,7 @@ import { SEND_AGAIN_COMPANY, SNAPSHOT_COMPANY } from './support/users';
 
 const WAITING = 'Updates waiting to go out, by kind';
 const HELD = 'Updates held back after ten tries, newest first';
+const UPKEEP = 'Scheduled upkeep tasks and their last run';
 
 test.describe('as an Executive', () => {
   test.use(signedInAs('executive'));
@@ -29,6 +30,11 @@ test.describe('as an Executive', () => {
     const held = dataGrid(page, HELD);
     await expect(held.getByText('The step that handles it failed.')).toBeVisible();
     await expect(held.getByRole('button', { name: 'Send again' })).toBeVisible();
+
+    // Every scheduled upkeep task of the database has a row with its state (audit 2026-10, DATA-3).
+    const upkeep = dataGrid(page, UPKEEP);
+    await expect(upkeep.getByText('Clear out updates sent more than 30 days ago')).toBeVisible();
+    await expect(upkeep.getByText('Make room for next months’ customer history')).toBeVisible();
 
     // Locally and in CI no queue is configured, so the check's worker runs in the app itself.
     await page.getByRole('button', { name: 'Check delivery speed' }).click();

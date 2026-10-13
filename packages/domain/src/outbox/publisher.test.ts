@@ -1,7 +1,6 @@
 import { newId } from '@shakti/contracts';
-import type * as Contracts from '@shakti/contracts';
 import type { ClaimOutbox, OutboxRow, OutboxUpdate } from '@shakti/db';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { memoryEventPublisher, type EventPublisher } from '../ports/event-publisher';
 import { memoryLogger } from '../ports/logger';
 import {
@@ -10,12 +9,6 @@ import {
   OUTBOX_MAX_ATTEMPTS,
   runOutboxPublisher,
 } from './publisher';
-
-// Nothing is subscribed in Phase 0, so these tests switch one type on through the catalogue.
-vi.mock('@shakti/contracts', async (importOriginal) => {
-  const actual = await importOriginal<typeof Contracts>();
-  return { ...actual, isSubscribed: (type: string) => type === 'crm.lead.created' };
-});
 
 let sequence = 0;
 function row(overrides: Partial<OutboxRow> = {}): OutboxRow {
@@ -29,6 +22,7 @@ function row(overrides: Partial<OutboxRow> = {}): OutboxRow {
     aggregateId: newId(),
     payload: { v: 1, pipelineKey: 'pump', sourceCode: null, existingAccount: false },
     attempts: 0,
+    replays: 0,
     createdAt: new Date(),
     ...overrides,
   };
@@ -84,6 +78,28 @@ describe('runOutboxPublisher', () => {
     expect(counts).toMatchObject({ claimed: 1, published: 0, skipped: 1 });
     expect(publisher.sent).toEqual([]);
     expect(seen.updates).toEqual([{ id: quiet.id, outcome: 'published' }]);
+  });
+
+  it('marks an imported lead as delivered without sending it: no worker acts on it', async () => {
+    const imported = row({
+      payload: {
+        v: 1,
+        pipelineKey: 'pump',
+        sourceCode: null,
+        existingAccount: false,
+        imported: true,
+      },
+    });
+    const fresh = row();
+    const { claim, seen } = claimOf([imported, fresh]);
+    const publisher = memoryEventPublisher();
+    const counts = await runOutboxPublisher({ claim, publisher });
+    expect(counts).toMatchObject({ claimed: 2, published: 1, skipped: 1 });
+    expect(publisher.sent.map((e) => e.id)).toEqual([fresh.id]);
+    expect(seen.updates).toEqual([
+      { id: imported.id, outcome: 'published' },
+      { id: fresh.id, outcome: 'published' },
+    ]);
   });
 
   it('counts a refused event as one more attempt and keeps a short code', async () => {
@@ -318,5 +334,126 @@ describe('runOutboxPublisher and its dead letters (docs/03-roadmap-appendix/phas
       onDeadLettered: (ids) => seen.push(ids),
     });
     expect(seen).toEqual([]);
+  });
+});
+
+/** A claim over a backlog: each call leases the next rows in order, as the database does. */
+function backlogClaim(rows: OutboxRow[]) {
+  const claims: number[] = [];
+  const claim: ClaimOutbox = async (limit, deliver) => {
+    const taken = rows.splice(0, limit);
+    claims.push(taken.length);
+    if (taken.length > 0) await deliver(taken);
+    return { claimed: taken.length, deadLettered: [] };
+  };
+  return { claim, claims };
+}
+
+describe('runOutboxPublisher over a backlog (audit 2026-10, DATA-2)', () => {
+  it('claims once without a budget, as before', async () => {
+    const { claim, claims } = backlogClaim(Array.from({ length: 5 }, () => row()));
+    const counts = await runOutboxPublisher({ claim, publisher: memoryEventPublisher(), limit: 2 });
+    expect(claims).toEqual([2]);
+    expect(counts.claimed).toBe(2);
+  });
+
+  it('claims again while each claim comes back full, until the backlog is drained', async () => {
+    const { claim, claims } = backlogClaim(Array.from({ length: 5 }, () => row()));
+    const publisher = memoryEventPublisher();
+    const counts = await runOutboxPublisher({ claim, publisher, limit: 2, budgetMs: 30_000 });
+    expect(claims).toEqual([2, 2, 1]);
+    expect(counts).toMatchObject({ claimed: 5, published: 5 });
+  });
+
+  it('starts no further claim once its budget has passed', async () => {
+    const { claim, claims } = backlogClaim(Array.from({ length: 10 }, () => row()));
+    let clock = 0;
+    await runOutboxPublisher({
+      claim,
+      publisher: memoryEventPublisher(),
+      limit: 2,
+      budgetMs: 1_000,
+      now: () => {
+        const at = clock;
+        clock += 600;
+        return at;
+      },
+    });
+    // Started at 0; after the first claim 600 ms have passed, after the second 1,200.
+    expect(claims).toEqual([2, 2]);
+  });
+
+  it('stops when every event of a claim failed: the queue is down and the rest waits', async () => {
+    const { claim, claims } = backlogClaim(Array.from({ length: 6 }, () => row()));
+    const counts = await runOutboxPublisher({
+      claim,
+      publisher: memoryEventPublisher(() => 'http_503'),
+      limit: 2,
+      budgetMs: 30_000,
+    });
+    expect(claims).toEqual([2]);
+    expect(counts).toMatchObject({ claimed: 2, failed: 2 });
+  });
+});
+
+describe('runOutboxPublisher and Send again (audit 2026-10, DATA-1)', () => {
+  it('sends a replayed event under its generation, so the queue delivers it again', async () => {
+    const publisher = memoryEventPublisher();
+    const event = row();
+    await runOutboxPublisher({ claim: claimOf([event]).claim, publisher });
+    const again = { ...event, replays: 1 };
+    const { claim, seen } = claimOf([again]);
+    const counts = await runOutboxPublisher({ claim, publisher });
+    expect(counts).toMatchObject({ published: 1, failed: 0 });
+    expect(publisher.sent.map((e) => e.id)).toEqual([event.id, event.id]);
+    expect([...publisher.deduplicationIds]).toEqual([event.id, `${event.id}:1`]);
+    expect(seen.updates).toEqual([{ id: event.id, outcome: 'published' }]);
+  });
+
+  it('holds back the first try of a replay the queue answered as already sent', async () => {
+    const replayed = row({ replays: 2 });
+    const { claim, seen } = claimOf([replayed]);
+    const publisher: EventPublisher = {
+      publish: (events) =>
+        Promise.resolve(events.map((e) => ({ id: e.id, ok: true, deduplicated: true }))),
+    };
+    const dead: (readonly string[])[] = [];
+    const counts = await runOutboxPublisher({
+      claim,
+      publisher,
+      onDeadLettered: (ids) => dead.push(ids),
+    });
+    expect(counts).toMatchObject({ published: 0, failed: 1, deadLettered: 1 });
+    expect(seen.updates).toEqual([
+      {
+        id: replayed.id,
+        outcome: 'failed',
+        attempts: 1,
+        lastError: 'queue_deduplicated',
+        deadLetter: true,
+      },
+    ]);
+    expect(dead).toEqual([[replayed.id]]);
+  });
+
+  it('counts a later try of a generation answered as already sent as delivered: an earlier try got through', async () => {
+    const retried = row({ replays: 1, attempts: 2 });
+    const first = row({ attempts: 0 });
+    const { claim, seen } = claimOf([retried, first]);
+    const generations: (ReadonlyMap<string, number> | undefined)[] = [];
+    const publisher: EventPublisher = {
+      publish: (events, given) => {
+        generations.push(given);
+        return Promise.resolve(events.map((e) => ({ id: e.id, ok: true, deduplicated: true })));
+      },
+    };
+    const counts = await runOutboxPublisher({ claim, publisher });
+    expect(counts).toMatchObject({ published: 2, failed: 0 });
+    expect(seen.updates).toEqual([
+      { id: retried.id, outcome: 'published' },
+      { id: first.id, outcome: 'published' },
+    ]);
+    // Only a replayed event is named; every other one is in its first generation.
+    expect(generations).toEqual([new Map([[retried.id, 1]])]);
   });
 });

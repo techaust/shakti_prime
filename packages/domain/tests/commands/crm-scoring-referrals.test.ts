@@ -569,6 +569,8 @@ describe('crm.lead.score_refresh', () => {
       // Nothing moved since: the next night writes nothing.
       const again = await sweep(workers(1));
       expect(again.rescored).toBe(0);
+      // Not even an audit row for a batch that changed nothing (audit 2026-10, DATA-6).
+      expect(again.audit).toEqual([]);
     } finally {
       await asMigrator(
         (m) => m`update lead_score_rules set archived_at = now() where created_by = ${exec.id}`,

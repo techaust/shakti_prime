@@ -119,6 +119,70 @@ export const AgentSpend = z
   .strict();
 export type AgentSpend = z.infer<typeof AgentSpend>;
 
+/**
+ * The database's scheduled jobs (pg_cron, docs/05-database.md §7), by their job names. The check and
+ * the page expect each of them; a job the database no longer schedules is `missing`.
+ */
+export const DATABASE_JOBS = [
+  'activities-partitions',
+  'audit-logs-detach',
+  'audit-logs-partitions',
+  'idempotency-keys-purge',
+  'outbox-events-purge',
+] as const;
+export const DatabaseJobSchema = z.enum(DATABASE_JOBS);
+export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
+
+/**
+ * How often each job is meant to run, in hours, shown for a job the database no longer schedules
+ * (a scheduled job's period is read from its own schedule): the partition makers and the purges
+ * daily, the audit archive monthly (31 days), and the activity partitions on the 25th.
+ */
+export const DATABASE_JOB_EVERY_HOURS: Readonly<Record<DatabaseJob, number>> = {
+  'activities-partitions': 31 * 24,
+  'audit-logs-detach': 31 * 24,
+  'audit-logs-partitions': 24,
+  'idempotency-keys-purge': 24,
+  'outbox-events-purge': 24,
+};
+
+/**
+ * Where a scheduled job stands, worst first:
+ * - `missing`: the database no longer schedules it;
+ * - `paused`: it is scheduled but switched off;
+ * - `failed`: its last run failed, as pg_cron recorded it or as the job recorded it itself;
+ * - `stuck`: its last run has gone on longer than its time limit, and pg_cron starts no other
+ *   run of the job while it lasts;
+ * - `running`: its last run has not finished, within its time limit;
+ * - `late`: it has not run for longer than its period and a margin;
+ * - `waiting`: it has never run, and its first run is not yet due;
+ * - `ok`: its last run finished without an error.
+ */
+export const SCHEDULED_JOB_STATES = [
+  'missing',
+  'paused',
+  'failed',
+  'stuck',
+  'running',
+  'late',
+  'waiting',
+  'ok',
+] as const;
+export const ScheduledJobStateSchema = z.enum(SCHEDULED_JOB_STATES);
+export type ScheduledJobState = z.infer<typeof ScheduledJobStateSchema>;
+
+/** One scheduled job on Integration Health: its state, its last run and how often it runs. */
+export const ScheduledJobHealth = z
+  .object({
+    job: DatabaseJobSchema,
+    state: ScheduledJobStateSchema,
+    lastRunAt: Instant.nullable(),
+    lastFinishedAt: Instant.nullable(),
+    everyHours: z.number().int().min(1),
+  })
+  .strict();
+export type ScheduledJobHealth = z.infer<typeof ScheduledJobHealth>;
+
 /** `GET /admin/integrations?cursor=&limit=`: the cursor pages the dead letters, newest first. */
 export const IntegrationHealthQuery = z
   .object({
@@ -195,6 +259,8 @@ export const IntegrationHealthResponse = z
       .strict(),
     connectors: z.array(ConnectorHealth),
     whatsapp: z.array(WhatsAppNumberHealth),
+    /** The database's scheduled jobs, each with its state and last run (audit 2026-10, DATA-3). */
+    jobs: z.array(ScheduledJobHealth),
     aiSpend: z
       .object({
         today: MoneySchema,

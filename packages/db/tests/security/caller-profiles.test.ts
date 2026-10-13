@@ -267,9 +267,10 @@ describe('the handover definers', () => {
         'notifications.send',
         'knowledge.index',
         'crm.handover.run',
+        'platform.jobs.check',
       ]),
     );
-    expect(list?.keys).toHaveLength(8);
+    expect(list?.keys).toHaveLength(9);
   });
 
   it('refuses a caller without it, and a company outside the request', async () => {

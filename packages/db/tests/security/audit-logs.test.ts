@@ -308,7 +308,11 @@ describe('monthly partitions (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.
       `,
     );
     expect(jobs).toEqual([
-      { schedule: '0 3 * * *', command: 'select app.ensure_audit_partitions(3)' },
+      {
+        schedule: '0 3 * * *',
+        command:
+          "set lock_timeout = '5s'; set statement_timeout = '2min'; select app.ensure_audit_partitions(3)",
+      },
     ]);
   });
 });

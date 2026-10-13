@@ -7,6 +7,8 @@ export type HeldReasonKey = 'queue' | 'worker' | 'retired' | 'interrupted' | 'ot
 /** Codes the delivery service or the publisher records when the service did not take an update. */
 const QUEUE_CODES: ReadonlySet<string> = new Set([
   'queue_refused',
+  // A replay the service answered as already sent, so it sent nothing (DATA-1).
+  'queue_deduplicated',
   'queue_not_configured',
   'no_answer',
   'publish_failed',

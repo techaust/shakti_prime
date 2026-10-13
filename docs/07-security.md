@@ -87,7 +87,7 @@ Each arrow into the BOS crosses a check: a session with its second factor, a pro
 - **Deployment guard:**
   - Every production runtime is hosted except a build started with `BOS_ENVIRONMENT=local` whose `BETTER_AUTH_URL` is on localhost, 127.0.0.1 or [::1] and which is not on Vercel (the end-to-end journeys and Lighthouse on a developer's machine or a CI runner).
   - A hosted runtime refuses to start with a missing variable, a published or short `BETTER_AUTH_SECRET`, a non-https base URL, Cloudflare's Turnstile test keys, or a mail setting other than `ses` or `log` (production accepts only `ses`, Amazon SES with its verified sender).
-  - Readiness checks both database connections, the key-value store (a write and read back), the configuration and the outbox (down when a due event has waited more than five minutes since it became due). The public route answers only ready or not ready, capped at 20 calls a minute per address, and names the failing check in the log alone.
+  - Readiness checks both database connections, the queries' reader pool when it is set, the key-value store (a write and read back), the configuration and the outbox (down when a due event has waited more than five minutes since it became due). The public route answers only ready or not ready, capped at 20 calls a minute per address, and names the failing check in the log alone.
 - **Mobile:** 15-minute access tokens, rotating refresh tokens in the Android Keystore, per-device revocation, minimum-version gate.
 - **Voice:** a 5-minute user-scoped token per session so the worker acts as the speaking user.
 - **Realtime:** BOS-signed ES256 JWT (≤ 15 min) with Realtime-only claims, verified by Supabase with the BOS public key imported as a standby signing key, since Supabase's third-party auth accepts named vendors only (ADR 0003, ARCHITECTURE §8).
@@ -103,7 +103,7 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 - **Who may hold a permission** is fixed, whoever writes (BLUEPRINT §7.1 to §7.3; `roleMayHold()` in `@shakti/contracts` and `app.role_may_hold()`, which a security test compares for every role and permission):
   - every `admin.*` permission and `integrations.dlq.replay`: the Executive role only (`EXECUTIVE_ONLY_PERMISSIONS`);
   - `finance.cost.read`: Executive and Accounts only; `procurement.rate.read`: Executive, Inventory Manager and Accounts only (`COST_PERMISSION_HOLDERS`);
-  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`, `knowledge.index`, `crm.handover.run`): a system role only.
+  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`, `knowledge.index`, `crm.handover.run`, `platform.jobs.check`): a system role only.
 - The command refuses any other holder (`permission_not_for_role`, `permission_platform_only`), the trigger `role_permissions_holder_guard` refuses it in the database, the seed included, and the editor shows such a permission locked with its reason.
 - Each permission is offered only at the scopes it honours (`PERMISSION_SCOPES`, the scopes the matrix in §3.2 uses for it: `admin.*` all companies, the cost permissions a company or all; `scope_not_offered`).
 - The Executive role always keeps `admin.roles.write:all` and `admin.users.write:all` (`EXECUTIVE_KEPT_GRANTS`, `executive_keeps_admin`), which a deferred constraint trigger also checks at the end of every transaction, so the group cannot lock itself out.
@@ -177,6 +177,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `notifications.send` | – | – | – | – | – | – | – | – | – | – | – |
 | `knowledge.index` | – | – | – | – | – | – | – | – | – | – | – |
 | `crm.handover.run` | – | – | – | – | – | – | – | – | – | – | – |
+| `platform.jobs.check` | – | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
 
@@ -243,7 +244,7 @@ The duplicates and merges ([phase 1 design §7.4](03-roadmap-appendix/phase1.md#
 | `system:workers` | The system principal the event workers act as (`apps/web/src/workers/events`): one seeded principal of kind `system`, scoped to the company of the event it handles; its grants are listed under [the worker principal](#the-worker-principals-grants). It holds no `crm.*` permission a person may hold, so no lead, customer or note reaches it through the policies, and it reads customers as an agent does (ADR 0020, decided by the owner on 09-10-2026): a request is a service's for the read rules when its role key is `agent:%` or `system:%` or its principal row is of kind `agent` or `system` (0064), but only an agent's lead handover, or a system request without `crm.handover.run`, leaves the customer relationship where it is (0125) |
 
 #### The worker principal's grants
-`SYSTEM_MATRIX` (`packages/contracts/src/system-principal.ts`) holds eight grants, all at scope `all`, which the seed writes and the workers build their principal from. Each worker reads and writes through definers that check the permission ([DATABASE §4.1](05-database.md#41-settings-per-transaction)). Each later worker adds only the grant its command needs, and never a cost, admin, audit, integrations or sensitive-document permission.
+`SYSTEM_MATRIX` (`packages/contracts/src/system-principal.ts`) holds nine grants, all at scope `all`, which the seed writes and the workers build their principal from. Each worker reads and writes through definers that check the permission ([DATABASE §4.1](05-database.md#41-settings-per-transaction)). Each later worker adds only the grant its command needs, and never a cost, admin, audit, integrations or sensitive-document permission.
 
 | Grant | What it is for |
 |---|---|
@@ -254,6 +255,7 @@ The duplicates and merges ([phase 1 design §7.4](03-roadmap-appendix/phase1.md#
 | `sales.quote.expire` | The daily quote expiry (`sales.quote.expire`): it reads one company's lapsed draft and sent quotes through `app.lapsed_quotes()` and marks them expired through `app.expire_quotes()` |
 | `notifications.send` | The notify worker and its scan (`notifications.event.notify`, `notifications.due.scan`, `notifications.push.record`): they find who a notice is for, write it and record its push only through the notification definers (`app.notice_*()`, `app.write_notices()`, `app.record_notice_push()`) |
 | `crm.handover.run` | The handover worker (`crm.opportunity.hand_over`): it reads the facts of a lead that reached Qualified and the people who could take it, gives the lead over (owner, team, lock, callbacks and nurture calls, timeline) and files routed work for the Sales Team Lead only through the handover definers, and moves the customer relationship through `app.hand_over_customer()`; it holds no `crm.*` permission a person may hold |
+| `platform.jobs.check` | The hourly check of the database's scheduled jobs (`apps/web/src/workers/jobs-check.ts`, audit 2026-10 DATA-3): it reads each pg_cron job's last run and the job's own record of it through `app.scheduled_jobs()` (DATABASE §4.1), answers no row of any company, and tells the owner of a job that failed, is stuck, is late, paused or missing |
 | `knowledge.index` | The Knowledge Vault's index job (`knowledge.file.record_index`): it reads the facts of a vault file waiting to be read and records its passages only through the vault definers (`app.knowledge_files_waiting_on()`, `app.knowledge_file_for_index()`, `app.record_knowledge_index()`), and never reads a vault file by its sensitivity |
 
 The delivery check's worker writes no row.
