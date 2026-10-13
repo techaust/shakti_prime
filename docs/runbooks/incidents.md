@@ -20,6 +20,7 @@ Never send a password, key or secret value; a screenshot of a settings page is c
 8. [The AI service is down or an agent has stopped](#8-the-ai-service-is-down-or-an-agent-has-stopped)
 9. [CI jobs do not start](#9-ci-jobs-do-not-start)
 10. [Trouble on the owner's PC](#10-trouble-on-the-owners-pc)
+11. [A scheduled job failed or stopped](#11-a-scheduled-job-failed-or-stopped)
 
 ## 1. The site is down
 1. Open `<site>/api/v1/health`. A 200 means the app is running; no answer means the deployment itself is down (go to step 3).
@@ -97,3 +98,11 @@ Slices are built and checked on the PC ([CLAUDE.md](../../CLAUDE.md)), which has
   2. Turn on *View* › *Show* › *Hidden items* if no folder named `.shakti-heavy.lock` shows.
   3. Right-click `.shakti-heavy.lock` › **Delete**. Its file `owner` says which command held it, if the lead session asks.
   4. Leave the folder `.shakti-heavy.lock.queue` beside it alone: it holds the waiting commands' places in the queue.
+
+## 11. A scheduled job failed or stopped
+Two kinds of work run on a timer: the app's worker routes, which QStash calls (the file sweep, the nightly rescoring and duplicate search, the quote expiry, the notification scan and the jobs check), and the database's own jobs, which pg_cron runs (the partitions, the purges and the audit archive). Sentry's second alert rule ([DEPLOY §1](deploy.md#1-before-the-first-deploy-once-per-environment) step 8) emails the owner about either.
+1. **`job.failing`** names a worker route (`job`, the schedule's id without its environment) that failed three calls in a row. In Sentry, the issue named after the route's failure line (for example `sales.quote_expiry_failed`) holds the error with its request id; send it to the developer. Check in the Upstash console › QStash › Schedules that the schedule `<job>-<environment>` exists and calls the site's address.
+2. **`job.problem`** names a database job (`job`) and what is wrong (`problem`): `failed` (its last run failed), `late` (it has not run for its period and six hours), `paused` (it is switched off) or `missing` (the database no longer schedules it). **Admin › Integration health** shows each job's last run. Send the alert and the page to the developer, who reads the error in the app's log (`jobs.problem`, with the job and the database's message) and, after the owner's go-ahead, runs the job again in the project's SQL editor; a `missing` or `paused` job comes back with the migration that schedules it ([DEPLOY §2](deploy.md#2-every-deploy) step 5).
+3. **A failed `activities-partitions` month** needs care: once a month's rows have landed in the default partition, that month's partition cannot be made until the developer moves them out (DATABASE §7). Tell the developer the same day; nothing is lost meanwhile, the timeline only reads more slowly.
+4. Each problem is told once per job and run, and again after a week while it lasts; a job that runs well again clears it by itself.
+
