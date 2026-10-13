@@ -93,7 +93,7 @@ After the early check passed. Skills as before (`supabase-postgres-best-practice
 - `pnpm copy-lint`: clean. `pnpm --filter web js-budget`: every page within its budget (46 pages).
 - Security suite on 54337 (`pnpm test:security`): db 42 files, 1,206 tests; domain 72 files, 932 tests; web after the nudge fix 24 files, 309 tests, all passed.
 - Journeys: `integrations.spec.ts` on the production build, 22 passed with snapshots ignored (axe included). With snapshots, `integration-health` fails in all three projects, as it must: the page has a new section.
-- `pnpm lint` (whole repository): see the last line below.
+- After the nudge fix and this report: `pnpm build` passed, the journey `integrations.spec.ts` again 22 passed (snapshots ignored), and the whole-repository `pnpm lint` passed with no warning, the last check.
 
 **Screenshot baselines the lead must remake** (Linux, fresh database): `apps/web/e2e/__screenshots__/{desktop-light,desktop-dark,phone}/integrations.spec.ts/integration-health.png`.
 
