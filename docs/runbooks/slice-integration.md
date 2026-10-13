@@ -55,7 +55,8 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
 ## 8. Pull request and merge
 - Push the branch and open the pull request from the [template](../../.github/pull_request_template.md): what it builds, its migrations, the definition-of-done list, its checks and anything left for the owner. End the body with the Claude Code line.
 - The merge-on-green workflow merges it when CI passes ([AGENTS §8](../../AGENTS.md#8-git-and-pull-requests)). Nobody merges by hand or pushes to `main`. A commit pushed after CI started is not in the merge: check with `git merge-base --is-ancestor <sha> origin/main` and carry it in the next pull request.
-- The `hold` label stops a merge; after removing it, re-run the CI run (`gh run rerun <id>`), since the workflow acts only when a run finishes.
+- The `hold` label stops a merge; after removing it, have the workflow look again (`gh workflow run automerge.yml -f pull_request=<number>`), or wait for its next look (four a day); a re-run of the CI run (`gh run rerun <id>`) does it too.
+- A pull request that changes `.github/`, `turbo.json` or a vitest or Playwright config waits for the owner's `checks-ok` label; tell the owner it is waiting, and look again once the label is on. When `main` moved after the pull request's run, the workflow takes `main` into the branch and starts CI on it; a branch that conflicts is the lead's to take `main` into by hand ([TESTING §6](../09-testing.md#6-what-ci-runs)).
 
 ## 9. Hosted environments
 After a pull request with migrations merges and CI on `main` is green: migrate dev, then staging, and check both, as [DEPLOY §2](deploy.md#2-every-deploy) says; the `migrate-hosted` skill runs it from the PC under the owner's standing go-ahead ([DECISIONS](../11-decisions.md)). Anything else on a hosted service asks the owner first. If a step fails, [INCIDENTS](incidents.md) says what to do.
