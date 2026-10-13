@@ -18,7 +18,7 @@ export interface JobsCheckOptions {
 /**
  * The hourly check of the database's scheduled jobs (audit 2026-10, DATA-3): reads each job's last
  * run as `system:workers`, which holds the platform-only `platform.jobs.check` and nothing of
- * any company, and tells the owner of each job that failed, is late, is paused or is missing
+ * any company, and tells the owner of each job that failed, is stuck, is late, is paused or is missing
  * (`job.problem`, with the job and its state). Each problem is raised once per job, state and last
  * run, and again after a week while it lasts; the error behind a failure goes to the log, redacted,
  * never into the alert.
