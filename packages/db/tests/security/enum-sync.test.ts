@@ -140,8 +140,9 @@ const PAIRS: Record<string, readonly string[]> = {
   quotes_withdrawn_reason_check: QuoteStateSchema.extract(['withdrawn']).options,
   quote_lines_unit_check: ItemUnitSchema.options,
   quotes_accepted_via_check: QuoteAcceptedViaSchema.options,
-  // An accepted quote says how; the signed copy is named exactly for a signed upload.
-  quotes_acceptance_check: ['accepted', 'signed_upload'],
+  // An accepted quote says how, and keeps it when its draft order is cancelled and it is withdrawn;
+  // the signed copy is named exactly for a signed upload.
+  quotes_acceptance_check: ['accepted', 'signed_upload', 'withdrawn'],
   sales_orders_account_type_check: AccountTypeSchema.options,
   sales_orders_state_check: SalesOrderStateSchema.options,
   sales_orders_supply_kind_check: SupplyKindSchema.options,
