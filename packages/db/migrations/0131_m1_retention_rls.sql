@@ -71,6 +71,10 @@ update public.opportunities o
                       and t.position >= q.position));
 --> statement-breakpoint
 
+-- Steps 4 to 7 are PL/pgSQL, whose statements' plans are kept for the session: as SQL functions
+-- called from one another they were planned again on every call, which made 500 checks take
+-- 1.5 s instead of about 0.1 s.
+--
 -- 4. Why a lead is kept, whatever the time, or null when nothing keeps it. First the reasons that
 --    never come undone: won; Qualified reached (`qualified_at`); a quote, an order or a commission
 --    of it or its customer; the customer's dealer credit or referral partner record; another lead
@@ -80,41 +84,45 @@ update public.opportunities o
 --    type as a dealer or referral partner (`dealer`) and a merge that stands (`merge`). Payments and
 --    projects arrive in later phases: their slices add their tables here.
 create or replace function app.lead_kept_reason(p_lead uuid) returns text
-  language sql stable set search_path = '' as $$
-  select case
-           when o.state = 'won' then 'won'
-           when o.qualified_at is not null then 'qualified'
-           when exists (select 1 from public.quotes x where x.opportunity_id = o.id)
-             or exists (select 1 from public.quotes x where x.account_id = a.id) then 'quote'
-           when exists (select 1 from public.sales_orders x where x.opportunity_id = o.id)
-             or exists (select 1 from public.sales_orders x where x.account_id = a.id) then 'order'
-           when exists (select 1 from public.commission_accruals x where x.opportunity_id = o.id)
-             then 'commission'
-           when exists (select 1 from public.dealer_terms x where x.account_id = a.id)
-             or exists (select 1 from public.dealer_outstanding x where x.account_id = a.id)
-             then 'dealer_credit'
-           when exists (select 1 from public.referral_partners x where x.account_id = a.id)
-             then 'referral_partner'
-           when exists (select 1 from public.opportunities x
-                         where x.account_id = a.id and x.id <> o.id
-                           and (x.state = 'won' or x.qualified_at is not null))
-             then 'other_lead'
-           when exists (select 1 from public.account_entities e
-                         where e.account_id = a.id
-                           and not exists (select 1 from public.opportunities x
-                                            where x.account_id = a.id
-                                              and x.entity_id = e.entity_id))
-             then 'customer'
-           when a.type not in ('household', 'farm', 'business') then 'dealer'
-           when exists (select 1 from public.customer_merges x
-                         where x.kept_account_id = a.id and x.undone_at is null)
-             or exists (select 1 from public.customer_merges x
-                         where x.merged_account_id = a.id and x.undone_at is null)
-             then 'merge'
-         end
-    from public.opportunities o
-    join public.accounts a on a.id = o.account_id
-   where o.id = p_lead
+  language plpgsql stable set search_path = '' as $$
+begin
+  return (
+    select case
+             when o.state = 'won' then 'won'
+             when o.qualified_at is not null then 'qualified'
+             when exists (select 1 from public.quotes x where x.opportunity_id = o.id)
+               or exists (select 1 from public.quotes x where x.account_id = a.id) then 'quote'
+             when exists (select 1 from public.sales_orders x where x.opportunity_id = o.id)
+               or exists (select 1 from public.sales_orders x where x.account_id = a.id) then 'order'
+             when exists (select 1 from public.commission_accruals x where x.opportunity_id = o.id)
+               then 'commission'
+             when exists (select 1 from public.dealer_terms x where x.account_id = a.id)
+               or exists (select 1 from public.dealer_outstanding x where x.account_id = a.id)
+               then 'dealer_credit'
+             when exists (select 1 from public.referral_partners x where x.account_id = a.id)
+               then 'referral_partner'
+             when exists (select 1 from public.opportunities x
+                           where x.account_id = a.id and x.id <> o.id
+                             and (x.state = 'won' or x.qualified_at is not null))
+               then 'other_lead'
+             when exists (select 1 from public.account_entities e
+                           where e.account_id = a.id
+                             and not exists (select 1 from public.opportunities x
+                                              where x.account_id = a.id
+                                                and x.entity_id = e.entity_id))
+               then 'customer'
+             when a.type not in ('household', 'farm', 'business') then 'dealer'
+             when exists (select 1 from public.customer_merges x
+                           where x.kept_account_id = a.id and x.undone_at is null)
+               or exists (select 1 from public.customer_merges x
+                           where x.merged_account_id = a.id and x.undone_at is null)
+               then 'merge'
+           end
+      from public.opportunities o
+      join public.accounts a on a.id = o.account_id
+     where o.id = p_lead
+  );
+end
 $$;
 --> statement-breakpoint
 revoke execute on function app.lead_kept_reason(uuid) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
@@ -124,32 +132,36 @@ revoke execute on function app.lead_kept_reason(uuid) from public, app_user, app
 --    not yet anonymised; made, changed and moved before the cutoff; no call, task (changed or due),
 --    sizing, Agent Inbox item or agent proposal since; no open duplicate card of leads.
 create or replace function app.lead_idle(p_lead uuid, p_cutoff timestamptz) returns boolean
-  language sql stable set search_path = '' as $$
-  select exists (
-    select 1
-      from public.opportunities o
-     where o.id = p_lead
-       and o.anonymised_at is null
-       and o.created_at < p_cutoff
-       and o.updated_at < p_cutoff
-       and o.state_changed_at < p_cutoff
-       and not exists (select 1 from public.calls x
-                        where x.opportunity_id = o.id
-                          and (x.started_at >= p_cutoff or x.created_at >= p_cutoff))
-       and not exists (select 1 from public.tasks x
-                        where x.opportunity_id = o.id
-                          and (x.updated_at >= p_cutoff or x.due_at >= p_cutoff))
-       and not exists (select 1 from public.sizings x
-                        where x.opportunity_id = o.id and x.created_at >= p_cutoff)
-       and not exists (select 1 from public.inbox_items x
-                        where x.subject_id = o.id and x.updated_at >= p_cutoff)
-       and not exists (select 1 from public.agent_actions x
-                        where x.input_json ->> 'opportunityId' = o.id::text
-                          and (x.created_at >= p_cutoff or x.decided_at >= p_cutoff))
-       and not exists (select 1 from public.duplicate_candidates x
-                        where x.kind = 'lead' and x.opportunity_id = o.id and x.state = 'open')
-       and not exists (select 1 from public.duplicate_candidates x
-                        where x.other_opportunity_id = o.id and x.state = 'open'))
+  language plpgsql stable set search_path = '' as $$
+begin
+  return (
+    select exists (
+      select 1
+        from public.opportunities o
+       where o.id = p_lead
+         and o.anonymised_at is null
+         and o.created_at < p_cutoff
+         and o.updated_at < p_cutoff
+         and o.state_changed_at < p_cutoff
+         and not exists (select 1 from public.calls x
+                          where x.opportunity_id = o.id
+                            and (x.started_at >= p_cutoff or x.created_at >= p_cutoff))
+         and not exists (select 1 from public.tasks x
+                          where x.opportunity_id = o.id
+                            and (x.updated_at >= p_cutoff or x.due_at >= p_cutoff))
+         and not exists (select 1 from public.sizings x
+                          where x.opportunity_id = o.id and x.created_at >= p_cutoff)
+         and not exists (select 1 from public.inbox_items x
+                          where x.subject_id = o.id and x.updated_at >= p_cutoff)
+         and not exists (select 1 from public.agent_actions x
+                          where x.input_json ->> 'opportunityId' = o.id::text
+                            and (x.created_at >= p_cutoff or x.decided_at >= p_cutoff))
+         and not exists (select 1 from public.duplicate_candidates x
+                          where x.kind = 'lead' and x.opportunity_id = o.id and x.state = 'open')
+         and not exists (select 1 from public.duplicate_candidates x
+                          where x.other_opportunity_id = o.id and x.state = 'open'))
+  );
+end
 $$;
 --> statement-breakpoint
 revoke execute on function app.lead_idle(uuid, timestamptz) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
@@ -162,39 +174,43 @@ revoke execute on function app.lead_idle(uuid, timestamptz) from public, app_use
 --    (step 4); a customer several companies know goes once every company's leads of it are stale.
 create or replace function app.customer_idle(p_account uuid, p_cutoff timestamptz)
   returns boolean
-  language sql stable set search_path = '' as $$
-  select exists (
-    select 1
-      from public.accounts a
-     where a.id = p_account
-       and a.anonymised_at is null
-       and a.updated_at < p_cutoff
-       and not exists (select 1 from public.duplicate_candidates x
-                        where x.account_id = a.id and x.state = 'open')
-       and not exists (select 1 from public.duplicate_candidates x
-                        where x.other_account_id = a.id and x.state = 'open')
-       and not exists (select 1
-                         from public.account_contacts ac
-                         join public.account_contacts x
-                           on x.contact_id = ac.contact_id and x.account_id <> ac.account_id
-                        where ac.account_id = a.id)
-       and not exists (select 1 from public.activities x
-                        where x.account_id = a.id and x.created_at >= p_cutoff)
-       and not exists (select 1 from public.account_entities x
-                        where x.account_id = a.id and x.updated_at >= p_cutoff)
-       and not exists (select 1 from public.customer_sites x
-                        where x.account_id = a.id and x.updated_at >= p_cutoff)
-       and not exists (select 1 from public.inbox_items x
-                        where x.subject_id = a.id and x.updated_at >= p_cutoff)
-       and not exists (select 1
-                         from public.account_contacts ac
-                         join public.contacts c on c.id = ac.contact_id
-                        where ac.account_id = a.id
-                          and (ac.updated_at >= p_cutoff or c.updated_at >= p_cutoff
-                               or exists (select 1 from public.contact_phones p
-                                           where p.contact_id = c.id and p.updated_at >= p_cutoff)
-                               or exists (select 1 from public.consents k
-                                           where k.contact_id = c.id and k.updated_at >= p_cutoff))))
+  language plpgsql stable set search_path = '' as $$
+begin
+  return (
+    select exists (
+      select 1
+        from public.accounts a
+       where a.id = p_account
+         and a.anonymised_at is null
+         and a.updated_at < p_cutoff
+         and not exists (select 1 from public.duplicate_candidates x
+                          where x.account_id = a.id and x.state = 'open')
+         and not exists (select 1 from public.duplicate_candidates x
+                          where x.other_account_id = a.id and x.state = 'open')
+         and not exists (select 1
+                           from public.account_contacts ac
+                           join public.account_contacts x
+                             on x.contact_id = ac.contact_id and x.account_id <> ac.account_id
+                          where ac.account_id = a.id)
+         and not exists (select 1 from public.activities x
+                          where x.account_id = a.id and x.created_at >= p_cutoff)
+         and not exists (select 1 from public.account_entities x
+                          where x.account_id = a.id and x.updated_at >= p_cutoff)
+         and not exists (select 1 from public.customer_sites x
+                          where x.account_id = a.id and x.updated_at >= p_cutoff)
+         and not exists (select 1 from public.inbox_items x
+                          where x.subject_id = a.id and x.updated_at >= p_cutoff)
+         and not exists (select 1
+                           from public.account_contacts ac
+                           join public.contacts c on c.id = ac.contact_id
+                          where ac.account_id = a.id
+                            and (ac.updated_at >= p_cutoff or c.updated_at >= p_cutoff
+                                 or exists (select 1 from public.contact_phones p
+                                             where p.contact_id = c.id and p.updated_at >= p_cutoff)
+                                 or exists (select 1 from public.consents k
+                                             where k.contact_id = c.id and k.updated_at >= p_cutoff))))
+  );
+end
 $$;
 --> statement-breakpoint
 revoke execute on function app.customer_idle(uuid, timestamptz) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
@@ -205,17 +221,21 @@ revoke execute on function app.customer_idle(uuid, timestamptz) from public, app
 --    customer is anonymised with all its leads at once (several stale leads, say from two imported
 --    lists or two companies, go together); one live lead keeps the customer and all its leads.
 create or replace function app.lead_is_stale(p_lead uuid, p_cutoff timestamptz) returns boolean
-  language sql stable set search_path = '' as $$
-  select exists (
-    select 1
-      from public.opportunities o
-     where o.id = p_lead
-       and o.anonymised_at is null
-       and app.lead_kept_reason(o.id) is null
-       and app.customer_idle(o.account_id, p_cutoff)
-       and not exists (select 1 from public.opportunities x
-                        where x.account_id = o.account_id
-                          and not app.lead_idle(x.id, p_cutoff)))
+  language plpgsql stable set search_path = '' as $$
+begin
+  return (
+    select exists (
+      select 1
+        from public.opportunities o
+       where o.id = p_lead
+         and o.anonymised_at is null
+         and app.lead_kept_reason(o.id) is null
+         and app.customer_idle(o.account_id, p_cutoff)
+         and not exists (select 1 from public.opportunities x
+                          where x.account_id = o.account_id
+                            and not app.lead_idle(x.id, p_cutoff)))
+  );
+end
 $$;
 --> statement-breakpoint
 revoke execute on function app.lead_is_stale(uuid, timestamptz) from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
