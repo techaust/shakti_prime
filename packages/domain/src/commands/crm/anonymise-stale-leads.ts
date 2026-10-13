@@ -16,19 +16,25 @@ interface WindowRow {
   lead_id: string;
   changed_at: string;
   stale: boolean;
+  kept: boolean;
 }
 
-/** One batch's leads, those of them that may be anonymised now, and where the next batch starts. */
+/**
+ * One batch's leads: those that may be anonymised now, those kept for good, and where the next
+ * batch starts.
+ */
 export interface StaleWindow {
   examined: number;
   stale: string[];
+  kept: string[];
   next: LeadRetentionCursor | null;
 }
 
 /**
- * The next `LEAD_RETENTION_BATCH` leads of one company, not yet anonymised and never won, whose
- * last change is older than the retention period, oldest change first after the cursor
- * (`app.stale_leads()`), each with whether it may be anonymised now (`app.lead_is_stale()`).
+ * The next `LEAD_RETENTION_BATCH` leads of one company not yet anonymised, not kept for good and
+ * never won, whose last change is older than the retention period, oldest change first after the
+ * cursor (`app.stale_leads()`), each with whether it may be anonymised now (`app.lead_is_stale()`)
+ * and whether it is kept for good (`app.lead_group_kept()`).
  */
 export async function readStaleWindow(
   tx: RequestTx,
@@ -36,7 +42,7 @@ export async function readStaleWindow(
   after: LeadRetentionCursor | null,
 ): Promise<StaleWindow> {
   const rows = (await tx.execute(
-    sql`select lead_id, changed_at, stale
+    sql`select lead_id, changed_at, stale, kept
           from app.stale_leads(${entityId}::smallint,
                                ${WORKSHOP_DEFAULTS.retention.unqualifiedLeadMonths}::integer,
                                ${after?.at ?? null}::timestamptz, ${after?.id ?? null}::uuid,
@@ -46,6 +52,7 @@ export async function readStaleWindow(
   return {
     examined: rows.length,
     stale: rows.filter((row) => row.stale).map((row) => row.lead_id),
+    kept: rows.filter((row) => row.kept).map((row) => row.lead_id),
     next:
       rows.length === LEAD_RETENTION_BATCH && last !== undefined
         ? { at: last.changed_at, id: last.lead_id }
@@ -53,17 +60,20 @@ export async function readStaleWindow(
   };
 }
 
+const uuidArray = (ids: readonly string[]) => `{${ids.join(',')}}`;
+
 /**
  * `crm.lead.anonymise` (BLUEPRINT §7.9, docs/03-roadmap-appendix/phase1.md §10): one batch of
  * one company's unqualified leads idle for `WORKSHOP_DEFAULTS.retention.unqualifiedLeadMonths`,
- * anonymised. The nightly QStash job (`apps/web/src/workers/lead-anonymise.ts`) runs it batch by
- * batch as `system:workers`, which holds the platform-only `crm.retention.run` and no `crm.*`
- * permission a person may hold (ADR 0020): it reaches leads and customers only through two
- * definers, `app.stale_leads()`, which answers the batch's leads and which of them are stale, and
- * `app.anonymise_stale_leads()`, which checks each again under lock, removes its personal
- * details and records the batch in `retention_runs`, a failure included (the batch then changes
- * nothing and answers `failed`). One audit row per anonymised lead records the time and no
- * personal value; no event is sent, since nothing waits on it.
+ * anonymised with their customers. The nightly QStash job (`apps/web/src/workers/lead-anonymise.ts`)
+ * runs it batch by batch as `system:workers`, which holds the platform-only `crm.retention.run`
+ * and no `crm.*` permission a person may hold (ADR 0020): it reaches leads and customers only
+ * through two definers, `app.stale_leads()`, which answers the batch's leads, which are stale and
+ * which are kept for good, and `app.anonymise_stale_leads()`, which marks the kept ones, checks
+ * each customer again under lock, removes its personal details with those of all its leads and
+ * their audit rows, skips a customer that fails (recording it) and records the batch in
+ * `retention_runs`. One audit row per anonymised lead records the time and no personal value; no
+ * event is sent, since nothing waits on it.
  */
 export const anonymiseStaleLeads = defineCommand({
   name: 'crm.lead.anonymise',
@@ -75,15 +85,17 @@ export const anonymiseStaleLeads = defineCommand({
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const window = await readStaleWindow(ctx.tx, input.entityId, input.after);
-    const [result] = (await ctx.tx.execute(
+    const [answer] = (await ctx.tx.execute(
       sql`select app.anonymise_stale_leads(${input.entityId}::smallint,
                                            ${WORKSHOP_DEFAULTS.retention.unqualifiedLeadMonths}::integer,
-                                           ${`{${window.stale.join(',')}}`}::uuid[]) as result`,
-    )) as unknown as { result: { leads: string[]; error: string | null } }[];
-    // A failure is recorded on the batch's run in `retention_runs`, and nothing else changed.
-    const anonymised = result?.result.leads ?? [];
+                                           ${uuidArray(window.stale)}::uuid[],
+                                           ${uuidArray(window.kept)}::uuid[]) as result`,
+    )) as unknown as {
+      result: { leads: string[]; kept: number; failed: number; error: string | null };
+    }[];
+    const result = answer?.result ?? { leads: [], kept: 0, failed: 0, error: null };
     const at = ctx.now.toISOString();
-    for (const leadId of anonymised) {
+    for (const leadId of result.leads) {
       ctx.audit({
         aggregateType: 'opportunity',
         aggregateId: leadId,
@@ -95,9 +107,10 @@ export const anonymiseStaleLeads = defineCommand({
     return LeadAnonymiseBatchDto.parse({
       entityId: input.entityId,
       examined: window.examined,
-      anonymised: anonymised.length,
+      anonymised: result.leads.length,
+      kept: result.kept,
+      failedCustomers: result.failed,
       next: window.next,
-      failed: result?.result.error != null,
     });
   },
 });

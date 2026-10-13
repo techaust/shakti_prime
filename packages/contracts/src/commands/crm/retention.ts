@@ -33,17 +33,20 @@ export type AnonymiseStaleLeadsInput = z.input<typeof AnonymiseStaleLeadsInput>;
 const Count = z.number().int().min(0);
 
 /**
- * What one batch of `crm.lead.anonymise` did: the leads it looked at, those it anonymised, where
- * the next batch starts (null when the company is done), and whether the batch failed, in which
- * case nothing in it changed and the failure is recorded in `retention_runs`.
+ * What one batch of `crm.lead.anonymise` did: the leads it looked at, those it anonymised (each
+ * customer with all its leads), the leads it found kept for good (which the window passes by
+ * from then on), the customers whose anonymisation failed (each changed nothing and is recorded
+ * in `retention_runs`; the others went on), and where the next batch starts (null when the
+ * company is done).
  */
 export const LeadAnonymiseBatchDto = z
   .object({
     entityId: EntityIdSchema,
     examined: Count,
     anonymised: Count,
+    kept: Count,
+    failedCustomers: Count,
     next: LeadRetentionCursorSchema.nullable(),
-    failed: z.boolean(),
   })
   .strict();
 export type LeadAnonymiseBatchDto = z.infer<typeof LeadAnonymiseBatchDto>;

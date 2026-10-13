@@ -160,7 +160,8 @@ export type ImportRefusalCountDto = z.infer<typeof ImportRefusalCountDto>;
  * was added to a record already there (a customer the number belongs to, a lead's repeat enquiry,
  * an office of the PIN code list corrected); `skipped` repeated an earlier row of the file;
  * `refused` could not be imported; `waiting` is checked but not added yet; `undone` was added and
- * taken back by the job's rollback. The six add up to `rowsIn`, and `refusedByReason` to `refused`.
+ * taken back by the job's rollback. The six add up to `rowsIn`, `rowsIn` is the count of rows the
+ * job recorded when the file was read (`fileRows`), and `refusedByReason` adds up to `refused`.
  */
 export const ImportReconciliationDto = z
   .object({
@@ -168,6 +169,8 @@ export const ImportReconciliationDto = z
     entityId: EntityIdSchema,
     kind: ImportKindSchema,
     state: ImportJobStateSchema,
+    /** The rows the job recorded when it read the file (`import_jobs.total_rows`). */
+    fileRows: Count,
     rowsIn: Count,
     created: Count,
     attached: Count,
@@ -180,6 +183,7 @@ export const ImportReconciliationDto = z
   .strict()
   .refine(
     (r) =>
+      r.rowsIn === r.fileRows &&
       r.created + r.attached + r.skipped + r.refused + r.waiting + r.undone === r.rowsIn &&
       r.refusedByReason.reduce((sum, x) => sum + x.rows, 0) === r.refused,
     { message: 'the counts do not add up to the rows of the file' },

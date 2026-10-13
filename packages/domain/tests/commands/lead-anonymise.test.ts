@@ -133,8 +133,8 @@ describe('crm.lead.anonymise', () => {
         { context, audit, outbox },
         { entityId: E, after: null },
       );
-    })) as { anonymised: number; failed: boolean; next: unknown };
-    expect(batch).toMatchObject({ failed: false, next: null });
+    })) as { anonymised: number; failedCustomers: number; next: unknown };
+    expect(batch).toMatchObject({ failedCustomers: 0, next: null });
     expect(batch.anonymised).toBeGreaterThanOrEqual(1);
     const [lead] = await asMigrator(
       (m) => m<{ anonymised: boolean; name: string }[]>`

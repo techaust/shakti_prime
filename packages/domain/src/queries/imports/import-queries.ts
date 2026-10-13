@@ -106,6 +106,7 @@ export async function getImportReconciliation(
     entityId: job.entityId,
     kind: job.kind,
     state: job.state,
+    fileRows: job.totalRows,
     rowsIn: Object.values(totals).reduce((sum, n) => sum + n, 0),
     ...totals,
     // In the order of the reasons' list, so the screen and the download read the same way.

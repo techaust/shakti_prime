@@ -8,6 +8,7 @@ const JOB: ImportReconciliationDto = {
   entityId: 1,
   kind: 'leads',
   state: 'committed',
+  fileRows: 10,
   rowsIn: 10,
   created: 6,
   attached: 1,

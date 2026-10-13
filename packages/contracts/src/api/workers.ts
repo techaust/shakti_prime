@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { LeadRetentionCursorSchema } from '../commands/crm/retention';
 import { ImportJobStateSchema } from '../imports/enums';
 
 const Count = z.number().int().min(0);
@@ -116,16 +117,32 @@ export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse
  * The nightly anonymisation of unqualified leads idle for the retention period
  * (`crm.lead.anonymise`, BLUEPRINT §7.9), called by the QStash schedule
  * `lead-anonymise-<environment>` with an empty body: every company in turn, each batch in its own
- * transaction as `system:workers`. `dryRun` counts the leads it would anonymise and changes
- * nothing (the cutover rehearsal). Leads a run leaves for want of time are anonymised the next
- * night.
+ * transaction as `system:workers`. A run out of time hands the rest to the next call with the
+ * company and the place it reached (`after`) and the night it belongs to (`runDate`), so every
+ * company is reached each night. `dryRun` counts the leads it would anonymise and changes
+ * nothing (the cutover rehearsal).
  */
-export const LeadAnonymiseWorkerBody = z.object({ dryRun: z.boolean().optional() }).strict();
+export const LeadAnonymiseWorkerBody = z
+  .object({
+    dryRun: z.boolean().optional(),
+    entityId: EntityIdSchema.optional(),
+    after: LeadRetentionCursorSchema.optional(),
+    runDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+  })
+  .strict()
+  .refine((b) => b.after === undefined || b.entityId !== undefined, {
+    message: 'work left over belongs to a company',
+    path: ['after'],
+  });
 export type LeadAnonymiseWorkerBody = z.infer<typeof LeadAnonymiseWorkerBody>;
 
 /**
  * What one run did: the batches it ran, the leads it looked at, those it anonymised (or, in a dry
- * run, would anonymise), the batches that failed and were recorded, and whether it finished.
+ * run, would anonymise), those found kept for good, the customers that failed and were recorded,
+ * and whether it finished (when not, the rest went to the next call).
  */
 export const LeadAnonymiseWorkerResponse = z
   .object({
@@ -133,7 +150,8 @@ export const LeadAnonymiseWorkerResponse = z
     batches: Count,
     examined: Count,
     anonymised: Count,
-    failedBatches: Count,
+    kept: Count,
+    failedCustomers: Count,
     done: z.boolean(),
   })
   .strict();

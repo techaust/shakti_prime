@@ -75,6 +75,7 @@ beforeAll(async () => {
 const EXPECTED = {
   kind: 'accounts',
   state: 'failed',
+  fileRows: 11,
   rowsIn: 11,
   created: 1,
   attached: 2,

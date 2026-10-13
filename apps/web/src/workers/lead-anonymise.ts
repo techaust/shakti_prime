@@ -1,4 +1,5 @@
 import {
+  DomainError,
   LeadAnonymiseWorkerResponse,
   type AnonymiseStaleLeadsInput,
   type LeadAnonymiseBatchDto,
@@ -15,12 +16,12 @@ import {
 } from '@shakti/domain';
 import { logger } from '../log';
 import { systemWorkersPrincipal } from './events/system-principal';
+import { LEAD_ANONYMISE_PATH, publishWorkerRun, qstashConfig } from './qstash';
 
 /**
  * How long one run keeps starting batches. A batch looks at 500 leads and checks each in about a
  * quarter of a millisecond (docs/runs/phase1/m1-migration-uat.md), well inside the twenty seconds
- * left to the route's `maxDuration` of 60 seconds. What a run leaves for want of time is done the
- * next night: nothing waits on it.
+ * left to the route's `maxDuration` of 60 seconds for the batch started last and the hand-over.
  */
 export const LEAD_ANONYMISE_RUN_BUDGET_MS = 40_000;
 
@@ -33,13 +34,28 @@ export interface LeadAnonymiseOptions {
 }
 
 /**
+ * The queue's deduplication id for a hand-over: the run (a dry run is a run of its own), the
+ * night it belongs to and where it starts, so a retried hand-over is sent once and another
+ * night's hand-over from the same place is not taken for a repeat.
+ */
+export function leadAnonymiseRunId(
+  body: LeadAnonymiseWorkerBody & { runDate: string; entityId: number },
+): string {
+  const run = body.dryRun === true ? 'lead-anonymise-dry' : 'lead-anonymise';
+  const place = body.after === undefined ? 'start' : `${body.after.at}-${body.after.id}`;
+  return `${run}-${body.runDate}-${String(body.entityId)}-${place}`.replaceAll(':', '');
+}
+
+/**
  * The nightly anonymisation of unqualified leads idle for the retention period (BLUEPRINT §7.9,
- * docs/03-roadmap-appendix/phase1.md §10): every company in turn, each batch one
- * `crm.lead.anonymise` in its own transaction as `system:workers`, which holds the platform-only
- * `crm.retention.run` and nothing a person's role holds. A batch that fails is recorded in
- * `retention_runs` by the definer, changes nothing, and ends that company's run for the night; the
- * other companies go on. A dry run (`dryRun`) counts the leads with `countStaleLeads` on a
- * read-only request and changes nothing at all.
+ * docs/03-roadmap-appendix/phase1.md §10): every company in turn from the one the body names (the
+ * first when none), each batch one `crm.lead.anonymise` in its own transaction as
+ * `system:workers`, which holds the platform-only `crm.retention.run` and nothing a person's role
+ * holds. A customer that fails is recorded in `retention_runs` by the definer and changes nothing;
+ * the batch and the company go on. When the run's time is spent, the company and the place it
+ * reached go to the next call through QStash, so every company is reached every night; leads kept
+ * for good are marked and left out of the window from then on. A dry run (`dryRun`) counts the
+ * leads with `countStaleLeads` on a read-only request and changes nothing at all.
  */
 export async function runLeadAnonymise(
   body: LeadAnonymiseWorkerBody,
@@ -48,11 +64,13 @@ export async function runLeadAnonymise(
   const dryRun = body.dryRun === true;
   const now = options.now ?? Date.now;
   const started = now();
+  const runDate = body.runDate ?? new Date(started).toISOString().slice(0, 10);
   const { requestId } = options;
   const scope = (entityId: number) =>
     requestId === undefined ? { entityIds: [entityId] } : { entityIds: [entityId], requestId };
-  const result = { dryRun, batches: 0, examined: 0, anonymised: 0, failedBatches: 0 };
-  for (let entityId = 1; ; entityId += 1) {
+  const result = { dryRun, batches: 0, examined: 0, anonymised: 0, kept: 0, failedCustomers: 0 };
+  let after: LeadRetentionCursor | null = body.after ?? null;
+  for (let entityId = body.entityId ?? 1; ; entityId += 1) {
     const principal = systemWorkersPrincipal(entityId);
     const standing = await executeQuery(
       principal,
@@ -61,11 +79,24 @@ export async function runLeadAnonymise(
       { name: 'leadAnonymiseCompany' },
     );
     if (standing === 'missing') break;
-    if (standing === 'archived') continue;
-    let after: LeadRetentionCursor | null = null;
+    if (standing === 'archived') {
+      after = null;
+      continue;
+    }
     for (;;) {
       if (options.budgetMs !== undefined && now() - started >= options.budgetMs) {
-        logger.log('info', 'crm.anonymise_stopped', { requestId, entityId, ...result });
+        const next = {
+          ...(dryRun ? { dryRun } : {}),
+          runDate,
+          entityId,
+          ...(after === null ? {} : { after }),
+        };
+        const config = qstashConfig();
+        if (config === undefined) {
+          throw new DomainError('integration_unavailable', 'no queue for lead-anonymise');
+        }
+        await publishWorkerRun(config, LEAD_ANONYMISE_PATH, next, leadAnonymiseRunId(next));
+        logger.log('info', 'crm.anonymise_continued', { requestId, entityId, ...result });
         return LeadAnonymiseWorkerResponse.parse({ ...result, done: false });
       }
       const input: AnonymiseStaleLeadsInput = { entityId, after };
@@ -88,14 +119,17 @@ export async function runLeadAnonymise(
         );
         result.anonymised += batch.anonymised;
         result.examined += batch.examined;
-        if (batch.failed) {
-          // The definer recorded the failure on its run; the company waits for the next night.
-          result.failedBatches += 1;
-          logger.log('error', 'crm.anonymise_batch_failed', { requestId, entityId });
-          after = null;
-        } else {
-          after = batch.next;
+        result.kept += batch.kept;
+        if (batch.failedCustomers > 0) {
+          // The definer recorded the failure on its run; those customers wait for the next night.
+          result.failedCustomers += batch.failedCustomers;
+          logger.log('error', 'crm.anonymise_customers_failed', {
+            requestId,
+            entityId,
+            failedCustomers: batch.failedCustomers,
+          });
         }
+        after = batch.next;
       }
       result.batches += 1;
       if (after === null) break;
