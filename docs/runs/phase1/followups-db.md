@@ -63,8 +63,52 @@ All five items built, each in its own commit (`cc51b82f`, `83b6546b`, `aeec42d4`
 - `app.ensure_activity_partitions()` still runs on the 25th; the brief moved only the audit job.
 
 ## Review
+13-10-2026, slice-reviewer (Opus 5.5), branch head 5913aa0a, diff `origin/main...HEAD`. No critical, high or medium finding: the merge can go ahead. L3 is a one-line fix in each of three documents, which the lead may make before merging; L1, L2 and L4 are follow-ups.
+
 | # | Severity | Finding | State |
 |---|---|---|---|
+| L1 | low | `packages/contracts/src/notifications.ts:186-206` with `0131_followups_push_claim.sql:25-34`: the refusal compares the exact text of the address (`push_subscriptions_endpoint_unique`), but `isPushServiceEndpoint()` lowercases the host only for its own check and accepts a fragment or an explicit `:443`, and `PushEndpointSchema` keeps the address as typed. So another spelling of a browser another person holds is not refused. Scenario: B knows A's address E and subscribes `E#x`, or E with `FCM.` in the host. The claim stores it as a new browser of B's. Reproduced in a rolled-back transaction on 54332: with E held by A, B's claims of `E#x` and of the upper-case host each answer an id. `web-push` posts to the same URL, because a fragment is never sent and a host has no case, so B's alerts go to A's browser. There they cannot be read with B's keys, and they are shown if B uses A's keys. A's row and keys stay as they were, so the brief's rule (never moved to the caller) holds. But DATABASE §4.1's "refuses a browser another person holds, whatever keys come with it" is not true for another spelling, and the second half of N1 L4 ("the caller's notices go to it") remains. Fix: in `PushEndpointSchema`, accept only the address as the browser gives it: `new URL(v).href === v`, with no fragment. Keep queries, because Windows push addresses carry one. Add a contract test of the three spellings. Confirmed (the database part reproduced; the schema's acceptance read, with each spelling parsed by `new URL`). | follow-up |
+| L2 | low | `0133_followups_audit_partitions.sql:28-47`: a month that fails is caught and raised only as a warning, so pg_cron records the run as `succeeded`. On `main` the same failure made the run `failed` in `cron.job_run_details`, with its error. Nothing reads `retention_runs.error`: no screen or worker reads it, and DEPLOY §5 checks only `outbox-events-purge`. Scenario: audit rows of a coming month reach the default partition, for example after the job failed for three months. That month's partition then fails every day, with no sign anywhere but `retention_runs` and the Postgres log. When the month comes, all its rows go to the default partition, which `app.detach_audit_partitions()` never archives. Each later daily attempt also takes `audit_logs` exclusively and scans the default partition until it meets a row of that month, with no lock timeout in the cron session, at 03:00 UTC (08:30 IST). The brief asked for `app.ensure_activity_partitions()`'s pattern, which has the same gap, so the gap is the pattern's, not a slip in this slice. Fix, a follow-up for both jobs: show each job's latest `retention_runs` error on Integration health, or check it in DEPLOY §5; and give both partition functions `set lock_timeout = '5s'`. Confirmed by reading for the run's status (pg_cron marks a run failed only on an error); the lock part is plausible. | follow-up |
+| L3 | low | Documents. `docs/03-roadmap-appendix/backend-weeks-3-5.md:95` cites "migrations 0032 and 0033" for a job that now runs daily and records each run, which only 0133 builds: 0033 has the 25th and no `retention_runs`. DATABASE §7's bullet (`docs/05-database.md:538`) cites no migration. DEPLOY §5 (`docs/runbooks/deploy.md:81`) checks "the latest `retention_runs` row" after the outbox purge, and any check after 03:00 UTC now reads the audit job's daily row instead. Fix: cite 0133 (renumbered) beside 0033 in the first two. In DEPLOY §5, read "its latest `retention_runs` row" (`job = 'outbox-events-purge'`) and add the audit job's schedule `0 3 * * *` to the check. Confirmed. | fix (one line each) |
+| L4 | low | Pre-existing (N1), beside item 2: `apps/web/src/components/notifications/push-toggle.tsx:56-58` shows "Alerts are on for this browser." whenever the browser has a subscription, whoever holds it. Scenario: A turned alerts on at a shared counter. B signs in there and is told alerts are on, but every alert still goes to A. With the takeover gone, B's way in is Turn off alerts, which removes nothing of B's and ends A's subscription at the push service, then Turn on alerts. The new `push_browser_taken` refusal is met only when the toggle's state is stale, not on the path the report describes. Fix (follow-up): a query that answers whether this browser's address is the caller's; when it is not, the toggle shows alerts off, with the turn-on button. Confirmed by reading. | follow-up |
+
+**Checked and sound:**
+- **Item 2, `app.claim_push_subscription()`.**
+  - It keeps 0119's checks: a person (`app.user_id()`, a principal of kind `user`, no `agent:` or `system:` role) holding `profile.write:own`, failing closed with no context. It also keeps `search_path = ''` and the owner `postgres`, which bypasses RLS as the migrator asserts. Execute is held by `postgres` and `app_user` only.
+  - No delete remains, and the conflict update changes a row only when it is the caller's.
+  - Reproduced with two sessions on 54332:
+    - Two claims of a new address at once: the second waits on the first's insert and is then refused, and the row and keys stay the first's.
+    - A claim while the holder's delete is uncommitted takes the address once the delete commits.
+    - A claim while the holder's renewal is uncommitted is refused, and the holder's new keys are kept.
+    - A claim beside another person's claim that rolls back is accepted.
+    - A call with no user id, and one as `system:workers`, are refused with 42501.
+  - The refusal carries a fixed message and the constraint's name, never the person. The runner maps it to `conflict` with `push_browser_taken`, a reason in the catalogue (`errors-catalogue.test.ts` passes), and retries nothing. The client unsubscribes before it shows the sentence, so the sentence is true when shown.
+- **Item 5, `app.ensure_audit_partitions()`.**
+  - It keeps everything 0033 has, the only earlier version: the signature with its default of 3, the range check before anything is written, UTC months, the partition names and schema, the bounds, idempotence through `to_regclass`, running as the caller rather than as a definer, and the return value.
+  - Execute is held by `postgres` only: the revoke is restated with `outbox_publisher` added, and `app_reader` never had it. The search path is `''`, with every name qualified.
+  - A month blocked by rows in the default partition fails as before, and the other months are still made.
+  - The reschedule changes the existing job of that name and user: on 54332 the job kept jobid 1 with `0 3 * * *`. Hosted migrations run as `postgres`, the user that 0033 scheduled the job as, so no second job appears.
+  - With the migrator's 10 s lock timeout, a blocked month is now recorded rather than failing the migration.
+- **Item 3, `commission_accruals.measure`.**
+  - Widening `(14,3)` to `(15,3)` does not rewrite the table: the relfilenode was unchanged in a rolled-back trial to `(16,3)`. The change takes ACCESS EXCLUSIVE briefly, bounded by the migrator's 10 s lock timeout, and revalidates `commission_accruals_amounts_check`, its only dependent: no view, policy or index uses the column. The hosted table is empty until CRM-5.
+  - `app.record_commission_accrual()` takes an unconstrained `numeric`. The guard trigger and `app.cancel_commission_accrual()` do not read the column, and no DTO, event or audit field carries it.
+  - Select grants for `app_reader`, `app_user` and `readonly_reporter` are as before. `(15,3)` holds 999,999,999,999.990.
+- **Item 1, the dropped index.** Every statement on `notifications` reads by person (the unique `(user_id, dedupe_key)` in the scan definers' not-exists and in `app.write_notices()`'s on conflict), by id, or through the push-pending and unread indexes; none reads `(entity_id, dedupe_key)`. M1's branch touches none of the slice's objects: it reads `commission_accruals` by lead only.
+- **Item 4, the Triage DTO.**
+  - The new fields carry pipeline names only. `pipelines_key_unique` is on `key` alone, so the scalar subquery answers one row at most.
+  - The subquery runs under `pipelines_read`: the plan's filter carries `app.user_id()` and `app.entity_ids()`. It runs only for pipeline rows, through a one-time filter.
+  - `spike:shadow` on 54332, under RLS: the first page took 18.4 ms as an Executive and 9.5 ms as a GM, with the subquery run 17 times for 51 rows. The summary took 18.1 ms, with no pipeline subquery in its plan (the unused column is dropped). So the 6 s summary in the builder's report came from that run's statistics; no follow-up is needed.
+- **Migrations and generated files.** The snapshots chain from 0129 to 0133 by `prevId`; 0130 drops the index and 0132 holds `(15,3)`. The data documents are regenerated, and the journal times are after `main`'s.
+- **Suites run on 54332 through the lock:**
+  - db security `notifications`, `audit-logs`, `retention`, `grants`, `sales-orders` and `role-entity-matrix`: 6 files, 308 passed;
+  - domain `commands/notifications`, `commands/orders` and `queries/shadow-report`: 3 files, 61 passed;
+  - web `errors-catalogue.test.ts`: 6 passed.
+
+**Not checked:**
+- The whole `pnpm test:security`, typecheck, lint, build and the journey; the builder's report gives them as green.
+- The migrations on a fresh database, which the lead's integration run covers.
+- The three `triage-proposals` Linux baselines still show "Farmer pumps". The run passes within the 1 % tolerance, and the lead remakes them.
+- Web push in a real browser: L1's delivery to the same browser follows from how the address is sent, not from a send to a push service.
 
 ## Integration notes
 - Migrations from 0130 move after `main`'s (and M1's, if it merges first) last one.
