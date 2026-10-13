@@ -988,6 +988,20 @@
       "when": 1791900562008,
       "tag": "0140_cron_job_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1791902134089,
+      "tag": "0141_m1_retention",
+      "breakpoints": true
+    },
+    {
+      "idx": 142,
+      "version": "7",
+      "when": 1791902459172,
+      "tag": "0142_m1_retention_rls",
+      "breakpoints": true
     }
   ]
 }

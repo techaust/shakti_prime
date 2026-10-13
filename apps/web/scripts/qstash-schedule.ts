@@ -1,7 +1,8 @@
 // Creates or updates the QStash schedules (docs/runbooks/deploy.md): the outbox publisher every
 // minute, the safety net behind the nudge each command sends, the sweep of abandoned uploads every
-// hour, the lead rescoring and the duplicate search each night, the quote expiry each day and the
-// notification scan every five minutes, and the check of the database's scheduled jobs every hour.
+// hour, the lead rescoring, the duplicate search and the anonymisation of old unqualified leads
+// each night, the quote expiry each day, the notification scan every five minutes and the check
+// of the database's scheduled jobs every hour.
 // Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT and
 // BETTER_AUTH_URL set.
 // Usage: pnpm --filter web qstash-schedule
@@ -9,6 +10,7 @@ import { Client } from '@upstash/qstash';
 import {
   DUPLICATE_SCAN_PATH,
   FILES_SWEEP_PATH,
+  LEAD_ANONYMISE_PATH,
   JOBS_CHECK_PATH,
   LEAD_RESCORE_PATH,
   NOTIFICATION_SCAN_PATH,
@@ -122,6 +124,24 @@ await client.schedules.create({
 });
 console.log(
   `schedule ${QUOTE_EXPIRE_SCHEDULE_ID} calls ${expireUrl} at ${QUOTE_EXPIRE_CRON} (UTC)`,
+);
+
+// The anonymisation of unqualified leads idle for the retention period (BLUEPRINT §7.9), each
+// night at 04:00 in India, after the rescoring and the duplicate search.
+const LEAD_ANONYMISE_SCHEDULE_ID = `lead-anonymise-${environment}`;
+const LEAD_ANONYMISE_CRON = JOB_SCHEDULES['lead-anonymise'];
+const anonymiseUrl = workerUrl(config, LEAD_ANONYMISE_PATH);
+await client.schedules.create({
+  scheduleId: LEAD_ANONYMISE_SCHEDULE_ID,
+  destination: anonymiseUrl,
+  cron: LEAD_ANONYMISE_CRON,
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  retries: 3,
+  timeout: 60,
+});
+console.log(
+  `schedule ${LEAD_ANONYMISE_SCHEDULE_ID} calls ${anonymiseUrl} at ${LEAD_ANONYMISE_CRON} (UTC)`,
 );
 
 // The notification scan (docs/03-roadmap-appendix/phase1.md §8.1) every five minutes: calls falling due,

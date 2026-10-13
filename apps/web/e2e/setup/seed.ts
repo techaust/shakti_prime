@@ -43,6 +43,7 @@ import { resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
+import { ensureUatJourneys } from './uat';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
@@ -826,6 +827,9 @@ await suggestFollowUp({
 progress('the Triage agent in shadow');
 await ensureTriageJourney(ids.executive ?? '', ids.snapshotCaller ?? '');
 
+progress('the UAT journeys');
+const uat = await ensureUatJourneys(ids.executive ?? '');
+
 mkdirSync(AUTH_DIR, { recursive: true });
 const seeded: SeededUsers = {
   totpSecrets,
@@ -836,6 +840,7 @@ const seeded: SeededUsers = {
   secondCompanyLead,
   quotes,
   orders,
+  uat,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

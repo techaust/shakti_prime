@@ -54,6 +54,7 @@ import {
   listScoreRules,
 } from '../../src/queries/crm/pipeline-settings';
 import { searchLeads } from '../../src/queries/crm/search-leads';
+import { countStaleLeads } from '../../src/queries/crm/stale-leads';
 import {
   countFilesAwaitingChecks,
   getFile,
@@ -62,6 +63,7 @@ import {
 } from '../../src/queries/files/file-queries';
 import {
   getImportJob,
+  getImportReconciliation,
   listImportJobs,
   listImportRows,
   listImportTemplates,
@@ -161,6 +163,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listTimeline: (ctx) => listTimeline(ctx, { entityId: 1, accountId: newId() }),
   listMyTasks: (ctx) => listMyTasks(ctx, { limit: 20 }),
   getImportJob: (ctx) => getImportJob(ctx, { entityId: 1, jobId: newId() }),
+  getImportReconciliation: (ctx) => getImportReconciliation(ctx, { entityId: 1, jobId: newId() }),
+  // The retention job's dry run, which only the worker principal may run.
+  countStaleLeads: (ctx) => countStaleLeads(ctx, { entityId: 1 }),
   listImportJobs: (ctx) => listImportJobs(ctx, { entityId: 1, limit: 20 }),
   listImportRows: (ctx) => listImportRows(ctx, { entityId: 1, jobId: newId(), limit: 20 }),
   listImportTemplates: (ctx) => listImportTemplates(ctx, { entityId: 1, kind: 'leads' }),

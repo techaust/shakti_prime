@@ -1,6 +1,12 @@
 import { AUTH_AUDIT_EVENTS } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
-import { isDeniedKey, maskValue, redactAuthEvent, redactForAudit } from './redact';
+import {
+  isDeniedKey,
+  maskValue,
+  redactAuthEvent,
+  redactForAudit,
+  withoutPersonalDetails,
+} from './redact';
 
 /** Every field the design's deny list names, by its real column or request-body name. */
 const DENIED = {
@@ -294,5 +300,36 @@ describe('redactAuthEvent', () => {
     expect(redactAuthEvent('auth.sign_in', body)).toEqual({ email: '********e.in' });
     expect(redactAuthEvent('auth.two_factor.verify', body)).toEqual({ method: 'totp' });
     expect(redactAuthEvent('auth.sign_out', body)).toEqual({});
+  });
+});
+
+describe('withoutPersonalDetails', () => {
+  it('removes every personal value at any depth and keeps the codes, ids and nulls', () => {
+    const refused = {
+      entityId: 2,
+      pipelineKey: 'farmer_pumps',
+      existingAccountId: '01990000-0000-7000-8000-000000000001',
+      contact: { name: 'Ramesh Kumar', phone: '********3210', preferredLanguage: 'hinglish' },
+      account: { type: 'farm', name: 'Ramesh farm' },
+      site: { type: 'borewell', village: 'Sanganer', pin: '302029', address: 'Near the well' },
+      people: [{ role: 'owner', Full_Name: 'Sita Devi', e164: '********3210', Email: '****e.in' }],
+      note: 'wants a call after the harvest',
+      brandName: 'Shakti Supreme',
+      gstin: null,
+    };
+    expect(withoutPersonalDetails(refused)).toEqual({
+      entityId: 2,
+      pipelineKey: 'farmer_pumps',
+      existingAccountId: '01990000-0000-7000-8000-000000000001',
+      contact: { name: 'removed', phone: 'removed', preferredLanguage: 'hinglish' },
+      account: { type: 'farm', name: 'removed' },
+      site: { type: 'borewell', village: 'removed', pin: 'removed', address: 'removed' },
+      people: [{ role: 'owner', Full_Name: 'removed', e164: 'removed', Email: 'removed' }],
+      note: 'removed',
+      brandName: 'Shakti Supreme',
+      gstin: null,
+    });
+    expect(withoutPersonalDetails(null)).toBeNull();
+    expect(withoutPersonalDetails({ name: null })).toEqual({ name: null });
   });
 });

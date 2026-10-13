@@ -1,5 +1,7 @@
 import {
   ImportJobPage,
+  ImportReconciliationDto,
+  ImportRowErrorCodeSchema,
   ImportMappingSchema,
   ImportRowDto,
   ImportRowPage,
@@ -39,6 +41,80 @@ export async function getImportJob(
 ): Promise<ImportJobDto> {
   guard(ctx, input.entityId);
   return toImportJobDto(await loadJob(ctx.tx, input.entityId, input.jobId));
+}
+
+type ReconciliationBucket = 'created' | 'attached' | 'skipped' | 'refused' | 'waiting' | 'undone';
+
+/**
+ * The reconciliation of one import job (IMP-01, IMP-02): every row of the file counted once by
+ * what became of it, read from the rows the import stored, in one pass over the job's rows (the
+ * primary key's `job_id` prefix). A committed row made a record (`created`: a lead, a customer or
+ * an office of the PIN code list) or was added to one already there (`attached`: a customer the
+ * number belongs to, or a row that made nothing new); a row is `refused` when the check found it
+ * wrong or the commit stopped at it, under the reason of its first finding; `waiting` rows are
+ * checked or about to be and not added yet; `undone` rows were taken back by the rollback.
+ */
+export async function getImportReconciliation(
+  ctx: QueryContext,
+  input: GetImportJobInput,
+): Promise<ImportReconciliationDto> {
+  guard(ctx, input.entityId);
+  const { job } = await loadJob(ctx.tx, input.entityId, input.jobId);
+  const rows = (await ctx.tx.execute(sql`
+    select case
+             when r.state = 'committed'
+                  and r.created_type in ('opportunity', 'account', 'pin_code') then 'created'
+             when r.state = 'committed' then 'attached'
+             when r.state = 'skipped' then 'skipped'
+             when r.state = 'rolled_back' then 'undone'
+             when r.state = 'invalid' or jsonb_array_length(r.errors_json) > 0 then 'refused'
+             else 'waiting'
+           end as bucket,
+           case
+             when r.state in ('committed', 'skipped', 'rolled_back') then null
+             when r.state = 'invalid' or jsonb_array_length(r.errors_json) > 0
+               then coalesce(r.errors_json -> 0 ->> 'code', 'invalid')
+           end as reason,
+           count(*)::int as rows
+      from import_rows r
+     where r.job_id = ${job.id}
+     group by 1, 2`)) as unknown as {
+    bucket: ReconciliationBucket;
+    reason: string | null;
+    rows: number;
+  }[];
+  const totals: Record<ReconciliationBucket, number> = {
+    created: 0,
+    attached: 0,
+    skipped: 0,
+    refused: 0,
+    waiting: 0,
+    undone: 0,
+  };
+  const byReason = new Map<string, number>();
+  for (const row of rows) {
+    totals[row.bucket] += row.rows;
+    if (row.bucket === 'refused') {
+      // A finding this version no longer names is counted as a value the check refused.
+      const parsed = ImportRowErrorCodeSchema.safeParse(row.reason);
+      const reason = parsed.success ? parsed.data : 'invalid';
+      byReason.set(reason, (byReason.get(reason) ?? 0) + row.rows);
+    }
+  }
+  return ImportReconciliationDto.parse({
+    jobId: job.id,
+    entityId: job.entityId,
+    kind: job.kind,
+    state: job.state,
+    fileRows: job.totalRows,
+    rowsIn: Object.values(totals).reduce((sum, n) => sum + n, 0),
+    ...totals,
+    // In the order of the reasons' list, so the screen and the download read the same way.
+    refusedByReason: ImportRowErrorCodeSchema.options.flatMap((reason) => {
+      const count = byReason.get(reason);
+      return count === undefined ? [] : [{ reason, rows: count }];
+    }),
+  });
 }
 
 /** A job's rows in file order, optionally in one state, a page at a time. */

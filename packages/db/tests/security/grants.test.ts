@@ -456,6 +456,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.request_covers_group()',
       // Integration Health and the hourly check read each scheduled job's last run (audit 2026-10).
       'app.scheduled_jobs()',
+      // The retention job's dry run counts a company's stale leads on the reader pool, as the
+      // worker (lead-anonymise.test.ts); the anonymisation itself is app_user's alone.
+      'app.stale_leads(smallint,integer,timestamp with time zone,uuid,integer)',
       // The sweep of abandoned uploads asks which companies to visit, as the worker
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',
