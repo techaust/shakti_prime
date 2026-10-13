@@ -23,7 +23,8 @@ export interface WithoutIdentityNumbers {
  * No.", "Adhaar card number", "UID", "UID no", and the word in Hindi and Gujarati.
  */
 export function namesAadhaar(header: string): boolean {
-  const word = header.toLowerCase().replace(/[^\p{L}]/gu, '');
+  // Letters and the vowel signs of the Indian scripts, which Unicode counts as marks.
+  const word = header.toLowerCase().replace(/[^\p{L}\p{M}]/gu, '');
   return (
     /a?adh+a+r/.test(word) ||
     /^uid(?:ai)?(?:no|number|num)?$/.test(word) ||
@@ -49,6 +50,20 @@ function aadhaarNumbers(cell: string, phoneColumn: boolean): FoundNumber[] {
   );
 }
 
+/** The most letters a cell may hold besides an Aadhaar number and still be one: "UID no." */
+const LABEL_LETTERS = 10;
+
+/**
+ * Whether a cell is an Aadhaar number, alone or after a short label, rather than text that has
+ * one inside it (an address, a note).
+ */
+function isAadhaarCell(cell: string, phoneColumn: boolean): boolean {
+  const found = aadhaarNumbers(cell, phoneColumn);
+  if (found.length !== 1) return found.length > 1;
+  const rest = replaceNumbers(cell, found, () => ' ');
+  return !/\p{N}/u.test(rest) && (rest.match(/\p{L}/gu) ?? []).length <= LABEL_LETTERS;
+}
+
 /** The number as written, every digit but the last four replaced by X, its separators kept. */
 function lastFourOnly(written: string): string {
   const digits = [...written].filter((c) => /\p{Nd}/u.test(c)).length;
@@ -71,7 +86,8 @@ function masked(cell: string, phoneColumn: boolean): { text: string; changed: bo
 
 /**
  * The file's columns and rows without identity numbers. A column is left out when its header
- * names an Aadhaar number, or when half or more of its filled cells hold one; every other cell,
+ * names an Aadhaar number, or when half or more of its filled cells are one (alone, or after a
+ * short label such as "UID"); every other cell,
  * and every header, keeps only the last four digits of an Aadhaar number written in it. Applying
  * it again changes nothing.
  */
@@ -88,7 +104,7 @@ export function withoutIdentityNumbers(
       const cell = row[k] ?? '';
       if (cell === '') continue;
       filled += 1;
-      if (aadhaarNumbers(cell, phoneColumn).length > 0) holding += 1;
+      if (isAadhaarCell(cell, phoneColumn)) holding += 1;
     }
     return filled > 0 && holding * 2 >= filled;
   });

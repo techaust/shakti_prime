@@ -75,6 +75,7 @@ vi.mock('@upstash/qstash', async (original) => ({
 const {
   commitImportJob,
   getImportJob,
+  getImportReconciliation,
   listImportJobs,
   listImportTemplates,
   listImportRows,
@@ -86,6 +87,7 @@ const {
 const { startUpload } = await import('../src/actions/files');
 const { completeUploadFor, presignUpload } = await import('../src/files/uploads');
 const { handleFileUploaded } = await import('../src/workers/files/handle-file-uploaded');
+const { purgeImports } = await import('../src/workers/files/purge-imports');
 const { POST } = await import('../src/app/api/v1/workers/imports/commit/route');
 const { giveUpImportCommit, importRunId, scheduleImportCommit } =
   await import('../src/workers/imports');
@@ -572,6 +574,102 @@ describe('a customers file whose number belongs to a customer of another of the 
 const CURRENT_KEY = 'imports-route-test-current-signing-key';
 const ROUTE_URL = 'http://localhost:3000/api/v1/workers/imports/commit';
 const QSTASH_ENV = ['QSTASH_TOKEN', 'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY'];
+
+/** Moves a job's last change back by `days`, as if nothing had happened to it since. */
+async function age(jobId: string, days: number): Promise<void> {
+  await asMigrator(async (m) => {
+    await m.begin(async (tx) => {
+      await tx`alter table import_jobs disable trigger user`;
+      await tx`update import_jobs set updated_at = now() - make_interval(days => ${days})
+               where id = ${jobId}`;
+      await tx`alter table import_jobs enable trigger user`;
+    });
+  });
+}
+
+async function storedFile(fileId: string): Promise<{ key: string; deleted_at: Date | null }> {
+  const [row] = await asMigrator(
+    (m) => m<{ key: string; deleted_at: Date | null }[]>`
+      select key, deleted_at from files where id = ${fileId}`,
+  );
+  if (row === undefined) throw new Error('no such file');
+  return row;
+}
+
+describe('an import keeps no identity number, and not what its file said for longer than it needs (audit SEC-1)', () => {
+  it('leaves out the Aadhaar column, deletes the file once added, and clears the rows after the period', async () => {
+    const aadhaar = `2${String(Math.floor(Math.random() * 1e11)).padStart(11, '0')}`;
+    const inAddress = `3${String(Math.floor(Math.random() * 1e11)).padStart(11, '0')}`;
+    const spaced = (digits: string) => digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+    const csv =
+      `Name,Mobile,Village,Aadhaar card,Address\n` +
+      `Bhagwati,${phone()},Sikar,${spaced(aadhaar)},"Ward 2, near the tank"\n` +
+      `Kailash,${phone()},Churu,,"Plot 7, UID ${inAddress}"\n`;
+    const fileId = await uploaded(csv, { name: 'subsidy-list.csv' });
+    const job = ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
+    expect(job).toMatchObject({
+      columns: ['Name', 'Mobile', 'Village', 'Address'],
+      leftOutColumns: ['Aadhaar card'],
+      maskedValues: 1,
+      file: { deletedAt: null },
+    });
+    const rows = ok(await listImportRows({ entityId: 1, jobId: job.id }));
+    expect(rows.rows[1]?.raw.Address).toBe(`Plot 7, UID XXXXXXXX${inAddress.slice(-4)}`);
+    expect(JSON.stringify(rows)).not.toMatch(new RegExp(`${aadhaar.slice(0, 8)}|${inAddress.slice(0, 8)}`));
+
+    // A second import, only uploaded, keeps its file for the open period.
+    const openFile = await uploaded(`Name,Mobile\nSarla,${phone()}\n`, { name: 'open.csv' });
+    ok(await startImport({ entityId: 1, kind: 'leads', fileId: openFile }, newId()));
+
+    ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping }));
+    ok(await previewImportJob({ entityId: 1, jobId: job.id }));
+    expect(ok(await commitImportJob({ entityId: 1, jobId: job.id }, newId())).state).toBe(
+      'committed',
+    );
+    const reconciled = ok(await getImportReconciliation({ entityId: 1, jobId: job.id }));
+    const { key } = await storedFile(fileId);
+    expect(files.objects.has(key)).toBe(true);
+
+    // A store that cannot delete leaves the file recorded as kept, for the next run.
+    const failing: FileStore = {
+      ...files,
+      delete: () => Promise.reject(new Error('the store is unreachable')),
+    };
+    await purgeImports({ store: failing, requestId: newId() });
+    expect((await storedFile(fileId)).deleted_at).toBeNull();
+
+    await purgeImports({ store: files, requestId: newId() });
+    expect(files.objects.has(key)).toBe(false);
+    expect((await storedFile(fileId)).deleted_at).not.toBeNull();
+    const open = await storedFile(openFile);
+    expect(files.objects.has(open.key)).toBe(true);
+    expect(open.deleted_at).toBeNull();
+    const after = ok(await getImportJob({ entityId: 1, jobId: job.id }));
+    expect(after.file.deletedAt).not.toBeNull();
+    expect(after.purgedAt).toBeNull();
+    // A deleted file starts nothing.
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_missing',
+    });
+
+    await age(job.id, 31);
+    const purged = await purgeImports({ store: files, requestId: newId() });
+    expect(purged.jobsPurged).toBeGreaterThanOrEqual(1);
+    const cleared = ok(await getImportJob({ entityId: 1, jobId: job.id }));
+    expect(cleared.purgedAt).not.toBeNull();
+    expect(ok(await getImportReconciliation({ entityId: 1, jobId: job.id }))).toEqual(reconciled);
+    const left = ok(await listImportRows({ entityId: 1, jobId: job.id }));
+    expect(left.rows.map((r) => [r.state, r.raw])).toEqual([
+      ['committed', {}],
+      ['committed', {}],
+    ]);
+    expect(await mapImportJob({ entityId: 1, jobId: job.id, mapping })).toEqual({
+      ok: false,
+      error: 'import_job_purged',
+    });
+  });
+});
 
 describe('POST /api/v1/workers/imports/commit', () => {
   const saved = new Map<string, string | undefined>();

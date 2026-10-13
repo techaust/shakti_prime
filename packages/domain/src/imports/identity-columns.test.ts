@@ -45,11 +45,11 @@ describe('the identity numbers of an import file (audit SEC-1)', () => {
     });
   });
 
-  it('leaves out a column half or more of whose filled cells hold an Aadhaar number, in any shape', () => {
+  it('leaves out a column half or more of whose filled cells are an Aadhaar number, in any shape', () => {
     const out = withoutIdentityNumbers(
       ['Name', 'ID', 'Village'],
       [
-        ['Ram', '2345.6789.0123', 'Sikar'],
+        ['Ram', 'UID no. 2345.6789.0123', 'Sikar'],
         ['Sita', '२३४५ ६७८९ ०१२३', 'Churu'],
         ['Gopal', 'V-12', 'Idar'],
         ['Meera', '', 'Idar'],
@@ -64,14 +64,14 @@ describe('the identity numbers of an import file (audit SEC-1)', () => {
     const out = withoutIdentityNumbers(
       ['Name', 'Address', 'Notes'],
       [
-        ['Ram', 'H 4, Sikar, UID 2345 6789 0123', 'Card २३४५-६७८९-०१२३ seen'],
+        ['Ram', 'H 4, Sikar, UID 2345 6789 0123', 'Card २३४५-६७८९-०१२३ seen at the fair'],
         ['Sita', 'Ward 3, Churu', 'Pump 5 HP on 13-10-2026, ₹1,45,000'],
         ['Gopal', 'Idar', ''],
       ],
     );
     expect(out.leftOutColumns).toEqual([]);
     expect(out.rows).toEqual([
-      ['Ram', 'H 4, Sikar, UID XXXX XXXX 0123', 'Card XXXX-XXXX-०१२३ seen'],
+      ['Ram', 'H 4, Sikar, UID XXXX XXXX 0123', 'Card XXXX-XXXX-०१२३ seen at the fair'],
       ['Sita', 'Ward 3, Churu', 'Pump 5 HP on 13-10-2026, ₹1,45,000'],
       ['Gopal', 'Idar'],
     ]);
@@ -83,12 +83,12 @@ describe('the identity numbers of an import file (audit SEC-1)', () => {
     const out = withoutIdentityNumbers(
       ['Name', 'Mobile', 'Notes'],
       [
-        ['Ram', BOTH, `ref ${BOTH}`],
+        ['Ram', BOTH, `paid at the fair, ref ${BOTH}`],
         ['Sita', '919812345678', ''],
       ],
     );
     expect(out.columns).toEqual(['Name', 'Mobile', 'Notes']);
-    expect(out.rows[0]).toEqual(['Ram', BOTH, `ref XXXXXXXX${BOTH.slice(-4)}`]);
+    expect(out.rows[0]).toEqual(['Ram', BOTH, `paid at the fair, ref XXXXXXXX${BOTH.slice(-4)}`]);
     expect(out.rows[1]).toEqual(['Sita', '919812345678']);
   });
 
