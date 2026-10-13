@@ -7,12 +7,12 @@ import { memoryAlertSink } from '../src/observability/alerts';
 
 // The QStash client as the publisher calls it: every batch is kept, and `answer` decides what the
 // queue says for each message.
-const queue = vi.hoisted(() => ({
-  batches: [] as { deduplicationId: string; body: { id?: string } }[][],
-  answer: ((): unknown => [{ messageId: 'm', url: 'u' }]) as (message: {
-    deduplicationId: string;
-  }) => unknown,
-}));
+const queue = vi.hoisted(() => {
+  const answer: (message: { deduplicationId: string }) => unknown = () => [
+    { messageId: 'm', url: 'u' },
+  ];
+  return { batches: [] as { deduplicationId: string; body: { id?: string } }[][], answer };
+});
 vi.mock('@upstash/qstash', () => ({
   Client: class {
     batchJSON(messages: { deduplicationId: string; body: { id?: string } }[]) {
