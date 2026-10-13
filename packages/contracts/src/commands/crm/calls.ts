@@ -52,9 +52,9 @@ export const LogCallInput = z
     dispositionId: IdSchema,
     durationSeconds: z.number().int().min(0).max(CALL_DURATION_MAX_SECONDS).optional(),
     /**
-     * When the call started, as the calling screen took it when Dial was pressed (DOM-6): calling
-     * hours are checked on it and the call keeps it. Left out, the call started its duration
-     * before it is logged.
+     * When the call started: the server's time of the dial (`DialNumberDto.dialledAt`), which the
+     * workspace sends back (DOM-6). Calling hours are checked on it, never later than now less the
+     * duration, and the call keeps it. Left out, the call started its duration before now.
      */
     startedAt: z.iso.datetime({ offset: true }).optional(),
     callbackAt: z.iso.datetime({ offset: true }).optional(),
