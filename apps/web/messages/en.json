@@ -2336,7 +2336,8 @@
         "commit_failed": "Adding stopped at this row",
         "customer_held_by_colleague": "A colleague looks after the customer",
         "company_unknown": "The company was not recognised",
-        "state_unknown": "The state was not recognised"
+        "state_unknown": "The state was not recognised",
+        "dealer_needs_executive": "Only an Executive can add a dealer"
       },
       "csvLine": "What happened",
       "csvRows": "Rows",
