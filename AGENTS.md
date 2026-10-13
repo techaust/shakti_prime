@@ -171,6 +171,7 @@ export const createTag = defineCommand({
 ## 6. Database changes
 - Schema in Drizzle (`packages/db/src/schema/*`). Generate migrations with drizzle-kit; RLS policies, triggers and partitions are hand-written SQL migrations in the same numbered sequence.
 - Never edit an applied migration. Use expand/contract for renames and type changes.
+- A widened check constraint (a new value in a list check such as `activities_type_check`, which drizzle-kit writes as `DROP CONSTRAINT` then `ADD CONSTRAINT … CHECK`) is added `NOT VALID` in the generated migration: rows that met the narrower check meet the wider one, so no scan of the table under ACCESS EXCLUSIVE is needed (`migration-rules.test.ts`). A new check that older rows may not meet is added `NOT VALID` too and validated after the deploy ([DATABASE §8](docs/05-database.md#8-migrations)).
 - Every new business table has `entity_id`, RLS enabled and forced, the standard policy from `docs/05-database.md`, and a test in the security suite proving cross-entity reads return nothing.
 - Append-only tables revoke `UPDATE` and `DELETE` from `app_user`.
 - Restricted tables (`item_costs`, `job_cost_entries`, `vendor_quotes`, `po_lines` values, `tally_purchase_vouchers`) get the cost-permission policy in addition to the entity policy.

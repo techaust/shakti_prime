@@ -722,6 +722,27 @@ describe('a worker QStash gave up on turns its event back into a dead letter (00
     expect(await holdBackFailedEvent(newId(), 'worker_refused')).toBe('unchanged');
   });
 
+  it('answers leased for an event the run that sent it has not yet recorded (audit 2026-10, DATA-4)', async () => {
+    const [id = ''] = await seedRows(1);
+    await asMigrator(
+      (m) => m`update outbox_events set attempts = 1, claimed_until = now() + interval '2 minutes'
+                where id = ${id}`,
+    );
+    expect(await holdBackFailedEvent(id, 'worker_refused')).toBe('leased');
+    expect(await rowAsPublisher(id)).toMatchObject({ published_at: null, dead_lettered_at: null });
+    // Once the run records it delivered, the callback QStash sends again holds it back.
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set published_at = now(), claimed_until = null where id = ${id}`,
+    );
+    expect(await holdBackFailedEvent(id, 'worker_refused')).toBe('held');
+    // A pending event no run holds is not the race: it answers unchanged, as before.
+    const [idle = ''] = await seedRows(1);
+    expect(await holdBackFailedEvent(idle, 'worker_failed')).toBe('unchanged');
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set published_at = now() where id = ${idle}`,
+    );
+  });
+
   it('allows only that change: another error, a kept backoff or a changed count is refused', async () => {
     const id = await delivered();
     const change = (set: string) =>

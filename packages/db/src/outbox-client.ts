@@ -166,18 +166,28 @@ export const claimOutbox: ClaimOutbox = leasedClaim(postgresOutboxLeaseStore);
  * when the queue took it, is held back as a dead letter with the worker's error, so Integration
  * Health lists it, the owner is told and Send again replays it. Only a delivered event that is not
  * already held back changes; the outbox trigger allows exactly this change, and only to this role.
+ *
+ * The callback can arrive before the run that sent the event has recorded it delivered (audit
+ * 2026-10, DATA-4): the event is then still leased, not yet delivered, and answers `leased`, so
+ * the route asks QStash to call again rather than lose the dead letter.
  */
 export async function holdBackFailedEvent(
   eventId: string,
   lastError: 'worker_failed' | 'worker_refused',
-): Promise<'held' | 'unchanged'> {
-  const rows = await outboxSql()`
-    update outbox_events
-       set published_at = null, dead_lettered_at = now(), last_error = ${lastError},
-           next_attempt_at = null, claimed_until = null
-     where id = ${eventId} and published_at is not null and dead_lettered_at is null
-    returning id`;
-  return rows.length === 1 ? 'held' : 'unchanged';
+): Promise<'held' | 'unchanged' | 'leased'> {
+  const [row] = await outboxSql()<{ held: boolean; leased: boolean }[]>`
+    with held as (
+      update outbox_events
+         set published_at = null, dead_lettered_at = now(), last_error = ${lastError},
+             next_attempt_at = null, claimed_until = null
+       where id = ${eventId} and published_at is not null and dead_lettered_at is null
+      returning id)
+    select exists (select 1 from held) as held,
+           exists (select 1 from outbox_events
+                    where id = ${eventId} and published_at is null and dead_lettered_at is null
+                      and claimed_until > now()) as leased`;
+  if (row?.held === true) return 'held';
+  return row?.leased === true ? 'leased' : 'unchanged';
 }
 
 export async function outboxLag(): Promise<OutboxLag> {
