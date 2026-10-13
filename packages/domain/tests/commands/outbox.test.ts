@@ -4,6 +4,7 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { defineCommand } from '../../src/command/define-command';
 import { executeCommand } from '../../src/command/execute';
+import { allowTestCommand } from '../../src/testing';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { memoryLogger } from '../../src/ports/logger';
 
@@ -45,6 +46,7 @@ const emitThenMaybeFail = defineCommand({
     return Promise.resolve({});
   },
 });
+allowTestCommand(emitThenMaybeFail);
 
 const lead = {
   entityId: 1,
@@ -151,6 +153,7 @@ describe('events of a command (ADR 0005, docs/03-roadmap-appendix/backend-weeks-
       output: z.object({}).strict(),
       handler: () => Promise.resolve({}),
     });
+    allowTestCommand(quiet);
     const onCommitted = vi.fn();
     await executeCommand(caller, { entityIds: [1] }, quiet, {}, { onCommitted });
     expect(onCommitted).not.toHaveBeenCalled();

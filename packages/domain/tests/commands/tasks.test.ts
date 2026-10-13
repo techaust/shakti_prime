@@ -225,3 +225,57 @@ describe('crm.task.complete, .reschedule and .cancel', () => {
     expect(done.state).toBe('done');
   });
 });
+
+// The refusals of moving and cancelling a task, each command in turn (audit OPS-6): a role that
+// does not work on leads, a colleague, a company outside the request and a task of another
+// company. The task is left as it was after each one.
+describe.each([
+  {
+    name: 'crm.task.reschedule',
+    command: rescheduleTask as AnyCommand,
+    input: (entityId: number, taskId: string) => ({ entityId, taskId, dueAt: later(72) }),
+  },
+  {
+    name: 'crm.task.cancel',
+    command: cancelTask as AnyCommand,
+    input: (entityId: number, taskId: string) => ({ entityId, taskId }),
+  },
+])('$name refusals', ({ command, input }) => {
+  async function unchanged(made: Task): Promise<void> {
+    const [row] = await asMigrator(
+      (m) => m<{ state: string; due_at: Date }[]>`
+        select state, due_at from tasks where id = ${made.id}`,
+    );
+    expect(row?.state).toBe('open');
+    expect(row?.due_at.toISOString()).toBe(new Date(made.dueAt).toISOString());
+  }
+
+  it('is refused to a role that does not hold crm.lead.write', async () => {
+    const made = await task(caller, await leadOf(caller));
+    const accounts = await createTestPrincipal('accounts', [1]);
+    await expect(run(accounts, command, input(1, made.id))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await unchanged(made);
+  });
+
+  it('a colleague cannot see or change someone else’s task', async () => {
+    const made = await task(caller, await leadOf(caller));
+    await expect(run(colleague, command, input(1, made.id))).rejects.toMatchObject(
+      reason('task_missing'),
+    );
+    await unchanged(made);
+  });
+
+  it('is refused for another company, and finds no task of company 1 under company 2', async () => {
+    const made = await task(caller, await leadOf(caller));
+    await expect(run(caller, command, input(2, made.id))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    const everywhere = await createTestPrincipal('general_manager', [1, 2]);
+    await expect(run(everywhere, command, input(2, made.id))).rejects.toMatchObject(
+      reason('task_missing'),
+    );
+    await unchanged(made);
+  });
+});

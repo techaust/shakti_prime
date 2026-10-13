@@ -502,6 +502,44 @@ describe('agents.inbox.approve, .edit and .reject', () => {
     expect(task?.title).toBe('Ask about the borewell');
   });
 
+  // Audit OPS-6: an edit runs the command as the approver, so it has every refusal an approval
+  // has, and under a company the item is not in it finds nothing. The item stays open and no
+  // task is made.
+  it('editing is refused to a role without the inbox, to an agent, to someone it is not for, and in another company', async () => {
+    const answer = await suggest(lead);
+    const input = (entityId: number) => ({
+      entityId,
+      itemId: answer.inboxItemId,
+      changes: { title: 'Refused edit' },
+    });
+    const field = await createTestPrincipal('field_engineer', [1]);
+    await expect(run(field, editInboxItem, input(1))).rejects.toMatchObject({ code: 'forbidden' });
+    const withInbox = principalFor('agent:copilot', [1], {
+      permissions: [{ key: 'agents.inbox.act', scope: 'entity' }],
+    });
+    await expect(run(withInbox, editInboxItem, input(1))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(otherCaller, editInboxItem, input(1))).rejects.toMatchObject(
+      reason('inbox_item_missing'),
+    );
+    const elsewhere = await createTestPrincipal('general_manager', [2]);
+    await expect(run(elsewhere, editInboxItem, input(1))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    const both = await createTestPrincipal('general_manager', [1, 2]);
+    await expect(run(both, editInboxItem, input(2))).rejects.toMatchObject(
+      reason('inbox_item_missing'),
+    );
+    const [row] = await asMigrator(
+      (m) => m<{ state: string; tasks: number }[]>`
+        select i.state,
+               (select count(*)::int from tasks where title = 'Refused edit') as tasks
+          from inbox_items i where i.id = ${answer.inboxItemId}`,
+    );
+    expect(row).toEqual({ state: 'open', tasks: 0 });
+  });
+
   it('an edit with no change counts as unedited: the same moment written another way', async () => {
     const due = new Date(Date.now() + 30 * HOUR);
     due.setUTCSeconds(0, 0);

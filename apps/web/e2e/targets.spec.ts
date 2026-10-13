@@ -67,8 +67,14 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       ).toBeVisible();
       await expect(page.getByRole('table', { name: 'Team queues' })).toBeVisible();
       await expectNoAxeViolations(page);
+      // The counts change with what other journeys saved, so the rows' cells and the figures are
+      // masked; the captions, column heads and labels stay in the comparison (audit OPS-15).
       await snap(page, 'home-team-lead', {
-        mask: [page.getByRole('table'), page.locator('main dl'), page.locator('time')],
+        mask: [
+          page.getByRole('table').locator('tbody'),
+          page.locator('main dl dd'),
+          page.locator('time'),
+        ],
       });
 
       // The week and the month are one click away.

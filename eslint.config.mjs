@@ -104,16 +104,45 @@ const webSchemaModule = {
   name: '@shakti/db/schema',
   message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
 };
-const webDatabasePaths = [webDatabaseNames, webSchemaModule];
-// A relative path into packages/db reaches the request context and the schema without the
-// package's name, so apps/web names no file there at all.
+// The command layer's own parts stay in packages/domain (audit ARCH-1): a server action that defined
+// a command, ran one with the bare runner or wrote through the audit, outbox or idempotency sinks
+// would write outside the registry, and so outside the agent refusal sweep and the audit label
+// check. executeCommand() itself refuses a command that is not the registry's.
+const webCommandNames = {
+  name: '@shakti/domain',
+  importNames: [
+    'defineCommand',
+    'runCommand',
+    'databaseAuditSink',
+    'databaseOutboxSink',
+    'databaseIdempotencyStore',
+  ],
+  message:
+    'apps/web runs a registered command through executeCommand(); commands are defined and run in packages/domain (audit ARCH-1).',
+};
+const webDatabasePaths = [webDatabaseNames, webSchemaModule, webCommandNames];
+// A relative path into packages/db or packages/domain reaches the request context, the schema and
+// the runner without the package's name, so apps/web names no file there at all.
 const webDatabasePatterns = [
   ...rawClientImport.patterns,
   {
     group: ['**/db/src', '**/db/src/**'],
     message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
   },
+  {
+    // Any file of packages/domain/src but the testing settings, which have their own fence above.
+    regex: '(^|/)domain/src(/(?!(testing|imports/batch-settings)(\\.[cm]?[jt]s)?$).*)?$',
+    message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
+  },
 ];
+// The query builder writes SQL of its own: apps/web reads through domain queries, and only the
+// auth module, which runs Better Auth's adapter on the auth_service connection, uses it (audit ARCH-1).
+const webQueryBuilderPattern = {
+  group: ['drizzle-orm', 'drizzle-orm/*'],
+  message:
+    'apps/web reads through a domain query in executeQuery(); only src/auth uses the query builder (audit ARCH-1).',
+};
+const webPatternsOutsideAuth = [...webDatabasePatterns, webQueryBuilderPattern];
 
 // The restricted modules may not be reached by a dynamic import or require either (AUDIT M12).
 const restrictedModule =
@@ -192,7 +221,8 @@ const requireBypasses = [
 // apps/web: the database package and its schema are not reached by a dynamic import either, since
 // importNames reads only static import names, nor is any file of packages/db/src.
 const webDatabaseImport = {
-  selector: 'ImportExpression[source.value=/^@shakti\\/db(\\/schema)?$|(^|\\/)db\\/src(\\/|$)/]',
+  selector:
+    'ImportExpression[source.value=/^(@shakti\\/db(\\/schema)?|@shakti\\/domain|drizzle-orm(\\/.*)?)$|(^|\\/)db\\/src(\\/|$)|(^|\\/)domain\\/src(\\/(?!(testing|imports\\/batch-settings)(\\.[cm]?[jt]s)?$)|$)/]',
   message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
 };
 
@@ -470,7 +500,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        { paths: [...rawClientImport.paths, ...webDatabasePaths], patterns: webDatabasePatterns },
+        { paths: [...rawClientImport.paths, ...webDatabasePaths], patterns: webPatternsOutsideAuth },
       ],
     },
   },
@@ -506,7 +536,7 @@ export default tseslint.config(
             ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/outbox'),
             ...webDatabasePaths,
           ],
-          patterns: webDatabasePatterns,
+          patterns: webPatternsOutsideAuth,
         },
       ],
     },
@@ -524,7 +554,7 @@ export default tseslint.config(
             ),
             ...webDatabasePaths,
           ],
-          patterns: webDatabasePatterns,
+          patterns: webPatternsOutsideAuth,
         },
       ],
     },
@@ -542,7 +572,7 @@ export default tseslint.config(
             ),
             ...webDatabasePaths,
           ],
-          patterns: webDatabasePatterns,
+          patterns: webPatternsOutsideAuth,
         },
       ],
     },

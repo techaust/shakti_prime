@@ -240,6 +240,27 @@ export const commands = {
   [unsubscribePush.name]: unsubscribePush,
 } as const satisfies Record<string, AnyCommand>;
 
+/**
+ * Commands a test defines to exercise the runner itself (an event that fails after it is stored,
+ * a timing line). Only `@shakti/domain/testing` adds one, and ESLint lets only tests import it.
+ */
+const testCommands = new WeakSet<AnyCommand>();
+
+export function allowTestCommand(command: AnyCommand): void {
+  testCommands.add(command);
+}
+
+/**
+ * Whether `executeCommand()` may run this command: the registry's own object under its name, so a
+ * command defined anywhere else, even under a registered name, never runs (audit ARCH-1).
+ */
+export function isRegistered(command: AnyCommand): boolean {
+  return (
+    (commands as Record<string, AnyCommand | undefined>)[command.name] === command ||
+    testCommands.has(command)
+  );
+}
+
 export function getCommand(name: string): AnyCommand {
   const command = (commands as Record<string, AnyCommand | undefined>)[name];
   if (!command) throw new DomainError('not_found', `no command named ${name}`, { command: name });

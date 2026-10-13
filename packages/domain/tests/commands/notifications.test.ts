@@ -785,6 +785,35 @@ describe('an enquiry for a colleague’s customer (crm.enquiry.route, RPT-04 cri
     expect((await inbox(callerA)).items.map((i) => i.id)).not.toContain(routed.itemId);
   });
 
+  // Audit OPS-6: the item is not marked done by a role without the inbox, in a company outside
+  // the request, or under a company it is not in; it stays open after each refusal.
+  it('is not marked done by a role without the inbox, in another company, or under a company it is not in', async () => {
+    const number = phone();
+    await newLead(callerA, 'farmer_pumps', number);
+    const routed = await run<{ itemId: string }>(callerB, routeEnquiry, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      phone: number,
+    });
+    const input = (entityId: number) => ({ entityId, itemId: routed.itemId });
+    const field = await createTestPrincipal('field_engineer', [1]);
+    expect(await refusal(run(field, completeInboxItem, input(1)))).toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await refusal(run(callerA, completeInboxItem, input(2)))).toMatchObject({
+      code: 'forbidden',
+    });
+    const both = principalFor('tele_caller_cc', [1, 2], { id: callerA.id, teamId: team });
+    expect(await refusal(run(both, completeInboxItem, input(2)))).toMatchObject({
+      code: 'not_found',
+      details: { reason: 'inbox_item_missing' },
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ state: string }[]>`select state from inbox_items where id = ${routed.itemId}`,
+    );
+    expect(row?.state).toBe('open');
+  });
+
   it('routes a known customer’s enquiry by the customer', async () => {
     const lead = await newLead(callerA);
     const routed = await run<{ colleagueName: string }>(callerB, routeEnquiry, {

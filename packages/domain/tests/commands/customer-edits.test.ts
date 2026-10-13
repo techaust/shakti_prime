@@ -467,4 +467,77 @@ describe('crm.note.add', () => {
       run(colleague, addNote, { entityId: 1, accountId: k.accountId, body: 'Not mine' }),
     ).rejects.toMatchObject(reason('account_missing'));
   });
+
+  // Audit OPS-6: a company outside the request, and a customer the request's company does not
+  // share; no note is written.
+  it('refuses a note in another company, and on a customer that company does not share', async () => {
+    const k = await customerOf(caller);
+    await expect(
+      run(caller, addNote, { entityId: 2, accountId: k.accountId, body: 'Elsewhere' }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    const everywhere = await createTestPrincipal('general_manager', [1, 2]);
+    await expect(
+      run(everywhere, addNote, { entityId: 2, accountId: k.accountId, body: 'Elsewhere' }),
+    ).rejects.toMatchObject(reason('account_missing'));
+    expect((await timeline(k.accountId)).filter((r) => r.type === 'note')).toEqual([]);
+  });
+});
+
+// The refusals of a contact or a site edit, each command in turn (audit OPS-6): a role without
+// crm.account.write, a company outside the request, and a customer the request's company does not
+// share. Nothing is changed by any of them.
+describe.each([
+  {
+    name: 'crm.contact.update',
+    command: updateContact as AnyCommand,
+    input: (k: Customer, entityId: number) => ({
+      entityId,
+      accountId: k.accountId,
+      contactId: k.contactId,
+      name: 'Refused change',
+    }),
+  },
+  {
+    name: 'crm.site.upsert',
+    command: upsertSite as AnyCommand,
+    input: (k: Customer, entityId: number) => ({
+      entityId,
+      accountId: k.accountId,
+      type: 'rooftop',
+      village: 'Refused village',
+    }),
+  },
+])('$name refusals', ({ command, input }) => {
+  async function untouched(k: Customer): Promise<void> {
+    const [row] = await asMigrator(
+      (m) => m<{ contact: string; sites: number }[]>`
+        select (select name from contacts where id = ${k.contactId}) as contact,
+               (select count(*)::int from customer_sites where account_id = ${k.accountId}) as sites`,
+    );
+    expect(row).toEqual({ contact: 'Edit customer', sites: 1 });
+  }
+
+  it('is refused without crm.account.write', async () => {
+    const k = await customerOf(caller);
+    const accounts = await createTestPrincipal('accounts', [1]);
+    await expect(run(accounts, command, input(k, 1))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await untouched(k);
+  });
+
+  it('is refused for a company outside the request', async () => {
+    const k = await customerOf(caller);
+    await expect(run(caller, command, input(k, 2))).rejects.toMatchObject({ code: 'forbidden' });
+    await untouched(k);
+  });
+
+  it('does not reach a customer the company of the request does not share', async () => {
+    const k = await customerOf(caller);
+    const everywhere = await createTestPrincipal('general_manager', [1, 2]);
+    await expect(run(everywhere, command, input(k, 2))).rejects.toMatchObject(
+      reason('account_missing'),
+    );
+    await untouched(k);
+  });
 });

@@ -301,4 +301,28 @@ describe('crm.consent.withdraw', () => {
       }),
     ).rejects.toMatchObject(reason('consent_missing'));
   });
+
+  // Audit OPS-6: the person's role, the company of the request and a customer that company does
+  // not share; the consent stays given after each refusal.
+  it('is refused without crm.account.write, in another company, and for a customer the company does not share', async () => {
+    const k = await customerOf(caller);
+    const made = (await run(caller, recordConsent, consentOf(k))) as { id: string };
+    const input = (entityId: number) => ({ entityId, accountId: k.accountId, consentId: made.id });
+    const accounts = await createTestPrincipal('accounts', [1]);
+    await expect(run(accounts, withdrawConsent, input(1))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(caller, withdrawConsent, input(2))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    const everywhere = await createTestPrincipal('general_manager', [1, 2]);
+    await expect(run(everywhere, withdrawConsent, input(2))).rejects.toMatchObject(
+      reason('consent_missing'),
+    );
+    const [row] = await asMigrator(
+      (m) => m<{ withdrawn_at: Date | null }[]>`
+        select withdrawn_at from consents where id = ${made.id}`,
+    );
+    expect(row?.withdrawn_at).toBeNull();
+  });
 });

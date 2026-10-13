@@ -116,6 +116,24 @@ describe('crm.tag.create and crm.tag.archive', () => {
     await expect(tag(teamLead, 2)).rejects.toMatchObject({ code: 'forbidden' });
   });
 
+  // Audit OPS-6: a caller holds no crm.lead.assign, and a team lead of company 1 finds no tag of
+  // company 2 to archive; both tags stay open.
+  it('archives no tag for a caller, nor a tag of another company', async () => {
+    const ours = await tag(teamLead, 1);
+    await expect(run(caller, archiveTag, { tagId: ours.id })).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    const theirs = await tag(everywhere, 2);
+    await expect(run(teamLead, archiveTag, { tagId: theirs.id })).rejects.toMatchObject(
+      reason('tag_missing'),
+    );
+    const open = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        select id from tags where id = any(${[ours.id, theirs.id]}::uuid[]) and archived_at is null`,
+    );
+    expect(open).toHaveLength(2);
+  });
+
   it('archives a tag once; it can then not be put on a lead', async () => {
     const made = await tag(teamLead, 1);
     await run(teamLead, archiveTag, { tagId: made.id });

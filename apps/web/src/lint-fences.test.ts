@@ -135,6 +135,75 @@ describe('the import fences', { timeout: 60_000 }, () => {
     }
   });
 
+  it('keep the command layer inside packages/domain (audit ARCH-1)', async () => {
+    const parts = [
+      'defineCommand',
+      'runCommand',
+      'databaseAuditSink',
+      'databaseOutboxSink',
+      'databaseIdempotencyStore',
+    ];
+    for (const file of [
+      WEB,
+      'apps/web/src/workers/fence-probe.ts',
+      'apps/web/src/workers/imports.ts',
+      'apps/web/src/auth/fence-probe.ts',
+      'apps/web/scripts/fence-probe.ts',
+    ]) {
+      for (const name of parts) {
+        expect(
+          await fences(file, `import { ${name} } from '@shakti/domain';\nexport const p = ${name};\n`),
+        ).toEqual(['no-restricted-imports']);
+      }
+      // Nor reached through the whole module, or by a dynamic import.
+      expect(
+        await fences(file, "import * as domain from '@shakti/domain';\nexport const d = domain;\n"),
+      ).toEqual(['no-restricted-imports']);
+      expect(await fences(file, "export const d = () => import('@shakti/domain');\n")).toEqual([
+        'no-restricted-syntax',
+      ]);
+    }
+    // A screen still runs a registered command and a domain query.
+    expect(
+      await fences(
+        WEB,
+        "import { executeCommand, executeQuery, createLead } from '@shakti/domain';\nexport const p = [executeCommand, executeQuery, createLead];\n",
+      ),
+    ).toEqual([]);
+    // No file of packages/domain/src is named by a relative path, static or dynamic.
+    expect(
+      await fences(
+        WEB,
+        "import { runCommand } from '../../../../packages/domain/src/command/run-command';\nexport const r = runCommand;\n",
+      ),
+    ).toEqual(['no-restricted-imports']);
+    expect(
+      await fences(
+        WEB,
+        "export const r = () => import('../../../../packages/domain/src/command/run-command');\n",
+      ),
+    ).toEqual(['no-restricted-syntax']);
+  });
+
+  it('keep the query builder in the auth module (audit ARCH-1)', async () => {
+    const builder = "import { sql } from 'drizzle-orm';\nexport const q = sql;\n";
+    const pgCore = "import { pgTable } from 'drizzle-orm/pg-core';\nexport const t = pgTable;\n";
+    for (const file of [
+      WEB,
+      'apps/web/src/app/(bos)/leads/fence-probe.tsx',
+      'apps/web/src/workers/fence-probe.ts',
+      'apps/web/src/workers/imports.ts',
+      'apps/web/scripts/fence-probe.ts',
+    ]) {
+      expect(await fences(file, builder)).toEqual(['no-restricted-imports']);
+      expect(await fences(file, pgCore)).toEqual(['no-restricted-imports']);
+      expect(await fences(file, "export const q = () => import('drizzle-orm');\n")).toEqual([
+        'no-restricted-syntax',
+      ]);
+    }
+    expect(await fences('apps/web/src/auth/fence-probe.ts', builder)).toEqual([]);
+  });
+
   it('keep apps/web out of packages/db/src by a relative path', async () => {
     expect(
       await fences(

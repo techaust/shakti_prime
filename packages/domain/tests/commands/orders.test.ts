@@ -1088,7 +1088,14 @@ describe('the referral commission (CRM-09)', () => {
     expect(await failure(gm, cancelSalesOrder, { ...input, reason: ' ' })).toMatchObject({
       code: 'validation_failed',
     });
+    // A General Manager of company 1 is outside the request; one of both companies finds no
+    // order of company 4 under company 1 (audit OPS-6).
     expect(await failure(gm1, cancelSalesOrder, input)).toMatchObject({ code: 'forbidden' });
+    const both = await createTestPrincipal('general_manager', [1, E]);
+    expect(await failure(both, cancelSalesOrder, { ...input, entityId: 1 })).toMatchObject({
+      code: 'not_found',
+      reason: 'order_missing',
+    });
     const cancelled = await run<SalesOrderDto>(gm, cancelSalesOrder, input);
     expect(cancelled).toMatchObject({
       state: 'cancelled',
@@ -1198,6 +1205,43 @@ describe('dealer terms and outstanding (SALE-4, SALE-6)', () => {
     await expect(
       asPrincipal(lc, (context) => listDealerCredit(context, { entityId: E })),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  // Audit OPS-6: the outstanding has the refusals the terms have. A Lead Converter and a General
+  // Manager hold no sales.credit.write; Accounts of company 1 are outside the request; Accounts of
+  // both companies find no dealer of company 4 under company 1. Nothing is recorded.
+  it('records no outstanding for other people, another company or a dealer of another company', async () => {
+    const dealer = await newDealer();
+    const outstanding = (entityId: number) => ({
+      entityId,
+      accountId: dealer,
+      outstanding: '1.00',
+      oldestUnpaidInvoiceDate: null,
+      oldestUnpaidInvoiceNo: null,
+      asOf: yesterday(),
+    });
+    for (const who of [lc, gm]) {
+      expect(await failure(who, recordDealerOutstanding, outstanding(E))).toMatchObject({
+        code: 'forbidden',
+        stage: 'guard',
+      });
+    }
+    expect(await failure(accounts1, recordDealerOutstanding, outstanding(E))).toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await failure(accounts, recordDealerOutstanding, outstanding(1))).toMatchObject({
+      code: 'forbidden',
+    });
+    const both = await createTestPrincipal('accounts', [1, E]);
+    expect(await failure(both, recordDealerOutstanding, outstanding(1))).toMatchObject({
+      code: 'not_found',
+      reason: 'account_missing',
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from dealer_outstanding where account_id = ${dealer}`,
+    );
+    expect(row?.n).toBe(0);
   });
 });
 
