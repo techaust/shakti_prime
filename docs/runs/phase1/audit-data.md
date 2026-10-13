@@ -8,7 +8,7 @@
 | Tier | A (the outbox, workers and alerts every module relies on): build Opus 5.5 high, review Opus 5.5 xhigh |
 | Usage | start 13-10-2026 06:46 IST, last reading 06:24 (5h 11, week 21); the owner set the weekly gate aside |
 | State | building |
-| Next step | builder: the findings below |
+| Next step | lead: early check of items 1 to 5; then builder: items 6 to 8 and the Integration Health section |
 
 ## Brief
 The audit's evidence: `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/2-data.md` (its verification was cut short by the usage limit: verify each finding yourself before fixing it, and say in the report which you confirmed), `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/5-ops.md` and `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/5-ops.verdict.md`. Report: `docs/14-reviews/2026-10-audit.md`.
@@ -60,7 +60,7 @@ Documents: ARCHITECTURE §6, DATABASE §4.1, §4.4, §6.10, §7, API §3.6, SECU
 - ESLint `--max-warnings 0` over every folder touched: clean.
 - Unit: contracts 20 files, 181 tests; db `src` 9 files, 131 tests; domain `src/outbox`, `src/queries/platform`, `src/ports` 6 files, 71 tests; web `src/workers`, `src/observability` and the fence, query-name and instrumentation tests 30 files, 199 passed, 1 skipped (the existing OCR case).
 - `pnpm copy-lint`: clean.
-- Security suite on 54337: db 41 files, 1,202 tests passed; SECURITY_DOMAIN; SECURITY_WEB.
+- Security suite on 54337: db 41 files, 1,202 tests passed; domain 72 files, 932 tests passed; web 24 files, 307 tests passed (the domain and web suites rerun after the container restart, the first domain run having failed only on `reader-parity`, which now covers `readScheduledJobs`).
 
 **For the lead**
 - Migrations 0130 to 0132 follow main's 0129; DATABASE §4.1 cites 0131 and 0132 in the definers table, to be renumbered with the files if they move.
