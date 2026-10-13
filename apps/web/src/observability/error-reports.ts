@@ -16,8 +16,9 @@ const pending = new Set<Promise<void>>();
 
 /**
  * The error a line names, rebuilt from its redacted form: the same name and the scrubbed message,
- * with the original stack frames (code locations only; the first line, which repeats the message,
- * is replaced), so Sentry groups and shows it like the error itself without its text.
+ * with the original stack's frame lines only (those that start with `at`), so Sentry groups and
+ * shows it like the error itself without its text. A message of several lines (a failed query's
+ * SQL and parameters) repeats in the stack after the first line, so every other line is dropped.
  */
 function errorOf(event: string, raw: unknown): Error {
   if (!(raw instanceof Error)) return Object.assign(new Error(event), { name: 'LoggedError' });
@@ -25,7 +26,10 @@ function errorOf(event: string, raw: unknown): Error {
   const message = typeof safe.message === 'string' ? safe.message : event;
   const error = new Error(message);
   error.name = raw.name;
-  const frames = (raw.stack ?? '').split('\n').slice(1).join('\n');
+  const frames = (raw.stack ?? '')
+    .split('\n')
+    .filter((line) => /^\s+at /.test(line))
+    .join('\n');
   error.stack = frames === '' ? `${raw.name}: ${message}` : `${raw.name}: ${message}\n${frames}`;
   return error;
 }

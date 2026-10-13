@@ -68,6 +68,25 @@ describe('error lines reach Sentry (audit 2026-10, OPS-3)', () => {
     expect(next.after).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps only the frame lines of a stack, so a failed query\'s second line never reaches Sentry (review M1)', async () => {
+    quiet();
+    vi.stubEnv('SENTRY_DSN', DSN);
+    // As drizzle-orm writes a failed query: the SQL, then the parameters, on lines of their own.
+    const error = new Error(
+      'Failed query: insert into notes (body) values ($1)\nparams: asked us to call at home on +919876543210 after six',
+    );
+    error.stack = `Error: ${error.message}\n    at insertNote (/var/task/notes.js:10:5)\n    at async run (/var/task/run.js:4:2)`;
+    logger.log('error', 'crm.note_failed', { requestId: 'r7', error });
+    await flushErrorReports();
+    const sent = sentry.captureException.mock.calls[0]?.[0] as Error;
+    expect(sent.stack).not.toContain('9876543210');
+    expect(sent.stack).not.toContain('at home');
+    expect(sent.stack?.split('\n').slice(1)).toEqual([
+      '    at insertNote (/var/task/notes.js:10:5)',
+      '    at async run (/var/task/run.js:4:2)',
+    ]);
+  });
+
   it('sends a line with no error under its event name', async () => {
     quiet();
     vi.stubEnv('SENTRY_DSN', DSN);

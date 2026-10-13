@@ -103,6 +103,33 @@ describe('scrubEvent (docs/03-roadmap-appendix/phase1.md §5.2)', () => {
     );
   });
 
+  it('scrubs a frame\'s file, function and module text as any other text (review M1)', () => {
+    // A stack line holding a message part becomes a frame whose names carry that text.
+    const event = scrubEvent({
+      exception: {
+        values: [
+          {
+            value: 'failed',
+            stacktrace: {
+              frames: [
+                {
+                  filename: 'home on +919876543210 after six',
+                  abs_path: 'home on +919876543210 after six',
+                  function: 'call 09876543210',
+                  module: 'home on +919876543210 after six',
+                  lineno: 3,
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    const frame = event.exception.values[0]?.stacktrace.frames[0];
+    expect(JSON.stringify(frame)).not.toMatch(/9876543210/);
+    expect(frame).toMatchObject({ lineno: 3 });
+  });
+
   it('keeps ids and counts, which say what failed without saying who', () => {
     expect(scrubbed.extra).toMatchObject({ leadId: PRINCIPAL });
     expect(scrubbed.contexts).toEqual({ form: { email: '[email]', count: 3 } });
