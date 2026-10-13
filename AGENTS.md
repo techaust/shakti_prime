@@ -214,6 +214,7 @@ Tests live next to the code (`*.test.ts`, `*.test.tsx` for components) except th
 - Conventional commits: `feat(sales): confirm sales order command`. One logical change per commit.
 - PR description: the [pull-request template](.github/pull_request_template.md) (what it changes, migrations, the definition of done of §10, the checks run, what the owner must do), with screenshots for UI.
 - Merging: `.github/workflows/automerge.yml` merges a PR into `main` with a merge commit once CI passes on its latest commit, when the PR is open, not a draft, from this repository, not labelled `hold`, and by the owner or a Dependabot minor or patch bump; it then deletes the branch and runs CI on `main`. Nobody pushes to `main` directly or merges by hand, a slice branches from `main` after the previous PR has merged, and a Dependabot major waits for the owner's review.
+- Changes to the checks: a PR that changes `.github/`, `turbo.json` or a vitest or Playwright config runs CI as usual but merges itself only after the owner adds the label `checks-ok`; every other PR still merges itself on green ([DECISIONS](docs/11-decisions.md)).
 - Never commit secrets, `.env*` files, production data or recordings. A gitleaks secret scan over the history and `pnpm audit` run in CI.
 
 ## 9. Security habits
