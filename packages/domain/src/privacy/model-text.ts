@@ -1,4 +1,18 @@
 import { redactText } from '../ports/redaction';
+import {
+  asciiDigits,
+  DIGIT_RUN,
+  isPhone,
+  normalise,
+  pass,
+  SEP,
+  setAsideIds,
+  setAsideSafeShapes,
+  whole,
+  type Span,
+} from './number-shapes';
+
+export { asciiDigits } from './number-shapes';
 
 // Text on its way to a language model (SECURITY §5 and §6, AGENTS §9). Personal data is replaced
 // by placeholders, never kept in part, by one method rather than a pattern per spelling:
@@ -6,7 +20,8 @@ import { redactText } from '../ports/redaction';
 // 1. The text is read in a normalised form, for finding things only: every decimal digit of any
 //    script as an ASCII digit; every space, tab, line break, format character and Unicode dash or
 //    minus as one space; full-width letters and signs as ASCII. Each normalised position maps back
-//    to the original, so a placeholder replaces exactly the original characters.
+//    to the original, so a placeholder replaces exactly the original characters. Steps 1, 3 and
+//    the digit runs of 4 are shared with the log and audit scrubber (`./number-shapes`).
 // 2. UUIDs, then email and UPI addresses, GSTIN and PAN (with or without spaces or hyphens between
 //    their groups) are found first.
 // 3. Shapes known to be safe are set aside next, but only when they stand alone (no digit joined
@@ -26,129 +41,7 @@ import { redactText } from '../ports/redaction';
 export const MODEL_TEXT_LIMIT = 20_000;
 const TRUNCATED = ' [truncated]';
 
-const DECIMAL_DIGIT = /^\p{Nd}$/u;
-const digitValues = new Map<number, number>();
-
-/**
- * The value of a decimal digit of any script. Unicode keeps each script's digits as ten
- * consecutive code points from zero, so the value is the distance from the start of the run.
- */
-function digitValue(point: number): number {
-  const known = digitValues.get(point);
-  if (known !== undefined) return known;
-  let start = point;
-  while (start > 0 && point - start < 60 && DECIMAL_DIGIT.test(String.fromCodePoint(start - 1)))
-    start -= 1;
-  const value = (point - start) % 10;
-  digitValues.set(point, value);
-  return value;
-}
-
-/** `text` with every decimal digit of any script written as an ASCII digit. */
-export function asciiDigits(text: string): string {
-  return text.replace(/\p{Nd}/gu, (c) =>
-    /[0-9]/.test(c) ? c : String(digitValue(c.codePointAt(0) ?? 0x30)),
-  );
-}
-
-/** Characters read as a space: every space, tab, line break, format character, dash and minus. */
-const SPACE_LIKE = /^[\p{Zs}\p{Cf}\s‐-―−]$/u;
-
-interface Normalised {
-  text: string;
-  /** For each code unit of `text`, where its character starts and ends in the original. */
-  starts: number[];
-  ends: number[];
-}
-
-/** The text as the masks read it, with the map back to the original (step 1). */
-function normalise(original: string): Normalised {
-  const out: string[] = [];
-  const starts: number[] = [];
-  const ends: number[] = [];
-  let i = 0;
-  while (i < original.length) {
-    const point = original.codePointAt(i) ?? 0;
-    const width = point > 0xffff ? 2 : 1;
-    const char = String.fromCodePoint(point);
-    let read: string;
-    if (point < 0x80) read = /\s/.test(char) ? ' ' : char;
-    else if (SPACE_LIKE.test(char)) read = ' ';
-    else if (DECIMAL_DIGIT.test(char)) read = String(digitValue(point));
-    else {
-      const compatible = char.normalize('NFKC');
-      read = compatible.length === 1 && compatible.charCodeAt(0) < 0x80 ? compatible : char;
-    }
-    if (read === ' ' && out.at(-1) === ' ') {
-      // A run of spaces reads as one.
-      ends[ends.length - 1] = i + width;
-    } else {
-      for (let u = 0; u < read.length; u++) {
-        out.push(read.charAt(u));
-        starts.push(i);
-        ends.push(i + width);
-      }
-    }
-    i += width;
-  }
-  return { text: out.join(''), starts, ends };
-}
-
-/** A stretch of the normalised text: masked by a placeholder, or (null) kept as safe. */
-interface Span {
-  start: number;
-  end: number;
-  placeholder: string | null;
-}
-
-/** What stands in for a stretch already taken: no pattern reads it as anything. */
-const TAKEN = '\u0001';
-
-/**
- * Runs one pattern over the text not yet taken, records the stretches `decide` keeps or masks, and
- * returns the text with them taken.
- */
-function pass(
-  work: string,
-  spans: Span[],
-  pattern: RegExp,
-  decide: (match: RegExpExecArray) => Span | null,
-): string {
-  const found: Span[] = [];
-  for (const match of work.matchAll(pattern)) {
-    const span = decide(match);
-    if (span !== null && span.end > span.start) found.push(span);
-  }
-  if (found.length === 0) return work;
-  spans.push(...found);
-  let out = '';
-  let at = 0;
-  for (const span of found) {
-    out += work.slice(at, span.start) + TAKEN.repeat(span.end - span.start);
-    at = span.end;
-  }
-  return out + work.slice(at);
-}
-
-/** The whole match as one stretch. */
-const whole =
-  (placeholder: string | null) =>
-  (match: RegExpExecArray): Span => ({
-    start: match.index,
-    end: match.index + match[0].length,
-    placeholder,
-  });
-
-// What may join the groups of a number as people write it.
-const SEP = '[ .,/_:()-]';
-/** Nothing joined on the left: no letter or digit touching it, no digit a separator away. */
-const ALONE_BEFORE = `(?<![\\p{L}\\p{N}_]|\\d${SEP}{1,3})`;
-/** Nothing joined on the right. */
-const ALONE_AFTER = `(?![\\p{L}\\p{N}_]|${SEP}{1,3}\\d)`;
-
 // Step 2: shapes that are personal data whatever surrounds them.
-const UUID =
-  /(?<![0-9a-z])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![0-9a-z])/gi;
 const EMAIL = /(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 /** A UPI address; a sentence's full stop after it still ends it. */
 const UPI = /(?<![\w.+-])[\w.-]{2,256}@[a-z][a-z-]{1,63}(?![\w@-]|\.[a-z])/gi;
@@ -160,60 +53,8 @@ const GSTIN = new RegExp(
 );
 const PAN = new RegExp(`(?<![\\p{L}\\p{N}])${PAN_BODY}(?![\\p{L}\\p{N}])`, 'giu');
 
-// Step 3: shapes kept as they are when they stand alone.
-const DAY = '(?:0?[1-9]|[12]\\d|3[01])';
-const MONTH = '(?:0?[1-9]|1[0-2])';
-const YEAR = '(?:19|20)\\d{2}';
-const HOUR = '(?:[01]?\\d|2[0-3])';
-const MINUTE = '[0-5]\\d';
-const CLOCK = `${HOUR}:${MINUTE}(?::${MINUTE}(?:\\.\\d{1,6})?)?(?: ?(?:[+-]\\d{2}(?::?\\d{2})?|Z))?(?: ?[aApP]\\.?[mM]\\.?)?`;
-const TIME = `(?:${CLOCK}|${HOUR}\\.${MINUTE})`;
-const DATE = `(?:${DAY}-${MONTH}-${YEAR}|${DAY}\\.${MONTH}\\.${YEAR}|${DAY}/${MONTH}/${YEAR}|${YEAR}-${MONTH}-${DAY}|${YEAR}/${MONTH}/${DAY})`;
-const DATE_TIME = `${DATE}(?:[ T]${CLOCK})?`;
-const RANGE = '(?: ?- ?| | to | till | until )';
-const DATES = new RegExp(
-  `${ALONE_BEFORE}${DATE_TIME}(?:${RANGE}${DATE_TIME})?${ALONE_AFTER}`,
-  'gu',
-);
-const TIMES = new RegExp(`${ALONE_BEFORE}${TIME}(?:${RANGE}${TIME})?${ALONE_AFTER}`, 'gu');
-/** A rupee figure: lakh or western commas (at most eleven digits), or nine digits plain. */
-const RUPEES =
-  '(?:\\d{1,2}(?:,\\d{2}){1,3},\\d{3}|\\d{1,3}(?:,\\d{3}){1,2}|\\d{1,9})(?:\\.\\d{1,2})?(?: ?/-)?(?: ?(?:lakhs?|lacs?|crores?|cr))?';
-const CURRENCY = '(?:₹|rs\\.?|inr|rupees?)';
-const AMOUNT_WORD =
-  '(?:amount|budget|costs?|quoted|price|total|paid|balance|mrp|value|emi)(?: of| is| at)?:?';
-const AMOUNTS = new RegExp(
-  `${ALONE_BEFORE}(?:${CURRENCY} ?|${AMOUNT_WORD} ?(?:${CURRENCY} ?)?)${RUPEES}(?: ?- ?(?:${CURRENCY} ?)?${RUPEES})?${ALONE_AFTER}`,
-  'giu',
-);
-const QUANTITY_NUMBER = '\\d{1,6}(?:\\.\\d{1,3})?';
-const UNIT =
-  '(?:kwp|kwh|kw|kva|hp|mm|cm|m|ft|feet|inch(?:es)?|%|panels?|nos\\.?|litres?|liters?|v|w)';
-const QUANTITIES = new RegExp(
-  `${ALONE_BEFORE}${QUANTITY_NUMBER}(?: ?(?:-|to) ?${QUANTITY_NUMBER})? ?${UNIT}${ALONE_AFTER}`,
-  'giu',
-);
-/** A product or document code (`SP-7.5-100-2026`): capitals, then short groups and a year. */
-const CODES = new RegExp(
-  `(?<![\\p{L}\\p{N}_-])[A-Z]{1,4}(?:-[A-Z]{1,4})*(?:-\\d{1,3}(?:\\.\\d{1,2})?)+(?:-${YEAR})?${ALONE_AFTER}`,
-  'gu',
-);
-/** The most digits a code keeps, its year aside: a code never hides a number. */
-const CODE_DIGITS = 6;
-
-// Step 4: runs of digits.
-const DIGIT_RUN = new RegExp(`(?<![\\d+(])(?:\\+ ?|\\( ?)?\\d+(?:${SEP}{1,3}\\d+)*`, 'g');
+// Step 4: runs of nine digits or more.
 const MASKED_DIGITS = 9;
-
-/** Whether a run of digits reads as an Indian mobile or landline number. */
-function isPhone(raw: string, digits: string): boolean {
-  if (raw.startsWith('+')) return true;
-  if (digits.length === 10) return /^[6-9]/.test(digits);
-  if (digits.length === 11) return digits.startsWith('0');
-  if (digits.length === 12) return /^91[6-9]/.test(digits);
-  if (digits.length === 13) return /^091[6-9]/.test(digits);
-  return false;
-}
 
 // Step 5: addresses, after their labels only.
 const HOUSE_NUMBER = new RegExp(
@@ -271,23 +112,12 @@ const NOT_A_PLACE = new Set([
 /** The stretches of the normalised text to mask, in order (steps 2 to 5). */
 function findSpans(text: string): Span[] {
   const spans: Span[] = [];
-  let work = text;
-  work = pass(work, spans, UUID, whole(null));
+  let work = setAsideIds(text, spans);
   work = pass(work, spans, EMAIL, whole('[email]'));
   work = pass(work, spans, UPI, whole('[upi]'));
   work = pass(work, spans, GSTIN, whole('[gstin]'));
   work = pass(work, spans, PAN, whole('[pan]'));
-  work = pass(work, spans, DATES, whole(null));
-  work = pass(work, spans, TIMES, whole(null));
-  work = pass(work, spans, AMOUNTS, whole(null));
-  work = pass(work, spans, QUANTITIES, whole(null));
-  work = pass(work, spans, CODES, (match) => {
-    const groups = match[0].split('-').filter((g) => /\d/.test(g));
-    const last = groups.at(-1) ?? '';
-    const yearless = new RegExp(`^${YEAR}$`).test(last) ? groups.slice(0, -1) : groups;
-    const digits = yearless.join('').replace(/\D/g, '').length;
-    return digits <= CODE_DIGITS ? whole(null)(match) : null;
-  });
+  work = setAsideSafeShapes(work, spans);
   work = pass(work, spans, HOUSE_NUMBER, whole('[address]'));
   work = pass(work, spans, LABELLED_PIN, whole('[pin]'));
   work = pass(work, spans, DIGIT_RUN, (match) => {
