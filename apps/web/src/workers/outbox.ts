@@ -116,9 +116,10 @@ export async function publishOutbox(
   const now = options.now ?? (() => new Date());
   const publisher = options.publisher ?? defaultPublisher(keyValue, requestId);
   const deadIds: string[] = [];
-  const reportDead = () => {
+  // Awaited, so the alert is sent before the route answers and the function may be frozen.
+  const reportDead = async () => {
     if (deadIds.length === 0) return;
-    alerts.report('outbox.dead_lettered', {
+    await alerts.report('outbox.dead_lettered', {
       count: deadIds.length,
       ids: deadIds.slice(0, ALERT_IDS),
     });
@@ -137,14 +138,14 @@ export async function publishOutbox(
     });
   } catch (error) {
     // The events the claim dead-lettered stay dead-lettered whatever failed afterwards.
-    reportDead();
+    await reportDead();
     await countFailingRun(keyValue, alerts, { requestId, failed: 0 });
     throw error;
   }
   if (counts.claimed > 0 || counts.deadLettered > 0) {
     logger.log('info', 'outbox.publish', { requestId, ...counts });
   }
-  reportDead();
+  await reportDead();
   await keep('outbox.last_run_not_kept', requestId, () =>
     keyValue.set(
       LAST_RUN_KEY,
@@ -184,7 +185,7 @@ async function countFailingRun(
   });
   // Once per streak: the count keeps rising until a run delivers, and only the third run reports.
   if (runs === FAILING_RUNS_ALERT) {
-    alerts.report('outbox.publisher_failing', { runs, failed: run.failed });
+    await alerts.report('outbox.publisher_failing', { runs, failed: run.failed });
   }
 }
 
