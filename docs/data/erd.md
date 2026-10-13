@@ -406,7 +406,9 @@ erDiagram
     timestamptz state_changed_at
     timestamptz locked_until "null"
     timestamptz anonymised_at "null"
+    timestamptz qualified_at "null"
     timestamptz retention_kept_at "null"
+    text retention_kept_reason "null"
     timestamptz archived_at "null"
     timestamptz created_at
     timestamptz updated_at

@@ -222,12 +222,14 @@ beforeAll(async () => {
                  values (${id(base + 6)}, ${lead.account}, 1, ${ACTOR}, ${at}, ${at})`;
         await tx`insert into account_contacts (account_id, contact_id, role, created_by, created_at, updated_at)
                  values (${lead.account}, ${lead.contact}, 'owner', ${ACTOR}, ${at}, ${at})`;
+        // A PIN outside the ranges the PIN code suites draw from (pin-codes.test.ts: 999910 to
+        // 999949; the domain suite: 999950 up), so their counts never meet these sites.
         await tx`insert into customer_sites (id, account_id, type, address, village, tehsil, district,
                                              state_code, pin, lat, lng, technical_json, created_by,
                                              created_at, updated_at)
                  values (${lead.site}, ${lead.account}, 'borewell', ${`${label} house`},
                          ${`${label} village`}, 'retention tehsil', 'retention district', '27',
-                         '999931', 21.1, 79.1, ${tx.json({ remark: `${label} borewell by the well` })}::jsonb,
+                         '999905', 21.1, 79.1, ${tx.json({ remark: `${label} borewell by the well` })}::jsonb,
                          ${ACTOR}, ${at}, ${at})`;
         if (kind === 'marked') {
           // The signed form the consent rests on, kept as proof of consent.

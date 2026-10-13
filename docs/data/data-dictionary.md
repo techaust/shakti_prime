@@ -699,6 +699,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Triggers**
 
+- `accounts_retention_kept_lapse`: after update of type, runs `app.retention_kept_lapse_type()`
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
 **Row-level security:** enabled and forced; 3 policies.
@@ -1462,7 +1463,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### opportunities
 
-**Catalogue entry** (05-database.md §6.2; created in 0004): `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score` (0 to 100, base 50), `score_reasons_json` (each matching rule's factor, points and catalogue key), `score_changed_at`, `score_changed_by`, `referral_partner_id` (the partner whose code the lead came with), `source_id`, `campaign_json`, `state` (`open`, `nurture`, `won`, `lost`, written only by the opportunity commands through the state machine), `state_changed_at`, `locked_until`; the score columns are written by lead creation, the import batch, `crm.lead.rescore`, `crm.score_rule.set` and the nightly rescoring through `app.write_lead_scores()`, and a change of them alone keeps `updated_at` and `updated_by` (the trigger `app.opportunities_set_updated_at()`, 0100); the trigger `app.ensure_account_entity()` refuses a lead whose customer has no `account_entities` row for its company, and a site of another customer; `anonymised_at` (when the retention job removed the lead's and its customer's personal details, BLUEPRINT §7.9; the lead is archived with it), with the partial index `opportunities_retention_idx` on `(entity_id, updated_at, id)` for leads not yet anonymised and never won (0130)
+**Catalogue entry** (05-database.md §6.2; created in 0004): `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score` (0 to 100, base 50), `score_reasons_json` (each matching rule's factor, points and catalogue key), `score_changed_at`, `score_changed_by`, `referral_partner_id` (the partner whose code the lead came with), `source_id`, `campaign_json`, `state` (`open`, `nurture`, `won`, `lost`, written only by the opportunity commands through the state machine), `state_changed_at`, `locked_until`; the score columns are written by lead creation, the import batch, `crm.lead.rescore`, `crm.score_rule.set` and the nightly rescoring through `app.write_lead_scores()`, and a change of them alone keeps `updated_at` and `updated_by` (the trigger `app.opportunities_set_updated_at()`, 0100); the trigger `app.ensure_account_entity()` refuses a lead whose customer has no `account_entities` row for its company, and a site of another customer; `anonymised_at` (when the retention job removed the lead's and its customer's personal details, BLUEPRINT §7.9; the lead is archived with it), `qualified_at` (when the lead first reached Qualified or a later open stage, stamped by `crm.opportunity.stage.move` and never cleared; filled for older leads from their history by 0131), `retention_kept_at` and `retention_kept_reason` (when and why the retention job found the lead kept, `LEAD_RETENTION_KEPT_REASONS`, both or neither), with the partial index `opportunities_retention_idx` on `(entity_id, updated_at, id)` for leads not yet anonymised, not marked kept and never won (0130); a change of `qualified_at` or the kept mark alone keeps `updated_at`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1485,7 +1486,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `state_changed_at` | timestamp with time zone | no | `now()` |  |
 | `locked_until` | timestamp with time zone | yes |  |  |
 | `anonymised_at` | timestamp with time zone | yes |  |  |
+| `qualified_at` | timestamp with time zone | yes |  |  |
 | `retention_kept_at` | timestamp with time zone | yes |  |  |
+| `retention_kept_reason` | text | yes |  |  |
 | `archived_at` | timestamp with time zone | yes |  |  |
 | `created_at` | timestamp with time zone | no | `now()` |  |
 | `updated_at` | timestamp with time zone | no | `now()` |  |
@@ -1519,6 +1522,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Check constraints**
 
+- `opportunities_retention_kept_check`: `("opportunities"."retention_kept_at" is null) = ("opportunities"."retention_kept_reason" is null)`
+- `opportunities_retention_kept_reason_check`: `"opportunities"."retention_kept_reason" is null or "opportunities"."retention_kept_reason" in ('won', 'qualified', 'quote', 'order', 'commission', 'dealer_credit', 'referral_partner', 'other_lead', 'customer', 'dealer', 'merge')`
 - `opportunities_score_check`: `"opportunities"."score" between 0 and 100`
 - `opportunities_state_check`: `"opportunities"."state" in ('open', 'nurture', 'won', 'lost')`
 
@@ -2438,7 +2443,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### audit_logs
 
-**Catalogue entry** (05-database.md §6.10; created in 0032; partitioned, append-only; partitions in schema `audit_partitions`; partitioned by range (created_at)): `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/03-roadmap-appendix/backend-weeks-3-5.md §3)
+**Catalogue entry** (05-database.md §6.10; created in 0032; partitioned, append-only; partitions in schema `audit_partitions`; partitioned by range (created_at)): `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/03-roadmap-appendix/backend-weeks-3-5.md §3); a refused command's row keeps no personal field's value; expression indexes on the input's `accountId`, `opportunityId`, `existingAccountId` and `proposal.input.opportunityId`, by which the retention job finds the rows about a customer or lead (0130)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2483,7 +2488,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `audit_logs_aggregate_created_idx` (btree): `aggregate_type, aggregate_id, created_at desc`
 - `audit_logs_entity_created_idx` (btree): `entity_id, created_at desc`
 - `audit_logs_input_account_idx` (btree): `("input_json" ->> 'accountId')` where `"audit_logs"."input_json" ? 'accountId'`
+- `audit_logs_input_existing_account_idx` (btree): `("input_json" ->> 'existingAccountId')` where `"audit_logs"."input_json" ? 'existingAccountId'`
 - `audit_logs_input_opportunity_idx` (btree): `("input_json" ->> 'opportunityId')` where `"audit_logs"."input_json" ? 'opportunityId'`
+- `audit_logs_input_proposal_opportunity_idx` (btree): `("input_json" #>> '{proposal,input,opportunityId}')` where `"audit_logs"."input_json" ? 'proposal'`
 - `audit_logs_on_behalf_of_idx` (btree): `on_behalf_of_user_id`
 - `audit_logs_request_idx` (btree): `request_id`
 
