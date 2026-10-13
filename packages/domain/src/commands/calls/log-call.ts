@@ -18,7 +18,7 @@ import { defineCommand } from '../../command/define-command';
 import { callConsentWithdrawn } from '../../queries/calls/consent';
 import { effectiveDispositions } from '../../queries/crm/pipeline-settings';
 import { afterUnanswered, unansweredAttempts } from '../../telecom/call-schedule';
-import { withinCallingHours } from '../../telecom/dial-policy';
+import { callLogRefusal, withinCallingHours } from '../../telecom/dial-policy';
 import { cancelCallTasks, createCallTask } from '../crm/call-tasks';
 import { loseOpportunity } from '../crm/lose-opportunity';
 import { moveOpportunityStage } from '../crm/move-opportunity-stage';
@@ -175,8 +175,10 @@ async function before(
  * A nurtured lead called on its nurture call is opened again for a callback or a qualified
  * outcome; other outcomes leave it in nurture or lose it. Each step runs through its own command
  * in this transaction, so it is guarded, audited and on the timeline as when done by hand.
- * Refused outside calling hours (`outside_calling_hours`) and for a customer who withdrew consent
- * to calls (`call_consent_withdrawn`). For people only.
+ * Refused for a call that started outside calling hours (`outside_calling_hours`: the start is now
+ * less the duration, and is what the call keeps), or logged more than `CALL_LOG_GRACE_MINUTES`
+ * after calling hours ended on its day (`call_logged_too_late`), and for a customer who withdrew
+ * consent to calls (`call_consent_withdrawn`). For people only.
  */
 export const logCall = defineCommand({
   name: 'calls.call.log',
@@ -193,8 +195,12 @@ export const logCall = defineCommand({
     if (state !== 'open' && state !== 'nurture') {
       refuse('conflict', 'call_lead_closed', `lead ${lead.id} is ${state}`);
     }
-    if (!withinCallingHours(ctx.now)) {
-      refuse('validation_failed', 'outside_calling_hours', 'calls are logged in calling hours');
+    // Calling hours hold for the call's start: logged now, it started its duration ago (DOM-6).
+    const durationS = input.durationSeconds ?? null;
+    const startedAt = new Date(ctx.now.getTime() - (durationS ?? 0) * 1000);
+    const late = callLogRefusal(startedAt, ctx.now);
+    if (late !== undefined) {
+      refuse('validation_failed', late, 'a call is logged for a start in calling hours');
     }
     if (await callConsentWithdrawn(ctx.tx, lead.accountId)) {
       refuse('conflict', 'call_consent_withdrawn', 'the customer withdrew consent to calls');
@@ -219,8 +225,6 @@ export const logCall = defineCommand({
     const callbackAt = checkOutcomeInput(ctx, nextAction, input, state);
 
     const attemptNo = unansweredAttempts(await lastCall(ctx, lead.id), lead.stateChangedAt) + 1;
-    const durationS = input.durationSeconds ?? null;
-    const startedAt = new Date(ctx.now.getTime() - (durationS ?? 0) * 1000);
     const callId = newId();
     const [call] = await ctx.tx
       .insert(schema.calls)

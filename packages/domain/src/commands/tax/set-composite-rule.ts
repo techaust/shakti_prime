@@ -11,8 +11,10 @@ import { assertTaxGroupScope } from './group-scope';
 
 /**
  * `tax.composite.set` (design §6, ADR 0007): the goods and services split of a composite supply
- * for a segment from a date. The rule that was open-ended ends where the new one starts; any
- * other overlap is refused by the exclusion constraint, which answers `composite_rule_overlap`.
+ * for a segment from a date. The rule that was open-ended ends where the new one starts; when the
+ * new one has an end date, the old rule carries on from that date, open-ended, so no day is left
+ * without a rule (DOM-7). Any other overlap is refused by the exclusion constraint, which answers
+ * `composite_rule_overlap`.
  * Rules are shared by every company, so the audit rows belong to no one company, and only a request
  * acting for every company may record one (`tax_group_scope`).
  */
@@ -40,7 +42,13 @@ export const setCompositeRule = defineCommand({
     const cr = schema.compositeSupplyRules;
     const actor = ctx.principal.id;
     const [open] = await ctx.tx
-      .select({ id: cr.id })
+      .select({
+        id: cr.id,
+        goodsSharePct: cr.goodsSharePct,
+        servicesSharePct: cr.servicesSharePct,
+        goodsRatePct: cr.goodsRatePct,
+        servicesRatePct: cr.servicesRatePct,
+      })
       .from(cr)
       .where(
         and(
@@ -82,6 +90,43 @@ export const setCompositeRule = defineCommand({
       .returning();
     if (!row) throw new DomainError('internal', 'composite rule insert returned no row');
 
+    // The rule the new one cut carries on after it ends.
+    let continuedRuleId: string | null = null;
+    if (open && row.effectiveTo !== null) {
+      const [continued] = await ctx.tx
+        .insert(cr)
+        .values({
+          id: newId(),
+          segment: input.segment,
+          goodsSharePct: open.goodsSharePct,
+          servicesSharePct: open.servicesSharePct,
+          goodsRatePct: open.goodsRatePct,
+          servicesRatePct: open.servicesRatePct,
+          effectiveFrom: row.effectiveTo,
+          effectiveTo: null,
+          createdBy: actor,
+        })
+        .returning();
+      if (!continued) throw new DomainError('internal', 'composite rule insert returned no row');
+      continuedRuleId = continued.id;
+      ctx.audit({
+        aggregateType: 'composite_supply_rule',
+        aggregateId: continued.id,
+        entityId: null,
+        before: null,
+        after: {
+          segment: continued.segment,
+          goodsSharePct: continued.goodsSharePct,
+          servicesSharePct: continued.servicesSharePct,
+          goodsRatePct: continued.goodsRatePct,
+          servicesRatePct: continued.servicesRatePct,
+          effectiveFrom: continued.effectiveFrom,
+          effectiveTo: null,
+          continuesRuleId: open.id,
+        },
+      });
+    }
+
     const dto = CompositeRuleRowSchema.parse({
       id: row.id,
       segment: row.segment,
@@ -97,7 +142,7 @@ export const setCompositeRule = defineCommand({
       aggregateId: row.id,
       entityId: null,
       before: null,
-      after: { ...dto, closedRuleId: open?.id ?? null },
+      after: { ...dto, closedRuleId: open?.id ?? null, continuedRuleId },
     });
     return dto;
   },

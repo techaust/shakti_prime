@@ -52,6 +52,32 @@ export function withinCallingHours(at: Date): boolean {
   return minute >= CALLING_WINDOW_IST.startMinute && minute < CALLING_WINDOW_IST.endMinute;
 }
 
+/**
+ * How long after calling hours end a call that started in them may still be logged (DOM-6): a
+ * call started at 20:58 and logged at 21:03 is recorded; one logged after 21:15 is not.
+ */
+export const CALL_LOG_GRACE_MINUTES = 15;
+
+const DAY_MS = 86_400_000;
+const IST_OFFSET_MS = IST_OFFSET_MINUTES * 60_000;
+
+/** Why a logged call is refused: it started outside calling hours, or is logged too long after. */
+export type CallLogRefusal = 'outside_calling_hours' | 'call_logged_too_late';
+
+/**
+ * Whether a call that started at `startedAt` may be logged at `loggedAt` (DOM-6): calling hours
+ * hold for the call's start, as TRAI's do, so a call that started before 09:00 or from 21:00 IST
+ * is refused whenever it is logged, and a call that started in hours is logged by 21:00 IST that
+ * day plus `CALL_LOG_GRACE_MINUTES`.
+ */
+export function callLogRefusal(startedAt: Date, loggedAt: Date): CallLogRefusal | undefined {
+  if (!withinCallingHours(startedAt)) return 'outside_calling_hours';
+  const local = startedAt.getTime() + IST_OFFSET_MS;
+  const dayStart = local - (((local % DAY_MS) + DAY_MS) % DAY_MS) - IST_OFFSET_MS;
+  const lastLog = dayStart + (CALLING_WINDOW_IST.endMinute + CALL_LOG_GRACE_MINUTES) * 60_000;
+  return loggedAt.getTime() > lastLog ? 'call_logged_too_late' : undefined;
+}
+
 /** The digits of an Indian number without the country code or trunk prefix. */
 export function nationalNumber(raw: string): string {
   const digits = raw.replace(/\D/g, '');

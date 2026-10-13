@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { transition } from '../state-machines/define-machine';
 import { salesOrderMachine, type SalesOrderRecord } from '../state-machines/machines/sales-order';
 import { everything, holding } from '../state-machines/test-support';
-import { creditCheck, invoiceAgeDays, type CreditFacts } from './credit-check';
+import { creditCheck, creditStanding, invoiceAgeDays, type CreditFacts } from './credit-check';
 
 /** The day of every check below, 15 June 2026 in IST. */
 const NOW = new Date('2026-06-15T10:00:00+05:30');
@@ -319,5 +319,49 @@ describe('the exposure and the hold (docs/03-roadmap-appendix/phase1.md §8.3, S
         params: {},
       }).to,
     ).toBe('confirmed');
+  });
+});
+
+describe('creditStanding, the one reading of exposure and overdue (ARCH-5)', () => {
+  it('counts the confirmed unpaid orders only while SALE-5 says they count', () => {
+    expect(creditStanding(dealer, '20000.00', NOW, true)).toMatchObject({
+      exposure: '100000.00',
+      overLimit: false,
+    });
+    expect(creditStanding(dealer, '20000.01', NOW, true)).toMatchObject({ overLimit: true });
+    expect(creditStanding(dealer, '20000.01', NOW, false)).toMatchObject({
+      exposure: '80000.01',
+      overLimit: false,
+    });
+  });
+
+  it('reads a dealer with no order on top as the homes and the dealer list do', () => {
+    expect(creditStanding({ ...dealer, outstanding: '80000.01' }, '0.00', NOW, true)).toEqual({
+      exposure: '100000.01',
+      overLimit: true,
+      oldestUnpaidAgeDays: 30,
+      overdue: false,
+    });
+  });
+
+  it('is never over a limit that is not set, nor overdue without credit days or an invoice', () => {
+    expect(creditStanding({ ...dealer, creditLimit: null }, '999999.00', NOW).overLimit).toBe(
+      false,
+    );
+    const old = { ...dealer, oldestUnpaidInvoiceDate: invoiceOf(31) };
+    expect(creditStanding(old, '0.00', NOW).overdue).toBe(true);
+    expect(creditStanding({ ...old, creditDays: null }, '0.00', NOW).overdue).toBe(false);
+    expect(creditStanding({ ...dealer, oldestUnpaidInvoiceDate: null }, '0.00', NOW)).toMatchObject(
+      { oldestUnpaidAgeDays: null, overdue: false },
+    );
+  });
+
+  it('the credit check blocks exactly when the standing is over the limit or overdue', () => {
+    for (const orderValue of ['19999.99', '20000.00', '20000.01']) {
+      const facts = { ...dealer, orderValue };
+      expect(creditCheck(facts, null, NOW).blocked).toBe(
+        creditStanding(facts, orderValue, NOW).overLimit,
+      );
+    }
   });
 });

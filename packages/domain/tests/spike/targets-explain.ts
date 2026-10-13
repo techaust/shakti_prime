@@ -20,7 +20,8 @@ import {
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import {
-  creditSummarySql,
+  dealerPositionsSql,
+  heldOrdersSql,
   pipelineByStageSql,
   responseTimeSql,
   salesThisMonthSql,
@@ -211,7 +212,8 @@ async function main() {
     exec,
     salesThisMonthSql([1, 2, 3, 4], month.from, month.to),
   );
-  await explain('dealer credit counts, Accounts', accounts, creditSummarySql([E]));
+  await explain('orders held for credit, Accounts', accounts, heldOrdersSql([E]));
+  await explain('dealer credit positions, Accounts', accounts, dealerPositionsSql([E]));
 
   await clean();
   await closeDb();

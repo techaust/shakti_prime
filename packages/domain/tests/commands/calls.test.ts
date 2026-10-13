@@ -245,6 +245,47 @@ describe('calls.log: what every call records', () => {
     }
   });
 
+  it("checks calling hours on the call's start, with a short grace after 9 PM (DOM-6)", async () => {
+    // Started at 20:58 (five minutes before it is logged at 21:03): in hours, and kept as its start.
+    const late = await log(
+      caller,
+      await leadOf(caller),
+      'retry',
+      { durationSeconds: 300 },
+      ist('2030-03-04T21:03:00'),
+    );
+    expect(late.call.startedAt).toBe(ist('2030-03-04T20:58:00').toISOString());
+    // The same call logged at 21:15 still counts; one second later the grace is over.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { durationSeconds: 1020 },
+        ist('2030-03-04T21:15:00'),
+      ),
+    ).resolves.toMatchObject({ call: { startedAt: ist('2030-03-04T20:58:00').toISOString() } });
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { durationSeconds: 1021 },
+        ist('2030-03-04T21:15:01'),
+      ),
+    ).rejects.toMatchObject(reason('call_logged_too_late'));
+    // Logged at 09:05 after 15 minutes, it started at 08:50, before calling hours: refused.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { durationSeconds: 900 },
+        ist('2030-03-04T09:05:00'),
+      ),
+    ).rejects.toMatchObject(reason('outside_calling_hours'));
+  });
+
   it('is refused for a customer who withdrew consent to calls, until a new consent', async () => {
     const lead = await leadOf(caller);
     const [contact] = await asMigrator(

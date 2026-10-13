@@ -339,7 +339,12 @@
     "profile_person_missing": "This person is not on your team in this company, so you can't change their settings.",
     "reassign_no_converter": "No Lead Converter is present to take these leads. Choose a person instead.",
     "reassign_same_person": "Choose someone other than the person who is leaving.",
-    "agent_action_shadow_only": "There is no action for this proposal yet, so it stays in Shadow."
+    "agent_action_shadow_only": "There is no action for this proposal yet, so it stays in Shadow.",
+    "account_type_needs_credit": "Making a customer a dealer, or a dealer another kind of customer, changes how their orders are checked for credit. Ask an Executive to make this change.",
+    "account_type_moves_tier": "This change would move the customer to another price list. Ask an Executive to make it.",
+    "quote_lead_already_accepted": "The customer has already accepted another quote for this lead. Work from the order of that quote.",
+    "merge_leads_has_sale": "The lead you are merging away has a quote or an order. Keep that lead instead, or withdraw the quote or cancel the order first.",
+    "call_logged_too_late": "A call that started before 9 PM can be logged until 9:15 PM. Log each call as soon as it ends."
   },
   "auth": {
     "signIn": {

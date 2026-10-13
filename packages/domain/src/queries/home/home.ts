@@ -9,6 +9,7 @@ import {
 import type { RequestContext } from '@shakti/db';
 import { sql } from 'drizzle-orm';
 import { checkPermission, isAgent } from '../../command/run-command';
+import { creditStanding } from '../../sales/credit-check';
 import { periodBounds, periodStartOn } from '../../sales/targets';
 import { teamQueueCountsSql } from '../calls/call-queue';
 import { targetActualsSql } from '../sales/targets';
@@ -207,46 +208,82 @@ export async function homeSales(ctx: Ctx, now: Date = new Date()): Promise<Sales
 }
 
 /**
- * Dealer credit per company (Accounts' home): orders held for credit, dealers whose exposure
- * (outstanding plus confirmed unpaid orders) is over their limit, and dealers whose oldest unpaid
- * invoice is older than their credit days today in IST. The figures come from
- * `app.dealer_credit_position()`, the one place the exposure is worked out; `sales.credit.write`
- * at company scope, for the companies of the request.
+ * Orders held for credit per company of the request (Accounts' home): drafts only, since a
+ * cancelled order is not held (DOM-5).
  */
-export function creditSummarySql(entityIds: readonly number[]) {
+export function heldOrdersSql(entityIds: readonly number[]) {
   return sql`
     select e.id as entity_id,
            (select count(*)::int from sales_orders so
              where so.entity_id = e.id and so.state = 'draft'
-               and so.credit_held_at is not null) as held_orders,
-           d.over_limit, d.overdue
-      from unnest(${idList(entityIds)}) as e(id)
-      cross join lateral (
-        select count(*) filter (where p.credit_limit is not null
-                                  and coalesce(p.outstanding, 0) + p.confirmed_unpaid > p.credit_limit)::int as over_limit,
-               count(*) filter (where p.credit_days is not null and p.oldest_unpaid_invoice_date is not null
-                                  and (now() at time zone 'Asia/Kolkata')::date - p.oldest_unpaid_invoice_date > p.credit_days)::int as overdue
-          from accounts a
-          join account_entities ae on ae.account_id = a.id and ae.entity_id = e.id
-          cross join lateral app.dealer_credit_position(e.id::smallint, a.id, null) p
-         where a.type = 'dealer' and a.archived_at is null) d`;
+               and so.credit_held_at is not null) as held_orders
+      from unnest(${idList(entityIds)}) as e(id)`;
 }
 
-export async function homeCredit(ctx: Ctx): Promise<CreditHomeDto[]> {
+/**
+ * Each live dealer's credit position in each company of the request
+ * (`app.dealer_credit_position()`), which `creditStanding()` reads as the confirmation does.
+ */
+export function dealerPositionsSql(entityIds: readonly number[]) {
+  return sql`
+    select e.id as entity_id,
+           p.credit_limit::numeric(14, 2)::text as credit_limit, p.credit_days,
+           p.outstanding::numeric(14, 2)::text as outstanding,
+           p.confirmed_unpaid::numeric(14, 2)::text as confirmed_unpaid,
+           p.oldest_unpaid_invoice_date::text as oldest_unpaid_invoice_date
+      from unnest(${idList(entityIds)}) as e(id)
+      join account_entities ae on ae.entity_id = e.id
+      join accounts a on a.id = ae.account_id
+      cross join lateral app.dealer_credit_position(e.id::smallint, a.id, null) p
+     where a.type = 'dealer' and a.archived_at is null`;
+}
+
+/**
+ * Dealer credit per company (Accounts' home): orders held for credit, dealers whose exposure is
+ * over their limit, and dealers whose oldest unpaid invoice is older than their credit days today
+ * in IST. Each dealer is read by `creditStanding()`, the one place the exposure and the overdue
+ * test are worked out (ARCH-5), so the home counts what the confirmation would hold;
+ * `sales.credit.write` at company scope, for the companies of the request.
+ */
+export async function homeCredit(ctx: Ctx, now: Date = new Date()): Promise<CreditHomeDto[]> {
   requirePerson(ctx);
   checkPermission(ctx.principal, 'sales.credit.write', 'entity');
-  const rows = (await ctx.tx.execute(creditSummarySql(ctx.entityIds))) as unknown as {
+  const held = (await ctx.tx.execute(heldOrdersSql(ctx.entityIds))) as unknown as {
     entity_id: number;
     held_orders: number;
-    over_limit: number;
-    overdue: number;
   }[];
-  return rows.map((r) =>
-    CreditHomeDto.parse({
+  const positions = (await ctx.tx.execute(dealerPositionsSql(ctx.entityIds))) as unknown as {
+    entity_id: number;
+    credit_limit: string | null;
+    credit_days: number | null;
+    outstanding: string;
+    confirmed_unpaid: string;
+    oldest_unpaid_invoice_date: string | null;
+  }[];
+  return held.map((r) => {
+    let overLimit = 0;
+    let overdue = 0;
+    for (const p of positions) {
+      if (p.entity_id !== r.entity_id) continue;
+      const standing = creditStanding(
+        {
+          creditLimit: p.credit_limit,
+          creditDays: p.credit_days,
+          outstanding: p.outstanding,
+          confirmedUnpaid: p.confirmed_unpaid,
+          oldestUnpaidInvoiceDate: p.oldest_unpaid_invoice_date,
+        },
+        '0.00',
+        now,
+      );
+      if (standing.overLimit) overLimit += 1;
+      if (standing.overdue) overdue += 1;
+    }
+    return CreditHomeDto.parse({
       entityId: r.entity_id,
       heldOrders: r.held_orders,
-      dealersOverLimit: r.over_limit,
-      overdueInvoices: r.overdue,
-    }),
-  );
+      dealersOverLimit: overLimit,
+      overdueInvoices: overdue,
+    });
+  });
 }
