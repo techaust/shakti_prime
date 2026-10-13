@@ -18,6 +18,7 @@ export const maxDuration = 60;
  */
 export const POST = nightlyWorkerRoute({
   path: LEAD_ANONYMISE_PATH,
+  job: 'lead-anonymise',
   logPrefix: 'crm.anonymise',
   body: LeadAnonymiseWorkerBody,
   budgetMs: LEAD_ANONYMISE_RUN_BUDGET_MS,

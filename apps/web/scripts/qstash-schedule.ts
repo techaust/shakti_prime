@@ -129,7 +129,7 @@ console.log(
 // The anonymisation of unqualified leads idle for the retention period (BLUEPRINT §7.9), each
 // night at 04:00 in India, after the rescoring and the duplicate search.
 const LEAD_ANONYMISE_SCHEDULE_ID = `lead-anonymise-${environment}`;
-const LEAD_ANONYMISE_CRON = '30 22 * * *';
+const LEAD_ANONYMISE_CRON = JOB_SCHEDULES['lead-anonymise'];
 const anonymiseUrl = workerUrl(config, LEAD_ANONYMISE_PATH);
 await client.schedules.create({
   scheduleId: LEAD_ANONYMISE_SCHEDULE_ID,
