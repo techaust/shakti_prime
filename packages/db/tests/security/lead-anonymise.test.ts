@@ -983,8 +983,8 @@ describe('the audit trail of an anonymised customer (owner, 13-10-2026)', () => 
     // As the migration's clean-up does it: the row named in the scope, its input's personal
     // fields removed, the scope emptied, in one statement.
     const cleanUp = (target: string, to: string) =>
-      asMigrator(
-        (m) => m.unsafe(`
+      asMigrator((m) =>
+        m.unsafe(`
           do $$
           begin
             insert into app.lead_anonymise_scope (tx, subject_id)
