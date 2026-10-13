@@ -1,5 +1,11 @@
 import { SYSTEM_WORKERS_PRINCIPAL_ID, type LeadDto, type Principal } from '@shakti/contracts';
-import { asMigrator, asPrincipal, closeDb, createTestPrincipal, principalFor } from '@shakti/db/testing';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  createTestPrincipal,
+  principalFor,
+} from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -100,7 +106,11 @@ beforeAll(async () => {
                     ? 'contact_id'
                     : 'account_id'
             } = $1`,
-          [table === 'contacts' || table === 'contact_phones' || table === 'consents' ? contactId : accountId],
+          [
+            table === 'contacts' || table === 'contact_phones' || table === 'consents'
+              ? contactId
+              : accountId,
+          ],
         );
         await tx.unsafe(`alter table public.${table} enable trigger user`);
       }

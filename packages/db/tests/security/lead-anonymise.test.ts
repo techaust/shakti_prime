@@ -799,7 +799,15 @@ describe('the append-only exceptions open only for the anonymisation', () => {
 describe('the audit trail of an anonymised customer (owner, 13-10-2026)', () => {
   it('keeps every row, action, actor and record, and no personal value', async () => {
     const found = await asMigrator(
-      (m) => m<{ id: string; command: string; aggregate_id: string | null; input: unknown; after: unknown }[]>`
+      (m) => m<
+        {
+          id: string;
+          command: string;
+          aggregate_id: string | null;
+          input: unknown;
+          after: unknown;
+        }[]
+      >`
         select id, command, aggregate_id, input_json as input, after_json as after
           from audit_logs where id in (${AUDIT.staleLead}, ${AUDIT.staleNote}, ${AUDIT.keptLead})`,
     );
@@ -856,7 +864,9 @@ describe('no write lands on an anonymised customer', () => {
       (m) => m`update customer_sites set village = 'again' where id = ${lead.site}`,
     ];
     for (const write of writes) {
-      expect(await failure(asMigrator(write))).toMatch(/details were removed by the retention rule/);
+      expect(await failure(asMigrator(write))).toMatch(
+        /details were removed by the retention rule/,
+      );
     }
   });
 

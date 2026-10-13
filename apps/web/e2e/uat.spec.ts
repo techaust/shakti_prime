@@ -220,7 +220,9 @@ test.describe('UAT: the Executive takes a lead from enquiry to a confirmed order
     // The enquiry, in the journeys' company, whose price list the seed keeps.
     const name = fresh('Om Prakash Sharma');
     await page.goto('/leads/new');
-    await page.getByLabel('Company', { exact: true }).selectOption({ label: QUOTE_JOURNEY_COMPANY.name });
+    await page
+      .getByLabel('Company', { exact: true })
+      .selectOption({ label: QUOTE_JOURNEY_COMPANY.name });
     await page.getByLabel('Customer name').fill(name);
     await page.getByLabel('Mobile number').fill(freshMobile());
     await page.getByLabel('Line of business').selectOption({ label: 'Residential Rooftop' });
@@ -255,7 +257,10 @@ test.describe('UAT: the Executive takes a lead from enquiry to a confirmed order
     await page.getByLabel('Quantity').fill('2');
     await page.getByRole('button', { name: 'Work out the quote' }).click();
     await expect(
-      page.getByRole('region', { name: 'The quote as it will be made' }).getByText('₹26,880.00').first(),
+      page
+        .getByRole('region', { name: 'The quote as it will be made' })
+        .getByText('₹26,880.00')
+        .first(),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Make the quote' }).click();
     await expect(page.getByRole('heading', { level: 1, name: /\/Q\// })).toBeVisible({
