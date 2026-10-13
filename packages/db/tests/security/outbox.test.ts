@@ -722,7 +722,7 @@ describe('a worker QStash gave up on turns its event back into a dead letter (00
     expect(await holdBackFailedEvent(newId(), 'worker_refused')).toBe('unchanged');
   });
 
-  it('answers leased for an event the run that sent it has not yet recorded (audit 2026-10, DATA-4)', async () => {
+  it('answers leased for an event not yet recorded delivered, its lease live or lapsed (DATA-4, review L1)', async () => {
     const [id = ''] = await seedRows(1);
     await asMigrator(
       (m) => m`update outbox_events set attempts = 1, claimed_until = now() + interval '2 minutes'
@@ -735,12 +735,19 @@ describe('a worker QStash gave up on turns its event back into a dead letter (00
       (p) => p`update outbox_events set published_at = now(), claimed_until = null where id = ${id}`,
     );
     expect(await holdBackFailedEvent(id, 'worker_refused')).toBe('held');
-    // A pending event no run holds is not the race: it answers unchanged, as before.
-    const [idle = ''] = await seedRows(1);
-    expect(await holdBackFailedEvent(idle, 'worker_failed')).toBe('unchanged');
-    await asOutboxPublisher(
-      (p) => p`update outbox_events set published_at = now() where id = ${idle}`,
+    // A run that sent it and died: its lease has lapsed and no run has claimed it again yet. The
+    // callback still waits for the event to be recorded delivered (review L1).
+    const [lapsed = ''] = await seedRows(1);
+    await asMigrator(
+      (m) => m`update outbox_events set attempts = 1, claimed_until = now() - interval '10 seconds'
+                where id = ${lapsed}`,
     );
+    expect(await holdBackFailedEvent(lapsed, 'worker_failed')).toBe('leased');
+    expect(await rowAsPublisher(lapsed)).toMatchObject({ published_at: null, dead_lettered_at: null });
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set published_at = now(), claimed_until = null where id = ${lapsed}`,
+    );
+    expect(await holdBackFailedEvent(lapsed, 'worker_failed')).toBe('held');
   });
 
   it('allows only that change: another error, a kept backoff or a changed count is refused', async () => {

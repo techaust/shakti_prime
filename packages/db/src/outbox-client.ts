@@ -168,8 +168,9 @@ export const claimOutbox: ClaimOutbox = leasedClaim(postgresOutboxLeaseStore);
  * already held back changes; the outbox trigger allows exactly this change, and only to this role.
  *
  * The callback can arrive before the run that sent the event has recorded it delivered (audit
- * 2026-10, DATA-4): the event is then still leased, not yet delivered, and answers `leased`, so
- * the route asks QStash to call again rather than lose the dead letter.
+ * 2026-10, DATA-4), or after that run died with its lease lapsed and before another run claims the
+ * event again (review L1): the event is then neither delivered nor held back, and answers
+ * `leased`, so the route asks QStash to call again rather than lose the dead letter.
  */
 export async function holdBackFailedEvent(
   eventId: string,
@@ -184,8 +185,8 @@ export async function holdBackFailedEvent(
       returning id)
     select exists (select 1 from held) as held,
            exists (select 1 from outbox_events
-                    where id = ${eventId} and published_at is null and dead_lettered_at is null
-                      and claimed_until > now()) as leased`;
+                    where id = ${eventId} and published_at is null and dead_lettered_at is null)
+             as leased`;
   if (row?.held === true) return 'held';
   return row?.leased === true ? 'leased' : 'unchanged';
 }

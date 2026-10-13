@@ -47,9 +47,9 @@ export interface HoldBackOptions {
 /**
  * Turns an event QStash gave up on back into a dead letter (`holdBackFailedEvent`, as
  * outbox_publisher), so Integration Health lists it and Send again replays it, and tells the
- * owner as a publisher run that dead-letters an event does (`outbox.dead_lettered`). An event
- * still leased to the run that sent it answers `leased`: that run has not yet recorded it
- * delivered, and the route asks QStash to call again (audit 2026-10, DATA-4).
+ * owner as a publisher run that dead-letters an event does (`outbox.dead_lettered`). An event not
+ * yet recorded delivered answers `leased`, and the route asks QStash to call again (audit 2026-10,
+ * DATA-4, review L1).
  */
 export async function holdBackFailure(
   eventId: string,

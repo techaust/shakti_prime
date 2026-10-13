@@ -32,8 +32,8 @@ const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
  * fails after QStash's last retry, the event comes back here. The body is refused over 64 KiB
  * before it is read, the signature must name this address, and the event is then held back as a
  * dead letter with `worker_refused` or `worker_failed`, listed on Integration Health, reported to
- * the owner and replayed by Send again. An event still leased to the run that sent it, which has
- * not yet recorded it delivered, answers a retryable 503, as does a failure here.
+ * the owner and replayed by Send again. An event not yet recorded delivered (still leased to the
+ * run that sent it, or left by a run that died) answers a retryable 503, as does a failure here.
  */
 export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
