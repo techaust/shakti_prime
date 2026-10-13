@@ -350,10 +350,16 @@ test.describe('UAT: a customers file and its row counts, as the cutover checks t
     await expect(line('Not added')).toContainText('1');
     await expect(line('The phone number was wrong')).toContainText('1');
     await expectNoAxeViolations(page);
-    // The section's picture; the file's name and the times change from run to run. Its Linux
-    // baseline is made by the lead in the Playwright image (`e2e:snap -- --update-snapshots`).
+    // The section's picture; the file's name, its toast, the times and the drawn phone numbers
+    // change from run to run. Its Linux baseline is made by the lead in the Playwright image.
     await snap(page, 'imports-row-counts', {
-      mask: [page.getByRole('heading', { level: 1 }), page.getByText(/, started /)],
+      mask: [
+        page.getByRole('heading', { level: 1 }),
+        page.getByText(/, started /),
+        page.getByText(file),
+        page.getByText(repeated),
+        page.getByText(other),
+      ],
     });
 
     const download = page.waitForEvent('download');
