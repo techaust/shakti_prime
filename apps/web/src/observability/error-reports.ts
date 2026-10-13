@@ -30,7 +30,9 @@ function errorOf(event: string, raw: unknown): Error {
     .split('\n')
     .filter((line) => /^\s+at /.test(line))
     .join('\n');
-  error.stack = frames === '' ? `${raw.name}: ${message}` : `${raw.name}: ${message}\n${frames}`;
+  // The stack's head is the message on one line, so no line of it can pass for a frame.
+  const head = `${raw.name}: ${message.replace(/\s*\n\s*/g, ' ')}`;
+  error.stack = frames === '' ? head : `${head}\n${frames}`;
   return error;
 }
 
