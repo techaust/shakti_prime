@@ -108,7 +108,7 @@ export type QuoteExpireWorkerBody = z.infer<typeof QuoteExpireWorkerBody>;
 
 /** What one expiry run did: the batches it ran, the quotes it expired, and whether it finished. */
 export const QuoteExpireWorkerResponse = z
-  .object({ batches: Count, expired: Count, done: z.boolean() })
+  .object({ batches: Count, expired: Count, skipped: Count, done: z.boolean() })
   .strict();
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
 
