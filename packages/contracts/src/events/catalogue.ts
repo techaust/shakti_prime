@@ -33,6 +33,12 @@ interface CatalogueEntrySpec {
   meaning: string;
   emittedBy: readonly string[];
   subscribed: boolean;
+  /**
+   * A payload flag that, when true, marks an event no worker of the type acts on (an import's
+   * leads, which Triage leaves alone): it is written as delivered and never sent, so a large
+   * import neither waits in the outbox ahead of every later event nor costs a queue message each.
+   */
+  undeliveredWhen?: string;
   payload: z.ZodType;
 }
 
@@ -67,6 +73,7 @@ const eventCatalogue = {
       'A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer.',
     emittedBy: ['crm.enquiry.take', 'crm.lead.create', 'imports.job.commit_batch'],
     subscribed: true,
+    undeliveredWhen: 'imported',
     payload: z
       .object({
         pipelineKey: Code,
@@ -554,6 +561,17 @@ export function isEventType(type: string): type is EventType {
 
 export function isSubscribed(type: string): boolean {
   return isEventType(type) && eventCatalogue[type].subscribed;
+}
+
+/**
+ * Whether an event goes to its workers: its type is subscribed and its payload does not carry the
+ * type's `undeliveredWhen` flag. An event that does not is marked delivered without being sent.
+ */
+export function isDelivered(type: string, payload: Readonly<Record<string, unknown>>): boolean {
+  if (!isEventType(type)) return false;
+  const entry: CatalogueEntrySpec = eventCatalogue[type];
+  if (!entry.subscribed) return false;
+  return entry.undeliveredWhen === undefined || payload[entry.undeliveredWhen] !== true;
 }
 
 export type ParsedEvent =

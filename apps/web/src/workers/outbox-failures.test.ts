@@ -1,5 +1,5 @@
 import { newId } from '@shakti/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { memoryAlertSink } from '../observability/alerts';
 import { failedEventId, holdBackFailure, workerErrorFor } from './outbox-failures';
 
@@ -48,6 +48,18 @@ describe('holdBackFailure', () => {
     expect(alerts.alerts).toEqual([
       { name: 'outbox.dead_lettered', fields: { count: 1, ids: [id] } },
     ]);
+  });
+
+  it('answers leased, and tells no one, while the run that sent it has not recorded it (DATA-4)', async () => {
+    const alerts = memoryAlertSink();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const result = await holdBackFailure(newId(), 400, {
+      requestId: 'r',
+      alerts,
+      hold: () => Promise.resolve('leased'),
+    });
+    expect(result).toBe('leased');
+    expect(alerts.alerts).toEqual([]);
   });
 
   it('tells no one when the event was already held back', async () => {

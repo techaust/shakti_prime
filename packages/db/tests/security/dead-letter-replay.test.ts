@@ -1,7 +1,7 @@
 import { newId, type Principal } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
-import { closeOutboxDb } from '../../src/outbox-client';
+import { closeOutboxDb, postgresOutboxLeaseStore } from '../../src/outbox-client';
 import {
   asMigrator,
   asOutboxPublisher,
@@ -282,5 +282,85 @@ describe('a replay with backoff and leases (migration 0054)', () => {
       expect(await failure(change())).toMatch(/changes only by a replay/);
     }
     expect(await delivery(id)).toEqual({ backoff: true, lease: true, dead: true });
+  });
+});
+
+describe('delivery generations (audit 2026-10, DATA-1)', () => {
+  async function replays(id: string): Promise<number | undefined> {
+    const [found] = await asOutboxPublisher(
+      (p) => p<{ replays: number }[]>`select replays from outbox_events where id = ${id}`,
+    );
+    return found?.replays;
+  }
+
+  it('a replay starts the next generation, and only a replay of a dead letter does', async () => {
+    const id = await deadLetter();
+    expect(await replays(id)).toBe(0);
+    const executive = await createTestPrincipal('executive');
+    await replay(executive, id);
+    expect(await replays(id)).toBe(1);
+    // A replay of an event that is not dead-lettered changes nothing, its generation included.
+    await replay(executive, id);
+    expect(await replays(id)).toBe(1);
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set published_at = now() where id = ${id}`,
+    );
+  });
+
+  it('no role sets the generation by itself: not the publisher, not the owner', async () => {
+    const pending = newId();
+    await asMigrator(
+      (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id,
+                                          payload_json)
+               values (${pending}, 1, 'admin.user.reactivated', ${TAG}, ${newId()},
+                       '{"v": 1}'::jsonb)`,
+    );
+    expect(
+      await failure(
+        asOutboxPublisher((p) => p`update outbox_events set replays = 1 where id = ${pending}`),
+      ),
+    ).toMatch(/permission denied/);
+    expect(
+      await failure(
+        asMigrator((m) => m`update outbox_events set replays = 5 where id = ${pending}`),
+      ),
+    ).toMatch(/only a replay of a dead letter counts a replay/);
+
+    const dead = await deadLetter();
+    // The reset under the replay setting still needs the generation raised by exactly one.
+    for (const next of [0, 2]) {
+      expect(
+        await failure(
+          asMigrator((m) =>
+            m.begin(async (tx) => {
+              await tx`select set_config('app.dlq_replay', ${dead}, true)`;
+              await tx`update outbox_events
+                          set dead_lettered_at = null, attempts = 0, last_error = null,
+                              next_attempt_at = null, claimed_until = null, replays = ${next}
+                        where id = ${dead}`;
+            }),
+          ),
+        ),
+      ).toMatch(/changes only by a replay/);
+    }
+    expect(await replays(dead)).toBe(0);
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set published_at = now() where id = ${pending}`,
+    );
+  });
+
+  it('the publisher’s lease answers each row’s generation', async () => {
+    const id = await deadLetter();
+    const executive = await createTestPrincipal('executive');
+    await replay(executive, id);
+    const { lease, rows } = await postgresOutboxLeaseStore.lease(500, 120, 10);
+    const mine = rows.find((r) => r.id === id);
+    expect(mine).toMatchObject({ attempts: 0, replays: 1 });
+    // Every other row of the lease goes back as it was; this one is marked delivered.
+    await postgresOutboxLeaseStore.record(
+      lease,
+      [{ id, outcome: 'published' }],
+      rows.filter((r) => r.id !== id).map((r) => r.id),
+    );
   });
 });

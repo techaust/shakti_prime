@@ -129,6 +129,12 @@ export const salesOrders = pgTable(
       'sales_orders_totals_check',
       sql`${t.subtotal} >= 0 and ${t.cgst} >= 0 and ${t.sgst} >= 0 and ${t.igst} >= 0 and ${t.taxTotal} = ${t.cgst} + ${t.sgst} + ${t.igst} and ${t.grandTotal} = ${t.subtotal} + ${t.taxTotal} + ${t.roundOff}`,
     ),
+    // GST goes one way: CGST and SGST within the state, IGST across states, never both (DATA-7).
+    // Added NOT VALID in its migration and validated after the deploy (DATABASE §8).
+    check(
+      'sales_orders_gst_split_check',
+      sql`(${t.supplyKind} = 'intra' and ${t.igst} = 0) or (${t.supplyKind} = 'inter' and ${t.cgst} = 0 and ${t.sgst} = 0)`,
+    ),
     check('sales_orders_round_off_check', sql`${t.roundOff} between -0.49 and 0.50`),
     // A draft has not been confirmed; an order past it was, and keeps when.
     check(
@@ -254,6 +260,11 @@ export const salesOrderLines = pgTable(
     check(
       'sales_order_lines_amounts_check',
       sql`${t.unitPrice} >= 0 and ${t.taxableValue} >= 0 and ${t.cgst} >= 0 and ${t.sgst} >= 0 and ${t.igst} >= 0 and ${t.lineTotal} = ${t.taxableValue} + ${t.cgst} + ${t.sgst} + ${t.igst}`,
+    ),
+    // A line's GST is CGST and SGST or IGST, never both (DATA-7); its header names which.
+    check(
+      'sales_order_lines_gst_split_check',
+      sql`${t.igst} = 0 or (${t.cgst} = 0 and ${t.sgst} = 0)`,
     ),
     index('sales_order_lines_item_idx').on(t.itemId),
     index('sales_order_lines_kit_idx').on(t.kitId),

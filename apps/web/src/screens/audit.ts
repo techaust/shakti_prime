@@ -515,6 +515,8 @@ const FIELD_KINDS = [
   ['fromRow', 'number'],
   ['toRow', 'number'],
   ['rows', 'number'],
+  ['skipped', 'number'],
+  ['expiryRefused', 'errorCode'],
   ['committedRows', 'number'],
   ['batches', 'number'],
   ['rolledBackRows', 'number'],

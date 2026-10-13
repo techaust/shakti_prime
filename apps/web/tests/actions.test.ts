@@ -89,6 +89,7 @@ const {
   winOpportunity,
 } = await import('../src/actions/crm');
 const { listEntities, updateEntity } = await import('../src/actions/org');
+const { publishOutbox } = await import('../src/workers/outbox');
 const { searchPalette } = await import('../src/actions/search');
 const { saveContrast } = await import('../src/actions/profile');
 const { listPriceLists, listPrices, setPrice } = await import('../src/actions/pricing');
@@ -278,6 +279,11 @@ describe('server actions (AUDIT M41)', () => {
   });
 
   it('store the events of a change with it and have the publisher deliver them after the commit', async () => {
+    // What earlier files left waiting goes out first, so the nudge after this change reaches its
+    // own event whatever the backlog (review L7).
+    for (let run = 0; run < 100; run += 1) {
+      if ((await publishOutbox()).claimed === 0) break;
+    }
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const created = ok(await createLead(lead(1)));
     const [row, ...more] = await asOutboxPublisher(
@@ -293,7 +299,7 @@ describe('server actions (AUDIT M41)', () => {
       entity_id: 1,
       payload_json: { v: 1, pipelineKey: 'farmer_pumps', sourceCode: null, existingAccount: false },
     });
-    // No worker listens to this event yet, so the local run marks it delivered without sending.
+    // The nudge after the commit ran the publisher in this process and delivered it to Triage.
     expect(row?.published_at).toBeInstanceOf(Date);
   });
 

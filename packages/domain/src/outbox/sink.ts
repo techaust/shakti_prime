@@ -1,5 +1,6 @@
-import { newId, type StoredEventPayload } from '@shakti/contracts';
+import { isDelivered, isSubscribed, newId, type StoredEventPayload } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
+import { sql } from 'drizzle-orm';
 
 /** One event as the runner stores it: checked against the catalogue, version added. */
 export interface OutboxRecord {
@@ -18,6 +19,15 @@ export interface OutboxSink {
   write(tx: RequestTx, records: readonly OutboxRecord[]): Promise<void>;
 }
 
+/**
+ * True for an event of a subscribed type whose payload says no worker acts on it (the catalogue's
+ * `undeliveredWhen`, an import's leads): it is written as delivered, so it never waits in the
+ * outbox ahead of the events that do go out.
+ */
+function writtenDelivered(record: OutboxRecord): boolean {
+  return isSubscribed(record.type) && !isDelivered(record.type, record.payload);
+}
+
 /** The production sink: `outbox_events` through the caller's own connection and policies. */
 export const databaseOutboxSink: OutboxSink = {
   async write(tx, records) {
@@ -31,6 +41,7 @@ export const databaseOutboxSink: OutboxSink = {
         aggregateType: r.aggregateType,
         aggregateId: r.aggregateId,
         payloadJson: r.payload,
+        ...(writtenDelivered(r) ? { publishedAt: sql`now()` } : {}),
       })),
     );
   },

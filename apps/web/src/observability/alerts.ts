@@ -1,35 +1,39 @@
 import { logger } from '../log';
+import { SENTRY_FLUSH_MS, sentryDsnSet, type AlertName } from './sentry-on';
 
-/**
- * The alerts the owner is notified of through Sentry (docs/runbooks/deploy.md §1 step 8): the
- * rule in Sentry matches the message, which is the alert's name.
- */
-export type AlertName = 'outbox.dead_lettered' | 'outbox.publisher_failing';
+export { ALERT_NAMES, type AlertName } from './sentry-on';
 
-/** What an alert carries: counts and ids only, never a payload or a person's details. */
-export type AlertFields = Readonly<Record<string, number | readonly string[] | undefined>>;
+/** What an alert carries: counts, ids and job names only, never a payload or a person's details. */
+export type AlertFields = Readonly<Record<string, number | string | readonly string[] | undefined>>;
 
 export interface AlertSink {
-  report(name: AlertName, fields: AlertFields): void;
+  /** Resolves once the alert is logged and, with a DSN, sent; it never rejects. */
+  report(name: AlertName, fields: AlertFields): Promise<void>;
 }
 
 /**
  * Logs the alert as an error line and sends it to Sentry as one message whose fingerprint is its
- * name, so repeats group into one issue. Without `SENTRY_DSN` the SDK is not even loaded and the
- * alert is only logged. Sending never fails the caller.
+ * name, and its job for a job's alert, so repeats group into one issue per job. The send is
+ * flushed before `report` resolves, so a function that awaits it is not frozen with the alert
+ * still queued. Without `SENTRY_DSN` the SDK is not even loaded and the alert is only logged.
+ * Sending never fails the caller.
  */
 export const sentryAlertSink: AlertSink = {
-  report(name, fields) {
+  async report(name, fields) {
     logger.log('error', name, fields);
-    const dsn = process.env.SENTRY_DSN;
-    if (dsn === undefined || dsn.trim() === '') return;
-    void import('@sentry/nextjs')
-      .then((sentry) => {
-        sentry.captureMessage(name, { level: 'error', fingerprint: [name], extra: { ...fields } });
-      })
-      .catch((error: unknown) => {
-        logger.log('warn', 'alert.send_failed', { alert: name, error });
+    if (!sentryDsnSet()) return;
+    try {
+      const sentry = await import('@sentry/nextjs');
+      const job = typeof fields.job === 'string' ? [fields.job] : [];
+      sentry.captureMessage(name, {
+        level: 'error',
+        fingerprint: [name, ...job],
+        extra: { ...fields },
       });
+      await sentry.flush(SENTRY_FLUSH_MS);
+    } catch (error) {
+      logger.log('warn', 'alert.send_failed', { alert: name, error });
+    }
   },
 };
 
@@ -42,6 +46,7 @@ export function memoryAlertSink(): AlertSink & {
     alerts,
     report(name, fields) {
       alerts.push({ name, fields });
+      return Promise.resolve();
     },
   };
 }

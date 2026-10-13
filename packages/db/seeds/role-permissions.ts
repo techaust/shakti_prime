@@ -297,6 +297,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'notifications.send': {},
   // The platform's round-robin handover of qualified leads; no person's role holds it (SECURITY §3.3).
   'crm.handover.run': {},
+  'platform.jobs.check': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

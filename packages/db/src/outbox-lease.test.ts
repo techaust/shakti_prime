@@ -14,6 +14,7 @@ function row(): OutboxRow {
     aggregateId: 'a',
     payload: { v: 1 },
     attempts: 0,
+    replays: 0,
     createdAt: new Date(),
   };
 }

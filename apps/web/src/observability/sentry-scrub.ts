@@ -48,14 +48,20 @@ function scrubTags(tags: unknown): Loose | undefined {
 }
 
 /** A stack frame without its local variables, which may hold anything the code was handling. */
+/**
+ * A stack frame without its local variables, and with its file, function and module text scrubbed
+ * as any other text is: a parser makes a frame of any stack line containing `at `, so a message
+ * line that slipped into a stack could otherwise arrive as a frame's name (audit 2026-10 review,
+ * M1).
+ */
 function scrubFrame(frame: unknown): unknown {
   if (!isObject(frame)) return frame;
   const rest = Object.fromEntries(Object.entries(frame).filter(([key]) => key !== 'vars'));
-  return {
-    ...rest,
-    ...(typeof rest.abs_path === 'string' ? { abs_path: withoutQuery(rest.abs_path) } : {}),
-    ...(typeof rest.filename === 'string' ? { filename: withoutQuery(rest.filename) } : {}),
-  };
+  const scrubbed: Loose = { ...rest };
+  for (const key of ['abs_path', 'filename', 'function', 'module'] as const) {
+    if (typeof rest[key] === 'string') scrubbed[key] = scrubText(rest[key]);
+  }
+  return scrubbed;
 }
 
 function scrubException(exception: unknown): unknown {

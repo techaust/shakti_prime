@@ -41,5 +41,8 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // the people who could take it and gives it over through definers, nothing more. Unlike the
     // others it moves the customer relationship too (ADR 0020, the owner's decision of 09-10-2026).
     { key: 'crm.handover.run', scope: 'all' },
+    // The check of the database's scheduled jobs (`jobs-check`): it reads each job's last run and
+    // error through one definer, and nothing of any company.
+    { key: 'platform.jobs.check', scope: 'all' },
   ],
 };

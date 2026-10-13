@@ -47,15 +47,25 @@ export interface HoldBackOptions {
 /**
  * Turns an event QStash gave up on back into a dead letter (`holdBackFailedEvent`, as
  * outbox_publisher), so Integration Health lists it and Send again replays it, and tells the
- * owner as a publisher run that dead-letters an event does (`outbox.dead_lettered`).
+ * owner as a publisher run that dead-letters an event does (`outbox.dead_lettered`). An event not
+ * yet recorded delivered answers `leased`, and the route asks QStash to call again (audit 2026-10,
+ * DATA-4, review L1).
  */
 export async function holdBackFailure(
   eventId: string,
   status: number,
   options: HoldBackOptions,
-): Promise<OutboxFailureResult> {
+): Promise<OutboxFailureResult | 'leased'> {
   const lastError = workerErrorFor(status);
   const outcome = await (options.hold ?? holdBackFailedEvent)(eventId, lastError);
+  if (outcome === 'leased') {
+    logger.log('warn', 'outbox.failure_while_leased', {
+      requestId: options.requestId,
+      eventId,
+      status,
+    });
+    return 'leased';
+  }
   logger.log('warn', 'outbox.worker_gave_up', {
     requestId: options.requestId,
     eventId,
@@ -64,7 +74,7 @@ export async function holdBackFailure(
     outcome,
   });
   if (outcome === 'held') {
-    (options.alerts ?? sentryAlertSink).report('outbox.dead_lettered', {
+    await (options.alerts ?? sentryAlertSink).report('outbox.dead_lettered', {
       count: 1,
       ids: [eventId],
     });
