@@ -4,48 +4,23 @@
 // - the first, with a callback that fell due three hours ago and no sizing, which the journey works;
 // - the second, sized, with a sent quote that runs out in twelve hours;
 // - the third, sized, with an order held for credit.
-// The price tier, item and price list of company 2 that the quote is made from are test values for
-// the journeys alone, never a client figure (PRICE-2, PRICE-4); the tier says so in its name.
+// The customers are on the quote journeys' tier, whose company 2 price list (`./quotes.ts`, made
+// before this) holds the module the quote is made from: test values for the journeys alone, never a
+// client figure (PRICE-2, PRICE-4). No catalogue item of this journey's own is made, so the
+// catalogue, GST rates and price list screenshots do not show one.
 import { newId } from '@shakti/contracts';
 import { asMigrator, principalFor } from '@shakti/db/testing';
 import { createLead, executeCommand, recordSizing, setAccountTier } from '@shakti/domain';
-import { CONVERTING_ITEM, CONVERTING_LEADS, CONVERTING_TIER } from '../converting-fixtures';
+import { CONVERTING_LEADS } from '../converting-fixtures';
+import { QUOTE_JOURNEY_COMPANY } from '../support/users';
+import { QUOTE_JOURNEY_IDS } from './quotes';
 
 // Shakti Motor Pumps, where the quote journeys work too: the security suite's fixtures own the
 // quote series of company 1 and fail if a journey has numbered a quote there.
-const ENTITY = 2;
-const id = (n: number) => `0199e2e0-0000-7000-8000-0000000c1${n.toString(16).padStart(3, '0')}`;
-const IDS = { tier: id(1), item: id(2), rate: id(3), list: id(4), price: id(5) };
-const SEEDED_AT = '2026-04-01T00:00:00+05:30';
+const ENTITY = QUOTE_JOURNEY_COMPANY.entityId;
+const SEEDED = { tier: QUOTE_JOURNEY_IDS.tier, list: QUOTE_JOURNEY_IDS.journeyList };
 const HOUR = 3_600_000;
 const ROOFTOP = { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 } as const;
-
-/** The tier, the item, its GST rate and the price list of company 2, made once and kept as they are. */
-async function ensureCatalogue(executiveId: string): Promise<void> {
-  await asMigrator((m) =>
-    m.begin(async (tx) => {
-      await tx`insert into price_tiers (id, code, name) values (${IDS.tier}, 'converting', ${CONVERTING_TIER})
-               on conflict (id) do nothing`;
-      await tx`insert into items (id, sku, name, category, hsn, unit, is_dcr, specs_json, created_at, updated_at)
-               values (${IDS.item}, ${CONVERTING_ITEM.sku}, ${CONVERTING_ITEM.name}, 'solar_module', '8541',
-                       'nos', true, ${tx.json({ wp: 540 })}, ${SEEDED_AT}, ${SEEDED_AT})
-               on conflict (id) do nothing`;
-      await tx`insert into tax_rates (id, item_id, rate_pct, effective_from, source_ref)
-               values (${IDS.rate}, ${IDS.item}, 12.00, '2026-04-01', 'journeys')
-               on conflict (id) do nothing`;
-      const [found] = await tx<
-        { n: number }[]
-      >`select count(*)::int as n from price_lists where id = ${IDS.list}`;
-      if ((found?.n ?? 0) > 0) return;
-      await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, approved_by, approved_at)
-               values (${IDS.list}, ${IDS.tier}, ${ENTITY}, 1, '2026-04-01', ${executiveId}, now())`;
-      await tx`alter table price_list_items disable trigger price_list_items_log_change`;
-      await tx`insert into price_list_items (id, price_list_id, item_id, price, created_at, updated_at)
-               values (${IDS.price}, ${IDS.list}, ${IDS.item}, ${CONVERTING_ITEM.price}, ${SEEDED_AT}, ${SEEDED_AT})`;
-      await tx`alter table price_list_items enable trigger price_list_items_log_change`;
-    }),
-  );
-}
 
 /** A mobile number no earlier run used, ending in the digits the lead keeps on every run. */
 function phone(lastDigits: string): string {
@@ -83,7 +58,7 @@ async function freshLeads(ownerId: string, executiveId: string): Promise<void> {
     await executeCommand(executive, {}, setAccountTier, {
       entityId: ENTITY,
       accountId: created.account.id,
-      tierId: IDS.tier,
+      tierId: SEEDED.tier,
     });
     // At Qualified, as the handover leaves a lead. Set directly: moving it through the stage command
     // would ask for a handover, which would take the lead from this converter.
@@ -121,7 +96,7 @@ async function freshLeads(ownerId: string, executiveId: string): Promise<void> {
                                   state, subtotal, cgst, sgst, igst, tax_total, round_off, grand_total,
                                   created_by)
                values (${quoteId}, ${ENTITY}, ${`CNV/Q/${newId()}`}, '2026-27', ${lead.leadId}, ${lead.accountId},
-                       ${IDS.tier}, ${IDS.list}, 'none', '08', 'intra',
+                       ${SEEDED.tier}, ${SEEDED.list}, 'none', '08', 'intra',
                        ${new Date(Date.now() + validForMs).toISOString()}, 'sent',
                        60000.00, 3600.00, 3600.00, 0, 7200.00, 0, 67200.00, ${ownerId})`,
     );
@@ -137,18 +112,17 @@ async function freshLeads(ownerId: string, executiveId: string): Promise<void> {
                                       credit_held_at, credit_hold_reason, credit_hold_json, subtotal,
                                       cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
              values (${newId()}, ${ENTITY}, ${`CNV/SO/${newId()}`}, '2026-27', ${heldQuote},
-                     ${made.held.leadId}, ${made.held.accountId}, ${IDS.tier}, ${IDS.list}, '08',
+                     ${made.held.leadId}, ${made.held.accountId}, ${SEEDED.tier}, ${SEEDED.list}, '08',
                      'intra', 'draft', ${new Date(Date.now() - 2 * HOUR).toISOString()},
                      'credit_limit_missing', '{}'::jsonb, 60000.00, 3600.00, 3600.00, 0, 7200.00, 0,
                      67200.00, ${ownerId})`,
   );
 }
 
-/** Makes the converters' fixtures; `ownerIds` are the people the seed made, `executiveId` approves the price list. */
+/** Makes the converters' fixtures; `ownerIds` are the people the seed made, `executiveId` sets the customers' tier. */
 export async function ensureConvertingJourneys(
   ownerIds: readonly string[],
   executiveId: string,
 ): Promise<void> {
-  await ensureCatalogue(executiveId);
   for (const ownerId of ownerIds) await freshLeads(ownerId, executiveId);
 }

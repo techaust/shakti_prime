@@ -21,8 +21,6 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useRef, useState, type SyntheticEvent } from 'react';
 import { shadowReport } from '../../actions/agents';
-import { oneOf } from '../../screens/audit';
-import { SEGMENTS } from '../../screens/contract-values';
 import { customerHref } from '../../screens/customers';
 import { formatCount } from '../../screens/format';
 import {
@@ -57,7 +55,6 @@ export function ShadowReportScreen({
   companies: Record<number, string>;
 }) {
   const t = useTranslations('agents.shadow');
-  const activity = useTranslations('activity');
   const [report, setReport] = useState(initial);
   const [rows, setRows] = useState(initial.items);
   const [from, setFrom] = useState<string | undefined>(initial.from);
@@ -79,8 +76,7 @@ export function ShadowReportScreen({
     (problem === 'periodMissing' && problemFrom !== undefined);
   const periodMessage = problem === undefined ? undefined : t(`filters.${problem}`);
   const kindName = (kind: TriageProposalKind) => t(`kinds.${kind}`);
-  const pipelineName = (key: string | null) =>
-    key !== null && oneOf(SEGMENTS, key) ? activity(`values.segment.${key}`) : t('otherPipeline');
+  const pipelineName = (name: string | null) => name ?? t('otherPipeline');
 
   function apply(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -124,7 +120,7 @@ export function ShadowReportScreen({
   function proposed(r: ShadowProposalDto) {
     switch (r.kind) {
       case 'pipeline':
-        return pipelineName(r.proposedPipelineKey);
+        return pipelineName(r.proposedPipelineName);
       case 'score':
         return t('proposed.score', {
           change: signedPoints(r.proposedScoreChange ?? 0),
@@ -142,7 +138,7 @@ export function ShadowReportScreen({
     const score = String(r.score ?? '');
     switch (r.kind) {
       case 'pipeline':
-        return t('happened.pipeline', { pipeline: pipelineName(r.pipelineKey) });
+        return t('happened.pipeline', { pipeline: pipelineName(r.pipelineName) });
       case 'score':
         if (r.leadState === 'won') return t('happened.won', { score });
         if (r.leadState === 'lost') return t('happened.lost', { score });

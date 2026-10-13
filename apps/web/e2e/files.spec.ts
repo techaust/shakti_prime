@@ -50,6 +50,8 @@ test.describe('the logo and letterhead of a company', () => {
 
   test('a PDF on the logo field is refused before anything is sent', async ({ page }) => {
     await page.goto('/settings/companies');
+    // The page's title streams in after its content; axe needs it (document-title).
+    await expect(page).toHaveTitle(/^Companies · /);
     await dataGrid(page, 'Companies')
       .getByRole('button', { name: 'Logo and letterhead' })
       .first()

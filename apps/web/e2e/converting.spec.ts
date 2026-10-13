@@ -13,6 +13,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
+import { insideCallingHours, outsideCallingHours, setServerClock } from './support/clock';
 import { signInThroughScreens } from './support/sign-in';
 import { emailFor } from './support/users';
 
@@ -22,16 +23,6 @@ import { emailFor } from './support/users';
 // out within a day, and one with an order held for credit. The journey works the first from the
 // keyboard: a call, a sizing and a quote without leaving the screen, and the list of what to do
 // next changes with each.
-
-/**
- * Calls may be saved and numbers shown only from 9 AM to 9 PM in India (TRAI). The journey runs
- * whenever CI runs, so outside those hours it checks that the workspace says so instead.
- */
-function inCallingHours(at = new Date()): boolean {
-  const minutes = (Math.floor(at.getTime() / 60_000) + 330) % 1440;
-  // A margin at each end, so the hour does not change in the middle of the journey.
-  return minutes >= 9 * 60 + 5 && minutes < 21 * 60 - 10;
-}
 
 const HOURS_SENTENCE =
   'Calls can be made only between 9 AM and 9 PM. Try again during calling hours.';
@@ -58,6 +49,7 @@ async function press(page: Page, key: string, until: () => Promise<void>): Promi
 test.describe('converting as a Lead Converter', () => {
   test('works a lead from the keyboard: a call, a sizing and a quote, and the list follows', async ({
     page,
+    context,
   }) => {
     test.setTimeout(240_000);
     await signInThroughScreens(page, emailFor(converterKey(projectName())));
@@ -156,38 +148,36 @@ test.describe('converting as a Lead Converter', () => {
       fixedTimes: true,
     });
 
-    // The call, last, since the hour of the day decides what it does: D shows the number and C sets
-    // the callback, with the time asked for in a dialog.
-    if (inCallingHours()) {
-      await page.keyboard.press('d');
-      await expect(page.getByText('Number to dial', { exact: true })).toBeVisible();
-      await page.keyboard.press('c');
-      const dialog = page.getByRole('dialog');
-      await expect(
-        dialog.getByRole('heading', { name: 'When should we call back?' }),
-      ).toBeVisible();
-      await expect(dialog.getByLabel('Call back at')).toBeFocused();
-      await expectNoAxeViolations(page, { include: '[role="dialog"]' });
-      await page.keyboard.press('Enter');
-      await expect(dialog).toBeHidden();
-      await toast(page, /^Call saved\. Call back /);
-      // The callback that was due is done and the new one is for tomorrow, so its row is gone.
-      await expect(rows(page).filter({ hasText: 'Call back due' })).toHaveCount(0);
-      await expect(rows(page)).toHaveCount(2);
-    } else {
-      // Outside 9 AM to 9 PM the number stays hidden and no call can be saved.
-      await page.keyboard.press('d');
-      await expect(page.getByText(HOURS_SENTENCE)).toBeVisible();
-    }
+    // The call, last. Calls may be saved and numbers shown only from 9 AM to 9 PM in India (TRAI),
+    // so the server's clock is set to each side of those hours in turn, whatever the wall clock is
+    // (e2e/support/clock.ts). Outside them, D keeps the number hidden and says why.
+    await setServerClock(context, outsideCallingHours());
+    await page.keyboard.press('d');
+    await expect(page.getByText(HOURS_SENTENCE)).toBeVisible();
+    await expect(page.getByText('Number to dial', { exact: true })).toHaveCount(0);
 
-    // N opens the first row of the list; each row opens its lead at the part it is about.
-    const first = inCallingHours() ? 'expiring' : 'work';
+    // Inside them, D shows the number and C sets the callback, with the time asked for in a dialog.
+    await setServerClock(context, insideCallingHours());
+    await page.keyboard.press('d');
+    await expect(page.getByText('Number to dial', { exact: true })).toBeVisible();
+    await page.keyboard.press('c');
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { name: 'When should we call back?' })).toBeVisible();
+    await expect(dialog.getByLabel('Call back at')).toBeFocused();
+    await expectNoAxeViolations(page, { include: '[role="dialog"]' });
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeHidden();
+    await toast(page, /^Call saved\. Call back /);
+    // The callback that was due is done and the new one is for tomorrow, so its row is gone.
+    await expect(rows(page).filter({ hasText: 'Call back due' })).toHaveCount(0);
+    await expect(rows(page)).toHaveCount(2);
+
+    // N opens the first row of the list, the quote about to run out, at its quote; each row opens
+    // its lead at the part it is about.
     await press(page, 'n', async () => {
-      await expect(heading(page, first)).toBeFocused({ timeout: 1_000 });
+      await expect(heading(page, 'expiring')).toBeFocused({ timeout: 1_000 });
     });
-    if (first === 'expiring') {
-      await expect(page.getByRole('tab', { name: 'Quote', selected: true })).toBeVisible();
-    }
+    await expect(page.getByRole('tab', { name: 'Quote', selected: true })).toBeVisible();
     await rows(page).filter({ hasText: 'Order held for credit since' }).getByRole('button').click();
     await expect(heading(page, 'held')).toBeFocused();
     await expect(page.getByRole('tab', { name: 'Order', selected: true })).toBeVisible();

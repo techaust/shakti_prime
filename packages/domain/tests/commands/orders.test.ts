@@ -1004,6 +1004,28 @@ describe('the referral commission (CRM-09)', () => {
     expect(await record(lc, order.id, ids.rulePerKw, '2.700', '2700.00')).not.toBeNull();
   });
 
+  it('records the commission of the largest order a money column holds', async () => {
+    const order = await confirmedWithoutAccrual(ids.partnerPercent);
+    // The largest taxable value numeric(14,2) allows, with no tax.
+    const largest = '999999999999.99';
+    await asMigrator(
+      (m) => m`
+        update sales_orders
+           set subtotal = ${largest}, cgst = 0, sgst = 0, igst = 0, tax_total = 0, round_off = 0,
+               grand_total = ${largest}
+         where id = ${order.id}`,
+    );
+    // 2.5% of 999,999,999,999.99 is 24,999,999,999.99975, rounded half-up to the paisa.
+    expect(
+      await record(lc, order.id, ids.rulePercent, `${largest}0`, '25000000000.00'),
+    ).not.toBeNull();
+    expect(await accrualOf(order.id)).toMatchObject({
+      basis: 'percent',
+      measure: '999999999999.990',
+      amount: '25000000000.00',
+    });
+  });
+
   it('uses no rule that is not in force on the confirmation date', async () => {
     for (const partner of [ids.partnerFuture, ids.partnerEnded]) {
       const order = await acceptedOrder(partner);

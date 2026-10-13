@@ -77,11 +77,20 @@ fs.writeFileSync(`${meta}/_journal.json`, JSON.stringify(journal, null, 2));
 const last = placed.at(-1);
 const lastSql = fs.readFileSync(`${dir}/${last.tag}.sql`, 'utf8');
 fs.rmSync(`${dir}/${last.tag}.sql`);
-const out = execSync('pnpm exec drizzle-kit generate --name renumber_tmp', {
-  cwd: 'packages/db',
-  encoding: 'utf8',
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
+// When the moved migrations change no table (only custom SQL), drizzle-kit writes nothing and
+// says "No schema changes, nothing to migrate"; that is success, whatever its exit code.
+let out;
+try {
+  out = execSync('pnpm exec drizzle-kit generate --name renumber_tmp', {
+    cwd: 'packages/db',
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 1 << 28,
+  });
+} catch (err) {
+  out = `${err.stdout ?? ''}${err.stderr ?? ''}`;
+  if (!/nothing to migrate/i.test(out)) throw err;
+}
 const generated = `${dir}/${pad(last.idx)}_renumber_tmp.sql`;
 const after = JSON.parse(fs.readFileSync(`${meta}/_journal.json`, 'utf8'));
 if (fs.existsSync(generated)) {
@@ -90,7 +99,19 @@ if (fs.existsSync(generated)) {
   after.entries.at(-1).when = last.when;
   after.entries.at(-1).breakpoints = last.breakpoints;
 } else {
-  console.log('drizzle-kit found no schema change:', out.trim().split('\n').at(-1));
+  // Nothing written is success only when drizzle-kit said so; anything else (drizzle-kit not
+  // installed, a schema it could not read) stops here instead of writing a wrong snapshot.
+  const said = out.split('\n').find((line) => /nothing to migrate/i.test(line));
+  if (!said) {
+    console.error(out);
+    throw new Error(
+      'drizzle-kit wrote no migration and did not say "nothing to migrate"; see its output above.',
+    );
+  }
+  console.log(`drizzle-kit: ${said.trim()}`);
+  console.log(
+    `drizzle-kit wrote nothing (no schema change in ${last.tag}): its snapshot is the one before with a fresh id, and that is correct.`,
+  );
   const snap = { ...prev, id: randomUUID(), prevId: prev.id };
   fs.writeFileSync(`${meta}/${pad(last.idx)}_snapshot.json`, JSON.stringify(snap, null, 2));
   after.entries.push({

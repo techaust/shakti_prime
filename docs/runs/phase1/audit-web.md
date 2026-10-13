@@ -86,7 +86,7 @@ Skills loaded: add-command, vercel-react-best-practices, web-design-guidelines, 
 - WEB-6 changed the generator rather than the screens; the two selected-row workarounds (full text colour) stay, with their comments corrected.
 - Selected rows' cards on phones use the same `CardList` markup as `DataGrid`'s cards; `DataGrid` itself was not refactored onto `CardList`.
 - `fieldError()` returns a node now (an alert span), not a string.
-- The migrations are numbered 0132 and 0133 in their files; the journal's `idx` stays 130 and 131. DATABASE §4 cites 0133; the renumbering at the merge changes it.
+- The migrations are 0134 and 0135 after the merge with `main` (journal `idx` 134 and 135); DATABASE §4 cites 0135.
 
 **Not done or uncertain:** the high-contrast variants' `text-muted` changed (no baselines known); the journeys' second run of `public.spec.ts` cannot repeat its single-use steps without a new seed.
 
