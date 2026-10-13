@@ -302,7 +302,8 @@ grant execute on function app.import_leads_in_use(uuid, uuid[]) to app_user;
 --> statement-breakpoint
 
 -- 7. SEC-4. A request changes on a lead only what the commands change: its stage, owner, team,
---    state and lock, its score and the reasons, its referral partner, and the archive and update
+--    state and lock, its score and the reasons, its referral partner, when it reached Qualified
+--    (`qualified_at`, M1, stamped by the stage move), and the archive and update
 --    stamps (column grants, as quotes and orders have). Its customer, company, pipeline, site,
 --    source and creator are fixed once it is made, so a lead cannot be pointed at a customer the
 --    caller cannot already reach; a customer merge moves leads through its definer.
@@ -310,7 +311,7 @@ revoke update on opportunities from app_user;
 --> statement-breakpoint
 grant update (stage_id, owner_id, team_id, state, state_changed_at, locked_until, score,
               score_reasons_json, score_changed_at, score_changed_by, referral_partner_id,
-              archived_at, updated_at, updated_by) on opportunities to app_user;
+              qualified_at, archived_at, updated_at, updated_by) on opportunities to app_user;
 --> statement-breakpoint
 
 -- 8. SEC-4. The timeline's insert rule, as 0088, narrowed to what the commands write: a row on a
