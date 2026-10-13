@@ -176,7 +176,7 @@ async function before(
  * outcome; other outcomes leave it in nurture or lose it. Each step runs through its own command
  * in this transaction, so it is guarded, audited and on the timeline as when done by hand.
  * Refused for a call that started outside calling hours (`outside_calling_hours`: the start is now
- * less the duration, and is what the call keeps), or logged more than `CALL_LOG_GRACE_MINUTES`
+ * less the duration, and is what the call keeps), or logged more than `WORKSHOP_DEFAULTS.calling.logGraceMinutes` (CALL-8)
  * after calling hours ended on its day (`call_logged_too_late`), and for a customer who withdrew
  * consent to calls (`call_consent_withdrawn`). For people only.
  */

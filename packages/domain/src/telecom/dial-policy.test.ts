@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CALL_LOG_GRACE_MINUTES,
   callLogRefusal,
   checkDial,
   isIndianMobile,
@@ -11,6 +10,7 @@ import {
   withinCallingHours,
   type DialRequest,
 } from './dial-policy';
+import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 
 /** An instant given in IST, the way people state calling hours. */
 const ist = (isoLocal: string) => new Date(`${isoLocal}+05:30`);
@@ -154,7 +154,7 @@ describe('callLogRefusal (DOM-6)', () => {
   });
 
   it('accepts a call that started at 20:58 and is logged at 21:03, within the grace', () => {
-    expect(CALL_LOG_GRACE_MINUTES).toBe(15);
+    expect(WORKSHOP_DEFAULTS.calling.logGraceMinutes).toBe(15);
     expect(callLogRefusal(at('20:58'), at('21:03'))).toBeUndefined();
     expect(callLogRefusal(at('20:58'), at('21:15'))).toBeUndefined();
   });
@@ -169,6 +169,11 @@ describe('callLogRefusal (DOM-6)', () => {
   it('refuses a call that started before 09:00, though it is logged in hours', () => {
     expect(callLogRefusal(at('08:50'), at('09:05'))).toBe('outside_calling_hours');
     expect(callLogRefusal(at('09:00'), at('09:05'))).toBeUndefined();
+  });
+
+  it('takes the grace the workshop sets', () => {
+    expect(callLogRefusal(at('20:58'), at('21:25'), 30)).toBeUndefined();
+    expect(callLogRefusal(at('20:58'), at('21:01'), 0)).toBe('call_logged_too_late');
   });
 
   it('refuses a call that started at 21:00 or later', () => {

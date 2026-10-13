@@ -153,6 +153,11 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 - *Context:* the running-cost estimate assumes about 45 callers making about 4,500 dial attempts a day, about 2,500 of them answered, averaging 3 minutes.
 - *Needed:* today's real numbers: callers (cold and converters), dials a day, answered calls, average call length, and the number of seats needed.
 
+**CALL-8 · Logging a call that ran past 9 PM** — Sales head
+- *Context:* calls may start only between 9 AM and 9 PM. A call that started before 9 PM is often saved a few minutes after it, and its outcome would be lost if the system refused it.
+- *Options:* how long after 9 PM such a call may still be logged (for example 10, 15 or 30 minutes).
+- *Today:* 15 minutes, for the sales head to confirm: a call that started before 9 PM can be logged until 9:15 PM, and a call that started before 9 AM or from 9 PM is refused.
+
 ### B3. Pricing and tax (PRICE)
 
 **PRICE-1 · Price tiers and who gets which** — Owner, Sales head
@@ -363,6 +368,7 @@ Fill one row per question during the workshop. Items marked "bring" can be sent 
 | CALL-5 | | | | |
 | CALL-6 | | | | |
 | CALL-7 | | | | |
+| CALL-8 | | | | |
 | PRICE-1 | | | | |
 | PRICE-2 | | | | |
 | PRICE-3 | | | | |

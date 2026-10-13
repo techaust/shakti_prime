@@ -65,6 +65,11 @@ export interface CallingDefaults {
   readonly attemptDays: readonly number[];
   /** The days after a lead enters nurture on which a nurture call falls due. */
   readonly nurtureCallDays: readonly number[];
+  /**
+   * How many minutes after calling hours end a call that started in them may still be logged
+   * (workshop CALL-8): its outcome is recorded instead of lost.
+   */
+  readonly logGraceMinutes: number;
 }
 
 /** The engineering constants the sizing calculators use (docs/03-roadmap-appendix/phase1.md §6.7, §11). */
@@ -182,6 +187,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     attemptDays: [0, 1, 2],
     /** CALL-5: nurture calls on day 7, 30 and 90 after the lead enters nurture, then none. */
     nurtureCallDays: [7, 30, 90],
+    /**
+     * CALL-8, for the sales head to confirm: a call that started before 9 PM may be logged until
+     * 9:15 PM (the sales-integrity audit fix of 13-10-2026, DOM-6); a later log is refused.
+     */
+    logGraceMinutes: 15,
   },
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is
