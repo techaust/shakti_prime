@@ -72,7 +72,9 @@ export function runKeyFor(
 /** An input's details, to tell a double press from another row's run. */
 function detailsOf(input: unknown): string {
   try {
-    return String(JSON.stringify(input));
+    // `undefined` for an input JSON cannot write (a function, `undefined` itself).
+    const text: string | undefined = JSON.stringify(input);
+    return text ?? '';
   } catch {
     return '';
   }

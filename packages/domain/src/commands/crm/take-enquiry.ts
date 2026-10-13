@@ -38,15 +38,14 @@ export const takeEnquiry = defineCommand({
     } catch (error) {
       if (!heldByColleague(error)) throw error;
     }
-    return ctx.run(
-      routeEnquiry,
+    const route =
       input.existingAccountId === undefined
         ? { entityId: input.entityId, pipelineKey: input.pipelineKey, phone: input.contact?.phone }
         : {
             entityId: input.entityId,
             pipelineKey: input.pipelineKey,
             existingAccountId: input.existingAccountId,
-          },
-    );
+          };
+    return ctx.run(routeEnquiry, route);
   },
 });
