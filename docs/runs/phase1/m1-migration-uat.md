@@ -7,8 +7,8 @@
 | Runs on | cloud, beside the follow-up bundles `fix/followups-db` and `fix/followups-tooling` (owner, 12-10-2026: all pending Phase 0–1 work at once), heavy commands through the VM's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | A (deleting or anonymising data): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | no reading posted at the start; the owner said to proceed (12-10-2026) |
-| State | building |
-| Next step | builder: schema, migrations and commands, then stop for the early check |
+| State | built; waiting for review |
+| Next step | lead: the review (Opus 5.5 xhigh), then integration; the owner makes the QStash schedule `lead-anonymise-<environment>` on dev and staging after the merge |
 
 ## Brief
 Read first:
@@ -88,6 +88,62 @@ Tier A stop: schema, migrations, the anonymisation definers, the command and bot
 - I edited `0131_m1_retention_rls.sql` after it ran on the slot database (the anonymiser now answers `{ leads, error }`): I replaced that one function by hand and updated its recorded hash, so the slot passes `assertAllApplied`; a fresh database applies the file as committed. A fresh-database apply is still to be shown.
 - DATABASE cites the migrations as 0130 and 0131; they move at the merge.
 - Left for after the check: the nightly worker and route (`/api/v1/workers/crm/anonymise`, QStash schedule `lead-anonymise-<environment>`, the dry run by body `{ "dryRun": true }`), the reconciliation section and CSV on the import job page, API and design "Built" records, PRD trace rows, TESTING, the cutover runbook, the parallel-run and UAT packs, and the journeys.
+
+### Final, 13-10-2026, cloud VM (worktree `/home/user/shakti-wt/m1-migration-uat`, Postgres 54331, freshly recreated by the lead)
+
+**The early check's findings, answered**
+1. `contacts.name_key` and 2. `customer_sites.village_key` are generated columns (`regexp_replace(lower(name|village), …)`), so they follow the cleared values: `name_key` becomes empty and `village_key` null. `lead-anonymise.test.ts` now asserts both, and that tehsil, district and state code stay (named in the function's header as coarse geography for reports).
+3. The sweep of every table holding text about a lead, customer, contact or site (every foreign key to `opportunities`, `accounts`, `contacts`, `customer_sites`, `contact_phones`, `referral_partners`, and the tables that name them without one), column by column:
+
+| Table · column | Decision |
+|---|---|
+| `contacts` · name, email; `contact_phones` (rows) | Name emptied, email cleared, phone rows deleted (`name_key`, `e164_reversed` follow) |
+| `accounts` · name, gstin | Name emptied, GSTIN cleared; type kept; `anonymised_at` set; archived |
+| `customer_sites` · address, village, pin, lat, lng, technical_json | Cleared; tehsil, district, state code kept; archived |
+| `opportunities` · campaign_json | Cleared; score_reasons_json (rule codes and catalogue keys) kept |
+| `activities` · body (notes) | Note rows deleted. Every other type's `payload_json` holds ids, codes, booleans or field names only (checked in every `ctx.activity()` call: stage moves, calls with the outcome code, tasks, tags, sizing, consent channel and purpose, merges, customer edits as the names of the fields changed), so it stays |
+| `tasks` · title | Cleared |
+| `inbox_items` · note (routed work) | Cleared for items about the lead or the customer (new index `inbox_items_subject_idx`) |
+| `agent_actions` · input_json, decided_input_json `note` | The agent's note removed from proposals about the lead (new index `agent_actions_opportunity_idx`); the rest of the proposal is ids and codes |
+| `agent_runs` | No text about the lead (codes, counts, request id) |
+| `import_rows` · raw_json, normalised_json, dedupe_json | Cleared for the rows that made the lead or customer and the later rows skipped as their repeat; state, made record and reasons kept |
+| `duplicate_candidates` · signals_json | Codes only (`same_phone`, `same_name`, …); kept. A lead or customer with an open card is never anonymised |
+| `customer_merges` · moved_json | Ids only; a customer in a standing merge is never anonymised |
+| `sizings` · inputs_json, result_json, reasons_json | Numbers and codes only (no address or map point in the sizing contracts); kept |
+| `consents` | Kept as the fact of consent with its evidence file (the signed form holds the name: for the CA, workshop FIN-2) |
+| `calls`, `opportunity_tags`, `account_entities`, `account_contacts` | Ids, codes and times only; kept |
+| `notifications` · payload_json, dedupe_key | Ids only by the table's own rule; kept |
+| `quotes`, `quote_versions`, `sales_orders`, `commission_accruals`, `dealer_*`, `referral_partners` | A lead or customer with any of them is never anonymised |
+| `idempotency_keys` · response_json | Can hold a lead's answer, but expires after 7 days and is purged daily, long before 24 months |
+| `outbox_events` · payload_json | Ids, codes and counts by the catalogue; purged after 30 days |
+| `audit_logs` | Rows written before the run keep what they recorded (redacted), for the 8 years of BLUEPRINT §7.9 |
+| `files` | The consent evidence is kept (above). An import file's bytes in the file store still hold what the file said; the definer cannot reach the store: a follow-up for a store sweep |
+
+4. The completeness test (`lead-anonymise.test.ts`, "nothing of the person is left"): the fixture lead `marked` carries this run's random marker in its customer's and person's names, email, site address, village and technical notes, campaign fields, note, task title, import row (raw and checked), routed-work note and Triage proposal note, and its own random phone; its consent rests on an evidence file named with the marker. After the run, every text, character, json and array column of every public table (114 and more, partitions through their parents) is searched for the marker and the phone digits: the only hit is `files.name` of the kept evidence file. No audit row is written by the definer, so none needed excluding.
+5. The trigger exception no longer rests on a setting: `app.lead_anonymise_scope` (schema `app`, no grant to any request role) names the customers and leads for the current transaction (`pg_current_xact_id()`); `app.anonymise_stale_leads()` writes it and empties it before it returns. `app.activities_append_only()` (delete of a note) and the new exception of `app.agent_actions_append_only()` (removal of the agent's note, nothing else) open only for a row named there; both are definers so they may read the table whoever writes, closed to `public` and reporting. Every definer that deletes from `activities` or `agent_actions` was searched (`pg_proc.prosrc`): `app.anonymise_stale_leads()` is the only one, and no definer other than it writes the scope table. Tests: a request that sets `app.lead_anonymise` and deletes is refused (no grant), the owner deleting a note outside the anonymisation is refused even with the setting, the owner changing a proposal outside it is refused, and a request writing the scope table is refused. The older `app.customer_merge` setting of 0113 and 0117 has the same shape as the one removed here (a setting any request can make); it opens only an update of `account_id`, which `app_user` has no grant for and only the merge definers make, so it is left as it is and named here for the review.
+
+**Built since the early check**
+- Migrations: `0130_m1_retention` regenerated with the two lookup indexes; `0131_m1_retention_rls` with the scope table, both trigger exceptions, the inbox and agent notes, the inbox and agent recency in `app.lead_is_stale()`, and the header listing what is removed and what is kept. Applied fresh by the lead on 13-10-2026.
+- Worker and route: `apps/web/src/workers/lead-anonymise.ts` (`runLeadAnonymise`, every company in turn, a failed batch logged and that company left to the next night, the dry run on a read-only request), `apps/web/src/app/api/v1/workers/crm/anonymise/route.ts` (`nightlyWorkerRoute`), `LEAD_ANONYMISE_PATH`, and the schedule `lead-anonymise-<environment>` at 22:30 UTC in `apps/web/scripts/qstash-schedule.ts`.
+- Screen: the action `getImportReconciliation`, the section "What happened to each row" on the import job page once the rows are checked (`components/imports/reconciliation.tsx`), its CSV through `screens/import-reconciliation.ts` (the same lines, fields never read as a formula); copy under `imports.reconcile` in `en.json`, the button key `downloadCsv` in the copy lint's list. Print is the browser's print of the page; no print view was added.
+- Documents: `docs/runbooks/cutover.md`, `docs/13-client-packs/parallel-run.md`, `docs/13-client-packs/uat/` (seven roles) and the packs' readme; design §10 "Built (M1)"; PRD trace rows IMP-01 and IMP-02; API §3.6 and ARCHITECTURE §6 (the route and schedule); DATABASE §4.1, §5, §6, §7; SECURITY; TESTING §5; workshop pack FIN-2 (the default and the evidence-file question).
+- Journeys: `apps/web/e2e/uat.spec.ts` (five journeys: a Cold Caller's new lead qualified on Calling and taken on by the present Lead Converter on Converting; a Store Manager's walk-in, a note on the customer's page and the lead on Converting; the Executive's Home, Activity log and Integration health; a GM's customers file and its row counts with the CSV checked line by line; a dealer order held for credit from Accounts of the journeys' company to the Executive's release and back to Accounts' Dealer credit), each page through `expectNoAxeViolations` (axe and `expectAligned`), no screenshots. Seed: `e2e/setup/uat.ts` (a new dealer per project each seed) and the signed-in person `journeyAccounts` (Accounts of company 2) in `users.ts`. Against staging they need the 13 signed-in people of `users.ts`, the journey tier's price list in company 2, and the seed's dealers.
+
+**Tests added since the early check:** `apps/web/tests/lead-anonymise.test.ts` (7: the four refusals, no queue, a body it does not know, the dry run then the run over every company with equal counts, the time budget), `apps/web/src/screens/import-reconciliation.test.ts` (3), `lead-anonymise.test.ts` now 15 (the completeness search and the append-only exceptions). In all, M1 adds 38 tests and 15 journey runs (5 journeys in 3 projects).
+
+**Checks** (all through `heavy.sh`, on the recreated 54331)
+- `pnpm typecheck`: 8 successful. `pnpm format:check`: clean. `pnpm copy-lint`: catalogues and templates are clean.
+- `turbo run test --force`: contracts 181, db 131, domain 2057, tokens 134, ui 106, copy-lint 17 passed; web 767 passed and 1 failed: `mask-pdf-pages.test.ts` "counts a page time from its turn", a timing test, which passed alone (13 passed, 1 skipped).
+- `pnpm test:security`: db 1210 passed (41 files); domain 936 of 938: `customers.test.ts` failed on a random tag name already taken by the earlier (killed) run on this database, and passed alone; `import-kinds.test.ts` "adds the different site of a repeated row" fails on any database that ran it before (fixed name "Two Sites" in "Sikar", found again by name and village), as in the early check; neither touches M1. `pnpm --filter web test:security`: 311 passed.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page is within its budget (46 pages).
+- Journeys, twice in a row on the same database (seed, then `playwright test e2e/uat.spec.ts`): 29 passed (2.3 min), then 29 passed (2.0 min).
+- `pnpm lint` (whole repository, last): clean.
+
+**Unfinished or uncertain**
+- `writing-guidelines` could not fetch its rules (no web access in the VM); the packs and runbook follow docs/08-design-system.md §11 instead.
+- The import file's bytes in the file store are outside the anonymisation (table above).
+- The two domain tests that fail on a reused database are older than M1; a follow-up could give `import-kinds.test.ts` a name of its own per run.
+- The QStash schedule on dev and staging is the owner's after the merge.
 
 ## Review
 | # | Severity | Finding | State |
