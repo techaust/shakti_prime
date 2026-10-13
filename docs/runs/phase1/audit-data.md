@@ -7,8 +7,8 @@
 | Runs on | cloud (owner, 12-10-2026: a deep audit of Phases 0–1, every finding fixed), heavy commands through the VM's lock |
 | Tier | A (the outbox, workers and alerts every module relies on): build Opus 5.5 high, review Opus 5.5 xhigh |
 | Usage | start 13-10-2026 06:46 IST, last reading 06:24 (5h 11, week 21); the owner set the weekly gate aside |
-| State | building |
-| Next step | lead: early check of items 1 to 5; then builder: items 6 to 8 and the Integration Health section |
+| State | built, awaiting review |
+| Next step | lead: review; remake the three integration-health baselines |
 
 ## Brief
 The audit's evidence: `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/2-data.md` (its verification was cut short by the usage limit: verify each finding yourself before fixing it, and say in the report which you confirmed), `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/5-ops.md` and `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/5-ops.verdict.md`. Report: `docs/14-reviews/2026-10-audit.md`.
@@ -73,6 +73,41 @@ Documents: ARCHITECTURE §6, DATABASE §4.1, §4.4, §6.10, §7, API §3.6, SECU
 - The hourly jobs check is a new QStash schedule rather than part of the publisher's minute, so its own failure streak covers it.
 - `quotes/expire` now uses the shared `nightlyWorkerRoute` (same answers and log names) to carry the streak; the files sweep counts its streak in place.
 - A job that never ran counts as late once pg_cron has kept runs for longer than its period and six hours; before that it is `waiting`.
+
+### 13-10-2026, cloud (slot 7, Postgres 54337): items 6 to 8, the Integration Health section, final checks
+After the early check passed. Skills as before (`supabase-postgres-best-practices`, `add-command`).
+
+**Confirmed before fixing:** DATA-4 by reading (the hold-back required `published_at`, so a callback ahead of the run's record answered `unchanged` and 200); DATA-5 (0094, 0112 and 0114 drop and add `activities_type_check` whole; `ADD … NOT VALID` on the partitioned table works on Postgres 17, tried in a rolled-back transaction); DATA-6 (`run-command.ts` wrote `[{}]` for a call with no change, and the scan and the three nightly batches audit only what they change); DATA-7 (the live totals checks allow an intra quote with IGST; lines carry no `supply_kind`); DATA-8 (`files_entity_idx` is a prefix of `files_entity_purpose_created_idx`); OPS-9 (no reader probe).
+
+**What was built**
+6. OPS-4, OPS-9: `checkReaderReady()` (`packages/db/src/ready.ts`) and `reader` in `ReadyChecks`; `SENTRY_DSN` required when `BOS_ENVIRONMENT=production`; Sentry cron check-ins from every timed route (`observability/check-ins.ts`, the crons in `workers/schedules.ts`, which `qstash-schedule.ts` now reads too, so the monitors and the schedules cannot drift); DEPLOY §1 step 8 (cron monitors and an uptime monitor on `/api/v1/health/ready`, owner steps), step 12 (`SENTRY_DSN`), INCIDENTS §1.
+7. DATA-4: `holdBackFailedEvent()` answers `leased` for a row still leased to the run that sent it, and the failure callback answers a retryable 503. DATA-5: the rule in AGENTS §6 and DATABASE §8, and `migration-rules.test.ts`, which refuses a check dropped and added again without `NOT VALID` from the first migration after main's 0129. DATA-6: `auditWhen: 'changed'` on `defineCommand`, set on `notifications.due.scan`, `sales.quote.expire`, `crm.duplicate.scan` and `crm.lead.score_refresh` (AGENTS §5). DATA-7: `quotes_gst_split_check`, `sales_orders_gst_split_check` and the two line checks (a line has CGST and SGST or IGST, never both), added `NOT VALID` in 0133, with DEPLOY §2 step 8 to validate them after the deploy. DATA-8: `files_entity_idx` dropped in 0133.
+8. The hot reads under RLS with statistics: [04-architecture-appendix/hot-reads.md](../../04-architecture-appendix/hot-reads.md). On a scratch database `shakti_perf` on the slot's own Postgres (built from the migrations with pg_cron's statements left out, so the suites' database kept its size), 200,000 customers, 240,000 leads, 1,440,000 activities, 596,436 calls, 320,792 tasks, 120,000 notices and 40,000 orders, committed and analysed. Every read is under 1 s for the Executive, the General Manager and the tele-caller; the slowest is ⌘K for a misspelt name as an Executive of four companies, 715 ms, in the trigram match of `app.lead_search_ids()`. No index or policy needed changing. `EXPLAIN (ANALYZE, BUFFERS)` of every statement is summarised in `results/hot-reads-2026-10-13.txt`.
+- Integration Health: the section Scheduled upkeep (`ScheduledUpkeep` in `integrations-screen.tsx`): each of the five database jobs by a plain name, its state as a badge, its last run and how often it runs; `jobs` in `IntegrationHealthResponse`; only the state and time cells are masked in screenshots. The error behind a failure goes to the alert and the log, never on screen.
+- A local nudge (no queue: development, CI, journeys) now claims again within 10 s (`LOCAL_NUDGE_BUDGET_MS`): the full web suite once failed `actions.test.ts` because a backlog of about 700 events from earlier files sat ahead of the lead the test created, and a single claim of 100 never reached it.
+
+**Tests added** (16, besides the 39 of the early check): `deps.test.ts` 1, `ready.test.ts` 2 (the reader's pool, and a refused password turning readiness down), `check-ins.test.ts` 3, `job-streak.test.ts` 1, `outbox-failures.test.ts` 1, `outbox.test.ts` (db) 1, `migration-rules.test.ts` 2, `run-command.test.ts` 1, `gst-split.test.ts` 3, `admin-integrations.test.ts` 1; extended: `crm-scoring-referrals.test.ts` (a batch that changed nothing writes no audit row), `integration-health.test.ts` (the five jobs), `enum-sync.test.ts` (the GST split checks name the supply kinds), `integrations.spec.ts` (the Scheduled upkeep table).
+
+**Checks run** (all through the lock)
+- `pnpm typecheck`: 8 of 8 tasks. `pnpm exec turbo run test --force`: every workspace passed but one OCR timing case in `mask-pdf-pages.test.ts`, which passed when run alone (13 passed, 1 skipped); untouched by this slice.
+- `pnpm copy-lint`: clean. `pnpm --filter web js-budget`: every page within its budget (46 pages).
+- Security suite on 54337 (`pnpm test:security`): db 42 files, 1,206 tests; domain 72 files, 932 tests; web after the nudge fix 24 files, 309 tests, all passed.
+- Journeys: `integrations.spec.ts` on the production build, 22 passed with snapshots ignored (axe included). With snapshots, `integration-health` fails in all three projects, as it must: the page has a new section.
+- `pnpm lint` (whole repository): see the last line below.
+
+**Screenshot baselines the lead must remake** (Linux, fresh database): `apps/web/e2e/__screenshots__/{desktop-light,desktop-dark,phone}/integrations.spec.ts/integration-health.png`.
+
+**For the lead**
+- Migrations 0130 to 0133 follow main's 0129; DATABASE §4.1 cites 0131 and 0132, and `migration-rules.test.ts` starts its rule at 130 (main's next number), which stays right after renumbering.
+- Hosted, after the deploy: validate the four GST split checks (DEPLOY §2 step 8); create the `jobs-check-<env>` schedule; the owner's Sentry steps (the `job.failing` and `job.problem` rule, the seven cron monitors' alerts, one uptime monitor per environment).
+- The scratch database `shakti_perf` is still on 54337 for a rerun (`drop database shakti_perf` frees it); the scripts that built and measured it are in the session's scratchpad (`ad/perf`), not in the repository.
+- One small endpoint test file (`endpoints.test.ts`) was run once outside the lock by mistake.
+
+**Decisions the brief did not settle**
+- Item 8's data went into a separate database on the slot's Postgres rather than the suites' own, so the security suite keeps its size and speed.
+- The GST check on lines is "never both"; the header's check ties the split to `supply_kind`, since a line has no supply kind of its own.
+- Cron monitors are made by the SDK on the first check-in (`captureCheckIn` with the schedule), so the owner only sets their alerts.
+- The migration rule applies to every check dropped and added again, a widening or not: a narrowing is then added `NOT VALID` and validated after the deploy, as DATABASE §8 says.
 
 ## Review
 | # | Severity | Finding | State |
