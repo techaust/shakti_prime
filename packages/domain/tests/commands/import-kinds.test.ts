@@ -546,15 +546,17 @@ async function archivedOf(ids: readonly string[]): Promise<Record<string, boolea
 describe('customers files after review', () => {
   it('adds the different site of a repeated row to the customer, and says so', async () => {
     const number = phone();
+    // A name of this run only: an earlier run's customer with the same name in Sikar is suggested.
+    const name = `Two Sites ${number.slice(-4)}`;
     const job = await startedJob(
       gm1,
       'accounts',
       [
         'Name,Mobile,Village',
-        `Two Sites,${number},Sikar`,
-        `Two Sites,${number},Churu`,
-        `Two Sites,${number},sikar`,
-        `Two Sites,${number},`,
+        `${name},${number},Sikar`,
+        `${name},${number},Churu`,
+        `${name},${number},sikar`,
+        `${name},${number},`,
       ].join('\n') + '\n',
     );
     await run(gm1, mapImportJob, { entityId: 1, jobId: job.id, mapping: OWN_COMPANY_MAPPING });

@@ -142,7 +142,8 @@ const PAIRS: Record<string, readonly string[]> = {
   quotes_accepted_via_check: QuoteAcceptedViaSchema.options,
   // An accepted quote says how, and keeps it when its draft order is cancelled and it is withdrawn;
   // the signed copy is named exactly for a signed upload.
-  quotes_acceptance_check: ['accepted', 'signed_upload', 'withdrawn'],
+  // ('accepted' is named twice: an accepted quote says how, and only it or a withdrawn one may.)
+  quotes_acceptance_check: ['accepted', 'accepted', 'signed_upload', 'withdrawn'],
   sales_orders_account_type_check: AccountTypeSchema.options,
   sales_orders_state_check: SalesOrderStateSchema.options,
   sales_orders_supply_kind_check: SupplyKindSchema.options,
