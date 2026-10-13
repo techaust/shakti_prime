@@ -2641,6 +2641,7 @@
         "waiting": "Not run yet",
         "late": "Overdue",
         "failed": "Failed",
+        "stuck": "Stuck",
         "paused": "Switched off",
         "missing": "Not set up"
       },

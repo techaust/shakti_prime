@@ -52,6 +52,10 @@ describe('scheduledJobHealth (audit 2026-10, DATA-3)', () => {
 
   it('is missing when the database does not schedule it, and paused when it is switched off', () => {
     expect(state(undefined)).toBe('missing');
+    // A missing job keeps the period it is meant to run on (review L6).
+    expect(scheduledJobHealth('activities-partitions', undefined, NOW).health.everyHours).toBe(744);
+    expect(scheduledJobHealth('audit-logs-detach', undefined, NOW).health.everyHours).toBe(744);
+    expect(scheduledJobHealth('outbox-events-purge', undefined, NOW).health.everyHours).toBe(24);
     expect(state(row({ active: false, runStatus: 'failed' }))).toBe('paused');
   });
 
@@ -93,8 +97,20 @@ describe('scheduledJobHealth (audit 2026-10, DATA-3)', () => {
     ).toBe('ok');
   });
 
-  it('is running while its last run has not finished', () => {
-    expect(state(row({ runStatus: 'running', runFinishedAt: null }))).toBe('running');
+  it('is running while its last run has not finished, and stuck past its time limit (review M2)', () => {
+    const started = (minutes: number) => new Date(NOW.getTime() - minutes * 60 * 1000);
+    const unfinished = { runStatus: 'running', runFinishedAt: null, recordedFinishedAt: null };
+    expect(state(row({ ...unfinished, runStartedAt: started(10) }))).toBe('running');
+    expect(state(row({ ...unfinished, runStartedAt: started(31) }))).toBe('stuck');
+    // A partition maker has a two-minute statement limit, so three minutes is its most.
+    expect(
+      state(row({ ...unfinished, runStartedAt: started(4) }), 'activities-partitions'),
+    ).toBe('stuck');
+    expect(
+      state(row({ ...unfinished, runStartedAt: started(2) }), 'activities-partitions'),
+    ).toBe('running');
+    // Stuck for days is still stuck, not late: its run never ended.
+    expect(state(row({ ...unfinished, runStartedAt: started(5 * 24 * 60) }))).toBe('stuck');
   });
 
   it('is late once it has not run for its period and six hours, and not before', () => {

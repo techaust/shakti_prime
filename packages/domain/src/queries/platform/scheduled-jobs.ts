@@ -1,4 +1,5 @@
 import {
+  DATABASE_JOB_EVERY_HOURS,
   DATABASE_JOBS,
   DatabaseJobSchema,
   ScheduledJobHealth,
@@ -32,6 +33,22 @@ export interface ScheduledJobReport {
 
 const HOUR_MS = 60 * 60 * 1000;
 
+/**
+ * The longest a run of each job may take, in minutes (audit 2026-10 review, M2): the function
+ * jobs' statement limits, set in their pg_cron commands, with a minute's margin; the two
+ * procedures, which can carry no statement limit, half an hour. A run still going after it is
+ * stuck, since pg_cron starts no other run of the job while it lasts.
+ */
+export const JOB_RUN_LIMIT_MINUTES: Readonly<Record<DatabaseJob, number>> = {
+  'activities-partitions': 3,
+  'audit-logs-partitions': 3,
+  'idempotency-keys-purge': 6,
+  'outbox-events-purge': 30,
+  'audit-logs-detach': 30,
+};
+
+const MINUTE_MS = 60 * 1000;
+
 /** pg_cron's states of a run that has not finished. */
 const UNFINISHED: ReadonlySet<string> = new Set(['starting', 'running', 'sending', 'connecting']);
 
@@ -58,7 +75,8 @@ const latest = (a: Date | null, b: Date | null): Date | null =>
 
 /**
  * Where one job stands (`ScheduledJobState`), from its row, or `missing` when the database does not
- * schedule it. A run the job recorded as failed in `retention_runs` counts as failed even when
+ * schedule it. A run still going past its time limit (`JOB_RUN_LIMIT_MINUTES`) is stuck. A run the
+ * job recorded as failed in `retention_runs` counts as failed even when
  * pg_cron recorded it as succeeded, as `activities-partitions` does with a month it could not make,
  * unless pg_cron has recorded a newer run since. A job that never ran is late once pg_cron has kept
  * runs for longer than its period and margin, since its first run was due by then.
@@ -70,7 +88,13 @@ export function scheduledJobHealth(
 ): ScheduledJobReport {
   if (row === undefined) {
     return {
-      health: { job, state: 'missing', lastRunAt: null, lastFinishedAt: null, everyHours: 24 },
+      health: {
+        job,
+        state: 'missing',
+        lastRunAt: null,
+        lastFinishedAt: null,
+        everyHours: DATABASE_JOB_EVERY_HOURS[job],
+      },
       error: null,
     };
   }
@@ -87,14 +111,21 @@ export function scheduledJobHealth(
 
   let state: ScheduledJobState;
   let error: string | null = null;
-  if (!row.active) state = 'paused';
-  else if (row.runStatus === 'failed' || recordedFailed) {
+  if (!row.active) {
+    state = 'paused';
+  } else if (row.runStatus === 'failed' || recordedFailed) {
     state = 'failed';
     error = recordedFailed ? row.recordedError : row.runMessage;
-  } else if (row.runStatus !== null && UNFINISHED.has(row.runStatus)) state = 'running';
-  else if (overdue) state = 'late';
-  else if (lastRunAt === null) state = 'waiting';
-  else state = 'ok';
+  } else if (row.runStatus !== null && UNFINISHED.has(row.runStatus)) {
+    const runFor = row.runStartedAt === null ? 0 : now.getTime() - row.runStartedAt.getTime();
+    state = runFor > JOB_RUN_LIMIT_MINUTES[job] * MINUTE_MS ? 'stuck' : 'running';
+  } else if (overdue) {
+    state = 'late';
+  } else if (lastRunAt === null) {
+    state = 'waiting';
+  } else {
+    state = 'ok';
+  }
 
   return {
     health: ScheduledJobHealth.parse({

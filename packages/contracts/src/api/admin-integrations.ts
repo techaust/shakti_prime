@@ -134,11 +134,26 @@ export const DatabaseJobSchema = z.enum(DATABASE_JOBS);
 export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
 
 /**
+ * How often each job is meant to run, in hours, shown for a job the database no longer schedules
+ * (a scheduled job's period is read from its own schedule): the partition makers and the purges
+ * daily, the audit archive monthly (31 days), and the activity partitions on the 25th.
+ */
+export const DATABASE_JOB_EVERY_HOURS: Readonly<Record<DatabaseJob, number>> = {
+  'activities-partitions': 31 * 24,
+  'audit-logs-detach': 31 * 24,
+  'audit-logs-partitions': 24,
+  'idempotency-keys-purge': 24,
+  'outbox-events-purge': 24,
+};
+
+/**
  * Where a scheduled job stands, worst first:
  * - `missing`: the database no longer schedules it;
  * - `paused`: it is scheduled but switched off;
  * - `failed`: its last run failed, as pg_cron recorded it or as the job recorded it itself;
- * - `running`: its last run has not finished;
+ * - `stuck`: its last run has gone on longer than its time limit, and pg_cron starts no other
+ *   run of the job while it lasts;
+ * - `running`: its last run has not finished, within its time limit;
  * - `late`: it has not run for longer than its period and a margin;
  * - `waiting`: it has never run, and its first run is not yet due;
  * - `ok`: its last run finished without an error.
@@ -147,6 +162,7 @@ export const SCHEDULED_JOB_STATES = [
   'missing',
   'paused',
   'failed',
+  'stuck',
   'running',
   'late',
   'waiting',

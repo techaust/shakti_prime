@@ -389,6 +389,7 @@ const JOB_TONES: Record<ScheduledJobState, StatusTone> = {
   waiting: 'neutral',
   late: 'warning',
   failed: 'danger',
+  stuck: 'danger',
   paused: 'warning',
   missing: 'danger',
 };
