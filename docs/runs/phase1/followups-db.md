@@ -7,8 +7,8 @@
 | Runs on | cloud, beside M1 and the tooling follow-ups (owner, 12-10-2026: all pending Phase 0–1 work at once), heavy commands through the VM's lock |
 | Tier | A (row-level security definer and a money column): build Opus 5.5 high, review Opus 5.5 xhigh |
 | Usage | no reading posted at the start; the owner said to proceed (12-10-2026) |
-| State | reviewed, fixed (13-10-2026) |
-| Next step | lead: integrate (merge main, renumber 0130–0133 after main and M1, Linux baselines of triage-proposals) |
+| State | integrating: every check passed; pull request opened (13-10-2026) |
+| Next step | merge on green, then `migrate-hosted` (0130 to 0133) |
 
 ## Brief
 Five open follow-ups from [STATUS](../../10-status.md#open-follow-ups), each small and self-contained. Read each one's origin first (the slice's run file and review named in brackets).
@@ -112,3 +112,4 @@ All five items built, each in its own commit (`cc51b82f`, `83b6546b`, `aeec42d4`
 
 ## Integration notes
 - Migrations from 0130 move after `main`'s (and M1's, if it merges first) last one.
+- 13-10-2026, lead: `main` (#167) taken by a merge commit, no conflict; migrations stay 0130 to 0133 (main's last is 0129). `integrate.sh` in five parts on 54340: install, lint, format, copy lint, generated, typecheck, security, `db:verify`, audit, build, `js-budget` and gitleaks passed; unit failed only on `mask-pdf-pages.test.ts`'s timing case under three builders' load (the known follow-up); the host journeys failed only on screenshots, which do not count off the Linux image. On a fresh 54332: the three `triage-proposals` baselines remade by `e2e:snap -- --update-snapshots=missing` (looked at: the pipeline shows as "Farmer Pumps"), then `e2e:snap` without updating: 392 passed, 14 skipped, every screenshot matching.
