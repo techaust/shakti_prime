@@ -7,7 +7,9 @@ export type SalesOrderRow = typeof schema.salesOrders.$inferSelect;
 
 /**
  * The order row a change starts from, locked for this transaction, as the caller reads it, with
- * its customer's type: `order_missing` when the caller cannot read it or it is of another company.
+ * the customer's type it was made for (`account_type`, DOM-1): the credit check and the order
+ * machine read that, never the customer's type now, which a later change cannot then move.
+ * `order_missing` when the caller cannot read it or it is of another company.
  */
 export async function lockSalesOrder(
   ctx: CommandContext,
@@ -29,13 +31,7 @@ export async function lockSalesOrder(
       reason: 'order_missing',
     });
   }
-  const [account] = await ctx.tx
-    .select({ type: schema.accounts.type })
-    .from(schema.accounts)
-    .where(eq(schema.accounts.id, row.accountId))
-    .limit(1);
-  if (!account) throw new DomainError('internal', `order ${orderId} has no readable customer`);
-  return { row, accountType: AccountTypeSchema.parse(account.type) };
+  return { row, accountType: AccountTypeSchema.parse(row.accountType) };
 }
 
 /** The one write of a move: the update policy holds the caller to their scope over the order. */

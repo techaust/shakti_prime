@@ -78,6 +78,11 @@ export const quotes = pgTable(
     supersedesId: uuid('supersedes_id'),
     withdrawnReason: text('withdrawn_reason'),
     /**
+     * The quote of the same lead whose acceptance withdrew this one (DOM-4): a lead has one
+     * accepted quote, so its other draft and sent quotes stop standing when one is accepted.
+     */
+    withdrawnForId: uuid('withdrawn_for_id'),
+    /**
      * How the customer accepted it (`whatsapp_reply`, `whatsapp_otp` or `signed_upload`), and for
      * a signed copy uploaded by staff, the file (`signed_quote`, `sales.quote.accept`, SAL-05).
      */
@@ -102,6 +107,11 @@ export const quotes = pgTable(
       columns: [t.supersedesId, t.entityId],
       foreignColumns: [t.id, t.entityId],
     }),
+    foreignKey({
+      name: 'quotes_withdrawn_for_fk',
+      columns: [t.withdrawnForId, t.entityId],
+      foreignColumns: [t.id, t.entityId],
+    }),
     // A quote is replaced once.
     uniqueIndex('quotes_supersedes_unique')
       .on(t.supersedesId)
@@ -123,10 +133,12 @@ export const quotes = pgTable(
     ),
     // The document total rounds half-up to the rupee (ADR 0007).
     check('quotes_round_off_check', sql`${t.roundOff} between -0.49 and 0.50`),
-    // A withdrawn quote says why; no other quote carries a reason.
+    // A withdrawn quote says why: the person's reason, or the quote of the lead that was accepted
+    // in its place, never both; no other quote carries either.
     check(
       'quotes_withdrawn_reason_check',
-      sql`(${t.state} = 'withdrawn') = (${t.withdrawnReason} is not null)`,
+      sql`(${t.state} = 'withdrawn') = (${t.withdrawnReason} is not null or ${t.withdrawnForId} is not null)
+       and (${t.withdrawnReason} is null or ${t.withdrawnForId} is null)`,
     ),
     check(
       'quotes_accepted_via_check',
@@ -153,6 +165,13 @@ export const quotes = pgTable(
       .on(t.entityId, t.validUntil)
       .where(sql`${t.state} in ('draft', 'sent')`),
     index('quotes_pdf_file_idx').on(t.pdfFileId),
+    // A lead has one accepted quote, so one order and one commission (DOM-4).
+    uniqueIndex('quotes_opportunity_accepted_unique')
+      .on(t.opportunityId)
+      .where(sql`${t.state} = 'accepted'`),
+    index('quotes_withdrawn_for_idx')
+      .on(t.withdrawnForId)
+      .where(sql`${t.withdrawnForId} is not null`),
     // A signed copy accepts one quote only.
     uniqueIndex('quotes_signed_file_unique')
       .on(t.signedFileId)

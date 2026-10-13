@@ -62,7 +62,8 @@ export function toSalesOrderRow(row: {
     accountId: row.accountId,
     customerName: row.customerName,
     state: SalesOrderStateSchema.parse(row.state),
-    creditHeld: row.creditHeldAt !== null,
+    // Only a draft is held: a cancelled order is not, whatever it was before (DOM-5).
+    creditHeld: row.state === 'draft' && row.creditHeldAt !== null,
     grandTotal: row.grandTotal,
     createdAt: row.createdAt.toISOString(),
   });
@@ -79,13 +80,19 @@ const HoldFacts = z
   })
   .loose();
 
-/** A stored hold as the order page shows it, or null when the order is not held. */
+/**
+ * A stored hold as the order page shows it, or null when the order is not held: only a draft is
+ * (an order cancelled before the cancel cleared its hold is not, DOM-5).
+ */
 export function creditHoldOf(row: {
+  state: string;
   creditHeldAt: Date | null;
   creditHoldReason: string | null;
   creditHoldJson: unknown;
 }): CreditHoldDto | null {
-  if (row.creditHeldAt === null || row.creditHoldReason === null) return null;
+  if (row.state !== 'draft' || row.creditHeldAt === null || row.creditHoldReason === null) {
+    return null;
+  }
   const facts = HoldFacts.parse(row.creditHoldJson ?? {});
   return {
     reason: CreditHoldReasonSchema.parse(row.creditHoldReason),
@@ -123,7 +130,7 @@ export function salesOrderRecordOf(
       oldestUnpaidInvoiceDate: null,
       oldestUnpaidInvoiceNo: null,
     },
-    creditHeld: row.creditHeldAt !== null,
+    creditHeld: row.state === 'draft' && row.creditHeldAt !== null,
     creditRelease:
       row.creditReleaseBy === null || row.creditReleaseReason === null
         ? null
@@ -177,7 +184,6 @@ export async function readSalesOrder(
     .select({
       ...getTableColumns(so),
       customerName: a.name,
-      accountType: a.type,
       tierName: t.name,
       quoteNo: q.quoteNo,
       createdByName: maker.displayName,

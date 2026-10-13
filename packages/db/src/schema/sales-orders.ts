@@ -58,6 +58,13 @@ export const salesOrders = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id),
+    /**
+     * The customer's type when the order was made (DOM-1): the confirmation runs the dealer credit
+     * check on it, and the order machine reads it, so a later change of the customer's type
+     * cannot skip the check. The insert policy holds it to the customer's type at that moment;
+     * no request may change it afterwards (no update grant).
+     */
+    accountType: text('account_type').notNull(),
     siteId: uuid('site_id').references(() => customerSites.id),
     tierId: uuid('tier_id')
       .notNull()
@@ -118,6 +125,10 @@ export const salesOrders = pgTable(
     check(
       'sales_orders_state_check',
       sql`${t.state} in ('draft', 'confirmed', 'partially_dispatched', 'dispatched', 'invoiced', 'closed', 'cancelled')`,
+    ),
+    check(
+      'sales_orders_account_type_check',
+      sql`${t.accountType} in ('household', 'farm', 'business', 'dealer', 'referral_partner')`,
     ),
     check('sales_orders_supply_kind_check', sql`${t.supplyKind} in ('intra', 'inter')`),
     check('sales_orders_place_of_supply_check', sql`${t.placeOfSupplyState} ~ '^[0-9]{2}$'`),

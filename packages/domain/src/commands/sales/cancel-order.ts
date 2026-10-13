@@ -10,7 +10,8 @@ import { lockSalesOrder, writeSalesOrder } from './order-shared';
 /**
  * `sales.order.cancel` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-06): the General Manager or the
  * Executive cancels a draft or confirmed order, with a reason. A confirmed order's referral
- * commission is cancelled with it (`app.cancel_commission_accrual()`). The lead stays won: the
+ * commission is cancelled with it (`app.cancel_commission_accrual()`). A credit hold ends with the
+ * order (DOM-5): the audit row keeps the rule it was held for. The lead stays won: the
  * opportunity machine has no move out of won. People only.
  */
 export const cancelSalesOrder = defineCommand({
@@ -40,6 +41,9 @@ export const cancelSalesOrder = defineCommand({
       state: cancelled.to,
       stateChangedAt: ctx.now,
       cancelReason: input.reason,
+      creditHeldAt: null,
+      creditHoldReason: null,
+      creditHoldJson: null,
     });
     if (cancelled.from === 'confirmed' && row.opportunityId !== null) {
       const [result] = (await ctx.tx.execute(
@@ -59,8 +63,8 @@ export const cancelSalesOrder = defineCommand({
       aggregateType: 'sales_order',
       aggregateId: row.id,
       entityId: row.entityId,
-      before: { orderState: row.state },
-      after: { orderState: cancelled.to, cancelReason: input.reason },
+      before: { orderState: row.state, creditHoldReason: row.creditHoldReason },
+      after: { orderState: cancelled.to, cancelReason: input.reason, creditHoldReason: null },
     });
     ctx.emit({
       type: 'sales.order.cancelled',

@@ -217,7 +217,8 @@ export function creditSummarySql(entityIds: readonly number[]) {
   return sql`
     select e.id as entity_id,
            (select count(*)::int from sales_orders so
-             where so.entity_id = e.id and so.credit_held_at is not null) as held_orders,
+             where so.entity_id = e.id and so.state = 'draft'
+               and so.credit_held_at is not null) as held_orders,
            d.over_limit, d.overdue
       from unnest(${idList(entityIds)}) as e(id)
       cross join lateral (
