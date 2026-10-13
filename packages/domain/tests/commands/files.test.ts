@@ -320,6 +320,13 @@ describe('the file checks', () => {
     await expect(run(worker, markFileReady, checked(1, fileId))).rejects.toMatchObject({
       code: 'not_found',
     });
+    // And for refusing the file.
+    await expect(
+      run(workerOfOne, rejectFile, { entityId: 2, fileId, reason: 'file_infected' }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      run(worker, rejectFile, { entityId: 1, fileId, reason: 'file_infected' }),
+    ).rejects.toMatchObject({ code: 'not_found' });
     expect(await status(fileId)).toBe('scanned');
   });
 

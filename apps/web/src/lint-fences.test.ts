@@ -137,6 +137,7 @@ describe('the import fences', { timeout: 60_000 }, () => {
 
   it('keep the command layer inside packages/domain (audit ARCH-1)', async () => {
     const parts = [
+      'commands',
       'defineCommand',
       'runCommand',
       'databaseAuditSink',

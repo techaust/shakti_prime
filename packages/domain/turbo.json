@@ -3,7 +3,12 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/state-machines/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/state-machines/**",
+        "$TURBO_ROOT$/packages/db/tests/**",
+        "$TURBO_ROOT$/apps/web/tests/**"
+      ]
     }
   }
 }

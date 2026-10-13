@@ -9,7 +9,6 @@ import { nextCallingWindowStart } from './dial-policy';
  */
 
 const DAY_MS = 86_400_000;
-/** India has one time zone and no daylight saving: a fixed offset is exact. */
 
 /** The start of calling hours on the IST day `days` after the day of `at` (0 is that day). */
 export function callingStartOnDay(at: Date, days: number): Date {

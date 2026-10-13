@@ -111,6 +111,7 @@ const webSchemaModule = {
 const webCommandNames = {
   name: '@shakti/domain',
   importNames: [
+    'commands',
     'defineCommand',
     'runCommand',
     'databaseAuditSink',

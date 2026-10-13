@@ -62,8 +62,12 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- registry of heterogeneous commands
 export type AnyCommand = Command<z.ZodType<any>, z.ZodType<any>>;
 
+/**
+ * A command, frozen: nothing can swap its handler, permission or audit fields after it is defined,
+ * so the object the registry holds is the one `executeCommand()` runs (audit ARCH-1).
+ */
 export function defineCommand<I extends z.ZodType, O extends z.ZodType>(
   command: Command<I, O>,
 ): Command<I, O> {
-  return command;
+  return Object.freeze(command);
 }

@@ -45,8 +45,6 @@ export interface QuoteParams {
 
 type G = Guard<QuoteRecord, QuoteParams>;
 
-/** India has one time zone and no daylight saving: a fixed offset is exact. */
-
 /**
  * `valid_until` of a quote created at `createdAt`: the created calendar date in IST plus the
  * validity days, at the last millisecond of that day in IST (BLUEPRINT §8.3, design §7.3).

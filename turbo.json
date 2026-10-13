@@ -31,15 +31,6 @@
         "$TURBO_ROOT$/docs/data/**"
       ]
     },
-    "@shakti/domain#test": {
-      "dependsOn": ["^build"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/docs/state-machines/**",
-        "$TURBO_ROOT$/packages/db/tests/**",
-        "$TURBO_ROOT$/apps/web/tests/**"
-      ]
-    },
     "@shakti/tokens#test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/web/src/app/icon.svg"]

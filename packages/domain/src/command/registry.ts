@@ -111,7 +111,8 @@ import { setTaxRate } from '../commands/tax/set-tax-rate';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
-export const commands = {
+/** Frozen: no command can be added, replaced or removed at run time (audit ARCH-1). */
+export const commands = Object.freeze({
   [updateEntity.name]: updateEntity,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
@@ -238,7 +239,7 @@ export const commands = {
   [setNotificationSettings.name]: setNotificationSettings,
   [subscribePush.name]: subscribePush,
   [unsubscribePush.name]: unsubscribePush,
-} as const satisfies Record<string, AnyCommand>;
+} as const satisfies Record<string, AnyCommand>);
 
 /**
  * Commands a test defines to exercise the runner itself (an event that fails after it is stored,

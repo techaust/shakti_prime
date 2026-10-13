@@ -382,10 +382,19 @@ describe('stages', () => {
     ).toMatchObject({ details: { reason: 'stage_unavailable' } });
   });
 
-  // The refusals of reordering and archiving, each command in turn (audit OPS-6): a role without
+  // The refusals of adding, reordering and archiving, each command in turn (audit OPS-6): a role without
   // crm.config.write, an Executive acting for one company on a group pipeline, and an Executive of
   // company 1 on a pipeline of company 2. The stages are left as they were.
   describe.each([
+    {
+      name: 'crm.stage.create',
+      command: createStage as AnyCommand,
+      input: (p: Awaited<ReturnType<typeof testPipeline>>) => ({
+        pipelineId: p.id,
+        name: `Survey ${p.key}`,
+      }),
+      missing: 'pipeline_missing',
+    },
     {
       name: 'crm.stage.reorder',
       command: reorderStages as AnyCommand,
