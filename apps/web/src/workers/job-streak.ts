@@ -23,6 +23,8 @@ export interface JobOutcomeOptions {
   requestId: string;
   keyValue?: KeyValue;
   alerts?: AlertSink;
+  /** Whether QStash made the call for the job's schedule (`fromSchedule`); only that one checks in. */
+  scheduled: boolean;
   /** Where the call is checked in; Sentry's cron monitors by default. */
   checkIn?: (job: ScheduledJob, status: 'ok' | 'error') => Promise<void>;
 }
@@ -30,8 +32,9 @@ export interface JobOutcomeOptions {
 /**
  * Counts a scheduled route's call (audit 2026-10, OPS-3): a call that did its work ends the
  * streak; a failed one (a 500, or a 503 for a lock it could not get) adds to it, and the third in
- * a row raises `job.failing` once, with the job and the count, as the outbox's streak does. Each
- * call is also checked in to the job's Sentry cron monitor, which raises a run QStash never made.
+ * a row raises `job.failing` once, with the job and the count, as the outbox's streak does. A call
+ * the schedule made is also checked in to the job's Sentry cron monitor, which raises a run
+ * QStash never made; a run handing on the rest is not, so it cannot hide a missed one.
  * The store failing never fails the call: the call's own outcome is already decided.
  */
 export async function recordJobOutcome(
@@ -40,7 +43,9 @@ export async function recordJobOutcome(
   options: JobOutcomeOptions,
 ): Promise<void> {
   const keyValue = options.keyValue ?? defaultAuthDeps().keyValue;
-  await (options.checkIn ?? sendCheckIn)(job, outcome === 'ok' ? 'ok' : 'error');
+  if (options.scheduled) {
+    await (options.checkIn ?? sendCheckIn)(job, outcome === 'ok' ? 'ok' : 'error');
+  }
   let runs = 0;
   try {
     if (outcome === 'ok') {

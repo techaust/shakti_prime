@@ -235,6 +235,17 @@ export function qstashEventPublisher(config: QStashConfig): EventPublisher {
   };
 }
 
+/**
+ * Whether QStash made this call for a schedule: it names the schedule in `Upstash-Schedule-Id`,
+ * which a nudge and a run handing on the rest do not carry. Only such a call checks in to the
+ * schedule's Sentry monitor, so a deleted schedule shows as missed runs however many nudges
+ * still arrive (review L4).
+ */
+export function fromSchedule(headers: Headers): boolean {
+  const id = headers.get('upstash-schedule-id');
+  return id !== null && id !== '';
+}
+
 /** Asks QStash to run the publisher now instead of at the next scheduled minute. */
 export async function nudgeViaQStash(config: QStashConfig): Promise<void> {
   await withTimeout(

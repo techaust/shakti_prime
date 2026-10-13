@@ -8,7 +8,12 @@ describe('recordJobOutcome (audit 2026-10, OPS-3)', () => {
     const keyValue = memoryKeyValue();
     const alerts = memoryAlertSink();
     for (let call = 1; call <= FAILING_CALLS_ALERT + 2; call += 1) {
-      await recordJobOutcome('quote-expire', 'failed', { requestId: `r${String(call)}`, keyValue, alerts });
+      await recordJobOutcome('quote-expire', 'failed', {
+        requestId: `r${String(call)}`,
+        keyValue,
+        alerts,
+        scheduled: false,
+      });
     }
     expect(alerts.alerts).toEqual([{ name: 'job.failing', fields: { job: 'quote-expire', runs: 3 } }]);
   });
@@ -16,7 +21,7 @@ describe('recordJobOutcome (audit 2026-10, OPS-3)', () => {
   it('starts the count again after a call that did its work, and keeps each job apart', async () => {
     const keyValue = memoryKeyValue();
     const alerts = memoryAlertSink();
-    const options = { requestId: 'r', keyValue, alerts };
+    const options = { requestId: 'r', keyValue, alerts, scheduled: false };
     await recordJobOutcome('files-sweep', 'failed', options);
     await recordJobOutcome('files-sweep', 'failed', options);
     await recordJobOutcome('lead-rescore', 'failed', options);
@@ -28,19 +33,28 @@ describe('recordJobOutcome (audit 2026-10, OPS-3)', () => {
     expect(alerts.alerts).toEqual([{ name: 'job.failing', fields: { job: 'files-sweep', runs: 3 } }]);
   });
 
-  it('checks every call in to the job’s monitor, ok or error', async () => {
+  it('checks the schedule’s calls in to the job’s monitor, ok or error, and no other call', async () => {
     const checkIns: [string, string][] = [];
     const checkIn = (job: string, status: 'ok' | 'error') => {
       checkIns.push([job, status]);
       return Promise.resolve();
     };
-    const options = { requestId: 'r', keyValue: memoryKeyValue(), alerts: memoryAlertSink(), checkIn };
+    const options = {
+      requestId: 'r',
+      keyValue: memoryKeyValue(),
+      alerts: memoryAlertSink(),
+      checkIn,
+      scheduled: true,
+    };
     await recordJobOutcome('duplicate-scan', 'failed', options);
     await recordJobOutcome('duplicate-scan', 'ok', options);
     expect(checkIns).toEqual([
       ['duplicate-scan', 'error'],
       ['duplicate-scan', 'ok'],
     ]);
+    // A run handing on the rest is not the schedule's call, so it checks in nothing (review L4).
+    await recordJobOutcome('duplicate-scan', 'ok', { ...options, scheduled: false });
+    expect(checkIns).toHaveLength(2);
   });
 
   it('never fails the call when the store does not answer', async () => {
@@ -52,10 +66,20 @@ describe('recordJobOutcome (audit 2026-10, OPS-3)', () => {
     const alerts = memoryAlertSink();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await expect(
-      recordJobOutcome('notification-scan', 'failed', { requestId: 'r', keyValue: broken, alerts }),
+      recordJobOutcome('notification-scan', 'failed', {
+        requestId: 'r',
+        keyValue: broken,
+        alerts,
+        scheduled: false,
+      }),
     ).resolves.toBeUndefined();
     await expect(
-      recordJobOutcome('notification-scan', 'ok', { requestId: 'r', keyValue: broken, alerts }),
+      recordJobOutcome('notification-scan', 'ok', {
+        requestId: 'r',
+        keyValue: broken,
+        alerts,
+        scheduled: false,
+      }),
     ).resolves.toBeUndefined();
     expect(alerts.alerts).toEqual([]);
   });

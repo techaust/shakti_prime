@@ -8,6 +8,7 @@ import { sweepAbandonedUploads } from '../../../../../../workers/files/sweep-upl
 import { recordJobOutcome } from '../../../../../../workers/job-streak';
 import {
   FILES_SWEEP_PATH,
+  fromSchedule,
   qstashConfig,
   verifyQStashSignature,
   workerUrl,
@@ -46,13 +47,14 @@ export async function POST(request: Request): Promise<Response> {
     return failure('unauthorized', 401, requestId, headers);
   }
 
+  const scheduled = fromSchedule(request.headers);
   try {
     const swept = await sweepAbandonedUploads({ store: fileStore(), requestId });
-    await recordJobOutcome('files-sweep', 'ok', { requestId });
+    await recordJobOutcome('files-sweep', 'ok', { requestId, scheduled });
     return Response.json(swept, { headers });
   } catch (error) {
     logger.log('error', 'files.sweep_failed', { requestId, error });
-    await recordJobOutcome('files-sweep', 'failed', { requestId });
+    await recordJobOutcome('files-sweep', 'failed', { requestId, scheduled });
     return failure('internal', 500, requestId, headers);
   }
 }

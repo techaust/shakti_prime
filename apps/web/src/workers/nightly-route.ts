@@ -3,7 +3,7 @@ import en from '../../messages/en.json';
 import { logger } from '../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../request-body';
 import { incomingRequestId } from '../request-id';
-import { qstashConfig, verifyQStashSignature, workerUrl } from './qstash';
+import { fromSchedule, qstashConfig, verifyQStashSignature, workerUrl } from './qstash';
 import { recordJobOutcome, type ScheduledJob } from './job-streak';
 import { isRetryableWait } from './retryable';
 
@@ -72,18 +72,19 @@ export function nightlyWorkerRoute<B>(spec: {
       return failure('validation_failed', 400, requestId, { ...headers, ...NO_RETRY });
     }
 
+    const scheduled = fromSchedule(request.headers);
     try {
       const result = await spec.run(body, { budgetMs: spec.budgetMs, requestId });
-      await recordJobOutcome(spec.job, 'ok', { requestId });
+      await recordJobOutcome(spec.job, 'ok', { requestId, scheduled });
       return Response.json(result, { headers });
     } catch (error) {
       if (isRetryableWait(error)) {
         logger.log('warn', `${spec.logPrefix}_busy`, { requestId });
-        await recordJobOutcome(spec.job, 'failed', { requestId });
+        await recordJobOutcome(spec.job, 'failed', { requestId, scheduled });
         return failure('integration_unavailable', 503, requestId, headers);
       }
       logger.log('error', `${spec.logPrefix}_failed`, { requestId, error });
-      await recordJobOutcome(spec.job, 'failed', { requestId });
+      await recordJobOutcome(spec.job, 'failed', { requestId, scheduled });
       return failure('internal', 500, requestId, headers);
     }
   };

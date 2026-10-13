@@ -26,6 +26,7 @@ vi.mock('@upstash/qstash', () => ({
 
 const {
   forgetEnsuredUrlGroups,
+  fromSchedule,
   nudgeViaQStash,
   publishImportCommit,
   qstashConfig,
@@ -240,6 +241,14 @@ describe('qstashEventPublisher', () => {
     expect(await qstashEventPublisher(config).publish([])).toEqual([]);
     expect(queue.batchJSON).not.toHaveBeenCalled();
     expect(queue.addEndpoints).not.toHaveBeenCalled();
+  });
+});
+
+describe('fromSchedule (review L4)', () => {
+  it('tells a schedule’s call by the schedule QStash names, and a nudge or a hand-on by its absence', () => {
+    expect(fromSchedule(new Headers({ 'Upstash-Schedule-Id': 'outbox-publish-dev' }))).toBe(true);
+    expect(fromSchedule(new Headers())).toBe(false);
+    expect(fromSchedule(new Headers({ 'upstash-schedule-id': '' }))).toBe(false);
   });
 });
 

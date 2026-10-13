@@ -5,7 +5,11 @@ import { sendCheckIn } from '../../../../../../observability/check-ins';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
 import { OUTBOX_RUN_BUDGET_MS, publishOutbox } from '../../../../../../workers/outbox';
-import { qstashConfig, verifyQStashSignature } from '../../../../../../workers/qstash';
+import {
+  fromSchedule,
+  qstashConfig,
+  verifyQStashSignature,
+} from '../../../../../../workers/qstash';
 
 export const dynamic = 'force-dynamic';
 /**
@@ -44,14 +48,16 @@ export async function POST(request: Request): Promise<Response> {
     return failure('unauthorized', 401, requestId, headers);
   }
 
+  // Only the minute schedule's call checks in; a nudge after a command would hide a lost schedule.
+  const scheduled = fromSchedule(request.headers);
   try {
     const counts = await publishOutbox({ requestId, budgetMs: OUTBOX_RUN_BUDGET_MS });
-    // The minute's check-in: Sentry raises a run QStash never made (a deleted schedule, an old key).
-    await sendCheckIn('outbox-publish', 'ok');
+    // Sentry raises a minute the schedule never called (a deleted schedule, an old key).
+    if (scheduled) await sendCheckIn('outbox-publish', 'ok');
     return Response.json(OutboxPublishResponse.parse(counts), { headers });
   } catch (error) {
     logger.log('error', 'outbox.publish_failed', { requestId, error });
-    await sendCheckIn('outbox-publish', 'error');
+    if (scheduled) await sendCheckIn('outbox-publish', 'error');
     return failure('internal', 500, requestId, headers);
   }
 }
