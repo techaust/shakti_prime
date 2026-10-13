@@ -24,6 +24,62 @@ Done when: the checks of AGENTS §10 pass; the security suite passes on the slot
 
 ## Report
 
+### Early check, 13-10-2026 (cloud, slot 6)
+Schema, migrations, the parse-time filter, the purge and SEC-3's shared number finder, with their tests on the slot's Postgres. Screens, documents and OPS-5 are not started.
+
+**SEC-3, one number finder.** `packages/domain/src/privacy/number-shapes.ts` (new) holds what `maskForModel()` had of its own: the normaliser (every script's digits, every space, dash and format character), the safe shapes (UUIDs, dates, times, amounts, quantities, codes) and the digit runs. `model-text.ts` now imports them; `redactText()` (`ports/redaction.ts`) finds numbers with `findPersonalNumbers()` from the same module. Its policy is unchanged in kind: an Aadhaar-shaped number (twelve digits as one run, or groups of 4-8, 8-4, 4-4-4) becomes `[number]`; a phone (`isPhone()`: ten digits from 6 to 9, eleven after 0, twelve after 91, thirteen after 091, any number after `+`) keeps its last four. Any number of another length stays (order numbers, millisecond times, `ASH/Q/2026-27/0001`), as the existing logger tests require. Aadhaar windows are found before phone windows, so a phone is never read across part of an Aadhaar number. Every existing redaction test passes unchanged.
+
+**SEC-1, at parse time.** `packages/domain/src/imports/identity-columns.ts` (new), `withoutIdentityNumbers()`:
+- A column is left out when its header names Aadhaar (aadhaar, aadhar, adhaar, UID, UID no, आधार, આધાર, any case or punctuation), or when most of its filled cells are an Aadhaar number (alone, or after a label of at most ten letters).
+- Every other Aadhaar number in a cell or header becomes `XXXX XXXX 0123`: separators and the last four digits kept.
+- Twelve digits in one run beginning 91[6-9] are a mobile number in a column named as a phone. Anywhere else they count as Aadhaar only when the Verhoeff check digit holds.
+- `parseImportFile()` applies it and returns `leftOutColumns` and `maskedValues`. A file with nothing else is refused (`import_only_identity_numbers`).
+- `imports.job.create` applies it again to its own input (a caller other than the upload action), stores `import_jobs.left_out_columns` and `masked_values`, and refuses a deleted file.
+
+**SEC-1, the purge.** Migrations `0143_audit_privacy` (generated) and `0144_audit_privacy_rls` (custom):
+- Columns: `files.deleted_at`, `import_jobs.left_out_columns`, `masked_values`, `purged_at`. Indexes: `files_import_kept_idx` and `import_jobs_purge_idx`.
+- `app.purge_import_rows(entity, days, jobs)` clears `raw_json` and `normalised_json` of up to N jobs of one company. A job qualifies when it is not committing, not purged, and has had no change for the period. It is held with `skip locked`, then marked `purged_at`.
+- `app.record_import_files_deleted(entity, open_days, ids)` marks `deleted_at` on import files whose job ended (committed, failed or rolled back), or that were uploaded more than the open period ago. Any other id is passed over.
+- Both definers require `imports.process:entity` (platform-only, already held by `system:workers` at all), require the company in the request, and check ranges. Each writes a `retention_runs` row only when it changed something (`import-rows-purge`, `import-files-purge`). `app_user` has no update grant on any of these columns.
+- Commands `imports.job.purge` and `imports.file.record_deleted` (`commands/imports/purge.ts`) audit one row per job or file. The query `importFilesToDelete` (`queries/imports/import-purge.ts`) runs as the workers under RLS. The worker `apps/web/src/workers/files/purge-imports.ts` walks the companies (archived ones included): it deletes from the store first, records only the deletions that succeeded, then clears rows. It runs inside the hourly `files-sweep` route, so no new schedule or QStash setup is needed.
+- `imports.job.map`, `preview` and `commit` refuse a purged job (`import_job_purged`). Rollback stays allowed, since it reads only `created_id`. `openFile` and `startImport` refuse a deleted file.
+- `dedupe_json` is kept (it holds ids and codes only). M1's anonymiser still blanks it with the rest.
+
+**Periods (workshop defaults, `WORKSHOP_DEFAULTS.retention`).** Neither period is settled; both are for the owner and CA to confirm:
+- `importReconciliationDays: 30`, which covers the cutover's two-week parallel run;
+- `importFileOpenDays: 7`.
+
+**Tests added:**
+- `privacy/number-shapes.test.ts`: 72. Every verifier shape, run against `redactText`, `redactForAudit` and `maskForModel`.
+- `imports/identity-columns.test.ts`: 7.
+- `imports/parse.test.ts`: +2.
+- `packages/db/tests/security/import-purge.test.ts`: 12. Every role, agent and narrower worker refused; fails closed; company and range checks; reader pool refused; no request may write the new columns; which jobs and files; states kept; `retention_runs`; idempotent.
+- `packages/domain/tests/commands/import-purge.test.ts`: 9. Denied, wrong company and happy path for both commands and the query; the reconciliation is equal before and after the purge; a purged job is refused. It also runs a completeness search over every text, JSON and array column of every public table for the masked digits of a workbook with an Aadhaar column (a number cell, a spaced text and a hyphenated text) and of a CSV with a number inside an address: no hit after the import, and none after the purge.
+- `apps/web/tests/imports.test.ts`: +1. Upload, `startImport`, commit, then the purge with the memory store: a failing store leaves the file recorded as kept; the bytes go once the job ends; an open job's file stays; the reconciliation is equal after the rows are cleared; a deleted file starts nothing; a purged job refuses mapping.
+
+**Checks:**
+- `pnpm test:security` on 54336: db 44 files, 1245 tests; domain 76 files, 959 tests; web 25 files, 323 tests; all passed.
+- `turbo run test --force`: all passed after two fixes (Activity log names for the two commands, `machines:docs`).
+- Folder lint and the workspaces' typechecks clean; `copy-lint` clean; `db:docs` and `machines:docs` regenerated.
+
+**EXPLAIN (ANALYZE), slot 6, as `system:workers`:**
+- Files to delete: Index Scan using `files_import_kept_idx`, 1.1 ms. The ended-job test is a hashed subplan over `import_jobs` (161 rows).
+- Jobs to purge: Index Scan using `import_jobs_purge_idx`, 0.06 ms.
+
+**Decisions the brief did not settle:**
+- The purge reuses `imports.process`, not a new permission.
+- It runs inside the hourly files sweep.
+- Rows of rolled-back, failed and left jobs are cleared too, after the same period, and such a job is then closed to mapping, checking and adding.
+- An import file is deleted at most seven days after upload, whatever its job's state.
+- Archived companies are purged as well.
+- `retention_runs` gets a row only for a call that changed something, so the hourly runs leave no empty rows.
+
+**Next, after the early check:**
+- The job screen: the columns left out, values hidden, file deleted, rows cleared, and the two refusals.
+- The journeys.
+- SECURITY §5 (SEC-2 and the import rule), DATABASE (columns, definers, §7 retention), the design's Built record, 06-api (the sweep route's answer), the workshop pack rows.
+- OPS-5 (`ci.yml` model cache, `OCR_LANG_PATH` for `web#test`).
+
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
