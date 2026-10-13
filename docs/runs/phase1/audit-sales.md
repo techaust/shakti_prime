@@ -7,8 +7,8 @@
 | Runs on | cloud, beside M1 and the web audit fixes (owner, 12-10-2026: a deep audit of Phases 0–1, every finding fixed), heavy commands through the VM's lock |
 | Tier | A (credit, orders, commissions, tax rates, row-level security): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | no reading posted; the owner said to proceed (12-10-2026) |
-| State | early check |
-| Next step | builder: the findings below; stop for the early check after the migrations and commands |
+| State | built, for review |
+| Next step | lead: review (Opus 5.5 xhigh), then integration; remake the two baselines in Linux |
 
 ## Brief
 The Phase 0–1 audit of 12-10-2026 confirmed these defects by running the real commands as `app_user`. Each finding's evidence, file and line and proposed fix are in the auditor's file and the verifier's verdict (read both first; the verdict corrects several of DOM-1's line references and adds DOM-V1), and the verifier's reproduction scripts show the exact paths:
@@ -82,6 +82,40 @@ Done when: the checks of AGENTS §10 pass on the branch; the security suite pass
 - Creating a quote on a lead that already has an accepted quote is still allowed; only accepting it is refused. Refusing it at creation would be a small further change.
 - The new unique index fails to build on a hosted database that already holds two accepted quotes for one lead; check dev and staging for `select opportunity_id from quotes where state = 'accepted' group by 1 having count(*) > 1` before migrating.
 - The 15-minute grace for logging a call after 21:00 is my stated value (`CALL_LOG_GRACE_MINUTES`), not a client figure.
+
+### 13-10-2026, cloud (lead's VM), after the early check: defaults, screens, journeys, documents
+
+**Built:**
+- The call log grace is `WORKSHOP_DEFAULTS.calling.logGraceMinutes` (15), a default for the sales head to confirm as the new workshop question CALL-8 (`docs/13-client-packs/workshop-pack.md`, its answer row, and `client-actions.md` item 1a). `callLogRefusal()` takes it as a parameter; the constant in the calls code is gone.
+- 0136 stays its own migration, as the lead asked.
+- **Account 360** (`customer-dialogs.tsx`): the view carries `canChangeDealer` (`sales.credit.write` at company scope and the customer write scope). Without it, a dealer's type is locked with the sentence "Only an Executive can change a dealer to another kind of customer, since it changes how their orders are checked for credit.", and any other customer's type is not offered Dealer, with "Only an Executive can make a customer a dealer." This follows the owner's decision of 13-10-2026 that only the Executive makes or unmakes a dealer; the code is as built.
+- **Quote page** (`quote-screen.tsx`): a quote withdrawn by another quote's acceptance shows "Withdrawn when the customer accepted" with a link to that quote.
+- The new refusals reach the dialogs through the `errors.*` catalogue, as every refusal does.
+- **Documents:** the design's Built record line (`docs/03-roadmap-appendix/phase1.md`, after S2); the state machine readme regenerated (it lists the new default). API: no change, since no `/api/v1` route runs these commands.
+
+**Journeys** (Linux VM, `e2e:seed` then Playwright, through the lock): `customers.spec.ts`, `orders.spec.ts`, `quotes.spec.ts` and `calling.spec.ts` ran on desktop-light, desktop-dark and phone, with 86 passed and 2 failed.
+- **New:** `customers.spec.ts` "may not make their customer a dealer, and is told who can (DOM-1)" (with axe on the dialog) passed on all three projects. `orders.spec.ts` now makes a second quote of the lead and checks that it is withdrawn and links to the accepted quote (with axe); it passed on all three.
+- **The 2 failures** are screenshot comparisons outside the Playwright image: `quote-page` (desktop-light) and `customers-list` (phone).
+  - The quote-page diff is font rendering, plus a menu one row out in the sidebar.
+  - The customers-list diff is font rendering and line wrapping.
+  - This branch changes neither the menu nor the list, and the snapshot quote is not a withdrawn one.
+- **Baselines for the lead to remake or check in Linux:** `quote-page.png` (desktop-light) and `customers-list.png` (phone). No other baseline changes.
+
+**Checks** (through the lock):
+- **Typecheck:** contracts, domain and web clean.
+- **eslint:** `packages/contracts`, `packages/domain` and `apps/web` clean.
+- **Whole-repository `pnpm lint`:** exit 0, no warnings.
+- **`pnpm copy-lint`:** clean.
+- **Unit tests:**
+  - domain: 2072 tests at first, 2 failing: the approved-values test (the new default) and the stale machine readme. Both were fixed in 72b87a78.
+  - The recheck of `workshop-defaults`, `state-machines/render` and `telecom` passed 67 of 67.
+  - web: 765 passed, 1 skipped.
+- **Security suites on Postgres:** domain `calls.test.ts` and `tests/queries`, 219 passed.
+- **`pnpm build`:** passed.
+
+**Open for the owner:** whether Accounts may make or unmake a dealer. Today only the Executive can: Accounts hold `sales.credit.write` but not `crm.account.write`.
+
+**For the hosted migration:** on dev and staging, check `select opportunity_id from quotes where state = 'accepted' group by 1 having count(*) > 1` before migrating; the new unique index will not build if it returns a row.
 
 ## Review
 | # | Severity | Finding | State |
