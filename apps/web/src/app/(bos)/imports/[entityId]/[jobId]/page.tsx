@@ -73,7 +73,8 @@ export default async function ImportJobPage({ params }: { params: Promise<Params
   const view = initialRowView(job);
   const state = rowStateOf(view);
   // What became of every row, once they are checked (IMP-01, IMP-02).
-  const unchecked = job.state === 'uploaded' || job.state === 'mapped' || job.state === 'committing';
+  const unchecked =
+    job.state === 'uploaded' || job.state === 'mapped' || job.state === 'committing';
   const [templates, top, options, rows, reconciliation] = await Promise.all([
     canMap ? listImportTemplates({ entityId, kind: job.kind }) : notNeeded([]),
     canMap

@@ -151,7 +151,9 @@ test.describe('UAT: a Store Manager serves a walk-in customer', () => {
     const history = page.getByRole('region', { name: 'History' });
     await history.getByRole('button', { name: 'Add note' }).click();
     const note = page.getByRole('dialog');
-    await note.getByLabel('Note', { exact: true }).fill('Wants a 5 HP pump before the sowing season');
+    await note
+      .getByLabel('Note', { exact: true })
+      .fill('Wants a 5 HP pump before the sowing season');
     await note.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(history.getByText('Wants a 5 HP pump before the sowing season')).toBeVisible();
     await expectNoAxeViolations(page);
@@ -279,7 +281,10 @@ test.describe('UAT: a dealer order held for credit, from Accounts to the Executi
     await page.getByLabel('Quantity').fill('1');
     await page.getByRole('button', { name: 'Work out the order' }).click();
     await expect(
-      page.getByRole('region', { name: 'The order as it will be made' }).getByText('₹13,440.00').first(),
+      page
+        .getByRole('region', { name: 'The order as it will be made' })
+        .getByText('₹13,440.00')
+        .first(),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Make the order' }).click();
     await expect(page.getByRole('heading', { level: 1, name: /\/SO\// })).toBeVisible({

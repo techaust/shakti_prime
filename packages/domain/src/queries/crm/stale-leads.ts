@@ -1,8 +1,4 @@
-import {
-  AnonymiseStaleLeadsInput,
-  DomainError,
-  StaleLeadCountDto,
-} from '@shakti/contracts';
+import { AnonymiseStaleLeadsInput, DomainError, StaleLeadCountDto } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { checkPermission } from '../../command/run-command';
 import { readStaleWindow } from '../../commands/crm/anonymise-stale-leads';

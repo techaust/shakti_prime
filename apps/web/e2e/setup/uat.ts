@@ -4,7 +4,12 @@
 // seed's time, so a run never meets an earlier run's dealer.
 import { newId } from '@shakti/contracts';
 import { asMigrator } from '@shakti/db/testing';
-import { PROJECTS, QUOTE_JOURNEY_COMPANY, UAT_DEALERS, type UatJourneySeed } from '../support/users';
+import {
+  PROJECTS,
+  QUOTE_JOURNEY_COMPANY,
+  UAT_DEALERS,
+  type UatJourneySeed,
+} from '../support/users';
 import { QUOTE_JOURNEY_IDS } from './quotes';
 
 export async function ensureUatJourneys(executiveId: string): Promise<UatJourneySeed> {

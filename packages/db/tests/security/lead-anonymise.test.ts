@@ -500,9 +500,7 @@ describe('the anonymisation', () => {
 
   it('anonymises only the stale leads it is given, however many it is given', async () => {
     const result = await run(all());
-    expect([...(result?.leads ?? [])].sort()).toEqual(
-      ELIGIBLE.map((k) => leads[k].lead).sort(),
-    );
+    expect([...(result?.leads ?? [])].sort()).toEqual(ELIGIBLE.map((k) => leads[k].lead).sort());
     expect(result?.error).toBeNull();
     expect(await lastRun()).toEqual({ rows_affected: ELIGIBLE.length, error: null });
 

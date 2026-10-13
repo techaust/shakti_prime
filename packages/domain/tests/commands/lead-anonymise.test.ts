@@ -128,7 +128,11 @@ describe('crm.lead.anonymise', () => {
     let requestId = '';
     const batch = (await asPrincipal(workers(), (context) => {
       requestId = context.requestId;
-      return runCommand(anonymiseStaleLeads, { context, audit, outbox }, { entityId: E, after: null });
+      return runCommand(
+        anonymiseStaleLeads,
+        { context, audit, outbox },
+        { entityId: E, after: null },
+      );
     })) as { anonymised: number; failed: boolean; next: unknown };
     expect(batch).toMatchObject({ failed: false, next: null });
     expect(batch.anonymised).toBeGreaterThanOrEqual(1);

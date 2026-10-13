@@ -24,10 +24,7 @@ export function ReconciliationPanel({
   fileName: string;
 }) {
   const t = useTranslations('imports.reconcile');
-  const lineLabel = useCallback(
-    (key: ReconciliationLine | 'rowsIn') => t(`lines.${key}`),
-    [t],
-  );
+  const lineLabel = useCallback((key: ReconciliationLine | 'rowsIn') => t(`lines.${key}`), [t]);
   const download = useCallback(() => {
     const csv = reconciliationCsv(reconciliation, {
       heading: { line: t('csvLine'), rows: t('csvRows') },
@@ -71,7 +68,11 @@ export function ReconciliationPanel({
             <tr key={line.key} className="border-border border-b last:border-b-0">
               <th
                 scope="row"
-                className={line.key === 'rowsIn' ? 'py-2 pr-4 text-left font-medium' : 'py-2 pr-4 text-left font-normal'}
+                className={
+                  line.key === 'rowsIn'
+                    ? 'py-2 pr-4 text-left font-medium'
+                    : 'py-2 pr-4 text-left font-normal'
+                }
               >
                 {lineLabel(line.key)}
               </th>

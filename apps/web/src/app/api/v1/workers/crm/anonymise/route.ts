@@ -1,5 +1,8 @@
 import { LeadAnonymiseWorkerBody } from '@shakti/contracts';
-import { LEAD_ANONYMISE_RUN_BUDGET_MS, runLeadAnonymise } from '../../../../../../workers/lead-anonymise';
+import {
+  LEAD_ANONYMISE_RUN_BUDGET_MS,
+  runLeadAnonymise,
+} from '../../../../../../workers/lead-anonymise';
 import { nightlyWorkerRoute } from '../../../../../../workers/nightly-route';
 import { LEAD_ANONYMISE_PATH } from '../../../../../../workers/qstash';
 
