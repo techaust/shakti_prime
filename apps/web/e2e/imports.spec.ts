@@ -85,7 +85,11 @@ test.describe('as a GM', () => {
     await expect(page.getByText('2345 6789 0123')).toHaveCount(0);
     await expect(page.locator('body')).not.toContainText('4567 8901');
     await expectNoAxeViolations(page);
-    await snap(page, 'imports-identity-left-out', { mask: [page.getByText(/, started /)] });
+    // The floating notice of the upload fades on its own; the picture waits for it to close.
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 30_000 });
+    await snap(page, 'imports-identity-left-out', {
+      mask: [page.getByText(/, started /), page.getByText(/^Top row of the file: /)],
+    });
   });
 
   test('uploads a spreadsheet of customers, matches its columns and checks its rows', async ({
