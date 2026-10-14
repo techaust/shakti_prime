@@ -6,6 +6,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   createTestUser,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -50,7 +51,7 @@ function run<T>(principal: Principal, input: unknown): Promise<T> {
     runCommand(createLead, { context, audit, outbox, now: NOW }, input),
   ) as Promise<T>;
 }
-const phone = () => `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+const phone = () => testPhone();
 async function newLead(owner: Principal): Promise<string> {
   const lead = await run<{ id: string }>(owner, {
     entityId: E,

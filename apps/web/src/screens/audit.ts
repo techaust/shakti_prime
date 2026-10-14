@@ -2,16 +2,16 @@
 // §3.4). Pure functions, so the screen and its tests share them.
 
 import type { EventType } from '@shakti/contracts';
+import { istDay } from './ist';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 
 /** The longest window the audit reader accepts, in days (`AuditQueryInput`). */
 const MAX_WINDOW_DAYS = 93;
 
 /** Today's calendar date in India, as `YYYY-MM-DD`. */
 export function istToday(now: Date): string {
-  return new Date(now.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+  return istDay(now);
 }
 
 function addDays(isoDate: string, days: number): string {
@@ -111,6 +111,10 @@ const ACTIONS = {
   'imports.job.commit_batch': 'importCommitBatch',
   'imports.job.rollback': 'importRollback',
   'imports.job.fail': 'importFail',
+  'imports.job.mask_identity': 'importIdentityCheck',
+  'imports.purge.record_failure': 'importPurgeFailed',
+  'imports.job.purge': 'importPurge',
+  'imports.file.record_deleted': 'importFileDeleted',
   'files.upload.begin': 'fileUploadBegin',
   'files.upload.complete': 'fileUploadComplete',
   'files.file.mark_scanned': 'fileScanned',
@@ -575,8 +579,12 @@ const FIELD_KINDS = [
   ['movedConsents', 'number'],
   ['movedActivities', 'number'],
   ['undoneAt', 'time'],
+  ['leftOutColumns', 'number'],
+  ['maskedValues', 'number'],
   // Retention
   ['anonymisedAt', 'time'],
+  ['purgedAt', 'time'],
+  ['deletedAt', 'time'],
   // Quotes
   ['quoteNo', 'text'],
   ['lineCount', 'number'],

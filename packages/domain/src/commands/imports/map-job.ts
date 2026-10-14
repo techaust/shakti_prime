@@ -13,6 +13,7 @@ import { assertImportJobMove } from '../../imports/job-state';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertNotPurged,
   implementedKind,
   jobState,
   loadJob,
@@ -41,6 +42,8 @@ export const mapImportJob = defineCommand({
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
     const before = jobState(loaded.job);
     assertImportJobMove(before, 'mapped');
+    // Only a job left before adding is purged with nowhere to go; a finished one says its state.
+    assertNotPurged(loaded.job);
     const kind = implementedKind(loaded.job);
     if (kind === 'pin_codes') await assertGroupImport(ctx);
 

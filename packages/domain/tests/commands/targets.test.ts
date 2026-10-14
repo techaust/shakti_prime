@@ -9,6 +9,7 @@ import {
   createTestTeam,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -271,7 +272,7 @@ describe('progress', () => {
   let progressCaller: Principal;
   let colleague: Principal;
 
-  const phone = () => `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+  const phone = () => testPhone();
   async function leadOf(owner: Principal): Promise<string> {
     const lead = await run<{ id: string }>(owner, createLead, {
       entityId: E,

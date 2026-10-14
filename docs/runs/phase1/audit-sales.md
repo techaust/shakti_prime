@@ -7,8 +7,8 @@
 | Runs on | cloud, beside M1 and the web audit fixes (owner, 12-10-2026: a deep audit of Phases 0–1, every finding fixed), heavy commands through the VM's lock |
 | Tier | A (credit, orders, commissions, tax rates, row-level security): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | no reading posted; the owner said to proceed (12-10-2026) |
-| State | integrated with `main` (#167 to #172), migrations 0143 to 0148; pull request open |
-| Next step | the owner's duplicate-acceptance query on dev and staging; then the `hold` label off, merge on green, `migrate-hosted` (0143 to 0148), and the owner validates the two widened quote checks |
+| State | integrated with `main` (#167 to #176), migrations 0150 to 0155; pull request open |
+| Next step | merge on green, `migrate-hosted` (0150 to 0155), and the owner validates the two widened quote checks |
 
 ## Brief
 The Phase 0–1 audit of 12-10-2026 confirmed these defects by running the real commands as `app_user`. Each finding's evidence, file and line and proposed fix are in the auditor's file and the verifier's verdict (read both first; the verdict corrects several of DOM-1's line references and adds DOM-V1), and the verifier's reproduction scripts show the exact paths:
@@ -553,3 +553,4 @@ Re-checked the fix round (`git diff 1a69e1cd..81827753`) against the eight rows 
 ## Integration notes
 - Migrations from 0134 move after `main`'s last one at the merge.
 - 14-10-2026, lead: `main` (#167 to #172) taken by a merge commit; the migrations move to 0143 to 0148. The two checks this slice drops and adds again (`quotes_withdrawn_reason_check` in 0143, `quotes_acceptance_check` in 0146) are added `NOT VALID`, as `main`'s migration rule (DATA-5) asks; both only widen what was allowed, and the owner validates them with the GST checks (DEPLOY §2 step 8, exit-gate action 18). No function, trigger or check here is redefined by `main`'s 0130 to 0142. The conflicts were the message catalogue, three DATABASE rows (kept from both sides) and `import-kinds.test.ts` (`main`'s fix kept).
+- 14-10-2026, lead: the owner's duplicate-acceptance query found no rows on dev or staging. `main` (#174 to #176) taken by a merge commit after the privacy batch; the migrations move to 0150 to 0155 (the two `NOT VALID` checks are now in 0150 and 0153). No function, check or foreign key these migrations redefine was changed by `main`'s 0143 to 0149.

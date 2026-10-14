@@ -2,6 +2,7 @@ import { BeginUploadInput, DomainError, newId, UploadSlotDto } from '@shakti/con
 import { schema } from '@shakti/db';
 import { defineCommand } from '../../command/define-command';
 import { uploadKey, uploadLimitProblem } from '../../files/limits';
+import { maskIdentityText } from '../../imports/identity-columns';
 import { uploadPermission } from '../../files/purposes';
 import { assertEntityInScope } from '../imports/shared';
 import { fireUpload } from './shared';
@@ -48,7 +49,9 @@ export const beginUpload = defineCommand({
       purpose: input.purpose,
       bucket: input.bucket,
       key,
-      name: input.name,
+      // An import file's name is shown on its job and kept after its bytes go, so an Aadhaar
+      // number in it keeps only its last four digits (audit SEC-1).
+      name: input.purpose === 'import' ? maskIdentityText(input.name) : input.name,
       contentType: input.contentType,
       size: input.size,
       sha256: input.sha256,

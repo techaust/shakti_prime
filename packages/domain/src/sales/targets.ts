@@ -1,7 +1,6 @@
 import type { CalendarDate, TargetPeriod } from '@shakti/contracts';
+import { IST_OFFSET_MS } from '../numbering/financial-year';
 
-/** India has one time zone and no daylight saving: a fixed offset is exact. */
-const IST_OFFSET_MS = 330 * 60_000;
 const DAY_MS = 86_400_000;
 
 const pad = (n: number): string => String(n).padStart(2, '0');

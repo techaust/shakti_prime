@@ -7,6 +7,7 @@ import {
   pgTable,
   smallint,
   text,
+  timestamp,
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -37,6 +38,11 @@ export const files = pgTable(
     sha256: text('sha256').notNull(),
     status: text('status').notNull().default('pending'),
     scanResult: jsonb('scan_result'),
+    /**
+     * When the bytes were deleted from the store and the row kept for the trail: an import file
+     * once its job no longer needs it (audit SEC-1). A deleted file is never opened or read.
+     */
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     ...timestamps,
     ...actorsRequired,
   },
@@ -62,5 +68,9 @@ export const files = pgTable(
     index('files_pending_created_idx')
       .on(t.entityId, t.createdAt)
       .where(sql`${t.status} = 'pending'`),
+    // The import purge: a company's import files whose bytes are still stored, oldest first.
+    index('files_import_kept_idx')
+      .on(t.entityId, t.createdAt)
+      .where(sql`${t.purpose} = 'import' and ${t.deletedAt} is null`),
   ],
 );

@@ -5,6 +5,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   stageId,
+  testPhone,
 } from '@shakti/db/testing';
 import { IdSchema, newId } from '@shakti/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -21,7 +22,7 @@ afterAll(closeDb);
  * colleague's customer already has is refused (0055). Written with a space, as a caller types it.
  */
 function phone(): { typed: string; e164: string } {
-  const digits = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+  const digits = testPhone();
   return { typed: `${digits.slice(0, 5)} ${digits.slice(5)}`, e164: `+91${digits}` };
 }
 

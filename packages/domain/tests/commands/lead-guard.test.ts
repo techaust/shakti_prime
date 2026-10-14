@@ -11,6 +11,7 @@ import {
   createTestUser,
   grantsForRole,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -47,7 +48,7 @@ vi.setConfig({ testTimeout: 60_000 });
 
 /** Ten digits no earlier run used: the suites never clean the CRM tables. */
 function digits(): string {
-  return `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+  return testPhone();
 }
 
 function run<I extends z.ZodType, O extends z.ZodType>(

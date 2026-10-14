@@ -1,4 +1,5 @@
 import type { NoticeType, PushPlan } from '@shakti/contracts';
+import { IST_OFFSET_MS } from '../numbering/financial-year';
 
 /*
  * Who sees a notice and whether it is pushed (docs/03-roadmap-appendix/phase1.md §8.1): pure, so the notify
@@ -21,7 +22,7 @@ export const NOTICE_SCAN_LIMIT = 200;
  */
 export const NOTICE_PUSH_RETRY_AFTER_SECONDS = 120;
 
-const IST_OFFSET_MINUTES = 330;
+const IST_OFFSET_MINUTES = IST_OFFSET_MS / 60_000;
 
 /** Minutes since midnight of an `HH:MM` time. */
 export function minuteOf(time: string): number {

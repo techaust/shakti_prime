@@ -350,7 +350,9 @@
     "customer_anonymised": "This customer's details were removed because there was no contact for a long time. Add them again as a new customer.",
     "gst_split_mismatch": "The quote’s tax is split in a way its supply does not allow, so it was left as it was. Ask for its tax to be corrected.",
     "session_ended": "You were signed out. Sign in again to carry on where you left off.",
-    "push_browser_taken": "Someone else had alerts on this browser, so theirs are now off here. Choose Turn on alerts again to get yours."
+    "push_browser_taken": "Someone else had alerts on this browser, so theirs are now off here. Choose Turn on alerts again to get yours.",
+    "import_only_identity_numbers": "Every column of this file holds Aadhaar numbers, which are never kept. Add the names and phone numbers to import, and upload it again.",
+    "import_job_purged": "This import was left unfinished and the details in its rows have been cleared, so it cannot go on. Upload the file again to start a new import."
   },
   "auth": {
     "signIn": {
@@ -1611,7 +1613,11 @@
       "leadHandOver": "Qualified lead given to a Lead Converter",
       "leadReassignAll": "All leads of a person moved",
       "leadAnonymise": "Personal details of an old lead removed overnight",
-      "enquiryTake": "Enquiry taken: a lead added, or passed to a colleague"
+      "enquiryTake": "Enquiry taken: a lead added, or passed to a colleague",
+      "importIdentityCheck": "Identity numbers removed from an earlier import",
+      "importPurgeFailed": "Clearing an import's details did not finish, and is tried again",
+      "importPurge": "What an import file said cleared after its check period",
+      "importFileDeleted": "Import file deleted once it was no longer needed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1899,7 +1905,11 @@
       "filterReason": "Why the checks refused it",
       "anonymisedAt": "Personal details removed on",
       "skipped": "Quotes left as they were",
-      "expiryRefused": "Why it was not marked expired"
+      "expiryRefused": "Why it was not marked expired",
+      "purgedAt": "What the file said cleared on",
+      "deletedAt": "File deleted on",
+      "leftOutColumns": "Columns of identity numbers left out",
+      "maskedValues": "Identity numbers hidden"
     },
     "values": {
       "percent": "{value}%",
@@ -2343,6 +2353,16 @@
       "csvRows": "Rows",
       "csvFileName": "{file} row counts.csv",
       "downloadCsv": "Download as CSV"
+    },
+    "privacy": {
+      "title": "What this import does not keep",
+      "leftOut": "{count, plural, one {The column {columns} holds Aadhaar numbers, so it was left out and is not kept.} other {The columns {columns} hold Aadhaar numbers, so they were left out and are not kept.}}",
+      "masked": "{count, plural, one {One Aadhaar number written in another column was hidden, all but its last four digits.} other {{shown} Aadhaar numbers written in other columns were hidden, all but their last four digits.}}",
+      "fileDeleted": "The uploaded file was deleted on {date}, once the import no longer needed it.",
+      "purged": "The names, numbers and other details in the rows were cleared on {date}. The counts stay.",
+      "purgedTitle": "This import was left unfinished",
+      "purgedIntro": "Nothing was added from it for a long time, so the details in its rows were cleared. Upload the file again to import it.",
+      "uploadAgain": "Upload the file again"
     }
   },
   "customers": {

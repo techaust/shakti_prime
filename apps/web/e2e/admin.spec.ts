@@ -21,11 +21,8 @@ test.describe('as an Executive', () => {
     const grid = dataGrid(page, 'Team members');
     await expect(grid.getByText('Geeta Kumari')).toBeVisible();
     await expectNoAxeViolations(page);
-    // The main menu is left out of this picture: run alone, as in CI, it sometimes shows an
-    // entry (Converting) that a full run does not, and this screen's subject is the team.
-    await snap(page, 'team-members', {
-      mask: [page.getByRole('navigation', { name: 'Main menu' })],
-    });
+    // snap() leaves the main menu out of every picture (e2e/support/snap.ts).
+    await snap(page, 'team-members');
   });
 
   test('activity log', async ({ page }) => {

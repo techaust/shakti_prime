@@ -222,7 +222,7 @@ export async function listImportJobs(
   const rows = await ctx.tx
     .select({
       job: j,
-      file: { id: f.id, name: f.name, size: f.size },
+      file: { id: f.id, name: f.name, size: f.size, deletedAt: f.deletedAt },
       sortValue: sortText(order),
       creator: p.displayName,
     })

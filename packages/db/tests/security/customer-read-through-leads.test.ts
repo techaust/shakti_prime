@@ -1,3 +1,4 @@
+import { testPhone } from '@shakti/db/testing';
 import { SYSTEM_WORKERS_PRINCIPAL_ID } from '@shakti/contracts';
 import { newId, type Principal } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
@@ -174,7 +175,7 @@ beforeAll(async () => {
       const write = async (c: Customer, label: string, links: [number, Principal][]) => {
         await tx`insert into contacts (id, name, created_by) values (${c.contact}, ${label}, ${x.id})`;
         await tx`insert into contact_phones (id, contact_id, e164, is_primary, created_by)
-          values (${newId()}, ${c.contact}, ${`+9196${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`}, true, ${x.id})`;
+          values (${newId()}, ${c.contact}, ${`+91${testPhone()}`}, true, ${x.id})`;
         await tx`insert into accounts (id, type, name, created_by) values (${c.account}, 'farm', ${label}, ${x.id})`;
         for (const [entityId, owner] of links) {
           await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)

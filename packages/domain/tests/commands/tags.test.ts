@@ -7,6 +7,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -42,7 +43,7 @@ function run(principal: Principal, command: AnyCommand, input: unknown): Promise
 }
 
 const unique = (label: string): string => `${label} ${newId().slice(-6)}`;
-const phone = (): string => `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+const phone = (): string => testPhone();
 const reason = (r: string) => ({ details: { reason: r } });
 
 async function leadOf(owner: Principal, entityId = 1): Promise<string> {
@@ -114,6 +115,24 @@ describe('crm.tag.create and crm.tag.archive', () => {
 
   it('refuses a company outside the request', async () => {
     await expect(tag(teamLead, 2)).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  // Audit OPS-6: a caller holds no crm.lead.assign, and a team lead of company 1 finds no tag of
+  // company 2 to archive; both tags stay open.
+  it('archives no tag for a caller, nor a tag of another company', async () => {
+    const ours = await tag(teamLead, 1);
+    await expect(run(caller, archiveTag, { tagId: ours.id })).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    const theirs = await tag(everywhere, 2);
+    await expect(run(teamLead, archiveTag, { tagId: theirs.id })).rejects.toMatchObject(
+      reason('tag_missing'),
+    );
+    const open = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        select id from tags where id = any(${[ours.id, theirs.id]}::uuid[]) and archived_at is null`,
+    );
+    expect(open).toHaveLength(2);
   });
 
   it('archives a tag once; it can then not be put on a lead', async () => {

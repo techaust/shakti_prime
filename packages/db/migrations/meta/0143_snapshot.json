@@ -1,5 +1,5 @@
 {
-  "id": "cf45c44e-4a63-4076-bc57-874cd00ab07f",
+  "id": "4054df41-7e0e-411e-84a6-d64b9a42915b",
   "prevId": "bf6cd649-69e1-4384-bb9c-208e02863595",
   "version": "7",
   "dialect": "postgresql",
@@ -5520,6 +5520,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -5593,6 +5599,28 @@
           ],
           "isUnique": false,
           "where": "\"files\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "files_import_kept_idx": {
+          "name": "files_import_kept_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"files\".\"purpose\" = 'import' and \"files\".\"deleted_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5900,6 +5928,26 @@
           "primaryKey": false,
           "notNull": false
         },
+        "left_out_columns": {
+          "name": "left_out_columns",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "masked_values": {
+          "name": "masked_values",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "purged_at": {
+          "name": "purged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -5960,6 +6008,28 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "import_jobs_purge_idx": {
+          "name": "import_jobs_purge_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"import_jobs\".\"purged_at\" is null and \"import_jobs\".\"state\" <> 'committing'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -6079,6 +6149,10 @@
         "import_jobs_batch_count_check": {
           "name": "import_jobs_batch_count_check",
           "value": "\"import_jobs\".\"batch_count\" >= 0"
+        },
+        "import_jobs_left_out_columns_check": {
+          "name": "import_jobs_left_out_columns_check",
+          "value": "cardinality(\"import_jobs\".\"left_out_columns\") <= 50 and \"import_jobs\".\"masked_values\" >= 0"
         },
         "import_jobs_entity_ids_check": {
           "name": "import_jobs_entity_ids_check",

@@ -663,6 +663,11 @@ describe('crm.customer.merge and crm.customer.unmerge', () => {
     expect(
       await refusal(run(gm1, unmergeCustomers, { entityId: 1, mergeId: done.id })),
     ).toMatchObject(reason('merge_other_company'));
+    // Audit OPS-6: a caller holds no crm.lead.merge, so the undo is refused before it reads.
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    expect(
+      await refusal(run(caller, unmergeCustomers, { entityId: 1, mergeId: done.id })),
+    ).toMatchObject({ code: 'forbidden' });
     const undone = await run<{ undoneAt: string | null }>(exec, unmergeCustomers, {
       entityId: 1,
       mergeId: done.id,

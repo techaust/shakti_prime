@@ -268,6 +268,11 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 - *In the system until answered:* a customer and all their leads are anonymised once nothing about them has changed for 24 months, in every company that knows them, provided that no lead of theirs ever reached the Qualified stage or was won, and that they have no quote, order, commission, dealer credit or referral-partner record. A customer is kept, whatever the time, while they are a dealer or referral partner, while a company holds them as a customer without any lead, or while a merge of two customer records into theirs stands. Anonymising removes the person's name, numbers, email, address, village and notes everywhere, the history of changes included, and keeps the fact of each consent with its signed form, which holds the person's name; the CA says whether that form is kept or deleted too. A refused entry in the history of changes keeps none of the person's details from the start.
 - *Needed:* the CA's confirmation or changes.
 
+**FIN-3 · How long an import keeps the file it was given** — Owner, CA
+- *Proposed:* an uploaded import file (a list of leads or customers) is deleted once its rows are added, stopped or undone, and at the latest a week after it was uploaded; what each row of the file said (names, phone numbers, villages, notes) is cleared 30 days after the import ended or was last touched, which covers the two weeks of the parallel run and its count check, and the counts of what became of each row are kept. An Aadhaar number is never kept from an import at all: a column of them is left out when the file is read, and one written in another column keeps only its last four digits.
+- *In the system until answered:* the file is deleted at the next hourly run after its import ends, or after 7 days; the rows' details are cleared after 30 days (`WORKSHOP_DEFAULTS.retention.importFileOpenDays` and `importReconciliationDays`).
+- *Needed:* the owner's and the CA's confirmation or other periods.
+
 ### B8. People (HR) — needed before Phase 5
 
 **HR-1 · Attendance rules** — HR admin
@@ -392,6 +397,7 @@ Fill one row per question during the workshop. Items marked "bring" can be sent 
 | PROJ-4 | | | | |
 | FIN-1 | | | | |
 | FIN-2 | | | | |
+| FIN-3 | | | | |
 | HR-1 | | | | |
 | HR-2 | | | | |
 | HR-3 | | | | |
