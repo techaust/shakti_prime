@@ -122,6 +122,9 @@ export const QuoteDto = z
     supersededById: IdSchema.nullable(),
     supersededByNo: z.string().nullable(),
     withdrawnReason: z.string().nullable(),
+    /** The quote of the same lead whose acceptance withdrew this one (DOM-4), by id and number. */
+    withdrawnForId: IdSchema.nullable(),
+    withdrawnForNo: z.string().nullable(),
     /** How an accepted quote was accepted, its signed copy, and the order it became. */
     acceptedVia: QuoteAcceptedViaSchema.nullable(),
     signedFileId: IdSchema.nullable(),

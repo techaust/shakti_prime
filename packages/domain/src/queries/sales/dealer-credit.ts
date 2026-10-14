@@ -9,7 +9,7 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
-import { fromPaise, toPaise } from '../../money/paise';
+import { creditStanding } from '../../sales/credit-check';
 import {
   afterCursor,
   keysetOrder,
@@ -51,7 +51,6 @@ interface DealerCreditRow {
   termsAt: Date | string | null;
   outstanding: string | null;
   oldestUnpaidInvoiceDate: string | null;
-  oldestUnpaidAgeDays: number | null;
   oldestUnpaidInvoiceNo: string | null;
   asOf: string | null;
   confirmedUnpaid: string;
@@ -80,8 +79,6 @@ export function dealerCreditQuery(
            case when p.as_of is null then null else p.outstanding::numeric(14, 2)::text end
              as "outstanding",
            p.oldest_unpaid_invoice_date::text as "oldestUnpaidInvoiceDate",
-           ((now() at time zone 'Asia/Kolkata')::date - p.oldest_unpaid_invoice_date)
-             as "oldestUnpaidAgeDays",
            p.oldest_unpaid_invoice_no as "oldestUnpaidInvoiceNo",
            p.as_of::text as "asOf",
            p.confirmed_unpaid::numeric(14, 2)::text as "confirmedUnpaid"
@@ -98,11 +95,13 @@ export function dealerCreditQuery(
  * `/dealer-credit` (docs/03-roadmap-appendix/phase1.md §8.3, `sales.credit.write`): each dealer of the company
  * with its newest limit and days, its newest outstanding and the date it stands at, the confirmed
  * orders not yet in that figure, and the exposure the credit check reads (outstanding plus those
- * orders). Keyset paging by name.
+ * orders when SALE-5 counts them), with the age of the oldest unpaid invoice today in IST, both read
+ * by `creditStanding()` as the confirmation reads them (ARCH-5). Keyset paging by name.
  */
 export async function listDealerCredit(
   ctx: CreditContext,
   rawInput: unknown,
+  now: Date = new Date(),
 ): Promise<DealerCreditPageDto> {
   const input = parseQueryInput(ListDealerCreditInput, rawInput, 'sales.dealer_credit.list');
   const order = dealerOrder();
@@ -112,20 +111,33 @@ export async function listDealerCredit(
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return DealerCreditPageDto.parse({
-    items: page.map((row): DealerCreditRowDto => ({
-      accountId: row.accountId,
-      name: row.name,
-      creditLimit: row.creditLimit,
-      creditDays: row.creditDays,
-      termsAt: row.termsAt === null ? null : new Date(row.termsAt).toISOString(),
-      outstanding: row.outstanding,
-      oldestUnpaidInvoiceDate: row.oldestUnpaidInvoiceDate,
-      oldestUnpaidAgeDays: row.oldestUnpaidAgeDays,
-      oldestUnpaidInvoiceNo: row.oldestUnpaidInvoiceNo,
-      asOf: row.asOf,
-      confirmedUnpaid: row.confirmedUnpaid,
-      exposure: fromPaise(toPaise(row.outstanding ?? '0.00') + toPaise(row.confirmedUnpaid)),
-    })),
+    items: page.map((row): DealerCreditRowDto => {
+      const standing = creditStanding(
+        {
+          creditLimit: row.creditLimit,
+          creditDays: row.creditDays,
+          outstanding: row.outstanding ?? '0.00',
+          confirmedUnpaid: row.confirmedUnpaid,
+          oldestUnpaidInvoiceDate: row.oldestUnpaidInvoiceDate,
+        },
+        '0.00',
+        now,
+      );
+      return {
+        accountId: row.accountId,
+        name: row.name,
+        creditLimit: row.creditLimit,
+        creditDays: row.creditDays,
+        termsAt: row.termsAt === null ? null : new Date(row.termsAt).toISOString(),
+        outstanding: row.outstanding,
+        oldestUnpaidInvoiceDate: row.oldestUnpaidInvoiceDate,
+        oldestUnpaidAgeDays: standing.oldestUnpaidAgeDays,
+        oldestUnpaidInvoiceNo: row.oldestUnpaidInvoiceNo,
+        asOf: row.asOf,
+        confirmedUnpaid: row.confirmedUnpaid,
+        exposure: standing.exposure,
+      };
+    }),
     nextCursor: nextCursor(
       order,
       rows.length > input.limit,

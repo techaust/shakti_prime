@@ -11,14 +11,16 @@ import type {
 
 /**
  * The kind of customer and of site a walk-in's interest implies, so the counter asks neither. A
- * dealer's enquiry has no site of its own, so the form asks no village for it.
+ * dealer's enquiry enters as a business, since only an Executive makes a customer a dealer (the
+ * owner's decision of 13-10-2026), when their credit terms are set; it has no site of its own, so
+ * the form asks no village for it.
  */
 export const WALK_IN_KINDS: Record<Segment, { account: AccountType; site: SiteType | undefined }> =
   {
     farmer_pumps: { account: 'farm', site: 'borewell' },
     residential_rooftop: { account: 'household', site: 'rooftop' },
     commercial_epc: { account: 'business', site: 'rooftop' },
-    dealer_wholesale: { account: 'dealer', site: undefined },
+    dealer_wholesale: { account: 'business', site: undefined },
   };
 
 /** The lead source every walk-in lead carries (`lead_sources.code`). */

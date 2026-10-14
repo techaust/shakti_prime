@@ -249,10 +249,11 @@ describe('homeSales', () => {
         await quote('sent');
         await quote('accepted');
         const order = (total: string, state: string) => tx`
-          insert into sales_orders (id, entity_id, so_no, fy, quote_id, opportunity_id, account_id, tier_id,
+          insert into sales_orders (id, entity_id, so_no, fy, quote_id, opportunity_id, account_id, account_type, tier_id,
                                     place_of_supply_state, supply_kind, state, cancel_reason, confirmed_at,
                                     confirmed_by, subtotal, cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
-          values (${newId()}, ${E}, ${`HOME/${newId()}`}, '2098-99', ${newId()}, ${lead}, ${account}, ${ids.tier},
+          values (${newId()}, ${E}, ${`HOME/${newId()}`}, '2098-99', ${newId()}, ${lead}, ${account},
+                  (select type from accounts where id = ${account}), ${ids.tier},
                   '08', 'intra', ${state}, ${state === 'cancelled' ? 'test' : null}, ${NOW}, ${caller.id},
                   ${total}, 0, 0, 0, 0, 0, ${total}, ${caller.id})`;
         await order('1000.50', 'confirmed');
@@ -300,10 +301,10 @@ describe('homeCredit', () => {
                  (${newId()}, ${E}, ${ids.dealerFine}, 500.00, null, null,
                   (now() at time zone 'Asia/Kolkata')::date, ${exec.id})`;
         await tx`set local session_replication_role = replica`;
-        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id, place_of_supply_state,
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, account_type, tier_id, place_of_supply_state,
                     supply_kind, state, credit_held_at, credit_hold_reason, credit_hold_json,
                     subtotal, cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
-          values (${newId()}, ${E}, ${`HOME/${newId()}`}, '2098-99', ${ids.dealerOver}, ${ids.tier}, '08',
+          values (${newId()}, ${E}, ${`HOME/${newId()}`}, '2098-99', ${ids.dealerOver}, 'dealer', ${ids.tier}, '08',
                   'intra', 'draft', now(), 'credit_limit_exceeded', '{}'::jsonb, 0, 0, 0, 0, 0, 0, 0, ${exec.id})`;
       }),
     );

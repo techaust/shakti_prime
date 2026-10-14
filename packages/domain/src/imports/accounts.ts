@@ -64,13 +64,15 @@ function valueAt(candidate: Record<string, unknown>, path: readonly PropertyKey[
 /**
  * Checks one row of a customers file (docs/03-roadmap-appendix/phase1.md §6.3) and answers the customer it
  * becomes, or its findings, one per field. A blank company cell means the job's own company; a
- * company the request does not act for is refused. A site is added when the row gives a village.
+ * company the request does not act for is refused; a dealer only for a caller who may make one. A site is added when the row gives a village.
  */
 export function checkAccountRow(
   raw: Readonly<Record<string, string>>,
   mapping: AccountImportMapping,
   jobEntityId: number,
   companies: CompanyNames,
+  /** The caller holds `sales.credit.write` at company scope, so a row may add a dealer (DOM-1). */
+  mayMakeDealer: boolean,
 ): AccountRowCheck {
   const cell = (field: AccountImportField): string | undefined => {
     const column = mapping.columns[field];
@@ -126,6 +128,9 @@ export function checkAccountRow(
       else if (issue.code === 'too_big') add({ field, code: 'too_long' });
       else add({ field, code: 'invalid' });
     }
+  }
+  if (parsed.success && parsed.data.account.type === 'dealer' && !mayMakeDealer) {
+    add({ field: 'accountType', code: 'dealer_needs_executive' });
   }
   if (!parsed.success || errors.size > 0) {
     return { state: 'invalid', input: null, phone: null, errors: [...errors.values()] };

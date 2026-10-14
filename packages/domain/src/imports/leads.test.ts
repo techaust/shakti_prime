@@ -24,6 +24,7 @@ const mapping: LeadImportMapping = LeadImportMappingSchema.parse({
 const lookups = {
   pipelineKeys: new Set(['farmer_pumps']),
   sourceCodes: new Set(['import', 'walk_in']),
+  mayMakeDealer: false,
 };
 
 const row = (overrides: Record<string, string> = {}) => ({
@@ -85,6 +86,18 @@ describe('leads import rows', () => {
       ]),
     );
     expect(check.errors).toHaveLength(4);
+  });
+
+  it('adds a dealer only for a caller who may make one (DOM-1)', () => {
+    const dealer = row({ Type: 'Dealer' });
+    expect(checkLeadRow(dealer, mapping, 1, lookups)).toMatchObject({
+      state: 'invalid',
+      errors: [{ field: 'accountType', code: 'dealer_needs_executive' }],
+    });
+    expect(checkLeadRow(dealer, mapping, 1, { ...lookups, mayMakeDealer: true })).toMatchObject({
+      state: 'valid',
+      input: { account: { type: 'dealer' } },
+    });
   });
 
   it('flags a pipeline the entity does not have and a long name', () => {

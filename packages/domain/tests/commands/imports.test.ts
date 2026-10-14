@@ -363,6 +363,56 @@ describe('imports: create, map and preview', () => {
     });
   });
 
+  it('adds a dealer only for an Executive: a General Manager’s dealer rows are refused (DOM-1)', async () => {
+    const dealers = {
+      columns: { contactName: 'Name', phone: 'Mobile', village: 'Village' },
+      defaults: { pipelineKey: 'farmer_pumps', accountType: 'dealer', siteType: 'borewell' },
+    };
+    const preview = async (who: Principal) => {
+      const created = await run(
+        who,
+        createImportJob,
+        await fileInput(1, `Name,Mobile,Village\nDealer row,${phone()},Sikar\n`, who),
+      );
+      await run(who, mapImportJob, { entityId: 1, jobId: created.id, mapping: dealers });
+      await run(who, previewImportJob, { entityId: 1, jobId: created.id });
+      return rowsOf(who, created.id);
+    };
+    expect((await preview(gm)).map((r) => [r.state, r.errors])).toEqual([
+      ['invalid', [{ field: 'accountType', code: 'dealer_needs_executive' }]],
+    ]);
+    expect((await preview(executive)).map((r) => r.state)).toEqual(['valid']);
+  });
+
+  it('sets a dealer row aside when someone without the right commits an Executive’s preview (DOM-1)', async () => {
+    const mixed = {
+      columns: { contactName: 'Name', phone: 'Mobile', village: 'Village', accountType: 'Type' },
+      defaults: { pipelineKey: 'farmer_pumps', siteType: 'borewell' },
+    };
+    const created = await run(
+      executive,
+      createImportJob,
+      await fileInput(
+        1,
+        `Name,Mobile,Village,Type\nFarm row,${phone()},Sikar,Farm\nDealer row,${phone()},Sikar,Dealer\n`,
+        executive,
+      ),
+    );
+    await run(executive, mapImportJob, { entityId: 1, jobId: created.id, mapping: mixed });
+    await run(executive, previewImportJob, { entityId: 1, jobId: created.id });
+    await run(gm, commitImportJob, { entityId: 1, jobId: created.id });
+    const done = await run(gm, commitImportBatch, { entityId: 1, jobId: created.id });
+    expect(done).toMatchObject({
+      state: 'committed',
+      committedRows: 1,
+      validRows: 1,
+      invalidRows: 1,
+    });
+    const rows = await rowsOf(gm, created.id);
+    expect(rows.map((r) => r.state)).toEqual(['committed', 'invalid']);
+    expect(rows[1]?.errors).toEqual([{ field: 'accountType', code: 'dealer_needs_executive' }]);
+  });
+
   it('suggests a customer with the same name in the same village, and says why', async () => {
     // Letters and digits only, so the name and village differ from every earlier run's.
     const tag = newId().replace(/-/g, '').slice(-10);

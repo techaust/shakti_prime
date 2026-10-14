@@ -52,9 +52,29 @@ async function accountsInUse(
 }
 
 /**
- * Undoes one chunk of records, answering how many it archived or removed: leads are archived;
- * customers are archived unless one is in use (`inUse`); the offices the job added to the PIN code
- * master are removed, and the sites with their PINs are checked again.
+ * The leads of one chunk that are now in use, which the rollback keeps (DOM-3): a lead with a
+ * quote, an order or a call, or a sizing, a timeline row, a tag or a change by someone other than
+ * the importer (`app.import_leads_in_use`, which sees past the caller's scope). The helper first
+ * locks the chunk's leads until the transaction ends, so none is quoted, ordered or called between
+ * its answer and the archiving.
+ */
+async function leadsInUse(
+  tx: RequestTx,
+  jobId: string,
+  ids: readonly string[],
+): Promise<ReadonlySet<string>> {
+  if (ids.length === 0) return NONE;
+  const rows = (await tx.execute(
+    sql`select app.import_leads_in_use(${jobId},
+          array(select jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb)::uuid)) as id`,
+  )) as unknown as { id: string }[];
+  return new Set(rows.map((row) => row.id));
+}
+
+/**
+ * Undoes one chunk of records, answering how many it archived or removed: leads and customers are
+ * archived unless one is in use (`inUse`); the offices the job added to the PIN code master are
+ * removed, and the sites with their PINs are checked again.
  */
 async function undo(
   ctx: CommandContext,
@@ -67,16 +87,14 @@ async function undo(
   const actor = ctx.principal.id;
   if (kind === 'leads') {
     const o = schema.opportunities;
-    const visible = await tx
-      .select({ id: o.id })
-      .from(o)
-      .where(inArray(o.id, [...ids]))
-      .for('update');
-    if (visible.length !== ids.length) throw blocked();
+    const free = ids.filter((id) => !inUse.has(id));
+    if (free.length === 0) return 0;
+    const visible = await tx.select({ id: o.id }).from(o).where(inArray(o.id, free)).for('update');
+    if (visible.length !== free.length) throw blocked();
     const changed = await tx
       .update(o)
       .set({ archivedAt: ctx.now, updatedBy: actor })
-      .where(and(inArray(o.id, [...ids]), isNull(o.archivedAt)))
+      .where(and(inArray(o.id, free), isNull(o.archivedAt)))
       .returning({ id: o.id });
     return changed.length;
   }
@@ -107,12 +125,16 @@ async function undo(
 
 /**
  * `imports.job.rollback` (design §8): undoes what the job made, newest row first in batches of
- * 500, and marks those rows rolled back. Leads are archived, and the customers they made stay in
- * the shared customer master (ADR 0008), where another company or a later lead may already use
- * them. A customers file's new customers are archived, except one now in use in any company (a
- * live lead, a consent, a company that took the customer on since, or an activity or a lead's tag
- * someone other than the importer added: `app.import_accounts_in_use`, asked chunk by chunk under
- * a lock on the chunk's customers, and seeing past the caller's companies); a customer a row was
+ * 500, and marks those rows rolled back. Leads are archived, except one now in use (a quote, an
+ * order or a call, or a sizing, a timeline row, a tag or a change by someone other than the
+ * importer: `app.import_leads_in_use`, DOM-3), which is kept and counted as kept; the customers
+ * they made stay in the shared customer master (ADR 0008), where another company or a later lead
+ * may already use them. A customers file's new customers are archived, except one now in use in
+ * any company (a live lead, a consent, a company that took the customer on since, an activity or a
+ * lead's tag someone other than the importer added, a quote, an order, dealer terms or outstanding,
+ * a call, or a change to the customer by someone else: `app.import_accounts_in_use`, DOM-V1),
+ * asked chunk by chunk under a lock on the chunk's records, and seeing past the caller's
+ * companies; a customer a row was
  * linked to keeps the companies the row added. The request must act for every company the rows name. The offices a PIN code file
  * added are removed and the sites with their PINs checked again; an office it corrected keeps the
  * correction. A record the caller can no longer change stops the whole rollback, so nothing is
@@ -164,7 +186,12 @@ export const rollbackImportJob = defineCommand({
           }),
         ),
       ];
-      const inUse = kind === 'accounts' ? await accountsInUse(ctx.tx, job.id, ids) : NONE;
+      const inUse =
+        kind === 'accounts'
+          ? await accountsInUse(ctx.tx, job.id, ids)
+          : kind === 'leads'
+            ? await leadsInUse(ctx.tx, job.id, ids)
+            : NONE;
       kept += inUse.size;
       archived += await undo(ctx, ctx.tx, kind, ids, inUse);
       await ctx.tx

@@ -14,6 +14,8 @@ export type LeadRowCheck =
 export interface LeadRowLookups {
   pipelineKeys: ReadonlySet<string>;
   sourceCodes: ReadonlySet<string>;
+  /** The caller holds `sales.credit.write` at company scope, so a row may add a dealer (DOM-1). */
+  mayMakeDealer: boolean;
 }
 
 /** Lead sources a file row falls back to when it names none. */
@@ -140,6 +142,9 @@ export function checkLeadRow(
   const sourceCode = candidate.sourceCode;
   if (typeof sourceCode === 'string' && !lookups.sourceCodes.has(sourceCode)) {
     add({ field: 'sourceCode', code: 'source_unknown' });
+  }
+  if (parsed.success && parsed.data.account?.type === 'dealer' && !lookups.mayMakeDealer) {
+    add({ field: 'accountType', code: 'dealer_needs_executive' });
   }
 
   if (!parsed.success || errors.size > 0) {

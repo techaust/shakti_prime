@@ -164,6 +164,15 @@ export async function readQuote(
     .from(q)
     .where(eq(q.supersedesId, row.id))
     .limit(1);
+  // The quote of the lead accepted in this one's place, by its key.
+  const [acceptedInstead] =
+    row.withdrawnForId === null
+      ? []
+      : await ctx.tx
+          .select({ quoteNo: q.quoteNo })
+          .from(q)
+          .where(eq(q.id, row.withdrawnForId))
+          .limit(1);
   // The order an accepted quote became, by its unique key (read with the lead, as the quote is).
   const so = schema.salesOrders;
   const [order] = await ctx.tx
@@ -218,6 +227,8 @@ export async function readQuote(
     supersededById: after?.id ?? null,
     supersededByNo: after?.quoteNo ?? null,
     withdrawnReason: quote.withdrawnReason,
+    withdrawnForId: quote.withdrawnForId,
+    withdrawnForNo: acceptedInstead?.quoteNo ?? null,
     acceptedVia:
       quote.acceptedVia === null ? null : QuoteAcceptedViaSchema.parse(quote.acceptedVia),
     signedFileId: quote.signedFileId,

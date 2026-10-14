@@ -56,6 +56,7 @@ export const requoteQuote = defineCommand({
           worksContract: line.worksContract,
         })),
       }),
+      true,
     );
     const id = await saveQuote(ctx, built, old.id);
 

@@ -1,5 +1,6 @@
 import {
   newId,
+  type AccountType,
   type PlaceOfSupply,
   type QuoteLineDto,
   type QuoteTotalsDto,
@@ -11,6 +12,7 @@ import { nextDocumentNo } from '../numbering/next-document-no';
 /** The keys an order's audit rows record besides its ids (`auditFields` of the order commands). */
 export const ORDER_AUDIT_FIELDS = [
   'soNo',
+  'accountType',
   'orderState',
   'lineCount',
   'grandTotal',
@@ -26,6 +28,8 @@ export interface OrderToSave {
   entityId: number;
   entityCode: string;
   accountId: string;
+  /** The customer's type now, which the order keeps (DOM-1; the insert policy checks it). */
+  accountType: AccountType;
   /** For an order of an accepted quote: the quote and its lead; null for a dealer's own order. */
   quoteId: string | null;
   opportunityId: string | null;
@@ -58,6 +62,7 @@ export async function saveSalesOrder(
     quoteId: order.quoteId,
     opportunityId: order.opportunityId,
     accountId: order.accountId,
+    accountType: order.accountType,
     siteId: order.siteId,
     tierId: order.tierId,
     priceListId: order.priceListId,
@@ -85,6 +90,7 @@ export async function saveSalesOrder(
       quoteId: order.quoteId,
       opportunityId: order.opportunityId,
       accountId: order.accountId,
+      accountType: order.accountType,
       tierId: order.tierId,
       priceListId: order.priceListId,
       lineCount: order.lines.length,

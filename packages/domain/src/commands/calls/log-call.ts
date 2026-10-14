@@ -1,4 +1,5 @@
 import {
+  CALL_DURATION_MAX_SECONDS,
   CALLBACK_MAX_DAYS,
   DispositionNextActionSchema,
   DomainError,
@@ -18,7 +19,7 @@ import { defineCommand } from '../../command/define-command';
 import { callConsentWithdrawn } from '../../queries/calls/consent';
 import { effectiveDispositions } from '../../queries/crm/pipeline-settings';
 import { afterUnanswered, unansweredAttempts } from '../../telecom/call-schedule';
-import { withinCallingHours } from '../../telecom/dial-policy';
+import { callLogRefusal, withinCallingHours } from '../../telecom/dial-policy';
 import { cancelCallTasks, createCallTask } from '../crm/call-tasks';
 import { loseOpportunity } from '../crm/lose-opportunity';
 import { moveOpportunityStage } from '../crm/move-opportunity-stage';
@@ -26,6 +27,7 @@ import { nurtureOpportunity } from '../crm/nurture-opportunity';
 import { lockOpportunity, requireEntity, type OpportunityRow } from '../crm/opportunity-shared';
 import { reopenOpportunity } from '../crm/reopen-opportunity';
 import { completeTask } from '../crm/tasks';
+import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 
 const DAY_MS = 86_400_000;
 
@@ -34,6 +36,30 @@ const QUALIFIED_STAGE = 'qualified';
 
 function refuse(code: 'validation_failed' | 'conflict', reason: string, message: string): never {
   throw new DomainError(code, message, { reason });
+}
+
+/**
+ * When the call started (DOM-6): the start the calling screen gives (when Dial showed the number),
+ * but never later than now less the call's duration, so a device clock running fast neither moves
+ * a call past 9 AM nor makes a call start after it was logged, and a retry with the same start is
+ * taken. A given start older than the longest call and the logging grace is not a call's start
+ * (`call_start_invalid`). Without one, the call started its duration before now.
+ */
+function callStart(now: Date, durationS: number | null, given: string | undefined): Date {
+  const latest = now.getTime() - (durationS ?? 0) * 1000;
+  if (given === undefined) return new Date(latest);
+  const at = new Date(given).getTime();
+  const earliest =
+    now.getTime() -
+    ((durationS ?? CALL_DURATION_MAX_SECONDS) + WORKSHOP_DEFAULTS.calling.logGraceMinutes * 60) *
+      1000;
+  if (at < earliest) {
+    throw new DomainError('validation_failed', 'the call start is not possible', {
+      reason: 'call_start_invalid',
+      issues: [{ path: 'startedAt', message: 'call_start_invalid' }],
+    });
+  }
+  return new Date(Math.min(at, latest));
 }
 
 /** What the outcome needs beyond itself, checked before anything is written. */
@@ -175,8 +201,13 @@ async function before(
  * A nurtured lead called on its nurture call is opened again for a callback or a qualified
  * outcome; other outcomes leave it in nurture or lose it. Each step runs through its own command
  * in this transaction, so it is guarded, audited and on the timeline as when done by hand.
- * Refused outside calling hours (`outside_calling_hours`) and for a customer who withdrew consent
- * to calls (`call_consent_withdrawn`). For people only.
+ * Refused for a call that started outside calling hours (`outside_calling_hours`: the start is the
+ * time the calling screen gives, when Dial was pressed, else now less the duration, and is what the
+ * call keeps, never later than now less the duration; a start older than the longest call and the
+ * grace is `call_start_invalid`), or logged more than
+ * `WORKSHOP_DEFAULTS.calling.logGraceMinutes` (CALL-8) after calling hours ended on its day
+ * (`call_logged_too_late`), and for a customer who withdrew consent to calls
+ * (`call_consent_withdrawn`). For people only.
  */
 export const logCall = defineCommand({
   name: 'calls.call.log',
@@ -193,8 +224,13 @@ export const logCall = defineCommand({
     if (state !== 'open' && state !== 'nurture') {
       refuse('conflict', 'call_lead_closed', `lead ${lead.id} is ${state}`);
     }
-    if (!withinCallingHours(ctx.now)) {
-      refuse('validation_failed', 'outside_calling_hours', 'calls are logged in calling hours');
+    // Calling hours hold for the call's real start (DOM-6): the time Dial was pressed, else its
+    // duration before now.
+    const durationS = input.durationSeconds ?? null;
+    const startedAt = callStart(ctx.now, durationS, input.startedAt);
+    const late = callLogRefusal(startedAt, ctx.now);
+    if (late !== undefined) {
+      refuse('validation_failed', late, 'a call is logged for a start in calling hours');
     }
     if (await callConsentWithdrawn(ctx.tx, lead.accountId)) {
       refuse('conflict', 'call_consent_withdrawn', 'the customer withdrew consent to calls');
@@ -219,8 +255,6 @@ export const logCall = defineCommand({
     const callbackAt = checkOutcomeInput(ctx, nextAction, input, state);
 
     const attemptNo = unansweredAttempts(await lastCall(ctx, lead.id), lead.stateChangedAt) + 1;
-    const durationS = input.durationSeconds ?? null;
-    const startedAt = new Date(ctx.now.getTime() - (durationS ?? 0) * 1000);
     const callId = newId();
     const [call] = await ctx.tx
       .insert(schema.calls)

@@ -33,9 +33,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // A bounded row continues the rate or rule it cut (DOM-7), so the rows of this file's far-off
+  // dates go too, whichever command made them.
   await asMigrator(async (m) => {
-    await m`delete from tax_rates where id = any(${[...created.rates]}::uuid[])`;
-    await m`delete from composite_supply_rules where id = any(${[...created.rules]}::uuid[])`;
+    await m`delete from tax_rates
+             where id = any(${[...created.rates]}::uuid[]) or effective_from >= ${FAR_OFF}::date`;
+    await m`delete from composite_supply_rules
+             where id = any(${[...created.rules]}::uuid[]) or effective_from >= ${FAR_OFF}::date`;
   });
   await closeDb();
 });
@@ -65,6 +69,9 @@ const refusedByPolicy = (e: unknown) =>
 function hsn(): string {
   return String(10_000_000 + Math.floor(Math.random() * 89_999_999));
 }
+
+/** The first day of the far-off years `dates()` draws from. */
+const FAR_OFF = '3000-01-01';
 
 /** `YYYY-MM-DD`, `days` after a random day far from any real or fixture period. */
 function dates(): (days: number) => string {
@@ -183,6 +190,42 @@ describe('tax.rate.set', () => {
     expect(await effectiveTo('tax_rates', open.id)).toBeNull();
   });
 
+  it('carries the open rate on after a bounded rate recorded inside it, so no day has no rate (DOM-7)', async () => {
+    const code = hsn();
+    const day = dates();
+    const open = await rate(accounts, {
+      hsn: code,
+      ratePct: '18.00',
+      effectiveFrom: day(0),
+      sourceRef: 'notification 1/2025',
+    });
+    const bounded = await rate(accounts, {
+      hsn: code,
+      ratePct: '12.00',
+      effectiveFrom: day(30),
+      effectiveTo: day(60),
+    });
+    expect(bounded).toMatchObject({ effectiveFrom: day(30), effectiveTo: day(60) });
+    const rows = await asMigrator(
+      (m) => m<{ rate: string; from: string; to: string | null; source: string | null }[]>`
+        select rate_pct::text as rate, effective_from::text as from, effective_to::text as to,
+               source_ref as source
+          from tax_rates where hsn = ${code} order by effective_from`,
+    );
+    expect(rows).toEqual([
+      { rate: '18.00', from: day(0), to: day(30), source: 'notification 1/2025' },
+      { rate: '12.00', from: day(30), to: day(60), source: null },
+      { rate: '18.00', from: day(60), to: null, source: 'notification 1/2025' },
+    ]);
+    expect(await effectiveTo('tax_rates', open.id)).toBe(day(30));
+    // An open-ended rate continues nothing: it ends the open one and stands alone.
+    await rate(accounts, { hsn: code, ratePct: '5.00', effectiveFrom: day(90) });
+    const [count] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from tax_rates where hsn = ${code}`,
+    );
+    expect(count?.n).toBe(4);
+  });
+
   it('sets the rate of one item, and refuses an item that does not exist', async () => {
     const day = dates();
     await expect(
@@ -252,9 +295,22 @@ describe('tax.composite.set', () => {
       code: 'validation_failed',
       details: { reason: 'composite_rule_overlap' },
     });
-    // Close the open split so no later run or suite meets an open period on this segment.
+    // A bounded split inside the open one: the open split carries on after it (DOM-7).
     await rule(accounts, { ...split, effectiveFrom: day(20), effectiveTo: day(30) });
     expect(await effectiveTo('composite_supply_rules', second.id)).toBe(day(20));
+    const after = await asMigrator(
+      (m) => m<{ goods: string; services: string; to: string | null }[]>`
+        select goods_share_pct::text as goods, services_share_pct::text as services,
+               effective_to::text as to
+          from composite_supply_rules where segment = ${SEGMENT} and effective_from = ${day(30)}`,
+    );
+    expect(after).toEqual([{ goods: '60.00', services: '40.00', to: null }]);
+    // Close it so no later test of this run meets an open period on this segment.
+    await rule(accounts, { ...split, effectiveFrom: day(40), effectiveTo: day(50) });
+    await asMigrator(
+      (m) => m`delete from composite_supply_rules
+                where segment = ${SEGMENT} and effective_from = ${day(50)}`,
+    );
   });
 
   it('is refused to Accounts acting for one company, by the command and by the database', async () => {

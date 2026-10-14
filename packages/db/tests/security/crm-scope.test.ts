@@ -489,6 +489,35 @@ describe('write policies', () => {
     expect(await updateScore(fx.principals.gm, fx.leads.c[0] ?? '')).toBe(1);
   });
 
+  it('a lead keeps its customer, company, maker and key: no request changes them (SEC-4)', async () => {
+    // A caller pointing their own lead at a colleague's customer would read that customer through
+    // the lead (0057); the column grants refuse the change before any policy is asked.
+    const denied = (e: unknown) =>
+      e instanceof Error &&
+      e.cause instanceof Error &&
+      e.cause.message.includes('permission denied for table opportunities');
+    const lead = fx.leads.a[0] ?? '';
+    for (const change of [
+      sql`account_id = ${fx.accounts.b[0] ?? ''}`,
+      sql`created_by = ${fx.principals.b.id}`,
+      sql`entity_id = entity_id`,
+      sql`id = id`,
+      sql`pipeline_id = pipeline_id`,
+      sql`site_id = site_id`,
+      sql`source_id = source_id`,
+    ]) {
+      for (const who of [fx.principals.a, fx.principals.gm]) {
+        await expect(
+          asPrincipal(who, ({ tx }) =>
+            tx.execute(sql`update opportunities set ${change} where id = ${lead}`),
+          ),
+        ).rejects.toSatisfy(denied);
+      }
+    }
+    // What the commands change still changes.
+    expect(await updateScore(fx.principals.a, lead)).toBe(1);
+  });
+
   it('a caller cannot hand their lead to someone else by changing owner_id', async () => {
     await expect(
       asPrincipal(fx.principals.a, ({ tx }) =>

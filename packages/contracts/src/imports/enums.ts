@@ -211,5 +211,7 @@ export const ImportRowErrorCodeSchema = z.enum([
   'customer_held_by_colleague',
   'company_unknown',
   'state_unknown',
+  // Only a holder of sales.credit.write adds a dealer (DOM-1, the owner's decision of 13-10-2026).
+  'dealer_needs_executive',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

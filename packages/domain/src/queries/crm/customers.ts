@@ -560,6 +560,8 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     canManageTags: hasGrant(perms, 'crm.lead.assign', 'own'),
     // A tier decides every price the customer is quoted: an Executive's (`crm.account.tier.set`).
     canSetTier: hasGrant(perms, 'pricing.write', 'all') && covers('crm.account.write'),
+    // Whether a customer is a dealer decides their credit check: the Executive's (owner, 13-10-2026).
+    canChangeDealer: hasGrant(perms, 'sales.credit.write', 'entity') && covers('crm.account.write'),
     canQuote: hasGrant(perms, 'sales.quote.create', 'own'),
     quotes,
     canOrder: here.account.type === 'dealer' && covers('sales.order.create'),

@@ -113,7 +113,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // definers (DATABASE §4.1).
     duplicate_candidates: { i: true, u: false },
     customer_merges: { i: false, u: false },
-    // A quote changes only its state and withdrawal reason (column grants, 0110); its lines and
+    // A lead changes only what the commands change (its stage, owner, team, state, lock, score,
+    // referral partner and stamps; column grants, SEC-4), never its customer or company.
+    opportunities: { i: true, u: false },
+    // A quote changes only its state and withdrawal (column grants, 0110 and DOM-4); its lines and
     // versions are append-only.
     quotes: { i: true, u: false },
     quote_lines: { i: true, u: false },

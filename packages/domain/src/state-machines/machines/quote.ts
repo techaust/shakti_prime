@@ -12,7 +12,8 @@ export const QUOTE_STATES = [
   'withdrawn',
 ] as const;
 export type QuoteMachineState = (typeof QUOTE_STATES)[number];
-export type QuoteEvent = 'create' | 'send' | 'accept' | 'expire' | 'requote' | 'withdraw';
+export type QuoteEvent =
+  'create' | 'send' | 'accept' | 'expire' | 'requote' | 'withdraw' | 'order.cancel';
 
 export const QUOTE_ACCEPTED_VIA = ['whatsapp_reply', 'whatsapp_otp', 'signed_upload'] as const;
 export type QuoteAcceptedVia = (typeof QUOTE_ACCEPTED_VIA)[number];
@@ -137,7 +138,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
   ],
   states: QUOTE_STATES,
   initial: 'draft',
-  terminal: ['accepted', 'superseded', 'withdrawn'],
+  terminal: ['superseded', 'withdrawn'],
   stored: { table: 'quotes', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   stateNotes: {
     expired: 'Past `valid_until`; only a re-quote at current prices continues the sale.',
@@ -212,6 +213,17 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       permission: 'sales.quote.send',
       emits: 'sales.quote.withdrawn',
       guard: reasonGiven(),
+    },
+    {
+      from: ['accepted'],
+      event: 'order.cancel',
+      to: 'withdrawn',
+      permission: 'sales.order.cancel',
+      scope: 'entity',
+      system: true,
+      emits: 'sales.quote.withdrawn',
+      guard: reasonGiven(),
+      note: '`sales.order.cancel` of the order an accepted quote made, draft or confirmed, withdraws the quote with the cancel reason, keeping how it was accepted, so the lead may be quoted and accepted again (DOM-4); the lead of a confirmed order stays won.',
     },
   ],
 });

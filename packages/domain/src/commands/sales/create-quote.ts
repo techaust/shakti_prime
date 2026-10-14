@@ -25,7 +25,7 @@ export const createQuote = defineCommand({
   auditFields: [...QUOTE_AUDIT_FIELDS],
   constraintReasons: { quotes_entity_quote_no_unique: 'concurrent_change' },
   async handler(ctx, input) {
-    const built = await buildQuote(ctx, input);
+    const built = await buildQuote(ctx, input, true);
     const id = await saveQuote(ctx, built, null);
     return readQuote(ctx, built.lead.entityId, id);
   },

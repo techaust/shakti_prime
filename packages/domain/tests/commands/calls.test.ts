@@ -246,6 +246,138 @@ describe('calls.log: what every call records', () => {
     }
   });
 
+  it("checks calling hours on the call's start, with a short grace after 9 PM (DOM-6)", async () => {
+    // Started at 20:58 (five minutes before it is logged at 21:03): in hours, and kept as its start.
+    const late = await log(
+      caller,
+      await leadOf(caller),
+      'retry',
+      { durationSeconds: 300 },
+      ist('2030-03-04T21:03:00'),
+    );
+    expect(late.call.startedAt).toBe(ist('2030-03-04T20:58:00').toISOString());
+    // The same call logged at 21:15 still counts; one second later the grace is over.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { durationSeconds: 1020 },
+        ist('2030-03-04T21:15:00'),
+      ),
+    ).resolves.toMatchObject({ call: { startedAt: ist('2030-03-04T20:58:00').toISOString() } });
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { durationSeconds: 1021 },
+        ist('2030-03-04T21:15:01'),
+      ),
+    ).rejects.toMatchObject(reason('call_logged_too_late'));
+    // Logged at 09:05 after 15 minutes, it started at 08:50, before calling hours: refused.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { durationSeconds: 900 },
+        ist('2030-03-04T09:05:00'),
+      ),
+    ).rejects.toMatchObject(reason('outside_calling_hours'));
+  });
+
+  it('checks hours on the real start the screen gives, so a short call from 20:58 logs at 21:01 (DOM-6)', async () => {
+    const started = ist('2030-03-04T20:58:00');
+    for (const extra of [{}, { durationSeconds: 30 }]) {
+      const logged = await log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: started.toISOString(), ...extra },
+        ist('2030-03-04T21:01:00'),
+      );
+      expect(logged.call.startedAt).toBe(started.toISOString());
+    }
+    // The same call logged after the grace, or a start from 21:00, is refused.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: started.toISOString() },
+        ist('2030-03-04T21:15:01'),
+      ),
+    ).rejects.toMatchObject(reason('call_logged_too_late'));
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: ist('2030-03-04T21:00:00').toISOString() },
+        ist('2030-03-04T21:01:00'),
+      ),
+    ).rejects.toMatchObject(reason('outside_calling_hours'));
+    // A given start never runs past now less the call's length: it is clamped, not refused, so
+    // a device clock running fast changes nothing and a retry with the same start is taken.
+    for (const attempt of [1, 2]) {
+      const clamped = await log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: ist('2030-03-04T20:58:00').toISOString(), durationSeconds: 600 },
+        ist('2030-03-04T21:01:00'),
+      );
+      expect([attempt, clamped.call.startedAt]).toEqual([
+        attempt,
+        ist('2030-03-04T20:51:00').toISOString(),
+      ]);
+    }
+    const ahead = await log(
+      caller,
+      await leadOf(caller),
+      'retry',
+      { startedAt: ist('2030-03-04T10:05:00').toISOString() },
+      ist('2030-03-04T10:00:00'),
+    );
+    expect(ahead.call.startedAt).toBe(ist('2030-03-04T10:00:00').toISOString());
+    // Logged at 08:59 with a start of 09:00:30 from a fast clock: the call started before 9 AM.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: ist('2030-03-04T09:00:30').toISOString() },
+        ist('2030-03-04T08:59:00'),
+      ),
+    ).rejects.toMatchObject(reason('outside_calling_hours'));
+    // A start far older than any call is not this call's.
+    await expect(
+      log(
+        caller,
+        await leadOf(caller),
+        'retry',
+        { startedAt: ist('2030-03-04T09:00:00').toISOString(), durationSeconds: 60 },
+        ist('2030-03-04T15:00:00'),
+      ),
+    ).rejects.toMatchObject(reason('call_start_invalid'));
+  });
+
+  it('takes a Lead Converter’s 20:58 call, logged on the Converting workspace at 21:01 (DOM-6)', async () => {
+    const converter = await createTestPrincipal('tele_caller_lc', [ENTITY], { teamId });
+    const logged = await log(
+      converter,
+      await leadOf(converter),
+      'retry',
+      { startedAt: ist('2030-03-04T20:58:00').toISOString() },
+      ist('2030-03-04T21:01:00'),
+    );
+    expect(logged.call).toMatchObject({
+      callerId: converter.id,
+      startedAt: ist('2030-03-04T20:58:00').toISOString(),
+    });
+  });
+
   it('is refused for a customer who withdrew consent to calls, until a new consent', async () => {
     const lead = await leadOf(caller);
     const [contact] = await asMigrator(

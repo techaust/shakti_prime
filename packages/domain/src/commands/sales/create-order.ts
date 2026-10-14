@@ -1,4 +1,4 @@
-import { CreateSalesOrderInput, SalesOrderDto } from '@shakti/contracts';
+import { AccountTypeSchema, CreateSalesOrderInput, SalesOrderDto } from '@shakti/contracts';
 import { defineCommand } from '../../command/define-command';
 import { readSalesOrder } from '../../queries/sales/order-dto';
 import { buildDealerOrder } from '../../queries/sales/order-facts';
@@ -27,6 +27,7 @@ export const createSalesOrder = defineCommand({
       entityId: built.dealer.entityId,
       entityCode: built.dealer.entityCode,
       accountId: built.dealer.accountId,
+      accountType: AccountTypeSchema.parse(built.dealer.type),
       quoteId: null,
       opportunityId: null,
       siteId: null,

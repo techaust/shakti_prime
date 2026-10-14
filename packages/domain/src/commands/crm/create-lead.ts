@@ -1,4 +1,10 @@
-import { CreateLeadInput, CreateLeadResultDto, DomainError, newId } from '@shakti/contracts';
+import {
+  CreateLeadInput,
+  CreateLeadResultDto,
+  DomainError,
+  hasGrant,
+  newId,
+} from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { ActivityRecord } from '../../activities/activity';
@@ -215,6 +221,16 @@ export const createLead = defineCommand({
           name: contactInput.name,
         });
         if (open !== undefined) return attachEnquiry(ctx, input, open, contactInput.phone);
+      }
+      // Only an Executive makes a customer a dealer, at creation as on Account 360 (DOM-1, the
+      // owner's decision of 13-10-2026); the trigger `accounts_type_guard` refuses it too.
+      if (
+        accountInput.type === 'dealer' &&
+        !hasGrant(ctx.principal.permissions, 'sales.credit.write', 'entity')
+      ) {
+        throw new DomainError('forbidden', 'a new dealer needs sales.credit.write', {
+          reason: 'account_type_needs_credit',
+        });
       }
       // No `returning` here: the row becomes visible only once its relationship row exists, and
       // Postgres applies the select policy to returned rows.
