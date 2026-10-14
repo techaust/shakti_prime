@@ -58,6 +58,7 @@ function file(entityId: number, purpose: 'entity_logo' | 'letterhead', contentTy
     status: 'ready',
     createdBy: newId(),
     originalKey: undefined,
+    deletedAt: null,
   } satisfies StoredFile;
 }
 

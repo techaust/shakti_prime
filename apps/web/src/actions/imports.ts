@@ -102,7 +102,8 @@ export async function startImport(
     if (
       file?.purpose !== 'import' ||
       file.entityId !== input.entityId ||
-      file.createdBy !== principal.id
+      file.createdBy !== principal.id ||
+      file.deletedAt !== null
     ) {
       throw new DomainError('not_found', 'the import file is not available', {
         reason: 'import_file_missing',
@@ -138,6 +139,8 @@ export async function startImport(
         format: parsed.format,
         columns: parsed.columns,
         rows: parsed.rows,
+        leftOutColumns: parsed.leftOutColumns,
+        maskedValues: parsed.maskedValues,
       },
       commandOptions(meta, idempotencyKey),
     );

@@ -20,6 +20,7 @@ import { checkPinCodeRow } from '../../imports/pin-codes';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertNotPurged,
   implementedKind,
   jobState,
   loadJob,
@@ -437,6 +438,8 @@ export const previewImportJob = defineCommand({
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
     const before = jobState(loaded.job);
     assertImportJobMove(before, 'previewed');
+    // Only a job left before adding is purged with nowhere to go; a finished one says its state.
+    assertNotPurged(loaded.job);
     if (loaded.job.mappingJson === null) {
       throw new DomainError('conflict', 'the job has no mapping', { reason: 'import_job_state' });
     }

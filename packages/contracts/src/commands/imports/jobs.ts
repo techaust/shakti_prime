@@ -162,6 +162,18 @@ export const CreateImportJobInput = z
       .array(z.array(z.string().max(IMPORT_LIMITS.maxCellLength)).max(IMPORT_LIMITS.maxColumns))
       .min(1)
       .max(IMPORT_LIMITS.maxRows),
+    /**
+     * The columns the reader left out because they hold Aadhaar numbers, by the names the file
+     * gave them; the command checks the rows again and adds any it finds.
+     */
+    leftOutColumns: z.array(ImportColumnSchema).max(IMPORT_LIMITS.maxColumns).default([]),
+    /** Cells the reader found an Aadhaar number in, among other text, and masked. */
+    maskedValues: z
+      .number()
+      .int()
+      .min(0)
+      .max(IMPORT_LIMITS.maxRows * IMPORT_LIMITS.maxColumns)
+      .default(0),
   })
   .strict()
   .refine((v) => v.rows.every((r) => r.length <= v.columns.length), {

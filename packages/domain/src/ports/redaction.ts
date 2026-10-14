@@ -1,3 +1,5 @@
+import { findPersonalNumbers, replaceNumbers } from '../privacy/number-shapes';
+
 /**
  * The redaction every log line, audit row and Sentry event passes through (AUDIT M10,
  * docs/03-roadmap-appendix/phase1.md §5.2): secret-named keys dropped, identity numbers hidden, and text
@@ -203,18 +205,9 @@ export function scrubValue(
 const lastFour = (digits: string): string => `${'*'.repeat(digits.length - 4)}${digits.slice(-4)}`;
 
 /**
- * Link, token and personal-number shapes that may appear inside free text. A phone number keeps
- * its last four digits; twelve digits, as Aadhaar numbers are printed, are replaced in full. The
- * number shapes must stand alone, so the digit runs inside ids are left intact: a UUID's last
- * group, whatever its digits, is passed over after the four groups before it, and nothing else
- * (`Rekha-9876543210` is still a phone).
- * International numbers go first, so `+91` and ten digits is not read as twelve digits. A mobile
- * number is also found as people write it: spaced after five digits, and after a 0, 91 or +91
- * (`98765 43210`, `098765 43210`, `91 98765 43210`, `+91-98765-43210`).
+ * Link, token and personal-address shapes that may appear inside free text. Personal numbers are
+ * found after them, by the finder `maskForModel()` uses too (`findPersonalNumbers`).
  */
-/** The four groups of a UUID before its last one, which may be all digits. */
-const UUID_HEAD = '[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-';
-
 const SECRET_TEXT: readonly ((text: string) => string)[] = [
   (t) => t.replace(/reset-password[:/][\w-]+/g, 'reset-password:[redacted]'),
   (t) => t.replace(/\bparams:[\s\S]*$/, 'params: [redacted]'),
@@ -225,23 +218,28 @@ const SECRET_TEXT: readonly ((text: string) => string)[] = [
   // A UPI address (`rekha@oksbi`, `9876543210@ybl`) has no dot after the @, so the email rule
   // above misses it, and it often carries the payer's name or number.
   (t) => t.replace(/(?<![\w.+-])[\w.-]{2,256}@[a-z]{2,64}(?![\w.@-])/gi, '[upi]'),
-  (t) => t.replace(/(?<![\w+])\+\d{8,15}(?!\w)/g, (m) => `+${lastFour(m.slice(1))}`),
-  (t) =>
-    t.replace(
-      new RegExp(`(?<!\\w|${UUID_HEAD})\\d{4}[ -]?\\d{4}[ -]?\\d{4}(?!\\w|-[\\da-f])`, 'gi'),
-      '[number]',
-    ),
-  (t) =>
-    t.replace(
-      new RegExp(`(?<![\\w+]|${UUID_HEAD})(?:\\+?91[ -]?|0)?[6-9]\\d{4}[ -]?\\d{5}(?!\\w)`, 'gi'),
-      (m) => lastFour(m.replace(/\D/g, '')),
-    ),
 ];
 
+/**
+ * `text` as the logs and the audit trail keep it: links, tokens, passwords, email and UPI
+ * addresses replaced; a run of digits that holds an Aadhaar-shaped number (twelve digits, the
+ * first 2 to 9, in any grouping) replaced whole by `[number]`; a mobile or landline number
+ * (`isPhone`), or a phone number after a `+` (`plusPhone`), kept only by its last four digits
+ * (with its `+` when written without spaces). Numbers are read as `maskForModel()` reads them
+ * (`findPersonalNumbers`, the same runs): in any script's digits, joined by any separator people
+ * use, with invisible characters dropped, touching letters or not; UUIDs, dates, times, amounts,
+ * quantities, product codes and document numbers standing alone are left as they are, and so is
+ * any number of another length (an order number, a time in milliseconds).
+ */
 export function redactText(text: string): string {
   let out = text;
   for (const scrub of SECRET_TEXT) out = scrub(out);
-  return out;
+  return replaceNumbers(out, findPersonalNumbers(out), (n, written) => {
+    // Twelve digits written as 91 and a mobile number in groups read as the phone they look like.
+    if (n.kind === 'aadhaar' && !(n.alsoPhone && n.grouped)) return '[number]';
+    // A number written `+` and its digits alone keeps its `+`, as the logs have always shown it.
+    return `${/^\+\p{Nd}+$/u.test(written) ? '+' : ''}${lastFour(n.digits)}`;
+  });
 }
 
 /**

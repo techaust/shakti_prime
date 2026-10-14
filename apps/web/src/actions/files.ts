@@ -108,7 +108,7 @@ export async function openFile(rawFileId: unknown): Promise<ActionResult<{ url: 
     const file = await executeQuery(principal, { requestId }, (ctx) => getStoredFile(ctx, fileId), {
       name: 'openFile',
     });
-    if (file?.status !== 'ready') {
+    if (file?.status !== 'ready' || file.deletedAt !== null) {
       throw new DomainError('not_found', 'file not visible', { reason: 'file_missing' });
     }
     // Signed by the store that holds the file's bucket; a file kept elsewhere is not opened here.

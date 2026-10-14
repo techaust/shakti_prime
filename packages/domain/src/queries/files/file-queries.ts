@@ -27,6 +27,8 @@ export interface StoredFile {
   sanitising?: string | undefined;
   /** Pages of a vault PDF the worker has sent the checks on from; absent before the first. */
   maskedPagesSent?: number | undefined;
+  /** When the bytes were deleted from the store (an import file its job no longer needs). */
+  deletedAt: Date | null;
 }
 
 function toStoredFile(row: FileRow): StoredFile {
@@ -45,6 +47,7 @@ function toStoredFile(row: FileRow): StoredFile {
     originalKey: scanResultOf(row).originalKey,
     sanitising: scanResultOf(row).sanitising,
     maskedPagesSent: scanResultOf(row).maskedPagesSent,
+    deletedAt: row.deletedAt,
   };
 }
 
