@@ -111,6 +111,10 @@ const ACTIONS = {
   'imports.job.commit_batch': 'importCommitBatch',
   'imports.job.rollback': 'importRollback',
   'imports.job.fail': 'importFail',
+  'imports.job.mask_identity': 'importIdentityCheck',
+  'imports.purge.record_failure': 'importPurgeFailed',
+  'imports.job.purge': 'importPurge',
+  'imports.file.record_deleted': 'importFileDeleted',
   'files.upload.begin': 'fileUploadBegin',
   'files.upload.complete': 'fileUploadComplete',
   'files.file.mark_scanned': 'fileScanned',
@@ -575,8 +579,12 @@ const FIELD_KINDS = [
   ['movedConsents', 'number'],
   ['movedActivities', 'number'],
   ['undoneAt', 'time'],
+  ['leftOutColumns', 'number'],
+  ['maskedValues', 'number'],
   // Retention
   ['anonymisedAt', 'time'],
+  ['purgedAt', 'time'],
+  ['deletedAt', 'time'],
   // Quotes
   ['quoteNo', 'text'],
   ['lineCount', 'number'],

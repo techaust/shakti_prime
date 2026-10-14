@@ -114,7 +114,33 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The English OCR model the real masking tests read (audit OPS-5), so a bump of tesseract.js
+      # or PDFium that stops the masking from finding digits fails here: taken once from the npm
+      # registry (npm checks the package's integrity) and kept in the Actions cache, keyed by the
+      # installed tesseract.js and the model package's version.
+      - name: Which OCR engine is installed
+        id: ocr
+        run: echo "version=$(node -p "require('./apps/web/node_modules/tesseract.js/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: OCR model from the cache
+        id: ocr-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ runner.temp }}/ocr-model
+          key: ocr-eng-best-int-1.0.0-tesseract.js-${{ steps.ocr.outputs.version }}
+      - name: OCR model from the npm registry
+        if: steps.ocr-cache.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
+        run: |
+          npm pack @tesseract.js-data/eng@1.0.0
+          mkdir -p ocr-model
+          tar -xzf tesseract.js-data-eng-1.0.0.tgz -C ocr-model --strip-components=2 package/4.0.0_best_int/eng.traineddata.gz
+      # The model's own bytes, checked whether they came from the cache or the registry.
+      - name: OCR model is the one pinned
+        working-directory: ${{ runner.temp }}/ocr-model
+        run: echo "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91  eng.traineddata.gz" | sha256sum -c -
       - run: pnpm test
+        env:
+          OCR_LANG_PATH: ${{ runner.temp }}/ocr-model
 
   build:
     name: Production build
@@ -198,7 +224,33 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The English OCR model the real masking tests read (audit OPS-5), so a bump of tesseract.js
+      # or PDFium that stops the masking from finding digits fails here: taken once from the npm
+      # registry (npm checks the package's integrity) and kept in the Actions cache, keyed by the
+      # installed tesseract.js and the model package's version.
+      - name: Which OCR engine is installed
+        id: ocr
+        run: echo "version=$(node -p "require('./apps/web/node_modules/tesseract.js/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: OCR model from the cache
+        id: ocr-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ runner.temp }}/ocr-model
+          key: ocr-eng-best-int-1.0.0-tesseract.js-${{ steps.ocr.outputs.version }}
+      - name: OCR model from the npm registry
+        if: steps.ocr-cache.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
+        run: |
+          npm pack @tesseract.js-data/eng@1.0.0
+          mkdir -p ocr-model
+          tar -xzf tesseract.js-data-eng-1.0.0.tgz -C ocr-model --strip-components=2 package/4.0.0_best_int/eng.traineddata.gz
+      # The model's own bytes, checked whether they came from the cache or the registry.
+      - name: OCR model is the one pinned
+        working-directory: ${{ runner.temp }}/ocr-model
+        run: echo "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91  eng.traineddata.gz" | sha256sum -c -
       - run: pnpm test:security
+        env:
+          OCR_LANG_PATH: ${{ runner.temp }}/ocr-model
       # Every migration on disk is applied as it is (AUDIT M22).
       - run: pnpm db:verify
 

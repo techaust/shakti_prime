@@ -2,6 +2,7 @@ import { DomainError, IMPORT_LIMITS, type ImportFormat } from '@shakti/contracts
 import ExcelJS from 'exceljs';
 import { Readable } from 'node:stream';
 import Papa from 'papaparse';
+import { maskIdentityText, withoutIdentityNumbers } from './identity-columns';
 import { checkZipArchive } from './zip-guard';
 
 /** An import file read into a header and data rows, every cell a trimmed string. */
@@ -13,6 +14,13 @@ export interface ParsedImportFile {
   rows: string[][];
   /** The header's line in the file, counted from 1, for the preview. */
   headerLine: number;
+  /**
+   * Columns of the file left out because they hold Aadhaar numbers, by the names the file gave
+   * them (`withoutIdentityNumbers`); the importer is told which.
+   */
+  leftOutColumns: string[];
+  /** Cells in which an Aadhaar number written among other text was masked to its last four. */
+  maskedValues: number;
 }
 
 export interface ParseLimits {
@@ -38,7 +46,8 @@ export type ImportFileReason =
   | 'import_no_header'
   | 'import_too_many_rows'
   | 'import_too_many_columns'
-  | 'import_cell_too_long';
+  | 'import_cell_too_long'
+  | 'import_only_identity_numbers';
 
 function refuse(reason: ImportFileReason, message: string): DomainError {
   return new DomainError('validation_failed', message, { reason });
@@ -346,6 +355,8 @@ export function uniqueColumns(
  * Reads an uploaded CSV or XLSX file (docs/03-roadmap-appendix/backend-weeks-3-5.md §8): size and type
  * checks, what a workbook unpacks to (`checkZipArchive`), the first sheet of a workbook, header
  * detection, and the row, column and cell limits. A file outside the limits is refused whole with a reason the screen can explain.
+ * The columns that hold Aadhaar numbers are left out, and any other Aadhaar number keeps only its
+ * last four digits (`withoutIdentityNumbers`); a file of nothing else is refused.
  */
 export async function parseImportFile(
   bytes: Uint8Array,
@@ -378,10 +389,22 @@ export async function parseImportFile(
     throw refuse('import_cell_too_long', 'a cell is too long');
   }
 
+  // No identity number goes further than this: not into the job's rows, not onto the preview.
+  // Each header is masked before it is cut to its length limit, so a number that crosses the cut
+  // never keeps eleven digits in the name (review M5).
+  const filtered = withoutIdentityNumbers(
+    uniqueColumns(header.cells.map(maskIdentityText), width, limits.maxHeaderLength),
+    data,
+  );
+  if (filtered.columns.length === 0) {
+    throw refuse('import_only_identity_numbers', 'every column holds identity numbers');
+  }
   return {
     format,
-    columns: uniqueColumns(header.cells, width, limits.maxHeaderLength),
-    rows: data,
+    columns: filtered.columns,
+    rows: filtered.rows,
     headerLine: header.line,
+    leftOutColumns: filtered.leftOutColumns,
+    maskedValues: filtered.maskedValues,
   };
 }

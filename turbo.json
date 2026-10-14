@@ -47,7 +47,8 @@
         "$TURBO_ROOT$/infra/aws/files.yaml",
         "$TURBO_ROOT$/.github/workflows/**",
         "$TURBO_ROOT$/compose.yaml"
-      ]
+      ],
+      "env": ["OCR_LANG_PATH"]
     },
     "test:security": {
       "dependsOn": ["^build"],

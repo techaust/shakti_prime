@@ -2,6 +2,7 @@ import { fileStore } from '../../../../../../files/store';
 import { logger } from '../../../../../../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
+import { purgeImports } from '../../../../../../workers/files/purge-imports';
 import { sweepAbandonedUploads } from '../../../../../../workers/files/sweep-uploads';
 import { recordJobOutcome } from '../../../../../../workers/job-streak';
 import {
@@ -18,7 +19,15 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * The sweep of abandoned uploads (docs/03-roadmap-appendix/phase1.md §6.3, docs/06-api.md §3.6). Only the QStash
+ * How long a run keeps starting import purges after the sweep, well inside `maxDuration`: a call
+ * clears at most twenty jobs, and the next hour's run takes the rest.
+ */
+const IMPORT_PURGE_BUDGET_MS = 30_000;
+
+/**
+ * The sweep of abandoned uploads (docs/03-roadmap-appendix/phase1.md §6.3, docs/06-api.md §3.6),
+ * then the import purge (audit SEC-1: import files deleted once their job ends or after a week,
+ * rows cleared after the reconciliation period; `purgeImports`). Only the QStash
  * schedule calls it, every hour: every call must carry a valid signature for this route and body.
  * The schedule asks for no retries, so a run that fails answers 500 and is not tried again; that
  * is harmless, as the next hour's run carries on where it stopped; the third failed hour in a row
@@ -48,9 +57,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const scheduled = fromSchedule(request.headers);
   try {
-    const swept = await sweepAbandonedUploads({ store: fileStore(), requestId });
+    const store = fileStore();
+    const swept = await sweepAbandonedUploads({ store, requestId });
+    const imports = await purgeImports({ store, requestId, budgetMs: IMPORT_PURGE_BUDGET_MS });
     await recordJobOutcome('files-sweep', 'ok', { requestId, scheduled });
-    return Response.json(swept, { headers });
+    return Response.json({ ...swept, imports }, { headers });
   } catch (error) {
     logger.log('error', 'files.sweep_failed', { requestId, error });
     await recordJobOutcome('files-sweep', 'failed', { requestId, scheduled });

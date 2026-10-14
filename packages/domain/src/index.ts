@@ -134,6 +134,15 @@ export {
 } from './commands/imports/commit-job';
 export { rollbackImportJob } from './commands/imports/rollback-job';
 export { failImportJob } from './commands/imports/fail-job';
+export { maskImportIdentity, recordImportPurgeFailure } from './commands/imports/mask-identity';
+export { purgeImportRows, recordImportFilesDeleted } from './commands/imports/purge';
+export { importFilesToDelete, nextImportJobToCheck } from './queries/imports/import-purge';
+export {
+  maskIdentityText,
+  namesAadhaar,
+  namesPhone,
+  withoutIdentityNumbers,
+} from './imports/identity-columns';
 export { lookupPin } from './queries/crm/pin-lookup';
 export { gstStateCode } from './imports/gst-states';
 export { checkAccountRow, companyNames, foldAccountRows } from './imports/accounts';
