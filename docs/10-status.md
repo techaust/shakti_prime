@@ -24,7 +24,7 @@ None. Every run file of the day is on `main` ([run files](runs/phase1/readme.md)
 | QStash schedules (region EU) | `outbox-publish-dev`, `lead-rescore-dev`, `files-sweep-dev`, `quote-expire-dev`, `duplicate-scan-dev`, `notification-scan-dev` | the outbox schedule (generated id), `lead-rescore-staging`, `files-sweep-staging`, `quote-expire-staging`, `duplicate-scan-staging`, `notification-scan-staging` |
 | AWS files stack | `shakti-prime-dev-files` created; its four values in Vercel | `shakti-prime-staging-files` created; its four values in Vercel |
 
-#168's 0133 moved the pg_cron job `audit-logs-partitions` to daily at 03:00 UTC (not read back from the cloud session: `select jobname, schedule from cron.job` on a PC day). Everything else in this section is as on 12-10-2026: browser alerts with VAPID keys on both sites, the Vault refusing PDFs and photos on the hosted worker (`OCR_LANG_PATH`), every Vercel secret marked Sensitive, Upstash Redis per environment, Turnstile for both hostnames, Sentry project `shakti-prime-web` with the outbox alert, no Anthropic or Voyage key yet. Plans, regions and bills: [accounts](runbooks/accounts.md).
+Read back from the PC on 14-10-2026, both databases: 156 rows in `drizzle.__drizzle_migrations`, and the same five pg_cron jobs as the migrations define: `activities-partitions` (`5 3 25 * *`), `audit-logs-detach` (`30 3 1 * *`), `audit-logs-partitions` (`0 3 * * *`, daily since #168's 0133), `idempotency-keys-purge` (`30 2 * * *`) and `outbox-events-purge` (`45 2 * * *`). Everything else in this section is as on 12-10-2026: browser alerts with VAPID keys on both sites, the Vault refusing PDFs and photos on the hosted worker (`OCR_LANG_PATH`), every Vercel secret marked Sensitive, Upstash Redis per environment, Turnstile for both hostnames, Sentry project `shakti-prime-web` with the outbox alert, no Anthropic or Voyage key yet. Plans, regions and bills: [accounts](runbooks/accounts.md).
 
 ## Deferred Phase 0 gate items
 Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](13-client-packs/exit-gate-actions.md). What Shakti's people must do: [client-actions](13-client-packs/client-actions.md). Nothing from the client has arrived yet.
@@ -36,7 +36,6 @@ Two of the six exit-gate items are met (the security suite and the tooling); the
 - **For G1, at its start:** the paid accounts are ready (owner, 14-10-2026); the next session lists what it needs from each (access for the session, the domain's DNS settings for the site and for Amazon SES) and the owner gives it there.
 - **The environment's network list:** add `productionresultssa10.blob.core.windows.net`, so a cloud session can read CI logs and reports.
 - **A usage reading** (`usage: 5h N, week N`) before the next builder starts.
-- **On the PC:** delete `D:/shakti-wt/heavy.sh` if it exists.
 - **Confirm the Triage agent's named defaults** in `AGENT_DEFAULTS.triage` when convenient.
 - **Before the repository goes private again:** a GitHub Actions budget or the 1 November reset; confirm with Shakti that the code being public for now is acceptable.
 - **The Anthropic and Voyage keys** on dev and staging, and a spending limit on Admin › Agents.
@@ -53,7 +52,6 @@ Two of the six exit-gate items are met (the security suite and the tooling); the
 | `search.test.ts` "puts the exact name first…" failed once on `main` after #168 and passed on the re-run: another test's person can match the fuzzy name search | 1 / any slice |
 | `pipelines.spec.ts` "lists the referral partners…" was flaky once in the Linux screenshot run (12-10-2026) | 1 / any slice |
 | `customers.test.ts` reused a random tag name of an earlier run on the same database (M1's run, 13-10-2026) | 1 / any slice |
-| On the PC, an older copy of the lock script at `D:/shakti-wt/heavy.sh` skips the queue of #167: delete it (#167 review #4) | 1 / any slice |
 | The push toggle tells a second person at a browser held by another that alerts are on (#168 review L4, from N1) | 1 / any slice |
 | Playwright 1.64 by hand: `@playwright/test` and `playwright-core` together, the image `mcr.microsoft.com/playwright:v1.64.0-noble` in `.github/workflows/ci.yml`, `apps/web/e2e/setup/snap-in-linux.ts` and [TESTING](09-testing.md), and every screenshot baseline compared and remade where the new browser draws differently (Dependabot leaves Playwright alone, #162) | 1 / any slice |
 | `orders.spec.ts` "dealer credit" failed once in a screenshot run and passed on retry (10-10-2026) | 1 / any slice |
