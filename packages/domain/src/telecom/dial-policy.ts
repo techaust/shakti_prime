@@ -56,7 +56,6 @@ export function withinCallingHours(at: Date): boolean {
 }
 
 const DAY_MS = 86_400_000;
-const IST_OFFSET_MS = IST_OFFSET_MINUTES * 60_000;
 
 /** Why a logged call is refused: it started outside calling hours, or is logged too long after. */
 export type CallLogRefusal = 'outside_calling_hours' | 'call_logged_too_late';
