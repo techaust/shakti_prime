@@ -146,6 +146,9 @@ test.describe('converting as a Lead Converter', () => {
     await expect(rows(page)).toHaveCount(3);
     await expect(rows(page).filter({ hasText: name('work') })).toHaveCount(1);
     await expectNoAxeViolations(page);
+    // The floating notice of the quote is gone before the picture: on a phone it lies over the
+    // board, and whether it is still there when the picture is taken depends on the runner's speed.
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 30_000 });
     // The quote's number is the next of its company's series, which the quote journeys running
     // beside this one also draw from, so it differs from run to run.
     await snap(page, 'converting-quote', {
