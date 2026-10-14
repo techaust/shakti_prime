@@ -57,7 +57,13 @@ export default defineConfig({
       caret: 'hide',
     },
   },
-  reporter: [['list'], ['html', { outputFolder: './e2e/playwright-report', open: 'never' }]],
+  // In CI each failed or flaky journey is also written as a GitHub annotation on the check, which
+  // can be read through the API when the job's log and report cannot be fetched.
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: './e2e/playwright-report', open: 'never' }],
+    ...(process.env.CI === undefined ? [] : [['github'] as const]),
+  ],
   use: {
     baseURL,
     locale: 'en-IN',
