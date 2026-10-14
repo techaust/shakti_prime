@@ -157,10 +157,10 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
 |---|---|
 | Lint, format and copy | `pnpm lint`, `pnpm format:check`, `pnpm copy-lint`, the generated-files check |
 | Typecheck | `pnpm typecheck` |
-| Unit tests | `pnpm test` (unit, property, contract fixture and generated-file tests) |
+| Unit tests | `pnpm test` (unit, property, contract fixture and generated-file tests), with the English OCR model in `OCR_LANG_PATH` so the real masking tests run (the model from the npm registry, kept in the Actions cache by the installed `tesseract.js`) |
 | Production build | `pnpm build`, with no `.env` present, then `pnpm --filter web js-budget`, which fails when a page's first-load JavaScript (gzip) passes its budget in `apps/web/js-budget.json` or the page has none |
 | Secrets and advisories | gitleaks over the whole history; `pnpm audit --audit-level=moderate` |
-| Security suite | `pnpm test:security` on a fresh `supabase/postgres` service, then `pnpm db:verify` |
+| Security suite | `pnpm test:security` on a fresh `supabase/postgres` service, with the OCR model as for the unit tests, then `pnpm db:verify` |
 | End-to-end journeys, accessibility and screenshots | One job per project (desktop light, desktop dark, phone) in `mcr.microsoft.com/playwright:v1.63.0-noble`, each with its own fresh `supabase/postgres` service and 25 minutes (the steps are below) |
 | Lighthouse | The production build with a seeded `supabase/postgres` service, `next start`, then Lighthouse on the public pages against `apps/web/lighthouserc.json` |
 
