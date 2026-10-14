@@ -58,6 +58,36 @@ test.describe('as a GM', () => {
     await snap(page, 'imports-job', { mask: [page.getByText(/, started /)] });
   });
 
+  test('uploads a list with an Aadhaar column, which the import leaves out and says so', async ({
+    page,
+  }) => {
+    // The upload and its checks come before the job page, as for any file.
+    test.slow();
+    await page.goto('/imports/new');
+    const run = freshMobile();
+    await uploadImport(page, 'subsidy-applicants.csv', [
+      'Name,Mobile,Village,Aadhaar No,Address',
+      `Bhanwari Devi,${run},Pisangan,2345 6789 0123,"Ward 4, near the school"`,
+      `Mohan Lal,${freshMobile()},Srinagar,3456-7890-1234,"Plot 9, UID 4567 8901 2345"`,
+    ]);
+    const notes = page.getByRole('region', { name: 'What this import does not keep' });
+    await expect(
+      notes.getByText(
+        'The column “Aadhaar No” holds Aadhaar numbers, so it was left out and is not kept.',
+      ),
+    ).toBeVisible();
+    await expect(
+      notes.getByText(
+        'One Aadhaar number written in another column was hidden, all but its last four digits.',
+      ),
+    ).toBeVisible();
+    // The column is not offered for matching, and no number of it reaches the page.
+    await expect(page.getByText('2345 6789 0123')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('4567 8901');
+    await expectNoAxeViolations(page);
+    await snap(page, 'imports-identity-left-out', { mask: [page.getByText(/, started /)] });
+  });
+
   test('uploads a spreadsheet of customers, matches its columns and checks its rows', async ({
     page,
   }) => {

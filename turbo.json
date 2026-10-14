@@ -36,7 +36,8 @@
     },
     "web#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/eslint.config.mjs"]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/eslint.config.mjs"],
+      "env": ["OCR_LANG_PATH"]
     },
     "test:security": {
       "dependsOn": ["^build"],

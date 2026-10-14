@@ -21,6 +21,7 @@ import {
 import { CheckPanel, CommitPanel, OutcomePanel, ProgressPanel } from './job-panels';
 import { ImportSteps } from './import-steps';
 import { MapStep, type PipelineChoice } from './map-step';
+import { PrivacyNotes, PurgedPanel } from './privacy-notes';
 import { ReconciliationPanel } from './reconciliation';
 import { RowsGrid } from './rows-grid';
 
@@ -62,7 +63,11 @@ export function JobScreen({
     });
   }, [router]);
 
-  const mapping = job.state === 'uploaded' || remapping;
+  // An import left before adding whose rows were cleared has nothing left to match, check or add.
+  const purgedOpen =
+    job.purgedAt !== null &&
+    (job.state === 'uploaded' || job.state === 'mapped' || job.state === 'previewed');
+  const mapping = !purgedOpen && (job.state === 'uploaded' || remapping);
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-col gap-3">
@@ -80,7 +85,11 @@ export function JobScreen({
         <ImportSteps state={mapping ? 'uploaded' : job.state} />
       </div>
 
-      {mapping ? (
+      <PrivacyNotes job={job} />
+
+      {purgedOpen ? (
+        <PurgedPanel />
+      ) : mapping ? (
         <MapStep
           job={job}
           templates={templates}
@@ -125,7 +134,7 @@ export function JobScreen({
           {reconciliation === undefined || isCommitting(job.state) ? null : (
             <ReconciliationPanel reconciliation={reconciliation} fileName={job.file.name} />
           )}
-          {isCommitting(job.state) ? null : (
+          {isCommitting(job.state) || job.purgedAt !== null ? null : (
             <RowsGrid job={job} initial={initialRows} initialView={initialView} />
           )}
         </>

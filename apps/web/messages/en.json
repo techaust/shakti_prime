@@ -2342,6 +2342,16 @@
       "csvRows": "Rows",
       "csvFileName": "{file} row counts.csv",
       "downloadCsv": "Download as CSV"
+    },
+    "privacy": {
+      "title": "What this import does not keep",
+      "leftOut": "{count, plural, one {The column {columns} holds Aadhaar numbers, so it was left out and is not kept.} other {The columns {columns} hold Aadhaar numbers, so they were left out and are not kept.}}",
+      "masked": "{count, plural, one {One Aadhaar number written in another column was hidden, all but its last four digits.} other {{shown} Aadhaar numbers written in other columns were hidden, all but their last four digits.}}",
+      "fileDeleted": "The uploaded file was deleted on {date}, once the import no longer needed it.",
+      "purged": "The names, numbers and other details in the rows were cleared on {date}. The counts stay.",
+      "purgedTitle": "This import was left unfinished",
+      "purgedIntro": "Nothing was added from it for a long time, so the details in its rows were cleared. Upload the file again to import it.",
+      "uploadAgain": "Upload the file again"
     }
   },
   "customers": {

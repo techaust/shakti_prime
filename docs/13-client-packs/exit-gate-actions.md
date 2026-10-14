@@ -55,6 +55,6 @@ Each is a decision the person who looks after technology for the group reviews w
 ## 5. Where each workshop question comes from
 - CRM-1 to CRM-6, CALL-1 to CALL-7, PRICE-1 to PRICE-4, SALE-2 to SALE-4, SALE-6, STOCK-1, STOCK-3, PROJ-1, FIN-1, HR-1 to HR-3 and LAW-4 are the discovery inputs of BLUEPRINT §19 and PRD §7.
 - PRICE-5 and SALE-5 are items 1 and 3 of `docs/03-roadmap-appendix/backend-weeks-3-5.md` §11, CALL-4 and CALL-5 its item 2, ACC-1 its item 4, and SALE-1 its item 5 with DATABASE §9.
-- LAW-1 and STOCK-2 are items 6 and 7 of the audit's §7; LAW-2 is review 3; PRICE-6 is ADR 0007; FIN-2 is BLUEPRINT §7.9; LAW-3, LAW-5 and ACC-2 are ROADMAP §10.
+- LAW-1 and STOCK-2 are items 6 and 7 of the audit's §7; LAW-2 is review 3; PRICE-6 is ADR 0007; FIN-2 is BLUEPRINT §7.9; FIN-3 is the audit of 12-10-2026, SEC-1; LAW-3, LAW-5 and ACC-2 are ROADMAP §10.
 - CRM-7, STOCK-4, PROJ-3 and PROJ-4 hold the values PRD CRM-06, INV-03, WA-02, PRJ-04 and FLD-02 leave to the client; ENG-1 is the sizing constants of `docs/03-roadmap-appendix/phase1.md` §6.7 and §11; TERM-1 confirms the business terms the glossary marks "to confirm".
 - Part A1 is the header of `docs/03-roadmap-appendix/backend-weeks-3-5.md`, ADR 0008 and ADR 0014; Part A2 is the audit's §8.
