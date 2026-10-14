@@ -40,9 +40,10 @@ export const mapImportJob = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
-    assertNotPurged(loaded.job);
     const before = jobState(loaded.job);
     assertImportJobMove(before, 'mapped');
+    // Only a job left before adding is purged with nowhere to go; a finished one says its state.
+    assertNotPurged(loaded.job);
     const kind = implementedKind(loaded.job);
     if (kind === 'pin_codes') await assertGroupImport(ctx);
 

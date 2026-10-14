@@ -157,7 +157,7 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
 |---|---|
 | Lint, format and copy | `pnpm lint`, `pnpm format:check`, `pnpm copy-lint`, the generated-files check |
 | Typecheck | `pnpm typecheck` |
-| Unit tests | `pnpm test` (unit, property, contract fixture and generated-file tests), with the English OCR model in `OCR_LANG_PATH` so the real masking tests run (the model from the npm registry, kept in the Actions cache by the installed `tesseract.js`) |
+| Unit tests | `pnpm test` (unit, property, contract fixture and generated-file tests), with the English OCR model in `OCR_LANG_PATH` so the real masking tests run (the model from the npm registry, kept in the Actions cache by the installed `tesseract.js`, its SHA-256 checked on every run) |
 | Production build | `pnpm build`, with no `.env` present, then `pnpm --filter web js-budget`, which fails when a page's first-load JavaScript (gzip) passes its budget in `apps/web/js-budget.json` or the page has none |
 | Secrets and advisories | gitleaks over the whole history; `pnpm audit --audit-level=moderate` |
 | Security suite | `pnpm test:security` on a fresh `supabase/postgres` service, with the OCR model as for the unit tests, then `pnpm db:verify` |

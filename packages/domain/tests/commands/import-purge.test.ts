@@ -360,7 +360,7 @@ describe('imports.job.mask_identity, the pass over imports made before the rule'
         (m) => m<{ column: number; digits: number; notes: number }[]>`
           select count(*) filter (where raw_json ? 'Aadhaar')::int as column,
                  count(*) filter (where raw_json::text ~ '[0-9]{12}')::int as digits,
-                 count(*) filter (where raw_json ->> 'Notes' like 'card XXXXXXXX%')::int as notes
+                 count(*) filter (where raw_json ->> 'Notes' like 'paid at the fair, card XXXXXXXX%')::int as notes
             from import_rows where job_id = ${jobId}`,
       );
       expect(left).toEqual({ column: 0, digits: 0, notes: 50_000 });
@@ -405,7 +405,7 @@ describe('imports.job.mask_identity, the pass over imports made before the rule'
 
   it('keeps every mobile number of a phone column the import does not name in English (review M3)', async () => {
     const mobiles = [6, 7, 8, 9, 6, 7].map((first) => {
-      const body = `91${String(first)}${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+      const body = `91${String(first)}${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
       // Twelve digits whose check digit holds, so only the column keeps them a phone.
       return `${body}${verhoeffCheckDigit(body)}`;
     });
@@ -479,13 +479,13 @@ async function bigEarlierJob(
       await tx`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, state,
                                         total_rows, valid_rows, committed_rows, created_by)
                values (${jobId}, 1, 'leads', ${fileId}, 'csv',
-                       ${options.brokenColumns === true ? '{}' : '["Name","Mobile","Aadhaar","Notes"]'}::jsonb,
+                       ${tx.json(options.brokenColumns === true ? {} : ['Name', 'Mobile', 'Aadhaar', 'Notes'])}::jsonb,
                        'committed', ${count}, ${count}, ${count}, ${gm.id})`;
       await tx`insert into import_rows (job_id, entity_id, row_no, raw_json, state, created_by)
                select ${jobId}, 1, i,
                       jsonb_build_object('Name', 'Person ' || i, 'Mobile', '98' || lpad(i::text, 8, '0'),
                                          'Aadhaar', '2' || lpad(i::text, 11, '0'),
-                                         'Notes', 'card 3' || lpad(i::text, 11, '0')),
+                                         'Notes', 'paid at the fair, card 3' || lpad(i::text, 11, '0')),
                       'committed', ${gm.id}
                  from generate_series(1, ${count}) i`;
     });

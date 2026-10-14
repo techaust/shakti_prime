@@ -666,9 +666,10 @@ describe('an import keeps no identity number, and not what its file said for lon
       ['committed', {}],
       ['committed', {}],
     ]);
+    // A finished job says its state; only one left before adding is refused as cleared.
     expect(await mapImportJob({ entityId: 1, jobId: job.id, mapping })).toEqual({
       ok: false,
-      error: 'import_job_purged',
+      error: 'import_job_state',
     });
   });
 });

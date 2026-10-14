@@ -118,10 +118,11 @@ export const commitImportJob = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
-    assertNotPurged(loaded.job);
     const before = jobState(loaded.job);
     if (before === 'committing') return toImportJobDto(loaded);
     assertImportJobMove(before, 'committing');
+    // Only a job left before adding is purged with nowhere to go; a finished one says its state.
+    assertNotPurged(loaded.job);
     assertJobCompaniesCovered(ctx.entityIds, loaded.job);
     if (implementedKind(loaded.job) === 'pin_codes') await assertGroupImport(ctx);
     // Another job of the same content may have been started beside this one, and committed since.
