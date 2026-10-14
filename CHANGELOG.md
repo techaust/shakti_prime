@@ -25,6 +25,8 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#181** (14-10-2026) STATUS records dev and staging read back from the PC: 156 migrations each and the five pg_cron jobs the migrations define, `audit-logs-partitions` daily at 03:00 UTC.
+- **#180** (14-10-2026) STATUS names G1 as next with the owner's paid accounts ready; the cloud days' lessons in `CLAUDE.md` and the runbooks.
 - **#179** (14-10-2026) The Phase 0–1 audit closed in code: the audit report and its evidence, STATUS at the end of 14-10-2026 (migrations through 0155 on `main`, dev and staging), CHANGELOG lines for #167 to #177, the owner's DECISIONS rows of 13-10-2026, the merged run files, and two runbook lessons (edit a moved migration after the renumbering; `db:docs` after the last DATABASE edit).
 - **#163** (12-10-2026) The Phase 1 status at 12-10-2026 (the models plan final, today's CI failures fixed), CHANGELOG lines for #149 to #162, and DECISIONS rows (the day's fixes under the owner's instruction, the PC's working folders kept).
 - **#157** (12-10-2026) The models and usage plan final for the whole project: the lead on Opus 5.5 at medium every day, at xhigh for a named task in a conversation of its own; Tier B builds stay on Opus 5.5; no trials, checkpoints or spending limits that step a setting down, the budget gate sets the pace; the pins stay on the 5.5 versions and only a retired model is replaced by its same-family successor; every phase's slices tiered by the same table; `CLAUDE.md`, both session skills, STATUS and a DECISIONS row.
