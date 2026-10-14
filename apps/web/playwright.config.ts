@@ -34,8 +34,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: process.env.CI !== undefined,
   // One retry, reported as flaky: a busy machine now and then misses a page load. The steps that
-  // use up a single-use link or code never retry (public.spec.ts).
+  // use up a single-use link or code never retry (public.spec.ts). In CI a flaky journey fails the
+  // run, so a race that passes on its second try is reported and never merges itself (audit OPS-16).
   retries: 1,
+  failOnFlakyTests: process.env.CI !== undefined,
   // CI compares against the committed baselines and never writes one; a local Linux run writes
   // a missing baseline, which is then reviewed and committed (`e2e:snap`).
   updateSnapshots: process.env.CI === undefined ? 'missing' : 'none',
@@ -45,9 +47,23 @@ export default defineConfig({
   globalTimeout: process.env.CI === undefined ? 0 : 20 * 60_000,
   expect: {
     timeout: 15_000,
-    toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: 'disabled', caret: 'hide' },
+    // A fixed number of pixels, whatever the page's length, so a missing button or icon fails
+    // the comparison; a ratio of a long full-page picture lets thousands of pixels through (audit
+    // OPS-15). `threshold` is how far one pixel's colour may move before it counts.
+    toHaveScreenshot: {
+      maxDiffPixels: 300,
+      threshold: 0.2,
+      animations: 'disabled',
+      caret: 'hide',
+    },
   },
-  reporter: [['list'], ['html', { outputFolder: './e2e/playwright-report', open: 'never' }]],
+  // In CI each failed or flaky journey is also written as a GitHub annotation on the check, which
+  // can be read through the API when the job's log and report cannot be fetched.
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: './e2e/playwright-report', open: 'never' }],
+    ...(process.env.CI === undefined ? [] : [['github'] as const]),
+  ],
   use: {
     baseURL,
     locale: 'en-IN',

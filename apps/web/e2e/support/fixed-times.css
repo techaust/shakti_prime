@@ -1,9 +1,0 @@
-/* Applied by `snap(page, name, { fixedTimes: true })` while a screenshot is taken (see snap.ts). */
-time {
-  display: inline-block;
-  inline-size: 8.5rem;
-  max-inline-size: 100%;
-  overflow: hidden;
-  white-space: nowrap;
-  vertical-align: bottom;
-}

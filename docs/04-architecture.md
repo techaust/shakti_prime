@@ -26,7 +26,7 @@ Blueprint reference: §3–§6, §9.3, §10, §12. This document describes how t
 | Latency | p95 interaction < 300 ms; ingestion → assignment < 10 s | Vercel `bom1` + Supabase Mumbai, keyset pagination, materialised dashboards |
 | Availability | 99.5% in business hours; RPO ≤ 5 min; RTO ≤ 4 h | Managed services, PITR, nightly dumps, runbooks |
 | Operability for one developer | Minimal vendor set, one language | TypeScript monorepo, managed services, strong CI |
-| AI safety | No unsafe customer message; no cost leak to agents | Narrow tools, autonomy levels, agent principals; output filters on outbound messages (planned, A1 / Phase 2) |
+| AI safety | No unsafe customer message; no cost leak to agents | Narrow tools, autonomy levels, agent principals; the Triage agent's output filter (`filterTriageAnswer()`, `packages/domain/src/ai/triage/filter.ts`); filters on outbound customer messages come with them in Phase 2 |
 
 ## 2. System landscape
 ```mermaid
@@ -323,7 +323,7 @@ Built (AI0): the runtime, the provider wrapper and the Agent Inbox. Built (A1): 
 - **Autonomy:** the action's autonomy level (Suggest / Needs approval / Automatic) is read from `agent_configs` per agent × action type. Suggest and Needs approval create Agent Inbox items; Automatic executes and notifies, from Phase 6 (refused in Phase 1, design §7.1).
 - **Guardrails in code:** tier prices only; out-of-bounds engineering results go to review; only people record a sizing (ADR 0021); per-agent daily spend caps; kill switches (global, per agent, per entity). Planned with the messaging worker and the dialler (Phase 2, A1): the WhatsApp window and opt-out, TRAI hours and number series, consent, and output filters on every outbound message.
 - **Ask service:** Ask the Business and voice Ask run as the user through the same retrieval and tool set, so the answer respects the user's permissions.
-- **Evals:** `agent_evals` stores prompt versions, eval sets and scores; the gate that stops a prompt or model change without a passing eval run is planned (A1 / Phase 2).
+- **Evals:** the Triage agent's eval and injection sets live in `packages/domain/tests/fixtures/triage-sets.ts` and run in its unit tests; `agent_evals` is reserved for the gate that stops a prompt or model change without a passing eval run (Phase 2), and nothing writes it yet.
 
 ## 12. Cross-cutting
 - **Configuration:** environment variables in Vercel (EAS from Phase 4, the connector's encrypted local config from Phase 5). A hosted runtime refuses to start while `productionConfigProblems()` in `apps/web/src/auth/deps.ts` (run from `instrumentation.ts`) reports a missing variable, a published or short secret, a Turnstile test key, a non-https address or a mail setting the environment does not allow.

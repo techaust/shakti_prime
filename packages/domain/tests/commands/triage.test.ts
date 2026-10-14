@@ -5,6 +5,7 @@ import {
   closeDb,
   createTestPrincipal,
   createTestUser,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAiProvider } from '../../src/ai/provider';
@@ -66,7 +67,7 @@ async function newLead(
   pipelineKey = 'farmer_pumps',
   existingAccountId?: string,
 ): Promise<{ id: string; accountId: string; phone: string }> {
-  const phone = `93${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+  const phone = testPhone();
   const made = (await asPrincipal(caller, (context) =>
     runCommand(
       createLead,

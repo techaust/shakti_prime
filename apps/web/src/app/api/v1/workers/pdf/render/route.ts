@@ -1,12 +1,4 @@
-import {
-  DomainError,
-  ERROR_HTTP_STATUS,
-  ErrorEnvelope,
-  PdfRenderJob,
-  PdfRenderResult,
-  type ErrorCode,
-} from '@shakti/contracts';
-import en from '../../../../../../../messages/en.json';
+import { DomainError, PdfRenderJob, PdfRenderResult, type ErrorCode } from '@shakti/contracts';
 import { defaultAuthDeps } from '../../../../../../auth/deps';
 import { logger } from '../../../../../../log';
 import { PDF_JOB_MAX_BYTES, readTextWithin } from '../../../../../../request-body';
@@ -21,6 +13,7 @@ import {
   verifyQStashSignature,
   workerUrl,
 } from '../../../../../../workers/qstash';
+import { NO_RETRY, workerFailure } from '../../../../../../workers/route-answers';
 
 export const dynamic = 'force-dynamic';
 /**
@@ -28,9 +21,6 @@ export const dynamic = 'force-dynamic';
  * (about a second a page, docs/04-architecture-appendix/print.md); a warm instance renders in one or two.
  */
 export const maxDuration = 60;
-
-/** QStash stops retrying a message whose answer carries this header. */
-const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
 
 /** Refusals another delivery cannot change; every other failure is delivered again. */
 const FINAL: ReadonlySet<ErrorCode> = new Set(['validation_failed', 'forbidden', 'not_found']);
@@ -49,12 +39,12 @@ export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
   const headers = { 'cache-control': 'no-store', 'x-request-id': requestId };
   const config = qstashConfig();
-  if (config === undefined) return failure('integration_unavailable', requestId, headers);
+  if (config === undefined) return workerFailure('integration_unavailable', requestId, headers);
 
   const text = await readTextWithin(request, PDF_JOB_MAX_BYTES);
   if (text === undefined) {
     logger.log('warn', 'print.job_too_large', { requestId });
-    return failure('validation_failed', requestId, { ...headers, ...NO_RETRY });
+    return workerFailure('validation_failed', requestId, { ...headers, ...NO_RETRY });
   }
   const signed = await verifyQStashSignature(
     config,
@@ -64,14 +54,14 @@ export async function POST(request: Request): Promise<Response> {
   );
   if (!signed) {
     logger.log('warn', 'print.job_refused', { requestId });
-    return failure('unauthorized', requestId, headers);
+    return workerFailure('unauthorized', requestId, headers);
   }
 
   let job: PdfRenderJob;
   try {
     job = PdfRenderJob.parse(JSON.parse(text));
   } catch {
-    return failure('validation_failed', requestId, { ...headers, ...NO_RETRY });
+    return workerFailure('validation_failed', requestId, { ...headers, ...NO_RETRY });
   }
 
   try {
@@ -100,12 +90,6 @@ export async function POST(request: Request): Promise<Response> {
       errorCode: code,
       error,
     });
-    return failure(code, requestId, retried ? headers : { ...headers, ...NO_RETRY });
+    return workerFailure(code, requestId, retried ? headers : { ...headers, ...NO_RETRY });
   }
-}
-
-function failure(code: ErrorCode, requestId: string, headers: Record<string, string>): Response {
-  // The one catalogue is English (ADR 0014); a route handler has no request locale to resolve.
-  const body = ErrorEnvelope.parse({ error: { code, message: en.errors[code], requestId } });
-  return Response.json(body, { status: ERROR_HTTP_STATUS[code], headers });
 }

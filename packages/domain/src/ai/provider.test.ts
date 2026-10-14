@@ -1,4 +1,5 @@
 import { DomainError } from '@shakti/contracts';
+import { istCalendarDate } from '../numbering/financial-year';
 import { describe, expect, it, vi } from 'vitest';
 import { memoryKeyValue } from '../ports/key-value';
 import { memoryLogger } from '../ports/logger';
@@ -6,7 +7,6 @@ import { costInPaise, DEFAULT_CLAUDE_MODEL, maxCostInPaise, PAISE_PER_USD } from
 import {
   BREAKER_FAILURES,
   createAiProvider,
-  istDay,
   spendKey,
   type AiProviderDeps,
   type CompleteCall,
@@ -115,8 +115,8 @@ describe('createAiProvider', () => {
     });
     // The first attempt was cut short by the deadline, not by its own five seconds; no more followed.
     expect(transport.requests).toHaveLength(1);
-    expect(await keyValue.get(spendKey('agent:copilot', 1, istDay(NOW)))).toBe('0');
-    expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
+    expect(await keyValue.get(spendKey('agent:copilot', 1, istCalendarDate(NOW)))).toBe('0');
+    expect(await keyValue.get(spendKey('agent:copilot', null, istCalendarDate(NOW)))).toBe('0');
   });
 
   it('ends the call when an attempt runs into the deadline, even when the clock reads short of it', async () => {
@@ -184,7 +184,7 @@ describe('createAiProvider', () => {
     expect(price).toBe(PAISE_PER_USD);
     const capped = call({ caps: [{ paise: price, entityId: 1 }] });
     await expect(provider.complete(capped)).resolves.toMatchObject({ costPaise: price });
-    const day = istDay(NOW);
+    const day = istCalendarDate(NOW);
     expect(await keyValue.get(spendKey('agent:copilot', 1, day))).toBe(String(price));
     expect(await keyValue.get(spendKey('agent:copilot', null, day))).toBe(String(price));
     await expect(provider.complete(capped)).rejects.toMatchObject({
@@ -229,7 +229,7 @@ describe('createAiProvider', () => {
       details: { reason: 'agent_spend_cap_reached', scope: 'person' },
     });
     expect(transport.requests).toHaveLength(0);
-    expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
+    expect(await keyValue.get(spendKey('agent:copilot', null, istCalendarDate(NOW)))).toBe('0');
     // A share that fits one call: the person's second call is refused, another person's is not.
     const share = { capPaise: most + 1 };
     await provider.complete({ ...text, person: { id: 'person-a', ...share } });
@@ -243,7 +243,7 @@ describe('createAiProvider', () => {
   it('counts work of the whole group in the group only, against the group cap', async () => {
     const usage = { inputTokens: 100_000, outputTokens: 0 };
     const { provider, keyValue } = setup([fakeReply('ok', usage)]);
-    const day = istDay(NOW);
+    const day = istCalendarDate(NOW);
     await expect(
       provider.complete(
         call({
@@ -284,7 +284,7 @@ describe('createAiProvider', () => {
     ).resolves.toMatchObject({ text: 'read' });
     expect(transport.requests[0]?.documents).toEqual([pdf]);
     // Settled at what it cost, not at the reservation.
-    const day = istDay(NOW);
+    const day = istCalendarDate(NOW);
     expect(Number(await keyValue.get(spendKey('agent:copilot', null, day)))).toBeLessThan(most);
   });
 
@@ -310,14 +310,16 @@ describe('createAiProvider', () => {
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     });
-    expect(await keyValue.get(spendKey('agent:copilot', 1, istDay(NOW)))).toBe(String(cost));
+    expect(await keyValue.get(spendKey('agent:copilot', 1, istCalendarDate(NOW)))).toBe(
+      String(cost),
+    );
   });
 
   it('gives the reservation back when the call fails', async () => {
     const { provider, keyValue } = setup([new ModelCallError('http', { status: 400 })]);
     await expect(provider.complete(call())).rejects.toBeInstanceOf(DomainError);
-    expect(await keyValue.get(spendKey('agent:copilot', 1, istDay(NOW)))).toBe('0');
-    expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
+    expect(await keyValue.get(spendKey('agent:copilot', 1, istCalendarDate(NOW)))).toBe('0');
+    expect(await keyValue.get(spendKey('agent:copilot', null, istCalendarDate(NOW)))).toBe('0');
   });
 
   it('refuses a model with no price, so no spend goes uncounted', async () => {
@@ -365,7 +367,7 @@ describe('createAiProvider', () => {
   });
 
   it('counts the day in India', () => {
-    expect(istDay(new Date('2026-10-05T18:29:00Z'))).toBe('2026-10-05');
-    expect(istDay(new Date('2026-10-05T18:31:00Z'))).toBe('2026-10-06');
+    expect(istCalendarDate(new Date('2026-10-05T18:29:00Z'))).toBe('2026-10-05');
+    expect(istCalendarDate(new Date('2026-10-05T18:31:00Z'))).toBe('2026-10-06');
   });
 });

@@ -2,7 +2,7 @@
 # The Supabase image carries the same extensions and roles as the hosted Mumbai projects.
 services:
   postgres:
-    image: supabase/postgres:17.6.1.177
+    image: supabase/postgres:17.6.1.177@sha256:8b1dc570b774b7a21ff15542ff783e285fd68c86fbf3e703a6a15e02f340bf60
     container_name: shakti-postgres
     ports:
       - '127.0.0.1:54322:5432'

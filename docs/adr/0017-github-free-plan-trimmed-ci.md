@@ -13,8 +13,8 @@ The repository has been public since 06-10-2026 (owner), so its Actions minutes 
 **Stay on the free plan, spend Actions minutes only where a change can break something, and merge only through a workflow that waits for green.**
 
 - `.github/workflows/ci.yml` starts with a *What changed* job. A pull request that changes only `docs/` and the root Markdown files runs the lint, unit-test and supply-chain jobs alone; the unit tests still check every generated document (`docs/data/`, `docs/state-machines/`).
-- The end-to-end shards and Lighthouse run on pull requests only, not again on `main` after the merge.
-- `.github/workflows/automerge.yml` is the only path into `main`: after CI passes on a pull request it merges it with a merge commit when it is open, not a draft, from this repository, unlabelled `hold`, still at the tested commit and by `techaust` or a Dependabot minor or patch bump, then deletes the branch and runs CI on `main`.
+- The end-to-end shards and Lighthouse run on pull requests and their branches only, not again on `main` after the merge, since a pull request merges only on the `main` it was tested with.
+- `.github/workflows/automerge.yml` is the only path into `main`: after CI passes on a pull request it merges it with a merge commit when it is open, not a draft, from this repository, unlabelled `hold`, still at the tested commit and by `techaust` or a Dependabot minor or patch bump, then deletes the branch and runs CI on `main`; when `main` has moved since the tested commit it takes `main` into the branch and tests it again, and a pull request that changes the checks waits for the owner's `checks-ok` label ([TESTING §6](../09-testing.md#6-what-ci-runs)).
 - Nobody pushes to `main` directly, and history on GitHub is never rewritten: force pushes and branch deletions are refused, so rebased work goes up under a new branch name.
 - The plan is revisited when the monthly minutes run short again, and branch rules arrive with a paid plan or the client's organisation (the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45 stays open until then).
 

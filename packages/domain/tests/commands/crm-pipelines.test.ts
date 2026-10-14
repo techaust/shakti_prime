@@ -8,6 +8,7 @@ import {
   prepareDatabase,
   principalFor,
   stageId,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -248,7 +249,7 @@ describe('stages', () => {
       pipelineKey: p.key,
       contact: {
         name: 'Stage rule customer',
-        phone: `97${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+        phone: testPhone(),
       },
       account: { type: 'farm' },
     })) as { id: string };
@@ -381,6 +382,73 @@ describe('stages', () => {
     ).toMatchObject({ details: { reason: 'stage_unavailable' } });
   });
 
+  // The refusals of adding, reordering and archiving, each command in turn (audit OPS-6): a role without
+  // crm.config.write, an Executive acting for one company on a group pipeline, and an Executive of
+  // company 1 on a pipeline of company 2. The stages are left as they were.
+  describe.each([
+    {
+      name: 'crm.stage.create',
+      command: createStage as AnyCommand,
+      input: (p: Awaited<ReturnType<typeof testPipeline>>) => ({
+        pipelineId: p.id,
+        name: `Survey ${p.key}`,
+      }),
+      missing: 'pipeline_missing',
+    },
+    {
+      name: 'crm.stage.reorder',
+      command: reorderStages as AnyCommand,
+      input: (p: Awaited<ReturnType<typeof testPipeline>>) => ({
+        pipelineId: p.id,
+        stageIds: [p.stages.new, p.stages.qualified, p.stages.contacted, p.stages.quoted],
+      }),
+      missing: 'pipeline_missing',
+    },
+    {
+      name: 'crm.stage.archive',
+      command: archiveStage as AnyCommand,
+      input: (p: Awaited<ReturnType<typeof testPipeline>>) => ({ stageId: p.stages.contacted }),
+      missing: 'stage_unavailable',
+    },
+  ])('$name refusals', ({ command, input, missing }) => {
+    const order = async (pipelineId: string) =>
+      (await stagesOf(pipelineId)).map((x) => [x.key, x.position, x.archived]);
+
+    it('is refused to a GM and a caller, who hold no crm.config.write', async () => {
+      const p = await testPipeline(1);
+      const before = await order(p.id);
+      for (const principal of [gm, caller]) {
+        const error = await refusal(run(principal, command, input(p)));
+        expect(error).toMatchObject({ code: 'forbidden' });
+        expect(failureOf(error)?.stage).toBe('guard');
+      }
+      expect(await order(p.id)).toEqual(before);
+    });
+
+    it('is refused to an Executive acting for one company on a group pipeline', async () => {
+      const p = await testPipeline();
+      const before = await order(p.id);
+      expect(await refusal(run(execOne, command, input(p)))).toMatchObject({
+        code: 'forbidden',
+        details: { reason: 'config_group_scope' },
+      });
+      expect(await order(p.id)).toEqual(before);
+    });
+
+    it("does not reach another company's pipeline", async () => {
+      const p = await testPipeline(2);
+      const before = await order(p.id);
+      expect(await refusal(run(execOne, command, input(p)))).toMatchObject({
+        code: 'not_found',
+        details: { reason: missing },
+      });
+      expect(await order(p.id)).toEqual(before);
+      // The pipeline's own company changes it.
+      await run(execTwo, command, input(p));
+      expect(await order(p.id)).not.toEqual(before);
+    });
+  });
+
   it('answers whether a stage holds open leads only to a caller holding crm.config.write:all', async () => {
     const p = await testPipeline();
     const ask = (principal: Principal) =>
@@ -443,7 +511,7 @@ describe('stages', () => {
         pipelineKey,
         contact: {
           name: 'Stage lock customer',
-          phone: `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+          phone: testPhone(),
         },
         account: { type: 'farm' },
       })) as { id: string };
@@ -528,7 +596,7 @@ describe('stages', () => {
         pipelineKey: p.key,
         contact: {
           name: 'Stage lock customer',
-          phone: `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+          phone: testPhone(),
         },
         account: { type: 'farm' },
       });

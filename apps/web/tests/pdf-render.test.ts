@@ -14,6 +14,7 @@ import {
   closeDb,
   createTestPrincipal,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import {
   createLead,
@@ -366,7 +367,7 @@ describe('POST /api/v1/workers/pdf/render (ADR 0009)', () => {
  */
 async function quoteFixture(): Promise<{ quoteId: string; quoteNo: string; phone: string }> {
   const executive = await createTestPrincipal('executive', [ENTITY]);
-  const phone = `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+  const phone = testPhone();
   const lead = await asPrincipal(executive, (context) =>
     runCommand(
       createLead,

@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-  # Started on main by the merge-on-green workflow, whose merges trigger no push run.
+  # Started by the merge-on-green workflow, whose commits trigger no run: on main after a merge, and
+  # on a pull request's branch after it took main into it (a run that decides the merge again).
   workflow_dispatch:
 
 permissions:
@@ -36,11 +37,20 @@ jobs:
       - id: diff
         env:
           EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "$EVENT" != "pull_request" ]; then echo "code=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          files=$(git diff --name-only "$BASE...$HEAD")
+          # A pull request's branch, started by hand or by the merge workflow, is compared with main.
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$REF" != "refs/heads/main" ]; then
+            BASE=origin/main
+            HEAD=HEAD
+          elif [ "$EVENT" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Without rename detection, a file moved into docs/ is listed under its old path too.
+          files=$(git diff --name-only --no-renames "$BASE...$HEAD")
           echo "$files"
           # Documents only: docs/ (the generated ERD and machine specs are checked by the unit
           # tests, which always run) and the Markdown files at the root.
@@ -156,7 +166,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: supabase/postgres:17.6.1.177
+        image: supabase/postgres:17.6.1.177@sha256:8b1dc570b774b7a21ff15542ff783e285fd68c86fbf3e703a6a15e02f340bf60
         env:
           POSTGRES_PASSWORD: postgres_ci
         ports:
@@ -195,7 +205,9 @@ jobs:
   e2e:
     name: End-to-end (${{ matrix.project }})
     needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
+    # Pull requests and their branches; the run on main after a merge repeats the tree its pull
+    # request passed, since that pull request merges only on the main it was tested with.
+    if: github.ref != 'refs/heads/main' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     # One job per project, each with its own database; the sign-in setup runs in each. The image
@@ -206,11 +218,11 @@ jobs:
       matrix:
         project: [desktop-light, desktop-dark, phone]
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
       options: --ipc=host
     services:
       postgres:
-        image: supabase/postgres:17.6.1.177
+        image: supabase/postgres:17.6.1.177@sha256:8b1dc570b774b7a21ff15542ff783e285fd68c86fbf3e703a6a15e02f340bf60
         env:
           POSTGRES_PASSWORD: postgres_ci
         options: >-
@@ -286,12 +298,12 @@ jobs:
   lighthouse:
     name: Lighthouse
     needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
+    if: github.ref != 'refs/heads/main' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     services:
       postgres:
-        image: supabase/postgres:17.6.1.177
+        image: supabase/postgres:17.6.1.177@sha256:8b1dc570b774b7a21ff15542ff783e285fd68c86fbf3e703a6a15e02f340bf60
         env:
           POSTGRES_PASSWORD: postgres_ci
         ports:

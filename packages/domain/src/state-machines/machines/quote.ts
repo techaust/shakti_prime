@@ -1,5 +1,5 @@
 import type { Segment } from '@shakti/contracts';
-import { istCalendarDate } from '../../numbering/financial-year';
+import { IST_OFFSET_MS, istCalendarDate } from '../../numbering/financial-year';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { allOf, defineMachine, reasonGiven, type Guard } from '../define-machine';
 
@@ -44,9 +44,6 @@ export interface QuoteParams {
 }
 
 type G = Guard<QuoteRecord, QuoteParams>;
-
-/** India has one time zone and no daylight saving: a fixed offset is exact. */
-const IST_OFFSET_MS = 330 * 60_000;
 
 /**
  * `valid_until` of a quote created at `createdAt`: the created calendar date in IST plus the

@@ -24,7 +24,12 @@
     },
     "@shakti/db#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/05-database.md", "$TURBO_ROOT$/docs/data/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/05-database.md",
+        "$TURBO_ROOT$/docs/07-security.md",
+        "$TURBO_ROOT$/docs/data/**"
+      ]
     },
     "@shakti/tokens#test": {
       "dependsOn": ["^build"],
@@ -36,7 +41,13 @@
     },
     "web#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/eslint.config.mjs"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/eslint.config.mjs",
+        "$TURBO_ROOT$/infra/aws/files.yaml",
+        "$TURBO_ROOT$/.github/workflows/**",
+        "$TURBO_ROOT$/compose.yaml"
+      ]
     },
     "test:security": {
       "dependsOn": ["^build"],

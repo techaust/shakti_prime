@@ -6,6 +6,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   createTestUser,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -54,7 +55,7 @@ function run(
   );
 }
 
-const phone = (): string => `94${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+const phone = (): string => testPhone();
 
 async function leadOf(owner: Principal, pipelineKey: string, name: string): Promise<string> {
   const lead = (await run(
@@ -401,7 +402,8 @@ describe('dialNumber', () => {
 
   it('shows the full number inside calling hours', async () => {
     const shown = await dial(caller, leads.due, AS_OF);
-    expect(shown.e164).toMatch(/^\+9194\d{8}$/);
+    // The whole number, not the masked one (testPhone() draws ten digits, 6 to 9 first).
+    expect(shown.e164).toMatch(/^\+91[6-9]\d{9}$/);
   });
 
   it('is refused outside calling hours and for a customer who withdrew consent', async () => {

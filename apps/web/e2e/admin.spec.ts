@@ -21,6 +21,7 @@ test.describe('as an Executive', () => {
     const grid = dataGrid(page, 'Team members');
     await expect(grid.getByText('Geeta Kumari')).toBeVisible();
     await expectNoAxeViolations(page);
+    // snap() leaves the main menu out of every picture (e2e/support/snap.ts).
     await snap(page, 'team-members');
   });
 

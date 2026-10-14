@@ -2,6 +2,7 @@ import {
   dataGrid,
   expect,
   expectNoAxeViolations,
+  hydrated,
   signedInAs,
   snap,
   test,
@@ -18,10 +19,12 @@ test.describe('the logo and letterhead of a company', () => {
     await expect(page.getByRole('heading', { name: 'Companies', level: 1 })).toBeVisible();
     // The page's title streams in after its content; axe needs it (document-title).
     await expect(page).toHaveTitle(/^Companies · /);
-    await dataGrid(page, 'Companies')
-      .getByRole('button', { name: 'Logo and letterhead' })
-      .first()
-      .click();
+    // The grid's button opens its dialog only once React has taken the page over.
+    await (
+      await hydrated(
+        dataGrid(page, 'Companies').getByRole('button', { name: 'Logo and letterhead' }).first(),
+      )
+    ).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: /Logo and letterhead of/ })).toBeVisible();
     await expectNoAxeViolations(page);
@@ -52,10 +55,12 @@ test.describe('the logo and letterhead of a company', () => {
     await page.goto('/settings/companies');
     // The page's title streams in after its content; axe needs it (document-title).
     await expect(page).toHaveTitle(/^Companies · /);
-    await dataGrid(page, 'Companies')
-      .getByRole('button', { name: 'Logo and letterhead' })
-      .first()
-      .click();
+    // The grid's button opens its dialog only once React has taken the page over.
+    await (
+      await hydrated(
+        dataGrid(page, 'Companies').getByRole('button', { name: 'Logo and letterhead' }).first(),
+      )
+    ).click();
     const dialog = page.getByRole('dialog');
     const uploads: string[] = [];
     page.on('request', (request) => {
