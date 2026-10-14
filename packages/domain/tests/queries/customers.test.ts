@@ -9,6 +9,7 @@ import {
   PIPELINE_SEED,
   principalFor,
   stageId,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -61,9 +62,7 @@ const read = <T>(
   input: unknown,
 ) => asPrincipal(who, (ctx) => query(ctx as never, input));
 
-const digits = (): string => String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
-
-async function customer(owner: Principal, name: string, village: string, number = `91${digits()}`) {
+async function customer(owner: Principal, name: string, village: string, number = testPhone()) {
   const made = (await run(owner, createLead, {
     entityId: 1,
     pipelineKey: 'farmer_pumps',
@@ -83,7 +82,7 @@ describe('listCustomers', () => {
   it('lists the caller’s customers by name, a page at a time, and finds them by name, village or phone', async () => {
     const one = await customer(caller, `${TAG} Anil`, `${TAG}pur`);
     const two = await customer(caller, `${TAG} Bina`, 'Churu');
-    const three = await customer(caller, `${TAG} Chetan`, 'Sikar', `91${digits()}`);
+    const three = await customer(caller, `${TAG} Chetan`, 'Sikar', testPhone());
     const hidden = await customer(colleague, `${TAG} Dev`, 'Sikar');
 
     const first = (await read(caller, listCustomers, { q: TAG, limit: 2 })) as Page;
@@ -229,7 +228,7 @@ describe('loadAccount360 and listTimeline', () => {
     const made = (await run(caller, createLead, {
       entityId: 1,
       pipelineKey: 'farmer_pumps',
-      contact: { name: `${TAG} Same moment`, phone: `91${digits()}` },
+      contact: { name: `${TAG} Same moment`, phone: testPhone() },
       account: { type: 'farm' },
       consent: { channel: 'call', purpose: 'service', source: 'verbal', textVersion: 'v1' },
     })) as { account: { id: string } };

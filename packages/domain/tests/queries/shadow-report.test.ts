@@ -11,6 +11,7 @@ import {
   createTestPrincipal,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAiProvider } from '../../src/ai/provider';
@@ -62,7 +63,7 @@ async function newLead(): Promise<string> {
         pipelineKey: 'farmer_pumps',
         contact: {
           name: 'Report customer',
-          phone: `92${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+          phone: testPhone(),
         },
         account: { type: 'farm' },
       },

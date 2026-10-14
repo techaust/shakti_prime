@@ -6,6 +6,7 @@ import {
   createTestPrincipal,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -101,7 +102,7 @@ describe('listLeads sort', () => {
             pipelineKey: 'farmer_pumps',
             contact: {
               name: `${tag} ${name}`,
-              phone: `93${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`,
+              phone: testPhone(),
             },
             account: { type: 'farm' },
           },

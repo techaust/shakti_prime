@@ -16,6 +16,7 @@ import {
   createTestTeam,
   grantsForRole,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -57,7 +58,7 @@ function run<I extends z.ZodType, O extends z.ZodType>(
 
 /** A mobile number no earlier run used. */
 function phone(): string {
-  return `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+  return testPhone();
 }
 
 /** The fixture PINs this file has drawn, so no two of its tests share one. */

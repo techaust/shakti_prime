@@ -1,3 +1,4 @@
+import { IST_OFFSET_MS } from '../numbering/financial-year';
 /**
  * Outbound calling rules (docs/07-security.md §7, BLUEPRINT §9.3 hard guardrails): TRAI calling hours,
  * the DLT number series and recorded consent. Pure functions: the dial command calls them with the
@@ -5,7 +6,7 @@
  */
 
 /** India has one time zone and no daylight saving: a fixed offset is exact. */
-const IST_OFFSET_MINUTES = 330;
+const IST_OFFSET_MINUTES = IST_OFFSET_MS / 60_000;
 
 /** Calls may start from 09:00 IST and must start before 21:00 IST (TRAI, TCCCPR 2018). */
 export const CALLING_WINDOW_IST = { startMinute: 9 * 60, endMinute: 21 * 60 } as const;

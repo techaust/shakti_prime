@@ -7,6 +7,7 @@ import {
   createTestTeam,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -93,7 +94,7 @@ function run(
   );
 }
 
-const phone = (): string => `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+const phone = (): string => testPhone();
 
 async function leadOf(owner: Principal): Promise<string> {
   const lead = (await run(

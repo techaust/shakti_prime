@@ -79,16 +79,30 @@ interface ItemOut {
 
 describe('catalogue.item.create / update / archive', () => {
   it('is denied to a role without catalogue.write, and to an agent', async () => {
+    const pump = await run<ItemOut>(manager, createItem, pumpInput());
     for (const roleKey of [
       'tele_caller_cc',
       'accounts',
       'sales_team_lead',
       'agent:sizing',
     ] as const) {
-      await expect(run(principalFor(roleKey, [1]), createItem, pumpInput())).rejects.toMatchObject({
+      const who = principalFor(roleKey, [1]);
+      await expect(run(who, createItem, pumpInput())).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+      // The change and the archive too (audit OPS-6), and the item stays as it was.
+      await expect(run(who, updateItem, { ...pumpInput(), itemId: pump.id })).rejects.toMatchObject(
+        { code: 'forbidden' },
+      );
+      await expect(run(who, archiveItem, { itemId: pump.id })).rejects.toMatchObject({
         code: 'forbidden',
       });
     }
+    const [row] = await asMigrator(
+      (m) => m<{ name: string; active: boolean }[]>`
+        select name, is_active as active from items where id = ${pump.id}`,
+    );
+    expect(row).toEqual({ name: `Catalogue test pump ${tag}`, active: true });
   });
 
   it('creates an item for every company: audited for no one company, the event filed under the caller', async () => {
@@ -324,13 +338,36 @@ describe('products are shared: every catalogue change needs every company', () =
 describe('catalogue.kit.create / update / archive', () => {
   it('is denied to a role without catalogue.write', async () => {
     const pump = await run<ItemOut>(manager, createItem, pumpInput());
+    const store = principalFor('store_manager', [1]);
     await expect(
-      run(principalFor('store_manager', [1]), createKit, {
+      run(store, createKit, {
         sku: sku('KIT'),
         name: 'Refused kit',
         components: [{ itemId: pump.id, qty: '1' }],
       }),
     ).rejects.toMatchObject({ code: 'forbidden' });
+    // The change and the archive too (audit OPS-6), and the kit stays as it was.
+    const kit = await run<{ id: string; name: string }>(manager, createKit, {
+      sku: sku('KIT'),
+      name: `Denied kit ${tag}`,
+      components: [{ itemId: pump.id, qty: '1' }],
+    });
+    await expect(
+      run(store, updateKit, {
+        kitId: kit.id,
+        sku: sku('KIT'),
+        name: 'Refused kit',
+        components: [{ itemId: pump.id, qty: '2' }],
+      }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(run(store, archiveKit, { kitId: kit.id })).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ name: string; active: boolean }[]>`
+        select name, is_active as active from kits where id = ${kit.id}`,
+    );
+    expect(row).toEqual({ name: `Denied kit ${tag}`, active: true });
   });
 
   it('creates a kit, replaces its components as a set and archives it, audited each time', async () => {

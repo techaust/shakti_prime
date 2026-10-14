@@ -1,0 +1,2 @@
+ALTER TABLE "import_jobs" ADD COLUMN "identity_checked_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "import_jobs_identity_unchecked_idx" ON "import_jobs" USING btree ("entity_id","created_at") WHERE "import_jobs"."identity_checked_at" is null;

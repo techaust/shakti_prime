@@ -278,6 +278,25 @@ describe('caller profiles', () => {
     expect(error).toBeDefined();
   });
 
+  // Audit OPS-6. Every person's role holds profile.write:own, so no role is refused it; a company
+  // outside the request is, and the presence in the person's own company stays as it was.
+  it('refuses a presence for a company outside the request', async () => {
+    const before = await asPrincipal(converterY, (context) =>
+      loadOwnPresence(context, { entityId: CO }),
+    );
+    expect(
+      code(await refusal(run(converterY, setPresence, { entityId: 2, presence: 'present' }))),
+    ).toBe('forbidden');
+    expect(
+      await asPrincipal(converterY, (context) => loadOwnPresence(context, { entityId: CO })),
+    ).toBe(before);
+    const [elsewhere] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from caller_profiles where user_id = ${converterY.id} and entity_id = 2`,
+    );
+    expect(elsewhere?.n).toBe(0);
+  });
+
   it('lists the people a manager sets up under their scope', async () => {
     const mine = await executeQuery(
       teamLead,

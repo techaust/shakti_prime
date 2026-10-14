@@ -33,7 +33,7 @@ pnpm + Turborepo monorepo.
 
 ## Where work runs
 
-Everything runs on the owner's PC with Docker Desktop, by the rule in [CLAUDE.md](CLAUDE.md#session-routine); [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) holds the cloud procedure for when cloud sessions resume.
+Work runs on the owner's PC with Docker Desktop or in a cloud session, whichever the owner chooses for the day, never a mix within one day, by the rule in [CLAUDE.md](CLAUDE.md#session-routine); [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) holds the cloud procedure.
 
 ## Commands
 

@@ -1,4 +1,11 @@
-import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
+import {
+  expect,
+  expectNoAxeViolations,
+  hydrated,
+  signedInAs,
+  snap,
+  test,
+} from './support/fixtures';
 import { REFERRAL_PARTNER } from './support/users';
 
 test.describe('Settings › Pipelines as an Executive', () => {
@@ -44,11 +51,13 @@ test.describe('Settings › Pipelines as an Executive', () => {
     await expect(partner).toContainText(`Code ${REFERRAL_PARTNER.code}`);
     await expect(partner).toContainText('Code accepted');
 
-    // The code dialog opens with the partner's code and closes without a change.
+    // The code dialog opens with the partner's code and closes without a change. The two editors
+    // load after the pipelines, so each is clicked or typed into only once React has taken it over
+    // (a click before that was lost on a loaded machine, and the journey passed only on its retry).
     const setCode = partner.getByRole('button', {
       name: `Set the code of ${REFERRAL_PARTNER.name}`,
     });
-    await setCode.click();
+    await (await hydrated(setCode)).click();
     const dialog = page.getByRole('dialog', { name: 'Set a referral code' });
     await expect(dialog.getByLabel('Referral code')).toHaveValue(REFERRAL_PARTNER.code);
     await expect(dialog.getByLabel('Accept this code on new leads')).toBeChecked();
@@ -64,7 +73,7 @@ test.describe('Settings › Pipelines as an Executive', () => {
     await expect(
       form.getByLabel('Partner').locator('option', { hasText: REFERRAL_PARTNER.name }),
     ).toHaveCount(1);
-    await form.getByLabel('Amount').fill('500');
+    await (await hydrated(form.getByLabel('Amount'))).fill('500');
     await form.getByLabel('From').fill('31022031');
     await expect(form.getByText('Enter a real date as DD-MM-YYYY.')).toBeVisible();
     await form.getByRole('button', { name: 'Add commission rule' }).click();

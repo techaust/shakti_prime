@@ -21,8 +21,10 @@ updates:
         update-types: [minor, patch]
     ignore:
       # Playwright moves only by hand: `@playwright/test` and `playwright-core` together, with the
-      # Playwright image in .github/workflows/ci.yml and apps/web/e2e/setup/snap-in-linux.ts and the
-      # screenshot baselines remade. A bump of one package alone fails the typecheck (two `Page`
+      # Playwright image (its tag and digest) in .github/workflows/ci.yml and
+      # apps/web/e2e/setup/snap-in-linux.ts and the screenshot baselines remade. No ecosystem here
+      # reads the workflows' container images: they and the Postgres image move by hand, pinned by
+      # digest (apps/web/src/ci-images.test.ts keeps every copy the same). A bump of one package alone fails the typecheck (two `Page`
       # types), and a bump of both still runs in the old image.
       - dependency-name: '@playwright/test'
       - dependency-name: playwright-core

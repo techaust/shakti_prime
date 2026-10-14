@@ -60,6 +60,17 @@ export interface WorkshopDefaults {
      * (`crm.lead.anonymise`). The database takes 12 to 120.
      */
     readonly unqualifiedLeadMonths: number;
+    /**
+     * Days an import's rows keep what the file said (`raw_json`, `normalised_json`) after the job
+     * ended (all rows added, stopped or undone) or was last touched, for its reconciliation; then
+     * the import purge clears them (`imports.job.purge`). The database takes 7 to 365.
+     */
+    readonly importReconciliationDays: number;
+    /**
+     * Days an uploaded import file's bytes are kept when its job has not ended (or never began);
+     * a file whose job ended is deleted at the next run. The database takes 1 to 90.
+     */
+    readonly importFileOpenDays: number;
   };
 }
 
@@ -263,5 +274,12 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
    */
   retention: {
     unqualifiedLeadMonths: 24,
+    /**
+     * Audit SEC-1 (12-10-2026): thirty days, which covers the cutover's two-week parallel run and
+     * its reconciliation (IMP-02) with time to spare. For the owner and the CA to confirm.
+     */
+    importReconciliationDays: 30,
+    /** Audit SEC-1: a week for an import left before its rows are added. For the owner to confirm. */
+    importFileOpenDays: 7,
   },
 };

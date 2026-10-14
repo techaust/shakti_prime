@@ -1,7 +1,13 @@
 import { newId, type Principal } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
 import { closeOutboxDb } from '@shakti/db/outbox';
-import { asMigrator, closeDb, createTestPrincipal, principalFor } from '@shakti/db/testing';
+import {
+  asMigrator,
+  closeDb,
+  createTestPrincipal,
+  principalFor,
+  testPhone,
+} from '@shakti/db/testing';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The list actions outside a Next.js request, as in actions.test.ts: the headers and the
@@ -47,7 +53,7 @@ function ok<T>(result: { ok: true; data: T } | { ok: false; error: string }): T 
 }
 
 const tag = newId().slice(-10);
-const phone = () => `97${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`;
+const phone = () => testPhone();
 
 describe('leadFormOptions', () => {
   it('answers a caller with no session as signed out', async () => {

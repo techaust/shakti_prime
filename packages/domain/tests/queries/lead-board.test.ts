@@ -7,6 +7,7 @@ import {
   createTestTeam,
   createTestUser,
   stageId,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -27,7 +28,7 @@ const tag = newId().slice(-8);
 // The assignee list is bounded and by name: names that sort before every earlier run's keep this
 // run's people on it however many people the suites have added.
 const first = `0 ${String(1e13 - Date.now()).padStart(13, '0')}`;
-const phone = () => `96${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`;
+const phone = () => testPhone();
 
 let team: string;
 let otherTeam: string;

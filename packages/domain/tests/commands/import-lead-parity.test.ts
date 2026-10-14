@@ -6,6 +6,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   grantsForRole,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
@@ -83,7 +84,7 @@ function run(
 
 /** A mobile number no earlier run used. */
 function phone(): string {
-  return `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+  return testPhone();
 }
 
 type Row = Record<string, unknown>;

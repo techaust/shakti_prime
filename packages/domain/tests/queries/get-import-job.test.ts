@@ -5,6 +5,7 @@ import {
   closeDb,
   createReadyImportFile,
   createTestPrincipal,
+  testPhone,
 } from '@shakti/db/testing';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -20,7 +21,7 @@ vi.setConfig({ testTimeout: 60_000 });
 
 /** A mobile number no earlier run used. */
 function phone(): string {
-  return `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+  return testPhone();
 }
 
 /** A job for a one-row CSV in the given company, as the upload action makes it. */

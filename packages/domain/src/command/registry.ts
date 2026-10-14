@@ -76,6 +76,8 @@ import { createImportJob } from '../commands/imports/create-job';
 import { failImportJob } from '../commands/imports/fail-job';
 import { mapImportJob } from '../commands/imports/map-job';
 import { previewImportJob } from '../commands/imports/preview-job';
+import { maskImportIdentity, recordImportPurgeFailure } from '../commands/imports/mask-identity';
+import { purgeImportRows, recordImportFilesDeleted } from '../commands/imports/purge';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
@@ -113,7 +115,8 @@ import { setTaxRate } from '../commands/tax/set-tax-rate';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
-export const commands = {
+/** Frozen: no command can be added, replaced or removed at run time (audit ARCH-1). */
+export const commands = Object.freeze({
   [updateEntity.name]: updateEntity,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
@@ -194,6 +197,10 @@ export const commands = {
   [commitImportBatch.name]: commitImportBatch,
   [rollbackImportJob.name]: rollbackImportJob,
   [failImportJob.name]: failImportJob,
+  [maskImportIdentity.name]: maskImportIdentity,
+  [recordImportPurgeFailure.name]: recordImportPurgeFailure,
+  [purgeImportRows.name]: purgeImportRows,
+  [recordImportFilesDeleted.name]: recordImportFilesDeleted,
   [beginUpload.name]: beginUpload,
   [completeUpload.name]: completeUpload,
   [markFileScanned.name]: markFileScanned,
@@ -242,7 +249,28 @@ export const commands = {
   [setNotificationSettings.name]: setNotificationSettings,
   [subscribePush.name]: subscribePush,
   [unsubscribePush.name]: unsubscribePush,
-} as const satisfies Record<string, AnyCommand>;
+} as const satisfies Record<string, AnyCommand>);
+
+/**
+ * Commands a test defines to exercise the runner itself (an event that fails after it is stored,
+ * a timing line). Only `@shakti/domain/testing` adds one, and ESLint lets only tests import it.
+ */
+const testCommands = new WeakSet<AnyCommand>();
+
+export function allowTestCommand(command: AnyCommand): void {
+  testCommands.add(command);
+}
+
+/**
+ * Whether `executeCommand()` may run this command: the registry's own object under its name, so a
+ * command defined anywhere else, even under a registered name, never runs (audit ARCH-1).
+ */
+export function isRegistered(command: AnyCommand): boolean {
+  return (
+    (commands as Record<string, AnyCommand | undefined>)[command.name] === command ||
+    testCommands.has(command)
+  );
+}
 
 export function getCommand(name: string): AnyCommand {
   const command = (commands as Record<string, AnyCommand | undefined>)[name];
