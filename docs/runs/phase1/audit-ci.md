@@ -162,6 +162,53 @@ All thirteen review findings were fixed (the Review table gives each one's commi
 - Whether `pull_request_target` labels and the compare API behave as the stand-in does.
 - The screenshots under the new limit, which is the lead's `e2e:snap` run.
 
+### Second fix round (screenshots), 14-10-2026, cloud, builder on Opus 5.5 high
+The 300-pixel limit (OPS-15) was not stable in the Linux image: the lead's runs gave 14 failed on a full run and 7 on `desktop-dark` alone. This round started from `782f69d2` (`main` merged in, plus the team-members menu mask). The lead's 79 uncommitted baselines were discarded. Commit `8177ab05`.
+
+**What changed between runs, read from the lead's diff images:**
+- the main menu, which showed Converting in some runs and not in others;
+- the top bar's bell and Agent Inbox counts: a badge shown, or no badge at a count of 0, depending on what other journeys filed;
+- masked times and dates whose text width varies, for example `9:05 am` against `10:05 am`. The mask box changed width, and in a table with no fixed layout the column widths moved, heads included. This accounts for team-members, integration-health (Scheduled upkeep, Delivery speed), notification-centre, agent-inbox, targets, triage-proposals, customer-sizing and imports-row-counts;
+- the converting journey's quote number, the next of its company's series. The quote journeys running beside it also draw from that series.
+
+**Fixes, all in `e2e/support/snap.ts` and `snap.css` unless named:**
+- `snap()` masks the main menu on every picture, with the reason written in `snap.ts`: its content is covered by `nav.test.ts` and `screens/palette.test.ts`, and in the Linux runs it differed with no change to the grants.
+- `snap()` masks the top bar's bell and Agent Inbox whole on every picture, and the bot check's widget.
+- While a picture is taken, every masked value gets one fixed width (8.5rem, one line): an inline element, a text-only flex item, or a table cell. Each table that holds one is laid out with `table-layout: fixed`, from its heads, so a longer value never moves a column or a line. The marks are removed after the picture. `fixed-times.css` and the `fixedTimes` option are folded into this.
+- The converting quote picture masks the quote number (`/Q/<year>/<n>`), in the board and in its toast (`converting.spec.ts`).
+- `admin.spec.ts` drops its own menu mask, which `snap()` now applies.
+- No screen needed a whole region masked beyond what is listed above.
+- The only visible cost: in a table laid out from its heads, a long cell can now be cut at its column's edge in the picture (the integration-health "What went wrong" badge). It is a property of the picture only.
+
+**The converting journey's failure:**
+- Its first try failed on the quote number above. That was the root cause.
+- Its retry then failed functionally (`What to do next` 3 rows, not 4) because the journey is not repeatable on one database: the first try had already completed the callback.
+- With the number masked, the first try passes; it has passed in every run below.
+
+**Why the Converting entry comes and goes (30-minute time box): not found.**
+- The menu is `visibleNav(principal.permissions)`. The Executive holds `crm.lead.read`, `calls.log` and `sales.quote.create` in all four companies (`seeds/role-permissions.ts`, EXEC). No journey writes role grants or user roles; `roles.spec.ts` only changes a select and undoes it.
+- The active company is a per-browser-context cookie, not shared between journeys.
+- The principal cache is keyed by user, session and company, and is invalidated by the user's version counter.
+- `intersectGrants()` (`resolve-principal.ts`) is deterministic.
+- So the cause is still unknown, and the mask stands as the owner decided.
+
+**Proof, through the lock, each on a fresh slot database (`fresh-db.sh shakti-pg-audit-ci 54338`) after `pnpm build`:**
+1. Baselines with `--update-snapshots=changed`: 423 passed, 14 skipped. The first try of this round (before tables were laid out from their heads) left `targets` failing in two projects, so the baselines were made again.
+2. Full run: 423 passed, 14 skipped, no failure, no flake.
+3. Second full run, on another fresh database: 423 passed, 14 skipped, no failure, no flake.
+4. `--project=desktop-light` alone: 155 passed. `--project=desktop-dark` alone: 148 passed, 7 skipped. `--project=phone` alone: 148 passed, 7 skipped. None had a failure or a flake.
+
+Each run took 14.5 to 15.4 minutes for the full suite, and 4.5 to 5.2 minutes for one project.
+
+**168 baselines changed**, every one because the menu and the top-bar counts are now masked, and many also for the fixed widths. All 168 were looked at, in contact sheets of 15. Two were opened at full size: `targets` and `integration-health`.
+
+**Checks, through the lock after `8177ab05`:**
+- `pnpm exec prettier --check .`: "All matched files use Prettier code style!".
+- `web` typecheck: clean.
+- `eslint apps/web/e2e`: clean.
+- Whole-repository `pnpm lint`: passed.
+- Only `apps/web/e2e` and TESTING §5 changed in this round, so no unit or security suite was rerun.
+
 ## Review
 ### 13-10-2026, cloud, slice-reviewer on Opus 5.5 xhigh, head `b1c796a5`
 No critical or high finding. Three medium (two in the `checks-ok` rule, one in the screenshots) and ten low. The core of OPS-1 holds: a pull request merges only when its tested commit holds the current `main`.
