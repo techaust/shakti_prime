@@ -1,4 +1,4 @@
-import { newId, type Principal } from '@shakti/contracts';
+import { newId, type Principal, type RoleKey } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -26,6 +26,7 @@ afterAll(closeDb);
 
 let x: Principal;
 let y: Principal;
+let team: string;
 const k = { account: newId(), leadX: newId(), leadY: newId() };
 const n = { account: newId(), lead: newId() };
 /** The timeline rows, by what they are about. */
@@ -50,7 +51,7 @@ async function failure(promise: Promise<unknown>): Promise<string> {
 }
 
 beforeAll(async () => {
-  const team = await createTestTeam(1, 'activities team');
+  team = await createTestTeam(1, 'activities team');
   x = await createTestPrincipal('tele_caller_cc', [1], { teamId: team });
   y = await createTestPrincipal('tele_caller_cc', [1], { teamId: team });
   const pipeline = PIPELINE_SEED[0]?.id ?? '';
@@ -157,10 +158,42 @@ function insertAs(who: Principal, row: Row) {
 describe('writing the timeline as the application', () => {
   const rls = /row-level security/;
 
-  it('takes a row on a lead or a customer the caller reads', async () => {
+  it('takes a row on a lead the caller reads and works, or on a customer they may change', async () => {
     await insertAs(x, { entityId: 1, opportunityId: k.leadX, accountId: k.account });
     await insertAs(x, { entityId: 1, opportunityId: null, accountId: k.account });
-    await insertAs(y, { entityId: 1, opportunityId: null, accountId: k.account });
+    await insertAs(y, { entityId: 1, opportunityId: k.leadY, accountId: k.account });
+  });
+
+  it('refuses a row on a customer the caller only reads through their lead (SEC-4)', async () => {
+    // Y reads K through Y's lead of K, but K is X's customer: a customer row is a change to K.
+    expect(
+      await failure(insertAs(y, { entityId: 1, opportunityId: null, accountId: k.account })),
+    ).toMatch(rls);
+  });
+
+  // SEC-4: a row on a lead is written by a role that works leads (crm.lead.write), never by one
+  // that only reads them, whatever the row's type; each role acts in company 1, on X's lead.
+  it.each<[RoleKey, boolean]>([
+    ['executive', true],
+    ['general_manager', true],
+    ['sales_team_lead', true],
+    ['accounts', false],
+    ['project_manager', false],
+  ])('a %s writes a lead row it reads only when it works leads: %s', async (role, allowed) => {
+    const who = await createTestPrincipal(role, role === 'executive' ? undefined : [1], {
+      teamId: team,
+    });
+    const narrowed = { ...who, entityIds: [1] };
+    for (const type of ['won', 'stage_moved', 'call_logged']) {
+      const attempt = insertAs(narrowed, {
+        entityId: 1,
+        opportunityId: k.leadX,
+        accountId: k.account,
+        type,
+      });
+      if (allowed) await attempt;
+      else expect(await failure(attempt)).toMatch(rls);
+    }
   });
 
   it('refuses a row for another actor, another company, or a lead the caller does not read', async () => {

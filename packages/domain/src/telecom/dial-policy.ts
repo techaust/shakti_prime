@@ -5,6 +5,8 @@ import { IST_OFFSET_MS } from '../numbering/financial-year';
  * clock, the caller id it is about to use, the call's purpose and the lead's consent and DND state.
  */
 
+import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
+
 /** India has one time zone and no daylight saving: a fixed offset is exact. */
 const IST_OFFSET_MINUTES = IST_OFFSET_MS / 60_000;
 
@@ -51,6 +53,29 @@ export function istMinuteOfDay(at: Date): number {
 export function withinCallingHours(at: Date): boolean {
   const minute = istMinuteOfDay(at);
   return minute >= CALLING_WINDOW_IST.startMinute && minute < CALLING_WINDOW_IST.endMinute;
+}
+
+const DAY_MS = 86_400_000;
+
+/** Why a logged call is refused: it started outside calling hours, or is logged too long after. */
+export type CallLogRefusal = 'outside_calling_hours' | 'call_logged_too_late';
+
+/**
+ * Whether a call that started at `startedAt` may be logged at `loggedAt` (DOM-6): calling hours
+ * hold for the call's start, as TRAI's do, so a call that started before 09:00 or from 21:00 IST
+ * is refused whenever it is logged, and a call that started in hours is logged by 21:00 IST that
+ * day plus `graceMinutes` (`WORKSHOP_DEFAULTS.calling.logGraceMinutes`, workshop CALL-8).
+ */
+export function callLogRefusal(
+  startedAt: Date,
+  loggedAt: Date,
+  graceMinutes: number = WORKSHOP_DEFAULTS.calling.logGraceMinutes,
+): CallLogRefusal | undefined {
+  if (!withinCallingHours(startedAt)) return 'outside_calling_hours';
+  const local = startedAt.getTime() + IST_OFFSET_MS;
+  const dayStart = local - (((local % DAY_MS) + DAY_MS) % DAY_MS) - IST_OFFSET_MS;
+  const lastLog = dayStart + (CALLING_WINDOW_IST.endMinute + graceMinutes) * 60_000;
+  return loggedAt.getTime() > lastLog ? 'call_logged_too_late' : undefined;
 }
 
 /** The digits of an Indian number without the country code or trunk prefix. */

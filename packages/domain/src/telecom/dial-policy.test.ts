@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  callLogRefusal,
   checkDial,
   isIndianMobile,
   istMinuteOfDay,
@@ -9,6 +10,7 @@ import {
   withinCallingHours,
   type DialRequest,
 } from './dial-policy';
+import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 
 /** An instant given in IST, the way people state calling hours. */
 const ist = (isoLocal: string) => new Date(`${isoLocal}+05:30`);
@@ -140,5 +142,41 @@ describe('checkDial', () => {
         'recipient_on_dnd',
       ],
     });
+  });
+});
+
+describe('callLogRefusal (DOM-6)', () => {
+  /** A time on 13-10-2026 in IST. */
+  const at = (hhmm: string) => ist(`2026-10-13T${hhmm}:00`);
+
+  it('accepts a call that started in hours and is logged in hours', () => {
+    expect(callLogRefusal(at('10:00'), at('10:05'))).toBeUndefined();
+  });
+
+  it('accepts a call that started at 20:58 and is logged at 21:03, within the grace', () => {
+    expect(WORKSHOP_DEFAULTS.calling.logGraceMinutes).toBe(15);
+    expect(callLogRefusal(at('20:58'), at('21:03'))).toBeUndefined();
+    expect(callLogRefusal(at('20:58'), at('21:15'))).toBeUndefined();
+  });
+
+  it('refuses a call that started in hours but is logged after the grace', () => {
+    expect(callLogRefusal(at('20:58'), new Date(at('21:15').getTime() + 1000))).toBe(
+      'call_logged_too_late',
+    );
+    expect(callLogRefusal(at('20:00'), at('22:00'))).toBe('call_logged_too_late');
+  });
+
+  it('refuses a call that started before 09:00, though it is logged in hours', () => {
+    expect(callLogRefusal(at('08:50'), at('09:05'))).toBe('outside_calling_hours');
+    expect(callLogRefusal(at('09:00'), at('09:05'))).toBeUndefined();
+  });
+
+  it('takes the grace the workshop sets', () => {
+    expect(callLogRefusal(at('20:58'), at('21:25'), 30)).toBeUndefined();
+    expect(callLogRefusal(at('20:58'), at('21:01'), 0)).toBe('call_logged_too_late');
+  });
+
+  it('refuses a call that started at 21:00 or later', () => {
+    expect(callLogRefusal(at('21:00'), at('21:01'))).toBe('outside_calling_hours');
   });
 });

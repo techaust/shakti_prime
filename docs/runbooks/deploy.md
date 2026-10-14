@@ -112,6 +112,8 @@ This is the one procedure for bringing a hosted database and site up to `main`; 
      alter table quote_lines validate constraint quote_lines_gst_split_check;
      alter table sales_orders validate constraint sales_orders_gst_split_check;
      alter table sales_order_lines validate constraint sales_order_lines_gst_split_check;
+     alter table quotes validate constraint quotes_withdrawn_reason_check;
+     alter table quotes validate constraint quotes_acceptance_check;
      ```
 
 9. Record the environment's last migration and the date in [STATUS](../10-status.md#hosted-environments).

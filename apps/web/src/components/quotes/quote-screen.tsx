@@ -212,6 +212,16 @@ export function QuoteScreen({
         {quote.withdrawnReason === null ? null : (
           <Detail label={t('page.withdrawnBecause')}>{quote.withdrawnReason}</Detail>
         )}
+        {quote.withdrawnForId === null ? null : (
+          <Detail label={t('page.withdrawnFor')}>
+            <Link
+              href={quoteHref(quote.entityId, quote.withdrawnForId)}
+              className="text-accent-text hover:underline"
+            >
+              {quote.withdrawnForNo ?? ''}
+            </Link>
+          </Detail>
+        )}
         {quote.orderId === null ? null : (
           <Detail label={orders('accept.order')}>
             <Link

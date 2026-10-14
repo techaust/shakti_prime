@@ -6,7 +6,9 @@ import { assertTaxGroupScope } from './group-scope';
 
 /**
  * `tax.rate.set` (design §6, SAL-02): the one way a GST rate is recorded. The rate of an HSN code
- * or an item that was open-ended ends where the new one starts; any other overlap is refused by
+ * or an item that was open-ended ends where the new one starts; when the new one has an end date,
+ * the old rate carries on from that date, open-ended, so no day is left without a rate (DOM-7).
+ * Any other overlap is refused by
  * the table's exclusion constraints, which answer `tax_rate_overlap`. Rates are shared by every
  * company, so the audit rows belong to no one company, and only a request acting for every company
  * may record one (`tax_group_scope`). Quotes keep the rate they were made with.
@@ -42,7 +44,7 @@ export const setTaxRate = defineCommand({
       input.hsn !== undefined ? eq(tr.hsn, input.hsn) : eq(tr.itemId, input.itemId ?? '');
     const actor = ctx.principal.id;
     const [open] = await ctx.tx
-      .select({ id: tr.id })
+      .select({ id: tr.id, ratePct: tr.ratePct, sourceRef: tr.sourceRef })
       .from(tr)
       .where(and(target, isNull(tr.effectiveTo), lt(tr.effectiveFrom, input.effectiveFrom)))
       .limit(1)
@@ -77,6 +79,41 @@ export const setTaxRate = defineCommand({
       .returning();
     if (!row) throw new DomainError('internal', 'tax rate insert returned no row');
 
+    // The rate the new one cut carries on after it ends.
+    let continuedRateId: string | null = null;
+    if (open && row.effectiveTo !== null) {
+      const [continued] = await ctx.tx
+        .insert(tr)
+        .values({
+          id: newId(),
+          hsn: input.hsn ?? null,
+          itemId: input.itemId ?? null,
+          ratePct: open.ratePct,
+          effectiveFrom: row.effectiveTo,
+          effectiveTo: null,
+          sourceRef: open.sourceRef,
+          createdBy: actor,
+        })
+        .returning();
+      if (!continued) throw new DomainError('internal', 'tax rate insert returned no row');
+      continuedRateId = continued.id;
+      ctx.audit({
+        aggregateType: 'tax_rate',
+        aggregateId: continued.id,
+        entityId: null,
+        before: null,
+        after: {
+          hsn: continued.hsn,
+          itemId: continued.itemId,
+          ratePct: continued.ratePct,
+          effectiveFrom: continued.effectiveFrom,
+          effectiveTo: null,
+          sourceRef: continued.sourceRef,
+          continuesRateId: open.id,
+        },
+      });
+    }
+
     const dto = TaxRateRowSchema.parse({
       id: row.id,
       hsn: row.hsn,
@@ -90,7 +127,7 @@ export const setTaxRate = defineCommand({
       aggregateId: row.id,
       entityId: null,
       before: null,
-      after: { ...dto, sourceRef: row.sourceRef, closedRateId: open?.id ?? null },
+      after: { ...dto, sourceRef: row.sourceRef, closedRateId: open?.id ?? null, continuedRateId },
     });
     return dto;
   },

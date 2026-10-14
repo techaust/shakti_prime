@@ -1,5 +1,6 @@
 import {
   DomainError,
+  hasGrant,
   ImportJobDto,
   PreviewImportJobInput,
   type AccountImportMapping,
@@ -48,7 +49,11 @@ interface FileRow {
 }
 
 /** The pipelines and lead sources a row may name in this entity, as the caller sees them. */
-async function lookups(tx: RequestTx, entityId: number): Promise<LeadRowLookups> {
+async function lookups(
+  tx: RequestTx,
+  entityId: number,
+  mayMakeDealer: boolean,
+): Promise<LeadRowLookups> {
   const p = schema.pipelines;
   const pipelines = await tx
     .select({ key: p.key })
@@ -59,7 +64,16 @@ async function lookups(tx: RequestTx, entityId: number): Promise<LeadRowLookups>
   return {
     pipelineKeys: new Set(pipelines.map((r) => r.key)),
     sourceCodes: new Set(sources.map((r) => r.code)),
+    mayMakeDealer,
   };
+}
+
+/**
+ * Whether the caller may add a dealer (DOM-1): only a holder of `sales.credit.write` at company
+ * scope, as on Account 360 and the lead form; any other row naming a dealer is refused.
+ */
+function mayMakeDealer(ctx: CommandContext): boolean {
+  return hasGrant(ctx.principal.permissions, 'sales.credit.write', 'entity');
 }
 
 /** Customers the caller can see with each phone: the dedupe suggestions of design §8. */
@@ -220,7 +234,7 @@ async function previewLeads(
   mapping: LeadImportMapping,
   entityId: number,
 ): Promise<RowFinding[]> {
-  const known = await lookups(ctx.tx, entityId);
+  const known = await lookups(ctx.tx, entityId, mayMakeDealer(ctx));
   const checked = rows.map((row) => ({
     rowNo: row.rowNo,
     check: checkLeadRow(row.raw, mapping, entityId, known),
@@ -278,7 +292,7 @@ async function previewAccounts(
   );
   const checked = rows.map((row) => ({
     rowNo: row.rowNo,
-    check: checkAccountRow(row.raw, mapping, entityId, companies),
+    check: checkAccountRow(row.raw, mapping, entityId, companies, mayMakeDealer(ctx)),
   }));
   const folded = foldAccountRows(checked);
   const existing = await customerSuggestions(

@@ -236,6 +236,14 @@ function AccountForm({ view, onDone, onCancel }: FormProps) {
   const { run, pending, failure } = useCommand(updateAccount);
   const fields = ['name', 'type', 'gstin', 'billingStateCode'];
   const { fieldError, formFailure } = useFieldFailure(failure, fields);
+  // Making a customer a dealer, or a dealer something else, is the Executive's (DOM-1): a caller
+  // without the right keeps a dealer a dealer and is not offered dealer for anyone else.
+  const isDealer = view.account.type === 'dealer';
+  const typeLocked = !view.canChangeDealer && isDealer;
+  const types =
+    view.canChangeDealer || isDealer
+      ? ACCOUNT_TYPES
+      : ACCOUNT_TYPES.filter((type) => type !== 'dealer');
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -246,7 +254,8 @@ function AccountForm({ view, onDone, onCancel }: FormProps) {
         entityId: view.entityId,
         accountId: view.account.id,
         name: formText(data, 'name'),
-        type: formText(data, 'type'),
+        // A dealer's type is not offered to a caller who may not change it: it stays as it is.
+        type: typeLocked ? undefined : formText(data, 'type'),
         gstin: orNull(data, 'gstin'),
         billingStateCode: orNull(data, 'billingStateCode'),
       },
@@ -260,9 +269,16 @@ function AccountForm({ view, onDone, onCancel }: FormProps) {
       <Field id="account-name" label={t('name')} error={fieldError('name')}>
         <Input name="name" defaultValue={view.account.name} required maxLength={120} />
       </Field>
-      <Field id="account-type" label={t('type')} error={fieldError('type')}>
-        <Select name="type" defaultValue={view.account.type}>
-          {ACCOUNT_TYPES.map((type) => (
+      <Field
+        id="account-type"
+        label={t('type')}
+        helper={
+          view.canChangeDealer ? undefined : isDealer ? t('typeDealerLocked') : t('typeNoDealer')
+        }
+        error={fieldError('type')}
+      >
+        <Select name="type" defaultValue={view.account.type} disabled={typeLocked}>
+          {types.map((type) => (
             <option key={type} value={type}>
               {leadsT(`accountType.${type}`)}
             </option>

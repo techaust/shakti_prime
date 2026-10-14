@@ -147,7 +147,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`sales.quote.created`](#salesquotecreated) | A quote was made for a lead, priced from the Price Master and taxed by the tax engine; `supersedesId` names the quote a re-quote replaced. | `sales.quote.create`, `sales.quote.requote` | none |
 | [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer. | `sales.quote.send` | none |
 | [`sales.quote.superseded`](#salesquotesuperseded) | A quote was replaced by a re-quote at current prices (`supersededById`). | `sales.quote.requote` | none |
-| [`sales.quote.withdrawn`](#salesquotewithdrawn) | A draft or sent quote was withdrawn, with a reason a person gave. | `sales.quote.withdraw` | none |
+| [`sales.quote.withdrawn`](#salesquotewithdrawn) | A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose order was cancelled. | `sales.order.cancel`, `sales.quote.accept`, `sales.quote.withdraw` | none |
 | [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
 | [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, in Phase 1) and became the order `orderId`. | `sales.quote.accept` | none |
 | [`sales.order.created`](#salesordercreated) | A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one. | `sales.quote.accept`, `sales.order.create` | none |

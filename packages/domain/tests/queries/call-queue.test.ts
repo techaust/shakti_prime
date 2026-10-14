@@ -404,6 +404,8 @@ describe('dialNumber', () => {
     const shown = await dial(caller, leads.due, AS_OF);
     // The whole number, not the masked one (testPhone() draws ten digits, 6 to 9 first).
     expect(shown.e164).toMatch(/^\+91[6-9]\d{9}$/);
+    // The call's start the workspace sends back is the server's time of the dial (DOM-6).
+    expect(shown.dialledAt).toBe(AS_OF.toISOString());
   });
 
   it('is refused outside calling hours and for a customer who withdrew consent', async () => {

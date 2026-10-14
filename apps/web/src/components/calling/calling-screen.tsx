@@ -203,6 +203,8 @@ export function CallingScreen({
   const [queue, setQueue] = useState(initialQueue);
   const [lead, setLead] = useState<CallLeadDto | null>(initialLead);
   const [shown, setShown] = useState<string | undefined>();
+  // When Dial showed the number: the call's start, which calling hours are checked on (DOM-6).
+  const [dialledAt, setDialledAt] = useState<string | undefined>();
   const [picked, setPicked] = useState<{ outcome: DispositionDto; need: OutcomeNeed }>();
   const searchRef = useRef<HTMLInputElement>(null);
   const workspaceRef = useRef<HTMLHeadingElement>(null);
@@ -210,13 +212,14 @@ export function CallingScreen({
   const leadQuery = useQuery<CallLeadDto>();
   const queueQuery = useQuery<CallQueuePageDto>();
   const moreQuery = useQuery<CallQueuePageDto>();
-  const dial = useQuery<{ e164: string }>();
+  const dial = useQuery<{ e164: string; dialledAt: string }>();
   // One form per lead: another lead's call is sent under a key of its own.
   const save = useCommand(logCall, lead?.opportunityId);
 
   const open = useCallback(
     (ref: { entityId: number; opportunityId: string }) => {
       setShown(undefined);
+      setDialledAt(undefined);
       // Only the lead's reference: the input is strict, and a queue row or a lead carries more.
       const input = { entityId: ref.entityId, opportunityId: ref.opportunityId };
       leadQuery.load(
@@ -243,6 +246,7 @@ export function CallingScreen({
       () => dialNumber({ entityId: lead.entityId, opportunityId: lead.opportunityId }),
       (n) => {
         setShown(n.e164);
+        setDialledAt(n.dialledAt);
       },
     );
   }, [dial, lead]);
@@ -255,6 +259,7 @@ export function CallingScreen({
           entityId: lead.entityId,
           opportunityId: lead.opportunityId,
           dispositionId: outcome.id,
+          ...(dialledAt === undefined ? {} : { startedAt: dialledAt }),
           ...detail,
         },
         (result) => {
@@ -265,7 +270,7 @@ export function CallingScreen({
         },
       );
     },
-    [lead, save, t, open, refreshQueue],
+    [lead, save, t, open, refreshQueue, dialledAt],
   );
 
   const pick = useCallback(

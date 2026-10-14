@@ -44,36 +44,75 @@ export function invoiceAgeDays(invoiceDate: string, today: string): number {
   return Math.round((day(today) - day(invoiceDate)) / 86_400_000);
 }
 
+/** A dealer's credit position in one company, as `app.dealer_credit_position()` answers it. */
+export type CreditPosition = Pick<
+  CreditFacts,
+  'creditLimit' | 'creditDays' | 'outstanding' | 'confirmedUnpaid' | 'oldestUnpaidInvoiceDate'
+>;
+
+/** Where a dealer stands against their terms on a day, with or without an order on top. */
+export interface CreditStanding {
+  /** Outstanding, the confirmed unpaid orders when SALE-5 counts them, and the order on top. */
+  exposure: Money;
+  /** A limit is set and the exposure is over it. */
+  overLimit: boolean;
+  /** Whole days, on the day of `now` in IST, since the oldest unpaid invoice; null when none. */
+  oldestUnpaidAgeDays: number | null;
+  /** Credit days are set and the oldest unpaid invoice is older than them. */
+  overdue: boolean;
+}
+
+/**
+ * The one place a dealer's exposure and its overdue test are worked out (ARCH-5): the credit check
+ * at confirmation, Accounts' home and `/dealer-credit` all call it, so they follow the SALE-5
+ * setting alike (`WORKSHOP_DEFAULTS.credit.exposureCountsConfirmedOrders`, which a test may pass).
+ * `orderValue` is the order being confirmed, `0.00` for a reading of where the dealer stands.
+ */
+export function creditStanding(
+  position: CreditPosition,
+  orderValue: Money,
+  now: Date,
+  countsConfirmedOrders: boolean = WORKSHOP_DEFAULTS.credit.exposureCountsConfirmedOrders,
+): CreditStanding {
+  const exposure =
+    toPaise(position.outstanding) +
+    (countsConfirmedOrders ? toPaise(position.confirmedUnpaid) : 0n) +
+    toPaise(orderValue);
+  const age =
+    position.oldestUnpaidInvoiceDate === null
+      ? null
+      : invoiceAgeDays(position.oldestUnpaidInvoiceDate, istCalendarDate(now));
+  return {
+    exposure: fromPaise(exposure),
+    overLimit: position.creditLimit !== null && exposure > toPaise(position.creditLimit),
+    oldestUnpaidAgeDays: age,
+    overdue: position.creditDays !== null && age !== null && age > position.creditDays,
+  };
+}
+
 function block(facts: CreditFacts, now: Date): GuardFailure | undefined {
   if (facts.accountType !== 'dealer') return undefined;
   if (facts.creditLimit === null) {
     return { code: 'conflict', reason: 'credit_limit_missing' };
   }
-  const exposure =
-    toPaise(facts.outstanding) +
-    (WORKSHOP_DEFAULTS.credit.exposureCountsConfirmedOrders ? toPaise(facts.confirmedUnpaid) : 0n) +
-    toPaise(facts.orderValue);
-  const limit = toPaise(facts.creditLimit);
-  if (exposure > limit) {
+  const standing = creditStanding(facts, facts.orderValue, now);
+  if (standing.overLimit) {
     return {
       code: 'conflict',
       reason: 'credit_limit_exceeded',
-      details: { limit: facts.creditLimit, exposure: fromPaise(exposure) },
+      details: { limit: facts.creditLimit, exposure: standing.exposure },
     };
   }
-  if (facts.creditDays !== null && facts.oldestUnpaidInvoiceDate !== null) {
-    const ageDays = invoiceAgeDays(facts.oldestUnpaidInvoiceDate, istCalendarDate(now));
-    if (ageDays > facts.creditDays) {
-      return {
-        code: 'conflict',
-        reason: 'credit_overdue',
-        details: {
-          invoiceNo: facts.oldestUnpaidInvoiceNo,
-          invoiceAgeDays: ageDays,
-          creditDays: facts.creditDays,
-        },
-      };
-    }
+  if (standing.overdue) {
+    return {
+      code: 'conflict',
+      reason: 'credit_overdue',
+      details: {
+        invoiceNo: facts.oldestUnpaidInvoiceNo,
+        invoiceAgeDays: standing.oldestUnpaidAgeDays,
+        creditDays: facts.creditDays,
+      },
+    };
   }
   return undefined;
 }

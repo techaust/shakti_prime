@@ -1,7 +1,9 @@
 import {
+  AccountTypeSchema,
   AddNoteInput,
   CustomerChangeDto,
   DomainError,
+  hasGrant,
   newId,
   NoteDto,
   UpdateAccountInput,
@@ -12,6 +14,7 @@ import { schema } from '@shakti/db';
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { accountTypeChangeNeeds } from '../../crm/account-type-change';
 import { holdCustomer } from '../../crm/hold-customer';
 import { heldByColleague, lockNewNumber } from './create-lead';
 import { requireEntity } from './opportunity-shared';
@@ -37,6 +40,7 @@ async function readableAccount(ctx: CommandContext, accountId: string, entityId:
       id: a.id,
       name: a.name,
       type: a.type,
+      tierId: a.tierId,
       gstin: a.gstin,
       billingStateCode: a.billingStateCode,
     })
@@ -81,7 +85,42 @@ function denied(what: string): DomainError {
   return new DomainError('forbidden', `${what} is outside the caller's customer write scope`);
 }
 
-/** `crm.account.update`: the customer's name, type, GSTIN and billing state code. */
+/**
+ * A change of the customer's type that the caller may not make (DOM-1): to or from dealer needs
+ * `sales.credit.write` at company scope, and a type that moves a customer with no tier of their
+ * own to another tier of the workshop map needs `pricing.write` for all companies.
+ */
+function checkTypeChange(
+  ctx: CommandContext,
+  account: { type: string; tierId: string | null },
+  to: UpdateAccountInput['type'],
+): void {
+  if (to === undefined) return;
+  const needs = accountTypeChangeNeeds({
+    from: AccountTypeSchema.parse(account.type),
+    to,
+    ownTierId: account.tierId,
+  });
+  const grants = ctx.principal.permissions;
+  if (needs.credit && !hasGrant(grants, 'sales.credit.write', 'entity')) {
+    throw new DomainError('forbidden', 'a dealer is made or unmade with sales.credit.write', {
+      reason: 'account_type_needs_credit',
+    });
+  }
+  if (needs.pricing && !hasGrant(grants, 'pricing.write', 'all')) {
+    throw new DomainError('forbidden', 'the new type moves the customer to another price tier', {
+      reason: 'account_type_moves_tier',
+    });
+  }
+}
+
+/**
+ * `crm.account.update`: the customer's name, type, GSTIN and billing state code. Making a customer
+ * a dealer, or a dealer something else, is the Executive's (`sales.credit.write`, which with today's
+ * roles only the Executive holds together with the customer write scope),
+ * and a type that would move the customer to another price tier is for the Executive
+ * (`pricing.write`), as the tier itself is (DOM-1).
+ */
 export const updateAccount = defineCommand({
   name: 'crm.account.update',
   permission: 'crm.account.write',
@@ -91,6 +130,7 @@ export const updateAccount = defineCommand({
   auditFields: ['name', 'accountType', 'gstin', 'billingStateCode'],
   async handler(ctx, input) {
     const account = await readableAccount(ctx, input.accountId, input.entityId);
+    checkTypeChange(ctx, account, input.type);
     const current = {
       name: account.name,
       accountType: account.type,

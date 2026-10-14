@@ -2,6 +2,7 @@ import {
   CommitImportBatchInput,
   CommitImportJobInput,
   DomainError,
+  hasGrant,
   ImportJobDto,
   type ImplementedImportKind,
   type ImportCreatedType,
@@ -34,6 +35,7 @@ import {
   loadJob,
   toImportJobDto,
   updateJob,
+  type LoadedJob,
 } from './shared';
 
 /** The command's refusal of a customer a colleague looks after in the company (AUDIT M25). */
@@ -154,6 +156,44 @@ export const commitImportJob = defineCommand({
 });
 
 /**
+ * A dealer row is judged again by the person committing (DOM-1): someone without
+ * `sales.credit.write` at company scope, who may commit a job an Executive previewed, sets every
+ * valid row of the job that would make a dealer aside as invalid with `dealer_needs_executive`,
+ * counted with the invalid rows, instead of failing the batch at it. Answers the job as it is now.
+ */
+async function refuseDealerRows(
+  ctx: CommandContext,
+  loaded: LoadedJob,
+  kind: ImplementedImportKind,
+): Promise<LoadedJob> {
+  if (kind === 'pin_codes' || hasGrant(ctx.principal.permissions, 'sales.credit.write', 'entity')) {
+    return loaded;
+  }
+  const r = schema.importRows;
+  const set = await ctx.tx
+    .update(r)
+    .set({
+      state: 'invalid',
+      errorsJson: [{ field: 'accountType', code: 'dealer_needs_executive' }],
+      updatedBy: ctx.principal.id,
+    })
+    .where(
+      and(
+        eq(r.jobId, loaded.job.id),
+        eq(r.state, 'valid'),
+        sql`${r.normalisedJson} #>> '{account,type}' = 'dealer'`,
+      ),
+    )
+    .returning({ rowNo: r.rowNo });
+  if (set.length === 0) return loaded;
+  return updateJob(ctx.tx, loaded, {
+    validRows: loaded.job.validRows - set.length,
+    invalidRows: loaded.job.invalidRows + set.length,
+    updatedBy: ctx.principal.id,
+  });
+}
+
+/**
  * `imports.job.commit_batch` (design §8 and phase1 §6.3): the next valid rows of a committing
  * job, in file order, inside one savepoint: first set-based for the whole batch (leads as
  * `crm.lead.create` makes them, each with the idempotency key `import:{job}:{row}`; customers with
@@ -203,12 +243,13 @@ export const commitImportBatch = defineCommand({
     const settings = importBatchSettings;
     const started = settings.now();
     assertEntityInScope(ctx.entityIds, input.entityId);
-    const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
-    if (jobState(loaded.job) !== 'committing') return toImportJobDto(loaded);
-    const job = loaded.job;
+    const found = await loadJob(ctx.tx, input.entityId, input.jobId, true);
+    if (jobState(found.job) !== 'committing') return toImportJobDto(found);
     // The worker acts for the companies the preview found; a person who has lost one stops here.
-    assertJobCompaniesCovered(ctx.entityIds, job);
-    const kind = implementedKind(job);
+    assertJobCompaniesCovered(ctx.entityIds, found.job);
+    const kind = implementedKind(found.job);
+    const loaded = await refuseDealerRows(ctx, found, kind);
+    const job = loaded.job;
     if (kind === 'pin_codes') await assertGroupImport(ctx);
     const commit = KIND_COMMITS[kind];
     const actor = ctx.principal.id;

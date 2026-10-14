@@ -14,7 +14,7 @@ Every state and transition comes from the governing documents.
 |---|---|---|
 | `draft` | initial | – |
 | `sent` | – | – |
-| `accepted` | terminal | – |
+| `accepted` | – | – |
 | `expired` | – | Past `valid_until`; only a re-quote at current prices continues the sale. |
 | `superseded` | terminal | Replaced by a newer quote; the old one is kept in `quote_versions`. |
 | `withdrawn` | terminal | – |
@@ -29,12 +29,14 @@ Every state and transition comes from the governing documents.
 | `expire` | `draft`, `sent` → `expired` | the platform only | now > `valid_until` | – | `sales.quote.expired` |
 | `requote` | `draft`, `sent`, `expired` → `superseded` | `sales.quote.create` | – | `new_quote`: a new quote at current prices and current tax rates; `snapshot_version`: `quote_versions` snapshot of the old quote | `sales.quote.superseded` |
 | `withdraw` | `draft`, `sent` → `withdrawn` | `sales.quote.send` | a reason is given | – | `sales.quote.withdrawn` |
+| `order.cancel` | `accepted` → `withdrawn` | `sales.order.cancel` at entity scope or wider or the platform | a reason is given | – | `sales.quote.withdrawn` |
 
 Any other event, or an event from a state not listed for it, answers `conflict` with reason `quote_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `quotes.state` and the time to `quotes.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
 ## Notes
 
 - `expire`: A daily job, plus a lazy check when the quote is read.
+- `order.cancel`: `sales.order.cancel` of the order an accepted quote made, draft or confirmed, withdraws the quote with the cancel reason, keeping how it was accepted, so the lead may be quoted and accepted again (DOM-4); the lead of a confirmed order stays won.
 
 ## Diagram
 
@@ -50,7 +52,7 @@ stateDiagram-v2
   expired --> superseded : requote
   draft --> withdrawn : withdraw
   sent --> withdrawn : withdraw
-  accepted --> [*]
+  accepted --> withdrawn : order.cancel
   superseded --> [*]
   withdrawn --> [*]
 ```

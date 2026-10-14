@@ -51,6 +51,12 @@ export const LogCallInput = z
     ...LeadRef,
     dispositionId: IdSchema,
     durationSeconds: z.number().int().min(0).max(CALL_DURATION_MAX_SECONDS).optional(),
+    /**
+     * When the call started: the server's time of the dial (`DialNumberDto.dialledAt`), which the
+     * workspace sends back (DOM-6). Calling hours are checked on it, never later than now less the
+     * duration, and the call keeps it. Left out, the call started its duration before now.
+     */
+    startedAt: z.iso.datetime({ offset: true }).optional(),
     callbackAt: z.iso.datetime({ offset: true }).optional(),
     lostReason: OpportunityLostReasonSchema.optional(),
     nurtureReason: OpportunityNurtureReasonSchema.optional(),
@@ -194,7 +200,11 @@ export type CallLeadDto = z.infer<typeof CallLeadDto>;
 export const DialNumberInput = z.object(LeadRef).strict();
 export type DialNumberInput = z.infer<typeof DialNumberInput>;
 
-export const DialNumberDto = z.object({ e164: z.string() }).strict();
+/**
+ * The number to dial, and when the server showed it: the call's start the workspace sends back
+ * when the call is logged (DOM-6), on the server's clock rather than the device's.
+ */
+export const DialNumberDto = z.object({ e164: z.string(), dialledAt: z.iso.datetime() }).strict();
 export type DialNumberDto = z.infer<typeof DialNumberDto>;
 
 /** The workspace's search (`/`): the caller's leads by name, village or the phone's last digits. */

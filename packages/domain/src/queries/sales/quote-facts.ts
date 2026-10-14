@@ -16,7 +16,7 @@ import {
   type TaxRateRow,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { and, eq, gt, inArray, isNotNull, isNull, lte, or, type SQL } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { z } from 'zod';
 import { istCalendarDate } from '../../numbering/financial-year';
 import { priceQuote, type PricedQuote, type PricedSource } from '../../sales/quote-pricing';
@@ -59,15 +59,25 @@ export interface QuoteLead {
 /**
  * The lead, its customer, its site and its company. A lead the caller cannot read, of another
  * company or archived is `lead_missing`: RLS decides what the caller sees, and a customer the
- * caller cannot read through the lead is not quoted.
+ * caller cannot read through the lead is not quoted. A command first holds the lead `for share`
+ * until it ends (`holdLead`, through `app.hold_quote_lead()`, which asks `sales.quote.create` over
+ * the lead rather than the right to write it), so a quote made while the lead is being merged away
+ * or rolled back waits for that to finish and then finds the lead archived, rather than landing on
+ * it (DOM-2, DOM-3).
  */
 export async function loadQuoteLead(
   ctx: QuoteReadContext,
   entityId: number,
   opportunityId: string,
+  holdLead = false,
 ): Promise<QuoteLead> {
   if (!ctx.entityIds.includes(entityId)) {
     throw new DomainError('forbidden', 'entity outside the request scope', { entityId });
+  }
+  if (holdLead) {
+    await ctx.tx.execute(
+      sql`select app.hold_quote_lead(${entityId}::smallint, ${opportunityId}::uuid)`,
+    );
   }
   const o = schema.opportunities;
   const p = schema.pipelines;
@@ -419,10 +429,14 @@ export interface BuiltQuote {
  * and the quote machine's `create` guards (the tier and list first, then the sizing, the pump
  * curve and the DCR rule, SAL-04), then the prices from the list and the tax from the engine with
  * the place of supply from the site (ADR 0007), and the 15-day validity. The preview runs it read
- * only; the commands save what it answers.
+ * only; the commands save what it answers, holding the lead `for share` (`holdLead`).
  */
-export async function buildQuote(ctx: QuoteReadContext, input: QuoteInput): Promise<BuiltQuote> {
-  const lead = await loadQuoteLead(ctx, input.entityId, input.opportunityId);
+export async function buildQuote(
+  ctx: QuoteReadContext,
+  input: QuoteInput,
+  holdLead = false,
+): Promise<BuiltQuote> {
+  const lead = await loadQuoteLead(ctx, input.entityId, input.opportunityId, holdLead);
   const tier = await quoteTier(ctx, lead);
   const day = istCalendarDate(ctx.now);
   const priceListId = tier === null ? null : await livePriceList(ctx, tier.id, lead.entityId, day);

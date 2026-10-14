@@ -11,7 +11,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Opportunity | **yes** | 4 | 7 | 1 | [opportunity.md](opportunity.md) |
 | Task | **yes** | 3 | 4 | 0 | [task.md](task.md) |
 | Duplicate candidate | **yes** | 3 | 3 | 0 | [duplicate-candidate.md](duplicate-candidate.md) |
-| Quote | **yes** | 6 | 6 | 0 | [quote.md](quote.md) |
+| Quote | **yes** | 6 | 7 | 0 | [quote.md](quote.md) |
 | Sales order | **yes** | 7 | 9 | 1 | [sales-order.md](sales-order.md) |
 | Dispatch | no | 5 | 6 | 4 | [dispatch.md](dispatch.md) |
 | Project, standard install flow | no | 4 | 6 | 9 | [project-standard.md](project-standard.md) |
@@ -56,6 +56,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `crm.firstContactSlaMinutes` | null |
 | `calling.attemptDays` | 0, 1, 2 |
 | `calling.nurtureCallDays` | 7, 30, 90 |
+| `calling.logGraceMinutes` | 15 |
 | `sizing.hazenWilliamsC.hdpe` | 140 |
 | `sizing.hazenWilliamsC.gi` | 120 |
 | `sizing.fittingsLossFraction` | 0.1 |

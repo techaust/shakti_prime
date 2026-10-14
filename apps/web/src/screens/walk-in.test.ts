@@ -52,7 +52,7 @@ describe('buildWalkInInput', () => {
     });
   });
 
-  it('sends no site for a dealer, whose enquiry has no site of its own', () => {
+  it('sends a dealer as a business with no site, for an Executive to make a dealer later', () => {
     const input = buildWalkInInput({
       ...base,
       pipelineKey: 'dealer_wholesale',
@@ -60,7 +60,7 @@ describe('buildWalkInInput', () => {
       village: 'Ozar',
     });
     expect(input).not.toHaveProperty('site');
-    expect(input).toMatchObject({ account: { type: 'dealer' } });
+    expect(input).toMatchObject({ account: { type: 'business' } });
   });
 
   it('records a ticked consent as given at the walk-in form', () => {
