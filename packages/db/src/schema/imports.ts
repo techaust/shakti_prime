@@ -95,6 +95,12 @@ export const importJobs = pgTable(
      * why they were refused stay. A purged job is not mapped, checked or added again.
      */
     purgedAt: timestamp('purged_at', { withTimezone: true }),
+    /**
+     * When the rows were read for identity numbers (`withoutIdentityNumbers`): at the job's start
+     * from this fix on, and by the one-off pass of the files sweep for a job imported before it
+     * (`imports.job.mask_identity`). Null only for an earlier job not reached yet.
+     */
+    identityCheckedAt: timestamp('identity_checked_at', { withTimezone: true }),
     ...timestamps,
     ...actorsRequired,
   },
@@ -137,6 +143,10 @@ export const importJobs = pgTable(
     // One uploaded file starts one job.
     unique('import_jobs_file_unique').on(t.fileId),
     index('import_jobs_template_idx').on(t.templateId),
+    // The one-off identity pass: a company's jobs imported before the fix, oldest first.
+    index('import_jobs_identity_unchecked_idx')
+      .on(t.entityId, t.createdAt)
+      .where(sql`${t.identityCheckedAt} is null`),
     // The import purge: a company's jobs not yet purged, by their last change.
     index('import_jobs_purge_idx')
       .on(t.entityId, t.updatedAt)

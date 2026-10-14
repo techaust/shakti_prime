@@ -174,6 +174,9 @@ describe('who may reach the import purge', () => {
   const statements = [
     sql`select app.purge_import_rows(1::smallint, ${DAYS}::integer, 10)`,
     sql`select app.record_import_files_deleted(1::smallint, ${OPEN_DAYS}::integer, array[]::uuid[])`,
+    sql`select app.import_job_to_check(1::smallint)`,
+    sql`select app.record_import_identity_check(1::smallint, ${jobId('leftRecent')}::uuid,
+                                                '[]'::jsonb, '{}'::text[], 0, '[]'::jsonb)`,
   ];
 
   it('refuses every person’s role, every agent and the workers without imports.process', async () => {
@@ -208,6 +211,9 @@ describe('who may reach the import purge', () => {
     for (const statement of [
       sql`select app.purge_import_rows(2::smallint, ${DAYS}::integer, 10)`,
       sql`select app.record_import_files_deleted(2::smallint, ${OPEN_DAYS}::integer, array[]::uuid[])`,
+      sql`select app.import_job_to_check(2::smallint)`,
+      sql`select app.record_import_identity_check(2::smallint, ${jobId('otherCompany')}::uuid,
+                                                  '[]'::jsonb, '{}'::text[], 0, '[]'::jsonb)`,
     ]) {
       expect(await failure(rows(workers([1]), statement))).toMatch(/outside the request/);
     }
@@ -239,12 +245,17 @@ describe('who may reach the import purge', () => {
       sql`select app.platform_only_permissions() as keys`,
     );
     expect(list?.keys).toContain('imports.process');
-    const grants = await withoutContext<{ rows: boolean; files: boolean }>(sql`
+    const grants = await withoutContext<Record<string, boolean>>(sql`
       select has_function_privilege('app_reader',
                'app.purge_import_rows(smallint, integer, integer)', 'EXECUTE') as rows,
              has_function_privilege('app_reader',
-               'app.record_import_files_deleted(smallint, integer, uuid[])', 'EXECUTE') as files`);
-    expect(grants[0]).toEqual({ rows: false, files: false });
+               'app.record_import_files_deleted(smallint, integer, uuid[])', 'EXECUTE') as files,
+             has_function_privilege('app_reader',
+               'app.import_job_to_check(smallint)', 'EXECUTE') as read,
+             has_function_privilege('app_reader',
+               'app.record_import_identity_check(smallint, uuid, jsonb, text[], integer, jsonb)',
+               'EXECUTE') as write`);
+    expect(grants[0]).toEqual({ rows: false, files: false, read: false, write: false });
   });
 
   it('lets no request clear what a row said, mark a job purged or a file deleted itself', async () => {
@@ -374,5 +385,79 @@ describe('which import files are recorded deleted', () => {
                                                  ${`{${LONE_OLD_FILE}}`}::uuid[]) as done`,
     );
     expect(answer?.done).toEqual([]);
+  });
+});
+
+describe('the identity pass over imports made before the rule', () => {
+  const record = (columns: unknown, leftOut: string, rowsJson: unknown) =>
+    rows<{ n: number }>(
+      workers(),
+      sql`select app.record_import_identity_check(1::smallint, ${jobId('leftRecent')}::uuid,
+                                                  ${JSON.stringify(columns)}::jsonb,
+                                                  ${leftOut}::text[], 1,
+                                                  ${JSON.stringify(rowsJson)}::jsonb) as n`,
+    );
+
+  it('hands the worker a job not yet checked and not adding rows, with its rows', async () => {
+    const [answer] = await rows<{
+      job: { jobId: string; columns: unknown; rows: unknown[] } | null;
+    }>(workers(), sql`select app.import_job_to_check(1::smallint) as job`);
+    expect(answer?.job).not.toBeNull();
+    expect(answer?.job?.jobId).not.toBe(jobId('committingOld'));
+  });
+
+  it('lets a job only lose columns, and every row lose a left-out column', async () => {
+    expect(await failure(record(['Name', 'Mobile', 'Extra'], '{}', []))).toMatch(
+      /never gains a column/,
+    );
+    // Mobile left out of the job, but row 2 still holds it.
+    expect(
+      await failure(
+        record(['Name'], '{Mobile}', [{ rowNo: 1, raw: { Name: 'x' }, normalised: null }]),
+      ),
+    ).toMatch(/more keys than the job has columns/);
+  });
+
+  it('writes the checked rows, records what was left out, and checks a job once', async () => {
+    const before = await rowsOf('leftRecent');
+    const [answer] = await record(['Name'], '{Mobile}', [
+      { rowNo: 1, raw: { Name: `${MARK} one` }, normalised: { contact: { name: 'XXXX' } } },
+      { rowNo: 2, raw: { Name: `${MARK} two` }, normalised: null },
+    ]);
+    expect(answer?.n).toBe(2);
+    const after = await rowsOf('leftRecent');
+    expect(after.map((r) => [r.state, r.errors_json, r.created_type, r.raw_json])).toEqual(
+      before.map((r, i) => [
+        r.state,
+        r.errors_json,
+        r.created_type,
+        { Name: `${MARK} ${i === 0 ? 'one' : 'two'}` },
+      ]),
+    );
+    const [job] = await asMigrator(
+      (m) => m<
+        {
+          columns_json: unknown;
+          left_out_columns: string[];
+          masked_values: number;
+          identity_checked_at: Date | null;
+        }[]
+      >`
+        select columns_json, left_out_columns, masked_values, identity_checked_at
+          from import_jobs where id = ${jobId('leftRecent')}`,
+    );
+    expect(job).toMatchObject({
+      columns_json: ['Name'],
+      left_out_columns: ['Mobile'],
+      masked_values: 1,
+    });
+    expect(job?.identity_checked_at).not.toBeNull();
+    const [run] = await asMigrator(
+      (m) => m<{ rows_affected: number }[]>`
+        select rows_affected from retention_runs
+         where job = 'import-identity-check' order by started_at desc limit 1`,
+    );
+    expect(run?.rows_affected).toBe(2);
+    expect(await failure(record(['Name'], '{}', []))).toMatch(/not waiting for its identity check/);
   });
 });

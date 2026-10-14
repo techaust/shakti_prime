@@ -76,6 +76,7 @@ import { createImportJob } from '../commands/imports/create-job';
 import { failImportJob } from '../commands/imports/fail-job';
 import { mapImportJob } from '../commands/imports/map-job';
 import { previewImportJob } from '../commands/imports/preview-job';
+import { maskImportIdentity } from '../commands/imports/mask-identity';
 import { purgeImportRows, recordImportFilesDeleted } from '../commands/imports/purge';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
@@ -195,6 +196,7 @@ export const commands = {
   [commitImportBatch.name]: commitImportBatch,
   [rollbackImportJob.name]: rollbackImportJob,
   [failImportJob.name]: failImportJob,
+  [maskImportIdentity.name]: maskImportIdentity,
   [purgeImportRows.name]: purgeImportRows,
   [recordImportFilesDeleted.name]: recordImportFilesDeleted,
   [beginUpload.name]: beginUpload,

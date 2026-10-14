@@ -110,6 +110,7 @@ export const createImportJob = defineCommand({
         totalRows: clean.rows.length,
         leftOutColumns,
         maskedValues,
+        identityCheckedAt: ctx.now,
         createdBy: actor,
       })
       .returning();

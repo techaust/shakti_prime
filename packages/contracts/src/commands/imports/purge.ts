@@ -52,3 +52,23 @@ export const ImportFilesDeletedDto = z
   })
   .strict();
 export type ImportFilesDeletedDto = z.infer<typeof ImportFilesDeletedDto>;
+
+/**
+ * `imports.job.mask_identity` (the one-off identity pass, as the worker principal): reads the
+ * oldest job of one company imported before the identity-number rule and applies it to its rows.
+ */
+export const MaskImportIdentityInput = z.object({ entityId: EntityIdSchema }).strict();
+export type MaskImportIdentityInput = z.infer<typeof MaskImportIdentityInput>;
+
+/** One call of the pass: the job checked (none when every job is), its rows changed, and more. */
+export const ImportIdentityCheckDto = z
+  .object({
+    entityId: EntityIdSchema,
+    jobId: IdSchema.nullable(),
+    rows: z.number().int().min(0),
+    leftOutColumns: z.number().int().min(0),
+    maskedValues: z.number().int().min(0),
+    more: z.boolean(),
+  })
+  .strict();
+export type ImportIdentityCheckDto = z.infer<typeof ImportIdentityCheckDto>;

@@ -29,12 +29,12 @@ export function namesAadhaar(header: string): boolean {
     /a?adh+a+r/.test(word) ||
     /^uid(?:ai)?(?:no|number|num)?$/.test(word) ||
     // आधार (Hindi) and આધાર (Gujarati), written as escapes so no source file carries the script.
-    word.includes('आधार') ||
-    word.includes('આધાર')
+    word.includes('\u0906\u0927\u093e\u0930') ||
+    word.includes('\u0a86\u0aa7\u0abe\u0ab0')
   );
 }
 
-/** A header that names a phone number, whose twelve digits beginning 91 are a mobile's. */
+/** A header or key that names a phone number, whose twelve digits beginning 91 are a mobile's. */
 function namesPhone(header: string): boolean {
   return /phone|mobile|mob|whatsapp|contact|cell/.test(header.toLowerCase().replace(/\W/g, ''));
 }
@@ -128,4 +128,36 @@ export function withoutIdentityNumbers(
     leftOutColumns: columns.filter((_, k) => leftOut[k] === true),
     maskedValues,
   };
+}
+
+/**
+ * A stored value (a row's checked input, `normalised_json`) with every Aadhaar number in its
+ * strings masked to its last four digits, at any depth; a string under a key that names a phone
+ * reads twelve digits beginning 91 as the phone. Answers how many strings changed.
+ */
+export function maskIdentityValue(value: unknown, key = ''): { value: unknown; masked: number } {
+  if (typeof value === 'string') {
+    const result = masked(value, namesPhone(key));
+    return { value: result.text, masked: result.changed ? 1 : 0 };
+  }
+  if (Array.isArray(value)) {
+    let count = 0;
+    const out = value.map((item) => {
+      const result = maskIdentityValue(item, key);
+      count += result.masked;
+      return result.value;
+    });
+    return { value: out, masked: count };
+  }
+  if (value !== null && typeof value === 'object') {
+    let count = 0;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      const result = maskIdentityValue(v, k);
+      count += result.masked;
+      out[k] = result.value;
+    }
+    return { value: out, masked: count };
+  }
+  return { value, masked: 0 };
 }

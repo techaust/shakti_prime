@@ -111,6 +111,7 @@ const ACTIONS = {
   'imports.job.commit_batch': 'importCommitBatch',
   'imports.job.rollback': 'importRollback',
   'imports.job.fail': 'importFail',
+  'imports.job.mask_identity': 'importIdentityCheck',
   'imports.job.purge': 'importPurge',
   'imports.file.record_deleted': 'importFileDeleted',
   'files.upload.begin': 'fileUploadBegin',

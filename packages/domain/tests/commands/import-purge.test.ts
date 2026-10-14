@@ -23,6 +23,7 @@ import { commitImportBatch, commitImportJob } from '../../src/commands/imports/c
 import { createImportJob } from '../../src/commands/imports/create-job';
 import { mapImportJob } from '../../src/commands/imports/map-job';
 import { previewImportJob } from '../../src/commands/imports/preview-job';
+import { maskImportIdentity } from '../../src/commands/imports/mask-identity';
 import { purgeImportRows, recordImportFilesDeleted } from '../../src/commands/imports/purge';
 import { parseImportFile } from '../../src/imports/parse';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
@@ -246,6 +247,108 @@ describe('imports.job.purge', () => {
     }
   });
 });
+
+/**
+ * Puts a job back as an import made before the identity-number rule left it: an Aadhaar column in
+ * its columns and in every row, one more in a row's checked input, and the job not yet checked.
+ */
+async function asBeforeTheFix(jobId: string, numbers: readonly string[]): Promise<void> {
+  await asMigrator(async (m) => {
+    await m.begin(async (tx) => {
+      await tx`update import_jobs
+                  set columns_json = columns_json || '["Aadhaar"]'::jsonb,
+                      left_out_columns = '{}', masked_values = 0, identity_checked_at = null
+                where id = ${jobId}`;
+      const rows = await tx<{ row_no: number }[]>`
+        select row_no from import_rows where job_id = ${jobId} order by row_no`;
+      for (const [i, row] of rows.entries()) {
+        await tx`update import_rows
+                    set raw_json = raw_json || ${tx.json({ Aadhaar: numbers[i % numbers.length] ?? '' })}::jsonb
+                  where job_id = ${jobId} and row_no = ${row.row_no}`;
+      }
+      await tx`update import_rows
+                  set normalised_json = jsonb_set(normalised_json, '{note}',
+                                                  to_jsonb(${`Aadhaar ${numbers[0] ?? ''} seen`}::text))
+                where job_id = ${jobId} and row_no = 1 and normalised_json is not null`;
+    });
+  });
+}
+
+describe('imports.job.mask_identity, the pass over imports made before the rule', () => {
+  it('is denied to every person, an Executive included, and refused for another company', async () => {
+    for (const caller of [gm, executive]) {
+      await expect(run(caller, maskImportIdentity, { entityId: 1 })).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    await expect(run(workers([1]), maskImportIdentity, { entityId: 2 })).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
+  it('leaves out the Aadhaar column and masks the rest of an earlier job, and its reconciliation stays', async () => {
+    const job = await createdJob(
+      `Name,Mobile,Village\nRam,${phone()},Sikar\nSita,${phone()},Churu\nGopal,12,Idar\n`,
+    );
+    await run(gm, mapImportJob, { entityId: 1, jobId: job.id, mapping });
+    await run(gm, previewImportJob, { entityId: 1, jobId: job.id });
+    await run(gm, commitImportJob, { entityId: 1, jobId: job.id });
+    await run(gm, commitImportBatch, { entityId: 1, jobId: job.id });
+    const before = await reconciliation(job.id);
+    const numbers = [aadhaar(), aadhaar(), aadhaar()];
+    await asBeforeTheFix(job.id, numbers.map(spaced));
+    expect(await hitsIn(job.id, numbers)).toBe(true);
+
+    const requestId = newId();
+    const checked: string[] = [];
+    for (;;) {
+      const call = await executeCommand(
+        workers(),
+        { entityIds: [1], requestId },
+        maskImportIdentity,
+        { entityId: 1 },
+      );
+      if (call.jobId === null) break;
+      checked.push(call.jobId);
+    }
+    expect(checked).toContain(job.id);
+    expect(await hitsIn(job.id, numbers)).toBe(false);
+    expect(await reconciliation(job.id)).toEqual(before);
+    const [row] = await asMigrator(
+      (m) => m<
+        {
+          columns_json: unknown;
+          left_out_columns: string[];
+          masked_values: number;
+          identity_checked_at: Date | null;
+        }[]
+      >`
+        select columns_json, left_out_columns, masked_values, identity_checked_at
+          from import_jobs where id = ${job.id}`,
+    );
+    expect(row).toMatchObject({
+      columns_json: ['Name', 'Mobile', 'Village'],
+      left_out_columns: ['Aadhaar'],
+      masked_values: 1,
+    });
+    expect(row?.identity_checked_at).not.toBeNull();
+    const audits = await asMigrator(
+      (m) => m<{ after_json: unknown }[]>`
+        select after_json from audit_logs where request_id = ${requestId} and aggregate_id = ${job.id}`,
+    );
+    expect(audits).toEqual([{ after_json: { leftOutColumns: 1, maskedValues: 1 } }]);
+
+    // Once every job is checked, a call finds none and changes nothing.
+    const again = await run(workers(), maskImportIdentity, { entityId: 1 });
+    expect(again).toMatchObject({ jobId: null, more: false });
+  });
+});
+
+/** Whether any of `numbers` is still found, in any spacing, in a job's stored rows. */
+async function hitsIn(jobId: string, numbers: readonly string[]): Promise<boolean> {
+  const digits = await storedDigits(jobId);
+  return numbers.some((n) => digits.includes(n.slice(0, 8)));
+}
 
 describe('imports.file.record_deleted and the files to delete', () => {
   it('is denied to every person, an Executive included, and to another company', async () => {

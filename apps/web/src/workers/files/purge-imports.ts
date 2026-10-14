@@ -4,6 +4,7 @@ import {
   executeCommand,
   executeQuery,
   importFilesToDelete,
+  maskImportIdentity,
   purgeImportRows,
   recordImportFilesDeleted,
   type FileStore,
@@ -24,6 +25,8 @@ export interface ImportPurgeDeps {
 
 export interface ImportPurgeResult {
   companies: number;
+  /** Jobs made before the identity-number rule that this run checked (the one-off pass). */
+  jobsChecked: number;
   filesDeleted: number;
   jobsPurged: number;
   rowsCleared: number;
@@ -33,6 +36,8 @@ export interface ImportPurgeResult {
  * The import purge (audit SEC-1, BLUEPRINT §7.9), run with the sweep of abandoned uploads every
  * hour by the worker principal: for each company in turn, archived ones included, in a request for
  * that company alone,
+ * 0. the jobs imported before the identity-number rule are checked, one a call, until none is
+ *    left (`imports.job.mask_identity`, a one-off pass that then finds nothing at once);
  * 1. the import files whose job has ended, or that were uploaded more than the open period ago
  *    (`importFilesToDelete`), are deleted from the store with every version it kept, then recorded
  *    deleted (`imports.file.record_deleted`); a file the store would not delete is logged and left
@@ -48,6 +53,7 @@ export async function purgeImports(deps: ImportPurgeDeps): Promise<ImportPurgeRe
   const spent = () => deps.budgetMs !== undefined && now() - started >= deps.budgetMs;
   const result: ImportPurgeResult = {
     companies: 0,
+    jobsChecked: 0,
     filesDeleted: 0,
     jobsPurged: 0,
     rowsCleared: 0,
@@ -63,6 +69,14 @@ export async function purgeImports(deps: ImportPurgeDeps): Promise<ImportPurgeRe
     );
     if (standing === 'missing') break;
     result.companies += 1;
+
+    while (!spent()) {
+      const checked = await executeCommand(principal, call(entityId), maskImportIdentity, {
+        entityId,
+      });
+      if (checked.jobId === null) break;
+      result.jobsChecked += 1;
+    }
 
     if (deps.store !== undefined) {
       const files = await executeQuery(

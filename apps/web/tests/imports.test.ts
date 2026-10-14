@@ -673,6 +673,45 @@ describe('an import keeps no identity number, and not what its file said for lon
   });
 });
 
+describe('the one-off pass over imports made before the identity rule (audit SEC-1)', () => {
+  it('leaves no Aadhaar number in an earlier job after one sweep, and its reconciliation stays', async () => {
+    const job = await previewedJob(['Mangilal', 'Santosh']);
+    expect(ok(await commitImportJob({ entityId: 1, jobId: job.id }, newId())).state).toBe(
+      'committed',
+    );
+    const reconciled = ok(await getImportReconciliation({ entityId: 1, jobId: job.id }));
+    // As the import stored it before the rule: the client's Aadhaar column in every row.
+    const numbers = [0, 1].map(
+      () => `4${String(Math.floor(Math.random() * 1e11)).padStart(11, '0')}`,
+    );
+    await asMigrator(async (m) => {
+      await m.begin(async (tx) => {
+        await tx`update import_jobs
+                    set columns_json = columns_json || '["Aadhaar No"]'::jsonb,
+                        identity_checked_at = null
+                  where id = ${job.id}`;
+        for (const [i, digits] of numbers.entries()) {
+          await tx`update import_rows
+                      set raw_json = raw_json || ${tx.json({ 'Aadhaar No': digits.replace(/(\d{4})(?=\d)/g, '$1-') })}::jsonb
+                    where job_id = ${job.id} and row_no = ${i + 1}`;
+        }
+      });
+    });
+
+    const swept = await purgeImports({ store: files, requestId: newId() });
+    expect(swept.jobsChecked).toBeGreaterThanOrEqual(1);
+    const after = ok(await getImportJob({ entityId: 1, jobId: job.id }));
+    expect(after).toMatchObject({
+      leftOutColumns: ['Aadhaar No'],
+      columns: ['Name', 'Mobile', 'Village'],
+    });
+    const rows = ok(await listImportRows({ entityId: 1, jobId: job.id }));
+    const text = JSON.stringify(rows).replace(/\D/g, '');
+    for (const digits of numbers) expect(text).not.toContain(digits.slice(0, 8));
+    expect(ok(await getImportReconciliation({ entityId: 1, jobId: job.id }))).toEqual(reconciled);
+  });
+});
+
 describe('POST /api/v1/workers/imports/commit', () => {
   const saved = new Map<string, string | undefined>();
   beforeEach(() => {

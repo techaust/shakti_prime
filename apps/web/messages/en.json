@@ -1504,6 +1504,7 @@
       "importCommitBatch": "Import rows added",
       "importRollback": "Import undone",
       "importFail": "Import stopped after its last try",
+      "importIdentityCheck": "Identity numbers removed from an earlier import",
       "importPurge": "What an import file said cleared after its check period",
       "importFileDeleted": "Import file deleted once it was no longer needed",
       "deadLetterReplay": "Held update sent again",
