@@ -2,7 +2,11 @@ import { CreateImportJobInput, DomainError, ImportJobDto, newId } from '@shakti/
 import { schema } from '@shakti/db';
 import { and, eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
-import { maskIdentityText, withoutIdentityHeaders } from '../../imports/identity-columns';
+import {
+  maskIdentityText,
+  maskLongNumberCells,
+  withoutIdentityHeaders,
+} from '../../imports/identity-columns';
 import {
   assertContentNotImported,
   assertEntityInScope,
@@ -24,8 +28,9 @@ const INSERT_CHUNK = 1000;
  * Executive in a request for every company. No identity number is stored: the rows are those
  * `parseImportFile()` read, which leaves a column of Aadhaar numbers out and masks any other to its
  * last four digits before this command runs; the command leaves out again any column whose header
- * names or holds one, and records the columns left out and how many values were masked, for the
- * screen to say so. The audit row records the file and
+ * names or holds one, masks any cell of twelve digits or more as the reader would, and records the
+ * columns left out and how many values were masked, for the screen to say so. The job starts
+ * unchecked, so the files sweep's identity pass reads it too. The audit row records the file and
  * the counts, never the rows, which carry customers' names and numbers in columns the redaction
  * cannot recognise.
  */
@@ -87,20 +92,24 @@ export const createImportJob = defineCommand({
     // commit asks again, since two jobs of one content may both be waiting by then.
     await assertContentNotImported(ctx.tx, input.entityId, file);
     // The rows come from `parseImportFile()`, which left the identity numbers out before this
-    // transaction began, so the cells are not read again here (the 30-second limit on a
-    // transaction's idle time counts this work). Only the headers are checked, which costs nothing:
-    // a column whose header names or holds an Aadhaar number is left out, and every name recorded
-    // keeps only the last four digits of a number.
-    const clean = withoutIdentityHeaders(input.columns, input.rows);
-    if (clean.columns.length === 0) {
+    // transaction began, so the whole rule is not run again here (the 30-second limit on a
+    // transaction's idle time counts this work). What costs little is: a column whose header
+    // names or holds an Aadhaar number is left out, every name recorded keeps only the last four
+    // digits of a number, and a cell of twelve digits or more is masked as the reader masks it,
+    // so no caller can store an Aadhaar number. The job is left unchecked: the files sweep's
+    // identity pass reads it as any other, rather than trusting the counts given here.
+    const headed = withoutIdentityHeaders(input.columns, input.rows);
+    if (headed.columns.length === 0) {
       throw new DomainError('validation_failed', 'every column holds identity numbers', {
         reason: 'import_only_identity_numbers',
       });
     }
+    const long = maskLongNumberCells(headed.columns, headed.rows);
+    const clean = { columns: headed.columns, rows: long.rows };
     const leftOutColumns = [
-      ...new Set([...input.leftOutColumns.map(maskIdentityText), ...clean.leftOutColumns]),
+      ...new Set([...input.leftOutColumns.map(maskIdentityText), ...headed.leftOutColumns]),
     ];
-    const maskedValues = input.maskedValues;
+    const maskedValues = input.maskedValues + long.maskedValues;
     const j = schema.importJobs;
 
     const [job] = await ctx.tx
@@ -116,7 +125,6 @@ export const createImportJob = defineCommand({
         totalRows: clean.rows.length,
         leftOutColumns,
         maskedValues,
-        identityCheckedAt: ctx.now,
         createdBy: actor,
       })
       .returning();

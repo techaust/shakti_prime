@@ -24,17 +24,23 @@ export interface WithoutIdentityNumbers {
 
 /**
  * A header that names an Aadhaar number, read without case, spaces or signs: "Aadhaar", "Aadhar
- * No.", "Adhaar card number", "UID", "UID no", and the word in Hindi and Gujarati.
+ * No.", "Adhaar card number", "UID", "UID no", and the word in Hindi and Gujarati, each at the start
+ * of a word (so a name such as "Radharani" or a village such as "Madhari" is not one). A header
+ * that also names a phone or mobile ("Aadhaar linked mobile") is a column of phones, never left
+ * out for its name.
  */
 export function namesAadhaar(header: string): boolean {
-  // Letters and the vowel signs of the Indian scripts, which Unicode counts as marks.
-  const word = header.toLowerCase().replace(/[^\p{L}\p{M}]/gu, '');
+  if (namesPhone(header)) return false;
+  // Words of letters and the vowel signs of the Indian scripts, which Unicode counts as marks.
+  const words = header.toLowerCase().match(/[\p{L}\p{M}]+/gu) ?? [];
   return (
-    /a?adh+a+r/.test(word) ||
-    /^uid(?:ai)?(?:no|number|num)?$/.test(word) ||
-    // आधार (Hindi) and આધાર (Gujarati), written as escapes so no source file carries the script.
-    word.includes('\u0906\u0927\u093e\u0930') ||
-    word.includes('\u0a86\u0aa7\u0abe\u0ab0')
+    words.some(
+      (word) =>
+        /^a?adh+a+r/u.test(word) ||
+        // आधार (Hindi) and આધાર (Gujarati), written as escapes so no source file carries the script.
+        word.startsWith('\u0906\u0927\u093e\u0930') ||
+        word.startsWith('\u0a86\u0aa7\u0abe\u0ab0'),
+    ) || /^uid(?:ai)?(?:no|number|num)?$/u.test(words.join(''))
   );
 }
 
@@ -110,13 +116,21 @@ function isAadhaarCell(cell: string, phoneColumn: boolean): boolean {
   return !/\p{N}/u.test(rest) && (rest.match(/\p{L}/gu) ?? []).length <= LABEL_LETTERS;
 }
 
-/** The number as written, every digit but the last four replaced by X, its separators kept. */
+/** Whether a character reads as a digit: a decimal digit of any script, or a superscript one. */
+const readsAsDigit = (c: string): boolean =>
+  /\p{Nd}/u.test(c) || /^[0-9]$/.test(c.normalize('NFKC'));
+
+/**
+ * The number as written, every digit but the last four replaced by X, its separators kept. A digit
+ * is counted as the finder reads it, superscript and subscript digits included.
+ */
 function lastFourOnly(written: string): string {
-  const digits = (written.match(/\p{Nd}/gu) ?? []).length;
+  const digits = [...written.matchAll(/[\p{Nd}\p{No}]/gu)].filter((m) => readsAsDigit(m[0])).length;
   let seen = 0;
-  return written.replace(/\p{Nd}/gu, (digit) => {
+  return written.replace(/[\p{Nd}\p{No}]/gu, (c) => {
+    if (!readsAsDigit(c)) return c;
     seen += 1;
-    return seen <= digits - 4 ? 'X' : digit;
+    return seen <= digits - 4 ? 'X' : c;
   });
 }
 
@@ -199,6 +213,37 @@ export function withoutIdentityHeaders(
     }),
     leftOutColumns: columns.filter((_, k) => leftOut[k] === true).map(maskIdentityText),
   };
+}
+
+/**
+ * The cells that could hold an Aadhaar number (twelve digits or more, counted cheaply) masked as
+ * the reader masks them: the check `imports.job.create` makes of its rows inside its transaction,
+ * so a caller other than `parseImportFile()` cannot store one either, at little cost.
+ */
+export function maskLongNumberCells(
+  columns: readonly string[],
+  rows: readonly (readonly string[])[],
+): { rows: string[][]; maskedValues: number } {
+  const candidates = (cell: string) => (cell.match(/[\p{Nd}\p{No}]/gu)?.length ?? 0) >= 12;
+  if (!rows.some((row) => row.some(candidates))) {
+    return { rows: rows.map((row) => [...row]), maskedValues: 0 };
+  }
+  // A column of phones is told by its header, or by its long cells, which are all this reads.
+  const phones = columns.map((name, k) => {
+    if (namesPhone(name)) return true;
+    const long = rows.map((row) => row[k] ?? '').filter(candidates);
+    return long.length > 0 && long.filter(isPhoneCell).length * 2 > long.length;
+  });
+  let maskedValues = 0;
+  const out = rows.map((row) =>
+    row.map((cell, k) => {
+      if (!candidates(cell)) return cell;
+      const result = masked(cell, phones[k] === true);
+      if (result.changed) maskedValues += 1;
+      return result.text;
+    }),
+  );
+  return { rows: out, maskedValues };
 }
 
 /** Every cell masked, column by column, and rows without blanks at their end. */

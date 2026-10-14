@@ -349,6 +349,59 @@ describe('imports.job.mask_identity, the pass over imports made before the rule'
     expect(again).toMatchObject({ jobId: null, done: false });
   });
 
+  it('leaves the stored phones of an earlier job alone and masks its saved mapping (second review, M6, L12)', async () => {
+    const job = await createdJob(
+      `Name,Mobile,Village\nRam,${phone()},Sikar\nSita,${phone()},Churu\n`,
+    );
+    await run(gm, mapImportJob, { entityId: 1, jobId: job.id, mapping });
+    await run(gm, previewImportJob, { entityId: 1, jobId: job.id });
+    const number = aadhaar();
+    const header = `UID ${spaced(number)}`;
+    // As an earlier headerless file left it: a person's UID taken for a column's name, mapped.
+    await asMigrator(async (m) => {
+      await m.begin(async (tx) => {
+        await tx`update import_jobs
+                    set identity_checked_at = null, identity_checked_through = 0,
+                        columns_json = columns_json || ${tx.json([header])}::jsonb,
+                        mapping_json = jsonb_set(mapping_json, '{columns,accountName}', to_jsonb(${header}::text))
+                  where id = ${job.id}`;
+        await tx`update import_rows
+                    set raw_json = raw_json || ${tx.json({ [header]: `UID ${spaced(aadhaar())}` })}::jsonb,
+                        normalised_json = jsonb_set(normalised_json, '{contact,phones}',
+                                                    '["+911412345678", "+971501234567"]'::jsonb)
+                  where job_id = ${job.id}`;
+      });
+    });
+    const before = await asMigrator(
+      (m) => m<{ phones: unknown }[]>`
+        select normalised_json -> 'contact' -> 'phone' as phones from import_rows
+         where job_id = ${job.id} order by row_no`,
+    );
+    expect(await checkJob(job.id, newId())).toBe(1);
+    const after = await asMigrator(
+      (m) => m<{ phones: unknown; others: unknown }[]>`
+        select normalised_json -> 'contact' -> 'phone' as phones,
+               normalised_json -> 'contact' -> 'phones' as others
+          from import_rows where job_id = ${job.id} order by row_no`,
+    );
+    expect(after.map((r) => r.phones)).toEqual(before.map((r) => r.phones));
+    expect(after.map((r) => r.others)).toEqual([
+      ['+911412345678', '+971501234567'],
+      ['+911412345678', '+971501234567'],
+    ]);
+    const [stored] = await asMigrator(
+      (m) => m<{ mapping: unknown; left: string[]; columns: unknown }[]>`
+        select mapping_json -> 'columns' -> 'accountName' as mapping, left_out_columns as left,
+               columns_json as columns
+          from import_jobs where id = ${job.id}`,
+    );
+    expect(stored).toEqual({
+      mapping: `UID XXXX XXXX ${number.slice(-4)}`,
+      left: [`UID XXXX XXXX ${number.slice(-4)}`],
+      columns: ['Name', 'Mobile', 'Village'],
+    });
+  });
+
   it('checks a job of 50,000 rows a thousand rows a call, each call well inside the limits (review M4)', async () => {
     const jobId = await bigEarlierJob(50_000);
     try {
@@ -679,7 +732,7 @@ async function allFilesToDelete(): Promise<{ id: string }[]> {
     const page = await asPrincipal(workers(), (ctx) =>
       importFilesToDelete(ctx, 1, {
         bucket: 'memory',
-        after: last === undefined ? undefined : { createdAt: last.createdAt, id: last.id },
+        after: last?.id,
       }),
     );
     all.push(...page);

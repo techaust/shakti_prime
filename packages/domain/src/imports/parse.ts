@@ -2,7 +2,7 @@ import { DomainError, IMPORT_LIMITS, type ImportFormat } from '@shakti/contracts
 import ExcelJS from 'exceljs';
 import { Readable } from 'node:stream';
 import Papa from 'papaparse';
-import { withoutIdentityNumbers } from './identity-columns';
+import { maskIdentityText, withoutIdentityNumbers } from './identity-columns';
 import { checkZipArchive } from './zip-guard';
 
 /** An import file read into a header and data rows, every cell a trimmed string. */
@@ -390,8 +390,10 @@ export async function parseImportFile(
   }
 
   // No identity number goes further than this: not into the job's rows, not onto the preview.
+  // Each header is masked before it is cut to its length limit, so a number that crosses the cut
+  // never keeps eleven digits in the name (review M5).
   const filtered = withoutIdentityNumbers(
-    uniqueColumns(header.cells, width, limits.maxHeaderLength),
+    uniqueColumns(header.cells.map(maskIdentityText), width, limits.maxHeaderLength),
     data,
   );
   if (filtered.columns.length === 0) {

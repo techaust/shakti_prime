@@ -17,9 +17,11 @@ export { asciiDigits } from './number-shapes';
 // Text on its way to a language model (SECURITY §5 and §6, AGENTS §9). Personal data is replaced
 // by placeholders, never kept in part, by one method rather than a pattern per spelling:
 //
-// 1. The text is read in a normalised form, for finding things only: every decimal digit of any
-//    script as an ASCII digit; every space, tab, line break, format character and Unicode dash or
-//    minus as one space; full-width letters and signs as ASCII. Each normalised position maps back
+// 1. The text is read in a normalised form, for finding things only: invisible characters
+//    (format and other default-ignorable characters, the blank Braille pattern, no-break spaces)
+//    dropped; every decimal digit of any script as an ASCII digit; every other space, tab, line
+//    break and Unicode dash or minus as one space; full-width letters and signs, and superscript
+//    and subscript digits, as ASCII. Each normalised position maps back
 //    to the original, so a placeholder replaces exactly the original characters. Steps 1, 3 and
 //    the digit runs of 4 are shared with the log and audit scrubber (`./number-shapes`).
 // 2. UUIDs, then email and UPI addresses, GSTIN and PAN (with or without spaces or hyphens between
@@ -27,8 +29,9 @@ export { asciiDigits } from './number-shapes';
 // 3. Shapes known to be safe are set aside next, but only when they stand alone (no digit joined
 //    to them by a separator): dates, times, timestamps with their offset, ranges of them, rupee
 //    amounts after ₹, Rs, INR or an amount word, quantities with their unit, and product codes.
-// 4. Then any run of digit groups joined by at most three separators (space . , / _ - : and
-//    brackets), digits touching letters included, holding nine or more digits becomes `[phone]`
+// 4. Then any run of digit groups joined by at most three separators (`SEP`: space . , / _ - :
+//    brackets, quotes, bars, stars, hashes, tildes, plus and equals signs, middle dots, bullets and
+//    backslashes), digits touching letters included, holding nine or more digits becomes `[phone]`
 //    (a mobile or landline shape) or `[number]` (an Aadhaar, bank account or any other number).
 // 5. Addresses on a best-effort heuristic (SECURITY §6, a known limitation): a house, plot, flat,
 //    khasra, ward or gali number after its label becomes `[address]`, and a PIN code after its

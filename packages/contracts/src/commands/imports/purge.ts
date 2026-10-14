@@ -103,7 +103,8 @@ export const RecordImportPurgeFailureInput = z
   .object({
     entityId: EntityIdSchema,
     job: ImportPurgeJobSchema,
-    error: z.string().regex(/^[a-z0-9 _.:-]{1,120}$/),
+    /** An SQLSTATE (five letters or digits) or a domain code: never a value. */
+    error: z.string().regex(/^(?:[0-9a-z]{5}|[a-z_]{1,40})$/),
   })
   .strict();
 export type RecordImportPurgeFailureInput = z.infer<typeof RecordImportPurgeFailureInput>;

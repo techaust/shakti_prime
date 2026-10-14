@@ -42,10 +42,12 @@ export function asciiDigits(text: string): string {
 
 /**
  * Characters dropped before anything is read: the invisible ones (format characters such as the
- * left-to-right and right-to-left marks, zero-width space, joiner and non-joiner) and the no-break
- * spaces, which a spreadsheet shows as nothing or as a plain space inside a number.
+ * left-to-right and right-to-left marks, zero-width space, joiner and non-joiner, and every other
+ * default-ignorable character: variation selectors, the combining grapheme joiner, the Hangul
+ * fillers), the blank Braille pattern and the no-break spaces, which a spreadsheet shows as
+ * nothing or as a plain space inside a number.
  */
-const INVISIBLE = /^[\p{Cf}\u00a0\u202f]$/u;
+const INVISIBLE = /^[\p{Cf}\p{Default_Ignorable_Code_Point}\u00a0\u202f\u2800]$/u;
 
 /** Characters read as a space: every other space, tab, line break, dash and minus. */
 const SPACE_LIKE = /^[\p{Zs}\s‐-―−]$/u;
@@ -141,8 +143,12 @@ export const whole =
     placeholder,
   });
 
-/** What may join the groups of a number as people write it. */
-export const SEP = '[ .,/_:()-]';
+/**
+ * What may join the groups of a number as people write it: spaces, dots, commas, slashes,
+ * underscores, colons, brackets, hyphens, quotes, bars, stars, hashes, tildes, plus and equals
+ * signs, middle dots, bullets and backslashes.
+ */
+export const SEP = '[ .,/_:()"|*#~+=·•\\\\-]';
 /** Nothing joined on the left: no letter or digit touching it, no digit a separator away. */
 export const ALONE_BEFORE = `(?<![\\p{L}\\p{N}_]|\\d${SEP}{1,3})`;
 /** Nothing joined on the right. */
@@ -287,10 +293,22 @@ function holdsAadhaar(groups: readonly Group[]): boolean {
 }
 
 /**
+ * Whether a run after a `+` is a phone number, which an Aadhaar number never is, since it never
+ * carries a country code: +91 and ten digits starting 1 to 9 (a mobile, or a landline with its
+ * code), written in any grouping; or eight to fifteen digits of another country, written as one
+ * run (stored E.164) or as a country code of one to three digits and the number after it.
+ */
+function plusPhone(groups: readonly Group[], all: string): boolean {
+  if (all.startsWith('91')) return /^91[1-9]\d{9}$/.test(all);
+  if (all.length < 8 || all.length > 15) return false;
+  return groups.length === 1 || (groups[0]?.digits.length ?? 0) <= 3;
+}
+
+/**
  * The Aadhaar-shaped or phone-shaped numbers of one run. A run that holds an Aadhaar number is one
  * number, all of it, so a group joined before or after the number (a year of birth, a plot
- * number) never takes the mask in its place. A run after a `+` is a phone only when it is +91 and
- * a mobile number; otherwise it is tried as an Aadhaar number like any other. Phones are whole
+ * number) never takes the mask in its place. A run after a `+` that is a phone number
+ * (`plusPhone`) is that phone; any other is tried as an Aadhaar number like any other. Phones are whole
  * groups only, so digits are never split off a group to make a number up.
  */
 function numbersOfRun(run: string, at: number, out: FoundNumber[]): void {
@@ -300,7 +318,7 @@ function numbersOfRun(run: string, at: number, out: FoundNumber[]): void {
   if (first === undefined || last === undefined) return;
   const plus = run.startsWith('+');
   const all = groups.map((g) => g.digits).join('');
-  if (plus && /^91[6-9]\d{9}$/.test(all)) {
+  if (plus && plusPhone(groups, all)) {
     out.push({
       kind: 'phone',
       start: at,
@@ -350,15 +368,8 @@ function numbersOfRun(run: string, at: number, out: FoundNumber[]): void {
   }
 }
 
-/**
- * The runs the scrubber and the import judge: digit groups joined by at most three separators, as
- * the model masker reads them, except that a comma or semicolon followed by a space ends a run,
- * so a list of small numbers ("1000, 2000, 3000") is not read as one number.
- */
-const NUMBER_RUN = new RegExp(`(?<![\\d+(])(?:\\+ ?|\\( ?)?\\d+(?:(?![,;] )${SEP}{1,3}\\d+)*`, 'g');
-
-/** Quick test: a text without a digit of any script holds no number. */
-const ANY_DIGIT = /\p{Nd}/u;
+/** Quick test: a text without a digit of any script (superscripts included) holds no number. */
+const ANY_DIGIT = /[\p{Nd}\p{No}]/u;
 
 /**
  * Every Aadhaar-shaped and phone-shaped number in `text`, in order, at its offsets in `text`:
@@ -374,7 +385,7 @@ export function findPersonalNumbers(text: string): FoundNumber[] {
   let work = setAsideIds(read, spans);
   work = setAsideSafeShapes(work, spans);
   const found: FoundNumber[] = [];
-  for (const match of work.matchAll(NUMBER_RUN)) numbersOfRun(match[0], match.index, found);
+  for (const match of work.matchAll(DIGIT_RUN)) numbersOfRun(match[0], match.index, found);
   return found
     .map((n) => ({
       ...n,

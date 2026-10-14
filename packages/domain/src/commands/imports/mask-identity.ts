@@ -18,6 +18,7 @@ import { assertEntityInScope } from './shared';
 interface PartToCheck {
   jobId: string;
   columns: string[];
+  mapping: unknown;
   fileName: string | null;
   through: number;
   last: boolean;
@@ -46,7 +47,8 @@ function arrayItem(value: string): string {
  * so a call never comes near the 30-second limits however large the job:
  * - the first part decides the columns by the rule the import now applies at its start
  *   (`withoutIdentityNumbers`): a column of Aadhaar numbers is left out of the job's columns and of
- *   every row, and the file's name keeps only the last four digits of a number in it;
+ *   every row, and the file's name and the saved mapping keep only the last four digits of a
+ *   number in them;
  * - every part masks the run of digits holding an Aadhaar number in each cell, and in the rows'
  *   checked input, to its last four digits (`maskIdentityCells`, `maskIdentityValue`);
  * - only the rows that changed are written back, through `app.record_import_identity_check()`,
@@ -109,6 +111,9 @@ export const maskImportIdentity = defineCommand({
         ? maskIdentityText(part.fileName)
         : null;
     const through = part.rows.at(-1)?.rowNo ?? part.through;
+    // A saved mapping names the file's columns, a left-out one's name included.
+    const mapping = first && part.mapping !== null ? maskIdentityValue(part.mapping) : null;
+    const maskedMapping = mapping !== null && mapping.masked > 0 ? mapping.value : null;
 
     const [written] = (await ctx.tx.execute(
       sql`select app.record_import_identity_check(
@@ -116,7 +121,9 @@ export const maskImportIdentity = defineCommand({
             ${JSON.stringify(decided.columns)}::jsonb,
             ${`{${decided.leftOutColumns.map(arrayItem).join(',')}}`}::text[],
             ${maskedValues}::integer, ${through}::integer, ${part.last}::boolean,
-            ${fileName}::text, ${JSON.stringify(changed)}::jsonb) as rows`,
+            ${fileName}::text,
+            ${maskedMapping === null ? null : JSON.stringify(maskedMapping)}::jsonb,
+            ${JSON.stringify(changed)}::jsonb) as rows`,
     )) as unknown as { rows: number }[];
     const rows = written?.rows ?? 0;
     if (rows > 0 || decided.leftOutColumns.length > 0 || fileName !== null) {

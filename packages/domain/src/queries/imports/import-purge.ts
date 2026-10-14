@@ -16,13 +16,16 @@ export interface FilesToDeleteOptions {
   /** The store the worker deletes from: a file kept in another store is not listed. */
   bucket: string;
   now?: Date;
-  /** Where the page starts: after this file in the list's order (review L4). */
-  after?: { createdAt: string; id: string } | undefined;
+  /**
+   * Where the page starts: after this file (review L4). The list is in the order of the files' ids,
+   * which are UUIDv7 and so follow their upload, exactly, with no time's rounding between pages.
+   */
+  after?: string | undefined;
 }
 
 /**
  * The import files of one company in one store whose bytes the import purge deletes (audit
- * SEC-1), oldest first, a page of at most `IMPORT_FILE_PURGE_LIMIT` after `after`: each still
+ * SEC-1), oldest first by id, a page of at most `IMPORT_FILE_PURGE_LIMIT` after `after`: each still
  * kept, whose job has ended (all rows added, stopped or undone) or that was uploaded more than
  * `WORKSHOP_DEFAULTS.retention.importFileOpenDays` ago, whatever became of its job. A file the
  * store refused stays in the list, so the worker pages past it rather than starting again from
@@ -52,12 +55,7 @@ export async function importFilesToDelete(
         eq(f.purpose, 'import'),
         eq(f.bucket, options.bucket),
         isNull(f.deletedAt),
-        after === undefined
-          ? undefined
-          : or(
-              gt(f.createdAt, new Date(after.createdAt)),
-              and(eq(f.createdAt, new Date(after.createdAt)), gt(f.id, after.id)),
-            ),
+        after === undefined ? undefined : gt(f.id, after),
         or(
           lt(f.createdAt, before),
           exists(
@@ -71,7 +69,7 @@ export async function importFilesToDelete(
         ),
       ),
     )
-    .orderBy(asc(f.createdAt), asc(f.id))
+    .orderBy(asc(f.id))
     .limit(IMPORT_FILE_PURGE_LIMIT);
   return rows.map((row) =>
     ImportFileToDeleteDto.parse({ ...row, createdAt: row.createdAt.toISOString() }),

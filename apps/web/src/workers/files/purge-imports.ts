@@ -21,6 +21,9 @@ import {
 import { logger as appLogger } from '../../log';
 import { systemWorkersPrincipal } from '../events/system-principal';
 
+/** Store refusals in a row after which a company's files wait for the next hour. */
+const STORE_REFUSALS_IN_A_ROW = 3;
+
 export interface ImportPurgeDeps {
   /** The environment's store, whose import files the purge deletes; none where no store exists. */
   store: FileStore | undefined;
@@ -47,7 +50,9 @@ export function failureCode(error: unknown): string {
   if (error instanceof DomainError) return error.code;
   for (let e: unknown = error, depth = 0; e instanceof Error && depth < 4; depth += 1) {
     const code = (e as Error & { code?: unknown }).code;
-    if (typeof code === 'string' && /^[a-z0-9_]{1,40}$/i.test(code)) return code.toLowerCase();
+    if (typeof code === 'string' && /^(?:[0-9a-z]{5}|[a-z_]{1,40})$/.test(code.toLowerCase())) {
+      return code.toLowerCase();
+    }
     e = e.cause;
   }
   return 'internal';
@@ -63,7 +68,8 @@ export function failureCode(error: unknown): string {
  *    period ago, page by page (`importFilesToDelete`), are deleted with every version the store
  *    kept, then recorded deleted (`imports.file.record_deleted`); a file the store refuses is
  *    logged by its id, recorded by its code and paged past, so it never holds the rest back, and
- *    it is never recorded deleted while its bytes remain;
+ *    it is never recorded deleted while its bytes remain; after three refusals in a row the
+ *    company's files wait for the next hour;
  * 2. the rows of the import jobs past the reconciliation period are cleared, a call at a time,
  *    until none is left (`imports.job.purge`).
  * A call that fails is recorded in `retention_runs` by its code (`imports.purge.record_failure`):
@@ -162,8 +168,10 @@ export async function purgeImports(deps: ImportPurgeDeps): Promise<ImportPurgeRe
     const store = deps.store;
     if (store !== undefined) {
       try {
-        let after: { createdAt: string; id: string } | undefined;
-        while (!spent()) {
+        let after: string | undefined;
+        // A store that refuses several deletions in a row is left alone until the next hour.
+        let refusedInARow = 0;
+        while (!spent() && refusedInARow < STORE_REFUSALS_IN_A_ROW) {
           const page = await executeQuery(
             principal,
             call(entityId),
@@ -180,8 +188,11 @@ export async function purgeImports(deps: ImportPurgeDeps): Promise<ImportPurgeRe
             try {
               await store.delete(file.key);
               deleted.push(file.id);
+              refusedInARow = 0;
             } catch (error) {
               await failed(principal, entityId, 'import-files-purge', error, { fileId: file.id });
+              refusedInARow += 1;
+              if (refusedInARow >= STORE_REFUSALS_IN_A_ROW) break;
             }
           }
           if (deleted.length > 0) {
@@ -195,7 +206,7 @@ export async function purgeImports(deps: ImportPurgeDeps): Promise<ImportPurgeRe
           }
           const last = page.at(-1);
           if (page.length < IMPORT_FILE_PURGE_LIMIT || last === undefined) break;
-          after = { createdAt: last.createdAt, id: last.id };
+          after = last.id;
         }
       } catch (error) {
         await failed(principal, entityId, 'import-files-purge', error);

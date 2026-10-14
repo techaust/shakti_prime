@@ -70,7 +70,11 @@ describe('the shapes of a personal number, read alike by the scrubber and the mo
   });
 
   it('finds an Aadhaar number and a phone joined in one run, and never reads a phone into an Aadhaar number', () => {
-    expect(redactText('ids 2345 6789 0123, 9876543210 seen')).toBe('ids [number], ******3210 seen');
+    // A comma and a space join one run (second review, M7), so the phone goes with the number.
+    expect(redactText('ids 2345 6789 0123, 9876543210 seen')).toBe('ids [number] seen');
+    expect(redactText('ids 2345 6789 0123 and 9876543210 seen')).toBe(
+      'ids [number] and ******3210 seen',
+    );
     // The whole run is the number: a group joined before it is never left beside it.
     expect(redactText('91 2345 6789 0123')).toBe('[number]');
     expect(redactText('Aadhaar २३४५.६७८९.०१२३ and 98765-43210')).toBe(
@@ -112,7 +116,8 @@ const REVIEW_SHAPES: readonly { text: string; number: string; imported: string }
   {
     text: 'DOB 12.05.1985, 2345 6789 0124',
     number: '234567890124',
-    imported: 'DOB 12.05.1985, XXXX XXXX 0124',
+    // A comma and a space join a run as any separator does (second review, M7).
+    imported: 'DOB XX.XX.XXXX, XXXX XXXX 0124',
   },
   {
     text: '12051985 2345 6789 0124',
@@ -122,7 +127,7 @@ const REVIEW_SHAPES: readonly { text: string; number: string; imported: string }
   {
     text: 'Plot 1234, 2345 6789 0124',
     number: '234567890124',
-    imported: 'Plot 1234, XXXX XXXX 0124',
+    imported: 'Plot XXXX, XXXX XXXX 0124',
   },
   { text: 'Aadhaar +2345-6789-0124', number: '234567890124', imported: 'Aadhaar +XXXX-XXXX-0124' },
   { text: 'Ram + 2345 6789 0124', number: '234567890124', imported: 'Ram + XXXX XXXX 0124' },
@@ -161,7 +166,7 @@ describe('the review shapes: the whole run, after a +, in any grouping, with inv
       ],
     );
     expect(out.maskedValues).toBe(1);
-    expect(out.rows[0]).toEqual(['Ram', 'DOB 12.05.1985, XXXX XXXX 0124']);
+    expect(out.rows[0]).toEqual(['Ram', 'DOB XX.XX.XXXX, XXXX XXXX 0124']);
   });
 
   it('leaves a +91 mobile number to the phone rules, and a + number of another country too', () => {
@@ -170,17 +175,81 @@ describe('the review shapes: the whole run, after a +, in any grouping, with inv
     expect(maskIdentityText('call +91 98765 43210')).toBe('call +91 98765 43210');
   });
 
-  it('leaves lists of small numbers and numbers beginning 0 or 1 alone (review L6, M3)', () => {
+  it('leaves numbers beginning 0 or 1 alone, and lists of them (review L6, M3)', () => {
     for (const text of [
       'qty 1000, 2000, 3000',
-      'visited 2024, 2025, 2026',
       'ids 1001/1002/1003',
-      'rows 1-1000, 1001-2000, 2001-3000',
       'ref 012345678901',
       'ref 112345678901',
     ]) {
       expect(redactText(text)).toBe(text);
       expect(maskIdentityText(text)).toBe(text);
+    }
+  });
+});
+
+/**
+ * The second review's shapes (14-10-2026). M7: a comma and a space join a run for every consumer,
+ * as they always did for the model masker. L9: more separators, more invisible characters, and
+ * superscript digits. One table, run against the import filter, `redactText()`, the audit
+ * scrubber and `maskForModel()`: one rule for all four.
+ */
+const SECOND_REVIEW_SHAPES: readonly { text: string; number: string }[] = [
+  { text: 'Aadhaar 2345, 6789, 0124', number: '234567890124' },
+  ...['"', '|', '*', '#', '~', '+', '=', '·', '•', '\\'].map((sep) => ({
+    text: `card 2345${sep}6789${sep}0124`,
+    number: '234567890124',
+  })),
+  ...['\u034f', '\ufe0f', '\u115f', '\u1160', '\u3164', '\uffa0', '\u2800'].map((mark) => ({
+    text: `card 2345${mark}6789${mark}0124`,
+    number: '234567890124',
+  })),
+  { text: 'card ²³⁴⁵⁶⁷⁸⁹⁰¹²⁴', number: '234567890124' },
+];
+
+describe('the second review: one rule for the import, the scrubber, the audit trail and the model', () => {
+  it.each(SECOND_REVIEW_SHAPES)(
+    'all four keep at most the last four: $text',
+    ({ text, number }) => {
+      for (const out of [
+        maskIdentityText(text),
+        redactText(text),
+        JSON.stringify(redactForAudit({ input: { note: text } })),
+        maskForModel(text),
+      ]) {
+        expect(digitsLeft(out)).not.toContain(number.slice(0, 8));
+        expect(digitsLeft(out)).not.toContain(number.slice(4));
+      }
+    },
+  );
+
+  it('counts a superscript digit as a digit when it masks (L9)', () => {
+    expect(maskIdentityText('card 2345 6789 01²⁴')).toBe('card XXXX XXXX 01²⁴');
+  });
+
+  it('never masks a phone number after a + (M6), however it is written', () => {
+    for (const phone of [
+      '+91 141 2345678',
+      '+91 22 2345 6789',
+      '+911412345678',
+      '+919876543210',
+      '+971 50 123 4567',
+      '+966 55 123 4567',
+      '+44 7911 123456',
+      '+44 20 7946 0958',
+      '+971501234567',
+      '+1 415 555 2671',
+    ]) {
+      expect(maskIdentityText(`call ${phone}`), phone).toBe(`call ${phone}`);
+      expect(
+        findPersonalNumbers(phone).map((n) => n.kind),
+        phone,
+      ).toEqual(['phone']);
+      expect(digitsLeft(redactText(phone)).endsWith(digitsLeft(phone).slice(-4)), phone).toBe(true);
+    }
+    // An Aadhaar number never carries a country code: grouped as one after a +, it is masked.
+    for (const text of ['Aadhaar +2345-6789-0124', 'Ram + 2345 6789 0124', '+91-234567890124']) {
+      expect(digitsLeft(maskIdentityText(text)), text).not.toContain('23456789');
     }
   });
 });

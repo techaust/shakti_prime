@@ -176,7 +176,7 @@ describe('who may reach the import purge', () => {
     sql`select app.record_import_files_deleted(1::smallint, ${OPEN_DAYS}::integer, array[]::uuid[])`,
     sql`select app.import_job_to_check(1::smallint, ${jobId('leftRecent')}::uuid, 10)`,
     sql`select app.record_import_identity_check(1::smallint, ${jobId('leftRecent')}::uuid,
-                                                '[]'::jsonb, '{}'::text[], 0, 0, false, null,
+                                                '[]'::jsonb, '{}'::text[], 0, 0, false, null, null,
                                                 '[]'::jsonb)`,
     sql`select app.record_import_purge_failure(1::smallint, 'import-rows-purge', '57014')`,
   ];
@@ -215,7 +215,7 @@ describe('who may reach the import purge', () => {
       sql`select app.record_import_files_deleted(2::smallint, ${OPEN_DAYS}::integer, array[]::uuid[])`,
       sql`select app.import_job_to_check(2::smallint, ${jobId('otherCompany')}::uuid, 10)`,
       sql`select app.record_import_identity_check(2::smallint, ${jobId('otherCompany')}::uuid,
-                                                  '[]'::jsonb, '{}'::text[], 0, 0, false, null,
+                                                  '[]'::jsonb, '{}'::text[], 0, 0, false, null, null,
                                                   '[]'::jsonb)`,
       sql`select app.record_import_purge_failure(2::smallint, 'import-rows-purge', '57014')`,
     ]) {
@@ -257,7 +257,7 @@ describe('who may reach the import purge', () => {
              has_function_privilege('app_reader',
                'app.import_job_to_check(smallint, uuid, integer)', 'EXECUTE') as read,
              has_function_privilege('app_reader',
-               'app.record_import_identity_check(smallint, uuid, jsonb, text[], integer, integer, boolean, text, jsonb)',
+               'app.record_import_identity_check(smallint, uuid, jsonb, text[], integer, integer, boolean, text, jsonb, jsonb)',
                'EXECUTE') as write,
              has_function_privilege('app_reader',
                'app.record_import_purge_failure(smallint, text, text)', 'EXECUTE') as failure`);
@@ -414,7 +414,7 @@ describe('the identity pass over imports made before the rule', () => {
                                                   ${leftOut}::text[], 1,
                                                   ${options.through ?? 2}::integer,
                                                   ${options.done ?? true}::boolean,
-                                                  ${options.fileName ?? null}::text,
+                                                  ${options.fileName ?? null}::text, null,
                                                   ${JSON.stringify(rowsJson)}::jsonb) as n`,
     );
 
@@ -459,7 +459,26 @@ describe('the identity pass over imports made before the rule', () => {
     expect(await failure(record(['Name', 'Mobile'], '{}', [], { fileName: 'other.csv' }))).toMatch(
       /only loses digits/,
     );
-    // A failure is recorded by its code alone.
+    // A column dropped with no name among those left out, a name not of a dropped column, and a
+    // name that keeps twelve digits (second review, L12).
+    expect(await failure(record(['Name'], '{}', [], { done: false }))).toMatch(/named once/);
+    expect(await failure(record(['Name'], '{Village}', [], { done: false }))).toMatch(/named once/);
+    expect(
+      await failure(record(['Name'], '{"Mobile 2345 6789 0124"}', [], { done: false })),
+    ).toMatch(/named once/);
+    // Marked checked with rows past the part it says it read.
+    expect(await failure(record(['Name', 'Mobile'], '{}', [], { through: 1, done: true }))).toMatch(
+      /outside the part being checked/,
+    );
+    // A failure is recorded by its code alone, never a value.
+    expect(
+      await failure(
+        rows(
+          workers(),
+          sql`select app.record_import_purge_failure(1::smallint, 'import-rows-purge', '2345 6789 0124')`,
+        ),
+      ),
+    ).toMatch(/by its job and its code alone/);
     expect(
       await failure(
         rows(

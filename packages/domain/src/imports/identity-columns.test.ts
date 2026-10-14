@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { asciiDigits } from '../privacy/number-shapes';
 import { verhoeffCheckDigit } from '../privacy/verhoeff';
-import { namesAadhaar, namesPhone, withoutIdentityNumbers } from './identity-columns';
+import {
+  maskIdentityValue,
+  namesAadhaar,
+  namesPhone,
+  withoutIdentityNumbers,
+} from './identity-columns';
 
 /** A twelve-digit number in one run that is a mobile number with 91 and a valid Aadhaar number. */
 const BOTH = `91987654321${verhoeffCheckDigit('91987654321')}`;
@@ -140,5 +145,40 @@ describe('the review of the import filter (14-10-2026)', () => {
     const out = withoutIdentityNumbers(['Cust'], rows);
     expect(out.rows).toEqual(rows);
     expect(out.maskedValues).toBe(0);
+  });
+});
+
+describe('the second review of the import filter (14-10-2026)', () => {
+  it('keeps a column of phones whose header also names Aadhaar, and reads the word at its start (L11)', () => {
+    for (const header of [
+      'Aadhaar linked mobile',
+      'Mobile (Aadhaar linked)',
+      'Aadhar seeded phone',
+    ]) {
+      expect(namesAadhaar(header), header).toBe(false);
+    }
+    for (const header of ['Radharani Devi', 'Madhari', 'Gadhar village']) {
+      expect(namesAadhaar(header), header).toBe(false);
+    }
+    expect(namesAadhaar('Aadhaar seeded')).toBe(true);
+    const out = withoutIdentityNumbers(['Name', 'Aadhaar linked mobile'], [['Ram', '9876543210']]);
+    expect(out.columns).toEqual(['Name', 'Aadhaar linked mobile']);
+  });
+
+  it('keeps a column of phone numbers written after a + of any country (M6)', () => {
+    const rows = [
+      ['+91 141 2345678'],
+      ['+91 98765 43210'],
+      ['+971 50 123 4567'],
+      ['+44 7911 123456'],
+    ];
+    const out = withoutIdentityNumbers(['Mobile'], rows);
+    expect(out).toMatchObject({ columns: ['Mobile'], rows, leftOutColumns: [], maskedValues: 0 });
+    expect(
+      maskIdentityValue({ contact: { phone: '+911412345678' }, other: '+971501234567' }),
+    ).toEqual({
+      value: { contact: { phone: '+911412345678' }, other: '+971501234567' },
+      masked: 0,
+    });
   });
 });

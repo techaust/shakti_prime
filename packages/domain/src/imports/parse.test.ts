@@ -65,6 +65,19 @@ describe('parseImportFile: CSV', () => {
     expect(parsed.maskedValues).toBe(1);
   });
 
+  it('masks a header before cutting it, so a number crossing the cut keeps no digits but four (M5)', async () => {
+    const address = 'Ward 5, behind the old post office, near the Hanuman temp UID 2345 6789 0124';
+    // The number starts at character 63 and crosses the 75-character cut.
+    expect(address.indexOf('2345') + 1).toBe(63);
+    expect(address.length).toBeGreaterThan(75);
+    const parsed = await parseImportFile(
+      text(`Rekha Devi,Rampur,"${address}"\nSita Devi,Churu,"Plot 9, near the school"\n`),
+    );
+    const names = JSON.stringify([...parsed.columns, ...parsed.leftOutColumns]);
+    expect(names.replace(/\D/g, '')).not.toMatch(/2345|6789/);
+    expect(names).toContain('UID XXXX XXXX');
+  });
+
   it('refuses a file of nothing but Aadhaar numbers', async () => {
     await expect(
       parseImportFile(text('Aadhaar,UID\n2345 6789 0123,3456 7890 1234\n')),
