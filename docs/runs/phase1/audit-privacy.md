@@ -182,7 +182,7 @@ All thirteen review findings are fixed, as the lead decided, in 936a1159 and 89b
 - 0146's comment cannot change on a database that ran it: the migrator compares each file's hash. DATABASE and 0148's header carry the correction instead.
 
 **Tests:**
-- `number-shapes.test.ts`: 72 → 93 (the review shapes against all three; whole-run counts; +91 and other countries; lists and 0 or 1 left alone).
+- `number-shapes.test.ts`: 72 → 99 (the review shapes against all three; whole-run counts; +91 and other countries; lists and 0 or 1 left alone).
 - `identity-columns.test.ts`: 7 → 9 (a masked left-out header; phone headers in three scripts and a phone column by its values).
 - `import-purge.test.ts` (db): 15 → 16. The new definers in every refusal and the reader check; the part hand-out and a job adding rows; names, part, file-name and failure-code refusals; the cursor; a failure row.
 - `import-purge.test.ts` (domain): 11 → 15:
