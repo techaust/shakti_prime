@@ -80,6 +80,64 @@ Schema, migrations, the parse-time filter, the purge and SEC-3's shared number f
 - SECURITY §5 (SEC-2 and the import rule), DATABASE (columns, definers, §7 retention), the design's Built record, 06-api (the sweep route's answer), the workshop pack rows.
 - OPS-5 (`ci.yml` model cache, `OCR_LANG_PATH` for `web#test`).
 
+### Final, 14-10-2026 (cloud, slot 6)
+The early check was approved, with one addition: a one-off pass over the imports made before the fix. The whole slice is now built: the pass, the screen, the journey, the documents and OPS-5.
+
+**The one-off identity pass (the lead's addition).** The worker computes the rows and a definer writes them, so the rule stays in one place, the domain's `withoutIdentityNumbers()`.
+- Migrations `0145_audit_privacy_identity` (generated) and `0146_audit_privacy_identity_rls` (custom). They add `import_jobs.identity_checked_at`, set at the start of every job from this fix on, and the partial index `import_jobs_identity_unchecked_idx`.
+- `app.import_job_to_check(entity)` holds the company's oldest unchecked job that is not committing, skipping a held one, and answers its columns and its rows.
+- `app.record_import_identity_check(entity, job, columns, left_out, masked, rows)` writes the changed rows. It refuses a job that would gain a column, and any row left with more keys than the new columns, so a column left out goes from every row. It adds the columns left out and the values masked, and sets `identity_checked_at`. A call that changed something writes a `retention_runs` row (`import-identity-check`).
+- Both definers require `imports.process:entity` and the company in the request, and use `search_path ''`.
+- The command `imports.job.mask_identity` (`commands/imports/mask-identity.ts`) masks the raw cells and every string of `normalised_json` (`maskIdentityValue()`), sends only the changed rows, and audits the counts.
+- The files sweep runs the pass first for each company, call after call, until none is left. After that, each call is one index probe (EXPLAIN below).
+- Side effect: marking an earlier job checked changes its `updated_at`, so the 30-day purge of such a job starts again from the pass. Its rows hold no Aadhaar number by then. This is stated in the migration.
+
+**Screen.**
+- `components/imports/privacy-notes.tsx` adds the section "What this import does not keep" to the job page. It names the columns left out and how many numbers were hidden, says when the file was deleted, and says when the rows' details were cleared and that the counts stay.
+- A purged job left before adding shows "This import was left unfinished" with "Upload the file again" instead of the matching, checking and adding steps. A purged job's rows grid is hidden; its reconciliation stays.
+- The catalogue gained `imports.privacy.*`, two `errors.*` sentences, three Activity log action names and four field labels. `uploadAgain` was added to copy-lint's button keys.
+
+**Journey.** In `e2e/imports.spec.ts`, a GM uploads a list with an "Aadhaar No" column and a number inside an address. The page names the column left out and the one number hidden, and no digit of either reaches the page; axe passes. It adds the screenshot `imports-identity-left-out`, whose Linux baseline you need to make.
+
+**Documents.**
+- SECURITY §5 now says exactly what Phase 1 masks and when (SEC-2): vault photos and PDFs, imports and their purge, and the scrubber's shapes with the shared finder. Consent proofs, signed quotes and vault Word and Excel files are kept as uploaded. WhatsApp, field-app and `customer_document` uploads wait for their phases.
+- SECURITY §3.3 lists the workers' use of `imports.process`.
+- DATABASE §4.1 has the four definers; the `files`, `import_jobs`, `import_rows` and `retention_runs` rows are updated; §7 describes the import purge.
+- The design's Built record is in §6.3, and the workshop defaults list in §11.
+- 06-api: the sweep route's answer. TESTING §6: the OCR model in the unit and security jobs.
+- Workshop pack FIN-3 sets out the two periods (7 and 30 days) for the owner and the CA, with its row in the answer table and in exit-gate-actions §5.
+
+**OPS-5.**
+- In `ci.yml`, the unit and security jobs read the installed `tesseract.js` version and restore the model from the Actions cache, keyed by that version and the model package's version. On a miss they take `@tesseract.js-data/eng@1.0.0` from the npm registry (npm checks its integrity) and extract `4.0.0_best_int/eng.traineddata.gz`, the file the spike uses. `OCR_LANG_PATH` is set on `pnpm test` and `pnpm test:security`.
+- `turbo.json` lists `OCR_LANG_PATH` for `web#test`.
+- **For the lead to verify:** `actions/cache` was pinned nowhere in the repository, and the session cannot reach GitHub. I pinned `5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3` from memory, so check that SHA (`gh api repos/actions/cache/git/ref/tags/v4.2.3`) before the pull request. A wrong SHA fails the job loudly; it cannot pass silently.
+- Locally, with the same model from the npm registry in `OCR_LANG_PATH`, `mask-pdf-pages.test.ts` ran all 14 tests (one was skipped before), and the security suite's real-OCR case ran.
+
+**Tests added since the early check:**
+- `import-purge.test.ts` (db): 12 → 15 (the pass's definers in every refusal, the reader and company checks; the hand-out; the two shape refusals; the write, the record, check-once).
+- `import-purge.test.ts` (domain): 9 → 11 (the pass's denied and wrong-company cases; an earlier job with an Aadhaar column in every row and one in its checked input has none after the pass, its reconciliation unchanged, one audit row of counts, then nothing left).
+- `apps/web/tests/imports.test.ts`: +1 (an earlier job with an Aadhaar column has none after one sweep, and its reconciliation is unchanged).
+- The import journey: +1.
+
+**Checks, all through the lock, on 54336 and port 3036:**
+- `pnpm exec prettier --check .`: all matched files use Prettier code style.
+- `pnpm db:docs` and `machines:docs`: regenerated; `docs/data` committed.
+- `pnpm copy-lint`: clean.
+- `pnpm typecheck`: passed.
+- `turbo run test --force`, with `OCR_LANG_PATH`: tokens 146, copy-lint 17, ui 107, contracts 182, db 134, domain 2157, web 841; all passed.
+- `pnpm test:security`, with `OCR_LANG_PATH`: db 44 files, 1248 tests; domain 76 files, 961 tests; web 25 files, 324 tests; all passed.
+- `pnpm build`: 2 tasks successful. `js-budget`: every page within its budget (46 pages).
+- `e2e:seed`, then `playwright test e2e/imports.spec.ts --ignore-snapshots`: 29 passed (1.2 min).
+- `pnpm lint`, the whole repository, last: clean.
+
+**EXPLAIN (ANALYZE), slot 6:** the identity pass's lookup is an Index Scan using `import_jobs_identity_unchecked_idx`, 0.17 ms. The purge's two lists are in the early check.
+
+**Not done, or uncertain:**
+- The Linux baseline of `imports-identity-left-out` is yours to make, and so is the check of the `actions/cache` SHA.
+- No journey shows the purged state: reaching it needs a job aged in the database. It is covered by the web and domain suites instead.
+- A very large earlier job (50,000 rows) is read and checked in one call. That is fine for the sweep's budget at today's sizes, but it is not measured.
+- The migration numbers 0143 to 0146 follow 0142, as you renumber them at integration. The documents cite 0144 and 0146.
+
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
