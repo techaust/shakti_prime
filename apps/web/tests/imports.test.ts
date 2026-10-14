@@ -712,6 +712,59 @@ describe('the one-off pass over imports made before the identity rule (audit SEC
   });
 });
 
+describe('the import purge after review (14-10-2026)', () => {
+  it('masks an Aadhaar number in an import file’s name (review L3)', async () => {
+    const fileId = await uploaded(`Name,Mobile\nSarla,${phone()}\n`, {
+      name: 'rekha_234567890124.csv',
+    });
+    const job = ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
+    expect(job.file.name).toBe('rekha_XXXXXXXX0124.csv');
+  });
+
+  it('records a job the pass cannot read by its code, and goes on with the others (review M4)', async () => {
+    // A job the pass cannot read: its columns are not a list.
+    const good = ok(
+      await startImport(
+        { entityId: 1, kind: 'leads', fileId: await uploaded(`Name,Mobile\nKamla,${phone()}\n`) },
+        newId(),
+      ),
+    );
+    const broken = ok(
+      await startImport(
+        { entityId: 1, kind: 'leads', fileId: await uploaded(`Name,Mobile\nBhola,${phone()}\n`) },
+        newId(),
+      ),
+    );
+    await asMigrator(
+      (m) => m`update import_jobs set identity_checked_at = null,
+                      columns_json = case when id = ${broken.id} then '{}'::jsonb else columns_json end
+                where id in (${good.id}, ${broken.id})`,
+    );
+    try {
+      const swept = await purgeImports({ store: files, requestId: newId() });
+      expect(swept.failures).toBeGreaterThanOrEqual(1);
+      const [checked] = await asMigrator(
+        (m) => m<{ good: Date | null; broken: Date | null }[]>`
+          select (select identity_checked_at from import_jobs where id = ${good.id}) as good,
+                 (select identity_checked_at from import_jobs where id = ${broken.id}) as broken`,
+      );
+      expect(checked?.good).not.toBeNull();
+      expect(checked?.broken).toBeNull();
+      const [failure] = await asMigrator(
+        (m) => m<{ error: string | null }[]>`
+          select error from retention_runs where job = 'import-identity-check' and error is not null
+           order by started_at desc limit 1`,
+      );
+      expect(failure?.error).toBe('internal');
+    } finally {
+      await asMigrator(
+        (m) => m`update import_jobs set columns_json = '["Name","Mobile"]'::jsonb,
+                        identity_checked_at = now() where id = ${broken.id}`,
+      );
+    }
+  });
+});
+
 describe('POST /api/v1/workers/imports/commit', () => {
   const saved = new Map<string, string | undefined>();
   beforeEach(() => {

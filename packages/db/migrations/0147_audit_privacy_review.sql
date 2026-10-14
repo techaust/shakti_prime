@@ -1,0 +1,1 @@
+ALTER TABLE "import_jobs" ADD COLUMN "identity_checked_through" integer DEFAULT 0 NOT NULL;

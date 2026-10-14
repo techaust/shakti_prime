@@ -101,6 +101,11 @@ export const importJobs = pgTable(
      * (`imports.job.mask_identity`). Null only for an earlier job not reached yet.
      */
     identityCheckedAt: timestamp('identity_checked_at', { withTimezone: true }),
+    /**
+     * The last row the one-off pass has checked of a job not yet checked: it reads a large job a
+     * thousand rows a call, and `identity_checked_at` is set with the last.
+     */
+    identityCheckedThrough: integer('identity_checked_through').notNull().default(0),
     ...timestamps,
     ...actorsRequired,
   },

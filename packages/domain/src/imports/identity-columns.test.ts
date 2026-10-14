@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { asciiDigits } from '../privacy/number-shapes';
 import { verhoeffCheckDigit } from '../privacy/verhoeff';
-import { namesAadhaar, withoutIdentityNumbers } from './identity-columns';
+import { namesAadhaar, namesPhone, withoutIdentityNumbers } from './identity-columns';
 
 /** A twelve-digit number in one run that is a mobile number with 91 and a valid Aadhaar number. */
 const BOTH = `91987654321${verhoeffCheckDigit('91987654321')}`;
@@ -106,5 +106,39 @@ describe('the identity numbers of an import file (audit SEC-1)', () => {
     );
     const twice = withoutIdentityNumbers(once.columns, once.rows);
     expect(twice).toEqual({ ...once, leftOutColumns: [], maskedValues: 0 });
+  });
+});
+
+describe('the review of the import filter (14-10-2026)', () => {
+  it('leaves out a column whose header holds an Aadhaar number, and keeps its name masked (M1)', () => {
+    const out = withoutIdentityNumbers(['Name', 'UID 2345 6789 0124'], [['Ram', 'Sikar']]);
+    expect(out.columns).toEqual(['Name']);
+    expect(out.leftOutColumns).toEqual(['UID XXXX XXXX 0124']);
+    expect(JSON.stringify(out).replace(/\D/g, '')).not.toContain('234567890124');
+  });
+
+  it('reads a phone column by its header in English, Hindi or Gujarati, or by its values (M3)', () => {
+    for (const header of [
+      'Ph',
+      'Ph. No.',
+      'Phone No',
+      'Mobile No',
+      'Contact',
+      'Number',
+      'मोबाइल नंबर',
+      'फ़ोन',
+      'ફોન નંબર',
+      'મોબાઇલ',
+    ]) {
+      expect(namesPhone(header), header).toBe(true);
+    }
+    for (const header of ['Name', 'Village', 'Invoice No', 'Cancellation', 'Notes']) {
+      expect(namesPhone(header), header).toBe(false);
+    }
+    // A column of 91 and a mobile number under a header nothing recognises keeps every number.
+    const rows = [[BOTH], ['919812345678'], ['919898989898']];
+    const out = withoutIdentityNumbers(['Cust'], rows);
+    expect(out.rows).toEqual(rows);
+    expect(out.maskedValues).toBe(0);
   });
 });

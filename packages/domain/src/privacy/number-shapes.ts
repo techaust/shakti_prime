@@ -3,13 +3,15 @@
 // number the same way and can never drift apart again (audit SEC-3, 12-10-2026). No Node API: the
 // scrubber runs in the edge runtime and the browser's error reporting too.
 //
-// 1. The text is read in a normalised form, for finding things only: every decimal digit of any
-//    script as an ASCII digit; every space, tab, line break, format character and Unicode dash or
-//    minus as one space; full-width letters and signs as ASCII. Each normalised position maps back
+// 1. The text is read in a normalised form, for finding things only: invisible characters (format
+//    characters such as the direction marks and zero-width joiners, and no-break spaces) dropped;
+//    every decimal digit of any script as an ASCII digit; every other space, tab, line break and
+//    Unicode dash or minus as one space; full-width letters and signs as ASCII. Each normalised position maps back
 //    to the original, so a replacement covers exactly the original characters.
 // 2. UUIDs and the shapes known to be safe are set aside when they stand alone (no digit joined to
-//    them by a separator): dates, times, timestamps with their offset, ranges of them, rupee
-//    amounts after ₹, Rs, INR or an amount word, quantities with their unit, and product codes.
+//    them by a separator): document numbers with their financial year, dates, times, timestamps
+//    with their offset, ranges of them, rupee amounts after ₹, Rs, INR or an amount word,
+//    quantities with their unit, and product codes.
 // 3. A run of digit groups joined by at most three separators (space . , / _ - : and brackets),
 //    digits touching letters included, is what remains to judge.
 
@@ -38,8 +40,15 @@ export function asciiDigits(text: string): string {
   );
 }
 
-/** Characters read as a space: every space, tab, line break, format character, dash and minus. */
-const SPACE_LIKE = /^[\p{Zs}\p{Cf}\s‐-―−]$/u;
+/**
+ * Characters dropped before anything is read: the invisible ones (format characters such as the
+ * left-to-right and right-to-left marks, zero-width space, joiner and non-joiner) and the no-break
+ * spaces, which a spreadsheet shows as nothing or as a plain space inside a number.
+ */
+const INVISIBLE = /^[\p{Cf}\u00a0\u202f]$/u;
+
+/** Characters read as a space: every other space, tab, line break, dash and minus. */
+const SPACE_LIKE = /^[\p{Zs}\s‐-―−]$/u;
 
 export interface Normalised {
   text: string;
@@ -60,6 +69,7 @@ export function normalise(original: string): Normalised {
     const char = String.fromCodePoint(point);
     let read: string;
     if (point < 0x80) read = /\s/.test(char) ? ' ' : char;
+    else if (INVISIBLE.test(char)) read = '';
     else if (SPACE_LIKE.test(char)) read = ' ';
     else if (DECIMAL_DIGIT.test(char)) read = String(digitValue(point));
     else {
@@ -186,10 +196,16 @@ const CODES = new RegExp(
 );
 /** The most digits a code keeps, its year aside: a code never hides a number. */
 const CODE_DIGITS = 6;
+/** A document number with its financial year (`ASH/Q/2026-27/0001`, `SS/2026-27/000123`). */
+const DOCUMENT_NUMBERS = new RegExp(
+  `(?<![\\p{L}\\p{N}_/-])[A-Z]{1,6}(?:/[A-Z]{1,6})*/${YEAR}-\\d{2}/\\d{1,8}${ALONE_AFTER}`,
+  'gu',
+);
 
 /** Sets aside the safe shapes of step 2 that stand alone, in the order they are tried. */
 export function setAsideSafeShapes(work: string, spans: Span[]): string {
   let out = work;
+  out = pass(out, spans, DOCUMENT_NUMBERS, whole(null));
   out = pass(out, spans, DATES, whole(null));
   out = pass(out, spans, TIMES, whole(null));
   out = pass(out, spans, AMOUNTS, whole(null));
@@ -220,8 +236,11 @@ export function isPhone(raw: string, digits: string): boolean {
 /** A personal number found in text, by the shape it is written in. */
 export interface FoundNumber {
   /**
-   * `aadhaar`: twelve digits written as an Aadhaar number is (one run of twelve, or groups of
-   * 4-8, 8-4 or 4-4-4); `phone`: a mobile or landline number (`isPhone`).
+   * `aadhaar`: a run of digit groups some of whose consecutive groups hold twelve digits, the
+   * first of them 2 to 9, however they are grouped (12, 4-4-4, 3-3-3-3, 6-6, 4-4-2-2, pairs);
+   * the whole run is the number, so nothing joined to it is kept beside it. `phone`: a mobile or
+   * landline number (`isPhone`), or a number after a `+`, within a run that holds no Aadhaar
+   * number.
    */
   kind: 'aadhaar' | 'phone';
   /** Offsets into the text searched; `end` is exclusive. */
@@ -232,11 +251,13 @@ export interface FoundNumber {
   /** Written after a `+`, as an international number is. */
   plus: boolean;
   /**
-   * Twelve digits in one run beginning 91 and a mobile number's first digit: an Aadhaar number's
-   * shape and a mobile number's with its country code both. The scrubber hides it whole; the
-   * import decides by the column and the check digit.
+   * Twelve digits beginning 91 and a mobile number's first digit, not grouped 4-4-4 and not after
+   * a `+`: an Aadhaar number's shape and a mobile number's with its country code both. The
+   * scrubber hides it; the import decides by its column and the check digit.
    */
   alsoPhone: boolean;
+  /** Written in more than one group. */
+  grouped: boolean;
 }
 
 interface Group {
@@ -244,8 +265,6 @@ interface Group {
   end: number;
   digits: string;
 }
-
-const AADHAAR_GROUPINGS = new Set(['12', '4-8', '8-4', '4-4-4']);
 
 /** The digit groups of one run of the normalised text, at their offsets in it. */
 function groupsOf(run: string, at: number): Group[] {
@@ -256,72 +275,97 @@ function groupsOf(run: string, at: number): Group[] {
   }));
 }
 
+/** Whether some consecutive groups hold exactly twelve digits, the first of them 2 to 9. */
+function holdsAadhaar(groups: readonly Group[]): boolean {
+  for (let i = 0; i < groups.length; i++) {
+    if (!/^[2-9]/.test(groups[i]?.digits ?? '')) continue;
+    let total = 0;
+    for (let j = i; j < groups.length && total < 12; j++) total += groups[j]?.digits.length ?? 0;
+    if (total === 12) return true;
+  }
+  return false;
+}
+
 /**
- * The Aadhaar-shaped and phone-shaped numbers of one run, Aadhaar numbers first: a phone read
- * across part of an Aadhaar number would leave the rest of it whole. Each is whole groups only, so
- * digits are never split off a group to make a number up.
+ * The Aadhaar-shaped or phone-shaped numbers of one run. A run that holds an Aadhaar number is one
+ * number, all of it, so a group joined before or after the number (a year of birth, a plot
+ * number) never takes the mask in its place. A run after a `+` is a phone only when it is +91 and
+ * a mobile number; otherwise it is tried as an Aadhaar number like any other. Phones are whole
+ * groups only, so digits are never split off a group to make a number up.
  */
 function numbersOfRun(run: string, at: number, out: FoundNumber[]): void {
   const groups = groupsOf(run, at);
+  const first = groups[0];
+  const last = groups.at(-1);
+  if (first === undefined || last === undefined) return;
   const plus = run.startsWith('+');
-  const claimed = new Array<boolean>(groups.length).fill(false);
-  const found: { from: number; to: number; kind: 'aadhaar' | 'phone' }[] = [];
-  for (let i = 0; i < groups.length; i++) {
-    if (plus && i === 0) continue;
-    for (const size of [3, 2, 1]) {
-      const window = groups.slice(i, i + size);
-      if (window.length < size) continue;
-      if (!AADHAAR_GROUPINGS.has(window.map((g) => g.digits.length).join('-'))) continue;
-      found.push({ from: i, to: i + size - 1, kind: 'aadhaar' });
-      for (let k = i; k < i + size; k++) claimed[k] = true;
-      i += size - 1;
-      break;
-    }
+  const all = groups.map((g) => g.digits).join('');
+  if (plus && /^91[6-9]\d{9}$/.test(all)) {
+    out.push({
+      kind: 'phone',
+      start: at,
+      end: last.end,
+      digits: all,
+      plus,
+      alsoPhone: false,
+      grouped: groups.length > 1,
+    });
+    return;
+  }
+  if (holdsAadhaar(groups)) {
+    const lengths = groups.map((g) => g.digits.length).join('-');
+    out.push({
+      kind: 'aadhaar',
+      // A leading `+` or bracket goes with the number it opens.
+      start: at,
+      end: last.end,
+      digits: all,
+      plus,
+      alsoPhone: !plus && /^91[6-9]\d{9}$/.test(all) && lengths !== '4-4-4',
+      grouped: groups.length > 1,
+    });
+    return;
   }
   for (let i = 0; i < groups.length; i++) {
-    if (claimed[i] === true) continue;
     for (let size = Math.min(5, groups.length - i); size >= 1; size--) {
       const window = groups.slice(i, i + size);
-      if (window.some((_, k) => claimed[i + k] === true)) continue;
       const digits = window.map((g) => g.digits).join('');
       const withPlus = plus && i === 0;
       const phone = withPlus ? digits.length >= 8 && digits.length <= 15 : isPhone('', digits);
-      if (!phone) continue;
-      found.push({ from: i, to: i + size - 1, kind: 'phone' });
-      for (let k = i; k < i + size; k++) claimed[k] = true;
+      const from = window[0];
+      const to = window.at(-1);
+      if (!phone || from === undefined || to === undefined) continue;
+      out.push({
+        kind: 'phone',
+        start: withPlus ? at : from.start,
+        end: to.end,
+        digits,
+        plus: withPlus,
+        alsoPhone: false,
+        grouped: size > 1,
+      });
       i += size - 1;
       break;
     }
   }
-  for (const f of found) {
-    const first = groups[f.from];
-    const last = groups[f.to];
-    if (first === undefined || last === undefined) continue;
-    const digits = groups
-      .slice(f.from, f.to + 1)
-      .map((g) => g.digits)
-      .join('');
-    const fromRunStart = f.from === 0;
-    out.push({
-      kind: f.kind,
-      // A leading `+` or bracket goes with the number it opens.
-      start: fromRunStart ? at : first.start,
-      end: last.end,
-      digits,
-      plus: fromRunStart && plus,
-      alsoPhone: f.kind === 'aadhaar' && f.from === f.to && /^91[6-9]/.test(digits),
-    });
-  }
 }
+
+/**
+ * The runs the scrubber and the import judge: digit groups joined by at most three separators, as
+ * the model masker reads them, except that a comma or semicolon followed by a space ends a run,
+ * so a list of small numbers ("1000, 2000, 3000") is not read as one number.
+ */
+const NUMBER_RUN = new RegExp(`(?<![\\d+(])(?:\\+ ?|\\( ?)?\\d+(?:(?![,;] )${SEP}{1,3}\\d+)*`, 'g');
 
 /** Quick test: a text without a digit of any script holds no number. */
 const ANY_DIGIT = /\p{Nd}/u;
 
 /**
  * Every Aadhaar-shaped and phone-shaped number in `text`, in order, at its offsets in `text`:
- * written in any script's digits, joined by spaces, dots, commas, slashes, underscores, hyphens,
- * colons or brackets, touching letters or not. UUIDs, dates, times, amounts, quantities and
- * product codes standing alone are passed over, as `maskForModel()` passes them over.
+ * written in any script's digits, in any grouping, joined by spaces, dots, commas, slashes,
+ * underscores, hyphens, colons or brackets, with invisible characters between, touching letters
+ * or not. UUIDs, document numbers, dates, times, amounts, quantities and product codes standing
+ * alone are passed over, as `maskForModel()` passes them over.
  */
 export function findPersonalNumbers(text: string): FoundNumber[] {
   if (!ANY_DIGIT.test(text)) return [];
@@ -330,7 +374,7 @@ export function findPersonalNumbers(text: string): FoundNumber[] {
   let work = setAsideIds(read, spans);
   work = setAsideSafeShapes(work, spans);
   const found: FoundNumber[] = [];
-  for (const match of work.matchAll(DIGIT_RUN)) numbersOfRun(match[0], match.index, found);
+  for (const match of work.matchAll(NUMBER_RUN)) numbersOfRun(match[0], match.index, found);
   return found
     .map((n) => ({
       ...n,

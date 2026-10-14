@@ -174,9 +174,11 @@ describe('who may reach the import purge', () => {
   const statements = [
     sql`select app.purge_import_rows(1::smallint, ${DAYS}::integer, 10)`,
     sql`select app.record_import_files_deleted(1::smallint, ${OPEN_DAYS}::integer, array[]::uuid[])`,
-    sql`select app.import_job_to_check(1::smallint)`,
+    sql`select app.import_job_to_check(1::smallint, ${jobId('leftRecent')}::uuid, 10)`,
     sql`select app.record_import_identity_check(1::smallint, ${jobId('leftRecent')}::uuid,
-                                                '[]'::jsonb, '{}'::text[], 0, '[]'::jsonb)`,
+                                                '[]'::jsonb, '{}'::text[], 0, 0, false, null,
+                                                '[]'::jsonb)`,
+    sql`select app.record_import_purge_failure(1::smallint, 'import-rows-purge', '57014')`,
   ];
 
   it('refuses every person’s role, every agent and the workers without imports.process', async () => {
@@ -211,9 +213,11 @@ describe('who may reach the import purge', () => {
     for (const statement of [
       sql`select app.purge_import_rows(2::smallint, ${DAYS}::integer, 10)`,
       sql`select app.record_import_files_deleted(2::smallint, ${OPEN_DAYS}::integer, array[]::uuid[])`,
-      sql`select app.import_job_to_check(2::smallint)`,
+      sql`select app.import_job_to_check(2::smallint, ${jobId('otherCompany')}::uuid, 10)`,
       sql`select app.record_import_identity_check(2::smallint, ${jobId('otherCompany')}::uuid,
-                                                  '[]'::jsonb, '{}'::text[], 0, '[]'::jsonb)`,
+                                                  '[]'::jsonb, '{}'::text[], 0, 0, false, null,
+                                                  '[]'::jsonb)`,
+      sql`select app.record_import_purge_failure(2::smallint, 'import-rows-purge', '57014')`,
     ]) {
       expect(await failure(rows(workers([1]), statement))).toMatch(/outside the request/);
     }
@@ -251,11 +255,19 @@ describe('who may reach the import purge', () => {
              has_function_privilege('app_reader',
                'app.record_import_files_deleted(smallint, integer, uuid[])', 'EXECUTE') as files,
              has_function_privilege('app_reader',
-               'app.import_job_to_check(smallint)', 'EXECUTE') as read,
+               'app.import_job_to_check(smallint, uuid, integer)', 'EXECUTE') as read,
              has_function_privilege('app_reader',
-               'app.record_import_identity_check(smallint, uuid, jsonb, text[], integer, jsonb)',
-               'EXECUTE') as write`);
-    expect(grants[0]).toEqual({ rows: false, files: false, read: false, write: false });
+               'app.record_import_identity_check(smallint, uuid, jsonb, text[], integer, integer, boolean, text, jsonb)',
+               'EXECUTE') as write,
+             has_function_privilege('app_reader',
+               'app.record_import_purge_failure(smallint, text, text)', 'EXECUTE') as failure`);
+    expect(grants[0]).toEqual({
+      rows: false,
+      files: false,
+      read: false,
+      write: false,
+      failure: false,
+    });
   });
 
   it('lets no request clear what a row said, mark a job purged or a file deleted itself', async () => {
@@ -389,41 +401,86 @@ describe('which import files are recorded deleted', () => {
 });
 
 describe('the identity pass over imports made before the rule', () => {
-  const record = (columns: unknown, leftOut: string, rowsJson: unknown) =>
+  const record = (
+    columns: unknown,
+    leftOut: string,
+    rowsJson: unknown,
+    options: { through?: number; done?: boolean; fileName?: string | null } = {},
+  ) =>
     rows<{ n: number }>(
       workers(),
       sql`select app.record_import_identity_check(1::smallint, ${jobId('leftRecent')}::uuid,
                                                   ${JSON.stringify(columns)}::jsonb,
                                                   ${leftOut}::text[], 1,
+                                                  ${options.through ?? 2}::integer,
+                                                  ${options.done ?? true}::boolean,
+                                                  ${options.fileName ?? null}::text,
                                                   ${JSON.stringify(rowsJson)}::jsonb) as n`,
     );
 
-  it('hands the worker a job not yet checked and not adding rows, with its rows', async () => {
-    const [answer] = await rows<{
-      job: { jobId: string; columns: unknown; rows: unknown[] } | null;
-    }>(workers(), sql`select app.import_job_to_check(1::smallint) as job`);
-    expect(answer?.job).not.toBeNull();
-    expect(answer?.job?.jobId).not.toBe(jobId('committingOld'));
+  it('hands the worker a part of a job not yet checked, and nothing of a job adding rows', async () => {
+    const [part] = await rows<{
+      job: {
+        jobId: string;
+        columns: unknown;
+        through: number;
+        last: boolean;
+        rows: unknown[];
+      } | null;
+    }>(
+      workers(),
+      sql`select app.import_job_to_check(1::smallint, ${jobId('leftRecent')}::uuid, 1) as job`,
+    );
+    expect(part?.job).toMatchObject({ jobId: jobId('leftRecent'), through: 0, last: false });
+    expect(part?.job?.rows).toHaveLength(1);
+    const [adding] = await rows<{ job: unknown }>(
+      workers(),
+      sql`select app.import_job_to_check(1::smallint, ${jobId('committingOld')}::uuid, 10) as job`,
+    );
+    expect(adding?.job).toBeNull();
   });
 
-  it('lets a job only lose columns, and every row lose a left-out column', async () => {
-    expect(await failure(record(['Name', 'Mobile', 'Extra'], '{}', []))).toMatch(
-      /never gains a column/,
-    );
+  it('checks the column names, the part being checked and the file name (review L2, L3)', async () => {
+    // A column the job does not have, though no more of them than it has.
+    expect(await failure(record(['Name', 'Extra'], '{}', []))).toMatch(/never gains a column/);
     // Mobile left out of the job, but row 2 still holds it.
     expect(
       await failure(
         record(['Name'], '{Mobile}', [{ rowNo: 1, raw: { Name: 'x' }, normalised: null }]),
       ),
-    ).toMatch(/more keys than the job has columns/);
+    ).toMatch(/keeps a column the job no longer has/);
+    // A row outside the part.
+    expect(
+      await failure(
+        record(['Name', 'Mobile'], '{}', [{ rowNo: 2, raw: { Name: 'x' } }], { through: 1 }),
+      ),
+    ).toMatch(/outside the part being checked/);
+    // A file name changed in more than its digits.
+    expect(await failure(record(['Name', 'Mobile'], '{}', [], { fileName: 'other.csv' }))).toMatch(
+      /only loses digits/,
+    );
+    // A failure is recorded by its code alone.
+    expect(
+      await failure(
+        rows(
+          workers(),
+          sql`select app.record_import_purge_failure(1::smallint, 'import-rows-purge', 'Ram 98765')`,
+        ),
+      ),
+    ).toMatch(/by its job and its code alone/);
   });
 
   it('writes the checked rows, records what was left out, and checks a job once', async () => {
     const before = await rowsOf('leftRecent');
-    const [answer] = await record(['Name'], '{Mobile}', [
-      { rowNo: 1, raw: { Name: `${MARK} one` }, normalised: { contact: { name: 'XXXX' } } },
-      { rowNo: 2, raw: { Name: `${MARK} two` }, normalised: null },
-    ]);
+    const [answer] = await record(
+      ['Name'],
+      '{Mobile}',
+      [
+        { rowNo: 1, raw: { Name: `${MARK} one` }, normalised: { contact: { name: 'XXXX' } } },
+        { rowNo: 2, raw: { Name: `${MARK} two` }, normalised: null },
+      ],
+      { fileName: 'leads.csv' },
+    );
     expect(answer?.n).toBe(2);
     const after = await rowsOf('leftRecent');
     expect(after.map((r) => [r.state, r.errors_json, r.created_type, r.raw_json])).toEqual(
@@ -441,23 +498,39 @@ describe('the identity pass over imports made before the rule', () => {
           left_out_columns: string[];
           masked_values: number;
           identity_checked_at: Date | null;
+          identity_checked_through: number;
         }[]
       >`
-        select columns_json, left_out_columns, masked_values, identity_checked_at
+        select columns_json, left_out_columns, masked_values, identity_checked_at,
+               identity_checked_through
           from import_jobs where id = ${jobId('leftRecent')}`,
     );
     expect(job).toMatchObject({
       columns_json: ['Name'],
       left_out_columns: ['Mobile'],
       masked_values: 1,
+      identity_checked_through: 2,
     });
     expect(job?.identity_checked_at).not.toBeNull();
     const [run] = await asMigrator(
       (m) => m<{ rows_affected: number }[]>`
         select rows_affected from retention_runs
-         where job = 'import-identity-check' order by started_at desc limit 1`,
+         where job = 'import-identity-check' and error is null order by started_at desc limit 1`,
     );
     expect(run?.rows_affected).toBe(2);
     expect(await failure(record(['Name'], '{}', []))).toMatch(/not waiting for its identity check/);
+  });
+
+  it('records a failure by its code in retention_runs', async () => {
+    await rows(
+      workers(),
+      sql`select app.record_import_purge_failure(1::smallint, 'import-identity-check', '57014')`,
+    );
+    const [run] = await asMigrator(
+      (m) => m<{ error: string | null; rows_affected: number }[]>`
+        select error, rows_affected from retention_runs
+         where job = 'import-identity-check' order by started_at desc limit 1`,
+    );
+    expect(run).toEqual({ error: '57014', rows_affected: 0 });
   });
 });

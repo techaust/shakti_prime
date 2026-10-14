@@ -124,6 +124,10 @@ jobs:
           npm pack @tesseract.js-data/eng@1.0.0
           mkdir -p ocr-model
           tar -xzf tesseract.js-data-eng-1.0.0.tgz -C ocr-model --strip-components=2 package/4.0.0_best_int/eng.traineddata.gz
+      # The model's own bytes, checked whether they came from the cache or the registry.
+      - name: OCR model is the one pinned
+        working-directory: ${{ runner.temp }}/ocr-model
+        run: echo "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91  eng.traineddata.gz" | sha256sum -c -
       - run: pnpm test
         env:
           OCR_LANG_PATH: ${{ runner.temp }}/ocr-model
@@ -230,6 +234,10 @@ jobs:
           npm pack @tesseract.js-data/eng@1.0.0
           mkdir -p ocr-model
           tar -xzf tesseract.js-data-eng-1.0.0.tgz -C ocr-model --strip-components=2 package/4.0.0_best_int/eng.traineddata.gz
+      # The model's own bytes, checked whether they came from the cache or the registry.
+      - name: OCR model is the one pinned
+        working-directory: ${{ runner.temp }}/ocr-model
+        run: echo "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91  eng.traineddata.gz" | sha256sum -c -
       - run: pnpm test:security
         env:
           OCR_LANG_PATH: ${{ runner.temp }}/ocr-model

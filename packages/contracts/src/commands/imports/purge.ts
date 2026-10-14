@@ -29,7 +29,13 @@ export type ImportRowsPurgeDto = z.infer<typeof ImportRowsPurgeDto>;
 
 /** An import file whose bytes the purge deletes from the store: its job ended, or it is old. */
 export const ImportFileToDeleteDto = z
-  .object({ id: IdSchema, bucket: z.string().min(1), key: FileKeySchema })
+  .object({
+    id: IdSchema,
+    bucket: z.string().min(1),
+    key: FileKeySchema,
+    /** When it was uploaded: the list's order, and where the next page starts. */
+    createdAt: z.iso.datetime(),
+  })
   .strict();
 export type ImportFileToDeleteDto = z.infer<typeof ImportFileToDeleteDto>;
 
@@ -53,14 +59,22 @@ export const ImportFilesDeletedDto = z
   .strict();
 export type ImportFilesDeletedDto = z.infer<typeof ImportFilesDeletedDto>;
 
+/** The rows one call of the identity pass reads and checks; a larger job takes several calls. */
+export const IMPORT_IDENTITY_CHUNK = 1000;
+
 /**
- * `imports.job.mask_identity` (the one-off identity pass, as the worker principal): reads the
- * oldest job of one company imported before the identity-number rule and applies it to its rows.
+ * `imports.job.mask_identity` (the one-off identity pass, as the worker principal): checks the next
+ * `IMPORT_IDENTITY_CHUNK` rows of one job of one company imported before the identity-number rule.
  */
-export const MaskImportIdentityInput = z.object({ entityId: EntityIdSchema }).strict();
+export const MaskImportIdentityInput = z
+  .object({ entityId: EntityIdSchema, jobId: IdSchema })
+  .strict();
 export type MaskImportIdentityInput = z.infer<typeof MaskImportIdentityInput>;
 
-/** One call of the pass: the job checked (none when every job is), its rows changed, and more. */
+/**
+ * One call of the pass: the job (null when another run holds it or it is checked already), the
+ * rows changed, the columns left out and values masked, and whether the job is now checked.
+ */
 export const ImportIdentityCheckDto = z
   .object({
     entityId: EntityIdSchema,
@@ -68,7 +82,33 @@ export const ImportIdentityCheckDto = z
     rows: z.number().int().min(0),
     leftOutColumns: z.number().int().min(0),
     maskedValues: z.number().int().min(0),
-    more: z.boolean(),
+    done: z.boolean(),
   })
   .strict();
 export type ImportIdentityCheckDto = z.infer<typeof ImportIdentityCheckDto>;
+
+/** The import purge's parts, by the job name each records in `retention_runs`. */
+export const ImportPurgeJobSchema = z.enum([
+  'import-identity-check',
+  'import-rows-purge',
+  'import-files-purge',
+]);
+export type ImportPurgeJob = z.infer<typeof ImportPurgeJobSchema>;
+
+/**
+ * `imports.purge.record_failure` (the import purge, as the worker principal): one call of the purge
+ * failed in one company, recorded by its code alone (a SQLSTATE or a domain code).
+ */
+export const RecordImportPurgeFailureInput = z
+  .object({
+    entityId: EntityIdSchema,
+    job: ImportPurgeJobSchema,
+    error: z.string().regex(/^[a-z0-9 _.:-]{1,120}$/),
+  })
+  .strict();
+export type RecordImportPurgeFailureInput = z.infer<typeof RecordImportPurgeFailureInput>;
+
+export const ImportPurgeFailureDto = z
+  .object({ entityId: EntityIdSchema, job: ImportPurgeJobSchema })
+  .strict();
+export type ImportPurgeFailureDto = z.infer<typeof ImportPurgeFailureDto>;

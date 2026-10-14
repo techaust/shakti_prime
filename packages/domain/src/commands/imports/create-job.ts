@@ -2,7 +2,7 @@ import { CreateImportJobInput, DomainError, ImportJobDto, newId } from '@shakti/
 import { schema } from '@shakti/db';
 import { and, eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
-import { withoutIdentityNumbers } from '../../imports/identity-columns';
+import { maskIdentityText, withoutIdentityHeaders } from '../../imports/identity-columns';
 import {
   assertContentNotImported,
   assertEntityInScope,
@@ -21,10 +21,11 @@ const INSERT_CHUNK = 1000;
  * and a file whose content was already added in the company (a job adding it, done, or stopped
  * with rows added) is refused, so the same list is not imported twice; a job left before adding,
  * or undone, does not count; `imports.job.commit` asks the same again. The PIN code master is imported only by an
- * Executive in a request for every company. No identity number is stored: the rows are read again
- * by `withoutIdentityNumbers` (as the reader already did), a column of Aadhaar numbers is left
- * out and any other keeps only its last four digits, and the job records the columns left out
- * and how many values were masked, for the screen to say so. The audit row records the file and
+ * Executive in a request for every company. No identity number is stored: the rows are those
+ * `parseImportFile()` read, which leaves a column of Aadhaar numbers out and masks any other to its
+ * last four digits before this command runs; the command leaves out again any column whose header
+ * names or holds one, and records the columns left out and how many values were masked, for the
+ * screen to say so. The audit row records the file and
  * the counts, never the rows, which carry customers' names and numbers in columns the redaction
  * cannot recognise.
  */
@@ -85,16 +86,21 @@ export const createImportJob = defineCommand({
     // The same content was already added in this company (another upload of the same file); the
     // commit asks again, since two jobs of one content may both be waiting by then.
     await assertContentNotImported(ctx.tx, input.entityId, file);
-    // The reader left the identity numbers out; whatever reached the command another way is
-    // left out here, so none is ever stored.
-    const clean = withoutIdentityNumbers(input.columns, input.rows);
+    // The rows come from `parseImportFile()`, which left the identity numbers out before this
+    // transaction began, so the cells are not read again here (the 30-second limit on a
+    // transaction's idle time counts this work). Only the headers are checked, which costs nothing:
+    // a column whose header names or holds an Aadhaar number is left out, and every name recorded
+    // keeps only the last four digits of a number.
+    const clean = withoutIdentityHeaders(input.columns, input.rows);
     if (clean.columns.length === 0) {
       throw new DomainError('validation_failed', 'every column holds identity numbers', {
         reason: 'import_only_identity_numbers',
       });
     }
-    const leftOutColumns = [...new Set([...input.leftOutColumns, ...clean.leftOutColumns])];
-    const maskedValues = input.maskedValues + clean.maskedValues;
+    const leftOutColumns = [
+      ...new Set([...input.leftOutColumns.map(maskIdentityText), ...clean.leftOutColumns]),
+    ];
+    const maskedValues = input.maskedValues;
     const j = schema.importJobs;
 
     const [job] = await ctx.tx

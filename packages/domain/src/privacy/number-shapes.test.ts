@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { redactForAudit } from '../audit/redact';
+import { maskIdentityText, withoutIdentityNumbers } from '../imports/identity-columns';
 import { redactText } from '../ports/redaction';
 import { maskForModel } from './model-text';
 import { asciiDigits, findPersonalNumbers } from './number-shapes';
@@ -70,7 +71,8 @@ describe('the shapes of a personal number, read alike by the scrubber and the mo
 
   it('finds an Aadhaar number and a phone joined in one run, and never reads a phone into an Aadhaar number', () => {
     expect(redactText('ids 2345 6789 0123, 9876543210 seen')).toBe('ids [number], ******3210 seen');
-    expect(redactText('91 2345 6789 0123')).toBe('91 [number]');
+    // The whole run is the number: a group joined before it is never left beside it.
+    expect(redactText('91 2345 6789 0123')).toBe('[number]');
     expect(redactText('Aadhaar २३४५.६७८९.०१२३ and 98765-43210')).toBe(
       'Aadhaar [number] and ******3210',
     );
@@ -98,5 +100,87 @@ describe('the shapes of a personal number, read alike by the scrubber and the mo
     const [found] = findPersonalNumbers(text);
     expect(found).toBeDefined();
     expect(text.slice(found?.start, found?.end)).toBe('२३४५ ६७८९ ०१२३');
+  });
+});
+
+/**
+ * The review's shapes (14-10-2026): a number joined to another group (H1), after a `+` (H1), in
+ * other groupings or with an invisible character inside (M2). One table, run against the import
+ * filter, the scrubber and the model masker: each keeps at most the last four of the twelve.
+ */
+const REVIEW_SHAPES: readonly { text: string; number: string; imported: string }[] = [
+  {
+    text: 'DOB 12.05.1985, 2345 6789 0124',
+    number: '234567890124',
+    imported: 'DOB 12.05.1985, XXXX XXXX 0124',
+  },
+  {
+    text: '12051985 2345 6789 0124',
+    number: '234567890124',
+    imported: 'XXXXXXXX XXXX XXXX 0124',
+  },
+  {
+    text: 'Plot 1234, 2345 6789 0124',
+    number: '234567890124',
+    imported: 'Plot 1234, XXXX XXXX 0124',
+  },
+  { text: 'Aadhaar +2345-6789-0124', number: '234567890124', imported: 'Aadhaar +XXXX-XXXX-0124' },
+  { text: 'Ram + 2345 6789 0124', number: '234567890124', imported: 'Ram + XXXX XXXX 0124' },
+  { text: 'card 234 567 890 124', number: '234567890124', imported: 'card XXX XXX XX0 124' },
+  { text: 'card 234567 890124', number: '234567890124', imported: 'card XXXXXX XX0124' },
+  { text: 'card 23 45 67 89 01 24', number: '234567890124', imported: 'card XX XX XX XX 01 24' },
+  { text: 'card 2345 6789 01 24', number: '234567890124', imported: 'card XXXX XXXX 01 24' },
+  { text: 'card 234567‎890124', number: '234567890124', imported: 'card XXXXXX‎XX0124' },
+  { text: 'card 2345​6789‍0124', number: '234567890124', imported: 'card XXXX​XXXX‍0124' },
+  { text: 'card 2345 6789 0124', number: '234567890124', imported: 'card XXXX XXXX 0124' },
+];
+
+describe('the review shapes: the whole run, after a +, in any grouping, with invisible characters', () => {
+  it.each(REVIEW_SHAPES)('the import keeps only the last four: $text', ({ text, imported }) => {
+    expect(maskIdentityText(text)).toBe(imported);
+  });
+
+  it.each(REVIEW_SHAPES)('the scrubber and the model mask it: $text', ({ text, number }) => {
+    for (const out of [
+      redactText(text),
+      maskForModel(text),
+      JSON.stringify(redactForAudit({ input: { note: text } })),
+    ]) {
+      expect(digitsLeft(out)).not.toContain(number.slice(0, 8));
+      expect(digitsLeft(out)).not.toContain(number.slice(4));
+    }
+  });
+
+  it('counts a cell as hidden only when its number was removed', () => {
+    const out = withoutIdentityNumbers(
+      ['Name', 'Remarks'],
+      [
+        ['Ram', 'DOB 12.05.1985, 2345 6789 0124'],
+        ['Sita', 'Ward 4 near the school'],
+        ['Gopal', 'Plot 1234, gate on the left'],
+      ],
+    );
+    expect(out.maskedValues).toBe(1);
+    expect(out.rows[0]).toEqual(['Ram', 'DOB 12.05.1985, XXXX XXXX 0124']);
+  });
+
+  it('leaves a +91 mobile number to the phone rules, and a + number of another country too', () => {
+    expect(redactText('call +91 98765 43210')).toBe('call ********3210');
+    expect(redactText('call +14155552671')).toBe('call +*******2671');
+    expect(maskIdentityText('call +91 98765 43210')).toBe('call +91 98765 43210');
+  });
+
+  it('leaves lists of small numbers and numbers beginning 0 or 1 alone (review L6, M3)', () => {
+    for (const text of [
+      'qty 1000, 2000, 3000',
+      'visited 2024, 2025, 2026',
+      'ids 1001/1002/1003',
+      'rows 1-1000, 1001-2000, 2001-3000',
+      'ref 012345678901',
+      'ref 112345678901',
+    ]) {
+      expect(redactText(text)).toBe(text);
+      expect(maskIdentityText(text)).toBe(text);
+    }
   });
 });

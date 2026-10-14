@@ -222,19 +222,21 @@ const SECRET_TEXT: readonly ((text: string) => string)[] = [
 
 /**
  * `text` as the logs and the audit trail keep it: links, tokens, passwords, email and UPI
- * addresses replaced; an Aadhaar-shaped number (twelve digits as one run, or in groups of 4-8, 8-4
- * or 4-4-4) replaced whole by `[number]`; a mobile or landline number (`isPhone`), or any number
+ * addresses replaced; a run of digits that holds an Aadhaar-shaped number (twelve digits, the
+ * first 2 to 9, in any grouping) replaced whole by `[number]`; a mobile or landline number (`isPhone`), or any number
  * after a `+`, kept only by its last four digits (with its `+` when written without spaces). Numbers are read as `maskForModel()` reads them
  * (`findPersonalNumbers`): in any script's digits, joined by spaces, dots, commas, slashes,
  * underscores, hyphens, colons or brackets, touching letters or not; UUIDs, dates, times, amounts,
- * quantities and product codes standing alone are left as they are, and so is any number of
- * another length (an order number, a time in milliseconds).
+ * quantities, product codes and document numbers standing alone are left as they are, and so is
+ * any number of another length (an order number, a time in milliseconds) or a list of small
+ * numbers separated by a comma and a space.
  */
 export function redactText(text: string): string {
   let out = text;
   for (const scrub of SECRET_TEXT) out = scrub(out);
   return replaceNumbers(out, findPersonalNumbers(out), (n, written) => {
-    if (n.kind === 'aadhaar') return '[number]';
+    // Twelve digits written as 91 and a mobile number in groups read as the phone they look like.
+    if (n.kind === 'aadhaar' && !(n.alsoPhone && n.grouped)) return '[number]';
     // A number written `+` and its digits alone keeps its `+`, as the logs have always shown it.
     return `${/^\+\p{Nd}+$/u.test(written) ? '+' : ''}${lastFour(n.digits)}`;
   });

@@ -6,8 +6,9 @@
 -- Aadhaar number masked to its last four digits) and writes the result back through the second
 -- definer, which also records what was left out and marks the job checked
 -- (`identity_checked_at`, set at the start of every job from this fix on). The rule lives in one
--- place, the domain, so the worker computes and the definer writes; the definer lets a job only
--- lose columns, never gain one. A job adding rows waits for the next run. Marking a job checked
+-- place, the domain, so the worker computes and the definer writes; this definer refuses a job
+-- whose columns would grow in number (the next migration replaces both definers: it reads a large
+-- job a part at a time and checks the columns by name). A job adding rows waits for the next run. Marking a job checked
 -- is a change to it, so the import purge's period for a job made before the fix starts again
 -- from the pass; its rows hold no identity number by then. Once
 -- every job is checked, the lookup is one probe of `import_jobs_identity_unchecked_idx`. A call
