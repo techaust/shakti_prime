@@ -2,97 +2,91 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [11-decisions.md](11-decisions.md); open follow-ups have their single home here.
 
-**12-10-2026, evening.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Waves 1 to 5 are merged; wave 6 (M1, G1) is what is left. This PC day built no slice: the owner made the models and usage plan final for the whole project (#155 to #157: Opus 5.5, Sonnet 5.5 and Haiku 5.5 only, no Fable 5.1), and the causes of today's CI failures were fixed (#158 to #162); Dependabot's production and development bumps then merged without Playwright (#164, #165), after it closed #152 and #153 itself. Migrations on `main`: 0000 to 0129, and dev and staging are migrated through 0129. Tests: security suite 2,430 (database 1,195, domain 932, web 303) and unit tests 3,389, both from L1's integration on the merged tree on 10-10-2026; on 12-10-2026 the domain unit tests were 2,057 after #160. The GitHub repository is public for now, since the free Actions minutes of that month were used up ([DECISIONS](11-decisions.md#standing-rules-in-force)).
+**14-10-2026, 16:00 IST, end of a cloud day.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; its gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). The deep audit of Phases 0–1 the owner asked for on 12-10-2026 ([14-reviews/2026-10-audit.md](14-reviews/2026-10-audit.md)) is closed in code: every code-fixable finding is fixed and merged in five batches (#170, #171, #173, #174, #175), with M1 (#172); what is left waits on people (below). Merged on 13 and 14 October: #167 to #177. Migrations on `main`: 0000 to 0155. The last security-suite run (the sales batch's integration, 14-10-2026): db 1,261, domain 1,019, web 326, all passed; unit tests: domain 2,241, web 847 (1 skipped), db 137, contracts 182, ui 107, tokens 146, copy-lint 17.
 
 ## Phase 1
 - **Design:** [docs/03-roadmap-appendix/phase1.md](03-roadmap-appendix/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](03-roadmap-appendix/phase1.md#3-slices).
-- **Merged (21 of the 23 slices):** set-up #79, #80; wave 1: #81 P3, #82 P1, #84 CI economy, #85 P2; wave 2: #87 C1, #88 X1, #89 C2, #99 P4, #100 C4, #103 C3, #105 P2b; wave 3: #108 AI0, #115 S1, #118 D1, #119 T1; wave 4: #133 S2, #134 N1, #135 K1, #138 T2; wave 5: #140 R1, #146 A1, #147 L1; fixes #139 (alignment), #145 (journeys), #159 (converting screenshots), #160 (AI deadline), #161 (printed quote check); tooling #107, #109, #111, #112, #113, #116, #117, #158 and #162 (Dependabot and Playwright); dependency bumps #101, #102, #127, #128, #150, #151, #164, #165; documents #83, #86, #90 to #98, #104, #106, #110, #114, #120 to #126, #129 to #132, #136, #137, #141 to #144, #148, #149, #155 to #157, #163 ([CHANGELOG](../CHANGELOG.md)).
-- **Next:** wave 6. M1 (migration and UAT packs, Tier A), under the final models and usage plan of 12-10-2026 (built on Opus 5.5 at high, early-checked and reviewed at xhigh); its import reconciliation, anonymisation and runbooks can be built on synthetic data, while its parallel run and UAT need the client's file. G1 (production readiness) is the owner's accounts first (see Waiting on the owner). The week reset on 12-10-2026 at 15:30 IST and stood at 2 % at this day's end, the 5-hour window at 27 % ([models-and-usage §5](runbooks/models-and-usage.md#5-the-budget-gate)).
-- **Work split:** each session wholly on the PC or wholly in a cloud session, as the owner chooses ([DECISIONS](11-decisions.md)); the owner chooses the next session's place; a cloud day follows [hybrid](runbooks/hybrid.md) from start to end. Models and efforts: [models-and-usage](runbooks/models-and-usage.md).
+- **Merged (22 of the 23 slices)** as listed in [CHANGELOG](../CHANGELOG.md); M1 merged on 14-10-2026 (#172).
+- **Next:** G1, the go-live slice, once the owner's accounts exist; the owner's items below close the audit's last steps.
+- **Work split:** each session wholly on the PC or wholly in a cloud session ([hybrid](runbooks/hybrid.md)); models and efforts: [models-and-usage](runbooks/models-and-usage.md).
 
 ### In progress
-No slice is in flight. Each slice's run file is `docs/runs/phase1/<slug>.md` on its branch and reaches `main` with the slice.
+None. Every run file of the day is on `main` ([run files](runs/phase1/readme.md)).
 
 ## Hosted environments
 | | Dev | Staging |
 |---|---|---|
 | Supabase project | `shakti-prime-dev` | `shakti-prime-staging` |
-| Migrated and seeded | through 0129 on 10-10-2026 (130 migrations; pgvector 0.8.2) | through 0129 on 10-10-2026 (130 migrations; pgvector 0.8.2) |
+| Migrated and seeded | through 0155 on 14-10-2026 (156 migrations), `db:verify` passed | through 0155 on 14-10-2026 (156 migrations), `db:verify` passed |
 | Site | https://shakti-prime-dev.vercel.app | https://shakti-prime-staging.vercel.app |
-| Checks | `/api/v1/health` and `/api/v1/health/ready` answer 200 | the same |
+| Checks | `/api/v1/health` and `/api/v1/health/ready` answered 200 on 14-10-2026 | the same |
 | First Executive | made on 06-10-2026 | made earlier |
 | QStash schedules (region EU) | `outbox-publish-dev`, `lead-rescore-dev`, `files-sweep-dev`, `quote-expire-dev`, `duplicate-scan-dev`, `notification-scan-dev` | the outbox schedule (generated id), `lead-rescore-staging`, `files-sweep-staging`, `quote-expire-staging`, `duplicate-scan-staging`, `notification-scan-staging` |
 | AWS files stack | `shakti-prime-dev-files` created; its four values in Vercel | `shakti-prime-staging-files` created; its four values in Vercel |
 
-S2's 0116–0117 and N1's 0118–0120 were applied to both on 08-10-2026; K1's 0121–0123, T2's 0124–0125 and R1's 0126–0127 on 09-10-2026, and A1's 0128–0129 on 10-10-2026 from the cloud session, each after `main`'s CI passed, through the migrate workflow's `db:verify` (the Supabase row count is read only from the PC). The notification scan runs every five minutes on both sites (the owner made its schedules on 09-10-2026; their first runs answered). Browser alerts have their VAPID keys on both sites (09-10-2026, a key pair per site). The Knowledge Vault takes Word and text files on both sites and refuses PDFs and photos plainly, since the OCR model is not bundled with the hosted worker (`OCR_LANG_PATH`). Dev's database passwords and its `BETTER_AUTH_SECRET` were replaced on 06-10-2026 after they appeared in a chat ([DEPLOY §5](runbooks/deploy.md#5-rotating-a-secret)); every secret in both sites' Vercel values is marked Sensitive (staging's on 09-10-2026), and both sites took a logo upload end to end. Upstash Redis per environment, Turnstile for both hostnames; Sentry project `shakti-prime-web` with the outbox alert. Plans, regions and where each bill is: [accounts](runbooks/accounts.md). Neither site has the Anthropic or Voyage key yet, so agent runs and the Vault's reading and search are recorded as unavailable.
+#168's 0133 moved the pg_cron job `audit-logs-partitions` to daily at 03:00 UTC (not read back from the cloud session: `select jobname, schedule from cron.job` on a PC day). Everything else in this section is as on 12-10-2026: browser alerts with VAPID keys on both sites, the Vault refusing PDFs and photos on the hosted worker (`OCR_LANG_PATH`), every Vercel secret marked Sensitive, Upstash Redis per environment, Turnstile for both hostnames, Sentry project `shakti-prime-web` with the outbox alert, no Anthropic or Voyage key yet. Plans, regions and bills: [accounts](runbooks/accounts.md).
 
 ## Deferred Phase 0 gate items
-Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](13-client-packs/exit-gate-actions.md). What Shakti's people must do, in business words: [client-actions](13-client-packs/client-actions.md). Nothing from the client has arrived yet: no workshop answers, no CA golden set, no design sign-off, no vendor quotes.
+Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](13-client-packs/exit-gate-actions.md). What Shakti's people must do: [client-actions](13-client-packs/client-actions.md). Nothing from the client has arrived yet.
 
 ## Waiting on the owner
-- **Keep the lead on Opus 5.5 at medium in the app** for every conversation (the conversation of 12-10-2026 ran at high), and at xhigh only for a named task the lead asks for, in a conversation of its own ([models-and-usage §3](runbooks/models-and-usage.md#3-who-runs-what)).
-- **Confirm the Triage agent's named defaults** in `AGENT_DEFAULTS.triage` when convenient: a score change of at most ±10 points, 30 people and 5 duplicate cards offered per lead, 400 output tokens and 40 seconds a call; Triage makes no call until a daily limit is set on Admin › Agents.
+- **Validate the six checks added `NOT VALID`** on dev, then staging: the read-only pre-check of [DEPLOY §2](runbooks/deploy.md#2-every-deploy) step 8 first, then the six statements of [exit-gate-actions](13-client-packs/exit-gate-actions.md) row 18 (the four GST split checks and the two widened quote checks of #173).
+- **Monitoring from the audit batches:** the QStash schedules `jobs-check-<env>`, and `lead-anonymise-<env>` once the CA confirms the retention period; Sentry alert rules for `job.failing` and `job.problem`, the eight cron monitors and the uptime monitor ([DEPLOY](runbooks/deploy.md)).
+- **With the CA:** the two import retention periods of workshop FIN-3 (7 days for files, 30 days for rows), and FIN-2's consent evidence and anonymised audit rows.
 - **G1's accounts, which take days:** a paid production Supabase project, Vercel Pro (or the client's Pro team), the client's domain verified for Amazon SES and SES production access, and a GitHub plan with environments.
-
-The owner's remaining items follow. What the client must give, with why and how, is the shared page https://claude.ai/artifact/PaR6v9vKUF6cLH2TVuRmTr (source [client-checklist.html](13-client-packs/client-checklist.html), 09-10-2026); the owner shares it with the client's people from its Share menu, as Editor for those who tick and write answers.
-- **Before the repository goes private again:** set a GitHub Actions budget (Settings › Billing and plans; Linux minutes at $0.006, about $5 on a busy day) or wait for the 1 November reset; private with neither, no check runs and nothing merges. Confirm with Shakti that the code being public for now is acceptable under the agreement.
-- **After cloud sessions resume ([hybrid §10](runbooks/hybrid.md#10-the-trial)):** decide whether to keep everything but the briefs, pull requests and hosted steps in the cloud (fully cloud), as S1, D1 and T1 ran.
+- **The environment's network list:** add `productionresultssa10.blob.core.windows.net`, so a cloud session can read CI logs and reports.
+- **A usage reading** (`usage: 5h N, week N`) before the next builder starts.
+- **On the PC:** delete `D:/shakti-wt/heavy.sh` if it exists.
+- **Confirm the Triage agent's named defaults** in `AGENT_DEFAULTS.triage` when convenient.
+- **Before the repository goes private again:** a GitHub Actions budget or the 1 November reset; confirm with Shakti that the code being public for now is acceptable.
 - **The Anthropic and Voyage keys** on dev and staging, and a spending limit on Admin › Agents.
-- **Approve the vendor quote letters** once the development team prepares them.
-- **Hand the workshop pack to the client** and set dates for its "Blocking work now" box; the calling scripts (CALL-2) and the confirmation of the calling defaults (CALL-3, CALL-4's 48-hour lock, CALL-5) are among its questions.
-- **Before the client's customer file:** add the PIN code list, or every site with a PIN shows that its PIN is not in the list.
-- Optional: delete the superseded remote branches `feat/p2-files-storage`, `feat/c3-pipelines-scoring`, `feat/c4-sizing`, `origin/docs/models-plan-opus-sonnet-haiku` (pushed again after #155 merged; its work is in the pull request that follows #155) and the local backup branches.
+- **Hand the workshop pack to the client** (CALL-2 to CALL-5 and CALL-8 among its questions); **approve the vendor quote letters**; **add the PIN code list** before the client's customer file.
 
 ## Open follow-ups
 | Follow-up | Phase / slice |
 |---|---|
+| The merge workflow's catch-up commits (main taken into a branch by its token) can hold their `pull_request` CI run for a person's approval, and the held run makes the workflow skip the pull request; #175 and #177 needed "Approve and run" and a look started by hand (`run_state()` in `.github/workflows/automerge.yml`) | 1 / any slice |
+| The main menu shows Converting for the Executive in some runs and not others; every screenshot now leaves the menu out (#174), the cause is not found | 1 / any slice |
+| The Aadhaar-column upload journey once took more than 45 s to open its job on CI's desktop-dark run and passed on the retry; six local runs took about 8 s (#175) | 1 / any slice |
+| `orders.test.ts` timed out once in a full domain run and passed alone (09-10-2026) | 1 / any slice |
+| CI's desktop journeys failed once on #167 and passed on the re-run; the cause is unread because the environment's network policy blocks GitHub's log storage (`productionresultssa10.blob.core.windows.net`) | 1 / any slice |
+| `search.test.ts` "puts the exact name first…" failed once on `main` after #168 and passed on the re-run: another test's person can match the fuzzy name search | 1 / any slice |
+| `pipelines.spec.ts` "lists the referral partners…" was flaky once in the Linux screenshot run (12-10-2026) | 1 / any slice |
+| `customers.test.ts` reused a random tag name of an earlier run on the same database (M1's run, 13-10-2026) | 1 / any slice |
+| On the PC, an older copy of the lock script at `D:/shakti-wt/heavy.sh` skips the queue of #167: delete it (#167 review #4) | 1 / any slice |
+| The push toggle tells a second person at a browser held by another that alerts are on (#168 review L4, from N1) | 1 / any slice |
 | Playwright 1.64 by hand: `@playwright/test` and `playwright-core` together, the image `mcr.microsoft.com/playwright:v1.64.0-noble` in `.github/workflows/ci.yml`, `apps/web/e2e/setup/snap-in-linux.ts` and [TESTING](09-testing.md), and every screenshot baseline compared and remade where the new browser draws differently (Dependabot leaves Playwright alone, #162) | 1 / any slice |
-| `tools/integration/heavy.sh` lets the next holder be whoever retries first, so a builder can wait an hour behind two others (L1, 09-10-2026); hand the lock out in order (a numbered queue) | 1 / any slice |
-| The cloud session hook does not notice a half-finished pnpm self-install (`~/.local/share/pnpm/.tools/pnpm/<v>_tmp_*`), which makes turbo fail with "Exec format error"; repaired by hand on 09-10-2026 with pnpm's own `install.js` | 1 / any slice |
 | `orders.spec.ts` "dealer credit" failed once in a screenshot run and passed on retry (10-10-2026) | 1 / any slice |
-| L1's seed adds a synthetic catalogue item ("Converting solar module 540 Wp") that the catalogue, tax rates and price master screenshots now show; seed it where only `converting.spec.ts` reads it | 1 / any slice |
-| `converting.spec.ts` runs its in-hours branch only between 09:05 and 20:50 IST; move it onto the test clock of #145 (L1 review #6) | 1 / any slice |
-| The Triage shadow report shows a pipeline by its key through the segment labels; carry the pipeline's name in the DTO (A1 review #3) | 1 / any slice |
 | A Triage event redelivered after a partial run calls the model again for the steps left; keep the answer under the event id in the key-value store (A1 review #7) | 1 / any slice |
 | The OCR model bundled with the hosted worker (`OCR_LANG_PATH`), so the Vault takes PDFs and photos on dev and staging; masking timed on a Vercel function | 1 / any slice |
 | A Vault page whose turn begins late (25 s) can outrun the route's 60 s with its own 45 s once; bound the page's time by what is left of the delivery (K1) | 1 / any slice |
 | Read again on a file waiting six minutes can race QStash's redelivery and read it twice (K1 review #13) | 1 / any slice |
-| `commission_accruals.measure` (`numeric(14,3)`) cannot hold the measure of an order of ₹1e11 or more (S2 review #8) | 1 / any slice |
 | A passed-on enquiry carries no note and drops a consent captured on the walk-in form (N1 review L2) | 1 / any slice |
-| `app.claim_push_subscription()` lets someone who knows another person's browser address re-claim it (N1 review L4) | 1 / any slice |
-| `notifications_entity_dedupe_idx` is read by nothing since the per-person check (N1 re-check L6): drop it in a new migration | 1 / any slice |
 | The orders snapshot journey's page load can pass 60 s on a loaded PC (passed on retry, 09-10-2026) | 1 / any slice |
 | The whole-repository lint needed a 6 GB heap after N1 (`package.json`); watch it as the repository grows | 1 / any slice |
 | `drizzle-kit generate` needs a terminal for a column rename, so a builder patches the snapshot by script; a non-interactive way to answer its prompt | 1 / any slice |
 | `pipelines.lock_hours` is `not null default 48`, so `WORKSHOP_DEFAULTS.opportunity.handoverLockHours` is never reached; the lock length has two copies of 48 (the column default and the workshop default) | 1 / any slice |
 | The handover's state-machine check runs on a made-up lead record and can never refuse; the database function holds the real check (T2 review #9) | 1 / any slice |
 | `shakti/field-button-alignment` reads only a button beside a `Field` or in a wrapper of buttons; a button two wrappers away, or an action beside a bare `Input`, is left to the journeys' `expectAligned` | 1 / any slice |
-| `orders.test.ts` timed out once in a full domain run and passed alone; `mask-pdf-pages.test.ts`'s timing case failed once in a full unit run and passed alone (09-10-2026, two builders sharing the PC) | 1 / any slice |
 | A nurtured lead's owner and nurture calls on reassignment (`crm.opportunity.assign` runs only from open), and the handover tested with a callback open: as `system:workers`, which holds no `crm.lead.write`, `moveCallTasks` moves nothing | 1 / T2 |
 | `/settings/profile` is at 192.3 kB against its 200 kB budget (186.0 on 29-09-2026; the bell is part of the growth) | 1 / any slice |
 | Account 360 marks a withdrawn call consent beside the number and drops its `tel:` link | 1 / any slice |
 | The Activity log reads a duplicate card set aside as "Dismissed", the agent action's word (states are looked up by value alone) | 1 / any slice |
-| `files.spec.ts`'s logo journey: axe can run on `/settings/companies` before the page has its title | 1 / any slice |
 | CI's minutes: about 500 a day while slices merge; trim the journeys or the Lighthouse run if a budget is set | 1 / any slice |
 | The add-partner form: a referral partner made as a customer of the kind Referral partner with no lead (owner, 05-10-2026) | 1 / after C3 |
 | Referral codes in the import mapping | 1 / after P2b |
 | The walk-in form's PIN box gets P2b's PIN lookup | 1 / after P2b |
 | The server logs "The destination stream closed early" as an error when a browser leaves a page while it loads, on existing screens too | 1 / any slice |
-| `import-kinds.test.ts` "adds the different site of a repeated row" passes only on a fresh database: it matches the customer its previous run made | 1 / any slice |
-| The PIN code journey's axe check can catch the success toast while it fades in; wait for the toast first | 1 / any slice |
-| `reader-parity.test.ts`'s Executive case takes about 12 seconds alone, close to its 20-second limit | 1 / any slice |
 | Admin › Agents: the per-action autonomy select cuts its text short on desktop | 1 / any slice |
 | `tools/integration/renumber-migrations.mjs` stops with an error when its `drizzle-kit` run writes nothing | 1 / any slice |
 | The proof page's render measured on dev and recorded in `docs/04-architecture-appendix/print.md` (the owner's upload check passed on both sites) | 1 / any slice |
 | A company's earlier proof pages keep a replaced bank account readable: remove them when a new one is printed (P4 review L10) | 1 / G1 |
 | A rasterised check of a real PDF's first page beside the HTML baselines (P4 review L7) | 1 / any slice |
 | An index on open leads by company for the nightly rescore, if the hosted volume needs it (C3 review L8) | 1 / G1 |
-| `enum-sync.test.ts` "a site point is on the globe" depends on another file creating an account first | 1 / any slice |
 | The demo data loader for the screen review: a small, clearly labelled set and one account per role, on staging only, removed after the reviews | 1 / before the screen review |
 | Account 360's final measure on a quiet machine and on the hosted stack ([design §6.5](03-roadmap-appendix/phase1.md#65-c2-customer-timeline)) | 1 / the next integration |
 | Imports measured on the hosted stack (concurrent batch workers only if 50,000 rows miss five minutes) | 1 / after P2b and the AWS files stack |
 | ⌘K search measured again on the client's imported leads | 1 / M1, G1 |
 | The SES mailer switched on for production | 1 / G1 |
-| The `audit-logs-partitions` job run daily, not on the 25th; per-month error handling in `app.ensure_audit_partitions()` like `app.ensure_activity_partitions()` | 1 / any slice |
 | The voice spike (`apps/web/src/integrations/voice/claude-stream.ts`) names a model the documents do not | 2 / voice |
 | Mobile tokens and the Redis front for idempotency keys | 4 / field app |

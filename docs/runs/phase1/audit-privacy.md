@@ -7,8 +7,8 @@
 | Runs on | cloud (owner, 12-10-2026: a deep audit of Phases 0–1, every finding fixed), heavy commands through the VM's lock |
 | Tier | A (identity documents, deleting data): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | the gate's reading at the start and end of each agent run |
-| State | brief |
-| Next step | the lead branches it from `main` once M1 has merged, then starts the builder |
+| State | merged, #175, 14-10-2026; dev and staging migrated through 0149 |
+| Next step | owner and CA: confirm the two retention periods (workshop FIN-3, 7 days for files, 30 days for rows) |
 
 ## Brief
 The audit's evidence and the verifier's verdicts: [`1-security.md`](../../14-reviews/2026-10-audit/1-security.md), [`1-security.verdict.md`](../../14-reviews/2026-10-audit/1-security.verdict.md), [`5-ops.md`](../../14-reviews/2026-10-audit/5-ops.md) (OPS-5). Report: `docs/14-reviews/2026-10-audit.md`.

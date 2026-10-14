@@ -42,7 +42,17 @@ Done when: the slice-specific checks beyond AGENTS §10.
 Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. On a cloud day the lead's VM uses the same slots for its worktrees; a builder started as its own cloud session uses its VM's defaults (Postgres 54322, app 3000).
 
 ## Slices in flight
-None.
+- None. G1 waits on the owner's accounts.
+
+## Merged on 13 and 14 October, run files on `main`
+- [Tooling and test-stability follow-ups](followups-tooling.md) (#167)
+- [Database follow-ups](followups-db.md) (#168)
+- [Audit fixes: web](audit-web.md) (#170)
+- [Audit fixes: events, jobs and observability](audit-data.md) (#171)
+- [M1 migration and UAT packs](m1-migration-uat.md) (#172)
+- [Audit fixes: sales integrity, dealers by the Executive only](audit-sales.md) (#173)
+- [Audit fixes: CI, merging, tests and documents](audit-ci.md) (#174)
+- [Audit fixes: privacy](audit-privacy.md) (#175)
 
 ## Merged (slices built with a run file; wave 1, C1, X1 and C2 predate run files)
 - [P4 print and letterhead](p4-print.md) (#99)

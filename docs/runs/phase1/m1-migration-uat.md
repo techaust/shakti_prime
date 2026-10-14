@@ -7,8 +7,8 @@
 | Runs on | cloud, beside the follow-up bundles `fix/followups-db` and `fix/followups-tooling` (owner, 12-10-2026: all pending Phase 0–1 work at once), heavy commands through the VM's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | A (deleting or anonymising data): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | no reading posted at the start; the owner said to proceed (12-10-2026) |
-| State | integrated with `main` (#167 to #171), migrations 0141 and 0142; pull request open |
-| Next step | merge on green, then `migrate-hosted` (0141, 0142); the owner creates the `lead-anonymise-<env>` QStash schedule and the eighth Sentry cron monitor alert |
+| State | merged, #172, 14-10-2026; dev and staging migrated through 0142 |
+| Next step | owner: the `lead-anonymise-<env>` QStash schedule once the CA confirms the retention period, and the eighth Sentry cron monitor alert; then the client's file for the parallel run and UAT (G1) |
 
 ## Brief
 Read first:

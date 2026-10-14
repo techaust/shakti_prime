@@ -7,8 +7,8 @@
 | Runs on | cloud (owner, 12-10-2026: a deep audit of Phases 0–1, every finding fixed), heavy commands through the VM's lock |
 | Tier | A (the outbox, workers and alerts every module relies on): build Opus 5.5 high, review Opus 5.5 xhigh |
 | Usage | start 13-10-2026 06:46 IST, last reading 06:24 (5h 11, week 21); the owner set the weekly gate aside |
-| State | built, awaiting review |
-| Next step | lead: integration; remake the three integration-health baselines |
+| State | merged, #171, 14-10-2026; dev and staging migrated through 0140 |
+| Next step | owner: the `jobs-check-<env>` schedules, the Sentry rules and monitors, and the GST pre-check and validation (DEPLOY §2 step 8, exit-gate action 18) |
 
 ## Brief
 The audit's evidence: `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/2-data.md` (its verification was cut short by the usage limit: verify each finding yourself before fixing it, and say in the report which you confirmed), `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/5-ops.md` and `/tmp/claude-0/-home-user-shakti-prime/763f5e41-bf7b-5815-bc26-350fbeb0dd5d/scratchpad/audit/5-ops.verdict.md`. Report: `docs/14-reviews/2026-10-audit.md`.
