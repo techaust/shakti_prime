@@ -42,7 +42,7 @@ Done when: the slice-specific checks beyond AGENTS §10.
 Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. On a cloud day the lead's VM uses the same slots for its worktrees; a builder started as its own cloud session uses its VM's defaults (Postgres 54322, app 3000).
 
 ## Slices in flight
-- None. G1 Production readiness is next: the owner reports the paid accounts ready (14-10-2026), and its run file is written at the start of the next session.
+- [G1 Production readiness](g1-production.md): brief written 14-10-2026; waits on the owner's account items (its part 1) before the builder starts.
 
 ## Merged on 13 and 14 October, run files on `main`
 - [Tooling and test-stability follow-ups](followups-tooling.md) (#167)
