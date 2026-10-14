@@ -1,0 +1,26 @@
+/*
+ * Applied by `snap()` while a picture is taken (see snap.ts). Every changing value it masks that
+ * sits in a line of text, a table cell or a flex row gets one fixed width, so the masked box is the
+ * same size on every run and a longer date or count never moves the words, columns or lines
+ * around it.
+ */
+[data-snap-fixed] {
+  display: inline-block;
+  inline-size: 8.5rem;
+  max-inline-size: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/*
+ * A table holding a changing value takes its column widths from its heads, not from its cells, and
+ * a changing cell keeps to one line, so neither its columns nor its rows move.
+ */
+table[data-snap-table] {
+  table-layout: fixed;
+}
+[data-snap-cell] {
+  white-space: nowrap;
+  overflow: hidden;
+}

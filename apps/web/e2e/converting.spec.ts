@@ -102,7 +102,6 @@ test.describe('converting as a Lead Converter', () => {
     await expectNoAxeViolations(page);
     await snap(page, 'converting-board', {
       mask: [page.getByRole('region', { name: 'Recent activity' })],
-      fixedTimes: true,
     });
 
     // The sizing: S opens it on the rooftop tab; the figures are typed and Enter saves.
@@ -143,9 +142,13 @@ test.describe('converting as a Lead Converter', () => {
     await expect(rows(page)).toHaveCount(3);
     await expect(rows(page).filter({ hasText: name('work') })).toHaveCount(1);
     await expectNoAxeViolations(page);
+    // The quote's number is the next of its company's series, which the quote journeys running
+    // beside this one also draw from, so it differs from run to run.
     await snap(page, 'converting-quote', {
-      mask: [page.getByRole('region', { name: 'Recent activity' })],
-      fixedTimes: true,
+      mask: [
+        page.getByRole('region', { name: 'Recent activity' }),
+        page.getByText(/\/Q\/\d{4}-\d{2}\/\d+/),
+      ],
     });
 
     // The call, last. Calls may be saved and numbers shown only from 9 AM to 9 PM in India (TRAI),
