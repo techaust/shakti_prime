@@ -47,6 +47,10 @@ async function press(page: Page, key: string, until: () => Promise<void>): Promi
 }
 
 test.describe('converting as a Lead Converter', () => {
+  // The journey works its seeded lead once (a call, a sizing, a quote), so a retry on the same
+  // database starts from a changed list and can only fail; with flaky runs failing CI anyway, a
+  // retry adds nothing but a second error that hides the first.
+  test.describe.configure({ retries: 0 });
   test('works a lead from the keyboard: a call, a sizing and a quote, and the list follows', async ({
     page,
     context,
