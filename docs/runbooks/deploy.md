@@ -77,6 +77,8 @@ This is the one procedure for bringing a hosted database and site up to `main`; 
    gh run watch <run id> --exit-status
    ```
 
+   In a cloud session, where `gh` reaches the REST API only: `gh api -X POST repos/techaust/shakti_prime/actions/workflows/migrate.yml/dispatches -f ref=main -f 'inputs[environment]=dev' -f 'inputs[seed]=true'`, then the run's `status` and `conclusion` from `gh api repos/techaust/shakti_prime/actions/runs/<run id>`.
+
    - The run checks the secrets, applies the migrations under an advisory lock, then runs `pnpm db:verify`, which fails when a migration on disk is not applied exactly as written, then `pnpm db:seed`.
    - Seeding is safe on every run and keeps every Admin edit (DATABASE §9); it is needed on a project's first migration and whenever the permission catalogue, roles, pipelines, tiers or lead sources change. Untick it only for a run that changes nothing in them.
    - A red run: [INCIDENTS §3](incidents.md#3-a-migration-failed). Never go on to staging after a red dev run.
