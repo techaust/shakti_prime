@@ -23,6 +23,7 @@ Reached (dates from the merges on `main`; the full list is in [CHANGELOG.md](../
 | 06-10-2026 | Quotes S1 (#115), duplicates D1 (#118), cold caller workspace T1 (#119): wave 3 complete; the AWS files stack created on dev and staging |
 | 08-10-2026 to 09-10-2026 | Orders, acceptance and credit S2 (#133), notifications N1 (#134), the Knowledge Vault K1 (#135), the handover T2 (#138): wave 4 complete |
 | 09-10-2026 to 10-10-2026 | Targets and home pages R1 (#140), Triage in shadow A1 (#146), the Lead Converter workspace L1 (#147): wave 5 complete |
+| 12-10-2026 to 14-10-2026 | The deep audit of Phases 0–1 (12-10-2026) closed in code: its five fix batches (#170, #171, #173, #174, #175) and Migration and UAT packs M1 (#172); dev and staging migrated through 0155 |
 
 Ahead (no date is set until what it depends on is in hand):
 
@@ -30,8 +31,8 @@ Ahead (no date is set until what it depends on is in hand):
 |---|---|
 | Quotes and calling with the client's own values (S1, T1 are merged with the built-in defaults) | Workshop SALE-1 (number format), PRICE-1 (tier per customer type), PRICE-4 (HSN and GST rates) with the CA's golden set, the price lists, CALL-1 (dispositions), CALL-2 (scripts), CALL-3 (retries) |
 | Agents and the Knowledge Vault running on dev and staging (AI0, K1 and A1 are merged) | Anthropic and Voyage keys for each environment |
-| Data migration and UAT (M1) | The client's export of the current CRM and sheets (workshop CRM-4) |
-| Production readiness (G1) | A paid production Supabase project, Vercel Pro, the client's domain with Amazon SES production access, a GitHub plan with environments |
+| The data migration and UAT on the client's data (M1's packs are merged, #172) | The client's export of the current CRM and sheets (workshop CRM-4) |
+| Production readiness (G1), publishing on the group's domain | The paid accounts, ready by the owner's word (14-10-2026): a production Supabase project, Vercel Pro, Amazon SES production access, a GitHub plan with environments; and the domain's DNS settings |
 | Phase 1 exit gate | The two-week parallel run, reconciled migration counts and UAT sign-off per role |
 | Phase 2 start | DLT registration and numbers, Meta Business verification, the Exotel and WhatsApp sandboxes, the voice samples (§10) |
 

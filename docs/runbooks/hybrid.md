@@ -19,8 +19,8 @@ On a cloud day everything runs in the cloud: the lead session is itself a cloud 
 | Take `main` into a slice, renumber its migrations | The lead session | [slice-integration §5](slice-integration.md#5-take-main-into-the-slice) |
 | The integration run (`integrate.sh`) | The lead session | In parts with `INTEGRATE_STEPS` (for example `install lint format copylint generated typecheck`, then `unit`, then `security dbverify`, then `audit build jsbudget gitleaks`, then `e2e`), each under the 30-minute limit of [§2](#2-what-a-cloud-session-has-and-lacks); `E2E_SPECS` for the slice's own journeys |
 | Linux screenshot baselines (`e2e:snap`) | The lead session | The Playwright image in the VM's Docker, the slice's own screens |
-| Push, open the pull request | The lead session | `gh pr create` (signed in through the GitHub proxy); the merge workflow merges on green |
-| Migrate dev and staging, check health | The lead session | `gh workflow run migrate.yml` as [DEPLOY §2](deploy.md#2-every-deploy) says; the workflow's `db:verify` is the migration check, since the Supabase tools are on the PC only; health with `curl` (both sites are on the environment's network list) |
+| Push, open the pull request | The lead session | `gh api repos/techaust/shakti_prime/pulls -f title=… -f head=<branch> -f base=main -F body=@<file>`, then the `hold` label with `gh api …/issues/<n>/labels` where needed (the proxy allows REST only); the merge workflow merges on green |
+| Migrate dev and staging, check health | The lead session | the migrate workflow started through `gh api` (`actions/workflows/migrate.yml/dispatches` with `inputs[environment]` and `inputs[seed]`), as [DEPLOY §2](deploy.md#2-every-deploy) says; the workflow's `db:verify` is the migration check, since the Supabase tools are on the PC only; health with `curl` (both sites are on the environment's network list) |
 | Any other change to a hosted service | The owner, with the lead's steps | The cloud has no Vercel, Upstash, AWS or Sentry tools; the standing go-ahead and its scope: [DECISIONS](../11-decisions.md) |
 | STATUS, CHANGELOG and DECISIONS at the end of the day | The lead session | The `end-session` skill, its pull request opened with `gh` |
 | Look up a library's documentation | Any session | No Context7 in the cloud: read the installed package's types and README under `node_modules` |
@@ -41,7 +41,7 @@ flowchart LR
 From Anthropic's documentation (04-10-2026):
 - Each session is an Ubuntu 24.04 VM with about 4 vCPUs, 16 GB of memory and 30 GB of disk. Node, pnpm, Docker with docker compose, PostgreSQL and Redis are installed, none of them running.
 - The repository is cloned from GitHub at the session's branch. Handover between the cloud and the PC is always through a pushed branch.
-- `gh` is installed and signed in as the owner through a GitHub proxy; `gh workflow run` works there.
+- `gh` is installed and signed in as the owner through a GitHub proxy that allows the REST API only: `gh workflow run`, `gh pr` and other commands that use GraphQL fail, so a workflow is started with `gh api -X POST repos/techaust/shakti_prime/actions/workflows/<file>/dispatches -f ref=main -f 'inputs[<name>]=<value>'` and a pull request is opened and labelled with `gh api` too. CI logs and artifacts are not reachable; a failure is read from the check run's annotations (`gh api repos/techaust/shakti_prime/check-runs/<id>/annotations`).
 - The environment's setup script runs as root before Claude starts, and its result is kept as a snapshot; running processes are not kept, so the session-start hook starts Docker and Postgres each time.
 - The repository's `.claude/settings.json` hooks run in the cloud as on the PC; `CLAUDE_CODE_REMOTE=true` marks a cloud session.
 - A foreground command waits 2 minutes by default (10 at most); a command sent to the background runs at most 30 more minutes, unless the environment raises `BASH_DEFAULT_TIMEOUT_MS` and `BASH_MAX_TIMEOUT_MS`.
