@@ -7,6 +7,7 @@ import {
   closeDb,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import {
   createAiProvider,
@@ -61,7 +62,7 @@ async function leadEvent(): Promise<DeliveredEvent> {
     pipelineKey: 'residential_rooftop',
     contact: {
       name: 'Worker triage customer',
-      phone: `91${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+      phone: testPhone(),
     },
     account: { type: 'household' },
   });

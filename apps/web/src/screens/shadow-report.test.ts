@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  agreementShare,
-  defaultShadowPeriod,
-  istDay,
-  periodProblem,
-  signedPoints,
-} from './shadow-report';
+import { istDay } from './ist';
+import { agreementShare, defaultShadowPeriod, periodProblem, signedPoints } from './shadow-report';
 
 describe('the shadow report’s reading', () => {
   it('starts with the last 30 days in India', () => {

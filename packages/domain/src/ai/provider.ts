@@ -1,5 +1,6 @@
 import { DomainError, type AgentRoleKey } from '@shakti/contracts';
 import type { AGENT_DEFAULTS } from './agent-defaults';
+import { istCalendarDate } from '../numbering/financial-year';
 import { labelUntrusted, maskForModel } from '../privacy/model-text';
 import type { KeyValue } from '../ports/key-value';
 import type { Logger } from '../ports/logger';
@@ -155,11 +156,6 @@ export interface AiProvider {
   embed(call: EmbedCall): Promise<EmbedResult>;
 }
 
-/** The day in India a moment falls on, `YYYY-MM-DD`: caps reset at midnight IST. */
-export function istDay(at: Date): string {
-  return new Date(at.getTime() + 330 * 60_000).toISOString().slice(0, 10);
-}
-
 /** The key holding one agent's spend today, in a company or (null) the group. */
 export function spendKey(agent: string, entityId: number | null, day: string): string {
   return `ai:spend:${agent}:${entityId === null ? 'all' : String(entityId)}:${day}`;
@@ -223,7 +219,7 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
    */
   async function reserve(call: CallBase, paise: number): Promise<Reservation> {
     if (call.caps.length === 0) throw capReached(call);
-    const day = istDay(now());
+    const day = istCalendarDate(now());
     const keys =
       call.entityId === null
         ? [spendKey(call.agent, null, day)]

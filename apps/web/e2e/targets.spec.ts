@@ -73,10 +73,11 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       ).toBeVisible();
       await expect(tableOrCards(page, 'Team queues')).toBeVisible();
       await expectNoAxeViolations(page);
-      // Other journeys change the team's figures: only the figures are masked, so the callers'
-      // names, the headings and the layout of the tables and cards are compared (WEB-13).
+      // The counts change with what other journeys saved, and with no fixed table layout a wider
+      // count moves the column heads too, so both tables are masked whole, heads and cells; the
+      // figures' labels stay in the comparison (audit OPS-15).
       await snap(page, 'home-team-lead', {
-        mask: [page.locator('main td'), page.locator('main dd'), page.locator('time')],
+        mask: [page.getByRole('table'), page.locator('main dl dd'), page.locator('time')],
       });
 
       // The week and the month are one click away.

@@ -16,7 +16,8 @@ import {
 } from '@shakti/db/testing';
 import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createAiProvider, istDay, spendKey, type AiProvider } from '../../src/ai/provider';
+import { createAiProvider, spendKey, type AiProvider } from '../../src/ai/provider';
+import { istCalendarDate } from '../../src/numbering/financial-year';
 import {
   fakeEmbedding,
   fakeModelTransport,
@@ -407,7 +408,7 @@ describe('the index job', () => {
       state: 'failed',
       error_reason: 'knowledge_timed_out',
     });
-    const spent = await keyValue.get(spendKey('knowledge:index', 1, istDay(new Date())));
+    const spent = await keyValue.get(spendKey('knowledge:index', 1, istCalendarDate(new Date())));
     expect(Number(spent ?? 0)).toBe(0);
     // It is then read again like any failed file.
     expect(
@@ -417,7 +418,11 @@ describe('the index job', () => {
 
   it('records a file failed when the reading’s daily limit is reached', async () => {
     const keyValue = memoryKeyValue();
-    await keyValue.incrBy(spendKey('knowledge:index', null, istDay(new Date())), 50_000, 3_600);
+    await keyValue.incrBy(
+      spendKey('knowledge:index', null, istCalendarDate(new Date())),
+      50_000,
+      3_600,
+    );
     const capped = provider({ reply: 'text', keyValue });
     const vault = await add(gm, await upload(gm));
     await index(vault.id, capped.provider);
@@ -617,7 +622,11 @@ describe('the vault list and the search', () => {
 describe('the staff search’s limits', () => {
   it('refuses a question once the day’s search limit is reached, before the vendor is called', async () => {
     const keyValue = memoryKeyValue();
-    await keyValue.incrBy(spendKey('knowledge:search', null, istDay(new Date())), 10_000, 3_600);
+    await keyValue.incrBy(
+      spendKey('knowledge:search', null, istCalendarDate(new Date())),
+      10_000,
+      3_600,
+    );
     const { provider: ai, transport } = provider({ keyValue });
     await expect(knowledgeQueryVector(ai, 'solar pump care', caller.id)).rejects.toMatchObject({
       code: 'rate_limited',
@@ -628,7 +637,7 @@ describe('the staff search’s limits', () => {
 
   it('refuses a person who has used their own share, while others still search', async () => {
     const keyValue = memoryKeyValue();
-    const day = istDay(new Date());
+    const day = istCalendarDate(new Date());
     await keyValue.incrBy(`ai:spend:knowledge:search:person:${caller.id}:${day}`, 2_000, 3_600);
     const { provider: ai, transport } = provider({ keyValue });
     await expect(knowledgeQueryVector(ai, 'solar pump care', caller.id)).rejects.toMatchObject({

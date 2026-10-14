@@ -12,6 +12,7 @@ import {
   principalFor,
   roleId,
   runSeeds,
+  testPhone,
 } from '@shakti/db/testing';
 import { createSignInGuard } from '@shakti/domain';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -140,7 +141,7 @@ function ok<T>(result: { ok: true; data: T } | { ok: false; error: string }): T 
  * A mobile number no earlier lead has: the suites never clean the CRM tables, and a new customer
  * with the number of a colleague's customer in the company is refused (0055).
  */
-const freshPhone = () => `98${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+const freshPhone = () => testPhone();
 
 const lead = (entityId: number) => ({
   entityId,

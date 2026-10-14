@@ -25,7 +25,8 @@ import {
 } from '@shakti/domain';
 import type { CompanyPrint, PrintImage } from './company';
 import { printCopy, type PrintCopy } from './copy';
-import { formatDate, istDay } from './format';
+import { istDay } from '../screens/ist';
+import { formatDate } from './format';
 import { renderLetterheadProof, type LetterheadProofPrint } from './letterhead-proof-template';
 import { renderQuote, type PrintDocument, type QuotePrint } from './quote-template';
 import { rupeesInWords } from './words';

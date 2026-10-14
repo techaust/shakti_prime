@@ -11,6 +11,7 @@ import { databaseAuditSink, type AuditRecord } from '../audit/sink';
 import { databaseOutboxSink, type OutboxRecord, type OutboxSink } from '../outbox/sink';
 import { jsonLogger, type Logger } from '../ports/logger';
 import type { Command } from './define-command';
+import { isRegistered } from './registry';
 import { auditBase, auditedInput, failureOf, runCommand, type RunOptions } from './run-command';
 import { monotonicClock, timed, type Clock, type TimingOptions } from './timing';
 
@@ -63,6 +64,10 @@ function timingOptions(logger: Logger | undefined, clock: Clock | undefined): Ti
  *
  * The whole call, refusal row and outbox nudge included, is timed into one log line with the
  * command's name, outcome, duration and request id (`command.completed`).
+ *
+ * Only a command of the registry runs (audit ARCH-1): one defined anywhere else would escape the
+ * agent refusal sweep, the audit label check and the registry test, so it is refused before any
+ * connection is opened, as a fault in the code, not the caller's.
  */
 export async function executeCommand<I extends z.ZodType, O extends z.ZodType>(
   principal: Principal,
@@ -71,6 +76,11 @@ export async function executeCommand<I extends z.ZodType, O extends z.ZodType>(
   input: unknown,
   options: ExecuteOptions = {},
 ): Promise<z.output<O>> {
+  if (!isRegistered(command)) {
+    throw new DomainError('internal', `${command.name} is not a command of the registry`, {
+      command: command.name,
+    });
+  }
   const { clock, ...rest } = options;
   const requestId = scope.requestId ?? newId();
   return timed('command', command.name, requestId, timingOptions(options.logger, clock), () =>

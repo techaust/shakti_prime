@@ -1,8 +1,12 @@
 import type { DocType, FinancialYear } from '@shakti/contracts';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 
-/** India has one time zone and no daylight saving: a fixed offset is exact. */
-const IST_OFFSET_MS = 330 * 60_000;
+/**
+ * India has one time zone and no daylight saving: a fixed offset is exact. The domain's one copy
+ * (audit ARCH-11); `apps/web/src/screens/ist.ts` holds the browser's, tested equal to this one.
+ */
+export const IST_OFFSET_MS = 330 * 60_000;
+const DAY_MS = 86_400_000;
 
 function istParts(at: Date): { year: number; month: number; day: number } {
   const shifted = new Date(at.getTime() + IST_OFFSET_MS);
@@ -17,6 +21,12 @@ function istParts(at: Date): { year: number; month: number; day: number } {
 export function istCalendarDate(at: Date): string {
   const { year, month, day } = istParts(at);
   return `${String(year)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** The instant the IST calendar day of `at` began (00:00 IST). */
+export function istDayStart(at: Date): Date {
+  const local = at.getTime() + IST_OFFSET_MS;
+  return new Date(Math.floor(local / DAY_MS) * DAY_MS - IST_OFFSET_MS);
 }
 
 /** Indian financial year of an instant, April to March in IST, written `2026-27`. */

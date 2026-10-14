@@ -11,7 +11,7 @@ import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { AGENT_ACTION_TYPES, AUTOMATIC_AVAILABLE } from '../../ai/action-types';
 import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { appliedAutonomy, resolveAgentConfig, type AgentConfigRow } from '../../ai/config';
-import { istDay } from '../../ai/provider';
+import { istCalendarDate } from '../../numbering/financial-year';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
@@ -20,7 +20,7 @@ const GROUP_LEVEL = 0;
 
 /** Midnight IST of the day `at` falls on, as a UTC moment. */
 function istMidnight(at: Date): Date {
-  return new Date(`${istDay(at)}T00:00:00+05:30`);
+  return new Date(`${istCalendarDate(at)}T00:00:00+05:30`);
 }
 
 /** An action type no setting names: resolving at it applies only the agent's own rows. */

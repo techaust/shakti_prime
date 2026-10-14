@@ -9,8 +9,9 @@ import { z } from 'zod';
 import type * as AuditSinkModule from '../audit/sink';
 import type * as OutboxSinkModule from '../outbox/sink';
 import { memoryLogger } from '../ports/logger';
-import { defineCommand } from './define-command';
+import { defineCommand, type AnyCommand } from './define-command';
 import { executeCommand, executeQuery } from './execute';
+import { allowTestCommand, commands, getCommand, isRegistered } from './registry';
 import type { Clock } from './timing';
 
 const audited = vi.hoisted(() => ({ rows: [] as unknown[], contexts: [] as unknown[] }));
@@ -72,6 +73,63 @@ const echo = defineCommand({
   input: z.object({ phone: z.string() }).strict(),
   output: z.object({ ok: z.boolean() }).strict(),
   handler: () => Promise.resolve({ ok: true }),
+});
+allowTestCommand(echo);
+
+describe('executeCommand and the registry (audit ARCH-1)', () => {
+  it('refuses a command that is not in the registry before it opens a context', async () => {
+    audited.contexts.length = 0;
+    const stray = defineCommand({
+      name: 'test.stray',
+      permission: 'crm.lead.read',
+      auditFields: [],
+      input: z.object({}).strict(),
+      output: z.object({}).strict(),
+      handler: () => Promise.resolve({}),
+    });
+    await expect(executeCommand(principal(), {}, stray, {})).rejects.toMatchObject({
+      code: 'internal',
+      details: { command: 'test.stray' },
+    });
+    expect(audited.contexts).toEqual([]);
+  });
+
+  it('refuses a command defined under the name of a registered one', async () => {
+    audited.contexts.length = 0;
+    const impostor = defineCommand({
+      name: 'crm.lead.create',
+      permission: 'crm.lead.read',
+      auditFields: [],
+      input: z.object({}).strict(),
+      output: z.object({}).strict(),
+      handler: () => Promise.resolve({}),
+    });
+    await expect(executeCommand(principal(), {}, impostor, {})).rejects.toMatchObject({
+      code: 'internal',
+      details: { command: 'crm.lead.create' },
+    });
+    expect(audited.contexts).toEqual([]);
+  });
+});
+
+describe('the registry and its commands are frozen (audit ARCH-1)', () => {
+  it('refuses a command added to or replaced in the registry, and a handler swapped in', () => {
+    const writable = commands as Record<string, unknown>;
+    expect(() => {
+      writable['test.added'] = echo;
+    }).toThrow(TypeError);
+    expect(() => {
+      writable['crm.lead.create'] = echo;
+    }).toThrow(TypeError);
+    expect(() => {
+      (commands['crm.lead.create'] as { handler: unknown }).handler = () => undefined;
+    }).toThrow(TypeError);
+    expect(() => {
+      (echo as { permission: string }).permission = 'admin.users.write';
+    }).toThrow(TypeError);
+    expect(isRegistered(echo as unknown as AnyCommand)).toBe(true);
+    expect(commands['crm.lead.create']).toBe(getCommand('crm.lead.create'));
+  });
 });
 
 describe('executeCommand timing', () => {

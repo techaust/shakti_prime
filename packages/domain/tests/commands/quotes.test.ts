@@ -12,6 +12,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -191,7 +192,7 @@ async function newLead(
     pipelineKey,
     contact: {
       name: 'Quote test customer',
-      phone: `96${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+      phone: testPhone(),
     },
     account: { type: 'household' },
     site: {
@@ -1012,12 +1013,13 @@ describe('the quote reads', () => {
         expect.objectContaining({ sku: 'QT-CABLE' }),
       ],
     });
-    // Ids are left out of the search: a random UUID can hold 96 and eight digits of its own.
+    // Ids are left out of the search: a random UUID can hold ten digits of its own. The
+    // customer's number is ten digits, 6 to 9 first (testPhone()), with or without +91.
     const printedText = JSON.stringify(printed).replace(
       /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g,
       '<id>',
     );
-    expect(printedText).not.toMatch(/\+91|96\d{8}/);
+    expect(printedText).not.toMatch(/\+91|(?<!\d)[6-9]\d{9}(?!\d)/);
     await expect(
       asPrincipal(lc, (context) => loadQuoteForPrint(context, quote.id)),
     ).rejects.toThrow();

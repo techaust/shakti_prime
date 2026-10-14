@@ -7,7 +7,7 @@ import {
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { sql } from 'drizzle-orm';
-import { istDay } from '../../ai/provider';
+import { istCalendarDate } from '../../numbering/financial-year';
 import { moneyFromPaise } from '../../money/paise';
 
 type Ctx = Pick<RequestContext, 'tx' | 'entityIds'>;
@@ -30,7 +30,7 @@ export async function readAgentSpend(
   ctx: Ctx,
   now: Date = new Date(),
 ): Promise<IntegrationHealthResponse['aiSpend']> {
-  const day = istDay(now);
+  const day = istCalendarDate(now);
   const dayStart = `${day}T00:00:00+05:30`;
   const monthStart = `${day.slice(0, 8)}01T00:00:00+05:30`;
   const ids = [...ctx.entityIds];

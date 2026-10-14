@@ -7,6 +7,7 @@ import {
   createTestTeam,
   createTestUser,
   principalFor,
+  testPhone,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { agentPrincipal } from '../../src/ai/runtime';
@@ -115,7 +116,7 @@ beforeAll(async () => {
     pipelineKey: 'farmer_pumps',
     contact: {
       name: 'Inbox list customer',
-      phone: `93${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+      phone: testPhone(),
     },
     account: { type: 'farm', name: 'Inbox list farm' },
   })) as { id: string };

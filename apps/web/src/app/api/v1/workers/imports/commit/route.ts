@@ -1,10 +1,4 @@
-import {
-  DomainError,
-  ErrorEnvelope,
-  ImportCommitWorkerBody,
-  type ErrorCode,
-} from '@shakti/contracts';
-import en from '../../../../../../../messages/en.json';
+import { DomainError, ImportCommitWorkerBody } from '@shakti/contracts';
 import { logger } from '../../../../../../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
@@ -20,6 +14,7 @@ import {
   verifyQStashSignature,
   workerUrl,
 } from '../../../../../../workers/qstash';
+import { NO_RETRY, workerFailure } from '../../../../../../workers/route-answers';
 
 export const dynamic = 'force-dynamic';
 /** Seconds; the worker stops taking new batches well before this (`IMPORT_RUN_BUDGET_MS`). */
@@ -41,13 +36,13 @@ export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
   const headers = { 'cache-control': 'no-store', 'x-request-id': requestId };
   const config = qstashConfig();
-  if (config === undefined) return failure('integration_unavailable', 503, requestId, headers);
+  if (config === undefined) return workerFailure('integration_unavailable', requestId, headers);
 
   // Only a few ids ever come in: a larger body is refused before it is read (request-body.ts).
   const text = await readTextWithin(request, WORKER_BODY_MAX_BYTES);
   if (text === undefined) {
     logger.log('warn', 'imports.commit_too_large', { requestId });
-    return failure('validation_failed', 400, requestId, { ...headers, ...NO_RETRY });
+    return workerFailure('validation_failed', requestId, { ...headers, ...NO_RETRY });
   }
   const signed = await verifyQStashSignature(
     config,
@@ -57,14 +52,14 @@ export async function POST(request: Request): Promise<Response> {
   );
   if (!signed) {
     logger.log('warn', 'imports.commit_refused', { requestId });
-    return failure('unauthorized', 401, requestId, headers);
+    return workerFailure('unauthorized', requestId, headers);
   }
 
   let body: ImportCommitWorkerBody;
   try {
     body = ImportCommitWorkerBody.parse(JSON.parse(text));
   } catch {
-    return failure('validation_failed', 400, requestId, { ...headers, ...NO_RETRY });
+    return workerFailure('validation_failed', requestId, { ...headers, ...NO_RETRY });
   }
 
   try {
@@ -88,11 +83,11 @@ export async function POST(request: Request): Promise<Response> {
     }
     if (isRetryableWait(error)) {
       logger.log('warn', 'imports.commit_job_busy', { requestId, jobId: body.jobId });
-      return failure('integration_unavailable', 503, requestId, headers);
+      return workerFailure('integration_unavailable', requestId, headers);
     }
-    if (forbidden) return failure('forbidden', 403, requestId, { ...headers, ...NO_RETRY });
+    if (forbidden) return workerFailure('forbidden', requestId, { ...headers, ...NO_RETRY });
     logger.log('error', 'imports.commit_failed', { requestId, jobId: body.jobId, error });
-    return failure('internal', 500, requestId, headers);
+    return workerFailure('internal', requestId, headers);
   }
 }
 
@@ -109,21 +104,4 @@ function isRetryableWait(error: unknown): boolean {
 function isLastRetry(headers: Headers): boolean {
   const retried = Number.parseInt(headers.get('upstash-retried') ?? '0', 10);
   return Number.isFinite(retried) && retried >= IMPORT_COMMIT_RETRIES;
-}
-
-/** QStash stops retrying a message whose answer carries this header. */
-const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
-
-function failure(
-  code: Extract<
-    ErrorCode,
-    'integration_unavailable' | 'unauthorized' | 'validation_failed' | 'forbidden' | 'internal'
-  >,
-  status: number,
-  requestId: string,
-  headers: Record<string, string>,
-): Response {
-  // The one catalogue is English (ADR 0014); a route handler has no request locale to resolve.
-  const body = ErrorEnvelope.parse({ error: { code, message: en.errors[code], requestId } });
-  return Response.json(body, { status, headers });
 }

@@ -80,7 +80,7 @@ Agents only file suggestions in the Agent Inbox; when they stop, nothing else st
 ## 9. CI jobs do not start
 A run fails within seconds with no log, and a pull request does not merge. Open the failed job's check run: an annotation saying the job was not started because of payments or the spending limit means the month's Actions minutes are used up.
 1. The owner sets an Actions budget in GitHub › Settings › Billing and plans, or the repository is public (its minutes are free), or the work waits for the monthly reset.
-2. Then rerun the failed run: on GitHub open the repository › **Actions** › the failed run › **Re-run failed jobs** (or `gh run rerun <id>`); a merge-on-green run that failed this way is rerun the same way. A pull request whose CI started before `main` changed takes `main` by a merge commit and is pushed again.
+2. Then rerun the failed run: on GitHub open the repository › **Actions** › the failed run › **Re-run failed jobs** (or `gh run rerun <id>`); a merge-on-green run that failed this way is rerun the same way. A pull request whose CI ran on an older `main` is taken care of by the merge workflow, which takes `main` into its branch and tests it again; one that conflicts with `main` takes it by hand and is pushed again.
 
 ## 10. Trouble on the owner's PC
 Slices are built and checked on the PC ([CLAUDE.md](../../CLAUDE.md)), which has 8 GB of memory and runs Docker Desktop for each slice's database. The lead session does the commands; the owner does the clicks below and tells the lead session what happened.

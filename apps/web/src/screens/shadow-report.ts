@@ -2,17 +2,12 @@
 // screen and its tests share them; browser code, so no contracts values.
 
 import { SHADOW_REPORT_MAX_DAYS_VALUE } from './contract-values';
+import { istDay } from './ist';
 
 /** Proposals a page of the report shows. */
 export const SHADOW_PAGE_SIZE = 50;
 
 const DAY_MS = 86_400_000;
-const IST_OFFSET_MS = 330 * 60_000;
-
-/** The day in India a moment falls on, as `YYYY-MM-DD`. */
-export function istDay(at: Date): string {
-  return new Date(at.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
-}
 
 /** The report's first period: the last 30 days in India, today included. */
 export function defaultShadowPeriod(now: Date): { from: string; to: string } {

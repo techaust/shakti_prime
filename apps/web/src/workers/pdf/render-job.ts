@@ -12,7 +12,7 @@ import {
 } from '@shakti/domain';
 import { logger as appLogger } from '../../log';
 import { documentType, type RegisteredDocument } from '../../print/documents';
-import { istDay } from '../../print/format';
+import { istDay } from '../../screens/ist';
 import { pageCount, type PrintRenderer } from '../../print/renderer';
 
 /** What a render job is given: the worker principal of its company and the runtime's ports. */

@@ -3,6 +3,7 @@ import {
   dataGrid,
   expect,
   expectNoAxeViolations,
+  hydrated,
   projectName,
   showCompany,
   signedInAs,
@@ -166,8 +167,12 @@ test.describe('as Accounts, dealer credit', () => {
     await expect(page.getByRole('heading', { name: 'Dealer credit', level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);
 
+    // The dealer's row menu opens only once React has taken the grid over: a click before that was
+    // lost on a loaded machine, and the journey passed only on its retry (STATUS, 10-10-2026).
     const rowMenu = async (item: string) => {
-      await page.getByRole('button', { name: `Actions for ${dealer.name}` }).click();
+      await (
+        await hydrated(page.getByRole('button', { name: `Actions for ${dealer.name}` }))
+      ).click();
       await page.getByRole('menuitem', { name: item }).click();
     };
     await rowMenu('Enter limit and days');
@@ -229,6 +234,9 @@ test.describe('the orders of the snapshot company', () => {
   test.use(signedInAs('executive'));
 
   test('the list, the order, the dealer order form and dealer credit', async ({ page }) => {
+    // Four pages, each loaded and pictured: on a loaded machine they passed the 60 s of one
+    // journey (STATUS, 09-10-2026), so this one has three times that, not a retry.
+    test.slow();
     const { orders } = seededUsers();
     await page.goto('/orders');
     await expect(page.getByRole('heading', { name: 'Orders', level: 1 })).toBeVisible();

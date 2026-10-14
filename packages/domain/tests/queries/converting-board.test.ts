@@ -6,6 +6,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   stageId,
+  testPhone,
   tierId,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -54,7 +55,7 @@ const tag = newId().slice(-8);
 const LIST = '01990000-0000-7000-8000-000000a70001';
 const NOW = new Date();
 const HOUR = 3_600_000;
-const phone = () => `95${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`;
+const phone = () => testPhone();
 
 let team: string;
 let otherTeam: string;

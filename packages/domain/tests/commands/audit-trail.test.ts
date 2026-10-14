@@ -6,6 +6,7 @@ import {
   createTestUser,
   principalFor,
   roleId,
+  testPhone,
   tierId,
 } from '@shakti/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -98,7 +99,7 @@ describe('the audit row of a command that commits (docs/03-roadmap-appendix/back
     const cc = await createTestPrincipal('tele_caller_cc', [1]);
     const requestId = newId();
     // A number no earlier run used (one a colleague's customer has is refused, 0055), ending 3210.
-    const first = `96${String(Math.floor(Math.random() * 1e4)).padStart(4, '0')}`;
+    const first = testPhone().slice(0, 6);
     const lead = await executeCommand(cc, { entityIds: [1], requestId }, createLead, {
       entityId: 1,
       pipelineKey: 'farmer_pumps',
