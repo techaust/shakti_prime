@@ -2,35 +2,24 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [11-decisions.md](11-decisions.md); open follow-ups have their single home here.
 
-**13-10-2026, 13:30 IST, cloud day in progress.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; its gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Waves 1 to 5 are merged; in wave 6, M1 is in its fix round and G1 waits on the owner's accounts. On 12-10-2026 the owner asked for a deep audit of Phases 0–1 with every code-fixable finding fixed ("10/10"): the report is [14-reviews/2026-10-audit.md](14-reviews/2026-10-audit.md) (no critical, three high: DOM-1, SEC-1, DATA-1) and its fixes run as four batches. Merged today: #167 (tooling and test stability), #168 (database follow-ups, migrations 0130 to 0133), #169 (a stable PDF masking test), #170 (the audit's web batch, migrations 0134 and 0135), #171 (the audit's events and jobs batch, migrations 0136 to 0140), #172 (M1, migrations 0141 and 0142). Migrations on `main`: 0000 to 0142; dev and staging are migrated through 0142. The owner set the weekly part of the budget gate aside for this work (reading 06:24 IST: 5-hour 11 %, week 21 %); three builders run at once, the cloud-day limit. The plan's 5-hour limit stopped every agent once (12-10-2026, about 22:30 UTC) and the container restarted three times; no work was lost (every branch pushed every 10 minutes).
+**14-10-2026, 16:00 IST, end of a cloud day.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; its gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). The deep audit of Phases 0–1 the owner asked for on 12-10-2026 ([14-reviews/2026-10-audit.md](14-reviews/2026-10-audit.md)) is closed in code: every code-fixable finding is fixed and merged in five batches (#170, #171, #173, #174, #175), with M1 (#172); what is left waits on people (below). Merged on 13 and 14 October: #167 to #177. Migrations on `main`: 0000 to 0155. The last security-suite run (the sales batch's integration, 14-10-2026): db 1,261, domain 1,019, web 326, all passed; unit tests: domain 2,241, web 847 (1 skipped), db 137, contracts 182, ui 107, tokens 146, copy-lint 17.
 
 ## Phase 1
 - **Design:** [docs/03-roadmap-appendix/phase1.md](03-roadmap-appendix/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](03-roadmap-appendix/phase1.md#3-slices).
-- **Merged (21 of the 23 slices)** as listed in [CHANGELOG](../CHANGELOG.md), and today #167, #168, #169.
-- **Next:** finish the slices and batches in flight (below), then the privacy and CI batches; G1 when the owner's accounts exist.
+- **Merged (22 of the 23 slices)** as listed in [CHANGELOG](../CHANGELOG.md); M1 merged on 14-10-2026 (#172).
+- **Next:** G1, the go-live slice, once the owner's accounts exist; the owner's items below close the audit's last steps.
 - **Work split:** each session wholly on the PC or wholly in a cloud session ([hybrid](runbooks/hybrid.md)); models and efforts: [models-and-usage](runbooks/models-and-usage.md).
 
 ### In progress
-Each run file is `docs/runs/phase1/<slug>.md` on its branch; worktrees under `/home/user/shakti-wt/` on this cloud day.
-
-| Work | Branch, slot | State | Next |
-|---|---|---|---|
-| M1 Migration and UAT packs (Tier A) | `feat/m1-migration-uat`, slot 1 (54331) | review found 3 high, 4 medium, 6 low; fix round building, the lead's decisions in the run file's Review section and the owner's audit-row decision (DECISIONS 13-10-2026) | re-review the fix diff (a high was found), merge `main`, renumber after 0133, integrate, pull request; then QStash schedule `lead-anonymise-<env>` by the owner |
-| Audit: sales integrity (Tier A) | `fix/audit-sales`, slot 5 (54335) | early check passed; screens, journeys and documents building | review at xhigh, integrate (migrations 0134 to 0136 renumber; check dev and staging for a lead with two accepted quotes before migrating) |
-| Audit: web (Tier B) | `fix/audit-web`, slot 4 (54334) | built (17 items), review running | fix round, integrate (every desktop-dark baseline and the phone card screens remade in Linux) |
-| Audit: events, jobs and observability (Tier A) | `fix/audit-data`, slot 7 (54337) | items 1 to 5 early-checked; items 6 to 8 building (the hot reads under RLS with statistics) | review at xhigh, integrate; owner: Sentry rules for `job.failing` and `job.problem`, QStash `jobs-check-<env>` |
-| Audit: privacy (Tier A) | to branch after M1 merges, slot 6 | brief written (SEC-1, SEC-2, SEC-3, OPS-5) | build |
-| Audit: CI, merging, tests and documents (Tier A) | to branch, slot 8 | brief written, with the owner's `checks-ok` label rule (OPS-2) | build |
-
-The two waiting briefs are [audit-privacy](runs/phase1/audit-privacy.md) and [audit-ci](runs/phase1/audit-ci.md); each moves to its branch when it is made. The audit's evidence and verdicts are in [14-reviews/2026-10-audit/](14-reviews/2026-10-audit/).
+None. Every run file of the day is on `main` ([run files](runs/phase1/readme.md)).
 
 ## Hosted environments
 | | Dev | Staging |
 |---|---|---|
 | Supabase project | `shakti-prime-dev` | `shakti-prime-staging` |
-| Migrated and seeded | through 0142 on 14-10-2026 (143 migrations), `db:verify` passed | through 0142 on 14-10-2026 (143 migrations), `db:verify` passed |
+| Migrated and seeded | through 0155 on 14-10-2026 (156 migrations), `db:verify` passed | through 0155 on 14-10-2026 (156 migrations), `db:verify` passed |
 | Site | https://shakti-prime-dev.vercel.app | https://shakti-prime-staging.vercel.app |
-| Checks | `/api/v1/health` and `/api/v1/health/ready` answered 200 on 13-10-2026 | the same |
+| Checks | `/api/v1/health` and `/api/v1/health/ready` answered 200 on 14-10-2026 | the same |
 | First Executive | made on 06-10-2026 | made earlier |
 | QStash schedules (region EU) | `outbox-publish-dev`, `lead-rescore-dev`, `files-sweep-dev`, `quote-expire-dev`, `duplicate-scan-dev`, `notification-scan-dev` | the outbox schedule (generated id), `lead-rescore-staging`, `files-sweep-staging`, `quote-expire-staging`, `duplicate-scan-staging`, `notification-scan-staging` |
 | AWS files stack | `shakti-prime-dev-files` created; its four values in Vercel | `shakti-prime-staging-files` created; its four values in Vercel |
@@ -41,28 +30,31 @@ The two waiting briefs are [audit-privacy](runs/phase1/audit-privacy.md) and [au
 Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](13-client-packs/exit-gate-actions.md). What Shakti's people must do: [client-actions](13-client-packs/client-actions.md). Nothing from the client has arrived yet.
 
 ## Waiting on the owner
-- **A usage reading** (`usage: 5h N, week N`) before the next builder starts; the last was 06:24 IST.
+- **Validate the six checks added `NOT VALID`** on dev, then staging: the read-only pre-check of [DEPLOY §2](runbooks/deploy.md#2-every-deploy) step 8 first, then the six statements of [exit-gate-actions](13-client-packs/exit-gate-actions.md) row 18 (the four GST split checks and the two widened quote checks of #173).
+- **Monitoring from the audit batches:** the QStash schedules `jobs-check-<env>`, and `lead-anonymise-<env>` once the CA confirms the retention period; Sentry alert rules for `job.failing` and `job.problem`, the eight cron monitors and the uptime monitor ([DEPLOY](runbooks/deploy.md)).
+- **With the CA:** the two import retention periods of workshop FIN-3 (7 days for files, 30 days for rows), and FIN-2's consent evidence and anonymised audit rows.
 - **G1's accounts, which take days:** a paid production Supabase project, Vercel Pro (or the client's Pro team), the client's domain verified for Amazon SES and SES production access, and a GitHub plan with environments.
 - **The environment's network list:** add `productionresultssa10.blob.core.windows.net`, so a cloud session can read CI logs and reports.
-- **Before the sales batch is migrated:** on dev and staging, `select opportunity_id from quotes where state = 'accepted' group by 1 having count(*) > 1` returns nothing (its new unique index cannot build otherwise).
-- **After M1 and the events batch merge:** the QStash schedules `lead-anonymise-<env>` and `jobs-check-<env>`, and Sentry alert rules for `job.failing` and `job.problem`.
+- **A usage reading** (`usage: 5h N, week N`) before the next builder starts.
 - **On the PC:** delete `D:/shakti-wt/heavy.sh` if it exists.
 - **Confirm the Triage agent's named defaults** in `AGENT_DEFAULTS.triage` when convenient.
 - **Before the repository goes private again:** a GitHub Actions budget or the 1 November reset; confirm with Shakti that the code being public for now is acceptable.
 - **The Anthropic and Voyage keys** on dev and staging, and a spending limit on Admin › Agents.
-- **Hand the workshop pack to the client** (CALL-2 to CALL-5 among its questions; M1 adds to FIN-2 the CA's word on consent evidence and on anonymised audit rows); **approve the vendor quote letters**; **add the PIN code list** before the client's customer file.
+- **Hand the workshop pack to the client** (CALL-2 to CALL-5 and CALL-8 among its questions); **approve the vendor quote letters**; **add the PIN code list** before the client's customer file.
 
 ## Open follow-ups
 | Follow-up | Phase / slice |
 |---|---|
+| The merge workflow's catch-up commits (main taken into a branch by its token) can hold their `pull_request` CI run for a person's approval, and the held run makes the workflow skip the pull request; #175 and #177 needed "Approve and run" and a look started by hand (`run_state()` in `.github/workflows/automerge.yml`) | 1 / any slice |
+| The main menu shows Converting for the Executive in some runs and not others; every screenshot now leaves the menu out (#174), the cause is not found | 1 / any slice |
+| The Aadhaar-column upload journey once took more than 45 s to open its job on CI's desktop-dark run and passed on the retry; six local runs took about 8 s (#175) | 1 / any slice |
 | `orders.test.ts` timed out once in a full domain run and passed alone (09-10-2026) | 1 / any slice |
 | CI's desktop journeys failed once on #167 and passed on the re-run; the cause is unread because the environment's network policy blocks GitHub's log storage (`productionresultssa10.blob.core.windows.net`) | 1 / any slice |
-| `search.test.ts` "puts the exact name first…" failed once on `main` after #168 and passed on the re-run: another test's person can match the fuzzy name search (in the CI batch, `fix/audit-ci`) | 1 / any slice |
+| `search.test.ts` "puts the exact name first…" failed once on `main` after #168 and passed on the re-run: another test's person can match the fuzzy name search | 1 / any slice |
 | `pipelines.spec.ts` "lists the referral partners…" was flaky once in the Linux screenshot run (12-10-2026) | 1 / any slice |
 | `customers.test.ts` reused a random tag name of an earlier run on the same database (M1's run, 13-10-2026) | 1 / any slice |
 | On the PC, an older copy of the lock script at `D:/shakti-wt/heavy.sh` skips the queue of #167: delete it (#167 review #4) | 1 / any slice |
 | The push toggle tells a second person at a browser held by another that alerts are on (#168 review L4, from N1) | 1 / any slice |
-| This session's checkout predates #167, so the lock it serves is the old one; a fresh session takes `main` | 1 / any slice |
 | Playwright 1.64 by hand: `@playwright/test` and `playwright-core` together, the image `mcr.microsoft.com/playwright:v1.64.0-noble` in `.github/workflows/ci.yml`, `apps/web/e2e/setup/snap-in-linux.ts` and [TESTING](09-testing.md), and every screenshot baseline compared and remade where the new browser draws differently (Dependabot leaves Playwright alone, #162) | 1 / any slice |
 | `orders.spec.ts` "dealer credit" failed once in a screenshot run and passed on retry (10-10-2026) | 1 / any slice |
 | A Triage event redelivered after a partial run calls the model again for the steps left; keep the answer under the event id in the key-value store (A1 review #7) | 1 / any slice |

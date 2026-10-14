@@ -7,8 +7,8 @@
 | Runs on | cloud, beside M1 and the web audit fixes (owner, 12-10-2026: a deep audit of Phases 0–1, every finding fixed), heavy commands through the VM's lock |
 | Tier | A (credit, orders, commissions, tax rates, row-level security): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | no reading posted; the owner said to proceed (12-10-2026) |
-| State | integrated with `main` (#167 to #176), migrations 0150 to 0155; pull request open |
-| Next step | merge on green, `migrate-hosted` (0150 to 0155), and the owner validates the two widened quote checks |
+| State | merged, #173, 14-10-2026; migrations 0150 to 0155 |
+| Next step | owner: validate the two widened quote checks on dev, then staging ([DEPLOY §2](../../runbooks/deploy.md#2-every-deploy) step 8) |
 
 ## Brief
 The Phase 0–1 audit of 12-10-2026 confirmed these defects by running the real commands as `app_user`. Each finding's evidence, file and line and proposed fix are in the auditor's file and the verifier's verdict (read both first; the verdict corrects several of DOM-1's line references and adds DOM-V1), and the verifier's reproduction scripts show the exact paths:

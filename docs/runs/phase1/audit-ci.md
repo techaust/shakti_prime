@@ -7,8 +7,8 @@
 | Runs on | cloud (owner, 12-10-2026: a deep audit of Phases 0–1, every finding fixed), heavy commands through the VM's lock |
 | Tier | A (the merge workflow decides what reaches `main`): build Opus 5.5 high, review Opus 5.5 xhigh |
 | Usage | the gate's reading at the start and end of each agent run |
-| State | brief |
-| Next step | the lead branches it from `main` and starts the builder |
+| State | merged, #174, 14-10-2026 (no migrations) |
+| Next step | none; the merge workflow's catch-up runs need a person's approval (open follow-up in STATUS) |
 
 ## Brief
 The audit's evidence: [`5-ops.md`](../../14-reviews/2026-10-audit/5-ops.md), [`5-ops.verdict.md`](../../14-reviews/2026-10-audit/5-ops.verdict.md) (OPS-7 and OPS-12 were refuted: do not fix them) and [`6-arch.md`](../../14-reviews/2026-10-audit/6-arch.md). Report: `docs/14-reviews/2026-10-audit.md`. The merge workflow runs from `main`, so its changes take effect after this merges; test them with `jq` on sample payloads and a scratch repository, as the auditor did.
