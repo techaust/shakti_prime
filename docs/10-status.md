@@ -2,47 +2,48 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [11-decisions.md](11-decisions.md); open follow-ups have their single home here.
 
-**14-10-2026, evening, end of a PC day** (the PC synced with GitHub after the 13–14 October cloud days; no slice built). Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; its gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). The deep audit of Phases 0–1 the owner asked for on 12-10-2026 ([14-reviews/2026-10-audit.md](14-reviews/2026-10-audit.md)) is closed in code: every code-fixable finding is fixed and merged in five batches (#170, #171, #173, #174, #175), with M1 (#172); what is left waits on people (below). Merged on 13 and 14 October: #167 to #177 and the documents (#179 to #181). The owner reports the paid accounts for going live ready (14-10-2026): the next step is G1, publishing the system on the group's real domain. Migrations on `main`: 0000 to 0155. The last security-suite run (the PC on the local Postgres, 14-10-2026, after `pnpm typecheck` passed): db 1,261, domain 1,019, web 326, all passed; unit tests (the sales batch's integration, 14-10-2026): domain 2,241, web 847 (1 skipped), db 137, contracts 182, ui 107, tokens 146, copy-lint 17.
+**15-10-2026, end of a PC day** (no slice built and no pull request merged; the day went to the production accounts with the owner). Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; its gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). The deep audit of Phases 0–1 ([14-reviews/2026-10-audit.md](14-reviews/2026-10-audit.md)) is closed in code; what is left waits on people (below). Every account G1 needs is open except SES production access, which production does not wait for ([DECISIONS](11-decisions.md), 15-10-2026): the system will live at `https://shaktiprime.com`, deployed by releases the owner approves. Usage at the day's end: week 80 % (resets 19-10-2026), so G1's builder starts after the reset. Migrations on `main`: 0000 to 0155. The last security-suite run (the PC on the local Postgres, 14-10-2026, after `pnpm typecheck` passed): db 1,261, domain 1,019, web 326, all passed; unit tests (the sales batch's integration, 14-10-2026): domain 2,241, web 847 (1 skipped), db 137, contracts 182, ui 107, tokens 146, copy-lint 17.
 
 ## Phase 1
 - **Design:** [docs/03-roadmap-appendix/phase1.md](03-roadmap-appendix/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](03-roadmap-appendix/phase1.md#3-slices).
 - **Merged (22 of the 23 slices)** as listed in [CHANGELOG](../CHANGELOG.md); M1 merged on 14-10-2026 (#172).
-- **Next:** G1 Production readiness ([design §10](03-roadmap-appendix/phase1.md#10-wave-6)), with the owner, now that the paid accounts are ready: a production Supabase project, Vercel Pro, the client's domain, SES production access, production Sentry and AWS, and a GitHub plan with environments. Its run file is written ([g1-production](runs/phase1/g1-production.md)); the builder starts once the owner's account items (its part 1) are done; the owner's items below close the audit's last steps.
+- **Next:** G1 Production readiness ([design §10](03-roadmap-appendix/phase1.md#10-wave-6)). Its part 1, the owner's accounts, is done and read back ([g1-production](runs/phase1/g1-production.md)); its part 2 holds the owner's decisions of 15-10-2026 (the production files stack, the 6-hourly backup in place of point-in-time recovery, Sentry's free plan, going live with SES in the sandbox). The builder (Tier A) starts after the weekly reset on 19-10-2026. Going live after G1 waits on the client's inputs and Phase 1's exit gate ([client-actions](13-client-packs/client-actions.md), [ROADMAP §3](03-roadmap.md#3-phase-1--mvp-1214-weeks)).
 - **Work split:** each session wholly on the PC or wholly in a cloud session ([hybrid](runbooks/hybrid.md)); models and efforts: [models-and-usage](runbooks/models-and-usage.md).
 
 ### In progress
 | Slice | Branch | Run file | Runs on | State | Next step |
 |---|---|---|---|---|---|
-| G1 Production readiness | `feat/g1-production` (not made yet) | [g1-production](runs/phase1/g1-production.md) | PC | brief | the owner's account items and the release choice; then the lead checks each account read-only and starts the builder (Tier A) |
+| G1 Production readiness | `feat/g1-production` (not made yet) | [g1-production](runs/phase1/g1-production.md) | PC | brief; part 1 done | the lead starts the builder (Tier A) after the weekly reset on 19-10-2026 |
 
 ## Hosted environments
-| | Dev | Staging |
-|---|---|---|
-| Supabase project | `shakti-prime-dev` | `shakti-prime-staging` |
-| Migrated and seeded | through 0155 on 14-10-2026 (156 migrations), `db:verify` passed | through 0155 on 14-10-2026 (156 migrations), `db:verify` passed |
-| Site | https://shakti-prime-dev.vercel.app | https://shakti-prime-staging.vercel.app |
-| Checks | `/api/v1/health` and `/api/v1/health/ready` answered 200 on 14-10-2026 | the same |
-| First Executive | made on 06-10-2026 | made earlier |
-| QStash schedules (region EU) | `outbox-publish-dev`, `lead-rescore-dev`, `files-sweep-dev`, `quote-expire-dev`, `duplicate-scan-dev`, `notification-scan-dev` | the outbox schedule (generated id), `lead-rescore-staging`, `files-sweep-staging`, `quote-expire-staging`, `duplicate-scan-staging`, `notification-scan-staging` |
-| AWS files stack | `shakti-prime-dev-files` created; its four values in Vercel | `shakti-prime-staging-files` created; its four values in Vercel |
+| | Dev | Staging | Production |
+|---|---|---|---|
+| Supabase project | `shakti-prime-dev` | `shakti-prime-staging` | `shakti-prime-production` (ref `ifnoytyhnedgiyhxxhhu`), Pro, no point-in-time recovery |
+| Migrated and seeded | through 0155 on 14-10-2026 (156 migrations), `db:verify` passed | through 0155 on 14-10-2026 (156 migrations), `db:verify` passed | empty; the first migration comes through G1's release |
+| Site | https://shakti-prime-dev.vercel.app | https://shakti-prime-staging.vercel.app | https://shaktiprime.com (project `shakti-prime-production`; builds skipped until G1, nothing deployed) |
+| Checks | `/api/v1/health` and `/api/v1/health/ready` answered 200 on 15-10-2026, after the redeploy with the AI keys | the same | none yet |
+| First Executive | made on 06-10-2026 | made earlier | after the first release |
+| QStash schedules (region EU) | `outbox-publish-dev`, `lead-rescore-dev`, `files-sweep-dev`, `quote-expire-dev`, `duplicate-scan-dev`, `notification-scan-dev` | the outbox schedule (generated id), `lead-rescore-staging`, `files-sweep-staging`, `quote-expire-staging`, `duplicate-scan-staging`, `notification-scan-staging` | in G1 |
+| AWS files stack | `shakti-prime-dev-files` created; its four values in Vercel | `shakti-prime-staging-files` created; its four values in Vercel | after G1 lets the template take `production` |
+| AI keys | `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`; ₹100 a day on each of the six agents | the same | the keys; daily limits after the first release |
+| Redis and Turnstile | per environment | per environment | `shakti-prime-production` (Mumbai) and a widget for `shaktiprime.com`, not yet in Vercel |
 
-Read back from the PC on 14-10-2026, both databases: 156 rows in `drizzle.__drizzle_migrations`, and the same five pg_cron jobs as the migrations define: `activities-partitions` (`5 3 25 * *`), `audit-logs-detach` (`30 3 1 * *`), `audit-logs-partitions` (`0 3 * * *`, daily since #168's 0133), `idempotency-keys-purge` (`30 2 * * *`) and `outbox-events-purge` (`45 2 * * *`). Everything else in this section is as on 12-10-2026: browser alerts with VAPID keys on both sites, the Vault refusing PDFs and photos on the hosted worker (`OCR_LANG_PATH`), every Vercel secret marked Sensitive, Upstash Redis per environment, Turnstile for both hostnames, Sentry project `shakti-prime-web` with the outbox alert, no Anthropic or Voyage key yet. Plans, regions and bills: [accounts](runbooks/accounts.md).
+Read back from the PC on 14-10-2026, both databases: 156 rows in `drizzle.__drizzle_migrations`, and the same five pg_cron jobs as the migrations define: `activities-partitions` (`5 3 25 * *`), `audit-logs-detach` (`30 3 1 * *`), `audit-logs-partitions` (`0 3 * * *`, daily since #168's 0133), `idempotency-keys-purge` (`30 2 * * *`) and `outbox-events-purge` (`45 2 * * *`). Everything else in this section is as on 12-10-2026: browser alerts with VAPID keys on dev and staging, the Vault refusing PDFs and photos on the hosted worker (`OCR_LANG_PATH`), every Vercel secret marked Sensitive, Sentry project `shakti-prime-web` (free plan, privacy settings on) with the outbox alert. SES: `shaktiprime.com` verified in Mumbai on 15-10-2026; production access refused on the first, automated review (case 179200499200682), so mail stays in the sandbox. Plans, regions and bills: [accounts](runbooks/accounts.md).
 
 ## Deferred Phase 0 gate items
 Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](13-client-packs/exit-gate-actions.md). What Shakti's people must do: [client-actions](13-client-packs/client-actions.md). Nothing from the client has arrived yet.
 
 ## Waiting on the owner
-- **Validate the six checks added `NOT VALID`** on dev, then staging: the read-only pre-check of [DEPLOY §2](runbooks/deploy.md#2-every-deploy) step 8 first, then the six statements of [exit-gate-actions](13-client-packs/exit-gate-actions.md) row 18 (the four GST split checks and the two widened quote checks of #173).
-- **Monitoring from the audit batches:** the QStash schedules `jobs-check-<env>`, and `lead-anonymise-<env>` once the CA confirms the retention period; Sentry alert rules for `job.failing` and `job.problem`, the eight cron monitors and the uptime monitor ([DEPLOY](runbooks/deploy.md)).
+- **The client's inputs that go-live waits on** ([client-actions](13-client-packs/client-actions.md)): the workshop answers (item 1), the CA's GST confirmation and invoices (2), the item list, HSN codes, rates and prices (3), the engineering values (4), the letterheads and bank details (7), the CRM export (8), dealer credit (9), targets (10), the privacy and consent wording with legal advice (11), and the people for acceptance testing and the parallel run (12); the design sign-off and the screen review (5, 6).
+- **SES:** follow case 179200499200682 in AWS Support Center; after G1's first release, ask again with the live sign-in page and verify the first people's addresses in SES meanwhile.
+- **Validate the six checks added `NOT VALID`** on dev, then staging: the read-only pre-check of [DEPLOY §2](runbooks/deploy.md#2-every-deploy) step 8 first, then the six statements of [exit-gate-actions](13-client-packs/exit-gate-actions.md) row 18.
+- **Monitoring from the audit batches:** the QStash schedules `jobs-check-<env>`, and `lead-anonymise-<env>` once the CA confirms the retention period. Sentry's free plan holds one cron monitor and one uptime monitor; G1 says which.
 - **With the CA:** the two import retention periods of workshop FIN-3 (7 days for files, 30 days for rows), and FIN-2's consent evidence and anonymised audit rows.
-- **For G1:** the seven account items of [g1-production](runs/phase1/g1-production.md) part 1 (the domain and its DNS contact; the Supabase production organisation and access; the Vercel Pro team and the yes for its project; the SES identity, production access and the production files stack; Sentry's plan and privacy settings; where the repository lives and its `production` environment; Redis and Turnstile for production). A read-only check on 14-10-2026 saw none of the production accounts yet. Also the choice of production deploys: by an approved release (recommended) or on every merge.
-- **On the PC:** delete the leftover `node_modules` shells of the 20 removed slot worktrees in `D:/shakti-wt` (auto mode refused the delete); say whether the local branches `backup/c3-before-rebase-2` and `p2-backup-before-rebase` (pre-rebase copies, commits not on GitHub) may go.
+- **Accounts for later phases, slow to open:** approve the vendor quote letters (client-actions 14); DLT registration of the four companies with 140- and 160-series numbers (17); Meta business verification and a WhatsApp number per company (18); a Google Play developer account for the field app.
+- **On the PC:** delete the leftover `node_modules` shells of the 20 removed slot worktrees in `D:/shakti-wt`; say whether the local branches `backup/c3-before-rebase-2` and `p2-backup-before-rebase` (pre-rebase copies, commits not on GitHub) may go.
 - **The environment's network list:** add `productionresultssa10.blob.core.windows.net`, so a cloud session can read CI logs and reports.
-- **A usage reading** (`usage: 5h N, week N`) before the next builder starts.
 - **Confirm the Triage agent's named defaults** in `AGENT_DEFAULTS.triage` when convenient.
-- **Before the repository goes private again:** a GitHub Actions budget or the 1 November reset; confirm with Shakti that the code being public for now is acceptable.
-- **The Anthropic and Voyage keys** on dev and staging, and a spending limit on Admin › Agents.
-- **Hand the workshop pack to the client** (CALL-2 to CALL-5 and CALL-8 among its questions); **approve the vendor quote letters**; **add the PIN code list** before the client's customer file.
+- **Confirm with Shakti** that the code being public while development continues is acceptable.
 
 ## Open follow-ups
 | Follow-up | Phase / slice |
@@ -70,6 +71,7 @@ Two of the six exit-gate items are met (the security suite and the tooling); the
 | The handover's state-machine check runs on a made-up lead record and can never refuse; the database function holds the real check (T2 review #9) | 1 / any slice |
 | `shakti/field-button-alignment` reads only a button beside a `Field` or in a wrapper of buttons; a button two wrappers away, or an action beside a bare `Input`, is left to the journeys' `expectAligned` | 1 / any slice |
 | A nurtured lead's owner and nurture calls on reassignment (`crm.opportunity.assign` runs only from open), and the handover tested with a callback open: as `system:workers`, which holds no `crm.lead.write`, `moveCallTasks` moves nothing | 1 / T2 |
+| Dependabot #178 (`@hyzyla/pdfium` 2 to 3, a major version, CI green): check the PDF masking path against its breaking changes before it merges | 1 / any slice |
 | `/settings/profile` is at 192.3 kB against its 200 kB budget (186.0 on 29-09-2026; the bell is part of the growth) | 1 / any slice |
 | Account 360 marks a withdrawn call consent beside the number and drops its `tel:` link | 1 / any slice |
 | The Activity log reads a duplicate card set aside as "Dismissed", the agent action's word (states are looked up by value alone) | 1 / any slice |
