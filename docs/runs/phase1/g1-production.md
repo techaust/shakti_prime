@@ -6,9 +6,9 @@
 | PC worktree | `g1-production`, slot 1: Postgres 54331 (container `shakti-pg-g1-production`), app 3031 |
 | Runs on | PC (owner, 14-10-2026); the hosted steps from the lead session |
 | Tier | A (a miss reaches production): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
-| Usage | not started; no reading taken on 14-10-2026 |
-| State | brief; waiting on the owner's account items (part 1) |
-| Next step | owner: the access and answers of part 1; then the lead checks each account read-only and starts the builder on part 2 |
+| Usage | not started; 15-10-2026: 5h 4, week 80 (the week resets on 19-10-2026, and a new slice starts only under 70 %) |
+| State | brief; part 1 done on 15-10-2026 except SES production access, which production does not wait for |
+| Next step | the lead starts the builder on part 2 after the weekly reset (19-10-2026) |
 
 ## Brief
 Design: [`docs/03-roadmap-appendix/phase1.md`](../../03-roadmap-appendix/phase1.md) §10 (G1). Runbooks: [deploy](../../runbooks/deploy.md) §1 and §2, [files-setup](../../runbooks/files-setup.md) §1 to §4 and §7, [accounts](../../runbooks/accounts.md), [cutover](../../runbooks/cutover.md), [incidents](../../runbooks/incidents.md). Exit-gate actions 2, 3, 7, 8 and 9 ([exit-gate-actions](../../13-client-packs/exit-gate-actions.md)); the 2026-09 audit's M45; ADR 0003, 0015 and 0017.
@@ -16,6 +16,20 @@ Design: [`docs/03-roadmap-appendix/phase1.md`](../../03-roadmap-appendix/phase1.
 G1 opens a third hosted environment, `production`, on the group's own domain, beside dev and staging, and makes every way into it reviewed: no deploy, migration or secret reaches production without the owner's approval. Staging keeps synthetic data only; the client's real file, the parallel run, the reconciliation and the ⌘K measurement happen on production after G1.
 
 ### Part 1. The owner's account items (before any build)
+Done on 15-10-2026 and read back by the lead where its tools reach (the owner's decisions are rows of [DECISIONS](../../11-decisions.md)):
+- the domain `shaktiprime.com`, on Cloudflare DNS; the system lives at the bare domain, whose two `A` records point at Vercel (`216.150.1.1`, `216.150.16.1`), DNS only;
+- SES in Mumbai: the domain identity `shaktiprime.com` verified (Easy DKIM, MAIL FROM `mail.shaktiprime.com`, DMARC `p=none`); production access asked for and refused on the first, automated review (case 179200499200682); the AWS account 199476069348 also serves production, with a $25 monthly cost budget;
+- Supabase on Pro; the project `shakti-prime-production` (ref `ifnoytyhnedgiyhxxhhu`), Mumbai, Postgres 17, Data API off, new tables not exposed, no automatic-RLS trigger, SSL enforced, Micro compute, empty; no point-in-time recovery;
+- Vercel Pro with a $50 spend limit; the project `shakti-prime-production` (root `apps/web`, functions in `bom1`, Vercel's login on its own addresses, Ignored Build Step `exit 0` so nothing deploys), with `shaktiprime.com` added and configured; `ANTHROPIC_API_KEY` and `VOYAGE_API_KEY` its only variables;
+- Sentry on the free Developer plan for good, the project's privacy settings on;
+- the repository stays `techaust/shakti_prime`, public;
+- Upstash Redis `shakti-prime-production` (Mumbai, Pay as You Go, eviction off); QStash on the same account, Pay as You Go;
+- a Turnstile widget for `shaktiprime.com`;
+- the Anthropic and Voyage keys of each environment, checked by the owner's script against both vendors;
+- production deploys by an approved release.
+
+What each item asked for:
+
 The lead's tools see none of the production accounts yet (read-only check, 14-10-2026): the Supabase organisation *Shakti Prime* is on the Free plan with dev and staging only; the Vercel team `shakti-prime` has dev and staging only and no domain; the repository `techaust/shakti_prime` is a personal, public repository; the AWS account of `claude-shakti` has SES in the sandbox (200 mails a day, production access off) with no verified identity, and only the dev and staging files stacks. Each item below says what the owner gives; secrets never go in a chat, only into GitHub or Vercel through the hidden-prompt scripts the lead writes.
 
 1. **The domain.** The domain's name; the address the BOS lives at (recommended: a subdomain such as `bos.<domain>`, so the group's website is untouched); who changes its DNS records and where (registrar or Cloudflare), so the lead can hand them the exact records.
@@ -30,8 +44,13 @@ The lead's tools see none of the production accounts yet (read-only check, 14-10
 1. **Production in the migrate workflow** (`.github/workflows/migrate.yml`): `production` among the choices, bound to the GitHub environment `production` (so a run waits for the owner's approval), reading the unsuffixed secrets, refusing any ref but `main` and any address that does not name the production project's ref; `rotate_passwords` works the same way. The workflow is a gate file, so its pull request waits for the owner's `checks-ok` label.
 2. **The production deploy is a release, not a push** (the owner's choice, asked at the start; the recommended option): Vercel builds `main` for production only when a release asks for it. A `release.yml` workflow (manual, environment `production`) checks that CI on the chosen `main` commit is green and that staging serves that commit, migrates production with `db:verify` and the seed, then triggers the production project's deploy hook (`VERCEL_DEPLOY_HOOK_PRODUCTION`, an environment secret) and checks `/api/v1/health/ready`. The production project skips the builds Vercel would start on each push (`ignoreCommand` keyed to `BOS_ENVIRONMENT=production`, so dev and staging still deploy on every merge).
 3. **The configuration for production:** `productionConfigProblems()` already refuses a missing `SENTRY_DSN`, `MAILER` other than `ses` and an unsafe value; add a test that a `production` configuration with every required value starts, and one per missing value. `apps/web/scripts/qstash-schedule.ts` makes the production schedules under `-production` ids; the schedule list in [deploy §2](../../runbooks/deploy.md#2-every-deploy) names them.
-4. **The follow-ups tagged G1** in [STATUS](../../10-status.md#open-follow-ups): a company's earlier proof pages removed when a new one is printed (P4 review L10); the open-leads index for the nightly rescore only if `EXPLAIN` on a production-sized seed shows the need (C3 review L8), with the evidence in the report either way; the SES mailer switched on for production (configuration only, item 3).
-5. **Documents:** deploy §1 and §2 for production (the release, the approval, the schedules), accounts (production in every row, the Hobby risk row gone once dev and staging are on Pro), ADR 0017 and the 2026-09 audit's M45 resolution, incidents (a release to roll back: Vercel's instant rollback, and a migration is never rolled back, a fix goes forward), cutover's first steps pointing at production, exit-gate actions 2, 3, 7, 8 and 9, design §10 "Built (G1)", client-actions.
+4. **From the owner's decisions of 15-10-2026:**
+   - the files stack: `infra/aws/files.yaml` accepts `EnvironmentName` `production` and lets the browser upload from `https://shaktiprime.com` for it (it allows only `dev` and `staging` and their `vercel.app` addresses today); the owner then creates `shakti-prime-production-files` with `SesIdentity` `shaktiprime.com` and `SesFromAddress` `no-reply@shaktiprime.com`;
+   - backups without point-in-time recovery: a workflow (environment `production`) runs `pg_dump` of production every 6 hours into an S3 backup bucket in Mumbai, encrypted, kept 30 days, and the restore drill of DATABASE §10 reads from it; DATABASE §10 and ARCHITECTURE's availability row state a loss of at most about 6 hours;
+   - Sentry on the free plan: dev and staging send a sample of their errors (production all of them); one cron monitor, on `outbox-publish`, the other jobs left to the in-app `jobs-check` alerts; one uptime monitor, on production's `/api/v1/health/ready`; deploy §1 step 8 says so;
+   - SES in the sandbox: production starts with `MAILER=ses` and `SES_FROM`; deploy says to verify each first person's address in SES until production access is granted, and to ask again once the sign-in page is live.
+5. **The follow-ups tagged G1** in [STATUS](../../10-status.md#open-follow-ups): a company's earlier proof pages removed when a new one is printed (P4 review L10); the open-leads index for the nightly rescore only if `EXPLAIN` on a production-sized seed shows the need (C3 review L8), with the evidence in the report either way; the SES mailer switched on for production (configuration only, item 3).
+6. **Documents:** deploy §1 and §2 for production (the release, the approval, the schedules), accounts (production in every row, the Hobby risk row gone once dev and staging are on Pro), ADR 0017 and the 2026-09 audit's M45 resolution, incidents (a release to roll back: Vercel's instant rollback, and a migration is never rolled back, a fix goes forward), cutover's first steps pointing at production, exit-gate actions 2, 3, 7, 8 and 9, design §10 "Built (G1)", client-actions.
 
 Done when: the checks of AGENTS §10 pass on the branch; the security suite passes on the slot's Postgres; a release run on a test commit is shown waiting for approval and refusing a ref other than `main` (proven on a copy of the workflow pointed at staging, never at production before the owner's go); the documents name no step the owner cannot follow.
 
