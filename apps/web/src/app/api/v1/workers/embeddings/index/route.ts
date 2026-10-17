@@ -80,12 +80,16 @@ export async function POST(request: Request): Promise<Response> {
       worker: {
         ordering: 'every',
         handle: async (_event, ctx) => {
-          indexed = await indexKnowledgeFile(job, indexDeps(ctx.principal, requestId));
+          indexed = await indexKnowledgeFile(
+            job,
+            indexDeps(ctx.principal, requestId, ctx.keyValue),
+          );
         },
       },
     });
     const body =
-      result.outcome === 'done' && indexed !== undefined
+      // A reading that found the file taken by another read nothing: answered as a repeat.
+      result.outcome === 'done' && indexed !== undefined && indexed.taken !== true
         ? {
             eventId: job.eventId,
             outcome: 'done' as const,

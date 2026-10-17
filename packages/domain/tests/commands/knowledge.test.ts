@@ -36,7 +36,12 @@ import {
   reindexKnowledgeFile,
 } from '../../src/commands/knowledge/files';
 import { recordKnowledgeIndex } from '../../src/commands/knowledge/record-index';
-import { indexKnowledgeFile, type IndexKnowledgeDeps } from '../../src/knowledge/index-file';
+import {
+  indexKnowledgeFile,
+  KNOWLEDGE_READ_CLAIM_SECONDS,
+  knowledgeReadKey,
+  type IndexKnowledgeDeps,
+} from '../../src/knowledge/index-file';
 import { knowledgeQueryVector } from '../../src/knowledge/search';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryFileStore, sha256Hex } from '../../src/ports/file-store';
@@ -361,6 +366,65 @@ describe('the index job', () => {
       reply: 'Warranty covers the motor.\n\nPanels are covered for ten years.',
     });
     expect(await index(vault.id, second.provider)).toMatchObject({ chunks: 1, replaced: 1 });
+  });
+
+  it('lets one of two readings of a file run: the second finds it taken and stops', async () => {
+    const vault = await add(gm, await upload(gm));
+    const shared = memoryKeyValue();
+    const ai = provider({ script: [fakeReply('Warranty covers the motor.'), fakeReply('Twice.')] });
+    // The first reading holds the file while its pages are drawn, until the gate opens.
+    let open: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    let drawing: () => void = () => undefined;
+    const drawn = new Promise<void>((resolve) => {
+      drawing = resolve;
+    });
+    const first = index(vault.id, ai.provider, undefined, 1, {
+      keyValue: shared,
+      pdfPages: async () => {
+        drawing();
+        await gate;
+        return [PAGE];
+      },
+    });
+    await drawn;
+    expect(await shared.get(knowledgeReadKey(vault.id))).not.toBeNull();
+    // Read again's job, or the queue's redelivery, arrives while the first reading runs.
+    const second = await index(vault.id, ai.provider, undefined, 1, { keyValue: shared });
+    expect(second).toEqual({ knowledgeFileId: vault.id, chunks: 0, replaced: 0, taken: true });
+    expect(ai.transport.requests).toHaveLength(0);
+
+    open();
+    expect(await first).toMatchObject({ chunks: 1, replaced: 0 });
+    expect(ai.transport.requests).toHaveLength(1);
+    expect(await stateOf(vault.id)).toMatchObject({ state: 'indexed', chunks: 1 });
+    // The claim is given back once the reading ends, so a later Read again is not held up.
+    expect(await shared.get(knowledgeReadKey(vault.id))).toBeNull();
+  });
+
+  it('gives the claim back when a reading fails, and lets it lapse when the reading dies', async () => {
+    const vault = await add(gm, await upload(gm));
+    let clock = 0;
+    const shared = memoryKeyValue(() => clock);
+    const failing = index(vault.id, provider().provider, undefined, 1, {
+      keyValue: shared,
+      store: { ...store, get: () => Promise.reject(new Error('the store is away')) },
+    });
+    await expect(failing).rejects.toThrow('the store is away');
+    expect(await shared.get(knowledgeReadKey(vault.id))).toBeNull();
+    // A reading whose route was killed leaves its claim, which lapses before Read again is offered.
+    await shared.setIfAbsent(knowledgeReadKey(vault.id), newId(), KNOWLEDGE_READ_CLAIM_SECONDS);
+    expect(
+      await index(vault.id, provider().provider, undefined, 1, { keyValue: shared }),
+    ).toMatchObject({ taken: true });
+    clock = KNOWLEDGE_READ_CLAIM_SECONDS * 1000;
+    expect(
+      await index(vault.id, provider({ reply: 'Pumps are covered.' }).provider, undefined, 1, {
+        keyValue: shared,
+      }),
+    ).toMatchObject({ chunks: 1 });
   });
 
   it('never shows the model a PDF that was not masked, nor one of too many pages', async () => {
