@@ -71,6 +71,15 @@ export async function snap(
 ): Promise<void> {
   if (process.platform !== 'linux') return;
   await test.step(`screenshot ${name}`, async () => {
+    const fullPage = options.fullPage ?? true;
+    if (fullPage) {
+      // A full-page picture draws the fixed top bar where the page is scrolled to, and a run leaves
+      // the page wherever its last action (or a reload) scrolled it, so the picture starts at the top.
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+      });
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    }
     // Fonts are loaded before the picture, so a late font swap never shows as a difference.
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     const changing = [
@@ -80,7 +89,7 @@ export async function snap(
     await markFixedWidths(changing);
     try {
       await expect(page).toHaveScreenshot(`${name}.png`, {
-        fullPage: options.fullPage ?? true,
+        fullPage,
         // A long page (the design board) takes more than one quick capture to settle.
         timeout: 60_000,
         mask: [...alwaysMasked(page), ...changing],
