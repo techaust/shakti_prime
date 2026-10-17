@@ -90,7 +90,9 @@ export function PushToggle({ publicKey }: { publicKey: string | null }) {
     else {
       currentSubscription()
         .then(async (subscription) =>
-          subscription !== null && (await subscriptionOwner(subscription)) === 'mine' ? 'on' : 'off',
+          subscription !== null && (await subscriptionOwner(subscription)) === 'mine'
+            ? 'on'
+            : 'off',
         )
         .then(
           (next: PushState) => {
