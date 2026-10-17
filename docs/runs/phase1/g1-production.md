@@ -107,7 +107,7 @@ Commit `adf2680f` on `feat/g1-production` (not pushed; the lead pushes). Skills 
 - `qstash-schedule.ts` now accepts only dev, staging or production as `BOS_ENVIRONMENT`.
 
 ## Review
-17-10-2026, PC, early check of `feat/g1-production` at 52c29e06 by the lead (Opus 5.5 medium): items 1 to 3, the workflows, the composite action, the build gate and the health field. One high finding: the environment the workflows name is, on GitHub today, an unprotected one Vercel made. It and M1 to M2 are fixed before the pull request opens; the low ones may go with items 4 to 6.
+17-10-2026, PC, early check of `feat/g1-production` at 52c29e06 by the lead (Opus 5.5 xhigh): items 1 to 3, the workflows, the composite action, the build gate and the health field. One high finding: the environment the workflows name is, on GitHub today, an unprotected one Vercel made. It and M1 to M2 are fixed before the pull request opens; the low ones may go with items 4 to 6.
 
 | # | Severity | Finding | State |
 |---|---|---|---|
