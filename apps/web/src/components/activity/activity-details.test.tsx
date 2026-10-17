@@ -1,4 +1,5 @@
 import type { AuditLogDto } from '@shakti/contracts';
+import type * as Ui from '@shakti/ui';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -9,7 +10,7 @@ import { ActivityDetails } from './activity-details';
 vi.mock('../../actions/admin', () => ({ listUserSessions: vi.fn(), revokeSession: vi.fn() }));
 // The sheet's title parts need the dialog they sit in; here the details render on their own.
 vi.mock('@shakti/ui', async (original) => ({
-  ...(await original<typeof import('@shakti/ui')>()),
+  ...(await original<typeof Ui>()),
   SheetHeader: ({ children }: { children: ReactNode }) => <header>{children}</header>,
   SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
   SheetDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,

@@ -1,4 +1,4 @@
-import { newId, type Account360Dto, type Principal } from '@shakti/contracts';
+import { newId, type Principal } from '@shakti/contracts';
 import {
   AGENT_PRINCIPAL_SEED,
   asMigrator,
@@ -220,8 +220,7 @@ describe('loadAccount360 and listTimeline', () => {
   it('says when the customer withdrew consent to calls and gave none since (CRM-10)', async () => {
     const k = await customer(caller, `${TAG} Calls`, 'Churu');
     const withdrawn = async () =>
-      ((await read(caller, loadAccount360, { accountId: k.accountId })) as Account360Dto)
-        .callConsentWithdrawn;
+      (await read(caller, loadAccount360, { accountId: k.accountId })).callConsentWithdrawn;
     expect(await withdrawn()).toBe(false);
     const consent = (textVersion: string) =>
       run(caller, recordConsent, {
