@@ -36,7 +36,10 @@ import { istMinute } from '../../src/notifications/push-plan';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import { listInbox } from '../../src/queries/agents/inbox';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
-import { loadNotificationSettings } from '../../src/queries/notifications/settings';
+import {
+  loadNotificationSettings,
+  loadPushBrowser,
+} from '../../src/queries/notifications/settings';
 
 // Notifications (PRD RPT-04, docs/03-roadmap-appendix/phase1.md §8.1): each kind of notice reaches the person
 // who acts on it and only them, once however often its event or the scan runs; quiet hours hold a
@@ -713,7 +716,18 @@ describe('a person’s own notices', () => {
         select user_id, auth from push_subscriptions where endpoint = ${shared}`,
     );
     expect(row).toEqual({ user_id: callerA.id, auth: keys.auth });
+    // Settings says alerts are on only to the person whose browser it is (#168 review L4).
+    const mine = (p: Principal) =>
+      asPrincipal(p, (context) => loadPushBrowser(context, { endpoint: shared }));
+    expect(await mine(callerA)).toEqual({ subscribed: true });
+    expect(await mine(callerB)).toEqual({ subscribed: false });
     await run(callerA, unsubscribePush, { endpoint: shared });
+    expect(await mine(callerA)).toEqual({ subscribed: false });
+    await expect(
+      asPrincipal(callerA, (context) =>
+        loadPushBrowser(context, { endpoint: 'https://push.example.org/send/1' }),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
   });
 });
 
@@ -827,13 +841,36 @@ describe('an enquiry for a colleague’s customer (crm.enquiry.route, RPT-04 cri
 });
 
 describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
+  /** The walk-in form's consent: signed at the shop, with no proof file. */
+  const WALK_IN_CONSENT = {
+    channel: 'call',
+    purpose: 'service',
+    source: 'walk_in_form',
+    textVersion: 'v1',
+  } as const;
   const enquiry = (number: string, entityId = 1) => ({
     entityId,
     pipelineKey: 'farmer_pumps',
     contact: { name: `Notice customer ${RUN}`, phone: number },
     account: { type: 'farm' },
     site: { type: 'borewell', village: 'Notice village', pin: '422001' },
+    consent: WALK_IN_CONSENT,
   });
+  /** The consents on the customer's contacts, as the table owner reads them. */
+  const consentsOf = (accountId: string) =>
+    asMigrator(
+      (m) => m<
+        {
+          contact_id: string;
+          channel: string;
+          source: string;
+          evidence_file_id: string | null;
+          created_by: string;
+        }[]
+      >`select c.contact_id, c.channel, c.source, c.evidence_file_id, c.created_by
+          from consents c join account_contacts ac on ac.contact_id = c.contact_id
+         where ac.account_id = ${accountId} order by c.created_at`,
+    );
 
   it('is refused to a role without lead rights and outside the request', async () => {
     const hr = await createTestPrincipal('hr_admin', [1]);
@@ -843,6 +880,16 @@ describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
     await expect(run(callerB, takeEnquiry, enquiry(phone(), 2))).rejects.toMatchObject({
       code: 'forbidden',
     });
+    // Refused for a colleague's customer too, with no consent left on it.
+    const number = phone();
+    const lead = await newLead(callerA, 'farmer_pumps', number);
+    await expect(run(hr, takeEnquiry, enquiry(number))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(callerB, takeEnquiry, enquiry(number, 2))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await consentsOf(lead.account.id)).toEqual([]);
   });
 
   it('adds the lead when no colleague looks after the customer', async () => {
@@ -866,10 +913,35 @@ describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
       runCommand(takeEnquiry, { context, audit: recorded, outbox }, enquiry(number)),
     );
     expect(routed).toMatchObject({ outcome: 'routed', colleagueName: 'Asha Caller' });
+    // The consent the walk-in form captured goes with the enquiry: recorded on the colleague's
+    // customer, on the contact with the typed number, as the form records it (N1 review L2).
+    const [contactOfNumber] = await asMigrator(
+      (m) => m<{ contact_id: string }[]>`
+        select cp.contact_id from contact_phones cp
+          join account_contacts ac on ac.contact_id = cp.contact_id
+         where ac.account_id = ${lead.account.id} and cp.e164 = ${`+91${number}`}`,
+    );
+    expect(await consentsOf(lead.account.id)).toEqual([
+      {
+        contact_id: contactOfNumber?.contact_id,
+        channel: 'call',
+        source: 'walk_in_form',
+        evidence_file_id: null,
+        created_by: callerB.id,
+      },
+    ]);
+    const [timeline] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from activities
+               where account_id = ${lead.account.id} and type = 'consent_recorded'`,
+    );
+    expect(timeline?.n).toBe(1);
     // The attempt's lead and its records went with its savepoint: only the routing is recorded,
     // and nothing reads as a failed lead.
     const commands = recorded.records.map((r) => [r.command, r.outcome]);
     expect(commands).toContainEqual(['crm.enquiry.route', 'ok']);
+    expect(recorded.records.find((r) => r.command === 'crm.enquiry.route')?.after).toMatchObject({
+      consent: WALK_IN_CONSENT,
+    });
     expect(commands.filter(([command]) => command === 'crm.lead.create')).toEqual([]);
     expect(recorded.records.every((r) => r.outcome === 'ok')).toBe(true);
     const [leads] = await asMigrator(

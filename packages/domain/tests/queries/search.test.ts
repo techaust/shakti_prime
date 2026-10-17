@@ -191,7 +191,12 @@ describe('searchLeads by spelling (docs/08-design-system.md §9, trigram matchin
     const far = await newLead(sorter, 1, 'Suresh', phone(), place);
     const made = [exact, starts, contains, closer, close, far];
     const hits = await asPrincipal(sorter, (ctx) => searchLeads(ctx, { q: 'Ramesh', limit: 20 }));
-    expect(onlyOf(made, hits.map((h) => h.id))).toEqual([exact, starts, contains, closer, close]);
+    expect(
+      onlyOf(
+        made,
+        hits.map((h) => h.id),
+      ),
+    ).toEqual([exact, starts, contains, closer, close]);
   });
 });
 
@@ -245,6 +250,11 @@ describe('searchPeople', () => {
       searchPeople(ctx, { q: own, limit: 20 }),
     );
     const made = [exact, starts, contains, close];
-    expect(onlyOf(made, hits.map((h) => h.id))).toEqual(made);
+    expect(
+      onlyOf(
+        made,
+        hits.map((h) => h.id),
+      ),
+    ).toEqual(made);
   });
 });

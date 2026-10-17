@@ -466,80 +466,80 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     owner,
     callsWithdrawn,
   ] = await Promise.all([
-      ctx.tx
-        .select({
-          id: c.id,
-          role: ac.role,
-          name: c.name,
-          email: c.email,
-          preferredLanguage: c.preferredLanguage,
-        })
-        .from(ac)
-        .innerJoin(c, eq(c.id, ac.contactId))
-        .where(and(eq(ac.accountId, accountId), isNull(c.archivedAt)))
-        .orderBy(sql`${ac.role} <> 'owner'`, asc(c.name)),
-      ctx.tx
-        .select({
-          id: ph.id,
-          contactId: ph.contactId,
-          e164: ph.e164,
-          isPrimary: ph.isPrimary,
-          isWhatsapp: ph.isWhatsapp,
-          isDnd: ph.isDnd,
-        })
-        .from(ph)
-        .innerJoin(ac, eq(ac.contactId, ph.contactId))
-        .where(eq(ac.accountId, accountId))
-        .orderBy(desc(ph.isPrimary), asc(ph.createdAt), asc(ph.id)),
-      ctx.tx
-        .select()
-        .from(cs)
-        .where(and(eq(cs.accountId, accountId), isNull(cs.archivedAt)))
-        .orderBy(asc(cs.createdAt), asc(cs.id)),
-      ctx.tx
-        .select({
-          id: o.id,
-          pipelineName: pl.name,
-          stageName: ps.name,
-          state: o.state,
-          ownerId: o.ownerId,
-          ownerName: p.displayName,
-          updatedAt: o.updatedAt,
-        })
-        .from(o)
-        .innerJoin(pl, eq(pl.id, o.pipelineId))
-        .innerJoin(ps, eq(ps.id, o.stageId))
-        .leftJoin(p, eq(p.id, o.ownerId))
-        .where(and(eq(o.accountId, accountId), eq(o.entityId, entityId), isNull(o.archivedAt)))
-        .orderBy(desc(o.updatedAt), desc(o.id))
-        .limit(50),
-      ctx.tx
-        .select({ task: t, assigneeName: p.displayName })
-        .from(t)
-        .leftJoin(p, eq(p.id, t.assigneeId))
-        .where(and(eq(t.accountId, accountId), eq(t.entityId, entityId), eq(t.state, 'open')))
-        .orderBy(asc(t.dueAt), asc(t.id))
-        .limit(50),
-      ctx.tx
-        .select({ consent: con, readableEvidence: schema.files.id })
-        .from(con)
-        .innerJoin(ac, eq(ac.contactId, con.contactId))
-        // The proof file under the files policies: null when the caller may not open it.
-        .leftJoin(schema.files, eq(schema.files.id, con.evidenceFileId))
-        .where(eq(ac.accountId, accountId))
-        .orderBy(desc(con.givenAt), desc(con.id)),
-      ctx.tx
-        .select({ opportunityId: ot.opportunityId, id: tg.id, name: tg.name })
-        .from(ot)
-        .innerJoin(tg, eq(tg.id, ot.tagId))
-        .innerJoin(o, eq(o.id, ot.opportunityId))
-        .where(and(eq(o.accountId, accountId), eq(ot.entityId, entityId)))
-        .orderBy(asc(tg.name)),
-      tagsFor(ctx, entityId),
-      listTimeline(ctx, { entityId, accountId }),
-      here.ownerId === null
-        ? []
-        : ctx.tx.select({ name: p.displayName }).from(p).where(eq(p.id, here.ownerId)).limit(1),
+    ctx.tx
+      .select({
+        id: c.id,
+        role: ac.role,
+        name: c.name,
+        email: c.email,
+        preferredLanguage: c.preferredLanguage,
+      })
+      .from(ac)
+      .innerJoin(c, eq(c.id, ac.contactId))
+      .where(and(eq(ac.accountId, accountId), isNull(c.archivedAt)))
+      .orderBy(sql`${ac.role} <> 'owner'`, asc(c.name)),
+    ctx.tx
+      .select({
+        id: ph.id,
+        contactId: ph.contactId,
+        e164: ph.e164,
+        isPrimary: ph.isPrimary,
+        isWhatsapp: ph.isWhatsapp,
+        isDnd: ph.isDnd,
+      })
+      .from(ph)
+      .innerJoin(ac, eq(ac.contactId, ph.contactId))
+      .where(eq(ac.accountId, accountId))
+      .orderBy(desc(ph.isPrimary), asc(ph.createdAt), asc(ph.id)),
+    ctx.tx
+      .select()
+      .from(cs)
+      .where(and(eq(cs.accountId, accountId), isNull(cs.archivedAt)))
+      .orderBy(asc(cs.createdAt), asc(cs.id)),
+    ctx.tx
+      .select({
+        id: o.id,
+        pipelineName: pl.name,
+        stageName: ps.name,
+        state: o.state,
+        ownerId: o.ownerId,
+        ownerName: p.displayName,
+        updatedAt: o.updatedAt,
+      })
+      .from(o)
+      .innerJoin(pl, eq(pl.id, o.pipelineId))
+      .innerJoin(ps, eq(ps.id, o.stageId))
+      .leftJoin(p, eq(p.id, o.ownerId))
+      .where(and(eq(o.accountId, accountId), eq(o.entityId, entityId), isNull(o.archivedAt)))
+      .orderBy(desc(o.updatedAt), desc(o.id))
+      .limit(50),
+    ctx.tx
+      .select({ task: t, assigneeName: p.displayName })
+      .from(t)
+      .leftJoin(p, eq(p.id, t.assigneeId))
+      .where(and(eq(t.accountId, accountId), eq(t.entityId, entityId), eq(t.state, 'open')))
+      .orderBy(asc(t.dueAt), asc(t.id))
+      .limit(50),
+    ctx.tx
+      .select({ consent: con, readableEvidence: schema.files.id })
+      .from(con)
+      .innerJoin(ac, eq(ac.contactId, con.contactId))
+      // The proof file under the files policies: null when the caller may not open it.
+      .leftJoin(schema.files, eq(schema.files.id, con.evidenceFileId))
+      .where(eq(ac.accountId, accountId))
+      .orderBy(desc(con.givenAt), desc(con.id)),
+    ctx.tx
+      .select({ opportunityId: ot.opportunityId, id: tg.id, name: tg.name })
+      .from(ot)
+      .innerJoin(tg, eq(tg.id, ot.tagId))
+      .innerJoin(o, eq(o.id, ot.opportunityId))
+      .where(and(eq(o.accountId, accountId), eq(ot.entityId, entityId)))
+      .orderBy(asc(tg.name)),
+    tagsFor(ctx, entityId),
+    listTimeline(ctx, { entityId, accountId }),
+    here.ownerId === null
+      ? []
+      : ctx.tx.select({ name: p.displayName }).from(p).where(eq(p.id, here.ownerId)).limit(1),
     callConsentWithdrawn(ctx.tx, accountId),
   ]);
 

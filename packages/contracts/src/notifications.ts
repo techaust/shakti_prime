@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { PhoneInputSchema } from './crm/phone';
-import { SegmentSchema } from './crm/enums';
+import {
+  ConsentChannelSchema,
+  ConsentPurposeSchema,
+  ConsentSourceSchema,
+  SegmentSchema,
+} from './crm/enums';
 import { EntityIdSchema, IdSchema } from './ids';
 
 /*
@@ -370,6 +375,20 @@ export type PushRecordDto = z.infer<typeof PushRecordDto>;
  * enquiry's interest (the pipeline's segment) and an optional note. The customer is named by
  * `existingAccountId` (the known-customer path) or by the number typed for a new one (`phone`).
  */
+/**
+ * A consent the customer gives on the lead or walk-in form, recorded as given now (CRM-10): on
+ * the lead's customer, or, for an enquiry passed to a colleague, on the colleague's customer.
+ */
+export const FormConsentSchema = z
+  .object({
+    channel: ConsentChannelSchema,
+    purpose: ConsentPurposeSchema,
+    source: ConsentSourceSchema,
+    textVersion: z.string().trim().min(1).max(40),
+  })
+  .strict();
+export type FormConsent = z.infer<typeof FormConsentSchema>;
+
 export const RouteEnquiryInput = z
   .object({
     entityId: EntityIdSchema,
@@ -377,6 +396,8 @@ export const RouteEnquiryInput = z
     existingAccountId: IdSchema.optional(),
     phone: PhoneInputSchema.optional(),
     note: z.string().trim().min(1).max(500).optional(),
+    /** The consent the form captured, recorded on the customer's contact (N1 review L2). */
+    consent: FormConsentSchema.optional(),
   })
   .strict()
   .refine((v) => (v.existingAccountId === undefined) !== (v.phone === undefined), {

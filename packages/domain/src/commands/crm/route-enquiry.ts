@@ -20,9 +20,12 @@ interface Holder {
  * transaction once the lead's savepoint has rolled the refusal back: it finds the colleague (`app.enquiry_holder()`, for the
  * known customer or the live customer with the typed number), files an `inbox_items` row of kind
  * `routed_work` on the customer for them and their team, with the enquiry's interest (the
- * pipeline's segment) and its note, and sends `crm.enquiry.routed`, whose notice tells them. It
- * needs what `crm.lead.create` needs in the company, and is for people only. The caller learns the
- * colleague's name and nothing about the customer.
+ * pipeline's segment) and its note, and sends `crm.enquiry.routed`, whose notice tells them. A
+ * consent the form captured is recorded on the customer as the form records it on its own
+ * (`app.record_routed_consent()`: the contact with the typed number, else the owner contact, given
+ * now, no proof file), since the caller may not write the colleague's customer. It needs what
+ * `crm.lead.create` needs in the company, and is for people only. The caller learns the colleague's
+ * name and nothing about the customer.
  */
 export const routeEnquiry = defineCommand({
   name: 'crm.enquiry.route',
@@ -32,7 +35,7 @@ export const routeEnquiry = defineCommand({
   peopleOnly: true,
   input: RouteEnquiryInput,
   output: RoutedEnquiryDto,
-  auditFields: ['segment', 'note'],
+  auditFields: ['segment', 'note', 'consent'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const p = schema.pipelines;
@@ -85,12 +88,19 @@ export const routeEnquiry = defineCommand({
       note: input.note ?? null,
       createdBy: ctx.principal.id,
     });
+    const consent = input.consent;
+    if (consent !== undefined) {
+      await ctx.tx.execute(sql`
+        select app.record_routed_consent(${itemId}::uuid, ${input.phone ?? null}::text,
+          ${consent.channel}::text, ${consent.purpose}::text, ${consent.source}::text,
+          ${consent.textVersion}::text)`);
+    }
     ctx.audit({
       aggregateType: 'inbox_item',
       aggregateId: itemId,
       entityId: input.entityId,
       before: null,
-      after: { segment, note: input.note ?? null },
+      after: { segment, note: input.note ?? null, consent: consent ?? null },
     });
     ctx.emit({
       type: 'crm.enquiry.routed',

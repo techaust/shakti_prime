@@ -45,10 +45,7 @@ export async function loadNotificationSettings(ctx: Ctx): Promise<Settings> {
  * person turned alerts on reads as not subscribed, so Settings offers to turn them on for the
  * person signed in rather than telling them alerts are on (#168 review L4).
  */
-export async function loadPushBrowser(
-  ctx: Ctx,
-  rawInput: unknown,
-): Promise<PushSubscriptionDto> {
+export async function loadPushBrowser(ctx: Ctx, rawInput: unknown): Promise<PushSubscriptionDto> {
   const input = parseQueryInput(PushBrowserInput, rawInput, 'notifications.push.browser');
   const s = schema.pushSubscriptions;
   const rows = await ctx.tx

@@ -1,11 +1,19 @@
 import type { AuditLogDto } from '@shakti/contracts';
 import { NextIntlClientProvider } from 'next-intl';
+import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import en from '../../../messages/en.json';
 import { ActivityDetails } from './activity-details';
 
 vi.mock('../../actions/admin', () => ({ listUserSessions: vi.fn(), revokeSession: vi.fn() }));
+// The sheet's title parts need the dialog they sit in; here the details render on their own.
+vi.mock('@shakti/ui', async (original) => ({
+  ...(await original<typeof import('@shakti/ui')>()),
+  SheetHeader: ({ children }: { children: ReactNode }) => <header>{children}</header>,
+  SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+  SheetDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
+}));
 
 function row(command: string, aggregateType: string | null): AuditLogDto {
   return {
@@ -18,7 +26,7 @@ function row(command: string, aggregateType: string | null): AuditLogDto {
     command,
     aggregateType,
     aggregateId: '01990000-0000-7000-8000-00000000b003',
-    outcome: 'success',
+    outcome: 'ok',
     errorCode: null,
     input: {},
     before: { state: 'open' },
