@@ -7,8 +7,8 @@
 | Runs on | PC (owner, 17-10-2026: spend the week's remainder before the reset; the lead runs it while the owner is away) |
 | Tier | B (workers, delivery and test start-up): build Opus 5.5 medium, review Opus 5.5 high |
 | Usage | build Opus medium from week 94 (18-10-2026) |
-| State | building |
-| Next step | the builder reports; the lead reads the diff and starts the review |
+| State | built |
+| Next step | the lead reads the diff, remakes the three baselines the report names in the Linux image, and starts the review |
 
 ## Brief
 Open follow-ups from [STATUS](../../10-status.md#open-follow-ups) and from [batch 1's review](followups-hardening.md#review) that need no client input. No change to tax, price, credit or row-level security policies; a migration only if an item cannot be done without one, and then as [AGENTS §6](../../../AGENTS.md#6-database-changes) says.
@@ -34,6 +34,47 @@ Done when: each changed unit test passes three times in a row, each changed jour
 **How to work:** you are the only builder on the PC, but the lead may run an integration beside you, so every lint, typecheck, test, build and journey, folder-level ones too, goes through `bash tools/integration/heavy.sh <command>` (the main checkout's copy). Commit at least every 20 minutes and at each finished item; never push (the lead pushes); never run `docker` or `fresh-db.sh` — when you need a fresh database, commit and stop with a report saying so; long output to log files, reading summaries only; the whole-repository lint once, last. Never open a pull request, install a dependency or touch a hosted service.
 
 ## Report
+
+### 18-10-2026, PC (slot 2, Opus 5.5 medium)
+Skills loaded: none (no table, no command and no new screen; the brief names none).
+
+**What was built, by item**
+1. The seed's waiting events and the nudge's budget. `apps/web/e2e/setup/deliver-waiting.ts` (new) delivers, in the seed's own process with `AI_TRANSPORT=fake`, every event the seed left waiting, run after run until a claim is empty (two-minute limit); `seed.ts` calls it last and prints the count. The in-process publisher (`apps/web/src/workers/outbox.ts`) takes a deadline: once the run's budget has passed, the events left in a claim are answered `notTried` (a new `PublishResult` case, `packages/domain/src/ports/event-publisher.ts`); `runOutboxPublisher` records nothing for them, so the claim releases them with their attempt given back, and claims no more. The first event of each call is always delivered. `publishOutbox` gives the default in-process publisher `now + budgetMs`, so the local nudge (10 s) and the local publisher route (30 s) both stop inside a claim.
+2. `crm-scoring-referrals.test.ts`: the rescoring case counts the two rule records exactly and the batch records by their rows (which must add up to `rescored`), and checks the clear by its own two leads' scores, with `rescored >= 2`.
+3. `customers.spec.ts` "sizes a lead…": the cause is the scroll position. The page is left scrolled to the Work out size button by however far the run scrolled it, and a full-page picture draws the fixed top bar there (the committed phone baseline shows the top bar mid-page); the journey now scrolls to the top and waits for `scrollY` 0 before the picture (the lesson of slice-integration §10 for `reload`).
+4. Triage redelivery. `runTriage` takes `TriageDeps` (`AgentStepDeps` with `keyValue`); the worker passes the event context's shared store. Before the model is called, the answer kept under `triage:answer:{eventId}` is read; an answer from the model is kept for `TRIAGE_ANSWER_TTL_SECONDS` (3 h, under the shortest outbox redelivery window, 3¼ h with jitter). Only the model's text is kept, and it goes through the output filter again. A store that is away costs only a model call (logged at warn).
+5. The Vault page's time. `maskInTime` takes `deliveryMs` (`PAGE_DELIVERY_LIMIT_MS`, 50 s from the route's start): when the turn begins, the mask gets the lesser of `maskMs` and what is left. With under `MASK_MIN_LEFT_MS` (5 s) left, or when the cut-down time runs out, the masking step is closed and the delivery answers `integration_unavailable` (delivered again; the file is not refused); `too_slow` stays for a mask that runs out its own 45 s. The route's start: the event route reads `performance.now()` first and passes it through `deliverEvent` (`startedAt`) into `EventHandlerContext.startedAt` and the file check (`FileCheckDeps.startedAt`, with a `clock` for tests). The vault photo path has the same bound.
+6. Read again racing redelivery. `indexKnowledgeFile` claims the vault file in the shared store (`knowledge:reading:{id}`, `SET NX`, `KNOWLEDGE_READ_CLAIM_SECONDS` 330: longer than the 300 s route, shorter than the 360 s after which Read again is offered) and gives it back when the reading ends, however it ends. A second reading finds it taken and stops with `taken` (nothing read, spent or recorded); the index route answers it `duplicate`. The route and the in-process worker both pass the store (`indexDeps(principal, requestId, keyValue)`).
+7. `apps/web/src/observability/client-left.ts` (new): `clientLeft(error)` is true only for React's "The destination stream closed early." and Next's `ResponseAborted`, along a short chain of causes. `onRequestError` logs those as `request.client_left` at info level and sends nothing to Sentry; every other error stays `request.failed` at error level.
+8. Admin › Agents: the overlap comes from the screenshots' fixed table layout (`e2e/support/snap.css` lays out a table holding a masked value from its heads), which gave every column the same width while the Autonomy and limit controls are 14rem wide. The two control columns now carry `w-64` on their head and cells, so the fixed layout keeps them; the browser's own layout is unchanged.
+
+**Baselines for the lead to remake in the Linux image** (none remade on the host): `desktop-light/agents.spec.ts/admin-agents.png` and `desktop-dark/agents.spec.ts/admin-agents.png` (item 8; the phone shows cards, unchanged), and `phone/customers.spec.ts/customer-sizing.png` (item 3: its committed picture has the top bar drawn mid-page; the desktop ones were taken at the top and should not change).
+
+**CI step**: not changed. All three places that start the journeys' server run `e2e:seed` first (`e2e`, `e2e:snap`, CI's "Migrate and seed"), so the delivery sits at the seed's end with `AI_TRANSPORT=fake` set in the seed's process, and no `checks-ok` is needed. This departs from the brief's wording (the three server starts); the effect is the same in all three.
+
+**Tests added** (19): domain `publisher.test.ts` +1 (untried events released, no further claim); web `outbox.test.ts` +4 (deadline inside a call, first event always delivered, no deadline, untried left unanswered through `publishOutbox`); `triage.test.ts` +2 (a redelivery after a partial run finds the kept answer and calls nothing; one that finds none calls again; the answer's time to live); `timed-mask.test.ts` +3 with a fake clock (a turn at 30 s gets 20 s, then hands back; under 5 s left hands back at once; a mask out of its own 45 s is still `too_slow`); `mask-pdf-pages.test.ts` +1 (a page with 3 s of the delivery left is handed back, nothing kept); `knowledge.test.ts` +2 (two readers: the second finds the file taken, one model call, the claim given back; a failed reading gives the claim back and a dead one's lapses); `client-left.test.ts` +5; `instrumentation.test.ts` +1. The rescoring case was checked by hand with `RESCORE_BATCH = 1` (one lead a batch): the old assertions fail and the new ones pass (the constant restored).
+
+**Checks**
+- Each changed unit file three times in a row: `outbox.test.ts` 12 passed ×3, `publisher.test.ts` 27 ×3, `timed-mask` with `mask-pdf-pages` 20 passed, 1 skipped ×3, `instrumentation` with `client-left` 8 ×3; on Postgres `crm-scoring-referrals` 26 ×3, `triage` 12 ×3, `knowledge` 25 ×3, web `triage` 3.
+- Unit suites: domain 2,242 passed (81 files); web 875 passed, 1 skipped (120 files).
+- `pnpm test:security` on 54332: db 1,263, domain 1,025, web 327, all passed.
+- Journeys `agents.spec.ts` and `customers.spec.ts`, after `pnpm --filter web build`, with `e2e:seed` before each run: 69 passed, 2 skipped (5.4 min), then 69 passed, 2 skipped (5.7 min), none flaky. A run without seeding first fails the inbox cases, whose suggestions the run before used up; the `e2e` script always seeds. Pictures are compared only on Linux, so these runs compare none.
+- Typecheck of `web` and `@shakti/domain`, eslint of each folder, Prettier; the whole-repository `pnpm lint` passed.
+
+**Timing of the first journey command after `e2e:seed`**
+- Before (main's code): the seed left 63 events waiting on a fresh database and 85 after a second seed; a nudge in a process of its own took 5.9 s and 2.8 s to deliver them. Batch 1's review measured 200 to 245 waiting and 30 to 44 s on the first request of a journey run.
+- After: the seed delivers 127 (fresh database), 211 and 253 (after journey runs) events in 2 runs, about 4 s, leaving 0 waiting; a nudge then takes 44 ms. In the journey runs the first command (`agents.inbox.edit`) answered in 1.0 s and 1.4 s, and the first publisher run claimed 1 event.
+
+**`EXPLAIN`**: none; no list or search query was added or changed.
+
+**Decisions the brief did not settle**
+- Item 1: the delivery is in the seed, not after each of the three server starts (above). `PublishResult` gains a `notTried` case rather than reading a missing answer as untried, so a queue's missing answer still fails as `no_answer`.
+- Item 4: the answer is kept 3 h, only its text, in the store the event ids use. It holds the model's verdicts on a lead (the model is never sent a name, number or address), so it is short-lived lead data in Redis.
+- Item 5: 50 s for a delivery's masking and 5 s as the least worth starting; a mask cut short by the delivery is handed back, never refused.
+- Item 6: a store claim (no migration) rather than the event id recorded on the file; the second reading stops for good (`duplicate`), since the first is retried by its own queue if it fails.
+- Item 7: Node's `ECONNRESET` and "Premature close" stay errors; only the two errors that can only mean the browser left are lowered. Next may still print its own console line for the aborted render, which is outside the app's logger.
+
+**Unfinished or uncertain**: the three baselines above wait for the lead's Linux run. Item 3's flake could not be reproduced on the host (pictures are compared only on Linux), so its fix rests on the committed picture showing the top bar mid-page.
 
 ## Review
 | # | Severity | Finding | State |
