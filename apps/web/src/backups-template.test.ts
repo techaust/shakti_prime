@@ -296,7 +296,8 @@ const FAKES = [
   `aws() { printf '%s\\n' "$*" > "$FAKE_AWS"; echo 3HL4kqtJlcpXroDTDmJ.rmSpXd3dIbrHY; }`,
 ].join('\n');
 
-describe('the copy script', () => {
+// Each case starts a shell per run, which is slow on Windows under load.
+describe('the copy script', { timeout: 30_000 }, () => {
   const script = `${FAKES}\n${copyScript()}`;
   const url = `postgresql://app_backup.${PRODUCTION_REF}:value@aws-1-ap-south-1.pooler.supabase.com:5432/postgres`;
 

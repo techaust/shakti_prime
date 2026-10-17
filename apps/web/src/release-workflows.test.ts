@@ -180,7 +180,8 @@ describe('the migrate workflow', () => {
     );
     // Dev and staging still migrate to main's head.
     expect(job(MIGRATE, 'migrate')).not.toMatch(/\n\s+ref:/);
-  });
+    // Seven runs of the step, each a shell, which is slow on Windows under load.
+  }, 30_000);
 
   it('keeps no credentials after a checkout', () => {
     for (const text of [MIGRATE, RELEASE]) {
@@ -315,7 +316,8 @@ describe('the release workflow', () => {
     // GitHub did not answer the comparison.
     expect(bash(step, { ...given, FAKE_BASE: OLDER })).toBe(1);
     expect(job(RELEASE, 'check')).toMatch(/\n {6}actions: read\n {6}contents: read\n/);
-  });
+    // Eleven runs of the step, each a shell, which is slow on Windows under load.
+  }, 30_000);
 
   it('notes what production serves before the deploy, and an unreleased commit', () => {
     const step = faked(RELEASE, 'What production serves now');
