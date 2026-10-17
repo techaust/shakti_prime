@@ -22,6 +22,7 @@ interface Resource {
   Properties: Record<string, unknown>;
 }
 interface Template {
+  Conditions: Record<string, unknown>;
   Parameters: Record<string, { AllowedValues?: string[]; Default?: string }>;
   Resources: Record<string, Resource>;
   Outputs: Record<string, { Value: unknown }>;
@@ -51,8 +52,12 @@ const OBJECTS = { 'Fn::Sub': '${FilesBucket.Arn}/*' };
 const BUCKET = { 'Fn::GetAtt': ['FilesBucket', 'Arn'] };
 
 describe('the file storage template', () => {
-  it('makes one stack per environment, dev or staging', () => {
-    expect(template.Parameters.EnvironmentName?.AllowedValues).toEqual(['dev', 'staging']);
+  it('makes one stack per environment: dev, staging or production', () => {
+    expect(template.Parameters.EnvironmentName?.AllowedValues).toEqual([
+      'dev',
+      'staging',
+      'production',
+    ]);
     expect(bucket.BucketName).toEqual({ 'Fn::Sub': 'shakti-prime-${EnvironmentName}-files' });
     expect(template.Resources.FilesBucket?.DeletionPolicy).toBe('Retain');
   });
@@ -96,9 +101,19 @@ describe('the file storage template', () => {
   it('lets the environment’s own site upload and download with exactly the headers the store signs', () => {
     const [rule] = (bucket.CorsConfiguration as { CorsRules: Record<string, unknown>[] }).CorsRules;
     expect(rule?.AllowedMethods).toEqual(['PUT', 'GET']);
+    // Production lives on the group's domain (DECISIONS, 15-10-2026), dev and staging on Vercel's.
     expect(rule?.AllowedOrigins).toEqual([
-      { 'Fn::Sub': 'https://shakti-prime-${EnvironmentName}.vercel.app' },
+      {
+        'Fn::If': [
+          'IsProduction',
+          'https://shaktiprime.com',
+          { 'Fn::Sub': 'https://shakti-prime-${EnvironmentName}.vercel.app' },
+        ],
+      },
     ]);
+    expect(template.Conditions.IsProduction).toEqual({
+      'Fn::Equals': [{ Ref: 'EnvironmentName' }, 'production'],
+    });
     expect([...((rule?.AllowedHeaders as string[] | undefined) ?? [])].sort()).toEqual(
       ['content-type', ...BOUND_AMZ_HEADERS].sort(),
     );

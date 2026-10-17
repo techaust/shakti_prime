@@ -4,6 +4,7 @@
   "Metadata": {
     "Notes": [
       "Region: ap-south-1 (Mumbai), beside the database.",
+      "The browser uploads from the environment's address: https://shakti-prime-<environment>.vercel.app for dev and staging, https://shaktiprime.com for production (DECISIONS, 15-10-2026).",
       "The app user's access key is made by hand after the stack is created and goes into the environment's Vercel project; it is never an output.",
       "SesIdentity and SesFromAddress stay empty until the client's domain is verified in SES; the mail statement is left out until then."
     ]
@@ -13,7 +14,8 @@
       "Type": "String",
       "AllowedValues": [
         "dev",
-        "staging"
+        "staging",
+        "production"
       ],
       "Description": "The hosted environment this stack serves."
     },
@@ -34,6 +36,14 @@
     }
   },
   "Conditions": {
+    "IsProduction": {
+      "Fn::Equals": [
+        {
+          "Ref": "EnvironmentName"
+        },
+        "production"
+      ]
+    },
     "HasSes": {
       "Fn::And": [
         {
@@ -151,7 +161,13 @@
               ],
               "AllowedOrigins": [
                 {
-                  "Fn::Sub": "https://shakti-prime-${EnvironmentName}.vercel.app"
+                  "Fn::If": [
+                    "IsProduction",
+                    "https://shaktiprime.com",
+                    {
+                      "Fn::Sub": "https://shakti-prime-${EnvironmentName}.vercel.app"
+                    }
+                  ]
                 }
               ],
               "AllowedHeaders": [

@@ -1,4 +1,9 @@
-import { newId, SYSTEM_WORKERS_PRINCIPAL_ID, type Principal } from '@shakti/contracts';
+import {
+  newId,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type Principal,
+  type RetireRenderedFilesDto,
+} from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -10,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { runCommand } from '../../src/command/run-command';
 import { recordRenderedFile } from '../../src/commands/files/record-rendered';
+import { retireRenderedFiles } from '../../src/commands/files/retire-rendered';
 import { requestPrintProof } from '../../src/commands/print/request-proof';
 import { uploadKey } from '../../src/files/limits';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
@@ -199,5 +205,99 @@ describe('files.document.record (ADR 0009)', () => {
         key: uploadKey(1, 'quote_pdf', fileId, 'application/pdf'),
       }),
     ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'file_upload_mismatch' } });
+  });
+});
+
+describe('files.document.retire (P4 review L10)', () => {
+  const retire = (keepFileId: string, entityId = 1) => ({
+    entityId,
+    purpose: 'print_proof',
+    keepFileId,
+  });
+
+  it('is refused to anyone without files.process: a person, an Executive, an agent', async () => {
+    const kept = newId();
+    await run(worker, recordRenderedFile, rendered(kept));
+    for (const principal of [
+      executive,
+      principalFor('general_manager', [1]),
+      principalFor('agent:triage', [1]),
+    ]) {
+      await expect(run(principal, retireRenderedFiles, retire(kept))).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+    }
+  });
+
+  it('refuses a company outside the request, and a kept file that is not a ready proof', async () => {
+    const kept = newId();
+    await run(worker, recordRenderedFile, rendered(kept));
+    await expect(run(worker, retireRenderedFiles, retire(kept, 2))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(worker, retireRenderedFiles, retire(newId()))).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    const quote = newId();
+    await run(worker, recordRenderedFile, {
+      ...rendered(quote),
+      purpose: 'quote_pdf',
+      key: uploadKey(1, 'quote_pdf', quote, 'application/pdf'),
+    });
+    await expect(run(worker, retireRenderedFiles, retire(quote))).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    await expect(
+      run(worker, retireRenderedFiles, { ...retire(kept), purpose: 'quote_pdf' }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
+  });
+
+  it('retires the company’s earlier proof pages only, once, and names their keys', async () => {
+    const [first, second, third] = [newId(), newId(), newId()];
+    const quote = newId();
+    for (const id of [first, second, third]) await run(worker, recordRenderedFile, rendered(id));
+    await run(worker, recordRenderedFile, {
+      ...rendered(quote),
+      purpose: 'quote_pdf',
+      key: uploadKey(1, 'quote_pdf', quote, 'application/pdf'),
+    });
+    const key = (id: string) => uploadKey(1, 'print_proof', id, 'application/pdf');
+
+    // A late delivery of the second page retires the first and leaves the newer third alone.
+    const late = (await run(worker, retireRenderedFiles, retire(second))) as RetireRenderedFilesDto;
+    expect(late.keys).toContain(key(first));
+    expect(late.keys).not.toContain(key(second));
+    expect(late.keys).not.toContain(key(third));
+
+    const latest = await run(worker, retireRenderedFiles, retire(third));
+    expect(latest).toEqual({ retired: 1, keys: [key(second)] });
+    expect(await run(worker, retireRenderedFiles, retire(third))).toEqual({ retired: 0, keys: [] });
+
+    const rows = await asMigrator(
+      (m) => m<{ id: string; status: string; scan: unknown }[]>`
+        select id, status, scan_result as scan from files
+         where id in ${m([first, second, third, quote])}`,
+    );
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    for (const id of [first, second]) {
+      expect(byId.get(id)).toMatchObject({
+        status: 'rejected',
+        scan: { rejectReason: 'file_replaced' },
+      });
+    }
+    expect(byId.get(third)?.status).toBe('ready');
+    expect(byId.get(quote)?.status).toBe('ready');
+
+    const audited = await asMigrator(
+      (m) => m<{ before: unknown; after: unknown }[]>`
+        select before_json as before, after_json as after from audit_logs
+         where command = 'files.document.retire' and aggregate_id = ${second}`,
+    );
+    expect(audited).toEqual([
+      {
+        before: { fileStatus: 'ready' },
+        after: { fileStatus: 'rejected', rejectReason: 'file_replaced' },
+      },
+    ]);
   });
 });

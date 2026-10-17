@@ -17,6 +17,7 @@ import {
   loadCompanyForPrint,
   loadQuoteForPrint,
   openBankDetails,
+  retireRenderedFiles,
   type CompanyForPrint,
   type FieldCipher,
   type FileStore,
@@ -53,6 +54,8 @@ export interface AttachContext {
   entityId: number;
   requestId: string;
   hosted: boolean;
+  /** The file store, for a step that deletes the files the new one replaces. */
+  store: FileStore;
 }
 
 export interface DocumentType<D> {
@@ -147,6 +150,19 @@ const letterheadProof: DocumentType<LetterheadProofPrint> = {
   fileName: (data) => printCopy()('proof.fileName', { name: data.company.brandName }),
   load: async (_target, ctx) => ({ company: await loadCompanyPrint(ctx), printedOn: ctx.today }),
   render: (data) => renderLetterheadProof(data),
+  // Each proof page prints the bank account in full, so the company's earlier pages are retired
+  // and their bytes deleted once this one is recorded (P4 review L10); a replaced account is then
+  // readable nowhere. A delivery that runs again finds nothing left to retire.
+  attach: async (_target, fileId, ctx) => {
+    const { keys } = await executeCommand(
+      ctx.principal,
+      { entityIds: [ctx.entityId], requestId: ctx.requestId },
+      retireRenderedFiles,
+      { entityId: ctx.entityId, purpose: 'print_proof', keepFileId: fileId },
+      { hosted: ctx.hosted },
+    );
+    for (const key of keys) await ctx.store.delete(key);
+  },
 };
 
 /** A quote's site as the customer block prints it: the street, the village and the district. */

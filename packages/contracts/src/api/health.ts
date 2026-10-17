@@ -1,10 +1,22 @@
 import { z } from 'zod';
 
-/** `GET /api/v1/health`: liveness only, no dependencies touched. */
-export const HealthResponse = z.object({
-  status: z.literal('ok'),
-  time: z.iso.datetime(),
-});
+/**
+ * `GET /api/v1/health`: liveness only, no dependencies touched. `commit` is the git commit the
+ * deployment was built from (Vercel's `VERCEL_GIT_COMMIT_SHA`), null outside Vercel: a release
+ * checks with it that staging serves the commit it is about to put on production, and that
+ * production serves it afterwards. The repository is public, so the commit tells no one more than
+ * the code does.
+ */
+export const HealthResponse = z
+  .object({
+    status: z.literal('ok'),
+    time: z.iso.datetime(),
+    commit: z
+      .string()
+      .regex(/^[0-9a-f]{40}$/)
+      .nullable(),
+  })
+  .strict();
 export type HealthResponse = z.infer<typeof HealthResponse>;
 
 const Check = z.enum(['ok', 'down']);

@@ -30,6 +30,8 @@ export const FileRejectReasonSchema = z.enum([
   'file_masking_unavailable',
   // The upload began but never completed; the sweep refused it.
   'file_upload_abandoned',
+  // A newer file of the same kind replaced it (a company's proof page, once a new one is printed).
+  'file_replaced',
 ]);
 export type FileRejectReason = z.infer<typeof FileRejectReasonSchema>;
 

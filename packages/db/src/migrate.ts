@@ -37,6 +37,13 @@ type LoginRole = (typeof LOGIN_ROLES)[number];
  * every run. `app_reader` is created whether or not its password is set, so the migrations can
  * grant to it; without `APP_READER_PASSWORD` it has no password and no one can sign in as it, and
  * `executeQuery()` keeps to `app_user`.
+ *
+ * `app_backup` is the 6-hourly backup's login (docs/05-database.md §3, §10): it reads every row of
+ * every table, past the policies, so `pg_dump` copies the whole database, with `select` only and
+ * at most two sessions. It runs no request, so none of the request roles' time limits apply to it
+ * (`pg_dump` sets its own). It is created with no password, and the migrator never gives it one:
+ * the owner's script (`backup-login.ts`) sets it on production alone, as a SCRAM verifier, and puts
+ * the address in AWS Secrets Manager, so neither GitHub nor the server's log ever holds it.
  */
 async function ensureRoles(
   sql: postgres.Sql,
@@ -50,7 +57,8 @@ async function ensureRoles(
 ): Promise<void> {
   const before = await sql<{ rolname: string }[]>`
     select rolname from pg_roles
-     where rolname in ('app_user', 'auth_service', 'outbox_publisher', 'app_reader', 'readonly_reporter')`;
+     where rolname in ('app_user', 'auth_service', 'outbox_publisher', 'app_reader', 'app_backup',
+                       'readonly_reporter')`;
   const existing = new Set(before.map((r) => r.rolname));
   await sql.unsafe(`
     do $$
@@ -66,6 +74,9 @@ async function ensureRoles(
       end if;
       if not exists (select 1 from pg_roles where rolname = 'app_reader') then
         create role app_reader login nosuperuser nocreatedb nocreaterole nobypassrls;
+      end if;
+      if not exists (select 1 from pg_roles where rolname = 'app_backup') then
+        create role app_backup login nosuperuser nocreatedb nocreaterole bypassrls;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'readonly_reporter') then
         create role readonly_reporter nologin nosuperuser nocreatedb nocreaterole nobypassrls;
@@ -90,6 +101,69 @@ async function ensureRoles(
   }
   // The reader's every transaction is read-only, whatever a caller asks for.
   await sql.unsafe(`alter role app_reader set default_transaction_read_only = on`);
+  // The backup reads past the policies (as created above; Supabase refuses a statement that names
+  // the superuser attribute, so `backupRoleProblems()` reads the attributes back instead). Its
+  // sessions start read-only, a default a session may change; its grants are select only. Two
+  // sessions at most (a copy and a spare), a limit the login itself cannot raise.
+  await sql.unsafe(`alter role app_backup set default_transaction_read_only = on`);
+  await sql.unsafe(`alter role app_backup connection limit ${String(BACKUP_CONNECTION_LIMIT)}`);
+}
+
+/** How many sessions `app_backup` may hold at once. */
+export const BACKUP_CONNECTION_LIMIT = 2;
+
+/**
+ * What is wrong with `app_backup`, read back from the catalogue (empty when it is as
+ * `ensureRoles()` makes it). A role made earlier by hand keeps its attributes, and a role granted
+ * `app_backup` would read past every policy through it, so the migrator stops on either. Only the
+ * migrator's own grant, which `create role` gives it with neither SET nor INHERIT, may name the
+ * role. A read needs no ALTER, so Supabase's `supautils` has nothing to refuse.
+ */
+export async function backupRoleProblems(sql: postgres.ISql): Promise<string[]> {
+  const [role] = await sql<
+    {
+      login: boolean;
+      bypass: boolean;
+      superuser: boolean;
+      createrole: boolean;
+      createdb: boolean;
+      replication: boolean;
+      limit: number;
+    }[]
+  >`
+    select rolcanlogin as login, rolbypassrls as bypass, rolsuper as superuser,
+           rolcreaterole as createrole, rolcreatedb as createdb, rolreplication as replication,
+           rolconnlimit as limit
+      from pg_roles where rolname = 'app_backup'`;
+  if (role === undefined) return ['app_backup does not exist'];
+  const problems: string[] = [];
+  if (!role.login) problems.push('app_backup cannot log in');
+  if (!role.bypass) problems.push('app_backup lacks bypassrls, so a copy would miss rows');
+  for (const attribute of ['superuser', 'createrole', 'createdb', 'replication'] as const) {
+    if (role[attribute]) problems.push(`app_backup has ${attribute}`);
+  }
+  if (role.limit !== BACKUP_CONNECTION_LIMIT) {
+    problems.push(
+      `app_backup's connection limit is ${String(role.limit)}, not ${String(BACKUP_CONNECTION_LIMIT)}`,
+    );
+  }
+  const members = await sql<{ member: string; own: boolean; usable: boolean }[]>`
+    select m.member::regrole::text as member, m.member = r.oid as own,
+           m.inherit_option or m.set_option as usable
+      from pg_auth_members m, (select oid from pg_roles where rolname = current_user) r
+     where m.roleid = 'app_backup'::regrole`;
+  for (const m of members) {
+    if (!m.own || m.usable) problems.push(`${m.member} is a member of app_backup`);
+  }
+  const [memberOf] = await sql<{ count: number }[]>`
+    select count(*)::int as count from pg_auth_members where member = 'app_backup'::regrole`;
+  if ((memberOf?.count ?? 0) > 0) problems.push('app_backup is a member of another role');
+  return problems;
+}
+
+async function assertBackupRole(sql: postgres.Sql): Promise<void> {
+  const problems = await backupRoleProblems(sql);
+  if (problems.length > 0) throw new Error(`app_backup is not as made:\n${problems.join('\n')}`);
 }
 
 /**
@@ -135,6 +209,7 @@ export async function runMigrations(
     await assertOwnerBypassesRls(sql);
     if (options.verifyOnly === true) {
       await assertAllApplied(sql);
+      await assertBackupRole(sql);
       return;
     }
     await sql`select pg_advisory_lock(hashtext('shakti.migrate'))`;
@@ -150,6 +225,7 @@ export async function runMigrations(
         },
         options.rotatePasswords ?? false,
       );
+      await assertBackupRole(sql);
       await migrate(drizzle(sql), { migrationsFolder });
       await assertAllApplied(sql);
     } finally {

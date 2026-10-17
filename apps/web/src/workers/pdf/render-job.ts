@@ -35,18 +35,26 @@ export interface RenderOutcome {
   bytes: number;
 }
 
-/** A file already recorded for the job: a delivery that ran again answers it unchanged. */
+/**
+ * A file already recorded for the job: a delivery that ran again answers it unchanged. A proof
+ * page a newer one retired (`file_replaced`) is done for good: printing it again would put its
+ * bank account back in the store under a record that can never be served.
+ */
 async function recorded(
   deps: RenderDeps,
   scope: { entityIds: number[]; requestId: string },
   fileId: string,
-): Promise<RenderOutcome | undefined> {
+): Promise<{ outcome: RenderOutcome; retired: boolean } | undefined> {
   const file = await executeQuery(deps.principal, scope, (ctx) => getStoredFile(ctx, fileId), {
     name: 'print.render.recorded',
   });
+  if (file?.status === 'rejected' && file.rejectReason === 'file_replaced') {
+    return { outcome: { fileId, pages: 1, bytes: file.size }, retired: true };
+  }
   if (file?.status !== 'ready') return undefined;
   const bytes = await deps.store.get(file.key);
-  return { fileId, pages: bytes === undefined ? 1 : pageCount(bytes), bytes: file.size };
+  const pages = bytes === undefined ? 1 : pageCount(bytes);
+  return { outcome: { fileId, pages, bytes: file.size }, retired: false };
 }
 
 /**
@@ -88,12 +96,17 @@ export async function renderPdfJob(job: PdfRenderJob, deps: RenderDeps): Promise
     entityId: job.entityId,
     requestId: deps.requestId,
     hosted: deps.hosted,
+    store: deps.store,
   };
   const done = await recorded(deps, scope, fileId);
+  if (done?.retired === true) {
+    log.log('info', 'print.retired', { requestId: deps.requestId, eventId: job.eventId, fileId });
+    return done.outcome;
+  }
   if (done !== undefined) {
     // A delivery that ran again: the file stands; attaching it again changes nothing.
     await registered.attach?.(target, fileId, attachTo);
-    return done;
+    return done.outcome;
   }
 
   const now = (deps.now ?? (() => new Date()))();
