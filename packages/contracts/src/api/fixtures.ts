@@ -882,7 +882,11 @@ export const API_FIXTURES: Record<
     response: { eventId: IDS.event, requeued: true, attempts: 0 },
   },
   health: {
-    response: { status: 'ok', time: '2026-09-27T05:06:40.000Z' },
+    response: {
+      status: 'ok',
+      time: '2026-09-27T05:06:40.000Z',
+      commit: '485a43eb0c1f6d2e9b7a3c5d8e1f2a4b6c9d0e7f',
+    },
   },
   'health.ready': {
     response: { status: 'ok', time: '2026-09-27T05:06:40.000Z' },

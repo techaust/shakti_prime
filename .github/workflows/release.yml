@@ -1,0 +1,196 @@
+name: Release to production
+
+# Production deploys only through this workflow, which the owner starts and approves (the owner's
+# decision of 15-10-2026; docs/runbooks/deploy.md §2; docs/14-reviews/2026-09-audit.md M45). Vercel
+# builds every push to main for dev and staging, and skips it on production
+# (apps/web/scripts/vercel-ignore.ts).
+#
+# A release takes main's latest commit. Before asking for approval it checks that CI passed on that
+# commit and that staging serves it and is ready. The job that changes production runs in the GitHub
+# environment `production`, so it waits for the owner's approval, runs from main only and alone
+# reads the environment's secrets. It migrates production (with `db:verify` and, ticked, the seed)
+# through the same action as the migrate workflow, tags the commit `release-<run number>` (the mark
+# Vercel's build step looks for), starts the production project's deploy hook, and waits until
+# production serves the commit and answers ready.
+#
+# A copy that shows the approval and the ref check against staging (G1's proof, run file
+# docs/runs/phase1/g1-production.md) changes the environment's name and the `env` block below.
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Seed the reference data after migrating (safe to re-run; keeps Admin edits)
+        type: boolean
+        default: true
+
+run-name: Release ${{ github.sha }} to production
+
+permissions: {}
+
+env:
+  # The production Supabase project the migrator address must name, and the two sites.
+  PROJECT_REF: ifnoytyhnedgiyhxxhhu
+  SITE: https://shaktiprime.com
+  STAGING_SITE: https://shakti-prime-staging.vercel.app
+  SHA: ${{ github.sha }}
+
+jobs:
+  check:
+    name: Ready to release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Only from main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != 'refs/heads/main' ]; then
+            echo 'Start a release from main: production runs reviewed code only.'
+            exit 1
+          fi
+      # The merge workflow starts CI on main after each merge (workflow_dispatch), so the newest
+      # run of CI for this commit on main decides.
+      - name: CI passed on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          latest=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&branch=main&per_page=50" \
+            --jq '[.workflow_runs[] | {status, conclusion, created_at}] | sort_by(.created_at) | last // empty')
+          if [ -z "$latest" ]; then
+            echo "CI has not run on $SHA. Start CI on main, then start the release again."
+            exit 1
+          fi
+          status=$(jq -r .status <<< "$latest")
+          conclusion=$(jq -r .conclusion <<< "$latest")
+          if [ "$status" != 'completed' ]; then
+            echo "CI is still running on $SHA. Start the release again when it has passed."
+            exit 1
+          fi
+          if [ "$conclusion" != 'success' ]; then
+            echo "CI did not pass on $SHA (${conclusion}). Only a commit CI passed is released."
+            exit 1
+          fi
+          echo "CI passed on $SHA."
+      - name: Staging serves this commit and is ready
+        run: |
+          served=$(curl -fsS --max-time 20 "$STAGING_SITE/api/v1/health" | jq -r '.commit // empty' || true)
+          if [ "$served" != "$SHA" ]; then
+            echo "Staging serves ${served:-a deployment that names no commit}, not $SHA. Wait for staging's deployment of this commit and migrate staging (docs/runbooks/deploy.md §2), then start the release again."
+            exit 1
+          fi
+          if ! curl -fsS --max-time 30 -o /dev/null "$STAGING_SITE/api/v1/health/ready"; then
+            echo "Staging serves $SHA but is not ready (INCIDENTS §1). Release once staging is ready."
+            exit 1
+          fi
+          echo "Staging serves $SHA and is ready."
+
+  release:
+    name: Migrate and deploy production
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # The owner approves here; the environment admits main only and holds production's secrets.
+    environment:
+      name: production
+      url: https://shaktiprime.com
+    # One production change at a time: the migrate workflow's production job uses the same group.
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    # The release tag alone needs write access; the checkout keeps no credentials, so nothing
+    # `pnpm install` runs can use the token.
+    permissions:
+      contents: write
+    steps:
+      # The deploy hook builds main as it is when Vercel reads it, so main must still be this
+      # commit: before production is migrated, and again before the hook.
+      - name: Main is still this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          head=$(gh api "repos/$REPO/git/ref/heads/main" --jq .object.sha)
+          if [ "$head" != "$SHA" ]; then
+            echo "Main moved to $head since this release started. Start a new release, which takes main's latest commit."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/migrate-database
+        with:
+          environment: production
+          project-ref: ${{ env.PROJECT_REF }}
+          database-url-migrator: ${{ secrets.DATABASE_URL_MIGRATOR }}
+          app-user-password: ${{ secrets.APP_USER_PASSWORD }}
+          auth-service-password: ${{ secrets.AUTH_SERVICE_PASSWORD }}
+          outbox-publisher-password: ${{ secrets.OUTBOX_PUBLISHER_PASSWORD }}
+          database-ca-cert: ${{ secrets.DATABASE_CA_CERT }}
+          app-reader-password: ${{ secrets.APP_READER_PASSWORD }}
+          seed: ${{ inputs.seed }}
+      - name: Main is still this commit, before the deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          head=$(gh api "repos/$REPO/git/ref/heads/main" --jq .object.sha)
+          if [ "$head" != "$SHA" ]; then
+            echo "Main moved to $head while production was migrated; production's database is at $SHA and its site unchanged. Start a new release."
+            exit 1
+          fi
+      # A re-run of this job finds its own tag and goes on.
+      - name: Mark the commit as released
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: release-${{ github.run_number }}
+        run: |
+          tagged=$(gh api "repos/$REPO/git/matching-refs/tags/$TAG" \
+            --jq ".[] | select(.ref == \"refs/tags/$TAG\") | .object.sha")
+          if [ -z "$tagged" ]; then
+            gh api -X POST "repos/$REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA" > /dev/null
+            echo "Tagged $SHA as $TAG."
+          elif [ "$tagged" != "$SHA" ]; then
+            echo "The tag $TAG names $tagged, not $SHA."
+            exit 1
+          fi
+      - name: Deploy
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_PRODUCTION }}
+        run: |
+          case "$HOOK" in
+            https://api.vercel.com/v1/integrations/deploy/*) ;;
+            *)
+              echo 'The secret VERCEL_DEPLOY_HOOK_PRODUCTION is not set, or is not a Vercel deploy hook.'
+              exit 1
+              ;;
+          esac
+          curl -fsS --max-time 30 -X POST -o /dev/null "$HOOK"
+          echo 'Vercel is building production.'
+      - name: Production serves this commit
+        run: |
+          for attempt in $(seq 1 60); do
+            served=$(curl -fsS --max-time 20 "$SITE/api/v1/health" 2> /dev/null | jq -r '.commit // empty' 2> /dev/null || true)
+            if [ "$served" = "$SHA" ]; then
+              echo "Production serves $SHA."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Production does not serve $SHA after 20 minutes. The production project's deployments in Vercel show whether the build failed or was skipped."
+          exit 1
+      - name: Production is ready
+        run: |
+          for attempt in 1 2 3; do
+            if curl -fsS --max-time 30 -o /dev/null "$SITE/api/v1/health/ready"; then
+              echo 'Production is ready.'
+              exit 0
+            fi
+            sleep 30
+          done
+          echo 'Production serves the release but is not ready: INCIDENTS §1, or roll back in Vercel (INCIDENTS).'
+          exit 1

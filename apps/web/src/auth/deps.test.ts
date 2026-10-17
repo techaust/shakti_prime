@@ -122,6 +122,45 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
   });
 });
 
+describe('productionConfigProblems for production (G1)', () => {
+  /** Production as its Vercel project is set up: SES from the verified sender, and Sentry. */
+  const PRODUCTION: NodeJS.ProcessEnv = {
+    ...GOOD,
+    BOS_ENVIRONMENT: 'production',
+    BETTER_AUTH_URL: 'https://shaktiprime.com',
+    MAILER: 'ses',
+    SES_FROM: 'no-reply@shaktiprime.com',
+    SENTRY_DSN: DSN,
+  };
+
+  it('starts with every required value', () => {
+    expect(productionConfigProblems(PRODUCTION)).toEqual([]);
+  });
+
+  it.each([
+    'BOS_ENVIRONMENT',
+    'BETTER_AUTH_SECRET',
+    'BETTER_AUTH_URL',
+    'TURNSTILE_SITE_KEY',
+    'TURNSTILE_SECRET_KEY',
+    'UPSTASH_REDIS_REST_URL',
+    'UPSTASH_REDIS_REST_TOKEN',
+    'MAILER',
+    'DATABASE_URL_OUTBOX',
+    'QSTASH_TOKEN',
+    'QSTASH_CURRENT_SIGNING_KEY',
+    'QSTASH_NEXT_SIGNING_KEY',
+    'SES_FROM',
+    'SENTRY_DSN',
+  ])('refuses to start without %s, and names it', (name) => {
+    for (const value of [undefined, '']) {
+      const problems = productionConfigProblems({ ...PRODUCTION, [name]: value });
+      expect(problems).toHaveLength(1);
+      expect(problems[0]).toContain(name);
+    }
+  });
+});
+
 describe('hostedRuntime', () => {
   it('is false during the build and outside production', () => {
     expect(hostedRuntime({ NODE_ENV: 'production' })).toBe(true);

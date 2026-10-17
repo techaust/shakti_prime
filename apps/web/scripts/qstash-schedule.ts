@@ -1,24 +1,15 @@
-// Creates or updates the QStash schedules (docs/runbooks/deploy.md): the outbox publisher every
-// minute, the safety net behind the nudge each command sends, the sweep of abandoned uploads every
-// hour, the lead rescoring, the duplicate search and the anonymisation of old unqualified leads
-// each night, the quote expiry each day, the notification scan every five minutes and the check
-// of the database's scheduled jobs every hour.
-// Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT and
-// BETTER_AUTH_URL set.
+// Creates or updates the QStash schedules (docs/runbooks/deploy.md §2 step 6): the outbox
+// publisher every minute, the safety net behind the nudge each command sends, the sweep of
+// abandoned uploads every hour, the lead rescoring, the duplicate search and the anonymisation of
+// old unqualified leads each night, the quote expiry each day, the notification scan every five
+// minutes and the check of the database's scheduled jobs every hour. The ids, routes, crons and
+// retries are `qstashSchedules()` in src/workers/qstash-schedules.ts.
+// Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT
+// (dev, staging or production) and BETTER_AUTH_URL set.
 // Usage: pnpm --filter web qstash-schedule
 import { Client } from '@upstash/qstash';
-import {
-  DUPLICATE_SCAN_PATH,
-  FILES_SWEEP_PATH,
-  LEAD_ANONYMISE_PATH,
-  JOBS_CHECK_PATH,
-  LEAD_RESCORE_PATH,
-  NOTIFICATION_SCAN_PATH,
-  QUOTE_EXPIRE_PATH,
-  qstashConfig,
-  workerUrl,
-} from '../src/workers/qstash';
-import { JOB_SCHEDULES } from '../src/workers/schedules';
+import { qstashConfig } from '../src/workers/qstash';
+import { hostedEnvironment, qstashSchedules } from '../src/workers/qstash-schedules';
 
 const config = qstashConfig();
 if (config === undefined) {
@@ -31,19 +22,13 @@ if (!config.publishUrl.startsWith('https://')) {
   console.error(`QStash can only call a public https address, not ${config.publishUrl}`);
   process.exit(1);
 }
-// One QStash account serves dev and staging: a schedule named for its environment is never
-// overwritten by the other's.
-const environment = process.env.BOS_ENVIRONMENT ?? '';
-if (!/^[a-z]+$/.test(environment)) {
+// One QStash account serves every environment: a schedule named for its environment is never
+// overwritten by another's.
+const environment = hostedEnvironment(process.env.BOS_ENVIRONMENT);
+if (environment === undefined) {
   console.error('set BOS_ENVIRONMENT (dev, staging or production) first');
   process.exit(1);
 }
-
-/** Named for the environment, so running the script again updates each schedule in place. */
-const SCHEDULE_ID = `outbox-publish-${environment}`;
-const SWEEP_SCHEDULE_ID = `files-sweep-${environment}`;
-const RESCORE_SCHEDULE_ID = `lead-rescore-${environment}`;
-const RESCORE_CRON = JOB_SCHEDULES['lead-rescore'];
 
 const client = new Client({
   token: config.token,
@@ -51,128 +36,18 @@ const client = new Client({
   enableTelemetry: false,
   devMode: false,
 });
-await client.schedules.create({
-  scheduleId: SCHEDULE_ID,
-  destination: config.publishUrl,
-  cron: JOB_SCHEDULES['outbox-publish'],
-  body: '{}',
-  headers: { 'content-type': 'application/json' },
-  // A missed minute is covered by the next one; retries would only pile runs up.
-  retries: 0,
-  timeout: 30,
-});
-console.log(`schedule ${SCHEDULE_ID} calls ${config.publishUrl} every minute`);
-
-const sweepUrl = workerUrl(config, FILES_SWEEP_PATH);
-await client.schedules.create({
-  scheduleId: SWEEP_SCHEDULE_ID,
-  destination: sweepUrl,
-  cron: JOB_SCHEDULES['files-sweep'],
-  body: '{}',
-  headers: { 'content-type': 'application/json' },
-  // A missed run is covered by the next hour's.
-  retries: 0,
-  timeout: 60,
-});
-console.log(`schedule ${SWEEP_SCHEDULE_ID} calls ${sweepUrl} every hour`);
-
-// The nightly rescoring of open leads (CRM-06): a lead's age and the details it gained since its
-// last score. A run that runs out of time hands the rest on itself.
-const rescoreUrl = workerUrl(config, LEAD_RESCORE_PATH);
-await client.schedules.create({
-  scheduleId: RESCORE_SCHEDULE_ID,
-  destination: rescoreUrl,
-  cron: RESCORE_CRON,
-  body: '{}',
-  headers: { 'content-type': 'application/json' },
-  retries: 3,
-  timeout: 60,
-});
-console.log(`schedule ${RESCORE_SCHEDULE_ID} calls ${rescoreUrl} at ${RESCORE_CRON} (UTC)`);
-
-// The nightly search for duplicate customers and leads (CRM-03), half an hour after the
-// rescoring: two customers an import and a form made at the same moment, and an import's rows.
-const DUPLICATE_SCAN_SCHEDULE_ID = `duplicate-scan-${environment}`;
-const DUPLICATE_SCAN_CRON = JOB_SCHEDULES['duplicate-scan'];
-const scanUrl = workerUrl(config, DUPLICATE_SCAN_PATH);
-await client.schedules.create({
-  scheduleId: DUPLICATE_SCAN_SCHEDULE_ID,
-  destination: scanUrl,
-  cron: DUPLICATE_SCAN_CRON,
-  body: '{}',
-  headers: { 'content-type': 'application/json' },
-  retries: 3,
-  timeout: 60,
-});
-console.log(
-  `schedule ${DUPLICATE_SCAN_SCHEDULE_ID} calls ${scanUrl} at ${DUPLICATE_SCAN_CRON} (UTC)`,
-);
-
-// The daily expiry of quotes past their validity (docs/03-roadmap-appendix/phase1.md §7.3), five minutes after
-// midnight in India, when the day's last valid quotes have lapsed.
-const QUOTE_EXPIRE_SCHEDULE_ID = `quote-expire-${environment}`;
-const QUOTE_EXPIRE_CRON = JOB_SCHEDULES['quote-expire'];
-const expireUrl = workerUrl(config, QUOTE_EXPIRE_PATH);
-await client.schedules.create({
-  scheduleId: QUOTE_EXPIRE_SCHEDULE_ID,
-  destination: expireUrl,
-  cron: QUOTE_EXPIRE_CRON,
-  body: '{}',
-  headers: { 'content-type': 'application/json' },
-  retries: 3,
-  timeout: 60,
-});
-console.log(
-  `schedule ${QUOTE_EXPIRE_SCHEDULE_ID} calls ${expireUrl} at ${QUOTE_EXPIRE_CRON} (UTC)`,
-);
-
-// The anonymisation of unqualified leads idle for the retention period (BLUEPRINT §7.9), each
-// night at 04:00 in India, after the rescoring and the duplicate search.
-const LEAD_ANONYMISE_SCHEDULE_ID = `lead-anonymise-${environment}`;
-const LEAD_ANONYMISE_CRON = JOB_SCHEDULES['lead-anonymise'];
-const anonymiseUrl = workerUrl(config, LEAD_ANONYMISE_PATH);
-await client.schedules.create({
-  scheduleId: LEAD_ANONYMISE_SCHEDULE_ID,
-  destination: anonymiseUrl,
-  cron: LEAD_ANONYMISE_CRON,
-  body: '{}',
-  headers: { 'content-type': 'application/json' },
-  retries: 3,
-  timeout: 60,
-});
-console.log(
-  `schedule ${LEAD_ANONYMISE_SCHEDULE_ID} calls ${anonymiseUrl} at ${LEAD_ANONYMISE_CRON} (UTC)`,
-);
-
-// The notification scan (docs/03-roadmap-appendix/phase1.md §8.1) every five minutes: calls falling due,
-// quotes about to lapse and first calls running late. A missed run is covered by the next one.
-const NOTIFICATION_SCAN_SCHEDULE_ID = `notification-scan-${environment}`;
-const NOTIFICATION_SCAN_CRON = JOB_SCHEDULES['notification-scan'];
-const noticeScanUrl = workerUrl(config, NOTIFICATION_SCAN_PATH);
-await client.schedules.create({
-  scheduleId: NOTIFICATION_SCAN_SCHEDULE_ID,
-  destination: noticeScanUrl,
-  cron: NOTIFICATION_SCAN_CRON,
-  body: '{}',
-  headers: { 'content-type': 'application/json' },
-  retries: 0,
-  timeout: 60,
-});
-console.log(`schedule ${NOTIFICATION_SCAN_SCHEDULE_ID} calls ${noticeScanUrl} every five minutes`);
-
-// The check of the database's scheduled jobs (audit 2026-10, DATA-3) every hour, away from the
-// top of the hour and from the sweep: a job that failed, is late, paused or missing is told to
-// the owner. A missed run is covered by the next hour's.
-const JOBS_CHECK_SCHEDULE_ID = `jobs-check-${environment}`;
-const JOBS_CHECK_CRON = JOB_SCHEDULES['jobs-check'];
-const jobsCheckUrl = workerUrl(config, JOBS_CHECK_PATH);
-await client.schedules.create({
-  scheduleId: JOBS_CHECK_SCHEDULE_ID,
-  destination: jobsCheckUrl,
-  cron: JOBS_CHECK_CRON,
-  body: '{}',
-  headers: { 'content-type': 'application/json' },
-  retries: 0,
-  timeout: 30,
-});
-console.log(`schedule ${JOBS_CHECK_SCHEDULE_ID} calls ${jobsCheckUrl} every hour`);
+// Named for the environment, so running the script again updates each schedule in place.
+for (const schedule of qstashSchedules(environment, config.publishUrl)) {
+  await client.schedules.create({
+    scheduleId: schedule.scheduleId,
+    destination: schedule.destination,
+    cron: schedule.cron,
+    body: '{}',
+    headers: { 'content-type': 'application/json' },
+    retries: schedule.retries,
+    timeout: schedule.timeout,
+  });
+  console.log(
+    `schedule ${schedule.scheduleId} calls ${schedule.destination} at ${schedule.cron} (UTC)`,
+  );
+}
