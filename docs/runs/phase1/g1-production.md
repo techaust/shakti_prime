@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| Branch | `feat/g1-production`, from `main` once the owner's account items below are done |
+| Branch | `feat/g1-production` on GitHub, from `main` at 485a43eb (#184) |
 | PC worktree | `g1-production`, slot 1: Postgres 54331 (container `shakti-pg-g1-production`), app 3031 |
 | Runs on | PC (owner, 14-10-2026); the hosted steps from the lead session |
 | Tier | A (a miss reaches production): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
-| Usage | not started; 15-10-2026: 5h 4, week 80 (the week resets on 19-10-2026, and a new slice starts only under 70 %) |
-| State | brief; part 1 done on 15-10-2026, SES production access granted on 17-10-2026 |
-| Next step | the lead starts the builder on part 2 after the weekly reset (19-10-2026) |
+| Usage | build Opus high from week 83, 5h 11 (17-10-2026, started before the reset by the owner's rule of 17-10-2026) |
+| State | building; part 1 done on 15-10-2026, SES production access granted on 17-10-2026 |
+| Next step | the builder stops at the early check (items 1 to 3) for the lead |
 
 ## Brief
 Design: [`docs/03-roadmap-appendix/phase1.md`](../../03-roadmap-appendix/phase1.md) §10 (G1). Runbooks: [deploy](../../runbooks/deploy.md) §1 and §2, [files-setup](../../runbooks/files-setup.md) §1 to §4 and §7, [accounts](../../runbooks/accounts.md), [cutover](../../runbooks/cutover.md), [incidents](../../runbooks/incidents.md). Exit-gate actions 2, 3, 7, 8 and 9 ([exit-gate-actions](../../13-client-packs/exit-gate-actions.md)); the 2026-09 audit's M45; ADR 0003, 0015 and 0017.
@@ -57,7 +57,7 @@ Not in G1's build: creating any hosted resource or setting any secret (the owner
 
 **Early check:** when items 1 to 3 are committed with their tests, commit, report and stop; the lead reads the workflows before the documents.
 
-**Then the lead, with the owner:** the first production migration and seed through the release; the first Executive ([deploy §4](../../runbooks/deploy.md)); the production QStash schedules; the eight Sentry cron monitors seen; the health checks; the Realtime spike on the production domain (exit-gate action 5); STATUS's Hosted environments gains a Production column.
+**Then the lead, with the owner:** the first production migration and seed through the release; the first Executive ([deploy §4](../../runbooks/deploy.md)); the production QStash schedules; the Sentry cron monitor on `outbox-publish` and the uptime monitor on `/api/v1/health/ready` seen; the health checks; the Realtime spike on the production domain (exit-gate action 5); STATUS's Hosted environments gains a Production column.
 
 ## Report
 
