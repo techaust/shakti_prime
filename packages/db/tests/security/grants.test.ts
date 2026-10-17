@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
+  asMigrator,
   AUTH_TABLES,
   closeDb,
   CONFIG_TABLES,
@@ -10,6 +11,7 @@ import {
   RLS_TABLES,
   withoutContext,
 } from '../../src/testing/index';
+import { BACKUP_CONNECTION_LIMIT, backupRoleProblems } from '../../src/migrate';
 
 afterAll(closeDb);
 
@@ -486,5 +488,123 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
                           else false end) as sequences
     `);
     expect(row).toEqual({ owned: 0, sequences: 0 });
+  });
+});
+
+describe('app_backup role (docs/05-database.md §3, §10)', () => {
+  it('logs in and reads past the policies, starts read-only, holds two sessions and is nothing more', async () => {
+    const [row] = await withoutContext(sql`
+      select r.rolcanlogin as login, r.rolsuper as super, r.rolbypassrls as bypass,
+             r.rolcreaterole as createrole, r.rolcreatedb as createdb,
+             r.rolreplication as replication, r.rolconnlimit as limit,
+             (select array_agg(s order by s) from pg_db_role_setting d, unnest(d.setconfig) s
+               where d.setrole = r.oid and d.setdatabase = 0) as settings,
+             (select count(*)::int from pg_auth_members m where m.member = r.oid) as memberships
+        from pg_roles r where r.rolname = 'app_backup'
+    `);
+    expect(row).toEqual({
+      login: true,
+      super: false,
+      bypass: true,
+      createrole: false,
+      createdb: false,
+      replication: false,
+      limit: BACKUP_CONNECTION_LIMIT,
+      settings: ['default_transaction_read_only=on'],
+      memberships: 0,
+    });
+  });
+
+  it('selects every table and sequence of the BOS, partitions too, and writes none', async () => {
+    const rows = await withoutContext<{ name: string; read: boolean; write: boolean }>(sql`
+      select n.nspname || '.' || c.relname as name,
+             has_table_privilege('app_backup', c.oid, 'SELECT') as read,
+             case when c.relkind = 'S' then has_sequence_privilege('app_backup', c.oid, 'USAGE, UPDATE')
+                  else has_table_privilege('app_backup', c.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+                       or has_any_column_privilege('app_backup', c.oid, 'INSERT, UPDATE, REFERENCES') end
+               as write
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname in ('public', 'app', 'audit_archive', 'audit_partitions', 'crm_partitions', 'drizzle')
+         and c.relkind in ('r', 'p', 'S')
+         and not exists (select 1 from pg_depend d
+                          where d.objid = c.oid and d.deptype = 'e')
+       order by 1
+    `);
+    expect(rows.length).toBeGreaterThan(50);
+    expect(rows.filter((r) => !r.read).map((r) => r.name)).toEqual([]);
+    expect(rows.filter((r) => r.write).map((r) => r.name)).toEqual([]);
+    // The monthly partitions are among them, and the migrations' own record.
+    expect(rows.some((r) => r.name.startsWith('audit_partitions.'))).toBe(true);
+    expect(rows.map((r) => r.name)).toContain('drizzle.__drizzle_migrations');
+  });
+
+  it('reads a table made later by the migrator, through the default privileges', async () => {
+    // Made in a transaction that is rolled back, so nothing of the probe stays.
+    const rollBack = new Error('roll the probe back');
+    let read: boolean | undefined;
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`create table audit_partitions.backup_probe (id int)`;
+        const [row] = await tx<{ read: boolean }[]>`
+          select has_table_privilege('app_backup', 'audit_partitions.backup_probe', 'SELECT') as read`;
+        read = row?.read;
+        throw rollBack;
+      }),
+    ).catch((error: unknown) => {
+      if (error !== rollBack) throw error;
+    });
+    expect(read).toBe(true);
+  });
+
+  it('may call no security-definer function', async () => {
+    const rows = await withoutContext<{ fn: string }>(sql`
+      select p.oid::regprocedure::text as fn
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where p.prosecdef and n.nspname in ('app', 'public')
+         and has_function_privilege('app_backup', p.oid, 'EXECUTE')
+    `);
+    expect(rows).toEqual([]);
+  });
+
+  it('is read back as made, and the migrator stops on a role granted it or a changed attribute', async () => {
+    const rollBack = new Error('roll the probe back');
+    const seen: Record<string, string[]> = {};
+    await asMigrator(async (m) => {
+      seen.asMade = await backupRoleProblems(m);
+      await m
+        .begin(async (tx) => {
+          // Through such a grant the app would read past every policy.
+          await tx`grant app_backup to app_user`;
+          seen.granted = await backupRoleProblems(tx);
+          throw rollBack;
+        })
+        .catch((error: unknown) => {
+          if (error !== rollBack) throw error;
+        });
+      await m
+        .begin(async (tx) => {
+          await tx`alter role app_backup connection limit 5`;
+          seen.limit = await backupRoleProblems(tx);
+          throw rollBack;
+        })
+        .catch((error: unknown) => {
+          if (error !== rollBack) throw error;
+        });
+      await m
+        .begin(async (tx) => {
+          await tx`alter role app_backup nobypassrls`;
+          seen.bypass = await backupRoleProblems(tx);
+          throw rollBack;
+        })
+        .catch((error: unknown) => {
+          if (error !== rollBack) throw error;
+        });
+    });
+    expect(seen).toEqual({
+      asMade: [],
+      granted: ['app_user is a member of app_backup'],
+      limit: [`app_backup's connection limit is 5, not ${String(BACKUP_CONNECTION_LIMIT)}`],
+      bypass: ['app_backup lacks bypassrls, so a copy would miss rows'],
+    });
   });
 });

@@ -459,6 +459,7 @@ export {
   rejectFile,
 } from './commands/files/check-file';
 export { recordRenderedFile } from './commands/files/record-rendered';
+export { retireRenderedFiles } from './commands/files/retire-rendered';
 export {
   getFile,
   getStoredFile,

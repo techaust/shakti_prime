@@ -29,6 +29,8 @@ export interface StoredFile {
   maskedPagesSent?: number | undefined;
   /** When the bytes were deleted from the store (an import file its job no longer needs). */
   deletedAt: Date | null;
+  /** Why a `rejected` file was refused or retired (`file_replaced`); undefined otherwise. */
+  rejectReason?: string | undefined;
 }
 
 function toStoredFile(row: FileRow): StoredFile {
@@ -48,6 +50,7 @@ function toStoredFile(row: FileRow): StoredFile {
     sanitising: scanResultOf(row).sanitising,
     maskedPagesSent: scanResultOf(row).maskedPagesSent,
     deletedAt: row.deletedAt,
+    rejectReason: row.status === 'rejected' ? scanResultOf(row).rejectReason : undefined,
   };
 }
 

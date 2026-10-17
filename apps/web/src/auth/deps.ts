@@ -137,6 +137,13 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
   if (environment === 'production' && (env.SENTRY_DSN ?? '').trim() === '') {
     problems.push('SENTRY_DSN is required in production, or no failure or alert reaches the owner');
   }
+  // The hourly jobs check reads the age of production's newest database copy there; without it no
+  // one is told when the copies stop (docs/05-database.md §10).
+  if (environment === 'production' && (env.BACKUP_BUCKET ?? '').trim() === '') {
+    problems.push(
+      'BACKUP_BUCKET is required in production, or no one is told when the copies stop',
+    );
+  }
   // The development master key for field encryption never protects hosted data; KMS does.
   if ((env.FIELD_ENCRYPTION_KEY ?? '') !== '') {
     problems.push('FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key');

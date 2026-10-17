@@ -1,0 +1,277 @@
+name: Release to production
+
+# Production deploys only through this workflow, which the owner starts and approves (the owner's
+# decision of 15-10-2026; docs/runbooks/deploy.md §2; docs/14-reviews/2026-09-audit.md M45). Vercel
+# builds every push to main for dev and staging, and skips it on production
+# (apps/web/scripts/vercel-ignore.ts).
+#
+# A release takes main's latest commit. Before asking for approval it checks that CI passed on that
+# commit, that staging was migrated from it or from an earlier commit with the same migrations, and
+# that staging serves it and is ready. The job that changes production runs in the GitHub
+# environment `production`, which alone reads the environment's secrets. The environment's own
+# settings are the gate (docs/runbooks/deploy.md §1): its required reviewer is the owner's approval,
+# and its one deployment branch rule, `main`, is what keeps every other ref out, since a branch's
+# copy of this file could drop the checks written here; the "Only from main" step and the job's
+# `if:` only give a plain message first. The job migrates production (with `db:verify` and, ticked,
+# the seed) through the same action as the migrate workflow, tags the commit `release-<run number>`
+# (the mark Vercel's build step looks for), starts the production project's deploy hook, and waits
+# until production serves the commit and answers ready.
+#
+# A copy that shows the approval and the ref check against staging (G1's proof, run file
+# docs/runs/phase1/g1-production.md) changes the environment's name and the `env` block below.
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Seed the reference data after migrating (safe to re-run; keeps Admin edits)
+        type: boolean
+        default: true
+
+run-name: Release ${{ github.sha }} to production
+
+permissions: {}
+
+env:
+  # The production Supabase project the migrator address must name, and the two sites.
+  PROJECT_REF: ifnoytyhnedgiyhxxhhu
+  SITE: https://shaktiprime.com
+  STAGING_SITE: https://shakti-prime-staging.vercel.app
+  SHA: ${{ github.sha }}
+
+jobs:
+  check:
+    name: Ready to release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      # A plain message for a run started from another ref; the environment's branch rule is what
+      # refuses it.
+      - name: Only from main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != 'refs/heads/main' ]; then
+            echo 'Start a release from main: production runs reviewed code only.'
+            exit 1
+          fi
+      # The merge workflow starts CI on main after each merge (workflow_dispatch), so the newest
+      # run of CI for this commit on main decides.
+      - name: CI passed on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          latest=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&branch=main&per_page=50" \
+            --jq '[.workflow_runs[] | {status, conclusion, created_at}] | sort_by(.created_at) | last // empty')
+          if [ -z "$latest" ]; then
+            echo "CI has not run on $SHA. Start CI on main, then start the release again."
+            exit 1
+          fi
+          status=$(jq -r .status <<< "$latest")
+          conclusion=$(jq -r .conclusion <<< "$latest")
+          if [ "$status" != 'completed' ]; then
+            echo "CI is still running on $SHA. Start the release again when it has passed."
+            exit 1
+          fi
+          if [ "$conclusion" != 'success' ]; then
+            echo "CI did not pass on $SHA (${conclusion}). Only a commit CI passed is released."
+            exit 1
+          fi
+          echo "CI passed on $SHA."
+      # Staging deploys on every merge, and the lead migrates it afterwards (deploy §2 step 4), so a
+      # staging that serves this commit may not have run its migrations yet. The newest migration of
+      # staging from main that passed must have run from this commit, or from an earlier one with
+      # the same migrations: production then runs only what staging ran first.
+      - name: Staging is migrated to this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          runs=$(gh api "repos/$REPO/actions/workflows/migrate.yml/runs?branch=main&status=success&per_page=50" \
+            --jq '.workflow_runs[] | "\(.id) \(.head_sha)"')
+          staged=''
+          while read -r id commit; do
+            [ -n "$id" ] || continue
+            passed=$(gh api "repos/$REPO/actions/runs/$id/jobs" \
+              --jq '[.jobs[] | select(.name == "Migrate staging" and .conclusion == "success")] | length' < /dev/null)
+            if [ "$passed" != '0' ]; then
+              staged=$commit
+              break
+            fi
+          done <<< "$runs"
+          if [ -z "$staged" ]; then
+            echo "No migration of staging from main has passed. Migrate staging to this commit first (docs/runbooks/deploy.md §2), then start the release again."
+            exit 1
+          fi
+          # The comparison's status, the files GitHub lists (at most 300) and the migration files
+          # among them.
+          compared=$(gh api "repos/$REPO/compare/$staged...$SHA" \
+            --jq '"\(.status) \(.files | length) \([.files[] | select((.filename | startswith("packages/db/migrations/")) or ((.previous_filename // "") | startswith("packages/db/migrations/")))] | length)"')
+          read -r status listed changed <<< "$compared"
+          if [ "$status" != 'identical' ] && [ "$status" != 'ahead' ]; then
+            echo "Staging was last migrated from $staged, which is not an earlier commit of $SHA. Migrate staging to this commit first (docs/runbooks/deploy.md §2), then start the release again."
+            exit 1
+          fi
+          if [ "$changed" != '0' ] || [ "$listed" -ge 300 ]; then
+            echo "The migrations changed since staging was last migrated (from $staged). Migrate staging to this commit first (docs/runbooks/deploy.md §2), then start the release again."
+            exit 1
+          fi
+          echo "Staging was migrated from $staged, which has the migrations of $SHA."
+      - name: Staging serves this commit and is ready
+        run: |
+          served=$(curl -fsS --max-time 20 "$STAGING_SITE/api/v1/health" | jq -r '.commit // empty' || true)
+          if [ "$served" != "$SHA" ]; then
+            echo "Staging serves ${served:-a deployment that names no commit}, not $SHA. Wait for staging's deployment of this commit and migrate staging (docs/runbooks/deploy.md §2), then start the release again."
+            exit 1
+          fi
+          if ! curl -fsS --max-time 30 -o /dev/null "$STAGING_SITE/api/v1/health/ready"; then
+            echo "Staging serves $SHA but is not ready (INCIDENTS §1). Release once staging is ready."
+            exit 1
+          fi
+          echo "Staging serves $SHA and is ready."
+
+  release:
+    name: Migrate and deploy production
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # The owner approves here. The environment's required reviewer and its one branch rule, `main`,
+    # set on GitHub (docs/runbooks/deploy.md §1), are the approval and the ref check; this `if:`
+    # only skips the job with a plain result. The environment alone holds production's secrets.
+    environment:
+      name: production
+      url: https://shaktiprime.com
+    # One production change at a time: the migrate workflow's production job uses the same group.
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    # The release tag alone needs write access. The checkout keeps no credentials and the action
+    # passes no secret or token to `pnpm install`, so the token is neither on disk nor in the
+    # install's environment; code running in the job could still read it from the runner's
+    # memory, which is why the action restores no cache into this job.
+    permissions:
+      contents: write
+    steps:
+      # The deploy hook builds main as it is when Vercel reads it, so main must still be this
+      # commit: before production is migrated, and again before the hook.
+      - name: Main is still this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          head=$(gh api "repos/$REPO/git/ref/heads/main" --jq .object.sha)
+          if [ "$head" != "$SHA" ]; then
+            echo "Main moved to $head since this release started. Start a new release, which takes main's latest commit."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/migrate-database
+        with:
+          environment: production
+          project-ref: ${{ env.PROJECT_REF }}
+          database-url-migrator: ${{ secrets.DATABASE_URL_MIGRATOR }}
+          app-user-password: ${{ secrets.APP_USER_PASSWORD }}
+          auth-service-password: ${{ secrets.AUTH_SERVICE_PASSWORD }}
+          outbox-publisher-password: ${{ secrets.OUTBOX_PUBLISHER_PASSWORD }}
+          database-ca-cert: ${{ secrets.DATABASE_CA_CERT }}
+          app-reader-password: ${{ secrets.APP_READER_PASSWORD }}
+          seed: ${{ inputs.seed }}
+      - name: Main is still this commit, before the deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          head=$(gh api "repos/$REPO/git/ref/heads/main" --jq .object.sha)
+          if [ "$head" != "$SHA" ]; then
+            echo "Main moved to $head while production was migrated; production's database is at $SHA and its site unchanged. Start a new release."
+            exit 1
+          fi
+      # The commit production serves before this release, so the wait below can tell it from one
+      # no release approved. A served commit no release tag names is reported now; this release
+      # replaces it.
+      - name: What production serves now
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          before=$(curl -fsS --max-time 20 "$SITE/api/v1/health" 2> /dev/null | jq -r '.commit // empty' 2> /dev/null || true)
+          echo "BEFORE=$before" >> "$GITHUB_ENV"
+          if [ -z "$before" ]; then
+            echo 'Production names no commit yet.'
+            exit 0
+          fi
+          released=$(gh api "repos/$REPO/git/matching-refs/tags/release-" --paginate --jq '.[].object.sha')
+          if grep -qx "$before" <<< "$released"; then
+            echo "Production serves $before, which a release approved."
+          else
+            echo "::warning::Production serves $before, which no release approved. This release replaces it; find out how it was deployed (docs/runbooks/incidents.md)."
+          fi
+      # A re-run of this job finds its own tag and goes on.
+      - name: Mark the commit as released
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: release-${{ github.run_number }}
+        run: |
+          tagged=$(gh api "repos/$REPO/git/matching-refs/tags/$TAG" \
+            --jq ".[] | select(.ref == \"refs/tags/$TAG\") | .object.sha")
+          if [ -z "$tagged" ]; then
+            gh api -X POST "repos/$REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA" > /dev/null
+            echo "Tagged $SHA as $TAG."
+          elif [ "$tagged" != "$SHA" ]; then
+            echo "The tag $TAG names $tagged, not $SHA."
+            exit 1
+          fi
+      - name: Deploy
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_PRODUCTION }}
+        run: |
+          case "$HOOK" in
+            https://api.vercel.com/v1/integrations/deploy/*) ;;
+            *)
+              echo 'The secret VERCEL_DEPLOY_HOOK_PRODUCTION is not set, or is not a Vercel deploy hook.'
+              exit 1
+              ;;
+          esac
+          curl -fsS --max-time 30 -X POST -o /dev/null "$HOOK"
+          echo 'Vercel is building production.'
+      # Production serves the commit it served before (or another an earlier release approved, when
+      # that first read had no answer) until the new build is live; a commit no release approved
+      # was deployed without one and stops the run at once.
+      - name: Production serves this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          released=$(gh api "repos/$REPO/git/matching-refs/tags/release-" --paginate --jq '.[].object.sha' || true)
+          for attempt in $(seq 1 60); do
+            served=$(curl -fsS --max-time 20 "$SITE/api/v1/health" 2> /dev/null | jq -r '.commit // empty' 2> /dev/null || true)
+            if [ "$served" = "$SHA" ]; then
+              echo "Production serves $SHA."
+              exit 0
+            fi
+            if [ -n "$served" ] && [ "$served" != "$BEFORE" ] && ! grep -qx "$served" <<< "$released"; then
+              echo "Production serves $served, which no release approved: roll it back in Vercel (docs/runbooks/incidents.md)."
+              exit 1
+            fi
+            sleep 20
+          done
+          echo "Production does not serve $SHA after 20 minutes. The production project's deployments in Vercel show whether the build failed or was skipped. After an Instant Rollback, Vercel keeps serving the rolled-back deployment until Undo Rollback, or a Promote of this release's deployment once it is ready (docs/runbooks/incidents.md §4)."
+          exit 1
+      - name: Production is ready
+        run: |
+          for attempt in 1 2 3; do
+            if curl -fsS --max-time 30 -o /dev/null "$SITE/api/v1/health/ready"; then
+              echo 'Production is ready.'
+              exit 0
+            fi
+            sleep 30
+          done
+          echo 'Production serves the release but is not ready: INCIDENTS §1, or roll back in Vercel (INCIDENTS).'
+          exit 1

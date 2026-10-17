@@ -10,7 +10,7 @@ vi.mock('@sentry/nextjs', () => {
   return { captureCheckIn: sentry.captureCheckIn, flush: sentry.flush };
 });
 
-const { sendCheckIn } = await import('./check-ins');
+const { monitored, MONITORED_JOBS, sendCheckIn } = await import('./check-ins');
 const { checkInMarginMinutes, JOB_SCHEDULES } = await import('../workers/schedules');
 
 afterEach(() => {
@@ -27,17 +27,34 @@ describe('sendCheckIn (audit 2026-10, OPS-4)', () => {
 
   it('checks a call in to the monitor named by its schedule, with the schedule, and flushes it', async () => {
     vi.stubEnv('SENTRY_DSN', 'https://publickey@o4501.ingest.us.sentry.io/4502');
-    await sendCheckIn('quote-expire', 'error');
+    vi.stubEnv('BOS_ENVIRONMENT', 'production');
+    await sendCheckIn('outbox-publish', 'error');
     expect(sentry.captureCheckIn).toHaveBeenCalledWith(
-      { monitorSlug: 'quote-expire', status: 'error' },
+      { monitorSlug: 'outbox-publish', status: 'error' },
       {
-        schedule: { type: 'crontab', value: '35 18 * * *' },
-        checkinMargin: 60,
+        schedule: { type: 'crontab', value: JOB_SCHEDULES['outbox-publish'] },
+        checkinMargin: 3,
         maxRuntime: 5,
         timezone: 'Etc/UTC',
       },
     );
     expect(sentry.flush).toHaveBeenCalledWith(2_000);
+  });
+
+  it("keeps to the free plan's one cron monitor: production's outbox publisher", async () => {
+    expect(MONITORED_JOBS).toEqual({ production: ['outbox-publish'] });
+    vi.stubEnv('SENTRY_DSN', 'https://publickey@o4501.ingest.us.sentry.io/4502');
+    for (const environment of ['dev', 'staging', 'production', 'constructor', '']) {
+      vi.stubEnv('BOS_ENVIRONMENT', environment);
+      for (const job of Object.keys(JOB_SCHEDULES) as (keyof typeof JOB_SCHEDULES)[]) {
+        expect(monitored(job)).toBe(environment === 'production' && job === 'outbox-publish');
+      }
+    }
+    vi.stubEnv('BOS_ENVIRONMENT', 'staging');
+    await sendCheckIn('outbox-publish', 'ok');
+    vi.stubEnv('BOS_ENVIRONMENT', 'production');
+    await sendCheckIn('quote-expire', 'ok');
+    expect(sentry.captureCheckIn).not.toHaveBeenCalled();
   });
 
   it('gives each schedule a margin fit for how often it runs', () => {

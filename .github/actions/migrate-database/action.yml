@@ -1,0 +1,116 @@
+name: Migrate a hosted database
+description: >-
+  Checks the database secrets, applies the migrations, checks every migration is applied as it is
+  on disk and seeds the reference data (docs/runbooks/deploy.md §2). Used by the migrate workflow
+  for every environment and by the release workflow for production, so each runs the same steps.
+
+# The secrets come in as inputs and reach only the steps that use them, never `pnpm install` and
+# its packages' install scripts. A missing secret reads as empty and the first step stops the run;
+# nothing falls back to another one. The caller checks out the commit first.
+inputs:
+  environment:
+    description: The environment's name (dev, staging or production), for the messages.
+    required: true
+  project-ref:
+    description: The Supabase project the migrator address must name.
+    required: true
+  secret-suffix:
+    description: The suffix of the secrets' names (`_DEV`, `_STAGING`, or empty for an environment's own secrets), for the messages.
+    required: false
+    default: ''
+  database-url-migrator:
+    required: true
+  app-user-password:
+    required: true
+  auth-service-password:
+    required: true
+  outbox-publisher-password:
+    required: true
+  database-ca-cert:
+    required: true
+  app-reader-password:
+    description: Optional; without it the role app_reader exists with no password, and the app reads on app_user.
+    required: false
+    default: ''
+  seed:
+    description: '`true` to seed the reference data after migrating (safe to re-run; keeps Admin edits).'
+    required: false
+    default: 'true'
+  rotate-passwords:
+    description: "`true` to set the login roles' passwords again from the secrets (after a rotation)."
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Secrets present and for this project
+      shell: bash
+      run: |
+        for name in DATABASE_URL_MIGRATOR APP_USER_PASSWORD AUTH_SERVICE_PASSWORD OUTBOX_PUBLISHER_PASSWORD DATABASE_CA_CERT; do
+          if [ -z "${!name}" ]; then
+            echo "The secret ${name}${SUFFIX} is not set."
+            exit 1
+          fi
+        done
+        if ! [[ "$PROJECT_REF" =~ ^[a-z]{20}$ ]]; then
+          echo "The workflow names no Supabase project for ${ENVIRONMENT}."
+          exit 1
+        fi
+        case "$DATABASE_URL_MIGRATOR" in
+          *"@db.${PROJECT_REF}.supabase.co"* | *"//postgres.${PROJECT_REF}:"*) ;;
+          *)
+            echo "DATABASE_URL_MIGRATOR${SUFFIX} does not point at the ${ENVIRONMENT} project."
+            exit 1
+            ;;
+        esac
+      env:
+        ENVIRONMENT: ${{ inputs.environment }}
+        PROJECT_REF: ${{ inputs.project-ref }}
+        SUFFIX: ${{ inputs.secret-suffix }}
+        DATABASE_URL_MIGRATOR: ${{ inputs.database-url-migrator }}
+        APP_USER_PASSWORD: ${{ inputs.app-user-password }}
+        AUTH_SERVICE_PASSWORD: ${{ inputs.auth-service-password }}
+        OUTBOX_PUBLISHER_PASSWORD: ${{ inputs.outbox-publisher-password }}
+        DATABASE_CA_CERT: ${{ inputs.database-ca-cert }}
+    - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+    # No Actions cache: this job holds a database's passwords (production's in its environment),
+    # so it installs from the registry rather than restore a store another run saved.
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .node-version
+        package-manager-cache: false
+    - shell: bash
+      run: pnpm install --frozen-lockfile
+    # The migrator sets a role's password only when it creates the role, or with
+    # --rotate-passwords (packages/db/src/migrate.ts); docs/runbooks/deploy.md §5 says when to
+    # tick it.
+    - name: Migrate
+      shell: bash
+      run: |
+        if [ "$ROTATE" = 'true' ]; then
+          pnpm db:migrate --rotate-passwords
+        else
+          pnpm db:migrate
+        fi
+      env:
+        ROTATE: ${{ inputs.rotate-passwords }}
+        DATABASE_URL_MIGRATOR: ${{ inputs.database-url-migrator }}
+        DATABASE_CA_CERT: ${{ inputs.database-ca-cert }}
+        APP_USER_PASSWORD: ${{ inputs.app-user-password }}
+        AUTH_SERVICE_PASSWORD: ${{ inputs.auth-service-password }}
+        OUTBOX_PUBLISHER_PASSWORD: ${{ inputs.outbox-publisher-password }}
+        APP_READER_PASSWORD: ${{ inputs.app-reader-password }}
+    - name: Every migration applied as it is on disk
+      shell: bash
+      run: pnpm db:verify
+      env:
+        DATABASE_URL_MIGRATOR: ${{ inputs.database-url-migrator }}
+        DATABASE_CA_CERT: ${{ inputs.database-ca-cert }}
+    - name: Seed
+      if: inputs.seed == 'true'
+      shell: bash
+      run: pnpm db:seed
+      env:
+        DATABASE_URL_MIGRATOR: ${{ inputs.database-url-migrator }}
+        DATABASE_CA_CERT: ${{ inputs.database-ca-cert }}
