@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import {
   BUILD,
   decide,
-  isProductionProject,
+  EVERY_PUSH_PROJECTS,
+  looksLikeProduction,
   releasedCommitsFrom,
   SKIP,
   type Env,
@@ -13,14 +14,19 @@ import {
 } from './vercel-ignore';
 
 // Production deploys only a commit an approved release has marked (owner, 15-10-2026); dev and
-// staging deploy every push to main, as before.
+// staging deploy every push to main, as before. Only the dev and staging projects, by their ids,
+// build every push, so a build missing its variables is held to the release rule.
 
 const web = fileURLToPath(new URL('../', import.meta.url));
 const COMMIT = '485a43eb0c1f6d2e9b7a3c5d8e1f2a4b6c9d0e7f';
 const OTHER = 'fe9d5fff0a1b2c3d4e5f60718293a4b5c6d7e8f9';
+const [DEV_ID = '', STAGING_ID = ''] = [...EVERY_PUSH_PROJECTS.keys()];
+/** A project id the gate does not know; the production project's is not written down here. */
+const PRODUCTION_ID = 'prj_productionProjectNotListed00';
 
 /** What Vercel sets for a build of the production project's `main` (its production target). */
 const PRODUCTION: Env = {
+  VERCEL_PROJECT_ID: PRODUCTION_ID,
   BOS_ENVIRONMENT: 'production',
   VERCEL_PROJECT_PRODUCTION_URL: 'shaktiprime.com',
   VERCEL_ENV: 'production',
@@ -29,6 +35,9 @@ const PRODUCTION: Env = {
   VERCEL_GIT_REPO_OWNER: 'techaust',
   VERCEL_GIT_REPO_SLUG: 'shakti_prime',
 };
+
+/** Production's own name and domain taken away, so only the project id speaks. */
+const noSigns: Env = { BOS_ENVIRONMENT: undefined, VERCEL_PROJECT_PRODUCTION_URL: undefined };
 
 const releases =
   (...commits: string[]): ReleasedCommits =>
@@ -39,17 +48,34 @@ const unreachable: ReleasedCommits = () => {
 };
 
 describe('the production build gate', () => {
-  it('builds every push on dev and staging, without reading the tags', () => {
+  it('builds every push on dev and staging, known by their ids, without reading the tags', () => {
+    expect([...EVERY_PUSH_PROJECTS.values()]).toEqual(['dev', 'staging']);
     for (const env of [
-      { BOS_ENVIRONMENT: 'dev', VERCEL_PROJECT_PRODUCTION_URL: 'shakti-prime-dev.vercel.app' },
-      {
-        BOS_ENVIRONMENT: 'staging',
-        VERCEL_PROJECT_PRODUCTION_URL: 'shakti-prime-staging.vercel.app',
-      },
-      // A preview of a branch: the project's variables are on its production target only.
-      { VERCEL_PROJECT_PRODUCTION_URL: 'shakti-prime-dev.vercel.app', VERCEL_ENV: 'preview' },
+      { VERCEL_PROJECT_ID: DEV_ID, BOS_ENVIRONMENT: 'dev', VERCEL_ENV: 'production' },
+      { VERCEL_PROJECT_ID: STAGING_ID, VERCEL_ENV: 'production' },
+      // A preview of a branch: the project's own variables are on its production target only.
+      { VERCEL_PROJECT_ID: DEV_ID, VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'feat/x' },
+      // Every variable but the id missing.
+      { VERCEL_PROJECT_ID: STAGING_ID },
     ]) {
       expect(decide(env, unreachable).build).toBe(true);
+    }
+    expect(decide({ VERCEL_PROJECT_ID: DEV_ID }, unreachable).reason).toBe(
+      'dev builds every push',
+    );
+  });
+
+  it('skips a build with no variables at all, so production fails closed', () => {
+    expect(decide({}, unreachable).build).toBe(false);
+    // Without the system variables Vercel names no environment, branch or commit either.
+    expect(decide({ BOS_ENVIRONMENT: 'production' }, unreachable).build).toBe(false);
+  });
+
+  it('holds every project it does not know to the release rule', () => {
+    for (const id of [PRODUCTION_ID, '', 'constructor', '__proto__']) {
+      const env = { ...PRODUCTION, ...noSigns, VERCEL_PROJECT_ID: id };
+      expect(decide(env, releases()).build).toBe(false);
+      expect(decide(env, releases(COMMIT)).build).toBe(true);
     }
   });
 
@@ -65,15 +91,20 @@ describe('the production build gate', () => {
     expect(decide(PRODUCTION, releases()).build).toBe(false);
   });
 
-  it('knows production by its domain when its own variables are missing', () => {
-    const withoutName = { ...PRODUCTION, BOS_ENVIRONMENT: undefined };
-    expect(isProductionProject(withoutName)).toBe(true);
-    expect(decide(withoutName, releases()).build).toBe(false);
+  it("holds a dev or staging id to the release rule when it shows production's name or domain", () => {
+    for (const sign of [
+      { BOS_ENVIRONMENT: 'production' },
+      { VERCEL_PROJECT_PRODUCTION_URL: 'shaktiprime.com' },
+    ]) {
+      const env = { ...PRODUCTION, ...noSigns, ...sign, VERCEL_PROJECT_ID: DEV_ID };
+      expect(decide(env, releases()).build).toBe(false);
+      expect(decide(env, releases(COMMIT)).build).toBe(true);
+    }
     for (const url of ['shaktiprime.com', 'https://shaktiprime.com/', 'www.shaktiprime.com']) {
-      expect(isProductionProject({ VERCEL_PROJECT_PRODUCTION_URL: url })).toBe(true);
+      expect(looksLikeProduction({ VERCEL_PROJECT_PRODUCTION_URL: url })).toBe(true);
     }
     for (const url of ['notshaktiprime.com', 'shaktiprime.com.example.in', '']) {
-      expect(isProductionProject({ VERCEL_PROJECT_PRODUCTION_URL: url })).toBe(false);
+      expect(looksLikeProduction({ VERCEL_PROJECT_PRODUCTION_URL: url })).toBe(false);
     }
   });
 
@@ -124,13 +155,16 @@ describe("vercel.json's ignoreCommand", () => {
     }).status;
   }
 
-  it('builds dev and skips a production preview', () => {
-    expect(vercelWould({ BOS_ENVIRONMENT: 'dev' })).toBe(1);
+  it('builds dev and staging, and skips a production preview and a build with no variables', () => {
+    expect(vercelWould({ VERCEL_PROJECT_ID: DEV_ID })).toBe(1);
+    expect(vercelWould({ VERCEL_PROJECT_ID: STAGING_ID })).toBe(1);
     expect(vercelWould({ ...PRODUCTION, VERCEL_ENV: 'preview' })).toBe(0);
+    expect(vercelWould({})).toBe(0);
   });
 
   it('skips when the gate cannot run at all, so production fails closed', () => {
     const missing = (command ?? '').replace('vercel-ignore.ts', 'no-such-file.ts');
     expect(vercelWould({ BOS_ENVIRONMENT: 'production' }, missing)).toBe(0);
+    expect(vercelWould({ VERCEL_PROJECT_ID: DEV_ID }, missing)).toBe(0);
   });
 });

@@ -46,6 +46,7 @@
         "$TURBO_ROOT$/eslint.config.mjs",
         "$TURBO_ROOT$/infra/aws/files.yaml",
         "$TURBO_ROOT$/.github/workflows/**",
+        "$TURBO_ROOT$/.github/actions/**",
         "$TURBO_ROOT$/compose.yaml"
       ],
       "env": ["OCR_LANG_PATH"]

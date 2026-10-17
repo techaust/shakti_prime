@@ -6,11 +6,13 @@ name: Migrate a hosted database
 # runs for production too.
 #
 # Dev and staging read repository secrets named with their suffix (`_DEV`, `_STAGING`). Production
-# runs in the GitHub environment `production` (docs/14-reviews/2026-09-audit.md M45): the run waits
-# for the owner's approval, the environment admits only `main`, and it holds its own six secrets
-# without a suffix. A release (`release.yml`) migrates production on its own; this workflow's
-# production choice is for a migration between releases, such as a password rotation
-# (docs/runbooks/deploy.md §5).
+# runs in the GitHub environment `production` (docs/14-reviews/2026-09-audit.md M45), which holds its
+# own six secrets without a suffix. The environment's settings on GitHub are the gate
+# (docs/runbooks/deploy.md §1): its required reviewer makes the run wait for the owner's approval,
+# and its one deployment branch rule, `main`, is what keeps every other ref out, since a branch's
+# copy of this file could drop the guard below. A release (`release.yml`) migrates production on its
+# own; this workflow's production choice is for a migration between releases, such as a password
+# rotation (docs/runbooks/deploy.md §5).
 on:
   workflow_dispatch:
     inputs:
@@ -32,7 +34,8 @@ permissions:
   contents: read
 
 jobs:
-  # Refuses any other ref before production asks for the owner's approval.
+  # Stops a run from any other ref with a plain message before production asks for the owner's
+  # approval. For production the environment's branch rule is the check that holds.
   guard:
     name: Only from main
     runs-on: ubuntu-latest
@@ -82,7 +85,8 @@ jobs:
     if: inputs.environment == 'production' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # The owner approves the run, and the environment's own secrets reach this job alone.
+    # The owner approves the run (the environment's required reviewer), the environment's branch
+    # rule admits main alone, and the environment's own secrets reach this job alone.
     environment: production
     # One production change at a time: the release workflow uses the same group.
     concurrency:

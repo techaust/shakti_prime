@@ -1,15 +1,20 @@
 // Vercel's Ignored Build Step for the three projects (`ignoreCommand` in apps/web/vercel.json):
-// dev and staging build every push, and production builds only a commit an approved release has
-// marked (the owner's decision of 15-10-2026; docs/runbooks/deploy.md §2). The release workflow
-// (.github/workflows/release.yml) tags the commit `release-<run number>` once the owner has
-// approved the run and production is migrated, then starts the production project's deploy hook;
-// a push to main, a preview of a branch or a hook started without a release finds no tag and is
-// skipped.
+// dev and staging build every push, and every other build, production's above all, builds only a
+// commit an approved release has marked (the owner's decision of 15-10-2026;
+// docs/runbooks/deploy.md §2). The release workflow (.github/workflows/release.yml) tags the
+// commit `release-<run number>` once the owner has approved the run and production is migrated,
+// then starts the production project's deploy hook; a push to main, a preview of a branch or a
+// hook started without a release finds no tag and is skipped.
+//
+// The decision fails closed: only the dev and staging projects, named by their ids, build every
+// push, so a build whose variables are missing (the projects' "Automatically expose System
+// Environment Variables" turned off, or a project this file does not know) is held to the release
+// rule and skipped.
 //
 // Vercel runs the command in the project's root (apps/web) before installing anything, so this
 // file uses Node's own modules only and runs as TypeScript on the project's Node 24. It exits with
 // BUILD to build; `vercel.json` turns every other ending (a skip, a crash, a missing file) into a
-// skip, so production fails closed. Locally: `node scripts/vercel-ignore.ts; echo $?`.
+// skip. Locally: `node scripts/vercel-ignore.ts; echo $?`.
 import { execFileSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +22,15 @@ import { fileURLToPath } from 'node:url';
 /** The exit code that asks Vercel to build; `vercel.json` maps it to 1 and everything else to 0. */
 export const BUILD = 10;
 export const SKIP = 0;
+
+/**
+ * The projects that build every push, by their Vercel project ids (team `shakti-prime`, read
+ * 17-10-2026). A project not listed here deploys only what a release approved.
+ */
+export const EVERY_PUSH_PROJECTS: ReadonlyMap<string, string> = new Map([
+  ['prj_rmw38jC3rQBoutoZr45POcwpZ4xA', 'dev'],
+  ['prj_kNsR2Yw3Nw3DY5Tl5qSAQl6AKi6c', 'staging'],
+]);
 
 /** The production project's domain (DECISIONS, 15-10-2026). */
 export const PRODUCTION_HOST = 'shaktiprime.com';
@@ -44,11 +58,11 @@ function hostOf(value: string | undefined): string {
 }
 
 /**
- * Production is told apart twice, so a missing variable never lets it build every push: by its own
- * name for itself (`BOS_ENVIRONMENT`, set on the Production target only) and by the domain Vercel
- * serves it at (`VERCEL_PROJECT_PRODUCTION_URL`, a system variable every build has, previews too).
+ * Signs of production beside the project id: its own name (`BOS_ENVIRONMENT`, set on its
+ * Production target) or the domain Vercel serves it at (`VERCEL_PROJECT_PRODUCTION_URL`). Either
+ * one holds a build to the release rule even under a dev or staging id.
  */
-export function isProductionProject(env: Env): boolean {
+export function looksLikeProduction(env: Env): boolean {
   const host = hostOf(env.VERCEL_PROJECT_PRODUCTION_URL);
   return (
     env.BOS_ENVIRONMENT === 'production' ||
@@ -58,14 +72,15 @@ export function isProductionProject(env: Env): boolean {
 }
 
 export function decide(env: Env, released: ReleasedCommits): Decision {
-  if (!isProductionProject(env)) {
-    return { build: true, reason: 'dev and staging build every push' };
+  const everyPush = EVERY_PUSH_PROJECTS.get(env.VERCEL_PROJECT_ID ?? '');
+  if (everyPush !== undefined && !looksLikeProduction(env)) {
+    return { build: true, reason: `${everyPush} builds every push` };
   }
   if (env.VERCEL_ENV !== 'production') {
-    return { build: false, reason: 'production builds no previews' };
+    return { build: false, reason: 'outside dev and staging only a release builds, and a release builds production' };
   }
   if (env.VERCEL_GIT_COMMIT_REF !== 'main') {
-    return { build: false, reason: 'production builds main only' };
+    return { build: false, reason: 'a release builds main only' };
   }
   const commit = env.VERCEL_GIT_COMMIT_SHA ?? '';
   const owner = env.VERCEL_GIT_REPO_OWNER ?? '';

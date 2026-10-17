@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -40,11 +42,54 @@ function script(text: string, name: string): string {
   return body.join('\n');
 }
 
-function bash(code: string, env: Record<string, string>): number | null {
+/** Runs a step's script as GitHub does (`bash -e`); `stdout` is what it printed. */
+function run(code: string, env: Record<string, string>): { status: number | null; stdout: string } {
   // Only PATH from this machine, so no variable of the test run reaches the step.
   const given: Record<string, string | undefined> = { PATH: process.env.PATH, ...env };
-  return spawnSync('bash', ['-e', '-c', code], { env: given as NodeJS.ProcessEnv }).status;
+  const result = spawnSync('bash', ['-e', '-c', code], {
+    env: given as NodeJS.ProcessEnv,
+    encoding: 'utf8',
+  });
+  return { status: result.status, stdout: result.stdout };
 }
+
+function bash(code: string, env: Record<string, string>): number | null {
+  return run(code, env).status;
+}
+
+const SHA = '485a43eb0c1f6d2e9b7a3c5d8e1f2a4b6c9d0e7f';
+const EARLIER = 'ad0e3d2e0a1b2c3d4e5f60718293a4b5c6d7e8f9';
+const OLDER = 'fe9d5fff0a1b2c3d4e5f60718293a4b5c6d7e8f9';
+const STRAY = '93d9ceaf0a1b2c3d4e5f60718293a4b5c6d7e8f9';
+
+/**
+ * Stand-ins for `gh`, `curl`, `jq` and `sleep`, as shell functions ahead of a step's script, so no
+ * case reaches GitHub or a site. `gh api <path>` answers what its filter would have given: the
+ * migrate runs (`FAKE_RUNS`, "<id> <commit>" lines), whether a run migrated staging (the ids in
+ * `FAKE_STAGED`), the comparison with `FAKE_BASE` (`FAKE_COMPARE`: status, files listed, migration
+ * files) and the release tags' commits (`FAKE_TAGS`). `curl` prints `FAKE_SERVED`; `jq` passes it on.
+ */
+const FAKES = [
+  'gh() {',
+  '  case "$2" in',
+  `    */actions/workflows/migrate.yml/runs*) printf '%s\\n' "$FAKE_RUNS" ;;`,
+  '    */actions/runs/*/jobs)',
+  '      id=$(basename "$(dirname "$2")")',
+  '      case " $FAKE_STAGED " in *" $id "*) echo 1 ;; *) echo 0 ;; esac ;;',
+  '    */compare/*)',
+  '      [ "$2" = "repos/$REPO/compare/$FAKE_BASE...$SHA" ] || return 1',
+  `      printf '%s\\n' "$FAKE_COMPARE" ;;`,
+  `    */matching-refs/tags/release-) printf '%s\\n' "$FAKE_TAGS" ;;`,
+  '    *) return 1 ;;',
+  '  esac',
+  '}',
+  `curl() { printf '%s' "$FAKE_SERVED"; }`,
+  'jq() { cat; }',
+  'sleep() { :; }',
+].join('\n');
+
+/** A step's script with the stand-ins ahead of it. */
+const faked = (text: string, name: string): string => `${FAKES}\n${script(text, name)}`;
 
 describe('the migrate workflow', () => {
   it('offers production beside dev and staging', () => {
@@ -138,6 +183,12 @@ describe('the migration action', () => {
     const install = ACTION.indexOf('pnpm install --frozen-lockfile');
     expect(ACTION.slice(install, ACTION.indexOf('- name: Migrate'))).not.toContain('inputs.');
   });
+
+  it('restores no Actions cache into a job that holds a database password', () => {
+    expect(ACTION).toContain('package-manager-cache: false');
+    expect(ACTION).not.toMatch(/\n\s*cache:/);
+    expect(ACTION).not.toContain('actions/cache');
+  });
 });
 
 describe('the release workflow', () => {
@@ -171,6 +222,7 @@ describe('the release workflow', () => {
       'Main is still this commit',
       'uses: ./.github/actions/migrate-database',
       'Main is still this commit, before the deploy',
+      'What production serves now',
       'Mark the commit as released',
       '- name: Deploy',
       'Production serves this commit',
@@ -186,6 +238,78 @@ describe('the release workflow', () => {
       'const RELEASE_TAG = /^refs\\/tags\\/release-[0-9]+(\\^\\{\\})?$/;',
     );
   });
+
+  it('releases only what staging was migrated to first', () => {
+    const step = faked(RELEASE, 'Staging is migrated to this commit');
+    const given = {
+      SHA,
+      REPO: 'techaust/shakti_prime',
+      FAKE_RUNS: `12 ${EARLIER}\n11 ${OLDER}`,
+      FAKE_STAGED: '12',
+      FAKE_BASE: EARLIER,
+      FAKE_COMPARE: 'ahead 4 0',
+    };
+    // Migrated from this commit, or from an earlier one with the same migrations.
+    const same = { FAKE_RUNS: `12 ${SHA}`, FAKE_BASE: SHA, FAKE_COMPARE: 'identical 0 0' };
+    expect(bash(step, { ...given, ...same })).toBe(0);
+    expect(bash(step, given)).toBe(0);
+    // The newest run migrated dev only: the one before it decides.
+    expect(bash(step, { ...given, FAKE_STAGED: '11', FAKE_BASE: OLDER })).toBe(0);
+    // Staging never migrated from main, or the migrations changed since.
+    expect(bash(step, { ...given, FAKE_RUNS: '' })).toBe(1);
+    expect(bash(step, { ...given, FAKE_STAGED: '' })).toBe(1);
+    expect(bash(step, { ...given, FAKE_COMPARE: 'ahead 4 1' })).toBe(1);
+    // Migrated from a commit that is not an earlier one of this, or GitHub listed its cap.
+    expect(bash(step, { ...given, FAKE_COMPARE: 'behind 2 0' })).toBe(1);
+    expect(bash(step, { ...given, FAKE_COMPARE: 'diverged 3 0' })).toBe(1);
+    expect(bash(step, { ...given, FAKE_COMPARE: 'ahead 300 0' })).toBe(1);
+    // GitHub did not answer the comparison.
+    expect(bash(step, { ...given, FAKE_BASE: OLDER })).toBe(1);
+    expect(job(RELEASE, 'check')).toMatch(/\n {6}actions: read\n {6}contents: read\n/);
+  });
+
+  it('notes what production serves before the deploy, and an unreleased commit', () => {
+    const step = faked(RELEASE, 'What production serves now');
+    const folder = mkdtempSync(join(tmpdir(), 'release-'));
+    try {
+      // Forward slashes, which Git Bash on Windows reads as well as Linux.
+      const githubEnv = join(folder, 'env').replaceAll('\\', '/');
+      const given = { REPO: 'techaust/shakti_prime', GITHUB_ENV: githubEnv };
+      const written = (): string => readFileSync(githubEnv, 'utf8');
+
+      const tags = `${OLDER}\n${EARLIER}`;
+      const released = run(step, { ...given, FAKE_SERVED: EARLIER, FAKE_TAGS: tags });
+      expect(released.status).toBe(0);
+      expect(written()).toBe(`BEFORE=${EARLIER}\n`);
+      expect(released.stdout).not.toContain('::warning::');
+
+      const stray = run(step, { ...given, FAKE_SERVED: STRAY, FAKE_TAGS: EARLIER });
+      expect(stray.status).toBe(0);
+      expect(written()).toContain(`BEFORE=${STRAY}\n`);
+      expect(stray.stdout).toContain(`::warning::Production serves ${STRAY}, which no release`);
+
+      const first = run(step, { ...given, FAKE_SERVED: '', FAKE_TAGS: '' });
+      expect(first.status).toBe(0);
+      expect(written().endsWith('BEFORE=\n')).toBe(true);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it('waits for this commit and stops at once on a commit no release approved', () => {
+    const step = faked(RELEASE, 'Production serves this commit');
+    expect(bash(step, { SHA, BEFORE: EARLIER, FAKE_SERVED: SHA })).toBe(0);
+    const stray = run(step, { SHA, BEFORE: EARLIER, FAKE_SERVED: STRAY });
+    expect(stray.status).toBe(1);
+    expect(stray.stdout).toContain(`Production serves ${STRAY}, which no release approved`);
+    expect(bash(step, { SHA, BEFORE: '', FAKE_SERVED: STRAY })).toBe(1);
+    // The commit served before, or no answer, until the wait runs out.
+    const waited = run(step, { SHA, BEFORE: EARLIER, FAKE_SERVED: EARLIER });
+    expect(waited.status).toBe(1);
+    expect(waited.stdout).toContain(`Production does not serve ${SHA} after 20 minutes`);
+    expect(bash(step, { SHA, BEFORE: EARLIER, FAKE_SERVED: '' })).toBe(1);
+    // The two full waits start a shell per try, which is slow on Windows.
+  }, 60_000);
 
   it('starts only a Vercel deploy hook', () => {
     const deploy = script(RELEASE, 'Deploy').replace(/\n\s*curl [^\n]*\n/, '\n');
