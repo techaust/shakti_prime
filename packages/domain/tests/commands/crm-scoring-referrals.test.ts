@@ -184,12 +184,16 @@ describe('crm.score_rule.set', () => {
     }
     // A won lead is not in the queue and keeps its score.
     expect((await scoreOf(leads[2]?.id ?? ''))?.score).toBe(50);
-    // Two rules added and one rescoring batch recorded.
-    expect(recorded.records.map((r) => r.aggregateType).sort()).toEqual([
-      'lead_score_batch',
-      'lead_score_rule',
-      'lead_score_rule',
-    ]);
+    // Two rules added, and at least one rescoring batch recorded: the scope may hold more than
+    // one batch of other suites' open leads (`RESCORE_BATCH`), so the batches are counted by
+    // their rows, which add up to the leads rescored.
+    const kinds = recorded.records.map((r) => r.aggregateType);
+    expect(kinds.filter((k) => k === 'lead_score_rule')).toHaveLength(2);
+    const batches = recorded.records.filter((r) => r.aggregateType === 'lead_score_batch');
+    expect(batches.length).toBeGreaterThanOrEqual(1);
+    expect(batches.length + 2).toBe(kinds.length);
+    const rows = batches.map((b) => (b.after as { rows: number }).rows);
+    expect(rows.reduce((sum, n) => sum + n, 0)).toBe(set.rescored);
 
     const again = await run(execOne, setScoreRules, {
       entityId: 1,
@@ -203,8 +207,12 @@ describe('crm.score_rule.set', () => {
       segment: 'farmer_pumps',
       rules: [],
     });
-    expect(cleared).toMatchObject({ rules: [], rescored: 2 });
-    expect(await scoreOf(leads[0]?.id ?? '')).toMatchObject({ score: 50, reasons: [] });
+    // Only this run's two leads carry its district's points, whatever else the scope holds.
+    expect(cleared).toMatchObject({ rules: [] });
+    expect((cleared as { rescored: number }).rescored).toBeGreaterThanOrEqual(2);
+    for (const l of leads.slice(0, 2)) {
+      expect(await scoreOf(l.id)).toMatchObject({ score: 50, reasons: [] });
+    }
   });
 
   it('treats a rule saved again with its keys in another order as unchanged', async () => {
