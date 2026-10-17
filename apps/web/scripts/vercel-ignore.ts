@@ -32,6 +32,9 @@ export const EVERY_PUSH_PROJECTS: ReadonlyMap<string, string> = new Map([
   ['prj_kNsR2Yw3Nw3DY5Tl5qSAQl6AKi6c', 'staging'],
 ]);
 
+/** The repository whose release tags a release build is checked against (DECISIONS, 15-10-2026). */
+export const RELEASE_REPOSITORY = 'techaust/shakti_prime';
+
 /** The production project's domain (DECISIONS, 15-10-2026). */
 export const PRODUCTION_HOST = 'shaktiprime.com';
 const COMMIT = /^[0-9a-f]{40}$/;
@@ -90,6 +93,10 @@ export function decide(env: Env, released: ReleasedCommits): Decision {
   const slug = env.VERCEL_GIT_REPO_SLUG ?? '';
   if (!COMMIT.test(commit) || !NAME.test(owner) || !NAME.test(slug)) {
     return { build: false, reason: 'Vercel named no commit or repository to check' };
+  }
+  // A project connected to another repository (a fork) never builds on that repository's tags.
+  if (`${owner}/${slug}`.toLowerCase() !== RELEASE_REPOSITORY) {
+    return { build: false, reason: `a release builds ${RELEASE_REPOSITORY} only` };
   }
   const repository = `https://github.com/${owner}/${slug}.git`;
   if (!released(repository).has(commit)) {

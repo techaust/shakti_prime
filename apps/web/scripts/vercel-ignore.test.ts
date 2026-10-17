@@ -113,6 +113,7 @@ describe('the production build gate', () => {
     ['a short commit', { VERCEL_GIT_COMMIT_SHA: COMMIT.slice(0, 7) }],
     ['no repository', { VERCEL_GIT_REPO_OWNER: '' }],
     ['a repository name with a path in it', { VERCEL_GIT_REPO_SLUG: 'shakti_prime/../x' }],
+    ['another repository, a fork', { VERCEL_GIT_REPO_OWNER: 'someone-else' }],
   ])('skips production for %s, even with the commit tagged', (_label, change) => {
     expect(decide({ ...PRODUCTION, ...change }, releases(COMMIT)).build).toBe(false);
   });
