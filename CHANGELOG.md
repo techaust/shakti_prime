@@ -11,6 +11,16 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 wave 6 and the Phase 0–1 audit
 
+- **#187** (17-10-2026) G1 Production readiness:
+  - production at `https://shaktiprime.com`, deployed only by a release the owner approves (`release.yml`: CI green, staging serving and migrated to the commit, then migrate, tag `release-<n>` and Vercel's deploy hook in the environment `production`);
+  - the production build gate (`vercel-ignore.ts`: dev and staging build every push, production only a release's tagged commit; fails closed); `/api/v1/health` names the commit; the migrate workflow's `production` runs the newest release's commit;
+  - production copied every 6 hours by AWS CodeBuild as the read-only `app_backup` (0158, connection limit 2) into a locked, encrypted bucket kept 30 days, its address in Secrets Manager set by the owner's script; the jobs check alerts on a copy older than 7 hours;
+  - the files stack for `production`, production's QStash schedules, Sentry on the free plan, a company's earlier proof pages retired (`files.document.retire`); the documents for production. Migration 0158.
+- **#186** (17-10-2026) Hardening batch 1:
+  - a passed-on enquiry carries the walk-in form's consent (`app.record_routed_consent()`, `inbox_items.consent_channel`), and the colleague's card says so;
+  - the push toggle reads on only for the signed-in person's own browser subscription;
+  - Account 360 and the leads list show a DND or no-calls number with no call link; the Activity log reads states by record kind;
+  - Admin › Agents shows each action's whole setting; four flaky tests fixed at their cause. Migrations 0156 and 0157.
 - **#177** (14-10-2026) Development tools: `prettier` 3.9.10 and `@types/node` 24.19.2 (Dependabot).
 - **#173** (14-10-2026) The audit's sales-integrity batch (DOM-1 to DOM-7, DOM-V1, SEC-4, ARCH-5): only the Executive makes a customer a dealer or no longer one, on edit and at creation (a lead, an import, the forms; trigger `accounts_type_guard`); a lead merge moves its quotes and draft orders, an import rollback leaves leads quoted or sold since and dealers with terms, a customer merge refuses a dealer with a non-dealer; one accepted quote per lead, and cancelling an order withdraws its quote; a call keeps its real start and the log grace is a workshop default (CALL-8); requests update only the lead and timeline columns the commands write; migrations 0150 to 0155 (two widened quote checks added `NOT VALID`, for the owner to validate).
 - **#175** (14-10-2026) The audit's privacy batch (SEC-1, SEC-2, SEC-3, OPS-5): an import never keeps an Aadhaar number (a column of them is left out and the importer told, a number in another cell keeps its last four digits); import files are deleted after their job ends and row details cleared after 30 days, the counts kept; a one-off pass masks earlier imports; one number finder for the import, `redactText()`, the audit scrubber and `maskForModel()`, so they cannot drift; SECURITY §5 says exactly what Phase 1 masks; the real OCR masking test runs in CI; migrations 0143 to 0149.
@@ -25,6 +35,10 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#185** (17-10-2026) The owner's rule: in the two days before the weekly reset the week's remaining usage is spent on new builds (DECISIONS, models-and-usage §5).
+- **#184** (17-10-2026) SES production access granted on 17-10-2026, read back from AWS; G1's part 1 complete.
+- **#183** (16-10-2026) The production accounts of 15-10-2026 and the owner's decisions (the bare domain, releases the owner approves, 6-hourly copies without point-in-time recovery, Sentry's free plan, the repository public); STATUS with a production column.
+- **#182** (14-10-2026) G1's run file and STATUS at the end of the 14-10 PC day.
 - **#181** (14-10-2026) STATUS records dev and staging read back from the PC: 156 migrations each and the five pg_cron jobs the migrations define, `audit-logs-partitions` daily at 03:00 UTC.
 - **#180** (14-10-2026) STATUS names G1 as next with the owner's paid accounts ready; the cloud days' lessons in `CLAUDE.md` and the runbooks.
 - **#179** (14-10-2026) The Phase 0–1 audit closed in code: the audit report and its evidence, STATUS at the end of 14-10-2026 (migrations through 0155 on `main`, dev and staging), CHANGELOG lines for #167 to #177, the owner's DECISIONS rows of 13-10-2026, the merged run files, and two runbook lessons (edit a moved migration after the renumbering; `db:docs` after the last DATABASE edit).
