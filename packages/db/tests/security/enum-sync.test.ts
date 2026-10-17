@@ -89,6 +89,7 @@ const PAIRS: Record<string, readonly string[]> = {
   inbox_items_state_check: INBOX_ITEM_STATES,
   inbox_items_subject_type_check: INBOX_SUBJECT_TYPES,
   inbox_items_segment_check: SegmentSchema.options,
+  inbox_items_consent_channel_check: ConsentChannelSchema.options,
   notifications_type_check: NOTICE_TYPES,
   notifications_subject_type_check: NOTICE_SUBJECT_TYPES,
   notification_preferences_type_check: NOTICE_TYPES,

@@ -86,6 +86,7 @@ export const routeEnquiry = defineCommand({
       state: 'open',
       segment,
       note: input.note ?? null,
+      consentChannel: input.consent?.channel ?? null,
       createdBy: ctx.principal.id,
     });
     const consent = input.consent;

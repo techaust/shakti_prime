@@ -31,17 +31,40 @@ async function currentSubscription(): Promise<PushSubscription | null> {
   return (await registration?.pushManager.getSubscription()) ?? null;
 }
 
+/** Whose alerts this browser's push subscription brings, as the server answers. */
+export type SubscriptionOwner = 'mine' | 'other' | 'unknown';
+
 /**
- * Whether the browser's push subscription brings the signed-in person's alerts: it is one of
- * their own browsers on the server. A subscription another person made here (or one the server no
- * longer keeps) is not theirs, so alerts read as off and Turn on alerts makes one for them.
+ * Whose alerts the browser's push subscription brings: `mine` when it is one of the signed-in
+ * person's own browsers on the server, `other` when the server keeps no such browser for them (a
+ * subscription another person made here, or one the server no longer keeps), and `unknown` when
+ * the answer did not come (offline, a server failure). Alerts read as on only for `mine`.
  */
-export async function isOwnSubscription(
+export async function subscriptionOwner(
   subscription: PushSubscription,
   ask: typeof pushBrowser = pushBrowser,
-): Promise<boolean> {
+): Promise<SubscriptionOwner> {
   const result = await settle(() => ask({ endpoint: subscription.endpoint }));
-  return result.ok && result.data.subscribed;
+  if (!result.ok) return 'unknown';
+  return result.data.subscribed ? 'mine' : 'other';
+}
+
+/**
+ * Before Turn on alerts subscribes: a subscription another person made on this browser is theirs,
+ * so it is dropped and the browser gets a new one for the person signed in (that person's alerts
+ * here end with it). The person's own subscription is kept. When the server's answer does not
+ * come, nothing is dropped and the failure is answered, so a person never loses a subscription
+ * that may be their own.
+ */
+export async function releaseOthersSubscription(
+  existing: PushSubscription | null,
+  ask: typeof pushBrowser = pushBrowser,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (existing === null) return { ok: true };
+  const owner = await subscriptionOwner(existing, ask);
+  if (owner === 'unknown') return { ok: false, error: 'internal' };
+  if (owner === 'other') await existing.unsubscribe();
+  return { ok: true };
 }
 
 /**
@@ -67,7 +90,7 @@ export function PushToggle({ publicKey }: { publicKey: string | null }) {
     else {
       currentSubscription()
         .then(async (subscription) =>
-          subscription !== null && (await isOwnSubscription(subscription)) ? 'on' : 'off',
+          subscription !== null && (await subscriptionOwner(subscription)) === 'mine' ? 'on' : 'off',
         )
         .then(
           (next: PushState) => {
@@ -100,11 +123,12 @@ export function PushToggle({ publicKey }: { publicKey: string | null }) {
           scope: '/',
         });
         await navigator.serviceWorker.ready;
-        // A subscription another person made on this browser is theirs: it is dropped here, so
-        // this browser gets a new one for the person signed in (their alerts here end with it).
-        const existing = await registration.pushManager.getSubscription();
-        if (existing !== null && !(await isOwnSubscription(existing))) {
-          await existing.unsubscribe();
+        const released = await releaseOthersSubscription(
+          await registration.pushManager.getSubscription(),
+        );
+        if (!released.ok) {
+          failed(released.error);
+          return;
         }
         const subscription =
           (await registration.pushManager.getSubscription()) ??

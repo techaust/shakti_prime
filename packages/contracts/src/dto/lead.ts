@@ -72,5 +72,12 @@ export type ScoreChanger = z.infer<typeof ScoreChangerSchema>;
 /** A lead in the leads list: the lead, and who last changed its score (null when no one has). */
 export const LeadListItemDto = LeadDto.extend({
   scoreChangedBy: ScoreChangerSchema.nullable(),
+  /** The contact's number is on the do-not-disturb list, so the list offers no call link. */
+  phoneIsDnd: z.boolean(),
+  /**
+   * A contact of the customer withdrew consent to calls and gave none since, as Account 360 and
+   * the call queue read it (`callConsentWithdrawnSql`), so the list offers no call link.
+   */
+  callConsentWithdrawn: z.boolean(),
 }).strict();
 export type LeadListItemDto = z.infer<typeof LeadListItemDto>;

@@ -27,6 +27,7 @@ import {
   listTimeline,
   loadAccount360,
 } from '../../src/queries/crm/customers';
+import { listLeads } from '../../src/queries/crm/list-leads';
 
 // The customers list, Account 360, the timeline and the caller's tasks (docs/03-roadmap-appendix/phase1.md
 // §6.5), each read under the caller's own policies.
@@ -66,6 +67,14 @@ const read = <T>(
   query: (ctx: never, input: unknown) => Promise<T>,
   input: unknown,
 ) => asPrincipal(who, (ctx) => query(ctx as never, input));
+
+/** The lead's row on the caller's leads list (their own leads, newest change first). */
+async function listedLead(who: Principal, leadId: string) {
+  const page = await asPrincipal(who, (ctx) => listLeads(ctx, { limit: 200 }));
+  const row = page.items.find((l) => l.id === leadId);
+  if (row === undefined) throw new Error(`lead ${leadId} is not on the list`);
+  return row;
+}
 
 async function customer(owner: Principal, name: string, village: string, number = testPhone()) {
   const made = (await run(owner, createLead, {
@@ -219,8 +228,13 @@ describe('loadAccount360 and listTimeline', () => {
 
   it('says when the customer withdrew consent to calls and gave none since (CRM-10)', async () => {
     const k = await customer(caller, `${TAG} Calls`, 'Churu');
-    const withdrawn = async () =>
-      (await read(caller, loadAccount360, { accountId: k.accountId })).callConsentWithdrawn;
+    // Account 360 and the leads list read it by the same rule (#168 review, hardening review 6).
+    const withdrawn = async () => {
+      const view = await read(caller, loadAccount360, { accountId: k.accountId });
+      const row = await listedLead(caller, k.leadId);
+      expect(row.callConsentWithdrawn).toBe(view.callConsentWithdrawn);
+      return view.callConsentWithdrawn;
+    };
     expect(await withdrawn()).toBe(false);
     const consent = (textVersion: string) =>
       run(caller, recordConsent, {
@@ -244,6 +258,21 @@ describe('loadAccount360 and listTimeline', () => {
     // A consent to calls given after the withdrawal makes the number one to call again.
     await consent('v2');
     expect(await withdrawn()).toBe(false);
+  });
+
+  it('marks a number on the do-not-disturb list on the leads list, which then offers no call', async () => {
+    const k = await customer(caller, `${TAG} Dnd`, 'Churu');
+    expect(await listedLead(caller, k.leadId)).toMatchObject({
+      phoneIsDnd: false,
+      callConsentWithdrawn: false,
+    });
+    await asMigrator(
+      (m) => m`update contact_phones set is_dnd = true where contact_id = ${k.contactId}`,
+    );
+    expect(await listedLead(caller, k.leadId)).toMatchObject({
+      phoneIsDnd: true,
+      callConsentWithdrawn: false,
+    });
   });
 
   it('is not found for a customer the caller cannot read, or in another company', async () => {

@@ -777,6 +777,7 @@ describe('an enquiry for a colleague’s customer (crm.enquiry.route, RPT-04 cri
       accountId: lead.account.id,
       segment: 'farmer_pumps',
       note: 'Asked about a 5 HP pump',
+      consentChannel: null,
     });
     expect((await inbox(callerB)).items.map((i) => i.id)).not.toContain(routed.itemId);
 
@@ -935,6 +936,12 @@ describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
                where account_id = ${lead.account.id} and type = 'consent_recorded'`,
     );
     expect(timeline?.n).toBe(1);
+    // The colleague's card says a consent came with the enquiry (owner, 17-10-2026).
+    const card = await asPrincipal(callerA, (context) => listInbox(context, { limit: 50 }));
+    expect(card.items.find((i) => i.id === routed.itemId)).toMatchObject({
+      kind: 'routed_work',
+      consentChannel: 'call',
+    });
     // The attempt's lead and its records went with its savepoint: only the routing is recorded,
     // and nothing reads as a failed lead.
     const commands = recorded.records.map((r) => [r.command, r.outcome]);

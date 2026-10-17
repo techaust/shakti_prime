@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from './ids';
-import { SegmentSchema } from './crm/enums';
+import { ConsentChannelSchema, SegmentSchema } from './crm/enums';
 import { AgentRoleKeySchema } from './roles';
 
 // The agent runtime and the Agent Inbox (docs/03-roadmap-appendix/phase1.md §7.1, BLUEPRINT §9.3, SECURITY §6).
@@ -322,6 +322,8 @@ export const InboxItemDto = z
     /** Routed work only: the enquiry's interest and the note it came with. */
     segment: SegmentSchema.nullable(),
     note: z.string().nullable(),
+    /** Routed work only: the channel of a consent that came with the enquiry, recorded on the customer. */
+    consentChannel: ConsentChannelSchema.nullable(),
     createdAt: z.iso.datetime(),
   })
   .strict();

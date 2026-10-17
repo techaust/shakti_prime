@@ -134,6 +134,7 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         fields: type === undefined ? [] : editableFields(type, proposed),
         segment: r.item.segment,
         note: r.item.note,
+        consentChannel: r.item.consentChannel,
         createdAt: r.item.createdAt.toISOString(),
       });
     }),
