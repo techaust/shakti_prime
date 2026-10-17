@@ -252,6 +252,7 @@ describe('the handover worker', () => {
       keyValue: memoryKeyValue(),
       requestId: newId(),
       now: new Date(),
+      startedAt: performance.now(),
     });
     expect(direct?.outcome).toBe('already');
     const assigned = await asOutboxPublisher(

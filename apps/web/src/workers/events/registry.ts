@@ -18,6 +18,8 @@ export interface EventHandlerContext {
   keyValue: KeyValue;
   requestId: string;
   now: Date;
+  /** When the delivery began, on `performance.now()`'s clock (the route's start when routed). */
+  startedAt: number;
 }
 
 /**
@@ -65,6 +67,7 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
         ...(maskingConfigured() ? { masker: vaultMasker, discardMasker: discardVaultMasker } : {}),
         keyValue: ctx.keyValue,
         requestId: ctx.requestId,
+        startedAt: ctx.startedAt,
       });
     },
   },

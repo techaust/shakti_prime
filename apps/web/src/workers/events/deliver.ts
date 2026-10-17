@@ -24,6 +24,11 @@ export interface DeliverOptions {
   keyValue: KeyValue;
   requestId: string;
   now?: () => Date;
+  /**
+   * When the delivery began, on `performance.now()`'s clock: the route's own start when a route
+   * was called, so a worker bounds its work by what is left of the route's time; now when left out.
+   */
+  startedAt?: number;
   /** The worker to run; the registry's for the event's type when left out. */
   worker?: EventWorker | undefined;
 }
@@ -63,6 +68,7 @@ export async function deliverEvent(
   event: DeliveredEvent,
   options: DeliverOptions,
 ): Promise<OutboxEventResult> {
+  const startedAt = options.startedAt ?? performance.now();
   const worker = options.worker ?? workerFor(event.type);
   if (worker === undefined) {
     throw new DomainError('not_found', `no worker handles ${event.type}`, { type: event.type });
@@ -99,6 +105,7 @@ export async function deliverEvent(
         keyValue,
         requestId: options.requestId,
         now: (options.now ?? (() => new Date()))(),
+        startedAt,
       });
     } catch (error) {
       if (error instanceof DomainError) throw error;

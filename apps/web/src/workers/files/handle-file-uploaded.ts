@@ -30,6 +30,7 @@ import { checkPdf } from './pdf-check';
 import {
   deleteMaskedPages,
   maskNextPdfPage,
+  PAGE_DELIVERY_LIMIT_MS,
   PAGE_MASK_LIMIT_MS,
   PAGE_TURN_LIMIT_MS,
   type PageLimits,
@@ -60,6 +61,13 @@ export interface FileCheckDeps {
   keyValue?: KeyValue;
   /** How long a page may take; the defaults of `mask-pdf-pages.ts` unless a test sets them. */
   pageLimits?: PageLimits;
+  /**
+   * When the delivery began, on `clock`'s reading (the route's start, `EventHandlerContext`), from
+   * which every limit of a page is counted; the handler's own start when left out.
+   */
+  startedAt?: number;
+  /** The clock `startedAt` is read on; `performance.now()` unless a test passes its own. */
+  clock?: () => number;
   requestId?: string;
   logger?: Logger;
 }
@@ -105,7 +113,8 @@ export async function handleFileUploaded(
   event: DeliveredEvent,
   deps: FileCheckDeps,
 ): Promise<FileCheckOutcome> {
-  const begun = performance.now();
+  const clock = deps.clock ?? (() => performance.now());
+  const begun = deps.startedAt ?? clock();
   const log = deps.logger ?? appLogger;
   const scope = {
     entityIds: [event.entityId],
@@ -176,7 +185,7 @@ export async function handleFileUploaded(
   }
   const checked = await check(file, bytes, deps, {
     maskedPages: maskedPagesOf(event),
-    elapsed: () => performance.now() - begun,
+    elapsed: () => clock() - begun,
     // The next page's delivery: the same event again, carrying how many pages are kept.
     sendOn: async (kept) => {
       await run(continueFileCheck, { entityId: file.entityId, fileId, maskedPages: kept });
@@ -385,6 +394,7 @@ async function check(
       discardMasker: deps.discardMasker,
       maskMs: deps.pageLimits?.maskMs ?? PAGE_MASK_LIMIT_MS,
       turnMs: deps.pageLimits?.turnMs ?? PAGE_TURN_LIMIT_MS,
+      deliveryMs: deps.pageLimits?.deliveryMs ?? PAGE_DELIVERY_LIMIT_MS,
       elapsed: delivery.elapsed,
     });
     if (timed.kind === 'too_slow') return { ok: false, reason: 'file_mask_failed' };

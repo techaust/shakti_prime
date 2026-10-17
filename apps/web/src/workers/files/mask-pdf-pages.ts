@@ -23,11 +23,19 @@ export const PAGE_MASK_LIMIT_MS = 45_000;
  * waits for a later delivery (a page that begins any later cannot finish before the route ends).
  */
 export const PAGE_TURN_LIMIT_MS = 25_000;
+/**
+ * By this long into the delivery, counted from the route's start, a page's masking must have
+ * ended: the route stops at 60 seconds, and the rest keeps the page and sends the next delivery.
+ * A turn that begins late gets only what is left of it (`maskInTime`).
+ */
+export const PAGE_DELIVERY_LIMIT_MS = 50_000;
 
 export interface PageLimits {
   startMs: number;
   maskMs: number;
   turnMs?: number | undefined;
+  /** `PAGE_DELIVERY_LIMIT_MS` unless a test sets it. */
+  deliveryMs?: number | undefined;
 }
 
 /** The folder, in the store, where the masked pages of one upload wait. */
@@ -94,7 +102,7 @@ export interface MaskStepDeps {
   /** Closes the masking step a page that ran out of time left busy, so the next one opens afresh. */
   discardMasker?: ((used: DocumentMasker) => Promise<void>) | undefined;
   limits?: PageLimits | undefined;
-  /** Milliseconds since the delivery began. */
+  /** Milliseconds since the delivery began (the route's start). */
   elapsed: () => number;
 }
 
@@ -104,8 +112,9 @@ export interface MaskStepDeps {
  * open, is refused at once; a page whose numbers cannot be found refuses the file
  * (`file_mask_failed`); a page that is not drawn within `startMs` of the delivery's start, or whose
  * masking runs past `maskMs` once its turn has begun, refuses it (`file_pdf_page_too_dense`). A page
- * that cannot get its turn in the masking queue by `turnMs` is not refused: the delivery throws
- * `integration_unavailable` and is delivered again. A masking step that itself fails is thrown, not
+ * that cannot get its turn in the masking queue by `turnMs`, or whose masking would run past
+ * `deliveryMs` of the delivery, is not refused: the delivery throws `integration_unavailable` and
+ * is delivered again. A masking step that itself fails is thrown, not
  * blamed on the file.
  *
  * A delivery that finds more pages kept than the file records as sent on (the delivery that kept
@@ -188,6 +197,7 @@ async function maskPage(
       discardMasker: deps.discardMasker,
       maskMs: limits.maskMs,
       turnMs: limits.turnMs ?? PAGE_TURN_LIMIT_MS,
+      deliveryMs: limits.deliveryMs ?? PAGE_DELIVERY_LIMIT_MS,
       elapsed: deps.elapsed,
     });
   } finally {
