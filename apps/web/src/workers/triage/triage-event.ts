@@ -1,5 +1,5 @@
 import type { DeliveredEvent } from '@shakti/contracts';
-import { runTriage, type AgentStepDeps, type TriageResult } from '@shakti/domain';
+import { runTriage, type TriageDeps, type TriageResult } from '@shakti/domain';
 import { aiProvider } from '../../integrations/ai';
 import type { EventHandlerContext } from '../events/registry';
 
@@ -8,15 +8,17 @@ import type { EventHandlerContext } from '../events/registry';
  * §9, A1): the agent reads the new lead as itself and records what it proposes, kind by kind,
  * through the agent runtime; in Shadow, where it starts, nothing acts and nothing reaches an
  * inbox. It runs as the agent's own principal, never as `system:workers`, whose principal the
- * delivery is given. The event's id keys every step, so a repeat delivery records nothing twice.
+ * delivery is given. The event's id keys every step, so a repeat delivery records nothing twice,
+ * and keys the model's answer in the shared store, so a delivery after a partial run asks the
+ * model nothing for the kinds left.
  * Without a spending limit, with a switch off or without `ANTHROPIC_API_KEY`, each run is recorded
  * as stopped or unavailable and no model is called. A lead of an import batch (`imported`) is
  * history brought in, not new intake: nothing runs and nothing is recorded for it.
  */
 export async function handleTriageEvent(
   event: DeliveredEvent,
-  _ctx: EventHandlerContext,
-  deps: AgentStepDeps = { provider: aiProvider() },
+  ctx: EventHandlerContext,
+  deps: TriageDeps = { provider: aiProvider(), keyValue: ctx.keyValue },
 ): Promise<TriageResult> {
   if (event.payload.imported === true) return { runs: {} };
   return runTriage(

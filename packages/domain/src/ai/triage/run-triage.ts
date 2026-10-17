@@ -4,13 +4,14 @@ import {
   type AgentRunDto,
   type TriageProposalKind,
 } from '@shakti/contracts';
+import { createHash } from 'node:crypto';
 import { executeQuery } from '../../command/execute';
 import { AGENT_DEFAULTS } from '../agent-defaults';
 import { loadAgentConfig } from '../config';
-import type { CompleteResult } from '../provider';
+import type { KeyValue } from '../../ports/key-value';
 import { agentPrincipal, runAgentStep, type AgentStepDeps, type RunModel } from '../runtime';
 import { filterTriageAnswer, type TriageVerdicts } from './filter';
-import { buildTriagePrompt } from './prompt';
+import { buildTriagePrompt, type TriagePrompt } from './prompt';
 import { readTriageFacts } from './read-facts';
 
 // The Triage agent (docs/03-roadmap-appendix/phase1.md §9, A1; BLUEPRINT §9.3 "Intake & Triage"):
@@ -22,6 +23,28 @@ import { readTriageFacts } from './read-facts';
 // nothing acts; the agent never writes anything itself.
 
 export const TRIAGE_PURPOSE = 'lead_triage';
+
+/**
+ * How long the model's answer for one event is kept for a redelivery (`triage:answer:{eventId}`):
+ * an hour, the hosted redelivery window. Hosted, the outbox marks an event published once QStash
+ * takes it, and a redelivery is one of QStash's own retries (after the 6-minute event claim, about
+ * 12 s, 148 s and 30 minutes apart, so within about 40 minutes) or a person's Send again. A later
+ * delivery (the outbox's own backoff in process, or Send again after the hour) asks the model
+ * once more, which costs one call and keeps lead-derived text out of the store no longer than it
+ * can serve.
+ */
+export const TRIAGE_ANSWER_TTL_SECONDS = 60 * 60;
+
+/** The key of the model's answer for one `crm.lead.created` event. */
+export const triageAnswerKey = (eventId: string): string => `triage:answer:${eventId}`;
+
+export interface TriageDeps extends AgentStepDeps {
+  /**
+   * Where the model's answer is kept under the event id, so a delivery that runs again after a
+   * partial run asks the model nothing for the kinds left (the store idempotency keys use).
+   */
+  keyValue?: KeyValue;
+}
 
 export interface TriageLead {
   /** The `crm.lead.created` event: one triage per event. */
@@ -37,8 +60,13 @@ export interface TriageResult {
   runs: Partial<Record<TriageProposalKind, AgentRunDto>>;
 }
 
-/** Runs the Triage agent on one new lead and records what it proposes, kind by kind. */
-export async function runTriage(lead: TriageLead, deps: AgentStepDeps): Promise<TriageResult> {
+/**
+ * Runs the Triage agent on one new lead and records what it proposes, kind by kind. A kind an
+ * earlier delivery recorded is answered from its run; for the kinds left, the answer that delivery
+ * kept (`keyValue`) is read before the model is asked, and an answer from the model is kept for
+ * the next one. A store that cannot be read or written only costs a model call.
+ */
+export async function runTriage(lead: TriageLead, deps: TriageDeps): Promise<TriageResult> {
   const now = deps.now ?? (() => new Date());
   const principal = agentPrincipal('agent:triage', lead.entityId);
   // The agent's settings first: switched off or with no spending limit, the agent cannot call the
@@ -76,18 +104,31 @@ export async function runTriage(lead: TriageLead, deps: AgentStepDeps): Promise<
   const prompt = buildTriagePrompt(facts);
   // One model call for the four kinds: the first step that may call the model asks, and its run
   // carries the cost; the others read the same answer. A step the settings stop never asks.
-  let answer: Promise<CompleteResult> | undefined;
+  let answer: Promise<string> | undefined;
   let verdicts: TriageVerdicts | undefined;
+  // The people and duplicate cards are labelled by position (P1, D1, …), so a kept answer is used
+  // only for the same prompt: when the order or a count moved since it was kept, its labels may
+  // name someone else, and the model is asked again.
+  const promptHash = hashPrompt(prompt);
   const verdictsOf = async (model: RunModel): Promise<TriageVerdicts> => {
-    answer ??= model.complete({
-      system: prompt.system,
-      question: prompt.question,
-      untrusted: prompt.untrusted,
-      maxTokens: prompt.maxTokens,
-      totalTimeoutMs: AGENT_DEFAULTS.triage.totalTimeoutMs,
-    });
-    const reply = await answer;
-    verdicts ??= filterTriageAnswer(reply.text, facts);
+    answer ??= keptAnswer(lead.eventId, promptHash, deps).then(
+      (kept) =>
+        kept ??
+        model
+          .complete({
+            system: prompt.system,
+            question: prompt.question,
+            untrusted: prompt.untrusted,
+            maxTokens: prompt.maxTokens,
+            totalTimeoutMs: AGENT_DEFAULTS.triage.totalTimeoutMs,
+          })
+          .then(async (reply) => {
+            await keepAnswer(lead.eventId, { prompt: promptHash, text: reply.text }, deps);
+            return reply.text;
+          }),
+    );
+    const text = await answer;
+    verdicts ??= filterTriageAnswer(text, facts);
     return verdicts;
   };
 
@@ -106,4 +147,57 @@ export async function runTriage(lead: TriageLead, deps: AgentStepDeps): Promise<
     );
   }
   return { runs };
+}
+
+/** What is kept for one event: the model's text and the hash of the prompt it answered. */
+interface KeptAnswer {
+  prompt: string;
+  text: string;
+}
+
+/** The hash of everything the model is sent; the question carries the positional labels. */
+function hashPrompt(prompt: TriagePrompt): string {
+  return createHash('sha256')
+    .update(JSON.stringify([prompt.system, prompt.question, prompt.untrusted]))
+    .digest('hex');
+}
+
+/**
+ * The answer an earlier delivery of the event kept for the same prompt, or null when none is, the
+ * one kept answered another prompt, or the store is away.
+ */
+async function keptAnswer(
+  eventId: string,
+  promptHash: string,
+  deps: TriageDeps,
+): Promise<string | null> {
+  if (deps.keyValue === undefined) return null;
+  let raw: string | null;
+  try {
+    raw = await deps.keyValue.get(triageAnswerKey(eventId));
+  } catch (error) {
+    deps.logger?.log('warn', 'agent.triage_answer_not_read', { eventId, error });
+    return null;
+  }
+  if (raw === null) return null;
+  try {
+    const kept = JSON.parse(raw) as Partial<KeptAnswer> | null;
+    return kept?.prompt === promptHash && typeof kept.text === 'string' ? kept.text : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Keeps the model's answer for a redelivery of the event; a store that is away is only logged. */
+async function keepAnswer(eventId: string, kept: KeptAnswer, deps: TriageDeps): Promise<void> {
+  if (deps.keyValue === undefined) return;
+  try {
+    await deps.keyValue.set(
+      triageAnswerKey(eventId),
+      JSON.stringify(kept),
+      TRIAGE_ANSWER_TTL_SECONDS,
+    );
+  } catch (error) {
+    deps.logger?.log('warn', 'agent.triage_answer_not_kept', { eventId, error });
+  }
 }

@@ -38,6 +38,7 @@ import { converterKey, CONVERTER_NAME } from '../converting-fixtures';
 import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
 import { ensureConvertingJourneys } from './converting';
+import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureOrderJourneys } from './orders';
 import { resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
@@ -829,6 +830,17 @@ await ensureTriageJourney(ids.executive ?? '', ids.snapshotCaller ?? '');
 
 progress('the UAT journeys');
 const uat = await ensureUatJourneys(ids.executive ?? '');
+
+progress('the events the seed left waiting');
+// Delivered here, so the first change a journey makes does not carry them (hardening batch 2).
+const delivery = await deliverWaitingEvents();
+const [waiting] = await asMigrator(
+  (m) => m<{ n: number }[]>`select count(*)::int as n from outbox_events
+                             where published_at is null and dead_lettered_at is null`,
+);
+progress(
+  `${String(delivery.delivered)} events delivered in ${String(delivery.runs)} runs, ${String(waiting?.n ?? 0)} waiting`,
+);
 
 mkdirSync(AUTH_DIR, { recursive: true });
 const seeded: SeededUsers = {

@@ -15,7 +15,9 @@
 
 /*
  * A table holding a changing value takes its column widths from its heads, not from its cells, and
- * a changing cell keeps to one line, so neither its columns nor its rows move.
+ * a changing cell keeps to one line, so neither its columns nor its rows move. `snap()` gives each
+ * head the minimum width its column's cells keep in the browser's own layout, which a fixed layout
+ * would otherwise ignore.
  */
 table[data-snap-table] {
   table-layout: fixed;

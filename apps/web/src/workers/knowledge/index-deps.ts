@@ -1,5 +1,5 @@
 import type { Principal } from '@shakti/contracts';
-import type { IndexKnowledgeDeps } from '@shakti/domain';
+import type { IndexKnowledgeDeps, KeyValue } from '@shakti/domain';
 import { hostedRuntime } from '../../auth/deps';
 import { requireFileStore } from '../../files/uploads';
 import { aiProvider } from '../../integrations/ai';
@@ -11,10 +11,16 @@ import { readWordText } from './read-word';
  * What the index job runs with in this runtime: the worker principal of the upload's company, the
  * file store (none on a hosted runtime without S3: `integration_unavailable`, delivered again), the
  * provider wrapper (no key: the file is recorded unavailable), the Word reader and the drawing of
- * a masked PDF's pages.
+ * a masked PDF's pages, and the shared store, where a reading claims its file so two readings of
+ * one file never run at once.
  */
-export function indexDeps(principal: Principal, requestId: string): IndexKnowledgeDeps {
+export function indexDeps(
+  principal: Principal,
+  requestId: string,
+  keyValue: KeyValue,
+): IndexKnowledgeDeps {
   return {
+    keyValue,
     principal,
     store: requireFileStore(),
     provider: aiProvider(),

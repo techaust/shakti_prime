@@ -18,6 +18,8 @@ export interface EventHandlerContext {
   keyValue: KeyValue;
   requestId: string;
   now: Date;
+  /** When the delivery began, on `performance.now()`'s clock (the route's start when routed). */
+  startedAt: number;
 }
 
 /**
@@ -65,6 +67,7 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
         ...(maskingConfigured() ? { masker: vaultMasker, discardMasker: discardVaultMasker } : {}),
         keyValue: ctx.keyValue,
         requestId: ctx.requestId,
+        startedAt: ctx.startedAt,
       });
     },
   },
@@ -88,7 +91,10 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
     handle: async (event, ctx) => {
       // Loaded on first use, so the Word reader stays out of every other worker's start.
       const { indexDeps } = await import('../knowledge/index-deps');
-      await indexKnowledgeFile(indexJobOf(event), indexDeps(ctx.principal, ctx.requestId));
+      await indexKnowledgeFile(
+        indexJobOf(event),
+        indexDeps(ctx.principal, ctx.requestId, ctx.keyValue),
+      );
     },
   },
   // A lead that reached Qualified goes to a Lead Converter, or to the Sales Team Lead when none

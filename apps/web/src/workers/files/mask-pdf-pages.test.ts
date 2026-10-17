@@ -211,6 +211,23 @@ describe('masking a vault PDF one page per delivery', () => {
     expect(discard).not.toHaveBeenCalled();
   });
 
+  it('hands back, keeping nothing, a page whose delivery has too little of the route’s time left', async () => {
+    const original = await pdfOf(['One', 'Two']);
+    const seen: Buffer[] = [];
+    const discard = vi.fn(() => Promise.resolve());
+    // The route began 47 s ago (its turn came late); 3 s of the delivery's 50 s are left.
+    const { store, deps } = setup(coveringMasker(seen), {
+      limits: { startMs: 60_000, maskMs: 45_000, turnMs: 60_000, deliveryMs: 50_000 },
+      elapsed: () => 47_000,
+      discardMasker: discard,
+    });
+    await expect(maskNextPdfPage(input(original), deps)).rejects.toMatchObject({
+      code: 'integration_unavailable',
+    });
+    expect(store.objects.size).toBe(0);
+    expect(discard).toHaveBeenCalledTimes(1);
+  });
+
   it('sends the chain on itself when a delivery died after keeping a page and before sending on', async () => {
     const original = await pdfOf(['One', 'Two', 'Three']);
     const seen: Buffer[] = [];

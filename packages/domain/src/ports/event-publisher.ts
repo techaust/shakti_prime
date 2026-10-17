@@ -3,9 +3,13 @@ import type { DeliveredEvent } from '@shakti/contracts';
 /**
  * What the queue answered for one event: accepted, or a short code of why not. `deduplicated`
  * says the queue already held a message under the same deduplication id and sent nothing now.
+ * `notTried` says the publisher stopped before this event (its time ran out): the event goes back
+ * as it was, with no attempt counted, for the next run.
  */
 export type PublishResult =
-  { id: string; ok: true; deduplicated?: boolean } | { id: string; ok: false; error: string };
+  | { id: string; ok: true; deduplicated?: boolean }
+  | { id: string; ok: false; error: string }
+  | { id: string; ok: false; notTried: true };
 
 /**
  * Hands events to the queue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2). QStash implements it in

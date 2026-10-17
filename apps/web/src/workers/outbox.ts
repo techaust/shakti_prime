@@ -64,17 +64,37 @@ export function checkOutboxReady(): Promise<'ok' | 'down'> {
   });
 }
 
+/** When an in-process publisher stops starting workers: a moment on `now`'s clock, in ms. */
+export interface InProcessDeadline {
+  at: number;
+  now?: () => number;
+}
+
 /**
  * Used where no queue is configured (local development and CI): each subscribed event goes to its
  * worker in this process, through the same checks and handler as the worker route
  * (`deliverEvent`). A worker's failure is the event's failure, retried after its backoff and
  * dead-lettered after its last attempt, as a refusal by the queue would be.
+ *
+ * With a `deadline`, the events of a claim still waiting once it has passed are answered
+ * `notTried` and go back unchanged for the next run, so a nudge never holds the request that
+ * caused it much past its budget, however slow the claim's workers are. The first event of each
+ * call is always delivered, so every run moves the outbox on.
  */
-export function inProcessEventPublisher(keyValue: KeyValue, requestId?: string): EventPublisher {
+export function inProcessEventPublisher(
+  keyValue: KeyValue,
+  requestId?: string,
+  deadline?: InProcessDeadline,
+): EventPublisher {
+  const clock = deadline?.now ?? Date.now;
   return {
     async publish(events: readonly DeliveredEvent[]) {
       const results: PublishResult[] = [];
       for (const event of events) {
+        if (deadline !== undefined && results.length > 0 && clock() >= deadline.at) {
+          results.push({ id: event.id, ok: false, notTried: true });
+          continue;
+        }
         try {
           await deliverEvent(event, { keyValue, requestId: requestId ?? event.id });
           results.push({ id: event.id, ok: true });
@@ -124,7 +144,13 @@ export async function publishOutbox(
   const keyValue = options.keyValue ?? defaultAuthDeps().keyValue;
   const alerts = options.alerts ?? sentryAlertSink;
   const now = options.now ?? (() => new Date());
-  const publisher = options.publisher ?? defaultPublisher(keyValue, requestId);
+  const publisher =
+    options.publisher ??
+    defaultPublisher(
+      keyValue,
+      requestId,
+      options.budgetMs === undefined ? undefined : Date.now() + options.budgetMs,
+    );
   const deadIds: string[] = [];
   // Awaited, so the alert is sent before the route answers and the function may be frozen.
   const reportDead = async () => {
@@ -211,18 +237,31 @@ export async function lastPublisherRun(keyValue: KeyValue): Promise<PublisherRun
   }
 }
 
-function defaultPublisher(keyValue: KeyValue, requestId: string | undefined): EventPublisher {
+/**
+ * QStash when configured; otherwise this process, which stops starting workers at `deadline` (the
+ * run's budget), since here the workers' time is the run's time.
+ */
+function defaultPublisher(
+  keyValue: KeyValue,
+  requestId: string | undefined,
+  deadline: number | undefined,
+): EventPublisher {
   const config = qstashConfig();
-  return config === undefined
-    ? inProcessEventPublisher(keyValue, requestId)
-    : qstashEventPublisher(config);
+  if (config !== undefined) return qstashEventPublisher(config);
+  return inProcessEventPublisher(
+    keyValue,
+    requestId,
+    deadline === undefined ? undefined : { at: deadline },
+  );
 }
 
 /**
  * After a command commits with events (`executeCommand`'s `onCommitted`): hosted, QStash is
  * asked to run the publisher at once; locally, with no queue, the run happens in this process
  * and delivers subscribed events to their workers here, claiming again while claims come back
- * full (`LOCAL_NUDGE_BUDGET_MS`), since no schedule follows it. Hosted, the minute schedule
+ * full (`LOCAL_NUDGE_BUDGET_MS`), since no schedule follows it, and stopping inside a claim once
+ * that budget is spent, so no request carries more than its budget of delivery (one worker's run
+ * past it at most). Hosted, the minute schedule
  * catches anything a lost nudge leaves behind.
  */
 export async function nudgeOutbox(): Promise<void> {

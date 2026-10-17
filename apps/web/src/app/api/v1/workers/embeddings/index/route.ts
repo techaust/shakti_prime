@@ -80,7 +80,10 @@ export async function POST(request: Request): Promise<Response> {
       worker: {
         ordering: 'every',
         handle: async (_event, ctx) => {
-          indexed = await indexKnowledgeFile(job, indexDeps(ctx.principal, requestId));
+          indexed = await indexKnowledgeFile(
+            job,
+            indexDeps(ctx.principal, requestId, ctx.keyValue),
+          );
         },
       },
     });

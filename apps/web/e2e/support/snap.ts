@@ -33,7 +33,9 @@ function alwaysMasked(page: Page): Locator[] {
 /**
  * Marks the masked values that take their width from their own text: an inline element or a
  * text-only item of a flex row (`data-snap-fixed`), a table cell holding one (`data-snap-cell`)
- * and its table (`data-snap-table`). A block, a form field or a region keeps its own size.
+ * and its table (`data-snap-table`), whose heads keep their columns' minimum widths
+ * (`data-snap-width`, the width a head had before). A block, a form field or a region keeps its
+ * own size.
  */
 async function markFixedWidths(masks: Locator[]): Promise<void> {
   for (const mask of masks) {
@@ -41,8 +43,40 @@ async function markFixedWidths(masks: Locator[]): Promise<void> {
       for (const el of elements) {
         if (!(el instanceof HTMLElement) || el.closest('header, nav')) continue;
         // A table holding a changing value is laid out from its heads alone while the picture is
-        // taken, so a longer value in any cell never moves its columns.
-        el.closest('table')?.setAttribute('data-snap-table', '');
+        // taken, so a longer value in any cell never moves its columns. A fixed layout ignores a
+        // cell's minimum width, so each head is given the widest minimum its column's cells or their
+        // contents set (a box of controls, `min-w-*`), as the browser's own layout keeps it.
+        const table = el.closest('table');
+        if (table !== null && !table.hasAttribute('data-snap-table')) {
+          table.setAttribute('data-snap-table', '');
+          // A minimum in pixels only: `auto` sets none, and a share of the cell (`min-w-full`) none
+          // of its own.
+          const px = (value: string): number => (value.endsWith('px') ? parseFloat(value) : 0);
+          const heads = Array.from(table.rows.item(0)?.cells ?? []);
+          heads.forEach((head, i) => {
+            let least = 0;
+            for (const row of Array.from(table.rows)) {
+              // Only rows laid out column for column; a cell spanning columns sets no minimum.
+              const cell = row.cells.length === heads.length ? row.cells.item(i) : null;
+              if (cell === null) continue;
+              const style = getComputedStyle(cell);
+              const inset =
+                parseFloat(style.paddingLeft) +
+                parseFloat(style.paddingRight) +
+                parseFloat(style.borderLeftWidth) +
+                parseFloat(style.borderRightWidth);
+              least = Math.max(least, px(style.minWidth));
+              for (const inner of Array.from(cell.querySelectorAll('*'))) {
+                const min = px(getComputedStyle(inner).minWidth);
+                if (min > 0) least = Math.max(least, min + inset);
+              }
+            }
+            if (least > 0) {
+              head.setAttribute('data-snap-width', head.style.width);
+              head.style.width = `${String(Math.ceil(least))}px`;
+            }
+          });
+        }
         if (el.tagName === 'TD' || el.tagName === 'TH') {
           el.setAttribute('data-snap-cell', '');
           continue;
@@ -71,6 +105,15 @@ export async function snap(
 ): Promise<void> {
   if (process.platform !== 'linux') return;
   await test.step(`screenshot ${name}`, async () => {
+    const fullPage = options.fullPage ?? true;
+    if (fullPage) {
+      // A full-page picture draws the fixed top bar where the page is scrolled to, and a run leaves
+      // the page wherever its last action (or a reload) scrolled it, so the picture starts at the top.
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+      });
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    }
     // Fonts are loaded before the picture, so a late font swap never shows as a difference.
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     const changing = [
@@ -80,7 +123,7 @@ export async function snap(
     await markFixedWidths(changing);
     try {
       await expect(page).toHaveScreenshot(`${name}.png`, {
-        fullPage: options.fullPage ?? true,
+        fullPage,
         // A long page (the design board) takes more than one quick capture to settle.
         timeout: 60_000,
         mask: [...alwaysMasked(page), ...changing],
@@ -94,6 +137,11 @@ export async function snap(
           el.removeAttribute('data-snap-fixed');
           el.removeAttribute('data-snap-cell');
           el.removeAttribute('data-snap-table');
+        }
+        // The heads' widths go back to what they were.
+        for (const head of document.querySelectorAll<HTMLElement>('[data-snap-width]')) {
+          head.style.width = head.getAttribute('data-snap-width') ?? '';
+          head.removeAttribute('data-snap-width');
         }
       });
     }

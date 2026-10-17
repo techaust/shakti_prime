@@ -165,10 +165,6 @@ test.describe('notices as a tele-caller', () => {
     await expect(page.getByLabel('Quiet from')).toHaveValue('22:00');
     await expect(page.getByLabel('Quiet until')).toHaveValue('07:00');
     await expectNoAxeViolations(page);
-    // A reload keeps the scroll position, which draws the fixed menu over a full-page picture.
-    await page.evaluate(() => {
-      window.scrollTo(0, 0);
-    });
     await snap(page, 'notification-settings');
 
     // Quiet hours of one time only are refused in plain words.

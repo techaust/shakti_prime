@@ -1,4 +1,4 @@
-import { newId, TRIAGE_ACTION_TYPES, type Principal } from '@shakti/contracts';
+import { AGENT_PRINCIPAL_IDS, newId, TRIAGE_ACTION_TYPES, type Principal } from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -9,7 +9,13 @@ import {
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAiProvider } from '../../src/ai/provider';
-import { runTriage, type TriageLead } from '../../src/ai/triage/run-triage';
+import { agentStepKey } from '../../src/ai/runtime';
+import {
+  runTriage,
+  TRIAGE_ANSWER_TTL_SECONDS,
+  triageAnswerKey,
+  type TriageLead,
+} from '../../src/ai/triage/run-triage';
 import {
   fakeModelTransport,
   fakeReply,
@@ -320,6 +326,130 @@ describe('the Triage agent in shadow', () => {
       const again = await runTriage(triage(lead.id, eventId), deps);
       expect(again).toEqual(first);
       expect(transport.requests).toHaveLength(1);
+    } finally {
+      await drop(cap);
+    }
+  });
+
+  /**
+   * A partial run: the first delivery recorded every kind and kept the answer, then the records of
+   * the last two kinds are taken away, as if it had died after the first two.
+   */
+  async function forgetLastTwoKinds(eventId: string): Promise<void> {
+    const keys = (['duplicate', 'assignee'] as const).map((kind) =>
+      agentStepKey(eventId, 'agent:triage', TRIAGE_ACTION_TYPES[kind]),
+    );
+    await asMigrator(
+      (m) => m`delete from idempotency_keys
+                where principal_id = ${AGENT_PRINCIPAL_IDS['agent:triage']} and key = any(${keys})`,
+    );
+  }
+
+  it('asks the model nothing for the kinds a redelivery after a partial run has left', async () => {
+    const cap = await setting({ cap: 100_000 });
+    try {
+      const lead = await newLead();
+      const { transport, deps } = provider([fakeReply(GOOD), fakeReply(GOOD)]);
+      let clock = 0;
+      const keyValue = memoryKeyValue(() => clock);
+      const eventId = newId();
+      const first = await runTriage(triage(lead.id, eventId), { ...deps, keyValue });
+      expect(transport.requests).toHaveLength(1);
+      // Kept under the event id with the prompt it answered, for no longer than a redelivery.
+      const kept = JSON.parse((await keyValue.get(triageAnswerKey(eventId))) ?? '{}') as {
+        prompt?: string;
+        text?: string;
+      };
+      expect(kept.text).toBe(GOOD);
+      expect(kept.prompt).toMatch(/^[0-9a-f]{64}$/);
+      clock = (TRIAGE_ANSWER_TTL_SECONDS - 1) * 1000;
+      await forgetLastTwoKinds(eventId);
+
+      const again = await runTriage(triage(lead.id, eventId), { ...deps, keyValue });
+      expect(transport.requests).toHaveLength(1);
+      // The first two kinds come from their runs; the last two are recorded from the kept answer.
+      expect(again.runs.pipeline).toEqual(first.runs.pipeline);
+      expect(again.runs.score).toEqual(first.runs.score);
+      for (const kind of ['duplicate', 'assignee'] as const) {
+        expect(again.runs[kind]?.runId).not.toBe(first.runs[kind]?.runId);
+        expect(again.runs[kind]?.outcome).toBe(first.runs[kind]?.outcome);
+      }
+      clock = TRIAGE_ANSWER_TTL_SECONDS * 1000;
+      expect(await keyValue.get(triageAnswerKey(eventId))).toBeNull();
+    } finally {
+      await drop(cap);
+    }
+  });
+
+  /** The open leads the prompt shows for a person label, read from the question sent. */
+  function openLeadsOf(user: string, label: string): number {
+    const match = new RegExp(`^- ${label}: role [^,]+, (\\d+) open leads`, 'm').exec(user);
+    if (match?.[1] === undefined) throw new Error(`no ${label} in the prompt`);
+    return Number(match[1]);
+  }
+
+  it('asks the model again when the people moved since the answer was kept', async () => {
+    const cap = await setting({ cap: 100_000 });
+    // A second person who works on leads, so the list has a P2 to move up.
+    await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_cc' }]);
+    const moved: { id: string; owner: string | null }[] = [];
+    try {
+      const lead = await newLead();
+      const { transport, deps } = provider([fakeReply(GOOD), fakeReply(GOOD)]);
+      const keyValue = memoryKeyValue();
+      const eventId = newId();
+      const first = await runTriage(triage(lead.id, eventId), { ...deps, keyValue });
+      const [chosen] = await actionsOf([first.runs.assignee?.runId ?? '']);
+      const firstOwner = chosen?.input.ownerId as string;
+      expect(typeof firstOwner).toBe('string');
+      await forgetLastTwoKinds(eventId);
+
+      // A caller takes leads in between: the person who was P1 now has more open leads than P2,
+      // so P1 names someone else, and the kept answer's "P1" must not be read against the new list.
+      const sent = transport.requests[0]?.user ?? '';
+      const more = openLeadsOf(sent, 'P2') - openLeadsOf(sent, 'P1') + 1;
+      for (let i = 0; i < more; i++) {
+        const other = await newLead();
+        const [row] = await asMigrator(
+          (m) => m<{ owner_id: string | null }[]>`
+            select owner_id from opportunities where id = ${other.id}`,
+        );
+        moved.push({ id: other.id, owner: row?.owner_id ?? null });
+        await asMigrator(
+          (m) => m`update opportunities set owner_id = ${firstOwner} where id = ${other.id}`,
+        );
+      }
+
+      const again = await runTriage(triage(lead.id, eventId), { ...deps, keyValue });
+      expect(transport.requests).toHaveLength(2);
+      expect(transport.requests[1]?.user).not.toBe(sent);
+      const [rechosen] = await actionsOf([again.runs.assignee?.runId ?? '']);
+      expect(rechosen?.input.ownerId).not.toBe(firstOwner);
+    } finally {
+      for (const row of moved) {
+        await asMigrator(
+          (m) => m`update opportunities set owner_id = ${row.owner} where id = ${row.id}`,
+        );
+      }
+      await drop(cap);
+    }
+  });
+
+  it('asks the model again after a partial run when no answer was kept', async () => {
+    const cap = await setting({ cap: 100_000 });
+    try {
+      const lead = await newLead();
+      const { transport, deps } = provider([fakeReply(GOOD), fakeReply(GOOD)]);
+      const eventId = newId();
+      await runTriage(triage(lead.id, eventId), { ...deps, keyValue: memoryKeyValue() });
+      await forgetLastTwoKinds(eventId);
+      // Another store, as after the kept answer ran out: nothing under the event id.
+      const again = await runTriage(triage(lead.id, eventId), {
+        ...deps,
+        keyValue: memoryKeyValue(),
+      });
+      expect(transport.requests).toHaveLength(2);
+      expect(Object.keys(again.runs)).toHaveLength(4);
     } finally {
       await drop(cap);
     }

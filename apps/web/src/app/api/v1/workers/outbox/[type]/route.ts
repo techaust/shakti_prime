@@ -41,6 +41,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ type: string }> },
 ): Promise<Response> {
+  // The route's start: a worker bounds its work by what is left of the route's 60 seconds.
+  const startedAt = performance.now();
   const requestId = incomingRequestId(request.headers);
   const headers = { 'cache-control': 'no-store', 'x-request-id': requestId };
   const config = qstashConfig();
@@ -82,7 +84,11 @@ export async function POST(
   }
 
   try {
-    const result = await deliverEvent(event, { keyValue: defaultAuthDeps().keyValue, requestId });
+    const result = await deliverEvent(event, {
+      keyValue: defaultAuthDeps().keyValue,
+      requestId,
+      startedAt,
+    });
     logger.log('info', 'outbox.event_delivered', {
       requestId,
       eventId: event.id,

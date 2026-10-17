@@ -14,6 +14,7 @@ import { executeCommand, executeQuery } from '../command/execute';
 import { recordKnowledgeIndex } from '../commands/knowledge/record-index';
 import { knowledgeFileForIndex } from '../commands/knowledge/shared';
 import { sha256Hex, type FileStore } from '../ports/file-store';
+import type { KeyValue } from '../ports/key-value';
 import { jsonLogger, type Logger } from '../ports/logger';
 import { getStoredFile } from '../queries/files/file-queries';
 import {
@@ -30,6 +31,18 @@ import { knowledgePassages } from './passages';
 export const EMBED_BATCH = 128;
 /** Less time than this left, no embedding call is started: the file is recorded timed out. */
 const MIN_EMBED_MS = 5_000;
+
+/**
+ * How long one reading holds its vault file (`knowledge:reading:{id}`): longer than the index
+ * route may run (300 seconds), so a live reading is never taken over, and shorter than the six
+ * minutes after which Read again is offered on a waiting file (`KNOWLEDGE_WAITING_STALE_SECONDS`),
+ * so a reading whose route was killed never stops the one Read again starts.
+ */
+export const KNOWLEDGE_READ_CLAIM_SECONDS = 330;
+
+/** The key a reading of one vault file holds while it runs. */
+export const knowledgeReadKey = (knowledgeFileId: string): string =>
+  `knowledge:reading:${knowledgeFileId}`;
 
 export interface IndexKnowledgeDeps {
   /** `system:workers` for the job's file company (`knowledge.index`), never a person. */
@@ -48,6 +61,12 @@ export interface IndexKnowledgeDeps {
   logger?: Logger;
   /** The times one reading may take; the route's own limits when left out (tests shorten them). */
   deadlinesMs?: { extract: number; job: number };
+  /**
+   * Where a reading claims its vault file, so two readings of one file never run at once (a
+   * queue's redelivery and Read again); the shared store event ids use. Left out, nothing is
+   * claimed (a single process, or a test of one reading).
+   */
+  keyValue?: KeyValue;
 }
 
 export interface IndexKnowledgeOutcome {
@@ -118,8 +137,54 @@ async function asDocuments(
  * 4. `knowledge.file.record_index` replaces its passages in one transaction, or records why it
  *    could not be read. A vendor that does not answer is left to the queue's retries; a reading
  *    that runs past its deadline (under the route's limit) is recorded `knowledge_timed_out`.
+ *
+ * With `keyValue`, the reading first claims the vault file (`knowledgeReadKey`, `SET NX`, for
+ * `KNOWLEDGE_READ_CLAIM_SECONDS`) and gives the claim back when it ends, however it ends. A
+ * reading that finds the file claimed stops at once, reading, spending and recording nothing, and
+ * fails as a `conflict` the queue tries again: another reading of the same file is running, and a
+ * later delivery finds the file read (and answers it as it stands) or the claim lapsed, as when the
+ * holder was a redelivery whose route died after its claim outlived the six-minute mark. A store
+ * that cannot be reached fails the delivery, which is tried again.
  */
 export async function indexKnowledgeFile(
+  job: EmbeddingsIndexJob,
+  deps: IndexKnowledgeDeps,
+): Promise<IndexKnowledgeOutcome> {
+  if (!hasGrant(deps.principal.permissions, 'knowledge.index', 'entity')) {
+    throw new DomainError('forbidden', 'indexing a vault file needs knowledge.index');
+  }
+  const { keyValue } = deps;
+  if (keyValue === undefined) return readVaultFile(job, deps);
+  const key = knowledgeReadKey(job.knowledgeFileId);
+  let held: boolean;
+  try {
+    held = await keyValue.setIfAbsent(key, job.eventId, KNOWLEDGE_READ_CLAIM_SECONDS);
+  } catch (error) {
+    throw new DomainError(
+      'integration_unavailable',
+      'the vault file could not be claimed',
+      {},
+      { cause: error },
+    );
+  }
+  if (!held) {
+    (deps.logger ?? jsonLogger()).log('info', 'knowledge.reading_taken', {
+      requestId: deps.requestId,
+      eventId: job.eventId,
+      knowledgeFileId: job.knowledgeFileId,
+    });
+    throw new DomainError('conflict', 'another reading of the vault file is running');
+  }
+  try {
+    return await readVaultFile(job, deps);
+  } finally {
+    // A claim that cannot be given back lapses after its time.
+    await keyValue.del(key).catch(() => undefined);
+  }
+}
+
+/** One reading of a vault file, once it is this reading's (`indexKnowledgeFile`). */
+async function readVaultFile(
   job: EmbeddingsIndexJob,
   deps: IndexKnowledgeDeps,
 ): Promise<IndexKnowledgeOutcome> {
@@ -129,9 +194,6 @@ export async function indexKnowledgeFile(
     extract: KNOWLEDGE_EXTRACT_DEADLINE_MS,
     job: KNOWLEDGE_INDEX_DEADLINE_MS,
   };
-  if (!hasGrant(deps.principal.permissions, 'knowledge.index', 'entity')) {
-    throw new DomainError('forbidden', 'indexing a vault file needs knowledge.index');
-  }
   const scope = { entityIds: [job.fileEntityId], requestId: deps.requestId };
   const facts = await executeQuery(
     deps.principal,
