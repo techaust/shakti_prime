@@ -92,6 +92,40 @@ All eleven items are built on `fix/followups-hardening` (commits `51bdb4d5` to t
 - Item 10: turning alerts on ends another person's subscription on that browser before making the person's own.
 - Item 1: `session_replication_role` in place of the trigger DDL, the pattern `home.test.ts` already uses. It also skips foreign-key checks in those transactions; every reference to the rows removed is `no action`, and the deletes run children first as before.
 
+### 17-10-2026, fix round, the PC (slot 2, Postgres 54332), Opus 5.5 medium
+Review findings 2, 3, 4 (with the owner's answer) and 6 are fixed on `fix/followups-hardening` (`085fcb39` to the report's commit); 1 and 5 stay follow-ups, as told. Skills: none named, none loaded.
+
+**What changed**
+- #2, push toggle (`apps/web/src/components/notifications/push-toggle.tsx`): `subscriptionOwner()` answers `mine`, `other` or `unknown` (the answer did not come); alerts read as on only for `mine`. Turn on alerts calls `releaseOthersSubscription()`, which unsubscribes only on `other`, keeps the person's own, and on `unknown` keeps the subscription and shows the failure (`internal`, the catalogue's sentence) without subscribing.
+- #3 and #4, documents: the routed-work entry of `docs/03-roadmap-appendix/phase1.md` and the routed-work line of `docs/07-security.md` say that `crm.enquiry.route` records the form's consent through `app.record_routed_consent()`, that it is given now and so lifts an earlier withdrawal of the same channel, and that the card says so; `docs/05-database.md` lists the new column; `docs/data/` regenerated.
+- #4, the owner's answer (allow it, show it): a new column `inbox_items.consent_channel` (routed work only, `inbox_items_consent_routed_check`; values `inbox_items_consent_channel_check`, both paired in `enum-sync`), migration `0157_routed_consent_channel` (generated, no custom part: the insert grant is table-wide). `crm.enquiry.route` writes the consent's channel there; `InboxItemDto.consentChannel` carries it; the routed-work card (`RoutedCard`, now exported for its test) shows `agents.inbox.routedConsent`: "Consent to phone calls was given with this enquiry and is recorded on the customer." (the channel by an ICU select: phone calls, WhatsApp messages, text messages, email).
+- #6, leads list: `LeadListItemDto.phoneIsDnd` and `.callConsentWithdrawn`, read in `listLeads`' customers query (the primary phone's `is_dnd`, and `callConsentWithdrawnSql`, the rule Account 360 and the call queue use, under the caller's policies). `leads-screen.tsx` shows the number as plain text, with no `tel:` link, when either is true.
+
+**Tests added or changed**
+- Web unit: `push-toggle.test.ts` 7 (was 3): the three answers, and the drop path (drops `other`, keeps `mine`, keeps on a failed or rejected answer, asks nothing with no subscription). `routed-card.test.tsx` new, 3 (calls, WhatsApp, none).
+- Domain: `commands/notifications.test.ts`: the plain route's item has `consentChannel: null`; the take's routed item reads `consentChannel: 'call'` in the colleague's inbox. `queries/customers.test.ts`: the withdrawal case checks the leads list row agrees with Account 360 at each step; +1, a do-not-disturb number marks the row (`phoneIsDnd`).
+- DB security: `enum-sync.test.ts` pairs the two new checks.
+- Journey: `customers.spec.ts` "records a consent with its proof, then withdraws it" ends on the leads list: the lead's number is readable with no call link (a table row on desktop, a list item on the phone).
+
+**Checks run** (every one through the lock)
+- Typecheck: contracts, db, domain, web, passed (domain after one fix: the take's answer narrowed before `itemId`).
+- Lint: `packages/contracts/src`, `packages/db/src`, `packages/db/tests`, `packages/domain/src`, `packages/domain/tests`, `apps/web/src`, `apps/web/e2e`, passed with no warnings; `pnpm copy-lint`: "catalogues and templates are clean".
+- Unit, changed files three runs in a row: `push-toggle.test.ts` 7 passed ×3 (before the card test existed), then `push-toggle` and `routed-card` together 10 passed ×3. Contracts once: 182 passed.
+- `pnpm db:migrate` on the slot: applied.
+- Security, changed files three runs in a row: domain `notifications` and `customers` 37 passed each time; db `enum-sync` failed the first three times (the routed-only check is a one-value list the test finds; pairing added in `3230ff2d`), then 4 passed ×3. Related files once: db `notifications` 13 passed; domain `agent-inbox`, `list-leads-scope`, `list-sort`, `reader-parity`, `create-lead`, `lead-flows` 45 passed; web `actions` and `notifications` 59 passed. The whole suite was not run: `crm-scoring-referrals` "rescores the open leads…" fails on this slot only because it holds over 1,000 open leads (review 5).
+- Journeys (`pnpm --filter web build`, `e2e:seed`, `customers.spec.ts`, three projects, `--retries=0`): first pair: 3 failed and 44 passed, then 1 failed and 46 passed; the phone failed both times on the new step (the phone shows the leads as a list, not a table), and run 1 also had desktop-light failures. After the locator fix (`878dc490`), two runs on the same database: 2 failed, 45 passed; 1 failed, 46 passed. The changed journey passed on all three projects in both. The failures were unchanged cases ("adds a task and marks it done", "records consent and adds a task for their own customer…") that ran out of their 60 s on a PC loaded by G1's builder, the slowness of review 1.
+
+**`EXPLAIN (ANALYZE)`** (slot database: 4,878 customers, 2,802 leads, 282 consents; as the migrator, the 50 newest leads' customers): the leads list's customers read with the two new columns: Index Scan on `accounts_pkey`, Index Scans on `contacts_pkey` and `contact_phones_primary_unique`, the consent rule as one hashed subplan (Hash Anti Join over `consents`, Index Scan on `account_contacts_contact_idx`); 1.0 ms.
+
+**Baselines to remake in the Linux image**
+- None new: the seeded snapshot leads have no do-not-disturb number or withdrawn consent, and no screenshot shows a routed-work card. `admin-agents.png` from the first round still stands.
+
+**Decisions the brief did not settle**
+- #4: the consent's channel is stored on the routed item (`consent_channel`) rather than read back from the consents table, so the card says it for the colleague and their team without a join to consents, and the sentence names the channel rather than the form (the source is always the walk-in form today, but the column holds only what the card says). The wording is "Consent to … was given with this enquiry and is recorded on the customer."
+- #2: on `unknown` at page load, alerts read as off (as before); only Turn on alerts shows the failure and keeps the subscription.
+- #6: two flags on the list row, named as on Account 360, rather than one "may call" flag.
+- The documents cite migration 0157 in DATABASE, as the first round cited 0156; the lead renumbers both at the merge.
+
 ## Review
 17-10-2026, slice-reviewer (Opus 5.5 high), read-only on `c9096394` against `main` 485a43eb; no suite run (the slot's database was stopped). No critical or high finding: nothing blocks the merge.
 
