@@ -6,9 +6,9 @@
 | PC worktree | `g1-production`, slot 1: Postgres 54331 (container `shakti-pg-g1-production`), app 3031 |
 | Runs on | PC (owner, 14-10-2026); the hosted steps from the lead session |
 | Tier | A (a miss reaches production): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
-| Usage | build Opus high from week 83, 5h 11 (17-10-2026, started before the reset by the owner's rule of 17-10-2026) |
-| State | the re-check's fix round done (18-10-2026): L14 to L16 fixed (Report); before it, the review at 749ac262's H2 (as the owner chose: the dump in AWS), M3 to M5 and L6 to L13 fixed, and every check of AGENTS §10 passed on the slot; part 1 done on 15-10-2026, SES production access granted on 17-10-2026 |
-| Next step | the lead's DECISIONS rows (the dump in AWS, the lead's token) and a look at both fix rounds, then the owner's steps a to c of DEPLOY §1 step 4 and the lead's read-back before the merge (Integration notes) |
+| Usage | build Opus high from week 83, 5h 11 (17-10-2026, started before the reset by the owner's rule of 17-10-2026); review Opus xhigh at 91, re-check Opus xhigh at 93, fix rounds Opus high; week 94 at integration (17-10-2026) |
+| State | integrating: every check passed; pull request opened (18-10-2026) |
+| Next step | the owner's steps a and b of DEPLOY §1 step 4, the lead's read-back (c), then the owner adds `checks-ok` |
 
 ## Brief
 Design: [`docs/03-roadmap-appendix/phase1.md`](../../03-roadmap-appendix/phase1.md) §10 (G1). Runbooks: [deploy](../../runbooks/deploy.md) §1 and §2, [files-setup](../../runbooks/files-setup.md) §1 to §4 and §7, [accounts](../../runbooks/accounts.md), [cutover](../../runbooks/cutover.md), [incidents](../../runbooks/incidents.md). Exit-gate actions 2, 3, 7, 8 and 9 ([exit-gate-actions](../../13-client-packs/exit-gate-actions.md)); the 2026-09 audit's M45; ADR 0003, 0015 and 0017.
@@ -460,3 +460,4 @@ Commits `fa2d0ccd` (L14), `40de327a` (L16), `19b5bc56` (L15), `b88dcfc2` (`check
   3. The run on `proof/release-gate` passes the check and waits at *Review deployments*; the owner **rejects** it. The lead records the run's address and its *Waiting* and *Rejected* states.
   4. The lead pushes the same commit as `proof/release-gate-other`: its `check` job stops at *Only from main* (the plain message). Then a second commit on that branch that removes the guard and the `if:` (a branch's own copy dropping the checks): the `release` job is refused by the environment's branch rule (*Branch "proof/release-gate-other" is not allowed to deploy to release-proof due to environment protection rules*). The lead records both runs.
   5. The owner deletes the environment `release-proof`. The two proof branches stay on GitHub (no remote branch is deleted, CLAUDE.md); their names say what they are.
+- 18-10-2026, the lead: `main` (#185, #186) merged in, the migration moved to `0158_backup_role`; `integrate.sh` passed every step (security db 1,271, domain 1,024, web 332; print, files, admin, public and session journeys 73 passed, 10 skipped); no screen changed, so no baseline.
