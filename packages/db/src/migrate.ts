@@ -25,7 +25,7 @@ async function assertOwnerBypassesRls(sql: postgres.Sql): Promise<void> {
 }
 
 const LOGIN_ROLES = ['app_user', 'auth_service', 'outbox_publisher', 'app_reader'] as const;
-type LoginRole = (typeof LOGIN_ROLES)[number];
+type LoginRole = (typeof LOGIN_ROLES)[number] | 'app_backup';
 
 /**
  * `app_user`, `auth_service`, `outbox_publisher`, `app_reader` and `readonly_reporter` are cluster
@@ -37,6 +37,12 @@ type LoginRole = (typeof LOGIN_ROLES)[number];
  * every run. `app_reader` is created whether or not its password is set, so the migrations can
  * grant to it; without `APP_READER_PASSWORD` it has no password and no one can sign in as it, and
  * `executeQuery()` keeps to `app_user`.
+ *
+ * `app_backup` is the 6-hourly backup's login (docs/05-database.md §3, §10): it reads every row of
+ * every table, past the policies, so `pg_dump` copies the whole database, and every transaction
+ * it opens is read-only. It runs no request, so none of the request roles' time limits apply to it
+ * (`pg_dump` sets its own). It is created whether or not `APP_BACKUP_PASSWORD` is set; without it
+ * no one can sign in as it.
  */
 async function ensureRoles(
   sql: postgres.Sql,
@@ -45,12 +51,14 @@ async function ensureRoles(
     authService: string;
     outboxPublisher: string;
     appReader: string | undefined;
+    appBackup: string | undefined;
   },
   rotatePasswords: boolean,
 ): Promise<void> {
   const before = await sql<{ rolname: string }[]>`
     select rolname from pg_roles
-     where rolname in ('app_user', 'auth_service', 'outbox_publisher', 'app_reader', 'readonly_reporter')`;
+     where rolname in ('app_user', 'auth_service', 'outbox_publisher', 'app_reader', 'app_backup',
+                       'readonly_reporter')`;
   const existing = new Set(before.map((r) => r.rolname));
   await sql.unsafe(`
     do $$
@@ -67,6 +75,9 @@ async function ensureRoles(
       if not exists (select 1 from pg_roles where rolname = 'app_reader') then
         create role app_reader login nosuperuser nocreatedb nocreaterole nobypassrls;
       end if;
+      if not exists (select 1 from pg_roles where rolname = 'app_backup') then
+        create role app_backup login nosuperuser nocreatedb nocreaterole bypassrls;
+      end if;
       if not exists (select 1 from pg_roles where rolname = 'readonly_reporter') then
         create role readonly_reporter nologin nosuperuser nocreatedb nocreaterole nobypassrls;
       end if;
@@ -81,6 +92,7 @@ async function ensureRoles(
   await setPassword('auth_service', passwords.authService);
   await setPassword('outbox_publisher', passwords.outboxPublisher);
   if (passwords.appReader !== undefined) await setPassword('app_reader', passwords.appReader);
+  if (passwords.appBackup !== undefined) await setPassword('app_backup', passwords.appBackup);
   for (const role of LOGIN_ROLES) {
     await sql.unsafe(`alter role ${role} nobypassrls`);
     // A stuck request must not hold a transaction, and with it a document-sequence row lock, open.
@@ -90,6 +102,9 @@ async function ensureRoles(
   }
   // The reader's every transaction is read-only, whatever a caller asks for.
   await sql.unsafe(`alter role app_reader set default_transaction_read_only = on`);
+  // The backup reads past the policies, and only reads.
+  await sql.unsafe(`alter role app_backup nosuperuser nocreatedb nocreaterole bypassrls`);
+  await sql.unsafe(`alter role app_backup set default_transaction_read_only = on`);
 }
 
 /**
@@ -147,6 +162,7 @@ export async function runMigrations(
           authService: requireEnv('AUTH_SERVICE_PASSWORD'),
           outboxPublisher: requireEnv('OUTBOX_PUBLISHER_PASSWORD'),
           appReader: optionalEnv('APP_READER_PASSWORD'),
+          appBackup: optionalEnv('APP_BACKUP_PASSWORD'),
         },
         options.rotatePasswords ?? false,
       );

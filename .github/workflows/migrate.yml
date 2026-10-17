@@ -76,6 +76,7 @@ jobs:
           outbox-publisher-password: ${{ secrets[format('OUTBOX_PUBLISHER_PASSWORD_{0}', inputs.environment)] }}
           database-ca-cert: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
           app-reader-password: ${{ secrets[format('APP_READER_PASSWORD_{0}', inputs.environment)] }}
+          app-backup-password: ${{ secrets[format('APP_BACKUP_PASSWORD_{0}', inputs.environment)] }}
           seed: ${{ inputs.seed }}
           rotate-passwords: ${{ inputs.rotate_passwords }}
 
@@ -106,5 +107,6 @@ jobs:
           outbox-publisher-password: ${{ secrets.OUTBOX_PUBLISHER_PASSWORD }}
           database-ca-cert: ${{ secrets.DATABASE_CA_CERT }}
           app-reader-password: ${{ secrets.APP_READER_PASSWORD }}
+          app-backup-password: ${{ secrets.APP_BACKUP_PASSWORD }}
           seed: ${{ inputs.seed }}
           rotate-passwords: ${{ inputs.rotate_passwords }}

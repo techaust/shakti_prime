@@ -1,0 +1,118 @@
+name: Back up production
+
+# Production has no point-in-time recovery (the owner's decision of 15-10-2026), so this workflow
+# copies its database every 6 hours, and at most about 6 hours of changes can be lost
+# (docs/05-database.md §10). Each copy is a `pg_dump` of the BOS's schemas, made as the login
+# `app_backup` (every row, read-only), checked to be readable, and added to the bucket of
+# `infra/aws/backups.yaml` in Mumbai, where it is encrypted with its own key, locked for 30 days and
+# then removed. The restore drill of docs/05-database.md §10 reads from there.
+#
+# The job runs in the GitHub environment `production-backup`, not `production`: a schedule cannot
+# wait for the owner's approval four times a day. That environment admits `main` alone (its one
+# deployment branch rule, docs/runbooks/deploy.md §1) and holds only what a copy needs: the
+# backup login's address, which can read but never change production, the database's CA
+# certificate, and the bucket and role names. The role trusts this repository's tokens for that
+# environment only and may add a copy, never read or delete one.
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  # The production Supabase project the backup address must name.
+  PROJECT_REF: ifnoytyhnedgiyhxxhhu
+  AWS_REGION: ap-south-1
+  # The BOS's schemas: the tables, their partitions and archive, and the migrations' own record.
+  SCHEMAS: public app audit_archive audit_partitions crm_partitions drizzle
+
+jobs:
+  backup:
+    name: Back up production
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: production-backup
+    concurrency:
+      group: backup-production
+      cancel-in-progress: false
+    permissions:
+      # The token GitHub signs for this job, which AWS takes in exchange for the role.
+      id-token: write
+    steps:
+      - name: Settings present and for this project
+        env:
+          DATABASE_URL_BACKUP: ${{ secrets.DATABASE_URL_BACKUP }}
+          DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+          BACKUP_ROLE_ARN: ${{ vars.BACKUP_ROLE_ARN }}
+        run: |
+          for name in DATABASE_URL_BACKUP DATABASE_CA_CERT BACKUP_BUCKET BACKUP_ROLE_ARN; do
+            if [ -z "${!name}" ]; then
+              echo "The setting ${name} of the environment production-backup is not set (docs/runbooks/deploy.md §1)."
+              exit 1
+            fi
+          done
+          # The session pooler address of the backup login, for the production project alone.
+          case "$DATABASE_URL_BACKUP" in
+            *"//app_backup.${PROJECT_REF}:"*) ;;
+            *)
+              echo 'DATABASE_URL_BACKUP is not the session pooler address of app_backup on the production project.'
+              exit 1
+              ;;
+          esac
+          if ! [[ "$BACKUP_BUCKET" =~ ^shakti-prime-production-backups$ ]]; then
+            echo 'BACKUP_BUCKET is not the production backup bucket.'
+            exit 1
+          fi
+          if ! [[ "$BACKUP_ROLE_ARN" =~ ^arn:aws:iam::[0-9]{12}:role/shakti-prime-production-backup-writer$ ]]; then
+            echo 'BACKUP_ROLE_ARN is not the backup role of infra/aws/backups.yaml.'
+            exit 1
+          fi
+      # pg_dump must be as new as the server (Postgres 17); the runner has an older one. The
+      # PostgreSQL project's own signed package source, set up by its script on the runner.
+      - name: PostgreSQL 17 client
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+          /usr/lib/postgresql/17/bin/pg_dump --version
+      - name: Copy the database
+        env:
+          DATABASE_URL_BACKUP: ${{ secrets.DATABASE_URL_BACKUP }}
+          DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
+        run: |
+          umask 077
+          printf '%s\n' "$DATABASE_CA_CERT" > "$RUNNER_TEMP/database-ca.pem"
+          args=()
+          for schema in $SCHEMAS; do args+=("--schema=$schema"); done
+          PGSSLMODE=verify-full PGSSLROOTCERT="$RUNNER_TEMP/database-ca.pem" \
+            /usr/lib/postgresql/17/bin/pg_dump --dbname="$DATABASE_URL_BACKUP" \
+              --format=custom --compress=9 --no-password "${args[@]}" \
+              --file="$RUNNER_TEMP/production.dump"
+          rm -f "$RUNNER_TEMP/database-ca.pem"
+          # A copy that cannot be listed back is not kept.
+          tables=$(/usr/lib/postgresql/17/bin/pg_restore --list "$RUNNER_TEMP/production.dump" | grep -c ' TABLE DATA ' || true)
+          if [ "$tables" -lt 50 ]; then
+            echo "The copy holds the data of ${tables} tables, fewer than the BOS has. Nothing was kept."
+            exit 1
+          fi
+          echo "Copied the data of ${tables} tables, $(du -h "$RUNNER_TEMP/production.dump" | cut -f1)."
+      # GitHub's token for this job, exchanged by the AWS command line for the role (no other
+      # action is run; the token is good for minutes and names this environment).
+      - name: Keep the copy
+        env:
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+          AWS_ROLE_ARN: ${{ vars.BACKUP_ROLE_ARN }}
+        run: |
+          umask 077
+          curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value > "$RUNNER_TEMP/web-identity"
+          export AWS_WEB_IDENTITY_TOKEN_FILE="$RUNNER_TEMP/web-identity"
+          export AWS_ROLE_SESSION_NAME="backup-$GITHUB_RUN_ID"
+          key="backups/production/$(date -u +%Y/%m/%d/%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}.dump"
+          sha=$(sha256sum "$RUNNER_TEMP/production.dump" | cut -d' ' -f1)
+          aws s3 cp "$RUNNER_TEMP/production.dump" "s3://$BACKUP_BUCKET/$key" \
+            --region "$AWS_REGION" --only-show-errors --metadata "sha256=$sha,commit=$GITHUB_SHA"
+          rm -f "$RUNNER_TEMP/production.dump" "$RUNNER_TEMP/web-identity"
+          echo "Kept $key (SHA-256 $sha)."

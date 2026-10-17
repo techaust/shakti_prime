@@ -1,0 +1,360 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Shakti Prime BOS backups of production's database: the S3 bucket the 6-hourly pg_dump lands in (encrypted with its own KMS key, each copy locked for 30 days and then removed), and the role the GitHub backup workflow takes to add a copy there, and nothing else (docs/05-database.md §10, docs/runbooks/deploy.md §1). Written in YAML's JSON form.",
+  "Metadata": {
+    "Notes": [
+      "Region: ap-south-1 (Mumbai), beside the database.",
+      "The role trusts the GitHub OIDC tokens of one repository and one environment only (repo:<repository>:environment:<environment>), so only a job of .github/workflows/backup.yml, running from main in the environment production-backup, can take it.",
+      "The role may add a copy and nothing more: it cannot read, list or delete a copy, and each copy is locked for 30 days in governance mode, which only an administrator may lift.",
+      "An account holds one OIDC provider for GitHub: give its ARN as GitHubOidcProviderArn when one exists already, and the stack makes none."
+    ]
+  },
+  "Parameters": {
+    "EnvironmentName": {
+      "Type": "String",
+      "AllowedValues": [
+        "production"
+      ],
+      "Description": "The hosted environment whose database is backed up."
+    },
+    "GitHubRepository": {
+      "Type": "String",
+      "Default": "techaust/shakti_prime",
+      "AllowedPattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "Description": "The repository whose backup workflow adds the copies."
+    },
+    "GitHubEnvironment": {
+      "Type": "String",
+      "Default": "production-backup",
+      "AllowedPattern": "^[A-Za-z0-9_.-]+$",
+      "Description": "The GitHub environment the backup job runs in."
+    },
+    "GitHubOidcProviderArn": {
+      "Type": "String",
+      "Default": "",
+      "Description": "The account's existing OIDC provider for token.actions.githubusercontent.com; empty to make one."
+    },
+    "ReadOnlyUserName": {
+      "Type": "String",
+      "Default": "claude-shakti",
+      "Description": "The existing read-only IAM user that may list the copies and read the bucket settings, never a copy itself."
+    }
+  },
+  "Conditions": {
+    "MakesOidcProvider": {
+      "Fn::Equals": [
+        {
+          "Ref": "GitHubOidcProviderArn"
+        },
+        ""
+      ]
+    }
+  },
+  "Resources": {
+    "BackupKey": {
+      "Type": "AWS::KMS::Key",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Description": {
+          "Fn::Sub": "Shakti Prime ${EnvironmentName}: database backups"
+        },
+        "EnableKeyRotation": true,
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AccountAdministersTheKey",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:root"
+                }
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    },
+    "BackupKeyAlias": {
+      "Type": "AWS::KMS::Alias",
+      "Properties": {
+        "AliasName": {
+          "Fn::Sub": "alias/shakti-prime-${EnvironmentName}-backups"
+        },
+        "TargetKeyId": {
+          "Ref": "BackupKey"
+        }
+      }
+    },
+    "BackupBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backups"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "ObjectLockEnabled": true,
+        "ObjectLockConfiguration": {
+          "ObjectLockEnabled": "Enabled",
+          "Rule": {
+            "DefaultRetention": {
+              "Mode": "GOVERNANCE",
+              "Days": 30
+            }
+          }
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "aws:kms",
+                "KMSMasterKeyID": {
+                  "Fn::GetAtt": [
+                    "BackupKey",
+                    "Arn"
+                  ]
+                }
+              },
+              "BucketKeyEnabled": true
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "abort-incomplete-uploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            },
+            {
+              "Id": "remove-after-30-days",
+              "Status": "Enabled",
+              "ExpirationInDays": 31,
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 1
+              }
+            },
+            {
+              "Id": "remove-bare-delete-markers",
+              "Status": "Enabled",
+              "ExpiredObjectDeleteMarker": true
+            }
+          ]
+        }
+      }
+    },
+    "BackupBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "BackupBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "TlsOnly",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BackupBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${BackupBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "GitHubOidcProvider": {
+      "Type": "AWS::IAM::OIDCProvider",
+      "Condition": "MakesOidcProvider",
+      "Properties": {
+        "Url": "https://token.actions.githubusercontent.com",
+        "ClientIdList": [
+          "sts.amazonaws.com"
+        ]
+      }
+    },
+    "BackupWriterRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backup-writer"
+        },
+        "Description": "Taken by the GitHub backup workflow to add a database copy; nothing more.",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": {
+                  "Fn::If": [
+                    "MakesOidcProvider",
+                    {
+                      "Ref": "GitHubOidcProvider"
+                    },
+                    {
+                      "Ref": "GitHubOidcProviderArn"
+                    }
+                  ]
+                }
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": {
+                    "Fn::Sub": "repo:${GitHubRepository}:environment:${GitHubEnvironment}"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "add-a-copy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "AddCopies",
+                  "Effect": "Allow",
+                  "Action": "s3:PutObject",
+                  "Resource": {
+                    "Fn::Sub": "${BackupBucket.Arn}/backups/*"
+                  }
+                },
+                {
+                  "Sid": "EncryptCopies",
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:GenerateDataKey",
+                    "kms:Decrypt"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "BackupKey",
+                      "Arn"
+                    ]
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": {
+                        "Fn::Sub": "s3.${AWS::Region}.amazonaws.com"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ReadOnlyBackupPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backups-read-only"
+        },
+        "Users": [
+          {
+            "Ref": "ReadOnlyUserName"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "ListAndSettingsOnly",
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+                "s3:GetBucketVersioning",
+                "s3:GetEncryptionConfiguration",
+                "s3:GetLifecycleConfiguration",
+                "s3:GetBucketPolicy",
+                "s3:GetBucketPublicAccessBlock",
+                "s3:GetBucketOwnershipControls",
+                "s3:GetBucketObjectLockConfiguration"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BackupBucket",
+                    "Arn"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "BackupBucket": {
+      "Description": "BACKUP_BUCKET of the GitHub environment production-backup.",
+      "Value": {
+        "Ref": "BackupBucket"
+      }
+    },
+    "BackupWriterRoleArn": {
+      "Description": "BACKUP_ROLE_ARN of the GitHub environment production-backup.",
+      "Value": {
+        "Fn::GetAtt": [
+          "BackupWriterRole",
+          "Arn"
+        ]
+      }
+    },
+    "BackupKeyArn": {
+      "Description": "The key every copy is encrypted with.",
+      "Value": {
+        "Fn::GetAtt": [
+          "BackupKey",
+          "Arn"
+        ]
+      }
+    }
+  }
+}

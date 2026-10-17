@@ -1093,6 +1093,13 @@
       "when": 1791949160659,
       "tag": "0155_audit_sales_fix2_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1792247467890,
+      "tag": "0156_backup_role",
+      "breakpoints": true
     }
   ]
 }

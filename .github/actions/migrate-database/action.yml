@@ -32,6 +32,10 @@ inputs:
     description: Optional; without it the role app_reader exists with no password, and the app reads on app_user.
     required: false
     default: ''
+  app-backup-password:
+    description: Optional; without it the role app_backup (the backup's login) exists with no password, and no backup can sign in.
+    required: false
+    default: ''
   seed:
     description: '`true` to seed the reference data after migrating (safe to re-run; keeps Admin edits).'
     required: false
@@ -101,6 +105,7 @@ runs:
         AUTH_SERVICE_PASSWORD: ${{ inputs.auth-service-password }}
         OUTBOX_PUBLISHER_PASSWORD: ${{ inputs.outbox-publisher-password }}
         APP_READER_PASSWORD: ${{ inputs.app-reader-password }}
+        APP_BACKUP_PASSWORD: ${{ inputs.app-backup-password }}
     - name: Every migration applied as it is on disk
       shell: bash
       run: pnpm db:verify

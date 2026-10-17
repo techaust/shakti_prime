@@ -181,6 +181,7 @@ jobs:
           outbox-publisher-password: ${{ secrets.OUTBOX_PUBLISHER_PASSWORD }}
           database-ca-cert: ${{ secrets.DATABASE_CA_CERT }}
           app-reader-password: ${{ secrets.APP_READER_PASSWORD }}
+          app-backup-password: ${{ secrets.APP_BACKUP_PASSWORD }}
           seed: ${{ inputs.seed }}
       - name: Main is still this commit, before the deploy
         env:
