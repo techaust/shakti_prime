@@ -13,7 +13,10 @@ import { fakeEmbedding } from '../../src/ai/transport';
 import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
 import { listCallerProfiles, loadOwnPresence } from '../../src/queries/crm/caller-profiles';
-import { loadNotificationSettings } from '../../src/queries/notifications/settings';
+import {
+  loadNotificationSettings,
+  loadPushBrowser,
+} from '../../src/queries/notifications/settings';
 import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
@@ -190,6 +193,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listNotices: (ctx) => listNotices(ctx, { limit: 20 }),
   countNotices: (ctx) => countNotices(ctx),
   loadNotificationSettings: (ctx) => loadNotificationSettings(ctx),
+  loadPushBrowser: (ctx) =>
+    loadPushBrowser(ctx, { endpoint: 'https://fcm.googleapis.com/fcm/send/reader-parity' }),
   listCallerProfiles: (ctx) => listCallerProfiles(ctx, { entityId: 1 }),
   loadOwnPresence: (ctx) => loadOwnPresence(ctx, { entityId: 1 }),
   loadAgentSettings: (ctx) => loadAgentSettings(ctx, { now: new Date(NOW) }),
