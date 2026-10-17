@@ -21,12 +21,12 @@ const freshMobile = () => `9${String(Math.floor(Math.random() * 1e9)).padStart(9
  * The journey follows the file rather than a fixed time. The checks run when the upload's event
  * is delivered, by the publisher the upload's own command starts in the app (no queue here), and
  * that run first delivers every event still waiting, such as the ones the seed left: the first
- * commands of a journey run took 30 to 45 seconds on this PC (17-10-2026). The uploader waits 30 seconds
- * for the checks (`CHECK_WAIT_MS`), then says the check is taking a while and leaves Read the file
- * to the person, never opening the job itself, so a fixed 45-second wait for the job could run
- * out, as on CI's desktop-dark run of #175. Here, as a person would, Read the file is chosen again
- * until the server has read the file and the job opens; while the checks still run, each try is
- * refused and the page says so.
+ * commands of a journey run took 30 to 45 seconds on this PC (17-10-2026). The uploader waits
+ * 30 seconds for the checks (`CHECK_WAIT_MS`), then says the check is taking a while and leaves
+ * Read the file to the person, never opening the job itself, so a fixed 45-second wait for the
+ * job could run out, as on CI's desktop-dark run of #175. Here, as a person would, Read the file
+ * is chosen again until the server has read the file and the job opens; while the checks still
+ * run, each try is refused and the page says so.
  */
 async function uploadImport(page: Page, name: string, lines: string[]): Promise<void> {
   await page
