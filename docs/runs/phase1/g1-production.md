@@ -7,7 +7,7 @@
 | Runs on | PC (owner, 14-10-2026); the hosted steps from the lead session |
 | Tier | A (a miss reaches production): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | not started; 15-10-2026: 5h 4, week 80 (the week resets on 19-10-2026, and a new slice starts only under 70 %) |
-| State | brief; part 1 done on 15-10-2026 except SES production access, which production does not wait for |
+| State | brief; part 1 done on 15-10-2026, SES production access granted on 17-10-2026 |
 | Next step | the lead starts the builder on part 2 after the weekly reset (19-10-2026) |
 
 ## Brief
@@ -18,7 +18,7 @@ G1 opens a third hosted environment, `production`, on the group's own domain, be
 ### Part 1. The owner's account items (before any build)
 Done on 15-10-2026 and read back by the lead where its tools reach (the owner's decisions are rows of [DECISIONS](../../11-decisions.md)):
 - the domain `shaktiprime.com`, on Cloudflare DNS; the system lives at the bare domain, whose two `A` records point at Vercel (`216.150.1.1`, `216.150.16.1`), DNS only;
-- SES in Mumbai: the domain identity `shaktiprime.com` verified (Easy DKIM, MAIL FROM `mail.shaktiprime.com`, DMARC `p=none`); production access asked for and refused on the first, automated review (case 179200499200682); the AWS account 199476069348 also serves production, with a $25 monthly cost budget;
+- SES in Mumbai: the domain identity `shaktiprime.com` verified (Easy DKIM, MAIL FROM `mail.shaktiprime.com`, DMARC `p=none`); production access granted on 17-10-2026 (case 179200499200682); the AWS account 199476069348 also serves production, with a $25 monthly cost budget;
 - Supabase on Pro; the project `shakti-prime-production` (ref `ifnoytyhnedgiyhxxhhu`), Mumbai, Postgres 17, Data API off, new tables not exposed, no automatic-RLS trigger, SSL enforced, Micro compute, empty; no point-in-time recovery;
 - Vercel Pro with a $50 spend limit; the project `shakti-prime-production` (root `apps/web`, functions in `bom1`, Vercel's login on its own addresses, Ignored Build Step `exit 0` so nothing deploys), with `shaktiprime.com` added and configured; `ANTHROPIC_API_KEY` and `VOYAGE_API_KEY` its only variables;
 - Sentry on the free Developer plan for good, the project's privacy settings on;
@@ -48,7 +48,6 @@ The lead's tools see none of the production accounts yet (read-only check, 14-10
    - the files stack: `infra/aws/files.yaml` accepts `EnvironmentName` `production` and lets the browser upload from `https://shaktiprime.com` for it (it allows only `dev` and `staging` and their `vercel.app` addresses today); the owner then creates `shakti-prime-production-files` with `SesIdentity` `shaktiprime.com` and `SesFromAddress` `no-reply@shaktiprime.com`;
    - backups without point-in-time recovery: a workflow (environment `production`) runs `pg_dump` of production every 6 hours into an S3 backup bucket in Mumbai, encrypted, kept 30 days, and the restore drill of DATABASE §10 reads from it; DATABASE §10 and ARCHITECTURE's availability row state a loss of at most about 6 hours;
    - Sentry on the free plan: dev and staging send a sample of their errors (production all of them); one cron monitor, on `outbox-publish`, the other jobs left to the in-app `jobs-check` alerts; one uptime monitor, on production's `/api/v1/health/ready`; deploy §1 step 8 says so;
-   - SES in the sandbox: production starts with `MAILER=ses` and `SES_FROM`; deploy says to verify each first person's address in SES until production access is granted, and to ask again once the sign-in page is live.
 5. **The follow-ups tagged G1** in [STATUS](../../10-status.md#open-follow-ups): a company's earlier proof pages removed when a new one is printed (P4 review L10); the open-leads index for the nightly rescore only if `EXPLAIN` on a production-sized seed shows the need (C3 review L8), with the evidence in the report either way; the SES mailer switched on for production (configuration only, item 3).
 6. **Documents:** deploy §1 and §2 for production (the release, the approval, the schedules), accounts (production in every row, the Hobby risk row gone once dev and staging are on Pro), ADR 0017 and the 2026-09 audit's M45 resolution, incidents (a release to roll back: Vercel's instant rollback, and a migration is never rolled back, a fix goes forward), cutover's first steps pointing at production, exit-gate actions 2, 3, 7, 8 and 9, design §10 "Built (G1)", client-actions.
 
