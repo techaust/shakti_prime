@@ -17,15 +17,29 @@ const freshMobile = () => `9${String(Math.floor(Math.random() * 1e9)).padStart(9
  * Sends a file through the import screen's uploader: it goes to the file store on a signed
  * address, passes its checks (in the app itself on this machine, with no queue), and the screen
  * then reads it and opens its job.
+ *
+ * The journey follows the file rather than a fixed time. The uploader waits 30 seconds for the
+ * checks (`CHECK_WAIT_MS`); a slower machine's checks outlast that, and the screen then says the
+ * check is taking a while and leaves Read the file to the person, never opening the job itself
+ * (so a fixed 45-second wait for the job could run out, as on CI's desktop-dark run of #175).
+ * Here, as a person would, Read the file is chosen again until the server has read the file and
+ * the job opens; while the checks still run, each try is refused and the page says so.
  */
 async function uploadImport(page: Page, name: string, lines: string[]): Promise<void> {
   await page
     .locator('input[type="file"]')
     .setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(`${lines.join('\n')}\n`) });
-  // The job screen reads the whole file back, so it may take a moment.
-  await expect(page.getByRole('heading', { name: `Import of ${name}`, level: 1 })).toBeVisible({
-    timeout: 45_000,
-  });
+  const job = page.getByRole('heading', { name: `Import of ${name}`, level: 1 });
+  const leftToPerson = page.getByText(
+    'Uploaded. The check is taking a while. Choose Read the file in a moment.',
+  );
+  await expect(async () => {
+    if (await job.isVisible()) return;
+    const read = page.getByRole('button', { name: 'Read the file' });
+    if ((await leftToPerson.isVisible()) && (await read.isEnabled())) await read.click();
+    // The job screen reads the whole file back, so it may take a moment after the read.
+    await expect(job).toBeVisible({ timeout: 15_000 });
+  }).toPass({ timeout: 120_000, intervals: [1_000, 2_000, 5_000] });
   await expect(page.getByRole('heading', { name: 'Match the columns' })).toBeVisible();
 }
 
