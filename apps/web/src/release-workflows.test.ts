@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -121,9 +121,12 @@ describe('the migrate workflow', () => {
       'OUTBOX_PUBLISHER_PASSWORD',
       'DATABASE_CA_CERT',
       'APP_READER_PASSWORD',
-      'APP_BACKUP_PASSWORD',
     ]) {
       expect(production).toContain(`\${{ secrets.${name} }}`);
+    }
+    // The backup login's password is never in GitHub: the owner's script sets it (deploy §1).
+    for (const text of [MIGRATE, RELEASE, ACTION]) {
+      expect(text).not.toMatch(/backup/i);
     }
     expect(production).toContain('rotate-passwords: ${{ inputs.rotate_passwords }}');
     // Dev and staging never read the environment's secrets, nor production the suffixed ones.
@@ -132,6 +135,51 @@ describe('the migrate workflow', () => {
     expect(job(MIGRATE, 'migrate')).toContain(
       "if: inputs.environment == 'dev' || inputs.environment == 'staging'",
     );
+  });
+
+  it('migrates production only to the commit its newest release tagged, never past it', () => {
+    const step = faked(MIGRATE, 'The commit production was released at');
+    const folder = mkdtempSync(join(tmpdir(), 'migrate-'));
+    try {
+      const output = join(folder, 'output').replaceAll('\\', '/');
+      // `SHA` is main here, the comparison's other end.
+      const given = {
+        REPO: 'techaust/shakti_prime',
+        SHA: 'main',
+        GITHUB_OUTPUT: output,
+        // Numbered, not ordered by name: release-10 is newer than release-9.
+        FAKE_TAGS: [
+          `refs/tags/release-9 ${OLDER}`,
+          `refs/tags/release-10 ${EARLIER}`,
+          `refs/tags/release-2 ${STRAY}`,
+          `refs/tags/release-x ${SHA}`,
+          `refs/tags/release-11-old ${SHA}`,
+        ].join('\n'),
+        FAKE_BASE: EARLIER,
+        FAKE_COMPARE: 'ahead',
+      };
+      const released = run(step, given);
+      expect(released.status).toBe(0);
+      expect(readFileSync(output, 'utf8')).toBe(`sha=${EARLIER}\n`);
+      expect(released.stdout).toContain(`Production runs ${EARLIER} (release-10)`);
+      expect(bash(step, { ...given, FAKE_COMPARE: 'identical' })).toBe(0);
+      // No release yet, a release tag off main, or no answer from GitHub.
+      const none = run(step, { ...given, FAKE_TAGS: '' });
+      expect(none.status).toBe(1);
+      expect(none.stdout).toContain('Production has had no release yet');
+      expect(bash(step, { ...given, FAKE_COMPARE: 'diverged' })).toBe(1);
+      expect(bash(step, { ...given, FAKE_COMPARE: 'behind' })).toBe(1);
+      expect(bash(step, { ...given, FAKE_BASE: OLDER })).toBe(1);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+    const production = job(MIGRATE, 'migrate-production');
+    expect(production).toContain('ref: ${{ steps.released.outputs.sha }}');
+    expect(production.indexOf('The commit production was released at')).toBeLessThan(
+      production.indexOf('uses: actions/checkout@'),
+    );
+    // Dev and staging still migrate to main's head.
+    expect(job(MIGRATE, 'migrate')).not.toMatch(/\n\s+ref:/);
   });
 
   it('keeps no credentials after a checkout', () => {
@@ -303,92 +351,25 @@ describe('the release workflow', () => {
     const stray = run(step, { SHA, BEFORE: EARLIER, FAKE_SERVED: STRAY });
     expect(stray.status).toBe(1);
     expect(stray.stdout).toContain(`Production serves ${STRAY}, which no release approved`);
-    expect(bash(step, { SHA, BEFORE: '', FAKE_SERVED: STRAY })).toBe(1);
+    expect(bash(step, { SHA, BEFORE: '', FAKE_SERVED: STRAY, FAKE_TAGS: EARLIER })).toBe(1);
     // The commit served before, or no answer, until the wait runs out.
     const waited = run(step, { SHA, BEFORE: EARLIER, FAKE_SERVED: EARLIER });
     expect(waited.status).toBe(1);
     expect(waited.stdout).toContain(`Production does not serve ${SHA} after 20 minutes`);
+    expect(waited.stdout).toContain('Undo Rollback');
     expect(bash(step, { SHA, BEFORE: EARLIER, FAKE_SERVED: '' })).toBe(1);
-    // The two full waits start a shell per try, which is slow on Windows.
-  }, 60_000);
+    // The first read had no answer: the old, released commit is waited past, never reported.
+    const missed = run(step, { SHA, BEFORE: '', FAKE_SERVED: EARLIER, FAKE_TAGS: EARLIER });
+    expect(missed.status).toBe(1);
+    expect(missed.stdout).toContain(`Production does not serve ${SHA} after 20 minutes`);
+    expect(missed.stdout).not.toContain('no release approved');
+    // The full waits start a shell per try, which is slow on Windows.
+  }, 90_000);
 
   it('starts only a Vercel deploy hook', () => {
     const deploy = script(RELEASE, 'Deploy').replace(/\n\s*curl [^\n]*\n/, '\n');
     expect(bash(deploy, { HOOK: '' })).toBe(1);
     expect(bash(deploy, { HOOK: 'https://example.in/v1/integrations/deploy/prj_x/y' })).toBe(1);
     expect(bash(deploy, { HOOK: 'https://api.vercel.com/v1/integrations/deploy/prj_x/y' })).toBe(0);
-  });
-});
-
-describe('the backup workflow (docs/05-database.md §10)', () => {
-  const BACKUP = read('.github/workflows/backup.yml');
-  // Found by its name, not its number, which moves when main gains migrations first.
-  const migration = readdirSync(`${root}packages/db/migrations`).find((f) =>
-    f.endsWith('_backup_role.sql'),
-  );
-  const MIGRATION = read(`packages/db/migrations/${migration ?? 'none'}`);
-  const check = script(BACKUP, 'Settings present and for this project');
-  const settings = {
-    PROJECT_REF: PRODUCTION_REF,
-    DATABASE_URL_BACKUP: `postgresql://app_backup.${PRODUCTION_REF}:value@aws-1-ap-south-1.pooler.supabase.com:5432/postgres`,
-    DATABASE_CA_CERT: 'value',
-    BACKUP_BUCKET: 'shakti-prime-production-backups',
-    BACKUP_ROLE_ARN: 'arn:aws:iam::199476069348:role/shakti-prime-production-backup-writer',
-  };
-
-  it('runs every 6 hours and by hand, from main, with no permission but its AWS token', () => {
-    const triggers = BACKUP.slice(BACKUP.indexOf('\non:'), BACKUP.indexOf('\npermissions:'));
-    expect(triggers).toContain("- cron: '23 */6 * * *'");
-    expect(triggers).toContain('workflow_dispatch:');
-    expect(triggers).not.toMatch(/\n {2}(push|pull_request|workflow_run)/);
-    expect(BACKUP).toContain('\npermissions: {}\n');
-    const backup = job(BACKUP, 'backup');
-    expect(backup).toContain("if: github.ref == 'refs/heads/main'");
-    expect(backup).toMatch(/\n {4}permissions:\n(?: {6}#[^\n]*\n)* {6}id-token: write\n {4}steps:/);
-  });
-
-  it('runs in its own environment, never production’s, and runs no action at all', () => {
-    const backup = job(BACKUP, 'backup');
-    expect(backup).toMatch(/\n {4}environment: production-backup\n/);
-    expect(BACKUP).not.toMatch(/environment:\s*production\s*\n/);
-    expect(BACKUP).not.toContain('uses:');
-    // It reads the backup login's address, never the migrator's or a role's password.
-    expect(BACKUP).not.toMatch(/secrets\.(DATABASE_URL_MIGRATOR|[A-Z_]*_PASSWORD)/);
-  });
-
-  it('accepts the backup login on the production project only', () => {
-    expect(bash(check, settings)).toBe(0);
-    for (const change of [
-      { DATABASE_URL_BACKUP: '' },
-      { DATABASE_CA_CERT: '' },
-      { BACKUP_BUCKET: '' },
-      { BACKUP_ROLE_ARN: '' },
-      // The migrator, or the backup login of another project.
-      {
-        DATABASE_URL_BACKUP: `postgresql://postgres.${PRODUCTION_REF}:value@aws-1-ap-south-1.pooler.supabase.com:5432/postgres`,
-      },
-      {
-        DATABASE_URL_BACKUP:
-          'postgresql://app_backup.azydxxvlboivablvvojp:value@aws-1-ap-south-1.pooler.supabase.com:5432/postgres',
-      },
-      { BACKUP_BUCKET: 'shakti-prime-staging-files' },
-      { BACKUP_ROLE_ARN: 'arn:aws:iam::199476069348:role/admin' },
-    ]) {
-      expect(bash(check, { ...settings, ...change })).toBe(1);
-    }
-  });
-
-  it('copies exactly the schemas the backup login may read', () => {
-    const schemas = /\n {2}SCHEMAS: ([a-z_ ]+)\n/.exec(BACKUP)?.[1]?.split(' ') ?? [];
-    expect(schemas.length).toBeGreaterThan(3);
-    for (const line of MIGRATION.split('\n').filter((l) => / in schema | on schema /.test(l))) {
-      expect(line).toContain(schemas.join(', '));
-    }
-    // A copy is checked before it is kept, and the database's certificate is checked.
-    const steps = ['PGSSLMODE=verify-full', 'pg_restore --list', 'aws s3 cp'].map((s) =>
-      BACKUP.indexOf(s),
-    );
-    expect(steps.every((at) => at > 0)).toBe(true);
-    expect([...steps].sort((a, b) => a - b)).toEqual(steps);
   });
 });

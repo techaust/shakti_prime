@@ -11,8 +11,10 @@ name: Migrate a hosted database
 # (docs/runbooks/deploy.md §1): its required reviewer makes the run wait for the owner's approval,
 # and its one deployment branch rule, `main`, is what keeps every other ref out, since a branch's
 # copy of this file could drop the guard below. A release (`release.yml`) migrates production on its
-# own; this workflow's production choice is for a migration between releases, such as a password
-# rotation (docs/runbooks/deploy.md §5).
+# own, after checking CI and that staging ran the same migrations first. This workflow's production
+# choice is for work between releases, such as a password rotation (docs/runbooks/deploy.md §5):
+# it checks out the commit the newest release tagged, the code production runs, so it applies no
+# migration a release has not checked, never main's head.
 on:
   workflow_dispatch:
     inputs:
@@ -76,7 +78,6 @@ jobs:
           outbox-publisher-password: ${{ secrets[format('OUTBOX_PUBLISHER_PASSWORD_{0}', inputs.environment)] }}
           database-ca-cert: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
           app-reader-password: ${{ secrets[format('APP_READER_PASSWORD_{0}', inputs.environment)] }}
-          app-backup-password: ${{ secrets[format('APP_BACKUP_PASSWORD_{0}', inputs.environment)] }}
           seed: ${{ inputs.seed }}
           rotate-passwords: ${{ inputs.rotate_passwords }}
 
@@ -94,8 +95,31 @@ jobs:
       group: production
       cancel-in-progress: false
     steps:
+      # The newest `release-<n>` tag (by number) names what production runs; it must be on main.
+      - name: The commit production was released at
+        id: released
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          newest=$(gh api "repos/$REPO/git/matching-refs/tags/release-" --paginate --jq '.[] | .ref + " " + .object.sha' |
+            sed -n 's|^refs/tags/release-\([0-9][0-9]*\) \([0-9a-f]\{40\}\)$|\1 \2|p' | sort -n | tail -n 1)
+          if [ -z "$newest" ]; then
+            echo 'Production has had no release yet. The first release migrates it (docs/runbooks/deploy.md §2).'
+            exit 1
+          fi
+          tag="release-${newest%% *}"
+          sha="${newest#* }"
+          status=$(gh api "repos/$REPO/compare/$sha...main" --jq .status)
+          if [ "$status" != identical ] && [ "$status" != ahead ]; then
+            echo "The newest release, $tag, names $sha, which is not a commit of main."
+            exit 1
+          fi
+          echo "Production runs $sha ($tag); this run migrates to it and no further."
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ steps.released.outputs.sha }}
           persist-credentials: false
       - uses: ./.github/actions/migrate-database
         with:
@@ -107,6 +131,5 @@ jobs:
           outbox-publisher-password: ${{ secrets.OUTBOX_PUBLISHER_PASSWORD }}
           database-ca-cert: ${{ secrets.DATABASE_CA_CERT }}
           app-reader-password: ${{ secrets.APP_READER_PASSWORD }}
-          app-backup-password: ${{ secrets.APP_BACKUP_PASSWORD }}
           seed: ${{ inputs.seed }}
           rotate-passwords: ${{ inputs.rotate_passwords }}

@@ -1,12 +1,13 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Shakti Prime BOS backups of production's database: the S3 bucket the 6-hourly pg_dump lands in (encrypted with its own KMS key, each copy locked for 30 days and then removed), and the role the GitHub backup workflow takes to add a copy there, and nothing else (docs/05-database.md §10, docs/runbooks/deploy.md §1). Written in YAML's JSON form.",
+  "Description": "Shakti Prime BOS backups of production's database: the S3 bucket the 6-hourly pg_dump lands in (encrypted with its own KMS key, each copy locked for 30 days and then removed), the CodeBuild project that makes each copy on an EventBridge schedule as the login app_backup, the secret that holds that login's address, and the roles each needs, and nothing else (docs/05-database.md §10, docs/runbooks/deploy.md §1). Written in YAML's JSON form.",
   "Metadata": {
     "Notes": [
       "Region: ap-south-1 (Mumbai), beside the database.",
-      "The role trusts the GitHub OIDC tokens of one repository and one environment only (repo:<repository>:environment:<environment>), so only a job of .github/workflows/backup.yml, running from main in the environment production-backup, can take it.",
-      "The role may add a copy and nothing more: it cannot read, list or delete a copy, and each copy is locked for 30 days in governance mode, which only an administrator may lift.",
-      "An account holds one OIDC provider for GitHub: give its ARN as GitHubOidcProviderArn when one exists already, and the stack makes none."
+      "The copy is made inside AWS: GitHub holds no credential that reads production without the owner approving the run.",
+      "The secret is created empty; the owner's script tools/secrets/set-backup-secret.ps1 puts the address and certificate in it. Only the backup project's role may read it, and it is encrypted with the backup key.",
+      "The backup role may read that one secret, add a copy under backups/ and write its own log group, and nothing more: it cannot read, list or delete a copy, and each copy is locked for 30 days in governance mode, which only an administrator may lift.",
+      "The app user of production's files stack may list the copies (never read one), so the hourly jobs check tells the owner when the newest copy is older than 7 hours. Create the files stack first."
     ]
   },
   "Parameters": {
@@ -17,37 +18,28 @@
       ],
       "Description": "The hosted environment whose database is backed up."
     },
-    "GitHubRepository": {
+    "ProjectRef": {
       "Type": "String",
-      "Default": "techaust/shakti_prime",
-      "AllowedPattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
-      "Description": "The repository whose backup workflow adds the copies."
+      "Default": "ifnoytyhnedgiyhxxhhu",
+      "AllowedPattern": "^[a-z]{20}$",
+      "Description": "The Supabase project whose database is copied; the address in the secret must name it."
     },
-    "GitHubEnvironment": {
+    "BuildImage": {
       "Type": "String",
-      "Default": "production-backup",
-      "AllowedPattern": "^[A-Za-z0-9_.-]+$",
-      "Description": "The GitHub environment the backup job runs in."
+      "Default": "aws/codebuild/standard:7.0",
+      "AllowedPattern": "^aws/codebuild/standard:[0-9]+\\.[0-9]+$",
+      "Description": "CodeBuild's Ubuntu image the copy runs on; a newer supported one may replace it."
     },
-    "GitHubOidcProviderArn": {
+    "AppUserName": {
       "Type": "String",
-      "Default": "",
-      "Description": "The account's existing OIDC provider for token.actions.githubusercontent.com; empty to make one."
+      "Default": "shakti-prime-production-app",
+      "AllowedPattern": "^shakti-prime-[a-z]+-app$",
+      "Description": "The app user of the environment's files stack, which may list the copies for the jobs check."
     },
     "ReadOnlyUserName": {
       "Type": "String",
       "Default": "claude-shakti",
-      "Description": "The existing read-only IAM user that may list the copies and read the bucket settings, never a copy itself."
-    }
-  },
-  "Conditions": {
-    "MakesOidcProvider": {
-      "Fn::Equals": [
-        {
-          "Ref": "GitHubOidcProviderArn"
-        },
-        ""
-      ]
+      "Description": "The existing read-only IAM user that may list the copies, read the bucket's settings and see the backup's runs and log, never a copy or the secret's value."
     }
   },
   "Resources": {
@@ -200,23 +192,68 @@
         }
       }
     },
-    "GitHubOidcProvider": {
-      "Type": "AWS::IAM::OIDCProvider",
-      "Condition": "MakesOidcProvider",
+    "BackupDatabaseSecret": {
+      "Type": "AWS::SecretsManager::Secret",
       "Properties": {
-        "Url": "https://token.actions.githubusercontent.com",
-        "ClientIdList": [
-          "sts.amazonaws.com"
-        ]
+        "Name": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backup-database"
+        },
+        "Description": "The backup login's session pooler address (url) and the database's CA certificate (ca), as JSON. Created empty; put in by tools/secrets/set-backup-secret.ps1.",
+        "KmsKeyId": {
+          "Fn::GetAtt": [
+            "BackupKey",
+            "Arn"
+          ]
+        }
       }
     },
-    "BackupWriterRole": {
+    "BackupDatabaseSecretPolicy": {
+      "Type": "AWS::SecretsManager::ResourcePolicy",
+      "Properties": {
+        "SecretId": {
+          "Ref": "BackupDatabaseSecret"
+        },
+        "BlockPublicPolicy": true,
+        "ResourcePolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "OnlyTheBackupReadsTheValue",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "secretsmanager:GetSecretValue",
+              "Resource": "*",
+              "Condition": {
+                "ArnNotEquals": {
+                  "aws:PrincipalArn": {
+                    "Fn::GetAtt": [
+                      "BackupRunnerRole",
+                      "Arn"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "BackupLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/codebuild/shakti-prime-${EnvironmentName}-backup"
+        },
+        "RetentionInDays": 90
+      }
+    },
+    "BackupRunnerRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "RoleName": {
-          "Fn::Sub": "shakti-prime-${EnvironmentName}-backup-writer"
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backup-runner"
         },
-        "Description": "Taken by the GitHub backup workflow to add a database copy; nothing more.",
+        "Description": "Taken by the backup CodeBuild project to make a database copy; nothing more.",
         "MaxSessionDuration": 3600,
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
@@ -224,24 +261,18 @@
             {
               "Effect": "Allow",
               "Principal": {
-                "Federated": {
-                  "Fn::If": [
-                    "MakesOidcProvider",
-                    {
-                      "Ref": "GitHubOidcProvider"
-                    },
-                    {
-                      "Ref": "GitHubOidcProviderArn"
-                    }
-                  ]
-                }
+                "Service": "codebuild.amazonaws.com"
               },
-              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Action": "sts:AssumeRole",
               "Condition": {
                 "StringEquals": {
-                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-                  "token.actions.githubusercontent.com:sub": {
-                    "Fn::Sub": "repo:${GitHubRepository}:environment:${GitHubEnvironment}"
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/shakti-prime-${EnvironmentName}-backup"
                   }
                 }
               }
@@ -250,20 +281,28 @@
         },
         "Policies": [
           {
-            "PolicyName": "add-a-copy",
+            "PolicyName": "make-a-copy",
             "PolicyDocument": {
               "Version": "2012-10-17",
               "Statement": [
+                {
+                  "Sid": "ReadTheAddress",
+                  "Effect": "Allow",
+                  "Action": "secretsmanager:GetSecretValue",
+                  "Resource": {
+                    "Ref": "BackupDatabaseSecret"
+                  }
+                },
                 {
                   "Sid": "AddCopies",
                   "Effect": "Allow",
                   "Action": "s3:PutObject",
                   "Resource": {
-                    "Fn::Sub": "${BackupBucket.Arn}/backups/*"
+                    "Fn::Sub": "${BackupBucket.Arn}/backups/${EnvironmentName}/*"
                   }
                 },
                 {
-                  "Sid": "EncryptCopies",
+                  "Sid": "UseTheKeyThroughS3AndTheSecret",
                   "Effect": "Allow",
                   "Action": [
                     "kms:GenerateDataKey",
@@ -277,16 +316,232 @@
                   },
                   "Condition": {
                     "StringEquals": {
-                      "kms:ViaService": {
-                        "Fn::Sub": "s3.${AWS::Region}.amazonaws.com"
-                      }
+                      "kms:ViaService": [
+                        {
+                          "Fn::Sub": "s3.${AWS::Region}.amazonaws.com"
+                        },
+                        {
+                          "Fn::Sub": "secretsmanager.${AWS::Region}.amazonaws.com"
+                        }
+                      ]
                     }
+                  }
+                },
+                {
+                  "Sid": "WriteItsOwnLog",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "${BackupLogGroup.Arn}"
                   }
                 }
               ]
             }
           }
         ]
+      }
+    },
+    "BackupProject": {
+      "Type": "AWS::CodeBuild::Project",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backup"
+        },
+        "Description": "Copies production's database with pg_dump as app_backup into the backup bucket.",
+        "ServiceRole": {
+          "Fn::GetAtt": [
+            "BackupRunnerRole",
+            "Arn"
+          ]
+        },
+        "Source": {
+          "Type": "NO_SOURCE",
+          "BuildSpec": "version: 0.2\nenv:\n  shell: bash\nphases:\n  install:\n    commands:\n      - |\n        # PostgreSQL 17 client\n        set -euo pipefail\n        # pg_dump must be as new as the server (Postgres 17), and the image has none: the\n        # PostgreSQL project's own signed package source, set up by its own script.\n        apt-get update -qq > /dev/null\n        apt-get install -y -qq postgresql-common > /dev/null\n        /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null\n        apt-get install -y -qq postgresql-client-17 > /dev/null\n        /usr/lib/postgresql/17/bin/pg_dump --version\n  build:\n    commands:\n      - |\n        # Copy the database and keep the copy\n        set -euo pipefail\n        umask 077\n        export PATH=\"/usr/lib/postgresql/17/bin:$PATH\"\n        # The secret holds the backup login's session pooler address on this project and the\n        # database's CA certificate. The address carries no setting of its own: libpq lets an\n        # address's sslmode override the certificate check below.\n        if [ -z \"${DATABASE_URL_BACKUP:-}\" ] || [ -z \"${DATABASE_CA_CERT:-}\" ]; then\n          echo \"The secret shakti-prime-${ENVIRONMENT_NAME}-backup-database holds no address or no certificate (docs/runbooks/deploy.md §1).\"\n          exit 1\n        fi\n        case \"$DATABASE_URL_BACKUP\" in\n          \"postgresql://app_backup.${PROJECT_REF}:\"*\"@\"*\".pooler.supabase.com:5432/postgres\") ;;\n          *)\n            echo 'The address in the secret is not the session pooler address of app_backup on the production project.'\n            exit 1\n            ;;\n        esac\n        case \"$DATABASE_URL_BACKUP\" in\n          *'?'* | *sslmode=* | *sslrootcert=*)\n            echo 'The address in the secret carries settings of its own, which would loosen the certificate check. Put it back as the backup script writes it.'\n            exit 1\n            ;;\n        esac\n        work=$(mktemp -d)\n        trap 'rm -rf \"$work\"' EXIT\n        printf '%s\\n' \"$DATABASE_CA_CERT\" > \"$work/ca.pem\"\n        export PGSSLMODE=verify-full PGSSLROOTCERT=\"$work/ca.pem\" PGCONNECT_TIMEOUT=30 PGAPPNAME=shakti-backup\n        # How many tables of the BOS's schemas app_backup may read: the copy must hold the data\n        # of every one of them.\n        expected=$(psql --dbname=\"$DATABASE_URL_BACKUP\" --no-psqlrc --no-password --tuples-only --no-align \\\n          --set=ON_ERROR_STOP=1 --set=schemas=\"$SCHEMAS\" <<'SQL'\n        select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace\n         where n.nspname = any (string_to_array(:'schemas', ' '))\n           and c.relkind = 'r'\n           and has_table_privilege(c.oid, 'SELECT')\n           and not exists (select 1 from pg_depend d\n                            where d.classid = 'pg_class'::regclass and d.objid = c.oid and d.deptype = 'e');\n        SQL\n        )\n        if ! [[ \"$expected\" =~ ^[0-9]+$ ]] || [ \"$expected\" -lt 50 ]; then\n          echo \"app_backup may read ${expected:-no} tables, fewer than the BOS has. Nothing was copied.\"\n          exit 1\n        fi\n        args=()\n        for schema in $SCHEMAS; do args+=(\"--schema=$schema\"); done\n        pg_dump --dbname=\"$DATABASE_URL_BACKUP\" --format=custom --compress=9 --no-password \\\n          \"${args[@]}\" --file=\"$work/copy.dump\"\n        # A copy that cannot be listed back, or misses a table's data, is not kept.\n        tables=$(pg_restore --list \"$work/copy.dump\" | grep -c ' TABLE DATA ' || true)\n        if [ \"$tables\" -lt \"$expected\" ]; then\n          echo \"The copy holds the data of ${tables} tables; app_backup may read ${expected}. Nothing was kept.\"\n          exit 1\n        fi\n        # One upload (a copy stays far below S3's 5 GB for one upload), with its SHA-256 checked\n        # by S3 and kept beside it; the answer names the version a restore downloads.\n        key=\"backups/${ENVIRONMENT_NAME}/$(date -u +%Y/%m/%d/%Y%m%dT%H%M%SZ)-${CODEBUILD_BUILD_NUMBER}.dump\"\n        sha=$(sha256sum \"$work/copy.dump\" | cut -d' ' -f1)\n        version=$(aws s3api put-object --bucket \"$BACKUP_BUCKET\" --key \"$key\" --body \"$work/copy.dump\" \\\n          --checksum-algorithm SHA256 --metadata \"sha256=$sha\" --query VersionId --output text)\n        echo \"Kept $key, version $version (SHA-256 $sha), the data of $tables tables, $(du -h \"$work/copy.dump\" | cut -f1).\"\n"
+        },
+        "Artifacts": {
+          "Type": "NO_ARTIFACTS"
+        },
+        "Environment": {
+          "Type": "LINUX_CONTAINER",
+          "ComputeType": "BUILD_GENERAL1_SMALL",
+          "Image": {
+            "Ref": "BuildImage"
+          },
+          "ImagePullCredentialsType": "CODEBUILD",
+          "PrivilegedMode": false,
+          "EnvironmentVariables": [
+            {
+              "Name": "ENVIRONMENT_NAME",
+              "Type": "PLAINTEXT",
+              "Value": {
+                "Ref": "EnvironmentName"
+              }
+            },
+            {
+              "Name": "PROJECT_REF",
+              "Type": "PLAINTEXT",
+              "Value": {
+                "Ref": "ProjectRef"
+              }
+            },
+            {
+              "Name": "BACKUP_BUCKET",
+              "Type": "PLAINTEXT",
+              "Value": {
+                "Ref": "BackupBucket"
+              }
+            },
+            {
+              "Name": "SCHEMAS",
+              "Type": "PLAINTEXT",
+              "Value": "public app audit_archive audit_partitions crm_partitions drizzle"
+            },
+            {
+              "Name": "DATABASE_URL_BACKUP",
+              "Type": "SECRETS_MANAGER",
+              "Value": {
+                "Fn::Sub": "${BackupDatabaseSecret}:url"
+              }
+            },
+            {
+              "Name": "DATABASE_CA_CERT",
+              "Type": "SECRETS_MANAGER",
+              "Value": {
+                "Fn::Sub": "${BackupDatabaseSecret}:ca"
+              }
+            }
+          ]
+        },
+        "TimeoutInMinutes": 60,
+        "QueuedTimeoutInMinutes": 60,
+        "ConcurrentBuildLimit": 1,
+        "LogsConfig": {
+          "CloudWatchLogs": {
+            "Status": "ENABLED",
+            "GroupName": {
+              "Ref": "BackupLogGroup"
+            }
+          },
+          "S3Logs": {
+            "Status": "DISABLED"
+          }
+        }
+      }
+    },
+    "BackupScheduleRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backup-schedule"
+        },
+        "Description": "Taken by the EventBridge schedule to start the backup project; nothing more.",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "start-the-backup",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "StartTheBackup",
+                  "Effect": "Allow",
+                  "Action": "codebuild:StartBuild",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "BackupProject",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "BackupSchedule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backup"
+        },
+        "Description": "Starts the database copy at 23 minutes past every sixth hour (UTC).",
+        "ScheduleExpression": "cron(23 0/6 * * ? *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Id": "backup",
+            "Arn": {
+              "Fn::GetAtt": [
+                "BackupProject",
+                "Arn"
+              ]
+            },
+            "RoleArn": {
+              "Fn::GetAtt": [
+                "BackupScheduleRole",
+                "Arn"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "AppListsCopiesPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-backups-age"
+        },
+        "Users": [
+          {
+            "Ref": "AppUserName"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "ListTheCopiesOnly",
+              "Effect": "Allow",
+              "Action": "s3:ListBucket",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "BackupBucket",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "StringLike": {
+                  "s3:prefix": {
+                    "Fn::Sub": "backups/${EnvironmentName}/*"
+                  }
+                }
+              }
+            }
+          ]
+        }
       }
     },
     "ReadOnlyBackupPolicy": {
@@ -325,6 +580,39 @@
                   ]
                 }
               ]
+            },
+            {
+              "Sid": "BackupRunsAndLog",
+              "Effect": "Allow",
+              "Action": [
+                "codebuild:BatchGetProjects",
+                "codebuild:ListBuildsForProject",
+                "codebuild:BatchGetBuilds",
+                "logs:GetLogEvents",
+                "logs:FilterLogEvents",
+                "events:DescribeRule",
+                "secretsmanager:DescribeSecret"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BackupProject",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${BackupLogGroup.Arn}"
+                },
+                {
+                  "Fn::GetAtt": [
+                    "BackupSchedule",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Ref": "BackupDatabaseSecret"
+                }
+              ]
             }
           ]
         }
@@ -333,18 +621,21 @@
   },
   "Outputs": {
     "BackupBucket": {
-      "Description": "BACKUP_BUCKET of the GitHub environment production-backup.",
+      "Description": "BACKUP_BUCKET in the Vercel project shakti-prime-production (the jobs check reads the newest copy).",
       "Value": {
         "Ref": "BackupBucket"
       }
     },
-    "BackupWriterRoleArn": {
-      "Description": "BACKUP_ROLE_ARN of the GitHub environment production-backup.",
+    "BackupProject": {
+      "Description": "The CodeBuild project that makes each copy; Start build runs one by hand.",
       "Value": {
-        "Fn::GetAtt": [
-          "BackupWriterRole",
-          "Arn"
-        ]
+        "Ref": "BackupProject"
+      }
+    },
+    "BackupDatabaseSecretName": {
+      "Description": "The secret tools/secrets/set-backup-secret.ps1 fills.",
+      "Value": {
+        "Fn::Sub": "shakti-prime-${EnvironmentName}-backup-database"
       }
     },
     "BackupKeyArn": {

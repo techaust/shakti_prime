@@ -368,6 +368,15 @@ describe('POST /api/v1/workers/pdf/render (ADR 0009)', () => {
     const newerRow = await fileRow(newer.target.documentId);
     expect(newerRow?.status).toBe('ready');
     expect(await state.store?.get(newerRow?.key ?? '')).toEqual(PDF);
+
+    // The earlier job delivered again (its first try failed after the newer one retired it):
+    // done, with nothing printed, stored or recorded again.
+    const printed = state.pages.length;
+    const again = await renderPdfJob(earlier, renderDeps(worker, newId()));
+    expect(again).toEqual({ fileId: earlier.target.documentId, pages: 1, bytes: PDF.length });
+    expect(state.pages).toHaveLength(printed);
+    expect((await fileRow(earlier.target.documentId))?.status).toBe('rejected');
+    expect(await state.store?.get(earlierRow?.key ?? '')).toBeUndefined();
   });
 
   it('answers the recorded file when a job whose id was lost runs again, rendering nothing', async () => {

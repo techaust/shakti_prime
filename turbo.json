@@ -81,6 +81,7 @@
         "SENTRY_DSN",
         "NEXT_PUBLIC_SENTRY_DSN",
         "FILES_BUCKET",
+        "BACKUP_BUCKET",
         "FILES_KMS_KEY_ID",
         "AWS_REGION",
         "FIELD_ENCRYPTION_KEY",

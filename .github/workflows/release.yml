@@ -181,7 +181,6 @@ jobs:
           outbox-publisher-password: ${{ secrets.OUTBOX_PUBLISHER_PASSWORD }}
           database-ca-cert: ${{ secrets.DATABASE_CA_CERT }}
           app-reader-password: ${{ secrets.APP_READER_PASSWORD }}
-          app-backup-password: ${{ secrets.APP_BACKUP_PASSWORD }}
           seed: ${{ inputs.seed }}
       - name: Main is still this commit, before the deploy
         env:
@@ -242,23 +241,28 @@ jobs:
           esac
           curl -fsS --max-time 30 -X POST -o /dev/null "$HOOK"
           echo 'Vercel is building production.'
-      # Production serves the commit it served before until the new build is live; any third
-      # commit was deployed without a release and stops the run at once.
+      # Production serves the commit it served before (or another an earlier release approved, when
+      # that first read had no answer) until the new build is live; a commit no release approved
+      # was deployed without one and stops the run at once.
       - name: Production serves this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
+          released=$(gh api "repos/$REPO/git/matching-refs/tags/release-" --paginate --jq '.[].object.sha' || true)
           for attempt in $(seq 1 60); do
             served=$(curl -fsS --max-time 20 "$SITE/api/v1/health" 2> /dev/null | jq -r '.commit // empty' 2> /dev/null || true)
             if [ "$served" = "$SHA" ]; then
               echo "Production serves $SHA."
               exit 0
             fi
-            if [ -n "$served" ] && [ "$served" != "$BEFORE" ]; then
+            if [ -n "$served" ] && [ "$served" != "$BEFORE" ] && ! grep -qx "$served" <<< "$released"; then
               echo "Production serves $served, which no release approved: roll it back in Vercel (docs/runbooks/incidents.md)."
               exit 1
             fi
             sleep 20
           done
-          echo "Production does not serve $SHA after 20 minutes. The production project's deployments in Vercel show whether the build failed or was skipped."
+          echo "Production does not serve $SHA after 20 minutes. The production project's deployments in Vercel show whether the build failed or was skipped. After an Instant Rollback, Vercel keeps serving the rolled-back deployment until Undo Rollback, or a Promote of this release's deployment once it is ready (docs/runbooks/incidents.md §4)."
           exit 1
       - name: Production is ready
         run: |

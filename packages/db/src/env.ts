@@ -28,11 +28,10 @@ export function requireEnv(
 
 /**
  * A variable the app runs without: `DATABASE_URL_READER` (the queries then read on `app_user` in a
- * read-only transaction), `APP_READER_PASSWORD` (the role `app_reader` then has no password) and
- * `APP_BACKUP_PASSWORD` (the role `app_backup` then has none, and no backup can sign in).
+ * read-only transaction) and `APP_READER_PASSWORD` (the role `app_reader` then has no password).
  */
 export function optionalEnv(
-  name: 'DATABASE_URL_READER' | 'APP_READER_PASSWORD' | 'APP_BACKUP_PASSWORD',
+  name: 'DATABASE_URL_READER' | 'APP_READER_PASSWORD',
 ): string | undefined {
   const value = process.env[name];
   return value === undefined || value === '' ? undefined : value;

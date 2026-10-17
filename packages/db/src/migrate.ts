@@ -25,7 +25,7 @@ async function assertOwnerBypassesRls(sql: postgres.Sql): Promise<void> {
 }
 
 const LOGIN_ROLES = ['app_user', 'auth_service', 'outbox_publisher', 'app_reader'] as const;
-type LoginRole = (typeof LOGIN_ROLES)[number] | 'app_backup';
+type LoginRole = (typeof LOGIN_ROLES)[number];
 
 /**
  * `app_user`, `auth_service`, `outbox_publisher`, `app_reader` and `readonly_reporter` are cluster
@@ -41,8 +41,9 @@ type LoginRole = (typeof LOGIN_ROLES)[number] | 'app_backup';
  * `app_backup` is the 6-hourly backup's login (docs/05-database.md §3, §10): it reads every row of
  * every table, past the policies, so `pg_dump` copies the whole database, with `select` only and
  * at most two sessions. It runs no request, so none of the request roles' time limits apply to it
- * (`pg_dump` sets its own). It is created whether or not `APP_BACKUP_PASSWORD` is set; without it
- * no one can sign in as it.
+ * (`pg_dump` sets its own). It is created with no password, and the migrator never gives it one:
+ * the owner's script (`backup-login.ts`) sets it on production alone, as a SCRAM verifier, and puts
+ * the address in AWS Secrets Manager, so neither GitHub nor the server's log ever holds it.
  */
 async function ensureRoles(
   sql: postgres.Sql,
@@ -51,7 +52,6 @@ async function ensureRoles(
     authService: string;
     outboxPublisher: string;
     appReader: string | undefined;
-    appBackup: string | undefined;
   },
   rotatePasswords: boolean,
 ): Promise<void> {
@@ -92,7 +92,6 @@ async function ensureRoles(
   await setPassword('auth_service', passwords.authService);
   await setPassword('outbox_publisher', passwords.outboxPublisher);
   if (passwords.appReader !== undefined) await setPassword('app_reader', passwords.appReader);
-  if (passwords.appBackup !== undefined) await setPassword('app_backup', passwords.appBackup);
   for (const role of LOGIN_ROLES) {
     await sql.unsafe(`alter role ${role} nobypassrls`);
     // A stuck request must not hold a transaction, and with it a document-sequence row lock, open.
@@ -223,7 +222,6 @@ export async function runMigrations(
           authService: requireEnv('AUTH_SERVICE_PASSWORD'),
           outboxPublisher: requireEnv('OUTBOX_PUBLISHER_PASSWORD'),
           appReader: optionalEnv('APP_READER_PASSWORD'),
-          appBackup: optionalEnv('APP_BACKUP_PASSWORD'),
         },
         options.rotatePasswords ?? false,
       );

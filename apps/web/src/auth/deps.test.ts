@@ -23,6 +23,9 @@ const GOOD: NodeJS.ProcessEnv = {
 /** A DSN of the shape Sentry gives, naming no real project. */
 const DSN = 'https://publickey@o4501.ingest.us.sentry.io/4502';
 
+/** Production names the bucket of its database copies, whose age the jobs check reads. */
+const BACKUP = { BACKUP_BUCKET: 'shakti-prime-production-backups' };
+
 describe('productionConfigProblems (AUDIT M8, M9)', () => {
   it('accepts a complete hosted configuration that is not production', () => {
     expect(productionConfigProblems(GOOD)).toEqual([]);
@@ -67,7 +70,12 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
 
   it('refuses production without SES', () => {
     expect(
-      productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT: 'production', SENTRY_DSN: DSN }),
+      productionConfigProblems({
+        ...GOOD,
+        ...BACKUP,
+        BOS_ENVIRONMENT: 'production',
+        SENTRY_DSN: DSN,
+      }),
     ).toEqual(['MAILER=log is not a mail provider; production needs ses']);
   });
 
@@ -75,18 +83,24 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
     const ses = { MAILER: 'ses', SES_FROM: 'no-reply@shakti.example.in' };
     for (const BOS_ENVIRONMENT of ['dev', 'staging', 'production']) {
       expect(
-        productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT, SENTRY_DSN: DSN }),
+        productionConfigProblems({ ...GOOD, ...ses, ...BACKUP, BOS_ENVIRONMENT, SENTRY_DSN: DSN }),
       ).toEqual([]);
     }
   });
 
   it('refuses production without a Sentry DSN, and lets dev and staging run without one (OPS-4)', () => {
     const ses = { MAILER: 'ses', SES_FROM: 'no-reply@shakti.example.in' };
-    expect(productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT: 'production' })).toEqual([
-      'SENTRY_DSN is required in production, or no failure or alert reaches the owner',
-    ]);
     expect(
-      productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT: 'production', SENTRY_DSN: ' ' }),
+      productionConfigProblems({ ...GOOD, ...ses, ...BACKUP, BOS_ENVIRONMENT: 'production' }),
+    ).toEqual(['SENTRY_DSN is required in production, or no failure or alert reaches the owner']);
+    expect(
+      productionConfigProblems({
+        ...GOOD,
+        ...ses,
+        ...BACKUP,
+        BOS_ENVIRONMENT: 'production',
+        SENTRY_DSN: ' ',
+      }),
     ).toHaveLength(1);
     for (const BOS_ENVIRONMENT of ['dev', 'staging']) {
       expect(productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT })).toEqual([]);
@@ -131,6 +145,7 @@ describe('productionConfigProblems for production (G1)', () => {
     MAILER: 'ses',
     SES_FROM: 'no-reply@shaktiprime.com',
     SENTRY_DSN: DSN,
+    ...BACKUP,
   };
 
   it('starts with every required value', () => {
@@ -152,6 +167,7 @@ describe('productionConfigProblems for production (G1)', () => {
     'QSTASH_NEXT_SIGNING_KEY',
     'SES_FROM',
     'SENTRY_DSN',
+    'BACKUP_BUCKET',
   ])('refuses to start without %s, and names it', (name) => {
     for (const value of [undefined, '']) {
       const problems = productionConfigProblems({ ...PRODUCTION, [name]: value });
