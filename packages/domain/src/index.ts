@@ -522,7 +522,7 @@ export { resolveAgentConfig } from './ai/config';
 export { agentPrincipal, agentStepKey, runAgentStep } from './ai/runtime';
 export type { AgentDecision, AgentStep, AgentStepDeps, RunModel } from './ai/runtime';
 export { runTriage, TRIAGE_PURPOSE } from './ai/triage/run-triage';
-export type { TriageLead, TriageResult } from './ai/triage/run-triage';
+export type { TriageDeps, TriageLead, TriageResult } from './ai/triage/run-triage';
 export { buildTriagePrompt, TRIAGE_SYSTEM } from './ai/triage/prompt';
 export { filterTriageAnswer, noteProblem, parseTriageAnswer } from './ai/triage/filter';
 export type { TriageDecision, TriageVerdicts } from './ai/triage/filter';
