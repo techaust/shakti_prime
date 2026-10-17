@@ -7,8 +7,8 @@
 | Runs on | PC (owner, 17-10-2026: spend the week's remainder before the reset; the lead runs it while the owner is away) |
 | Tier | B (workers, delivery and test start-up): build Opus 5.5 medium, review Opus 5.5 high |
 | Usage | build Opus medium from week 94 (18-10-2026) |
-| State | review fixes done |
-| Next step | the lead reads the fix round's diff, remakes in the Linux image the baselines the fix round's report names, and integrates |
+| State | integrating: every check passed; pull request opened (18-10-2026) |
+| Next step | merge on green |
 
 ## Brief
 Open follow-ups from [STATUS](../../10-status.md#open-follow-ups) and from [batch 1's review](followups-hardening.md#review) that need no client input. No change to tax, price, credit or row-level security policies; a migration only if an item cannot be done without one, and then as [AGENTS §6](../../../AGENTS.md#6-database-changes) says.
@@ -128,3 +128,4 @@ Skills loaded: none (no table, command or screen is new). Every finding is fixed
 **Not checked**: the Postgres suites (the slot's database is stopped; the builder reports the security suite and the triage, knowledge and rescoring files passing); the three remade Linux baselines (not yet made); the seed's total time against its 5-minute watchdog in CI (delivery measured at about 4 s locally).
 
 ## Integration notes
+- 18-10-2026, the lead: `main` (#187, #188) merged in, no migrations; `integrate.sh` passed every step (security db 1,271, domain 1,029, web 333; agents, customers, notifications, imports, knowledge and triage journeys 118 passed, 4 skipped). Baselines remade in the Linux image on a fresh database: `admin-agents.png` and `imports-list.png` (desktop), `customer-sizing.png` (phone), and `converting-board.png` and `converting-quote.png` in all three projects, whose old pictures were taken with the page scrolled (review #5's fix). Verified without updating: converting 23 passed; agents, imports, customers and converting 90 passed. The full `e2e:snap` run had 3 flaky cases on unchanged steps (a UAT contrast check, two Targets page loads), each passing on retry.
