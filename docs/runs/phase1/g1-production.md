@@ -7,8 +7,8 @@
 | Runs on | PC (owner, 14-10-2026); the hosted steps from the lead session |
 | Tier | A (a miss reaches production): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
 | Usage | build Opus high from week 83, 5h 11 (17-10-2026, started before the reset by the owner's rule of 17-10-2026) |
-| State | building; part 1 done on 15-10-2026, SES production access granted on 17-10-2026 |
-| Next step | the builder stops at the early check (items 1 to 3) for the lead |
+| State | early check: items 1 to 3 built (17-10-2026); part 1 done on 15-10-2026, SES production access granted on 17-10-2026 |
+| Next step | the lead reads the workflows (Report, 17-10-2026), then starts the builder again for items 4 to 6 |
 
 ## Brief
 Design: [`docs/03-roadmap-appendix/phase1.md`](../../03-roadmap-appendix/phase1.md) §10 (G1). Runbooks: [deploy](../../runbooks/deploy.md) §1 and §2, [files-setup](../../runbooks/files-setup.md) §1 to §4 and §7, [accounts](../../runbooks/accounts.md), [cutover](../../runbooks/cutover.md), [incidents](../../runbooks/incidents.md). Exit-gate actions 2, 3, 7, 8 and 9 ([exit-gate-actions](../../13-client-packs/exit-gate-actions.md)); the 2026-09 audit's M45; ADR 0003, 0015 and 0017.
@@ -60,6 +60,51 @@ Not in G1's build: creating any hosted resource or setting any secret (the owner
 **Then the lead, with the owner:** the first production migration and seed through the release; the first Executive ([deploy §4](../../runbooks/deploy.md)); the production QStash schedules; the Sentry cron monitor on `outbox-publish` and the uptime monitor on `/api/v1/health/ready` seen; the health checks; the Realtime spike on the production domain (exit-gate action 5); STATUS's Hosted environments gains a Production column.
 
 ## Report
+
+### 17-10-2026, PC (slot 1), early check: items 1 to 3
+Commit `adf2680f` on `feat/g1-production` (not pushed; the lead pushes). Skills loaded: none (the brief names none; no table or command is added).
+
+**Built**
+- `.github/actions/migrate-database/action.yml` (new, a composite action): the secrets check (each secret set, the project ref well formed, the migrator address naming that project), pnpm and Node set-up, `pnpm install` with no secret in its environment, migrate (`--rotate-passwords` when asked), `db:verify`, seed when asked. The migrate workflow (every environment) and the release workflow run the same steps through it.
+- `.github/workflows/migrate.yml` (item 1): `production` among the choices. A `guard` job refuses any ref but `main` before production asks for approval; `migrate` (dev, staging) reads the suffixed repository secrets as before; `migrate-production` runs in the environment `production` (`environment: production`, so it waits for the required reviewer), reads the six unsuffixed secrets, checks the address names `ifnoytyhnedgiyhxxhhu`, and shares the concurrency group `production` with the release. `rotate_passwords` passes through the same way. Every checkout keeps no credentials.
+- `.github/workflows/release.yml` (item 2), manual only, `permissions: {}` at the top:
+  - job `check` (no environment, `actions: read`): only from `main`; the newest CI run on `main` for the commit is completed and green; staging's `/api/v1/health` names the commit and its `/api/v1/health/ready` answers 200;
+  - job `release` (environment `production`, `contents: write` for the tag alone, checkout without credentials): `main` is still the commit; migrate, `db:verify` and the seed (input, ticked by default) through the action; `main` is still the commit; tag `release-<run number>` on it (a re-run finds its own tag); POST the deploy hook `VERCEL_DEPLOY_HOOK_PRODUCTION` (refused unless it is a `https://api.vercel.com/v1/integrations/deploy/` address); poll `https://shaktiprime.com/api/v1/health` until it names the commit (20 minutes); then `/api/v1/health/ready` 200 (three tries).
+  - The targets sit in one `env` block (`PROJECT_REF`, `SITE`, `STAGING_SITE`) plus the environment name, so the staging copy for the proof changes those lines only.
+- `apps/web/vercel.json` `ignoreCommand: node scripts/vercel-ignore.ts; [ $? -ne 10 ]` and `apps/web/scripts/vercel-ignore.ts` (item 2, the production build gate): dev and staging build every push; the production project (known by `BOS_ENVIRONMENT=production` or by `VERCEL_PROJECT_PRODUCTION_URL` being `shaktiprime.com`, so a missing project variable or a preview still counts as production) builds only its production target, branch `main`, for a commit a `release-<n>` tag points at (`git ls-remote --tags` of the public repository). The script exits 10 to build; the shell wrapper turns every other ending (a skip, a crash, a missing file, an old Node) into a skip, so production fails closed. Node 24 (`engines`) runs the `.ts` file directly; it imports Node's own modules only.
+- `GET /api/v1/health` names `commit`, the deployment's `VERCEL_GIT_COMMIT_SHA` (40 hex characters, null otherwise); `HealthResponse` is now `.strict()` with `commit` (`packages/contracts/src/api/health.ts`, fixture); API §3.7's row says so.
+- Item 3: `apps/web/src/workers/qstash-schedules.ts` (new) holds the schedule list (`qstashSchedules(environment, siteUrl)`: one per `JOB_SCHEDULES` route, `<route>-<environment>`, path, cron, retries, timeout as before) and `hostedEnvironment()` (dev, staging, production only); `scripts/qstash-schedule.ts` loops over it and refuses any other `BOS_ENVIRONMENT` (it took any lower-case word before). DEPLOY §2 step 6 names production's eight schedule ids and the new file. `productionConfigProblems()` is unchanged: it already refuses production without SES, `SES_FROM` or `SENTRY_DSN`.
+
+**Tests added (all unit, no database)**
+- `apps/web/src/release-workflows.test.ts` (12): reads the workflows' text and runs their shell steps under bash with a run's values: the migrate choices; the `main` guard of both workflows (accepts `refs/heads/main`, refuses a branch, a tag and empty); the production job's environment, ref, group and unsuffixed secrets, and dev/staging never reading them; every checkout without credentials; the action's check accepting the production project's session-pooler and direct addresses and refusing staging's address, a missing CA certificate, a missing project and an empty address; migrate before verify before seed with nothing secret around the install; the release's triggers and empty top-level permissions, the `check` job holding no secret or environment, the release job's environment, needs and step order, the tag name the gate looks for, and the deploy step refusing anything but a Vercel hook.
+- `apps/web/scripts/vercel-ignore.test.ts` (14): dev, staging and their previews build without reading tags; production builds a tagged commit and skips an untagged one; production known by its domain alone; six skip cases (a preview, another branch, no or a short commit, no repository, a path in the repository name) even with the commit tagged; the listing parser; and the real `ignoreCommand` through `sh` (dev exits 1 = build, a production preview exits 0 = skip, a missing script exits 0 = skip).
+- `apps/web/src/workers/qstash-schedules.test.ts` (4): production's eight `-production` ids on `https://shaktiprime.com`, one schedule per timed route in every environment, the retries, the three environment names.
+- `apps/web/src/auth/deps.test.ts` (+15): production with every required value starts; one case per required value (the twelve of `PRODUCTION_ENV`, `SES_FROM`, `SENTRY_DSN`), each refused with exactly one problem naming it, unset and empty.
+- `apps/web/src/app/api/v1/health/route.test.ts` (+2): the commit named on Vercel; null off Vercel or for a value that is not a full commit.
+
+**Checks run** (each through `heavy.sh`)
+- `pnpm --filter web exec vitest run`: Test Files 119 passed (119); Tests 894 passed | 1 skipped (895).
+- `pnpm --filter @shakti/contracts exec vitest run`: Test Files 20 passed (20); Tests 182 passed (182).
+- `pnpm --filter web typecheck` (`tsc --noEmit`): no errors; `pnpm --filter @shakti/contracts typecheck`: no errors.
+- `pnpm exec eslint --max-warnings 0 apps/web/scripts apps/web/src/release-workflows.test.ts apps/web/src/workers apps/web/src/auth apps/web/src/app/api/v1/health packages/contracts/src/api`: clean after one fix.
+- `prettier --check` on the changed files, `.github` and `docs/06-api.md`: all formatted.
+- Not run at this check: the security suite (no schema, policy or database code changed), the whole-repository lint and the journeys (no screen changed); both come at the end.
+- No `EXPLAIN`: no list or search added.
+
+**For the lead's reading of the workflows (uncertain or open)**
+1. Whether Vercel runs the Ignored Build Step on a deploy-hook build is not documented where I could read (Context7's Vercel docs). The gate works either way: if it runs, the release's tag lets the build through; if not, the hook builds anyway. What I could not confirm: Vercel's note that a commit already deployed returns its last deployment instead of a new one. If a hook for a commit whose push build was skipped returns that skipped deployment, production would not build, and the release would stop at "Production does not serve …" after 20 minutes, never deploying anything unapproved. The first release shows it; the fallback is Redeploy in the dashboard with *Use project's Ignore Build Step* unticked.
+2. The gate reads `VERCEL_PROJECT_PRODUCTION_URL` (a system variable; the projects' *Automatically expose System Environment Variables* must stay on) and `BOS_ENVIRONMENT`. Vercel says the Ignored Build Step sees the system variables; whether it also sees project variables is not stated, which is why production is recognised by either.
+3. The release needs the deploy hook in the environment `production` as `VERCEL_DEPLOY_HOOK_PRODUCTION` (Vercel › production project › Settings › Git › Deploy Hooks, branch `main`), and the environment's deployment branches limited to `main`, beside the owner as required reviewer. These are owner steps for item 6's documents.
+4. The required reviewer is the owner's GitHub account, which is also the account the lead's `gh` uses (`techaust`), so the lead's token could technically approve a pending run through the API. Today only the rules stop it. A fine-grained token for the lead without the permission to approve deployments, or a second reviewer account, would make it technical; this is the owner's choice.
+5. Anyone with write access could make a `release-<n>` tag by hand and so let a Vercel build of that commit through. Only the owner has write access; a tag ruleset limiting `release-*` would close it, also the owner's choice.
+6. The release takes `main`'s newest commit and stops when `main` moves before the deploy (the hook always builds `main`'s head). A release started while merges are landing has to be started again.
+
+**Decisions the brief did not settle**
+- The migration steps moved into a composite action so the migrate and release workflows cannot drift; the release is one approved job (migrate, tag, deploy, checks), so the owner approves once.
+- "The chosen main commit" is the commit `main` points at when the release starts (`github.sha`), since a deploy hook cannot build an older one.
+- How the production project tells a release's build from a push's: a `release-<run number>` tag made by the approved job and read with `git ls-remote`. The REST API from Vercel's build machines would meet the unauthenticated rate limit; git does not.
+- "Staging serves that commit" is read from a new `commit` field of `/api/v1/health`; the repository is public, so the field reveals nothing new.
+- `qstash-schedule.ts` now accepts only dev, staging or production as `BOS_ENVIRONMENT`.
 
 ## Review
 | # | Severity | Finding | State |
