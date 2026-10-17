@@ -88,8 +88,7 @@ export async function POST(request: Request): Promise<Response> {
       },
     });
     const body =
-      // A reading that found the file taken by another read nothing: answered as a repeat.
-      result.outcome === 'done' && indexed !== undefined && indexed.taken !== true
+      result.outcome === 'done' && indexed !== undefined
         ? {
             eventId: job.eventId,
             outcome: 'done' as const,

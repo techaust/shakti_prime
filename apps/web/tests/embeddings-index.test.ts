@@ -23,10 +23,12 @@ import {
   databaseOutboxSink,
   fakeModelTransport,
   fakeReply,
+  knowledgeReadKey,
   memoryFileStore,
   memoryKeyValue,
   memoryLogger,
   runCommand,
+  type KeyValue,
   sha256Hex,
   type FakeModelTransport,
 } from '@shakti/domain';
@@ -52,7 +54,7 @@ vi.mock('../src/workers/knowledge/index-deps', async () => {
   const { readWordText } = await import('../src/workers/knowledge/read-word');
   const { renderMaskedPages } = await import('../src/workers/files/pdf-pages');
   return {
-    indexDeps: (principal: Principal, requestId: string) => {
+    indexDeps: (principal: Principal, requestId: string, keyValue?: KeyValue) => {
       if (state.store === undefined) throw new Error('no store');
       const fake = fakeModelTransport([fakeReply(state.reply)]);
       state.transport = fake;
@@ -70,12 +72,14 @@ vi.mock('../src/workers/knowledge/index-deps', async () => {
         requestId,
         hosted: false,
         logger: memoryLogger(),
+        keyValue,
       };
     },
   };
 });
 
 const { POST } = await import('../src/app/api/v1/workers/embeddings/index/route');
+const { defaultAuthDeps } = await import('../src/auth/deps');
 const { handleFileUploaded } = await import('../src/workers/files/handle-file-uploaded');
 const { vaultMasker } = await import('../src/workers/ocr/vault-masker');
 const { indexJobOf } = await import('../src/workers/knowledge/job');
@@ -290,6 +294,40 @@ describe('POST /api/v1/workers/embeddings/index', () => {
     const again = await call(body);
     expect(EmbeddingsIndexResult.parse(await again.json())).toMatchObject({
       outcome: 'duplicate',
+    });
+  });
+
+  it('answers a job whose file another reading holds as a conflict the queue delivers again', async () => {
+    const fileId = await wordUpload(
+      wordDocument(['Pump care', 'Grease the bearings every six months.']),
+    );
+    expect(await checks(fileId)).toEqual({ status: 'ready' });
+    const vault = await asPrincipal(executive, (context) =>
+      runCommand(
+        addKnowledgeFile,
+        { context, audit: databaseAuditSink, outbox: databaseOutboxSink },
+        { entityId: 1, fileId, title: 'Pump care', sensitivity: 'staff_ai_ok' },
+      ),
+    );
+    const body = JSON.stringify(indexJobOf(await indexEvent(vault.id)));
+    // Another reading of the file (Read again, or a redelivery) holds it.
+    const { keyValue } = defaultAuthDeps();
+    const claim = knowledgeReadKey(vault.id);
+    expect(await keyValue.setIfAbsent(claim, newId(), 60)).toBe(true);
+
+    const held = await call(body);
+    expect(held.status).toBe(409);
+    expect(held.headers.get('upstash-nonretryable-error')).toBeNull();
+    expect(ErrorEnvelope.parse(await held.json()).error.code).toBe('conflict');
+    expect(state.transport?.requests ?? []).toHaveLength(0);
+
+    // Once the other reading is over, the queue's next delivery of the same job reads the file.
+    await keyValue.del(claim);
+    const again = await call(body);
+    expect(again.status).toBe(200);
+    expect(EmbeddingsIndexResult.parse(await again.json())).toMatchObject({
+      outcome: 'done',
+      knowledgeFileId: vault.id,
     });
   });
 

@@ -73,8 +73,6 @@ export interface IndexKnowledgeOutcome {
   knowledgeFileId: string;
   chunks: number;
   replaced: number;
-  /** Another reading of the file was running: this one read nothing and recorded nothing. */
-  taken?: true;
 }
 
 /** The daily cap the vault's reading and embedding is held to, for the whole group. */
@@ -142,9 +140,11 @@ async function asDocuments(
  *
  * With `keyValue`, the reading first claims the vault file (`knowledgeReadKey`, `SET NX`, for
  * `KNOWLEDGE_READ_CLAIM_SECONDS`) and gives the claim back when it ends, however it ends. A
- * reading that finds the file claimed stops at once with `taken`: another reading of the same file
- * is running and records the outcome, so nothing is read or spent twice. A store that cannot be
- * reached fails the delivery, which is tried again.
+ * reading that finds the file claimed stops at once, reading, spending and recording nothing, and
+ * fails as a `conflict` the queue tries again: another reading of the same file is running, and a
+ * later delivery finds the file read (and answers it as it stands) or the claim lapsed, as when the
+ * holder was a redelivery whose route died after its claim outlived the six-minute mark. A store
+ * that cannot be reached fails the delivery, which is tried again.
  */
 export async function indexKnowledgeFile(
   job: EmbeddingsIndexJob,
@@ -173,7 +173,7 @@ export async function indexKnowledgeFile(
       eventId: job.eventId,
       knowledgeFileId: job.knowledgeFileId,
     });
-    return { knowledgeFileId: job.knowledgeFileId, chunks: 0, replaced: 0, taken: true };
+    throw new DomainError('conflict', 'another reading of the vault file is running');
   }
   try {
     return await readVaultFile(job, deps);

@@ -580,7 +580,7 @@ export {
   KNOWLEDGE_EXTRACT_SYSTEM,
   knowledgeSourceType,
 } from './knowledge/extract';
-export { EMBED_BATCH, indexKnowledgeFile } from './knowledge/index-file';
+export { EMBED_BATCH, indexKnowledgeFile, knowledgeReadKey } from './knowledge/index-file';
 export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
 export { knowledgeQueryVector } from './knowledge/search';
 export { checkZipArchive } from './imports/zip-guard';

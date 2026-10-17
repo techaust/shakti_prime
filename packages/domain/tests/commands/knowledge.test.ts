@@ -368,7 +368,7 @@ describe('the index job', () => {
     expect(await index(vault.id, second.provider)).toMatchObject({ chunks: 1, replaced: 1 });
   });
 
-  it('lets one of two readings of a file run: the second finds it taken and stops', async () => {
+  it('lets one of two readings of a file run: the second finds it taken and stops as a conflict', async () => {
     const vault = await add(gm, await upload(gm));
     const shared = memoryKeyValue();
     const ai = provider({ script: [fakeReply('Warranty covers the motor.'), fakeReply('Twice.')] });
@@ -392,8 +392,10 @@ describe('the index job', () => {
     await drawn;
     expect(await shared.get(knowledgeReadKey(vault.id))).not.toBeNull();
     // Read again's job, or the queue's redelivery, arrives while the first reading runs.
-    const second = await index(vault.id, ai.provider, undefined, 1, { keyValue: shared });
-    expect(second).toEqual({ knowledgeFileId: vault.id, chunks: 0, replaced: 0, taken: true });
+    // It stops as a conflict the queue delivers again, having read nothing.
+    await expect(
+      index(vault.id, ai.provider, undefined, 1, { keyValue: shared }),
+    ).rejects.toMatchObject({ code: 'conflict' });
     expect(ai.transport.requests).toHaveLength(0);
 
     open();
@@ -402,6 +404,12 @@ describe('the index job', () => {
     expect(await stateOf(vault.id)).toMatchObject({ state: 'indexed', chunks: 1 });
     // The claim is given back once the reading ends, so a later Read again is not held up.
     expect(await shared.get(knowledgeReadKey(vault.id))).toBeNull();
+    // The second job's retry finds the file read and answers it as it stands, reading nothing.
+    expect(await index(vault.id, ai.provider, undefined, 1, { keyValue: shared })).toMatchObject({
+      chunks: 1,
+    });
+    expect(ai.transport.requests).toHaveLength(1);
+    expect(await stateOf(vault.id)).toMatchObject({ state: 'indexed', chunks: 1 });
   });
 
   it('gives the claim back when a reading fails, and lets it lapse when the reading dies', async () => {
@@ -416,9 +424,9 @@ describe('the index job', () => {
     expect(await shared.get(knowledgeReadKey(vault.id))).toBeNull();
     // A reading whose route was killed leaves its claim, which lapses before Read again is offered.
     await shared.setIfAbsent(knowledgeReadKey(vault.id), newId(), KNOWLEDGE_READ_CLAIM_SECONDS);
-    expect(
-      await index(vault.id, provider().provider, undefined, 1, { keyValue: shared }),
-    ).toMatchObject({ taken: true });
+    await expect(
+      index(vault.id, provider().provider, undefined, 1, { keyValue: shared }),
+    ).rejects.toMatchObject({ code: 'conflict' });
     clock = KNOWLEDGE_READ_CLAIM_SECONDS * 1000;
     expect(
       await index(vault.id, provider({ reply: 'Pumps are covered.' }).provider, undefined, 1, {
