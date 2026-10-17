@@ -285,7 +285,7 @@ export function AgentsScreen({
                           action: label,
                         })}
                         value={type.autonomy ?? ''}
-                        className="md:w-auto"
+                        className="md:w-auto md:min-w-full"
                         disabled={config.pending}
                         onChange={(e) => {
                           setAutonomy(row, type.actionType, e.target.value);
