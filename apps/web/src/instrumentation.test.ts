@@ -46,4 +46,15 @@ describe('onRequestError', () => {
     ).resolves.toBeUndefined();
     await expect(loggedRequestId({ 'x-request-id': ['a', 'b'] })).resolves.toBeUndefined();
   });
+
+  it('logs a render the browser left at info level, and every other error at error level', async () => {
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+    const log = vi.spyOn(logger, 'log').mockImplementation(() => undefined);
+    const left = new Error('The destination stream closed early.');
+    await onRequestError(left, failedRequest({}), context);
+    expect(log.mock.calls.at(-1)?.slice(0, 2)).toEqual(['info', 'request.client_left']);
+    // Another stream error is the app's.
+    await onRequestError(new Error('The stream was closed'), failedRequest({}), context);
+    expect(log.mock.calls.at(-1)?.slice(0, 2)).toEqual(['error', 'request.failed']);
+  });
 });

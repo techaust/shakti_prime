@@ -27,15 +27,19 @@ export async function register(): Promise<void> {
 /**
  * Every error a request did not handle (AUDIT M35): one redacted log line with the reference the
  * error screen shows, derived from the same digest, and the platform's request id; with a DSN,
- * also one Sentry event tagged with that request id, scrubbed before it is sent.
+ * also one Sentry event tagged with that request id, scrubbed before it is sent. A render the
+ * browser left while it loaded (`clientLeft`) is no fault of the app: it is logged at info level
+ * as `request.client_left`, and not reported.
  */
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
-  const [{ logger }, { referenceFromDigest }, { platformRequestId }] = await Promise.all([
-    import('./log'),
-    import('./reference'),
-    import('./auth/client-address'),
-  ]);
+  const [{ logger }, { referenceFromDigest }, { platformRequestId }, { clientLeft }] =
+    await Promise.all([
+      import('./log'),
+      import('./reference'),
+      import('./auth/client-address'),
+      import('./observability/client-left'),
+    ]);
   const digest =
     typeof error === 'object' && error !== null && 'digest' in error ? error.digest : undefined;
   // The same choice and check as the audit trail: the platform's id first, a caller's only when
@@ -46,15 +50,19 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
       return typeof value === 'string' ? value : null;
     },
   });
-  logger.log('error', 'request.failed', {
+  const fields = {
     reference: typeof digest === 'string' ? referenceFromDigest(digest) : undefined,
     requestId,
     method: request.method,
     path: request.path.split('?')[0],
     route: context.routePath,
     routeType: context.routeType,
-    error,
-  });
+  };
+  if (clientLeft(error)) {
+    logger.log('info', 'request.client_left', fields);
+    return;
+  }
+  logger.log('error', 'request.failed', { ...fields, error });
   if (sentryOn()) {
     const { reportRequestError } = await import('./observability/sentry-server');
     reportRequestError(error, request, context, requestId);
