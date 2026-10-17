@@ -6,9 +6,9 @@
 | PC worktree | `g1-production`, slot 1: Postgres 54331 (container `shakti-pg-g1-production`), app 3031 |
 | Runs on | PC (owner, 14-10-2026); the hosted steps from the lead session |
 | Tier | A (a miss reaches production): build Opus 5.5 high, early check by the lead, review Opus 5.5 xhigh |
-| Usage | build Opus high from week 83, 5h 11 (17-10-2026, started before the reset by the owner's rule of 17-10-2026); review Opus xhigh at 91, re-check Opus xhigh at 93, fix rounds Opus high; week 94 at integration (17-10-2026) |
-| State | integrating: every check passed; pull request opened (18-10-2026) |
-| Next step | the owner's steps a and b of DEPLOY §1 step 4, the lead's read-back (c), then the owner adds `checks-ok` |
+| Usage | build Opus high from week 83, 5h 11 (17-10-2026, started before the reset by the owner's rule of 17-10-2026); review Opus xhigh at 91, re-check Opus xhigh at 93, fix rounds Opus high; week 94 at integration (17-10-2026); measured (agent-usage.py, 18-10-2026): builds and fix rounds Opus high 4.6 points of the week, review and re-check Opus xhigh 0.6, each on its setting |
+| State | merged (#187, 17-10-2026) |
+| Next step | none |
 
 ## Brief
 Design: [`docs/03-roadmap-appendix/phase1.md`](../../03-roadmap-appendix/phase1.md) §10 (G1). Runbooks: [deploy](../../runbooks/deploy.md) §1 and §2, [files-setup](../../runbooks/files-setup.md) §1 to §4 and §7, [accounts](../../runbooks/accounts.md), [cutover](../../runbooks/cutover.md), [incidents](../../runbooks/incidents.md). Exit-gate actions 2, 3, 7, 8 and 9 ([exit-gate-actions](../../13-client-packs/exit-gate-actions.md)); the 2026-09 audit's M45; ADR 0003, 0015 and 0017.

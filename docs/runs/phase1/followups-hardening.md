@@ -6,9 +6,9 @@
 | PC worktree | `followups-hardening`, slot 2: Postgres 54332 (container `shakti-pg-followups-hardening`), app 3032 |
 | Runs on | PC, beside G1 (owner, 17-10-2026: spend the week's remainder before the reset) |
 | Tier | B (notifications, consent on a passed-on enquiry, flaky tests): build Opus 5.5 medium, review Opus 5.5 high |
-| Usage | build Opus medium from week 83, 5h 11 (17-10-2026) |
-| State | integrating: every check passed; pull request opened (17-10-2026) |
-| Next step | merge on green |
+| Usage | build Opus medium from week 83, 5h 11 (17-10-2026); measured (agent-usage.py, 18-10-2026): build and fix round Opus medium 4.2 points of the week, review Opus high 0.2, each on its setting |
+| State | merged (#186, 17-10-2026) |
+| Next step | none |
 
 ## Brief
 Open follow-ups from [STATUS](../../10-status.md#open-follow-ups) that need no client input: tests that fail by order or time, and small product defects. No change to tax, price, credit or row-level security policies; a migration only if item 9 needs one, and then as [AGENTS §6](../../../AGENTS.md#6-database-changes) says.
