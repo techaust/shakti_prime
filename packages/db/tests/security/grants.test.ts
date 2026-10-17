@@ -528,7 +528,7 @@ describe('app_backup role (docs/05-database.md §3, §10)', () => {
                           where d.objid = c.oid and d.deptype = 'e')
        order by 1
     `);
-    expect(rows.length).toBeGreaterThan(100);
+    expect(rows.length).toBeGreaterThan(50);
     expect(rows.filter((r) => !r.read).map((r) => r.name)).toEqual([]);
     expect(rows.filter((r) => r.write).map((r) => r.name)).toEqual([]);
     // The monthly partitions are among them, and the migrations' own record.

@@ -52,6 +52,8 @@ async function cleanUp(): Promise<void> {
     m.begin(async (tx) => {
       await tx`delete from opportunities where account_id in
                  (select id from accounts where name like ${NAME})`;
+      await tx`delete from account_entities where account_id in
+                 (select id from accounts where name like ${NAME})`;
       await tx`delete from accounts where name like ${NAME}`;
     }),
   );
@@ -92,23 +94,29 @@ async function main(): Promise<void> {
       await tx`insert into accounts (id, type, name, created_by)
                select app.uuid_v7(), 'household', 'EXPLR customer ' || g, ${exec.id}
                  from generate_series(1, ${LEADS}::int) g`;
-      // One lead per customer, its company drawn by the shares; ids made in one run, so the four
-      // companies' leads interleave in the key's order.
+      // Each customer known to one company, drawn by the shares, with one lead there; the leads'
+      // ids are made in one run, so the four companies' leads interleave in the key's order.
       const cuts = SHARES.reduce<number[]>(
         (acc, [, share]) => [...acc, (acc.at(-1) ?? 0) + share],
         [],
       );
       await tx.unsafe(
-        `insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, state, created_by)
-         select app.uuid_v7(),
+        `insert into account_entities (id, account_id, entity_id, created_by)
+         select app.uuid_v7(), a.id,
                 case when r < ${String(cuts[0])} then 1 when r < ${String(cuts[1])} then 2
                      when r < ${String(cuts[2])} then 3 else 4 end,
-                a.id, '${pipeline.id}', '${pipeline.stage}',
+                '${exec.id}'
+           from (select id, random() as r from accounts where name like 'EXPLR customer %') a`,
+      );
+      await tx.unsafe(
+        `insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, state, created_by)
+         select app.uuid_v7(), ae.entity_id, ae.account_id, '${pipeline.id}', '${pipeline.stage}',
                 case when s < 0.25 then 'open' when s < 0.30 then 'nurture'
                      when s < 0.40 then 'won' else 'lost' end,
                 '${exec.id}'
-           from (select id, random() as r, random() as s from accounts
-                  where name like 'EXPLR customer %' order by id) a`,
+           from (select ae.entity_id, ae.account_id, random() as s
+                   from account_entities ae join accounts a on a.id = ae.account_id
+                  where a.name like 'EXPLR customer %' order by ae.account_id) ae`,
       );
       await tx`analyze opportunities`;
     }),
