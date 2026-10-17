@@ -95,6 +95,7 @@ Before starting any agent, the lead reads two numbers: the 5-hour window and the
 | Weekly use at or under the pace and the 5-hour window at or under 50 % | Up to two agents at once on a PC day, three on a cloud day |
 | Weekly use over the pace | One agent at a time |
 | Weekly use at 85 % or more | No new build; only finishing, reviewing and merging what is in flight |
+| The last two days before the weekly reset, whatever the week reads | New builds and new slices start, up to the day's number of builders; agents commit as they go and a fresh one continues after the reset (owner, 17-10-2026) |
 | The 5-hour window over 50 % | No new builder; a review or a running agent may continue |
 | The 5-hour window at 75 % or more | Nothing new starts until it resets |
 | A cloud reading older than two hours | One agent at a time |
@@ -102,7 +103,7 @@ Before starting any agent, the lead reads two numbers: the 5-hour window and the
 
 The usage card also shows a Fable bar. It stays at 0 %; a higher reading means a conversation or an agent ran on Fable 5.1, and the lead tells the owner.
 
-A new slice starts only while the week is under 70 %, so it finishes without a gate stop. The week's shape: builds on Monday afternoon and Tuesday, reviews and fixes on Wednesday, integration and the hosted steps on Thursday, documents on Friday, and 15 % of the week kept for the unexpected. The day runs in up to three 5-hour windows, with the expensive work at a window's start: the first for starting the day, the brief or the review triage and the builder; the second for the review and its fixes; the third for integration, `migrate-hosted` and ending the day.
+A new slice starts only while the week is under 70 %, so it finishes without a gate stop, except in the two days before the reset, when the week's remainder is spent (the table above). The week's shape: builds on Monday afternoon and Tuesday, reviews and fixes on Wednesday, integration and the hosted steps on Thursday, documents on Friday, and 15 % of the week kept for the unexpected. The day runs in up to three 5-hour windows, with the expensive work at a window's start: the first for starting the day, the brief or the review triage and the builder; the second for the review and its fixes; the third for integration, `migrate-hosted` and ending the day.
 
 ## 6. Habits that save usage on any model
 - The builder's tools are a fixed list (the built-in file, shell and skill tools and Context7), not every MCP server.
