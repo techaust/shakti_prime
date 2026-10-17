@@ -90,6 +90,8 @@ const PAIRS: Record<string, readonly string[]> = {
   inbox_items_subject_type_check: INBOX_SUBJECT_TYPES,
   inbox_items_segment_check: SegmentSchema.options,
   inbox_items_consent_channel_check: ConsentChannelSchema.options,
+  // Only routed work carries the channel of a consent that came with the enquiry.
+  inbox_items_consent_routed_check: INBOX_ITEM_KINDS.filter((k) => k === 'routed_work'),
   notifications_type_check: NOTICE_TYPES,
   notifications_subject_type_check: NOTICE_SUBJECT_TYPES,
   notification_preferences_type_check: NOTICE_TYPES,
