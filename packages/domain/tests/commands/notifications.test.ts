@@ -937,6 +937,7 @@ describe('an enquiry typed in (crm.enquiry.take, ARCH-4)', () => {
     );
     expect(timeline?.n).toBe(1);
     // The colleague's card says a consent came with the enquiry (owner, 17-10-2026).
+    if (routed.outcome !== 'routed') throw new Error('the enquiry was not passed on');
     const card = await asPrincipal(callerA, (context) => listInbox(context, { limit: 50 }));
     expect(card.items.find((i) => i.id === routed.itemId)).toMatchObject({
       kind: 'routed_work',
