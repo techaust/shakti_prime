@@ -156,8 +156,8 @@ async function main(): Promise<void> {
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
-  console.log(
-    `RESULT: app_backup has a new password (it reads ${String(tables)} tables), and ${BACKUP_SECRET} holds its address.`,
+  process.stdout.write(
+    `RESULT: app_backup has a new password (it reads ${String(tables)} tables), and ${BACKUP_SECRET} holds its address.\n`,
   );
 }
 

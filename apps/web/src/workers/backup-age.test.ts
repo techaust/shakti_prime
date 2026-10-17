@@ -77,9 +77,12 @@ describe('the age of the newest database copy (docs/05-database.md §10)', () =>
   });
 
   it('is checked only where the bucket is named, as on production', () => {
-    expect(configuredBackupCheck({ BOS_ENVIRONMENT: 'staging' })).toBeUndefined();
-    expect(
-      configuredBackupCheck({ BOS_ENVIRONMENT: 'production', BACKUP_BUCKET: 'b' })?.environment,
-    ).toBe('production');
+    const env = (values: Record<string, string>): NodeJS.ProcessEnv => ({
+      NODE_ENV: 'production',
+      ...values,
+    });
+    expect(configuredBackupCheck(env({ BOS_ENVIRONMENT: 'staging' }))).toBeUndefined();
+    const production = env({ BOS_ENVIRONMENT: 'production', BACKUP_BUCKET: 'b' });
+    expect(configuredBackupCheck(production)?.environment).toBe('production');
   });
 });
