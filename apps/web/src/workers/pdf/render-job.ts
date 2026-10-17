@@ -88,6 +88,7 @@ export async function renderPdfJob(job: PdfRenderJob, deps: RenderDeps): Promise
     entityId: job.entityId,
     requestId: deps.requestId,
     hosted: deps.hosted,
+    store: deps.store,
   };
   const done = await recorded(deps, scope, fileId);
   if (done !== undefined) {

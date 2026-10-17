@@ -65,6 +65,7 @@ import { completeUpload } from '../commands/files/complete-upload';
 import { recheckFiles } from '../commands/files/recheck-files';
 import { sweepUploads } from '../commands/files/sweep-uploads';
 import { recordRenderedFile } from '../commands/files/record-rendered';
+import { retireRenderedFiles } from '../commands/files/retire-rendered';
 import {
   addKnowledgeFile,
   archiveKnowledgeFile,
@@ -210,6 +211,7 @@ export const commands = Object.freeze({
   [continueFileCheck.name]: continueFileCheck,
   [sweepUploads.name]: sweepUploads,
   [recordRenderedFile.name]: recordRenderedFile,
+  [retireRenderedFiles.name]: retireRenderedFiles,
   [requestPrintProof.name]: requestPrintProof,
   [setAccountTier.name]: setAccountTier,
   [createQuote.name]: createQuote,

@@ -35,6 +35,38 @@ export const RecordRenderedFileInput = z
 export type RecordRenderedFileInput = z.infer<typeof RecordRenderedFileInput>;
 
 /**
+ * The rendered purposes whose earlier files are retired when a new one is recorded: a company's
+ * proof page prints its bank account in full, so an earlier page would keep a replaced account
+ * readable (P4 review L10).
+ */
+export const RETIRED_ON_REPRINT = ['print_proof'] as const;
+
+/** At most this many earlier files are retired by one call. */
+export const RETIRE_RENDERED_LIMIT = 100;
+
+/**
+ * `files.document.retire` (the render worker, `files.process`): after `keepFileId` is recorded,
+ * the company's other ready files of `purpose` are refused as replaced (`file_replaced`). The
+ * answer names each one's key, so the worker deletes its bytes.
+ */
+export const RetireRenderedFilesInput = z
+  .object({
+    entityId: EntityIdSchema,
+    purpose: z.enum(RETIRED_ON_REPRINT),
+    keepFileId: IdSchema,
+  })
+  .strict();
+export type RetireRenderedFilesInput = z.infer<typeof RetireRenderedFilesInput>;
+
+export const RetireRenderedFilesDto = z
+  .object({
+    retired: z.number().int().min(0).max(RETIRE_RENDERED_LIMIT),
+    keys: z.array(FileKeySchema).max(RETIRE_RENDERED_LIMIT),
+  })
+  .strict();
+export type RetireRenderedFilesDto = z.infer<typeof RetireRenderedFilesDto>;
+
+/**
  * `print.proof.request`: an Executive asks for a one-page proof of a company's letterhead, logo,
  * address, GSTIN and bank details, rendered by the same worker as every document.
  */

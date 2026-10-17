@@ -124,6 +124,7 @@ const ACTIONS = {
   'files.file.recheck': 'filesRecheck',
   'files.upload.sweep': 'uploadsSweep',
   'files.document.record': 'fileRendered',
+  'files.document.retire': 'fileRetired',
   'print.proof.request': 'printProofRequest',
   'integrations.dlq.replay': 'deadLetterReplay',
   'platform.probe.run': 'deliveryCheck',

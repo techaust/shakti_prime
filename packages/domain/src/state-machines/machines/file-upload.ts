@@ -10,7 +10,7 @@ export const FILE_UPLOAD_STATES = [
 ] as const;
 export type FileUploadState = (typeof FILE_UPLOAD_STATES)[number];
 export type FileUploadEvent =
-  'upload' | 'complete' | 'scan' | 'skip_scan' | 'ready' | 'reject' | 'abandon';
+  'upload' | 'complete' | 'scan' | 'skip_scan' | 'ready' | 'reject' | 'abandon' | 'retire';
 
 export interface FileUploadRecord {
   state: FileUploadState | null;
@@ -56,7 +56,7 @@ export const fileUploadMachine = defineMachine<
   sources: ['BLUEPRINT §5', 'SECURITY §8', 'ARCHITECTURE §9', 'DATABASE §6.10 `files`'],
   states: FILE_UPLOAD_STATES,
   initial: 'pending',
-  terminal: ['ready', 'rejected'],
+  terminal: ['rejected'],
   stored: { table: 'files', stateColumn: 'status' },
   stateNotes: {
     pending: 'Recorded with its pre-signed upload address; the bytes have not landed yet.',
@@ -64,7 +64,8 @@ export const fileUploadMachine = defineMachine<
     scanned: 'No threat found; the image is re-encoded, the PDF checked or the photo masked.',
     not_scanned:
       'No scanner exists (a developer’s machine); the worker records this only where the environment is not hosted.',
-    ready: 'Usable: the checked copy is the one stored.',
+    ready:
+      'Usable: the checked copy is the one stored. A proof page stays usable until the company prints a new one.',
   },
   transitions: [
     {
@@ -139,6 +140,16 @@ export const fileUploadMachine = defineMachine<
       system: true,
       effects: [{ key: 'delete', description: 'delete whatever bytes landed under the key' }],
       note: '`files.upload.sweep`: an upload still pending a day after it began never completed.',
+    },
+    {
+      from: ['ready'],
+      event: 'retire',
+      to: 'rejected',
+      permission: 'files.process',
+      scope: 'entity',
+      system: true,
+      effects: [{ key: 'delete', description: 'delete the stored bytes under the key' }],
+      note: '`files.document.retire`: a company’s earlier proof pages once a new one is recorded, since each prints the bank account in full (`file_replaced`).',
     },
   ],
 });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { sentryInitOptions, serverSentrySettings } from './sentry-options';
+import {
+  keepsEvent,
+  sentryInitOptions,
+  serverSentrySettings,
+  TRIAL_ERROR_SHARE,
+} from './sentry-options';
+import { ALERT_NAMES } from './sentry-on';
 import { scrubBreadcrumb, scrubEvent, withoutQuery } from './sentry-scrub';
 
 const PRINCIPAL = '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a01';
@@ -244,6 +250,8 @@ describe('sentryInitOptions', () => {
         VERCEL_GIT_COMMIT_SHA: 'f0543b1',
         BOS_ENVIRONMENT: 'staging',
       }),
+      // The draw that keeps a staging error.
+      () => 0,
     );
     expect(options).toMatchObject({
       dsn: 'https://publickey@o4501.ingest.us.sentry.io/4502',
@@ -259,5 +267,43 @@ describe('sentryInitOptions', () => {
     expect(options?.beforeBreadcrumb({ message: 'mail x@y.in' })).toEqual({
       message: 'mail [email]',
     });
+  });
+});
+
+describe('the share of errors each environment sends (Sentry on its free plan)', () => {
+  const error = { exception: { values: [{ type: 'Error' }] } };
+  const keep = () => 0;
+  const drop = () => TRIAL_ERROR_SHARE;
+
+  it('sends every error from production', () => {
+    expect(keepsEvent('production', error, drop)).toBe(true);
+    // An environment not named (a misconfigured deployment) sends everything too.
+    expect(keepsEvent(undefined, error, drop)).toBe(true);
+  });
+
+  it('sends a share of the errors from dev and staging', () => {
+    for (const environment of ['dev', 'staging']) {
+      expect(keepsEvent(environment, error, keep)).toBe(true);
+      expect(keepsEvent(environment, error, drop)).toBe(false);
+    }
+    expect(TRIAL_ERROR_SHARE).toBeGreaterThan(0);
+    expect(TRIAL_ERROR_SHARE).toBeLessThan(1);
+  });
+
+  it('always sends an alert, from every environment', () => {
+    for (const name of ALERT_NAMES) {
+      expect(keepsEvent('staging', { message: name, level: 'error' }, drop)).toBe(true);
+    }
+    expect(keepsEvent('staging', { message: 'something else' }, drop)).toBe(false);
+  });
+
+  it('drops the event in beforeSend, before it is scrubbed or sent', () => {
+    const settings = serverSentrySettings({
+      NODE_ENV: 'test',
+      SENTRY_DSN: 'https://publickey@o4501.ingest.us.sentry.io/4502',
+      BOS_ENVIRONMENT: 'dev',
+    });
+    expect(sentryInitOptions(settings, drop)?.beforeSend(error)).toBeNull();
+    expect(sentryInitOptions(settings, keep)?.beforeSend(error)).toEqual(error);
   });
 });

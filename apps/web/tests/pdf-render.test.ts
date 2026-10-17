@@ -350,6 +350,26 @@ describe('POST /api/v1/workers/pdf/render (ADR 0009)', () => {
     expect(state.pages).toHaveLength(1);
   });
 
+  it('removes the company’s earlier proof pages, record and bytes, once a new one is printed', async () => {
+    const [earlier, newer] = [proofJob(), proofJob()];
+    if (earlier.target.kind !== 'document' || newer.target.kind !== 'document') {
+      throw new Error('document jobs');
+    }
+    await renderPdfJob(earlier, renderDeps(worker, newId()));
+    const earlierRow = await fileRow(earlier.target.documentId);
+    expect(earlierRow?.status).toBe('ready');
+    expect(await state.store?.get(earlierRow?.key ?? '')).toEqual(PDF);
+
+    await renderPdfJob(newer, renderDeps(worker, newId()));
+    // The earlier page printed the account in full: its record is refused as replaced, and its
+    // bytes are gone, so a replaced account is readable nowhere.
+    expect((await fileRow(earlier.target.documentId))?.status).toBe('rejected');
+    expect(await state.store?.get(earlierRow?.key ?? '')).toBeUndefined();
+    const newerRow = await fileRow(newer.target.documentId);
+    expect(newerRow?.status).toBe('ready');
+    expect(await state.store?.get(newerRow?.key ?? '')).toEqual(PDF);
+  });
+
   it('answers the recorded file when a job whose id was lost runs again, rendering nothing', async () => {
     const job = proofJob();
     if (job.target.kind !== 'document') throw new Error('a document job');
