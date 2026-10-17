@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -322,7 +322,11 @@ describe('the release workflow', () => {
 
 describe('the backup workflow (docs/05-database.md §10)', () => {
   const BACKUP = read('.github/workflows/backup.yml');
-  const MIGRATION = read('packages/db/migrations/0156_backup_role.sql');
+  // Found by its name, not its number, which moves when main gains migrations first.
+  const migration = readdirSync(`${root}packages/db/migrations`).find((f) =>
+    f.endsWith('_backup_role.sql'),
+  );
+  const MIGRATION = read(`packages/db/migrations/${migration ?? 'none'}`);
   const check = script(BACKUP, 'Settings present and for this project');
   const settings = {
     PROJECT_REF: PRODUCTION_REF,

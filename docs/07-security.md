@@ -302,7 +302,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 | Proposed: each command a session runs is audited with `actor_kind = voice_session` and the speaking user in `on_behalf_of_user_id` | Proposed (`audit_logs`, DATABASE §6.10) |
 
 ## 4. Data isolation
-- RLS on every business table with fail-closed policies (`docs/05-database.md` §4); `FORCE ROW LEVEL SECURITY`; `app_user` is not the owner and has no `BYPASSRLS`; queries may run as `app_reader`, which can only read (ADR 0018).
+- RLS on every business table with fail-closed policies (`docs/05-database.md` §4); `FORCE ROW LEVEL SECURITY`; `app_user` is not the owner and has no `BYPASSRLS`; the only login with `BYPASSRLS` besides the owner is `app_backup`, which reads only, has a password on production alone (the 6-hourly backup, DATABASE §3 and §10) and is held in the GitHub environment `production-backup`; queries may run as `app_reader`, which can only read (ADR 0018).
 - Two cost permissions enforced in RLS and in DTOs: `procurement.rate.read` (supplier rates, PO values, purchase vouchers) and `finance.cost.read` (item costs, job costs, margins).
 - Cost columns live in side tables (`item_costs`, `stock_movement_costs`, `job_cost_entries`, `tally_purchase_vouchers`) so operational tables carry no cost data.
 - **Customers (ADR 0008).** This is the one statement of who sees a customer; [DATABASE §4.4](05-database.md#account_entities) gives the policy that enforces it.
@@ -374,9 +374,9 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - Supabase: SSL enforced; audit of dashboard access.
 - Vercel: environment separation (a project per environment), deployment protection on previews.
 - **Targets before production** (not in place on dev and staging; the plans and accounts are in [accounts](runbooks/accounts.md)):
-  - Supabase network restrictions to Vercel and the workers, and point-in-time recovery on the production project;
-  - a protected production branch: the free GitHub plan has no branch rules, so nothing blocks a direct push to `main` today (ADR 0017; the audit ([2026-09-audit](14-reviews/2026-09-audit.md)) M45).
-- AWS: one least-privilege IAM user per environment for S3 and SES; KMS key per environment with rotation; S3 block public access; lifecycle rules; backup bucket in a separate account or with object lock.
+  - Supabase network restrictions to Vercel and the workers; production has no point-in-time recovery, and a copy every 6 hours instead (the owner's decision of 15-10-2026, DATABASE §10);
+  - a protected production branch: the public repository's branch ruleset on `main`, and production's secrets in GitHub environments that admit `main` alone, the release's with the owner as required reviewer (ADR 0017; the audit ([2026-09-audit](14-reviews/2026-09-audit.md)) M45; DEPLOY §1 step 4).
+- AWS: one least-privilege IAM user per environment for S3 and SES; KMS key per environment with rotation; S3 block public access; lifecycle rules; the backup bucket with object lock (`infra/aws/backups.yaml`: each copy locked for 30 days in governance mode, written by a role that can only add a copy).
 - Upstash: separate databases per environment; signing keys rotated.
 - LiveKit: room tokens with 5-minute TTL; worker credentials per environment.
 - Client PC (connector): encrypted config, least-privilege Windows service account, signed self-updates.

@@ -77,7 +77,10 @@ export function decide(env: Env, released: ReleasedCommits): Decision {
     return { build: true, reason: `${everyPush} builds every push` };
   }
   if (env.VERCEL_ENV !== 'production') {
-    return { build: false, reason: 'outside dev and staging only a release builds, and a release builds production' };
+    return {
+      build: false,
+      reason: 'outside dev and staging only a release builds, and a release builds production',
+    };
   }
   if (env.VERCEL_GIT_COMMIT_REF !== 'main') {
     return { build: false, reason: 'a release builds main only' };

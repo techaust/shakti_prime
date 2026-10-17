@@ -137,10 +137,12 @@ async function main(): Promise<void> {
     let batches = 0;
     let leads = 0;
     for (;;) {
-      const rows: { lead_id: string }[] = await asPrincipal(worker, async (ctx) =>
-        (await ctx.tx.execute(
-          sql`select lead_id from app.lead_score_facts(${entity}::smallint, ${after}::uuid, ${BATCH})`,
-        )) as unknown as { lead_id: string }[],
+      const rows: { lead_id: string }[] = await asPrincipal(
+        worker,
+        async (ctx) =>
+          (await ctx.tx.execute(
+            sql`select lead_id from app.lead_score_facts(${entity}::smallint, ${after}::uuid, ${BATCH})`,
+          )) as unknown as { lead_id: string }[],
       );
       batches += 1;
       leads += rows.length;

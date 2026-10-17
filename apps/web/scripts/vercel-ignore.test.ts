@@ -60,9 +60,7 @@ describe('the production build gate', () => {
     ]) {
       expect(decide(env, unreachable).build).toBe(true);
     }
-    expect(decide({ VERCEL_PROJECT_ID: DEV_ID }, unreachable).reason).toBe(
-      'dev builds every push',
-    );
+    expect(decide({ VERCEL_PROJECT_ID: DEV_ID }, unreachable).reason).toBe('dev builds every push');
   });
 
   it('skips a build with no variables at all, so production fails closed', () => {

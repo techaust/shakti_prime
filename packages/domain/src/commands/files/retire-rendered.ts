@@ -42,7 +42,10 @@ export const retireRenderedFiles = defineCommand({
       kept.purpose !== input.purpose ||
       kept.status !== 'ready'
     ) {
-      throw new DomainError('not_found', `file ${input.keepFileId} is not a ready ${input.purpose}`);
+      throw new DomainError(
+        'not_found',
+        `file ${input.keepFileId} is not a ready ${input.purpose}`,
+      );
     }
     // A newer file of the purpose than the kept one means this call comes from a late delivery:
     // the newer file's own call retires the rest.
