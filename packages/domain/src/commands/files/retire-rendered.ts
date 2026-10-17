@@ -37,8 +37,7 @@ export const retireRenderedFiles = defineCommand({
       .where(eq(f.id, input.keepFileId))
       .limit(1);
     if (
-      kept === undefined ||
-      kept.entityId !== input.entityId ||
+      kept?.entityId !== input.entityId ||
       kept.purpose !== input.purpose ||
       kept.status !== 'ready'
     ) {
