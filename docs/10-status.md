@@ -2,18 +2,18 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [11-decisions.md](11-decisions.md); open follow-ups have their single home here.
 
-**17-10-2026, end of a PC day that ran into 18-10** (G1 and hardening batch 1 merged; hardening batch 2 building). Phase 1 (`currentPhase` 1 in `.claude/tooling.json`); all 23 of its slices are merged. Phase 0 closed on 29-09-2026 by the owner's decision; its gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Production is built and waits on the owner's steps before its first release (below); going live with the client's data waits on the client's inputs and Phase 1's exit gate. Usage at the day's end: week 94 % (resets 19-10-2026), spent by the owner's rule of 17-10-2026. Migrations on `main`: 0000 to 0158. The last security-suite run (G1's integration on the PC, 18-10-2026): db 1,271, domain 1,024, web 332, all passed; unit tests (G1's builder, 17-10-2026): domain 2,249, web 925 (1 skipped), db 137, contracts 182, ui 107, tokens 146, copy-lint 17.
+**17-10-2026, end of a PC day that ran into 18-10** (G1, hardening batches 1 and 2 merged; nothing in flight). Phase 1 (`currentPhase` 1 in `.claude/tooling.json`); all 23 of its slices are merged. Phase 0 closed on 29-09-2026 by the owner's decision; its gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Production is built and waits on the owner's steps before its first release (below); going live with the client's data waits on the client's inputs and Phase 1's exit gate. Usage at the day's end: week 95 % (resets 19-10-2026), spent by the owner's rule of 17-10-2026. Migrations on `main`: 0000 to 0158. The last security-suite run (hardening batch 2's integration on the PC, 18-10-2026): db 1,271, domain 1,029, web 333, all passed; unit tests (G1's builder, 17-10-2026): domain 2,249, web 925 (1 skipped), db 137, contracts 182, ui 107, tokens 146, copy-lint 17.
 
 ## Phase 1
 - **Design:** [docs/03-roadmap-appendix/phase1.md](03-roadmap-appendix/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](03-roadmap-appendix/phase1.md#3-slices).
-- **Merged (all 23 slices)** as listed in [CHANGELOG](../CHANGELOG.md); G1 merged on 17-10-2026 (#187), with hardening batch 1 (#186).
-- **Next:** the owner's production steps and the first release (Waiting on the owner); then the client's inputs, the data move and the parallel run on production ([client-actions](13-client-packs/client-actions.md), [ROADMAP §3](03-roadmap.md#3-phase-1--mvp-1214-weeks)). Hardening batch 2 (its run file on the branch `fix/followups-hardening-2`) runs meanwhile.
+- **Merged (all 23 slices)** as listed in [CHANGELOG](../CHANGELOG.md); G1 merged on 17-10-2026 (#187), with hardening batches 1 (#186) and 2 (#189).
+- **Next:** the owner's production steps and the first release (Waiting on the owner); then the client's inputs, the data move and the parallel run on production ([client-actions](13-client-packs/client-actions.md), [ROADMAP §3](03-roadmap.md#3-phase-1--mvp-1214-weeks)).
 - **Work split:** each session wholly on the PC or wholly in a cloud session ([hybrid](runbooks/hybrid.md)); models and efforts: [models-and-usage](runbooks/models-and-usage.md).
 
 ### In progress
 | Slice | Branch | Run file | Runs on | State | Next step |
 |---|---|---|---|---|---|
-| Hardening follow-ups, batch 2 | `fix/followups-hardening-2` | its run file on the branch `fix/followups-hardening-2` | PC, slot 2 | building (Opus 5.5 medium, from 18-10-2026) | the builder's report, then the review (Opus 5.5 high) |
+| None | | | | | |
 
 ## Hosted environments
 | | Dev | Staging | Production |
