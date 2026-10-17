@@ -9,6 +9,7 @@ import {
   sortText,
   type SortKeys,
 } from '../keyset-sort';
+import { callConsentWithdrawnSql } from '../calls/consent';
 import { toLeadDto } from './lead-dto';
 
 export interface ListLeadsOptions {
@@ -108,6 +109,8 @@ export async function listLeads(
         LeadListItemDto.parse({
           ...lead,
           scoreChangedBy: by === null ? null : (changers.get(by) ?? null),
+          phoneIsDnd: customer.phoneIsDnd,
+          callConsentWithdrawn: customer.callConsentWithdrawn,
         }),
       ];
     }),
@@ -144,7 +147,11 @@ async function scoreChangers(
   return out;
 }
 
-/** The customers of one page of leads: account, its one owner contact and that contact's main phone. */
+/**
+ * The customers of one page of leads: account, its one owner contact and that contact's main
+ * phone, and whether the number may be offered for a call (not on the do-not-disturb list, and no
+ * call consent withdrawn, as Account 360 reads them).
+ */
 async function customersOf(ctx: LeadContext, accountIds: readonly string[]) {
   const a = schema.accounts;
   const ac = schema.accountContacts;
@@ -156,6 +163,8 @@ async function customersOf(ctx: LeadContext, accountIds: readonly string[]) {
       account: { id: string; type: string; name: string };
       contact: { id: string; name: string } | null;
       phone: string | null;
+      phoneIsDnd: boolean;
+      callConsentWithdrawn: boolean;
     }
   >();
   if (accountIds.length === 0) return out;
@@ -165,6 +174,8 @@ async function customersOf(ctx: LeadContext, accountIds: readonly string[]) {
       contactId: c.id,
       contactName: c.name,
       phone: p.e164,
+      phoneIsDnd: p.isDnd,
+      callConsentWithdrawn: callConsentWithdrawnSql(sql`${a.id}`),
     })
     .from(a)
     // One owner per customer and one main phone per contact (unique indexes), so these joins
@@ -181,6 +192,8 @@ async function customersOf(ctx: LeadContext, accountIds: readonly string[]) {
           ? null
           : { id: row.contactId, name: row.contactName },
       phone: row.phone,
+      phoneIsDnd: row.phoneIsDnd === true,
+      callConsentWithdrawn: row.callConsentWithdrawn,
     });
   }
   return out;

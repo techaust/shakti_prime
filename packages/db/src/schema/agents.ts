@@ -226,6 +226,9 @@ export const inboxItems = pgTable(
     // with, for the colleague the enquiry was passed to.
     segment: text('segment'),
     note: text('note'),
+    // Routed work only: the channel of a consent the form captured and the route recorded on the
+    // customer, so the colleague's card says a consent came with the enquiry.
+    consentChannel: text('consent_channel'),
     doneBy: uuid('done_by').references(() => principals.id),
     doneAt: timestamp('done_at', { withTimezone: true }),
     ...timestamps,
@@ -248,6 +251,14 @@ export const inboxItems = pgTable(
     check(
       'inbox_items_routed_check',
       sql`${t.kind} <> 'agent_suggestion' or (${t.segment} is null and ${t.note} is null)`,
+    ),
+    check(
+      'inbox_items_consent_channel_check',
+      sql`${t.consentChannel} in ('whatsapp', 'call', 'sms', 'email')`,
+    ),
+    check(
+      'inbox_items_consent_routed_check',
+      sql`${t.kind} = 'routed_work' or ${t.consentChannel} is null`,
     ),
     check('inbox_items_subject_type_check', sql`${t.subjectType} in ('opportunity', 'account')`),
     check(

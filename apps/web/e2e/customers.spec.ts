@@ -75,10 +75,14 @@ test.describe('customers as an Executive', () => {
     // The longest journey here: a customer made through the lead form, an upload with its checks,
     // two dialogs and four reads by axe, one step after another.
     test.slow();
-    await addCustomer(page, 'Suresh Choudhary');
+    const { name } = await addCustomer(page, 'Suresh Choudhary');
     await expectNoAxeViolations(page);
     // An Executive changes the customer's details.
     await expect(page.getByRole('button', { name: 'Edit details' })).toBeVisible();
+    // The customer's number is offered for a call until they withdraw consent to calls.
+    const contacts = section(page, 'Contacts');
+    const callLinks = contacts.locator('a[href^="tel:"]');
+    await expect(callLinks).toHaveCount(1);
 
     const consents = section(page, 'Consent');
     await expect(consents.getByText('No consent recorded yet.')).toBeVisible();
@@ -86,6 +90,7 @@ test.describe('customers as an Executive', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'Record consent' })).toBeVisible();
     await expectNoAxeViolations(page, DIALOG_ONLY);
+    await dialog.getByLabel('Channel').selectOption({ label: 'Phone calls' });
     await dialog.getByLabel('Version of the consent text').fill('v2');
     await dialog.locator('input[type="file"]').setInputFiles({
       name: 'Signed consent form.png',
@@ -109,9 +114,22 @@ test.describe('customers as an Executive', () => {
     await expect(page.getByText('Consent withdrawn.')).toBeVisible();
     await expect(consents.getByText('Withdrawn', { exact: true })).toBeVisible();
     await expect(consents.getByRole('button', { name: 'Withdraw', exact: true })).toHaveCount(0);
+    // The number stays readable, no longer as a call link, and says why (CRM-10).
+    await expect(contacts.getByText('Asked not to be called')).toBeVisible();
+    await expect(callLinks).toHaveCount(0);
+    await expect(contacts.getByText(/^\+91 /)).toBeVisible();
     const history = section(page, 'History');
     await expect(history.getByText('Consent withdrawn')).toBeVisible();
     await expect(history.getByText('Consent recorded')).toBeVisible();
+
+    // The leads list offers the number by the same rule: readable, with no call link. The lead is
+    // among the newest changes, the list's first page.
+    await page.goto('/leads');
+    // A row of the table on a wide screen, an item of the list on a phone.
+    const leads = dataGrid(page, 'Leads');
+    const row = leads.getByRole('row').or(leads.getByRole('listitem')).filter({ hasText: name });
+    await expect(row.getByText(/^\+91 /)).toBeVisible();
+    await expect(row.locator('a[href^="tel:"]')).toHaveCount(0);
   });
 
   test('adds a task and marks it done', async ({ page }) => {

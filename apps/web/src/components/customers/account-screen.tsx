@@ -315,8 +315,9 @@ function Contacts({ view, onEdit }: { view: Account360Dto; onEdit: (id: string) 
             <ul className="flex flex-col gap-1">
               {c.phones.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2">
-                  {p.isDnd ? (
-                    // A number on the do-not-disturb list is shown, never offered for a call.
+                  {p.isDnd || view.callConsentWithdrawn ? (
+                    // A number on the do-not-disturb list, or of a customer who withdrew consent
+                    // to calls (CRM-10), is shown, never offered for a call.
                     <span className="tabular-nums">{formatPhone(p.e164)}</span>
                   ) : (
                     <a
@@ -333,6 +334,9 @@ function Contacts({ view, onEdit }: { view: Account360Dto; onEdit: (id: string) 
                     <StatusBadge tone="neutral">{t('contacts.whatsapp')}</StatusBadge>
                   ) : null}
                   {p.isDnd ? <StatusBadge tone="warning">{t('contacts.dnd')}</StatusBadge> : null}
+                  {view.callConsentWithdrawn ? (
+                    <StatusBadge tone="warning">{t('contacts.noCalls')}</StatusBadge>
+                  ) : null}
                 </li>
               ))}
             </ul>

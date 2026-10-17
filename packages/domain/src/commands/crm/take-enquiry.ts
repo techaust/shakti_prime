@@ -38,13 +38,21 @@ export const takeEnquiry = defineCommand({
     } catch (error) {
       if (!heldByColleague(error)) throw error;
     }
+    // The consent the form captured goes with the enquiry (N1 review L2). The forms take no note.
+    const consent = input.consent === undefined ? {} : { consent: input.consent };
     const route =
       input.existingAccountId === undefined
-        ? { entityId: input.entityId, pipelineKey: input.pipelineKey, phone: input.contact?.phone }
+        ? {
+            entityId: input.entityId,
+            pipelineKey: input.pipelineKey,
+            phone: input.contact?.phone,
+            ...consent,
+          }
         : {
             entityId: input.entityId,
             pipelineKey: input.pipelineKey,
             existingAccountId: input.existingAccountId,
+            ...consent,
           };
     return ctx.run(routeEnquiry, route);
   },

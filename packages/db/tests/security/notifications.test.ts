@@ -398,4 +398,92 @@ describe('routed work (PRD RPT-04 criterion 2)', () => {
       await rows(colleague, sql`select 1 from inbox_items where subject_id = ${account}`),
     ).toHaveLength(1);
   });
+
+  describe('the consent the form captured (app.record_routed_consent, N1 review L2)', () => {
+    const phone = `+9193${newId()
+      .replace(/[^0-9]/g, '')
+      .slice(-8)
+      .padStart(8, '7')}`;
+    let contactWithPhone: string;
+    let ownerContact: string;
+
+    beforeAll(async () => {
+      contactWithPhone = newId();
+      ownerContact = newId();
+      await asMigrator(async (m) => {
+        await m`insert into contacts (id, name, created_by) values
+                  (${ownerContact}, 'routed owner', ${colleague.id}),
+                  (${contactWithPhone}, 'routed family', ${colleague.id})`;
+        await m`insert into account_contacts (account_id, contact_id, role, created_by) values
+                  (${account}, ${ownerContact}, 'owner', ${colleague.id}),
+                  (${account}, ${contactWithPhone}, 'family', ${colleague.id})`;
+        await m`insert into contact_phones (id, contact_id, e164, is_primary, created_by)
+                  values (${newId()}, ${contactWithPhone}, ${phone}, true, ${colleague.id})`;
+      });
+    });
+
+    const fileItem = async (tx: { execute: (q: SQL) => Promise<unknown> }, by: Principal) => {
+      const id = newId();
+      await tx.execute(
+        sql`insert into inbox_items (id, entity_id, kind, assignee_id, team_id, subject_type, subject_id, segment, created_by)
+            values (${id}, 1, 'routed_work', ${colleague.id}, ${team}, 'account', ${account}, 'farmer_pumps', ${by.id})`,
+      );
+      return id;
+    };
+    const record = (item: string, number: string | null) =>
+      sql`select app.record_routed_consent(${item}::uuid, ${number}::text, 'call', 'service',
+                                           'walk_in_form', 'v1') as id`;
+    const consentsOf = (contact: string) =>
+      asMigrator(
+        (m) => m<{ source: string; evidence_file_id: string | null; created_by: string }[]>`
+          select source, evidence_file_id, created_by from consents where contact_id = ${contact}`,
+      );
+
+    it('records it on the contact with the typed number, else the owner, with its timeline row', async () => {
+      await asPrincipal(caller, async ({ tx }) => {
+        const item = await fileItem(tx, caller);
+        await tx.execute(record(item, phone));
+        await tx.execute(record(item, null));
+      });
+      expect(await consentsOf(contactWithPhone)).toEqual([
+        { source: 'walk_in_form', evidence_file_id: null, created_by: caller.id },
+      ]);
+      expect(await consentsOf(ownerContact)).toEqual([
+        { source: 'walk_in_form', evidence_file_id: null, created_by: caller.id },
+      ]);
+      const timeline = await asMigrator(
+        (m) => m<{ n: number }[]>`select count(*)::int as n from activities
+                 where account_id = ${account} and type = 'consent_recorded'
+                   and actor_principal_id = ${caller.id}`,
+      );
+      expect(timeline[0]?.n).toBe(2);
+    });
+
+    it('takes only routed work the caller filed in the same transaction, in the request’s company', async () => {
+      // Filed in an earlier transaction: a later request cannot add a consent through it.
+      const earlier = await asPrincipal(caller, ({ tx }) => fileItem(tx, caller));
+      expect(await failure(rows(caller, record(earlier, phone)))).toMatch(/not filed by this/);
+      // Another person's routed work, and a request narrowed to another company.
+      expect(await failure(rows(other, record(earlier, phone)))).toMatch(/not filed by this/);
+      expect(
+        await failure(
+          asPrincipal(callerBoth, async ({ tx }) => {
+            const item = await fileItem(tx, callerBoth);
+            await tx.execute(sql`select set_config('app.entity_ids', '{2}', true)`);
+            await tx.execute(record(item, phone));
+          }),
+        ),
+      ).toMatch(/not filed by this/);
+      // A role without lead and customer rights, and no request at all.
+      const hr = principalFor('hr_admin', [1], { id: caller.id });
+      expect(await failure(rows(hr, record(earlier, phone)))).toMatch(/are required/);
+      expect(await failure(withoutContext(record(earlier, phone)))).toMatch(/are required/);
+      expect(
+        await asMigrator(
+          (m) => m<{ n: number }[]>`select count(*)::int as n from consents
+                   where contact_id in (${contactWithPhone}, ${ownerContact})`,
+        ),
+      ).toEqual([{ n: 2 }]);
+    });
+  });
 });

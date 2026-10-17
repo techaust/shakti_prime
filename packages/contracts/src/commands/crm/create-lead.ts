@@ -1,18 +1,11 @@
 import { z } from 'zod';
-import {
-  AccountTypeSchema,
-  ConsentChannelSchema,
-  ConsentPurposeSchema,
-  ConsentSourceSchema,
-  CustomerLanguageSchema,
-  SiteTypeSchema,
-} from '../../crm/enums';
+import { AccountTypeSchema, CustomerLanguageSchema, SiteTypeSchema } from '../../crm/enums';
 import { ReferralCodeSchema } from '../../crm/config';
 import { CreateLeadOutcomeSchema } from '../../crm/duplicates';
 import { LeadDto } from '../../dto/lead';
 import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
-import { RoutedEnquiryDto } from '../../notifications';
+import { FormConsentSchema, RoutedEnquiryDto } from '../../notifications';
 
 const Name = z.string().trim().min(2).max(120);
 
@@ -53,15 +46,7 @@ export const CreateLeadInput = z
       })
       .strict()
       .optional(),
-    consent: z
-      .object({
-        channel: ConsentChannelSchema,
-        purpose: ConsentPurposeSchema,
-        source: ConsentSourceSchema,
-        textVersion: z.string().trim().min(1).max(40),
-      })
-      .strict()
-      .optional(),
+    consent: FormConsentSchema.optional(),
     sourceCode: z.string().trim().min(1).max(40).optional(),
     /** A referral partner's code: the lead is credited to the partner, or refused (CRM-09). */
     referralCode: ReferralCodeSchema.optional(),

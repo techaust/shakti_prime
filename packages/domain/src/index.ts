@@ -549,7 +549,7 @@ export {
   unsubscribePush,
 } from './commands/notifications/own';
 export { countNotices, listNotices } from './queries/notifications/notices';
-export { loadNotificationSettings } from './queries/notifications/settings';
+export { loadNotificationSettings, loadPushBrowser } from './queries/notifications/settings';
 export {
   choiceFor,
   inQuietHours,
