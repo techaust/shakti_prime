@@ -3,7 +3,7 @@
 import { Button, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, useTransition } from 'react';
-import { subscribePush, unsubscribePush } from '../../actions/notifications';
+import { pushBrowser, subscribePush, unsubscribePush } from '../../actions/notifications';
 import { FailureMessage } from '../screens/failure';
 import { settle } from '../screens/settle';
 import type { CommandFailure } from '../screens/use-command';
@@ -32,6 +32,19 @@ async function currentSubscription(): Promise<PushSubscription | null> {
 }
 
 /**
+ * Whether the browser's push subscription brings the signed-in person's alerts: it is one of
+ * their own browsers on the server. A subscription another person made here (or one the server no
+ * longer keeps) is not theirs, so alerts read as off and Turn on alerts makes one for them.
+ */
+export async function isOwnSubscription(
+  subscription: PushSubscription,
+  ask: typeof pushBrowser = pushBrowser,
+): Promise<boolean> {
+  const result = await settle(() => ask({ endpoint: subscription.endpoint }));
+  return result.ok && result.data.subscribed;
+}
+
+/**
  * Alerts on this browser (docs/03-roadmap-appendix/phase1.md §8.1): whether this browser receives the person's
  * pushes, and the button that turns them on or off. Nothing is asked of the browser until the
  * person taps: the service worker is registered and permission requested only then, never when a
@@ -52,14 +65,18 @@ export function PushToggle({ publicKey }: { publicKey: string | null }) {
     else if (!supported()) settleState('unsupported');
     else if (Notification.permission === 'denied') settleState('blocked');
     else {
-      currentSubscription().then(
-        (subscription) => {
-          settleState(subscription === null ? 'off' : 'on');
-        },
-        () => {
-          settleState('off');
-        },
-      );
+      currentSubscription()
+        .then(async (subscription) =>
+          subscription !== null && (await isOwnSubscription(subscription)) ? 'on' : 'off',
+        )
+        .then(
+          (next: PushState) => {
+            settleState(next);
+          },
+          () => {
+            settleState('off');
+          },
+        );
     }
     return () => {
       alive = false;
@@ -83,6 +100,12 @@ export function PushToggle({ publicKey }: { publicKey: string | null }) {
           scope: '/',
         });
         await navigator.serviceWorker.ready;
+        // A subscription another person made on this browser is theirs: it is dropped here, so
+        // this browser gets a new one for the person signed in (their alerts here end with it).
+        const existing = await registration.pushManager.getSubscription();
+        if (existing !== null && !(await isOwnSubscription(existing))) {
+          await existing.unsubscribe();
+        }
         const subscription =
           (await registration.pushManager.getSubscription()) ??
           (await registration.pushManager.subscribe({

@@ -230,6 +230,10 @@ export type PushSubscribeInput = z.infer<typeof PushSubscribeInput>;
 export const PushUnsubscribeInput = z.object({ endpoint: PushEndpointSchema }).strict();
 export type PushUnsubscribeInput = z.infer<typeof PushUnsubscribeInput>;
 
+/** Whether this browser receives the caller's pushes: its push subscription's address. */
+export const PushBrowserInput = z.object({ endpoint: PushEndpointSchema }).strict();
+export type PushBrowserInput = z.infer<typeof PushBrowserInput>;
+
 export const PushSubscriptionDto = z.object({ subscribed: z.boolean() }).strict();
 export type PushSubscriptionDto = z.infer<typeof PushSubscriptionDto>;
 

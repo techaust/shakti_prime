@@ -1,4 +1,4 @@
-import { newId, type Principal } from '@shakti/contracts';
+import { newId, type Account360Dto, type Principal } from '@shakti/contracts';
 import {
   AGENT_PRINCIPAL_SEED,
   asMigrator,
@@ -15,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
-import { recordConsent } from '../../src/commands/crm/consent';
+import { recordConsent, withdrawConsent } from '../../src/commands/crm/consent';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { addNote } from '../../src/commands/crm/customer';
 import { createTag, tagLead } from '../../src/commands/crm/tags';
@@ -33,10 +33,15 @@ import {
 
 afterAll(closeDb);
 
-/** A word no earlier run used, so each search here finds only this run's customers. */
+/**
+ * A word no earlier run used, so each search here finds only this run's customers and each tag
+ * made here is new: the random end of a new id (12 hex digits), each written as a letter
+ * (a digit would make the text a phone search). Turning only the digits into one letter left a few
+ * thousand likely words, so a run on a long-lived database met an earlier run's tag name.
+ */
 const TAG = `Zq${newId()
-  .slice(-6)
-  .replace(/[^a-z]/g, 'x')}`;
+  .slice(-12)
+  .replace(/[0-9a-f]/g, (hex) => 'ghijklmnopqrstuv'.charAt(Number.parseInt(hex, 16)))}`;
 
 let teamId: string;
 let caller: Principal;
@@ -210,6 +215,36 @@ describe('loadAccount360 and listTimeline', () => {
       'tagged',
       'task_created',
     ]);
+  });
+
+  it('says when the customer withdrew consent to calls and gave none since (CRM-10)', async () => {
+    const k = await customer(caller, `${TAG} Calls`, 'Churu');
+    const withdrawn = async () =>
+      ((await read(caller, loadAccount360, { accountId: k.accountId })) as Account360Dto)
+        .callConsentWithdrawn;
+    expect(await withdrawn()).toBe(false);
+    const consent = (textVersion: string) =>
+      run(caller, recordConsent, {
+        entityId: 1,
+        accountId: k.accountId,
+        contactId: k.contactId,
+        channel: 'call',
+        purpose: 'service',
+        source: 'verbal',
+        textVersion,
+        givenAt: new Date().toISOString(),
+      }) as Promise<{ id: string }>;
+    const given = await consent('v1');
+    expect(await withdrawn()).toBe(false);
+    await run(caller, withdrawConsent, {
+      entityId: 1,
+      accountId: k.accountId,
+      consentId: given.id,
+    });
+    expect(await withdrawn()).toBe(true);
+    // A consent to calls given after the withdrawal makes the number one to call again.
+    await consent('v2');
+    expect(await withdrawn()).toBe(false);
   });
 
   it('is not found for a customer the caller cannot read, or in another company', async () => {

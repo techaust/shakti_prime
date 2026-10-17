@@ -2459,6 +2459,7 @@
       "main": "Main number",
       "whatsapp": "WhatsApp",
       "dnd": "Do not disturb",
+      "noCalls": "Asked not to be called",
       "noEmail": "No email",
       "role": {
         "owner": "Owner",

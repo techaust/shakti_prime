@@ -31,6 +31,7 @@ import {
   sortText,
   type SortKeys,
 } from '../keyset-sort';
+import { callConsentWithdrawn } from '../calls/consent';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 import { accountSalesOrders } from '../sales/list-orders';
 import { accountQuotes } from '../sales/list-quotes';
@@ -452,8 +453,19 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
   const ot = schema.opportunityTags;
   const tg = schema.tags;
 
-  const [contacts, phones, sites, leads, tasks, consents, leadTags, tags, timeline, owner] =
-    await Promise.all([
+  const [
+    contacts,
+    phones,
+    sites,
+    leads,
+    tasks,
+    consents,
+    leadTags,
+    tags,
+    timeline,
+    owner,
+    callsWithdrawn,
+  ] = await Promise.all([
       ctx.tx
         .select({
           id: c.id,
@@ -528,7 +540,8 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
       here.ownerId === null
         ? []
         : ctx.tx.select({ name: p.displayName }).from(p).where(eq(p.id, here.ownerId)).limit(1),
-    ]);
+    callConsentWithdrawn(ctx.tx, accountId),
+  ]);
 
   const perms = ctx.principal.permissions;
   const covers = (key: 'crm.account.write' | 'crm.lead.write' | 'sales.order.create') =>
@@ -578,6 +591,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
           isDnd: q.isDnd,
         })),
     })),
+    callConsentWithdrawn: callsWithdrawn,
     sites: sites.map((s) => ({
       id: s.id,
       type: s.type,

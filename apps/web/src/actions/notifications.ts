@@ -6,6 +6,7 @@ import {
   ListNoticesInput,
   MarkAllNoticesReadInput,
   MarkNoticesReadInput,
+  PushBrowserInput,
   PushSubscribeInput,
   PushUnsubscribeInput,
   SetNotificationSettingsInput,
@@ -21,6 +22,7 @@ import {
   executeQuery,
   listNotices as listNoticesQuery,
   loadNotificationSettings as loadSettingsQuery,
+  loadPushBrowser as loadPushBrowserQuery,
   markAllNoticesRead as markAllCommand,
   markNoticesRead as markCommand,
   setNotificationSettings as setSettingsCommand,
@@ -138,6 +140,24 @@ export async function saveNotificationSettings(
     rawInput,
     idempotencyKey,
   );
+}
+
+/**
+ * Whether this browser receives the caller's own alerts, by its push subscription's address: a
+ * browser another person turned alerts on for answers no.
+ */
+export async function pushBrowser(rawInput: unknown): Promise<ActionResult<PushSubscriptionDto>> {
+  return toResult('pushBrowser', async () => {
+    const principal = await signedIn();
+    const input = parseInput(PushBrowserInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => loadPushBrowserQuery(context, input),
+      { name: 'pushBrowser' },
+    );
+  });
 }
 
 /** This browser receives the caller's alerts from now on. */
