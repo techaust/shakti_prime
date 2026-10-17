@@ -16,7 +16,7 @@ Every state and transition comes from the governing documents.
 | `scanning` | – | The bytes landed; the malware scan runs. |
 | `scanned` | – | No threat found; the image is re-encoded, the PDF checked or the photo masked. |
 | `not_scanned` | – | No scanner exists (a developer’s machine); the worker records this only where the environment is not hosted. |
-| `ready` | terminal | Usable: the checked copy is the one stored. |
+| `ready` | – | Usable: the checked copy is the one stored. A proof page stays usable until the company prints a new one. |
 | `rejected` | terminal | – |
 
 ## Transitions
@@ -30,6 +30,7 @@ Every state and transition comes from the governing documents.
 | `ready` | `scanned`, `not_scanned` → `ready` | `files.process` at entity scope or wider or the platform | – | `replace`: record the checked copy (re-encoded, checked or masked) in place of the upload | – |
 | `reject` | `scanning`, `scanned`, `not_scanned` → `rejected` | `files.process` at entity scope or wider or the platform | a reason is given (a threat, an unreadable file, active content) | – | – |
 | `abandon` | `pending` → `rejected` | `files.process` at entity scope or wider or the platform | – | `delete`: delete whatever bytes landed under the key | – |
+| `retire` | `ready` → `rejected` | `files.process` at entity scope or wider or the platform | – | `delete`: delete the stored bytes under the key | – |
 
 Any other event, or an event from a state not listed for it, answers `conflict` with reason `file_upload_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `files.status` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
@@ -42,6 +43,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 - `ready`: `files.file.mark_ready`.
 - `reject`: `files.file.reject`; the reason is shown to the uploader.
 - `abandon`: `files.upload.sweep`: an upload still pending a day after it began never completed.
+- `retire`: `files.document.retire`: a company’s earlier proof pages once a new one is recorded, since each prints the bank account in full (`file_replaced`).
 
 ## Diagram
 
@@ -57,6 +59,6 @@ stateDiagram-v2
   scanned --> rejected : reject
   not_scanned --> rejected : reject
   pending --> rejected : abandon
-  ready --> [*]
+  ready --> rejected : retire
   rejected --> [*]
 ```

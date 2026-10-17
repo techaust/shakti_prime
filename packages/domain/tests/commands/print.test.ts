@@ -1,4 +1,9 @@
-import { newId, SYSTEM_WORKERS_PRINCIPAL_ID, type Principal } from '@shakti/contracts';
+import {
+  newId,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type Principal,
+  type RetireRenderedFilesDto,
+} from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -224,7 +229,7 @@ describe('files.document.retire (P4 review L10)', () => {
     }
   });
 
-  it('refuses a company outside the worker’s request, and a kept file that is not a ready proof', async () => {
+  it('refuses a company outside the request, and a kept file that is not a ready proof', async () => {
     const kept = newId();
     await run(worker, recordRenderedFile, rendered(kept));
     await expect(run(worker, retireRenderedFiles, retire(kept, 2))).rejects.toMatchObject({
@@ -259,7 +264,7 @@ describe('files.document.retire (P4 review L10)', () => {
     const key = (id: string) => uploadKey(1, 'print_proof', id, 'application/pdf');
 
     // A late delivery of the second page retires the first and leaves the newer third alone.
-    const late = await run(worker, retireRenderedFiles, retire(second));
+    const late = (await run(worker, retireRenderedFiles, retire(second))) as RetireRenderedFilesDto;
     expect(late.keys).toContain(key(first));
     expect(late.keys).not.toContain(key(second));
     expect(late.keys).not.toContain(key(third));

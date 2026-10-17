@@ -741,6 +741,7 @@ export const FILE_REJECT_REASONS = [
   'file_pdf_page_too_dense',
   'file_masking_unavailable',
   'file_upload_abandoned',
+  'file_replaced',
 ] as const satisfies readonly FileRejectReason[];
 
 /** What the malware scan said, and what the checks did to the bytes. */
