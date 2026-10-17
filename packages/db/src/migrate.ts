@@ -102,8 +102,8 @@ async function ensureRoles(
   }
   // The reader's every transaction is read-only, whatever a caller asks for.
   await sql.unsafe(`alter role app_reader set default_transaction_read_only = on`);
-  // The backup reads past the policies, and only reads.
-  await sql.unsafe(`alter role app_backup nosuperuser nocreatedb nocreaterole bypassrls`);
+  // The backup reads past the policies (as created above; Supabase refuses a statement that names
+  // the superuser attribute, and the security suite checks the role's attributes), and only reads.
   await sql.unsafe(`alter role app_backup set default_transaction_read_only = on`);
 }
 
