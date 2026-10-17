@@ -1,7 +1,10 @@
 # Gives production's backup login, app_backup, a new password and puts its address in AWS Secrets
 # Manager as shakti-prime-production-backup-database, which only the backup's CodeBuild project
 # reads (docs/runbooks/deploy.md section 1 step 4, section 5). The password is made by the script
-# and never shown; the database receives only its verifier. Shows no password.
+# and never shown; the database receives only its verifier. Shows no password and writes none
+# to a file: the script signs its one call to Secrets Manager itself, with the credentials of
+# the AWS command line (aws configure export-credentials), and no other program it starts
+# receives the database password.
 #
 # Before running: the stack shakti-prime-production-backups exists, the first release has run (it
 # makes app_backup), the AWS command line (version 2) is installed and signed in with

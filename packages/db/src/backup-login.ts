@@ -7,12 +7,12 @@
 //
 // The password is made here and never shown. The database receives only its SCRAM verifier, which
 // can check a password but not sign in, so the statement in the server's log holds nothing usable,
-// and GitHub never holds the password at all.
+// and GitHub never holds the password at all. The address that holds it goes from this process's
+// memory to Secrets Manager in one request this file signs itself (AWS Signature Version 4), so it
+// is never written to a file, and no child process receives it or the database password.
 import { execFileSync } from 'node:child_process';
-import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
 
@@ -79,9 +79,162 @@ export async function setBackupVerifier(sql: postgres.ISql, verifier: string): P
   await sql.unsafe(`alter role app_backup with password '${verifier}'`);
 }
 
+/** The signed-in session's keys, as the AWS command line exports them. */
+export interface AwsCredentials {
+  accessKeyId: string;
+  secretAccessKey: string;
+  sessionToken?: string;
+}
+
+/** A request to sign: `query` is already in its canonical form (names sorted, values encoded). */
+export interface AwsRequest {
+  method: 'GET' | 'POST';
+  host: string;
+  path: string;
+  query: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
+const sha256Hex = (data: string): string => createHash('sha256').update(data, 'utf8').digest('hex');
+const hmac = (key: Buffer | string, data: string): Buffer =>
+  createHmac('sha256', key).update(data, 'utf8').digest();
+
+/**
+ * Signs a request with AWS Signature Version 4: answers its headers, named in lower case, with
+ * `host`, `x-amz-date`, the session token when there is one, and `authorization` added.
+ */
+export function signV4(
+  request: AwsRequest,
+  credentials: AwsCredentials,
+  region: string,
+  service: string,
+  now: Date = new Date(),
+): Record<string, string> {
+  const amzDate = now
+    .toISOString()
+    .replace(/\.\d{3}Z$/, 'Z')
+    .replace(/[-:]/g, '');
+  const day = amzDate.slice(0, 8);
+  const headers: Record<string, string> = {};
+  for (const [name, value] of Object.entries(request.headers)) headers[name.toLowerCase()] = value;
+  headers.host = request.host;
+  headers['x-amz-date'] = amzDate;
+  if (credentials.sessionToken !== undefined) {
+    headers['x-amz-security-token'] = credentials.sessionToken;
+  }
+  const names = Object.keys(headers).sort();
+  const signedHeaders = names.join(';');
+  const canonical = [
+    request.method,
+    request.path,
+    request.query,
+    names.map((name) => `${name}:${(headers[name] ?? '').trim().replace(/\s+/g, ' ')}\n`).join(''),
+    signedHeaders,
+    sha256Hex(request.body),
+  ].join('\n');
+  const scope = `${day}/${region}/${service}/aws4_request`;
+  const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, sha256Hex(canonical)].join('\n');
+  const key = hmac(
+    hmac(hmac(hmac(`AWS4${credentials.secretAccessKey}`, day), region), service),
+    'aws4_request',
+  );
+  const signature = createHmac('sha256', key).update(toSign, 'utf8').digest('hex');
+  headers.authorization = `AWS4-HMAC-SHA256 Credential=${credentials.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+  return headers;
+}
+
+/**
+ * Reads what `aws configure export-credentials --format process` prints. A message never quotes
+ * it, since it holds the session's secret key.
+ */
+export function parseExportedCredentials(output: string): AwsCredentials {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    parsed = undefined;
+  }
+  const value = (typeof parsed === 'object' && parsed !== null ? parsed : {}) as Record<
+    string,
+    unknown
+  >;
+  const { AccessKeyId, SecretAccessKey, SessionToken } = value;
+  if (
+    value.Version !== 1 ||
+    typeof AccessKeyId !== 'string' ||
+    AccessKeyId === '' ||
+    typeof SecretAccessKey !== 'string' ||
+    SecretAccessKey === ''
+  ) {
+    throw new Error(
+      'the AWS command line gave no credentials: sign in with aws login and run the script again',
+    );
+  }
+  return typeof SessionToken === 'string' && SessionToken !== ''
+    ? { accessKeyId: AccessKeyId, secretAccessKey: SecretAccessKey, sessionToken: SessionToken }
+    : { accessKeyId: AccessKeyId, secretAccessKey: SecretAccessKey };
+}
+
+/**
+ * Puts the backup secret's new value with Secrets Manager's PutSecretValue, signed here, so the
+ * value goes from memory straight to HTTPS. Answers the new version's id.
+ */
+export async function putBackupSecret(
+  secretString: string,
+  credentials: AwsCredentials,
+  send: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<string> {
+  const host = `secretsmanager.${AWS_REGION}.amazonaws.com`;
+  const body = JSON.stringify({
+    SecretId: BACKUP_SECRET,
+    SecretString: secretString,
+    ClientRequestToken: randomUUID(),
+  });
+  const signed = signV4(
+    {
+      method: 'POST',
+      host,
+      path: '/',
+      query: '',
+      headers: {
+        'content-type': 'application/x-amz-json-1.1',
+        'x-amz-target': 'secretsmanager.PutSecretValue',
+      },
+      body,
+    },
+    credentials,
+    AWS_REGION,
+    'secretsmanager',
+    now,
+  );
+  // fetch sends the host of the address itself, the one signed.
+  const headers = Object.fromEntries(Object.entries(signed).filter(([name]) => name !== 'host'));
+  const response = await send(`https://${host}/`, { method: 'POST', headers, body });
+  const answer = (await response.json().catch(() => ({}))) as {
+    VersionId?: unknown;
+    __type?: unknown;
+  };
+  if (!response.ok || typeof answer.VersionId !== 'string') {
+    // AWS's error kind (for example AccessDeniedException) carries no part of the value sent.
+    const kind =
+      typeof answer.__type === 'string' ? `, ${answer.__type.split('#').pop() ?? ''}` : '';
+    throw new Error(`Secrets Manager refused the new value (${String(response.status)}${kind})`);
+  }
+  return answer.VersionId;
+}
+
 function required(name: string): string {
   const value = process.env[name];
   if (value === undefined || value === '') throw new Error(`${name} is not set`);
+  return value;
+}
+
+/** Reads a secret from the environment and removes it there, so no child process inherits it. */
+export function takeSecret(name: string): string {
+  const value = required(name);
+  Reflect.deleteProperty(process.env, name);
   return value;
 }
 
@@ -92,8 +245,18 @@ function aws(args: string[]): string {
   }).trim();
 }
 
+/** The AWS command line's credentials, read through a pipe and kept in memory only. */
+function awsCredentials(): AwsCredentials {
+  return parseExportedCredentials(
+    execFileSync('aws', ['configure', 'export-credentials', '--format', 'process'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'inherit'],
+    }),
+  );
+}
+
 async function main(): Promise<void> {
-  const databasePassword = required('PRODUCTION_DATABASE_PASSWORD');
+  const databasePassword = takeSecret('PRODUCTION_DATABASE_PASSWORD');
   const host = required('POOLER_HOST');
   const ca = readFileSync(required('CA_CERT_FILE'), 'utf8');
   if (!ca.includes('-----BEGIN CERTIFICATE-----'))
@@ -105,6 +268,7 @@ async function main(): Promise<void> {
   if (account !== AWS_ACCOUNT)
     throw new Error(`the AWS command line is signed in to ${account}, not ${AWS_ACCOUNT}`);
   aws(['secretsmanager', 'describe-secret', '--secret-id', BACKUP_SECRET, '--query', 'Name']);
+  const credentials = awsCredentials();
 
   const password = newBackupPassword();
   const migrator = postgres(poolerAddress('postgres', host, databasePassword), {
@@ -133,28 +297,13 @@ async function main(): Promise<void> {
     await backup.end({ timeout: 5 });
   }
 
-  const folder = mkdtempSync(join(tmpdir(), 'shakti-backup-'));
   try {
-    const file = join(folder, 'secret.json');
-    writeFileSync(file, JSON.stringify({ url, ca }), { mode: 0o600 });
-    try {
-      aws([
-        'secretsmanager',
-        'put-secret-value',
-        '--secret-id',
-        BACKUP_SECRET,
-        '--secret-string',
-        `file://${file}`,
-        '--query',
-        'VersionId',
-      ]);
-    } catch {
-      throw new Error(
-        'app_backup has a new password, but the secret was not written. Run the script again; until then each copy fails.',
-      );
-    }
-  } finally {
-    rmSync(folder, { recursive: true, force: true });
+    await putBackupSecret(JSON.stringify({ url, ca }), credentials);
+  } catch (error) {
+    const reason = error instanceof Error ? ` (${error.message})` : '';
+    throw new Error(
+      `app_backup has a new password, but the secret was not written${reason}. Run the script again; until then each copy fails.`,
+    );
   }
   process.stdout.write(
     `RESULT: app_backup has a new password (it reads ${String(tables)} tables), and ${BACKUP_SECRET} holds its address.\n`,
