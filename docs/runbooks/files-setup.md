@@ -2,12 +2,14 @@
 
 What the owner does, once for dev and once for staging, so the BOS can take uploads (a company's logo and letterhead first, then signed quotes, consent proof and vault documents), seal bank details and send mail from Amazon Web Services in Mumbai. It takes about twenty minutes per environment. Everything is created by one CloudFormation stack from `infra/aws/files.yaml`; nothing is made by hand except the app user's access key.
 
-The stack makes, for the environment named `<env>` (`dev` or `staging`):
-- the bucket `shakti-prime-<env>-files`: private, owned by the account, versioned, encrypted with the environment's key, refusing any call without TLS, accepting browser uploads only from `https://shakti-prime-<env>.vercel.app`, dropping an unfinished upload after a day, and removing a replaced or deleted file's earlier version a day after it stops being current;
+The stack makes, for the environment named `<env>` (`dev`, `staging` or `production`):
+- the bucket `shakti-prime-<env>-files`: private, owned by the account, versioned, encrypted with the environment's key, refusing any call without TLS, accepting browser uploads only from `https://shakti-prime-<env>.vercel.app` (production: `https://shaktiprime.com`), dropping an unfinished upload after a day, and removing a replaced or deleted file's earlier version a day after it stops being current;
 - the key `alias/shakti-prime-<env>-files`, rotated every year by AWS, which encrypts the files and seals bank details;
 - GuardDuty Malware Protection for the bucket, which scans every new file and writes its verdict on the file as a tag, with the role it needs;
 - the IAM user `shakti-prime-<env>-app`, allowed only the bucket's files, the key and, once the client's domain is verified, mail from the one sender address;
 - a read-only permission for the existing user `claude-shakti` to list the bucket and read its settings, never a file.
+
+Production also has a backup stack of its own, `shakti-prime-production-backups` from `infra/aws/backups.yaml` ([DEPLOY §1](deploy.md#1-before-the-first-deploy-once-per-environment) step 9): it copies the database every 6 hours in AWS CodeBuild, and lets this stack's app user `shakti-prime-production-app` list the copies' names and times (never read one), so the hourly jobs check can tell when they stop. Create the files stack first; the backup stack names its app user.
 
 ## 1. Create the stack
 1. Sign in to the AWS console with the account's administrator login and pick **Asia Pacific (Mumbai) ap-south-1** in the region menu at the top right.
@@ -15,7 +17,7 @@ The stack makes, for the environment named `<env>` (`dev` or `staging`):
 3. Under *Specify template* choose **Upload a template file**, click **Choose file** and pick `infra/aws/files.yaml` from the repository (on the owner's PC, `D:\BUSINESS\4. CLIENT PROJECTS\SHAKTI PRIME\SOFTWARE\shakti_prime\infra\aws\files.yaml`). Click **Next**.
 4. **Stack name:** `shakti-prime-<env>-files`, for example `shakti-prime-dev-files`.
 5. **Parameters:**
-   - `EnvironmentName`: `dev` or `staging`;
+   - `EnvironmentName`: `dev`, `staging` or `production`;
    - `ReadOnlyUserName`: leave `claude-shakti`;
    - `SesIdentity` and `SesFromAddress`: leave empty until the client's domain is verified in SES (section 4).
    Click **Next**.

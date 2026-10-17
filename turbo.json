@@ -44,8 +44,9 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/eslint.config.mjs",
-        "$TURBO_ROOT$/infra/aws/files.yaml",
+        "$TURBO_ROOT$/infra/aws/**",
         "$TURBO_ROOT$/.github/workflows/**",
+        "$TURBO_ROOT$/.github/actions/**",
         "$TURBO_ROOT$/compose.yaml"
       ],
       "env": ["OCR_LANG_PATH"]
@@ -80,6 +81,7 @@
         "SENTRY_DSN",
         "NEXT_PUBLIC_SENTRY_DSN",
         "FILES_BUCKET",
+        "BACKUP_BUCKET",
         "FILES_KMS_KEY_ID",
         "AWS_REGION",
         "FIELD_ENCRYPTION_KEY",
