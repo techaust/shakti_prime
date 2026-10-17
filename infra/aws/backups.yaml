@@ -5,7 +5,7 @@
     "Notes": [
       "Region: ap-south-1 (Mumbai), beside the database.",
       "The copy is made inside AWS: GitHub holds no credential that reads production without the owner approving the run.",
-      "The secret is created empty; the owner's script tools/secrets/set-backup-secret.ps1 puts the address and certificate in it. Only the backup project's role may read it, and it is encrypted with the backup key.",
+      "The secret is created empty; the owner's script tools/secrets/set-backup-login.ps1 puts the address and certificate in it. Only the backup project's role may read it, and it is encrypted with the backup key.",
       "The backup role may read that one secret, add a copy under backups/ and write its own log group, and nothing more: it cannot read, list or delete a copy, and each copy is locked for 30 days in governance mode, which only an administrator may lift.",
       "The app user of production's files stack may list the copies (never read one), so the hourly jobs check tells the owner when the newest copy is older than 7 hours. Create the files stack first."
     ]
@@ -198,7 +198,7 @@
         "Name": {
           "Fn::Sub": "shakti-prime-${EnvironmentName}-backup-database"
         },
-        "Description": "The backup login's session pooler address (url) and the database's CA certificate (ca), as JSON. Created empty; put in by tools/secrets/set-backup-secret.ps1.",
+        "Description": "The backup login's session pooler address (url) and the database's CA certificate (ca), as JSON. Created empty; put in by tools/secrets/set-backup-login.ps1.",
         "KmsKeyId": {
           "Fn::GetAtt": [
             "BackupKey",
@@ -633,7 +633,7 @@
       }
     },
     "BackupDatabaseSecretName": {
-      "Description": "The secret tools/secrets/set-backup-secret.ps1 fills.",
+      "Description": "The secret tools/secrets/set-backup-login.ps1 fills.",
       "Value": {
         "Fn::Sub": "shakti-prime-${EnvironmentName}-backup-database"
       }

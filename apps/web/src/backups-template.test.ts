@@ -78,6 +78,15 @@ describe('the production backup template', () => {
     expect(resource('BackupKey', 'AWS::KMS::Key').EnableKeyRotation).toBe(true);
   });
 
+  it('names only the script that exists, since the secret tells the owner how it is filled', () => {
+    const named = [...read('infra/aws/backups.yaml').matchAll(/tools\/[\w./-]+\.ps1/g)].map(
+      (m) => m[0],
+    );
+    expect(named).toHaveLength(3);
+    expect(new Set(named)).toEqual(new Set(['tools/secrets/set-backup-login.ps1']));
+    expect(existsSync(`${root}tools/secrets/set-backup-login.ps1`)).toBe(true);
+  });
+
   it('keeps every copy private, encrypted with its own key and locked for 30 days, then removes it', () => {
     expect(bucket.PublicAccessBlockConfiguration).toEqual({
       BlockPublicAcls: true,
