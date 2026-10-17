@@ -57,6 +57,7 @@ All eleven items are built on `fix/followups-hardening` (commits `51bdb4d5` to t
 **Tests added or changed**
 - Web unit: `audit.test.ts` +1 (a state by record kind); `activity-details.test.tsx` new, 3 (set aside, dismissed, lead lost, through the component); `push-toggle.test.ts` new, 3.
 - Web security: `tests/notifications.test.ts` +1 (`pushBrowser` before, during and after a subscription).
+- Domain reader parity: `loadPushBrowser` reads the same on the reader pool as on `app_user`.
 - Domain: `customers.test.ts` +1 (`callConsentWithdrawn` false, after a call consent, true after its withdrawal, false after a new consent); `notifications.test.ts`: the take's denied and other-company cases now carry the consent and also run for a colleague's customer (no consent left), the happy path checks the consent on the contact with the typed number (walk-in source, no proof, by the caller), its timeline row and the route's audit `consent`; the push case checks `loadPushBrowser` for the owner, another person, after unsubscribing, and an unknown push service.
 - DB security: `notifications.test.ts` +2 (the definer records on the contact with the number, else the owner, with timeline rows; it refuses routed work from an earlier transaction, another person, a request narrowed to another company, a role without the rights and no request).
 - Journeys: `customers.spec.ts` (call consent: the number is a call link before and plain text with "Asked not to be called" after the withdrawal), `agents.spec.ts` (no per-action box cuts its label short, desktop projects), `imports.spec.ts` (`uploadImport` follows the file).
@@ -68,7 +69,8 @@ All eleven items are built on `fix/followups-hardening` (commits `51bdb4d5` to t
 - Security, changed files three runs in a row: db `notifications` 13 passed; domain `notifications`, `customers`, `search` and `orders` 84 passed; web `notifications` 18 passed.
 - Full domain security run (before items 7 to 10 were finished): 1,016 passed and 3 failed. The three were `Account360Dto` parses that saw the new field while the contract edit was half made; they passed in the later runs.
 - Journeys (build, `e2e:seed`, `--retries=0`, three projects), two runs on the same database: customers, agents, imports, pipelines and orders specs. Run 1: 5 failed, 111 passed, 3 skipped. Run 2: 1 failed, 115 passed, 3 skipped. Runs 3 and 4 (customers and agents only, after the agents tweak): 1 failed, 70 passed each time. Every failure was a lead save in `customers.spec.ts` that never answered within its 30 s (mostly "records a consent…" on desktop-light), before any changed step (see the finding below). Runs 5 and 6 (customers, agents and imports, the seed's events delivered first): 84 passed and 2 skipped, both times. Pipelines and orders passed in runs 1 and 2.
-- Full `pnpm test:security` and the whole-repository `pnpm lint`: results below.
+- `pnpm test:security`, first run: db 1,263 passed; domain 1,019 passed and 1 failed, `reader-parity.test.ts` "covers every query the domain exports", which now lists `loadPushBrowser` (added, then that file passed three runs in a row, 8 passed). Second run: db 1,263 passed; domain 1,019 passed and 1 failed, `crm-scoring-referrals.test.ts` "rescores the open leads of its scope…", which expects one rescoring batch, but the slot database now holds 1,383 open Farmer Pumps leads in company 1, over `RESCORE_BATCH` (1,000), after six journey runs and three suite runs. It passed in the first run, and nothing here touches scoring. Turbo stopped before the web suite, so it ran alone: 327 passed.
+- Whole-repository `pnpm lint` (6 GB heap): passed with no warnings; the one test file changed after it, `reader-parity.test.ts`, was linted on its own: passed.
 
 **`EXPLAIN (ANALYZE)`** (slot database, 32 consents, 7 browsers)
 - `loadPushBrowser`: Index Scan using `push_subscriptions_endpoint_unique`, filter on `user_id`; 0.9 ms.
@@ -76,6 +78,9 @@ All eleven items are built on `fix/followups-hardening` (commits `51bdb4d5` to t
 
 **Finding for the lead (not changed here)**
 `e2e:seed` leaves its events pending: 202 and 244 in two seeds today. The first commands of a journey run then deliver them inside a person's request (the in-process nudge, `LOCAL_NUDGE_BUDGET_MS`). Here that took 28 to 44 s: `crm.enquiry.take` at 43.6, 30.3, 36.3 and 35.3 s in four runs, each while 63 to 169 events older than a minute were published. The same events took 4 to 5 s from a script on a quiet database. This is likely the common cause of items 5 and 6 and of the customers failures above. One fix is for the seed (or the Playwright global setup) to deliver its events before the journeys start, with `AI_TRANSPORT=fake`. That changes what the journeys start from, so it is left to the lead.
+
+**A new follow-up**
+`crm-scoring-referrals.test.ts` "rescores the open leads of its scope…" expects one rescoring batch, so it fails once a long-lived database holds more than 1,000 open leads of its scope in company 1 (`RESCORE_BATCH`). It should count its own leads' batch, or make its leads in a scope of their own.
 
 **Baselines to remake in the Linux image**
 - `agents.spec.ts/admin-agents.png`, all three projects: the per-action box is wider on desktop and fills its row on a phone.
