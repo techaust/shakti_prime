@@ -270,6 +270,12 @@ test.describe('customers as a tele-caller', () => {
     // A toast waits while the pointer is over it, and the button just pressed can sit beneath it.
     await page.mouse.move(0, 0);
     await expect(page.getByText('Sizing saved.')).toBeHidden({ timeout: 15_000 });
+    // The page is left scrolled to the button pressed, by however far the run scrolled it; a
+    // full-page picture draws the fixed top bar where the page was scrolled, so it starts at the top.
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+    });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await snap(page, 'customer-sizing', {
       mask: [page.getByText(name), page.getByText(/\d{5}/), page.getByText(/\b20\d\d\b/)],
     });
