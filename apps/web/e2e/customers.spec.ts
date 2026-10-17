@@ -75,7 +75,7 @@ test.describe('customers as an Executive', () => {
     // The longest journey here: a customer made through the lead form, an upload with its checks,
     // two dialogs and four reads by axe, one step after another.
     test.slow();
-    await addCustomer(page, 'Suresh Choudhary');
+    const { name } = await addCustomer(page, 'Suresh Choudhary');
     await expectNoAxeViolations(page);
     // An Executive changes the customer's details.
     await expect(page.getByRole('button', { name: 'Edit details' })).toBeVisible();
@@ -121,6 +121,13 @@ test.describe('customers as an Executive', () => {
     const history = section(page, 'History');
     await expect(history.getByText('Consent withdrawn')).toBeVisible();
     await expect(history.getByText('Consent recorded')).toBeVisible();
+
+    // The leads list offers the number by the same rule: readable, with no call link. The lead is
+    // among the newest changes, the list's first page.
+    await page.goto('/leads');
+    const row = dataGrid(page, 'Leads').getByRole('row').filter({ hasText: name });
+    await expect(row.getByText(/^\+91 /)).toBeVisible();
+    await expect(row.locator('a[href^="tel:"]')).toHaveCount(0);
   });
 
   test('adds a task and marks it done', async ({ page }) => {
