@@ -363,6 +363,11 @@ describe('the copy script', { timeout: 30_000 }, () => {
       `postgresql://postgres.${PRODUCTION_REF}:value@aws-1-ap-south-1.pooler.supabase.com:5432/postgres`,
       'postgresql://app_backup.azydxxvlboivablvvojp:value@aws-1-ap-south-1.pooler.supabase.com:5432/postgres',
       `postgresql://app_backup:value@db.${PRODUCTION_REF}.supabase.co:5432/postgres`,
+      // Another host with a path that ends like the pooler's, and a list of hosts.
+      `postgresql://app_backup.${PRODUCTION_REF}:value@db.azydxxvlboivablvvojp.supabase.co:5432/x.pooler.supabase.com:5432/postgres`,
+      `postgresql://app_backup.${PRODUCTION_REF}:value@evil.example,aws-1-ap-south-1.pooler.supabase.com:5432/postgres`,
+      `postgresql://app_backup.${PRODUCTION_REF}:value@aws-1-us-east-1.pooler.supabase.com:5432/postgres`,
+      `postgresql://app_backup.${PRODUCTION_REF}:value@aws-1-ap-south-1.pooler.supabase.com:5432/postgres2`,
     ]) {
       const refused = copy({ DATABASE_URL_BACKUP: address });
       expect(refused.status).toBe(1);
