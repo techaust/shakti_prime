@@ -26,11 +26,14 @@ export const TRIAGE_PURPOSE = 'lead_triage';
 
 /**
  * How long the model's answer for one event is kept for a redelivery (`triage:answer:{eventId}`):
- * the shortest time over which the outbox still redelivers an event (its last attempt comes three
- * and a quarter to four and a quarter hours after the first, outbox/backoff.ts), so the answer
- * never outlives the deliveries that may need it.
+ * an hour, the hosted redelivery window. Hosted, the outbox marks an event published once QStash
+ * takes it, and a redelivery is one of QStash's own retries (after the 6-minute event claim, about
+ * 12 s, 148 s and 30 minutes apart, so within about 40 minutes) or a person's Send again. A later
+ * delivery (the outbox's own backoff in process, or Send again after the hour) asks the model
+ * once more, which costs one call and keeps lead-derived text out of the store no longer than it
+ * can serve.
  */
-export const TRIAGE_ANSWER_TTL_SECONDS = 3 * 60 * 60;
+export const TRIAGE_ANSWER_TTL_SECONDS = 60 * 60;
 
 /** The key of the model's answer for one `crm.lead.created` event. */
 export const triageAnswerKey = (eventId: string): string => `triage:answer:${eventId}`;
