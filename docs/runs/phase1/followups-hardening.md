@@ -7,8 +7,8 @@
 | Runs on | PC, beside G1 (owner, 17-10-2026: spend the week's remainder before the reset) |
 | Tier | B (notifications, consent on a passed-on enquiry, flaky tests): build Opus 5.5 medium, review Opus 5.5 high |
 | Usage | build Opus medium from week 83, 5h 11 (17-10-2026) |
-| State | building |
-| Next step | the builder reports; the lead reads the diff and starts the review |
+| State | integrating: every check passed; pull request opened (17-10-2026) |
+| Next step | merge on green |
 
 ## Brief
 Open follow-ups from [STATUS](../../10-status.md#open-follow-ups) that need no client input: tests that fail by order or time, and small product defects. No change to tax, price, credit or row-level security policies; a migration only if item 9 needs one, and then as [AGENTS §6](../../../AGENTS.md#6-database-changes) says.
@@ -153,3 +153,4 @@ Review findings 2, 3, 4 (with the owner's answer) and 6 are fixed on `fix/follow
 - `EXPLAIN` evidence is the builder's, on a small database.
 
 ## Integration notes
+- 17-10-2026, the lead: `integrate.sh` passed every step (security db 1,263, domain 1,021, web 327; journeys 158 passed, 2 flaky on unchanged steps) after a prettier fix to `push-toggle.tsx`; `admin-agents.png` remade in the Linux image in all three projects on a fresh database and verified (36 passed). Seen in that picture, before this slice too: in the agents table the Autonomy box overlaps the daily spending limit column on desktop (a follow-up).
