@@ -57,7 +57,8 @@ export const DEAD_LETTER_LOG_IDS = 20;
  * warning with the run's request id, their count and at most `DEAD_LETTER_LOG_IDS` of their ids.
  *
  * With `budgetMs`, a run whose claim came back full claims again while the budget lasts, unless
- * every event of that claim failed, so a backlog drains in one call. An event whose payload says no
+ * every event of that claim failed, so a backlog drains in one call. An event the publisher
+ * answers `notTried` is released unchanged, and the run claims no more. An event whose payload says no
  * worker acts on it (the catalogue's `undeliveredWhen`) is marked delivered like one of a type
  * nobody listens to. Each event Send again put back goes out under its generation's deduplication
  * id; the first try of such a generation answered `deduplicated` delivered nothing, so it is
@@ -74,6 +75,7 @@ export async function runOutboxPublisher(
     deadLettered: 0,
   };
   const failedDead: string[] = [];
+  let untried = 0;
   const deliver = async (rows: readonly OutboxRow[]): Promise<OutboxUpdate[]> => {
     const updates: OutboxUpdate[] = [];
     const toSend: DeliveredEvent[] = [];
@@ -143,7 +145,10 @@ export async function runOutboxPublisher(
         const row = byId.get(event.id);
         if (row === undefined) continue;
         const result = answered.get(event.id);
-        if (result?.ok === true && result.deduplicated === true && sentAgain(row)) {
+        if (result !== undefined && !result.ok && 'notTried' in result) {
+          // No update: the claim releases the row unchanged and gives back its attempt.
+          untried += 1;
+        } else if (result?.ok === true && result.deduplicated === true && sentAgain(row)) {
           // The first try of a replayed generation can only be deduplicated if the queue took
           // its id before, so it delivered nothing now: held back rather than marked delivered.
           fail(row, 'queue_deduplicated', true);
@@ -151,7 +156,7 @@ export async function runOutboxPublisher(
           updates.push({ id: row.id, outcome: 'published' });
           counts.published += 1;
         } else {
-          fail(row, result === undefined ? 'no_answer' : result.error);
+          fail(row, result === undefined || 'notTried' in result ? 'no_answer' : result.error);
         }
       }
     }
@@ -177,7 +182,9 @@ export async function runOutboxPublisher(
     const claim = await options.claim(limit, deliver, OUTBOX_MAX_ATTEMPTS, spent);
     counts.claimed += claim.claimed;
     // A claim whose every event failed means the queue is down: the rest waits for the backoff.
+    // A publisher that left events untried has run out of time: the rest waits for the next run.
     const more =
+      untried === 0 &&
       claim.claimed === limit &&
       counts.failed - failedBefore < claim.claimed &&
       options.budgetMs !== undefined &&

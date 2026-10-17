@@ -1,7 +1,11 @@
 import { newId } from '@shakti/contracts';
 import type { ClaimOutbox, OutboxRow, OutboxUpdate } from '@shakti/db';
 import { describe, expect, it } from 'vitest';
-import { memoryEventPublisher, type EventPublisher } from '../ports/event-publisher';
+import {
+  memoryEventPublisher,
+  type EventPublisher,
+  type PublishResult,
+} from '../ports/event-publisher';
 import { memoryLogger } from '../ports/logger';
 import {
   DEAD_LETTER_LOG_IDS,
@@ -393,6 +397,36 @@ describe('runOutboxPublisher over a backlog (audit 2026-10, DATA-2)', () => {
     });
     expect(claims).toEqual([2]);
     expect(counts).toMatchObject({ claimed: 2, failed: 2 });
+  });
+
+  it('gives back unchanged the events the publisher did not try, and claims no more', async () => {
+    const rows = Array.from({ length: 6 }, () => row());
+    const firstId = rows[0]?.id;
+    const { claim, seen } = claimOf(rows);
+    let claims = 0;
+    const counted: ClaimOutbox = (...args) => {
+      claims += 1;
+      return claim(...args);
+    };
+    // Out of time after the first event, as the in-process publisher is once its deadline passes.
+    const publisher: EventPublisher = {
+      publish: (events) =>
+        Promise.resolve(
+          events.map((e, i): PublishResult =>
+            i === 0 ? { id: e.id, ok: true } : { id: e.id, ok: false, notTried: true },
+          ),
+        ),
+    };
+    const counts = await runOutboxPublisher({
+      claim: counted,
+      publisher,
+      limit: 3,
+      budgetMs: 30_000,
+    });
+    expect(claims).toBe(1);
+    // Only the tried event has an outcome; the claim releases the other two with their attempt.
+    expect(seen.updates).toEqual([{ id: firstId, outcome: 'published' }]);
+    expect(counts).toMatchObject({ claimed: 3, published: 1, failed: 0, deadLettered: 0 });
   });
 });
 

@@ -197,3 +197,70 @@ describe('inProcessEventPublisher (no queue: local development and CI)', () => {
     ]);
   });
 });
+
+describe('inProcessEventPublisher and its deadline (a nudge carries no more than its budget)', () => {
+  const event = (): DeliveredEvent => ({
+    id: newId(),
+    sequence: '1',
+    type: 'platform.probe.requested',
+    entityId: 1,
+    aggregateType: 'delivery_probe',
+    aggregateId: newId(),
+    payload: { v: 1, requestedAt: '2026-09-29T10:00:00.000Z' },
+  });
+
+  it('stops starting workers inside a call once the deadline has passed', async () => {
+    const keyValue = memoryKeyValue();
+    const events = [event(), event(), event(), event()];
+    // Each worker run takes 4 s on the fake clock: the checks before the second, third and fourth
+    // events read 0, 4 and 8 s, and the deadline is 6 s after the start.
+    let clock = 0;
+    const publisher = inProcessEventPublisher(keyValue, undefined, {
+      at: 6_000,
+      now: () => {
+        const at = clock;
+        clock += 4_000;
+        return at;
+      },
+    });
+    const results = await publisher.publish(events);
+    expect(results.map((r) => ('notTried' in r ? 'not tried' : r.ok))).toEqual([
+      true,
+      true,
+      true,
+      'not tried',
+    ]);
+    // The untried event's worker never ran: its id was not claimed.
+    expect(await keyValue.get(`evt:${events[3]?.id ?? ''}`)).toBeNull();
+  });
+
+  it('delivers the first event of a call even when the deadline has already passed', async () => {
+    const publisher = inProcessEventPublisher(memoryKeyValue(), undefined, {
+      at: 0,
+      now: () => 1,
+    });
+    const [a, b] = [event(), event()];
+    const results = await publisher.publish([a, b]);
+    expect(results).toEqual([
+      { id: a.id, ok: true },
+      { id: b.id, ok: false, notTried: true },
+    ]);
+  });
+
+  it('goes on to the end of a call without a deadline', async () => {
+    const results = await inProcessEventPublisher(memoryKeyValue()).publish([event(), event()]);
+    expect(results.every((r) => r.ok)).toBe(true);
+  });
+
+  it('leaves the untried events of a claim unanswered, so the claim gives them back', async () => {
+    outbox.rows = [row(), row(), row()];
+    const counts = await publishOutbox({
+      publisher: inProcessEventPublisher(memoryKeyValue(), undefined, { at: 0, now: () => 1 }),
+      keyValue: memoryKeyValue(),
+      alerts: memoryAlertSink(),
+      budgetMs: 10_000,
+    });
+    expect(counts).toMatchObject({ claimed: 3, published: 1, failed: 0 });
+    expect(outbox.updates).toEqual([{ id: outbox.rows[0]?.id, outcome: 'published' }]);
+  });
+});
