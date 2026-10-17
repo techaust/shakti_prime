@@ -125,7 +125,9 @@ test.describe('customers as an Executive', () => {
     // The leads list offers the number by the same rule: readable, with no call link. The lead is
     // among the newest changes, the list's first page.
     await page.goto('/leads');
-    const row = dataGrid(page, 'Leads').getByRole('row').filter({ hasText: name });
+    // A row of the table on a wide screen, an item of the list on a phone.
+    const leads = dataGrid(page, 'Leads');
+    const row = leads.getByRole('row').or(leads.getByRole('listitem')).filter({ hasText: name });
     await expect(row.getByText(/^\+91 /)).toBeVisible();
     await expect(row.locator('a[href^="tel:"]')).toHaveCount(0);
   });
