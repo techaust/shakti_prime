@@ -104,9 +104,6 @@ export function AgentsScreen({
     });
   }
 
-  // The two columns of controls are given their width by their heads, which a table laid out from
-  // its heads alone keeps too (a fixed layout, as the screenshots take it): each box and the line
-  // under it stay in their own column at the desktop width.
   const columns: DataGridColumn<AgentSettingDto>[] = [
     { id: 'agent', header: t('admin.columns.agent'), cell: (r) => name(r.agent), primary: true },
     {
@@ -122,7 +119,6 @@ export function AgentsScreen({
     {
       id: 'autonomy',
       header: t('admin.columns.autonomy'),
-      className: 'w-64',
       cell: (r) => (
         <div className="flex min-w-56 flex-col gap-1">
           {canSetAutonomy ? (
@@ -154,7 +150,6 @@ export function AgentsScreen({
     {
       id: 'cap',
       header: t('admin.columns.cap'),
-      className: 'w-64',
       cell: (r) =>
         canSetAutonomy ? (
           <CapForm row={r} level={level} name={name(r.agent)} onSaved={reload} />
