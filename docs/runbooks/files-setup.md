@@ -9,6 +9,8 @@ The stack makes, for the environment named `<env>` (`dev`, `staging` or `product
 - the IAM user `shakti-prime-<env>-app`, allowed only the bucket's files, the key and, once the client's domain is verified, mail from the one sender address;
 - a read-only permission for the existing user `claude-shakti` to list the bucket and read its settings, never a file.
 
+Production also has a backup stack of its own, `shakti-prime-production-backups` from `infra/aws/backups.yaml` ([DEPLOY §1](deploy.md#1-before-the-first-deploy-once-per-environment) step 9): it copies the database every 6 hours in AWS CodeBuild, and lets this stack's app user `shakti-prime-production-app` list the copies' names and times (never read one), so the hourly jobs check can tell when they stop. Create the files stack first; the backup stack names its app user.
+
 ## 1. Create the stack
 1. Sign in to the AWS console with the account's administrator login and pick **Asia Pacific (Mumbai) ap-south-1** in the region menu at the top right.
 2. Open **CloudFormation** (type it in the search bar) › **Create stack** › **With new resources (standard)**.

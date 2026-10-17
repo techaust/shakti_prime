@@ -24,7 +24,7 @@ Blueprint reference: §3–§6, §9.3, §10, §12. This document describes how t
 | Entity isolation | No cross-entity read or write; a shared customer is seen only through a relationship in an entity the caller holds | RLS with fail-closed policies, one request-context helper, `account_entities` as the customer scope root (ADR 0008) |
 | Cost confidentiality | Cost fields never leave the DB for unauthorised roles | Restricted tables, cost-permission RLS, whitelisted DTOs |
 | Latency | p95 interaction < 300 ms; ingestion → assignment < 10 s | Vercel `bom1` + Supabase Mumbai, keyset pagination, materialised dashboards |
-| Availability | 99.5% in business hours; RPO about 6 h (no point-in-time recovery, the owner's decision of 15-10-2026); RTO ≤ 4 h | Managed services, a `pg_dump` of production every 6 hours to an S3 bucket in Mumbai kept 30 days (DATABASE §10), runbooks |
+| Availability | 99.5% in business hours; RPO about 6 h (no point-in-time recovery, the owner's decision of 15-10-2026); RTO ≤ 4 h | Managed services, a `pg_dump` of production every 6 hours, made in AWS CodeBuild, to an S3 bucket in Mumbai kept 30 days, and Supabase Pro's daily backups kept 7 days (DATABASE §10), runbooks |
 | Operability for one developer | Minimal vendor set, one language | TypeScript monorepo, managed services, strong CI |
 | AI safety | No unsafe customer message; no cost leak to agents | Narrow tools, autonomy levels, agent principals; the Triage agent's output filter (`filterTriageAnswer()`, `packages/domain/src/ai/triage/filter.ts`); filters on outbound customer messages come with them in Phase 2 |
 
