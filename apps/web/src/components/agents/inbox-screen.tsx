@@ -419,10 +419,10 @@ function InboxCard({
 
 /**
  * Routed work (docs/03-roadmap-appendix/phase1.md §8.1): an enquiry a colleague took for a customer the person
- * looks after, with its interest and note, to act on from the customer's page; Done (D) takes it
+ * looks after, with its interest, note and any consent that came with it, to act on from the customer's page; Done (D) takes it
  * out of the inbox.
  */
-function RoutedCard({
+export function RoutedCard({
   item,
   focusable,
   company,
@@ -496,6 +496,10 @@ function RoutedCard({
             </div>
           )}
         </dl>
+      )}
+      {/* A consent the form captured came with the enquiry and is recorded on the customer. */}
+      {item.consentChannel === null ? null : (
+        <p className="text-sm">{t('inbox.routedConsent', { channel: item.consentChannel })}</p>
       )}
       <p className="text-text-muted text-sm">
         {t.rich('inbox.routedReceived', momentValues(item.createdAt))}

@@ -220,6 +220,11 @@ export const Account360Dto = z
     /** The customer's newest orders in this company (read with their leads, or with the dealer). */
     orders: z.array(SalesOrderRowDto),
     contacts: z.array(CustomerContactDto),
+    /**
+     * Whether a contact of the customer has withdrawn consent to calls and given none since
+     * (CRM-10): their numbers stay readable but are not offered for a call.
+     */
+    callConsentWithdrawn: z.boolean(),
     sites: z.array(CustomerSiteDto),
     leads: z.array(CustomerLeadDto),
     tasks: z.array(CustomerTaskDto),

@@ -115,9 +115,13 @@ export function LeadsScreen({
       id: 'phone',
       header: t('columns.phone'),
       numeric: true,
+      // A number on the do-not-disturb list, or of a customer who withdrew call consent, stays
+      // readable but is not offered for a call, as on Account 360.
       cell: (l) =>
         l.contact?.phone == null ? (
           notRecorded
+        ) : l.phoneIsDnd || l.callConsentWithdrawn ? (
+          formatPhone(l.contact.phone)
         ) : (
           <a href={`tel:${l.contact.phone}`} className="text-accent-text hover:underline">
             {formatPhone(l.contact.phone)}

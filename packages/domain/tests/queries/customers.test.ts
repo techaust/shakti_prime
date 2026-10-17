@@ -15,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
-import { recordConsent } from '../../src/commands/crm/consent';
+import { recordConsent, withdrawConsent } from '../../src/commands/crm/consent';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { addNote } from '../../src/commands/crm/customer';
 import { createTag, tagLead } from '../../src/commands/crm/tags';
@@ -27,16 +27,22 @@ import {
   listTimeline,
   loadAccount360,
 } from '../../src/queries/crm/customers';
+import { listLeads } from '../../src/queries/crm/list-leads';
 
 // The customers list, Account 360, the timeline and the caller's tasks (docs/03-roadmap-appendix/phase1.md
 // §6.5), each read under the caller's own policies.
 
 afterAll(closeDb);
 
-/** A word no earlier run used, so each search here finds only this run's customers. */
+/**
+ * A word no earlier run used, so each search here finds only this run's customers and each tag
+ * made here is new: the random end of a new id (12 hex digits), each written as a letter
+ * (a digit would make the text a phone search). Turning only the digits into one letter left a few
+ * thousand likely words, so a run on a long-lived database met an earlier run's tag name.
+ */
 const TAG = `Zq${newId()
-  .slice(-6)
-  .replace(/[^a-z]/g, 'x')}`;
+  .slice(-12)
+  .replace(/[0-9a-f]/g, (hex) => 'ghijklmnopqrstuv'.charAt(Number.parseInt(hex, 16)))}`;
 
 let teamId: string;
 let caller: Principal;
@@ -61,6 +67,14 @@ const read = <T>(
   query: (ctx: never, input: unknown) => Promise<T>,
   input: unknown,
 ) => asPrincipal(who, (ctx) => query(ctx as never, input));
+
+/** The lead's row on the caller's leads list (their own leads, newest change first). */
+async function listedLead(who: Principal, leadId: string) {
+  const page = await asPrincipal(who, (ctx) => listLeads(ctx, { limit: 200 }));
+  const row = page.items.find((l) => l.id === leadId);
+  if (row === undefined) throw new Error(`lead ${leadId} is not on the list`);
+  return row;
+}
 
 async function customer(owner: Principal, name: string, village: string, number = testPhone()) {
   const made = (await run(owner, createLead, {
@@ -210,6 +224,55 @@ describe('loadAccount360 and listTimeline', () => {
       'tagged',
       'task_created',
     ]);
+  });
+
+  it('says when the customer withdrew consent to calls and gave none since (CRM-10)', async () => {
+    const k = await customer(caller, `${TAG} Calls`, 'Churu');
+    // Account 360 and the leads list read it by the same rule (#168 review, hardening review 6).
+    const withdrawn = async () => {
+      const view = await read(caller, loadAccount360, { accountId: k.accountId });
+      const row = await listedLead(caller, k.leadId);
+      expect(row.callConsentWithdrawn).toBe(view.callConsentWithdrawn);
+      return view.callConsentWithdrawn;
+    };
+    expect(await withdrawn()).toBe(false);
+    const consent = (textVersion: string) =>
+      run(caller, recordConsent, {
+        entityId: 1,
+        accountId: k.accountId,
+        contactId: k.contactId,
+        channel: 'call',
+        purpose: 'service',
+        source: 'verbal',
+        textVersion,
+        givenAt: new Date().toISOString(),
+      }) as Promise<{ id: string }>;
+    const given = await consent('v1');
+    expect(await withdrawn()).toBe(false);
+    await run(caller, withdrawConsent, {
+      entityId: 1,
+      accountId: k.accountId,
+      consentId: given.id,
+    });
+    expect(await withdrawn()).toBe(true);
+    // A consent to calls given after the withdrawal makes the number one to call again.
+    await consent('v2');
+    expect(await withdrawn()).toBe(false);
+  });
+
+  it('marks a number on the do-not-disturb list on the leads list, which then offers no call', async () => {
+    const k = await customer(caller, `${TAG} Dnd`, 'Churu');
+    expect(await listedLead(caller, k.leadId)).toMatchObject({
+      phoneIsDnd: false,
+      callConsentWithdrawn: false,
+    });
+    await asMigrator(
+      (m) => m`update contact_phones set is_dnd = true where contact_id = ${k.contactId}`,
+    );
+    expect(await listedLead(caller, k.leadId)).toMatchObject({
+      phoneIsDnd: true,
+      callConsentWithdrawn: false,
+    });
   });
 
   it('is not found for a customer the caller cannot read, or in another company', async () => {

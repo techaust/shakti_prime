@@ -2459,6 +2459,7 @@
       "main": "Main number",
       "whatsapp": "WhatsApp",
       "dnd": "Do not disturb",
+      "noCalls": "Asked not to be called",
       "noEmail": "No email",
       "role": {
         "owner": "Owner",
@@ -3932,6 +3933,7 @@
       "routedUnknown": "A customer you look after asked again",
       "routedInterest": "Interested in",
       "routedNote": "Note",
+      "routedConsent": "Consent to {channel, select, call {phone calls} whatsapp {WhatsApp messages} sms {text messages} other {email}} was given with this enquiry and is recorded on the customer.",
       "routedReceived": "Passed on <time>{when}</time>",
       "routedComplete": "Done",
       "routedDone": "Marked done.",

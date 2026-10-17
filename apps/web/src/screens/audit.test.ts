@@ -293,4 +293,31 @@ describe('what changed', () => {
       defaults: [{ field: 'siteType', value: 'farm' }],
     });
   });
+
+  it('reads a state through the catalogue of the kind of record the row changed', () => {
+    const groupOf = (aggregateType: string | null) =>
+      auditChanges({ state: 'open' }, { state: 'dismissed' }, aggregateType)[0]?.after;
+    expect(groupOf('duplicate_candidate')).toEqual({
+      kind: 'code',
+      group: 'duplicateState',
+      value: 'dismissed',
+    });
+    expect(groupOf('agent_action')).toEqual({
+      kind: 'code',
+      group: 'agentActionState',
+      value: 'dismissed',
+    });
+    for (const [kind, group] of [
+      ['opportunity', 'leadState'],
+      ['task', 'taskState'],
+      ['import_job', 'importState'],
+      ['quote', 'quoteState'],
+      ['sales_order', 'orderState'],
+    ] as const) {
+      expect(groupOf(kind)).toMatchObject({ group });
+    }
+    // A kind with no catalogue of its own, or none recorded, reads the state by value alone.
+    expect(groupOf('inbox_item')).toMatchObject({ group: 'state' });
+    expect(groupOf(null)).toMatchObject({ group: 'state' });
+  });
 });

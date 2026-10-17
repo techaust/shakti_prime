@@ -71,7 +71,10 @@ const {
   markAllNoticesRead,
   noticeCount,
   notificationSettings,
+  pushBrowser,
   saveNotificationSettings,
+  subscribePush,
+  unsubscribePush,
 } = await import('../src/actions/notifications');
 
 afterAll(async () => {
@@ -615,5 +618,20 @@ describe('the forms’ save, the bell and the settings (server actions)', () => 
     expect(
       await saveNotificationSettings({ types: [], quietFrom: '22:00', quietTo: null }, newId()),
     ).toMatchObject({ ok: false, error: 'quiet_hours_incomplete', field: 'quietTo' });
+  });
+
+  it('says alerts are on for a browser only when it is the person’s own (#168 review L4)', async () => {
+    request.principal = owner;
+    const browser = `https://fcm.googleapis.com/fcm/send/${newId()}`;
+    expect(ok(await pushBrowser({ endpoint: browser }))).toEqual({ subscribed: false });
+    ok(
+      await subscribePush(
+        { endpoint: browser, keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) } },
+        newId(),
+      ),
+    );
+    expect(ok(await pushBrowser({ endpoint: browser }))).toEqual({ subscribed: true });
+    ok(await unsubscribePush({ endpoint: browser }, newId()));
+    expect(ok(await pushBrowser({ endpoint: browser }))).toEqual({ subscribed: false });
   });
 });

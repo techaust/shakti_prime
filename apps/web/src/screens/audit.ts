@@ -326,6 +326,12 @@ export type ChangeValue =
  */
 const CODE_GROUPS = [
   'state',
+  'leadState',
+  'taskState',
+  'agentActionState',
+  'duplicateState',
+  'importState',
+  'quoteState',
   'lostReason',
   'nurtureReason',
   'importKind',
@@ -647,6 +653,21 @@ export type FieldKey = (typeof FIELD_KINDS)[number][0];
 type FieldKind = (typeof FIELD_KINDS)[number][1];
 const KIND_OF: ReadonlyMap<string, FieldKind> = new Map(FIELD_KINDS);
 
+/**
+ * The catalogue a `state` reads through, by the kind of record the row changed: one value can
+ * mean different things to two kinds ("dismissed" is a duplicate set aside, or an agent's action
+ * dismissed). A kind not listed reads its state by value alone (`state`).
+ */
+const STATE_GROUP_OF: ReadonlyMap<string, CodeGroup> = new Map<string, CodeGroup>([
+  ['opportunity', 'leadState'],
+  ['task', 'taskState'],
+  ['agent_action', 'agentActionState'],
+  ['duplicate_candidate', 'duplicateState'],
+  ['import_job', 'importState'],
+  ['quote', 'quoteState'],
+  ['sales_order', 'orderState'],
+]);
+
 /** Every field with a name on screen, in the order the sheet lists them. */
 export const NAMED_FIELDS: readonly FieldKey[] = FIELD_KINDS.map(([field]) => field);
 
@@ -747,8 +768,12 @@ function specsOf(value: Record<string, unknown>): ChangeValue {
   return entries.length === 0 ? EMPTY : { kind: 'specs', entries };
 }
 
-function known(field: FieldKey, value: unknown): ChangeValue {
-  const kind = KIND_OF.get(field);
+function known(field: FieldKey, value: unknown, aggregateType: string | null): ChangeValue {
+  const named = KIND_OF.get(field);
+  const kind =
+    named === 'state' && aggregateType !== null
+      ? (STATE_GROUP_OF.get(aggregateType) ?? named)
+      : named;
   // A side that does not carry the field at all (the before of a new record) shows nothing.
   if (value === undefined) return EMPTY;
   if (kind === 'recorded') return { kind: 'yesNo', value: value !== null };
@@ -820,9 +845,14 @@ function leaves(prefix: string, value: unknown, out: Map<string, unknown>) {
 /**
  * What changed, field by field, from an audit row's before and after (both already redacted when
  * written). Named fields come first in the order of the catalogue; ids are left out; anything
- * else is listed with its name in plain words, never as raw data.
+ * else is listed with its name in plain words, never as raw data. `aggregateType`, the kind of
+ * record the row changed, decides which catalogue a state reads through.
  */
-export function auditChanges(before: unknown, after: unknown): ChangeRow[] {
+export function auditChanges(
+  before: unknown,
+  after: unknown,
+  aggregateType: string | null = null,
+): ChangeRow[] {
   const b = isRecord(before) ? before : {};
   const a = isRecord(after) ? after : {};
   const keys = [...new Set([...Object.keys(b), ...Object.keys(a)])].filter((k) => !isReference(k));
@@ -831,8 +861,8 @@ export function auditChanges(before: unknown, after: unknown): ChangeRow[] {
     .map((field) => ({
       field,
       label: '',
-      before: known(field, b[field]),
-      after: known(field, a[field]),
+      before: known(field, b[field], aggregateType),
+      after: known(field, a[field], aggregateType),
     }));
   // Field by field, so a nested field's lines stay together whichever side carries them.
   const others = keys

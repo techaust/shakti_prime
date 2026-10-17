@@ -87,35 +87,33 @@ const workers = (): Principal => ({
   id: SYSTEM_WORKERS_PRINCIPAL_ID,
 });
 
+/**
+ * The append-only and guard triggers are off for the rest of this migrator transaction only
+ * (`session_replication_role`), so test rows can be removed. Unlike `alter table ... disable
+ * trigger`, it takes no lock on the tables, so it never waits behind another connection with no
+ * time limit (the migrator has none), and never makes one wait.
+ */
+const withoutTriggers = (tx: (strings: TemplateStringsArray) => PromiseLike<unknown>) =>
+  tx`set local session_replication_role = replica`;
+
 /** Removes this file's orders, commission, credit entries, quotes and the shared rows they name. */
 async function removeOrderRows(): Promise<void> {
   await asMigrator((m) =>
     m.begin(async (tx) => {
+      await withoutTriggers(tx);
       const orders = tx`select id from sales_orders where price_list_id = ${ids.list}`;
-      await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
       await tx`delete from commission_accruals where sales_order_id in (${orders})`;
-      await tx`alter table commission_accruals enable trigger commission_accruals_guard`;
       await tx`delete from commission_rules where id in (${ids.rulePercent}, ${ids.rulePerKw},
         ${ids.ruleFuture}, ${ids.ruleEnded}, ${ids.ruleDefault})`;
-      await tx`alter table sales_order_lines disable trigger sales_order_lines_append_only`;
       await tx`delete from sales_order_lines where sales_order_id in (${orders})`;
-      await tx`alter table sales_order_lines enable trigger sales_order_lines_append_only`;
       await tx`delete from sales_orders where price_list_id = ${ids.list}`;
       const dealers = tx`select id from accounts where tier_id = ${ids.tier} and type = 'dealer'`;
-      await tx`alter table dealer_terms disable trigger dealer_terms_append_only`;
-      await tx`alter table dealer_outstanding disable trigger dealer_outstanding_append_only`;
       await tx`delete from dealer_terms where account_id in (${dealers})`;
       await tx`delete from dealer_outstanding where account_id in (${dealers})`;
-      await tx`alter table dealer_terms enable trigger dealer_terms_append_only`;
-      await tx`alter table dealer_outstanding enable trigger dealer_outstanding_append_only`;
-      await tx`alter table quote_lines disable trigger quote_lines_append_only`;
-      await tx`alter table quote_versions disable trigger quote_versions_append_only`;
       const quotes = tx`select id from quotes where price_list_id = ${ids.list}`;
       await tx`delete from quote_versions where quote_id in (${quotes})`;
       await tx`delete from quote_lines where quote_id in (${quotes})`;
       await tx`delete from quotes where price_list_id = ${ids.list}`;
-      await tx`alter table quote_lines enable trigger quote_lines_append_only`;
-      await tx`alter table quote_versions enable trigger quote_versions_append_only`;
       await tx`delete from tax_rates where id in (${ids.rateModule}, ${ids.rateCable})`;
     }),
   );
@@ -145,12 +143,13 @@ beforeAll(async () => {
       await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, approved_by, approved_at)
         values (${ids.list}, ${ids.tier}, ${E}, 1, '2026-04-01', ${exec.id}, now())
         on conflict (id) do update set entity_id = ${E}, archived_at = null, approved_by = ${exec.id}, approved_at = now()`;
-      await tx`alter table price_list_items disable trigger price_list_items_log_change`;
+      await withoutTriggers(tx);
       await tx`delete from price_list_items where price_list_id = ${ids.list}`;
       await tx`insert into price_list_items (id, price_list_id, item_id, price) values
         (${ids.priced[0] ?? ''}, ${ids.list}, ${ids.module}, 12000.00),
         (${ids.priced[1] ?? ''}, ${ids.list}, ${ids.cable}, 85.50)`;
-      await tx`alter table price_list_items enable trigger price_list_items_log_change`;
+      // Every row below is checked and logged by its triggers as usual.
+      await tx`set local session_replication_role = origin`;
       await tx`insert into tax_rates (id, item_id, rate_pct, effective_from, source_ref) values
         (${ids.rateModule}, ${ids.module}, 12.00, '2026-04-01', 'order test'),
         (${ids.rateCable}, ${ids.cable}, 18.00, '2026-04-01', 'order test')`;
@@ -943,9 +942,8 @@ describe('the referral commission (CRM-09)', () => {
     await confirm(order.id);
     await asMigrator((m) =>
       m.begin(async (tx) => {
-        await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
+        await withoutTriggers(tx);
         await tx`delete from commission_accruals where sales_order_id = ${order.id}`;
-        await tx`alter table commission_accruals enable trigger commission_accruals_guard`;
       }),
     );
     return order;

@@ -273,7 +273,9 @@ export function AgentsScreen({
                       <p className="text-text-muted text-sm">{t('admin.automaticUnavailable')}</p>
                     )}
                   </div>
-                  <div className="flex w-72 max-w-full flex-col gap-1">
+                  {/* As wide as the chosen setting's whole label on a wide screen, at least 18rem;
+                      the line under the box wraps to the box rather than widening it. */}
+                  <div className="flex w-full max-w-full flex-col gap-1 md:w-max md:min-w-72">
                     {type.shadowOnly ? (
                       <p className="text-text-muted text-sm">{t('admin.shadowOnly')}</p>
                     ) : canSetAutonomy ? (
@@ -283,6 +285,7 @@ export function AgentsScreen({
                           action: label,
                         })}
                         value={type.autonomy ?? ''}
+                        className="md:w-auto md:min-w-full"
                         disabled={config.pending}
                         onChange={(e) => {
                           setAutonomy(row, type.actionType, e.target.value);
@@ -300,7 +303,7 @@ export function AgentsScreen({
                         ))}
                       </Select>
                     ) : null}
-                    {appliesNow(type.effective)}
+                    <div className="w-0 min-w-full">{appliesNow(type.effective)}</div>
                   </div>
                 </li>
               );

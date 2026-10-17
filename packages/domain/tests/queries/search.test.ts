@@ -58,6 +58,15 @@ const search = (who: Principal, q: string, limit?: number) =>
   asPrincipal(who, (ctx) => searchLeads(ctx, limit === undefined ? { q } : { q, limit }));
 const found = async (who: Principal, q: string) => (await search(who, q)).map((l) => l.id);
 
+/**
+ * The hits that are among `made`, in the order found. A search by spelling can also find rows that
+ * other files, or earlier runs on the same database, made and the searcher may read (an Executive
+ * reads every team member of the company), so a test of the order reads only its own rows, with
+ * room for twenty hits.
+ */
+const onlyOf = (made: readonly string[], hits: readonly string[]) =>
+  hits.filter((id) => made.includes(id));
+
 beforeAll(async () => {
   const team = await createTestTeam(1, 'search team');
   people = {
@@ -179,8 +188,15 @@ describe('searchLeads by spelling (docs/08-design-system.md §9, trigram matchin
     const contains = await newLead(sorter, 1, 'Shri Ramesh', phone(), place);
     const closer = await newLead(sorter, 1, 'Ramessh Rao', phone(), place);
     const close = await newLead(sorter, 1, 'Rameesh', phone(), place);
-    await newLead(sorter, 1, 'Suresh', phone(), place);
-    expect(await found(sorter, 'Ramesh')).toEqual([exact, starts, contains, closer, close]);
+    const far = await newLead(sorter, 1, 'Suresh', phone(), place);
+    const made = [exact, starts, contains, closer, close, far];
+    const hits = await asPrincipal(sorter, (ctx) => searchLeads(ctx, { q: 'Ramesh', limit: 20 }));
+    expect(
+      onlyOf(
+        made,
+        hits.map((h) => h.id),
+      ),
+    ).toEqual([exact, starts, contains, closer, close]);
   });
 });
 
@@ -230,7 +246,15 @@ describe('searchPeople', () => {
     const contains = await make(`Meera ${own}`);
     const starts = await make(`${own} Joshi`);
     const exact = await make(own);
-    const hits = await findPeople(principalFor('executive', [1]), own);
-    expect(hits.map((h) => h.id)).toEqual([exact, starts, contains, close]);
+    const hits = await asPrincipal(principalFor('executive', [1]), (ctx) =>
+      searchPeople(ctx, { q: own, limit: 20 }),
+    );
+    const made = [exact, starts, contains, close];
+    expect(
+      onlyOf(
+        made,
+        hits.map((h) => h.id),
+      ),
+    ).toEqual(made);
   });
 });

@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
 import {
   dataGrid,
   expect,
@@ -27,6 +27,26 @@ const AGENTS = 'Agents and their settings';
 /** The card of one suggestion, by the note it carries. */
 function suggestion(page: Page, note: string) {
   return page.getByRole('listitem').filter({ hasText: note });
+}
+
+/**
+ * Whether a select box cuts its chosen option's label short: the label, set in the box's own font,
+ * is wider than the room between the box's paddings (the right one holds the arrow).
+ */
+function cutShort(box: Locator): Promise<boolean> {
+  return box.evaluate((element) => {
+    const select = element as HTMLSelectElement;
+    const style = getComputedStyle(select);
+    const context = document.createElement('canvas').getContext('2d');
+    if (context === null) return true;
+    context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const label = select.selectedOptions[0]?.text ?? '';
+    const room =
+      select.clientWidth -
+      Number.parseFloat(style.paddingLeft) -
+      Number.parseFloat(style.paddingRight);
+    return context.measureText(label).width > room;
+  });
 }
 
 /** How many tasks with this note the customer's page lists. */
@@ -158,6 +178,13 @@ test.describe('as an Executive', () => {
       }),
     ).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'What Caller Co-pilot may do' })).toBeVisible();
+    // On a wide screen each action's autonomy box shows the whole of its chosen setting, the
+    // longest being "As set for the agent for the group: …".
+    if (projectName() !== 'phone') {
+      const boxes = await page.getByRole('combobox', { name: /^Autonomy of .+ for / }).all();
+      expect(boxes.length).toBeGreaterThan(0);
+      for (const box of boxes) expect(await cutShort(box)).toBe(false);
+    }
     await expectNoAxeViolations(page);
     await snap(page, 'admin-agents');
   });

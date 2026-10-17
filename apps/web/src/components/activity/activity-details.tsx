@@ -131,7 +131,7 @@ export function ActivityDetails({
   const t = useTranslations('activity');
   const errors = useTranslations('errors');
   const deviceName = useDeviceName();
-  const changes = auditChanges(row.before, row.after);
+  const changes = auditChanges(row.before, row.after, row.aggregateType);
   const named = changes.filter((c) => c.field !== undefined);
   const other = changes.filter((c) => c.field === undefined);
   const why =
@@ -409,6 +409,20 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         if (oneOf(IMPORT_JOB_STATES, value)) return imports(`state.${value}`);
         return oneOf(QUOTE_STATES, value) ? quotes(`state.${value}`) : wordsOf(value);
       }
+      case 'leadState':
+        return oneOf(OPPORTUNITY_STATES, value) ? leads(`state.${value}`) : wordsOf(value);
+      case 'taskState':
+        return oneOf(TASK_STATES, value) ? customers(`tasks.state.${value}`) : wordsOf(value);
+      case 'agentActionState':
+        return oneOf(AGENT_ACTION_STATE_VALUES, value)
+          ? agents(`actionState.${value}`)
+          : wordsOf(value);
+      case 'duplicateState':
+        return oneOf(DUPLICATE_STATES, value) ? duplicates(`state.${value}`) : wordsOf(value);
+      case 'importState':
+        return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
+      case 'quoteState':
+        return oneOf(QUOTE_STATES, value) ? quotes(`state.${value}`) : wordsOf(value);
       case 'orderState':
         return oneOf(SALES_ORDER_STATES, value) ? orders(`state.${value}`) : wordsOf(value);
       case 'acceptedVia':

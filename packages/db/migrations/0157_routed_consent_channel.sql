@@ -1,0 +1,3 @@
+ALTER TABLE "inbox_items" ADD COLUMN "consent_channel" text;--> statement-breakpoint
+ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_consent_channel_check" CHECK ("inbox_items"."consent_channel" in ('whatsapp', 'call', 'sms', 'email'));--> statement-breakpoint
+ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_consent_routed_check" CHECK ("inbox_items"."kind" = 'routed_work' or "inbox_items"."consent_channel" is null);
