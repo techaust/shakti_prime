@@ -221,6 +221,16 @@ export const REFERRAL_PARTNER = {
   code: 'KSK2026',
 } as const;
 
+/**
+ * Per project: the referral partner the pipelines journey adds with the Add partner form; the seed
+ * archives every one of them, so each run adds its own again (`e2e/setup/pipelines.ts`).
+ */
+export const ADDED_PARTNERS: Record<ProjectName, string> = {
+  'desktop-light': 'Gram Mitra Dudu',
+  'desktop-dark': 'Gram Mitra Phagi',
+  phone: 'Gram Mitra Sambhar',
+};
+
 /** Where the quote journeys price, make and send their quotes (`e2e/quotes.spec.ts`). */
 export const QUOTE_JOURNEY_COMPANY = { entityId: 2, name: 'Shakti Motor Pumps' } as const;
 

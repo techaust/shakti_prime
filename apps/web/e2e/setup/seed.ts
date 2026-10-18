@@ -40,7 +40,7 @@ import { writePrintPages } from './print-pages';
 import { ensureConvertingJourneys } from './converting';
 import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureOrderJourneys } from './orders';
-import { resetPipelineStages } from './pipelines';
+import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
@@ -634,6 +634,7 @@ await seedCalls('tele-caller', {
 
 progress('the pipelines’ stages');
 await resetPipelineStages(ids.executive ?? '');
+await archiveAddedPartners();
 
 progress('the referral partner');
 await ensureReferralPartner(ids.executive ?? '');

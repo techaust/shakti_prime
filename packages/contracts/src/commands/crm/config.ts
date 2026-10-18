@@ -10,6 +10,7 @@ import {
 } from '../../crm/config';
 import { SegmentSchema, StageExitFieldSchema, StageKindSchema } from '../../crm/enums';
 import { EntityIdSchema, IdSchema } from '../../ids';
+import { PhoneInputSchema } from '../../crm/phone';
 
 /**
  * The CRM set-up an Executive changes without code (docs/03-roadmap-appendix/phase1.md §6.6): pipelines and
@@ -310,6 +311,22 @@ export const SetReferralPartnerInput = z
   .object({ accountId: IdSchema, code: ReferralCodeSchema, isActive: z.boolean() })
   .strict();
 export type SetReferralPartnerInput = z.infer<typeof SetReferralPartnerInput>;
+
+/**
+ * `crm.referral_partner.create` (owner, 05-10-2026): a referral partner made from Settings ›
+ * Pipelines as a customer of the type Referral partner with no lead, known to one company, with its
+ * person and phone, a business name when it has one, and its code when one is given at once.
+ */
+export const CreateReferralPartnerInput = z
+  .object({
+    entityId: EntityIdSchema,
+    name: z.string().trim().min(2).max(120),
+    phone: PhoneInputSchema,
+    businessName: z.string().trim().min(2).max(120).optional(),
+    code: ReferralCodeSchema.optional(),
+  })
+  .strict();
+export type CreateReferralPartnerInput = z.infer<typeof CreateReferralPartnerInput>;
 
 export const ReferralPartnerDto = z
   .object({ accountId: IdSchema, code: z.string(), isActive: z.boolean() })

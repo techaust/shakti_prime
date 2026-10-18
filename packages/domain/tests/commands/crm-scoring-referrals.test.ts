@@ -20,7 +20,11 @@ import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { addNote } from '../../src/commands/crm/customer';
-import { setCommissionRule, setReferralPartner } from '../../src/commands/crm/referrals';
+import {
+  createReferralPartner,
+  setCommissionRule,
+  setReferralPartner,
+} from '../../src/commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../../src/commands/crm/score-rules';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { listLeads } from '../../src/queries/crm/list-leads';
@@ -658,6 +662,93 @@ describe('crm.referral_partner.set', () => {
         }),
       ),
     ).toMatchObject({ code: 'not_found', details: { reason: 'account_missing' } });
+  });
+});
+
+describe('crm.referral_partner.create', () => {
+  it('makes a referral-partner customer of one company with no lead, and its code', async () => {
+    const number = phone();
+    const code = `N${RUN.slice(0, 7)}`.toUpperCase();
+    const recorded = memoryAuditSink();
+    const made = (await asPrincipal(execOne, (context) =>
+      runCommand(
+        createReferralPartner,
+        { context, audit: recorded, outbox },
+        {
+          entityId: 1,
+          name: 'Kisan Sewa Kendra',
+          phone: number,
+          businessName: 'Kisan Sewa Kendra Nashik',
+          code: code.toLowerCase(),
+        },
+      ),
+    )) as { accountId: string; name: string; code: string | null; isActive: boolean };
+    partners.push(made.accountId);
+    expect(made).toMatchObject({ name: 'Kisan Sewa Kendra Nashik', code, isActive: true });
+    const [row] = await asMigrator(
+      (m) => m<{ type: string; leads: number; companies: number[]; owner: string; e164: string }[]>`
+        select a.type,
+               (select count(*)::int from opportunities o where o.account_id = a.id) as leads,
+               (select array_agg(ae.entity_id::int) from account_entities ae where ae.account_id = a.id) as companies,
+               (select ae.owner_id::text from account_entities ae where ae.account_id = a.id) as owner,
+               (select cp.e164 from account_contacts ac join contact_phones cp on cp.contact_id = ac.contact_id
+                 where ac.account_id = a.id) as e164
+          from accounts a where a.id = ${made.accountId}`,
+    );
+    expect(row).toMatchObject({
+      type: 'referral_partner',
+      leads: 0,
+      companies: [1],
+      owner: execOne.id,
+    });
+    expect(row?.e164.endsWith(number.slice(-10))).toBe(true);
+    expect(recorded.records.map((r) => r.aggregateType).sort()).toEqual([
+      'account',
+      'referral_partner',
+    ]);
+
+    // The partner is on the settings page's list with its code.
+    const listed = await asPrincipal(execOne, (context) => listCodedReferralPartners(context));
+    expect(listed.map((p) => p.accountId)).toContain(made.accountId);
+
+    // A number that is already a customer's is refused, and nothing is made.
+    expect(
+      await refusal(
+        run(execOne, createReferralPartner, { entityId: 1, name: 'Same number', phone: number }),
+      ),
+    ).toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'referral_partner_phone_known' },
+    });
+  });
+
+  it('makes a partner with no code, which the code dialog gives one later', async () => {
+    const made = (await run(execOne, createReferralPartner, {
+      entityId: 1,
+      name: 'Seva Sahayak',
+      phone: phone(),
+    })) as { accountId: string; name: string; code: string | null; isActive: boolean };
+    partners.push(made.accountId);
+    expect(made).toMatchObject({ name: 'Seva Sahayak', code: null, isActive: false });
+  });
+
+  it('is refused to anyone but an Executive, to an agent, and for a company outside the request', async () => {
+    const input = { entityId: 1, name: 'Refused partner', phone: phone() };
+    for (const refused of [caller, gm]) {
+      expect(await refusal(run(refused, createReferralPartner, input))).toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    expect(
+      await refusal(run(principalFor('agent:triage', [1]), createReferralPartner, input)),
+    ).toMatchObject({ code: 'forbidden' });
+    expect(await refusal(run(execTwo, createReferralPartner, input))).toMatchObject({
+      code: 'forbidden',
+    });
+    const none = await asMigrator(
+      (m) => m`select 1 from contact_phones where e164 like ${'%' + input.phone.slice(-10)}`,
+    );
+    expect(none).toHaveLength(0);
   });
 });
 

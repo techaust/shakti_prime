@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 import { changePassword, type SetPasswordState } from '../../actions/auth';
-import { PASSWORD_MIN_LENGTH } from '../../screens/contract-values';
+import { PASSWORD_MIN_LENGTH } from '../../screens/theme-values';
 import { blockWhilePending, Button, Field, FormError, TextInput, useFormFeedback } from '../form';
 
 export function ChangePasswordForm() {

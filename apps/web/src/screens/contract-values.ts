@@ -12,7 +12,6 @@ import type {
   ConsentChannel,
   ConsentPurpose,
   ConsentSource,
-  ContrastPreference,
   CustomerLanguage,
   CustomerSort,
   DispositionNextAction,
@@ -69,7 +68,6 @@ import type {
   SystemSizeUnit,
   TaskKind,
   TaskState,
-  Theme,
   UploadContentType,
   UserSort,
   UserStatus,
@@ -80,15 +78,9 @@ import type {
 // (BLUEPRINT §11.4). Only types come from the contracts; `contract-values.test.ts` keeps each
 // value equal to the contract's own, in the same order. The server keeps using the contracts.
 
-/** Theme preference (docs/08-design-system.md §7), in the order the profile menu offers it. */
-export const THEMES = ['system', 'light', 'dark'] as const satisfies readonly Theme[];
-
-export function isTheme(value: string): value is Theme {
-  return (THEMES as readonly string[]).includes(value);
-}
-
-/** Contrast preference (docs/08-design-system.md §2.1). */
-export const CONTRASTS = ['standard', 'high'] as const satisfies readonly ContrastPreference[];
+// The theme, contrast and password values live in a module of their own, which the app shell and
+// the profile page load on every staff screen without the rest of this list (BLUEPRINT §11.4).
+export { CONTRASTS, isTheme, PASSWORD_MIN_LENGTH, THEMES } from './theme-values';
 
 /** Lifecycle of a staff user. */
 export const USER_STATUSES = [
@@ -108,9 +100,6 @@ export const SESSION_REVOKE_REASONS = [
   'totp_reset',
   'absolute_expiry',
 ] as const satisfies readonly SessionRevokeReason[];
-
-/** The shortest password the policy accepts (docs/07-security.md §2). */
-export const PASSWORD_MIN_LENGTH = 12;
 
 export const OPPORTUNITY_STATES = [
   'open',
