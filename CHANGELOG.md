@@ -11,6 +11,12 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 wave 6 and the Phase 0–1 audit
 
+- **#189** (18-10-2026) Hardening batch 2:
+  - the journeys' seed delivers its own waiting events, and the in-process publisher stops inside a claim at its budget (`notTried`), so a journey's first command answers in about a second;
+  - a Triage redelivery reuses the kept answer only for the same prompt (one hour);
+  - a Vault page's masking is bounded by its delivery's time left, and a reading claims its file, so Read again never reads it twice;
+  - a browser leaving a page while it loads is logged at info level and not reported;
+  - `snap()` scrolls to the top and keeps the columns' minimum widths; the rescoring test counts only its own leads.
 - **#187** (17-10-2026) G1 Production readiness:
   - production at `https://shaktiprime.com`, deployed only by a release the owner approves (`release.yml`: CI green, staging serving and migrated to the commit, then migrate, tag `release-<n>` and Vercel's deploy hook in the environment `production`);
   - the production build gate (`vercel-ignore.ts`: dev and staging build every push, production only a release's tagged commit; fails closed); `/api/v1/health` names the commit; the migrate workflow's `production` runs the newest release's commit;
@@ -35,6 +41,7 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#188** (17-10-2026) STATUS at the end of the 17-10 PC day: all 23 Phase 1 slices merged, dev and staging through 0158, production's steps waiting on the owner; CHANGELOG lines for #182 to #187.
 - **#185** (17-10-2026) The owner's rule: in the two days before the weekly reset the week's remaining usage is spent on new builds (DECISIONS, models-and-usage §5).
 - **#184** (17-10-2026) SES production access granted on 17-10-2026, read back from AWS; G1's part 1 complete.
 - **#183** (16-10-2026) The production accounts of 15-10-2026 and the owner's decisions (the bare domain, releases the owner approves, 6-hourly copies without point-in-time recovery, Sentry's free plan, the repository public); STATUS with a production column.
