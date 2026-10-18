@@ -184,6 +184,7 @@ const ACTIONS = {
   'crm.opportunity.hand_over': 'leadHandOver',
   'crm.lead.reassign_all': 'leadReassignAll',
   'crm.referral_partner.set': 'referralPartnerSet',
+  'crm.referral_partner.create': 'referralPartnerCreate',
   'crm.commission_rule.set': 'commissionRuleSet',
   'calls.call.log': 'callLog',
   'auth.sign_in': 'signIn',

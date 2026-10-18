@@ -1563,6 +1563,7 @@
       "leadRescore": "Lead scored again",
       "leadScoreRefresh": "Lead scores brought up to date overnight",
       "referralPartnerSet": "Referral code set",
+      "referralPartnerCreate": "Referral partner added",
       "commissionRuleSet": "Commission rule set",
       "fileRendered": "Document printed to a file",
       "fileRetired": "Earlier proof pages removed",
