@@ -231,6 +231,18 @@ export const ADDED_PARTNERS: Record<ProjectName, string> = {
   phone: 'Gram Mitra Sambhar',
 };
 
+/**
+ * The post office the seed puts in the PIN code list for the walk-in form's PIN lookup, under a
+ * PIN no post office uses (9 starts the Army Postal Service's PINs), with made-up names.
+ */
+export const WALK_IN_PIN = {
+  pin: '999002',
+  officeName: 'Dhaneri B.O',
+  locality: 'Dhaneri',
+  tehsil: 'Sotikul',
+  district: 'Balvanti',
+} as const;
+
 /** Where the quote journeys price, make and send their quotes (`e2e/quotes.spec.ts`). */
 export const QUOTE_JOURNEY_COMPANY = { entityId: 2, name: 'Shakti Motor Pumps' } as const;
 

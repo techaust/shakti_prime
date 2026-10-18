@@ -15,6 +15,7 @@ import {
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';
+import { LocalityOptions, PinHint, usePinLookup } from './pin-lookup';
 
 const FIELDS = [
   'entityId',
@@ -52,6 +53,8 @@ export function WalkInForm({
   const [entityId, setEntityId] = useState(companies.length === 1 ? companies[0]?.id : undefined);
   const [pipelineKey, setPipelineKey] = useState('');
   const [villageNeeded, setVillageNeeded] = useState(false);
+  // The PIN code master's answer for the PIN typed, as on the lead form (PRD CRM-02).
+  const { setPin, found } = usePinLookup();
   const nameRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const offered = entityId === undefined ? [] : pipelinesFor(pipelines, entityId);
@@ -101,6 +104,7 @@ export function WalkInForm({
         );
         form.reset();
         setPipelineKey('');
+        setPin('');
         nameRef.current?.focus();
       },
     );
@@ -187,10 +191,29 @@ export function WalkInForm({
             helper={t('placeHelper')}
             error={villageNeeded ? t('villageNeeded') : fieldError('site.village')}
           >
-            <Input name="village" maxLength={120} autoComplete="off" />
+            <Input
+              name="village"
+              maxLength={120}
+              autoComplete="off"
+              list="walk-in-village-offices"
+            />
           </Field>
-          <Field id="walk-in-pin" label={t('pin')} error={fieldError('site.pin')}>
-            <Input name="pin" inputMode="numeric" maxLength={6} autoComplete="postal-code" />
+          <LocalityOptions id="walk-in-village-offices" found={found} />
+          <Field
+            id="walk-in-pin"
+            label={t('pin')}
+            helper={found === undefined ? undefined : <PinHint found={found} />}
+            error={fieldError('site.pin')}
+          >
+            <Input
+              name="pin"
+              inputMode="numeric"
+              maxLength={6}
+              autoComplete="postal-code"
+              onChange={(e) => {
+                setPin(e.currentTarget.value);
+              }}
+            />
           </Field>
         </div>
       ) : null}
