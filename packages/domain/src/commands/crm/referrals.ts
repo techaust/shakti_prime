@@ -14,6 +14,7 @@ import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { commitAccountBatch } from '../../imports/commit-accounts';
 import { assertConfigScope } from './config-scope';
+import { lockNewNumber } from './create-lead';
 import { requireEntity } from './opportunity-shared';
 
 const rp = schema.referralPartners;
@@ -116,8 +117,13 @@ export const createReferralPartner = defineCommand({
   auditFields: ['accountType'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    // The lead form's number lock, taken before the lookup, so a lead or another partner saved
+    // with the same number at the same moment waits for this one and then finds it.
+    await lockNewNumber(ctx.tx, input.phone, input.entityId);
+    // A number left only on an archived contact is free, as `app.lead_phone_status()` reads it.
     const known = (await ctx.tx.execute(sql`
       select 1 from contact_phones cp
+        join contacts c on c.id = cp.contact_id and c.archived_at is null
         join account_contacts ac on ac.contact_id = cp.contact_id
         join accounts a on a.id = ac.account_id and a.archived_at is null
        where cp.e164 = ${input.phone}

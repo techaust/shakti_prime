@@ -732,6 +732,50 @@ describe('crm.referral_partner.create', () => {
     expect(made).toMatchObject({ name: 'Seva Sahayak', code: null, isActive: false });
   });
 
+  it('leaves one customer per number when two partners are saved with it at once', async () => {
+    const number = phone();
+    const outcomes = await Promise.allSettled([
+      run(execOne, createReferralPartner, { entityId: 1, name: 'First at once', phone: number }),
+      run(execOne, createReferralPartner, { entityId: 1, name: 'Second at once', phone: number }),
+    ]);
+    const made = outcomes.flatMap((o) =>
+      o.status === 'fulfilled' ? [(o.value as { accountId: string }).accountId] : [],
+    );
+    partners.push(...made);
+    expect(made).toHaveLength(1);
+    const refused = outcomes.find((o) => o.status === 'rejected');
+    expect(refused?.status === 'rejected' ? refused.reason : undefined).toMatchObject({
+      details: { reason: 'referral_partner_phone_known' },
+    });
+    const customers = await asMigrator(
+      (m) => m`select distinct ac.account_id from contact_phones cp
+                 join account_contacts ac on ac.contact_id = cp.contact_id
+                where cp.e164 like ${'%' + number.slice(-10)}`,
+    );
+    expect(customers).toHaveLength(1);
+  });
+
+  it('takes a number left only on an archived contact', async () => {
+    const number = phone();
+    const first = (await run(execOne, createReferralPartner, {
+      entityId: 1,
+      name: 'Archived contact',
+      phone: number,
+    })) as { accountId: string };
+    partners.push(first.accountId);
+    await asMigrator(
+      (m) => m`update contacts set archived_at = now()
+                where id in (select contact_id from account_contacts where account_id = ${first.accountId})`,
+    );
+    const second = (await run(execOne, createReferralPartner, {
+      entityId: 1,
+      name: 'Live contact',
+      phone: number,
+    })) as { accountId: string };
+    partners.push(second.accountId);
+    expect(second.accountId).not.toBe(first.accountId);
+  });
+
   it('is refused to anyone but an Executive, to an agent, and for a company outside the request', async () => {
     const input = { entityId: 1, name: 'Refused partner', phone: phone() };
     for (const refused of [caller, gm]) {
