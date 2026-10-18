@@ -7,8 +7,8 @@
 | Runs on | PC (owner, 17-10-2026: spend the week's remainder before the reset; the lead runs it while the owner is away) |
 | Tier | B (the handover's state machine, workers, permissions): build Opus 5.5 medium, review Opus 5.5 high |
 | Usage | build Opus medium from week 96 (18-10-2026) |
-| State | built, waiting for review |
-| Next step | the builder reports; the lead reads the diff and starts the review |
+| State | integrating: every check passed; pull request opened (18-10-2026) |
+| Next step | merge on green |
 
 ## Brief
 The Phase 1 follow-ups in [STATUS](../../10-status.md#open-follow-ups) that need no client input: two handover defects, one value with two copies, a page near its size budget, and three small pieces the design or the owner left for after C3 and P2b. No change to tax, price or credit logic. A migration only where an item needs one, as [AGENTS §6](../../../AGENTS.md#6-database-changes) says; a new command as [AGENTS §5](../../../AGENTS.md#5-domain-commands) says (the `add-command` and `add-table` skills).
@@ -145,3 +145,4 @@ The walk-in PIN lookup is wired as the lead form's, and the PIN is cleared after
 **Not checked:** the reviewer ran no suite (the slot's database is stopped) and relied on the builder's runs. The Linux baselines are not yet remade, so no screenshot was seen. The JavaScript budget (189.5 kB, not the brief's 186, left to the lead) and the EXPLAIN were not reproduced.
 
 ## Integration notes
+- 18-10-2026, the lead: `main` (#190) merged in, the migration stays 0159; `integrate.sh` passed every step (security db 1,272, domain 1,041, web 333; walk-in, imports, notifications and profile journeys 66 passed, 2 skipped). `pipelines.spec.ts` was left out of the local run: with two workers its three projects share one database and the stage test's `nth(3)` collides (the fix round's report); CI runs each project as its own job on its own database. Baselines remade in the Linux image on a fresh database with one worker: `settings-pipelines`, `imports-job` and `imports-identity-left-out` in all three projects; verified without updating (pipelines, imports, walk-in: 65 passed).
