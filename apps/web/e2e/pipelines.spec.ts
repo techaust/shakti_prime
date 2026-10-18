@@ -98,7 +98,7 @@ test.describe('Settings › Pipelines as an Executive', () => {
     await expectNoAxeViolations(page);
 
     // The seeded partner's number belongs to a customer already: the form says so under the box.
-    await dialog.getByLabel('Name').fill(name);
+    await dialog.getByLabel('Name', { exact: true }).fill(name);
     await dialog.getByLabel('Mobile number').fill(REFERRAL_PARTNER.phone);
     await dialog.getByRole('button', { name: 'Add partner' }).click();
     const phoneBox = dialog.getByLabel('Mobile number');
