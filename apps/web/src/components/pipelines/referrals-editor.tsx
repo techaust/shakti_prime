@@ -73,8 +73,13 @@ export function ReferralsEditor({
       <AddPartner
         companies={companies}
         onAdded={(added) => {
-          // The list is read a page at a time by name: a new partner joins it in its place.
-          setPartners((all) => [...all, added].sort(byName));
+          // The list is read a page at a time by name: a new partner joins it in its place when
+          // that place is among the rows loaded; one that sorts later comes with its page.
+          setPartners((all) => {
+            const last = all.at(-1);
+            if (cursor !== null && last !== undefined && byName(added, last) > 0) return all;
+            return [...all, added].sort(byName);
+          });
           if (added.code !== null) setCoded((all) => [...all, added].sort(byName));
         }}
       />
@@ -95,7 +100,11 @@ export function ReferralsEditor({
                 more.load(
                   () => listReferralPartners({ cursor }),
                   (page) => {
-                    setPartners((all) => [...all, ...page.partners]);
+                    // A partner already shown (added here) is not shown twice.
+                    setPartners((all) => {
+                      const shown = new Set(all.map((p) => p.accountId));
+                      return [...all, ...page.partners.filter((p) => !shown.has(p.accountId))];
+                    });
                     setCursor(page.nextCursor);
                   },
                 );
