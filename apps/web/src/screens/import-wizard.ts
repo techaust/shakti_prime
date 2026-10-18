@@ -165,7 +165,7 @@ const HEADINGS: Record<ImportField, readonly string[]> = {
   pin: ['pin', 'pincode', 'postalcode'],
   sourceCode: ['source', 'leadsource'],
   pipelineKey: ['pipeline', 'lineofbusiness'],
-  referralCode: ['referralcode', 'referral', 'partnercode', 'refcode', 'referredby'],
+  referralCode: ['referralcode', 'partnercode', 'refcode'],
   company: ['company', 'companycode', 'ourcompany', 'sellingcompany', 'brand'],
   officeName: ['officename', 'office', 'postoffice', 'poname'],
   taluk: ['taluk', 'taluka', 'tehsil', 'tahsil', 'subdistrict'],
