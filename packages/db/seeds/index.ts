@@ -2,7 +2,7 @@
 // any Admin edit (AUDIT M21): it writes only code-owned columns (keys, codes, kinds, segments,
 // channels, permission descriptions), adds missing rows, restores the grants of system roles no
 // Executive has customised, and gives a customised role only the permissions created since.
-import { ROLE_KEYS, type RoleKey } from '@shakti/contracts';
+import { ROLE_KEYS, WORKSHOP_LOCK_HOURS, type RoleKey } from '@shakti/contracts';
 import { and, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
@@ -123,13 +123,18 @@ export async function runSeeds(): Promise<void> {
           set: { displayName: sql`excluded.display_name`, kind: 'system' },
         });
 
-      // Names are edited in Admin; the seed owns keys, segments, kinds, codes and channels.
+      // Names and lock hours are edited in Admin; the seed owns keys, segments, kinds, codes and
+      // channels, and writes the workshop lock hours only into a pipeline that has none.
       await tx
         .insert(pipelines)
-        .values(PIPELINE_SEED.map((p) => ({ ...p })))
+        .values(PIPELINE_SEED.map((p) => ({ ...p, lockHours: WORKSHOP_LOCK_HOURS })))
         .onConflictDoUpdate({
           target: pipelines.id,
-          set: { key: sql`excluded.key`, segment: sql`excluded.segment` },
+          set: {
+            key: sql`excluded.key`,
+            segment: sql`excluded.segment`,
+            lockHours: sql`coalesce(${pipelines.lockHours}, excluded.lock_hours)`,
+          },
         });
 
       // Stage order is edited in Admin too: an existing stage keeps its name and position, and a

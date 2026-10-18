@@ -20,6 +20,7 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, desc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { toStageDto } from '../../commands/crm/pipeline-settings';
+import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 
 type ReadContext = Pick<RequestContext, 'tx'>;
 
@@ -59,7 +60,7 @@ export async function listPipelineSettings(ctx: ReadContext): Promise<PipelineSe
         key: row.key,
         name: row.name,
         segment: row.segment,
-        lockHours: row.lockHours,
+        lockHours: row.lockHours ?? WORKSHOP_DEFAULTS.opportunity.handoverLockHours,
         firstContactSlaMinutes: row.firstContactSlaMinutes,
         updatedAt: row.updatedAt.toISOString(),
       },

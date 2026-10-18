@@ -11,7 +11,11 @@ import { defineCommand } from '../../command/define-command';
 import type { CommandContext } from '../../command/context';
 import { pickConverter, qualifiesAsConverter, type ConverterCandidate } from '../../crm/handover';
 import { transition } from '../../state-machines/define-machine';
-import { opportunityMachine } from '../../state-machines/machines/opportunity';
+import {
+  OPPORTUNITY_STATES,
+  opportunityMachine,
+  type OpportunityMachineState,
+} from '../../state-machines/machines/opportunity';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { requireEntity } from './opportunity-shared';
 
@@ -56,6 +60,38 @@ export function toCandidates(rows: readonly CandidateRow[]): ConverterCandidate[
     segments: r.segments.map((s) => SegmentSchema.parse(s)),
     openLeads: r.open_leads,
   }));
+}
+
+/**
+ * Whether the opportunity machine lets the handover fire `assign` on a lead in `state`, the lead's
+ * real state read through `app.handover_lead_facts()` under the request. The handover is the
+ * platform (`system:workers`), so the lock guard passes it always and the state is the one fact the
+ * machine weighs: a state with no `assign` (won, lost), or one the machine does not know, is refused.
+ */
+export function handoverMachineAllows(state: string, now: Date): boolean {
+  if (!(OPPORTUNITY_STATES as readonly string[]).includes(state)) return false;
+  try {
+    transition(
+      opportunityMachine,
+      {
+        state: state as OpportunityMachineState,
+        pipelineId: '',
+        exitRequiredFields: [],
+        fields: {},
+        lockedUntil: null,
+        stateChangedAt: null,
+        hasAcceptedQuoteOrConfirmedOrder: false,
+      },
+      'assign',
+      { actor: { kind: 'system', job: 'handover' }, now, params: {} },
+    );
+    return true;
+  } catch (e) {
+    if (e instanceof DomainError && e.details?.reason === opportunityMachine.illegalReason) {
+      return false;
+    }
+    throw e;
+  }
 }
 
 /**
@@ -124,7 +160,10 @@ export const handOverLead = defineCommand({
         reason: 'lead_missing',
       });
     }
-    if (facts.state !== 'open') {
+    // The machine first, on the lead as it stands: a lead it may not assign (won, lost) is left.
+    // A nurtured lead the machine lets a person reassign, but the handover is for a lead that
+    // reached Qualified, which is open; `app.handover_assign()` checks both again under the lock.
+    if (!handoverMachineAllows(facts.state, ctx.now) || facts.state !== 'open') {
       return { outcome: 'not_open' as const, ownerId: facts.owner_id, cursor: input.cursor };
     }
 
@@ -149,22 +188,6 @@ export const handOverLead = defineCommand({
       }
       ownerId = teamLead.user_id;
     }
-
-    // The machine's `assign`, fired as the platform: a lock keeps a lead only with a Lead Converter (the definer answers `kept`).
-    transition(
-      opportunityMachine,
-      {
-        state: 'open',
-        pipelineId: '',
-        exitRequiredFields: [],
-        fields: {},
-        lockedUntil: null,
-        stateChangedAt: null,
-        hasAcceptedQuoteOrConfirmedOrder: false,
-      },
-      'assign',
-      { actor: { kind: 'system', job: 'handover' }, now: ctx.now, params: {} },
-    );
 
     const [assigned] = (await ctx.tx.execute(
       sql`select status, previous_owner, previous_team, team_id, locked_until, lock_hours, moved

@@ -1,3 +1,4 @@
+import { WORKSHOP_LOCK_HOURS } from '@shakti/contracts';
 import { afterAll, describe, expect, it } from 'vitest';
 import { LEAD_SOURCE_SEED } from '../../seeds/lead-sources';
 import { PIPELINE_SEED, STAGE_SEED } from '../../seeds/pipelines';
@@ -86,6 +87,35 @@ describe('re-running the seed keeps what Executives changed (AUDIT M21)', () => 
       });
       await runSeeds();
       expect(await grantsOf(gm)).toEqual(before.gm);
+    }
+  });
+
+  it('writes the workshop lock hours only into a pipeline that has none, never over an edit', async () => {
+    const other = PIPELINE_SEED[1]?.id ?? '';
+    try {
+      await asMigrator(async (m) => {
+        await m`update pipelines set lock_hours = null where id = ${pipeline}`;
+        await m`update pipelines set lock_hours = 72 where id = ${other}`;
+      });
+      await runSeeds();
+      const rows = await asMigrator(
+        (m) => m<{ id: string; lock_hours: number | null }[]>`
+          select id::text, lock_hours from pipelines where id in (${pipeline}, ${other})`,
+      );
+      const hours = Object.fromEntries(rows.map((r) => [r.id, r.lock_hours]));
+      expect(hours[pipeline]).toBe(WORKSHOP_LOCK_HOURS);
+      expect(hours[other]).toBe(72);
+      // The column has no default of its own: the workshop value is the one copy.
+      const [column] = await asMigrator(
+        (m) => m<{ column_default: string | null }[]>`
+          select column_default from information_schema.columns
+           where table_schema = 'public' and table_name = 'pipelines' and column_name = 'lock_hours'`,
+      );
+      expect(column?.column_default).toBeNull();
+    } finally {
+      await asMigrator(
+        (m) => m`update pipelines set lock_hours = ${WORKSHOP_LOCK_HOURS} where id = ${other}`,
+      );
     }
   });
 });
