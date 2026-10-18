@@ -84,6 +84,28 @@ Skills loaded: `add-command`, `add-table`. All eight items built; one migration,
 
 **Unfinished:** `/settings/profile` is at 189.5 kB, not 186. Getting there needs the menu icons (3.5 kB) out of the shell's script, for example drawn by the server layout and passed to `AppShell` as nodes. That is a shell change across every page, left for the lead to decide.
 
+### 18-10-2026, PC (slot 2, Postgres 54332), Opus 5.5 medium: the review's fix round
+
+**Fixes, one commit each (the Review table names them)**
+- #1 and #5 (`781be50e`): `createReferralPartner` takes `lockNewNumber()` before the `known` select, and the select joins `contacts` with `archived_at is null`. Two tests in `packages/domain/tests/commands/crm-scoring-referrals.test.ts`: two partners saved with one number at once leave one customer, the other refused with `referral_partner_phone_known`; a number left only on an archived contact is taken. With the lock line taken out, the race test fails (checked once, then the line put back).
+- #4 (`c875da31`): `handoverMachineAllows()` and its unit test file `hand-over-lead.test.ts` (3 tests) are removed, since nothing else used them. The early `state !== 'open'` return in `hand-over-lead.ts` stays, with a comment naming `app.handover_assign()` as the one source of the state rule.
+- #6 (`0e82a9ae`): only `referralcode`, `partnercode` and `refcode` map to Referral code. A unit test in `import-wizard.test.ts` checks the three headings, and that Referred by and Referral are left unmatched.
+- #3 (`5fab98b7`): in `referrals-editor.tsx` a new partner joins the loaded rows only when the list is complete or the partner sorts before the last loaded row. An appended page also drops the ids already shown.
+- #2 (`fbdd913e`): before the `settings-pipelines` snapshot, `pipelines.spec.ts` removes the rows of every project's added partner (`ADDED_PARTNERS`) from the page. A mask would keep the rows' height, so the full-page picture would still change size. The other option, a project dependency, needs a Playwright config change, which needs the `checks-ok` label.
+
+**Checks (all through `heavy.sh`)**
+- `pnpm --filter @shakti/domain typecheck` and `pnpm --filter web typecheck`: clean.
+- eslint `--max-warnings 0`, one folder at a time, clean: `apps/web/src/components/pipelines`, `apps/web/e2e`, `apps/web/src/screens`, `packages/domain/src/commands/crm`, `packages/domain/tests/commands`. I did not run the whole-repository `pnpm lint`, to save the week's usage.
+- Unit tests: `import-wizard.test.ts` passed 25 of 25, three runs in a row. The domain unit tests under `src/commands` passed 7 of 7.
+- Security files: `crm-scoring-referrals`, `handover`, `imports` and `agent-refusals` passed 134 of 134 (4 files).
+- `pnpm build`, then `pipelines.spec.ts` with `e2e:seed` before each run:
+  - With the config's 2 workers, two runs each gave 26 passed, 2 failed, 2 flaky and 2 not run. The failure is the stage journey ("adds a stage, moves it up and archives it", desktop-dark and phone). It runs beside desktop-light's on the one local database, and the other project's new stage shifts `nth(3)`. Serial mode then retries the whole describe, so the add-partner test meets its own first partner (strict mode, 2 rows), which makes the 2 flaky. Neither the slice nor this round changes the stage test. Its comment says "CI gives each project its own database", but the config runs 2 workers on one database, so the lead should check whether CI can hit the same collision.
+  - With `--workers 1`: 32 passed, then 32 passed.
+
+**Baselines for the lead to remake in the Linux image** (not remade on the host): `settings-pipelines` in desktop-light, desktop-dark and phone (from the slice, now with the added partners left out), plus the slice's `imports-job` and `imports-identity-left-out`. This round changes no other picture.
+
+**Decisions the brief did not settle:** for #2, removing the added rows rather than a mask or a project dependency, for the reasons above; for #3, both guards together (insert only in place, and no duplicate when a page is appended), since `localeCompare` and the database's collation can order two names differently.
+
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
