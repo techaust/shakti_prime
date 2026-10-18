@@ -107,6 +107,7 @@ export function PipelineSettingsScreen({
           <p className="text-text-muted">{t('referralsIntro')}</p>
         </div>
         <ReferralsEditor
+          companies={companies}
           initialPartners={partners.partners}
           initialCursor={partners.nextCursor}
           initialCoded={codedPartners}

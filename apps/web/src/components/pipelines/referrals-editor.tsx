@@ -26,6 +26,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
 import {
+  createReferralPartner,
   listCommissionRules,
   listReferralPartners,
   setCommissionRule,
@@ -36,19 +37,24 @@ import { formatDate, formatRupees } from '../../screens/format';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
+import type { CompanyChoice } from './pipeline-settings-screen';
 
 /**
- * Referral partners and their commission (CRM-09, workshop CRM-5): each referral-partner customer
- * with its code, given or changed in a dialog (`crm.referral_partner.set`), a page of partners at
- * a time; then the commission rules, with a form that adds one from a date
+ * Referral partners and their commission (CRM-09, workshop CRM-5): a partner added with no lead
+ * (`crm.referral_partner.create`, the owner's decision of 05-10-2026), each referral-partner
+ * customer with its code, given or changed in a dialog (`crm.referral_partner.set`), a page of
+ * partners at a time; then the commission rules, with a form that adds one from a date
  * (`crm.commission_rule.set`).
  */
 export function ReferralsEditor({
+  companies,
   initialPartners,
   initialCursor,
   initialCoded,
   initialRules,
 }: {
+  /** The companies of the request; a partner is added to one of them. */
+  companies: CompanyChoice[];
   initialPartners: ReferralPartnerRowDto[];
   initialCursor: ReferralPartnerCursor | null;
   /** Every partner with a code, whatever page of the list is shown: the commission form's choice. */
@@ -64,6 +70,19 @@ export function ReferralsEditor({
   }>();
   return (
     <div className="flex flex-col gap-6">
+      <AddPartner
+        companies={companies}
+        onAdded={(added) => {
+          // The list is read a page at a time by name: a new partner joins it in its place when
+          // that place is among the rows loaded; one that sorts later comes with its page.
+          setPartners((all) => {
+            const last = all.at(-1);
+            if (cursor !== null && last !== undefined && byName(added, last) > 0) return all;
+            return [...all, added].sort(byName);
+          });
+          if (added.code !== null) setCoded((all) => [...all, added].sort(byName));
+        }}
+      />
       <PartnerList
         partners={partners}
         loadingMore={more.pending}
@@ -71,9 +90,7 @@ export function ReferralsEditor({
           setPartners((all) => all.map((p) => (p.accountId === saved.accountId ? saved : p)));
           // A partner given its first code joins the commission form's choice, in name order.
           setCoded((all) =>
-            [...all.filter((p) => p.accountId !== saved.accountId), saved].sort(
-              (a, b) => a.name.localeCompare(b.name) || a.accountId.localeCompare(b.accountId),
-            ),
+            [...all.filter((p) => p.accountId !== saved.accountId), saved].sort(byName),
           );
         }}
         onMore={
@@ -83,7 +100,11 @@ export function ReferralsEditor({
                 more.load(
                   () => listReferralPartners({ cursor }),
                   (page) => {
-                    setPartners((all) => [...all, ...page.partners]);
+                    // A partner already shown (added here) is not shown twice.
+                    setPartners((all) => {
+                      const shown = new Set(all.map((p) => p.accountId));
+                      return [...all, ...page.partners.filter((p) => !shown.has(p.accountId))];
+                    });
                     setCursor(page.nextCursor);
                   },
                 );
@@ -93,6 +114,150 @@ export function ReferralsEditor({
       <FailureMessage failure={more.failure} />
       <CommissionRules coded={coded} initial={initialRules} />
     </div>
+  );
+}
+
+/** The partners' order on the page: by name, as the list is read. */
+function byName(a: ReferralPartnerRowDto, b: ReferralPartnerRowDto): number {
+  return a.name.localeCompare(b.name) || a.accountId.localeCompare(b.accountId);
+}
+
+const PARTNER_FIELDS = ['entityId', 'name', 'phone', 'businessName', 'code'] as const;
+
+/** The Add partner button and its dialog: a referral partner made as a customer with no lead. */
+function AddPartner({
+  companies,
+  onAdded,
+}: {
+  companies: CompanyChoice[];
+  onAdded: (partner: ReferralPartnerRowDto) => void;
+}) {
+  const t = useTranslations('pipelineSettings');
+  const common = useTranslations('common');
+  const [open, setOpen] = useState(false);
+  const buttons = useFocusTargets<string>();
+  const { run, pending, failure } = useCommand(createReferralPartner, 'add-partner');
+  const { fieldError, formFailure } = useFieldFailure(failure, PARTNER_FIELDS);
+  const only = companies.length === 1 ? companies[0] : undefined;
+
+  function submit(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const data = new FormData(e.currentTarget);
+    const businessName = formText(data, 'businessName');
+    const code = formText(data, 'code');
+    run(
+      {
+        entityId: Number(only?.id ?? formText(data, 'entityId')),
+        name: formText(data, 'name'),
+        phone: formText(data, 'phone'),
+        ...(businessName === '' ? {} : { businessName }),
+        ...(code === '' ? {} : { code }),
+      },
+      (added) => {
+        onAdded(added);
+        setOpen(false);
+        toast.success(t('partnerAdded', { name: added.name }));
+      },
+    );
+  }
+
+  return (
+    <>
+      <div>
+        <Button
+          ref={buttons.ref('add')}
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          {t('addPartner')}
+        </Button>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent closeLabel={common('close')} returnFocusTo={() => [buttons.get('add')]}>
+          <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+            <DialogHeader>
+              <DialogTitle>{t('partnerDialogTitle')}</DialogTitle>
+              <DialogDescription>{t('partnerDialogIntro')}</DialogDescription>
+            </DialogHeader>
+            {only === undefined ? (
+              <Field
+                id="partner-company"
+                label={t('partnerCompany')}
+                error={fieldError('entityId')}
+              >
+                <Select name="entityId" defaultValue={String(companies[0]?.id ?? '')}>
+                  {companies.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : null}
+            <Field
+              id="partner-name"
+              label={t('partnerName')}
+              helper={t('partnerNameHelper')}
+              error={fieldError('name')}
+            >
+              <Input name="name" required minLength={2} maxLength={120} autoComplete="off" />
+            </Field>
+            <Field id="partner-phone" label={t('partnerPhone')} error={fieldError('phone')}>
+              <Input
+                name="phone"
+                type="tel"
+                inputMode="tel"
+                required
+                maxLength={20}
+                autoComplete="off"
+              />
+            </Field>
+            <Field
+              id="partner-business"
+              label={t('partnerBusiness')}
+              helper={t('partnerBusinessHelper')}
+              error={fieldError('businessName')}
+            >
+              <Input name="businessName" maxLength={120} autoComplete="off" />
+            </Field>
+            <Field
+              id="partner-code"
+              label={t('partnerCode')}
+              helper={t('partnerCodeHelper')}
+              error={fieldError('code')}
+            >
+              <Input
+                name="code"
+                minLength={4}
+                maxLength={12}
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+              />
+            </Field>
+            <FailureMessage failure={formFailure} />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                {common('cancel')}
+              </Button>
+              <Button type="submit" pending={pending}>
+                {t('savePartner')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

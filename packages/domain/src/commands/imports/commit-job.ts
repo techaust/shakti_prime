@@ -6,6 +6,7 @@ import {
   ImportJobDto,
   type ImplementedImportKind,
   type ImportCreatedType,
+  type ImportRowErrorDto,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
@@ -45,6 +46,22 @@ function isHeldByColleague(error: unknown): boolean {
     error.code === 'conflict' &&
     error.details?.reason === 'customer_held_by_colleague'
   );
+}
+
+/** The finding a row set aside for a held customer carries, in the job's reconciliation. */
+const HELD_BY_COLLEAGUE: ImportRowErrorDto = { field: 'phone', code: 'customer_held_by_colleague' };
+
+/**
+ * The refusals of one row that set the row aside with a reason of its own, the rest of the batch
+ * going on: a customer a colleague looks after, and a referral code no active partner of the
+ * company has (a code stopped, or its partner archived, since the preview checked it).
+ */
+function rowRefusal(error: unknown): ImportRowErrorDto | undefined {
+  if (isHeldByColleague(error)) return HELD_BY_COLLEAGUE;
+  if (error instanceof DomainError && error.details?.reason === 'referral_code_unknown') {
+    return { field: 'referralCode', code: 'referral_code_unknown' };
+  }
+  return undefined;
 }
 
 export { IMPORT_BATCH_BUDGET_MS, ROW_BY_ROW_SLICE_MS, SET_BASED_MIN_MS };
@@ -301,18 +318,29 @@ export const commitImportBatch = defineCommand({
          where r.job_id = ${job.id} and r.row_no = x."rowNo"`);
     };
 
-    const refuseRows = (sp: RequestTx, rowNos: readonly number[]) =>
-      sp
-        .update(r)
-        .set({
-          state: 'invalid',
-          errorsJson: [{ field: 'phone', code: 'customer_held_by_colleague' }],
-          updatedBy: actor,
-        })
-        .where(and(eq(r.jobId, job.id), inArray(r.rowNo, [...rowNos])));
+    const refuseRows = async (
+      sp: RequestTx,
+      rowNos: readonly number[],
+      finding: (rowNo: number) => ImportRowErrorDto = () => HELD_BY_COLLEAGUE,
+    ) => {
+      const byFinding = new Map<string, { error: ImportRowErrorDto; rowNos: number[] }>();
+      for (const rowNo of rowNos) {
+        const error = finding(rowNo);
+        const key = `${error.field}:${error.code}`;
+        const group = byFinding.get(key) ?? { error, rowNos: [] };
+        group.rowNos.push(rowNo);
+        byFinding.set(key, group);
+      }
+      for (const { error, rowNos: these } of byFinding.values()) {
+        await sp
+          .update(r)
+          .set({ state: 'invalid', errorsJson: [error], updatedBy: actor })
+          .where(and(eq(r.jobId, job.id), inArray(r.rowNo, these)));
+      }
+    };
 
     let failedRow: number | undefined;
-    // The rows refused for a customer a colleague looks after.
+    // The rows refused for a customer a colleague looks after, or a referral code no partner has.
     let refused: number[] = [];
     // The rows this batch went through: all of them, unless the time ran out row by row.
     let done = rows;
@@ -380,6 +408,7 @@ export const commitImportBatch = defineCommand({
           const created: Made[] = [];
           const went: number[] = [];
           const heldRows: number[] = [];
+          const findings = new Map<number, ImportRowErrorDto>();
           // At least one row, even after a set-based try that used the time up.
           for (const [index, row] of rows.entries()) {
             const now = settings.now();
@@ -397,7 +426,9 @@ export const commitImportBatch = defineCommand({
             try {
               outcome = await sp.transaction((rowSp) => commit.oneRow(ctx, rowSp, job.id, row));
             } catch (error) {
-              if (!isHeldByColleague(error)) throw error;
+              const finding = rowRefusal(error);
+              if (finding === undefined) throw error;
+              findings.set(row.rowNo, finding);
               outcome = 'refused';
             }
             if (outcome === 'refused') {
@@ -411,7 +442,9 @@ export const commitImportBatch = defineCommand({
           }
           failedRow = undefined;
           await markCommitted(sp, went, created);
-          if (heldRows.length > 0) await refuseRows(sp, heldRows);
+          if (heldRows.length > 0) {
+            await refuseRows(sp, heldRows, (rowNo) => findings.get(rowNo) ?? HELD_BY_COLLEAGUE);
+          }
           refused = heldRows;
         });
       }

@@ -55,6 +55,14 @@ export const DispositionCodeSchema = z
   .regex(/^[a-z][a-z0-9_]{1,39}$/);
 
 /**
+ * How long an assignment locks a lead to its new owner until the sales head answers CALL-4: the
+ * workshop default (`WORKSHOP_DEFAULTS.opportunity.handoverLockHours`, design §11 q2). The seed
+ * writes it into a pipeline that has no lock hours of its own, and Executives change a pipeline's on
+ * the pipelines settings page; the seed never overwrites theirs.
+ */
+export const WORKSHOP_LOCK_HOURS = 48;
+
+/**
  * The group's call outcomes until the sales head answers CALL-1: the workshop pack's example list,
  * each with the queue's next step. A workshop default (`WORKSHOP_DEFAULTS.crm.dispositions`,
  * docs/03-roadmap-appendix/phase1.md §11); the seed writes it once, and Executives change it on the pipelines

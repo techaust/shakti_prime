@@ -1,5 +1,6 @@
 import {
   WORKSHOP_DISPOSITIONS,
+  WORKSHOP_LOCK_HOURS,
   type AccountType,
   type DispositionNextAction,
   type DocType,
@@ -133,7 +134,7 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   },
   opportunity: {
     /** Design §11 q2: how long an assignment locks the owner (per pipeline later). */
-    handoverLockHours: 48,
+    handoverLockHours: WORKSHOP_LOCK_HOURS,
     /** Design §7.2: a lost opportunity may be reopened within this many days. */
     reopenWindowDays: 30,
   },

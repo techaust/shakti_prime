@@ -1,5 +1,5 @@
 import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
-import { REFERRAL_PARTNER } from './support/users';
+import { REFERRAL_PARTNER, WALK_IN_PIN } from './support/users';
 
 /** A mobile number no earlier run used, typed the way the counter types it. */
 function freshMobile(): string {
@@ -44,6 +44,29 @@ test.describe('the walk-in form as a Store Manager', () => {
     ).toBeVisible();
     await expect(nameBox).toHaveValue('');
     await expect(nameBox).toBeFocused();
+  });
+
+  test('looks the PIN up as the lead form does: its tehsil and district, and its post offices', async ({
+    page,
+  }) => {
+    await page.goto('/leads/walk-in');
+    await page.getByLabel('Interested in').selectOption({ label: 'Farmer Pumps' });
+    const pin = page.getByLabel('PIN code');
+    await pin.fill(WALK_IN_PIN.pin);
+    await expect(
+      page.getByText(`Tehsil ${WALK_IN_PIN.tehsil}, district ${WALK_IN_PIN.district}.`),
+    ).toBeVisible();
+    // Its post offices are offered for the village, by the place each names.
+    await expect(
+      page.locator(`#walk-in-village-offices option[value="${WALK_IN_PIN.locality}"]`),
+    ).toHaveCount(1);
+    await expectNoAxeViolations(page);
+    await pin.fill('999999');
+    await expect(
+      page.getByText(
+        'This PIN is not in the PIN code list. The site is saved and marked for someone to check.',
+      ),
+    ).toBeVisible();
   });
 
   test('saves a dealer enquiry without asking for a village', async ({ page }) => {

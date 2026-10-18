@@ -79,6 +79,13 @@ describe('the matching form', () => {
     expect(guessColumns(['Name', 'Name 2'])).toEqual({ contactName: 'Name' });
   });
 
+  it('matches only a code-like heading to the referral code, never a column of names', () => {
+    for (const heading of ['Referral code', 'Partner code', 'Ref code']) {
+      expect(guessColumns([heading])).toEqual({ referralCode: heading });
+    }
+    expect(guessColumns(['Referred by', 'Referral'])).toEqual({});
+  });
+
   it('starts from the job’s saved matching when it has one', () => {
     const mapping = {
       columns: { contactName: 'A', phone: 'B' },

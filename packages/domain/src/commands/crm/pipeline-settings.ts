@@ -19,6 +19,7 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { assertConfigScope } from './config-scope';
 
 /**
@@ -132,7 +133,7 @@ function toPipelineDto(row: PipelineRow): PipelineSettingsDto {
     key: row.key,
     name: row.name,
     segment: row.segment,
-    lockHours: row.lockHours,
+    lockHours: row.lockHours ?? WORKSHOP_DEFAULTS.opportunity.handoverLockHours,
     firstContactSlaMinutes: row.firstContactSlaMinutes,
     updatedAt: row.updatedAt.toISOString(),
   });

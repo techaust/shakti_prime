@@ -19,6 +19,7 @@ import { mapImportJob } from '../../src/commands/imports/map-job';
 import { previewImportJob } from '../../src/commands/imports/preview-job';
 import { rollbackImportJob } from '../../src/commands/imports/rollback-job';
 import { createLead } from '../../src/commands/crm/create-lead';
+import { createReferralPartner, setReferralPartner } from '../../src/commands/crm/referrals';
 import { parseImportFile } from '../../src/imports/parse';
 import { importRowKey } from '../../src/imports/row-key';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
@@ -411,6 +412,81 @@ describe('imports: create, map and preview', () => {
     const rows = await rowsOf(gm, created.id);
     expect(rows.map((r) => r.state)).toEqual(['committed', 'invalid']);
     expect(rows[1]?.errors).toEqual([{ field: 'accountType', code: 'dealer_needs_executive' }]);
+  });
+
+  it('credits a row to the partner its referral code names, and refuses a code no partner has (CRM-09)', async () => {
+    const code = `IM${newId()
+      .slice(-6)
+      .replace(/[^0-9a-f]/g, '0')}`.toUpperCase();
+    const partner = await run(executive, createReferralPartner, {
+      entityId: 1,
+      name: 'Import partner',
+      phone: phone(),
+      code,
+    });
+    const coded = {
+      columns: { contactName: 'Name', phone: 'Mobile', village: 'Village', referralCode: 'Code' },
+      defaults: { pipelineKey: 'farmer_pumps', accountType: 'farm', siteType: 'borewell' },
+    };
+    const job = async (rows: string[]) => {
+      const created = await run(
+        gm,
+        createImportJob,
+        await fileInput(1, `Name,Mobile,Village,Code\n${rows.join('\n')}\n`, gm),
+      );
+      await run(gm, mapImportJob, { entityId: 1, jobId: created.id, mapping: coded });
+      await run(gm, previewImportJob, { entityId: 1, jobId: created.id });
+      return created.id;
+    };
+    const partnerOf = async (jobId: string) =>
+      asMigrator(
+        (m) => m<{ row_no: number; partner: string | null }[]>`
+          select r.row_no, o.referral_partner_id::text as partner
+            from import_rows r join opportunities o on o.id = r.created_id
+           where r.job_id = ${jobId} order by r.row_no`,
+      );
+
+    // The preview: a partner's code in small letters, a code no partner has, and none.
+    const first = await job([
+      `Coded row,${phone()},Sikar,${code.toLowerCase()}`,
+      `Unknown code row,${phone()},Sikar,NOPE9999`,
+      `Plain row,${phone()},Sikar,`,
+    ]);
+    expect((await rowsOf(gm, first)).map((r) => [r.state, r.errors])).toEqual([
+      ['valid', []],
+      ['invalid', [{ field: 'referralCode', code: 'referral_code_unknown' }]],
+      ['valid', []],
+    ]);
+    await run(gm, commitImportJob, { entityId: 1, jobId: first });
+    const done = await run(gm, commitImportBatch, { entityId: 1, jobId: first });
+    expect(done).toMatchObject({ state: 'committed', committedRows: 2, invalidRows: 1 });
+    expect(await partnerOf(first)).toEqual([
+      { row_no: 1, partner: partner.accountId },
+      { row_no: 3, partner: null },
+    ]);
+
+    // A code stopped after the preview: its row is set aside with its own reason at the commit,
+    // and the rest of the batch goes in.
+    const second = await job([
+      `Late code row,${phone()},Sikar,${code}`,
+      `Next row,${phone()},Sikar,`,
+    ]);
+    await run(executive, setReferralPartner, {
+      accountId: partner.accountId,
+      code,
+      isActive: false,
+    });
+    await run(gm, commitImportJob, { entityId: 1, jobId: second });
+    const after = await run(gm, commitImportBatch, { entityId: 1, jobId: second });
+    expect(after).toMatchObject({
+      state: 'committed',
+      committedRows: 1,
+      validRows: 1,
+      invalidRows: 1,
+    });
+    const rows = await rowsOf(gm, second);
+    expect(rows.map((r) => r.state)).toEqual(['invalid', 'committed']);
+    expect(rows[0]?.errors).toEqual([{ field: 'referralCode', code: 'referral_code_unknown' }]);
   });
 
   it('suggests a customer with the same name in the same village, and says why', async () => {

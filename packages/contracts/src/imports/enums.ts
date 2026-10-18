@@ -151,6 +151,8 @@ export const LeadImportFieldSchema = z.enum([
   'pin',
   'sourceCode',
   'pipelineKey',
+  // The lead's referral partner, by the partner's code (CRM-09).
+  'referralCode',
 ]);
 export type LeadImportField = z.infer<typeof LeadImportFieldSchema>;
 
@@ -213,5 +215,7 @@ export const ImportRowErrorCodeSchema = z.enum([
   'state_unknown',
   // Only a holder of sales.credit.write adds a dealer (DOM-1, the owner's decision of 13-10-2026).
   'dealer_needs_executive',
+  // A referral code no active partner of the company has (CRM-09).
+  'referral_code_unknown',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

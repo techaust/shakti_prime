@@ -10,8 +10,6 @@ import { sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import type { CommandContext } from '../../command/context';
 import { pickConverter, qualifiesAsConverter, type ConverterCandidate } from '../../crm/handover';
-import { transition } from '../../state-machines/define-machine';
-import { opportunityMachine } from '../../state-machines/machines/opportunity';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { requireEntity } from './opportunity-shared';
 
@@ -124,6 +122,10 @@ export const handOverLead = defineCommand({
         reason: 'lead_missing',
       });
     }
+    // `app.handover_assign()` is the one source of the handover's state rule: it hands over only an
+    // open lead, under the lead's lock, and answers `not_open` otherwise. This early return only
+    // spares the converter's pick for a lead the facts already show is not open; the opportunity
+    // machine's `assign` would add no refusal here (it allows open and nurture alike).
     if (facts.state !== 'open') {
       return { outcome: 'not_open' as const, ownerId: facts.owner_id, cursor: input.cursor };
     }
@@ -149,22 +151,6 @@ export const handOverLead = defineCommand({
       }
       ownerId = teamLead.user_id;
     }
-
-    // The machine's `assign`, fired as the platform: a lock keeps a lead only with a Lead Converter (the definer answers `kept`).
-    transition(
-      opportunityMachine,
-      {
-        state: 'open',
-        pipelineId: '',
-        exitRequiredFields: [],
-        fields: {},
-        lockedUntil: null,
-        stateChangedAt: null,
-        hasAcceptedQuoteOrConfirmedOrder: false,
-      },
-      'assign',
-      { actor: { kind: 'system', job: 'handover' }, now: ctx.now, params: {} },
-    );
 
     const [assigned] = (await ctx.tx.execute(
       sql`select status, previous_owner, previous_team, team_id, locked_until, lock_hours, moved

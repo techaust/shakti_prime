@@ -121,6 +121,12 @@ const INPUTS: Record<string, unknown> = {
     dispositions: [{ key: 1, label: 'Interested', nextAction: 'callback' }],
   },
   'crm.pipeline.update': { pipelineId: newId(), lockHours: 24 },
+  'crm.referral_partner.create': {
+    entityId: 1,
+    name: 'Refused partner',
+    phone: '9800000000',
+    code: 'AGENT124',
+  },
   'crm.referral_partner.set': { accountId: newId(), code: 'AGENT123', isActive: true },
   'crm.score_rule.set': { entityId: 1, segment: null, rules: [] },
   'crm.stage.archive': { stageId: newId() },
@@ -262,6 +268,11 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   },
   'crm.caller_profile.set_presence': { entityId: 1, presence: 'present' },
   'crm.lead.reassign_all': { entityId: 1, fromUserId: newId(), toUserId: null },
+  'crm.referral_partner.create': {
+    entityId: 1,
+    name: 'Refused partner',
+    phone: '9800000000',
+  },
   'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
   // Routed work and a person's own notices, settings and browsers (docs/03-roadmap-appendix/phase1.md §8.1).
   'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', phone: '9800000000' },
@@ -477,6 +488,13 @@ const CUSTOMER_INPUTS: Record<string, unknown> = {
     account: { type: 'farm' },
   },
   'crm.site.upsert': { ...CUSTOMER, type: 'borewell', village: 'Refused village' },
+  // A referral partner made with no lead (owner, 05-10-2026).
+  'crm.referral_partner.create': {
+    entityId: 1,
+    name: 'Refused partner',
+    phone: '9800000000',
+    code: 'AGENT124',
+  },
   // Routed work for a colleague's customer (docs/03-roadmap-appendix/phase1.md §8.1).
   'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', existingAccountId: newId() },
   'crm.enquiry.take': {

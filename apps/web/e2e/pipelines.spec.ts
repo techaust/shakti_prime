@@ -2,11 +2,12 @@ import {
   expect,
   expectNoAxeViolations,
   hydrated,
+  projectName,
   signedInAs,
   snap,
   test,
 } from './support/fixtures';
-import { REFERRAL_PARTNER } from './support/users';
+import { ADDED_PARTNERS, REFERRAL_PARTNER } from './support/users';
 
 test.describe('Settings › Pipelines as an Executive', () => {
   test.use(signedInAs('executive'));
@@ -39,6 +40,17 @@ test.describe('Settings › Pipelines as an Executive', () => {
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add commission rule' })).toBeVisible();
     await expectNoAxeViolations(page);
+    // The projects run side by side, so another project's add journey may already have put its
+    // partner on the list. Those rows leave the picture (a mask would keep their height), so the
+    // page shows the seeded partners alone whichever project runs first.
+    const added = Object.values(ADDED_PARTNERS);
+    await page
+      .getByRole('list', { name: 'Referral partners' })
+      .getByRole('listitem')
+      .filter({ hasText: new RegExp(added.join('|')) })
+      .evaluateAll((rows) => {
+        for (const row of rows) row.remove();
+      });
     await snap(page, 'settings-pipelines');
   });
 
@@ -79,6 +91,51 @@ test.describe('Settings › Pipelines as an Executive', () => {
     await form.getByRole('button', { name: 'Add commission rule' }).click();
     await expect(page.getByText('The commission rule is saved.')).toHaveCount(0);
     await expectNoAxeViolations(page);
+  });
+
+  test('adds a referral partner with no lead, and refuses a number that is a customer already', async ({
+    page,
+  }) => {
+    const name = ADDED_PARTNERS[projectName()];
+    // A number and a code of this attempt alone, so a retry never meets the first attempt's.
+    const stamp = String(Date.now());
+    const mobile = `9${stamp.slice(-9)}`;
+    const code = `GM${stamp.slice(-8)}`;
+    await page.goto('/settings/pipelines');
+    const add = page.getByRole('button', { name: 'Add partner' });
+    await (await hydrated(add)).click();
+    const dialog = page.getByRole('dialog', { name: 'Add a referral partner' });
+    await expect(dialog.getByLabel('Company')).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    // The seeded partner's number belongs to a customer already: the form says so under the box.
+    await dialog.getByLabel('Name', { exact: true }).fill(name);
+    await dialog.getByLabel('Mobile number').fill(REFERRAL_PARTNER.phone);
+    await dialog.getByRole('button', { name: 'Add partner' }).click();
+    const phoneBox = dialog.getByLabel('Mobile number');
+    await expect(phoneBox).toHaveAttribute('aria-invalid', 'true');
+    await expect(
+      dialog.getByText('This number already belongs to a customer.', { exact: false }),
+    ).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    await phoneBox.fill(mobile);
+    await dialog.getByLabel('Referral code').fill(code.toLowerCase());
+    await dialog.getByRole('button', { name: 'Add partner' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText(`${name} is added as a referral partner.`)).toBeVisible();
+    await expect(add).toBeFocused();
+    const partner = page
+      .getByRole('list', { name: 'Referral partners' })
+      .getByRole('listitem')
+      .filter({ hasText: name });
+    await expect(partner).toContainText(`Code ${code}`);
+    await expect(partner).toContainText('Code accepted');
+    // The new partner can be chosen for a commission rule at once.
+    const form = page
+      .locator('form')
+      .filter({ has: page.getByRole('button', { name: 'Add commission rule' }) });
+    await expect(form.getByLabel('Partner').locator('option', { hasText: name })).toHaveCount(1);
   });
 
   test('adds a stage, moves it up and archives it', async ({ page }) => {

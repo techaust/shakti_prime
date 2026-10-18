@@ -1,6 +1,8 @@
 import {
   CommissionRuleDto,
+  CreateReferralPartnerInput,
   DomainError,
+  ReferralPartnerRowDto,
   newId,
   ReferralPartnerDto,
   SetCommissionRuleInput,
@@ -10,7 +12,10 @@ import { schema } from '@shakti/db';
 import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { commitAccountBatch } from '../../imports/commit-accounts';
 import { assertConfigScope } from './config-scope';
+import { lockNewNumber } from './create-lead';
+import { requireEntity } from './opportunity-shared';
 
 const rp = schema.referralPartners;
 const cr = schema.commissionRules;
@@ -88,6 +93,81 @@ export const setReferralPartner = defineCommand({
       code: row.code,
       isActive: row.isActive,
     });
+  },
+});
+
+/**
+ * `crm.referral_partner.create` (the owner's decision of 05-10-2026): an Executive adds a referral
+ * partner from Settings › Pipelines with no lead: a customer of the type Referral partner, known to
+ * one company of the request and looked after there by the Executive, with its person, phone and
+ * business name. The customer is written by the customer import's own writer
+ * (`commitAccountBatch()`, the same rows, in the same order, under the same policies), so a partner
+ * is made as any customer is. A number that is already a customer's is refused
+ * (`referral_partner_phone_known`): that customer becomes a partner by its type on Account 360. A
+ * code given at once is set through `crm.referral_partner.set`, in the same transaction.
+ */
+export const createReferralPartner = defineCommand({
+  name: 'crm.referral_partner.create',
+  permission: 'crm.config.write',
+  minScope: 'all',
+  alsoRequires: [{ permission: 'crm.account.write', minScope: 'own' }],
+  peopleOnly: true,
+  input: CreateReferralPartnerInput,
+  output: ReferralPartnerRowDto,
+  auditFields: ['accountType'],
+  async handler(ctx, input) {
+    requireEntity(ctx, input.entityId);
+    // The lead form's number lock, taken before the lookup, so a lead or another partner saved
+    // with the same number at the same moment waits for this one and then finds it.
+    await lockNewNumber(ctx.tx, input.phone, input.entityId);
+    // A number left only on an archived contact is free, as `app.lead_phone_status()` reads it.
+    const known = (await ctx.tx.execute(sql`
+      select 1 from contact_phones cp
+        join contacts c on c.id = cp.contact_id and c.archived_at is null
+        join account_contacts ac on ac.contact_id = cp.contact_id
+        join accounts a on a.id = ac.account_id and a.archived_at is null
+       where cp.e164 = ${input.phone}
+       limit 1`)) as unknown as unknown[];
+    if (known.length > 0) {
+      throw new DomainError('validation_failed', 'the number is already a customer', {
+        reason: 'referral_partner_phone_known',
+        // So the form shows the sentence under its phone box.
+        issues: [{ path: 'phone', message: 'referral_partner_phone_known' }],
+      });
+    }
+    const name = input.businessName ?? input.name;
+    const made = await commitAccountBatch(ctx, ctx.tx, [
+      {
+        rowNo: 1,
+        input: {
+          entityIds: [input.entityId],
+          contact: { name: input.name, phone: input.phone },
+          account: { type: 'referral_partner', name },
+        },
+      },
+    ]);
+    const account = made.created[0];
+    if (made.refused.length > 0 || account === undefined) {
+      throw new DomainError('conflict', 'a colleague looks after this customer', {
+        reason: 'customer_held_by_colleague',
+      });
+    }
+    ctx.audit({
+      aggregateType: 'account',
+      aggregateId: account.id,
+      entityId: input.entityId,
+      before: null,
+      after: { accountType: 'referral_partner' },
+    });
+    if (input.code === undefined) {
+      return { accountId: account.id, name, code: null, isActive: false };
+    }
+    const coded = await ctx.run(setReferralPartner, {
+      accountId: account.id,
+      code: input.code,
+      isActive: true,
+    });
+    return { accountId: account.id, name, code: coded.code, isActive: coded.isActive };
   },
 });
 

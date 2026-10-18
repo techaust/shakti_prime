@@ -1,5 +1,6 @@
 import {
   AGENT_PRINCIPAL_IDS,
+  hasGrant,
   IdSchema,
   newId,
   SYSTEM_WORKERS_PRINCIPAL_ID,
@@ -23,6 +24,7 @@ import { assignOpportunity } from '../../src/commands/crm/assign-opportunity';
 import { setCallerProfile, setPresence } from '../../src/commands/crm/caller-profiles';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { handOverLead } from '../../src/commands/crm/hand-over-lead';
+import { loseOpportunity } from '../../src/commands/crm/lose-opportunity';
 import { nurtureOpportunity } from '../../src/commands/crm/nurture-opportunity';
 import { reassignAllLeads } from '../../src/commands/crm/reassign-all';
 import { createTask } from '../../src/commands/crm/tasks';
@@ -575,6 +577,151 @@ describe('the handover', () => {
   });
 });
 
+describe('the call tasks and the machine on a handover', () => {
+  async function onlyPresent(person: Principal) {
+    await asMigrator(
+      (m) => m`update caller_profiles set presence = 'away' where entity_id = ${CO}`,
+    );
+    await profile(person.id);
+    await run(person, setPresence, { entityId: CO, presence: 'present' });
+  }
+
+  it('moves an open callback to the converter though the worker holds no lead write', async () => {
+    expect(hasGrant(workers.permissions, 'crm.lead.write', 'own')).toBe(false);
+    await onlyPresent(converterY);
+    const lead = await newLead();
+    const later = new Date(Date.now() + 6 * 3_600_000).toISOString();
+    await run(caller, createTask, {
+      entityId: CO,
+      opportunityId: lead.id,
+      kind: 'callback',
+      dueAt: later,
+    });
+    // A callback already due moves too, due now.
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, team_id, kind, due_at, created_by)
+                values (${newId()}, ${CO}, ${lead.id}, ${lead.account.id}, ${caller.id}, ${team}, 'callback',
+                        now() - interval '1 hour', ${caller.id})`,
+    );
+    const before = Date.now();
+    expect((await handOver(lead)).outcome).toBe('converter');
+    const tasks = await openTasks(lead);
+    expect(tasks).toHaveLength(2);
+    expect(tasks.every((t) => t.assignee_id === converterY.id && t.kind === 'callback')).toBe(true);
+    expect(tasks[0]?.due_at.getTime()).toBeGreaterThanOrEqual(before - 5_000);
+    expect(tasks[1]?.due_at.toISOString()).toBe(later);
+    const left = await asMigrator(
+      (m) =>
+        m`select 1 from tasks where opportunity_id = ${lead.id} and state = 'open' and assignee_id = ${caller.id}`,
+    );
+    expect(left).toHaveLength(0);
+  });
+
+  it('refuses the task-moving definer to a person and to a company outside the request', async () => {
+    const lead = await newLead();
+    await run(caller, createTask, {
+      entityId: CO,
+      opportunityId: lead.id,
+      kind: 'callback',
+      dueAt: new Date(Date.now() + 3_600_000).toISOString(),
+    });
+    const stage = (await leadState(lead)).stage_id;
+    const assign = (principal: Principal) =>
+      asPrincipal(principal, (context) =>
+        context.tx
+          .execute(sql`select status from app.handover_assign(${CO}::smallint, ${lead.id}::uuid,
+          ${converterX.id}::uuid, ${newId()}::uuid, ${stage}::uuid, now(), false, 48)`),
+      );
+    const denied = await refusal(assign(gm));
+    expect(
+      (denied as { cause?: { code?: string } }).cause?.code ?? (denied as { code?: string }).code,
+    ).toBe('42501');
+    const elsewhere = await refusal(
+      assign(principalFor('system:workers', [2], { id: SYSTEM_WORKERS_PRINCIPAL_ID })),
+    );
+    expect(
+      (elsewhere as { cause?: { code?: string } }).cause?.code ??
+        (elsewhere as { code?: string }).code,
+    ).toBe('42501');
+    const tasks = await openTasks(lead);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]?.assignee_id).toBe(caller.id);
+  });
+
+  it('leaves a lost lead, which the machine has no assign from, as it is', async () => {
+    await onlyPresent(converterX);
+    const lead = await newLead();
+    await run(caller, loseOpportunity, {
+      entityId: CO,
+      opportunityId: lead.id,
+      reasonCode: 'not_interested',
+    });
+    const result = await handOver(lead);
+    expect(result).toMatchObject({ outcome: 'not_open', ownerId: caller.id });
+    const state = await leadState(lead);
+    expect(state).toMatchObject({ state: 'lost', owner_id: caller.id, locked_until: null });
+  });
+});
+
+describe('crm.opportunity.assign from open and from nurture', () => {
+  it('moves an open lead and its callback to the new owner', async () => {
+    const lead = await newLead();
+    await run(caller, createTask, {
+      entityId: CO,
+      opportunityId: lead.id,
+      kind: 'callback',
+      dueAt: new Date(Date.now() + 2 * 3_600_000).toISOString(),
+    });
+    await run(gm, assignOpportunity, {
+      entityId: CO,
+      opportunityId: lead.id,
+      ownerId: converterY.id,
+    });
+    expect(await leadState(lead)).toMatchObject({ state: 'open', owner_id: converterY.id });
+    const tasks = await openTasks(lead);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({ assignee_id: converterY.id, kind: 'callback' });
+  });
+
+  it('moves a nurtured lead and its nurture calls to the new owner, and it stays in nurture', async () => {
+    const lead = await newLead();
+    await run(caller, nurtureOpportunity, {
+      entityId: CO,
+      opportunityId: lead.id,
+      reasonCode: 'not_ready_yet',
+    });
+    const calls = await openTasks(lead);
+    expect(calls.length).toBeGreaterThan(0);
+    await run(gm, assignOpportunity, {
+      entityId: CO,
+      opportunityId: lead.id,
+      ownerId: converterY.id,
+    });
+    expect(await leadState(lead)).toMatchObject({ state: 'nurture', owner_id: converterY.id });
+    const moved = await openTasks(lead);
+    expect(moved.map((t) => t.due_at.toISOString())).toEqual(
+      calls.map((t) => t.due_at.toISOString()),
+    );
+    expect(moved.every((t) => t.kind === 'nurture' && t.assignee_id === converterY.id)).toBe(true);
+  });
+
+  it('refuses a lost lead', async () => {
+    const lead = await newLead();
+    await run(caller, loseOpportunity, {
+      entityId: CO,
+      opportunityId: lead.id,
+      reasonCode: 'not_interested',
+    });
+    const refused = await refusal(
+      run(gm, assignOpportunity, { entityId: CO, opportunityId: lead.id, ownerId: converterY.id }),
+    );
+    expect(code(refused)).toBe('conflict');
+    expect(reason(refused)).toBe('opportunity_transition_not_allowed');
+  });
+});
+
 describe('the handover leaves a lead that has moved on', () => {
   /** Only these converters are present: the rest are away. */
   async function onlyPresent(...people: Principal[]) {
@@ -673,8 +820,8 @@ describe('the handover leaves a lead that has moved on', () => {
   });
 
   it('locks a handover for the pipeline hours, which the workshop default only stands in for', async () => {
-    // The pipeline's column is not null (its own default is 48), so the lock follows the pipeline
-    // and no hours are written into the command or the definer.
+    // The seed writes the workshop hours into every seeded pipeline, so the lock follows the
+    // pipeline's own column; the workshop default stands in only for a pipeline with none.
     await onlyPresent(converterX);
     const lead = await newLead();
     const before = Date.now();

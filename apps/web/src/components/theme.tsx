@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { saveContrast, saveTheme } from '../actions/profile';
 import { settle } from './screens/settle';
 import type { ErrorKey } from '../i18n/types';
-import { THEMES } from '../screens/contract-values';
+import { THEMES } from '../screens/theme-values';
 import { contrastCookie, HIGH_CONTRAST, themeCookie } from '../theme';
 import { FailureMessage } from './screens/failure';
 import { useCommand } from './screens/use-command';

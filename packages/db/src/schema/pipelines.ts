@@ -23,8 +23,12 @@ export const pipelines = pgTable(
     name: text('name').notNull(),
     segment: text('segment').notNull(),
     isActive: boolean('is_active').notNull().default(true),
-    /** Hours an assigned lead stays with its new owner before others may take it (design §7.2). */
-    lockHours: smallint('lock_hours').notNull().default(48),
+    /**
+     * Hours an assigned lead stays with its new owner before others may take it (design §7.2). No
+     * default: the seed writes the workshop default (`WORKSHOP_LOCK_HOURS`) into a pipeline that has
+     * none, and a pipeline made otherwise reads it as the workshop default until then.
+     */
+    lockHours: smallint('lock_hours'),
     /** Minutes a new lead may wait for its first call; null sets no limit (design §6.6). */
     firstContactSlaMinutes: integer('first_contact_sla_minutes'),
     ...archivable,

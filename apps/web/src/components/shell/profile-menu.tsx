@@ -19,7 +19,7 @@ import Link from 'next/link';
 import { useTransition } from 'react';
 import { focusFirstMenuItem, ProfileTriggerButton } from './menu-triggers';
 import { signOut } from '../../actions/auth';
-import { isTheme, THEMES } from '../../screens/contract-values';
+import { isTheme, THEMES } from '../../screens/theme-values';
 import { useForgetThemeOnThisDevice, useThemeChoice } from '../theme';
 
 const THEME_ICONS = { system: Monitor, light: Sun, dark: Moon } as const;

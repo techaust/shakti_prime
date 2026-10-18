@@ -31,7 +31,11 @@ import {
   updatePipeline,
   updateStage,
 } from '../commands/crm/pipeline-settings';
-import { setCommissionRule, setReferralPartner } from '../commands/crm/referrals';
+import {
+  createReferralPartner,
+  setCommissionRule,
+  setReferralPartner,
+} from '../commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../commands/crm/score-rules';
 import { setAccountTier } from '../commands/crm/set-account-tier';
 import { setDispositions } from '../commands/crm/set-dispositions';
@@ -140,6 +144,7 @@ export const commands = Object.freeze({
   [rescoreLead.name]: rescoreLead,
   [refreshLeadScores.name]: refreshLeadScores,
   [setReferralPartner.name]: setReferralPartner,
+  [createReferralPartner.name]: createReferralPartner,
   [setCommissionRule.name]: setCommissionRule,
   [recordSizing.name]: recordSizing,
   [scanDuplicates.name]: scanDuplicates,

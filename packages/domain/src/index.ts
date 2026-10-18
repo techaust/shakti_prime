@@ -81,7 +81,11 @@ export {
 export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
 export { dismissDuplicate, scanDuplicates, suggestDuplicate } from './commands/crm/duplicates';
 export { mergeCustomers, mergeLeads, unmergeCustomers } from './commands/crm/merges';
-export { setCommissionRule, setReferralPartner } from './commands/crm/referrals';
+export {
+  createReferralPartner,
+  setCommissionRule,
+  setReferralPartner,
+} from './commands/crm/referrals';
 export { applyLeadAttribution, scoreLeads } from './commands/crm/lead-attribution';
 export { scoreLead } from './crm/score';
 export { createTask, completeTask, rescheduleTask, cancelTask } from './commands/crm/tasks';

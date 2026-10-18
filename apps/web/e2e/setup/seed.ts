@@ -40,7 +40,7 @@ import { writePrintPages } from './print-pages';
 import { ensureConvertingJourneys } from './converting';
 import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureOrderJourneys } from './orders';
-import { resetPipelineStages } from './pipelines';
+import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
@@ -54,6 +54,7 @@ import {
   KILL_SWITCH,
   PROJECTS,
   REFERRAL_PARTNER,
+  WALK_IN_PIN,
   SIGNED_IN_ROLES,
   SEND_AGAIN_COMPANY,
   SNAPSHOT_COMPANY,
@@ -331,6 +332,22 @@ async function ensureReferralPartner(executiveId: string): Promise<void> {
     code: REFERRAL_PARTNER.code,
     isActive: true,
   });
+}
+
+/**
+ * The post office the walk-in journey's PIN lookup finds (`WALK_IN_PIN`), written once by the table
+ * owner: the PIN code list is shared reference data, filled by its import in the hosted
+ * environments.
+ */
+async function ensureWalkInPin(executiveId: string): Promise<void> {
+  await asMigrator(
+    (
+      m,
+    ) => m`insert into pin_codes (id, pin, office_name, taluk, district, state_code, created_by, updated_by)
+             select ${newId()}, ${WALK_IN_PIN.pin}, ${WALK_IN_PIN.officeName}, ${WALK_IN_PIN.tehsil},
+                    ${WALK_IN_PIN.district}, '08', ${executiveId}, ${executiveId}
+              where not exists (select 1 from pin_codes where pin = ${WALK_IN_PIN.pin})`,
+  );
 }
 
 /** One import job in the snapshot company, from a fixed spreadsheet, made once. */
@@ -634,9 +651,11 @@ await seedCalls('tele-caller', {
 
 progress('the pipelines’ stages');
 await resetPipelineStages(ids.executive ?? '');
+await archiveAddedPartners();
 
 progress('the referral partner');
 await ensureReferralPartner(ids.executive ?? '');
+await ensureWalkInPin(ids.executive ?? '');
 
 progress('the snapshot company');
 // The snapshot company (users.ts): its leads, all the snapshot caller's, and one import.

@@ -3,11 +3,26 @@
 // that stopped half way, starts from the same stages (pipelines.spec.ts).
 import { asMigrator, principalFor } from '@shakti/db/testing';
 import { archiveStage, executeCommand, updateStage } from '@shakti/domain';
+import { ADDED_PARTNERS } from '../support/users';
 
 /** The stage the "adds a stage" journey makes in Commercial EPC; it is named with a number. */
 const JOURNEY_STAGE = 'Site survey %';
 /** The stage the "a changed stage name" journey renames and names back. */
 const RENAMED_STAGE = { pipeline: 'Dealer and Wholesale', key: 'contacted', name: 'Contacted' };
+
+/**
+ * Archives the referral partners the Add partner journey made in earlier runs, so each run adds
+ * its own again and the settings page's screenshot starts from the seeded partner alone. The table
+ * owner archives them: no command removes a customer.
+ */
+export async function archiveAddedPartners(): Promise<void> {
+  const names = Object.values(ADDED_PARTNERS);
+  await asMigrator(
+    (m) => m`update accounts set archived_at = now()
+              where type = 'referral_partner' and name = any(${names}::text[])
+                and archived_at is null`,
+  );
+}
 
 export async function resetPipelineStages(executiveId: string): Promise<void> {
   const executive = principalFor('executive', [1, 2, 3, 4], { id: executiveId });

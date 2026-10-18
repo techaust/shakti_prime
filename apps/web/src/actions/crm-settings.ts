@@ -3,6 +3,7 @@
 import {
   ArchiveStageInput,
   ConfigScopeInput,
+  CreateReferralPartnerInput,
   CreateStageInput,
   ListReferralPartnersInput,
   ReorderStagesInput,
@@ -28,6 +29,7 @@ import {
 } from '@shakti/contracts';
 import {
   archiveStage as archiveStageCommand,
+  createReferralPartner as createReferralPartnerCommand,
   createStage as createStageCommand,
   executeCommand,
   executeQuery,
@@ -273,6 +275,20 @@ export async function setReferralPartner(
     'setReferralPartner',
     SetReferralPartnerInput,
     setReferralPartnerCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Adds a referral partner as a customer with no lead (owner, 05-10-2026). */
+export async function createReferralPartner(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<ReferralPartnerRowDto>> {
+  return settingsCommand(
+    'createReferralPartner',
+    CreateReferralPartnerInput,
+    createReferralPartnerCommand,
     rawInput,
     idempotencyKey,
   );
