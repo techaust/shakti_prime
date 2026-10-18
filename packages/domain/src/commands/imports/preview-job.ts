@@ -48,11 +48,16 @@ interface FileRow {
   raw: Record<string, string>;
 }
 
-/** The pipelines and lead sources a row may name in this entity, as the caller sees them. */
+/**
+ * The pipelines and lead sources a row may name in this entity, as the caller sees them, and which
+ * of the file's referral codes an active partner of the company has, each asked once of
+ * `app.referral_partner_for_code()` (the definer `crm.lead.create` credits a lead through).
+ */
 async function lookups(
   tx: RequestTx,
   entityId: number,
   mayMakeDealer: boolean,
+  codes: readonly string[],
 ): Promise<LeadRowLookups> {
   const p = schema.pipelines;
   const pipelines = await tx
@@ -61,10 +66,20 @@ async function lookups(
     .where(and(eq(p.isActive, true), or(isNull(p.entityId), eq(p.entityId, entityId))));
   const s = schema.leadSources;
   const sources = await tx.select({ code: s.code }).from(s).where(eq(s.isActive, true));
+  const asked = [...new Set(codes.map((c) => c.trim().toUpperCase()).filter((c) => c !== ''))];
+  const partners =
+    asked.length === 0
+      ? []
+      : ((await tx.execute(sql`
+          select x.code from jsonb_array_elements_text(${JSON.stringify(asked)}::jsonb) as x(code)
+           where app.referral_partner_for_code(x.code, ${entityId}::smallint) is not null`)) as unknown as {
+          code: string;
+        }[]);
   return {
     pipelineKeys: new Set(pipelines.map((r) => r.key)),
     sourceCodes: new Set(sources.map((r) => r.code)),
     mayMakeDealer,
+    referralCodes: new Set(partners.map((r) => r.code)),
   };
 }
 
@@ -234,7 +249,9 @@ async function previewLeads(
   mapping: LeadImportMapping,
   entityId: number,
 ): Promise<RowFinding[]> {
-  const known = await lookups(ctx.tx, entityId, mayMakeDealer(ctx));
+  const codeColumn = mapping.columns.referralCode;
+  const codes = codeColumn === undefined ? [] : rows.map((row) => row.raw[codeColumn] ?? '');
+  const known = await lookups(ctx.tx, entityId, mayMakeDealer(ctx), codes);
   const checked = rows.map((row) => ({
     rowNo: row.rowNo,
     check: checkLeadRow(row.raw, mapping, entityId, known),

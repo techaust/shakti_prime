@@ -58,6 +58,7 @@ export const LEAD_IMPORT_FIELDS = [
   'pin',
   'sourceCode',
   'pipelineKey',
+  'referralCode',
 ] as const satisfies readonly LeadImportField[];
 
 /** The customer fields of a customers file, in the order the matching form offers them. */
@@ -164,6 +165,7 @@ const HEADINGS: Record<ImportField, readonly string[]> = {
   pin: ['pin', 'pincode', 'postalcode'],
   sourceCode: ['source', 'leadsource'],
   pipelineKey: ['pipeline', 'lineofbusiness'],
+  referralCode: ['referralcode', 'referral', 'partnercode', 'refcode', 'referredby'],
   company: ['company', 'companycode', 'ourcompany', 'sellingcompany', 'brand'],
   officeName: ['officename', 'office', 'postoffice', 'poname'],
   taluk: ['taluk', 'taluka', 'tehsil', 'tahsil', 'subdistrict'],

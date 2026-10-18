@@ -64,9 +64,8 @@ export async function commitLeadBatch(
     if (!ctx.entityIds.includes(input.entityId)) throw new RowByRowNeeded('another company');
     if (input.existingAccountId !== undefined) throw new RowByRowNeeded('a known customer');
     if (input.consent !== undefined) throw new RowByRowNeeded('a consent');
-    // The import mapping has no referral code field yet (a follow-up after P2b), so a file's row
-    // never carries one today; kept so a row that does is credited or refused by the command, never
-    // committed here without its partner.
+    // A row with a referral code goes through the command, which credits the lead to its partner
+    // or refuses the row (`referral_code_unknown`), never committed here without its partner.
     if (input.referralCode !== undefined) throw new RowByRowNeeded('a referral code');
     if (input.contact === undefined || input.account === undefined) {
       throw new RowByRowNeeded('no contact or account');

@@ -25,6 +25,7 @@ const lookups = {
   pipelineKeys: new Set(['farmer_pumps']),
   sourceCodes: new Set(['import', 'walk_in']),
   mayMakeDealer: false,
+  referralCodes: new Set(['KSK2026']),
 };
 
 const row = (overrides: Record<string, string> = {}) => ({
@@ -98,6 +99,30 @@ describe('leads import rows', () => {
       state: 'valid',
       input: { account: { type: 'dealer' } },
     });
+  });
+
+  it('credits a row to the partner its referral code names, and refuses a code no partner has', () => {
+    const coded = LeadImportMappingSchema.parse({
+      columns: { ...mapping.columns, referralCode: 'Referred by' },
+      defaults: mapping.defaults,
+    });
+    expect(checkLeadRow(row({ 'Referred by': 'ksk2026' }), coded, 1, lookups)).toMatchObject({
+      state: 'valid',
+      input: { referralCode: 'ksk2026' },
+    });
+    expect(checkLeadRow(row({ 'Referred by': 'NOPE1234' }), coded, 1, lookups)).toMatchObject({
+      state: 'invalid',
+      errors: [{ field: 'referralCode', code: 'referral_code_unknown' }],
+    });
+    // A code that cannot be one is answered as a value not recognised.
+    expect(checkLeadRow(row({ 'Referred by': 'K-1' }), coded, 1, lookups)).toMatchObject({
+      state: 'invalid',
+      errors: [{ field: 'referralCode', code: 'invalid' }],
+    });
+    // A blank cell names no partner.
+    const blank = checkLeadRow(row({ 'Referred by': ' ' }), coded, 1, lookups);
+    expect(blank.state).toBe('valid');
+    expect(blank.input).not.toHaveProperty('referralCode');
   });
 
   it('flags a pipeline the entity does not have and a long name', () => {

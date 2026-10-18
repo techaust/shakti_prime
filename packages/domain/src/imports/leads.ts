@@ -16,6 +16,11 @@ export interface LeadRowLookups {
   sourceCodes: ReadonlySet<string>;
   /** The caller holds `sales.credit.write` at company scope, so a row may add a dealer (DOM-1). */
   mayMakeDealer: boolean;
+  /**
+   * The file's referral codes, in capitals, that an active partner of the company has
+   * (`app.referral_partner_for_code()`); a row's code outside it is refused.
+   */
+  referralCodes: ReadonlySet<string>;
 }
 
 /** Lead sources a file row falls back to when it names none. */
@@ -48,12 +53,14 @@ const FIELD_OF_PATH: Readonly<Record<string, LeadImportField>> = {
   'site.pin': 'pin',
   pipelineKey: 'pipelineKey',
   sourceCode: 'sourceCode',
+  referralCode: 'referralCode',
 };
 
 /**
  * One file row as `crm.lead.create` input: each field from its mapped column, or the mapping's
  * default when the column is not mapped or the cell is blank. A site is added when the row
- * gives a village or a PIN; imports record no consent, which needs its own evidence.
+ * gives a village or a PIN, and the referral code when its cell has one; imports record no
+ * consent, which needs its own evidence.
  */
 export function leadCandidate(
   raw: Readonly<Record<string, string>>,
@@ -72,6 +79,7 @@ export function leadCandidate(
   const village = cell('village');
   const pin = cell('pin');
   const accountName = cell('accountName');
+  const referralCode = cell('referralCode');
   const candidate: Record<string, unknown> = {
     entityId,
     pipelineKey: cell('pipelineKey') ?? defaults.pipelineKey,
@@ -89,6 +97,7 @@ export function leadCandidate(
       ...(accountName === undefined ? {} : { name: accountName }),
     },
     sourceCode: cell('sourceCode') ?? defaults.sourceCode ?? IMPORT_SOURCE_CODE,
+    ...(referralCode === undefined ? {} : { referralCode }),
   };
   if (village !== undefined || pin !== undefined) {
     candidate.site = {
@@ -111,7 +120,8 @@ function valueAt(candidate: Record<string, unknown>, path: readonly PropertyKey[
 
 /**
  * Checks one row through the same input the command uses (design §8), plus the pipeline and
- * source lists, and answers the command input or the row's findings, one per field.
+ * source lists and the company's referral codes, and answers the command input or the row's
+ * findings, one per field.
  */
 export function checkLeadRow(
   raw: Readonly<Record<string, string>>,
@@ -145,6 +155,10 @@ export function checkLeadRow(
   }
   if (parsed.success && parsed.data.account?.type === 'dealer' && !lookups.mayMakeDealer) {
     add({ field: 'accountType', code: 'dealer_needs_executive' });
+  }
+  const code = parsed.success ? parsed.data.referralCode : undefined;
+  if (code !== undefined && !lookups.referralCodes.has(code.toUpperCase())) {
+    add({ field: 'referralCode', code: 'referral_code_unknown' });
   }
 
   if (!parsed.success || errors.size > 0) {

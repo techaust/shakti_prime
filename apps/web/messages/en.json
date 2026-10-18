@@ -2306,6 +2306,7 @@
       "pin": "PIN code",
       "sourceCode": "Lead source",
       "pipelineKey": "Pipeline",
+      "referralCode": "Referral code",
       "row": "Whole row",
       "company": "Company",
       "officeName": "Post office",
@@ -2324,7 +2325,8 @@
       "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
       "company_unknown": "We don't recognise this company. Use the company's short code or name, or leave it blank for this company.",
       "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code.",
-      "dealer_needs_executive": "Only an Executive can add a dealer. Enter this customer as a business; an Executive makes them a dealer when their credit terms are set."
+      "dealer_needs_executive": "Only an Executive can add a dealer. Enter this customer as a business; an Executive makes them a dealer when their credit terms are set.",
+      "referral_code_unknown": "No active referral partner of this company has this code. Check the code with the partner, or leave the cell empty."
     },
     "reconcile": {
       "title": "What happened to each row",
@@ -2350,7 +2352,8 @@
         "customer_held_by_colleague": "A colleague looks after the customer",
         "company_unknown": "The company was not recognised",
         "state_unknown": "The state was not recognised",
-        "dealer_needs_executive": "Only an Executive can add a dealer"
+        "dealer_needs_executive": "Only an Executive can add a dealer",
+        "referral_code_unknown": "The referral code was not a partner's"
       },
       "csvLine": "What happened",
       "csvRows": "Rows",
