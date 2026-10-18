@@ -40,6 +40,17 @@ test.describe('Settings › Pipelines as an Executive', () => {
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add commission rule' })).toBeVisible();
     await expectNoAxeViolations(page);
+    // The projects run side by side, so another project's add journey may already have put its
+    // partner on the list. Those rows leave the picture (a mask would keep their height), so the
+    // page shows the seeded partners alone whichever project runs first.
+    const added = Object.values(ADDED_PARTNERS);
+    await page
+      .getByRole('list', { name: 'Referral partners' })
+      .getByRole('listitem')
+      .filter({ hasText: new RegExp(added.join('|')) })
+      .evaluateAll((rows) => {
+        for (const row of rows) row.remove();
+      });
     await snap(page, 'settings-pipelines');
   });
 
