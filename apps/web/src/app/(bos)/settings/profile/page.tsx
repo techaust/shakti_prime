@@ -1,14 +1,22 @@
 import { hasGrant, ThemeSchema } from '@shakti/contracts';
 import type { Metadata } from 'next';
+import dynamicImport from 'next/dynamic';
 import { getTranslations } from 'next-intl/server';
 import { ownPresence } from '../../../../actions/handover';
 import { ChangePasswordForm } from '../../../../components/auth/home-forms';
-import { PresenceForm } from '../../../../components/profile/presence-form';
 import { Page } from '../../../../components/shell/page';
 import { ContrastSwitch, ThemeSwitch } from '../../../../components/theme';
 import { companyNames, screenAccess, screenTitle } from '../../../../screens/access';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * The present-or-away choice is only for people who work on leads, so its code loads with the
+ * page only when it is shown, not in every person's first load.
+ */
+const PresenceForm = dynamicImport(() =>
+  import('../../../../components/profile/presence-form').then((m) => m.PresenceForm),
+);
 
 export async function generateMetadata(): Promise<Metadata> {
   return screenTitle(undefined, (await getTranslations('profile'))('title'));

@@ -10,7 +10,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
-import { NotificationBell } from '../notifications/notification-bell';
 import { DeferredCompanySwitcher, DeferredProfileMenu } from './deferred-menus';
 import type { CompanyOption } from './menu-triggers';
 import { rememberSidebar } from './sidebar-state';
@@ -31,6 +30,18 @@ function preloadPalette(): void {
 
 /** The phone menu's sheet, likewise fetched when the menu is first opened. */
 const PhoneMenu = dynamic(() => import('./phone-menu').then((m) => m.PhoneMenu));
+
+/**
+ * The bell and its count are drawn by the server with the page, and their code (the polling of
+ * the count, the link of each notice) loads beside the page rather than in its first load. Until
+ * it has loaded on a page drawn in the browser, a box of the bell's size keeps the top bar still.
+ */
+const NotificationBell = dynamic(
+  () => import('../notifications/notification-bell').then((m) => m.NotificationBell),
+  {
+    loading: () => <span aria-hidden className="size-control max-md:size-control-phone shrink-0" />,
+  },
+);
 
 /** ⌘K on a Mac, Ctrl K elsewhere; the server draws Ctrl K and the browser corrects it. */
 function useIsMac(): boolean {
