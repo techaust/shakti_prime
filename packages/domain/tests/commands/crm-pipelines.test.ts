@@ -174,7 +174,9 @@ describe('crm.pipeline.update', () => {
       aggregateType: 'pipeline',
       aggregateId: p.id,
       entityId: null,
-      before: { name: 'Test pipeline', lockHours: 48, firstContactSlaMinutes: null },
+      // A pipeline made outside the seed has no lock hours of its own (it reads the workshop
+      // default), and the audit row says so.
+      before: { name: 'Test pipeline', lockHours: null, firstContactSlaMinutes: null },
       after: { name: 'Pumps north', lockHours: 72, firstContactSlaMinutes: 30 },
     });
     const cleared = await run(exec, updatePipeline, {
