@@ -7,7 +7,7 @@
 | Runs on | PC (owner, 17-10-2026: spend the week's remainder before the reset; the lead runs it while the owner is away) |
 | Tier | B (the handover's state machine, workers, permissions): build Opus 5.5 medium, review Opus 5.5 high |
 | Usage | build Opus medium from week 96 (18-10-2026) |
-| State | building |
+| State | built, waiting for review |
 | Next step | the builder reports; the lead reads the diff and starts the review |
 
 ## Brief
@@ -32,6 +32,57 @@ Done when: the checks of AGENTS §10 pass on the slot; the security suite passes
 **How to work:** you are the only builder on the PC, but the lead may run checks beside you, so every lint, typecheck, test, build and journey, folder-level ones too, goes through `bash tools/integration/heavy.sh <command>` (the main checkout's copy). Commit at least every 20 minutes and at each finished item; never push (the lead pushes); never run `docker` or `fresh-db.sh` — when you need a fresh database, commit and stop with a report saying so; long output to log files, reading summaries only; the whole-repository lint once, last. Never open a pull request, install a dependency or touch a hosted service.
 
 ## Report
+
+### 18-10-2026, PC (slot 2, Postgres 54332), Opus 5.5 medium
+Skills loaded: `add-command`, `add-table`. All eight items built; one migration, `0159_pipeline_lock_hours` (renumber at the merge).
+
+**What was built, by item**
+1. **Call tasks on a handover:** already built in T2. `app.handover_assign()` (0125) checks `crm.handover.run` through `app.require_handover()` and moves the open callbacks and nurture calls to the new owner as new tasks, cancelling the old ones; `system:workers` holds no `crm.*` grant. The STATUS line was stale. Added the tests the follow-up asked for (`packages/domain/tests/commands/handover.test.ts`): a handover moves two open callbacks, one already due (moved to now) and one later (time kept), while the worker holds no `crm.lead.write`; the definer refuses a person (GM) and a worker outside the company (42501), and nothing moves.
+2. **A nurtured lead on reassignment:** already built in T2. The machine has `nurture → assign → nurture` (`move_call_tasks`), and `crm.lead.reassign_all` uses it. Added direct `crm.opportunity.assign` tests from open (the callback moves) and from nurture (state stays nurture, the nurture calls move with their times), plus a lost lead refused with `opportunity_transition_not_allowed`. Machine unchanged, so `machines:docs` did not need regenerating.
+3. **The handover's machine check:** `handoverMachineAllows(state, now)` in `packages/domain/src/commands/crm/hand-over-lead.ts` fires `assign` on the lead's real state, which comes from `app.handover_lead_facts()` under the request. A won or lost lead (or an unknown state) is refused and answers `not_open`. It does not throw, because the worker retries a `conflict`. The handover's own rule (open leads only) still answers `not_open` for a nurtured lead, and `app.handover_assign()` checks both again under the row lock. Unit tests: `hand-over-lead.test.ts` (3). Domain test: a lost lead is left with no owner change and no lock.
+4. **One copy of the lock hours:** `pipelines.lock_hours` now has no default and allows null (migration 0159). The value lives in one place, `WORKSHOP_LOCK_HOURS` in `packages/contracts/src/crm/config.ts`. `WORKSHOP_DEFAULTS.opportunity.handoverLockHours` reads it, and so does the seed: it writes the value on insert, and on a re-run uses `coalesce(pipelines.lock_hours, excluded.lock_hours)`, so it fills only a pipeline with none and never overwrites an Admin edit. The pipeline settings read and command answer the workshop default for a pipeline with none. Test `packages/db/tests/security/seeds.test.ts`: a null is filled, a 72 is kept, and the column has no default. DATABASE §6 (the `pipelines` row) and §9 now say this.
+5. **`/settings/profile`:** went from 193.7 to 189.5 kB. Other BOS pages dropped by 0.6 to 4.2 kB, and none grew more than 0.2 kB. (Its STATUS line says 192.3.) The causes found by diffing the page's first-load chunks against `/sign-in`:
+   - the (bos) layout's `ThemeSync`, the profile menu and the password forms each imported `screens/contract-values.ts`, so the whole browser value list went to every staff page. `THEMES`, `isTheme`, `CONTRASTS` and `PASSWORD_MIN_LENGTH` now live in `screens/theme-values.ts`, which `contract-values.ts` re-exports, so `contract-values.test.ts` still covers them. This saved 3.1 kB.
+   - the bell now loads beside the page through `next/dynamic`. The server still draws it, and a placeholder the size of the bell holds its place on a page drawn in the browser. This saved 1.1 kB.
+   
+   It is not back at 186. The rest of the shell's growth is the menu icons (3.5 kB) and code that was already there on 29-09 (tailwind-merge 8.9 kB, Radix Slot). I also tried loading the presence form lazily from the server page; it did not split, so I reverted it. `js-budget.json` is unchanged: it is a checks file.
+6. **The add-partner form:** there is no command that makes a customer without a lead, so this adds `crm.referral_partner.create`:
+   - Rights and context: `crm.config.write:all`, also `crm.account.write:own`, people only, in `packages/domain/src/commands/crm/referrals.ts`. Its contract is `CreateReferralPartnerInput`.
+   - What it writes: it reuses the customer import's writer `commitAccountBatch()` (the same rows and policies as any customer). The result is a customer of type `referral_partner` in one company, with the Executive looking after it there, and no lead.
+   - The code: set through `crm.referral_partner.set` in the same transaction, when one is given.
+   - Refusal: a number that already belongs to a customer is refused with `referral_partner_phone_known`, shown under the phone box.
+   - Wiring: registered in the registry, exported, the action `createReferralPartner` (`apps/web/src/actions/crm-settings.ts`), named in `audit.ts`, and added to the sweep's `INPUTS`, `CUSTOMER_INPUTS` and `PEOPLE_ONLY_INPUTS`.
+   - Screen: an Add partner button and dialog in `referrals-editor.tsx` (company, name, mobile number, business name, code). The new partner joins the list and the commission form's choice. The buttons `addPartner` and `savePartner` were added to `copy-lint.config.json`, and the intro and empty-list copy no longer send people to the lead form.
+   - Journey: `e2e/pipelines.spec.ts` checks the dialog with axe, a refused number under its box with axe, then saves and finds the code and the commission choice. The e2e seed archives the partners the journey adds (`archiveAddedPartners()`, per-project names in `ADDED_PARTNERS`).
+7. **Referral codes in the import mapping:**
+   - Mapping: `referralCode` is appended to `LeadImportFieldSchema` and to the web's `LEAD_IMPORT_FIELDS`, with headings `referralcode`, `referral`, `partnercode`, `refcode` and `referredby`.
+   - Preview: it asks `app.referral_partner_for_code()` once per distinct code in the file. A row whose code no active partner of the company has is invalid with `referral_code_unknown`, which is appended to `ImportRowErrorCodeSchema`.
+   - Commit: a code stopped between the preview and the commit sets its row aside with the same reason (`rowRefusal()` in `commit-job.ts`), and the rest of the batch goes in. A batch holding a code goes row by row, as before.
+   - Copy: `imports.fields.referralCode`, `rowErrors` and `reconcile.reasons`.
+   - Tests: unit test in `leads.test.ts` (a code in small letters, an unknown code, a malformed code, a blank cell). `imports.test.ts` covers the preview, the commit crediting the partner, and a code stopped before the commit.
+8. **The walk-in PIN box:** `walk-in-form.tsx` uses `usePinLookup()`, `PinHint` and `LocalityOptions` as the lead form does, and clears the PIN after a save. The journey step in `e2e/walk-in.spec.ts` checks the tehsil and district hint, the offered post office, axe, and an unknown PIN. The e2e seed writes one made-up post office as the table owner (`WALK_IN_PIN`, PIN 999002, an Army Postal Service range no office uses), since the e2e database has no PIN list.
+
+**Checks (all through `heavy.sh`)**
+- `pnpm test:security`: db 1272 passed (45 files), domain 1039 passed (77), web 333 passed (25); 4 of 4 tasks. The first run failed one case in `crm-pipelines.test.ts`: a pipeline made outside the seed now audits `lockHours: null` before an edit. I updated the expectation (with a comment) and reran the whole suite green.
+- Unit tests (`turbo run test --force`):
+  - domain 2254, contracts 182, db 146, ui 107, tokens 146, copy-lint 17;
+  - web 952 passed, 1 skipped, after naming the new command in `audit.ts`;
+  - `release-workflows.test.ts` hit its 90 s limit under the whole run's load and passes alone (17 of 17). The slice does not touch it.
+- `pnpm lint` (whole repository) clean, `pnpm typecheck` 8 of 8, `pnpm copy-lint` clean, `pnpm db:docs` regenerated (`docs/data/`).
+- `pnpm build` then `pnpm --filter web js-budget`: every page within its budget, 46 pages.
+- Journeys `pipelines`, `walk-in`, `imports`, `notifications` and `profile`, `e2e:seed` before each run: 84 passed, then 84 passed. In an earlier pair, the walk-in keyboard case flaked once on desktop-dark (the save notice was not seen; it passed on retry). A run with `--repeat-each 3 --retries 0` then passed 68 of 68.
+
+**EXPLAIN (ANALYZE)** (the one new lookup on a table; the import's code lookup is one definer call per distinct code): the partner number check is an Index Scan on `contact_phones_e164_idx`, then `account_contacts_contact_idx`, then `accounts_pkey`, 9 shared buffers, 2.2 ms, 1,841 phones.
+
+**Baselines for the lead to remake in the Linux image:** `settings-pipelines` (the Add partner button and the new intro), `imports-job` and `imports-identity-left-out` (the matching step lists Referral code), each in desktop-light, desktop-dark and phone. The bell is still drawn by the server, so I expect no other picture to change.
+
+**Decisions the brief did not settle**
+- Items 1 and 2 needed no code. The STATUS follow-up line describes the state before T2's definer, and the lead can close it.
+- Lock hours: the column is nullable rather than `not null` without a default. A pipeline made outside the seed (tests, a later Admin create) then reads the workshop default rather than failing. The value is in `@shakti/contracts` because `packages/db` may not import `@shakti/domain` (the precedent is `WORKSHOP_DISPOSITIONS`).
+- Add partner: a new command over the customer import's writer, as no single-customer create command exists. Only an Executive may run it (the code decides commission). A number already a customer's is refused rather than turned into a partner, since that is a type change on Account 360.
+- The machine refusal in the handover answers `not_open`, not an error, so the event is not retried.
+
+**Unfinished:** `/settings/profile` is at 189.5 kB, not 186. Getting there needs the menu icons (3.5 kB) out of the shell's script, for example drawn by the server layout and passed to `AppShell` as nodes. That is a shell change across every page, left for the lead to decide.
 
 ## Review
 | # | Severity | Finding | State |
