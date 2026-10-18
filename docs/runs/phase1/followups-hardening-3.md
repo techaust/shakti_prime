@@ -6,9 +6,9 @@
 | PC worktree | `followups-hardening-3`, slot 2: Postgres 54332 (container `shakti-pg-followups-hardening-3`), app 3032 |
 | Runs on | PC (owner, 17-10-2026: spend the week's remainder before the reset; the lead runs it while the owner is away) |
 | Tier | B (the handover's state machine, workers, permissions): build Opus 5.5 medium, review Opus 5.5 high |
-| Usage | build Opus medium from week 96 (18-10-2026) |
-| State | integrating: every check passed; pull request opened (18-10-2026) |
-| Next step | merge on green |
+| Usage | build Opus medium from week 96 (18-10-2026); measured (agent-usage.py, 18-10-2026): build and fix round Opus medium 3.0 points of the week, review Opus high 0.2, each on its setting |
+| State | merged (#191, 18-10-2026) |
+| Next step | none |
 
 ## Brief
 The Phase 1 follow-ups in [STATUS](../../10-status.md#open-follow-ups) that need no client input: two handover defects, one value with two copies, a page near its size budget, and three small pieces the design or the owner left for after C3 and P2b. No change to tax, price or credit logic. A migration only where an item needs one, as [AGENTS §6](../../../AGENTS.md#6-database-changes) says; a new command as [AGENTS §5](../../../AGENTS.md#5-domain-commands) says (the `add-command` and `add-table` skills).

@@ -11,6 +11,11 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 wave 6 and the Phase 0–1 audit
 
+- **#191** (18-10-2026) Hardening batch 3:
+  - Settings › Pipelines › Add partner makes a referral partner with no lead (`crm.referral_partner.create`, Executive only, the number locked and a live contact's number refused);
+  - referral codes in the leads import, an unknown or stopped code refused with its own reason; the walk-in form's PIN lookup;
+  - the handover lock's length lives once (`pipelines.lock_hours` without a default, filled by the seed from the workshop default);
+  - staff pages 0.6 to 4.2 kB lighter (`/settings/profile` 189.5 kB); tests for the handover's call tasks and a nurtured lead's reassignment. Migration 0159.
 - **#189** (18-10-2026) Hardening batch 2:
   - the journeys' seed delivers its own waiting events, and the in-process publisher stops inside a claim at its budget (`notTried`), so a journey's first command answers in about a second;
   - a Triage redelivery reuses the kept answer only for the same prompt (one hour);
@@ -41,6 +46,7 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#190** (18-10-2026) STATUS with hardening batch 2 merged and nothing in flight; CHANGELOG lines for #188 and #189.
 - **#188** (17-10-2026) STATUS at the end of the 17-10 PC day: all 23 Phase 1 slices merged, dev and staging through 0158, production's steps waiting on the owner; CHANGELOG lines for #182 to #187.
 - **#185** (17-10-2026) The owner's rule: in the two days before the weekly reset the week's remaining usage is spent on new builds (DECISIONS, models-and-usage §5).
 - **#184** (17-10-2026) SES production access granted on 17-10-2026, read back from AWS; G1's part 1 complete.
