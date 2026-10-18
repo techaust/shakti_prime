@@ -670,7 +670,7 @@ describe('crm.referral_partner.create', () => {
     const number = phone();
     const code = `N${RUN.slice(0, 7)}`.toUpperCase();
     const recorded = memoryAuditSink();
-    const made = (await asPrincipal(execOne, (context) =>
+    const made = await asPrincipal(execOne, (context) =>
       runCommand(
         createReferralPartner,
         { context, audit: recorded, outbox },
@@ -682,7 +682,7 @@ describe('crm.referral_partner.create', () => {
           code: code.toLowerCase(),
         },
       ),
-    )) as { accountId: string; name: string; code: string | null; isActive: boolean };
+    );
     partners.push(made.accountId);
     expect(made).toMatchObject({ name: 'Kisan Sewa Kendra Nashik', code, isActive: true });
     const [row] = await asMigrator(
