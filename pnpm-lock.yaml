@@ -225,8 +225,8 @@ importers:
         specifier: ^3.1152.0
         version: 3.1152.0
       '@hyzyla/pdfium':
-        specifier: 2.1.13
-        version: 2.1.13
+        specifier: 3.0.0
+        version: 3.0.0
       '@node-rs/argon2':
         specifier: ^2.2.2
         version: 2.2.2
@@ -1352,8 +1352,9 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@hyzyla/pdfium@2.1.13':
-    resolution: {integrity: sha512-4J+xMFJW6V+jktxor6Lsk/2YdPCpeY+Ga69J98uyNQwYESkAsUDxz8BeFU0ZbZJIJ+fK3J6bm61gmwWnUzVU1g==}
+  '@hyzyla/pdfium@3.0.0':
+    resolution: {integrity: sha512-Hw7/Pc/y2f8ZYVNXxAvDiLAV0qJT4+e5HMwbMghra/s2RKXuuWYdR/8ohoD4YwQfTL5UzSNlTtP1LJHip7LiEQ==}
+    engines: {node: '>=22'}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -6519,7 +6520,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@hyzyla/pdfium@2.1.13': {}
+  '@hyzyla/pdfium@3.0.0': {}
 
   '@img/colour@1.1.0': {}
 
