@@ -43,8 +43,11 @@ import {
   suspendUser,
   upsertSite,
   withdrawConsent,
+  memoryMailer,
   type AnyCommand,
 } from '@shakti/domain';
+import { createAuth, type CreateAuthOptions } from '../src/auth/create-auth';
+import type { AuthDeps } from '../src/auth/deps';
 
 /** The request context a domain query reads in. */
 type QueryContext = Parameters<Parameters<typeof executeQuery>[2]>[0];
@@ -372,6 +375,31 @@ export function demoSet(
 export function demoEmail(roleKey: StaffRoleKey, domain: string): string {
   const role = roleKey.replaceAll('_', '-');
   return `demo.${role}@${domain}`;
+}
+
+/**
+ * The set-password links of the demo people, made by the auth module through the same flow as
+ * Admin › Team members (`requestPasswordReset`, which also withdraws a person's earlier link). The
+ * message is caught here instead of mailed, so the script prints the link beside the role; no
+ * password is ever made up or shown.
+ */
+export function setPasswordLinks(
+  deps: AuthDeps,
+  options: CreateAuthOptions = {},
+): (email: string) => Promise<string> {
+  const mailer = memoryMailer();
+  const auth = createAuth({ ...deps, mailer }, { ...options, nextCookies: false });
+  return async (email) => {
+    const before = mailer.sent.length;
+    // No headers: an internal call, so the bot check does not apply (see create-auth.ts).
+    await auth.api.requestPasswordReset({ body: { email, redirectTo: '/set-password' } });
+    const link = mailer.sent
+      .slice(before)
+      .find((m) => m.to === email)
+      ?.text.match(/https?:\/\/\S+/)?.[0];
+    if (link === undefined) throw new Error(`no set-password link was made for ${email}`);
+    return link;
+  };
 }
 
 export interface DemoDeps {

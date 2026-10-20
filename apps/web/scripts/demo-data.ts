@@ -10,8 +10,6 @@
 // The environment comes from the repository's .env, as for every script: the database package
 // loads it when imported and opens no connection before the first query, so the target is
 // decided below before anything connects.
-import { memoryMailer } from '@shakti/domain';
-import { createAuth } from '../src/auth/create-auth';
 import { defaultAuthDeps } from '../src/auth/deps';
 import { firstExecutive } from '../src/auth/operator-principal';
 import { invalidatePrincipal } from '../src/auth/session-principal';
@@ -22,6 +20,7 @@ import {
   demoSet,
   loadDemoData,
   removeDemoData,
+  setPasswordLinks,
 } from './demo-data-loader';
 import { DemoTargetRefused, demoTarget, type DemoTarget } from './demo-data-target';
 
@@ -76,28 +75,13 @@ if (operator.kind === 'not_ready') {
 console.log(`acting as: ${operator.name}`);
 
 const deps = defaultAuthDeps();
-const mailer = memoryMailer();
-// The same set-password flow as Admin › Team members: the auth module makes the link and its
-// message, which is caught here rather than mailed, so the link is printed beside the role.
-const auth = createAuth({ ...deps, mailer }, { nextCookies: false });
-async function issueLink(email: string): Promise<string> {
-  const before = mailer.sent.length;
-  // No headers: an internal call, so the bot check does not apply (see create-auth.ts).
-  await auth.api.requestPasswordReset({ body: { email, redirectTo: '/set-password' } });
-  const link = mailer.sent
-    .slice(before)
-    .find((m) => m.to === email)
-    ?.text.match(/https?:\/\/\S+/)?.[0];
-  if (link === undefined) throw new Error(`no set-password link was made for ${email}`);
-  return link;
-}
 
 try {
   const options = {
     operator: operator.principal,
     set: demoSet(),
     emailDomain,
-    issueLink,
+    issueLink: setPasswordLinks(deps),
     forget: (userId: string) => invalidatePrincipal(deps.keyValue, userId),
     log: (line: string) => {
       console.log(line);
