@@ -412,6 +412,11 @@ export interface DemoDeps {
   /** Drops a person's cached access after their status changed. */
   forget: (userId: string) => Promise<void>;
   log: (line: string) => void;
+  /**
+   * Gives every person still invited a fresh link (which withdraws the earlier one), for links lost
+   * before the session. Off by default, so a second load changes nothing.
+   */
+  newLinks?: boolean;
 }
 
 export interface DemoAccount {
@@ -461,29 +466,31 @@ function runner(deps: DemoDeps) {
 }
 type Runner = ReturnType<typeof runner>;
 
-/** Every item whose code starts with the set's prefix, archived ones included. */
-async function demoItems(r: Runner, prefix: string) {
+/** The set's own items, by their codes, archived ones included. */
+async function demoItems(r: Runner, set: DemoSet) {
+  const codes = new Set(set.items.map((i) => i.code));
   const found = [];
   let cursor: string | undefined;
   do {
     const page = await r.read('demoData.items', (ctx) =>
-      listItems(ctx, { q: prefix, includeArchived: true, limit: 200, cursor }),
+      listItems(ctx, { q: set.codePrefix, includeArchived: true, limit: 200, cursor }),
     );
-    found.push(...page.items.filter((i) => i.sku.startsWith(prefix)));
+    found.push(...page.items.filter((i) => codes.has(i.sku)));
     cursor = page.nextCursor ?? undefined;
   } while (cursor !== undefined);
   return found;
 }
 
-/** Every kit whose code starts with the set's prefix, archived ones included. */
-async function demoKits(r: Runner, prefix: string) {
+/** The set's own kits, by their codes, archived ones included. */
+async function demoKits(r: Runner, set: DemoSet) {
+  const codes = new Set(set.kits.map((k) => k.code));
   const found = [];
   let cursor: string | undefined;
   do {
     const page = await r.read('demoData.kits', (ctx) =>
-      listKits(ctx, { q: prefix, includeArchived: true, limit: 200, cursor }),
+      listKits(ctx, { q: set.codePrefix, includeArchived: true, limit: 200, cursor }),
     );
-    found.push(...page.items.filter((k) => k.sku.startsWith(prefix)));
+    found.push(...page.items.filter((k) => codes.has(k.sku)));
     cursor = page.nextCursor ?? undefined;
   } while (cursor !== undefined);
   return found;
@@ -564,8 +571,8 @@ export async function loadDemoData(deps: DemoDeps): Promise<DemoSummary> {
   const today = istCalendarDate(new Date());
 
   // The catalogue: items, then kits of them.
-  const items = await demoItems(r, set.codePrefix);
-  const kits = await demoKits(r, set.codePrefix);
+  const items = await demoItems(r, set);
+  const kits = await demoKits(r, set);
   if (items.some((i) => !i.isActive) || kits.some((k) => !k.isActive)) {
     throw new DemoAlreadyRemoved(
       'The demo data was removed from this database; its items cannot be loaded again.',
@@ -621,11 +628,13 @@ export async function loadDemoData(deps: DemoDeps): Promise<DemoSummary> {
         return { kitId: id, id, price: k.prices[tier] };
       }),
     ];
+    let changed = 0;
     for (const { id, price, ...target } of wanted) {
       if (held.get(id) === price) continue;
       await r.run(setPrice, { priceListId, ...target, price, reason: `Demo price ${DEMO_MARK}` });
+      changed += 1;
     }
-    deps.log(`prices on the ${tier} list`);
+    if (changed > 0) deps.log(`${String(changed)} prices on the ${tier} list`);
   }
 
   // Customers, their leads, the site, the note, the consent and the price tier.
@@ -750,7 +759,11 @@ export async function loadDemoData(deps: DemoDeps): Promise<DemoSummary> {
     const email = demoEmail(person.roleKey, deps.emailDomain);
     const found = people.find((u) => u.email === email);
     if (found && found.status !== 'suspended') {
-      accounts.push({ roleKey: person.roleKey, email });
+      accounts.push(
+        found.status === 'invited' && deps.newLinks === true
+          ? { roleKey: person.roleKey, email, link: await deps.issueLink(email) }
+          : { roleKey: person.roleKey, email },
+      );
       continue;
     }
     if (found) {
@@ -780,6 +793,7 @@ export async function removeDemoData(deps: DemoDeps): Promise<DemoSummary> {
 
   for (const customer of set.customers) {
     const rows = await customerRows(r, customer.name);
+    const before = r.writes;
     let consentsDone = false;
     for (const row of rows) {
       const view = await r.read(
@@ -816,15 +830,15 @@ export async function removeDemoData(deps: DemoDeps): Promise<DemoSummary> {
         consentsDone = true;
       }
     }
-    if (rows.length > 0) deps.log(`closed the leads of ${customer.name}`);
+    if (r.writes > before) deps.log(`closed the leads of ${customer.name}`);
   }
 
-  for (const kit of await demoKits(r, set.codePrefix)) {
+  for (const kit of await demoKits(r, set)) {
     if (!kit.isActive) continue;
     await r.run(archiveKit, { kitId: kit.id });
     deps.log(`archived kit ${kit.sku}`);
   }
-  for (const item of await demoItems(r, set.codePrefix)) {
+  for (const item of await demoItems(r, set)) {
     if (!item.isActive) continue;
     await r.run(archiveItem, { itemId: item.id });
     deps.log(`archived item ${item.sku}`);

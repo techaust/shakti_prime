@@ -138,6 +138,13 @@ describe('the demo data loader', () => {
     const second = await loadDemoData(deps);
     expect(second.writes).toBe(0);
     expect(second.accounts.map((a) => a.link)).toEqual(Array.from({ length: 11 }, () => undefined));
+
+    // Links lost before the session: a fresh one each, and still nothing written by a command.
+    const fresh = await loadDemoData({ ...deps, newLinks: true });
+    expect(fresh.writes).toBe(0);
+    for (const account of fresh.accounts) {
+      expect(account.link).toMatch(/^http:\/\/localhost:3000\/.+/);
+    }
   });
 
   it('puts the items, kits and prices, the customers and one account per role in place', async () => {

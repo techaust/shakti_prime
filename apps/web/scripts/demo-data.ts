@@ -1,10 +1,11 @@
 // The demo data of the screen review (docs/13-client-packs/wireframe-review.md §1a), on a local
 // database or the staging project only, never production.
 // Usage, from the repository root:
-//   pnpm --filter web exec tsx scripts/demo-data.ts load [--email-domain <domain>] [--staging-ref <ref>]
+//   pnpm --filter web exec tsx scripts/demo-data.ts load [--email-domain <domain>] [--staging-ref <ref>] [--new-links]
 //   pnpm --filter web exec tsx scripts/demo-data.ts remove [--email-domain <domain>] [--staging-ref <ref>]
 // `load` prints each demo account with its role and set-password link; run again, it changes
-// nothing. `remove` takes the set off and closes every demo account. Both act as the first
+// nothing (`--new-links` gives the people still invited a fresh link, withdrawing the earlier
+// one). `remove` takes the set off and closes every demo account. Both act as the first
 // Executive, through the domain commands only.
 //
 // The environment comes from the repository's .env, as for every script: the database package
@@ -32,7 +33,7 @@ function arg(name: string): string | undefined {
 const action = process.argv[2];
 if (action !== 'load' && action !== 'remove') {
   console.error(
-    'usage: demo-data.ts load|remove [--email-domain <domain>] [--staging-ref <project ref>]',
+    'usage: demo-data.ts load|remove [--email-domain <domain>] [--staging-ref <project ref>] [--new-links]',
   );
   process.exit(1);
 }
@@ -82,6 +83,7 @@ try {
     set: demoSet(),
     emailDomain,
     issueLink: setPasswordLinks(deps),
+    newLinks: process.argv.includes('--new-links'),
     forget: (userId: string) => invalidatePrincipal(deps.keyValue, userId),
     log: (line: string) => {
       console.log(line);
@@ -93,7 +95,8 @@ try {
     const state =
       action === 'remove'
         ? 'closed'
-        : (account.link ?? 'already invited: the person uses the link printed before');
+        : (account.link ??
+          'already in place: the link printed before stands (--new-links for a fresh one)');
     console.log(`${account.roleKey}  ${account.email}  ${state}`);
   }
   console.log(
