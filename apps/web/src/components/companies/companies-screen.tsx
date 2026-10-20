@@ -104,7 +104,7 @@ export function CompaniesScreen({
             ref={editButtons.ref(c.id)}
             variant="secondary"
             size="sm"
-            aria-label={common('rowActions', { name: c.legalName })}
+            aria-label={t('editTitle', { name: c.legalName })}
             onClick={() => {
               setEditing(c);
             }}

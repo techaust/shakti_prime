@@ -59,7 +59,7 @@ test.describe('as an Executive', () => {
     await expectNoAxeViolations(page);
     // The period runs to today, so its dates are masked.
     await snap(page, 'triage-proposals', {
-      mask: [page.getByLabel('From'), page.getByLabel('To')],
+      mask: [page.getByLabel('From', { exact: true }), page.getByLabel('To', { exact: true })],
     });
 
     // A period the report refuses is named under the dates, not sent.

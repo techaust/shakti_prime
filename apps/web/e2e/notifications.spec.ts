@@ -41,7 +41,7 @@ async function addLead(
 
 /** The bell, once it counts at least one unread notice; the page is read again until it does. */
 async function bellWithUnread(page: Page) {
-  const bell = page.getByRole('button', { name: /^Notifications, (\d+|100 or more) unread$/ });
+  const bell = page.getByRole('button', { name: /^Notifications, (\d+|more than 99) unread$/ });
   await expect(async () => {
     await page.reload();
     await expect(bell).toBeVisible({ timeout: 2_000 });

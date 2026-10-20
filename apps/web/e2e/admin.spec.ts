@@ -38,7 +38,9 @@ test.describe('as an Executive', () => {
     });
     await expectNoAxeViolations(page);
     // The window's dates are today's and the last week's.
-    await snap(page, 'activity-log', { mask: [page.getByLabel('From'), page.getByLabel('To')] });
+    await snap(page, 'activity-log', {
+      mask: [page.getByLabel('From', { exact: true }), page.getByLabel('To', { exact: true })],
+    });
   });
 
   test('companies', async ({ page }) => {

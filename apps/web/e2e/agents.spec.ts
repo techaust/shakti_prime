@@ -199,7 +199,7 @@ test.describe('as an Executive', () => {
     const grid = dataGrid(page, AGENTS);
     await grid.getByRole('button', { name: 'Stop Caller Co-pilot' }).click();
     await expect(page.getByText('Caller Co-pilot is stopped.')).toBeVisible();
-    await expect(grid.getByRole('button', { name: 'Let Caller Co-pilot run' })).toBeVisible();
+    await expect(grid.getByRole('button', { name: 'Let it run: Caller Co-pilot' })).toBeVisible();
 
     try {
       await page.goto('/inbox');
@@ -214,7 +214,9 @@ test.describe('as an Executive', () => {
     } finally {
       await page.goto('/admin/agents');
       await showCompany(page, KILL_SWITCH.company.name);
-      await dataGrid(page, AGENTS).getByRole('button', { name: 'Let Caller Co-pilot run' }).click();
+      await dataGrid(page, AGENTS)
+        .getByRole('button', { name: 'Let it run: Caller Co-pilot' })
+        .click();
       await expect(page.getByText('Caller Co-pilot may run again.')).toBeVisible();
     }
 
