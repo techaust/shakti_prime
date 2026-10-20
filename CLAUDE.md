@@ -27,6 +27,7 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
   - While any agent runs, the watchdog `bash tools/integration/watchdog.sh` runs under a monitor, armed again at each 30-minute expiry, with merged slices listed in `D:/shakti-wt/.done` ([slice-integration §3](docs/runbooks/slice-integration.md#3-build)).
   - The lead owns the slots' Docker containers: builders never run `docker` or `fresh-db.sh`, and the lead stops each slot's database when its agent ends.
   - Every heavy command (whole-repository lint, typecheck, build, the security suite, journeys) waits its turn through the PC-wide lock `bash tools/integration/heavy.sh <command>`, because the PC has 8 GB of memory.
+  - Stop a heavy command by ending its own task, never with `taskkill /F`: a forced stop skips the lock's cleanup, and `~/.shakti-heavy.lock` stays held until it is 90 minutes old, unless the owner removes it.
   - A whole-repository lint runs once, as a builder's final check.
   - A cloud day follows [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) from start to end (the lead, its agents, integration, pull requests, the hosted steps and the documents); a cloud session has `CLAUDE_CODE_REMOTE=true` and none of the PC's plugins or MCP servers, and the PC's Claude memory does not reach it.
   - On a cloud day the lead pushes every slice branch at least every 10 minutes while its agent runs (a reclaimed or restarted VM loses everything unpushed), never pushes a branch again after its pull request merged (the merge deleted it), and opens a slice's pull request only once it is integrated, since a green pull request merges itself ([hybrid §9](docs/runbooks/hybrid.md#9-a-reclaimed-vm-or-a-usage-limit)).
@@ -67,6 +68,7 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 - Never push to `main` directly: a private repository on the free plan cannot block it, and branch rules need a public repository, the client's organisation or a paid plan (the audit ([2026-09-audit](docs/14-reviews/2026-09-audit.md)) M45).
 - Branch the next slice from `main` after the previous pull request has merged; never stack. A slice built while others merged takes `main` by a merge commit, never a rebase, and its migrations move after `main`'s last one with journal times after `main`'s, because the migrator skips a migration older than the last one applied.
 - Taking `main` into a slice, check every function, check constraint and foreign key the slice's migrations redefine against `main`'s latest version: a moved migration that redefines `app.platform_only_permissions()` or the `activities` type check drops what `main` added, and a merge that the conflicts do not show is still a clash ([slice-integration §10](docs/runbooks/slice-integration.md#10-lessons)).
+- The merge workflow never merges a Dependabot major version bump, labelled `checks-ok` or not: the lead takes the bump into a pull request of its own, and Dependabot then closes its own.
 - CI is trimmed because GitHub's free plan allows 2,000 Actions minutes a month ([DECISIONS](docs/11-decisions.md)). When they run out, GitHub starts no job: the run fails with no log, and the check run's annotation names billing.
 
 ### Tests
@@ -74,6 +76,7 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 - After every test edit, run `pnpm typecheck` and lint the folder you edited (`pnpm exec eslint --max-warnings 0 <folder>`, for example `packages/domain`); the whole-repository `pnpm lint` is the final check, through the heavy-command lock.
 - Turbo caches every task except the three set to `cache: false` in `turbo.json` (`test:security`, `test:e2e` and `db:generate`): a task that prints "cache hit, replaying logs" did not run; force it with `pnpm exec turbo run <task> --force` (`pnpm test -- --force` hands the flag to vitest, which rejects it).
 - Never report the security suite as verified without running it against the local Docker Postgres.
+- Journeys and screenshot baselines run on a fresh database in a slot worktree (`fresh-db.sh`), never on the main checkout's database, which ages with every run and fails the journeys that read a recent window.
 
 ### Local database
 - `docker compose up -d --wait` starts the Supabase Postgres 17 image on `127.0.0.1:54322`; `.env` comes from `.env.example`. An older `.env` lacks later lines: without `DATABASE_URL_OUTBOX` and `OUTBOX_PUBLISHER_PASSWORD` `pnpm db:migrate` stops, and the reader tests need `DATABASE_URL_READER` and `APP_READER_PASSWORD`; copy them across.

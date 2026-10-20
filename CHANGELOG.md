@@ -11,6 +11,12 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 wave 6 and the Phase 0–1 audit
 
+- **#199** (20-10-2026) The demo data loader for the screen review (`apps/web/scripts/demo-data.ts load|remove`, `--assign`, `--new-links`): `DEMO-` items and kits on the three price lists, five "(demo)" customers with leads in three companies, Bhanwar Lal Jat among them, and one invited person per role; local or staging only, production refused before any connection; every write a command as the first Executive (`firstExecutive()`, refused inside Next.js and on a hosted runtime), marked `scripts/demo-data.ts` in the audit trail.
+- **#198** (20-10-2026) Playwright 1.64.1 with its Linux image pinned by digest, and `actions/cache` 6.1.0 (supersedes Dependabot #193); every journey passed in the new image and no screenshot changed.
+- **#197** (20-10-2026) Minor and patch updates (vitest 5.0.5, `better-auth` 1.7.11, `eslint-config-next` 16.4.2, turbo 2.11.9, `typescript-eslint` 8.71.2, `@axe-core/playwright` 4.14, `lucide-react` 1.59) and `@hyzyla/pdfium` 3.0.0 (supersede Dependabot #195 and #178):
+  - a masked PDF page kept its colours: PDFium always returned RGBA, so the vault's masked copies had red and blue swapped; a test pins them;
+  - every accessible name holds the words its element shows (WCAG 2.5.3, which axe 4.14 checks): the queue, Let it run, a company's Edit, Set code, Set price, Take off the list, the search button, and the bell and Agent Inbox at more than 99;
+  - the activity log and triage date masks match their own fields only; the shadcn MCP server pinned at 4.22.1.
 - **#194** (19-10-2026) Production libraries: the AWS SDK clients 3.1152.0, `@sentry/nextjs` 11.8.0, `better-auth` 1.7.10, `next` 16.4.2, `react` and `react-dom` 19.3.1, `zod` 4.6.7, `@anthropic-ai/sdk` 0.135.0, the Radix dialog, menu and slot, `lucide-react` 1.57.0 and `dotenv` 18.0.8 (Dependabot).
 - **#191** (18-10-2026) Hardening batch 3:
   - Settings › Pipelines › Add partner makes a referral partner with no lead (`crm.referral_partner.create`, Executive only, the number locked and a live contact's number refused);
@@ -47,6 +53,7 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#196** (20-10-2026) CLAUDE.md and the runbooks with the 17-10 rules and lessons, STATUS at 20-10; CHANGELOG lines for #192 and #194.
 - **#192** (18-10-2026) STATUS with hardening batch 3 merged and dev and staging through 0159; CHANGELOG lines for #190 and #191.
 - **#190** (18-10-2026) STATUS with hardening batch 2 merged and nothing in flight; CHANGELOG lines for #188 and #189.
 - **#188** (17-10-2026) STATUS at the end of the 17-10 PC day: all 23 Phase 1 slices merged, dev and staging through 0158, production's steps waiting on the owner; CHANGELOG lines for #182 to #187.
