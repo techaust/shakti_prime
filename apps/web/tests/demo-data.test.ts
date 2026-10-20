@@ -1,8 +1,10 @@
 import { newId, type Principal } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
-import { closeDb, createTestUser, principalFor, testPhone } from '@shakti/db/testing';
+import { asMigrator, closeDb, createTestUser, principalFor, testPhone } from '@shakti/db/testing';
 import {
+  executeCommand,
   executeQuery,
+  inviteUser,
   listCustomers,
   listItems,
   listKitPrices,
@@ -17,7 +19,9 @@ import {
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { firstExecutive } from '../src/auth/operator-principal';
 import {
+  DEMO_CLIENT,
   DemoAlreadyRemoved,
+  demoEmail,
   demoSet,
   loadDemoData,
   removeDemoData,
@@ -181,6 +185,66 @@ describe('the demo data loader', () => {
       expect(user.status).toBe('invited');
       expect(user.displayName).toMatch(/\(demo\)$/);
     }
+  });
+
+  it('marks every change it made as the script', async () => {
+    const devices = await asMigrator(
+      (m) => m<{ device: string | null }[]>`
+        select distinct device from audit_logs where actor_principal_id = ${operator.id}
+          and outcome = 'ok'`,
+    );
+    expect(devices).toEqual([{ device: DEMO_CLIENT.device }]);
+  });
+
+  it('gives the demo leads to the callers once they have set their passwords', async () => {
+    const callers = (['tele_caller_cc', 'tele_caller_lc'] as const).map((role) =>
+      demoEmail(role, deps.emailDomain),
+    );
+    const early = await loadDemoData({ ...deps, assign: true });
+    expect(early.writes).toBe(0);
+    expect(new Set(early.waiting)).toEqual(new Set(callers));
+
+    // Their first password makes them active, as the set-password page does.
+    await asMigrator(
+      (m) => m`update users set status = 'active' where email = any(${callers}::text[])`,
+    );
+    const given = await loadDemoData({ ...deps, assign: true });
+    expect(given.waiting).toEqual([]);
+    expect(given.writes).toBe(3);
+    const users = await demoUsers();
+    const ownerOf = (role: string) => users.find((u) => u.entityRoles[0]?.roleKey === role)?.id;
+    for (const [index, role] of [
+      [0, 'tele_caller_lc'],
+      [1, 'tele_caller_cc'],
+      [3, 'tele_caller_cc'],
+    ] as const) {
+      const name = set.customers[index]?.name ?? '';
+      const row = (await customer(name)).find((r) => r.entityId === 1);
+      const view = await read(
+        (ctx) => loadAccount360(ctx, { accountId: row?.accountId ?? '', entityId: 1 }),
+        [1],
+      );
+      expect(view.leads[0]?.ownerId).toBe(ownerOf(role));
+    }
+    expect((await loadDemoData({ ...deps, assign: true })).writes).toBe(0);
+  });
+
+  it('never takes someone who is not a demo account for one, and names demo accounts elsewhere', async () => {
+    const otherDomain = `other-${RUN.toLowerCase()}.example.com`;
+    const address = demoEmail('hr_admin', otherDomain);
+    await executeCommand(operator, {}, inviteUser, {
+      email: address,
+      displayName: 'Someone real',
+      entityRoles: [{ entityId: 1, roleKey: 'hr_admin' }],
+    });
+    const result = await removeDemoData({ ...deps, emailDomain: otherDomain });
+    expect(result.notDemo).toEqual([address]);
+    expect(result.accounts).toEqual([]);
+    expect(result.elsewhere).toHaveLength(11);
+    const [someone] = await asMigrator(
+      (m) => m<{ status: string }[]>`select status from users where email = ${address}`,
+    );
+    expect(someone?.status).toBe('invited');
   });
 
   it('removes the set through the commands, and every list then shows none of it', async () => {

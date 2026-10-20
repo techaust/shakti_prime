@@ -45,7 +45,9 @@ export function supabaseProjectRef(url: URL): string | undefined {
  * `BOS_ENVIRONMENT=production`, or the production project's ref anywhere in any address. A
  * database on this machine is allowed when every address is local. Anything else must be the
  * staging project: `BOS_ENVIRONMENT=staging`, the project's ref given with `--staging-ref`, and
- * every address on that one project.
+ * every address on that one project. An address naming more than one host is refused, and
+ * `BETTER_AUTH_URL`, which the set-password links point at, must be on this machine for a local
+ * target and an https site elsewhere for staging.
  */
 export function demoTarget(
   env: Readonly<Record<string, string | undefined>>,
@@ -70,6 +72,11 @@ export function demoTarget(
     } catch {
       throw new DemoTargetRefused(`${name} cannot be read as a database address.`);
     }
+    // postgres.js reads `a,b` as a list of hosts and tries each in turn, while the URL parser
+    // takes it as one name: an address must name one host only.
+    if (url.host.includes(',')) {
+      throw new DemoTargetRefused(`${name} names more than one host: refusing it.`);
+    }
     urls.push({ name, url });
   }
   for (const required of ['DATABASE_URL', 'DATABASE_URL_AUTH'] as const) {
@@ -78,7 +85,22 @@ export function demoTarget(
     }
   }
 
-  if (urls.every((u) => LOCAL_HOSTS.has(u.url.hostname))) return { kind: 'local' };
+  // The set-password links point at BETTER_AUTH_URL, which must be the target's own site.
+  let site: URL | undefined;
+  try {
+    site = new URL(env.BETTER_AUTH_URL ?? '');
+  } catch {
+    site = undefined;
+  }
+
+  if (urls.every((u) => LOCAL_HOSTS.has(u.url.hostname))) {
+    if (site === undefined || !LOCAL_HOSTS.has(site.hostname)) {
+      throw new DemoTargetRefused(
+        'BETTER_AUTH_URL is not on this machine, while the database is: the links would point elsewhere.',
+      );
+    }
+    return { kind: 'local' };
+  }
   if (urls.some((u) => LOCAL_HOSTS.has(u.url.hostname))) {
     throw new DemoTargetRefused('Some database addresses are on this machine and some are not.');
   }
@@ -100,6 +122,11 @@ export function demoTarget(
     if (supabaseProjectRef(url) !== stagingRef) {
       throw new DemoTargetRefused(`${name} is not an address of the project ${stagingRef}.`);
     }
+  }
+  if (site === undefined || site.protocol !== 'https:' || LOCAL_HOSTS.has(site.hostname)) {
+    throw new DemoTargetRefused(
+      'BETTER_AUTH_URL must be the staging site (https, not this machine), or the links would not open.',
+    );
   }
   return { kind: 'staging', projectRef: stagingRef };
 }

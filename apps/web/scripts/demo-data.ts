@@ -1,12 +1,13 @@
 // The demo data of the screen review (docs/13-client-packs/wireframe-review.md §1a), on a local
 // database or the staging project only, never production.
 // Usage, from the repository root:
-//   pnpm --filter web exec tsx scripts/demo-data.ts load [--email-domain <domain>] [--staging-ref <ref>] [--new-links]
+//   pnpm --filter web exec tsx scripts/demo-data.ts load [--email-domain <domain>] [--staging-ref <ref>] [--new-links] [--assign]
 //   pnpm --filter web exec tsx scripts/demo-data.ts remove [--email-domain <domain>] [--staging-ref <ref>]
 // `load` prints each demo account with its role and set-password link; run again, it changes
 // nothing (`--new-links` gives the people still invited a fresh link, withdrawing the earlier
-// one). `remove` takes the set off and closes every demo account. Both act as the first
-// Executive, through the domain commands only.
+// one). Once the demo people have set their passwords, `load --assign` gives the demo leads to
+// the demo callers and names who still has to set one. `remove` takes the set off and closes
+// every demo account. Both act as the first Executive, through the domain commands only.
 //
 // The environment comes from the repository's .env, as for every script: the database package
 // loads it when imported and opens no connection before the first query, so the target is
@@ -33,7 +34,7 @@ function arg(name: string): string | undefined {
 const action = process.argv[2];
 if (action !== 'load' && action !== 'remove') {
   console.error(
-    'usage: demo-data.ts load|remove [--email-domain <domain>] [--staging-ref <project ref>] [--new-links]',
+    'usage: demo-data.ts load|remove [--email-domain <domain>] [--staging-ref <project ref>] [--new-links] [--assign]',
   );
   process.exit(1);
 }
@@ -84,6 +85,7 @@ try {
     emailDomain,
     issueLink: setPasswordLinks(deps),
     newLinks: process.argv.includes('--new-links'),
+    assign: process.argv.includes('--assign'),
     forget: (userId: string) => invalidatePrincipal(deps.keyValue, userId),
     log: (line: string) => {
       console.log(line);
@@ -98,6 +100,21 @@ try {
         : (account.link ??
           'already in place: the link printed before stands (--new-links for a fresh one)');
     console.log(`${account.roleKey}  ${account.email}  ${state}`);
+  }
+  for (const email of summary.notDemo) {
+    console.warn(`warning: ${email} belongs to someone who is not a demo account; left alone`);
+  }
+  for (const email of summary.waiting) {
+    console.warn(`waiting: ${email} has to set a password before its leads are given to it`);
+  }
+  if (summary.elsewhere.length > 0) {
+    console.warn(`demo accounts under another domain: ${summary.elsewhere.join(', ')}`);
+  }
+  if (action === 'remove' && summary.accounts.length === 0) {
+    console.error(
+      `No demo account was found at @${emailDomain}: pass the --email-domain the set was loaded with.`,
+    );
+    process.exit(1);
   }
   console.log(
     action === 'load'

@@ -13,6 +13,7 @@ import {
 import {
   addNote,
   approvePriceList,
+  assignOpportunity,
   archiveItem,
   archiveKit,
   cancelTask,
@@ -84,6 +85,8 @@ interface DemoLead {
   site?: { type: 'borewell' | 'rooftop' | 'factory'; village: string; pin: string };
   /** The stage the lead is moved on to from its first one. */
   stageKey?: string;
+  /** The demo person `load --assign` gives the lead to, for the tasks of that role. */
+  ownerRole?: StaffRoleKey;
 }
 
 interface DemoCustomer {
@@ -283,6 +286,7 @@ export function demoSet(
             pipelineKey: 'farmer_pumps',
             site: { type: 'borewell', village: 'Govindgarh', pin: '303712' },
             stageKey: 'qualified',
+            ownerRole: 'tele_caller_lc',
           },
           { entityId: 3, pipelineKey: 'residential_rooftop' },
         ],
@@ -307,6 +311,7 @@ export function demoSet(
             pipelineKey: 'farmer_pumps',
             site: { type: 'borewell', village: 'Chomu', pin: '303702' },
             stageKey: 'contacted',
+            ownerRole: 'tele_caller_cc',
           },
         ],
       },
@@ -335,6 +340,7 @@ export function demoSet(
             entityId: 1,
             pipelineKey: 'commercial_epc',
             site: { type: 'factory', village: 'Bagru', pin: '303007' },
+            ownerRole: 'tele_caller_cc',
           },
         ],
       },
@@ -417,6 +423,11 @@ export interface DemoDeps {
    * before the session. Off by default, so a second load changes nothing.
    */
   newLinks?: boolean;
+  /**
+   * Gives the demo leads to the demo callers (`crm.opportunity.assign`), for the people who have
+   * set their password; an invited person cannot be given a lead. Run once they have signed in.
+   */
+  assign?: boolean;
 }
 
 export interface DemoAccount {
@@ -430,6 +441,32 @@ export interface DemoSummary {
   /** Commands run; a second `load` runs none. */
   writes: number;
   accounts: DemoAccount[];
+  /** Addresses of the set held by someone who is not a demo account: left alone. */
+  notDemo: string[];
+  /** Demo accounts found under another email domain than the one given. */
+  elsewhere: string[];
+  /** Demo people who must set their password before `load --assign` can give them leads. */
+  waiting: string[];
+}
+
+/**
+ * The demo account of a person of the set: the address and the demo name both, so someone who is
+ * not a demo account but happens to hold the address is never suspended or sent a link.
+ */
+function demoAccountOf(people: readonly UserDto[], person: DemoPerson, email: string) {
+  const atAddress = people.find((u) => u.email === email);
+  if (atAddress === undefined) return { kind: 'missing' as const };
+  return atAddress.displayName === person.name
+    ? { kind: 'demo' as const, user: atAddress }
+    : { kind: 'not_demo' as const };
+}
+
+/** Demo-named accounts of the set whose address is not under `domain`. */
+function demoAccountsElsewhere(people: readonly UserDto[], set: DemoSet, domain: string): string[] {
+  const names = new Set(set.people.map((p) => p.name));
+  return people
+    .filter((u) => names.has(u.displayName) && !u.email.endsWith(`@${domain}`))
+    .map((u) => u.email);
 }
 
 /** The demo set was removed here: archived records cannot come back through any command. */
@@ -438,6 +475,12 @@ export class DemoAlreadyRemoved extends Error {
 }
 
 const ALL_COMPANIES = undefined;
+
+/**
+ * What the audit rows record as the device of every change the loader makes, so the Activity log
+ * tells the script's writes from the Executive's own.
+ */
+export const DEMO_CLIENT = { ip: null, device: 'scripts/demo-data.ts' } as const;
 
 function runner(deps: DemoDeps) {
   let writes = 0;
@@ -453,7 +496,9 @@ function runner(deps: DemoDeps) {
       entityIds?: readonly number[],
     ): Promise<unknown> {
       writes += 1;
-      return executeCommand(deps.operator, scope(entityIds), command, input);
+      return executeCommand(deps.operator, scope(entityIds), command, input, {
+        client: DEMO_CLIENT,
+      });
     },
     read<T>(
       name: string,
@@ -519,7 +564,11 @@ async function customerRows(r: Runner, name: string) {
 }
 
 /** The live price list shared by every company for each tier, made and approved when missing. */
-async function tierLists(r: Runner, today: string): Promise<Record<Tier, string>> {
+async function tierLists(
+  r: Runner,
+  today: string,
+  log: (line: string) => void,
+): Promise<Record<Tier, string>> {
   const lists = await r.read('demoData.priceLists', (ctx) => listPriceLists(ctx));
   const found: Partial<Record<Tier, string>> = {};
   for (const tier of ['retail', 'dealer', 'commercial'] as const) {
@@ -530,10 +579,22 @@ async function tierLists(r: Runner, today: string): Promise<Record<Tier, string>
       found[tier] = live.id;
       continue;
     }
-    const draft = (await r.run(createPriceList, { tierCode: tier, effectiveFrom: today })) as {
-      id: string;
-    };
+    // A shared draft from today is one an earlier run stopped before approving: it is reused,
+    // rather than a second list made beside it.
+    const left = lists.find(
+      (l) =>
+        l.tierCode === tier &&
+        l.entityId === null &&
+        l.state === 'draft' &&
+        l.effectiveFrom === today,
+    );
+    const draft =
+      left ??
+      ((await r.run(createPriceList, { tierCode: tier, effectiveFrom: today })) as { id: string });
     await r.run(approvePriceList, { priceListId: draft.id });
+    log(
+      `made the shared ${tier} price list ${draft.id}, live from ${today}; it stays after remove`,
+    );
     found[tier] = draft.id;
   }
   return found as Record<Tier, string>;
@@ -614,7 +675,7 @@ export async function loadDemoData(deps: DemoDeps): Promise<DemoSummary> {
   }
 
   // Their prices on the Retail, Dealer and Commercial lists.
-  const lists = await tierLists(r, today);
+  const lists = await tierLists(r, today, deps.log);
   for (const tier of ['retail', 'dealer', 'commercial'] as const) {
     const priceListId = lists[tier];
     const held = await listedPrices(r, priceListId);
@@ -755,9 +816,15 @@ export async function loadDemoData(deps: DemoDeps): Promise<DemoSummary> {
   // One account per role, invited as Admin › Team members invites.
   const people = await everyone(r);
   const accounts: DemoAccount[] = [];
+  const notDemo: string[] = [];
   for (const person of set.people) {
     const email = demoEmail(person.roleKey, deps.emailDomain);
-    const found = people.find((u) => u.email === email);
+    const match = demoAccountOf(people, person, email);
+    if (match.kind === 'not_demo') {
+      notDemo.push(email);
+      continue;
+    }
+    const found = match.kind === 'demo' ? match.user : undefined;
     if (found && found.status !== 'suspended') {
       accounts.push(
         found.status === 'invited' && deps.newLinks === true
@@ -778,18 +845,82 @@ export async function loadDemoData(deps: DemoDeps): Promise<DemoSummary> {
     }
     accounts.push({ roleKey: person.roleKey, email, link: await deps.issueLink(email) });
   }
-  return { writes: r.writes, accounts };
+
+  const waiting = deps.assign === true ? await assignLeads(r, deps) : [];
+  return {
+    writes: r.writes,
+    accounts,
+    notDemo,
+    elsewhere: demoAccountsElsewhere(people, set, deps.emailDomain),
+    waiting,
+  };
+}
+
+/**
+ * `load --assign`: each demo lead with an `ownerRole` goes to that demo person through
+ * `crm.opportunity.assign`, which moves the customer and the open calls with it, so the callers'
+ * queues and boards hold the leads their tasks name. Only when the owner differs, so a second run
+ * changes nothing. Answers the addresses of the people still to set their password, whose leads
+ * wait. No command makes a team, so the callers are not put in one with the Team Lead.
+ */
+async function assignLeads(r: Runner, deps: DemoDeps): Promise<string[]> {
+  const people = await everyone(r);
+  const waiting = new Set<string>();
+  for (const customer of deps.set.customers) {
+    for (const lead of customer.leads) {
+      if (lead.ownerRole === undefined) continue;
+      const person = deps.set.people.find((p) => p.roleKey === lead.ownerRole);
+      if (person === undefined) continue;
+      const email = demoEmail(person.roleKey, deps.emailDomain);
+      const match = demoAccountOf(people, person, email);
+      if (match.kind !== 'demo' || match.user.status !== 'active') {
+        waiting.add(email);
+        continue;
+      }
+      const owner = match.user;
+      const row = (await customerRows(r, customer.name)).find((c) => c.entityId === lead.entityId);
+      if (row === undefined) continue;
+      const view = await r.read(
+        'demoData.account360',
+        (ctx) => loadAccount360(ctx, { accountId: row.accountId, entityId: lead.entityId }),
+        [lead.entityId],
+      );
+      for (const open of view.leads) {
+        if (open.state !== 'open' || open.ownerId === owner.id) continue;
+        await r.run(
+          assignOpportunity,
+          { entityId: lead.entityId, opportunityId: open.id, ownerId: owner.id },
+          [lead.entityId],
+        );
+        deps.log(`gave the lead of ${customer.name} to ${email}`);
+      }
+    }
+  }
+  return [...waiting];
 }
 
 /**
  * Takes the set off through the commands: every open demo lead is closed as lost, every task on
  * them cancelled, every consent withdrawn, every kit and item archived, and every demo account
  * suspended, which signs it out. What the domain keeps (customers, the timeline, the price change
- * log, the audit trail) stays, as the architecture requires.
+ * log, the audit trail) stays, as the architecture requires. It changes nothing when no demo
+ * account is at the given domain, since that is most likely the wrong `--email-domain`.
  */
 export async function removeDemoData(deps: DemoDeps): Promise<DemoSummary> {
   const r = runner(deps);
   const { set } = deps;
+
+  const people = await everyone(r);
+  const notDemo: string[] = [];
+  const found: { person: DemoPerson; email: string; user: UserDto }[] = [];
+  for (const person of set.people) {
+    const email = demoEmail(person.roleKey, deps.emailDomain);
+    const match = demoAccountOf(people, person, email);
+    if (match.kind === 'not_demo') notDemo.push(email);
+    if (match.kind === 'demo') found.push({ person, email, user: match.user });
+  }
+  const elsewhere = demoAccountsElsewhere(people, set, deps.emailDomain);
+  if (found.length === 0) return { writes: 0, accounts: [], notDemo, elsewhere, waiting: [] };
 
   for (const customer of set.customers) {
     const rows = await customerRows(r, customer.name);
@@ -844,18 +975,14 @@ export async function removeDemoData(deps: DemoDeps): Promise<DemoSummary> {
     deps.log(`archived item ${item.sku}`);
   }
 
-  const people = await everyone(r);
   const accounts: DemoAccount[] = [];
-  for (const person of set.people) {
-    const email = demoEmail(person.roleKey, deps.emailDomain);
-    const found = people.find((u) => u.email === email);
-    if (!found) continue;
-    if (found.status === 'invited' || found.status === 'active') {
-      await r.run(suspendUser, { userId: found.id, reason: `Screen review over ${DEMO_MARK}` });
-      await deps.forget(found.id);
+  for (const { person, email, user } of found) {
+    if (user.status === 'invited' || user.status === 'active') {
+      await r.run(suspendUser, { userId: user.id, reason: `Screen review over ${DEMO_MARK}` });
+      await deps.forget(user.id);
       deps.log(`closed the account ${email}`);
     }
     accounts.push({ roleKey: person.roleKey, email });
   }
-  return { writes: r.writes, accounts };
+  return { writes: r.writes, accounts, notDemo, elsewhere, waiting: [] };
 }
