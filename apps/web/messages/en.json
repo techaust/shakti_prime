@@ -490,7 +490,7 @@
     "inbox": "Agent Inbox",
     "inboxWaiting": "{count, plural, one {Agent Inbox, # waiting} other {Agent Inbox, # waiting}}",
     "inboxMore": "99+",
-    "inboxMoreLabel": "Agent Inbox, 100 or more waiting",
+    "inboxMoreLabel": "Agent Inbox, more than 99 waiting",
     "notificationSettings": "Notification settings",
     "paletteOrder": "Order for {name}"
   },
@@ -1007,7 +1007,7 @@
     },
     "notPriced": "Not priced",
     "setPrice": "Set price",
-    "setPriceFor": "Set the price of {item}",
+    "setPriceFor": "Set price for {item}",
     "dialog": {
       "title": "Set the price of {item}",
       "intro": "The new price applies to quotes made from now on. Quotes already made keep their price.",
@@ -2609,7 +2609,7 @@
       "saved": "Saved.",
       "tagListTitle": "Tags on the list",
       "archiveTag": "Take off the list",
-      "archiveTagLabel": "Take {name} off the list; leads keep it"
+      "archiveTagLabel": "Take off the list: {name}. Leads keep it"
     },
     "truncated": "Showing the first 200 matches. Add more of the name to narrow it.",
     "quotes": {
@@ -3410,7 +3410,7 @@
     "codeAccepted": "Code accepted",
     "codeStopped": "Code not accepted",
     "setCode": "Set code",
-    "setCodeLabel": "Set the code of {name}",
+    "setCodeLabel": "Set code for {name}",
     "morePartners": "Show more partners",
     "codeDialogTitle": "Set a referral code",
     "codeDialogIntro": "The code {name} gives to customers. A new lead that brings it is credited to {name}.",
@@ -3656,7 +3656,7 @@
       "late": "First calls late",
       "callsToday": "Calls today",
       "openQueue": "Open queue",
-      "openQueueFor": "Open {name}'s queue",
+      "openQueueFor": "Open queue of {name}",
       "empty": "Nobody on your team saves calls yet."
     },
     "keys": {
@@ -3986,7 +3986,7 @@
       "stop": "Stop",
       "run": "Let it run",
       "stopLabel": "Stop {agent}",
-      "runLabel": "Let {agent} run",
+      "runLabel": "Let it run: {agent}",
       "autonomyLabel": "Autonomy of {agent}",
       "inherit": {
         "action_company": "As set for this action here: {autonomy}",
@@ -4173,7 +4173,7 @@
     "bell": "Notifications",
     "bellUnread": "{count, plural, one {Notifications, # unread} other {Notifications, # unread}}",
     "bellMore": "99+",
-    "bellMoreLabel": "Notifications, 100 or more unread",
+    "bellMoreLabel": "Notifications, more than 99 unread",
     "panelTitle": "Notifications",
     "panelIntro": "What needs you, newest first.",
     "loading": "Getting your notices",

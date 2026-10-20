@@ -28,6 +28,29 @@ describe('drawing a PDF as pictures', () => {
     expect(Array.from((jpegs[0] ?? new Uint8Array()).subarray(0, 2))).toEqual([0xff, 0xd8]);
   });
 
+  it('keeps a page’s colours: red stays red and blue stays blue', async () => {
+    const square = (r: number, b: number) =>
+      sharp({ create: { width: 100, height: 100, channels: 3, background: { r, g: 20, b } } })
+        .jpeg()
+        .toBuffer();
+    const bytes = await jpegsToPdf([
+      { jpeg: await square(230, 20), widthPt: 72, heightPt: 72 },
+      { jpeg: await square(20, 230), widthPt: 72, heightPt: 72 },
+    ]);
+    const centres: number[][] = [];
+    for await (const page of renderPdfPages(bytes, 'png')) {
+      const { data, info } = await sharp(page.image).raw().toBuffer({ resolveWithObject: true });
+      const at =
+        (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * info.channels;
+      centres.push([data[at] ?? 0, data[at + 1] ?? 0, data[at + 2] ?? 0]);
+    }
+    const [red, blue] = centres;
+    expect(red?.[0]).toBeGreaterThan(200);
+    expect(red?.[2]).toBeLessThan(60);
+    expect(blue?.[0]).toBeLessThan(60);
+    expect(blue?.[2]).toBeGreaterThan(200);
+  });
+
   it('refuses what is not a PDF', async () => {
     await expect(countPdfPages(new TextEncoder().encode('not a pdf at all'))).rejects.toThrow();
   });

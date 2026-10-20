@@ -75,19 +75,20 @@ export async function* renderPdfPages(
     for (let i = only ?? 0; i < (only === undefined ? count : Math.min(count, only + 1)); i += 1) {
       const page = doc.getPage(i);
       const { originalWidth: widthPt, originalHeight: heightPt } = page.getOriginalSize();
-      const drawn = await page.render({
-        scale: renderScale(widthPt, heightPt),
-        colorSpace: 'BGRA',
-        transparent: false,
-        render: 'bitmap',
-      });
-      // PDFium answers blue, green, red, alpha; the picture library reads red, green, blue.
-      const px = drawn.data;
-      for (let o = 0; o + 3 < px.length; o += 4) {
-        const blue = px[o] ?? 0;
-        px[o] = px[o + 2] ?? 0;
-        px[o + 2] = blue;
+      // The page stays loaded after it is drawn, so it is closed at once: one page in memory.
+      let drawn;
+      try {
+        drawn = await page.render({
+          scale: renderScale(widthPt, heightPt),
+          colorSpace: 'RGBA',
+          transparent: false,
+          render: 'bitmap',
+        });
+      } finally {
+        page.close();
       }
+      // Red, green, blue, alpha: the order the picture library reads.
+      const px = drawn.data;
       const raw = sharp(Buffer.from(px.buffer, px.byteOffset, px.byteLength), {
         raw: { width: drawn.width, height: drawn.height, channels: 4 },
       }).removeAlpha();
