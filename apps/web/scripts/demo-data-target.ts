@@ -123,7 +123,7 @@ export function demoTarget(
       throw new DemoTargetRefused(`${name} is not an address of the project ${stagingRef}.`);
     }
   }
-  if (site === undefined || site.protocol !== 'https:' || LOCAL_HOSTS.has(site.hostname)) {
+  if (site?.protocol !== 'https:' || LOCAL_HOSTS.has(site.hostname)) {
     throw new DemoTargetRefused(
       'BETTER_AUTH_URL must be the staging site (https, not this machine), or the links would not open.',
     );
