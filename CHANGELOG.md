@@ -11,6 +11,7 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 wave 6 and the Phase 0–1 audit
 
+- **#194** (19-10-2026) Production libraries: the AWS SDK clients 3.1152.0, `@sentry/nextjs` 11.8.0, `better-auth` 1.7.10, `next` 16.4.2, `react` and `react-dom` 19.3.1, `zod` 4.6.7, `@anthropic-ai/sdk` 0.135.0, the Radix dialog, menu and slot, `lucide-react` 1.57.0 and `dotenv` 18.0.8 (Dependabot).
 - **#191** (18-10-2026) Hardening batch 3:
   - Settings › Pipelines › Add partner makes a referral partner with no lead (`crm.referral_partner.create`, Executive only, the number locked and a live contact's number refused);
   - referral codes in the leads import, an unknown or stopped code refused with its own reason; the walk-in form's PIN lookup;
@@ -46,6 +47,7 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#192** (18-10-2026) STATUS with hardening batch 3 merged and dev and staging through 0159; CHANGELOG lines for #190 and #191.
 - **#190** (18-10-2026) STATUS with hardening batch 2 merged and nothing in flight; CHANGELOG lines for #188 and #189.
 - **#188** (17-10-2026) STATUS at the end of the 17-10 PC day: all 23 Phase 1 slices merged, dev and staging through 0158, production's steps waiting on the owner; CHANGELOG lines for #182 to #187.
 - **#185** (17-10-2026) The owner's rule: in the two days before the weekly reset the week's remaining usage is spent on new builds (DECISIONS, models-and-usage §5).
