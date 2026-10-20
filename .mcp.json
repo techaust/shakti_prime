@@ -2,7 +2,7 @@
   "mcpServers": {
     "shadcn": {
       "command": "npx",
-      "args": ["shadcn@4.21.0", "mcp"]
+      "args": ["shadcn@4.22.1", "mcp"]
     },
     "vercel": {
       "type": "http",

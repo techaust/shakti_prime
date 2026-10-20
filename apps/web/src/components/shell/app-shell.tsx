@@ -246,7 +246,6 @@ export function AppShell({
           <div className="flex min-w-0 flex-1 justify-end md:justify-center">
             <Button
               variant="secondary"
-              aria-label={t('search')}
               aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}
               onClick={togglePalette}
               onPointerEnter={preloadPalette}
@@ -254,8 +253,13 @@ export function AppShell({
               className="text-text-muted h-8 w-full max-w-72 justify-start gap-2 px-2.5 font-normal max-md:size-control-phone max-md:w-auto max-md:justify-center max-md:border-0 max-md:bg-transparent"
             >
               <Search aria-hidden />
-              <span className="flex-1 text-left max-md:hidden">{t('search')}</span>
-              <kbd className="border-border bg-surface-2 text-text-muted rounded-sm border px-1.5 font-sans text-xs max-md:hidden">
+              {/* The button's name is its own words (WCAG 2.5.3), kept for screen readers on a phone. */}
+              <span className="flex-1 text-left max-md:sr-only">{t('search')}</span>
+              {/* aria-keyshortcuts names the shortcut, so the key itself is left out of the name. */}
+              <kbd
+                aria-hidden
+                className="border-border bg-surface-2 text-text-muted rounded-sm border px-1.5 font-sans text-xs max-md:hidden"
+              >
                 {isMac ? t('shortcutMac') : t('shortcutOther')}
               </kbd>
             </Button>

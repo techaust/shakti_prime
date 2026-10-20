@@ -181,7 +181,7 @@ test.describe('calling as a sales team lead', () => {
     const table = tableOrCards(page, 'Team queues');
     await expect(rowOf(table, 'Neha Saini')).toBeVisible();
     await expectNoAxeViolations(page);
-    await table.getByRole('link', { name: "Open Neha Saini's queue" }).click();
+    await table.getByRole('link', { name: 'Open queue of Neha Saini' }).click();
     await expect(page.getByRole('heading', { name: "Neha Saini's queue", level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Queue', level: 2 })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to my team' })).toBeVisible();

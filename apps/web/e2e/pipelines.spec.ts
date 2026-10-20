@@ -67,7 +67,7 @@ test.describe('Settings › Pipelines as an Executive', () => {
     // load after the pipelines, so each is clicked or typed into only once React has taken it over
     // (a click before that was lost on a loaded machine, and the journey passed only on its retry).
     const setCode = partner.getByRole('button', {
-      name: `Set the code of ${REFERRAL_PARTNER.name}`,
+      name: `Set code for ${REFERRAL_PARTNER.name}`,
     });
     await (await hydrated(setCode)).click();
     const dialog = page.getByRole('dialog', { name: 'Set a referral code' });
