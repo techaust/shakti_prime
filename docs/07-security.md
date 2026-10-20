@@ -111,6 +111,8 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 - A save marks the role customised and signs out everyone holding it in any company (`role_changed`), a role left in an archived company not counted against the caller, apart from the caller's own current sign-in, which the server action names from the session. Nothing is saved if a holder's session cannot be revoked (`role_holders_kept`).
 - Every holder's cached access is then dropped; a cache that cannot be reached is logged and the save stands, since the holders are already signed out. The editor warns in plain words on the two cost permissions.
 
+**A script acting as the Executive:** the demo data loader (`apps/web/scripts/demo-data.ts`) runs its commands as the first Executive, resolved from that person's own grants by `firstExecutive()` (`apps/web/src/auth/operator-principal.ts`), which refuses inside Next.js and on any hosted runtime, so no request path can act without a sign-in; it runs only against a local database or staging, every audit row it writes names the device `scripts/demo-data.ts`, and the set-password links it prints go to the operator's terminal only.
+
 ### 3.2 Permission catalogue
 Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.ts`); CC is the Tele-Caller for cold calling (`tele_caller_cc`) and LC the Tele-Caller for lead calling (`tele_caller_lc`), which receives the leads CC qualifies.
 

@@ -15,6 +15,7 @@ The decisions that govern day-to-day work now, each with its row below:
 
 | Date | Decision | Decided by | Applied in |
 |---|---|---|---|
+| 20-10-2026 | Routine updates approved: minor and patch dependency bumps, `@hyzyla/pdfium` 3, Playwright 1.64.1 with its image, `actions/cache` 6.1.0, the shadcn MCP pin, the Cloudflare plugin and the Vercel skills; TypeScript 7, ESLint 10 and `@types/node` 26 stay held (TypeScript 5.9 and ESLint 9 as decided on 26-09-2026); the lead carries on alone while the owner is away and lists what needs the owner | Owner | #197, #198, [TESTING](09-testing.md) |
 | 15-10-2026 | The system lives at the bare domain `https://shaktiprime.com` (not a subdomain); its DNS is on Cloudflare, where the owner adds every record as DNS only (not proxied) | Owner | [g1-production](runs/phase1/g1-production.md), [accounts](runbooks/accounts.md) |
 | 15-10-2026 | Production deploys by an approved release: Vercel builds `main` for production only when a release run the owner approves asks for it; until G1's release workflow exists, the production project's Ignored Build Step skips every build | Owner | [g1-production](runs/phase1/g1-production.md) part 2 item 2 |
 | 15-10-2026 | Every service account is held in the group's name and the owner has full access to each, so no separate member account is needed (workshop ACC-2) | Owner | [client-actions](13-client-packs/client-actions.md) row 13, [accounts](runbooks/accounts.md) |
