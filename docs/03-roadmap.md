@@ -78,7 +78,7 @@ Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-cli
 - [ ] 2-week parallel run with legacy sheets
 - [ ] Migration counts reconciled
 - [ ] UAT sign-off per role
-- [ ] Playwright E2E for the CC, LC, Store Manager and Executive paths
+- [x] Playwright E2E for the CC, LC, Store Manager and Executive paths (`apps/web/e2e/uat.spec.ts`, green in CI on every pull request; 20-10-2026)
 - [x] Phase 1 tooling (Playwright, Sentry, AWS) installed and confirmed with a live call (28-09-2026)
 
 ## 4. Phase 2 — Communications & live voice (9–11 weeks)
