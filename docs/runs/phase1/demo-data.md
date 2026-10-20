@@ -6,9 +6,9 @@
 | PC worktree | `demo-data`, slot: Postgres 54342, app 3042 |
 | Runs on | PC |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
-| Usage | build Opus medium 1→2, 5h 7→14; review Opus high 2→, 5h 14→ |
-| State | built, waiting for review |
-| Next step | the lead reviews; the customer archive gap needs a decision |
+| Usage | build Opus medium 1→2, 5h 7→14; review Opus high 2→2, 5h 14→20; fix round Opus medium 2→3, 5h 20→0 (window reset) |
+| State | integrating |
+| Next step | the pull request merges on green; loading on staging waits for the owner's yes; the customer archive gap (review #1) and the session records (#2) wait for the owner |
 
 ## Brief
 Design: [wireframe-review §1a](../../13-client-packs/wireframe-review.md#1a-before-the-sessions) and the open follow-up "The demo data loader for the screen review" in [STATUS](../../10-status.md#open-follow-ups).
