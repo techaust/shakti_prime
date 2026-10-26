@@ -11,6 +11,8 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 wave 6 and the Phase 0–1 audit
 
+- **#202** (26-10-2026) Production dependency patches: the AWS SDK clients 3.1156.0, `@upstash/qstash` 2.12.1, `better-auth` 1.7.12, `jose` 6.2.13, `lucide-react` 1.61.0 and `dotenv` 18.0.9.
+- **#201** (20-10-2026) `vite` 8.3.4 in the lockfile for the advisory GHSA-698v-4r3x-3vcv.
 - **#199** (20-10-2026) The demo data loader for the screen review (`apps/web/scripts/demo-data.ts load|remove`, `--assign`, `--new-links`): `DEMO-` items and kits on the three price lists, five "(demo)" customers with leads in three companies, Bhanwar Lal Jat among them, and one invited person per role; local or staging only, production refused before any connection; every write a command as the first Executive (`firstExecutive()`, refused inside Next.js and on a hosted runtime), marked `scripts/demo-data.ts` in the audit trail.
 - **#198** (20-10-2026) Playwright 1.64.1 with its Linux image pinned by digest, and `actions/cache` 6.1.0 (supersedes Dependabot #193); every journey passed in the new image and no screenshot changed.
 - **#197** (20-10-2026) Minor and patch updates (vitest 5.0.5, `better-auth` 1.7.11, `eslint-config-next` 16.4.2, turbo 2.11.9, `typescript-eslint` 8.71.2, `@axe-core/playwright` 4.14, `lucide-react` 1.59) and `@hyzyla/pdfium` 3.0.0 (supersede Dependabot #195 and #178):
@@ -53,6 +55,8 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#205** (26-10-2026) Claude tooling on the owner's Team plan: AWS through the user-scope `aws-mcp` server and the AWS skills in place of the aws-core plugin, in `.claude/tooling.json`, the blueprint's tooling table and the tooling runbook; the tools switched off for this project on the PC; the decision recorded.
+- **#200** (20-10-2026) STATUS at the end of 20-10, CHANGELOG lines for #196 to #199, CLAUDE.md with the day's three rules.
 - **#196** (20-10-2026) CLAUDE.md and the runbooks with the 17-10 rules and lessons, STATUS at 20-10; CHANGELOG lines for #192 and #194.
 - **#192** (18-10-2026) STATUS with hardening batch 3 merged and dev and staging through 0159; CHANGELOG lines for #190 and #191.
 - **#190** (18-10-2026) STATUS with hardening batch 2 merged and nothing in flight; CHANGELOG lines for #188 and #189.

@@ -2,12 +2,12 @@
 
 Which Claude model and effort level each task runs on, the budget gate the lead session checks before starting any agent, and how usage is measured. The owner approved this plan on 12-10-2026 ([DECISIONS](../11-decisions.md)).
 
-**At a glance.** Opus 5.5 runs the lead session, builds and checks; Sonnet 5.5 builds screens; Haiku 5.5 searches, runs suites and drafts documents; Fable 5.1 is not used. Effort is medium to carry out, high for judgement, xhigh where a miss reaches production. Before any agent, the lead reads the gate (§5); after the session, `tools/integration/agent-usage.py` shows what each run cost and whether it ran at its setting (§7).
+**At a glance.** Opus 5.5 runs the lead session, builds and checks; Sonnet 5.5 builds screens; Haiku 5.5 searches, runs suites and drafts documents; Fable 5.1 is not used. Effort is medium to carry out, high for judgement, xhigh where a miss reaches production. Before any agent, the lead reads the 5-hour window against the gate (§5); after the session, `tools/integration/agent-usage.py` shows what each run cost and whether it ran at its setting (§7).
 
-**The plan is final for the whole project** (12-10-2026). Its models, efforts, tiers and gate do not change in any phase. What a slice costs changes only how many slices a week holds, which the gate decides; a model or an effort never moves to save usage, so quality stays where this plan sets it.
+**The plan is final for the whole project** (12-10-2026). Its models, efforts and tiers do not change in any phase; the gate's limits are set by the owner (§5). What a slice costs changes only how many slices a 5-hour window holds, which the gate decides; a model or an effort never moves to save usage, so quality stays where this plan sets it.
 
 ## 1. Principles
-- The plan is Claude Max 5x: one weekly allowance shared by every model, reset each Monday at 10:00 UTC (15:30 IST), and a 5-hour window. Extra usage stays off; only the owner switches it on.
+- The plan is the claude.ai Team plan with a Premium seat: no weekly limit, and a 5-hour window shared by every model. Extra usage stays off; only the owner switches it on.
 - Three models do all the work: Opus 5.5, Sonnet 5.5 and Haiku 5.5, each pinned by its id (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`) in the agent files. Fable 5.1 is not used. The pins stay on these versions for the whole project; only when Anthropic retires one does its successor in the same family take its place, at the same effort, and the lead tells the owner.
 - The cheapest model and effort that get a task right the first time run it. Rework and test re-runs cost more than any model choice (§7), so the brief carries the review's checklist and builders test their own screens before they report.
 - Effort follows one rule:
@@ -88,22 +88,19 @@ A subagent cannot start another subagent, so builders read their own logs (§6) 
 5. **`main` taken early:** when `main` has moved since the slice branched, it is merged into the slice before the review, not after.
 
 ## 5. The budget gate
-Before starting any agent, the lead reads two numbers: the 5-hour window and the week. On the PC it reads them with the session's usage tool. In a cloud session, which cannot read them, the owner posts them at the session's start and whenever the lead asks before an agent, in one line: `usage: 5h 12, week 40`. The pace is 14 % of the week per day since Monday's reset.
+Before starting any agent, the lead reads one number: the 5-hour window (the plan has no weekly limit). On the PC it reads it with the session's usage tool. In a cloud session, which cannot read it, the owner posts it at the session's start and whenever the lead asks before an agent, in one line: `usage: 5h 12`. The limits below are the owner's (26-10-2026).
 
 | Reading | What runs |
 |---|---|
-| Weekly use at or under the pace and the 5-hour window at or under 50 % | Up to two agents at once on a PC day, three on a cloud day |
-| Weekly use over the pace | One agent at a time |
-| Weekly use at 85 % or more | No new build; only finishing, reviewing and merging what is in flight |
-| The last two days before the weekly reset, whatever the week reads | New builds and new slices start, up to the day's number of builders; agents commit as they go and a fresh one continues after the reset (owner, 17-10-2026) |
-| The 5-hour window over 50 % | No new builder; a review or a running agent may continue |
-| The 5-hour window at 75 % or more | Nothing new starts until it resets |
+| The 5-hour window at or under 80 % | New agents start, up to two at once on a PC day and three on a cloud day |
+| The 5-hour window over 80 % | No new agent; a review or a running agent may continue |
+| The 5-hour window at 90 % or more | Nothing new starts until it resets |
 | A cloud reading older than two hours | One agent at a time |
 | No cloud reading that day | Nothing new; the lead finishes, reviews and merges what is in flight, asks again, and never guesses a reading |
 
-The usage card also shows a Fable bar. It stays at 0 %; a higher reading means a conversation or an agent ran on Fable 5.1, and the lead tells the owner.
+The usage card also shows a Fable bar where the plan has one. It stays at 0 %; a higher reading means a conversation or an agent ran on Fable 5.1, and the lead tells the owner.
 
-A new slice starts only while the week is under 70 %, so it finishes without a gate stop, except in the two days before the reset, when the week's remainder is spent (the table above). The week's shape: builds on Monday afternoon and Tuesday, reviews and fixes on Wednesday, integration and the hosted steps on Thursday, documents on Friday, and 15 % of the week kept for the unexpected. The day runs in up to three 5-hour windows, with the expensive work at a window's start: the first for starting the day, the brief or the review triage and the builder; the second for the review and its fixes; the third for integration, `migrate-hosted` and ending the day.
+The day runs in 5-hour windows, with the expensive work at a window's start: the first for starting the day, the brief or the review triage and the builder; the second for the review and its fixes; the third for integration, `migrate-hosted` and ending the day. A builder started near 80 % commits as it goes, so a window that runs out loses nothing and a fresh agent continues after the reset.
 
 ## 6. Habits that save usage on any model
 - The builder's tools are a fixed list (the built-in file, shell and skill tools and Context7), not every MCP server.
@@ -115,7 +112,7 @@ A new slice starts only while the week is under 70 %, so it finishes without a g
 ## 7. Measuring
 
 ### What a slice costs
-From the run files' Usage lines, as a share of the week:
+From the run files' Usage lines of October 2026, as a share of the weekly allowance the earlier Max 5x plan had; they show what each kind of work costs against the others:
 
 | Work | Cost | Recorded in |
 |---|---|---|
@@ -125,10 +122,10 @@ From the run files' Usage lines, as a share of the week:
 | The lead's integration of one slice | 1 % | S2, N1, K1 |
 | A cloud day: A1, L1 and the journey fixes built by three agents, reviewed, integrated, with the day's documents | 13 % | 10-10-2026, 86 during the builds to 99 |
 
-What the reviews found: S2 and K1, built on Opus 5.5 and finished or fixed on Sonnet 5.5 at medium, had 2 and 3 high findings; K1's fixes on Sonnet 5.5 at medium took four runs (the review fixes, the PDFium swap, the re-check fixes, findings 15 and 16) and two re-checks, 5 % of the week; A1, built on Opus 5.5 at medium, had 1 high finding and one fix round; L1, built on Sonnet 5.5 at high, had 1 medium. A fix round on a weaker setting than the build's is what multiplied K1's rounds, so the fix round runs on the build's model and effort. A slice built with one fix round is about 9 % of the week (R1, 75 to 82 plus its integration); a slice with several fix rounds reaches about 20 %. A week holds four to six slices with the lead's work, the documents and the hosted steps.
+What the reviews found: S2 and K1, built on Opus 5.5 and finished or fixed on Sonnet 5.5 at medium, had 2 and 3 high findings; K1's fixes on Sonnet 5.5 at medium took four runs (the review fixes, the PDFium swap, the re-check fixes, findings 15 and 16) and two re-checks, 5 % of the week; A1, built on Opus 5.5 at medium, had 1 high finding and one fix round; L1, built on Sonnet 5.5 at high, had 1 medium. A fix round on a weaker setting than the build's is what multiplied K1's rounds, so the fix round runs on the build's model and effort. A slice built with one fix round is about 9 % of the week (R1, 75 to 82 plus its integration); a slice with several fix rounds reaches about 20 %. A Max 5x week held four to six slices with the lead's work, the documents and the hosted steps.
 
 ### How it is measured
-1. Each agent run records its model and effort and the two bars at its start and end in the run file's Usage line (`build Opus high 20→27, 5h 10→48`).
-2. `python3 tools/integration/agent-usage.py` (from the repository root, after `. tools/integration/lib.sh`) reads the session's own transcripts and prints, for the lead and each agent it started, the model and effort of every request and its tokens, counted per request. Agents that ran at the same time are told apart: `--since` and `--until` take the time the bars were read, and `--week-delta <points>` shares out what the week's bar moved by, weighted by each row's cost at the API's list prices. The end of each session runs it ([end-session](../../.claude/skills/end-session/SKILL.md)); a cloud session keeps its transcripts in the VM, and where the script finds none there, the bars in the Usage lines are the record.
+1. Each agent run records its model and effort and the 5-hour bar at its start and end in the run file's Usage line (`build Opus high, 5h 10→48`).
+2. `python3 tools/integration/agent-usage.py` (from the repository root, after `. tools/integration/lib.sh`) reads the session's own transcripts and prints, for the lead and each agent it started, the model and effort of every request and its tokens, counted per request. Agents that ran at the same time are told apart: `--since` and `--until` take the time the bar was read, and `--week-delta <points>` shares out what the 5-hour bar moved by within one window, weighted by each row's cost at the API's list prices. The end of each session runs it ([end-session](../../.claude/skills/end-session/SKILL.md)); a cloud session keeps its transcripts in the VM, and where the script finds none there, the bars in the Usage lines are the record.
 3. A run whose model or effort differs from its setting in §3 is recorded in its run file and told to the owner, and the next run goes back to its setting.
-4. What a run costs is a record: it decides how many slices the gate lets a week hold, never a model or an effort.
+4. What a run costs is a record: it decides how many slices the gate lets a window hold, never a model or an effort.

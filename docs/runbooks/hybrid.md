@@ -47,7 +47,7 @@ From Anthropic's documentation (04-10-2026):
 - A foreground command waits 2 minutes by default (10 at most); a command sent to the background runs at most 30 more minutes, unless the environment raises `BASH_DEFAULT_TIMEOUT_MS` and `BASH_MAX_TIMEOUT_MS`.
 - An idle VM pauses after a few minutes and may be reclaimed: background work is lost, the conversation is kept.
 - The plugins and MCP servers signed in on the PC are absent: no Context7, Supabase, Vercel, Upstash, AWS or Sentry tools. The browser pane and `.claude/launch.json` belong to the desktop app on the PC.
-- Usage counts against the owner's Claude plan, shared with the PC's sessions. The cloud session cannot read the usage card, so the owner posts the two bars at the session's start and whenever the lead asks before an agent, in one line: `usage: 5h 12, week 40` ([models-and-usage §5](models-and-usage.md#5-the-budget-gate)).
+- Usage counts against the owner's Claude plan, shared with the PC's sessions. The cloud session cannot read the usage card, so the owner posts the 5-hour bar at the session's start and whenever the lead asks before an agent, in one line: `usage: 5h 12` ([models-and-usage §5](models-and-usage.md#5-the-budget-gate)).
 
 What this repository adds:
 - `tools/integration/cloud-setup.sh` (the setup script): Node of `.node-version` (24; the image's Node 22 comes first on `PATH`, so the session hook and `lib.sh` put `/usr/local/bin` first) and the pnpm of `package.json` from npm (corepack cannot start pnpm 12), the packages, the Playwright Chromium the journeys use, and the Postgres, gitleaks and Playwright images, pulled in parallel.
