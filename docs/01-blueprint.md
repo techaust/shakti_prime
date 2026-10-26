@@ -750,7 +750,7 @@ The deliverables of Phase 0, which the owner closed on 29-09-2026; the items tha
 | github | Plugin (MCP) | Anthropic plugin directory | Phase 0 | Personal access token, set as an environment variable |
 | playwright | Plugin (MCP) | Anthropic plugin directory | Phase 1 | — |
 | sentry | Plugin (skills + MCP) | Anthropic plugin directory | Phase 1 | Sentry sign-in |
-| aws-core | Plugin (skills + MCP) | Anthropic plugin directory | Phase 1 | AWS credentials (least-privilege IAM user) |
+| aws-mcp | MCP server (user scope) with the AWS agent skills | AWS (`mcp-proxy-for-aws` through `uvx`) | Phase 1 | AWS credentials (least-privilege IAM user) |
 | expo | Plugin (skills + MCP) | Anthropic plugin directory | Phase 4 | Expo account |
 
 **Built in, nothing to install:** `claude-api` (agents, voice, Knowledge Brain), `/code-review`, `/security-review`, `/simplify`, `run`.
