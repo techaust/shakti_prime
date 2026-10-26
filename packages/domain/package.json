@@ -29,7 +29,7 @@
     "eval:triage": "tsx scripts/eval-triage.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.135.0",
+    "@anthropic-ai/sdk": "^1.1.0",
     "@shakti/contracts": "workspace:*",
     "@shakti/db": "workspace:*",
     "drizzle-orm": "^0.45.4",
