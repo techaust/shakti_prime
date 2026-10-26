@@ -80,10 +80,10 @@
       "signIn": "Sentry sign-in"
     },
     {
-      "name": "aws-core",
-      "type": "plugin",
+      "name": "aws-mcp",
+      "type": "mcp",
       "phase": 1,
-      "install": "Anthropic plugin directory: \"aws-core\" (by Amazon Web Services)",
+      "install": "User-scope MCP server: claude mcp add --scope user aws-mcp -- uvx mcp-proxy-for-aws@latest https://aws-mcp.us-east-1.api.aws/mcp, with the AWS agent skills in ~/.claude/skills",
       "signIn": "AWS credentials (least-privilege IAM user)"
     },
     {
