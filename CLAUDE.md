@@ -13,6 +13,7 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
 
 ## Session routine
 - Where the project stands (phase, work merged and next, hosted environments, test counts, deferred items, follow-ups): [docs/10-status.md](docs/10-status.md).
+- Shared pages for the client (the checklist) are published from the owner's claude.ai Team organisation, and the link in [docs/13-client-packs/readme.md](docs/13-client-packs/readme.md) is the one in use; a session signed in to another organisation cannot read or republish them, and the client's people open one only after the owner invites them from its Share menu.
 - What the client's people must do: [docs/13-client-packs/client-actions.md](docs/13-client-packs/client-actions.md); the developer's and owner's checklist for the deferred gate items: [docs/13-client-packs/exit-gate-actions.md](docs/13-client-packs/exit-gate-actions.md).
 - What each merged pull request did: [CHANGELOG.md](CHANGELOG.md). Every owner decision, and the standing rules in force: [docs/11-decisions.md](docs/11-decisions.md).
 - The owner starts each day in a new conversation with "start the day" (the `start-session` skill, also typed as `/start-session`) and ends it with "end the day" (the `end-session` skill).
