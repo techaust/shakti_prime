@@ -109,9 +109,9 @@ then commit and push. Never open a pull request, merge, or touch a hosted servic
 ```
 
 ## 5. How many at once
-- Up to three builders at once on a cloud day ([models-and-usage §3](models-and-usage.md#3-who-runs-what)), each in its own worktree and Postgres container in the lead's VM; heavy commands still take turns through `bash tools/integration/heavy.sh <command>`, since the VM has 16 GB and 4 vCPUs.
+- As many agents at once as the VM's resources allow on a cloud day: another starts while `free -m` shows at least 3 GB available and the 1-minute load average (`uptime`) is below `nproc`, up to five, at most two of them driving a browser ([models-and-usage §3](models-and-usage.md#3-who-runs-what)); each builder has its own worktree and Postgres container in the lead's VM, and heavy commands still take turns through `bash tools/integration/heavy.sh <command>`, since the VM has 16 GB and 4 vCPUs.
 - One agent per slice and per branch: two agents pushing one branch overwrite each other's work.
-- A builder started instead as its own cloud session (the first messages of [§4](#4-starting-a-builder-or-a-reviewer)) counts toward the three.
+- A builder started instead as its own cloud session (the first messages of [§4](#4-starting-a-builder-or-a-reviewer)) counts toward the five.
 - No cloud session runs while a PC session works, and the reverse: a day is wholly one or the other.
 - The heavy-command lock serves waiting commands in the order they arrived: each takes a numbered ticket beside the lock (`~/.shakti-heavy.lock.queue`), a ticket whose process is gone is skipped, and `bash tools/integration/heavy-queue-test.sh` checks the order.
 
