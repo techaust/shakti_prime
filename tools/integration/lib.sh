@@ -62,6 +62,29 @@ wt_root() {
 # The Postgres image the local stack uses (compose.yaml), so every throwaway database matches it.
 pg_image() { grep -m1 -oE 'supabase/postgres:[^[:space:]]+' "$(main_checkout)/compose.yaml"; }
 
+# ensure_node: the Node of .node-version in /usr/local/bin, where a cloud session runs it (the image's
+# own, older Node comes first on PATH until lib.sh or the session hook puts /usr/local/bin first). The
+# latest release of that major is downloaded from nodejs.org and unpacked only when its SHA-256
+# matches the sum nodejs.org publishes for it. Prints one line when it installs, nothing when the
+# right Node is already there; returns 1 when it could not install. Linux only.
+ensure_node() {
+  local want have arch base sums file expected
+  want=$(cut -d. -f1 < "$(main_checkout)/.node-version" | tr -dc '0-9')
+  have=$(/usr/local/bin/node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+  [ "$have" -ge "$want" ] && return 0
+  case "$(uname -m)" in x86_64) arch=x64 ;; aarch64) arch=arm64 ;; *) return 1 ;; esac
+  base="https://nodejs.org/dist/latest-v${want}.x"
+  sums=$(curl -fsSL "$base/SHASUMS256.txt") || return 1
+  file=$(echo "$sums" | grep -oE "node-v[0-9.]+-linux-${arch}\.tar\.xz" | head -1)
+  expected=$(echo "$sums" | grep " ${file}\$" | cut -d' ' -f1)
+  [ -n "$file" ] && [ -n "$expected" ] || return 1
+  curl -fsSL -o "/tmp/$file" "$base/$file" || return 1
+  [ "$(sha256sum "/tmp/$file" | cut -d' ' -f1)" = "$expected" ] || return 1
+  tar -xJf "/tmp/$file" -C /usr/local --strip-components=1 || return 1
+  hash -r
+  echo "Node $(/usr/local/bin/node --version) installed in /usr/local"
+}
+
 # The secret scan's image (CI's version) and the Linux Playwright image the screenshot baselines
 # are made in (apps/web/e2e/setup/snap-in-linux.ts).
 GITLEAKS_IMAGE=ghcr.io/gitleaks/gitleaks:v8.24.3

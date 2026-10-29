@@ -51,7 +51,7 @@ From Anthropic's documentation (04-10-2026):
 
 What this repository adds:
 - `tools/integration/cloud-setup.sh` (the setup script): Node of `.node-version` (24; the image's Node 22 comes first on `PATH`, so the session hook and `lib.sh` put `/usr/local/bin` first) and the pnpm of `package.json` from npm (corepack cannot start pnpm 12), the packages, the Playwright Chromium the journeys use, and the Postgres, gitleaks and Playwright images, pulled in parallel.
-- `.claude/hooks/cloud-session.sh` (a session-start hook that does nothing on the PC): `.env` from `.env.example` with `E2E_BASE_URL` on `BETTER_AUTH_URL`'s port, the packages when the checkout has none, the Docker daemon and the local Postgres on `127.0.0.1:54322`. The security suites and the journeys migrate and seed that database themselves (`prepareDatabase()` in `packages/db/src/testing`); the dev server needs `pnpm db:migrate && pnpm db:seed` first.
+- `.claude/hooks/cloud-session.sh` (a session-start hook that does nothing on the PC): the Node of `.node-version` in `/usr/local/bin` when the setup script did not install it (`ensure_node` in `lib.sh`; the hook says so), `.env` from `.env.example` with `E2E_BASE_URL` on `BETTER_AUTH_URL`'s port, the packages when the checkout has none, the Docker daemon and the local Postgres on `127.0.0.1:54322`. The security suites and the journeys migrate and seed that database themselves (`prepareDatabase()` in `packages/db/src/testing`); the dev server needs `pnpm db:migrate && pnpm db:seed` first.
 - `.claude/hooks/tooling-check.mjs` prints a short cloud note instead of the PC's tool list.
 
 What the setup has to work around:
@@ -65,9 +65,9 @@ What the setup has to work around:
 The owner does these steps once, in the browser. The labels follow Anthropic's documentation; if a screen names a step differently, the setting is the same.
 
 1. **Install the Claude GitHub App** on the repository: open https://github.com/apps/claude, choose Install (or Configure), pick the account `techaust`, choose *Only select repositories*, select `techaust/shakti_prime` and save.
-2. **Create the environment:** open https://claude.ai/code, open the environment menu beside the repository and choose to add an environment.
+2. **Create the environment** in the Team organisation: open https://claude.ai/code, check the organisation switcher shows the Team organisation, open the environment menu beside the repository and choose to add an environment.
    - **Name:** `shakti_prime`, as the repository.
-   - **Network access:** *Custom*, with **Also include default list of common package managers** ticked (without it the npm registry, nodejs.org, Docker Hub and the other image registries are refused), plus exactly these hosts (the owner's network row in [DECISIONS](../11-decisions.md)), one per line:
+   - **Network access:** *Limited*, the Team plan's name for the level Anthropic's documentation calls *Custom*, with the default list of common package managers included (without it the npm registry, nodejs.org, Docker Hub and the other image registries are refused), plus exactly these hosts (the owner's network row in [DECISIONS](../11-decisions.md)), one per line:
      ```
      challenges.cloudflare.com
      api.pwnedpasswords.com
@@ -75,15 +75,16 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
      playwright.download.prss.microsoft.com
      shakti-prime-dev.vercel.app
      shakti-prime-staging.vercel.app
+     productionresultssa10.blob.core.windows.net
      ```
-     The first two are the sign-in screens' outside calls (the Turnstile widget and the breached-password check); the Playwright hosts serve the browser download; the two sites answer the health checks.
+     The first two are the sign-in screens' outside calls (the Turnstile widget and the breached-password check); the Playwright hosts serve the browser download; the two sites answer the health checks; the last holds CI's logs and reports.
    - **Environment variables** (visible to anyone who uses the environment, so never a secret):
      ```
      BASH_DEFAULT_TIMEOUT_MS=600000
      BASH_MAX_TIMEOUT_MS=1800000
      ```
-   - **Setup script:** paste the whole of `tools/integration/cloud-setup-env.sh`. The box runs before the checkout is in the session's working directory (a bare `bash tools/integration/cloud-setup.sh` stops with *No such file or directory*), so the pasted script finds the repository's `cloud-setup.sh` and runs it, or installs Node 24 and pnpm and leaves the rest to the session-start hook.
-3. **Check it:** start a session on `main` and send `Say what the session-start hooks printed.` The answer names the cloud note of `[tooling-check]` and a `[cloud-session]` line saying Postgres is up. If a line reports a problem, the setup script's log is in `/tmp/cloud-setup-*.log` and the hook's in `/tmp/cloud-session-*.log`.
+   - **Setup script:** paste the whole of `tools/integration/cloud-setup-env.sh`. The box runs before the checkout is in the session's working directory (a bare `bash tools/integration/cloud-setup.sh` stops with *No such file or directory*), so the pasted script finds the repository's `cloud-setup.sh` and runs it, or installs Node 24 and pnpm and leaves the rest to the session-start hook. An environment saved without it still works, more slowly: the hook installs Node 24 and pnpm in every new session and says the setup script did not.
+3. **Check it:** start a session on `main` and send `Say what the session-start hooks printed.` The answer names the cloud note of `[tooling-check]` and `[cloud-session]` lines naming Node 24 and pnpm of `package.json` and saying Postgres is up; the PC's MCP servers failing to connect is expected. If a line reports a problem, the setup script's log is in `/tmp/cloud-setup-*.log` and the hook's in `/tmp/cloud-session-*.log`.
 
 ## 4. Starting a builder or a reviewer
 Before a cloud session starts, the lead session on the PC writes or updates the slice's run file `docs/runs/phase1/<slice>.md` ([the run files](../runs/phase1/readme.md)), commits it on the slice's branch and pushes the branch. The session clones that branch.
