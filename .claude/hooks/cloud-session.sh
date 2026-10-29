@@ -14,10 +14,17 @@ say() { echo "[cloud-session] $*"; }
 
 # The image puts its own Node (22) ahead of /usr/local/bin, where the setup script installs the Node
 # of .node-version; and corepack cannot start pnpm 12 (it looks for pnpm.cjs, pnpm 12 ships pnpm.mjs).
-# So /usr/local/bin goes first for this hook and, through CLAUDE_ENV_FILE, for every later command,
-# and pnpm of package.json is installed with npm when it is missing or the wrong version.
+# So /usr/local/bin goes first for this hook and, through CLAUDE_ENV_FILE, for every later command;
+# the Node of .node-version is installed there when the setup script did not (an environment without
+# it, or one whose install failed), and pnpm of package.json is installed with npm when it is missing
+# or the wrong version.
 export PATH="/usr/local/bin:$PATH"
 [ -n "${CLAUDE_ENV_FILE:-}" ] && echo 'export PATH="/usr/local/bin:$PATH"' >> "$CLAUDE_ENV_FILE"
+if out=$(ensure_node 2>/tmp/cloud-session-node.log); then
+  [ -n "$out" ] && say "$out; the environment's setup script did not install it"
+else
+  say "Node $(cat .node-version) did not install (/tmp/cloud-session-node.log); the image's Node $(node --version 2>/dev/null) runs instead"
+fi
 want_pnpm=$(grep -m1 -oE '"packageManager": *"pnpm@[0-9.]+' package.json | grep -oE '[0-9.]+$')
 if [ -n "$want_pnpm" ] && [ "$(pnpm --version 2>/dev/null)" != "$want_pnpm" ]; then
   corepack disable pnpm >/dev/null 2>&1 || true
