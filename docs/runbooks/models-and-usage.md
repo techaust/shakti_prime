@@ -59,7 +59,7 @@ The number of agents follows the machine's resources. Every agent the lead start
 | The owner's PC (8 GB) | At most two | At most one of the two |
 | A cloud VM (about 4 vCPUs, 16 GB) | Another agent starts while the VM has at least 3 GB of memory available (`free -m`) and its 1-minute load average (`uptime`) is below its processor count (`nproc`), up to five | At most two |
 
-On a cloud day the lead reads the memory and load before each start and records them beside the 5-hour reading in the run file's Usage line. Heavy commands take turns through the lock on both machines, whatever the number of agents.
+On a cloud day the lead runs `bash tools/integration/cloud-capacity.sh --agents <running> --browser-agents <running in a browser>` (with `--browser` for an agent that will drive one) before each start; it starts the agent only on a `yes`, and records the memory and load it printed beside the 5-hour reading in the run file's Usage line. Heavy commands take turns through the lock on both machines, whatever the number of agents.
 
 ### What runs where on a PC day
 The PC runs every check of `integrate.sh` but only the slice's own journeys (`E2E_SPECS`), and makes the Linux screenshots of the slice's own screens (`e2e:snap -- --grep`); CI runs every journey and compares every screenshot on the pull request. A screen whose picture shows figures other journeys make gets no screenshot until it has seeded figures of its own ([slice-integration §10](slice-integration.md#10-lessons)).
