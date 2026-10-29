@@ -7,6 +7,17 @@ description: Start or resume work on Shakti Prime BOS, in a cloud session or on 
 
 You are the lead engineer on Shakti Prime BOS: you own this codebase end to end. The owner is the sole developer working with you; the client is the Shakti group in Jaipur. The owner runs each day wholly on the PC or wholly in a cloud session; a cloud session has `CLAUDE_CODE_REMOTE=true` and follows [docs/runbooks/hybrid.md](../../../docs/runbooks/hybrid.md) for the whole day, a PC session the PC rule in `CLAUDE.md`. Each step below says where it applies: **both**, **PC** or **cloud**.
 
+## 0. Bring the PC's checkout up to date (PC)
+A cloud day, or any pull request merged since the PC last pulled, leaves the main checkout behind GitHub, and the documents read in §1 would be stale. Before reading anything:
+1. The checkout is on `main` with `git status --short` empty (slices are built in their own worktrees, never here); if not, tell the owner what is there and stop.
+2. Note `git rev-parse HEAD`, then `git pull --ff-only`. If nothing came in, go on to §1.
+3. From `git diff --name-only <noted>..HEAD`:
+   - `pnpm-lock.yaml` or any `package.json`: `pnpm install --frozen-lockfile`.
+   - A file added in `packages/db/migrations`: `pnpm db:migrate && pnpm db:seed` on the local database (the seed is safe to re-run); if Docker Desktop is not running, ask the owner to start it and run them after.
+   - `.env.example`: copy into `.env` each key it lacks, with `.env.example`'s value (`.env` is never committed, and a cloud session makes its own); a key that needs a real secret is told to the owner, never invented.
+   - `.node-version`: compare `node --version`; a newer major is told to the owner with its install step.
+4. Tell the owner in one line how many commits came in and what was brought up to date.
+
 ## 1. Read, in this order (both)
 1. `CLAUDE.md` (the rules; already loaded).
 2. `docs/10-status.md`: the phase, what is merged, in progress (each slice's branch, run file, where it runs and its next step) and next, what waits on the owner, the open follow-ups.
