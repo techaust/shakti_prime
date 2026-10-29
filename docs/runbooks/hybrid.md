@@ -126,6 +126,7 @@ then commit and push. Never open a pull request, merge, or touch a hosted servic
 Every move goes through a pushed branch: commit and push before moving.
 - **PC to cloud:** in the desktop app, *Continue in cloud* sends the session up; from a terminal, `claude --cloud "<message>"` starts a cloud session on the current branch.
 - **Cloud to PC:** `claude --teleport <session id>` in a terminal, or `/teleport` inside Claude Code, brings the cloud session and its branch to the PC. On the PC, a slice's work continues in its worktree ([slice-integration §2](slice-integration.md#2-set-up-a-slice)), which has its own Postgres and ports.
+- **Back on the PC after a cloud day:** the first step of [start-session](../../.claude/skills/start-session/SKILL.md) (§0) brings the main checkout up to date before anything is read: `git pull --ff-only` on `main`, then `pnpm install` when the lockfile changed, the local migrations and seed when a migration came in, and the keys `.env` lacks from `.env.example`.
 - A branch that GitHub refuses to update without a force push (history rewritten on one side) goes up under a fresh name, such as `feat/c3-pipelines-r2`; the run file names the branch in use.
 
 ## 8. What only the PC has
