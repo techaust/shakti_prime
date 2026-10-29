@@ -3,6 +3,7 @@ import {
   dataGrid,
   expect,
   expectNoAxeViolations,
+  hydrated,
   projectName,
   signedInAs,
   snap,
@@ -312,9 +313,14 @@ test.describe('UAT: a customers file and its row counts, as the cutover checks t
     const repeated = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
     const other = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
     await page.goto('/imports/new');
-    await page.getByLabel('What the file holds').selectOption({ label: 'Customers' });
+    // A choice or a file given before React takes the form over is lost (imports.spec.ts).
+    await (
+      await hydrated(page.getByLabel('What the file holds'))
+    ).selectOption({ label: 'Customers' });
     const file = `cutover-${String(Date.now()).slice(-6)}.csv`;
-    await page.locator('input[type="file"]').setInputFiles({
+    await (
+      await hydrated(page.locator('input[type="file"]'))
+    ).setInputFiles({
       name: file,
       mimeType: 'text/csv',
       buffer: Buffer.from(

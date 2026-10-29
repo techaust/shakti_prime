@@ -3,6 +3,7 @@ import {
   dataGrid,
   expect,
   expectNoAxeViolations,
+  hydrated,
   signedInAs,
   snap,
   test,
@@ -27,11 +28,15 @@ const freshMobile = () => `9${String(Math.floor(Math.random() * 1e9)).padStart(9
  * job could run out, as on CI's desktop-dark run of #175. Here, as a person would, Read the file
  * is chosen again until the server has read the file and the job opens; while the checks still
  * run, each try is refused and the page says so.
+ *
+ * The file is set only once React has taken the input over: set before, on a page opened by its
+ * address, the input holds the file but its change handler never runs, so nothing is uploaded
+ * and the page stays as it was (CI's desktop-light run of #208, and #198).
  */
 async function uploadImport(page: Page, name: string, lines: string[]): Promise<void> {
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(`${lines.join('\n')}\n`) });
+  await (
+    await hydrated(page.locator('input[type="file"]'))
+  ).setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(`${lines.join('\n')}\n`) });
   const job = page.getByRole('heading', { name: `Import of ${name}`, level: 1 });
   const leftToPerson = page.getByText(
     'Uploaded. The check is taking a while. Choose Read the file in a moment.',
