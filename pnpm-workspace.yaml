@@ -31,6 +31,16 @@ auditConfig:
     # format strings; the app never runs that command nor passes outside input to sprintf. Remove
     # this entry when a patched sprintf-js is released.
     - GHSA-hp3w-g68c-fv3c
+    # minimatch (GHSA-g3hv-75wg-m249, pattern amplification with optimizationLevel 2 or more,
+    # patched only in 11.0.1) reaches us through eslint, typescript-eslint, glob and archiver's
+    # readdir-glob, all on 3.x, 5.x or 10.x; they match the repository's own lint and build globs
+    # at the default level, never a pattern from outside. Remove this entry when they move to 11.
+    - GHSA-g3hv-75wg-m249
+    # glob (GHSA-3g3m-2fjr-6pw4, an aborted walk keeps reading directories, patched only in
+    # 14.0.2) reaches us through @sentry/bundler-plugins, which globs the build's own output for
+    # source maps without an AbortSignal, and archiver-utils on 7.x, which nothing calls. Remove
+    # this entry when @sentry/bundler-plugins moves to glob 14.
+    - GHSA-3g3m-2fjr-6pw4
 
 overrides:
   # exceljs pins uuid 8, below the fix for GHSA-w5hq-g745-h8pq; 11.x keeps the CommonJS build
