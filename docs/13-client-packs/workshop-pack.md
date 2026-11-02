@@ -1,6 +1,6 @@
 # Discovery workshop pack — Shakti Prime BOS
 
-Prepared 27-09-2026 · last updated 07-10-2026. For: the Shakti group owners, the sales head, Accounts, the group's CA and its engineering head. Prepared by the development team.
+Prepared 27-09-2026 · last updated 02-11-2026. For: the Shakti group owners, the sales head, Accounts, the group's CA and its engineering head. Prepared by the development team.
 
 > **Blocking work now.** The system already runs on the setting written under "Today" for each question below, chosen by the development team or the owner. Your answer replaces that setting, and a few answers hold up work still to be built. Until each arrives, the system keeps its "Today" setting, or leaves the data empty where there is none.
 >
@@ -356,32 +356,32 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 
 ## Part C — Answer record
 
-Fill one row per question during the workshop. Items marked "bring" can be sent within a week.
+Fill one row per question during the workshop. Items marked "bring" can be sent within a week. The answers written on the client checklist on 02-11-2026 are recorded in full in [checklist-answers.md](checklist-answers.md); the system keeps each "Today" setting until the answer is confirmed and applied.
 
 | Question | Decision | Decided by | Date | Data to follow (who, by when) |
 |---|---|---|---|---|
-| CRM-1 | | | | |
-| CRM-2 | | | | |
+| CRM-1 | Six stages for Shakti Supreme's solar leads: cold calling, lead converter's first contact, site visit, quotation, follow-up and negotiation, order ([checklist answers](checklist-answers.md), item 01) | The group's super admin, on the checklist | 02-11-2026 | The stages of the other businesses ([§3](checklist-answers.md#3-questions-back-to-the-group) question 3) |
+| CRM-2 | The details the lead converter collects and the site survey adds (item 01), and what makes a lead qualified (item 09) | The group's super admin, on the checklist | 02-11-2026 | Whether they are required before each stage (question 3) |
 | CRM-3 | | | | |
 | CRM-4 | | | | |
-| CRM-5 | | | | |
+| CRM-5 | ₹1 per watt, ₹1,000 per kW (item 01) | The group's super admin, on the checklist | 02-11-2026 | Who is paid, and when (question 5) |
 | CRM-6 | | | | |
 | CRM-7 | | | | |
 | CALL-1 | | | | |
 | CALL-2 | | | | |
-| CALL-3 | | | | |
-| CALL-4 | | | | |
+| CALL-3 | Three attempts with two days between them; the third uses the "telecaller cheat code" for a final conclusion (item 01) | The group's super admin, on the checklist | 02-11-2026 | The exact days and the final call's script (question 1) |
+| CALL-4 | A lead stays 7 days with one lead converter, 6 to 7 attempts in all, then is reviewed: keep, nurture or reassign (item 01) | The group's super admin, on the checklist | 02-11-2026 | Whether every business uses it, and who reviews (question 2) |
 | CALL-5 | | | | |
-| CALL-6 | | | | |
+| CALL-6 | Daily, weekly and monthly targets for the cold caller, the lead converter, the sales executive and the sales unit, with ratings and a daily report (item 09) | The group's super admin, on the checklist | 02-11-2026 | The agro team's numbers (question 11) |
 | CALL-7 | | | | |
 | CALL-8 | | | | |
 | PRICE-1 | | | | |
 | PRICE-2 | | | | |
 | PRICE-3 | | | | |
-| PRICE-4 | | | | |
-| PRICE-5 | | | | |
-| PRICE-6 | | | | |
-| SALE-1 | | | | |
+| PRICE-4 | HSN codes and GST rates for pumps, switchgear, cables, solar panels, structures and inverters (item 02) | The group's super admin, on the checklist | 02-11-2026 | The other items' codes and rates (question 7); the price lists |
+| PRICE-5 | Rajasthan: CGST and SGST within the state, IGST between states; the tax rounded to the nearest rupee, as the accounting software does (item 03) | The group's super admin, on the checklist | 02-11-2026 | The CA's confirmation, the rounding detail and the past invoices (question 8) |
+| PRICE-6 | 70 % goods and 30 % services for solar EPC; panels and inverters at 5 %, the rest at 18 % (item 03) | The group's super admin, on the checklist | 02-11-2026 | The CA's confirmation of how the rates apply (question 9) |
+| SALE-1 | `SMP/26-27/0001`, `SS/26-27/0001`, `SS/SOL/26-27/0001` for solar projects, `RCREF/0001` (item 01) | The group's super admin, on the checklist | 02-11-2026 | Agro Solar Hub's format, RCREF's year and the other documents (question 4) |
 | SALE-2 | | | | |
 | SALE-3 | | | | |
 | SALE-4 | | | | |
@@ -398,7 +398,7 @@ Fill one row per question during the workshop. Items marked "bring" can be sent 
 | FIN-1 | | | | |
 | FIN-2 | | | | |
 | FIN-3 | | | | |
-| HR-1 | | | | |
+| HR-1 | 9:30 AM to 5:30 or 6:00 PM, 30 minutes lunch, 30 minutes breaks, 26 working days a month (items 09 and 17) | The group's super admin, on the checklist | 02-11-2026 | Shifts, geofence, late and half-day rules (question 12) |
 | HR-2 | | | | |
 | HR-3 | | | | |
 | LAW-1 | | | | |
@@ -408,7 +408,7 @@ Fill one row per question during the workshop. Items marked "bring" can be sent 
 | LAW-5 | | | | |
 | ACC-1 | | | | |
 | ACC-2 | | | | |
-| ENG-1 | | | | |
+| ENG-1 | What is asked of a pump customer, and the rooftop structure chart for 3 to 10 kW (item 04) | The group's super admin, on the checklist | 02-11-2026 | The ENG-1 values confirmed and the solar pump chart (question 10) |
 | TERM-1 | | | | |
 | Part A changes, if any | | | | |
 
