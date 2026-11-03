@@ -1,0 +1,23 @@
+---
+name: phase0-close-out
+description: "Phase 0 complete as code 29-09-2026: audited three rounds, gaps closed in PRs #58-#73 (main f0543b1, 0000-0060, security 1,216, unit 2,116); 2 of 6 exit-gate items met, rest wait on people; Phase 1 needs user approval"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: f9affe95-aed7-41e6-b6a4-49b983a4f0f4
+  modified: 2026-09-29T03:43:37.810Z
+---
+
+Phase 0 build work finished 28-09-2026 (#33-#57). The same and next day it was audited adversarially three times (requirements, docs vs code, code) and every agent-closable gap was closed in pull requests #58 to #73: wave A #58-#62, wave B #63-#67 and #69, documents #68 and #72, final fixes #70, #71, #73. main is f0543b1, CI green, migrations 0000-0060, security suite 1,216 (766 db, 308 domain, 142 web), unit tests 2,116. The last checks found nothing of medium severity or above.
+
+Ratings before → after: functionality 7→9, security 7→9, tests 7→9, UX 7→8, copy 9→9, performance 5→8, reliability 7→9, observability 4→6, docs 7→9, operability 6→7, tooling 9→10. What is left is people-bound or planned Phase 1 work (Sentry wiring, E2E/visual snapshots, PIN master, routing notification, hosted measurements, import budget tuning on hosted numbers, optional read-only login role app_reader).
+
+User decisions 28-09-2026: Sentry uses the existing US-region org with personal data removed; a new lead whose phone belongs to a colleague's customer is refused and routed; a person who can read one of a customer's leads in a company can read that customer (never an agent without crm.account.read); a narrowed company view on Team members shows only that company's roles. Engineering decision: imports take no phone-number locks (only the lead form does); the rare import-vs-form duplicate is a documented limitation caught by Phase 1 duplicate cards (CRM-03).
+
+2 of 6 exit-gate items are met (security suite; tooling apart from `currentPhase`). The rest wait on the client (design sign-off, screen review, workshop answers), the CA (tax golden set), vendors (quotes, sandboxes) and the user (hosted Supabase dev/staging in Mumbai, Vercel bom1, Upstash Redis and QStash, quote requests, reviews, SES before production, a GitHub plan protecting `main`). `docs/13-client-packs/exit-gate-actions.md` lists each step. Status page https://claude.ai/artifact/3AqTExeJWL54a8Q9KYM7zw (version 7).
+
+**Why:** the user wants every aspect at 10/10, honest reporting, and Phase 0 fully closed before any Phase 1 work.
+
+**How to apply:** at session start check CI on main and `gh pr list`. Do not start Phase 1 design, planning or code until the user approves ([[feedback-phase-approval]]). Next is guiding the user through their own exit-gate steps one at a time, verifying each with a read-only call; never create hosted resources without their go-ahead. Leave `currentPhase` at 0 until the gate is met.
+
+Related: [[feedback-hands-off-git]], [[feedback-agent-orchestration]], [[audit-2026-09]], [[dev-environment]].

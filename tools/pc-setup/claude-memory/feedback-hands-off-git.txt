@@ -1,0 +1,15 @@
+---
+name: feedback-hands-off-git
+description: "User wants zero manual git steps; merges go through the free merge-on-green workflow, not through Claude or the user"
+metadata:
+  node_type: memory
+  type: feedback
+  originSessionId: f9affe95-aed7-41e6-b6a4-49b983a4f0f4
+  modified: 2026-10-12T10:26:41.818Z
+---
+
+The user wants versioning with no manual steps and chose the best free option (2026-09-27): Claude commits at each checked step, pushes and opens the pull request; `.github/workflows/automerge.yml` merges it into `main` after CI passes (PR #32 added it; it was the last manual merge).
+
+**Why:** merges from a Claude session are refused by the permission check as a merge without review, and the free private plan has no branch protection or native auto-merge (AUDIT M45). The user declined GitHub Pro for now.
+
+**How to apply:** never run `gh pr merge` or push to `main`; branch each slice from `main` after the previous pull request merged (no stacking); a pull request that should wait gets the `hold` label; check the latest CI run on `main` at session start. Dependabot majors still wait for the user. Never push to a PR's branch after opening it unless it carries `hold`: a docs-only PR merged about 10 minutes after opening (#155, 12-10-2026), and the later push recreated the deleted branch, which the rules forbid deleting; follow-up work goes on a fresh branch from `main`. Check a link-check result by its exit code, not through `| tail` (the pipe hid "bad 1"). Related: [[user-agency-owner]], [[audit-2026-09]].

@@ -1,0 +1,11 @@
+---
+name: user-agency-owner
+description: "User is a solo/small-agency developer building the Shakti Prime BOS for a client, working with Claude; prefers interactive multiple-choice selection"
+metadata:
+  node_type: memory
+  type: user
+  originSessionId: ffe1c246-658a-40bb-b003-c5a80a0bb532
+  modified: 2026-09-26T15:28:08.790Z
+---
+
+The user runs a solo/small agency (techaust) and is building the Shakti Prime business OS for a client in Jaipur (solar/pump companies). They will build and maintain it themselves with Claude. They like making decisions through interactive multiple-choice questions (keep/drop selection rounds) rather than long prose. They also ask for honest ratings of plans. Related: [[shakti-prime-blueprint]].

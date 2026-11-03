@@ -1,0 +1,10 @@
+---
+name: reference-docs-layout
+description: Where Shakti Prime documents live after the 07-10-2026 restructure (#125, #126) — numbered lowercase files in docs/
+metadata:
+  type: reference
+---
+
+Layout (owner's choice, 07-10-2026): `docs/00-start-here.md` (the guide), `01-blueprint`, `02-prd`, `03-roadmap` (+ `03-roadmap-appendix/` = phase designs, phase1.md), `04-architecture` (+ `04-architecture-appendix/` = spike notes and `results/`), `05-database`, `06-api`, `07-security`, `08-design-system` (was root DESIGN.md), `09-testing`, `10-status`, `11-decisions`, `12-glossary`, `13-client-packs/` (was phase0), `14-reviews/`, plus `adr/`, `runbooks/` (deploy.md, incidents.md …), `runs/phase1/` (readme.md), generated `data/` (erd.md, data-dictionary.md, events.md) and `state-machines/`. Every file under docs/ is lowercase; root keeps README.md, CLAUDE.md, AGENTS.md, CHANGELOG.md. `check-doc-links.py` is case-exact.
+
+**How to apply:** branches older than #125 (N1, S2, K1 at 07-10) add or edit files under the old names; at their merge with main git follows renames, but new files under old folders (docs/spikes/…, docs/design/…) must be moved by hand and the link check run. Related: [[phase1-run]].

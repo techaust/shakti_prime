@@ -1,0 +1,16 @@
+---
+name: audit-2026-09
+description: "2026-09-27 production-readiness audit (AUDIT.md, 108 findings) fully worked through in batches 0-15 (PRs #5-#25); §8 of AUDIT.md is the resolution record"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: f81797f8-e5e5-4b34-9820-826b41082b2a
+  modified: 2026-09-27T08:54:30.367Z
+---
+
+AUDIT.md (repo root) holds 108 findings and, in §8, where each batch landed (PRs #5, #7, #8, #10-#20, #24, #25). The user said "go ahead and do everything yourself": I merged green PRs myself and took the §7 decisions conservatively (M25 route held customers to the colleague; M20 one owner contact; M21/L17 roles editable but fixed set, customised_at; L9 agents without contact data; M6 account+address lockout). Still open by design: §7 item 6 (consent sources, legal/DLT) and item 7 (negative moving-average cost).
+
+Actions only the user can take: GitHub plan or client org for branch rules (M45); hosted provisioning per docs/runbooks/deploy.md; a mail provider before production (production refuses MAILER=log).
+
+**Why:** the next session must know the audit is closed and which items wait on the user or the client.
+**How to apply:** check `gh pr list` for anything left open (Dependabot bumps merge when green); continue the week plan (week 3 slice 2, audit_logs) from CLAUDE.md status; ask the §7 items 6 and 7 when their modules start.

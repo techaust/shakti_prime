@@ -1,0 +1,20 @@
+- [Shakti Prime blueprint](shakti-prime-blueprint.md) — approved plan location + locked stack/scope/AI/pricing/compliance/estimate decisions
+- [User: agency owner](user-agency-owner.md) — solo agency dev building for client; prefers interactive MCQ decisions, honest ratings
+- [Clean final docs](feedback-clean-final-docs.md) — deliverables must have no revised/dropped/added wording
+- [Dev environment](dev-environment.md) — pnpm via corepack shims, gh as techaust, Docker; all MCP servers verified 2026-09-28 (GitHub via PAT env var, AWS read-only IAM user via uvx)
+- [Design profile: Linear](design-profile-linear.md) — indigo accent, generated LCH themes, 14px body, next/font, /design page; built (PR #12)
+- [Language: English + Hinglish](language-policy-english-hinglish.md) — English-only UI, Roman Hinglish for caller scripts/voice/training; built (PR #11)
+- [Audit 2026-09](audit-2026-09.md) — AUDIT.md 108 findings closed in batches 0-15 (PRs #5-#25); §8 resolution; user-only actions listed
+- [Hands-off git](feedback-hands-off-git.md) — no manual git steps; merge-on-green workflow merges, Claude never merges or pushes to main
+- [Phase 0 close-out](phase0-close-out.md) — code complete 29-09 (#58-#73, main f0543b1, security 1,216); 2 of 6 gate items met, rest wait on people; decisions recorded; Phase 1 needs approval
+- [Agent orchestration](feedback-agent-orchestration.md) — watchdog, heartbeat commits, stop-on-block; interruptions kill background agents
+- [Phase approval](feedback-phase-approval.md) — superseded: Phase 1 approved and running (see phase1-run); still never start a phase without explicit approval
+- [Hosted environments](hosted-environments.md) — dev+staging at 160 migrations / 0159 (read back 18-10); production built but empty, waits on owner steps + first release
+- [Phase 0 exit decision](phase0-exit-decision.md) — Phase 0 CLOSED 29-09 by owner (#77, currentPhase 1); unmet gate items deferred not met; Phase 1 started
+- [Phase 1 run](phase1-run.md) — 29-10: all 23 merged; #207-#209 (Opus-high plan, cloud capacity, Node 24 hook), docs #210; cloud env remade in Team org; production waits on owner steps + first release
+- [PC or cloud per session](feedback-no-docker-pc.md) — owner picks per session: wholly PC (≤2 agents, 1 browser, heavy.sh lock) or wholly cloud (by free resources, ≤5); never mixed
+- [Secrets via scripts](feedback-secrets-scripts.md) — owner secret steps as hidden-prompt PowerShell scripts with full paths; never hand-built lines; rotate anything pasted
+- [Models and usage](feedback-models-usage.md) — 29-10: Opus 5.5 high for every task, no other model; gate 95 % of 5h bar; PC 2 agents (1 browser), cloud by free resources up to 5
+- [Docs layout](reference-docs-layout.md) — numbered lowercase docs/ (07-10, #125/#126); old branches need hand moves at merge
+- [G1 accounts progress](g1-accounts-progress.md) — 15-10: bare shaktiprime.com on Cloudflare, SES verified (prod access pending), Vercel Pro + production project (builds off), Turnstile made; part 1 fully done (SES prod access granted 17-10, #184)
+- [Client checklist artifact](reference-client-checklist.md) — Team org page KEwK86wN7yKbbWPmACVn44 since 26-10; old PaR6v9… in earlier org, unreachable

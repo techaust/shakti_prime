@@ -1,0 +1,23 @@
+---
+name: feedback-agent-orchestration
+description: "How to run parallel coding agents here so they don't silently stall (watchdog, heartbeat commits, stop-on-block)"
+metadata:
+  node_type: memory
+  type: feedback
+  originSessionId: f9affe95-aed7-41e6-b6a4-49b983a4f0f4
+  modified: 2026-09-28T14:23:41.678Z
+---
+
+When the user asks for work "with agents", run them in worktrees with: a heartbeat rule (commit every 20–30 min, `wip:` allowed), a stop-on-block rule (a refused or approval-needing call ends the agent with a report), no Docker/npx/network for agents, targeted security tests only (the lead runs the full suite serially), and a Monitor watchdog that flags any worktree idle 20 min.
+
+**Why:** on 2026-09-27 two agents sat idle 2+ hours unnoticed, and the user said "make sure the agents are actively working rather than sitting and wasting my time". Also, when the user rejects one of my tool calls, running background agents get killed without reporting; their uncommitted work stays in the worktree.
+
+**How to apply:**
+- Run the full suite at integration against a separate container (`shakti-postgres-int` on 54324, env overridden from a scratch copy of `.env`), so it does not race agents on 54322.
+- Rebase each next branch onto the previous branch while that one is still in CI, to surface conflicts early.
+- Finish with a read-only three-part audit (requirements, docs vs code, unfinished code); it always finds more.
+- Remove throwaway containers with `docker rm -f -v` plus the named volume.
+
+Setup that worked on 2026-09-28: manual worktrees under `D:/shakti-wt/<slug>` (`git worktree add`, `pnpm install --offline --frozen-lockfile`), a copy of `.env` with the port changed, and one Postgres container per agent on 5433N. The integration script uses a fresh container on 54340. The watchdog alerts only when a worktree has been idle 20 min AND is dirty or has no node process, and skips slugs listed in `D:/shakti-wt/.done`. Agents sometimes go quiet after committing everything: review their commits, stop them, and let the integration run finish the checks. A dev server for a worktree needs a temporary `.claude/launch.json` entry that uses `C:/Program Files/Git/bin/bash.exe` (plain `bash` resolves to WSL); restore the file afterwards.
+
+After any user interruption, check every agent worktree, commit leftovers as `wip`, and relaunch fresh agents on the same branches. Give only one agent at a time the right to add migrations (its own Postgres container on 54323). Integrate each branch yourself: rebase, regenerate the lockfile, full checks, browser check for UI with a temporary local Executive that is deleted afterwards. Related: [[feedback-hands-off-git]], [[phase0-close-out]].

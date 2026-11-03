@@ -1,0 +1,23 @@
+---
+name: design-profile-linear
+description: "2026-09-27 user decision: Linear default look (indigo, generated LCH themes, theme switch, /design page); built in audit batch 5 (PR #12)"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: f81797f8-e5e5-4b34-9820-826b41082b2a
+  modified: 2026-09-27T05:04:10.398Z
+---
+
+On 2026-09-27 the user chose (via interview) to change the design profile to Linear's default app look, keeping System/Light/Dark as planned:
+- Accent: Linear indigo `#5E6AD2` replaces Shakti saffron everywhere. The user says the client (Shakti) has already agreed; saffron is retired from the design system.
+- Themes: generated Linear-style in `packages/tokens` from three inputs (base, accent, contrast) in LCH; the CI contrast test gates every pair; a high-contrast variant can follow later.
+- Density: keep 14 px desktop body, 15 px phone, Inter Display headings; html root stays at the browser default (fixes the fixed-14px-root audit finding).
+- Fonts: Inter (opsz axis for the Display cut) and Noto Sans Devanagari via `next/font/google` (self-hosted, build needs internet).
+- Theme switch: on the home screen now, saved to the user profile (`users.theme`) through a small preference command and mirrored in a cookie; moves to the profile menu in week 4.
+- Build the `/design` preview page (both themes side by side) in the same batch.
+- The root `/` stays the public landing page and gains a "Staff sign in" button to `/sign-in` (signed-in users who click it land on `/home` through the existing sign-in redirect; no session check on the landing page, so it can be static and never touches auth). User accepted this reasoning. Same batch.
+- Docs for this and [[language-policy-english-hinglish]] were applied to the main working tree on 2026-09-27 (uncommitted at that point): docs/08-design-system.md rewritten (§2 generated themes, §3 Inter only, §6 landing row, §11.5 Hinglish), BLUEPRINT, PRD, ROADMAP, ARCHITECTURE, DATABASE, API, AGENTS, CLAUDE, README, KICKOFF, design doc, ADR 0004, new ADR 0014. The code still carries Hindi and saffron until the batches land. Stage colours: new=text-subtle, contacted=warning, qualified=accent, quoted=info, won=success, lost=danger; info moved to sky `#0369A1`/`#38BDF8`; chart 5 rose `#BE185D`/`#F472B6`; theme inputs base `#FFFFFF`/`#08090A`, accent `#5E6AD2`, contrast 30.
+- Timing: after AUDIT.md is delivered, as its own batch together with the overlapping UX audit fixes (fonts not loaded, fixed root size, unused phone tokens).
+
+**Why:** the user wants the Linear default look; Linear publishes no official kit, so "default" means its app look (indigo, near-black/cool-grey neutrals, Inter/Inter Display, themes from base/accent/contrast).
+**How to apply:** docs/08-design-system.md is an approved doc edited by hand in targeted lines; retune stage/chart scales so nothing clashes with indigo (the old violet "contacted" stage). Related: [[shakti-prime-blueprint]], [[feedback-clean-final-docs]].

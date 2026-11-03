@@ -1,0 +1,14 @@
+---
+name: feedback-clean-final-docs
+description: Final documents/plans must read as fresh and definitive — no revision history wording like revised/dropped/added/trimmed/v1.x
+metadata:
+  node_type: memory
+  type: feedback
+  originSessionId: ffe1c246-658a-40bb-b003-c5a80a0bb532
+  modified: 2026-09-26T15:28:12.367Z
+---
+
+When delivering a final plan or document, write it as a clean, fresh, definitive version. Leave out change-log language such as "revised", "dropped", "added", "trimmed", "replaces X", "(new)", version notes, or keep/drop lists.
+
+**Why:** the user said the final plan "should look like fresh and rock solid" after spotting leftover revision wording.
+**How to apply:** express scope as a neutral "in scope / outside scope" statement, and keep revision history out of the deliverable. Grep for revision words before handing it over. Related: [[shakti-prime-blueprint]].
