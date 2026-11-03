@@ -1,0 +1,15 @@
+---
+name: feedback-models-usage
+description: "Models plan (owner, 29-10-2026): Opus 5.5 at high for EVERY task, no other model/effort; gate 95 % of the 5h bar; PC 2 agents (1 browser), cloud by free resources up to 5 (2 browser)"
+metadata:
+  node_type: memory
+  type: feedback
+  originSessionId: c979e648-309b-4c8a-92d9-908cdd7f22ef
+  modified: 2026-10-29T16:01:15.947Z
+---
+
+On 29-10-2026 the owner replaced the 12-10 "final" tiered plan (Opus/Sonnet/Haiku at medium/high/xhigh by tier): every task — lead session, slice-builder, slice-reviewer, early/fix checks, Explore, test-runner, doc-clerk — runs on Opus 5.5 (`claude-opus-5-5`) at high effort. No Sonnet, Haiku, Fable, and no low/medium/xhigh/max. Tiers stay but only decide checks (early check on A/B, re-check after a critical/high finding). Helpers kept on Opus high with omitClaudeMd; built-in Plan/general-purpose still unused.
+
+**Why:** the owner wants one setting everywhere; usage is paced by the gate only.
+
+**How to apply:** Gate (Team plan Premium seat, no weekly limit): new agents while the 5-hour bar ≤95 %; over 95 % nothing new, running agents/reviews continue; cloud stale reading (>2h) = one agent, no reading = nothing new; owner posts `usage: 5h N` in cloud. Agents at once follow resources and every agent counts: PC (8 GB) at most 2, at most 1 driving a browser (journeys, e2e:snap, browser pane); cloud VM (4 vCPU/16 GB) another starts while `free -m` ≥3 GB available and `uptime` 1-min load < `nproc`, up to 5, at most 2 browser. Heavy commands still through heavy.sh on both. Lead runs Opus high set by the owner in the app; flag if not. A run off Opus high is recorded and told to the owner. Docs: docs/runbooks/models-and-usage.md, DECISIONS 29-10. Never quote slice history from memory. See [[phase1-run]], [[feedback-no-docker-pc]], [[feedback-hands-off-git]].

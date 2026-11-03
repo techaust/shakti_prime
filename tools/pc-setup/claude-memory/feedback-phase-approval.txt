@@ -1,0 +1,15 @@
+---
+name: feedback-phase-approval
+description: "Never start the next phase (Phase 1 design, planning or code) without the user's explicit approval; finish and verify the current phase first"
+metadata:
+  node_type: memory
+  type: feedback
+  originSessionId: bd941a38-38d3-4720-a76e-73e5aeee049c
+  modified: 2026-09-28T22:15:53.468Z
+---
+
+On 2026-09-29 the user said: after the Phase 0 audit and fix completes, do not initiate Phase 1 without their approval; just complete Phase 0 and make sure no issues are there.
+
+**Why:** the user wants Phase 0 fully closed and issue-free before any new-phase work, and keeps the phase start as their own decision.
+
+**How to apply:** finish the current phase's fix and re-audit loop until nothing agent-closable remains, report final ratings, guide the user through their own exit-gate steps, then stop. Do not write `docs/03-roadmap-appendix/phase1.md`, `docs/phase1/progress.md`, Phase 1 briefs or code until the user explicitly says to start Phase 1. The earlier multi-phase kickoff brief does not count as that approval. Related: [[phase0-close-out]], [[feedback-agent-orchestration]].

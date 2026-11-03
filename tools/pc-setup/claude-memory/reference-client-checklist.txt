@@ -1,0 +1,13 @@
+---
+name: reference-client-checklist
+description: "Client checklist artifact lives in the Team org at KEwK86wN7yKbbWPmACVn44 (26-10-2026); old PaR6v9… page is in the earlier org, unreachable"
+metadata:
+  node_type: memory
+  type: reference
+  originSessionId: 107cd03c-8f0e-47b3-bbac-0966f97f26e1
+  modified: 2026-11-02T09:41:18.295Z
+---
+
+The client's checklist page (source `docs/13-client-packs/client-checklist.html`, capabilities `db` + `user` with the profile scope) was published again from the owner's claude.ai Team organisation on 26-10-2026: https://claude.ai/artifact/KEwK86wN7yKbbWPmACVn44. The old page `PaR6v9vKUF6cLH2TVuRmTr` sits in the owner's earlier organisation; a session signed in to Team cannot read or republish it. The client's people need the owner's Share invitation (Editor), or Team membership if the org blocks outside sharing. Republish from a Team session by passing the URL. See [[feedback-models-usage]] for the Team plan move.
+
+Its data lives in the page's db: collection `status` (doc id = 2-digit item, `state` open|sent|received) and collection `notes` (`item`, `text`, `by`, `at`); read with ArtifactData list. The client's writer is a guest (the group's super admin). On 02-11-2026 the owner marked 8 items Received; they went into `docs/13-client-packs/checklist-answers.md` with names by role only (public repo), and the To Send notes were deleted at the owner's word. Repeat that routine when more items are marked Received.

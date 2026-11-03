@@ -1,0 +1,22 @@
+---
+name: language-policy-english-hinglish
+description: "2026-09-27 user decision - English-only UI, no Hindi/Devanagari; Hinglish (Roman script) only for caller scripts, voice agent speech and training videos; built in audit batch 4 (PR #11)"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: f81797f8-e5e5-4b34-9820-826b41082b2a
+  modified: 2026-09-27T01:22:42.788Z
+---
+
+On 2026-09-27 the user decided (via interview) to drop Hindi from the whole product and plan:
+- All screens, buttons, errors, in-app help tips, WhatsApp and SMS messages (templates and the Concierge agent's replies), emails and customer documents (quotes, proformas, challans, handover kit PDFs) are **English only**.
+- **Hinglish, Roman script only** for: tele-caller scripts and co-pilot lines, voice agent speech (customer calls and Talk to Shakti), training videos and live sessions. The speech engine may convert Roman Hinglish to Devanagari internally for pronunciation; that text is never shown or stored.
+- `contacts.preferred_language` becomes `'hinglish'` (default) or `'en'` and controls **calls only**: the voice agent's language and which caller-script variant a caller sees.
+- Database: a new forward-only migration drops every `name_hi` (roles, lead sources, pipelines, stages, price tiers, items, kits, contacts, accounts) and `users.locale`, and changes the preferred_language check. Earlier migrations stay untouched. Nothing is hosted yet.
+- Documents: BLUEPRINT, PRD, docs/08-design-system.md, AGENTS.md, CLAUDE.md, ARCHITECTURE, DATABASE, ROADMAP, KICKOFF-PROMPT, the week 3-5 design doc all updated to read as the definitive policy.
+- Timing: after AUDIT.md is delivered, **before** the design batch ([[design-profile-linear]]), so the design batch loads Inter only (no Noto Sans Devanagari).
+
+Engineering choices stated to the user (not asked): keep next-intl with a single English catalogue; copy lint drops the en/hi parity rule and adds a rule rejecting Devanagari in catalogues and templates; transliteration-aware search and `search_roman` leave the plan (pg_trgm fuzzy search stays); the week 6 "Chromium Devanagari PDF" spike becomes a PDF and label rendering spike; the speech benchmark adds Roman-Hinglish pronunciation as a criterion.
+
+**Why:** the user wants one interface language; Hinglish only where staff or the AI speak to customers.
+**How to apply:** approved docs are hand-edited in targeted lines and must read fresh, no change-log wording ([[feedback-clean-final-docs]]).

@@ -1,0 +1,24 @@
+---
+name: shakti-prime-blueprint
+description: "Shakti Prime BOS project — approved master blueprint location and core locked decisions (stack, scope, AI, pricing, compliance, estimates)"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: ffe1c246-658a-40bb-b003-c5a80a0bb532
+  modified: 2026-09-26T16:00:39.201Z
+---
+
+Shakti Prime BOS master blueprint was approved on 2026-09-26 and hardened the same day after a deep review. The official copy is `docs/01-blueprint.md` in the project repo; the original plan file is `C:\Users\r4rup\.claude\plans\pasted-content-id-2afb-act-as-parsed-badger.md`. Original client architecture notes: `D:\BUSINESS\4. CLIENT PROJECTS\SHAKTI PRIME\DOCUMENTS\ARCHITECTURE\Shakti Prime Architecture.md` (treated as input only). The code folder `SOFTWARE/shakti_prime` held only docs and `.claude` config at approval.
+
+Locked decisions:
+- **Stack:** Next.js + Supabase (Mumbai) + Vercel `bom1`, Drizzle, Better Auth, Upstash, S3/SES, Expo Android app (NativeWind, WatermelonDB) for field staff only, LiveKit for live voice with the worker on LiveKit Cloud Agents hosting. PDFs and labels are HTML rendered by headless Chromium. Realtime uses BOS-signed ES256 JWTs registered as Supabase third-party auth.
+- **Business rules:** 4 selling entities with shared staff. No discounts: prices come only from Price Master tiers. No backdoor. Tally stays the books (read-only sync, AlterID reads, deletion tombstones). BOS is the stock authority; Tally holds statutory valuation.
+- **Tax:** deterministic tax engine with effective-dated GST rates and the solar 70:30 composite-supply split; rate version snapshotted per line. E-way bill gate on dispatch.
+- **Compliance:** Aadhaar numbers never stored (OCR masking at capture, last four digits only). DLT registration with 140-series (promotional) and 160-series (service) calling numbers per entity. One WhatsApp number per entity in one Meta portfolio. DPDP Rules 2025 full compliance date 14 May 2027.
+- **Permissions:** two cost permissions, `procurement.rate.read` (supplier rates) and `finance.cost.read` (costs, margins); GM and agents hold neither.
+- **AI:** Haiku 4.5 / Sonnet 5, 6 agents, 3 autonomy levels, live voice Teach/Ask/Command. Ask the Business and voice Ask run as the user, not as an agent.
+- **Design:** docs/08-design-system.md based on the Linear system with a solar amber/saffron accent. Theme is system-aware, with a System/Light/Dark override.
+- **Delivery:** no fixed deadline, quality first. A solo developer + Claude. Roadmap 65–79 weeks with 20% contingency; MVP after Phases 0–1 (about 5–6 months).
+
+**Why:** these were settled through several interview rounds with the user, then hardened when the user asked for a genuinely 10/10 plan; re-asking them wastes their time.
+**How to apply:** treat these as settled when implementing; read the relevant blueprint section before proposing features. See [[user-agency-owner]] and [[feedback-clean-final-docs]].

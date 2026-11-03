@@ -1,0 +1,15 @@
+---
+name: feedback-no-docker-pc
+description: "Where work runs: since 09-10-2026 the owner picks per session — wholly on the PC (≤2 builders, one heavy command at a time via heavy.sh) or wholly in a cloud session (≤3 builders), never mixed; earlier PC-only history below"
+metadata:
+  type: feedback
+---
+
+**Current rule (09-10-2026, owner):** each session runs entirely on the PC or entirely in a cloud session, as the owner chooses that day; never a mix. PC: at most two builders, every heavy command through `tools/integration/heavy.sh`. Cloud: up to three builders, following docs/runbooks/hybrid.md for the whole session. Ask the owner which mode at the start of a session if they have not said.
+
+
+**Current rule (owner, 06-10-2026, PR #122):** no cloud sessions for now. Every slice is built, reviewed, integrated and baselined on the PC: Docker Desktop runs only the slice's Postgres (`shakti-pg-<slug>`, slot ports 5433N/303N) and the Playwright image; owner then (same evening) asked for 2-3 slices at once: up to two builders in parallel (owner 07-10; was three on 06-10), but every heavy command goes through the PC-wide lock `bash /d/shakti-wt/heavy.sh <cmd>` (mkdir lock, 90-min stale clear) so only one heavy command runs at a time; Monitor watches idle worktrees and free memory under 600 MB. The lead spawns `slice-builder`/`slice-reviewer` as background agents in the slice's worktree (`setup-worktree.sh`), with a Monitor idle watchdog, and pushes their commits.
+
+History: 05-10-2026 the owner closed Docker on the PC (it crashed three times running builders plus Linux journeys together) and went cloud-first; the cloud trial passed (S1, D1, T1), then on 06-10 the owner chose PC-only, Docker one slice at a time (MCQ answer).
+
+**How to apply:** never run two builders or two heavy commands at once; stop old slice containers; cloud procedure stays documented in hybrid.md for when cloud resumes. Related: [[phase1-run]], [[feedback-agent-orchestration]].

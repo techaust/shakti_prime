@@ -3,7 +3,7 @@
 How each plugin and MCP server that `.claude/tooling.json` requires is connected on the owner's PC, and how to bring one back when it drops. The rules (never install without the go-ahead, credentials never in the repository, the check at session start) are in [CLAUDE.md](../../CLAUDE.md#claude-code-tooling). Last reviewed 07-10-2026; a sign-in that has lapsed shows as a failed connection at the start of a session.
 
 ## On the PC only
-Every plugin and MCP server below is signed in on the owner's PC (the claude.ai account's directory plugins, `.mcp.json`, user-scope servers and the PC's credentials). A Claude Code cloud session has none of them, and nothing is installed there; its session-start hook says so ([hybrid §2](hybrid.md#2-what-a-cloud-session-has-and-lacks)).
+Every plugin and MCP server below is signed in on the owner's PC (the claude.ai account's directory plugins, `.mcp.json`, user-scope servers and the PC's credentials). A Claude Code cloud session has none of them, and nothing is installed there; its session-start hook says so ([hybrid §2](hybrid.md#2-what-a-cloud-session-has-and-lacks)). A new PC is set up from [tools/pc-setup/README.md](../../tools/pc-setup/README.md).
 
 What a cloud session has of this list: the skills committed in `.claude/skills/` (the project's and the vendored `vercel-agent-skills`), and `gh`, signed in as the owner through the cloud's GitHub proxy. So the steps that need a tool here (the hosted look-ups, the migration count, Context7) run on the PC.
 

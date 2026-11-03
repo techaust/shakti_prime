@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Test-Path \"$env:USERPROFILE\\\\.codex\\\\config.toml\"; Test-Path \"$env:USERPROFILE\\\\.gemini\\\\settings.json\")",
+      "Bash(python -)",
+      "Bash(bash /d/shakti-wt/heavy.sh:*)",
+      "Bash(bash tools/integration/heavy.sh:*)"
+    ]
+  },
+  "enabledMcpjsonServers": ["shadcn", "vercel"],
+  "disableClaudeAiConnectors": true,
+  "enabledPlugins": {
+    "cloudflare@cloudflare": false
+  },
+  "skillOverrides": {
+    "amazon-bedrock": "off",
+    "aws-ai-ml": "off",
+    "aws-auth": "off",
+    "aws-blocks": "off",
+    "aws-cdk": "off",
+    "aws-compute": "off",
+    "aws-containers": "off",
+    "aws-database": "off",
+    "aws-deployment": "off",
+    "aws-networking": "off",
+    "aws-observability": "off",
+    "aws-sdk-python-usage": "off",
+    "aws-sdk-swift-usage": "off",
+    "aws-serverless": "off",
+    "launch-with-aws": "off",
+    "setting-up-cloudwatch-observability": "off",
+    "vercel-react-native-skills": "off"
+  }
+}

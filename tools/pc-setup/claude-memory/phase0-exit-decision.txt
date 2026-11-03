@@ -1,0 +1,16 @@
+---
+name: phase0-exit-decision
+description: 29-09-2026 owner decided to exit Phase 0 after the dev website checks out, deferring the remaining gate items (Realtime spike, sign-off, reviews, quotes) and to start Phase 1
+metadata:
+  type: project
+---
+
+On 29-09-2026 the user (owner) changed the plan: create the `shakti-prime-dev` Vercel website, check dev has no issues, then mark Phase 0 complete and move to Phase 1. The Realtime spike and other hosted tests will be done later on the production site with the client's main domain.
+
+This is an explicit approval to start Phase 1 (supersedes the wait in [[feedback-phase-approval]] once dev passes). The unmet gate items (design sign-off and screen review, the remaining spikes incl. Realtime, ERD/contracts review and ADR acceptance, vendor quotes, workshop answers, CA golden set) are to be recorded honestly as **deferred by the owner's decision**, not ticked as met, when ROADMAP §2 / exit-gate-actions / CLAUDE.md status are updated and `currentPhase` is set to 1.
+
+**Why:** owner wants to proceed with Phase 1 build while people-bound items run in parallel.
+
+**How to apply:** after dev checks pass, open a docs PR recording the deferral and set currentPhase 1; then start Phase 1 per ROADMAP §3 (design doc, ledger, plan) — no further approval needed to begin, but keep asking before hosted writes. Related: [[phase0-close-out]], [[hosted-environments]].
+
+Done 29-09-2026: dev website `shakti-prime-dev.vercel.app` (prj_rmw38jC3rQBoutoZr45POcwpZ4xA, bom1, 15 sensitive env vars, BOS_ENVIRONMENT=dev) passed health/readiness/Turnstile/401 checks; PR #77 merged (main 492e826) records Phase 0 closed by owner decision with deferred items, currentPhase 1. Phase 1 has started.

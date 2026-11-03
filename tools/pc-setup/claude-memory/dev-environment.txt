@@ -1,0 +1,30 @@
+---
+name: dev-environment
+description: "Local machine facts for Shakti Prime work — pnpm via Corepack shims dir, gh signed in as techaust with the origin remote, Docker works, Postgres 17 / ESLint 9 decisions, local auth bootstrap"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: 870f702b-9080-4e06-95c3-18fb87798621
+  modified: 2026-09-28T09:24:19.309Z
+---
+
+Dev machine (Windows 11, set up 2026-09-26):
+- pnpm 12.6.0 runs through Corepack shims in `%LOCALAPPDATA%\corepack-shims` (Program Files was not writable). In the Bash tool: `export PATH="/c/Users/r4rup/AppData/Local/corepack-shims:$PATH"`. A user terminal opened before 2026-09-26 needs `$env:Path = "$env:LOCALAPPDATA\corepack-shims;$env:Path"`.
+- GitHub CLI 2.101 at `C:\Program Files\GitHub CLI\gh.exe`, signed in as `techaust`. Remote `origin` = https://github.com/techaust/shakti_prime (private, user's own account, to be transferred to the client's organisation later). CI runs on push to `main`.
+- Docker Desktop 4.91 works (WSL installed on 2026-09-27). Local Postgres 17: `docker compose up -d --wait` in the repo, port 54322. `docker.exe` lives in `C:\Program Files\Docker\Docker\resources\bin` and is not on the Bash tool PATH.
+- Git identity is repo-local: Techaust <admin@techaust.com>.
+- Tooling (2026-09-27): all ten directory plugins from `.claude/tooling.json` are enabled on the user's claude.ai account (supabase, context7, frontend-design, Security Guidance, Upstash Redis, github, playwright, sentry, aws-core, expo); Vercel and shadcn MCP servers are in the repo's `.mcp.json`; Vercel agent skills under `.claude/skills`. The session hook cannot see account plugins, so it always lists them as "to confirm"; confirm with the plugin listing tool. Backend Design plugin was considered and dropped by the user.
+- MCP sign-ins (2026-09-27): the desktop session is non-interactive, so OAuth runs from the CLI (`claude` 2.1.x installed via npm global, then `/mcp` → Authenticate). Supabase and Upstash are also registered at user scope in `~/.claude.json` (`https://mcp.supabase.com/mcp`, `https://mcp.upstash.com/mcp`) and connected; Upstash is read-only by the user's choice. Vercel and shadcn connected.
+- **Update 2026-09-28: every server connected and verified with a live call.**
+  - Sentry (org `shakti-supreme`) and Expo are signed in.
+  - The GitHub plugin has no OAuth: it sends `Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}`, so an unset variable gives HTTP 400 "badly formatted". The user set a fine-grained PAT, limited to `shakti_prime`, as a Windows user variable. When the repo moves to the client's organisation, a new token is needed.
+  - The AWS plugin runs `uvx mcp-proxy-for-aws-cli` (the user installed `uv`) and uses `aws configure` credentials of the read-only IAM user `claude-shakti` (ReadOnlyAccess, region `ap-south-1`). Phase 1 S3 needs a bucket-scoped permission added, not a wider user.
+  - Supabase, Upstash and Vercel have no projects yet.
+  - "Connection closed" means the stdio command is missing. Check the plugin's `.mcp.json` under `~/.claude/plugins/synced/…`.
+- Decisions with the user: Postgres 17 (Supabase publishes no 16 image; docs updated), Docker for local Postgres, ESLint 9 (eslint-config-next's react plugin breaks on ESLint 10), TypeScript 5.9 not 7.
+- Local auth (2026-09-27, week 3 slice 1): `.env` carries `DATABASE_URL_AUTH`, `AUTH_SERVICE_PASSWORD`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, Cloudflare Turnstile test keys; no Upstash values, so the in-memory store is used. An Executive `admin@techaust.com` exists in the local Docker database with TOTP enrolled (password known only to the user's browser session; never stored). `pnpm --filter web invite-executive -- --email … --name … --force` prints a new set-password link (`--force` because the test suites create Executive users). `.claude/launch.json` defines the `web` dev server on port 3000 for the browser pane. Any pnpm add that pulls a peer of drizzle-orm (as `@upstash/redis` did) splits drizzle-orm into two instances and breaks typecheck across packages; `pnpm dedupe` fixes it.
+
+- The local Docker database accumulates test data (Executive users, series, teams) that CI's fresh database lacks; a test passed locally and failed in CI because of it (2026-09-27, last-Executive guard). Before pushing, also run the suite on a fresh database in the same container: `docker exec -i shakti-postgres psql -U postgres -d postgres -c "drop database if exists ci_fresh" -c "create database ci_fresh"`, then in Bash `set -a; . ./.env; set +a; export DATABASE_URL="${DATABASE_URL%/*}/ci_fresh" DATABASE_URL_MIGRATOR="${DATABASE_URL_MIGRATOR%/*}/ci_fresh" DATABASE_URL_AUTH="${DATABASE_URL_AUTH%/*}/ci_fresh"` and `pnpm exec turbo run test:security --concurrency=1 --force` (dotenv does not override exported variables).
+
+**Why:** these are not derivable from the repo and cost time to rediscover.
+**How to apply:** prepend the corepack shims dir to PATH before pnpm commands; add the Docker bin dir when calling docker from Bash. Related: [[shakti-prime-blueprint]].

@@ -1,0 +1,30 @@
+---
+name: g1-accounts-progress
+description: "G1 part 1 owner account items as done on 15-10-2026 — domain shaktiprime.com (bare, Cloudflare DNS), SES identity verified; what is still open"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: 430d7820-e330-4bc4-865a-f382d28a215e
+  modified: 2026-10-16T07:11:44.467Z
+---
+
+G1 part 1 (docs/runs/phase1/g1-production.md), progress on 15-10-2026:
+- Item 1: domain `shaktiprime.com`; owner chose the **bare domain** as the BOS address (not a subdomain). DNS on Cloudflare, owner has access and adds records himself (DNS only / grey cloud). Not yet in docs/11-decisions.md — record at end of day.
+- Item 4: production uses the same AWS account 199476069348. SES identity `shaktiprime.com` in ap-south-1 created 15-10 and **verified** (DKIM, MAIL FROM `mail.shaktiprime.com`, DMARC `p=none` to tighten later). Production access not yet granted as of the check (owner to request). Sender will be `no-reply@shaktiprime.com`.
+- Production files stack must wait: `infra/aws/files.yaml` allows only dev/staging and CORS origin `shakti-prime-<env>.vercel.app`; G1's build must add `production` with origin `https://shaktiprime.com` (not in the run file's brief yet).
+- SES production access: requested 15-10; AWS asked for details, owner replied the same day; awaiting answer.
+- Item 3: Vercel team `shakti-prime` on Pro (15-10; spend limit $50 set by owner). Lead created project `shakti-prime-production` (prj_J0wD6i440swDiBdLjwdq6W3TIuk7) with owner's yes: apps/web, bom1, linked to repo, Ignored Build Step `exit 0` (G1 replaces it), SSO all_except_custom_domains, `shaktiprime.com` added; apex A 216.150.1.1 / 216.150.16.1 DNS only, Vercel reports configured. No env vars yet.
+- Item 7: Turnstile widget made by owner for shaktiprime.com (keys not seen by lead). Redis `shakti-prime-production` made 15-10 (48bb47ef-…, Mumbai, Pay as You Go, eviction off, TLS) — checked read-only.
+- Item 6 (owner, 15-10): repository stays `techaust/shakti_prime`, public for now; owner will make it private after development is done — then GitHub Pro is needed or the production reviewer gate and branch rule stop applying. Record in DECISIONS at end of day.
+- AI keys (exit-gate action 6), 15-10: owner confirmed vendor data terms; Anthropic + Voyage keys per environment (dev, staging, production) checked by D:/shakti-wt/check-ai-keys.ps1 and set Sensitive in all three Vercel projects; dev redeployed (ready 200), staging redeploying. Admin › Agents daily limits ₹100 group-wide on all six agents on dev and staging (read back 15-10); production's after G1's first deploy.
+- Owner decisions 15-10 (record in DECISIONS): production deploys by an **approved release**; every account is held in the group's name (ACC-2 / client action 13 met; owner has full access, no separate member needed); QStash: the same account serves production, on Pay as You Go. AWS monthly cost budget $25 read back.
+- Sentry (owner 15-10): **free Developer plan permanently**. G1 must adapt: one cron monitor on `outbox-publish` only (in-app `jobs-check` covers the rest), one uptime monitor on production `/api/v1/health/ready`, dev/staging error events sampled so production keeps the 5,000/month; deploy §1 step 8 and the run file's item 5 rewritten for that. Privacy settings switched on by owner 15-10 (exit-gate action 2 done: scrubbers, no IPs, extra sensitive fields).
+- Item 2 done 15-10: Supabase org on Pro; project `shakti-prime-production` ref `ifnoytyhnedgiyhxxhhu`, Mumbai, PG 17.11, Data API off, auto-expose off, automatic RLS off (no event trigger, read back), SSL enforced (owner), Micro compute, empty. Visible to the lead's Supabase MCP.
+- Backups (owner 15-10): **no PITR** (no extra spend). Instead G1 builds a `pg_dump` of production every 6 hours to an S3 backup bucket in Mumbai, 30-day retention (DATABASE §10 says nightly + PITR — rewrite: RPO ≤ 6 h, not 5 min; ARCHITECTURE availability row too). Supabase Pro daily backups (7 days) remain.
+- SES production access GRANTED 17-10-2026 (case 179200499200682; transactional, 50,000/day, 14/s), read back via AWS MCP; docs updated in PR #184. Part 1 fully complete; the 15-10 'go live in sandbox' workaround is moot. Later-phase accounts not started: vendor quote approval, DLT, Exotel, Meta WhatsApp, LiveKit/speech, Expo/Google Play, Tally machine.
+
+**Why:** G1 builder starts only after part 1, and the week's usage was 78 % on 15-10 (reset 19-10).
+**Recorded** in PR #183 (docs/status-16-10): DECISIONS rows, G1 run file part 1 done + part 2 item 4, accounts.md, STATUS with a Production column.
+**How to apply (done in #183):** record every owner decision above in DECISIONS (domain, release deploys, group ownership, QStash PAYG, Sentry free, no PITR + 6-hourly dumps, repo public then Pro) and add to G1's brief: files-stack template `production`, Sentry free-plan setup, 6-hourly dump to S3. Related: [[phase1-run]], [[hosted-environments]].
+
+**17-10-2026 owner decisions (record in DECISIONS with G1's PR):** (1) production backup dump runs in AWS (CodeBuild + EventBridge every 6 h, `app_backup` password in Secrets Manager), GitHub holds no backup credential — closes G1 review H2; (2) the lead gets a narrower fine-grained GitHub token (no Administration, Deployments or Environments write) and never approves a release, makes a `release-*` tag or changes an environment; (3) a passed-on walk-in enquiry carries the form's consent, dated that day, and the colleague's card says so (hardening batch 1 review #4 — row goes on `fix/followups-hardening`).

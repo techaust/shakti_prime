@@ -1,0 +1,34 @@
+---
+name: phase1-run
+description: "Phase 1 run state 29-10-2026 — all 23 slices merged, migrations 0000-0159, cloud env remade in Team org; next: owner production steps + first release; read with docs/10-status.md"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: a877fe1d-2ab3-4605-8134-77512cb5a2e0
+  modified: 2026-10-14T12:02:39.121Z
+---
+
+The owner approved Phase 1 on 29-09-2026 (`docs/03-roadmap-appendix/phase1.md`, 23 slices, waves 0–6). The repository is the record: `start-session` skill, `docs/10-status.md`, `docs/runs/phase1/<slice>.md`, CHANGELOG, `docs/11-decisions.md`.
+
+**State on 14-10-2026 (13–14 Oct were cloud days; this PC synced after them):** 22 of 23 slices merged; M1 merged 14-10 (#172). The deep Phase 0–1 audit (`docs/14-reviews/2026-10-audit.md`) closed in code in five batches #170 web, #171 events/jobs, #173 sales integrity, #174 CI/merging/tests, #175 privacy; plus #167 (heavy.sh ticket queue), #168 db follow-ups, #169, Dependabot #176/#177, docs #179/#180. `main` = aba81577, migrations 0000–0155 (156) on main, local, dev and staging. Security suite at the sales batch: db 1,261, domain 1,019, web 326.
+
+**New rules from 13-10 (DECISIONS):** a PR that changes its own gates (`.github/`, turbo.json, vitest/Playwright configs, package.json scripts, eslint config, .gitleaksignore, pnpm-workspace, js-budget, lighthouserc) merges only after the owner adds label `checks-ok`; a PR merges only on the `main` it was tested with. Only the Executive makes a customer a dealer. "Order" is the one on-screen name for a sale. Lead anonymisation after 24 months idle blanks earlier audit rows' personal values. Weekly budget gate was set aside for the audit/M1 only.
+
+**Next:** G1 Production readiness (wave 6, design §10). Owner says every paid account is ready (14-10); G1 starts by listing what is needed per account (production Supabase, Vercel Pro, SES production + DNS, production Sentry and AWS, GitHub plan with environments, the domain) and writing `docs/runs/phase1/g1-production.md`.
+
+**PC housekeeping 14-10:** slot worktrees under D:/shakti-wt removed and ~62 merged local branches deleted; the owner then had the last three (two pre-rebase backups, docs/models-plan-12-10) deleted too; only `main` remains locally. The owner wants everything unnecessary cleared: D:/shakti-wt should hold only `.done` and the five owner helper .ps1 scripts (VAPID, invite, migrator secret, db password test, auth URL), and the old app worktree is gone; done by the owner by hand on 14-10 (auto mode refuses such deletes). End state: only the main worktree, only `main`, synced at fe9d5fff (#182). D:/shakti-wt/heavy.sh deleted, .done empty. The main checkout's `.env` now has every `.env.example` key.
+
+**Lessons:** a docs-only PR merges ~10 min after opening, never push to it without `hold`. Screenshots that show figures other journeys create cannot be baselined stably; data-dependent baselines only in a full-project run on a fresh DB. `pnpm --filter web exec playwright test <file>` after `e2e:seed` to run one file. The calling journey fails if a run crosses 21:00 IST.
+
+**How the lead works:** briefs in run files, builders/reviewers as background agents with the tier's model/effort, event-only monitors, verify each report, open PRs, migrate-hosted after merges.
+**Why:** the owner wants Phase 1 built continuously, pausing only for their decisions, credentials or hosted changes outside the go-ahead.
+**How to apply:** owner types "start the day" → start-session. Related: [[hosted-environments]], [[feedback-no-docker-pc]], [[feedback-models-usage]], [[feedback-hands-off-git]], [[feedback-secrets-scripts]], [[feedback-agent-orchestration]].
+
+
+**17/18-10-2026:** G1 merged (#187) and hardening batch 1 (#186): all 23 Phase 1 slices merged; dev+staging at 0158 (159 migrations), read back 18-10. Production built but waits on owner steps (DEPLOY §1 step 4 d-f, step 9 AWS files+backup stacks via set-backup-login.ps1, step 10 deploy hook, Vercel prod vars) then the owner-approved first release. GitHub env `production` made by owner and read back 17-10 (reviewer techaust, branch main, no admin bypass). Hardening batch 2 (fix/followups-hardening-2, slot 2) building from 18-10. Status PR #188.
+**18-10-2026 overnight (owner asleep, lead alone):** hardening batch 2 (#189: seed delivers events, Triage/Vault redelivery, client-left logging, snap fixes) and batch 3 (#191: add-partner command crm.referral_partner.create, referral codes in imports, walk-in PIN lookup, lock_hours single source 0159, lighter pages) merged; dev+staging at 0159 (160 migrations). Docs PRs #188, #190, #192. Week 99 % at the end; nothing in flight. Open: Dependabot #178 (pdfium 3), owner's production steps.
+
+**20-10-2026 (PC; owner away most of the day, lead alone):** #197 (minor/patch bumps, pdfium 3 — fixed masked PDF red/blue swap — and WCAG 2.5.3 labels that axe 4.14 checks), #198 (Playwright 1.64.1 image, actions/cache 6.1.0), #199 (demo data loader `apps/web/scripts/demo-data.ts`, staging only, not yet loaded), docs #200. main 75fadce3 on dev+staging, migrations still 0159. Held by owner: TypeScript 7, ESLint 10, @types/node 26. Open owner decisions: load demo data on staging; demo customers stay listed after remove (no archive command). Production read back 20-10: no env secrets, no ruleset, Vercel prod has only the two AI keys. Week 3 %.
+**Lessons 20-10:** a Dependabot major never merges itself even with checks-ok (fold it into a lead PR); `taskkill /F` on a heavy.sh run leaves `~/.shakti-heavy.lock` held (auto mode refuses rm; owner removes it); a held "Approve and run" CI run is read as failed by the merge workflow until the owner approves; run journeys on a fresh slot DB.
+**29-10-2026 (PC, owner present):** #207 models plan (Opus 5.5 high everywhere, 95 % gate, PC 2 agents/1 browser, cloud ≤5/2 by resources), #208 `cloud-capacity.sh` + import journey flake fixed (file set before hydration → `hydrated()` on the input), #209 hook installs Node 24 when the setup script did not; cloud env `shakti_prime` recreated in the Team org (network "Limited" = Custom, 7 hosts), checked OK. Docs PR #210. Migrations still 0159; nothing in flight. #205 closed on the owner's word (content on main via #206); status page still lists it until the next end-session. Open: #203 fails lint, #204 SDK major.
+**Lesson 29-10:** CI fails on a flaky test (`failOnFlakyTests`); read the trace from the run's e2e-report artifact (copy to a short path: Windows path limit) before re-running.
