@@ -9,26 +9,12 @@
   },
   "enabledMcpjsonServers": ["shadcn", "vercel"],
   "disableClaudeAiConnectors": true,
+  "syncClaudeAiSkills": false,
   "enabledPlugins": {
-    "cloudflare@cloudflare": false
+    "cloudflare@cloudflare": false,
+    "aws-core@claude-plugins-official": false
   },
   "skillOverrides": {
-    "amazon-bedrock": "off",
-    "aws-ai-ml": "off",
-    "aws-auth": "off",
-    "aws-blocks": "off",
-    "aws-cdk": "off",
-    "aws-compute": "off",
-    "aws-containers": "off",
-    "aws-database": "off",
-    "aws-deployment": "off",
-    "aws-networking": "off",
-    "aws-observability": "off",
-    "aws-sdk-python-usage": "off",
-    "aws-sdk-swift-usage": "off",
-    "aws-serverless": "off",
-    "launch-with-aws": "off",
-    "setting-up-cloudwatch-observability": "off",
     "vercel-react-native-skills": "off"
   }
 }
