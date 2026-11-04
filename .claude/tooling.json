@@ -83,7 +83,7 @@
       "name": "aws-mcp",
       "type": "mcp",
       "phase": 1,
-      "install": "User-scope MCP server: claude mcp add --scope user aws-mcp -- uvx mcp-proxy-for-aws@latest https://aws-mcp.us-east-1.api.aws/mcp, with the AWS agent skills in ~/.claude/skills",
+      "install": "User-scope MCP server: claude mcp add --scope user aws-mcp -- uvx mcp-proxy-for-aws@latest https://aws-mcp.us-east-1.api.aws/mcp; it serves the AWS skills through its retrieve_skill tool, and the aws-core plugin stays off for this project",
       "signIn": "AWS credentials (least-privilege IAM user)"
     },
     {
