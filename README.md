@@ -24,7 +24,7 @@ pnpm + Turborepo monorepo.
 
 ## Setup
 
-1. Node 24 and pnpm, pinned in `package.json`: on Windows, `corepack enable`; on Linux, install pnpm with npm, because Corepack cannot start this pnpm version ([hybrid §2](docs/runbooks/hybrid.md#2-what-a-cloud-session-has-and-lacks)).
+1. Node 24 and pnpm, pinned in `package.json`: on Windows, `npm.cmd install -g pnpm --allow-scripts=pnpm` in the owner's own PowerShell (pnpm then switches itself to the pinned version; `corepack enable` needs administrator rights there); on Linux, install pnpm with npm, because Corepack cannot start this pnpm version ([hybrid §2](docs/runbooks/hybrid.md#2-what-a-cloud-session-has-and-lacks)).
 2. Docker Desktop, then `docker compose up -d --wait` for local Postgres on port 54322.
 3. `cp .env.example .env` (local Postgres, the auth module's connection, Better Auth, Cloudflare's Turnstile test keys; Upstash left empty uses an in-memory store; locally the console mailer prints invite links to the terminal)
 4. `pnpm install`

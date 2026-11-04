@@ -1,7 +1,7 @@
 - [Shakti Prime blueprint](shakti-prime-blueprint.md) — approved plan location + locked stack/scope/AI/pricing/compliance/estimate decisions
 - [User: agency owner](user-agency-owner.md) — solo agency dev building for client; prefers interactive MCQ decisions, honest ratings
 - [Clean final docs](feedback-clean-final-docs.md) — deliverables must have no revised/dropped/added wording
-- [Dev environment](dev-environment.md) — pnpm via corepack shims, gh as techaust, Docker; all MCP servers verified 2026-09-28 (GitHub via PAT env var, AWS read-only IAM user via uvx)
+- [Dev environment](dev-environment.md) — PC rebuilt 04-11 (Python 3.15 only, uv, Docker/WSL via winget, PYYAML_FORCE_LIBYAML=0); gh as techaust; older Sept notes below
 - [Design profile: Linear](design-profile-linear.md) — indigo accent, generated LCH themes, 14px body, next/font, /design page; built (PR #12)
 - [Language: English + Hinglish](language-policy-english-hinglish.md) — English-only UI, Roman Hinglish for caller scripts/voice/training; built (PR #11)
 - [Audit 2026-09](audit-2026-09.md) — AUDIT.md 108 findings closed in batches 0-15 (PRs #5-#25); §8 resolution; user-only actions listed
