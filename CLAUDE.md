@@ -157,6 +157,7 @@ Read order for any task: this file → the relevant blueprint section → the mo
 Required plugins, MCP servers and skills per phase are defined in `.claude/tooling.json` (blueprint §20). The SessionStart hook `.claude/hooks/tooling-check.mjs` prints a `[tooling-check]` block at the start of each session. How each tool is connected, and how to sign one in again, is in [docs/runbooks/tooling.md](docs/runbooks/tooling.md).
 
 - **A new PC:** set it up from [tools/pc-setup/README.md](tools/pc-setup/README.md), which also brings back Claude's memory and settings from the owner's previous PC.
+- **The desktop app on the PC is a packaged Windows app:** whatever a session installs under `AppData\Roaming` (npm globals, uv's data) lands in the app's own copy of that folder, which the owner's PowerShell windows cannot see, and its Terminal panel cannot run `claude`. A tool the owner needs in their own shell (Claude Code, pnpm) is installed by the owner in a PowerShell window opened from the Start menu ([pc-setup](tools/pc-setup/README.md)).
 - **At session start on the PC:** for entries marked "Plugins to confirm", check installed plugins with the plugin listing tool. In a cloud session the hook prints a cloud note instead: the plugins and MCP servers exist only on the PC, and nothing is installed there.
   - Then tell the user in one short message what is missing, with the install step and any sign-in needed.
   - Stay silent if everything is in place.
