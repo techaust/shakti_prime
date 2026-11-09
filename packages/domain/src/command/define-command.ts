@@ -63,6 +63,15 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
    * recorded either way.
    */
   auditWhen?: 'always' | 'changed';
+  /**
+   * The input fields that hold another long number by design, which the runner never masks as an
+   * Aadhaar number (`maskInputIdentity()`, docs/07-security.md §5): dot paths of object keys,
+   * arrays passed through (`bankDetails.accountNumber`), each covering everything under it. Every
+   * other string of the input keeps only the last four digits of an Aadhaar number typed into it.
+   * Each entry carries its reason in a comment, and a registry test refuses a path the input
+   * schema does not have.
+   */
+  unmaskedFields?: readonly string[];
   handler: (ctx: CommandContext, input: z.output<I>) => Promise<z.input<O>>;
 }
 

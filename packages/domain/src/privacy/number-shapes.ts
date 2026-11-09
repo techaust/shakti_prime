@@ -410,3 +410,22 @@ export function replaceNumbers(
   }
   return out + text.slice(at);
 }
+
+/** Whether a character reads as a digit: a decimal digit of any script, or a superscript one. */
+const readsAsDigit = (c: string): boolean =>
+  /\p{Nd}/u.test(c) || /^[0-9]$/.test(c.normalize('NFKC'));
+
+/**
+ * The number as written, every digit but the last four replaced by X, its separators kept. A digit
+ * is counted as the finder reads it, superscript and subscript digits included. The imports and
+ * the commands' input masking (`maskInputIdentity()`) mask an Aadhaar number with it.
+ */
+export function lastFourOnly(written: string): string {
+  const digits = [...written.matchAll(/[\p{Nd}\p{No}]/gu)].filter((m) => readsAsDigit(m[0])).length;
+  let seen = 0;
+  return written.replace(/[\p{Nd}\p{No}]/gu, (c) => {
+    if (!readsAsDigit(c)) return c;
+    seen += 1;
+    return seen <= digits - 4 ? 'X' : c;
+  });
+}

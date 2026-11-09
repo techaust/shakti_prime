@@ -9,6 +9,7 @@ description: Add a domain command (a write) to Shakti Prime BOS, from the contra
 
 - [ ] Input and strict DTO in `packages/contracts`; only types imported into browser code (`apps/web/src/screens/contract-values.ts` for values).
 - [ ] `defineCommand` in `packages/domain/src/commands/<module>` with the permission, `alsoRequires` if any, `auditFields` (each with an Activity log label in `apps/web/src/screens/audit.ts`), `peopleOnly` when no agent may run it, `constraintReasons` for constraints it can race against.
+- [ ] Does an input field hold a long number by design (an account number, a code, a hash, a reference)? List it in `unmaskedFields` with its reason and an example in `packages/domain/src/command/unmasked-fields.test.ts`; in every other string the runner masks an Aadhaar number to its last four digits.
 - [ ] `ctx.audit()` once per changed aggregate with before and after; `ctx.emit()` only for catalogue events (ids, codes and counts); state changes through `transition()` of the machine.
 - [ ] Registered in `packages/domain/src/command/registry.ts`.
 - [ ] Tests on real Postgres in `packages/domain/tests`: denied, wrong company, happy path.
