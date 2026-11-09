@@ -32,10 +32,12 @@ packages/ui           web components (shadcn/ui based)
 packages/tokens       design tokens (CSS variables + JS export) for web and Android
 tools/copy-lint       the product-copy lint run in CI
 tools/integration     slice integration scripts, the cloud setup script and the document link check
-infra/aws             the AWS file storage stack (CloudFormation)
+tools/pc-setup        setting up a new PC, with Claude's memory and settings to bring back
+tools/secrets         the owner's hidden-prompt scripts for secrets
+infra/aws             the AWS file storage stack and production's backup stack (CloudFormation)
 docs/                 the numbered documents (docs/00-start-here.md is the guide), ADRs, runbooks, the Phase 1 run files
 .claude/              the project's skills, agents, session-start hooks and tooling list
-.github/              CI, merge-on-green, migrate and audit workflows; the pull-request template
+.github/              CI, merge-on-green, checks-ok lapse, migrate, release and audit workflows, the migrate action; the pull-request template
 ```
 Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and on the `packages/db` schema and types (never its client), and never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod and the UUIDv7 generator. `apps/web` reaches the database only through `executeCommand()` and `executeQuery()` from `packages/domain`; `executeQuery()` runs in a read-only transaction, so a write through it fails (SQLSTATE 25006).
 
