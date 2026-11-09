@@ -253,17 +253,14 @@ describe('the fields the Aadhaar masking leaves whole (unmaskedFields)', () => {
   it('would refuse an exemption of an object that holds a free-text field', () => {
     // `unmaskedFields: ['bankDetails']` would leave the branch, typed by a person, whole.
     const bank = fieldAt(getCommand('org.entity.update').input, 'bankDetails');
-    expect(bank).toBeDefined();
-    const free = leavesOf(bank as z.ZodType, 'bankDetails')
+    const keys = fieldAt(getCommand('notifications.push.subscribe').input, 'keys');
+    if (bank === undefined || keys === undefined) throw new Error('the fields are missing');
+    const free = leavesOf(bank, 'bankDetails')
       .filter((leaf) => leaf.schema.safeParse(FREE_TEXT).success)
       .map((leaf) => leaf.path);
     expect(free).toEqual(['bankDetails.bankName', 'bankDetails.branch']);
     // The push keys are an object whose every field refuses free text.
-    const keys = fieldAt(getCommand('notifications.push.subscribe').input, 'keys');
-    expect(leavesOf(keys as z.ZodType, 'keys').map((leaf) => leaf.path)).toEqual([
-      'keys.p256dh',
-      'keys.auth',
-    ]);
+    expect(leavesOf(keys, 'keys').map((leaf) => leaf.path)).toEqual(['keys.p256dh', 'keys.auth']);
   });
 
   it.each(MASKED_ON_PURPOSE)(
