@@ -131,7 +131,20 @@
         "OCR_LANG_PATH",
         "VAPID_PUBLIC_KEY",
         "VAPID_PRIVATE_KEY",
-        "VAPID_SUBJECT"
+        "VAPID_SUBJECT",
+        "E2E_APP_HOST",
+        "E2E_PORT",
+        "E2E_REAL_TURNSTILE",
+        "DATABASE_URL_READER",
+        "APP_READER_PASSWORD",
+        "FIELD_ENCRYPTION_KEY",
+        "FILES_BUCKET",
+        "FILES_KMS_KEY_ID",
+        "AWS_REGION",
+        "BACKUP_BUCKET",
+        "SES_FROM",
+        "SENTRY_DSN",
+        "NEXT_PUBLIC_SENTRY_DSN"
       ]
     },
     "db:generate": {
