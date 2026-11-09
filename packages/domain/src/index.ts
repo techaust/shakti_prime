@@ -70,6 +70,7 @@ export {
   homePipeline,
   homeResponseTimes,
   homeSales,
+  salesGroupTotal,
 } from './queries/home/home';
 export {
   isPeriodStart,

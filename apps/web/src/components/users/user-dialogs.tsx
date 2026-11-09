@@ -368,8 +368,7 @@ export function MoveLeadsForm({
         setPeople(list.filter((p) => p.userId !== user.id));
       },
     );
-    // First load only; a change of company loads in its own handler.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- first load only; a change of company loads in its own handler
   }, []);
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
