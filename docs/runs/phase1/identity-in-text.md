@@ -6,9 +6,9 @@
 | PC worktree | `identity-in-text`, slot 5: Postgres 54335 (container `shakti-pg-identity-in-text`), app 3035 |
 | Runs on | PC (owner, 09-11-2026) |
 | Tier | A (identity data, and the command runner every write passes through): build and review Opus 5.5 high |
-| Usage | build Opus high from 5h 2 (09-11-2026) |
-| State | built, waiting for review |
-| Next step | the lead recreates the slot's database and runs the whole security suite once (set-price needs a fresh one, see the Report), then the review |
+| Usage | build Opus high, week 4→6, 5h 2→17; review Opus high and the fix round Opus high, week 6→7, 5h 17→21 (09-11-2026) |
+| State | integrating |
+| Next step | the pull request merges on green after the owner's `checks-ok` (`.gitleaksignore`) |
 
 ## Brief
 The owner's decision of 09-11-2026 ([DECISIONS](../../11-decisions.md)): an Aadhaar number someone types into a note or any other free-text field is masked by the command that stores it, keeping only its last four digits, with the finder the imports, the logs and the audit trail already share. Today SECURITY §5 masks vault files, import files, the logs and the audit trail, but a number typed into `crm.note.add`'s `body`, a lead's notes, a cancel reason or an address is stored as typed. Design: [SECURITY §5](../../07-security.md#5-data-protection-dpdp-act-2023-rules-2025) (Aadhaar), [AGENTS §5](../../../AGENTS.md#5-domain-commands) (commands).
@@ -100,3 +100,5 @@ Done when: the checks of AGENTS §10 pass on the slot (unit tests, typecheck, th
 ## Integration notes
 - No migration and no screen, so no renumbering and no baselines.
 - After the merge: a read-only count on dev and staging of stored text with an Aadhaar-shaped number (notes, activities, reasons, addresses); anything found is changed only with the owner's yes.
+- 09-11-2026, the lead: `main` (#226, postgres 4.1.0) taken in by a merge commit, no conflicts, no migration. `integrate.sh` on its own fresh database (journeys `leads`, `customers`, `orders`; CI runs every one): lint, format, copy lint, generated files, typecheck, unit, security, `db:verify`, audit, build with `.env` aside, JavaScript budget and the journeys passed. The secret scan found one test value: the made-up UUID labelled "an idempotency key" in `input-masking.test.ts` (commit ef0a4bed, already on GitHub) reads as a generic API key; its fingerprint is in `.gitleaksignore`, so the pull request merges after the owner's `checks-ok`. The local scan mounts the main checkout's `.gitleaksignore`; run with the branch's file, it finds no leaks.
+- After the merge: the read-only count on dev and staging of stored text holding an Aadhaar-shaped number.
