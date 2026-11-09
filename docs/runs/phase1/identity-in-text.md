@@ -92,6 +92,10 @@ Done when: the checks of AGENTS §10 pass on the slot (unit tests, typecheck, th
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
+| M1 | Medium | `input-masking.ts`: the decimal-amount rule was applied to each found run, so an unspaced Aadhaar number followed by `.` and one or two digits inside free text (`Aadhaar no 234567890124.5 given`, `UID 234567890124.1`, `Aadhaar 234567890124.00`, `1.Aadhaar 234567890124.2.Bill copy`) stayed unmasked. The rule now applies only when the whole value is the amount; the four sentences are masked cases, whole-value amounts stay kept, and SECURITY §5 says "a field whose whole value is a decimal amount". | fixed, 7d580032 |
+| L1 | Low | `identity-in-text.test.ts`: the audit and refusal tests only asserted the digits were absent, which `redactForAudit` already guarantees. They now also assert the masked text is in the row (`XXXX XXXX 0124`, `Aadhaar XXXXXXXX0124`, `Aadhaar XXXX-XXXX-0124`), so reverting the runner or the `execute.ts` masking fails them. | fixed, 7d580032 |
+| L2 | Low | `unmasked-fields.test.ts`: the free-text probe ran only on the exempt node itself. It now runs on every field under an exempt object or array (`leavesOf()`), and a test shows that `bankDetails` exempted whole would fail on `bankName` and `branch`. SECURITY §5 says what the test proves: the field refuses text with spaces, while a bare twelve-digit value is accepted by design in codes, stock codes, UPI ids and emails. | fixed, 7d580032 and dd3cbca2 |
+| L3 | Low | SECURITY §5 claimed webhooks were masked alike. It now says a webhook's event is masked as the commands its worker runs store it, that the raw `webhook_inbox` body is outside the rule, and that a phone field must normalise to E.164 (`PhoneInputSchema`) or be listed in `unmaskedFields`. | fixed, 7d580032 |
 
 ## Integration notes
 - No migration and no screen, so no renumbering and no baselines.
