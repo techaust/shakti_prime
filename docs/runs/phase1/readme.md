@@ -42,7 +42,10 @@ Done when: the slice-specific checks beyond AGENTS §10.
 Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. On a cloud day the lead's VM uses the same slots for its worktrees; a builder started as its own cloud session uses its VM's defaults (Postgres 54322, app 3000).
 
 ## Slices in flight
-- [Aadhaar numbers in typed text](identity-in-text.md) (`fix/identity-in-text`, PC)
+- None.
+
+## Merged on 9 November, run files on `main`
+- [Aadhaar numbers in typed text](identity-in-text.md) (#230)
 
 ## Merged on 20 October, run files on `main`
 - [Demo data for the screen review](demo-data.md) (#199)
