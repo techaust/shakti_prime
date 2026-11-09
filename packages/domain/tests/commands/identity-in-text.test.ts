@@ -105,6 +105,8 @@ describe('an Aadhaar number typed into a note (crm.note.add)', () => {
     expect(audit).toHaveLength(1);
     expect(audit[0]?.outcome).toBe('ok');
     expect(JSON.stringify(audit)).not.toMatch(HIDDEN);
+    // The row holds the masked text itself, not only the scrubber's removal of the number.
+    expect(JSON.stringify(audit)).toContain('XXXX XXXX 0124');
     expect(JSON.stringify(events)).not.toMatch(HIDDEN);
     expect(JSON.stringify(await eventsOf(lead.account.id))).not.toMatch(HIDDEN);
   });
@@ -128,6 +130,7 @@ describe('an Aadhaar number typed into a note (crm.note.add)', () => {
     const audit = await auditRows(requestId);
     expect(audit.map((r) => r.outcome)).toEqual(['denied']);
     expect(JSON.stringify(audit)).not.toMatch(HIDDEN);
+    expect(JSON.stringify(audit)).toContain('Aadhaar XXXXXXXX0124');
   });
 
   it('records a note for a company outside the caller’s access with the number masked', async () => {
@@ -144,6 +147,7 @@ describe('an Aadhaar number typed into a note (crm.note.add)', () => {
     const audit = await auditRows(requestId);
     expect(audit.map((r) => r.outcome)).toEqual(['denied']);
     expect(JSON.stringify(audit)).not.toMatch(HIDDEN);
+    expect(JSON.stringify(audit)).toContain('Aadhaar XXXX-XXXX-0124');
   });
 
   it('replays the first answer to a repeat with the same key and the number as typed', async () => {

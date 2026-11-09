@@ -55,6 +55,33 @@ function fieldAt(schema: z.ZodType, path: string): z.ZodType | undefined {
 }
 
 /**
+ * The fields under a schema, each at its own path: an object's fields at any depth, arrays and
+ * wrappers passed through; a field that is no object is its own one leaf.
+ */
+function leavesOf(schema: z.ZodType, at = ''): { path: string; schema: z.ZodType }[] {
+  const node = schema as unknown as ZodNode;
+  const def = node._zod.def;
+  switch (def.type) {
+    case 'optional':
+    case 'nullable':
+    case 'default':
+    case 'prefault':
+    case 'readonly':
+    case 'catch':
+    case 'nonoptional':
+      return leavesOf(def.innerType as z.ZodType, at);
+    case 'array':
+      return leavesOf(def.element as z.ZodType, at);
+    case 'object':
+      return Object.entries(def.shape as Record<string, z.ZodType>).flatMap(([key, field]) =>
+        leavesOf(field, at === '' ? key : `${at}.${key}`),
+      );
+    default:
+      return [{ path: at, schema }];
+  }
+}
+
+/**
  * For every field a command leaves whole, a value it holds by design that the masker would change:
  * the proof that the field needs its exemption. A new exemption brings its example here, and its
  * schema must refuse free text (`FREE_TEXT`), so a person can never type a note into it.
@@ -207,14 +234,36 @@ describe('the fields the Aadhaar masking leaves whole (unmaskedFields)', () => {
     },
   );
 
-  it('leaves whole only fields whose schema refuses free text', () => {
+  it('leaves whole only fields whose schema refuses free text, every field under an object too', () => {
     for (const { command, path } of declared) {
       if (MASKED_BY_THE_COMMAND.includes(`${command.name} ${path}`)) continue;
       const field = fieldAt(command.input, path);
-      expect(field?.safeParse(FREE_TEXT).success, `${command.name} ${path}`).toBe(false);
+      expect(field, `${command.name} ${path}`).toBeDefined();
+      if (field === undefined) continue;
+      for (const leaf of leavesOf(field, path)) {
+        expect(leaf.schema.safeParse(FREE_TEXT).success, `${command.name} ${leaf.path}`).toBe(
+          false,
+        );
+      }
     }
     const imports = getCommand('imports.job.create');
     expect(fieldAt(imports.input, 'rows')?.safeParse(FREE_TEXT).success).toBe(true);
+  });
+
+  it('would refuse an exemption of an object that holds a free-text field', () => {
+    // `unmaskedFields: ['bankDetails']` would leave the branch, typed by a person, whole.
+    const bank = fieldAt(getCommand('org.entity.update').input, 'bankDetails');
+    expect(bank).toBeDefined();
+    const free = leavesOf(bank as z.ZodType, 'bankDetails')
+      .filter((leaf) => leaf.schema.safeParse(FREE_TEXT).success)
+      .map((leaf) => leaf.path);
+    expect(free).toEqual(['bankDetails.bankName', 'bankDetails.branch']);
+    // The push keys are an object whose every field refuses free text.
+    const keys = fieldAt(getCommand('notifications.push.subscribe').input, 'keys');
+    expect(leavesOf(keys as z.ZodType, 'keys').map((leaf) => leaf.path)).toEqual([
+      'keys.p256dh',
+      'keys.auth',
+    ]);
   });
 
   it.each(MASKED_ON_PURPOSE)(

@@ -30,6 +30,15 @@ describe('masking an Aadhaar number typed into a command input', () => {
     ],
     ['touching letters', `UID${AADHAAR} seen`, 'UIDXXXXXXXX0124 seen'],
     ['after a label and a colon', 'Aadhaar: 2345 6789 0124.', 'Aadhaar: XXXX XXXX 0124.'],
+    // A point and decimals after the number inside text: an amount only when it is the whole value.
+    ['with a decimal after it', `Aadhaar no ${AADHAAR}.5 given`, 'Aadhaar no XXXXXXXXX124.5 given'],
+    ['with one decimal after a label', `UID ${AADHAAR}.1`, 'UID XXXXXXXXX124.1'],
+    ['with two decimals after it', `Aadhaar ${AADHAAR}.00`, 'Aadhaar XXXXXXXXXX24.00'],
+    [
+      'in a numbered list',
+      `1.Aadhaar ${AADHAAR}.2.Bill copy`,
+      '1.Aadhaar XXXXXXXXX124.2.Bill copy',
+    ],
   ])('masks one %s to its last four digits', (_, text, expected) => {
     expect(maskTypedIdentity(text)).toEqual({ text: expected, masked: 1 });
   });
@@ -63,6 +72,7 @@ describe('masking an Aadhaar number typed into a command input', () => {
     ['a money string', '125000.00'],
     ['a money string of twelve whole digits', `${AADHAAR}.00`],
     ['a money string with one decimal', `${AADHAAR}.5`],
+    ['a money string with spaces around it', ` ${AADHAAR}.00 `],
     ['a date', '2026-11-09'],
     ['a timestamp', '2026-11-09T10:15:30.123Z'],
     ['a timestamp with its offset', '2026-11-09T15:45:30.123456+05:30'],

@@ -16,18 +16,20 @@ import { findPersonalNumbers, lastFourOnly, normalise, replaceNumbers } from './
 /** A text with fewer digits than this holds no Aadhaar number; it is passed over unread. */
 const AADHAAR_DIGITS = 12;
 
-/** A decimal amount (`234567890124.00`): one run of digits, a point and one or two decimals. */
+/**
+ * A value that is a decimal amount and nothing else (`234567890124.00`, a money field): one run of
+ * digits, a point and one or two decimals. Inside other text the same shape is masked like any number.
+ */
 const DECIMAL_AMOUNT = /^\d+\.\d{1,2}$/;
 
 /**
  * Whether a run the finder read as Aadhaar-shaped holds a valid Aadhaar number: some of its
  * consecutive digit groups, the first beginning 2 to 9, hold exactly twelve digits with a valid
  * check digit (the run may carry a group before or after it, a plot number or a phone, which the
- * mask then covers too). A decimal amount is never one.
+ * mask then covers too).
  */
 function holdsValidAadhaar(written: string): boolean {
   const read = normalise(written).text.trim();
-  if (DECIMAL_AMOUNT.test(read)) return false;
   const groups = read.match(/\d+/g) ?? [];
   for (let i = 0; i < groups.length; i++) {
     if (!/^[2-9]/.test(groups[i] ?? '')) continue;
@@ -43,6 +45,7 @@ function holdsValidAadhaar(written: string): boolean {
 /** `text` with every Aadhaar number in it masked to its last four digits, and how many were. */
 export function maskTypedIdentity(text: string): { text: string; masked: number } {
   if ((text.match(/[\p{Nd}\p{No}]/gu)?.length ?? 0) < AADHAAR_DIGITS) return { text, masked: 0 };
+  if (DECIMAL_AMOUNT.test(text.trim())) return { text, masked: 0 };
   const found = findPersonalNumbers(text).filter(
     (n) => n.kind === 'aadhaar' && holdsValidAadhaar(text.slice(n.start, n.end)),
   );
