@@ -41,6 +41,11 @@ export const createImportJob = defineCommand({
   input: CreateImportJobInput,
   output: ImportJobDto,
   auditFields: ['state', 'kind', 'format', 'totalRows', 'leftOutColumns', 'maskedValues'],
+  unmaskedFields: [
+    // The file's cells, which this command masks itself, knowing each column: a column of phones
+    // keeps 91 and a mobile number as the phone it is.
+    'rows',
+  ],
   auditInput: (input) => ({
     entityId: input.entityId,
     kind: input.kind,

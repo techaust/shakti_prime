@@ -10,6 +10,7 @@ import type { RequestContext } from '@shakti/db';
 import type { z } from 'zod';
 import { activityRow, writeActivities } from '../activities/activity';
 import { redactForAudit } from '../audit/redact';
+import { maskInputIdentity } from '../privacy/input-masking';
 import { inputHash } from '../idempotency/hash';
 import { databaseIdempotencyStore, type IdempotencyStore } from '../idempotency/store';
 import type { AuditRecord, AuditSink, ClientMeta } from '../audit/sink';
@@ -314,9 +315,14 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
     );
   }
 
+  // An Aadhaar number typed into the input keeps only its last four digits before anything reads
+  // it: the guard, the key's hash, the handler, the audit row and an inner command all see the
+  // masked input, and a repeat typed the same way hashes alike (docs/07-security.md §5).
+  const data = maskInputIdentity(parsed.data, command.unmaskedFields).value;
+
   try {
     if (command.peopleOnly === true) checkPerson(context.principal, command.name);
-    guardPermission(context.principal, command, parsed.data);
+    guardPermission(context.principal, command, data);
     for (const also of command.alsoRequires ?? []) {
       checkPermission(context.principal, also.permission, also.minScope);
     }
@@ -326,7 +332,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
       });
     }
   } catch (e) {
-    throw tag(e, 'guard', parsed.data);
+    throw tag(e, 'guard', data);
   }
 
   // A key is claimed after the guard, so a refused caller learns nothing about an earlier call,
@@ -334,7 +340,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
   const key = options.idempotencyKey;
   const store = options.idempotency ?? databaseIdempotencyStore;
   if (key !== undefined) {
-    const hash = inputHash(command.name, parsed.data);
+    const hash = inputHash(command.name, data);
     let claim: Awaited<ReturnType<IdempotencyStore['claim']>>;
     try {
       claim = await store.claim(context.tx, {
@@ -347,7 +353,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
       throw tag(
         translateDatabaseError(e, command.name, command.constraintReasons),
         'handler',
-        parsed.data,
+        data,
       );
     }
     if (claim.kind === 'seen') {
@@ -357,7 +363,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
             reason: 'idempotency_mismatch',
           }),
           'handler',
-          parsed.data,
+          data,
         );
       }
       // Nothing changes on a replay, so it writes no audit row and no event.
@@ -366,7 +372,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
         throw tag(
           new DomainError('internal', `${command.name} stored an answer outside its DTO`),
           'handler',
-          parsed.data,
+          data,
         );
       }
       return replay.data;
@@ -462,13 +468,9 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
 
   let result: z.input<O>;
   try {
-    result = await command.handler(ctx, parsed.data);
+    result = await command.handler(ctx, data);
   } catch (e) {
-    throw tag(
-      translateDatabaseError(e, command.name, command.constraintReasons),
-      'handler',
-      parsed.data,
-    );
+    throw tag(translateDatabaseError(e, command.name, command.constraintReasons), 'handler', data);
   }
   const output = command.output.safeParse(result);
   if (!output.success) {
@@ -477,14 +479,14 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
         issues: output.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
       }),
       'handler',
-      parsed.data,
+      data,
     );
   }
 
   // One row per changed aggregate, or one row for the call when the handler named none, unless
   // the command records only what changed (a scheduled scan that found nothing).
   const base = auditBase(context.principal, command.name, context.requestId, options.client);
-  const input = auditedInput(command, parsed.data);
+  const input = auditedInput(command, data);
   const rows: Partial<AuditChange>[] =
     changes.length > 0 ? changes : command.auditWhen === 'changed' ? [] : [{}];
   const records: AuditRecord[] = rows.map((change) => ({
@@ -505,11 +507,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
     await options.outbox.write(context.tx, [...innerEvents, ...events]);
     if (key !== undefined) await store.complete(context.tx, context.principal.id, key, output.data);
   } catch (e) {
-    throw tag(
-      translateDatabaseError(e, command.name, command.constraintReasons),
-      'handler',
-      parsed.data,
-    );
+    throw tag(translateDatabaseError(e, command.name, command.constraintReasons), 'handler', data);
   }
 
   return output.data;

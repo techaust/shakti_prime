@@ -191,6 +191,10 @@ export const updateContact = defineCommand({
   input: UpdateContactInput,
   output: CustomerChangeDto,
   auditFields: ['name', 'email', 'preferredLanguage', 'phones', 'primaryPhone'],
+  unmaskedFields: [
+    // An email address, whose name may be a number (91 and a mobile number) the mail needs whole.
+    'email',
+  ],
   constraintReasons: { contact_phones_contact_e164_unique: 'phone_already_on_contact' },
   async handler(ctx, input) {
     await readableAccount(ctx, input.accountId, input.entityId);

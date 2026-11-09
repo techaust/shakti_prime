@@ -65,6 +65,12 @@ export const updateEntity = defineCommand({
   input: UpdateEntityInput,
   output: EntityDto,
   auditFields: [...EDITABLE, 'bankAccount'],
+  unmaskedFields: [
+    // A bank account number is a long number by design; it is sealed whole by the field cipher.
+    'bankDetails.accountNumber',
+    // A UPI id is often a number before the `@`, printed on documents for payment as it is.
+    'upiId',
+  ],
   // The account itself never reaches the audit row: only its last four digits.
   auditInput: ({ bankDetails, ...rest }) =>
     bankDetails === undefined ? rest : { ...rest, bankAccount: audited(bankDetails) },

@@ -1,5 +1,10 @@
 import { isAadhaarNumber } from '../privacy/identity-numbers';
-import { findPersonalNumbers, replaceNumbers, type FoundNumber } from '../privacy/number-shapes';
+import {
+  findPersonalNumbers,
+  lastFourOnly,
+  replaceNumbers,
+  type FoundNumber,
+} from '../privacy/number-shapes';
 
 /**
  * An import never keeps an identity number (BLUEPRINT §7.5, SECURITY §5; audit SEC-1). Before the
@@ -114,24 +119,6 @@ function isAadhaarCell(cell: string, phoneColumn: boolean): boolean {
   if (found.length !== 1) return found.length > 1;
   const rest = replaceNumbers(cell, found, () => ' ');
   return !/\p{N}/u.test(rest) && (rest.match(/\p{L}/gu) ?? []).length <= LABEL_LETTERS;
-}
-
-/** Whether a character reads as a digit: a decimal digit of any script, or a superscript one. */
-const readsAsDigit = (c: string): boolean =>
-  /\p{Nd}/u.test(c) || /^[0-9]$/.test(c.normalize('NFKC'));
-
-/**
- * The number as written, every digit but the last four replaced by X, its separators kept. A digit
- * is counted as the finder reads it, superscript and subscript digits included.
- */
-function lastFourOnly(written: string): string {
-  const digits = [...written.matchAll(/[\p{Nd}\p{No}]/gu)].filter((m) => readsAsDigit(m[0])).length;
-  let seen = 0;
-  return written.replace(/[\p{Nd}\p{No}]/gu, (c) => {
-    if (!readsAsDigit(c)) return c;
-    seen += 1;
-    return seen <= digits - 4 ? 'X' : c;
-  });
 }
 
 /** `cell` with its Aadhaar numbers masked, and whether any was. */

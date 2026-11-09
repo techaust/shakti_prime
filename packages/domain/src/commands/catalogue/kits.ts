@@ -65,6 +65,10 @@ export const createKit = defineCommand({
   input: CreateKitInput,
   output: KitDetailDto,
   auditFields: ['sku', 'kitName', 'components', 'isActive'],
+  unmaskedFields: [
+    // A stock code may be a barcode's number of twelve digits or more.
+    'sku',
+  ],
   constraintReasons: { kits_sku_unique: 'kit_sku_taken' },
   async handler(ctx, input) {
     await assertCatalogueGroupScope(ctx);
@@ -104,6 +108,10 @@ export const updateKit = defineCommand({
   input: UpdateKitInput,
   output: KitDetailDto,
   auditFields: ['sku', 'kitName', 'components', 'isActive'],
+  unmaskedFields: [
+    // A stock code may be a barcode's number of twelve digits or more.
+    'sku',
+  ],
   constraintReasons: { kits_sku_unique: 'kit_sku_taken' },
   async handler(ctx, input) {
     await assertCatalogueGroupScope(ctx);
