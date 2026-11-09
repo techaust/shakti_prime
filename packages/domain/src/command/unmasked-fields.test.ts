@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
 import { uploadKey } from '../files/limits';
 import { maskInputIdentity, maskTypedIdentity } from '../privacy/input-masking';
-import { commands } from './registry';
+import { commands, getCommand } from './registry';
 
 /** A valid Aadhaar number (its Verhoeff check digit is 4). */
 const AADHAAR = '234567890124';
@@ -161,7 +161,7 @@ describe('the fields the Aadhaar masking leaves whole (unmaskedFields)', () => {
   });
 
   it('refuses a path the input does not have', () => {
-    const update = commands['org.entity.update'];
+    const update = getCommand('org.entity.update');
     expect(fieldAt(update.input, 'bankDetails.accountNumber')).toBeDefined();
     expect(fieldAt(update.input, 'bankDetails.accountNo')).toBeUndefined();
     expect(fieldAt(update.input, 'accountNumber')).toBeUndefined();
@@ -190,7 +190,7 @@ describe('the fields the Aadhaar masking leaves whole (unmaskedFields)', () => {
   )(
     '$name leaves $path whole: the masker would change a valid value of it',
     ({ name, path, value }) => {
-      const command = commands[name as keyof typeof commands];
+      const command = getCommand(name);
       const field = fieldAt(command.input, path);
       expect(field, path).toBeDefined();
       // Arrays are passed through, so an example is one value: one cell of the import's rows.
@@ -213,14 +213,14 @@ describe('the fields the Aadhaar masking leaves whole (unmaskedFields)', () => {
       const field = fieldAt(command.input, path);
       expect(field?.safeParse(FREE_TEXT).success, `${command.name} ${path}`).toBe(false);
     }
-    const imports = commands['imports.job.create'];
+    const imports = getCommand('imports.job.create');
     expect(fieldAt(imports.input, 'rows')?.safeParse(FREE_TEXT).success).toBe(true);
   });
 
   it.each(MASKED_ON_PURPOSE)(
     '$command masks $path, a free-text field',
     ({ command: name, path }) => {
-      const command = commands[name as keyof typeof commands];
+      const command = getCommand(name);
       expect(command.unmaskedFields ?? []).not.toContain(path);
       expect(fieldAt(command.input, path)?.safeParse(FREE_TEXT).success).toBe(true);
     },
@@ -229,7 +229,7 @@ describe('the fields the Aadhaar masking leaves whole (unmaskedFields)', () => {
   it.each(KEPT_EXAMPLES)(
     '$command keeps a valid $path through the masker: $value',
     ({ command: name, path, value }) => {
-      const command = commands[name as keyof typeof commands];
+      const command = getCommand(name);
       expect(command.unmaskedFields ?? []).not.toContain(path);
       const parsed = fieldAt(command.input, path)?.safeParse(value);
       expect(parsed?.success, `${name} ${path}`).toBe(true);

@@ -86,25 +86,15 @@ export function maskInputIdentity<T>(
       return result.text;
     }
     if (Array.isArray(value)) {
-      let changed = false;
-      const out = value.map((item: unknown) => {
-        const next = walk(item, path);
-        if (next !== item) changed = true;
-        return next;
-      });
-      return changed ? out : value;
+      const out = value.map((item: unknown) => walk(item, path));
+      return out.some((next, i) => next !== value[i]) ? out : value;
     }
     if (isPlainObject(value)) {
-      let changed = false;
+      const entries = Object.entries(value);
+      const walked = entries.map(([key, item]) => walk(item, path === '' ? key : `${path}.${key}`));
+      if (walked.every((next, i) => next === entries[i]?.[1])) return value;
       // Built from entries, so a key named `__proto__` stays an own key, as the input had it.
-      const out = Object.fromEntries(
-        Object.entries(value).map(([key, item]) => {
-          const next = walk(item, path === '' ? key : `${path}.${key}`);
-          if (next !== item) changed = true;
-          return [key, next];
-        }),
-      );
-      return changed ? out : value;
+      return Object.fromEntries(entries.map(([key], i) => [key, walked[i]]));
     }
     return value;
   };

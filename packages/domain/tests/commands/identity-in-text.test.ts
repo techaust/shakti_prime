@@ -1,5 +1,6 @@
 import { newId, type Principal } from '@shakti/contracts';
 import {
+  AGENT_PRINCIPAL_SEED,
   asMigrator,
   asOutboxPublisher,
   closeDb,
@@ -28,6 +29,8 @@ afterAll(closeDb);
 /** A valid Aadhaar number (its Verhoeff check digit is 4) and the digits it must never show. */
 const AADHAAR = '234567890124';
 const HIDDEN = /2\D?3\D?4\D?5\D?6\D?7\D?8\D?9/;
+/** The seeded triage agent, so its refusal row has a principal to point at. */
+const AGENT_TRIAGE_ID = AGENT_PRINCIPAL_SEED.find((a) => a.roleKey === 'agent:triage')?.id ?? '';
 
 let teamId: string;
 let caller: Principal;
@@ -111,11 +114,16 @@ describe('an Aadhaar number typed into a note (crm.note.add)', () => {
     const requestId = newId();
     // An agent is refused at the guard (people only), after the input was read and masked.
     await expect(
-      executeCommand(principalFor('agent:triage', [1]), { entityIds: [1], requestId }, addNote, {
-        entityId: 1,
-        accountId: lead.account.id,
-        body: `Aadhaar ${AADHAAR}`,
-      }),
+      executeCommand(
+        principalFor('agent:triage', [1], { id: AGENT_TRIAGE_ID }),
+        { entityIds: [1], requestId },
+        addNote,
+        {
+          entityId: 1,
+          accountId: lead.account.id,
+          body: `Aadhaar ${AADHAAR}`,
+        },
+      ),
     ).rejects.toMatchObject({ code: 'forbidden' });
     const audit = await auditRows(requestId);
     expect(audit.map((r) => r.outcome)).toEqual(['denied']);
@@ -181,7 +189,7 @@ describe('an Aadhaar number inside a nested input (crm.lead.create)', () => {
     const { lead, requestId, events } = await newCustomer(`Ramesh UID 2345-6789-0124`);
     const [stored] = await asMigrator(
       (m) => m<{ name: string; village: string }[]>`
-        select (select name from contacts where id = ${lead.contact.id}) as name,
+        select (select name from contacts where id = ${lead.contact?.id ?? ''}) as name,
                (select village from customer_sites where account_id = ${lead.account.id}) as village`,
     );
     expect(stored).toEqual({
