@@ -109,6 +109,10 @@ export const createLead = defineCommand({
   input: CreateLeadInput,
   output: CreateLeadResultDto,
   auditFields: ['existingAccount', 'consent', 'score', 'attached'],
+  unmaskedFields: [
+    // A referral partner's code, matched whole; an Executive may set one of twelve digits.
+    'referralCode',
+  ],
   async handler(ctx, input) {
     if (!ctx.entityIds.includes(input.entityId)) {
       throw new DomainError('forbidden', 'entity outside the request scope', {

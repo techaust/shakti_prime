@@ -34,6 +34,10 @@ export const setReferralPartner = defineCommand({
   input: SetReferralPartnerInput,
   output: ReferralPartnerDto,
   auditFields: ['code', 'codeActive'],
+  unmaskedFields: [
+    // The partner's code, matched whole against a lead's; it may be twelve digits.
+    'code',
+  ],
   constraintReasons: { referral_partners_code_unique: 'referral_code_taken' },
   async handler(ctx, input) {
     const a = schema.accounts;
@@ -115,6 +119,10 @@ export const createReferralPartner = defineCommand({
   input: CreateReferralPartnerInput,
   output: ReferralPartnerRowDto,
   auditFields: ['accountType'],
+  unmaskedFields: [
+    // The partner's code, matched whole against a lead's; it may be twelve digits.
+    'code',
+  ],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     // The lead form's number lock, taken before the lookup, so a lead or another partner saved
@@ -185,6 +193,10 @@ export const setCommissionRule = defineCommand({
   input: SetCommissionRuleInput,
   output: CommissionRuleDto,
   auditFields: ['basis', 'amount', 'effectiveFrom', 'effectiveTo'],
+  unmaskedFields: [
+    // A rupee amount, which may be written as twelve whole digits without decimals.
+    'amount',
+  ],
   constraintReasons: { commission_rules_period_excl: 'commission_rule_overlap' },
   async handler(ctx, input) {
     await assertConfigScope(ctx, null);

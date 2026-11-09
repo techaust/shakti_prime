@@ -18,6 +18,10 @@ export const beginUpload = defineCommand({
   input: BeginUploadInput,
   output: UploadSlotDto,
   auditFields: ['fileStatus', 'purpose', 'contentType', 'size'],
+  unmaskedFields: [
+    // A file's SHA-256 in hexadecimal, checked against the stored bytes.
+    'sha256',
+  ],
   // The file's name is what a person called it, which can carry a customer's name; it stays out.
   auditInput: (input) => ({
     entityId: input.entityId,
