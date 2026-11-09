@@ -123,6 +123,7 @@ export const createTag = defineCommand({
 - `peopleOnly` refuses an agent principal (kind `agent` or a role `agent:*`) at the guard, before the handler runs: a customer note, a tag of the company, a role edit.
 - `auditFields` is required: each key needs an Activity log label in `apps/web/src/screens/audit.ts` (checked by `audit.test.ts`), and outside production the runner refuses an undeclared key. `auditInput` says what the audit row records of the input when the input is too large or holds customer data in shapes the redaction cannot recognise (an import file's rows).
 - `constraintReasons` names the catalogue reasons of the unique or check constraints the handler may race against.
+- `unmaskedFields` names the input fields that hold another long number by design (a bank account number, a stock code, a hash, a referral code), each with its reason in a comment; the runner masks an Aadhaar number in every other string of the input to its last four digits before the guard, the idempotency key and the handler (`maskInputIdentity()`, docs/07-security.md §5). `unmasked-fields.test.ts` refuses a path the input schema lacks and asks each entry for a valid value the masking would change.
 - `auditWhen: 'changed'` is for a command a timer runs (a scan or a nightly batch): a call whose handler named no change writes no audit row, instead of one row for the call.
 
 **The handler.**
@@ -132,7 +133,7 @@ export const createTag = defineCommand({
 - `ctx.run()` runs another command inside the same transaction; `ctx.savepoint()` runs a part that may fail on its own; `ctx.activity()` writes a timeline row.
 - Return only the declared DTO. Restricted fields never appear in a DTO unless the command's permission is a cost permission.
 
-**What the runner does.** `runCommand` validates the input, guards the permission, claims the idempotency key, runs the handler, translates database errors to domain codes (unique or lock failures → `conflict`, constraint violations → `validation_failed`, policy refusals → `forbidden`), parses the output through the strict DTO, and writes the audit rows, the events and the key's answer in the command's transaction. It requires an `audit` and an `outbox` sink; `RunOptions.idempotencyKey` is optional.
+**What the runner does.** `runCommand` validates the input, masks the Aadhaar numbers typed into it (outside `unmaskedFields`), guards the permission, claims the idempotency key, runs the handler, translates database errors to domain codes (unique or lock failures → `conflict`, constraint violations → `validation_failed`, policy refusals → `forbidden`), parses the output through the strict DTO, and writes the audit rows, the events and the key's answer in the command's transaction. It requires an `audit` and an `outbox` sink; `RunOptions.idempotencyKey` is optional.
 
 **Audit trail.**
 - Call `ctx.audit({ aggregateType, aggregateId, entityId?, before?, after? })` once per changed aggregate, with before and after. `entityId: null` marks a change that belongs to no one company (users, sessions, a shared price list); leaving it out uses the request's single company.

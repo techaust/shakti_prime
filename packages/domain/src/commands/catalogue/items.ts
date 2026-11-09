@@ -75,6 +75,8 @@ export const createItem = defineCommand({
   input: CreateItemInput,
   output: ItemDetailDto,
   auditFields: ITEM_AUDIT_FIELDS,
+  // A stock code may be a barcode's number of twelve digits or more.
+  unmaskedFields: ['sku'],
   constraintReasons: { items_sku_unique: 'item_sku_taken' },
   async handler(ctx, input) {
     await assertCatalogueGroupScope(ctx);
@@ -124,6 +126,8 @@ export const updateItem = defineCommand({
   input: UpdateItemInput,
   output: ItemDetailDto,
   auditFields: ITEM_AUDIT_FIELDS,
+  // A stock code may be a barcode's number of twelve digits or more.
+  unmaskedFields: ['sku'],
   constraintReasons: { items_sku_unique: 'item_sku_taken' },
   async handler(ctx, input) {
     await assertCatalogueGroupScope(ctx);

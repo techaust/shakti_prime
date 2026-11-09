@@ -22,6 +22,10 @@ export const recordRenderedFile = defineCommand({
   input: RecordRenderedFileInput,
   output: FileDto,
   auditFields: ['fileStatus', 'purpose', 'contentType', 'size'],
+  unmaskedFields: [
+    // The rendered file's SHA-256 in hexadecimal, as the store holds it.
+    'sha256',
+  ],
   // The file's name carries the document's number or the company's name; it stays out.
   auditInput: (input) => ({
     entityId: input.entityId,

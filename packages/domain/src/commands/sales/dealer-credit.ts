@@ -106,6 +106,10 @@ export const recordDealerOutstanding = defineCommand({
   input: RecordDealerOutstandingInput,
   output: DealerOutstandingDto,
   auditFields: ['outstanding', 'oldestUnpaidInvoiceDate', 'oldestUnpaidInvoiceNo', 'asOf'],
+  unmaskedFields: [
+    // The invoice number as the books print it; the group's numbering may be all digits.
+    'oldestUnpaidInvoiceNo',
+  ],
   async handler(ctx: CommandContext, input) {
     await requireDealer(ctx, input.entityId, input.accountId);
     if (input.asOf > istCalendarDate(ctx.now)) {

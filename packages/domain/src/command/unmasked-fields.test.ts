@@ -1,0 +1,200 @@
+import { describe, expect, it } from 'vitest';
+import type { z } from 'zod';
+import { uploadKey } from '../files/limits';
+import { maskInputIdentity, maskTypedIdentity } from '../privacy/input-masking';
+import { commands } from './registry';
+
+/** A valid Aadhaar number (its Verhoeff check digit is 4). */
+const AADHAAR = '234567890124';
+/** 91 and a mobile number whose twelve digits are a valid Aadhaar number too. */
+const MOBILE_91 = '919876543216';
+/** A SHA-256 in hexadecimal with a valid Aadhaar number among its digits. */
+const HEX = `ab${AADHAAR}${'c'.repeat(50)}`;
+
+interface ZodNode {
+  _zod: { def: { type: string } & Record<string, unknown> };
+}
+
+/** The schema of the field at a dot path, arrays passed through, or undefined when it has none. */
+function fieldAt(schema: z.ZodType, path: string): z.ZodType | undefined {
+  const step = (node: ZodNode, keys: readonly string[]): ZodNode | undefined => {
+    const def = node._zod.def;
+    const inner = (name: string) => def[name] as ZodNode;
+    switch (def.type) {
+      case 'optional':
+      case 'nullable':
+      case 'default':
+      case 'prefault':
+      case 'readonly':
+      case 'catch':
+      case 'nonoptional':
+        return step(inner('innerType'), keys);
+      case 'pipe':
+        // A field parsed then transformed (a phone) is the whole pipe.
+        if (keys.length === 0) return node;
+        return step(inner('in'), keys) ?? step(inner('out'), keys);
+      case 'array':
+        return step(inner('element'), keys);
+      case 'union':
+        for (const option of def.options as ZodNode[]) {
+          const found = step(option, keys);
+          if (found !== undefined) return found;
+        }
+        return undefined;
+      case 'object': {
+        const [key, ...rest] = keys;
+        if (key === undefined) return node;
+        const field = (def.shape as Record<string, ZodNode | undefined>)[key];
+        return field === undefined ? undefined : step(field, rest);
+      }
+      default:
+        return keys.length === 0 ? node : undefined;
+    }
+  };
+  return step(schema as unknown as ZodNode, path.split('.')) as z.ZodType | undefined;
+}
+
+/**
+ * For every field a command leaves whole, a value it holds by design that the masker would change:
+ * the proof that the field needs its exemption. A new exemption brings its example here.
+ */
+const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
+  'org.entity.update': {
+    'bankDetails.accountNumber': AADHAAR,
+    upiId: `${MOBILE_91}@okaxis`,
+  },
+  'catalogue.item.create': { sku: AADHAAR },
+  'catalogue.item.update': { sku: AADHAAR },
+  'catalogue.kit.create': { sku: AADHAAR },
+  'catalogue.kit.update': { sku: AADHAAR },
+  'files.upload.begin': { sha256: HEX },
+  'files.upload.complete': { 'stored.sha256': HEX },
+  'files.file.mark_ready': { 'stored.sha256': HEX },
+  'files.document.record': { sha256: HEX },
+  'admin.role.permissions.set': { expectedVersion: HEX },
+  'crm.lead.create': { referralCode: AADHAAR },
+  'crm.enquiry.take': { referralCode: AADHAAR },
+  'crm.referral_partner.set': { code: AADHAAR },
+  'crm.referral_partner.create': { code: AADHAAR },
+  'crm.commission_rule.set': { amount: AADHAAR },
+  'sales.dealer_outstanding.record': { oldestUnpaidInvoiceNo: AADHAAR },
+  'crm.contact.update': { email: `${MOBILE_91}@gmail.com` },
+  'admin.user.invite': { email: `${MOBILE_91}@gmail.com` },
+  'notifications.push.subscribe': {
+    endpoint: `https://fcm.googleapis.com/fcm/send/${AADHAAR}`,
+    'keys.p256dh': `B${AADHAAR}${'x'.repeat(80)}`,
+    'keys.auth': `a${AADHAAR}bcd`,
+  },
+  'notifications.push.unsubscribe': { endpoint: `https://fcm.googleapis.com/fcm/send/${AADHAAR}` },
+  'notifications.push.record': {
+    gone: `https://fcm.googleapis.com/fcm/send/${AADHAAR}`,
+    delivered: `https://fcm.googleapis.com/fcm/send/${AADHAAR}`,
+  },
+  // A cell of a phone column, which the command's own masking keeps as the phone it is.
+  'imports.job.create': { rows: MOBILE_91 },
+};
+
+/**
+ * Fields that hold a long number or a code by design and need no exemption: a valid value of each,
+ * as the input schema parses it, comes through the masker unchanged.
+ */
+const KEPT_EXAMPLES: readonly { command: string; path: string; value: unknown }[] = [
+  { command: 'org.entity.update', path: 'gstin', value: '08ABCDE1234F1Z5' },
+  { command: 'org.entity.update', path: 'bankDetails.ifsc', value: 'SBIN0001234' },
+  { command: 'org.entity.update', path: 'pin', value: '302001' },
+  { command: 'crm.account.update', path: 'gstin', value: '08ABCDE1234F1Z5' },
+  { command: 'tax.rate.set', path: 'hsn', value: '85414300' },
+  { command: 'pricing.price.set', path: 'price', value: `${AADHAAR}.00` },
+  { command: 'sales.dealer_terms.set', path: 'creditLimit', value: `${AADHAAR}.00` },
+  { command: 'sales.dealer_outstanding.record', path: 'outstanding', value: `${AADHAAR}.00` },
+  { command: 'catalogue.pump_curve.set', path: 'points.flowLph', value: '2345678901.24' },
+  { command: 'admin.user.invite', path: 'phone', value: '+919876543216' },
+  { command: 'crm.contact.update', path: 'addPhones.phone', value: MOBILE_91 },
+  { command: 'crm.contact.update', path: 'addPhones.phone', value: '+91 98765 43216' },
+  { command: 'crm.lead.create', path: 'contact.phone', value: MOBILE_91 },
+  { command: 'crm.enquiry.route', path: 'phone', value: MOBILE_91 },
+  {
+    command: 'files.document.record',
+    path: 'key',
+    value: uploadKey(1, 'quote_pdf', `0190a1b2-c3d4-7e5f-8a9b-${AADHAAR}`, 'application/pdf'),
+  },
+  {
+    command: 'crm.task.create',
+    path: 'dueAt',
+    value: '2026-11-09T15:45:30.123+05:30',
+  },
+  { command: 'crm.lead.anonymise', path: 'after.at', value: '2026-11-09T10:15:30.123456Z' },
+  { command: 'sales.target.set', path: 'startsOn', value: '2026-11-01' },
+];
+
+const declared = Object.values(commands).flatMap((command) =>
+  (command.unmaskedFields ?? []).map((path) => ({ command, path })),
+);
+
+describe('the fields the Aadhaar masking leaves whole (unmaskedFields)', () => {
+  it('names only fields of the command input, each once', () => {
+    expect(declared.length).toBeGreaterThan(0);
+    for (const { command, path } of declared) {
+      expect(fieldAt(command.input, path), `${command.name}: ${path}`).toBeDefined();
+    }
+    for (const command of Object.values(commands)) {
+      const fields = command.unmaskedFields ?? [];
+      expect(new Set(fields).size, command.name).toBe(fields.length);
+    }
+  });
+
+  it('refuses a path the input does not have', () => {
+    const update = commands['org.entity.update'];
+    expect(fieldAt(update.input, 'bankDetails.accountNumber')).toBeDefined();
+    expect(fieldAt(update.input, 'bankDetails.accountNo')).toBeUndefined();
+    expect(fieldAt(update.input, 'accountNumber')).toBeUndefined();
+    expect(fieldAt(update.input, 'brandName.length')).toBeUndefined();
+  });
+
+  it('has an example for every exemption, and none for a field that is not exempt', () => {
+    const fromExamples = Object.entries(EXEMPT_EXAMPLES)
+      .flatMap(([name, fields]) => Object.keys(fields).map((path) => `${name} ${path}`))
+      .sort();
+    const fromCommands = declared
+      .flatMap(({ command, path }) => {
+        const examples = Object.keys(EXEMPT_EXAMPLES[command.name] ?? {});
+        // An exemption of an object covers its fields, each with its own example.
+        const under = examples.filter((e) => e.startsWith(`${path}.`));
+        return (under.length > 0 ? under : [path]).map((p) => `${command.name} ${p}`);
+      })
+      .sort();
+    expect(fromExamples).toEqual(fromCommands);
+  });
+
+  it.each(
+    Object.entries(EXEMPT_EXAMPLES).flatMap(([name, fields]) =>
+      Object.entries(fields).map(([path, value]) => ({ name, path, value })),
+    ),
+  )('$name leaves $path whole: the masker would change a valid value of it', ({ name, path, value }) => {
+    const command = commands[name as keyof typeof commands];
+    const field = fieldAt(command.input, path);
+    expect(field, path).toBeDefined();
+    // Arrays are passed through, so an example is one value: one cell of the import's rows.
+    const parsed = field?.safeParse(value);
+    expect(parsed?.success, `${name} ${path}`).toBe(true);
+    const text = String(value);
+    expect(maskTypedIdentity(text).text).not.toBe(text);
+    // Under the command's exemptions the whole parsed value comes through as it went in.
+    const nested = path
+      .split('.')
+      .reverse()
+      .reduce<unknown>((inner, key) => ({ [key]: inner }), parsed?.data);
+    expect(maskInputIdentity(nested, command.unmaskedFields).value).toEqual(nested);
+  });
+
+  it.each(KEPT_EXAMPLES)(
+    '$command keeps a valid $path through the masker: $value',
+    ({ command: name, path, value }) => {
+      const command = commands[name as keyof typeof commands];
+      expect(command.unmaskedFields ?? []).not.toContain(path);
+      const parsed = fieldAt(command.input, path)?.safeParse(value);
+      expect(parsed?.success, `${name} ${path}`).toBe(true);
+      expect(maskInputIdentity(parsed?.data).value).toEqual(parsed?.data);
+    },
+  );
+});

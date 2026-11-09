@@ -19,6 +19,10 @@ export const inviteUser = defineCommand({
   input: InviteUserInput,
   output: UserDto,
   auditFields: ['displayName', 'email', 'phone', 'status', 'entityRoles'],
+  unmaskedFields: [
+    // An email address, whose name may be a number (91 and a mobile number) the mail needs whole.
+    'email',
+  ],
   // Two invites racing for one email: the second loses on the unique key, with the same answer.
   constraintReasons: { users_email_unique: 'invite_email_taken' },
   async handler(ctx, input) {
