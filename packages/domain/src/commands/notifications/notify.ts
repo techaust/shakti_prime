@@ -316,11 +316,6 @@ export const recordPush = defineCommand({
   input: RecordPushInput,
   output: PushRecordDto,
   auditFields: ['recorded', 'removed'],
-  unmaskedFields: [
-    // The browsers' push addresses, matched whole.
-    'gone',
-    'delivered',
-  ],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     // Addresses go as JSON and come out as a text array, so no character of theirs is lost.

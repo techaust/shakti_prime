@@ -111,12 +111,27 @@ describe('an Aadhaar number typed into a note (crm.note.add)', () => {
     const requestId = newId();
     // An agent is refused at the guard (people only), after the input was read and masked.
     await expect(
-      executeCommand(
-        principalFor('agent:triage', [1]),
-        { entityIds: [1], requestId },
-        addNote,
-        { entityId: 1, accountId: lead.account.id, body: `Aadhaar ${AADHAAR}` },
-      ),
+      executeCommand(principalFor('agent:triage', [1]), { entityIds: [1], requestId }, addNote, {
+        entityId: 1,
+        accountId: lead.account.id,
+        body: `Aadhaar ${AADHAAR}`,
+      }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    const audit = await auditRows(requestId);
+    expect(audit.map((r) => r.outcome)).toEqual(['denied']);
+    expect(JSON.stringify(audit)).not.toMatch(HIDDEN);
+  });
+
+  it('records a note for a company outside the caller’s access with the number masked', async () => {
+    const { lead } = await newCustomer();
+    const requestId = newId();
+    // Refused before the runner starts, so the refusal row masks the input as it came.
+    await expect(
+      executeCommand(caller, { entityIds: [2], requestId }, addNote, {
+        entityId: 2,
+        accountId: lead.account.id,
+        body: `Aadhaar 2345-6789-0124`,
+      }),
     ).rejects.toMatchObject({ code: 'forbidden' });
     const audit = await auditRows(requestId);
     expect(audit.map((r) => r.outcome)).toEqual(['denied']);
@@ -169,7 +184,10 @@ describe('an Aadhaar number inside a nested input (crm.lead.create)', () => {
         select (select name from contacts where id = ${lead.contact.id}) as name,
                (select village from customer_sites where account_id = ${lead.account.id}) as village`,
     );
-    expect(stored).toEqual({ name: 'Ramesh UID XXXX-XXXX-0124', village: 'Ward XXXX XXXX 0124 Kheda' });
+    expect(stored).toEqual({
+      name: 'Ramesh UID XXXX-XXXX-0124',
+      village: 'Ward XXXX XXXX 0124 Kheda',
+    });
     expect(events.length).toBeGreaterThan(0);
     expect(JSON.stringify(events)).not.toMatch(HIDDEN);
     expect(JSON.stringify(await eventsOf(lead.id))).not.toMatch(HIDDEN);

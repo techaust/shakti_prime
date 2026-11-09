@@ -56,7 +56,8 @@ function fieldAt(schema: z.ZodType, path: string): z.ZodType | undefined {
 
 /**
  * For every field a command leaves whole, a value it holds by design that the masker would change:
- * the proof that the field needs its exemption. A new exemption brings its example here.
+ * the proof that the field needs its exemption. A new exemption brings its example here, and its
+ * schema must refuse free text (`FREE_TEXT`), so a person can never type a note into it.
  */
 const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   'org.entity.update': {
@@ -77,7 +78,6 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   'crm.referral_partner.set': { code: AADHAAR },
   'crm.referral_partner.create': { code: AADHAAR },
   'crm.commission_rule.set': { amount: AADHAAR },
-  'sales.dealer_outstanding.record': { oldestUnpaidInvoiceNo: AADHAAR },
   'crm.contact.update': { email: `${MOBILE_91}@gmail.com` },
   'admin.user.invite': { email: `${MOBILE_91}@gmail.com` },
   'notifications.push.subscribe': {
@@ -86,13 +86,30 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
     'keys.auth': `a${AADHAAR}bcd`,
   },
   'notifications.push.unsubscribe': { endpoint: `https://fcm.googleapis.com/fcm/send/${AADHAAR}` },
-  'notifications.push.record': {
-    gone: `https://fcm.googleapis.com/fcm/send/${AADHAAR}`,
-    delivered: `https://fcm.googleapis.com/fcm/send/${AADHAAR}`,
-  },
   // A cell of a phone column, which the command's own masking keeps as the phone it is.
   'imports.job.create': { rows: MOBILE_91 },
 };
+
+/** What a person might type into a text field: never valid in a field left whole. */
+const FREE_TEXT = 'Aadhaar 2345 6789 0124 near the well';
+
+/**
+ * The one exemption whose field takes free text: an import's cells, which `imports.job.create`
+ * masks itself, knowing each column (`maskLongNumberCells()`: every Aadhaar-shaped number, valid
+ * or not, except 91 and a mobile number in a column of phones).
+ */
+const MASKED_BY_THE_COMMAND = ['imports.job.create rows'];
+
+/**
+ * Free-text fields that hold a long number now and then, left masked on purpose: an all-digit
+ * invoice number or a push address that passes the check digit loses all but its last four digits,
+ * an accepted cost (docs/07-security.md §5).
+ */
+const MASKED_ON_PURPOSE: readonly { command: string; path: string }[] = [
+  { command: 'sales.dealer_outstanding.record', path: 'oldestUnpaidInvoiceNo' },
+  { command: 'notifications.push.record', path: 'gone' },
+  { command: 'notifications.push.record', path: 'delivered' },
+];
 
 /**
  * Fields that hold a long number or a code by design and need no exemption: a valid value of each,
@@ -170,22 +187,44 @@ describe('the fields the Aadhaar masking leaves whole (unmaskedFields)', () => {
     Object.entries(EXEMPT_EXAMPLES).flatMap(([name, fields]) =>
       Object.entries(fields).map(([path, value]) => ({ name, path, value })),
     ),
-  )('$name leaves $path whole: the masker would change a valid value of it', ({ name, path, value }) => {
-    const command = commands[name as keyof typeof commands];
-    const field = fieldAt(command.input, path);
-    expect(field, path).toBeDefined();
-    // Arrays are passed through, so an example is one value: one cell of the import's rows.
-    const parsed = field?.safeParse(value);
-    expect(parsed?.success, `${name} ${path}`).toBe(true);
-    const text = String(value);
-    expect(maskTypedIdentity(text).text).not.toBe(text);
-    // Under the command's exemptions the whole parsed value comes through as it went in.
-    const nested = path
-      .split('.')
-      .reverse()
-      .reduce<unknown>((inner, key) => ({ [key]: inner }), parsed?.data);
-    expect(maskInputIdentity(nested, command.unmaskedFields).value).toEqual(nested);
+  )(
+    '$name leaves $path whole: the masker would change a valid value of it',
+    ({ name, path, value }) => {
+      const command = commands[name as keyof typeof commands];
+      const field = fieldAt(command.input, path);
+      expect(field, path).toBeDefined();
+      // Arrays are passed through, so an example is one value: one cell of the import's rows.
+      const parsed = field?.safeParse(value);
+      expect(parsed?.success, `${name} ${path}`).toBe(true);
+      const text = String(value);
+      expect(maskTypedIdentity(text).text).not.toBe(text);
+      // Under the command's exemptions the whole parsed value comes through as it went in.
+      const nested = path
+        .split('.')
+        .reverse()
+        .reduce<unknown>((inner, key) => ({ [key]: inner }), parsed?.data);
+      expect(maskInputIdentity(nested, command.unmaskedFields).value).toEqual(nested);
+    },
+  );
+
+  it('leaves whole only fields whose schema refuses free text', () => {
+    for (const { command, path } of declared) {
+      if (MASKED_BY_THE_COMMAND.includes(`${command.name} ${path}`)) continue;
+      const field = fieldAt(command.input, path);
+      expect(field?.safeParse(FREE_TEXT).success, `${command.name} ${path}`).toBe(false);
+    }
+    const imports = commands['imports.job.create'];
+    expect(fieldAt(imports.input, 'rows')?.safeParse(FREE_TEXT).success).toBe(true);
   });
+
+  it.each(MASKED_ON_PURPOSE)(
+    '$command masks $path, a free-text field',
+    ({ command: name, path }) => {
+      const command = commands[name as keyof typeof commands];
+      expect(command.unmaskedFields ?? []).not.toContain(path);
+      expect(fieldAt(command.input, path)?.safeParse(FREE_TEXT).success).toBe(true);
+    },
+  );
 
   it.each(KEPT_EXAMPLES)(
     '$command keeps a valid $path through the masker: $value',

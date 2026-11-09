@@ -7,8 +7,7 @@ const AADHAAR = '234567890124';
 /** The same eleven digits with a wrong check digit: not an Aadhaar number. */
 const NOT_AADHAAR = '234567890123';
 /** Devanagari digits, written as escapes: 2345 6789 0124. */
-const DEVANAGARI =
-  '२३४५ ६७८९ ०१२४';
+const DEVANAGARI = '२३४५ ६७८९ ०१२४';
 
 const masked = (text: string): string => maskTypedIdentity(text).text;
 

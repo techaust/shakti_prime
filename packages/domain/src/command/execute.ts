@@ -10,6 +10,7 @@ import { redactForAudit, withoutPersonalDetails } from '../audit/redact';
 import { databaseAuditSink, type AuditRecord } from '../audit/sink';
 import { databaseOutboxSink, type OutboxRecord, type OutboxSink } from '../outbox/sink';
 import { jsonLogger, type Logger } from '../ports/logger';
+import { maskInputIdentity } from '../privacy/input-masking';
 import type { Command } from './define-command';
 import { isRegistered } from './registry';
 import { auditBase, auditedInput, failureOf, runCommand, type RunOptions } from './run-command';
@@ -180,10 +181,14 @@ function refusedInput<I extends z.ZodType, O extends z.ZodType>(
   parsed: boolean,
   input: unknown,
 ): unknown {
-  if (command.auditInput === undefined) return redactForAudit(input);
+  // The runner masked what it parsed; input it never reached is masked here alike
+  // (docs/07-security.md §5).
+  const masked = (value: unknown) =>
+    parsed ? value : maskInputIdentity(value, command.unmaskedFields).value;
+  if (command.auditInput === undefined) return redactForAudit(masked(input));
   if (parsed) return auditedInput(command, input as z.output<I>);
   const reparsed = command.input.safeParse(input);
-  return reparsed.success ? auditedInput(command, reparsed.data) : null;
+  return reparsed.success ? auditedInput(command, masked(reparsed.data) as z.output<I>) : null;
 }
 
 /**
