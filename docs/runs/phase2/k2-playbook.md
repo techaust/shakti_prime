@@ -7,8 +7,8 @@
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | build Opus 5.5 high, 5-hour window 11 % at the start |
-| State | built, report written |
-| Next step | review (slice-reviewer), then integration; Linux baselines for the snapshot `playbook` and `checks-ok` for `js-budget.json` |
+| State | fix round done, report written |
+| Next step | the reviewer re-checks the fixes, then integration; Linux baselines for the snapshot `playbook` and `checks-ok` for `js-budget.json` |
 
 ## Brief
 Read first:
@@ -117,6 +117,32 @@ Skills loaded: `add-table`, `add-command`; the Claude API reference (`claude-api
 - Not yet read by any agent: A3 and B1 consume the approved set. Row security keeps drafts away from agents only; an Executive or a GM holds the playbook grants, so B1 and A3 must read through `approvedPlaybook()` (added in the fix round), and the version key tells them when to read again.
 - `source_voice_session_id` is left for V2.
 - The prompts of the label and drafting calls have unit tests of their filters, not an eval set; an eval set on recorded answers belongs with the first agent that reads the Playbook, or a follow-up.
+
+### Fix round, 13-11-2026, cloud session
+`main` taken in by a merge commit (033273b3), keeping V1's Sonnet 5.5 and Haiku 5.5 prices, context sizes and per-model `pricesCheckedOn` from #242 and dropping K2's copy; K2's `effort` on `CompleteCall` and `ModelRequest` stays (`main` lacks it). Migrations 0160 to 0162 changed in place. All twelve findings fixed; the Review table names each commit.
+
+**What changed**
+- Finding 1: `app.playbook_check_candidates()` holds the type's advisory lock shared and answers `read_at` (the read's database time); `app.record_playbook_check(id, wording_sha256, as_of, embedding, pairs)` takes the lock shared, then the row, stores `checked_at = as_of` and skips when a newer check is recorded; approval takes the lock (command and guard) and `approved_at = clock_timestamp()` once it is held. An approval during a check is therefore later than the check's read and leaves it stale; two drafts approved in turn meet through the stale rule and the recheck.
+- Finding 2: the guard asks `app.playbook_approval_blocked()` (a definer, so hidden pairs count): stale or missing check, an open pair not labelled `none`, or `conflicts_with` naming a directive not retired, whatever the update sets.
+- Finding 3: `approvedPlaybook()` (approved only, by audience, under the reader's row security) is the agents' and Ask's one read; the report's line on drafts is corrected and the Built record tells B1 and A3.
+- Findings 4, 5, 7, 8, 9, 11 as the table says; finding 6: a failed label call is an unlabelled, open pair; the screen reads a waiting rule for a minute, then asks `playbookCheckWait` and says the check is not set up, the day's limit is reached, or it is taking longer; finding 10: the three refusals assert SQLSTATE 42501, isolated from the check constraints.
+- Finding 12: the candidates are filtered by the state and type index into a materialized set and sorted exactly; the HNSW index on `playbook_directives` is dropped, since the conflict check never reads it.
+
+**Tests added or changed**: `playbook-check.test.ts` 13 (an approval between the candidates and the record; two drafts approved in turn; a failed label call; a type-only edit skipped; the record filed under the draft's company; no company refused with 42501), `playbook-draft.test.ts` 11 (the typed source rules, `approvedPlaybook()` as an Executive and a GM, the hidden reason, the file picker), `playbook.test.ts` 16 (the guard's open pair at 42501), `tests/security/playbook.test.ts` 7 (stale check and open pair at 42501, the database clock on approval, every refusal 42501), the wait reason unit test, reader parity for the two new queries.
+
+**`EXPLAIN (ANALYZE)` of the candidates after the fix** (the definer's statement as the owner, about 6,000 directives): `Bitmap Index Scan on playbook_directives_state_type_idx` (approved, policy) 1,004 rows, the company filter keeps 603 into the materialized `near`, quicksort by distance, limit 5; execution 10.2 ms. The list as a General Manager under row security: the same index for drafts of one kind, 1.4 ms; unfiltered, a sequential scan, 2.6 ms.
+
+**Checks**
+- `heavy.sh pnpm test:security` on the local Postgres: db 1287 passed (46 files), domain 1087 passed (81 files), web 341 of 342. The one failure is `apps/web/tests/demo-data.test.ts` "puts the items, kits and prices…" (no PUMP-3HP price on the live retail list): `main`'s loader test (ff605d55) archives the shared price lists it makes, and on this VM's database, which earlier runs reuse, the next load finds its items and writes no new list. K2 touches no pricing code; the test passed on this branch before the merge. On a fresh database (CI) it is expected to pass; not changed here.
+- Unit tests: contracts 182, db 148, domain 2374, web 1027 (1 skipped), ui 107, tokens 146, copy-lint 17, all passed; `pnpm typecheck` 8 of 8; prettier and copy-lint clean.
+- `heavy.sh pnpm build` passed; `js-budget`: `/knowledge/playbook` 198.0 of 208 kB.
+- The `playbook` journeys (`e2e:seed`, then `playwright test playbook.spec.ts`): 29 passed, axe in each; the pictures written on this VM removed (the Linux baselines are the lead's).
+- Whole-repository `pnpm lint` through `heavy.sh`, the last check: exit 0, on 8ae077a6.
+
+**Decisions in this round**
+1. The record runs in the draft's own company (the worker principal narrowed to it), because the audit policy files a row only under a company of the request; an approval of a group rule therefore records each company's drafts in their own company.
+2. The candidates' read takes the type's lock shared (the finding named approve and record): without it a read could start just before an approval and miss it; with it, the read waits for an approval in progress and an approval waits for a read.
+3. The HNSW index on directives is dropped rather than read with `strict_order`: the candidates of one type are few, and the exact sort is both correct and fast at this size.
 
 ## Review
 Slice-reviewer, 13-11-2026, on 79ade220 (`git diff origin/main...HEAD`). Read by code path; no suite run (the worktree has no `node_modules`; the security suite, the journeys and Docker were out of scope on the PC).
