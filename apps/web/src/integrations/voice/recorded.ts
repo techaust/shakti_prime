@@ -130,3 +130,77 @@ export function replayFetch(
   };
   return { fetch: replay, requests };
 }
+
+/**
+ * Wraps a live `OpenSocket` so each session it opens is kept as a `recorded` session in the
+ * replay's format: the benchmark's `--save-replay` uses it to replace the written fixtures with
+ * what the vendor really sent (part 2).
+ */
+export function recordingSockets(
+  open: OpenSocket,
+  clock: Clock,
+  note: string,
+): { open: OpenSocket; sessions: RecordedSession[] } {
+  const sessions: RecordedSession[] = [];
+  const recordingOpen: OpenSocket = async (url, headers) => {
+    const inner = await open(url, headers);
+    const session: RecordedSession = { source: 'recorded', note, frames: [] };
+    sessions.push(session);
+    let firstSendAt: number | undefined;
+    async function* messages(): AsyncGenerator<string> {
+      for await (const text of inner.messages) {
+        session.frames.push({ atMs: clock.now() - (firstSendAt ?? clock.now()), ...asFrame(text) });
+        yield text;
+      }
+    }
+    return {
+      send(text) {
+        firstSendAt ??= clock.now();
+        inner.send(text);
+      },
+      close() {
+        inner.close();
+      },
+      messages: messages(),
+    };
+  };
+  return { open: recordingOpen, sessions };
+}
+
+/** Wraps a live `fetch` so each streamed body is kept, chunk by chunk, as a `recorded` session. */
+export function recordingFetch(
+  fetchImpl: typeof fetch,
+  clock: Clock,
+  note: string,
+): { fetch: typeof fetch; sessions: RecordedSession[] } {
+  const sessions: RecordedSession[] = [];
+  const decoder = new TextDecoder();
+  const recording: typeof fetch = async (input, init) => {
+    const startedAt = clock.now();
+    const response = await fetchImpl(input, init);
+    if (response.body === null) return response;
+    const session: RecordedSession = { source: 'recorded', note, frames: [] };
+    sessions.push(session);
+    const body = response.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          session.frames.push({
+            atMs: clock.now() - startedAt,
+            text: decoder.decode(chunk, { stream: true }),
+          });
+          controller.enqueue(chunk);
+        },
+      }),
+    );
+    return new Response(body, { status: response.status, headers: response.headers });
+  };
+  return { fetch: recording, sessions };
+}
+
+function asFrame(text: string): Pick<RecordedFrame, 'data' | 'text'> {
+  try {
+    return { data: JSON.parse(text) as unknown };
+  } catch {
+    return { text };
+  }
+}
