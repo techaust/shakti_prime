@@ -144,7 +144,7 @@
       "keyTerms": "0/1",
       "onTopic": null,
       "firstAudioMs": null,
-      "failure": "sarvam http rate_limit_exceeded_error"
+      "failure": "speech to text: sarvam http rate_limit_exceeded_error"
     }
   ]
 }

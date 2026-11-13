@@ -103,7 +103,14 @@ export async function replayBenchmark(input: {
           llm: claudeReplyModel(claude, { fetch: stream.fetch, timeoutMs: 1_000 }, clock),
           clock,
         },
-        { languageCode: input.set.languageCode, pace: () => Promise.resolve() },
+        {
+          languageCode: input.set.languageCode,
+          // The replayed clock moves to each chunk's time, as a live run would wait for it.
+          pace: (atMs) => {
+            clock.advanceTo(atMs);
+            return Promise.resolve(atMs);
+          },
+        },
       ),
     );
   }

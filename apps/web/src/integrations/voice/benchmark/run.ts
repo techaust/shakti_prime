@@ -74,12 +74,12 @@ export interface TurnTiming {
 
 export interface TurnObservation {
   id: string;
-  /** Scored, never written out. */
+  /** Scored, never written out; empty when speech to text failed. */
   transcript: string;
   replyCharacters: number;
   usage?: ReplyUsage;
   timing?: TurnTiming;
-  /** What failed, as the provider error names it (no text from the turn). */
+  /** The step that failed and how, as the provider error names it (no text from the turn). */
   failure?: string;
 }
 
@@ -109,28 +109,60 @@ function describeFailure(error: unknown): string {
   return [error.provider, error.failure, error.vendorCode].filter((p) => p !== undefined).join(' ');
 }
 
-/** One spoken turn, timed per step. A vendor failure is recorded on the turn, not thrown. */
+/**
+ * When a chunk goes to the vendor. A live run waits until `atMs` (absolute times, so the timers'
+ * lateness never adds up) and answers when the chunk was really sent; a replay moves its clock to
+ * `atMs` and answers it.
+ */
+export type Pace = (atMs: number) => Promise<number>;
+
+/** The steps a turn can fail in, named in `failure`. */
+type Step = 'speech to text' | 'reply' | 'speech';
+
+/**
+ * One spoken turn, timed per step. Audio goes out as a microphone sends it, each chunk once its
+ * time has passed. A vendor failure is recorded on the turn, naming its step, with what the steps
+ * before it produced (the transcript, the reply's tokens), so accuracy is still scored and the
+ * tokens still counted.
+ */
 export async function observeTurn(
   item: SetItem,
   audio: TurnAudio,
   steps: TurnSteps,
-  options: { languageCode: string; pace: (ms: number) => Promise<void> },
+  options: { languageCode: string; pace: Pace },
 ): Promise<TurnObservation> {
   const { clock } = steps;
+  let step: Step = 'speech to text';
+  let transcript = '';
+  let replyCharacters = 0;
+  let usage: ReplyUsage | undefined;
+  const failed = (failure: string): TurnObservation => ({
+    id: item.id,
+    transcript,
+    replyCharacters,
+    ...(usage === undefined ? {} : { usage }),
+    failure: `${step}: ${failure}`,
+  });
   try {
     const stream = await steps.stt.open({
       languageCode: options.languageCode,
       sampleRate: audio.sampleRate,
     });
-    let startedAt: number | undefined;
+    const startedAt = clock.now();
+    // The chunk that holds the speaker's stop, and when it was really sent.
+    const stopChunk = Math.min(
+      audio.chunks.length - 1,
+      Math.floor(audio.speechEndMs / audio.chunkMs),
+    );
+    let stopChunkSentAt: number | undefined;
     // Set once the turn is over, so a recogniser that failed early is not fed the rest.
     let stopped = false;
     const send = async () => {
-      for (const chunk of audio.chunks) {
+      for (const [i, chunk] of audio.chunks.entries()) {
+        const sentAt = await options.pace(startedAt + (i + 1) * audio.chunkMs);
         if (stopped) return;
-        startedAt ??= clock.now();
         stream.send(chunk);
-        await options.pace(audio.chunkMs);
+        if (i === stopChunk) stopChunkSentAt = sentAt;
       }
       stream.end();
     };
@@ -149,13 +181,17 @@ export async function observeTurn(
       stream.close();
     }
     const last = finals.at(-1);
-    if (last === undefined || startedAt === undefined) {
-      return { id: item.id, transcript: '', replyCharacters: 0, failure: 'no transcript' };
-    }
-    const transcript = finals.map((f) => f.text.trim()).join(' ');
-    const spokeUntil = startedAt + audio.speechEndMs;
+    if (last === undefined || stopChunkSentAt === undefined) return failed('no transcript');
+    transcript = finals.map((f) => f.text.trim()).join(' ');
+    // The stop happened before its chunk's end by this much; the chunk's own lateness is left out.
+    const spokeUntil = stopChunkSentAt - ((stopChunk + 1) * audio.chunkMs - audio.speechEndMs);
 
+    step = 'reply';
     const reply = await steps.llm.reply(SPOKEN_REPLY_SYSTEM, transcript);
+    replyCharacters = reply.text.length;
+    usage = reply.usage;
+
+    step = 'speech';
     const speech = await steps.tts.open({ languageCode: options.languageCode });
     let firstChunkAt: number | undefined;
     const speakFrom = clock.now();
@@ -164,22 +200,14 @@ export async function observeTurn(
     } finally {
       speech.close();
     }
-    if (firstChunkAt === undefined) {
-      return {
-        id: item.id,
-        transcript,
-        replyCharacters: reply.text.length,
-        usage: reply.usage,
-        failure: 'no speech',
-      };
-    }
+    if (firstChunkAt === undefined) return failed('no audio');
     const afterSpeechMs = last.atMs - spokeUntil;
     const firstSpeechMs = firstChunkAt - speakFrom;
     return {
       id: item.id,
       transcript,
-      replyCharacters: reply.text.length,
-      usage: reply.usage,
+      replyCharacters,
+      usage,
       timing: {
         ...(speechEndAt === undefined
           ? {}
@@ -198,7 +226,7 @@ export async function observeTurn(
       },
     };
   } catch (error) {
-    return { id: item.id, transcript: '', replyCharacters: 0, failure: describeFailure(error) };
+    return failed(describeFailure(error));
   }
 }
 

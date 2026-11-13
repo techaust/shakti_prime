@@ -242,7 +242,12 @@ if (mode === 'pronunciation') {
         },
         {
           languageCode: set.languageCode,
-          pace: (ms) => new Promise((done) => setTimeout(done, ms)),
+          // Each chunk at its absolute time, so the timers' lateness never adds up.
+          pace: async (atMs) => {
+            const wait = atMs - systemClock.now();
+            if (wait > 0) await new Promise((done) => setTimeout(done, wait));
+            return systemClock.now();
+          },
         },
       );
       observations.push(observation);

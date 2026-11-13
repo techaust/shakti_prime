@@ -4,7 +4,7 @@
     "note": "written from Sarvam's streaming speech-to-text reference (voice.md section 6), 13-11-2026; a recorded session replaces it in part 2",
     "frames": [
       {
-        "atMs": 100,
+        "atMs": 0,
         "data": {
           "type": "events",
           "data": {
@@ -13,7 +13,7 @@
         }
       },
       {
-        "atMs": 900,
+        "atMs": 800,
         "data": {
           "type": "error",
           "data": {

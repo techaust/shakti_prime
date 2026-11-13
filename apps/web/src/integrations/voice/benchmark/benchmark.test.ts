@@ -187,7 +187,7 @@ describe('the benchmark on the fixture set', () => {
     expect(report.latency.firstAudio).toMatchObject({ n: 4, p50: 1_420, p95: 1_550, met: true });
     expect(report.latency.missedSteps).toEqual(['endOfSpeech']);
     expect(report.perItem.find((i) => i.id === 'q05')).toMatchObject({
-      failure: 'sarvam http rate_limit_exceeded_error',
+      failure: 'speech to text: sarvam http rate_limit_exceeded_error',
       keyTerms: '0/1',
       firstAudioMs: null,
     });

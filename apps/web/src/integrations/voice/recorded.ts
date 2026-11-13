@@ -69,10 +69,14 @@ export function replaySockets(
     sent.push(record);
     let firstSendAt: number | undefined;
     let closed = false;
+    let begin: () => void = () => undefined;
+    const begun = new Promise<void>((resolve) => {
+      begin = resolve;
+    });
 
     async function* messages(): AsyncGenerator<string> {
-      // A frame is read only after the client has sent something, as on a live socket.
-      await Promise.resolve();
+      // A frame is read only after the client has sent something (or closed), as on a live socket.
+      await begun;
       for (const frame of session?.frames ?? []) {
         if (closed) return;
         clock.advanceTo((firstSendAt ?? clock.now()) + frame.atMs);
@@ -84,9 +88,11 @@ export function replaySockets(
       send(text) {
         firstSendAt ??= clock.now();
         record.frames.push(JSON.parse(text) as unknown);
+        begin();
       },
       close() {
         closed = true;
+        begin();
       },
       messages: messages(),
     };
