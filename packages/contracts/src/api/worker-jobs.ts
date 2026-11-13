@@ -313,11 +313,15 @@ export type WebhookProcessJob = z.infer<typeof WebhookProcessJob>;
  *   its provider yet (the row keeps the code `no_handler`).
  * - `duplicate`: the row was already processed or failed, or another call holds its lease;
  *   nothing ran.
- * - `failed`: the row failed for good with its code (`payload_unreadable`); it is not retried.
+ * - `retrying`: the handler failed; the row waits a backoff that grows with its tries, and the
+ *   sweep sends it again (QStash does not retry it);
+ * - `failed`: the row failed for good with its code (`payload_unreadable`, or `too_many_attempts`
+ *   after ten tries); it is not retried.
  */
 export const WebhookProcessResult = z.discriminatedUnion('outcome', [
   z.object({ inboxId: IdSchema, outcome: z.literal('processed'), handled: z.boolean() }).strict(),
   z.object({ inboxId: IdSchema, outcome: z.literal('duplicate') }).strict(),
+  z.object({ inboxId: IdSchema, outcome: z.literal('retrying') }).strict(),
   z
     .object({
       inboxId: IdSchema,

@@ -1,6 +1,6 @@
 {
-  "id": "2c918479-3878-445d-9160-e7bf8a85b2f6",
-  "prevId": "22f38ac0-71aa-46a5-ba78-019ff17192d9",
+  "id": "c36cb75f-519e-45e5-b214-936bce84fa67",
+  "prevId": "2d23c225-0204-448b-a0a9-3ff99698000d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15302,6 +15302,19 @@
           "notNull": true,
           "default": 0
         },
+        "attempts_at_replay": {
+          "name": "attempts_at_replay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "retry_at": {
+          "name": "retry_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "processed_at": {
           "name": "processed_at",
           "type": "timestamp with time zone",
@@ -15504,6 +15517,10 @@
         "webhook_inbox_attempts_check": {
           "name": "webhook_inbox_attempts_check",
           "value": "\"webhook_inbox\".\"attempts\" >= 0"
+        },
+        "webhook_inbox_attempts_at_replay_check": {
+          "name": "webhook_inbox_attempts_at_replay_check",
+          "value": "\"webhook_inbox\".\"attempts_at_replay\" between 0 and \"webhook_inbox\".\"attempts\""
         },
         "webhook_inbox_error_code_check": {
           "name": "webhook_inbox_error_code_check",

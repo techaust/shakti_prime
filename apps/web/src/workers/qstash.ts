@@ -332,6 +332,31 @@ export async function publishWebhookJob(
 }
 
 /**
+ * Publishes many webhook jobs in one batch call (the sweep), each as `publishWebhookJob` would,
+ * within `timeoutMs`; answers, in order, whether QStash took each.
+ */
+export async function publishWebhookJobs(
+  config: QStashConfig,
+  jobs: readonly { inboxId: string; deduplicationId: string }[],
+  timeoutMs: number,
+): Promise<boolean[]> {
+  if (jobs.length === 0) return [];
+  const answers: unknown[] = await withTimeout(
+    client(config).batchJSON(
+      jobs.map((job) => ({
+        url: workerUrl(config, WEBHOOK_PROCESS_PATH),
+        body: { inboxId: job.inboxId },
+        retries: WEBHOOK_PROCESS_RETRIES,
+        deduplicationId: job.deduplicationId,
+        failureCallback: workerUrl(config, WEBHOOK_FAILED_PATH),
+      })),
+    ),
+    timeoutMs,
+  );
+  return jobs.map((job, i) => resultOf(job.inboxId, answers[i]).ok);
+}
+
+/**
  * Asks QStash to call a nightly worker (`path`: the lead rescoring, the duplicate search) with
  * the rest of a run; retried if the worker fails, and sent once for a `deduplicationId` already
  * taken.

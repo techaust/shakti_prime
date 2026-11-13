@@ -64,7 +64,8 @@ interface Claim {
   provider: string;
   payload: unknown;
   attempts: number;
-  lease: string;
+  lease: string | null;
+  error_code: string | null;
 }
 
 function claim(id: string, principal = workers): Promise<Claim[]> {
@@ -334,35 +335,117 @@ describe('the worker’s definers (webhooks.process, platform-only)', () => {
     expect(await row(id)).toMatchObject({ error_code: 'payload_unreadable', attempts: 1 });
   });
 
-  it('a released row is claimed again at once; the failure callback waits for a live lease', async () => {
+  it('a released row waits a backoff that grows with its tries; the failure callback needs no live lease', async () => {
     const id = await delivery();
     const [first] = await claim(id);
     expect(await mark(id, null, 'failed', 'handler_failed')).toBe(false);
     expect(await mark(id, first?.lease ?? '', 'released')).toBe(true);
-    const [second] = await claim(id);
-    expect(second?.attempts).toBe(2);
-    expect(await mark(id, second?.lease ?? '', 'released')).toBe(true);
+    // In its backoff: no claim takes it, and it is not leased.
+    expect(await claim(id)).toEqual([]);
+    const backoff = async () => {
+      const [r] = await asMigrator(
+        (m) => m<{ minutes: number; leased: boolean }[]>`
+          select round(extract(epoch from retry_at - now()) / 60)::int as minutes,
+                 claimed_until is not null as leased
+            from webhook_inbox where id = ${id}`,
+      );
+      return r;
+    };
+    expect(await backoff()).toEqual({ minutes: 1, leased: false });
+    const minutes: number[] = [];
+    for (let n = 2; n <= 7; n += 1) {
+      await asMigrator((m) => m`update webhook_inbox set retry_at = now() where id = ${id}`);
+      const [next] = await claim(id);
+      expect(next?.attempts).toBe(n);
+      await mark(id, next?.lease ?? '', 'released');
+      minutes.push((await backoff())?.minutes ?? -1);
+    }
+    // 1 minute after the first try, then 2, 4, 8 and 16, then 30 at most.
+    expect(minutes).toEqual([2, 4, 8, 16, 30, 30]);
+    // QStash's failure callback may fail a released row: no live lease holds it.
     expect(await mark(id, null, 'failed', 'handler_failed')).toBe(true);
-    expect(await row(id)).toMatchObject({ error_code: 'handler_failed', attempts: 2 });
+    expect(await row(id)).toMatchObject({ error_code: 'handler_failed', attempts: 7 });
   });
 
-  it('fails a row tried ten times instead of trying it again', async () => {
+  it('fails a row tried ten times instead of trying it again, and says so', async () => {
     const id = await delivery();
     await asMigrator((m) => m`update webhook_inbox set attempts = 10 where id = ${id}`);
-    expect(await claim(id)).toEqual([]);
+    expect(await claim(id)).toEqual([
+      {
+        provider: 'livekit',
+        payload: null,
+        attempts: 10,
+        lease: null,
+        error_code: 'too_many_attempts',
+      },
+    ]);
     expect(await row(id)).toMatchObject({ error_code: 'too_many_attempts' });
+    expect(await claim(id)).toEqual([]);
   });
 
-  it('lists for the sweep the rows that wait unclaimed, never one a live call holds', async () => {
-    const waiting = newId();
-    const leased = newId();
+  it('Process again counts ten tries afresh: a row failed after ten tries is processed', async () => {
+    const id = await delivery();
+    await asMigrator((m) => m`update webhook_inbox set attempts = 10 where id = ${id}`);
+    await claim(id);
+    const replay = async () => {
+      const [r] = await asPrincipal(
+        executive,
+        async ({ tx }) =>
+          (await tx.execute(sql`select * from app.webhook_replay(${id}::uuid)`)) as unknown as {
+            attempts: number;
+            error_code: string;
+          }[],
+      );
+      return r;
+    };
+    expect(await replay()).toMatchObject({ attempts: 10, error_code: 'too_many_attempts' });
+    const [again] = await claim(id);
+    expect(again).toMatchObject({ attempts: 11, error_code: null });
+    expect(again?.lease).not.toBeNull();
+    // It fails once more, and a second Process again names a later attempt, so a new delivery.
+    await mark(id, again?.lease ?? '', 'failed', 'payload_unreadable');
+    expect(await replay()).toMatchObject({ attempts: 11, error_code: 'payload_unreadable' });
+    const [third] = await claim(id);
+    expect(await mark(id, third?.lease ?? '', 'processed')).toBe(true);
+    expect(await row(id)).toMatchObject({ attempts: 12, failed_at: null });
+    // attempts_at_replay only rises, and never past the attempts.
+    expect(
+      await failure(
+        asMigrator((m) => m`update webhook_inbox set attempts_at_replay = 0 where id = ${id}`),
+      ),
+    ).toMatch(/counted up/);
+    expect(
+      await failure(
+        asMigrator((m) => m`update webhook_inbox set attempts_at_replay = 99 where id = ${id}`),
+      ),
+    ).toMatch(/webhook_inbox_attempts_at_replay_check/);
+  });
+
+  it('lists for the sweep only the rows no delivery is on its way to', async () => {
+    const [unclaimed, live, lapsed, inBackoff, backoffOver, justArrived] = [
+      newId(),
+      newId(),
+      newId(),
+      newId(),
+      newId(),
+      newId(),
+    ];
     await asMigrator(
       (m) => m`insert into webhook_inbox (id, provider, provider_event_id, payload_json,
-                                          payload_sha256, received_at, claimed_until)
-               values (${waiting}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(waiting)},
-                       now() - interval '5 minutes', null),
-                      (${leased}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(leased)},
-                       now() - interval '5 minutes', now() + interval '30 seconds')`,
+                                          payload_sha256, received_at, attempts, claimed_until,
+                                          retry_at)
+               values (${unclaimed}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(unclaimed)},
+                       now() - interval '5 minutes', 0, null, null),
+                      (${live}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(live)},
+                       now() - interval '5 minutes', 1, now() + interval '30 seconds', null),
+                      (${lapsed}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(lapsed)},
+                       now() - interval '5 minutes', 1, now() - interval '2 minutes', null),
+                      (${inBackoff}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(inBackoff)},
+                       now() - interval '5 minutes', 2, null, now() + interval '3 minutes'),
+                      (${backoffOver}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(backoffOver)},
+                       now() - interval '20 minutes', 4, null, now() - interval '2 minutes'),
+                      (${justArrived}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(justArrived)},
+                       now(), 0, null, null)`,
     );
     const ids = await asPrincipal(workers, async ({ tx }) =>
       (
@@ -371,46 +454,81 @@ describe('the worker’s definers (webhooks.process, platform-only)', () => {
         }[]
       ).map((r) => r.inbox_id),
     );
-    expect(ids).toContain(waiting);
-    expect(ids).not.toContain(leased);
+    expect(ids).toEqual(expect.arrayContaining([unclaimed, lapsed, backoffOver]));
+    for (const id of [live, inBackoff, justArrived]) expect(ids).not.toContain(id);
   });
 
-  it('purges payloads 30 days after processing and rows 90 days after arrival, recording the run', async () => {
+  it('removes payloads 30 days after processing, and only finished rows 90 days after arrival', async () => {
     const recent = newId();
     const oldPayload = newId();
-    const oldRow = newId();
+    const oldProcessed = newId();
+    const oldFailed = newId();
+    const oldWaiting = newId();
+    const oldLeased = newId();
     await asMigrator(
       (m) => m`insert into webhook_inbox (id, provider, provider_event_id, payload_json,
-                                          payload_sha256, received_at, processed_at)
+                                          payload_sha256, received_at, processed_at, failed_at,
+                                          error_code, attempts, claimed_until)
                values (${recent}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(recent)},
-                       now() - interval '29 days', now() - interval '29 days'),
+                       now() - interval '29 days', now() - interval '29 days', null, null, 1, null),
                       (${oldPayload}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(oldPayload)},
-                       now() - interval '40 days', now() - interval '31 days'),
-                      (${oldRow}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(oldRow)},
-                       now() - interval '91 days', null)`,
+                       now() - interval '40 days', now() - interval '31 days', null, null, 1, null),
+                      (${oldProcessed}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(oldProcessed)},
+                       now() - interval '91 days', now() - interval '91 days', null, null, 1, null),
+                      (${oldFailed}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(oldFailed)},
+                       now() - interval '91 days', null, now() - interval '91 days',
+                       'payload_unreadable', 1, null),
+                      (${oldWaiting}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(oldWaiting)},
+                       now() - interval '91 days', null, null, null, 0, null),
+                      (${oldLeased}, 'livekit', ${newId()}, '{}'::jsonb, ${sha(oldLeased)},
+                       now() - interval '91 days', null, null, null, 1, now() + interval '1 minute')`,
     );
-    const [run] = await asPrincipal(
-      workers,
-      async ({ tx }) =>
-        (await tx.execute(sql`select * from app.webhook_purge(30, 90, 5000)`)) as unknown as {
-          payloads: number;
-          rows_removed: number;
-        }[],
-    );
+    const purge = async () => {
+      const [r] = await asPrincipal(
+        workers,
+        async ({ tx }) =>
+          (await tx.execute(sql`select * from app.webhook_purge(30, 90, 5000)`)) as unknown as {
+            payloads: number;
+            rows_removed: number;
+          }[],
+      );
+      return r;
+    };
+    const runs = () =>
+      asMigrator(
+        (m) => m<{ n: number }[]>`select count(*)::int as n from retention_runs
+                                    where job = 'webhook-inbox-purge'`,
+      ).then((r) => r[0]?.n ?? 0);
+    const before = await runs();
+    const run = await purge();
     expect(run?.payloads).toBeGreaterThanOrEqual(1);
-    expect(run?.rows_removed).toBeGreaterThanOrEqual(1);
+    expect(run?.rows_removed).toBeGreaterThanOrEqual(2);
     expect((await row(recent))?.payload_json).toEqual({});
     expect((await row(oldPayload))?.payload_json).toBeNull();
-    expect(await row(oldRow)).toBeUndefined();
+    expect(await row(oldProcessed)).toBeUndefined();
+    expect(await row(oldFailed)).toBeUndefined();
+    // A row still waiting, or leased, is never removed, whatever its age.
+    expect(await row(oldWaiting)).toBeDefined();
+    expect(await row(oldLeased)).toBeDefined();
     // A purged row is never processed: its payload is gone.
     expect(await claim(oldPayload)).toEqual([]);
+    // One run row for the call that removed something; none for a call that found nothing.
+    expect(await runs()).toBe(before + 1);
     const [recorded] = await asMigrator(
       (m) => m<{ error: string | null; rows: number }[]>`
         select error, rows_affected as rows from retention_runs
          where job = 'webhook-inbox-purge' order by started_at desc limit 1`,
     );
     expect(recorded?.error).toBeNull();
-    expect(recorded?.rows).toBeGreaterThanOrEqual(2);
+    expect(recorded?.rows).toBeGreaterThanOrEqual(3);
+    await asMigrator(
+      (m) => m`update webhook_inbox set claimed_until = null, processed_at = now(), attempts = 1
+                where id in (${oldWaiting}, ${oldLeased})`,
+    );
+    await purge();
+    const quiet = await runs();
+    expect(await purge()).toEqual({ payloads: 0, rows_removed: 0 });
+    expect(await runs()).toBe(quiet);
     expect(
       await failure(
         asPrincipal(workers, ({ tx }) =>
@@ -418,6 +536,27 @@ describe('the worker’s definers (webhooks.process, platform-only)', () => {
         ),
       ),
     ).toMatch(/at least one/);
+  });
+
+  it('two stores of one delivery at once make one row, and two claims of it one lease', async () => {
+    const eventId = `EV_${newId()}`;
+    const payload = { id: eventId, event: 'room_started' };
+    const stored = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        storeWebhookDelivery('livekit', eventId, payload, sha(eventId)),
+      ),
+    );
+    expect(new Set(stored.map((s) => s.inboxId)).size).toBe(1);
+    expect(stored.filter((s) => !s.repeated)).toHaveLength(1);
+    const [count] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from webhook_inbox
+                                 where provider = 'livekit' and provider_event_id = ${eventId}`,
+    );
+    expect(count?.n).toBe(1);
+    const id = stored[0]?.inboxId ?? '';
+    const claims = await Promise.all(Array.from({ length: 4 }, () => claim(id)));
+    expect(claims.flat().filter((c) => c.lease !== null)).toHaveLength(1);
+    expect((await row(id))?.attempts).toBe(1);
   });
 });
 

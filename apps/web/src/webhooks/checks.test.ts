@@ -196,3 +196,37 @@ describe('LiveKit token', () => {
     });
   });
 });
+
+describe('an empty secret', () => {
+  const body = new TextEncoder().encode('{}');
+  const now = new Date('2026-11-13T06:00:00Z');
+
+  it('is refused by every check before anything else, whatever the caller sends', async () => {
+    const emptyHmac = `sha256=${createHmac('sha256', '').update('{}').digest('hex')}`;
+    expect(checkMetaSignature(body, emptyHmac, '')).toEqual({ ok: false, problem: 'no_secret' });
+    expect(checkGoogleKey({ google_key: '' }, '')).toEqual({ ok: false, problem: 'no_secret' });
+    const url = signedStatusCallbackUrl(
+      'https://bos.test/x',
+      '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a11',
+      '',
+      now,
+    );
+    expect(checkExotelStatus(url, '', now)).toEqual({ ok: false, problem: 'no_secret' });
+    expect(checkExotelIncoming('', '')).toEqual({ ok: false, problem: 'no_secret' });
+    const iat = Math.floor(now.getTime() / 1000);
+    const token = await new SignJWT({ sha256: createHash('sha256').update(body).digest('base64') })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuer('')
+      .setIssuedAt(iat)
+      .setExpirationTime(iat + 300)
+      .sign(new Uint8Array(32));
+    expect(await checkLiveKit(body, token, 'key', '', now)).toEqual({
+      ok: false,
+      problem: 'no_secret',
+    });
+    expect(await checkLiveKit(body, token, '', 'secret', now)).toEqual({
+      ok: false,
+      problem: 'no_secret',
+    });
+  });
+});

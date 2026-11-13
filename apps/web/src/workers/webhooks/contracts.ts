@@ -1,7 +1,7 @@
 import {
   ExotelCallStatusWebhook,
   ExotelIncomingWebhook,
-  GoogleLeadFormWebhook,
+  StoredGoogleLead,
   LiveKitWebhook,
   MetaLeadgenWebhook,
   WhatsAppWebhook,
@@ -33,7 +33,8 @@ function asStrings<T>(schema: Schema<T>): PayloadContract<T> {
 export const WEBHOOK_CONTRACTS = {
   meta_whatsapp: WhatsAppWebhook,
   meta_leadgen: MetaLeadgenWebhook,
-  google_leadform: GoogleLeadFormWebhook,
+  // Stored without its form key, which the route drops.
+  google_leadform: StoredGoogleLead,
   exotel_status: asStrings<ExotelCallStatusWebhook>(ExotelCallStatusWebhook),
   exotel_incoming: asStrings<ExotelIncomingWebhook>(ExotelIncomingWebhook),
   livekit: LiveKitWebhook,

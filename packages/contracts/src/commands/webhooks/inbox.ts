@@ -27,10 +27,13 @@ export type ClaimWebhookInput = z.input<typeof ClaimWebhookInput>;
 /**
  * The claimed row: its provider, the stored payload (untrusted provider data, parsed by the
  * provider's contract before anything reads it) and the attempt this is; `claimed: false` when the
- * row was already processed or failed, its payload is gone, or another call holds it.
+ * row was already processed or failed, its payload is gone, another call holds it or its backoff
+ * has not passed, and with `failed: 'too_many_attempts'` when this claim failed it after ten tries.
  */
 export const ClaimedWebhookDto = z.discriminatedUnion('claimed', [
-  z.object({ claimed: z.literal(false) }).strict(),
+  z
+    .object({ claimed: z.literal(false), failed: z.literal('too_many_attempts').optional() })
+    .strict(),
   z
     .object({
       claimed: z.literal(true),

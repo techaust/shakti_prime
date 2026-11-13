@@ -18,5 +18,5 @@ export const POST = nightlyWorkerRoute({
   logPrefix: 'webhooks.sweep',
   body: WebhookSweepWorkerBody,
   budgetMs: 20_000,
-  run: (_body, { requestId }) => runWebhookSweep({ requestId }),
+  run: (_body, { requestId, budgetMs }) => runWebhookSweep({ requestId, budgetMs }),
 });

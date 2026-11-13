@@ -12,7 +12,7 @@
 --   failure through `app.webhook_replay()`, both with `admin.integrations.write:all` and the
 --   latter with `integrations.dlq.replay:all`.
 
--- 1. The platform-only permissions: the eleven of 0142 kept, webhooks.process added.
+-- 1. The platform-only permissions: the ten of 0142 kept, webhooks.process added.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
@@ -61,7 +61,7 @@ begin
     raise exception 'a delivery keeps the company its handler named'
       using errcode = 'insufficient_privilege';
   end if;
-  if new.attempts < old.attempts then
+  if new.attempts < old.attempts or new.attempts_at_replay < old.attempts_at_replay then
     raise exception 'attempts are only ever counted up' using errcode = 'insufficient_privilege';
   end if;
   return new;
@@ -119,13 +119,15 @@ grant usage on schema app to webhook_receiver;
 grant execute on function app.webhook_receive(text, text, jsonb, text) to webhook_receiver;
 --> statement-breakpoint
 
--- 5. The worker's lease on one waiting row (`webhooks.process:all`): the row is claimed for the
---    lease's seconds (10 to 300) and its attempt counted, and its provider, payload and attempts
---    come back with the lease's exact text, which names this call to `app.webhook_mark()`. A row
---    already processed or failed, purged, or leased to a live call answers nothing. A row tried
---    ten times already is failed with `too_many_attempts` instead, so no row is tried for ever.
+-- 5. The worker's lease on one waiting row (`webhooks.process:all`): a row no live lease holds
+--    and whose backoff after a handler error has ended is claimed for the lease's seconds (10 to
+--    300), its attempt counted, and its provider, payload and attempts come back with the lease's
+--    exact text, which names this call to `app.webhook_mark()`. A row processed, failed, purged,
+--    leased or still in its backoff answers nothing. A row tried ten times since it arrived, or
+--    since Process again last put it back (`attempts - attempts_at_replay >= 10`), is failed with
+--    `too_many_attempts` instead, and answers that code with no lease, so the worker reports it.
 create or replace function app.webhook_claim(p_id uuid, p_lease_seconds integer)
-  returns table (provider text, payload jsonb, attempts integer, lease text)
+  returns table (provider text, payload jsonb, attempts integer, lease text, error_code text)
   language plpgsql volatile security definer set search_path = '' as $$
 declare
   v_seconds integer := least(greatest(coalesce(p_lease_seconds, 60), 10), 300);
@@ -133,19 +135,26 @@ begin
   if not app.has_perm('webhooks.process:all') then
     raise exception 'webhooks.process:all is required' using errcode = '42501';
   end if;
-  update public.webhook_inbox w
-     set failed_at = pg_catalog.now(), error_code = 'too_many_attempts', claimed_until = null
-   where w.id = p_id and w.processed_at is null and w.failed_at is null
-     and (w.claimed_until is null or w.claimed_until <= pg_catalog.now())
-     and w.attempts >= 10;
+  return query
+    update public.webhook_inbox w
+       set failed_at = pg_catalog.now(), error_code = 'too_many_attempts', claimed_until = null,
+           retry_at = null
+     where w.id = p_id and w.processed_at is null and w.failed_at is null
+       and (w.claimed_until is null or w.claimed_until <= pg_catalog.now())
+       and w.attempts - w.attempts_at_replay >= 10
+    returning w.provider, null::jsonb, w.attempts, null::text, w.error_code;
+  if found then
+    return;
+  end if;
   return query
     update public.webhook_inbox w
        set claimed_until = pg_catalog.now() + v_seconds * interval '1 second',
-           attempts = w.attempts + 1
+           attempts = w.attempts + 1, retry_at = null
      where w.id = p_id and w.processed_at is null and w.failed_at is null
        and w.payload_json is not null
        and (w.claimed_until is null or w.claimed_until <= pg_catalog.now())
-    returning w.provider, w.payload_json, w.attempts, w.claimed_until::text;
+       and (w.retry_at is null or w.retry_at <= pg_catalog.now())
+    returning w.provider, w.payload_json, w.attempts, w.claimed_until::text, null::text;
 end
 $$;
 --> statement-breakpoint
@@ -159,9 +168,11 @@ grant execute on function app.webhook_claim(uuid, integer) to app_user;
 --      the handler named;
 --    - `failed`, with its code: under the caller's lease (`payload_unreadable`), or with no lease
 --      from QStash's failure callback after the last retry (`handler_failed`), which then changes
---      only a row no live call holds;
---    - `released`, under the caller's lease: a handler error QStash retries, so the retry may
---      claim the row at once.
+--      only a row no live lease holds;
+--    - `released`, under the caller's lease, after a handler error: the lease is let go and the
+--      row waits a backoff before it may be claimed again, 1, 2, 4, 8 and 16 minutes after its
+--      first five tries since it arrived or was put back, then 30 (`retry_at`); the sweep sends it
+--      again once the backoff has passed, so an outage of a few minutes uses few of its ten tries.
 --    Answers whether the row changed.
 create or replace function app.webhook_mark(p_id uuid, p_lease text, p_outcome text,
                                             p_error_code text, p_entity smallint)
@@ -191,7 +202,12 @@ begin
          failed_at = case when p_outcome = 'failed' then pg_catalog.now() end,
          error_code = case when p_outcome = 'released' then w.error_code else p_error_code end,
          entity_id = coalesce(w.entity_id, p_entity),
-         claimed_until = case when p_outcome = 'released' then pg_catalog.now() end
+         claimed_until = null,
+         retry_at = case when p_outcome = 'released'
+                         then pg_catalog.now()
+                              + least(30, pg_catalog.power(2, least(greatest(
+                                  w.attempts - w.attempts_at_replay - 1, 0), 5))::integer)
+                                * interval '1 minute' end
    where w.id = p_id and w.processed_at is null and w.failed_at is null
      and case when p_lease is null
               then w.claimed_until is null or w.claimed_until <= pg_catalog.now()
@@ -206,9 +222,17 @@ revoke execute on function app.webhook_mark(uuid, text, text, text, smallint) fr
 grant execute on function app.webhook_mark(uuid, text, text, text, smallint) to app_user;
 --> statement-breakpoint
 
--- 7. The sweep's rows (`webhooks.process:all`): waiting rows no call holds whose arrival, or whose
---    last lease, is more than the given seconds (at least 30) ago, oldest first, at most
---    `p_limit` (1 to 500), each with its attempts, which name its next delivery.
+-- 7. The sweep's rows (`webhooks.process:all`), oldest first, at most `p_limit` (1 to 500), each
+--    with its attempts, which name its next delivery. Only rows no delivery is on its way to:
+--    - never claimed, arrived more than the given seconds (at least 30) ago: the route's publish
+--      failed or was lost;
+--    - leased, the lease lapsed more than those seconds ago with no mark: the call died, and
+--      QStash's own retries have had their chance;
+--    - released after a handler error, its backoff passed those seconds ago: the worker answered,
+--      so QStash sends nothing more, and the sweep is what tries the row again;
+--    - put back by Process again those seconds ago (`retry_at` is when) and still not claimed:
+--      its own publish failed.
+--    A row in its backoff, or under a live lease, is left alone.
 create or replace function app.webhook_waiting(p_idle_seconds integer, p_limit integer)
   returns table (inbox_id uuid, attempts integer)
   language plpgsql stable security definer set search_path = '' as $$
@@ -225,7 +249,8 @@ begin
      where w.processed_at is null and w.failed_at is null
        and w.received_at < v_cutoff
        and w.payload_json is not null
-       and (w.claimed_until is null or w.claimed_until < v_cutoff)
+       and ((w.claimed_until is null and coalesce(w.retry_at, w.received_at) < v_cutoff)
+            or w.claimed_until < v_cutoff)
      order by w.received_at
      limit least(greatest(coalesce(p_limit, 100), 1), 500);
 end
@@ -237,17 +262,20 @@ grant execute on function app.webhook_waiting(integer, integer) to app_user;
 --> statement-breakpoint
 
 -- 8. The retention of the inbox (`webhooks.process:all`; docs/03-roadmap-appendix/phase2.md §2,
---    question 10): the payloads of rows processed more than `p_payload_days` ago are removed, then
---    the rows that arrived more than `p_row_days` ago, each at most `p_limit` (1 to 5,000) a call,
---    oldest first. The periods are workshop defaults the command passes in, at least a day each.
---    Each call is one `retention_runs` row (`webhook-inbox-purge`) with the count of payloads and
---    rows removed; a call that fails records its error there and changes nothing else.
+--    question 10, as the lead read it on 13-11-2026): the payloads of rows processed more than
+--    `p_payload_days` ago are removed, then the rows that arrived more than `p_row_days` ago and
+--    were processed, or failed with no live lease; a row still waiting, or leased, is never removed,
+--    nor a failed row's payload, which Process again needs. At most `p_limit` (1 to 5,000) of each
+--    a call, oldest first; the periods are workshop defaults the command passes in, at least a day
+--    each. A call that removed something is one `retention_runs` row (`webhook-inbox-purge`) with
+--    the count; a call that fails records its error there and changes nothing else; a call that
+--    found nothing writes no row, since the sweep calls every minute.
 create or replace function app.webhook_purge(p_payload_days integer, p_row_days integer,
                                              p_limit integer)
   returns table (payloads integer, rows_removed integer)
   language plpgsql volatile security definer set search_path = '' as $$
 declare
-  v_run uuid := app.uuid_v7();
+  v_started timestamptz := pg_catalog.clock_timestamp();
   v_limit integer := least(greatest(coalesce(p_limit, 1000), 1), 5000);
   v_payloads integer := 0;
   v_rows integer := 0;
@@ -258,8 +286,6 @@ begin
   if p_payload_days is null or p_payload_days < 1 or p_row_days is null or p_row_days < 1 then
     raise exception 'the retention periods are whole days, at least one' using errcode = '22023';
   end if;
-  insert into public.retention_runs (id, job, started_at)
-  values (v_run, 'webhook-inbox-purge', pg_catalog.clock_timestamp());
   begin
     with due as (
       select w.id from public.webhook_inbox w
@@ -277,6 +303,9 @@ begin
     with due as (
       select w.id from public.webhook_inbox w
        where w.received_at < pg_catalog.now() - p_row_days * interval '1 day'
+         and (w.processed_at is not null
+              or (w.failed_at is not null
+                  and (w.claimed_until is null or w.claimed_until <= pg_catalog.now())))
        order by w.received_at
        limit v_limit
          for update skip locked)
@@ -284,15 +313,17 @@ begin
     get diagnostics v_rows = row_count;
     perform pg_catalog.set_config('app.webhook_retention', '', true);
   exception when others then
-    update public.retention_runs
-       set finished_at = pg_catalog.clock_timestamp(), error = pg_catalog.left(sqlerrm, 500)
-     where id = v_run;
+    insert into public.retention_runs (id, job, started_at, finished_at, error)
+    values (app.uuid_v7(), 'webhook-inbox-purge', v_started, pg_catalog.clock_timestamp(),
+            pg_catalog.left(sqlerrm, 500));
     return query select 0, 0;
     return;
   end;
-  update public.retention_runs
-     set finished_at = pg_catalog.clock_timestamp(), rows_affected = v_payloads + v_rows
-   where id = v_run;
+  if v_payloads + v_rows > 0 then
+    insert into public.retention_runs (id, job, started_at, finished_at, rows_affected)
+    values (app.uuid_v7(), 'webhook-inbox-purge', v_started, pg_catalog.clock_timestamp(),
+            v_payloads + v_rows);
+  end if;
   return query select v_payloads, v_rows;
 end
 $$;
@@ -358,9 +389,11 @@ grant execute on function app.webhook_health(integer) to app_user, app_reader;
 --> statement-breakpoint
 
 -- 10. Process again (`webhooks.event.replay`; `integrations.dlq.replay:all`, a person): a failed
---     row whose payload is still held loses its failure and its code and waits again; answers its
---     provider, its attempts, which name its next delivery, and the code it had, or nothing when
---     the row is not failed or its payload is gone.
+--     row whose payload is still held loses its failure and its code and waits again, with its
+--     ten tries counted afresh from now (`attempts_at_replay`, while `attempts` keeps rising, since
+--     each delivery's deduplication id names it); answers its provider, its attempts, which name
+--     its next delivery, and the code it had, or nothing when the row is not failed or its
+--     payload is gone.
 create or replace function app.webhook_replay(p_id uuid)
   returns table (provider text, attempts integer, error_code text)
   language plpgsql volatile security definer set search_path = '' as $$
@@ -379,7 +412,8 @@ begin
   end if;
   return query
     update public.webhook_inbox w
-       set failed_at = null, error_code = null, claimed_until = null
+       set failed_at = null, error_code = null, claimed_until = null,
+           retry_at = pg_catalog.now(), attempts_at_replay = w.attempts
      where w.id = p_id
     returning w.provider, w.attempts, v_code;
 end

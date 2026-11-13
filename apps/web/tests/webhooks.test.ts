@@ -27,6 +27,7 @@ import { POST as PROCESS } from '../src/app/api/v1/workers/webhooks/process/rout
 import { processAgain } from '../src/webhooks/replay';
 import { processWebhook } from '../src/workers/webhooks/process';
 import { runWebhookSweep } from '../src/workers/webhooks/sweep';
+import { qstashConfig } from '../src/workers/qstash';
 import { createTestPrincipal } from '@shakti/db/testing';
 
 // The webhook routes on real Postgres (docs/03-roadmap-appendix/phase2.md §5.1): stored through
@@ -367,11 +368,14 @@ describe('the webhook worker and its failure callback', () => {
       await asMigrator((m) => m`alter table webhook_inbox enable trigger webhook_inbox_guard`);
     }
     const published: { inboxId: string; deduplicationId: string }[] = [];
+    const config = qstashConfig();
+    if (config === undefined) throw new Error('expected the queue settings of this test');
     const result = await runWebhookSweep({
       requestId: newId(),
-      publish: (_config, inboxId, deduplicationId) => {
-        published.push({ inboxId, deduplicationId });
-        return Promise.resolve();
+      config,
+      publish: (_config, jobs) => {
+        published.push(...jobs);
+        return Promise.resolve(jobs.map(() => true));
       },
     });
     expect(published).toContainEqual({ inboxId: id, deduplicationId: `${id}:s0` });
@@ -442,5 +446,136 @@ describe('Process again', () => {
       },
     );
     expect(published).toEqual([`${id}:r1`]);
+  });
+});
+
+// --- Fix round (review 1, 2, 7, 9) ---------------------------------------------------------------
+
+describe('retries, the attempt limit and Process again (review 1, 2, 9)', () => {
+  it('a handler error answers retrying and holds the row in a backoff, not a new try at once', async () => {
+    const id = await waitingRow();
+    const result = await processWebhook(id, {
+      requestId: newId(),
+      handlers: {
+        livekit: () => Promise.reject(new Error('the vendor did not answer')),
+      },
+    });
+    expect(result).toEqual({ inboxId: id, outcome: 'retrying' });
+    // QStash's own retry, or the sweep, finds it still in its backoff.
+    expect(await processWebhook(id, { requestId: newId() })).toEqual({
+      inboxId: id,
+      outcome: 'duplicate',
+    });
+    expect(await rowOf(id)).toMatchObject({ processed: false, failed: false, attempts: 1 });
+  });
+
+  it('fails a row at its tenth try with too_many_attempts, and Process again handles it after all', async () => {
+    const executive = await createTestPrincipal('executive');
+    const id = await waitingRow();
+    await asMigrator((m) => m`update webhook_inbox set attempts = 10 where id = ${id}`);
+    expect(await processWebhook(id, { requestId: newId() })).toEqual({
+      inboxId: id,
+      outcome: 'failed',
+      errorCode: 'too_many_attempts',
+    });
+    const ids: string[] = [];
+    const queue = {
+      token: 'webhook-replay-test-token',
+      currentSigningKey: SIGNING_KEY,
+      nextSigningKey: 'webhook-replay-test-next',
+      baseUrl: undefined,
+      publishUrl: `${TEST_ORIGIN}/api/v1/workers/outbox/publish`,
+    };
+    const replay = () =>
+      processAgain(
+        executive,
+        newId(),
+        { inboxId: id },
+        {},
+        {
+          qstash: () => queue,
+          publish: (_config, _inboxId, deduplicationId) => {
+            ids.push(deduplicationId);
+            return Promise.resolve();
+          },
+        },
+      );
+    await replay();
+    // The delivery Process again sent fails in its handler; its backoff passes; it fails for good.
+    await processWebhook(id, {
+      requestId: newId(),
+      handlers: { livekit: () => Promise.reject(new Error('still down')) },
+    });
+    await asMigrator((m) => m`update webhook_inbox set retry_at = now() where id = ${id}`);
+    await asMigrator(
+      (m) => m`update webhook_inbox set attempts = attempts_at_replay + 10 where id = ${id}`,
+    );
+    expect(await processWebhook(id, { requestId: newId() })).toMatchObject({
+      outcome: 'failed',
+      errorCode: 'too_many_attempts',
+    });
+    await replay();
+    expect(await processWebhook(id, { requestId: newId() })).toEqual({
+      inboxId: id,
+      outcome: 'processed',
+      handled: false,
+    });
+    expect(ids).toEqual([`${id}:r10`, `${id}:r20`]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('the sweep keeps to its time (review 7)', () => {
+  it('publishes in one batch with what is left, and counts what it could not send', async () => {
+    const config = {
+      token: 'webhook-sweep-test-token',
+      currentSigningKey: SIGNING_KEY,
+      nextSigningKey: 'webhook-sweep-test-next',
+      baseUrl: undefined,
+      publishUrl: `${TEST_ORIGIN}/api/v1/workers/outbox/publish`,
+    };
+    const id = await waitingRow();
+    await asMigrator((m) => m`alter table webhook_inbox disable trigger webhook_inbox_guard`);
+    try {
+      await asMigrator(
+        (m) =>
+          m`update webhook_inbox set received_at = now() - interval '5 minutes' where id = ${id}`,
+      );
+    } finally {
+      await asMigrator((m) => m`alter table webhook_inbox enable trigger webhook_inbox_guard`);
+    }
+    let calls = 0;
+    let clock = 0;
+    const spent = await runWebhookSweep({
+      requestId: newId(),
+      config,
+      budgetMs: 20_000,
+      // The purge and the listing took the whole budget.
+      now: () => {
+        clock += 30_000;
+        return clock;
+      },
+      publish: () => {
+        calls += 1;
+        return Promise.resolve([]);
+      },
+    });
+    expect(calls).toBe(0);
+    expect(spent.republished).toBe(0);
+    expect(spent.notRepublished).toBeGreaterThanOrEqual(1);
+    const budgets: number[] = [];
+    const sent = await runWebhookSweep({
+      requestId: newId(),
+      config,
+      budgetMs: 20_000,
+      publish: (_config, jobs, timeoutMs) => {
+        budgets.push(timeoutMs);
+        return Promise.resolve(jobs.map((_, i) => i > 0));
+      },
+    });
+    expect(budgets).toHaveLength(1);
+    expect(budgets[0]).toBeLessThanOrEqual(10_000);
+    expect(sent.republished + sent.notRepublished).toBeGreaterThanOrEqual(1);
+    expect(sent.notRepublished).toBe(1);
   });
 });

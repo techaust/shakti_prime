@@ -20,15 +20,17 @@ interface ClaimRow {
   provider: string;
   payload: unknown;
   attempts: number;
-  lease: string;
+  lease: string | null;
+  error_code: string | null;
 }
 
 /**
  * `webhooks.event.claim` (docs/03-roadmap-appendix/phase2.md §5.1): the webhook worker leases one
  * waiting `webhook_inbox` row through `app.webhook_claim()`, which checks the platform-only
  * `webhooks.process:all` itself and counts the attempt. No request role reads the table, so the
- * definer is the only way to the row; a row already processed or failed, purged or held by
- * another call answers `claimed: false`. Delivery bookkeeping, like the outbox publisher's: no
+ * definer is the only way to the row; a row already processed or failed, purged, held by another
+ * call or in its backoff answers `claimed: false`, and one tried ten times is failed by the claim
+ * and answers `claimed: false` with `failed: 'too_many_attempts'`. Delivery bookkeeping, like the outbox publisher's: no
  * audit row (`auditWhen: 'changed'` with nothing named), since every delivery is a claim.
  */
 export const claimWebhook = defineCommand({
@@ -41,10 +43,14 @@ export const claimWebhook = defineCommand({
   auditWhen: 'changed',
   async handler(ctx, input) {
     const rows = (await ctx.tx.execute(sql`
-      select provider, payload, attempts, lease
+      select provider, payload, attempts, lease, error_code
         from app.webhook_claim(${input.inboxId}::uuid, ${input.leaseSeconds}::integer)`)) as unknown as ClaimRow[];
     const row = rows[0];
     if (row === undefined) return { claimed: false as const };
+    // The claim failed the row after ten tries (`too_many_attempts`): no lease, and the worker
+    // reports it.
+    if (row.lease === null)
+      return { claimed: false as const, failed: 'too_many_attempts' as const };
     return {
       claimed: true as const,
       provider: WebhookProviderSchema.parse(row.provider),

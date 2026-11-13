@@ -21,12 +21,17 @@ type Claimed = Extract<ClaimedWebhookDto, { claimed: true }>;
  * with the platform-only `webhooks.process` and no company: it leases the row for 60 seconds
  * (`webhooks.event.claim`), reads the payload with its provider's contract, runs the provider's
  * handler and marks the row (`webhooks.event.mark`).
- * - A row already processed or failed, or held by another call, answers `duplicate`.
+ * - A row already processed or failed, held by another call or in its backoff answers `duplicate`.
+ * - A row tried ten times is failed by the claim (`too_many_attempts`), reported with an `error`
+ *   line (its id and code), and answered `failed`.
  * - A payload the contract refuses fails the row with `payload_unreadable` for good: another try
  *   reads the same bytes.
  * - With no handler registered the row is processed with the code `no_handler`.
- * - A handler's error releases the lease and is thrown, so the caller answers a 5xx and QStash
- *   tries again; after its last retry the failure callback fails the row (`handler_failed`).
+ * - A handler's error releases the row into a backoff that grows with its tries (1, 2, 4, 8, 16,
+ *   then 30 minutes) and answers `retrying`, so QStash's chain ends; the sweep sends the row again
+ *   once the backoff has passed, so an outage of a few minutes uses few of the ten tries. A release
+ *   that fails is thrown: the lease lapses, QStash or the sweep tries again, and after QStash's
+ *   last retry its failure callback fails the row (`handler_failed`).
  * Logs carry ids and codes only, never the payload.
  */
 export async function processWebhook(
@@ -38,7 +43,18 @@ export async function processWebhook(
   const principal = systemWorkersPrincipal(null);
   const scope = { entityIds: [], requestId };
   const claimed = await executeCommand(principal, scope, claimWebhook, { inboxId });
-  if (!claimed.claimed) return WebhookProcessResult.parse({ inboxId, outcome: 'duplicate' });
+  if (!claimed.claimed) {
+    if (claimed.failed === undefined) {
+      return WebhookProcessResult.parse({ inboxId, outcome: 'duplicate' });
+    }
+    // Ten tries used: the row is on Integration Health's failed list, and the owner is told.
+    logger.log('error', 'webhooks.delivery_failed', {
+      requestId,
+      inboxId,
+      errorCode: claimed.failed,
+    });
+    return WebhookProcessResult.parse({ inboxId, outcome: 'failed', errorCode: claimed.failed });
+  }
   const mark = (
     outcome: 'processed' | 'failed' | 'released',
     errorCode: string | null = null,
@@ -75,11 +91,16 @@ export async function processWebhook(
   try {
     ({ entityId } = await handler(parsed.data, context(claimed, inboxId, requestId)));
   } catch (error) {
-    await mark('released').catch((markError: unknown) => {
-      // The lease lapses on its own within a minute; the retry claims the row then.
-      logger.log('warn', 'webhooks.release_failed', { requestId, inboxId, error: markError });
+    logger.log('warn', 'webhooks.handler_failed', {
+      requestId,
+      inboxId,
+      provider: claimed.provider,
+      attempts: claimed.attempts,
+      error,
     });
-    throw error;
+    // A release that fails is thrown: the lease lapses within a minute and the row is tried again.
+    await mark('released');
+    return WebhookProcessResult.parse({ inboxId, outcome: 'retrying' });
   }
   const { changed } = await mark('processed', null, entityId);
   if (!changed) {

@@ -116,23 +116,32 @@ describe('webhooks.event.claim and webhooks.event.mark', () => {
     expect(row).toEqual({ entity_id: 3, processed: true });
   });
 
-  it('a released row is claimed again; the last retry’s failure needs no lease', async () => {
+  it('a released row waits its backoff; the last retry\u2019s failure needs no lease', async () => {
     const id = await stored();
     const first = await claim(id);
     if (!first.claimed) throw new Error('expected a lease');
-    expect(await mark({ inboxId: id, lease: first.lease, outcome: 'released' })).toEqual({
-      changed: true,
-    });
-    const second = await claim(id);
-    expect(second).toMatchObject({ claimed: true, attempts: 2 });
-    if (!second.claimed) throw new Error('expected a lease');
     expect(
       await mark({ inboxId: id, lease: null, outcome: 'failed', errorCode: 'handler_failed' }),
     ).toEqual({ changed: false });
+    expect(await mark({ inboxId: id, lease: first.lease, outcome: 'released' })).toEqual({
+      changed: true,
+    });
+    expect(await claim(id)).toEqual({ claimed: false });
+    await asMigrator((m) => m`update webhook_inbox set retry_at = now() where id = ${id}`);
+    const second = await claim(id);
+    expect(second).toMatchObject({ claimed: true, attempts: 2 });
+    if (!second.claimed) throw new Error('expected a lease');
     await mark({ inboxId: id, lease: second.lease, outcome: 'released' });
     expect(
       await mark({ inboxId: id, lease: null, outcome: 'failed', errorCode: 'handler_failed' }),
     ).toEqual({ changed: true });
+    expect(await claim(id)).toEqual({ claimed: false });
+  });
+
+  it('says when the claim failed a row after ten tries', async () => {
+    const id = await stored();
+    await asMigrator((m) => m`update webhook_inbox set attempts = 10 where id = ${id}`);
+    expect(await claim(id)).toEqual({ claimed: false, failed: 'too_many_attempts' });
     expect(await claim(id)).toEqual({ claimed: false });
   });
 

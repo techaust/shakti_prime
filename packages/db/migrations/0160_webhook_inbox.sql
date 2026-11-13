@@ -9,6 +9,8 @@ CREATE TABLE "webhook_inbox" (
 	"entity_id" smallint,
 	"claimed_until" timestamp with time zone,
 	"attempts" integer DEFAULT 0 NOT NULL,
+	"attempts_at_replay" integer DEFAULT 0 NOT NULL,
+	"retry_at" timestamp with time zone,
 	"processed_at" timestamp with time zone,
 	"failed_at" timestamp with time zone,
 	"error_code" text,
@@ -19,6 +21,7 @@ CREATE TABLE "webhook_inbox" (
 	CONSTRAINT "webhook_inbox_signature_check" CHECK ("webhook_inbox"."signature_ok"),
 	CONSTRAINT "webhook_inbox_sha256_check" CHECK ("webhook_inbox"."payload_sha256" ~ '^[0-9a-f]{64}$'),
 	CONSTRAINT "webhook_inbox_attempts_check" CHECK ("webhook_inbox"."attempts" >= 0),
+	CONSTRAINT "webhook_inbox_attempts_at_replay_check" CHECK ("webhook_inbox"."attempts_at_replay" between 0 and "webhook_inbox"."attempts"),
 	CONSTRAINT "webhook_inbox_error_code_check" CHECK ("webhook_inbox"."error_code" ~ '^[a-z][a-z0-9_]{0,63}$'),
 	CONSTRAINT "webhook_inbox_outcome_check" CHECK ("webhook_inbox"."processed_at" is null or "webhook_inbox"."failed_at" is null),
 	CONSTRAINT "webhook_inbox_purge_check" CHECK (("webhook_inbox"."payload_json" is null) = ("webhook_inbox"."payload_purged_at" is not null))

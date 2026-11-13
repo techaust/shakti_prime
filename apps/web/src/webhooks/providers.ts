@@ -105,7 +105,14 @@ const googleLeadform: WebhookVerifier<{ key: string }> = {
     return key === undefined ? undefined : { key };
   },
   check: (d, s) => Promise.resolve(checkGoogleKey(jsonOrText(d.text), s.key)),
-  payload: (d) => jsonOrText(d.text),
+  // The form's key is a secret: anyone holding it could send leads, so it is not kept. The
+  // checksum stays that of the bytes as they came.
+  payload: (d) => {
+    const body = jsonOrText(d.text);
+    const object = asObject(body);
+    if (object === undefined) return body;
+    return Object.fromEntries(Object.entries(object).filter(([key]) => key !== 'google_key'));
+  },
   eventId: (payload) => firstString(payload, 'lead_id'),
 };
 

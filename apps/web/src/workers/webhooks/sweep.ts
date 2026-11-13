@@ -2,14 +2,20 @@ import { DomainError, WebhookSweepWorkerResponse } from '@shakti/contracts';
 import { executeCommand, sweepWebhooks } from '@shakti/domain';
 import { logger } from '../../log';
 import { systemWorkersPrincipal } from '../events/system-principal';
-import { publishWebhookJob, qstashConfig, type QStashConfig } from '../qstash';
+import { publishWebhookJobs, qstashConfig, type QStashConfig } from '../qstash';
 
 export interface WebhookSweepOptions {
   requestId: string;
+  /** How long the run may take, from its start; the publish gets what is left, at most 10 s. */
+  budgetMs?: number;
   /** The queue; by default the environment's. */
   config?: QStashConfig;
-  publish?: typeof publishWebhookJob;
+  publish?: typeof publishWebhookJobs;
+  now?: () => number;
 }
+
+/** The longest the one batch call may take. */
+const PUBLISH_TIMEOUT_MS = 10_000;
 
 /** The deduplication id of a row the sweep publishes again: one per attempt it is on. */
 export function sweepDeduplicationId(inboxId: string, attempts: number): string {
@@ -20,9 +26,10 @@ export function sweepDeduplicationId(inboxId: string, attempts: number): string 
  * The minute sweep of `webhook_inbox` (docs/03-roadmap-appendix/phase2.md §5.1), as
  * `system:workers` with no company: `webhooks.inbox.sweep` removes the payloads and rows past
  * their retention (one `retention_runs` row) and answers the rows waiting unclaimed for a minute,
- * which are published to the worker again, each once per attempt it is on, so a row whose first
- * publish failed, or whose QStash chain was lost, is processed after all. A publish that fails is
- * counted and left to the next minute.
+ * which are published to the worker again in one batch call, each once per attempt it is on, so a
+ * row whose first publish failed, whose call died, or whose backoff after a handler error has
+ * passed, is processed after all. The call gets what is left of the run's budget; what it does not
+ * take is counted and left to the next minute.
  */
 export async function runWebhookSweep(
   options: WebhookSweepOptions,
@@ -32,24 +39,42 @@ export async function runWebhookSweep(
   if (config === undefined) {
     throw new DomainError('integration_unavailable', 'no queue for the webhook sweep');
   }
-  const publish = options.publish ?? publishWebhookJob;
+  const publish = options.publish ?? publishWebhookJobs;
+  const now = options.now ?? Date.now;
+  const started = now();
   const swept = await executeCommand(
     systemWorkersPrincipal(null),
     { entityIds: [], requestId },
     sweepWebhooks,
     {},
   );
+  // One batch call for every waiting row, given what is left of the run's time: a slow queue costs
+  // one timeout, never one per row, and what it does not take waits for the next minute.
   let republished = 0;
   let notRepublished = 0;
-  for (const row of swept.waiting) {
+  const left = Math.min(
+    PUBLISH_TIMEOUT_MS,
+    (options.budgetMs ?? PUBLISH_TIMEOUT_MS) - (now() - started),
+  );
+  if (swept.waiting.length > 0 && left <= 0) {
+    notRepublished = swept.waiting.length;
+  } else if (swept.waiting.length > 0) {
     try {
-      await publish(config, row.inboxId, sweepDeduplicationId(row.inboxId, row.attempts));
-      republished += 1;
+      const taken = await publish(
+        config,
+        swept.waiting.map((row) => ({
+          inboxId: row.inboxId,
+          deduplicationId: sweepDeduplicationId(row.inboxId, row.attempts),
+        })),
+        left,
+      );
+      republished = taken.filter(Boolean).length;
+      notRepublished = swept.waiting.length - republished;
     } catch (error) {
-      notRepublished += 1;
+      notRepublished = swept.waiting.length;
       logger.log('warn', 'webhooks.sweep_publish_failed', {
         requestId,
-        inboxId: row.inboxId,
+        waiting: swept.waiting.length,
         error,
       });
     }

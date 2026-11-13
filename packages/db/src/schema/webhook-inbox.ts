@@ -40,6 +40,11 @@ export const webhookInbox = pgTable(
     // The lease of the worker call processing the row.
     claimedUntil: timestamp('claimed_until', { withTimezone: true }),
     attempts: integer('attempts').notNull().default(0),
+    // The attempts when Process again last put the row back: the limit of ten tries counts from it,
+    // while `attempts` itself only rises, since each delivery's deduplication id names it.
+    attemptsAtReplay: integer('attempts_at_replay').notNull().default(0),
+    // After a handler error, when the row may be tried again: a backoff that grows with its tries.
+    retryAt: timestamp('retry_at', { withTimezone: true }),
     processedAt: timestamp('processed_at', { withTimezone: true }),
     failedAt: timestamp('failed_at', { withTimezone: true }),
     errorCode: text('error_code'),
@@ -55,6 +60,10 @@ export const webhookInbox = pgTable(
     check('webhook_inbox_signature_check', sql`${t.signatureOk}`),
     check('webhook_inbox_sha256_check', sql`${t.payloadSha256} ~ '^[0-9a-f]{64}$'`),
     check('webhook_inbox_attempts_check', sql`${t.attempts} >= 0`),
+    check(
+      'webhook_inbox_attempts_at_replay_check',
+      sql`${t.attemptsAtReplay} between 0 and ${t.attempts}`,
+    ),
     check('webhook_inbox_error_code_check', sql`${t.errorCode} ~ '^[a-z][a-z0-9_]{0,63}$'`),
     check('webhook_inbox_outcome_check', sql`${t.processedAt} is null or ${t.failedAt} is null`),
     check(

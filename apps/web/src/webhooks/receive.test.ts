@@ -1,5 +1,6 @@
 import { newId, type WebhookProvider } from '@shakti/contracts';
 import { memoryKeyValue } from '@shakti/domain';
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { QStashConfig } from '../workers/qstash';
 import { WEBHOOK_BODY_MAX_BYTES, WEBHOOK_VERIFIERS, type WebhookEnv } from './providers';
@@ -123,6 +124,17 @@ describe('receiveWebhook', () => {
     expect(ids.exotel_status).toMatch(/^[0-9a-f-]{36}:completed$/);
     expect(ids.exotel_incoming).toMatch(/^[0-9a-f-]{36}$/);
     expect(ids.livekit).toMatch(/^EV_/);
+  });
+
+  it('drops the Google form key from what it keeps, and keys the row on the bytes as they came', async () => {
+    const h = harness();
+    const d = googleDelivery();
+    await call(d, h);
+    const [row] = [...h.rows.values()];
+    expect(row?.payload).not.toHaveProperty('google_key');
+    expect(row?.payload).toHaveProperty('lead_id');
+    const raw = await d.request().text();
+    expect(row?.sha256).toBe(createHash('sha256').update(raw).digest('hex'));
   });
 
   it('keeps the signed call reference beside Exotel’s fields, over any the body names', async () => {

@@ -1,5 +1,5 @@
 {
-  "id": "22f38ac0-71aa-46a5-ba78-019ff17192d9",
+  "id": "2d23c225-0204-448b-a0a9-3ff99698000d",
   "prevId": "b917d60b-7efb-4635-9cdc-e14a425239a2",
   "version": "7",
   "dialect": "postgresql",
@@ -15302,6 +15302,19 @@
           "notNull": true,
           "default": 0
         },
+        "attempts_at_replay": {
+          "name": "attempts_at_replay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "retry_at": {
+          "name": "retry_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "processed_at": {
           "name": "processed_at",
           "type": "timestamp with time zone",
@@ -15504,6 +15517,10 @@
         "webhook_inbox_attempts_check": {
           "name": "webhook_inbox_attempts_check",
           "value": "\"webhook_inbox\".\"attempts\" >= 0"
+        },
+        "webhook_inbox_attempts_at_replay_check": {
+          "name": "webhook_inbox_attempts_at_replay_check",
+          "value": "\"webhook_inbox\".\"attempts_at_replay\" between 0 and \"webhook_inbox\".\"attempts\""
         },
         "webhook_inbox_error_code_check": {
           "name": "webhook_inbox_error_code_check",
