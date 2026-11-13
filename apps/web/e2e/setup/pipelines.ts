@@ -5,9 +5,9 @@ import { asMigrator, principalFor } from '@shakti/db/testing';
 import { archiveStage, executeCommand, updateStage } from '@shakti/domain';
 import { ADDED_PARTNERS } from '../support/users';
 
-/** The stage the "adds a stage" journey makes in Commercial EPC; it is named with a number. */
+/** The stages the stage journeys make, each project in a pipeline of its own; named with a number. */
 const JOURNEY_STAGE = 'Site survey %';
-/** The stage the "a changed stage name" journey renames and names back. */
+/** A seeded stage an earlier version of the rename journey changed, put back if a stopped run left it so. */
 const RENAMED_STAGE = { pipeline: 'Dealer and Wholesale', key: 'contacted', name: 'Contacted' };
 
 /**
@@ -29,8 +29,8 @@ export async function resetPipelineStages(executiveId: string): Promise<void> {
   const leftovers = await asMigrator(
     (m) => m<{ id: string }[]>`
       select s.id
-        from pipeline_stages s join pipelines p on p.id = s.pipeline_id
-       where p.name = 'Commercial EPC' and s.name like ${JOURNEY_STAGE} and s.archived_at is null`,
+        from pipeline_stages s
+       where s.name like ${JOURNEY_STAGE} and s.archived_at is null`,
   );
   for (const stage of leftovers)
     await executeCommand(executive, {}, archiveStage, { stageId: stage.id });
