@@ -73,12 +73,14 @@ grant execute on function app.playbook_check_targets(uuid) to app_user;
 --    p_limit, each with `read_at`, the database time of this read (the transaction's start), which
 --    the record stores as `checked_at`. The read takes the type's lock shared, so it waits for an
 --    approval of the type in progress and then sees it; an approval after it gets a later time and
---    finds this check stale. The order is exact: the candidates are filtered first (the state and
+--    finds this check stale. Volatile, so its read takes a snapshot after the lock is granted
+--    (a stable function reads with the snapshot its calling statement took before the wait, and
+--    would miss an approval that committed meanwhile). The order is exact: the candidates are filtered first (the state and
 --    type index) and sorted by their distance, never read from an approximate index.
 create or replace function app.playbook_check_candidates(p_directive_id uuid, p_embedding text,
                                                          p_max_distance real, p_limit integer)
   returns table (other_id uuid, title text, body text, distance real, read_at timestamptz)
-  language plpgsql stable security definer set search_path = '' as $$
+  language plpgsql volatile security definer set search_path = '' as $$
 declare
   v public.playbook_directives;
 begin

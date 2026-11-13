@@ -407,6 +407,80 @@ describe('the conflict check', () => {
     expect(row3?.entity_id).toBe(3);
   });
 
+  it('sees an approval that commits while the candidates wait for the type’s lock (re-check of finding 1)', async () => {
+    const shared = words();
+    // Y is a checked, clear draft close to D; D is the draft being checked.
+    const y = await draft(`${shared} ${words(1)}`, { type: 'sop' });
+    await check(y.id, provider({ replies: [label('none', 'Different cases.')] }).ai);
+    const row = await draft(shared, { type: 'sop' });
+    const [target] = await asPrincipal(workers(1), ({ tx }) => playbookCheckTargets(tx, row.id));
+    if (target === undefined) throw new Error('no target');
+    const embedding = fakeEmbedding(directiveText(target));
+
+    // Connection 1: Y's approval, held open (it holds the type's lock) until the signal.
+    let release = (): void => undefined;
+    const signal = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const approval = asPrincipal(executive, async (context) => {
+      const done = await runCommand(
+        approvePlaybookDirective,
+        { context, audit, outbox },
+        { entityId: 1, directiveId: y.id },
+      );
+      await signal;
+      return done;
+    });
+    // Wait until the approval holds the lock and has updated Y (not yet committed).
+    const holding = async () => {
+      const [found] = await asMigrator(
+        (m) => m<{ n: number }[]>`select count(*)::int as n from pg_locks
+                                  where locktype = 'advisory' and granted and mode = 'ExclusiveLock'`,
+      );
+      return (found?.n ?? 0) > 0;
+    };
+    for (let i = 0; i < 100 && !(await holding()); i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    // Connection 2: the check's read starts and waits for the type's lock.
+    const read = asPrincipal(workers(1), ({ tx }) =>
+      playbookCandidates(tx, row.id, embedding, 0.2, 5),
+    );
+    const waiting = async () => {
+      const [found] = await asMigrator(
+        (m) => m<{ n: number }[]>`select count(*)::int as n from pg_locks
+                                  where locktype = 'advisory' and not granted`,
+      );
+      return (found?.n ?? 0) > 0;
+    };
+    for (let i = 0; i < 100 && !(await waiting()); i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(await waiting()).toBe(true);
+    // The approval commits while the read waits; the read must then see Y.
+    release();
+    await approval;
+    const found = await read;
+    expect(found.candidates.map((c) => c.otherId)).toContain(y.id);
+    await run(workers(1), recordPlaybookCheck, {
+      entityId: 1,
+      directiveId: row.id,
+      wordingSha256: target.wordingSha256,
+      checkedAsOf: found.readAt,
+      embedding,
+      pairs: found.candidates.map((c) => ({
+        otherId: c.otherId,
+        distance: c.distance,
+        label: 'conflict' as const,
+        reason: 'They clash.',
+      })),
+    });
+    expect((await pairs(row.id)).map((p) => p.other_id)).toContain(y.id);
+    await expect(
+      run(executive, approvePlaybookDirective, { entityId: 1, directiveId: row.id }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+  });
+
   it('is the platform’s alone: a person, an agent and another company are refused', async () => {
     const row = await draft(words());
     const input = {
