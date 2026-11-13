@@ -25,7 +25,8 @@ const checkRan: G = {
 };
 
 const noConflict: G = {
-  description: 'no unresolved conflict or overlap with an approved directive (`conflicts_with` is empty)',
+  description:
+    'no unresolved conflict or overlap with an approved directive (`conflicts_with` is empty)',
   check: (record) =>
     record.conflictsWith.length === 0
       ? undefined

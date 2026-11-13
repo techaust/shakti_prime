@@ -126,7 +126,10 @@ export const playbookDirectives = pgTable(
     approvedAt: timestamp('approved_at', { withTimezone: true }),
     retiredReason: text('retired_reason'),
     retiredAt: timestamp('retired_at', { withTimezone: true }),
-    conflictsWith: uuid('conflicts_with').array().notNull().default(sql`'{}'::uuid[]`),
+    conflictsWith: uuid('conflicts_with')
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     embedding: vector('embedding', { dimensions: 1024 }),
     checkedAt: timestamp('checked_at', { withTimezone: true }),
     ...timestamps,
@@ -205,7 +208,10 @@ export const playbookConflictChecks = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check('playbook_conflict_checks_label_check', sql`${t.label} in ('conflict', 'overlap', 'none')`),
+    check(
+      'playbook_conflict_checks_label_check',
+      sql`${t.label} in ('conflict', 'overlap', 'none')`,
+    ),
     check(
       'playbook_conflict_checks_resolution_check',
       sql`${t.resolution} in ('not_a_conflict', 'other_retired')`,

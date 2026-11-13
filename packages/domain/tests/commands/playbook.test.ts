@@ -111,7 +111,10 @@ async function checked(
 async function approved(over: Parameters<typeof draft>[1] = {}): Promise<PlaybookDirectiveDto> {
   const row = await draft(executive, over);
   await checked(row.id);
-  return run(executive, approvePlaybookDirective, { entityId: over.entityId ?? 1, directiveId: row.id });
+  return run(executive, approvePlaybookDirective, {
+    entityId: over.entityId ?? 1,
+    directiveId: row.id,
+  });
 }
 
 async function eventsOf(directiveId: string) {
@@ -172,9 +175,7 @@ describe('knowledge.playbook.draft', () => {
         },
       },
     ]);
-    expect(await auditOf(row.id)).toEqual([
-      { command: 'knowledge.playbook.draft', outcome: 'ok' },
-    ]);
+    expect(await auditOf(row.id)).toEqual([{ command: 'knowledge.playbook.draft', outcome: 'ok' }]);
     const group = await draft(executive, { wholeGroup: true });
     expect(group.entityId).toBeNull();
   });

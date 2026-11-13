@@ -33,6 +33,7 @@ export const CLIENT_SCOPES = {
     'leads',
     'orders',
     'pipelineSettings',
+    'playbook',
     'priceMaster',
     'quotes',
     'roles',

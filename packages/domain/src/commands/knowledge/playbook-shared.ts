@@ -69,9 +69,13 @@ export function readsAudience(principal: Principal, audience: PlaybookAudience):
 /** A directive is written only for an audience its writer reads (the write policies agree). */
 export function requireAudience(principal: Principal, audience: PlaybookAudience): void {
   if (!readsAudience(principal, audience)) {
-    throw new DomainError('forbidden', 'a directive is written only for an audience its writer reads', {
-      reason: 'playbook_audience_not_held',
-    });
+    throw new DomainError(
+      'forbidden',
+      'a directive is written only for an audience its writer reads',
+      {
+        reason: 'playbook_audience_not_held',
+      },
+    );
   }
 }
 
@@ -121,7 +125,11 @@ export function directiveState(row: PlaybookDirectiveRow): PlaybookDirectiveStat
 /** Fires an event of the directive's machine as the caller. */
 export function firePlaybookDirective(
   ctx: CommandContext,
-  record: { state: PlaybookDirectiveState | null; checked: boolean; conflictsWith: readonly string[] },
+  record: {
+    state: PlaybookDirectiveState | null;
+    checked: boolean;
+    conflictsWith: readonly string[];
+  },
   event: PlaybookDirectiveEvent,
   params: PlaybookDirectiveParams = {},
 ): PlaybookDirectiveState {

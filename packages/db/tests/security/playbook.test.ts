@@ -61,11 +61,13 @@ async function directive(
 }
 
 async function seen(who: Principal, ids: readonly string[]): Promise<string[]> {
-  const rows = await asPrincipal(who, async ({ tx }) =>
-    (await tx.execute(
-      sql`select id::text from playbook_directives
+  const rows = await asPrincipal(
+    who,
+    async ({ tx }) =>
+      (await tx.execute(
+        sql`select id::text from playbook_directives
            where id = any(string_to_array(${ids.join(',')}, ',')::uuid[])`,
-    )) as unknown as { id: string }[],
+      )) as unknown as { id: string }[],
   );
   return rows.map((r) => r.id).sort();
 }
@@ -121,7 +123,10 @@ describe('who reads a directive', () => {
 });
 
 describe('who writes a directive', () => {
-  const insert = (who: Principal, over: { entityId?: number | null; audience?: string; state?: string } = {}) =>
+  const insert = (
+    who: Principal,
+    over: { entityId?: number | null; audience?: string; state?: string } = {},
+  ) =>
     asPrincipal(who, ({ tx }) =>
       tx.execute(sql`insert into playbook_directives (id, entity_id, type, audience, title, text, state, created_by)
         values (${newId()}, ${over.entityId === undefined ? 1 : over.entityId}, 'faq',
@@ -136,9 +141,7 @@ describe('who writes a directive', () => {
     await expect(insert(gm, { entityId: 2 })).rejects.toThrow();
     await expect(insert(await createTestPrincipal('accounts', [1]))).rejects.toThrow();
     await expect(insert(principalFor('agent:copilot', [1]))).rejects.toThrow();
-    await asMigrator(
-      (m) => m`delete from playbook_directives where created_by = ${gm.id}`,
-    );
+    await asMigrator((m) => m`delete from playbook_directives where created_by = ${gm.id}`);
   });
 
   it('keeps every change on the machine: approval by the approver once checked, no rewording after it', async () => {
@@ -153,13 +156,17 @@ describe('who writes a directive', () => {
       );
     // Not yet checked: refused even to the approver.
     await expect(approve(exec, draft)).rejects.toThrow();
-    await asMigrator((m) => m`update playbook_directives set checked_at = now() where id = ${draft}`);
+    await asMigrator(
+      (m) => m`update playbook_directives set checked_at = now() where id = ${draft}`,
+    );
     // A drafter is not an approver.
     await expect(approve(gm, draft)).rejects.toThrow();
     // A request may not record a check or name a conflict.
     await expect(
       asPrincipal(exec, ({ tx }) =>
-        tx.execute(sql`update playbook_directives set conflicts_with = array[${newId()}]::uuid[] where id = ${draft}`),
+        tx.execute(
+          sql`update playbook_directives set conflicts_with = array[${newId()}]::uuid[] where id = ${draft}`,
+        ),
       ),
     ).rejects.toThrow();
     await expect(approve(exec, draft)).resolves.toBeDefined();
@@ -204,7 +211,9 @@ describe('the conflict check’s pairs', () => {
     const other = await directive(1, 'staff', 'approved');
     const pair = newId();
     await asMigrator(
-      (m) => m`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
+      (
+        m,
+      ) => m`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
                values (${pair}, 1, ${draft}, ${other}, 0.1, 'conflict', 'rls reason')`,
     );
     const count = (who: Principal) =>
@@ -230,7 +239,10 @@ describe('the conflict check’s pairs', () => {
     await expect(resolve(exec, gm.id)).rejects.toThrow();
     await resolve(exec, exec.id);
     const [row] = await asMigrator(
-      (m) => m<{ resolved_by: string }[]>`select resolved_by from playbook_conflict_checks where id = ${pair}`,
+      (m) =>
+        m<
+          { resolved_by: string }[]
+        >`select resolved_by from playbook_conflict_checks where id = ${pair}`,
     );
     expect(row?.resolved_by).toBe(exec.id);
     await expect(resolve(exec, exec.id)).rejects.toThrow();

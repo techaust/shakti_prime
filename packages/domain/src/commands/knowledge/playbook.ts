@@ -58,7 +58,14 @@ export const draftPlaybookDirective = defineCommand({
   peopleOnly: true,
   input: DraftPlaybookDirectiveInput,
   output: PlaybookDirectiveDto,
-  auditFields: ['directiveType', 'audience', 'title', 'directiveState', 'wholeGroup', 'fromVaultFile'],
+  auditFields: [
+    'directiveType',
+    'audience',
+    'title',
+    'directiveState',
+    'wholeGroup',
+    'fromVaultFile',
+  ],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     if (input.wholeGroup) await assertPlaybookGroupRequest(ctx);
@@ -76,7 +83,11 @@ export const draftPlaybookDirective = defineCommand({
         });
       }
     }
-    const state = firePlaybookDirective(ctx, { state: null, checked: false, conflictsWith: [] }, 'create');
+    const state = firePlaybookDirective(
+      ctx,
+      { state: null, checked: false, conflictsWith: [] },
+      'create',
+    );
     const [row] = await ctx.tx
       .insert(schema.playbookDirectives)
       .values({
@@ -132,7 +143,11 @@ export const editPlaybookDirective = defineCommand({
     const row = await lockPlaybookDirective(ctx, input.directiveId);
     firePlaybookDirective(
       ctx,
-      { state: directiveState(row), checked: row.checkedAt !== null, conflictsWith: row.conflictsWith },
+      {
+        state: directiveState(row),
+        checked: row.checkedAt !== null,
+        conflictsWith: row.conflictsWith,
+      },
       'edit',
     );
     requireAudience(ctx.principal, input.audience);
@@ -240,7 +255,11 @@ export const retirePlaybookDirective = defineCommand({
     const row = await lockPlaybookDirective(ctx, input.directiveId);
     const to = firePlaybookDirective(
       ctx,
-      { state: directiveState(row), checked: row.checkedAt !== null, conflictsWith: row.conflictsWith },
+      {
+        state: directiveState(row),
+        checked: row.checkedAt !== null,
+        conflictsWith: row.conflictsWith,
+      },
       'retire',
       { reason: input.reason },
     );
@@ -263,7 +282,11 @@ export const retirePlaybookDirective = defineCommand({
         .update(c)
         .set({ resolution: 'other_retired', resolvedBy: ctx.principal.id, resolvedAt: ctx.now })
         .where(
-          and(eq(c.otherId, row.id), inArray(c.label, ['conflict', 'overlap']), isNull(c.resolvedAt)),
+          and(
+            eq(c.otherId, row.id),
+            inArray(c.label, ['conflict', 'overlap']),
+            isNull(c.resolvedAt),
+          ),
         )
         .returning({ id: c.id });
       conflictsSettled = settled.length;
