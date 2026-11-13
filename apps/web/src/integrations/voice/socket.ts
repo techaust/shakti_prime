@@ -138,7 +138,8 @@ export function webSocketOpener(provider: ProviderName, openTimeoutMs: number): 
           reject(
             new ProviderError(provider, 'network', { vendorCode: `close_${String(event.code)}` }),
           );
-        } else if (closedByUs || event.code === 1000) {
+        } else if (closedByUs || event.code === 1000 || event.code === 1005) {
+          // 1005 is a close frame that carries no code, which servers commonly send to end normally.
           queue.close();
         } else {
           queue.fail(

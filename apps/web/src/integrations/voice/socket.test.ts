@@ -91,6 +91,15 @@ describe('the WebSocket opener', () => {
     expect(live.headers()['api-subscription-key']).toBe('sarvam-test-key');
   });
 
+  it('ends the frames on a close frame that carries no code (1005)', async () => {
+    const live = await server((socket) => {
+      socket.write(frame(0x1, Buffer.from('{"type":"data"}')));
+      socket.end(frame(0x8, Buffer.alloc(0)));
+    });
+    const socket = await webSocketOpener('sarvam', 2_000)(live.url, {});
+    expect(await readAll(socket.messages)).toEqual(['{"type":"data"}']);
+  });
+
   it('fails the frames on a close the caller did not ask for', async () => {
     const live = await server((socket) => {
       socket.end(closeFrame(1011));
