@@ -24,7 +24,7 @@ import {
 } from '../src/webhooks/signed-deliveries';
 import { POST as FAILED } from '../src/app/api/v1/workers/webhooks/failed/route';
 import { POST as PROCESS } from '../src/app/api/v1/workers/webhooks/process/route';
-import { processAgain } from '../src/webhooks/replay';
+import { processAgain, replayDeduplicationId } from '../src/webhooks/replay';
 import { processWebhook } from '../src/workers/webhooks/process';
 import { runWebhookSweep } from '../src/workers/webhooks/sweep';
 import { qstashConfig } from '../src/workers/qstash';
@@ -445,7 +445,8 @@ describe('Process again', () => {
         },
       },
     );
-    expect(published).toEqual([`${id}:r1`]);
+    expect(published).toHaveLength(1);
+    expect(published[0]).toMatch(new RegExp(`^${id}:r1:`));
   });
 });
 
@@ -520,8 +521,10 @@ describe('retries, the attempt limit and Process again (review 1, 2, 9)', () => 
       outcome: 'processed',
       handled: false,
     });
-    expect(ids).toEqual([`${id}:r10`, `${id}:r20`]);
+    expect(ids.map((i) => i.split(':').slice(0, 2).join(':'))).toEqual([`${id}:r10`, `${id}:r20`]);
     expect(new Set(ids).size).toBe(ids.length);
+    // Two Process again on a row no claim has moved since still publish under ids of their own.
+    expect(replayDeduplicationId(id, 20, newId())).not.toBe(replayDeduplicationId(id, 20, newId()));
   });
 });
 

@@ -27,9 +27,17 @@ const DEFAULTS: ReplayDeps = {
   process: processWebhook,
 };
 
-/** The deduplication id of a row Process again publishes: one per attempt it is on. */
-export function replayDeduplicationId(inboxId: string, attempts: number): string {
-  return `${inboxId}:r${String(attempts)}`;
+/**
+ * The deduplication id of a row Process again publishes: the attempt it is on and the request
+ * that asked, so a second Process again on a row no claim has moved since is never dropped by
+ * QStash as a repeat of the first.
+ */
+export function replayDeduplicationId(
+  inboxId: string,
+  attempts: number,
+  requestId: string,
+): string {
+  return `${inboxId}:r${String(attempts)}:${requestId}`;
 }
 
 /**
@@ -63,7 +71,7 @@ export async function processAgain(
       await d.publish(
         config,
         replayed.inboxId,
-        replayDeduplicationId(replayed.inboxId, replayed.attempts),
+        replayDeduplicationId(replayed.inboxId, replayed.attempts, requestId),
       );
     } catch (error) {
       logger.log('warn', 'webhooks.publish_failed', {

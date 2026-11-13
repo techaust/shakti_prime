@@ -21,8 +21,9 @@ export const maxDuration = 30;
  * calls it, with a `WebhookProcessJob`: the body is refused over 4 KiB before anything else is
  * read, and the signature must be QStash's for this address and body. The row is then processed
  * as `system:workers` (`processWebhook`): processed, a repeat, or failed for good with
- * `payload_unreadable`, each answered 200. A handler's error answers a retryable 5xx (503 for a
- * lock wait that ran out); after QStash's last retry the failure callback fails the row.
+ * `payload_unreadable`, or put back to wait its backoff after a handler's error (`retrying`), each
+ * answered 200. Any other error answers a retryable 5xx (503 for a lock wait that ran out); after
+ * QStash's last retry the failure callback fails the row.
  */
 export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
