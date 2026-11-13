@@ -41,7 +41,7 @@ test.describe('as an Executive', () => {
       .getByLabel('The rule')
       .fill(`Book the ${shared} visit within two days of the call.`);
     await dialog.getByLabel('Who it is for').selectOption('staff');
-    await dialog.getByLabel('For').selectOption({ label: 'Shakti Supreme' });
+    await dialog.getByLabel('For', { exact: true }).selectOption({ label: 'Shakti Supreme' });
     await expectNoAxeViolations(page);
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(dialog).toBeHidden();
@@ -62,7 +62,7 @@ test.describe('as an Executive', () => {
       .getByLabel('The rule')
       .fill(`Book the ${shared} visit within three days of the call.`);
     await dialog.getByLabel('Who it is for').selectOption('staff');
-    await dialog.getByLabel('For').selectOption({ label: 'Shakti Supreme' });
+    await dialog.getByLabel('For', { exact: true }).selectOption({ label: 'Shakti Supreme' });
     await dialog.getByRole('button', { name: 'Save' }).click();
     const second = page.getByRole('region', { name: `Pump ${shared} visits again`, exact: true });
     await expect(
@@ -156,11 +156,15 @@ test.describe('as the snapshot company’s Executive', () => {
     await expect(review.getByText(SNAPSHOT_PLAYBOOK.reason)).toBeVisible();
     await expect(review.getByText(SNAPSHOT_PLAYBOOK.approved.text)).toBeVisible();
     await expect(review.getByRole('button', { name: 'Approve' })).toBeDisabled();
-    // K and J move through the list.
-    await page.keyboard.press('j');
-    await expect(
-      page.getByRole('region', { name: SNAPSHOT_PLAYBOOK.approved.title, exact: true }),
-    ).toBeVisible();
+    // J and K move through the list (pressed again until the page has taken its keys).
+    const approvedReview = page.getByRole('region', {
+      name: SNAPSHOT_PLAYBOOK.approved.title,
+      exact: true,
+    });
+    await expect(async () => {
+      await page.keyboard.press('j');
+      await expect(approvedReview).toBeVisible({ timeout: 1_000 });
+    }).toPass();
     await page.keyboard.press('k');
     await expect(review).toBeVisible();
     await expectNoAxeViolations(page);

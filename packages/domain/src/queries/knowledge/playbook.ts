@@ -26,8 +26,8 @@ const PlaybookCursor = z.object({ t: z.string().max(40), id: IdSchema }).strict(
 /**
  * The Playbook list's statement: one page and one row more, after the cursor's row, filtered by
  * state, type and company; row security keeps to the companies of the request and the group's,
- * the audiences the reader holds and, for drafts, the holders of the playbook grants. The
- * statement `EXPLAIN (ANALYZE)` evidence is taken of (docs/04-architecture-appendix/playbook.md).
+ * the audiences the reader holds and, for drafts, the holders of the playbook grants. Its
+ * `EXPLAIN (ANALYZE)` plans are recorded in the run file of K2 (docs/runs/phase2/k2-playbook.md).
  */
 export function playbookListQuery(
   ctx: Ctx,
