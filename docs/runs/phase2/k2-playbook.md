@@ -7,8 +7,8 @@
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | build Opus 5.5 high, 5-hour window 11 % at the start |
-| State | early check |
-| Next step | the lead reads the early check; then the conflict check, drafting and the screen |
+| State | built, report written |
+| Next step | review (slice-reviewer), then integration; Linux baselines for the snapshot `playbook` and `checks-ok` for `js-budget.json` |
 
 ## Brief
 Read first:
@@ -68,9 +68,63 @@ Skills loaded: `add-table`, `add-command`.
 4. On screen a directive is a "rule" and a conflict a "clash", as the existing catalogue sentence already said.
 5. Haiku 5.5 and Sonnet 5.5 are needed in `AGENT_DEFAULTS.modelPrices` for the next part; V1 adds them too, so the lead may see the same lines from both.
 
+### Built, 13-11-2026, cloud session
+Skills loaded: `add-table`, `add-command`; the Claude API reference (`claude-api`) for the 5.5 models' prices and effort.
+
+**Built after the early check** (the lead's five points of 13-11-2026 applied):
+- **Platform-only `knowledge.playbook.check`** of `system:workers` (catalogue, scopes, `SYSTEM_MATRIX`, seed, label, SECURITY §3.2 and §3.3) and migration `0162_playbook_check`: `app.platform_only_permissions()` keeps every key of `main`'s latest (0142) and adds this one; three definers, each checking the grant: `app.playbook_check_targets()` (what a change asks to check: the unchecked draft, or the drafts a new approval made stale), `app.playbook_check_candidates()` (approved, same type, overlapping company, within the distance, nearest first, at most 20) and `app.record_playbook_check()` (locks the draft, skips it when no longer a draft or its text's SHA-256 changed; new wording drops every earlier pair, a recheck keeps a resolved one; sets `embedding`, `checked_at` and `conflicts_with`).
+- **The conflict check** (`packages/domain/src/knowledge/playbook-check.ts`, `checkPlaybook`), run by the worker of `knowledge.playbook.changed` after the version bump: embeds the draft (or reuses its embedding on a recheck), finds the candidates at `AGENT_DEFAULTS.playbook.conflictDistance` 0.20 (nearest 5), labels each pair with Haiku 5.5 at low effort through the provider wrapper (`knowledge:playbook` spend), the two rules labelled as data, and records through `knowledge.playbook.record_check` (platform command, audited with counts only). A pair the model cannot label (no key, refused, unreadable answer) is recorded with a null label and counts as open; a draft stays unchecked while no embedding key is set.
+- **Drafting from a vault file**: `playbookSourcePassages` (the file's passages as the drafter reads them, at most 60), `proposeDirectives` (Sonnet 5.5 at medium effort, the drafter's daily share, a 90-second call) and `filterDrafts` (type, audience, length, cited passage, duplicates, at most ten), then `knowledge.playbook.draft_from_file` (people only) writes them in one transaction through `knowledge.playbook.draft`. A directive is read by no more people than its file: none from an Executive-only file, management only from a management file, enforced in the commands, the insert policy and the guard trigger (0161 amended).
+- **`AGENT_DEFAULTS.playbook`** and the prices of `claude-haiku-5-5` ($0.10 / $0.50, cache read $0.01, cache write $0.125) and `claude-sonnet-5-5` ($2 / $10, cache read $0.10, cache write $2.50), checked 13-11-2026 against Anthropic's published list as the Claude API reference carries it (cached 03-11-2026; the cache-write prices and Haiku's cache read are the list's usual 1.25 and 0.1 times input, flagged for the owner); `MODEL_CONTEXT_TOKENS` for both; an optional `effort` on `CompleteCall` and `ModelRequest`, sent as `output_config.effort`.
+- **Queries and actions**: `listPlaybook` (state, type, company, keyset on `(created_at, id)`), `loadPlaybookReview` (the directive, its source passage, each pair beside the other directive as far as the reader reads it), and the server actions in `apps/web/src/actions/playbook.ts` (with a quiet re-read while a check runs and a cap of three drafting runs a minute per person).
+- **The screen** `/knowledge/playbook` (menu Playbook, `knowledge.playbook.draft:all`): filters by status, kind and company; the list with "Being checked" and the count of clashes; the review with the source passage and each approved rule side by side, the label and its reason, how a clash was settled; Approve (disabled until it can be approved), Edit, Retire, Not a clash, Retire the other rule; New rule and Draft from a file dialogs; keys J, K and A; read again every three seconds while the rule waits for its check. Copy in `en.json` ("rule" and "clash"); four new button suffixes in `tools/copy-lint/copy-lint.config.json`.
+- **The seed** writes the snapshot company's Playbook once (an approved rule and a draft the stand-in model labels an overlap with it) for the journey's snapshot.
+- **Documents**: DATABASE §4.1 (the three definers), §4.4 and §6.9; SECURITY §3.2 (the Playbook rules, including the line on a custom role holding only `.approve`), §3.3; the design's "Built (K2)" in §5.4; PRD AI-01 traceability; the plans pointer in the spikes' readme; `pnpm db:docs` and `machines:docs` regenerated.
+
+**Tests added since the early check** (totals for the slice in brackets)
+- `packages/domain/tests/commands/playbook-check.test.ts`: 9 on Postgres with the fake transport (flags a close pair and blocks approval; `none` stays approvable; type and company overlap, the group overlapping every company; an unlabelled pair is open and resolvable; waits without embeddings; an edit drops old pairs; an approval makes drafts stale and the recheck keeps a resolved pair; a stale record is skipped; the platform's alone).
+- `packages/domain/tests/commands/playbook-draft.test.ts`: 7 (denied, agent, other company; drafts cite their passage; audience never wider than the file, Executive-only refused, a missing passage refused; group files; the model's answer filtered; no key; the list by filters and refused to a non-drafter).
+- Unit: `playbook-check.test.ts` 4 (label filter), `playbook-draft.test.ts` 4 (drafting filter), `apps/web/src/screens/playbook.test.ts` 3 (keys, stepping, what blocks approval).
+- Journeys `apps/web/e2e/playbook.spec.ts`: 5 per project, 15 across desktop light, desktop dark and phone (an Executive drafts, approves, settles a clash on a second rule and approves it with A, retires the first; drafting from the snapshot vault file gives no rule while the stand-in model answers nothing; a GM drafts but has no Approve; a tele-caller does not see the screen; the snapshot company's Executive reviews the seeded pair, moves with J and K, axe, the snapshot `playbook`). Axe runs in every journey but the tele-caller's.
+- Slice totals on Postgres: domain 32 (16 + 9 + 7), db security 7; agent refusal sweep inputs for all seven playbook commands; reader parity for both queries.
+
+**Checks** (the last run first)
+- `pnpm test:security` on the local Postgres, on f4c6426a, the last code commit: db 1287 passed (46 files), domain 1079 passed (81 files), web 342 passed (26 files); 4 of 4 tasks.
+- Unit tests: contracts 182, db 148, domain 2367, web 974 (1 skipped), ui 107, tokens 146, copy-lint 17, all passed.
+- `pnpm typecheck` 8 of 8 tasks; `prettier --check .` clean; `pnpm copy-lint` clean; `drizzle-kit generate` reports no drift.
+- `pnpm build` passed; `pnpm --filter web js-budget`: `/knowledge/playbook` 197.9 kB of 208 kB (new entry in `apps/web/js-budget.json`).
+- `pnpm --filter web e2e:seed && playwright test playbook.spec.ts`: 29 passed (15 journeys and the sign-ins). The snapshot pictures were written locally on this VM and removed; the Linux baselines are the lead's (`e2e:snap`).
+- `check-doc-links.py`: the three failures are the existing links to `.claude/settings.local.json`, absent in a cloud session.
+- Whole-repository `pnpm lint` (`eslint . --max-warnings 0`), the last check: exit 0, no warnings.
+
+**`EXPLAIN (ANALYZE)`** at 6,000 synthetic directives (a third approved with embeddings), committed by the migrator and removed after; the list as a General Manager acting for company 1 on `app_user` under row-level security, the candidates as the definer runs them:
+- The list, drafts of one kind: `Bitmap Index Scan on playbook_directives_state_type_idx` (state, type), 2,000 rows, the policy's filter keeps 200, top-N heapsort of 51; execution 3.3 ms.
+- The list with no filter: `Seq Scan on playbook_directives` with the policy's filter, 2,400 kept of 6,000, top-N heapsort of 51; execution 4.0 ms. No index serves the unfiltered order; at the Playbook's expected size (hundreds of rules) a scan is cheaper than an index on `(created_at desc, id desc)` would be worth.
+- The candidates, approved policies for company 1 or the group: `Bitmap Index Scan on playbook_directives_state_type_idx` (approved, policy), 2,000 rows, the company filter keeps 600, exact cosine order, top-N heapsort of 5; execution 8.6 ms. The planner prefers the exact order on the type's few hundred rows to the HNSW index, which serves a larger Playbook.
+
+**Decisions the brief did not settle**
+1. A null label is a pair the model could not label; it counts as open and the Executive may settle it (`playbook_conflict_checks_resolved_check` allows a resolution unless the label is `none`).
+2. The three definers reach directives of any company from a request with a company: a conflict is the group's matter (a group directive overlaps every company, and an approval of a group directive makes drafts of every company stale), and the worker acts in the event's one company. They answer wording and ids only. The lead's decision named two definers; the third (targets) serves the recheck of point 2 of the decisions.
+3. Without an embedding key a draft stays unchecked and cannot be approved (fail closed), as a vault file stays unavailable.
+4. Drafting runs in the server action as the drafter (the passages under their own row security, the drafts in their name), not in a worker; the call is held to 90 seconds and three runs a minute.
+5. Spend: the Playbook's own name `knowledge:playbook`, ₹300 a day for the group and ₹100 a day per person for drafting, flagged for the owner in `AGENT_DEFAULTS`.
+6. The version key holds a new id per change (`knowledge:playbook:version`, kept a year), never a counter, so an expired key cannot repeat an old value.
+7. The menu item needs `knowledge.playbook.draft`, so a custom role holding only `.approve` does not see the screen (as it cannot retire a draft).
+8. `/admin` (Activity log) and `/knowledge` send the `playbook` namespace to the browser.
+9. The fake transport's empty answer makes the journeys exercise the unlabelled path and the "no rule drafted" path; a labelled pair is shown from the seed's snapshot company.
+
+**Unfinished or uncertain**
+- Not yet read by any agent: A3 and B1 consume the approved set (row security already keeps drafts away, and the version key tells them when to reread).
+- `source_voice_session_id` is left for V2.
+- The prompts of the label and drafting calls have unit tests of their filters, not an eval set; an eval set on recorded answers belongs with the first agent that reads the Playbook, or a follow-up.
+
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
 
 ## Integration notes
 - Migrations are numbered after `main`'s last at merge; if K2 redefines `app.platform_only_permissions()`, keep every key P5 or E1 adds.
+- K2's migrations are 0160 (generated), 0161 and 0162 (custom). 0162 redefines `app.platform_only_permissions()` with `main`'s 0142 keys and `knowledge.playbook.check`; merge P5's and E1's keys into whichever definition comes last. `caller-profiles.test.ts` now counts the list by `PLATFORM_ONLY_PERMISSIONS.length`, so only the arrays need the merge.
+- Shared registration points touched: the permission catalogue, scopes, `SYSTEM_MATRIX`, seeds and labels; `en.json`; `nav.ts`; `ENTITY_TABLES` and the matrix fixture; `grants.test.ts` and `enum-sync.test.ts`; the agent refusal sweep; the event catalogue (`knowledge.playbook.changed`, subscribed) and the event workers' registry; `AGENT_DEFAULTS` (the 5.5 model prices, the same lines V1 adds, and `playbook`); `MODEL_CONTEXT_TOKENS`; the provider wrapper's `effort` field (`CompleteCall`, `ModelRequest`, the Anthropic transport), which V1's changes to the wrapper may meet.
+- `apps/web/js-budget.json` gains `/knowledge/playbook`: a check file, so the pull request needs the owner's `checks-ok`. `tools/copy-lint/copy-lint.config.json` gains four button suffixes (not a check file under the rule).
+- The snapshot `playbook` needs Linux baselines (desktop light, desktop dark, phone) from `e2e:snap`; the seed writes the snapshot company's Playbook once.
