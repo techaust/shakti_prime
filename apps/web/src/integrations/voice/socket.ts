@@ -100,9 +100,10 @@ export function webSocketOpener(provider: ProviderName, openTimeoutMs: number): 
       }
       ws.binaryType = 'arraybuffer';
       const timer = setTimeout(() => {
+        // Settled before closing: closing a socket that is still connecting reports an error too.
         closedByUs = true;
-        ws.close();
         reject(new ProviderError(provider, 'timeout'));
+        ws.close();
       }, openTimeoutMs);
 
       ws.onopen = () => {
