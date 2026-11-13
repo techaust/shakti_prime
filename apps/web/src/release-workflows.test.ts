@@ -72,8 +72,8 @@ const CHANGED = '7d3f29e4f6a8b0c2e4f6a8b0c2d4e6f8a0b2c4d6';
  * `FAKE_STAGED`), the comparison with `FAKE_BASE` (`FAKE_COMPARE`: its status, then anything more
  * the comparison holds, such as the number of files changed; a `.status` filter gets the status
  * alone), the git tree of `packages/db/migrations` at a commit (`FAKE_TREES`, "<commit> <tree>"
- * lines; a commit not listed is one GitHub cannot read) and the release tags' commits
- * (`FAKE_TAGS`). `curl` prints `FAKE_SERVED`; `jq` passes it on.
+ * lines; for a commit not listed, GitHub's error body on stdout and a failure, as `gh` gives) and
+ * the release tags' commits (`FAKE_TAGS`). `curl` prints `FAKE_SERVED`; `jq` passes it on.
  */
 const FAKES = [
   'gh() {',
@@ -92,6 +92,7 @@ const FAKES = [
   '          return 0',
   '        fi',
   '      done <<< "$FAKE_TREES"',
+  `      echo '{"message":"No commit found for the ref","status":"404"}'`,
   '      return 1 ;;',
   `    */matching-refs/tags/release-) printf '%s\\n' "$FAKE_TAGS" ;;`,
   '    *) return 1 ;;',
@@ -320,7 +321,9 @@ describe('the release workflow', () => {
     expect(bash(step, { ...given, ...same })).toBe(0);
     const earlier = run(step, given);
     expect(earlier.status).toBe(0);
-    expect(earlier.stdout).toContain(`Staging was migrated from ${EARLIER}, which has the migrations`);
+    expect(earlier.stdout).toContain(
+      `Staging was migrated from ${EARLIER}, which has the migrations`,
+    );
     // The newest run migrated dev only: the one before it decides.
     expect(bash(step, { ...given, FAKE_STAGED: '11', FAKE_BASE: OLDER })).toBe(0);
     // More files changed than GitHub's comparison lists (300), none of them a migration.

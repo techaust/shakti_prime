@@ -108,17 +108,20 @@ jobs:
           fi
           # Whether staging's commit is this one or an earlier one of main. The status alone: the
           # files GitHub lists stop at 300, so they cannot tell whether a migration changed.
-          status=$(gh api "repos/$REPO/compare/$staged...$SHA" --jq .status < /dev/null || true)
+          status=$(gh api "repos/$REPO/compare/$staged...$SHA" --jq .status < /dev/null) || status=''
           if [ "$status" != 'identical' ] && [ "$status" != 'ahead' ]; then
             echo "Staging was last migrated from $staged, which is not an earlier commit of $SHA. Migrate staging to this commit first (docs/runbooks/deploy.md §2), then start the release again."
             exit 1
           fi
           # The git tree of the migration folder at a commit: the same tree means the same
           # migration files, byte for byte, however many other files changed. Empty when GitHub
-          # cannot read the commit or the folder, which stops the release.
+          # cannot read the commit or the folder (`gh` then prints the error body on stdout, so
+          # only a tree id counts), which stops the release.
           migrations() {
-            gh api "repos/$REPO/contents/packages/db?ref=$1" \
-              --jq '.[] | select(.path == "packages/db/migrations" and .type == "dir") | .sha' < /dev/null || true
+            local tree
+            tree=$(gh api "repos/$REPO/contents/packages/db?ref=$1" \
+              --jq '.[] | select(.path == "packages/db/migrations" and .type == "dir") | .sha' < /dev/null) || tree=''
+            if [[ "$tree" =~ ^[0-9a-f]{40}$ ]]; then echo "$tree"; fi
           }
           was=$(migrations "$staged")
           now=$(migrations "$SHA")
