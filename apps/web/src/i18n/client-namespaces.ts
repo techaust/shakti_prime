@@ -62,7 +62,7 @@ export const CLIENT_SCOPES = {
   '/home': [],
   '/imports': ['common', 'files', 'imports', 'leads'],
   '/inbox': ['activity', 'agents', 'common', 'customers'],
-  '/knowledge': ['common', 'files', 'knowledge'],
+  '/knowledge': ['common', 'files', 'knowledge', 'playbook'],
   '/leads': ['common', 'leads', 'pinLookup'],
   '/orders': ['common', 'orders', 'quotes'],
   '/price-master': ['catalogue', 'common', 'priceMaster'],

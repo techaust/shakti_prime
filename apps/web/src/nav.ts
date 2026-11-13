@@ -1,5 +1,6 @@
 import type { PermissionGrant } from '@shakti/contracts';
 import {
+  BookCheck,
   Bot,
   Building2,
   Cable,
@@ -204,6 +205,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Every staff role searches staff knowledge; the files a reader sees follow their sensitivity,
     // and adding, reading again and archiving need knowledge.vault.write, which the commands check.
     requires: [{ key: 'knowledge.vault.read.staff', scope: 'all' }],
+  },
+  {
+    id: 'knowledge-playbook',
+    href: '/knowledge/playbook',
+    label: 'knowledgePlaybook',
+    icon: BookCheck,
+    group: 'work',
+    // listPlaybook: drafts and their review are the drafters' (Executive and GM, every company);
+    // approving and settling a clash also need knowledge.playbook.approve, which the commands check.
+    requires: [{ key: 'knowledge.playbook.draft', scope: 'all' }],
   },
   {
     id: 'price-master',

@@ -458,6 +458,7 @@
     "inbox": "Agent Inbox",
     "adminAgents": "Agents",
     "knowledge": "Knowledge",
+    "knowledgePlaybook": "Playbook",
     "orders": "Orders",
     "dealerCredit": "Dealer credit",
     "targets": "Targets",
@@ -532,6 +533,7 @@
       "inbox": "Approve, change or reject what the agents suggest.",
       "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
       "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
+      "knowledgePlaybook": "Review the rules staff and the assistants follow, and approve new ones.",
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "targets": "Set what each caller and team is aiming for, and see what was set before.",
@@ -4735,6 +4737,108 @@
     "resolution": {
       "not_a_conflict": "Not a clash",
       "other_retired": "Other rule retired"
+    },
+    "title": "Playbook",
+    "intro": "The rules staff and the assistants follow. A rule takes effect only once an Executive approves it.",
+    "filters": {
+      "label": "Show rules",
+      "state": "Status",
+      "type": "Kind of rule",
+      "company": "For",
+      "any": "All",
+      "everyCompany": "Every company"
+    },
+    "list": {
+      "heading": "Rules",
+      "empty": "No rules match these choices.",
+      "everyCompany": "Every company",
+      "clashCount": "{count, plural, one {# clash to settle} other {# clashes to settle}}",
+      "checking": "Being checked"
+    },
+    "new": "New rule",
+    "draftFromFile": "Draft from a file",
+    "review": {
+      "heading": "Review",
+      "nothingChosen": "Choose a rule to review it.",
+      "keys": "Keys: J for the next rule, K for the one before, A to approve.",
+      "source": "Where it comes from",
+      "sourceFile": "From the Knowledge Vault file {title}",
+      "sourceGone": "This part of the file is no longer in the Knowledge Vault.",
+      "typedIn": "Typed in by a person.",
+      "checking": "We are checking this rule against the approved rules. This takes a minute.",
+      "clear": "It does not clash with any approved rule.",
+      "pairs": "Approved rules it was compared with",
+      "thisRule": "This rule",
+      "otherRule": "Approved rule",
+      "otherHidden": "You can't see this approved rule. Ask an Executive to settle it.",
+      "unlabelled": "We couldn't tell whether these clash. Read both and decide.",
+      "settled": "Settled: {resolution}",
+      "label": {
+        "conflict": "They clash",
+        "overlap": "They say the same thing",
+        "none": "No clash"
+      },
+      "approved": "Approved on {date}",
+      "retired": "Retired on {date}: {reason}",
+      "actions": "What to do with {title}"
+    },
+    "approve": "Approve",
+    "edit": "Edit",
+    "retire": "Retire",
+    "notAClash": "Not a clash",
+    "retireOther": "Retire the other rule",
+    "form": {
+      "newTitle": "New rule",
+      "editTitle": "Edit rule",
+      "intro": "Write the rule as staff or a customer should hear it. It is checked against the approved rules before anyone can approve it.",
+      "titleLabel": "Short name",
+      "titleMissing": "Give the rule a short name.",
+      "textLabel": "The rule",
+      "textMissing": "Write the rule.",
+      "typeLabel": "Kind of rule",
+      "audienceLabel": "Who it is for",
+      "audienceHint": "Customers: an assistant may say it to a customer. Management: only managers can see it.",
+      "forLabel": "For",
+      "everyCompany": "Every company",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "retireDialog": {
+      "title": "Retire this rule",
+      "intro": "Staff and the assistants stop using {title}. Say why it no longer holds.",
+      "reasonLabel": "Why",
+      "reasonMissing": "Say why the rule is retired.",
+      "retire": "Retire",
+      "cancel": "Cancel"
+    },
+    "resolveDialog": {
+      "notAClashTitle": "Not a clash",
+      "notAClashIntro": "Both rules stay. Say why they can both be followed.",
+      "retireOtherTitle": "Retire the other rule",
+      "retireOtherIntro": "The approved rule {title} is retired and this rule can then be approved. Say why it no longer holds.",
+      "noteLabel": "Why",
+      "noteMissing": "Say why.",
+      "notAClash": "Not a clash",
+      "retireOther": "Retire the other rule",
+      "cancel": "Cancel"
+    },
+    "drafting": {
+      "title": "Draft rules from a file",
+      "intro": "We read a Knowledge Vault file and draft up to ten rules from it, each pointing to the part of the file it comes from. You review every draft before it is approved.",
+      "fileLabel": "File",
+      "noFiles": "No Knowledge Vault file is ready to draft from.",
+      "forLabel": "For",
+      "everyCompany": "Every company",
+      "run": "Draft rules",
+      "cancel": "Cancel",
+      "working": "Reading the file. This can take a minute."
+    },
+    "notices": {
+      "saved": "Rule saved. We are checking it against the approved rules.",
+      "approved": "Rule approved. Staff and the assistants now follow it.",
+      "retired": "Rule retired.",
+      "settled": "Clash settled.",
+      "drafted": "{count, plural, =0 {The file states no rule we could draft.} one {# draft rule added.} other {# draft rules added.}}"
     }
   }
 }
