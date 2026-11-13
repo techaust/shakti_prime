@@ -24,7 +24,8 @@ import { recordPhoneDnd } from '../../src/commands/crm/record-phone-dnd';
 import { withdrawConsent } from '../../src/commands/crm/consent';
 import { archiveEntityChannel, setEntityChannel } from '../../src/commands/org/channels';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
-import { fixtureDndRegistry, type DndRegistry } from '../../src/ports/dnd';
+import { fixtureDndRegistry, unavailableDndRegistry, type DndRegistry } from '../../src/ports/dnd';
+import { dialNumber, loadCallLead } from '../../src/queries/calls/call-queue';
 import { dialFacts, dndRecordInput, toDialPlanDto } from '../../src/queries/calls/dial-plan';
 import { listEntityChannels } from '../../src/queries/org/list-channels';
 import { prepareDial } from '../../src/telecom/dial-plan';
@@ -399,6 +400,74 @@ describe('the dial rules through app.dial_facts() (PRD TEL-04, CRM-10)', () => {
                values (${newId()}, ${contact}, 'call', 'promotional', 'verbal', 'v1', now() - interval '2 days', now() - interval '1 day', ${caller.id})`;
     });
     expect((await plan(lead)).refusals).toContain('call_consent_withdrawn');
+  });
+
+  /** The Show number key (`D`) and the queue's flag, as the workspace reads them. */
+  const showNumber = (lead: Lead) =>
+    asPrincipal(caller, (ctx) =>
+      dialNumber(ctx, { entityId: ENTITY, opportunityId: lead.id }, NOW),
+    );
+  const queueFlag = async (lead: Lead) =>
+    (
+      await asPrincipal(caller, (ctx) =>
+        loadCallLead(ctx, { entityId: ENTITY, opportunityId: lead.id }),
+      )
+    ).consentWithdrawn;
+
+  /** Customer X, of a colleague's: a contact holding `e164` who withdrew consent to calls. */
+  async function optedOutHolder(e164: string): Promise<void> {
+    await asMigrator(async (m) => {
+      const contact = newId();
+      const account = newId();
+      await m`insert into contacts (id, name, created_by) values (${contact}, 'Dial rules customer X', ${colleague.id})`;
+      await m`insert into contact_phones (id, contact_id, e164, created_by)
+               values (${newId()}, ${contact}, ${e164}, ${colleague.id})`;
+      await m`insert into accounts (id, type, name, created_by) values (${account}, 'farm', 'Dial rules customer X', ${colleague.id})`;
+      await m`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+               values (${newId()}, ${account}, ${ENTITY}, ${colleague.id}, ${colleague.id})`;
+      await m`insert into account_contacts (account_id, contact_id, role, created_by)
+               values (${account}, ${contact}, 'owner', ${colleague.id})`;
+      await m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, withdrawn_at, created_by)
+               values (${newId()}, ${contact}, 'call', 'service', 'verbal', 'v1', now() - interval '2 days', now() - interval '1 day', ${colleague.id})`;
+    });
+  }
+
+  it("refuses Show number, and flags the queue, for customer Y on a number customer X's contact opted out of (review 1)", async () => {
+    // Customer Y is the caller's; the number is also held by customer X, a colleague's, whose
+    // contact withdrew consent to calls. The caller reads nothing of X.
+    const y = await leadOf({ source: 'website', consent: true });
+    expect((await showNumber(y)).e164).toBe(y.e164);
+    expect(await queueFlag(y)).toBe(false);
+    await optedOutHolder(y.e164);
+    expect(await refusal(showNumber(y))).toEqual({
+      code: 'conflict',
+      reason: 'call_consent_withdrawn',
+    });
+    expect(await queueFlag(y)).toBe(true);
+    expect((await plan(y)).refusals).toContain('call_consent_withdrawn');
+  });
+
+  it('refuses Show number for a sales call to a number recorded on DND, never for a consented service call or an unchecked number (review 1)', async () => {
+    const sales = await leadOf({ source: 'import' });
+    // Never checked, as on production with no register: the number is shown.
+    expect((await showNumber(sales)).e164).toBe(sales.e164);
+    await checked(sales, true, new Date(NOW.getTime() - 30 * DAY));
+    expect(await refusal(showNumber(sales))).toEqual({
+      code: 'conflict',
+      reason: 'recipient_on_dnd',
+    });
+    const service = await leadOf({ source: 'website', consent: true });
+    await checked(service, true, new Date(NOW.getTime() - DAY));
+    expect((await showNumber(service)).e164).toBe(service.e164);
+  });
+
+  it('says a sales call cannot be checked where no DND register is set up, not to try again (review 2)', async () => {
+    const lead = await leadOf({ source: 'import' });
+    expect(await plan(lead, NOW, unavailableDndRegistry())).toMatchObject({
+      dnd: 'not_set_up',
+      allowed: false,
+      refusals: ['dnd_not_set_up'],
+    });
   });
 
   it('looks a stale DND check up again through the platform, and refuses when the register does not answer', async () => {

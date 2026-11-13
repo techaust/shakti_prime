@@ -102,7 +102,7 @@ export function toDialPlanDto(contactPhoneId: string, plan: DialPlan): DialPlanD
     callerId: plan.callerId,
     series: plan.series,
     dnd: plan.dnd.kind,
-    onDnd: plan.dnd.kind === 'unknown' ? null : plan.dnd.onDnd,
+    onDnd: plan.dnd.kind === 'unknown' || plan.dnd.kind === 'not_set_up' ? null : plan.dnd.onDnd,
     dndCheckedAt: plan.dnd.checkedAt?.toISOString() ?? null,
     allowed: plan.decision.allowed,
     refusals,

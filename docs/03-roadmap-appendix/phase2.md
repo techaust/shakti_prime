@@ -121,6 +121,7 @@ The scope of `knowledge.ask` only opens the screen; what an answer reads comes f
 | Grant | What it is for | Slice |
 |---|---|---|
 | `webhooks.process` | Claim, mark processed or failed, and purge `webhook_inbox` rows | P5 |
+| `crm.dnd.record` | Record the DND register's answer for a customer's phone (`crm.phone.dnd_record`) | E1 |
 | `messaging.process` | Record inbound messages and statuses, open threads, send checked messages, record an opt-out or a handoff, send the welcome | W1 |
 | `crm.ingest.run` | Create or attach a lead from an integration (`crm.lead.ingest`) with its attribution, consent and owner | I1 |
 | `calls.process` | Record a provider call's status, copy and delete recordings, record an inbound or missed call | T3 |

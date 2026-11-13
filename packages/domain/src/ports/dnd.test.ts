@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DndRegistryNotSetUp,
   DndRegistryUnavailable,
   FIXTURE_DND_NUMBERS,
   fixtureDndRegistry,
@@ -16,12 +17,12 @@ describe('the DND register adapters', () => {
     expect(registry.asked).toEqual([listed, '+919812345678']);
   });
 
-  it('fails every lookup when unreachable, and when none is set up', async () => {
+  it('fails every lookup when unreachable, and says apart when none is set up', async () => {
     await expect(
       fixtureDndRegistry({ unreachable: true }).check('+919812345678'),
     ).rejects.toBeInstanceOf(DndRegistryUnavailable);
     await expect(unavailableDndRegistry().check('+919812345678')).rejects.toBeInstanceOf(
-      DndRegistryUnavailable,
+      DndRegistryNotSetUp,
     );
   });
 });

@@ -29,3 +29,14 @@ export async function callConsentWithdrawn(tx: RequestTx, accountId: string): Pr
   )) as unknown as { withdrawn: boolean }[];
   return row?.withdrawn === true;
 }
+
+/**
+ * Whether the customer may not be called by the rule a dial is checked against (`app.dial_facts()`,
+ * design phase2 §5.2, decision 3): a contact of the customer, or anyone holding a number of the
+ * customer's contacts on another customer, withdrew consent to calls and gave none since. The
+ * Cold Caller queue, the leads list and the Show number key read it; a caller reads no other
+ * customer's consents, so `app.call_opt_out()` answers the one boolean.
+ */
+export function callOptOutSql(accountId: SQL): SQL<boolean> {
+  return sql<boolean>`app.call_opt_out(${accountId})`;
+}

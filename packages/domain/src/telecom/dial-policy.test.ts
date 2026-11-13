@@ -23,6 +23,7 @@ const promotional: DialRequest = {
   to: '+91 98765 43210',
   hasRecordedConsent: false,
   onDnd: false,
+  callConsentWithdrawn: false,
 };
 const service: DialRequest = {
   ...promotional,
@@ -173,6 +174,14 @@ describe('checkDial', () => {
       refusals: ['dnd_unknown'],
     });
     expect(checkDial({ ...service, onDnd: 'unknown' })).toEqual({ allowed: true });
+  });
+
+  it('says apart a DND check that is not set up on this runtime, never refusing a service call for it', () => {
+    expect(checkDial({ ...promotional, onDnd: 'not_set_up' })).toEqual({
+      allowed: false,
+      refusals: ['dnd_not_set_up'],
+    });
+    expect(checkDial({ ...service, onDnd: 'not_set_up' })).toEqual({ allowed: true });
   });
 
   it('lists every rule a call breaks, in one order', () => {

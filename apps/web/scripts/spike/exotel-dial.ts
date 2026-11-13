@@ -45,6 +45,8 @@ if (purposeRaw !== 'promotional' && purposeRaw !== 'service') {
 const purpose: CallPurpose = purposeRaw;
 const hasRecordedConsent = process.env.EXOTEL_SPIKE_CONSENT === 'yes';
 const onDnd = process.env.EXOTEL_SPIKE_ON_DND === 'yes';
+// The spike dials the developer's own test phone, which never withdrew consent to calls.
+const callConsentWithdrawn = false;
 const now = new Date();
 const ref = newId();
 
@@ -55,6 +57,7 @@ const decision = checkDial({
   to: env('EXOTEL_SPIKE_CUSTOMER_NUMBER'),
   hasRecordedConsent,
   onDnd,
+  callConsentWithdrawn,
 });
 console.error(`calling rules: ${decision.allowed ? 'allowed' : decision.refusals.join(', ')}`);
 if (!decision.allowed || process.argv.includes('--dry-run')) {
@@ -77,6 +80,7 @@ const call = await client.connectCall({
   purpose,
   hasRecordedConsent,
   onDnd,
+  callConsentWithdrawn,
   statusCallbackUrl,
   record: true,
   timeLimitSeconds: 300,

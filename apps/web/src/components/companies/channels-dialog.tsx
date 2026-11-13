@@ -203,6 +203,14 @@ function ChannelForm({
   const common = useTranslations('common');
   const { run, pending, failure } = useCommand(setEntityChannel, `${String(company.id)}:${kind}`);
   const failures = useFieldFailure(failure, ['number', 'providerRef', 'dltHeader']);
+  const currentNumber = current?.numberE164 ?? '';
+  const [typed, setTyped] = useState(currentNumber);
+  // The tick the Executive gave, if any. Until then it shows the number's check, and only while
+  // the field still holds that number: a new number starts unchecked (decision 2).
+  const [ticked, setTicked] = useState<boolean | undefined>();
+  const verified =
+    ticked ??
+    (current !== undefined && current.verifiedAt !== null && typed.trim() === currentNumber);
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -217,7 +225,7 @@ function ChannelForm({
         number: formText(data, 'number'),
         providerRef: providerRef === '' ? null : providerRef,
         ...(CALLING.has(kind) ? { dltHeader: dltHeader === '' ? null : dltHeader } : {}),
-        verified: data.get('verified') === 'on',
+        verified,
       },
       (saved) => {
         toast.success(t('saved', { kind: t(`kind.${kind}`) }));
@@ -237,7 +245,10 @@ function ChannelForm({
       >
         <Input
           name="number"
-          defaultValue={current?.numberE164 ?? ''}
+          value={typed}
+          onChange={(e) => {
+            setTyped(e.currentTarget.value);
+          }}
           required
           inputMode="tel"
           maxLength={20}
@@ -278,7 +289,10 @@ function ChannelForm({
           type="checkbox"
           name="verified"
           className="accent-accent size-4"
-          defaultChecked={current?.verifiedAt !== null && current !== undefined}
+          checked={verified}
+          onChange={(e) => {
+            setTicked(e.currentTarget.checked);
+          }}
         />
         {t('verifiedCheck')}
       </label>

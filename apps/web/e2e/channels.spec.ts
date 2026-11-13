@@ -82,6 +82,14 @@ test.describe('company numbers as an Executive', () => {
     await expect(sales.getByText('Checked and working')).toBeVisible();
     await expect(dialog.getByText(/not a 140-series number/)).toHaveCount(0);
 
+    // A checked number shows ticked on Change, and a new number typed over it starts unticked.
+    await sales.getByRole('button', { name: /^Change: Sales calls number/ }).click();
+    const checked = dialog.getByLabel('I have checked that this number works');
+    await expect(checked).toBeChecked();
+    await dialog.getByLabel('Number', { exact: true }).fill('140 000 0402');
+    await expect(checked).not.toBeChecked();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+
     // Out of use: the channel reads Not set again.
     await sales.getByRole('button', { name: /out of use/ }).click();
     await expect(sales.getByText('Not set')).toBeVisible();

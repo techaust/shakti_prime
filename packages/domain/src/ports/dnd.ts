@@ -51,9 +51,18 @@ export function fixtureDndRegistry(
   };
 }
 
-/** No register at all (production until the final phase): every lookup fails. */
+/**
+ * No register is set up on this runtime (production until the final phase, question 13): not an
+ * outage, so the screens say the check is not set up rather than to try again.
+ */
+export class DndRegistryNotSetUp extends Error {
+  constructor(message = 'no DND register is set up') {
+    super(message);
+    this.name = 'DndRegistryNotSetUp';
+  }
+}
+
+/** No register at all (production until the final phase): every lookup is `DndRegistryNotSetUp`. */
 export function unavailableDndRegistry(): DndRegistry {
-  return {
-    check: () => Promise.reject(new DndRegistryUnavailable('no DND register is set up')),
-  };
+  return { check: () => Promise.reject(new DndRegistryNotSetUp()) };
 }

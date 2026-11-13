@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { fixtureDndRegistry, type DndAnswer, type DndRegistry } from '../ports/dnd';
+import {
+  fixtureDndRegistry,
+  unavailableDndRegistry,
+  type DndAnswer,
+  type DndRegistry,
+} from '../ports/dnd';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 import { dndIsFresh, planDial, prepareDial, type DialFacts } from './dial-plan';
 
@@ -142,6 +147,22 @@ describe('prepareDial', () => {
     expect(plan.dnd).toEqual({ kind: 'unknown', checkedAt: stale.phoneDndCheckedAt });
     expect(plan.decision).toEqual({ allowed: false, refusals: ['dnd_unknown'] });
     expect(d.recorded).toEqual([]);
+  });
+
+  it('says the check is not set up on a runtime with no register, and still lets a service call through', async () => {
+    const stale = { ...facts, phoneDndCheckedAt: null };
+    const plan = await prepareDial(stale, NOW, deps(unavailableDndRegistry()));
+    expect(plan.dnd).toEqual({ kind: 'not_set_up', checkedAt: null });
+    expect(plan.decision).toEqual({ allowed: false, refusals: ['dnd_not_set_up'] });
+    expect(
+      (
+        await prepareDial(
+          { ...consentedEnquiry, phoneDndCheckedAt: null },
+          NOW,
+          deps(unavailableDndRegistry()),
+        )
+      ).decision,
+    ).toEqual({ allowed: true });
   });
 
   it('treats a register slower than the time limit as not answering', async () => {

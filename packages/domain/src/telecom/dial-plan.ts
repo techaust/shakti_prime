@@ -1,5 +1,10 @@
 import type { LeadChannel } from '@shakti/contracts';
-import { DndRegistryUnavailable, type DndAnswer, type DndRegistry } from '../ports/dnd';
+import {
+  DndRegistryNotSetUp,
+  DndRegistryUnavailable,
+  type DndAnswer,
+  type DndRegistry,
+} from '../ports/dnd';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 import { callPurpose, type PurposeReason } from './call-purpose';
 import {
@@ -38,7 +43,8 @@ export interface DialFacts {
 export type DndState =
   | { kind: 'recorded'; onDnd: boolean; checkedAt: Date }
   | { kind: 'refreshed'; onDnd: boolean; checkedAt: Date }
-  | { kind: 'unknown'; checkedAt: Date | null };
+  | { kind: 'unknown'; checkedAt: Date | null }
+  | { kind: 'not_set_up'; checkedAt: Date | null };
 
 export interface DialPlan {
   purpose: CallPurpose;
@@ -71,7 +77,7 @@ export function planDial(facts: DialFacts, at: Date, dnd: DndState): DialPlan {
     callerId,
     to: facts.phoneE164,
     hasRecordedConsent: facts.hasServiceConsent,
-    onDnd: dnd.kind === 'unknown' ? 'unknown' : dnd.onDnd,
+    onDnd: dnd.kind === 'unknown' || dnd.kind === 'not_set_up' ? dnd.kind : dnd.onDnd,
     callConsentWithdrawn: facts.callConsentWithdrawn,
   });
   return {
@@ -103,7 +109,9 @@ export interface PrepareDialDeps {
  * The plan for a dial now. Only a promotional call needs the DND state: one whose recorded check
  * is older than `freshDays` (or that was never checked) is looked up again and the answer
  * recorded; a register that does not answer in time leaves it `unknown`, which refuses the
- * promotional dial (`dnd_unknown`) and never a service call, which asks the register nothing.
+ * promotional dial (`dnd_unknown`), and a runtime with no register leaves it `not_set_up`
+ * (`dnd_not_set_up`, production until the final phase); never a service call, which asks the
+ * register nothing.
  */
 export async function prepareDial(
   facts: DialFacts,
@@ -119,19 +127,22 @@ export async function prepareDial(
     return planDial(facts, now, recorded);
   }
   const answer = await lookUp(deps.registry, facts.phoneE164, deps.timeoutMs);
-  if (answer === undefined) {
-    return planDial(facts, now, { kind: 'unknown', checkedAt: facts.phoneDndCheckedAt });
+  if (answer === 'unknown' || answer === 'not_set_up') {
+    return planDial(facts, now, { kind: answer, checkedAt: facts.phoneDndCheckedAt });
   }
   await deps.record(answer).catch(() => undefined);
   return planDial(facts, now, { kind: 'refreshed', ...answer });
 }
 
-/** The register's answer, or undefined when it did not answer in time or failed. */
+/**
+ * The register's answer; `not_set_up` when the runtime has none; `unknown` when it did not answer in
+ * time or failed.
+ */
 async function lookUp(
   registry: DndRegistry,
   e164: string,
   timeoutMs: number = DND_LOOKUP_TIMEOUT_MS,
-): Promise<DndAnswer | undefined> {
+): Promise<DndAnswer | 'unknown' | 'not_set_up'> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -140,8 +151,8 @@ async function lookUp(
   });
   try {
     return await Promise.race([registry.check(e164), timeout]);
-  } catch {
-    return undefined;
+  } catch (e) {
+    return e instanceof DndRegistryNotSetUp ? 'not_set_up' : 'unknown';
   } finally {
     clearTimeout(timer);
   }

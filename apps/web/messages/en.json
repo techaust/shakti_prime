@@ -277,6 +277,7 @@
     "people_only": "Only a member of the team can do this, not an automated assistant.",
     "outside_calling_hours": "Calls can be made only between 9 AM and 9 PM. Try again during calling hours.",
     "call_consent_withdrawn": "This customer has asked not to be called. Do not call them.",
+    "recipient_on_dnd": "This number is on the do-not-disturb list, so a sales call to it is not allowed.",
     "call_lead_closed": "This lead is closed, so calls can no longer be saved on it.",
     "disposition_not_offered": "This outcome is no longer on the list. Refresh the page and choose again.",
     "callback_time_missing": "Choose when to call back.",
@@ -3747,8 +3748,9 @@
         "caller_id_not_promotional": "The company's sales calls number is not in the 140 series. Ask an Executive to check it.",
         "caller_id_not_service": "The company's service calls number is not in the 160 series. Ask an Executive to check it.",
         "service_call_without_consent": "The customer has not agreed to service calls.",
-        "recipient_on_dnd": "The number is on the do-not-disturb list and the customer has not agreed to service calls.",
-        "dnd_unknown": "We could not check the do-not-disturb list just now. Try again in a few minutes."
+        "recipient_on_dnd": "The number is on the do-not-disturb list, so a sales call to it is not allowed.",
+        "dnd_unknown": "We could not check the do-not-disturb list just now. Try again in a few minutes.",
+        "dnd_not_set_up": "The do-not-disturb check is not set up yet, so sales calls cannot be checked against it."
       }
     }
   },

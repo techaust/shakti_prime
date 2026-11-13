@@ -443,6 +443,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
        order by 1
     `);
     expect(rows.map((r) => r.fn)).toEqual([
+      // A customer's opt-out by the dial rules, for the queue, the leads list and Show number (E1).
+      'app.call_opt_out(uuid)',
       // A caller profile is read by its person and by whoever manages them, and the converters
       // page lists the people of a manager's scope (0125).
       'app.caller_profile_manages(uuid,smallint)',

@@ -29,7 +29,8 @@ export type DialRefusal =
   | 'caller_id_not_service'
   | 'service_call_without_consent'
   | 'recipient_on_dnd'
-  | 'dnd_unknown';
+  | 'dnd_unknown'
+  | 'dnd_not_set_up';
 
 /** Every refusal, in the order `checkDial` lists them. */
 export const DIAL_REFUSALS: readonly DialRefusal[] = [
@@ -42,6 +43,7 @@ export const DIAL_REFUSALS: readonly DialRefusal[] = [
   'service_call_without_consent',
   'recipient_on_dnd',
   'dnd_unknown',
+  'dnd_not_set_up',
 ];
 
 export type DialDecision = { allowed: true } | { allowed: false; refusals: DialRefusal[] };
@@ -60,14 +62,15 @@ export interface DialRequest {
   hasRecordedConsent: boolean;
   /**
    * The last DND scrub found the number on the NCPR preference register; `unknown` when no fresh
-   * answer could be had (the register did not answer, or none is set up).
+   * answer could be had (the register did not answer); `not_set_up` when this runtime has no
+   * register (production until the final phase).
    */
-  onDnd: boolean | 'unknown';
+  onDnd: boolean | 'unknown' | 'not_set_up';
   /**
    * A contact of the customer, or anyone holding the number, withdrew consent to calls and gave
-   * none since (CRM-10): no call of either purpose.
+   * none since (CRM-10): no call of either purpose. Required, so no caller can leave it out.
    */
-  callConsentWithdrawn?: boolean;
+  callConsentWithdrawn: boolean;
 }
 
 /** Minutes since midnight in IST. */
@@ -143,13 +146,14 @@ export function checkDial(request: DialRequest): DialDecision {
   const refusals: DialRefusal[] = [];
   if (!withinCallingHours(request.at)) refusals.push('outside_calling_hours');
   if (!isIndianMobile(request.to)) refusals.push('recipient_not_a_mobile_number');
-  if (request.callConsentWithdrawn === true) refusals.push('call_consent_withdrawn');
+  if (request.callConsentWithdrawn) refusals.push('call_consent_withdrawn');
   const series = request.callerId === null ? null : numberSeries(request.callerId);
   if (series === null) refusals.push('company_number_missing');
   if (request.purpose === 'promotional') {
     if (series !== null && series !== '140') refusals.push('caller_id_not_promotional');
     if (request.onDnd === true) refusals.push('recipient_on_dnd');
     if (request.onDnd === 'unknown') refusals.push('dnd_unknown');
+    if (request.onDnd === 'not_set_up') refusals.push('dnd_not_set_up');
   } else {
     if (series !== null && series !== '160') refusals.push('caller_id_not_service');
     if (!request.hasRecordedConsent) refusals.push('service_call_without_consent');

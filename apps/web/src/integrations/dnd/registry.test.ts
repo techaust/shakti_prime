@@ -1,4 +1,4 @@
-import { DndRegistryUnavailable, FIXTURE_DND_NUMBERS } from '@shakti/domain';
+import { DndRegistryNotSetUp, FIXTURE_DND_NUMBERS } from '@shakti/domain';
 import { describe, expect, it } from 'vitest';
 import { dndRegistry } from './registry';
 
@@ -30,7 +30,7 @@ describe('the DND register of each runtime (question 13)', () => {
   it('has none on production, or on a hosted runtime that names no known environment', async () => {
     for (const environment of ['production', undefined, 'local']) {
       await expect(dndRegistry(hosted(environment)).check(listed)).rejects.toBeInstanceOf(
-        DndRegistryUnavailable,
+        DndRegistryNotSetUp,
       );
     }
   });

@@ -69,10 +69,14 @@ export const DIAL_REFUSAL_REASONS = [
   'service_call_without_consent',
   'recipient_on_dnd',
   'dnd_unknown',
+  'dnd_not_set_up',
 ] as const;
 
-/** Where the DND state came from: as recorded, looked up just now, or not to be had. */
-export const DND_STATE_KINDS = ['recorded', 'refreshed', 'unknown'] as const;
+/**
+ * Where the DND state came from: as recorded, looked up just now, not to be had (the register did
+ * not answer), or no register on this runtime.
+ */
+export const DND_STATE_KINDS = ['recorded', 'refreshed', 'unknown', 'not_set_up'] as const;
 
 /**
  * The plan for a call: its purpose and why, the company's number it would go out on (null when

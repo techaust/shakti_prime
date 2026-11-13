@@ -443,6 +443,7 @@ export type { PurposeDecision, PurposeFacts, PurposeReason } from './telecom/cal
 export { DND_LOOKUP_TIMEOUT_MS, dndIsFresh, planDial, prepareDial } from './telecom/dial-plan';
 export type { DialFacts, DialPlan, DndState, PrepareDialDeps } from './telecom/dial-plan';
 export {
+  DndRegistryNotSetUp,
   DndRegistryUnavailable,
   FIXTURE_DND_NUMBERS,
   fixtureDndRegistry,
