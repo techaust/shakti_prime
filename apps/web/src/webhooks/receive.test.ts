@@ -194,6 +194,28 @@ describe('receiveWebhook', () => {
     expect(h.published).toEqual([]);
   });
 
+  it('answers 503 within 2 seconds when the store does not answer in its share', async () => {
+    const h = harness({ store: () => new Promise(() => undefined) });
+    const started = performance.now();
+    const answer = await call(whatsappDelivery(), h);
+    expect(answer.status).toBe(503);
+    expect(performance.now() - started).toBeLessThan(2_000);
+    expect(h.published).toEqual([]);
+  });
+
+  it('gives the publish what is left of the 2 seconds', async () => {
+    const budgets: number[] = [];
+    const h = harness({
+      publish: (_config, _inboxId, _dedup, timeoutMs) => {
+        budgets.push(timeoutMs);
+        return Promise.resolve();
+      },
+    });
+    await call(whatsappDelivery(), h);
+    expect(budgets[0]).toBeGreaterThanOrEqual(200);
+    expect(budgets[0]).toBeLessThanOrEqual(1_800);
+  });
+
   it('answers 200 when the publish fails: the sweep publishes the row later', async () => {
     const h = harness({ publish: () => Promise.reject(new Error('no answer within 800 ms')) });
     const answer = await call(whatsappDelivery(), h);

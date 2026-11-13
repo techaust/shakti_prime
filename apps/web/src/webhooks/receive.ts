@@ -22,7 +22,12 @@ export interface WebhookDeps {
   keyValue: () => KeyValue;
   store: typeof storeWebhookDelivery;
   qstash: () => QStashConfig | undefined;
-  publish: (config: QStashConfig, inboxId: string, deduplicationId: string) => Promise<void>;
+  publish: (
+    config: QStashConfig,
+    inboxId: string,
+    deduplicationId: string,
+    timeoutMs: number,
+  ) => Promise<void>;
   /** Runs work after the answer has gone (`after()` in a request). */
   later: (task: () => Promise<unknown>) => void;
   process: typeof processWebhook;
@@ -49,6 +54,30 @@ export function defaultWebhookDeps(): WebhookDeps {
     later: afterTheAnswer,
     process: processWebhook,
   };
+}
+
+/**
+ * The route answers within 2 seconds (phase 2 design §5.1): the store may take this long, the
+ * role's own limit being 2 seconds, and the publish what is left of the budget after it. A store
+ * that runs past its share is answered 503 and may still land; the provider's next delivery is
+ * then a repeat of it.
+ */
+const STORE_BUDGET_MS = 1_200;
+const ANSWER_BUDGET_MS = 1_800;
+const PUBLISH_MIN_MS = 200;
+
+function within<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(
+        Object.assign(new Error(`no answer within ${String(ms)} ms`), { name: 'TimeoutError' }),
+      );
+    }, ms);
+  });
+  return Promise.race([work, timeout]).finally(() => {
+    clearTimeout(timer);
+  });
 }
 
 /** The longest provider event id kept; a longer one is keyed on the body's SHA-256 instead. */
@@ -120,6 +149,7 @@ export function receiveWebhook<S>(
 ): (request: Request, context?: RouteContext) => Promise<Response> {
   return async (request, context) => {
     const deps: WebhookDeps = { ...defaultWebhookDeps(), ...options.deps };
+    const started = Date.now();
     const requestId = incomingRequestId(request.headers);
     const secrets = verify.secrets(deps.env);
     if (secrets === undefined || !deps.receiverConfigured()) {
@@ -161,7 +191,7 @@ export function receiveWebhook<S>(
     const eventId = own !== undefined && own.length <= EVENT_ID_MAX ? own : sha256;
     let stored: Awaited<ReturnType<typeof storeWebhookDelivery>>;
     try {
-      stored = await deps.store(provider, eventId, payload, sha256);
+      stored = await within(deps.store(provider, eventId, payload, sha256), STORE_BUDGET_MS);
     } catch (error) {
       logger.log('error', 'webhooks.store_failed', { requestId, provider, error });
       return refuse('integration_unavailable', requestId);
@@ -182,7 +212,8 @@ export function receiveWebhook<S>(
         );
       } else {
         try {
-          await deps.publish(config, stored.inboxId, stored.inboxId);
+          const left = Math.max(PUBLISH_MIN_MS, ANSWER_BUDGET_MS - (Date.now() - started));
+          await deps.publish(config, stored.inboxId, stored.inboxId, left);
         } catch (error) {
           logger.log('warn', 'webhooks.publish_failed', {
             requestId,
