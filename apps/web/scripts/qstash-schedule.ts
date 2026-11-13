@@ -9,8 +9,14 @@
 // Usage: pnpm --filter web qstash-schedule
 import { Client } from '@upstash/qstash';
 import { qstashConfig } from '../src/workers/qstash';
-import { hostedEnvironment, qstashSchedules } from '../src/workers/qstash-schedules';
+import {
+  hostedEnvironment,
+  qstashSchedules,
+  unsetBlankQStashUrl,
+} from '../src/workers/qstash-schedules';
 
+// An empty QSTASH_URL means the default address, which the client uses only when it is unset.
+unsetBlankQStashUrl(process.env);
 const config = qstashConfig();
 if (config === undefined) {
   console.error(

@@ -18,6 +18,18 @@ export function hostedEnvironment(value: string | undefined): HostedEnvironment 
   return HOSTED_ENVIRONMENTS.find((name) => name === value);
 }
 
+/**
+ * Removes a blank `QSTASH_URL` from `env`, as if it were unset (a `.env` line `QSTASH_URL=`). Given
+ * no address, the QStash client reads `QSTASH_URL` from the environment itself and takes an empty
+ * value as its address, so every call fails with "Invalid URL"; unset, it uses its own default
+ * address. Returns whether it removed one.
+ */
+export function unsetBlankQStashUrl(env: NodeJS.ProcessEnv): boolean {
+  if (env.QSTASH_URL?.trim() !== '') return false;
+  delete env.QSTASH_URL;
+  return true;
+}
+
 /** One QStash schedule, as `apps/web/scripts/qstash-schedule.ts` creates or updates it. */
 export interface QStashSchedule {
   /** `<route>-<environment>`, so one environment's run never overwrites another's. */
