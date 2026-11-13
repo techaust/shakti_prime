@@ -62,7 +62,8 @@ describe('the QStash schedules of an environment', () => {
   });
 
   it('treats an empty or blank QSTASH_URL as unset, so the client uses its default address', () => {
-    const base = {
+    const base: NodeJS.ProcessEnv = {
+      NODE_ENV: 'test',
       QSTASH_TOKEN: 'qstash-token-for-tests',
       QSTASH_CURRENT_SIGNING_KEY: 'current-signing-key-for-tests',
       QSTASH_NEXT_SIGNING_KEY: 'next-signing-key-for-tests',
