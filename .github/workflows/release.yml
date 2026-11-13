@@ -106,16 +106,30 @@ jobs:
             echo "No migration of staging from main has passed. Migrate staging to this commit first (docs/runbooks/deploy.md §2), then start the release again."
             exit 1
           fi
-          # The comparison's status, the files GitHub lists (at most 300) and the migration files
-          # among them.
-          compared=$(gh api "repos/$REPO/compare/$staged...$SHA" \
-            --jq '"\(.status) \(.files | length) \([.files[] | select((.filename | startswith("packages/db/migrations/")) or ((.previous_filename // "") | startswith("packages/db/migrations/")))] | length)"')
-          read -r status listed changed <<< "$compared"
+          # Whether staging's commit is this one or an earlier one of main. The status alone: the
+          # files GitHub lists stop at 300, so they cannot tell whether a migration changed.
+          status=$(gh api "repos/$REPO/compare/$staged...$SHA" --jq .status < /dev/null) || status=''
           if [ "$status" != 'identical' ] && [ "$status" != 'ahead' ]; then
             echo "Staging was last migrated from $staged, which is not an earlier commit of $SHA. Migrate staging to this commit first (docs/runbooks/deploy.md §2), then start the release again."
             exit 1
           fi
-          if [ "$changed" != '0' ] || [ "$listed" -ge 300 ]; then
+          # The git tree of the migration folder at a commit: the same tree means the same
+          # migration files, byte for byte, however many other files changed. Empty when GitHub
+          # cannot read the commit or the folder (`gh` then prints the error body on stdout, so
+          # only a tree id counts), which stops the release.
+          migrations() {
+            local tree
+            tree=$(gh api "repos/$REPO/contents/packages/db?ref=$1" \
+              --jq '.[] | select(.path == "packages/db/migrations" and .type == "dir") | .sha' < /dev/null) || tree=''
+            if [[ "$tree" =~ ^[0-9a-f]{40}$ ]]; then echo "$tree"; fi
+          }
+          was=$(migrations "$staged")
+          now=$(migrations "$SHA")
+          if [ -z "$was" ] || [ -z "$now" ]; then
+            echo "The migrations of $staged, which staging was last migrated from, or of $SHA could not be read. Migrate staging to this commit first (docs/runbooks/deploy.md §2), then start the release again."
+            exit 1
+          fi
+          if [ "$was" != "$now" ]; then
             echo "The migrations changed since staging was last migrated (from $staged). Migrate staging to this commit first (docs/runbooks/deploy.md §2), then start the release again."
             exit 1
           fi
