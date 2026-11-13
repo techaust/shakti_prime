@@ -74,10 +74,12 @@ Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-cli
 
 **Carried from Phase 0:** the items Phase 0 left for Phase 1 are part of the slices above; each open one, with its slice, is in [STATUS, Open follow-ups](10-status.md#open-follow-ups), their single list.
 
+Closed on its engineering work on 13-11-2026 (the owner's decision); the items that need the client's people are Phase 7's.
+
 **Exit gate:**
-- [ ] 2-week parallel run with legacy sheets
-- [ ] Migration counts reconciled
-- [ ] UAT sign-off per role
+- [ ] 2-week parallel run with legacy sheets (in Phase 7, the owner's decision of 13-11-2026)
+- [ ] Migration counts reconciled (in Phase 7, the owner's decision of 13-11-2026)
+- [ ] UAT sign-off per role (in Phase 7, the owner's decision of 13-11-2026)
 - [x] Playwright E2E for the CC, LC, Store Manager and Executive paths (`apps/web/e2e/uat.spec.ts`, green in CI on every pull request; 20-10-2026)
 - [x] Phase 1 tooling (Playwright, Sentry, AWS) installed and confirmed with a live call (28-09-2026)
 
@@ -112,6 +114,8 @@ Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-cli
 **Scope:** load test at 10k leads/day and 100 concurrent users; external security review and pentest; DR restore drill; DPDP readiness review; runbooks and onboarding guide; role-wise training and in-app help; go-live.
 
 **Exit gate:** go-live sign-off by the Executives; open findings closed or accepted in writing.
+
+Also held here by the owner's decision of 13-11-2026: every item of an earlier phase that needs the client's people or live vendor accounts: Phase 1's parallel run, migration counts and sign-off per role; the client's answers and inputs; Phase 2's live accounts (DLT numbers, Meta verification, the voice samples), each listed in the Phase 2 design's §12.
 
 ## 10. Parallel workstreams (started in Phase 0)
 | Workstream | Owner | Needed by |

@@ -7,8 +7,8 @@
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | build, fixes and integration on Opus 5.5 high; the 5-hour window 11 % at the build's start, 75 % at integration |
-| State | integrated on the PC (13-11-2026); pull request open |
-| Next step | the owner's `checks-ok`, the merge, then dev and staging migrated with the owner's `webhook_receiver` steps |
+| State | merged (#243) on 13-11-2026; dev and staging migrated |
+| Next step | none; the owner sets `webhook_receiver`'s password and address on dev and staging |
 
 ## Brief
 Read first:
