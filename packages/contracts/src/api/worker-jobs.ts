@@ -297,3 +297,33 @@ export const NotifyResult = workerResult({
   heldForQuietHours: Count,
 });
 export type NotifyResult = z.infer<typeof NotifyResult>;
+
+// --- /workers/webhooks/process ---------------------------------------------------------------
+
+/**
+ * `POST /workers/webhooks/process` (docs/03-roadmap-appendix/phase2.md §5.1): one stored delivery
+ * of `webhook_inbox`, by its row id, published by the webhook route (deduplicated by that id), by
+ * the sweep for a row left waiting, or by Process again. The worker reads the payload itself.
+ */
+export const WebhookProcessJob = z.object({ inboxId: IdSchema }).strict();
+export type WebhookProcessJob = z.infer<typeof WebhookProcessJob>;
+
+/**
+ * - `processed`: the row is processed now; `handled` is false when no handler is registered for
+ *   its provider yet (the row keeps the code `no_handler`).
+ * - `duplicate`: the row was already processed or failed, or another call holds its lease;
+ *   nothing ran.
+ * - `failed`: the row failed for good with its code (`payload_unreadable`); it is not retried.
+ */
+export const WebhookProcessResult = z.discriminatedUnion('outcome', [
+  z.object({ inboxId: IdSchema, outcome: z.literal('processed'), handled: z.boolean() }).strict(),
+  z.object({ inboxId: IdSchema, outcome: z.literal('duplicate') }).strict(),
+  z
+    .object({
+      inboxId: IdSchema,
+      outcome: z.literal('failed'),
+      errorCode: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+    })
+    .strict(),
+]);
+export type WebhookProcessResult = z.infer<typeof WebhookProcessResult>;

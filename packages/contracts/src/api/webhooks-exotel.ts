@@ -61,7 +61,18 @@ export const ExotelCallStatusWebhook = z.looseObject({
 export type ExotelCallStatusWebhook = z.infer<typeof ExotelCallStatusWebhook>;
 
 /**
- * `POST /webhooks/exotel/incoming`: the Passthru applet on an entity's inbound flow. The worker
+ * The secret path segment of `POST /webhooks/exotel/incoming/:secret`
+ * (docs/03-roadmap-appendix/phase2.md §5.1): Passthru signs nothing, so the applet's address
+ * carries `EXOTEL_INCOMING_SECRET`, compared in constant time before the body is read. The route
+ * accepts any segment of this shape and refuses every one that is not the secret.
+ */
+export const ExotelIncomingParams = z
+  .object({ secret: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/) })
+  .strict();
+export type ExotelIncomingParams = z.infer<typeof ExotelIncomingParams>;
+
+/**
+ * `POST /webhooks/exotel/incoming/:secret`: the Passthru applet on an entity's inbound flow. The worker
  * matches `CallFrom` to a contact and raises the screen-pop event for the caller who answers.
  */
 export const ExotelIncomingWebhook = z.looseObject({

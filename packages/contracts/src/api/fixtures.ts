@@ -548,6 +548,7 @@ export const API_FIXTURES: Record<
     response: { received: true },
   },
   'webhooks.exotel.incoming': {
+    params: { secret: 's'.repeat(32) },
     request: {
       CallSid: 'b6cfaf0e-exotel-call-0002',
       CallFrom: '09000000023',
@@ -578,6 +579,10 @@ export const API_FIXTURES: Record<
       },
     },
     response: { received: true },
+  },
+  'workers.webhooks.process': {
+    request: { inboxId: IDS.event },
+    response: { inboxId: IDS.event, outcome: 'processed', handled: false },
   },
   'connector.heartbeat': {
     request: {
@@ -790,17 +795,32 @@ export const API_FIXTURES: Record<
         arrivedAt: '2026-09-27T05:05:12.842Z',
         milliseconds: 842,
       },
-      webhooks: [
-        {
-          provider: 'meta_whatsapp',
-          received24h: 1412,
-          failedSignature24h: 0,
-          unprocessed: 3,
-          failed: 0,
-          lastReceivedAt: '2026-09-27T05:06:31.000Z',
-          oldestUnprocessedAt: '2026-09-27T05:06:29.000Z',
+      webhooks: {
+        providers: [
+          {
+            provider: 'meta_whatsapp',
+            received24h: 1412,
+            processed24h: 1409,
+            failed24h: 1,
+            refused24h: 0,
+            waiting: 2,
+            oldestWaitingAt: '2026-09-27T05:06:29.000Z',
+          },
+        ],
+        failed: {
+          total: 1,
+          items: [
+            {
+              inboxId: IDS.eventB,
+              provider: 'meta_whatsapp',
+              errorCode: 'payload_unreadable',
+              attempts: 1,
+              receivedAt: '2026-09-27T04:58:10.000Z',
+              failedAt: '2026-09-27T04:58:11.000Z',
+            },
+          ],
         },
-      ],
+      },
       deadLetters: {
         total: 1,
         items: [

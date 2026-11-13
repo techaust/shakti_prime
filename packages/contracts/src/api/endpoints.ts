@@ -41,7 +41,11 @@ import {
 import { RealtimeTokenRequest, RealtimeTokenResponse } from './realtime';
 import { SyncPullQuery, SyncPullResponse, SyncPushRequest, SyncPushResponse } from './sync';
 import { VoiceSessionRequest, VoiceSessionResponse } from './voice';
-import { ExotelCallStatusWebhook, ExotelIncomingWebhook } from './webhooks-exotel';
+import {
+  ExotelCallStatusWebhook,
+  ExotelIncomingParams,
+  ExotelIncomingWebhook,
+} from './webhooks-exotel';
 import { GoogleLeadFormWebhook } from './webhooks-google';
 import { LiveKitWebhook } from './webhooks-livekit';
 import { MetaLeadgenWebhook, MetaVerifyQuery, WhatsAppWebhook } from './webhooks-meta';
@@ -64,6 +68,8 @@ import {
   PdfRenderResult,
   SttTranscribeJob,
   SttTranscribeResult,
+  WebhookProcessJob,
+  WebhookProcessResult,
 } from './worker-jobs';
 import {
   ImportCommitWorkerBody,
@@ -101,6 +107,18 @@ export interface ApiEndpoint {
 }
 
 const AUTHED: readonly ErrorCode[] = ['unauthorized', 'forbidden', 'rate_limited'];
+
+/**
+ * A provider webhook (docs/06-api.md §3.4): `validation_failed` for a body over the route's cap,
+ * `unauthorized` for a failed check, `integration_unavailable` while the provider's secret or the
+ * receiver's connection is not set (docs/03-roadmap-appendix/phase2.md §2, question 13) or the
+ * database does not answer.
+ */
+const WEBHOOK_ERRORS: readonly ErrorCode[] = [
+  'validation_failed',
+  'unauthorized',
+  'integration_unavailable',
+];
 
 /**
  * A worker answers `unauthorized` for a bad QStash signature, `validation_failed` for a body that
@@ -251,7 +269,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     query: MetaVerifyQuery,
     response: 'text',
-    errors: ['forbidden'],
+    errors: ['forbidden', 'integration_unavailable'],
   },
   'webhooks.whatsapp': {
     method: 'POST',
@@ -260,7 +278,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: WhatsAppWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.leadgen': {
     method: 'POST',
@@ -269,7 +287,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MetaLeadgenWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.google': {
     method: 'POST',
@@ -278,7 +296,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: GoogleLeadFormWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.exotel.status': {
     method: 'POST',
@@ -287,16 +305,17 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: ExotelCallStatusWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.exotel.incoming': {
     method: 'POST',
-    path: '/webhooks/exotel/incoming',
+    path: '/webhooks/exotel/incoming/:secret',
     auth: 'provider_signature',
     idempotencyKey: false,
+    params: ExotelIncomingParams,
     request: ExotelIncomingWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.livekit': {
     method: 'POST',
@@ -305,7 +324,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: LiveKitWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'connector.heartbeat': {
     method: 'POST',
@@ -443,6 +462,15 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: NotifyJob,
     response: NotifyResult,
+    errors: WORKER_ERRORS,
+  },
+  'workers.webhooks.process': {
+    method: 'POST',
+    path: '/workers/webhooks/process',
+    auth: 'qstash_signature',
+    idempotencyKey: false,
+    request: WebhookProcessJob,
+    response: WebhookProcessResult,
     errors: WORKER_ERRORS,
   },
   'admin.integrations': {

@@ -15,30 +15,78 @@ import { AgentNameSchema } from './worker-jobs';
 const Count = z.number().int().min(0);
 const Instant = z.iso.datetime();
 
-/** Providers whose webhooks land in `webhook_inbox` (docs/06-api.md §3.4). */
+/**
+ * Providers whose deliveries land in `webhook_inbox` (docs/06-api.md §3.4,
+ * docs/03-roadmap-appendix/phase2.md §5.1), one per webhook route: the two Exotel callbacks are
+ * authenticated differently, so each is a provider of its own.
+ */
 export const WEBHOOK_PROVIDERS = [
   'meta_whatsapp',
   'meta_leadgen',
   'google_leadform',
-  'exotel',
+  'exotel_status',
+  'exotel_incoming',
   'livekit',
 ] as const;
 export const WebhookProviderSchema = z.enum(WEBHOOK_PROVIDERS);
 export type WebhookProvider = z.infer<typeof WebhookProviderSchema>;
 
-/** One provider's inbox over the last 24 hours and what still waits. */
-export const WebhookInboxStats = z
+/**
+ * Why a stored delivery was not processed, or how it ended without a handler: `payload_unreadable`
+ * (its contract refused it; never retried), `no_handler` (no slice has registered a handler for
+ * its provider yet; the row counts as processed), `handler_failed` (the last retry failed), or a
+ * handler's own code. One word of lower-case letters, digits and `_`, so no text reaches a page.
+ */
+export const WebhookErrorCodeSchema = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/);
+export type WebhookErrorCode = z.infer<typeof WebhookErrorCodeSchema>;
+
+/**
+ * One provider's deliveries over the last 24 hours (`app.webhook_health()` and, for `refused24h`,
+ * the key-value store's hourly counts of deliveries that failed their check and were never
+ * stored), and what still waits: `waiting` rows are neither processed nor failed.
+ */
+export const WebhookProviderHealth = z
   .object({
     provider: WebhookProviderSchema,
     received24h: Count,
-    failedSignature24h: Count,
-    unprocessed: Count,
-    failed: Count,
-    lastReceivedAt: Instant.nullable(),
-    oldestUnprocessedAt: Instant.nullable(),
+    processed24h: Count,
+    failed24h: Count,
+    refused24h: Count,
+    waiting: Count,
+    oldestWaitingAt: Instant.nullable(),
   })
   .strict();
-export type WebhookInboxStats = z.infer<typeof WebhookInboxStats>;
+export type WebhookProviderHealth = z.infer<typeof WebhookProviderHealth>;
+
+/** A stored delivery that failed, for Process again; ids, times and its code only. */
+export const FailedWebhook = z
+  .object({
+    inboxId: IdSchema,
+    provider: WebhookProviderSchema,
+    errorCode: WebhookErrorCodeSchema,
+    attempts: Count,
+    receivedAt: Instant,
+    failedAt: Instant,
+  })
+  .strict();
+export type FailedWebhook = z.infer<typeof FailedWebhook>;
+
+/** How many failed rows the page lists, newest first. */
+export const FAILED_WEBHOOKS_SHOWN = 50;
+
+/** Integration Health › Webhooks: every provider, then the failed rows newest first. */
+export const WebhookHealth = z
+  .object({
+    providers: z.array(WebhookProviderHealth),
+    failed: z
+      .object({
+        total: Count,
+        items: z.array(FailedWebhook).max(FAILED_WEBHOOKS_SHOWN),
+      })
+      .strict(),
+  })
+  .strict();
+export type WebhookHealth = z.infer<typeof WebhookHealth>;
 
 /**
  * Why the last attempt of an outbox event failed, as the publisher records it: a short code such
@@ -249,7 +297,7 @@ export const IntegrationHealthResponse = z
       })
       .strict(),
     deliveryCheck: DeliveryCheck.nullable(),
-    webhooks: z.array(WebhookInboxStats),
+    webhooks: WebhookHealth,
     deadLetters: z
       .object({
         total: Count,

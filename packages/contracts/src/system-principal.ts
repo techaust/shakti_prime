@@ -47,5 +47,8 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The check of the database's scheduled jobs (`jobs-check`): it reads each job's last run and
     // error through one definer, and nothing of any company.
     { key: 'platform.jobs.check', scope: 'all' },
+    // The webhook worker and its sweep: it claims, marks and purges `webhook_inbox` rows through
+    // definers, and reads no row of any company (docs/03-roadmap-appendix/phase2.md §5.1).
+    { key: 'webhooks.process', scope: 'all' },
   ],
 };
