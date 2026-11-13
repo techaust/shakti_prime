@@ -24,6 +24,7 @@ import {
   memoryMailer,
   notifyEvent,
   parseImportFile,
+  setEntityChannel,
   setReferralPartner,
   setTarget,
 } from '@shakti/domain';
@@ -48,6 +49,7 @@ import { ensureUatJourneys } from './uat';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
+  CALLING_NUMBERS,
   E2E_PASSWORD,
   emailFor,
   INBOX_SUGGESTIONS,
@@ -332,6 +334,26 @@ async function ensureReferralPartner(executiveId: string): Promise<void> {
     code: REFERRAL_PARTNER.code,
     isActive: true,
   });
+}
+
+/**
+ * Company 1's sales and service calling numbers (`CALLING_NUMBERS`), synthetic 140-series and
+ * 160-series ones, set as an Executive sets them, so the workspaces' call plan names a number
+ * (channels.spec.ts). Setting the same number again changes nothing.
+ */
+async function ensureCallingNumbers(executiveId: string): Promise<void> {
+  const executive = principalFor('executive', [1, 2, 3, 4], { id: executiveId });
+  for (const [channel, number] of [
+    ['call_promo_140', CALLING_NUMBERS.promo],
+    ['call_service_160', CALLING_NUMBERS.service],
+  ] as const) {
+    await executeCommand(executive, { entityIds: [1] }, setEntityChannel, {
+      entityId: 1,
+      channel,
+      number,
+      verified: true,
+    });
+  }
 }
 
 /**
@@ -656,6 +678,7 @@ await archiveAddedPartners();
 progress('the referral partner');
 await ensureReferralPartner(ids.executive ?? '');
 await ensureWalkInPin(ids.executive ?? '');
+await ensureCallingNumbers(ids.executive ?? '');
 
 progress('the snapshot company');
 // The snapshot company (users.ts): its leads, all the snapshot caller's, and one import.
