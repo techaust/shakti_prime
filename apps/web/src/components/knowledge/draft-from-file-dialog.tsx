@@ -1,9 +1,9 @@
 'use client';
 
 import type {
-  KnowledgeFileDto,
-  KnowledgeFilePageDto,
   PlaybookDirectiveDto,
+  PlaybookSourceFileDto,
+  PlaybookSourcePageDto,
 } from '@shakti/contracts';
 import {
   Button,
@@ -14,21 +14,21 @@ import {
   DialogHeader,
   DialogTitle,
   Field,
+  Input,
   Select,
   Skeleton,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, type SyntheticEvent } from 'react';
-import { listKnowledgeFiles } from '../../actions/knowledge';
-import { draftFromVaultFile } from '../../actions/playbook';
+import { draftFromVaultFile, listPlaybookSources } from '../../actions/playbook';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
 import type { PlaybookCompany } from './playbook-screen';
 
 /**
- * Draft rules from a Knowledge Vault file (docs/03-roadmap-appendix/phase2.md §5.4): the files read
- * for search that the person may find (never an Executive-only file), and for a file of every
- * company, which company the drafts are for. The drafts land as drafts for review.
+ * Draft rules from a Knowledge Vault file (docs/03-roadmap-appendix/phase2.md §5.4): any file read
+ * for search that the person may find (never an Executive-only file), found by name and a page at
+ * a time, and for a file of every company, which company the drafts are for. The drafts land as drafts for review.
  */
 export function DraftFromFileDialog({
   companies,
@@ -43,26 +43,44 @@ export function DraftFromFileDialog({
 }) {
   const t = useTranslations('playbook');
   const common = useTranslations('common');
-  const files = useQuery<KnowledgeFilePageDto>();
+  const files = useQuery<PlaybookSourcePageDto>();
   const draft = useCommand(draftFromVaultFile);
-  const [choices, setChoices] = useState<KnowledgeFileDto[] | undefined>();
+  const [choices, setChoices] = useState<PlaybookSourceFileDto[] | undefined>();
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const [fileId, setFileId] = useState('');
   const firstCompany = companies[0]?.id ?? 0;
   const [forChoice, setForChoice] = useState<number | 'group'>(firstCompany);
   const loadFiles = files.load;
 
+  // The files read for search that the person may draft from, by name; typing narrows them, and
+  // More files reads the next page, so every file is in reach.
   useEffect(() => {
+    const timer = setTimeout(() => {
+      loadFiles(
+        () => listPlaybookSources({ query }),
+        (page) => {
+          setChoices(page.files);
+          setCursor(page.nextCursor);
+          setFileId(page.files[0]?.id ?? '');
+        },
+      );
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [loadFiles, query]);
+
+  function more() {
+    if (cursor === null) return;
     loadFiles(
-      () => listKnowledgeFiles({}),
+      () => listPlaybookSources({ query, cursor }),
       (page) => {
-        const usable = page.files.filter(
-          (f) => f.state === 'indexed' && f.sensitivity !== 'exec_only',
-        );
-        setChoices(usable);
-        setFileId(usable[0]?.id ?? '');
+        setChoices((all) => [...(all ?? []), ...page.files]);
+        setCursor(page.nextCursor);
       },
     );
-  }, [loadFiles]);
+  }
 
   const file = choices?.find((f) => f.id === fileId);
 
@@ -95,13 +113,34 @@ export function DraftFromFileDialog({
           <DialogDescription>{t('drafting.intro')}</DialogDescription>
         </DialogHeader>
         <FailureMessage failure={files.failure ?? draft.failure} />
+        <Field id="draft-search" label={t('drafting.searchLabel')}>
+          <Input
+            type="search"
+            value={query}
+            maxLength={200}
+            autoComplete="off"
+            onChange={(e) => {
+              setQuery(e.target.value);
+            }}
+          />
+        </Field>
         {choices === undefined ? (
           <Skeleton className="h-20 w-full" />
         ) : choices.length === 0 ? (
           <p className="text-text-muted">{t('drafting.noFiles')}</p>
         ) : (
           <form id="draft-from-file" onSubmit={submit} className="flex flex-col gap-4">
-            <Field id="draft-file" label={t('drafting.fileLabel')}>
+            <Field
+              id="draft-file"
+              label={t('drafting.fileLabel')}
+              actions={
+                cursor === null ? undefined : (
+                  <Button type="button" variant="secondary" pending={files.pending} onClick={more}>
+                    {t('drafting.more')}
+                  </Button>
+                )
+              }
+            >
               <Select
                 value={fileId}
                 onChange={(e) => {

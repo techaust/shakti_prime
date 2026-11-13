@@ -10374,22 +10374,6 @@
           "with": {},
           "method": "btree",
           "concurrently": false
-        },
-        "playbook_directives_embedding_idx": {
-          "name": "playbook_directives_embedding_idx",
-          "columns": [
-            {
-              "expression": "embedding",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "vector_cosine_ops"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "hnsw",
-          "concurrently": false
         }
       },
       "foreignKeys": {

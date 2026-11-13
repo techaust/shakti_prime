@@ -174,8 +174,6 @@ export const playbookDirectives = pgTable(
       t.id.desc(),
     ),
     index('playbook_directives_source_file_idx').on(t.sourceFileId),
-    // Conflict candidates: the nearest approved directives by cosine distance (ADR 0011).
-    index('playbook_directives_embedding_idx').using('hnsw', t.embedding.op('vector_cosine_ops')),
   ],
 );
 

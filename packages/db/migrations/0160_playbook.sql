@@ -64,5 +64,4 @@ ALTER TABLE "playbook_directives" ADD CONSTRAINT "playbook_directives_created_by
 ALTER TABLE "playbook_directives" ADD CONSTRAINT "playbook_directives_updated_by_principals_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "playbook_conflict_checks_other_idx" ON "playbook_conflict_checks" USING btree ("other_id");--> statement-breakpoint
 CREATE INDEX "playbook_directives_state_type_idx" ON "playbook_directives" USING btree ("state","type","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
-CREATE INDEX "playbook_directives_source_file_idx" ON "playbook_directives" USING btree ("source_file_id");--> statement-breakpoint
-CREATE INDEX "playbook_directives_embedding_idx" ON "playbook_directives" USING hnsw ("embedding" vector_cosine_ops);
+CREATE INDEX "playbook_directives_source_file_idx" ON "playbook_directives" USING btree ("source_file_id");

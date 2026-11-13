@@ -177,16 +177,23 @@ export const PlaybookCheckPairInput = z
 /** The most candidates one check may record (`AGENT_DEFAULTS.playbook.candidatesPerCheck` or fewer). */
 export const PLAYBOOK_MAX_CANDIDATES = 20;
 
+/** A database time as Postgres writes it in text, with its microseconds and offset. */
+export const PgTimeTextSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/);
+
 /**
  * `knowledge.playbook.record_check` (the conflict check, `knowledge.playbook.check`): a draft's
- * embedding and the labelled pairs, for the wording whose SHA-256 is `textSha256`. `entityId` is
- * the company the worker acts in.
+ * embedding and the labelled pairs, for the wording (type, audience, title and text) whose SHA-256
+ * is `wordingSha256`, as of `checkedAsOf`, the database time the candidates were read. `entityId`
+ * is the company the worker acts in.
  */
 export const RecordPlaybookCheckInput = z
   .object({
     entityId: EntityIdSchema,
     directiveId: IdSchema,
-    textSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    wordingSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    checkedAsOf: PgTimeTextSchema,
     embedding: z.array(z.number()).length(KNOWLEDGE_EMBEDDING_DIMENSIONS),
     pairs: z.array(PlaybookCheckPairInput).max(PLAYBOOK_MAX_CANDIDATES),
   })
@@ -313,3 +320,54 @@ export const PlaybookReviewDto = z
   })
   .strict();
 export type PlaybookReviewDto = z.infer<typeof PlaybookReviewDto>;
+
+/**
+ * The approved Playbook, the one read surface for the agents and Ask the Business (B1, A3):
+ * approved directives only, whoever reads, of the audiences asked for that the reader may read
+ * (row security keeps to the companies of the request and the group's).
+ */
+export const ApprovedPlaybookInput = z
+  .object({ audiences: z.array(PlaybookAudienceSchema).min(1).default([...PLAYBOOK_AUDIENCES]) })
+  .strict();
+export type ApprovedPlaybookInput = z.input<typeof ApprovedPlaybookInput>;
+
+/** The most approved directives one read answers. */
+export const APPROVED_PLAYBOOK_LIMIT = 500;
+
+/** An approved directive as an agent or Ask reads it. */
+export const ApprovedDirectiveDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema.nullable(),
+    type: PlaybookDirectiveTypeSchema,
+    audience: PlaybookAudienceSchema,
+    title: z.string(),
+    text: z.string(),
+    approvedAt: z.iso.datetime(),
+  })
+  .strict();
+export type ApprovedDirectiveDto = z.infer<typeof ApprovedDirectiveDto>;
+
+/** The vault files a person may draft rules from: read for search, not Executive-only, by title. */
+export const ListPlaybookSourcesInput = z
+  .object({
+    query: z.string().trim().max(200).default(''),
+    cursor: z.string().max(200).nullable().default(null),
+  })
+  .strict();
+export type ListPlaybookSourcesInput = z.input<typeof ListPlaybookSourcesInput>;
+
+export const PlaybookSourceFileDto = z
+  .object({ id: IdSchema, entityId: EntityIdSchema.nullable(), title: z.string() })
+  .strict();
+export type PlaybookSourceFileDto = z.infer<typeof PlaybookSourceFileDto>;
+
+export const PlaybookSourcePageDto = z
+  .object({ files: z.array(PlaybookSourceFileDto), nextCursor: z.string().nullable() })
+  .strict();
+export type PlaybookSourcePageDto = z.infer<typeof PlaybookSourcePageDto>;
+
+/** Why a rule's conflict check is waiting: not set up yet, the day's limit, or still running. */
+export const PLAYBOOK_CHECK_WAITS = ['not_set_up', 'limit_reached', 'running'] as const;
+export const PlaybookCheckWaitSchema = z.enum(PLAYBOOK_CHECK_WAITS);
+export type PlaybookCheckWait = z.infer<typeof PlaybookCheckWaitSchema>;

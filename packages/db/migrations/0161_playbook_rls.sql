@@ -21,9 +21,54 @@ create trigger set_updated_at before update on playbook_directives
 -- - `embedding` and `checked_at` only to null: the conflict check records them as the owner;
 -- - `conflicts_with` only by dropping ids (a resolution), never by adding one;
 -- - approval only by a holder of knowledge.playbook.approve, as themselves, of a draft whose check
---   has run with nothing left open;
+--   has run, is newer than every approval of its type for an overlapping company, and left no
+--   pair open (`app.playbook_approval_blocked()`); the approval takes the type's lock and its time
+--   from the database clock once the lock is held, so a check read before it is seen as stale;
 -- - retiring an approved directive only by a holder of knowledge.playbook.approve, with a reason;
 -- - nothing once retired.
+-- Why a draft may not be approved now, or null: `check_pending` while its check has not run or an
+-- approved directive of its type for an overlapping company is newer than the check;
+-- `conflict_open` while a pair not labelled `none` is unresolved and names a directive not
+-- retired, or `conflicts_with` names one. A definer, so a pair the approver's row security hides
+-- still counts; it answers only the reason, to a holder of knowledge.playbook.approve.
+create or replace function app.playbook_approval_blocked(p_directive_id uuid) returns text
+  language plpgsql stable security definer set search_path = '' as $$
+declare
+  v public.playbook_directives;
+begin
+  if not app.has_perm('knowledge.playbook.approve:all') then
+    raise exception 'knowledge.playbook.approve is required' using errcode = '42501';
+  end if;
+  select d.* into v from public.playbook_directives d where d.id = p_directive_id;
+  if not found then
+    return 'missing';
+  end if;
+  if v.checked_at is null or exists (
+       select 1 from public.playbook_directives o
+        where o.state = 'approved' and o.type = v.type and o.id <> v.id
+          and (v.entity_id is null or o.entity_id is null or o.entity_id = v.entity_id)
+          and o.approved_at > v.checked_at) then
+    return 'check_pending';
+  end if;
+  if exists (
+       select 1 from public.playbook_conflict_checks c
+         join public.playbook_directives o on o.id = c.other_id
+        where c.directive_id = v.id and c.resolved_at is null
+          and coalesce(c.label, '') <> 'none' and o.state <> 'retired')
+     or exists (
+       select 1 from public.playbook_directives o
+        where o.id = any (v.conflicts_with) and o.state <> 'retired') then
+    return 'conflict_open';
+  end if;
+  return null;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.playbook_approval_blocked(uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.playbook_approval_blocked(uuid) to app_user;
+--> statement-breakpoint
+
 create or replace function app.playbook_directives_guard() returns trigger
   language plpgsql set search_path = '' as $$
 begin
@@ -63,12 +108,17 @@ begin
   if new.state = 'approved' and old.state <> 'approved' then
     if old.state <> 'draft'
        or not app.has_perm('knowledge.playbook.approve:all')
-       or new.approved_by is distinct from app.user_id()
-       or new.checked_at is null
-       or pg_catalog.cardinality(new.conflicts_with) > 0 then
-      raise exception 'a directive is approved by an approver, once its check is clear'
+       or new.approved_by is distinct from app.user_id() then
+      raise exception 'a directive is approved by an approver, as themselves'
         using errcode = 'insufficient_privilege';
     end if;
+    -- Approvals of one type take turns with each other and with the conflict check's reads.
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('playbook-type:' || old.type, 0));
+    if app.playbook_approval_blocked(old.id) is not null then
+      raise exception 'a directive is approved once its check is current and nothing is left open'
+        using errcode = 'insufficient_privilege';
+    end if;
+    new.approved_at := pg_catalog.clock_timestamp();
   elsif (new.approved_by, new.approved_at) is distinct from (old.approved_by, old.approved_at) then
     raise exception 'an approval is recorded only when approving' using errcode = 'insufficient_privilege';
   end if;

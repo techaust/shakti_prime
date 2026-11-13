@@ -1,6 +1,11 @@
 import {
+  APPROVED_PLAYBOOK_LIMIT,
+  ApprovedDirectiveDto,
+  ApprovedPlaybookInput,
   IdSchema,
   ListPlaybookInput,
+  ListPlaybookSourcesInput,
+  PlaybookSourcePageDto,
   PLAYBOOK_PAGE_SIZE,
   PlaybookOtherDto,
   PlaybookPageDto,
@@ -10,7 +15,7 @@ import {
   type KnowledgeSensitivity,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission } from '../../command/run-command';
 import {
@@ -18,6 +23,7 @@ import {
   playbookDirectiveDto,
 } from '../../commands/knowledge/playbook-shared';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
+import { containsPattern } from '../search-text';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
@@ -133,8 +139,11 @@ export async function loadPlaybookReview(ctx: Ctx, rawInput: unknown): Promise<P
     source,
     pairs: checks.map((p) => {
       const other = byId.get(p.otherId);
+      const check = playbookConflictCheckDto(p);
       return {
-        check: playbookConflictCheckDto(p),
+        // The model's sentence is about the other rule: a reader who may not read that rule does
+        // not read the sentence either.
+        check: other === undefined ? { ...check, reason: null } : check,
         other:
           other === undefined
             ? null
@@ -195,4 +204,81 @@ export async function playbookSourcePassages(
     },
     passages,
   };
+}
+
+/**
+ * The approved Playbook (docs/03-roadmap-appendix/phase2.md §5.4): the one read surface for the
+ * agents and Ask the Business (B1, A3), which must read directives through it and never from the
+ * table. Approved directives only, whoever reads: row security already hides drafts and retired
+ * directives from an agent, but not from an Executive or a GM, who hold the playbook grants and
+ * ask questions too. Of the audiences asked for; row security keeps to the companies of the
+ * request and the group's, and to the audiences the reader may read. By type, then title.
+ */
+export async function approvedPlaybook(
+  ctx: Ctx,
+  rawInput: unknown = {},
+): Promise<ApprovedDirectiveDto[]> {
+  const input = parseQueryInput(ApprovedPlaybookInput, rawInput, 'knowledge.playbook.approved');
+  const d = schema.playbookDirectives;
+  const rows = await ctx.tx
+    .select({
+      id: d.id,
+      entityId: d.entityId,
+      type: d.type,
+      audience: d.audience,
+      title: d.title,
+      text: d.text,
+      approvedAt: d.approvedAt,
+    })
+    .from(d)
+    .where(and(eq(d.state, 'approved'), inArray(d.audience, input.audiences)))
+    .orderBy(asc(d.type), asc(d.title), asc(d.id))
+    .limit(APPROVED_PLAYBOOK_LIMIT);
+  return rows.map((r) =>
+    ApprovedDirectiveDto.parse({ ...r, approvedAt: r.approvedAt?.toISOString() }),
+  );
+}
+
+const SourceCursor = z.object({ title: z.string().max(200), id: IdSchema }).strict();
+
+/** A page of the vault files a drafter may draft from. */
+export const PLAYBOOK_SOURCES_PAGE = 50;
+
+/**
+ * The vault files a person may draft rules from (Draft from a file): read for search, not
+ * Executive-only, those the person may find (row security), by title, a page at a time, narrowed
+ * by words of the title.
+ */
+export async function listPlaybookSources(
+  ctx: Ctx,
+  rawInput: unknown,
+): Promise<PlaybookSourcePageDto> {
+  checkPermission(ctx.principal, 'knowledge.playbook.draft', 'all');
+  const input = parseQueryInput(ListPlaybookSourcesInput, rawInput, 'knowledge.playbook.sources');
+  const after = input.cursor === null ? undefined : decodeCursor(SourceCursor, input.cursor);
+  const k = schema.knowledgeFiles;
+  const rows = await ctx.tx
+    .select({ id: k.id, entityId: k.entityId, title: k.title })
+    .from(k)
+    .where(
+      and(
+        eq(k.state, 'indexed'),
+        ne(k.sensitivity, 'exec_only'),
+        input.query === '' ? undefined : ilike(k.title, containsPattern(input.query)),
+        after === undefined
+          ? undefined
+          : sql`(${k.title}, ${k.id}) > (${after.title}, ${after.id}::uuid)`,
+      ),
+    )
+    .orderBy(asc(k.title), asc(k.id))
+    .limit(PLAYBOOK_SOURCES_PAGE + 1);
+  const page = rows.slice(0, PLAYBOOK_SOURCES_PAGE);
+  const last = page.at(-1);
+  return PlaybookSourcePageDto.parse({
+    files: page,
+    nextCursor:
+      rows.length > PLAYBOOK_SOURCES_PAGE && last !== undefined
+        ? encodeCursor({ title: last.title, id: last.id })
+        : null,
+  });
 }

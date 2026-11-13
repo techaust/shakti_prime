@@ -4,6 +4,7 @@ import type {
   PlaybookDirectiveDto,
   PlaybookDirectiveState,
   PlaybookDirectiveType,
+  PlaybookCheckWait,
   PlaybookPageDto,
   PlaybookReviewDto,
 } from '@shakti/contracts';
@@ -15,6 +16,7 @@ import {
   approveDirective,
   listPlaybook,
   loadPlaybookReview,
+  playbookCheckWait,
   recheckPlaybookReview,
 } from '../../actions/playbook';
 import { isTypingTarget } from '../../screens/calling';
@@ -45,6 +47,9 @@ export interface PlaybookCompany {
 
 /** How often a rule waiting for its conflict check is read again. */
 const RECHECK_MS = 3_000;
+
+/** How long the screen reads a waiting rule again before it says why the check is waiting. */
+const RECHECK_FOR_MS = 60_000;
 
 type CompanyFilter = number | 'group' | null;
 
@@ -111,13 +116,23 @@ export function PlaybookScreen({
 
   // While the rule under review waits for its conflict check, it is read again until the check has
   // run, and its line in the list follows.
+  // Why the check of a rule is still waiting, kept with the rule it was asked for.
+  const [waited, setWaited] = useState<{ id: string; wait: PlaybookCheckWait } | undefined>();
   const checkingId =
     review?.directive.state === 'draft' && review.directive.checkedAt === null
       ? review.directive.id
       : undefined;
   useEffect(() => {
     if (checkingId === undefined) return;
+    const started = Date.now();
     const timer = setInterval(() => {
+      if (Date.now() - started >= RECHECK_FOR_MS) {
+        clearInterval(timer);
+        void playbookCheckWait().then((answer) => {
+          setWaited({ id: checkingId, wait: answer.ok ? answer.data : 'running' });
+        });
+        return;
+      }
       loadReview(
         () => recheckPlaybookReview({ directiveId: checkingId }),
         (found) => {
@@ -337,6 +352,7 @@ export function PlaybookScreen({
           loading={reviewQuery.pending}
           failure={reviewQuery.failure}
           companyName={(id) => (id === null ? undefined : names.get(id))}
+          checkWait={waited !== undefined && waited.id === checkingId ? waited.wait : undefined}
           canApprove={canApprove}
           approving={approve.pending}
           onApprove={approveShown}

@@ -15,10 +15,12 @@ import { defineCommand } from '../../command/define-command';
 import { requireEntity } from '../crm/opportunity-shared';
 import {
   assertPlaybookGroupRequest,
+  assertPlaybookSource,
   checkIsFresh,
   directiveState,
   firePlaybookDirective,
   lockPlaybookDirective,
+  lockPlaybookType,
   openConflicts,
   openLabel,
   playbookChangedPayload,
@@ -72,17 +74,13 @@ export const draftPlaybookDirective = defineCommand({
     if (input.wholeGroup) await assertPlaybookGroupRequest(ctx);
     requireAudience(ctx.principal, input.audience);
     if (input.sourceFileId !== null) {
-      const k = schema.knowledgeFiles;
-      const [file] = await ctx.tx
-        .select({ state: k.state })
-        .from(k)
-        .where(eq(k.id, input.sourceFileId))
-        .limit(1);
-      if (file === undefined || file.state === 'archived') {
-        throw new DomainError('not_found', `vault file ${input.sourceFileId} is not visible`, {
-          reason: 'playbook_source_missing',
-        });
-      }
+      await assertPlaybookSource(ctx, {
+        knowledgeFileId: input.sourceFileId,
+        entityId: input.entityId,
+        wholeGroup: input.wholeGroup,
+        audiences: [input.audience],
+        positions: input.sourcePosition === null ? [] : [input.sourcePosition],
+      });
     }
     const state = firePlaybookDirective(
       ctx,
@@ -213,6 +211,9 @@ export const approvePlaybookDirective = defineCommand({
   auditFields: ['directiveState'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    // Approvals of one type take turns, and wait for the conflict check's reads of it, before the
+    // directive's own lock (the order the check's record takes them in).
+    await lockPlaybookType(ctx, input.directiveId);
     const row = await lockPlaybookDirective(ctx, input.directiveId);
     const state = directiveState(row);
     // A move the machine lacks is refused before the facts are read.
@@ -225,7 +226,9 @@ export const approvePlaybookDirective = defineCommand({
       .set({
         state: to,
         approvedBy: ctx.principal.id,
-        approvedAt: ctx.now,
+        // The database's clock once the type's lock is held (the guard sets the same), so a check
+        // that read its candidates before this approval is always older than it.
+        approvedAt: sql`pg_catalog.clock_timestamp()`,
         conflictsWith: [],
         updatedBy: ctx.principal.id,
       })

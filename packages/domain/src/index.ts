@@ -601,7 +601,7 @@ export {
   PLAYBOOK_VERSION_KEY,
   playbookVersion,
 } from './knowledge/playbook-version';
-export { checkPlaybook, parseLabel } from './knowledge/playbook-check';
+export { checkPlaybook, parseLabel, playbookCheckWait } from './knowledge/playbook-check';
 export type { PlaybookCheckDeps, PlaybookCheckOutcome } from './knowledge/playbook-check';
 export { recordPlaybookCheck } from './commands/knowledge/playbook-check';
 export {
@@ -610,7 +610,9 @@ export {
 } from './commands/knowledge/playbook-from-file';
 export { DRAFT_SYSTEM, filterDrafts, proposeDirectives } from './knowledge/playbook-draft';
 export {
+  approvedPlaybook,
   listPlaybook,
+  listPlaybookSources,
   loadPlaybookReview,
   playbookListQuery,
   playbookSourcePassages,

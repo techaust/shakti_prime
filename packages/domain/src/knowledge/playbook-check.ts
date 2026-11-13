@@ -3,12 +3,15 @@ import {
   KNOWLEDGE_EMBEDDING_DIMENSIONS,
   PlaybookConflictLabelSchema,
   type DeliveredEvent,
+  type PlaybookCheckWait,
   type PlaybookConflictLabel,
   type Principal,
 } from '@shakti/contracts';
 import { z } from 'zod';
 import { AGENT_DEFAULTS } from '../ai/agent-defaults';
-import type { AiProvider, SpendCap } from '../ai/provider';
+import { spendKey, type AiProvider, type SpendCap } from '../ai/provider';
+import { istCalendarDate } from '../numbering/financial-year';
+import type { KeyValue } from '../ports/key-value';
 import { executeCommand, executeQuery } from '../command/execute';
 import {
   playbookCandidates,
@@ -96,28 +99,50 @@ export function parseLabel(
   }
 }
 
-/** Labels one pair, or answers null when the model is not set up or its answer cannot be read. */
+/**
+ * Labels one pair, or answers null when the model is not set up, the call fails (the day's limit,
+ * the deadline, an open breaker), it refuses, or its answer cannot be read: the pair is then
+ * recorded unlabelled, open for a person to decide, and the rest of the check goes on.
+ */
 async function label(
   target: PlaybookCheckTarget,
   candidate: PlaybookCandidate,
   deps: PlaybookCheckDeps,
+  logger: Logger,
 ): Promise<{ label: PlaybookConflictLabel; reason: string } | null> {
   if (!deps.provider.claudeAvailable) return null;
-  const reply = await deps.provider.complete({
-    agent: PLAYBOOK.spendName,
-    purpose: 'playbook_conflict_label',
-    entityId: null,
-    caps: caps(),
-    model: PLAYBOOK.labelModel,
-    effort: PLAYBOOK.labelEffort,
-    maxTokens: PLAYBOOK.labelMaxTokens,
-    system: LABEL_SYSTEM,
-    untrusted: [
-      { source: 'new_rule', text: directiveText(target) },
-      { source: 'approved_rule', text: directiveText(candidate) },
-    ],
-    question: 'Label the new rule against the approved rule.',
-  });
+  let reply: Awaited<ReturnType<AiProvider['complete']>>;
+  try {
+    reply = await deps.provider.complete({
+      agent: PLAYBOOK.spendName,
+      purpose: 'playbook_conflict_label',
+      entityId: null,
+      caps: caps(),
+      model: PLAYBOOK.labelModel,
+      effort: PLAYBOOK.labelEffort,
+      maxTokens: PLAYBOOK.labelMaxTokens,
+      system: LABEL_SYSTEM,
+      untrusted: [
+        { source: 'new_rule', text: directiveText(target) },
+        { source: 'approved_rule', text: directiveText(candidate) },
+      ],
+      question: 'Label the new rule against the approved rule.',
+    });
+  } catch (error) {
+    if (
+      error instanceof DomainError &&
+      (error.code === 'rate_limited' || error.code === 'integration_unavailable')
+    ) {
+      logger.log('warn', 'playbook.label_unavailable', {
+        directiveId: target.directiveId,
+        code: error.code,
+        reason: error.details?.reason,
+        requestId: deps.requestId,
+      });
+      return null;
+    }
+    throw error;
+  }
   if (reply.stopped !== 'finished') return null;
   return parseLabel(reply.text) ?? null;
 }
@@ -171,7 +196,7 @@ export async function checkPlaybook(
       waiting += 1;
       continue;
     }
-    const candidates = await executeQuery(
+    const { readAt, candidates } = await executeQuery(
       deps.principal,
       scope,
       ({ tx }) =>
@@ -186,7 +211,7 @@ export async function checkPlaybook(
     );
     const pairs = [];
     for (const candidate of candidates) {
-      const labelled = await label(target, candidate, deps);
+      const labelled = await label(target, candidate, deps, logger);
       pairs.push({
         otherId: candidate.otherId,
         distance: Math.min(2, Math.max(0, candidate.distance)),
@@ -201,7 +226,8 @@ export async function checkPlaybook(
       {
         entityId: event.entityId,
         directiveId: target.directiveId,
-        textSha256: target.textSha256,
+        wordingSha256: target.wordingSha256,
+        checkedAsOf: readAt,
         embedding,
         pairs,
       },
@@ -217,4 +243,22 @@ export async function checkPlaybook(
     });
   }
   return { checked, waiting };
+}
+
+/**
+ * Why a rule's conflict check has not run yet, for the screen once it has waited a while:
+ * `not_set_up` while no embedding key is set (the check cannot start), `limit_reached` once the
+ * Playbook's spend for the day has reached its cap (labels and embeddings wait for tomorrow), and
+ * `running` otherwise (the queue has it, or it is being retried).
+ */
+export async function playbookCheckWait(
+  provider: AiProvider,
+  keyValue: KeyValue,
+  now: Date,
+): Promise<PlaybookCheckWait> {
+  if (!provider.embeddingsAvailable) return 'not_set_up';
+  const spent = Number(
+    (await keyValue.get(spendKey(PLAYBOOK.spendName, null, istCalendarDate(now)))) ?? '0',
+  );
+  return spent >= PLAYBOOK.dailyCapPaise ? 'limit_reached' : 'running';
 }

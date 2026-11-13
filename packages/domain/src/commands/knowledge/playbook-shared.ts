@@ -5,6 +5,7 @@ import {
   PlaybookConflictCheckDto,
   PlaybookDirectiveDto,
   PlaybookDirectiveStateSchema,
+  type KnowledgeSensitivity,
   type PlaybookAudience,
   type Principal,
 } from '@shakti/contracts';
@@ -213,4 +214,93 @@ export function playbookChangedPayload(
     state: row.state,
     recheck: change === 'drafted' || change === 'edited',
   };
+}
+
+/**
+ * Holds the directive's type for this transaction (an advisory lock on `playbook-type:<type>`), so
+ * approvals of one type take turns and the conflict check's reads of that type (which hold it
+ * shared) never miss one. A directive the caller cannot see takes no lock; the read after it
+ * answers not found.
+ */
+export async function lockPlaybookType(ctx: CommandContext, directiveId: string): Promise<void> {
+  const d = schema.playbookDirectives;
+  const [row] = await ctx.tx.select({ type: d.type }).from(d).where(eq(d.id, directiveId)).limit(1);
+  if (row === undefined) return;
+  await ctx.tx.execute(
+    sql`select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(${`playbook-type:${row.type}`}, 0))`,
+  );
+}
+
+/** The audiences a directive drawn from a vault file of this sensitivity may have. */
+export function audiencesFromSource(
+  sensitivity: KnowledgeSensitivity,
+): readonly PlaybookAudience[] {
+  switch (sensitivity) {
+    case 'staff_ai_ok':
+      return ['customer', 'staff', 'management'];
+    case 'management':
+      return ['management'];
+    case 'exec_only':
+      return [];
+  }
+}
+
+/**
+ * The rules a vault file must meet to be a directive's source, the same for a typed draft and for
+ * drafts from the file: read for search and visible to the caller; of the directive's company, or
+ * of the whole group (a file of a company never gives a group's directive); not Executive-only;
+ * read by at least as many people as each audience; and holding each cited passage.
+ */
+export async function assertPlaybookSource(
+  ctx: CommandContext,
+  source: {
+    knowledgeFileId: string;
+    entityId: number;
+    wholeGroup: boolean;
+    audiences: readonly PlaybookAudience[];
+    positions: readonly number[];
+  },
+): Promise<{ id: string; entityId: number | null }> {
+  const k = schema.knowledgeFiles;
+  const [file] = await ctx.tx
+    .select({ id: k.id, entityId: k.entityId, sensitivity: k.sensitivity, state: k.state })
+    .from(k)
+    .where(eq(k.id, source.knowledgeFileId))
+    .limit(1);
+  if (
+    file?.state !== 'indexed' ||
+    (file.entityId !== null && (file.entityId !== source.entityId || source.wholeGroup))
+  ) {
+    throw new DomainError('not_found', `vault file ${source.knowledgeFileId} is not usable`, {
+      reason: 'playbook_source_missing',
+    });
+  }
+  const allowed = audiencesFromSource(file.sensitivity as KnowledgeSensitivity);
+  if (allowed.length === 0) {
+    throw new DomainError('forbidden', 'an Executive-only file gives no directive', {
+      reason: 'playbook_source_exec_only',
+    });
+  }
+  if (source.audiences.some((a) => !allowed.includes(a))) {
+    throw new DomainError('forbidden', 'a directive is read by no more people than its file', {
+      reason: 'playbook_audience_above_source',
+    });
+  }
+  if (source.positions.length > 0) {
+    const c = schema.knowledgeChunks;
+    const held = new Set(
+      (
+        await ctx.tx
+          .select({ position: c.position })
+          .from(c)
+          .where(and(eq(c.knowledgeFileId, file.id), inArray(c.position, [...source.positions])))
+      ).map((r) => r.position),
+    );
+    if (source.positions.some((p) => !held.has(p))) {
+      throw new DomainError('validation_failed', 'a draft cites a passage the file lacks', {
+        reason: 'playbook_passage_missing',
+      });
+    }
+  }
+  return { id: file.id, entityId: file.entityId };
 }

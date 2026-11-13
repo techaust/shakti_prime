@@ -8,11 +8,13 @@ import {
   PlaybookDirectiveRefInput,
   ResolvePlaybookConflictInput,
   RetirePlaybookDirectiveInput,
+  type PlaybookCheckWait,
   type PlaybookConflictCheckDto,
   type PlaybookDirectiveDto,
   type PlaybookDraftsDto,
   type PlaybookPageDto,
   type PlaybookReviewDto,
+  type PlaybookSourcePageDto,
 } from '@shakti/contracts';
 import {
   AGENT_DEFAULTS,
@@ -24,7 +26,9 @@ import {
   executeCommand,
   executeQuery,
   listPlaybook as listPlaybookQuery,
+  listPlaybookSources as listPlaybookSourcesQuery,
   loadPlaybookReview as loadPlaybookReviewQuery,
+  playbookCheckWait as playbookCheckWaitQuery,
   playbookSourcePassages,
   proposeDirectives,
   resolvePlaybookConflict,
@@ -242,5 +246,34 @@ export async function draftFromVaultFile(
       { ...input, drafts },
       commandOptions(meta, idempotencyKey),
     );
+  });
+}
+
+/** Draft from a file: the vault files the caller may draft from, by title, a page at a time. */
+export async function listPlaybookSources(
+  rawInput: unknown,
+): Promise<ActionResult<PlaybookSourcePageDto>> {
+  return toResult('listPlaybookSources', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listPlaybookSourcesQuery(context, rawInput),
+      { name: 'listPlaybookSources' },
+    );
+  });
+}
+
+/**
+ * Why a rule's conflict check is still waiting, asked once the screen has read it again for a
+ * minute: not set up, the day's limit reached, or still running. Not the person's doing, so it
+ * never extends their session.
+ */
+export async function playbookCheckWait(): Promise<ActionResult<PlaybookCheckWait>> {
+  return toResult('playbookCheckWait', async () => {
+    const principal = await signedInQuietly();
+    checkPermission(principal, 'knowledge.playbook.draft', 'all');
+    return playbookCheckWaitQuery(aiProvider(), defaultAuthDeps().keyValue, new Date());
   });
 }

@@ -3,6 +3,7 @@ import {
   newId,
   PlaybookCheckRecordDto,
   RecordPlaybookCheckInput,
+  type PlaybookAudience,
   type PlaybookDirectiveType,
 } from '@shakti/contracts';
 import type { RequestTx } from '@shakti/db';
@@ -15,9 +16,11 @@ export interface PlaybookCheckTarget {
   directiveId: string;
   entityId: number | null;
   type: PlaybookDirectiveType;
+  audience: PlaybookAudience;
   title: string;
   text: string;
-  textSha256: string;
+  /** The SHA-256 of its type, audience, title and text, which the record compares under lock. */
+  wordingSha256: string;
   /** The embedding it already has (a recheck of the same wording), or undefined. */
   embedding: number[] | undefined;
 }
@@ -49,55 +52,77 @@ export async function playbookCheckTargets(
   directiveId: string,
 ): Promise<PlaybookCheckTarget[]> {
   const rows = (await tx.execute(
-    sql`select directive_id, entity_id, type, title, body, text_sha256, embedding
+    sql`select directive_id, entity_id, type, audience, title, body, wording_sha256, embedding
           from app.playbook_check_targets(${directiveId}::uuid)`,
   )) as unknown as {
     directive_id: string;
     entity_id: number | null;
     type: PlaybookDirectiveType;
+    audience: PlaybookAudience;
     title: string;
     body: string;
-    text_sha256: string;
+    wording_sha256: string;
     embedding: string | null;
   }[];
   return rows.map((r) => ({
     directiveId: r.directive_id,
     entityId: r.entity_id,
     type: r.type,
+    audience: r.audience,
     title: r.title,
     text: r.body,
-    textSha256: r.text_sha256,
+    wordingSha256: r.wording_sha256,
     embedding: vectorOf(r.embedding),
   }));
 }
 
-/** A draft's conflict candidates, nearest first (`app.playbook_check_candidates()`). */
+/**
+ * A draft's conflict candidates, nearest first (`app.playbook_check_candidates()`), and `readAt`,
+ * the database time of the read as Postgres writes it, which the record stores as `checked_at`.
+ */
 export async function playbookCandidates(
   tx: RequestTx,
   directiveId: string,
   embedding: readonly number[],
   maxDistance: number,
   limit: number,
-): Promise<PlaybookCandidate[]> {
+): Promise<{ readAt: string; candidates: PlaybookCandidate[] }> {
   const rows = (await tx.execute(
-    sql`select other_id, title, body, distance
+    sql`select other_id, title, body, distance, read_at::text as read_at
           from app.playbook_check_candidates(${directiveId}::uuid, ${`[${embedding.join(',')}]`},
                                              ${maxDistance}::real, ${limit}::integer)`,
-  )) as unknown as { other_id: string; title: string; body: string; distance: number }[];
-  return rows.map((r) => ({
-    otherId: r.other_id,
-    title: r.title,
-    text: r.body,
-    distance: r.distance,
-  }));
+  )) as unknown as {
+    other_id: string;
+    title: string;
+    body: string;
+    distance: number;
+    read_at: string;
+  }[];
+  // With no candidate the read's time is the transaction's own (the definer answers `now()`).
+  const readAt =
+    rows[0]?.read_at ??
+    ((await tx.execute(sql`select pg_catalog.now()::text as at`)) as unknown as { at: string }[])[0]
+      ?.at;
+  if (readAt === undefined) throw new DomainError('internal', 'the read had no time');
+  return {
+    readAt,
+    candidates: rows.map((r) => ({
+      otherId: r.other_id,
+      title: r.title,
+      text: r.body,
+      distance: r.distance,
+    })),
+  };
 }
 
 /**
  * `knowledge.playbook.record_check` (docs/03-roadmap-appendix/phase2.md §5.4): what the conflict
  * check found on a draft, recorded by the platform's worker (`system:workers`, the platform-only
  * `knowledge.playbook.check`, no directive read permission) through `app.record_playbook_check()`,
- * which locks the draft and records nothing when it is no longer a draft or its wording is no
- * longer the one checked (`skipped`). The audit row counts the pairs, never their text.
+ * which takes the type's lock and the draft's, and records nothing when it is no longer a draft,
+ * its wording is no longer the one checked, or a newer check is already recorded (`skipped`). The
+ * check's time is the candidates' read time. The audit row counts the pairs, never their text,
+ * under the draft's company.
  */
 export const recordPlaybookCheck = defineCommand({
   name: 'knowledge.playbook.record_check',
@@ -106,7 +131,7 @@ export const recordPlaybookCheck = defineCommand({
   input: RecordPlaybookCheckInput,
   output: PlaybookCheckRecordDto,
   // The SHA-256 of the checked wording, in hex: a long run of digits by design.
-  unmaskedFields: ['textSha256'],
+  unmaskedFields: ['wordingSha256'],
   auditFields: ['pairs', 'openConflicts'],
   auditInput: (input) => ({ directiveId: input.directiveId, pairs: input.pairs.length }),
   async handler(ctx, input) {
@@ -120,13 +145,15 @@ export const recordPlaybookCheck = defineCommand({
         reason: p.reason,
       })),
     );
-    let open: number | null;
+    let answer: { open_pairs: number | null; entity_id: number | null } | undefined;
     try {
       const rows = (await ctx.tx.execute(
-        sql`select app.record_playbook_check(${input.directiveId}::uuid, ${input.textSha256},
-                                             ${`[${input.embedding.join(',')}]`}, ${pairs}::jsonb) as open`,
-      )) as unknown as { open: number | null }[];
-      open = rows[0]?.open ?? null;
+        sql`select open_pairs, entity_id
+              from app.record_playbook_check(${input.directiveId}::uuid, ${input.wordingSha256},
+                                             ${input.checkedAsOf}::timestamptz,
+                                             ${`[${input.embedding.join(',')}]`}, ${pairs}::jsonb)`,
+      )) as unknown as { open_pairs: number | null; entity_id: number | null }[];
+      answer = rows[0];
     } catch (error) {
       if ((error as { cause?: { code?: string } }).cause?.code === 'P0002') {
         throw new DomainError('not_found', `directive ${input.directiveId} is not here`, {
@@ -135,15 +162,21 @@ export const recordPlaybookCheck = defineCommand({
       }
       throw error;
     }
-    if (open === null) {
+    if (answer === undefined || answer.open_pairs === null) {
       return { directiveId: input.directiveId, skipped: true, pairs: 0, open: 0 };
     }
+    // Filed under the draft's own company (null for the group's), not the event's.
     ctx.audit({
       aggregateType: 'playbook_directive',
       aggregateId: input.directiveId,
-      entityId: input.entityId,
-      after: { pairs: input.pairs.length, openConflicts: open },
+      entityId: answer.entity_id,
+      after: { pairs: input.pairs.length, openConflicts: answer.open_pairs },
     });
-    return { directiveId: input.directiveId, skipped: false, pairs: input.pairs.length, open };
+    return {
+      directiveId: input.directiveId,
+      skipped: false,
+      pairs: input.pairs.length,
+      open: answer.open_pairs,
+    };
   },
 });

@@ -1,29 +1,11 @@
-import {
-  DomainError,
-  DraftFromVaultFileInput,
-  PlaybookDraftsDto,
-  type KnowledgeSensitivity,
-  type PlaybookAudience,
-} from '@shakti/contracts';
-import { schema } from '@shakti/db';
-import { eq } from 'drizzle-orm';
+import { DraftFromVaultFileInput, PlaybookDraftsDto } from '@shakti/contracts';
 import { defineCommand } from '../../command/define-command';
 import { requireEntity } from '../crm/opportunity-shared';
+import { assertPlaybookSource } from './playbook-shared';
 import { draftPlaybookDirective } from './playbook';
 
-/** The audiences a directive drawn from a vault file of this sensitivity may have. */
-export function audiencesFromSource(
-  sensitivity: KnowledgeSensitivity,
-): readonly PlaybookAudience[] {
-  switch (sensitivity) {
-    case 'staff_ai_ok':
-      return ['customer', 'staff', 'management'];
-    case 'management':
-      return ['management'];
-    case 'exec_only':
-      return [];
-  }
-}
+// The source rules and the audiences a file allows live in `playbook-shared.ts`.
+export { audiencesFromSource } from './playbook-shared';
 
 /**
  * `knowledge.playbook.draft_from_file` (docs/03-roadmap-appendix/phase2.md §5.4): the drafts the
@@ -44,44 +26,13 @@ export const draftPlaybookFromFile = defineCommand({
   auditFields: ['drafts'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
-    const k = schema.knowledgeFiles;
-    const [file] = await ctx.tx
-      .select({ id: k.id, entityId: k.entityId, sensitivity: k.sensitivity, state: k.state })
-      .from(k)
-      .where(eq(k.id, input.knowledgeFileId))
-      .limit(1);
-    if (
-      file?.state !== 'indexed' ||
-      (file.entityId !== null && (file.entityId !== input.entityId || input.wholeGroup))
-    ) {
-      throw new DomainError('not_found', `vault file ${input.knowledgeFileId} is not usable`, {
-        reason: 'playbook_source_missing',
-      });
-    }
-    const allowed = audiencesFromSource(file.sensitivity as KnowledgeSensitivity);
-    if (allowed.length === 0) {
-      throw new DomainError('forbidden', 'an Executive-only file gives no directive', {
-        reason: 'playbook_source_exec_only',
-      });
-    }
-    const c = schema.knowledgeChunks;
-    const positions = new Set(
-      (
-        await ctx.tx.select({ position: c.position }).from(c).where(eq(c.knowledgeFileId, file.id))
-      ).map((r) => r.position),
-    );
-    for (const d of input.drafts) {
-      if (!allowed.includes(d.audience)) {
-        throw new DomainError('forbidden', 'a directive is read by no more people than its file', {
-          reason: 'playbook_audience_above_source',
-        });
-      }
-      if (!positions.has(d.sourcePosition)) {
-        throw new DomainError('validation_failed', 'a draft cites a passage the file lacks', {
-          reason: 'playbook_passage_missing',
-        });
-      }
-    }
+    const file = await assertPlaybookSource(ctx, {
+      knowledgeFileId: input.knowledgeFileId,
+      entityId: input.entityId,
+      wholeGroup: input.wholeGroup,
+      audiences: input.drafts.map((d) => d.audience),
+      positions: input.drafts.map((d) => d.sourcePosition),
+    });
     const drafts = [];
     for (const d of input.drafts) {
       drafts.push(

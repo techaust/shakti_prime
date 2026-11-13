@@ -1,6 +1,7 @@
 'use client';
 
 import type {
+  PlaybookCheckWait,
   PlaybookDirectiveDto,
   PlaybookDirectiveState,
   PlaybookResolution,
@@ -44,6 +45,7 @@ export function PlaybookReview({
   loading,
   failure,
   companyName,
+  checkWait,
   canApprove,
   approving,
   onApprove,
@@ -53,6 +55,8 @@ export function PlaybookReview({
   loading: boolean;
   failure: CommandFailure | undefined;
   companyName: (id: number | null) => string | undefined;
+  /** Why the check is still waiting, once the screen has read it again for a minute. */
+  checkWait?: PlaybookCheckWait | undefined;
   canApprove: boolean;
   approving: boolean;
   onApprove: () => void;
@@ -169,7 +173,7 @@ export function PlaybookReview({
           </h3>
           {d.checkedAt === null ? (
             <p className="text-text-muted text-sm" role="status">
-              {t('review.checking')}
+              {checkWait === undefined ? t('review.checking') : t(`review.wait.${checkWait}`)}
             </p>
           ) : review.pairs.length === 0 ? (
             <p className="text-text-muted text-sm">{t('review.clear')}</p>

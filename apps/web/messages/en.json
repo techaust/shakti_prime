@@ -4780,7 +4780,12 @@
       },
       "approved": "Approved on <date></date>",
       "retired": "Retired on <date></date>: {reason}",
-      "actions": "What to do with {title}"
+      "actions": "What to do with {title}",
+      "wait": {
+        "not_set_up": "The check against the approved rules is not set up yet, so this rule can't be approved for now. Ask your administrator to switch it on.",
+        "limit_reached": "Today's limit for checking rules has been reached. The check runs again tomorrow; come back then to approve this rule.",
+        "running": "The check is taking longer than usual. Refresh the page in a few minutes to see it."
+      }
     },
     "approve": "Approve",
     "edit": "Edit",
@@ -4831,7 +4836,9 @@
       "everyCompany": "Every company",
       "run": "Draft rules",
       "cancel": "Cancel",
-      "working": "Reading the file. This can take a minute."
+      "working": "Reading the file. This can take a minute.",
+      "searchLabel": "Find a file by its name",
+      "more": "More files"
     },
     "notices": {
       "saved": "Rule saved. We are checking it against the approved rules.",
