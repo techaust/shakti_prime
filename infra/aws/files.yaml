@@ -515,12 +515,13 @@
         ]
       }
     },
-    "ReadOnlyBucketPolicy": {
-      "Type": "AWS::IAM::Policy",
+    "ReadOnlyFilesPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
       "Properties": {
-        "PolicyName": {
+        "ManagedPolicyName": {
           "Fn::Sub": "shakti-prime-${EnvironmentName}-files-read-only"
         },
+        "Description": "Lets the read-only user list the bucket and read its settings, never a file. A managed policy, because the user's inline policies (one per files stack) would pass IAM's 2,048-character limit for a user's inline policies; a resource of its own, because CloudFormation cannot change an existing resource's type.",
         "Users": [
           {
             "Ref": "ReadOnlyUserName"
