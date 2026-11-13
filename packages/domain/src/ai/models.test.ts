@@ -17,7 +17,8 @@ describe('the price table', () => {
     const checked: Readonly<Record<string, string>> = AGENT_DEFAULTS.pricesCheckedOn;
     for (const model of Object.keys(MODEL_PRICES)) {
       expect(checked[model], model).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      if (model.startsWith('claude-')) expect(MODEL_CONTEXT_TOKENS[model], model).toBeGreaterThan(0);
+      if (model.startsWith('claude-'))
+        expect(MODEL_CONTEXT_TOKENS[model], model).toBeGreaterThan(0);
     }
     expect(Object.keys(checked).sort()).toEqual(Object.keys(MODEL_PRICES).sort());
   });
@@ -43,7 +44,12 @@ describe('the price table', () => {
   });
 
   it('prices Haiku 5.5 by prompt length, the line counting cache reads and writes', () => {
-    const atLine = { ...NO_USAGE, inputTokens: 60_000, cacheReadTokens: 40_000, outputTokens: 1_000 };
+    const atLine = {
+      ...NO_USAGE,
+      inputTokens: 60_000,
+      cacheReadTokens: 40_000,
+      outputTokens: 1_000,
+    };
     // 60,000 × $0.10 + 40,000 × $0.01 + 1,000 × $0.50 = $0.0069 = 71.76 paise, rounded up.
     expect(costInPaise('claude-haiku-5-5', atLine)).toBe(72);
     const overLine = { ...atLine, cacheWriteTokens: 1 };
