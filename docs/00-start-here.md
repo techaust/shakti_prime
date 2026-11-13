@@ -37,7 +37,7 @@ Each holds the detail of the numbered document with the same number.
 
 | Folder | What it holds |
 |---|---|
-| [03-roadmap-appendix/](03-roadmap-appendix/) | The Phase 1 design (23 slices in six waves) and the backend weeks 3 to 5 design. Read the design before building what it covers. |
+| [03-roadmap-appendix/](03-roadmap-appendix/) | The Phase 1 design (23 slices in six waves), the Phase 2 design ([phase2.md](03-roadmap-appendix/phase2.md), 15 slices in four waves, awaiting the owner's approval) and the backend weeks 3 to 5 design. Read the design before building what it covers. |
 | [04-architecture-appendix/](04-architecture-appendix/readme.md) | Spike notes: short, measured experiments (print, OCR, imports, lists, Account 360, calling, Exotel, WhatsApp, voice, Tally, Realtime). |
 | [13-client-packs/](13-client-packs/readme.md) | Documents the Shakti group and the development team work through together: the workshop pack, client actions, the wireframe review, design sign-off, vendor quotes, progress for the client, and the Phase 0 gate checklist. Written in business words. |
 | [14-reviews/](14-reviews/readme.md) | Dated review notes and the production-readiness audit with its resolution record. |

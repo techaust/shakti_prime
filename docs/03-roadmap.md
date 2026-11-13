@@ -84,6 +84,8 @@ Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-cli
 ## 4. Phase 2 — Communications & live voice (9–11 weeks)
 **Scope:** WhatsApp Cloud API with one number per entity; Lead Ads webhooks; Exotel click-to-dial and recordings on DLT-registered numbers; Concierge and Caller Co-pilot from shadow to approval; WhatsApp quote acceptance and milestone messages; speech-vendor benchmark and selection; Playbook directive review; Ask the Business; live voice Teach and Ask.
 
+**Plan:** 15 slices in four waves, in [`docs/03-roadmap-appendix/phase2.md`](03-roadmap-appendix/phase2.md) §3, awaiting the owner's approval.
+
 **Exit gate:** webhook idempotency and contract tests green; DLT numbers live and consent routing verified; shadow reports reviewed with the Executive; voice p50 latency < 1.5 s; speech-to-text accuracy met on real samples, against a target set from the voice spike's measurements before Phase 2 starts (`docs/04-architecture-appendix/voice.md`).
 
 ## 5. Phase 3 — Inventory & procurement (7–8 weeks)
