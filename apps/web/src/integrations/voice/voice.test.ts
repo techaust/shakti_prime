@@ -1,3 +1,4 @@
+import { AGENT_DEFAULTS } from '@shakti/domain';
 import { jwtVerify } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { bodyOf, stubFetch, urlOf } from '../test-fetch';
@@ -11,6 +12,7 @@ import { percentile, runTurn, summarize } from './latency';
 import { liveKitHttpBase, liveKitRooms, liveKitToken } from './livekit';
 import type { ReplyModel, SpeechToText, TextToSpeech } from './ports';
 import { PRONUNCIATION_CHECKLIST } from './pronunciation-checklist';
+import { hasDevanagari } from './roman-script';
 import { sarvamConfig, sarvamSpeech } from './sarvam';
 
 // Low-entropy phrases, so the secret scan never mistakes them for keys (CLAUDE.md).
@@ -32,14 +34,14 @@ function stream(chunks: string[]): ReadableStream<Uint8Array> {
 
 /** A Messages API stream as the API sends it, split mid-event to test the buffering. */
 const CLAUDE_STREAM = [
-  'event: message_start\ndata: {"type":"message_start","message":{"id":"msg_1","role":"assistant"}}\n\n',
+  'event: message_start\ndata: {"type":"message_start","message":{"id":"msg_1","role":"assistant","usage":{"input_tokens":42,"output_tokens":1}}}\n\n',
   'event: content_block_start\ndata: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
   'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Ji, 5 HP pump "}}\n\nevent: content_block_del',
   'ta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"stock mein hai. Kal"}}\n\n',
   'event: ping\ndata: {"type":"ping"}\n\n',
   'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" dispatch ho jayega."}}\n\n',
   'event: content_block_stop\ndata: {"type":"content_block_stop","index":0}\n\n',
-  'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+  'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":18}}\n\n',
   'event: message_stop\ndata: {"type":"message_stop"}\n\n',
 ];
 
@@ -86,23 +88,52 @@ describe('the Claude stream', () => {
     const headers = new Headers(init?.headers);
     expect(headers.get('x-api-key')).toBe('anthropic-test-key');
     expect(headers.get('anthropic-version')).toBe('2023-06-01');
-    expect(JSON.parse(bodyOf(init))).toMatchObject({
-      model: 'claude-sonnet-5',
+    expect(JSON.parse(bodyOf(init))).toEqual({
+      model: 'claude-sonnet-5-5',
+      max_tokens: 400,
       stream: true,
+      system: 'Speak briefly.',
+      thinking: { type: 'between_tools' },
       output_config: { effort: 'low' },
       messages: [{ role: 'user', content: 'pump ka stock hai?' }],
     });
+    expect(reply.usage).toEqual({
+      inputTokens: 42,
+      outputTokens: 18,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
   });
 
-  it('takes the model from VOICE_SPIKE_MODEL, with the documented default', () => {
+  it('takes the voice model from AGENT_DEFAULTS, and only a priced model to compare', () => {
     const key = { ANTHROPIC_API_KEY: 'anthropic-test-key' };
-    expect(claudeConfig(key)?.model).toBe(DEFAULT_VOICE_SPIKE_MODEL);
-    expect(claudeConfig({ ...key, VOICE_SPIKE_MODEL: '  ' })?.model).toBe(
-      DEFAULT_VOICE_SPIKE_MODEL,
+    expect(DEFAULT_VOICE_SPIKE_MODEL).toBe(AGENT_DEFAULTS.voice.model);
+    expect(claudeConfig(key)?.model).toBe('claude-sonnet-5-5');
+    expect(claudeConfig({ ...key, VOICE_SPIKE_MODEL: '  ' })?.model).toBe('claude-sonnet-5-5');
+    const haiku = claudeConfig({ ...key, VOICE_SPIKE_MODEL: 'claude-haiku-5-5' });
+    expect(haiku).toMatchObject({ model: 'claude-haiku-5-5', thinking: undefined });
+    expect(() => claudeConfig({ ...key, VOICE_SPIKE_MODEL: 'claude-sonnet-5' })).toThrow(
+      /does not list/,
     );
-    expect(claudeConfig({ ...key, VOICE_SPIKE_MODEL: 'claude-haiku-5' })?.model).toBe(
-      'claude-haiku-5',
-    );
+    expect(claudeConfig({})).toBeUndefined();
+  });
+
+  it('refuses a declined reply', async () => {
+    const config = claudeConfig({ ANTHROPIC_API_KEY: 'anthropic-test-key' });
+    if (config === undefined) throw new Error('config expected');
+    const declined = claudeReplyModel(config, {
+      fetch: () =>
+        Promise.resolve(
+          new Response(
+            stream([
+              'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Ji. "}}\n\n',
+              'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"refusal"}}\n\n',
+            ]),
+          ),
+        ),
+      timeoutMs: 1_000,
+    });
+    await expect(declined.reply('s', 'u')).rejects.toMatchObject({ vendorCode: 'refusal' });
   });
 
   it('turns an error event or an error status into a provider error', async () => {
@@ -137,7 +168,7 @@ describe('Sarvam', () => {
   const config = sarvamConfig({ SARVAM_API_KEY: 'sarvam-test-key' });
   if (config === undefined) throw new Error('config expected');
 
-  it('sends the recording as a form and reads the transcript', async () => {
+  it('sends the recording as a form, asks for Roman script and reads the transcript', async () => {
     const fetchImpl = stubFetch(() =>
       Response.json({
         request_id: 'r1',
@@ -155,9 +186,27 @@ describe('Sarvam', () => {
     expect(urlOf(url)).toBe('https://api.sarvam.ai/speech-to-text');
     expect(new Headers(init?.headers).get('api-subscription-key')).toBe('sarvam-test-key');
     const form = init?.body as FormData;
-    expect(form.get('model')).toBe('saarika:v2.5');
+    expect(form.get('model')).toBe('saaras:v3');
+    expect(form.get('mode')).toBe('translit');
     expect(form.get('language_code')).toBe('hi-IN');
     expect(form.get('file')).toBeInstanceOf(Blob);
+  });
+
+  it('refuses a transcript in Devanagari, naming no text', async () => {
+    // "pump ka stock hai" with its first word in Devanagari, written as escapes (ADR 0014).
+    const fetchImpl = stubFetch(() =>
+      Response.json({ transcript: '\u092a\u0902\u092a ka stock hai', language_code: 'hi-IN' }),
+    );
+    const speech = sarvamSpeech(config, { fetch: fetchImpl, timeoutMs: 1_000 });
+    const failed = speech.transcribe(new Uint8Array([1]), {
+      mimeType: 'audio/wav',
+      languageCode: 'hi-IN',
+    });
+    await expect(failed).rejects.toMatchObject({
+      failure: 'invalid_response',
+      vendorCode: 'not_roman_script',
+    });
+    await expect(failed).rejects.not.toThrow(/stock/);
   });
 
   it('asks for speech and decodes the audio', async () => {
@@ -229,6 +278,7 @@ describe('one spoken turn', () => {
     };
     const llm: ReplyModel = {
       vendor: 'fake',
+      model: 'claude-sonnet-5-5',
       reply: () =>
         Promise.resolve({
           text: 'Ji haan. Kal aayega.',
@@ -236,6 +286,7 @@ describe('one spoken turn', () => {
           firstSentenceMs: 400,
           firstSentence: 'Ji haan.',
           totalMs: 700,
+          usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
         }),
     };
     const spoken: string[] = [];
@@ -261,7 +312,7 @@ describe('the pronunciation checklist', () => {
     const ids = PRONUNCIATION_CHECKLIST.map((l) => l.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const line of PRONUNCIATION_CHECKLIST) {
-      expect(line.text).not.toMatch(/[ऀ-ॿ]/);
+      expect(hasDevanagari(line.text)).toBe(false);
       expect(line.listenFor.length).toBeGreaterThan(10);
     }
   });
