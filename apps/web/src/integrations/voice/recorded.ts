@@ -115,17 +115,22 @@ export function replayFetch(
     requests.push({ url, body });
     const startedAt = clock.now();
     const frames = [...session.frames];
-    const stream = new ReadableStream<Uint8Array>({
-      pull(controller) {
-        const frame = frames.shift();
-        if (frame === undefined) {
-          controller.close();
-          return;
-        }
-        clock.advanceTo(startedAt + frame.atMs);
-        controller.enqueue(encoder.encode(frameText(frame)));
+    // No read-ahead (`highWaterMark: 0`): a chunk is produced, and the clock moved, only when the
+    // adapter asks for it, so each chunk is read at its own time.
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          const frame = frames.shift();
+          if (frame === undefined) {
+            controller.close();
+            return;
+          }
+          clock.advanceTo(startedAt + frame.atMs);
+          controller.enqueue(encoder.encode(frameText(frame)));
+        },
       },
-    });
+      { highWaterMark: 0 },
+    );
     return Promise.resolve(new Response(stream, { status: 200 }));
   };
   return { fetch: replay, requests };

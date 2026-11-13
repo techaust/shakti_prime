@@ -1,0 +1,102 @@
+{
+  "speechToText": {
+    "source": "written",
+    "note": "written from Sarvam's streaming speech-to-text reference (voice.md section 6), 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 200,
+        "data": {
+          "type": "events",
+          "data": {
+            "signal_type": "START_SPEECH"
+          }
+        }
+      },
+      {
+        "atMs": 2950,
+        "data": {
+          "type": "events",
+          "data": {
+            "signal_type": "END_SPEECH"
+          }
+        }
+      },
+      {
+        "atMs": 3150,
+        "data": {
+          "type": "data",
+          "data": {
+            "request_id": "fixture",
+            "transcript": "panch HP ka submersable pump stock me hai kya",
+            "language_code": "hi-IN"
+          }
+        }
+      }
+    ]
+  },
+  "reply": {
+    "source": "written",
+    "note": "written from the Messages API streaming reference, 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 300,
+        "text": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_fixture\",\"role\":\"assistant\",\"usage\":{\"input_tokens\":120,\"output_tokens\":1}}}\n\n"
+      },
+      {
+        "atMs": 380,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Ji, 5 HP \"}}\n\n"
+      },
+      {
+        "atMs": 520,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"submersible stock mein hai. \"}}\n\n"
+      },
+      {
+        "atMs": 700,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Kal dispatch ho sakta hai.\"}}\n\n"
+      },
+      {
+        "atMs": 740,
+        "text": "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":24}}\n\n"
+      },
+      {
+        "atMs": 745,
+        "text": "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+      }
+    ]
+  },
+  "speech": {
+    "source": "written",
+    "note": "written from Sarvam's streaming text-to-speech reference (voice.md section 6), 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 210,
+        "data": {
+          "type": "audio",
+          "data": {
+            "content_type": "audio/L16;rate=16000",
+            "audio": "AAAAAAAAAAA="
+          }
+        }
+      },
+      {
+        "atMs": 250,
+        "data": {
+          "type": "audio",
+          "data": {
+            "content_type": "audio/L16;rate=16000",
+            "audio": "AAAAAAAAAAA="
+          }
+        }
+      },
+      {
+        "atMs": 270,
+        "data": {
+          "type": "event",
+          "data": {
+            "event_type": "final"
+          }
+        }
+      }
+    ]
+  }
+}

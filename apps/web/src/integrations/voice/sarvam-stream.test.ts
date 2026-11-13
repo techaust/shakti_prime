@@ -11,6 +11,9 @@ const NOTE = 'written from the Sarvam streaming reference as read on 13-11-2026'
 const config = sarvamConfig({ SARVAM_API_KEY: 'sarvam-test-key' });
 if (config === undefined) throw new Error('config expected');
 
+/** "pump" in Devanagari, built from code points so no file of the repository holds the script. */
+const PUMP_IN_DEVANAGARI = String.fromCodePoint(0x092a, 0x0902, 0x092a);
+
 const STT_SESSION: RecordedSession = {
   source: 'written',
   note: NOTE,
@@ -108,10 +111,7 @@ describe('Sarvam streaming speech to text', () => {
     const devanagari: RecordedSession = {
       source: 'written',
       note: NOTE,
-      frames: [
-        // The word for "pump" in Devanagari, as escapes (ADR 0014).
-        { atMs: 10, data: { type: 'data', data: { transcript: 'पंप' } } },
-      ],
+      frames: [{ atMs: 10, data: { type: 'data', data: { transcript: PUMP_IN_DEVANAGARI } } }],
     };
     const failed: RecordedSession = {
       source: 'written',

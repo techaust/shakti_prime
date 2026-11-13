@@ -1,0 +1,150 @@
+{
+  "set": "fixture set: written sessions, not recordings",
+  "items": 5,
+  "failed": 1,
+  "vendors": {
+    "speechToText": "sarvam saaras:v3 translit (replayed)",
+    "reply": "anthropic claude-sonnet-5-5 (replayed)",
+    "speech": "sarvam bulbul:v2 (replayed)"
+  },
+  "accuracy": {
+    "characterErrorRate": 0.1096,
+    "keyTerms": {
+      "found": 7,
+      "total": 8,
+      "share": 0.875,
+      "byKind": {
+        "amount": {
+          "found": 1,
+          "total": 1
+        },
+        "number": {
+          "found": 1,
+          "total": 1
+        },
+        "place": {
+          "found": 2,
+          "total": 2
+        },
+        "product": {
+          "found": 1,
+          "total": 1
+        },
+        "unit": {
+          "found": 2,
+          "total": 3
+        }
+      }
+    },
+    "onTopic": {
+      "marked": 4,
+      "onTopic": 3,
+      "share": 0.75
+    }
+  },
+  "latency": {
+    "endOfSpeech": {
+      "n": 3,
+      "p50": 260,
+      "p95": 280,
+      "budgetMs": 250,
+      "met": false
+    },
+    "finalTranscript": {
+      "n": 3,
+      "p50": 220,
+      "p95": 230,
+      "budgetMs": 250,
+      "met": true
+    },
+    "firstSentence": {
+      "n": 4,
+      "p50": 560,
+      "p95": 640,
+      "budgetMs": 600,
+      "met": true
+    },
+    "firstSpeech": {
+      "n": 4,
+      "p50": 230,
+      "p95": 260,
+      "budgetMs": 250,
+      "met": true
+    },
+    "firstAudio": {
+      "n": 4,
+      "p50": 1420,
+      "p95": 1550,
+      "budgetMs": 1500,
+      "met": true
+    },
+    "networkAndPlaybackBudgetedMs": 150,
+    "missedSteps": ["endOfSpeech"]
+  },
+  "cost": {
+    "audioMinutes": 0.28,
+    "paisePerMinute": 286.41,
+    "sttPaisePerMinute": 50,
+    "ttsPaisePerMinute": 157.37,
+    "modelPaisePerMinute": 79.04,
+    "speechPricesCheckedOn": "2026-11-13"
+  },
+  "targets": {
+    "characterErrorRate": {
+      "target": 0.12,
+      "met": true
+    },
+    "keyTerms": {
+      "target": 0.95,
+      "met": false
+    },
+    "onTopic": {
+      "target": 0.9,
+      "met": false
+    }
+  },
+  "perItem": [
+    {
+      "id": "q01",
+      "language": "hinglish",
+      "characterErrorRate": 0.0465,
+      "keyTerms": "2/2",
+      "onTopic": true,
+      "firstAudioMs": 1330
+    },
+    {
+      "id": "q02",
+      "language": "hindi",
+      "accent": "rajasthani",
+      "characterErrorRate": 0,
+      "keyTerms": "2/2",
+      "onTopic": true,
+      "firstAudioMs": 1490
+    },
+    {
+      "id": "q03",
+      "language": "english",
+      "characterErrorRate": 0,
+      "keyTerms": "2/2",
+      "onTopic": false,
+      "firstAudioMs": 1420
+    },
+    {
+      "id": "q04",
+      "language": "hinglish",
+      "characterErrorRate": 0,
+      "keyTerms": "1/1",
+      "onTopic": true,
+      "firstAudioMs": 1550
+    },
+    {
+      "id": "q05",
+      "language": "hinglish",
+      "characterErrorRate": 1,
+      "keyTerms": "0/1",
+      "onTopic": null,
+      "firstAudioMs": null,
+      "failure": "sarvam http rate_limit_exceeded_error"
+    }
+  ]
+}

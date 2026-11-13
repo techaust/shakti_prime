@@ -5,13 +5,45 @@
 //                  step and of the time to first audio against the 1.5 s target.
 //   pronunciation  speaks every line of the Roman-Hinglish checklist into VOICE_SPIKE_OUT_DIR as
 //                  WAV files, with a rating sheet for the listeners.
-// It calls paid vendors with real keys, so it runs only when its variables are set, never in CI.
-// Transcripts and replies are never printed: the recordings are the client's executives.
-// Usage: pnpm --filter web spike:voice -- latency | pronunciation
+//   benchmark      the speech benchmark (docs/03-roadmap-appendix/phase2.md §5.3) over the set in
+//                  VOICE_BENCHMARK_SET (set.json, marks.json, the WAV recordings): streaming speech
+//                  to text, the voice model's reply and the first sentence's speech, timed per step
+//                  (§9.3), scored against the references (§9.2) and priced per minute.
+//                  --replay <folder>      runs on recorded turns (<item id>.json) instead of the
+//                                         vendors: no key, no vendor call, allowed in CI
+//                  --save-replay <folder> on a live run, keeps each turn's sessions there
+//                  --out <file>           writes the report as JSON
+// The live modes call paid vendors with real keys, so they run only when their variables are set,
+// never in CI. Transcripts and replies are never printed: the recordings are people's voices.
+// Usage: pnpm --filter web spike:voice -- latency | pronunciation | benchmark [options]
 import { newId } from '@shakti/contracts';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { claudeConfig, claudeReplyModel } from '../../src/integrations/voice/claude-stream';
+import { join, resolve } from 'node:path';
+import { readRecordedTurns, readSetFolder } from '../../src/integrations/voice/benchmark/files';
+import { replayBenchmark } from '../../src/integrations/voice/benchmark/replay';
+import {
+  observeTurn,
+  pcmChunks,
+  scoreBenchmark,
+  SPOKEN_REPLY_SYSTEM,
+  type BenchmarkReport,
+  type TurnObservation,
+} from '../../src/integrations/voice/benchmark/run';
+import { SARVAM_PRICE } from '../../src/integrations/voice/benchmark/stand-in-set';
+import {
+  CLAUDE_TIMEOUT_MS,
+  claudeConfig,
+  claudeReplyModel,
+} from '../../src/integrations/voice/claude-stream';
+import { systemClock } from '../../src/integrations/voice/ports';
+import { recordingFetch, recordingSockets } from '../../src/integrations/voice/recorded';
+import { durationMs, readWav, speechEndMs } from '../../src/integrations/voice/recording';
+import {
+  SARVAM_TIMEOUT_MS,
+  sarvamStreamingStt,
+  sarvamStreamingTts,
+} from '../../src/integrations/voice/sarvam';
+import { webSocketOpener } from '../../src/integrations/voice/socket';
 import {
   FIRST_AUDIO_P50_TARGET_MS,
   runTurn,
@@ -22,20 +54,23 @@ import { liveKitConfig, liveKitRooms } from '../../src/integrations/voice/liveki
 import { PRONUNCIATION_CHECKLIST } from '../../src/integrations/voice/pronunciation-checklist';
 import { sarvamConfig, sarvamSpeech } from '../../src/integrations/voice/sarvam';
 
-/** The spoken-reply instruction for the spike; the real one comes with the voice agent (Phase 2). */
-const SYSTEM = [
-  'You are the voice assistant of the Shakti group, which sells pumps, solar systems and',
-  'agricultural equipment in India. The person speaking is a Shakti executive.',
-  'Reply in one or two short spoken sentences in Roman-script Hinglish, the way a helpful',
-  'colleague talks on the phone. No lists, no symbols, no markdown.',
-].join(' ');
+const args = process.argv.slice(2);
+const mode = args.find((a) => a === 'latency' || a === 'pronunciation' || a === 'benchmark');
+/** The value after `--name`, if given. */
+const option = (name: string): string | undefined => {
+  const at = args.indexOf(`--${name}`);
+  const value = at === -1 ? undefined : args[at + 1];
+  return value === undefined || value.startsWith('--') ? undefined : value;
+};
+const replayFolder = option('replay');
 
-if (process.env.CI !== undefined && process.env.CI !== '') {
-  console.error('the voice spike calls paid vendors and never runs in CI');
+if (process.env.CI !== undefined && process.env.CI !== '' && replayFolder === undefined) {
+  console.error(
+    'the voice spike calls paid vendors and never runs in CI (only benchmark --replay)',
+  );
   process.exit(1);
 }
 
-const mode = process.argv.slice(2).find((a) => a === 'latency' || a === 'pronunciation');
 const language = process.env.VOICE_SPIKE_LANGUAGE ?? 'hi-IN';
 const sarvam = sarvamConfig();
 
@@ -111,7 +146,7 @@ if (mode === 'pronunciation') {
     const audio = readFileSync(join(audioDir, file));
     const turn = await runTurn(
       audio,
-      { mimeType: 'audio/wav', languageCode: language, system: SYSTEM },
+      { mimeType: 'audio/wav', languageCode: language, system: SPOKEN_REPLY_SYSTEM },
       { stt: speech, llm, tts: speech },
     );
     timings.push(turn.timing);
@@ -145,7 +180,104 @@ if (mode === 'pronunciation') {
     },
   };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+} else if (mode === 'benchmark') {
+  const setFolder = process.env.VOICE_BENCHMARK_SET ?? '';
+  if (setFolder === '') {
+    console.error(
+      'set VOICE_BENCHMARK_SET to the set folder first (docs/04-architecture-appendix/voice.md)',
+    );
+    process.exit(1);
+  }
+  const { set, marks } = readSetFolder(setFolder);
+  let report: BenchmarkReport;
+  if (replayFolder !== undefined) {
+    const turns = readRecordedTurns(set, replayFolder);
+    report = await replayBenchmark({ set, turns, marks, speechPrice: SARVAM_PRICE });
+  } else {
+    const claude = claudeConfig();
+    if (sarvam === undefined || claude === undefined) {
+      console.error(
+        'set SARVAM_API_KEY and ANTHROPIC_API_KEY first, or pass --replay (docs/04-architecture-appendix/voice.md)',
+      );
+      process.exit(1);
+    }
+    const saveFolder = option('save-replay');
+    if (saveFolder !== undefined) mkdirSync(saveFolder, { recursive: true });
+    const observations: TurnObservation[] = [];
+    const durationsMs = new Map<string, number>();
+    for (const item of set.items) {
+      const pcm = readWav(readFileSync(join(setFolder, item.file)));
+      if (pcm.channels !== 1 || (pcm.sampleRate !== 16_000 && pcm.sampleRate !== 8_000)) {
+        console.error(`${item.file}: a mono WAV at 16 kHz or 8 kHz is expected`);
+        process.exit(1);
+      }
+      const length = durationMs(pcm);
+      const spokeUntil = item.speechEndMs ?? speechEndMs(pcm);
+      if (spokeUntil === undefined) {
+        console.error(`${item.file}: no speech found; mark speechEndMs in set.json`);
+        process.exit(1);
+      }
+      durationsMs.set(item.id, length);
+      const note = `recorded from the live vendors on ${new Date().toISOString().slice(0, 10)}`;
+      const sockets = recordingSockets(
+        webSocketOpener('sarvam', SARVAM_TIMEOUT_MS),
+        systemClock,
+        note,
+      );
+      const http = recordingFetch((...a) => fetch(...a), systemClock, note);
+      const observation = await observeTurn(
+        item,
+        {
+          sampleRate: pcm.sampleRate,
+          chunks: pcmChunks(pcm, 100),
+          chunkMs: 100,
+          durationMs: length,
+          speechEndMs: spokeUntil,
+        },
+        {
+          stt: sarvamStreamingStt(sarvam, { openSocket: sockets.open }),
+          tts: sarvamStreamingTts(sarvam, { openSocket: sockets.open }),
+          llm: claudeReplyModel(claude, { fetch: http.fetch, timeoutMs: CLAUDE_TIMEOUT_MS }),
+          clock: systemClock,
+        },
+        {
+          languageCode: set.languageCode,
+          pace: (ms) => new Promise((done) => setTimeout(done, ms)),
+        },
+      );
+      observations.push(observation);
+      console.error(
+        `${item.id}: ${observation.failure ?? `first audio ${String(Math.round(observation.timing?.firstAudioMs ?? 0))} ms`}`,
+      );
+      if (saveFolder !== undefined) {
+        const [speechToText, speech] = sockets.sessions;
+        const [reply] = http.sessions;
+        writeFileSync(
+          join(saveFolder, `${item.id}.json`),
+          `${JSON.stringify({ speechToText, reply, speech }, null, 2)}\n`,
+        );
+      }
+    }
+    report = scoreBenchmark({
+      set,
+      observations,
+      durationsMs,
+      marks,
+      vendors: {
+        speechToText: `sarvam ${sarvam.sttModel} ${sarvam.sttMode}`,
+        reply: `anthropic ${claude.model}`,
+        speech: `sarvam ${sarvam.ttsModel}`,
+      },
+      speechPrice: SARVAM_PRICE,
+      replyModel: claude.model,
+    });
+  }
+  const out = option('out');
+  if (out !== undefined) writeFileSync(resolve(out), `${JSON.stringify(report, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ at: new Date().toISOString(), report }, null, 2)}\n`);
 } else {
-  console.error('say latency or pronunciation: pnpm --filter web spike:voice -- latency');
+  console.error(
+    'say latency, pronunciation or benchmark: pnpm --filter web spike:voice -- latency',
+  );
   process.exit(1);
 }

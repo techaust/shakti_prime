@@ -193,9 +193,10 @@ describe('Sarvam', () => {
   });
 
   it('refuses a transcript in Devanagari, naming no text', async () => {
-    // "pump ka stock hai" with its first word in Devanagari, written as escapes (ADR 0014).
+    // "pump ka stock hai" with its first word in Devanagari, built from code points (ADR 0014).
+    const pump = String.fromCodePoint(0x092a, 0x0902, 0x092a);
     const fetchImpl = stubFetch(() =>
-      Response.json({ transcript: '\u092a\u0902\u092a ka stock hai', language_code: 'hi-IN' }),
+      Response.json({ transcript: `${pump} ka stock hai`, language_code: 'hi-IN' }),
     );
     const speech = sarvamSpeech(config, { fetch: fetchImpl, timeoutMs: 1_000 });
     const failed = speech.transcribe(new Uint8Array([1]), {
