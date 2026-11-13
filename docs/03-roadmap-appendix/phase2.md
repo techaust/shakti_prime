@@ -1,6 +1,6 @@
 # Backend and product design: Phase 2 (Communications and live voice)
 
-Date: 13-11-2026. Status: draft for the owner's approval; no Phase 2 code starts before it is approved. Built slice by slice in the order of §3, each slice recording what it built here in the same pull request, as the Phase 1 design does; progress is in [STATUS](../10-status.md). Governing documents: BLUEPRINT §7.5 to §7.8, §8.1, §8.2, §8.6, §8.11, §9, §10, §12, §13, §16 and §18; ROADMAP §4; PRD CRM-01, CRM-10, TEL-01, TEL-03 to TEL-05, SAL-05, WA-01, WA-03, WA-04, AI-01 to AI-06, NFR-06; ARCHITECTURE; DATABASE; API §2, §3.4, §3.6 and §6; SECURITY §3.3, §3.4, §6 and §7; the spikes in `docs/04-architecture-appendix/` (`whatsapp.md`, `exotel.md`, `voice.md`, `realtime.md`, `knowledge.md`, `calling.md`); [the Phase 1 design](phase1.md). Where this design settles something the documents left open, the section says so; `docs/01-blueprint.md` governs on any conflict.
+Date: 13-11-2026. Status: approved by the owner on 13-11-2026, with every question of §2 decided. Built slice by slice in the order of §3, each slice recording what it built here in the same pull request, as the Phase 1 design does; progress is in [STATUS](../10-status.md). Governing documents: BLUEPRINT §7.5 to §7.8, §8.1, §8.2, §8.6, §8.11, §9, §10, §12, §13, §16 and §18; ROADMAP §4; PRD CRM-01, CRM-10, TEL-01, TEL-03 to TEL-05, SAL-05, WA-01, WA-03, WA-04, AI-01 to AI-06, NFR-06; ARCHITECTURE; DATABASE; API §2, §3.4, §3.6 and §6; SECURITY §3.3, §3.4, §6 and §7; the spikes in `docs/04-architecture-appendix/` (`whatsapp.md`, `exotel.md`, `voice.md`, `realtime.md`, `knowledge.md`, `calling.md`); [the Phase 1 design](phase1.md). Where this design settles something the documents left open, the section says so; `docs/01-blueprint.md` governs on any conflict.
 
 **Contents:** [1. Scope](#1-scope) · [2. Decisions for the owner](#2-decisions-for-the-owner) · [3. Slices](#3-slices) · [4. New permissions](#4-new-permissions) · [5. Wave 1](#5-wave-1) · [6. Wave 2](#6-wave-2) · [7. Wave 3](#7-wave-3) · [8. Wave 4](#8-wave-4) · [9. Models, speech and latency](#9-models-speech-and-latency) · [10. Costs per month](#10-costs-per-month) · [11. Workshop defaults](#11-workshop-defaults) · [12. Final-phase verification](#12-final-phase-verification) · [13. Questions for the client](#13-questions-for-the-client-final-phase) · [14. Tests per slice](#14-tests-per-slice) · [15. Gaps and conflicts in the governing documents](#15-gaps-and-conflicts-in-the-governing-documents)
 
@@ -21,57 +21,57 @@ Date: 13-11-2026. Status: draft for the owner's approval; no Phase 2 code starts
 **In the final phase (the owner's decision of 13-11-2026):** every step that needs the client's people or live accounts: DLT registration and the numbers, Meta business verification and one WhatsApp number per company, template approval of the final wording, Meta App Review for Lead Ads, the voice samples and listeners, the consent and notice texts. Each slice is built and tested now on sandboxes, test numbers, recorded fixtures and contract tests; its live check is a row of §12, never a blocker.
 
 ## 2. Decisions for the owner
-Each question is answered before the slice it names starts; the recommended option is first. The answers go to [DECISIONS](../11-decisions.md) and into this section as "Decided".
+The owner decided all fourteen on 13-11-2026, each the recommended option (a), as marked below and recorded in [DECISIONS](../11-decisions.md).
 
-1. **Which models the runtime names** (all slices with a model; BLUEPRINT §1 and §9.3 name Sonnet 5 and Haiku 4.5, which Sonnet 5.5 and Haiku 5.5 now succeed):
+1. **Which models the runtime names** (all slices with a model; BLUEPRINT §1 and §9.3 name Sonnet 5 and Haiku 4.5, which Sonnet 5.5 and Haiku 5.5 now succeed): **Decided: (a).**
    - (a) *Recommended:* Sonnet 5.5 (`claude-sonnet-5-5`) wherever the blueprint says Sonnet 5 (the Concierge, the Co-pilot's briefs, Ask the Business, voice, Playbook drafting), and Haiku 5.5 (`claude-haiku-5-5`) wherever it says Haiku 4.5 (the Co-pilot's summaries, the conflict labels); the Triage agent moves to Haiku 5.5 only once its recorded eval and injection sets pass on it; Opus 5.5 is named nowhere in the runtime. BLUEPRINT §1, §5 and §9 get a one-line amendment.
    - (b) Sonnet 5.5 for the Sonnet roles; Haiku 4.5 stays for the rest.
    - (c) Keep the blueprint's Sonnet 5 and Haiku 4.5.
-2. **The Concierge's first touch while Automatic is unavailable** (A3; BLUEPRINT §9.3 asks for a first touch under 60 seconds, the owner's rule of 05-10-2026 keeps Automatic for Phase 6):
+2. **The Concierge's first touch while Automatic is unavailable** (A3; BLUEPRINT §9.3 asks for a first touch under 60 seconds, the owner's rule of 05-10-2026 keeps Automatic for Phase 6): **Decided: (a).**
    - (a) *Recommended:* a deterministic welcome on a customer's first message (an approved template sent by the messaging worker, not by the agent): it says the assistant is an AI, offers "reply HUMAN", and asks for consent with two buttons; the Concierge's own replies go Shadow, then Needs approval, sent by a person with one key.
    - (b) Allow Automatic for the Concierge's reply action alone, once its shadow report is reviewed.
    - (c) No automatic message: people make the first reply.
-3. **Who owns a lead that arrives from an integration** (I1, W1, T4):
+3. **Who owns a lead that arrives from an integration** (I1, W1, T4): **Decided: (a).**
    - (a) *Recommended:* weighted round-robin among the company's present Cold Calling Tele-Callers, by T2's picker (language, segment, open leads), else routed work for the Sales Team Lead; the Triage agent's proposal stays in Shadow beside it.
    - (b) Every such lead goes to the Sales Team Lead as routed work, who assigns it.
    - (c) An unassigned pool that callers take from.
-4. **Screen-pop transport** (T4; the Realtime spike was deferred to the production site, which is live since 12-11-2026):
+4. **Screen-pop transport** (T4; the Realtime spike was deferred to the production site, which is live since 12-11-2026): **Decided: (a).**
    - (a) *Recommended:* run the Realtime spike on `shaktiprime.com` at T4's start; screen-pop on Realtime's `user:{id}` channel, with a 3-second poll of a Redis-only route while the spike is not passed.
    - (b) Polling only in Phase 2.
-5. **WhatsApp quote acceptance** (S3):
+5. **WhatsApp quote acceptance** (S3): **Decided: (a).**
    - (a) *Recommended:* an Accept button bound to the quote and the customer's number accepts it; a one-time code is asked as well when the quote's grand total is ₹2,00,000 or more (a named default, `WORKSHOP_DEFAULTS.whatsapp.otpFromRupees`, for the client in the final phase).
    - (b) A one-time code for every acceptance.
    - (c) The button only.
-6. **The speech-to-text accuracy target** (V1; ROADMAP §4 sets it from the voice spike before Phase 2 starts, but the spike waits for the client's samples, which moved to the final phase):
+6. **The speech-to-text accuracy target** (V1; ROADMAP §4 sets it from the voice spike before Phase 2 starts, but the spike waits for the client's samples, which moved to the final phase): **Decided: (a).**
    - (a) *Recommended:* the target of §9.2, measured now on a stand-in set the development team records, and confirmed on the client's samples in the final phase: character error rate at most 12% on normalised Roman-script transcripts, key terms at least 95% right, at least 90% of turns answered on topic.
    - (b) No target until the client's samples arrive; the exit gate's accuracy item stays open until then.
    - (c) Other figures the owner names.
-7. **Speech vendors in the benchmark** (V1):
+7. **Speech vendors in the benchmark** (V1): **Decided: (a).**
    - (a) *Recommended:* Sarvam AI (the lead candidate, adapter built) and one more vendor that offers streaming Hindi speech-to-text and Hindi text-to-speech from an Indian region with acceptable data terms, chosen by the developer at V1's start after reading the vendors' current pages, with the owner's yes on its data terms.
    - (b) Sarvam AI alone.
    - (c) Two more vendors.
-8. **Call transcription coverage** (A2; BLUEPRINT §13):
+8. **Call transcription coverage** (A2; BLUEPRINT §13): **Decided: (a).**
    - (a) *Recommended:* Lead Converter calls only, a setting per company (`AGENT_DEFAULTS.copilot.transcribe`).
    - (b) Every connected call.
    - (c) None in Phase 2: the Co-pilot works from the call log and the thread only.
-9. **Who may use Ask the Business** (B1; no permission names it yet):
+9. **Who may use Ask the Business** (B1; no permission names it yet): **Decided: (a).**
    - (a) *Recommended:* `knowledge.ask` for the Executive, General Manager, Sales Team Lead, Accounts, Inventory Manager and Project Manager; tele-callers keep the staff knowledge search.
    - (b) The Executive and General Manager only, as voice.
    - (c) Every staff role.
-10. **Raw webhook payloads** (P5; they hold phone numbers and message text):
+10. **Raw webhook payloads** (P5; they hold phone numbers and message text): **Decided: (a).**
     - (a) *Recommended:* the payload is removed 30 days after it was processed and the row 90 days after it arrived; the messages themselves follow BLUEPRINT §7.9 in their own tables.
     - (b) Payload removed after 7 days.
     - (c) Kept as long as the WhatsApp messages (3 years).
-11. **Teach and drafting directives** (K2, V2; a General Manager holds `voice.use` but not `knowledge.playbook.approve`):
+11. **Teach and drafting directives** (K2, V2; a General Manager holds `voice.use` but not `knowledge.playbook.approve`): **Decided: (a).**
     - (a) *Recommended:* a new `knowledge.playbook.draft` for the Executive and the General Manager; approving stays the Executive's alone.
     - (b) Teach and drafting for Executives only.
-12. **Voice limits per person** (V2):
+12. **Voice limits per person** (V2): **Decided: (a).**
     - (a) *Recommended:* 30 minutes and ₹200 a day, sessions of at most 15 minutes (named defaults).
     - (b) 60 minutes and ₹400 a day.
-13. **Phase 2 on production until the final phase:**
+13. **Phase 2 on production until the final phase:** **Decided: (a).**
     - (a) *Recommended:* every Phase 2 integration ships with production's vendor variables unset, so its routes answer `integration_unavailable` and its screens say the channel is not set up; dev and staging run the sandboxes.
     - (b) Switched on in production with sandbox accounts.
-14. **Sandbox accounts for the build** (every vendor slice):
+14. **Sandbox accounts for the build** (every vendor slice): **Decided: (a).**
     - (a) *Recommended:* the owner opens them in the group's name now (decision of 15-10-2026): a Meta developer app with the WhatsApp test number and a test Page for Lead Ads, an Exotel trial account, a LiveKit Cloud project in India, a Sarvam AI key and the second vendor's key; the keys go to dev and staging only.
     - (b) The developer's own sandbox accounts, moved to the group's in the final phase.
 
