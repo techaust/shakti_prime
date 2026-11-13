@@ -9,9 +9,16 @@ import {
 import { schema } from '@shakti/db';
 import { and, eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { numberSeries } from '../../telecom/dial-policy';
 import { requireEntity } from '../crm/opportunity-shared';
 
 type ChannelRow = typeof schema.entityChannels.$inferSelect;
+
+/** The DLT series each calling channel's number must be of. */
+const CHANNEL_SERIES: Partial<Record<string, '140' | '160'>> = {
+  call_promo_140: '140',
+  call_service_160: '160',
+};
 
 /** The channel as Settings › Companies › Channels shows it. */
 export function toEntityChannelDto(row: ChannelRow): EntityChannelDto {
@@ -24,6 +31,10 @@ export function toEntityChannelDto(row: ChannelRow): EntityChannelDto {
     dltHeader: row.dltHeader,
     isActive: row.isActive,
     verifiedAt: row.verifiedAt?.toISOString() ?? null,
+    inSeries: (() => {
+      const series = CHANNEL_SERIES[row.channel];
+      return series === undefined ? null : numberSeries(row.numberE164) === series;
+    })(),
   });
 }
 

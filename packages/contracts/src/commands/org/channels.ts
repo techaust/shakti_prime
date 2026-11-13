@@ -57,7 +57,12 @@ export const ArchiveEntityChannelInput = z
   .strict();
 export type ArchiveEntityChannelInput = z.input<typeof ArchiveEntityChannelInput>;
 
-/** A company's number on one channel, as Settings › Companies › Channels shows it. */
+/**
+ * A company's number on one channel, as Settings › Companies › Channels shows it. `inSeries` says
+ * whether a calling number is of its DLT series (140 for sales calls, 160 for service calls);
+ * `null` for the other channels. A number out of its series is kept, and every dial on it is
+ * refused (`caller_id_not_promotional`, `caller_id_not_service`).
+ */
 export const EntityChannelDto = z
   .object({
     id: IdSchema,
@@ -68,6 +73,7 @@ export const EntityChannelDto = z
     dltHeader: z.string().nullable(),
     isActive: z.boolean(),
     verifiedAt: z.iso.datetime().nullable(),
+    inSeries: z.boolean().nullable(),
   })
   .strict();
 export type EntityChannelDto = z.infer<typeof EntityChannelDto>;
