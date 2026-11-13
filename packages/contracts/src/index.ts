@@ -98,3 +98,4 @@ export * from './api/endpoints';
 export * from './events/catalogue';
 export * from './templates/index';
 export * from './notifications';
+export * from './commands/webhooks/inbox';

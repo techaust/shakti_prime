@@ -184,7 +184,7 @@ begin
   end if;
   if p_entity is not null
      and not exists (select 1 from public.entities e where e.id = p_entity) then
-    raise exception 'no such company' using errcode = '22023';
+    raise exception 'no such company' using errcode = '23503';
   end if;
   update public.webhook_inbox w
      set processed_at = case when p_outcome = 'processed' then pg_catalog.now() end,
