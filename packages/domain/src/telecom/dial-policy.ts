@@ -22,25 +22,52 @@ export type NumberSeries = '140' | '160' | 'other';
 /** Why the policy refuses a call. Internal codes; a screen maps each to a sentence. */
 export type DialRefusal =
   | 'outside_calling_hours'
+  | 'recipient_not_a_mobile_number'
+  | 'call_consent_withdrawn'
+  | 'company_number_missing'
   | 'caller_id_not_promotional'
   | 'caller_id_not_service'
   | 'service_call_without_consent'
   | 'recipient_on_dnd'
-  | 'recipient_not_a_mobile_number';
+  | 'dnd_unknown';
+
+/** Every refusal, in the order `checkDial` lists them. */
+export const DIAL_REFUSALS: readonly DialRefusal[] = [
+  'outside_calling_hours',
+  'recipient_not_a_mobile_number',
+  'call_consent_withdrawn',
+  'company_number_missing',
+  'caller_id_not_promotional',
+  'caller_id_not_service',
+  'service_call_without_consent',
+  'recipient_on_dnd',
+  'dnd_unknown',
+];
 
 export type DialDecision = { allowed: true } | { allowed: false; refusals: DialRefusal[] };
 
 export interface DialRequest {
   at: Date;
   purpose: CallPurpose;
-  /** The number the customer sees, as registered on DLT for the entity. */
-  callerId: string;
+  /**
+   * The number the customer sees, as registered on DLT for the entity; null when the company has
+   * no number in use for the call's purpose.
+   */
+  callerId: string | null;
   /** The person being called. */
   to: string;
   /** A consent for calls from this entity is recorded and not withdrawn. */
   hasRecordedConsent: boolean;
-  /** The last DND scrub found the number on the NCPR preference register. */
-  onDnd: boolean;
+  /**
+   * The last DND scrub found the number on the NCPR preference register; `unknown` when no fresh
+   * answer could be had (the register did not answer, or none is set up).
+   */
+  onDnd: boolean | 'unknown';
+  /**
+   * A contact of the customer, or anyone holding the number, withdrew consent to calls and gave
+   * none since (CRM-10): no call of either purpose.
+   */
+  callConsentWithdrawn?: boolean;
 }
 
 /** Minutes since midnight in IST. */
@@ -105,21 +132,26 @@ export function isIndianMobile(raw: string): boolean {
 
 /**
  * Whether a call may be placed now, and every rule it breaks when it may not.
- * - Every call: only within TRAI hours, and only to an Indian mobile number.
- * - Promotional: a 140-series caller id, and never to a number on DND.
+ * - Every call: only within TRAI hours, only to an Indian mobile number, never to a customer who
+ *   withdrew consent to calls, and only on a number the company has for the purpose.
+ * - Promotional: a 140-series caller id, and never to a number on DND or whose DND state could not
+ *   be had fresh.
  * - Service: a 160-series caller id and a recorded consent; consent is what makes a service call
- *   to a number on DND lawful, so DND does not refuse a service call that has it.
+ *   to a number on DND lawful, so DND, known or not, does not refuse a service call that has it.
  */
 export function checkDial(request: DialRequest): DialDecision {
   const refusals: DialRefusal[] = [];
   if (!withinCallingHours(request.at)) refusals.push('outside_calling_hours');
   if (!isIndianMobile(request.to)) refusals.push('recipient_not_a_mobile_number');
-  const series = numberSeries(request.callerId);
+  if (request.callConsentWithdrawn === true) refusals.push('call_consent_withdrawn');
+  const series = request.callerId === null ? null : numberSeries(request.callerId);
+  if (series === null) refusals.push('company_number_missing');
   if (request.purpose === 'promotional') {
-    if (series !== '140') refusals.push('caller_id_not_promotional');
-    if (request.onDnd) refusals.push('recipient_on_dnd');
+    if (series !== null && series !== '140') refusals.push('caller_id_not_promotional');
+    if (request.onDnd === true) refusals.push('recipient_on_dnd');
+    if (request.onDnd === 'unknown') refusals.push('dnd_unknown');
   } else {
-    if (series !== '160') refusals.push('caller_id_not_service');
+    if (series !== null && series !== '160') refusals.push('caller_id_not_service');
     if (!request.hasRecordedConsent) refusals.push('service_call_without_consent');
   }
   return refusals.length === 0 ? { allowed: true } : { allowed: false, refusals };

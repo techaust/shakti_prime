@@ -28,6 +28,7 @@ import {
   AccountTypeSchema,
   ActivityTypeSchema,
   ConsentChannelSchema,
+  EntityChannelKindSchema,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
@@ -104,6 +105,7 @@ import {
   ACCOUNT_TYPES,
   ACTIVITY_TYPES,
   CONSENT_CHANNELS,
+  ENTITY_CHANNEL_KINDS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -235,6 +237,7 @@ describe('the contract values copied for the browser', () => {
     expect(SITE_TYPES).toEqual(SiteTypeSchema.options);
     expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);
     expect(CONSENT_CHANNELS).toEqual(ConsentChannelSchema.options);
+    expect(ENTITY_CHANNEL_KINDS).toEqual(EntityChannelKindSchema.options);
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);

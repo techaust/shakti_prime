@@ -25,6 +25,10 @@ export { commands, getCommand } from './command/registry';
 export { executeCommand, executeQuery } from './command/execute';
 export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
+export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
+export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
+export { listEntityChannels } from './queries/org/list-channels';
+export { dialFacts, dndRecordInput, toDialPlanDto } from './queries/calls/dial-plan';
 export { createLead } from './commands/crm/create-lead';
 export { moveOpportunityStage } from './commands/crm/move-opportunity-stage';
 export { assignOpportunity } from './commands/crm/assign-opportunity';
@@ -433,6 +437,18 @@ export type {
   DialRequest,
   NumberSeries,
 } from './telecom/dial-policy';
+export { DIAL_REFUSALS } from './telecom/dial-policy';
+export { CUSTOMER_REQUEST_CHANNELS, callPurpose } from './telecom/call-purpose';
+export type { PurposeDecision, PurposeFacts, PurposeReason } from './telecom/call-purpose';
+export { DND_LOOKUP_TIMEOUT_MS, dndIsFresh, planDial, prepareDial } from './telecom/dial-plan';
+export type { DialFacts, DialPlan, DndState, PrepareDialDeps } from './telecom/dial-plan';
+export {
+  DndRegistryUnavailable,
+  FIXTURE_DND_NUMBERS,
+  fixtureDndRegistry,
+  unavailableDndRegistry,
+} from './ports/dnd';
+export type { DndAnswer, DndRegistry } from './ports/dnd';
 export {
   checkBatch,
   connectorHealth,

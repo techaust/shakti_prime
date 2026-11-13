@@ -320,6 +320,8 @@ export const ENTITY_TABLES = [
   'targets',
   // a person's own profile, and others' to whoever manages them (docs/03-roadmap-appendix/phase1.md §8.2)
   'caller_profiles',
+  // a company's numbers, read by every principal acting in it (docs/03-roadmap-appendix/phase2.md §5.2)
+  'entity_channels',
 ] as const;
 
 /**

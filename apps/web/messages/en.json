@@ -189,6 +189,10 @@
     "tag_name_taken": "There is already a tag with this name. Use that tag or choose another name.",
     "tag_missing": "This tag is no longer available for this lead. Refresh the page and choose another.",
     "contact_missing": "We couldn't find this contact for this customer. Refresh the page and try again.",
+    "channel_changed_meanwhile": "Someone else changed this number at the same moment. Refresh the page to see it, then try again.",
+    "channel_provider_ref_taken": "Another number already uses this reference from the calling or WhatsApp service. Check the reference and try again.",
+    "channel_missing": "We couldn't find this number. It may have been replaced. Refresh the page.",
+    "channel_already_archived": "This number is already out of use.",
     "phone_missing": "This number is no longer on this contact. Refresh the page and try again.",
     "phone_last_one": "A contact needs at least one phone number. Add another number before you remove this one.",
     "phone_already_on_contact": "This contact already has this number.",
@@ -980,7 +984,16 @@
     "proofWorking": "Printing the proof page. This takes a few seconds.",
     "proofReady": "The proof page is ready.",
     "proofSlow": "The proof page is taking longer than usual. Close this and try again in a minute.",
-    "openProof": "Open the proof page"
+    "openProof": "Open the proof page",
+    "channels": {
+      "kind": {
+        "whatsapp": "WhatsApp number",
+        "call_promo_140": "Sales calls number (140 series)",
+        "call_service_160": "Service calls number (160 series)",
+        "ivr": "Incoming calls number",
+        "missed_call": "Missed-call number"
+      }
+    }
   },
   "priceMaster": {
     "title": "Price lists",
@@ -1481,6 +1494,9 @@
     "actions": {
       "leadCreate": "Lead added",
       "entityUpdate": "Company details changed",
+      "channelSet": "Company number set",
+      "channelArchive": "Company number taken out of use",
+      "phoneDndRecord": "Do-not-disturb list checked",
       "priceSet": "Price set",
       "userInvite": "Person invited",
       "userRoles": "Roles changed",
@@ -1913,7 +1929,14 @@
       "purgedAt": "What the file said cleared on",
       "deletedAt": "File deleted on",
       "leftOutColumns": "Columns of identity numbers left out",
-      "maskedValues": "Identity numbers hidden"
+      "maskedValues": "Identity numbers hidden",
+      "channelKind": "Channel",
+      "channelNumber": "Number",
+      "providerRef": "Reference from the calling or WhatsApp service",
+      "dltHeader": "DLT header",
+      "verified": "Checked and working",
+      "isDnd": "On the do-not-disturb list",
+      "dndCheckedAt": "Do-not-disturb list checked"
     },
     "values": {
       "percent": "{value}%",
@@ -3258,7 +3281,8 @@
       "notifications_send": "Send notices to the people who act on them",
       "crm_handover_run": "Give a qualified lead to a Lead Converter",
       "crm_retention_run": "Remove the personal details of old leads that never went ahead",
-      "platform_jobs_check": "Check that the scheduled upkeep tasks ran"
+      "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
+      "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list"
     },
     "empty": "There are no roles to show.",
     "locked": {

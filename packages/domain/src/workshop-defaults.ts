@@ -89,6 +89,11 @@ export interface CallingDefaults {
    * (workshop CALL-8): its outcome is recorded instead of lost.
    */
   readonly logGraceMinutes: number;
+  /**
+   * Days a DND check of a number stays fresh for a promotional call (BLUEPRINT §7.7); an older one
+   * is looked up again at the dial (docs/03-roadmap-appendix/phase2.md §5.2, §11).
+   */
+  readonly dndFreshDays: number;
 }
 
 /** The engineering constants the sizing calculators use (docs/03-roadmap-appendix/phase1.md §6.7, §11). */
@@ -211,6 +216,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * 9:15 PM (the sales-integrity audit fix of 13-10-2026, DOM-6); a later log is refused.
      */
     logGraceMinutes: 15,
+    /**
+     * Phase 2 design §11, for the client in the final phase (LAW-4): a promotional dial needs a DND
+     * check newer than 7 days.
+     */
+    dndFreshDays: 7,
   },
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is

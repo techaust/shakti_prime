@@ -82,7 +82,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.handover.run': 'Give a qualified lead to a Lead Converter',
   'crm.retention.run': 'Remove the personal details of old leads that never went ahead',
   'platform.jobs.check': 'Check that the scheduled upkeep tasks ran',
-  'crm.dnd.record': 'Record whether a customer number is on the do-not-disturb register',
+  'crm.dnd.record': 'Record whether a customer number is on the do-not-disturb list',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

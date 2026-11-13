@@ -91,6 +91,9 @@ const ACTIONS = {
   'crm.consent.record': 'consentRecord',
   'crm.consent.withdraw': 'consentWithdraw',
   'org.entity.update': 'entityUpdate',
+  'org.channel.set': 'channelSet',
+  'org.channel.archive': 'channelArchive',
+  'crm.phone.dnd_record': 'phoneDndRecord',
   'pricing.price.set': 'priceSet',
   'pricing.list.create': 'priceListCreate',
   'pricing.list.approve': 'priceListApprove',
@@ -381,6 +384,7 @@ const CODE_GROUPS = [
   'targetScope',
   'targetMetric',
   'targetPeriod',
+  'channelKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -484,6 +488,14 @@ const FIELD_KINDS = [
   ['givenAt', 'time'],
   ['withdrawnAt', 'time'],
   ['evidence', 'yesNo'],
+  // A company's numbers (org.channel.set) and a phone's do-not-disturb check
+  ['channelKind', 'channelKind'],
+  ['channelNumber', 'text'],
+  ['providerRef', 'text'],
+  ['dltHeader', 'text'],
+  ['verified', 'yesNo'],
+  ['isDnd', 'yesNo'],
+  ['dndCheckedAt', 'time'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],
