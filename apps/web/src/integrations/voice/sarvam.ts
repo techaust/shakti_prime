@@ -4,7 +4,6 @@ import {
   asString,
   at,
   defaultHttpDeps,
-  jsonBody,
   ProviderError,
   providerFetch,
   type HttpDeps,
@@ -20,6 +19,7 @@ import {
   type TextToSpeech,
 } from './ports';
 import { romanOnly } from './roman-script';
+import { keyFrom, parseVendorJson, vendorJsonBody } from './vendor-json';
 import { webSocketOpener, type OpenSocket, type VendorSocket } from './socket';
 
 /**
@@ -58,8 +58,8 @@ export const SARVAM_SETTLE_MS = 5_000;
 export function sarvamConfig(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): SarvamConfig | undefined {
-  const apiKey = env.SARVAM_API_KEY ?? '';
-  if (apiKey === '') return undefined;
+  const apiKey = keyFrom(env.SARVAM_API_KEY, 'SARVAM_API_KEY');
+  if (apiKey === undefined) return undefined;
   const pick = (name: string, fallback: string) => {
     const value = env[name]?.trim() ?? '';
     return value === '' ? fallback : value;
@@ -89,7 +89,7 @@ async function checked(response: Response): Promise<unknown> {
       ...(code === undefined ? {} : { vendorCode: code }),
     });
   }
-  return jsonBody('sarvam', response);
+  return vendorJsonBody('sarvam', response);
 }
 
 export function sarvamSpeech(
@@ -156,12 +156,7 @@ export interface SarvamStreamDeps {
 }
 
 function parseFrame(frame: string): { type: string | undefined; data: unknown } {
-  let body: unknown;
-  try {
-    body = JSON.parse(frame) as unknown;
-  } catch (cause) {
-    throw new ProviderError('sarvam', 'invalid_response', { cause });
-  }
+  const body = parseVendorJson('sarvam', frame);
   return { type: asString(at(body, 'type')), data: at(body, 'data') };
 }
 

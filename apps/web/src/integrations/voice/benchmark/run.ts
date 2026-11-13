@@ -100,8 +100,12 @@ export function pcmChunks(audio: PcmAudio, chunkMs = 100): Uint8Array[] {
   return chunks;
 }
 
+/**
+ * What failed, for the report: a provider error by its provider, kind and code; anything else as
+ * `unexpected`, without its message, which could quote a transcript or a reply.
+ */
 function describeFailure(error: unknown): string {
-  if (!(error instanceof ProviderError)) throw error;
+  if (!(error instanceof ProviderError)) return 'unexpected';
   return [error.provider, error.failure, error.vendorCode].filter((p) => p !== undefined).join(' ');
 }
 

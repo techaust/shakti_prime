@@ -9,6 +9,7 @@ import {
   providerFetch,
   type HttpDeps,
 } from '../http';
+import { keyFrom, parseVendorJson } from './vendor-json';
 import { systemClock, type Clock, type ReplyModel, type ReplyUsage } from './ports';
 
 /**
@@ -48,8 +49,8 @@ export const CLAUDE_TIMEOUT_MS = 30_000;
 export function claudeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): ClaudeConfig | undefined {
-  const apiKey = env.ANTHROPIC_API_KEY ?? '';
-  if (apiKey === '') return undefined;
+  const apiKey = keyFrom(env.ANTHROPIC_API_KEY, 'ANTHROPIC_API_KEY');
+  if (apiKey === undefined) return undefined;
   const effort = env.VOICE_SPIKE_EFFORT;
   const named = env.VOICE_SPIKE_MODEL?.trim() ?? '';
   const model = named === '' ? DEFAULT_VOICE_SPIKE_MODEL : named;
@@ -160,24 +161,24 @@ export function claudeReplyModel(
       };
       for await (const sse of readSse(response.body)) {
         if (sse.event === 'error') {
-          const type = asString(at(JSON.parse(sse.data) as unknown, 'error', 'type'));
+          const type = asString(at(parseVendorJson('anthropic', sse.data), 'error', 'type'));
           throw new ProviderError('anthropic', 'http', {
             status: 200,
             ...(type === undefined ? {} : { vendorCode: type }),
           });
         }
         if (sse.event === 'message_start') {
-          readUsage(at(JSON.parse(sse.data) as unknown, 'message', 'usage'), usage);
+          readUsage(at(parseVendorJson('anthropic', sse.data), 'message', 'usage'), usage);
           continue;
         }
         if (sse.event === 'message_delta') {
-          const body = JSON.parse(sse.data) as unknown;
+          const body = parseVendorJson('anthropic', sse.data);
           readUsage(at(body, 'usage'), usage);
           stopReason = asString(at(body, 'delta', 'stop_reason')) ?? stopReason;
           continue;
         }
         if (sse.event !== 'content_block_delta') continue;
-        const delta = asObject(at(JSON.parse(sse.data) as unknown, 'delta'));
+        const delta = asObject(at(parseVendorJson('anthropic', sse.data), 'delta'));
         if (delta?.type !== 'text_delta') continue;
         const piece = asString(delta.text) ?? '';
         if (piece === '') continue;

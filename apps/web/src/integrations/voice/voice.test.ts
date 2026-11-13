@@ -318,3 +318,40 @@ describe('the pronunciation checklist', () => {
     }
   });
 });
+
+describe('vendor text in errors', () => {
+  it('turns a malformed Sarvam frame or Claude event into an error with no cause or text', async () => {
+    const config = claudeConfig({ ANTHROPIC_API_KEY: 'anthropic-test-key' });
+    if (config === undefined) throw new Error('config expected');
+    const model = claudeReplyModel(config, {
+      fetch: () =>
+        Promise.resolve(
+          new Response(stream(['event: content_block_delta\ndata: {"delta": paanch HP\n\n'])),
+        ),
+      timeoutMs: 1_000,
+    });
+    const failed = model.reply('s', 'u');
+    await expect(failed).rejects.toMatchObject({ failure: 'invalid_response', cause: undefined });
+    await expect(failed).rejects.not.toThrow(/paanch/);
+
+    const sarvam = sarvamConfig({ SARVAM_API_KEY: 'sarvam-test-key' });
+    if (sarvam === undefined) throw new Error('config expected');
+    const batch = sarvamSpeech(sarvam, {
+      fetch: () => Promise.resolve(new Response('{"transcript": paanch HP', { status: 200 })),
+      timeoutMs: 1_000,
+    }).transcribe(new Uint8Array(1), { mimeType: 'audio/wav', languageCode: 'hi-IN' });
+    await expect(batch).rejects.toMatchObject({ failure: 'invalid_response', cause: undefined });
+    await expect(batch).rejects.not.toThrow(/paanch/);
+  });
+
+  it('trims the keys and refuses one holding a control character, without quoting it', () => {
+    expect(sarvamConfig({ SARVAM_API_KEY: '  sarvam-test-key\n' })?.apiKey).toBe('sarvam-test-key');
+    expect(sarvamConfig({ SARVAM_API_KEY: '   ' })).toBeUndefined();
+    expect(() => sarvamConfig({ SARVAM_API_KEY: 'sarvam\u0007key' })).toThrow(
+      'SARVAM_API_KEY holds a control character',
+    );
+    expect(() => claudeConfig({ ANTHROPIC_API_KEY: 'anthropic\u0000key' })).toThrow(
+      /^ANTHROPIC_API_KEY holds a control character$/,
+    );
+  });
+});
