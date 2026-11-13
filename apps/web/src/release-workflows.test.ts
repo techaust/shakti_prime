@@ -61,13 +61,19 @@ const SHA = '485a43eb0c1f6d2e9b7a3c5d8e1f2a4b6c9d0e7f';
 const EARLIER = 'ad0e3d2e0a1b2c3d4e5f60718293a4b5c6d7e8f9';
 const OLDER = 'fe9d5fff0a1b2c3d4e5f60718293a4b5c6d7e8f9';
 const STRAY = '93d9ceaf0a1b2c3d4e5f60718293a4b5c6d7e8f9';
+/** Two trees of `packages/db/migrations`: the same migrations, or a migration added or changed. */
+const MIGRATIONS = '5b1e07c2d4f6a8b0c2e4f6a8b0c2d4e6f8a0b2c4';
+const CHANGED = '7d3f29e4f6a8b0c2e4f6a8b0c2d4e6f8a0b2c4d6';
 
 /**
  * Stand-ins for `gh`, `curl`, `jq` and `sleep`, as shell functions ahead of a step's script, so no
  * case reaches GitHub or a site. `gh api <path>` answers what its filter would have given: the
  * migrate runs (`FAKE_RUNS`, "<id> <commit>" lines), whether a run migrated staging (the ids in
- * `FAKE_STAGED`), the comparison with `FAKE_BASE` (`FAKE_COMPARE`: status, files listed, migration
- * files) and the release tags' commits (`FAKE_TAGS`). `curl` prints `FAKE_SERVED`; `jq` passes it on.
+ * `FAKE_STAGED`), the comparison with `FAKE_BASE` (`FAKE_COMPARE`: its status, then anything more
+ * the comparison holds, such as the number of files changed; a `.status` filter gets the status
+ * alone), the git tree of `packages/db/migrations` at a commit (`FAKE_TREES`, "<commit> <tree>"
+ * lines; a commit not listed is one GitHub cannot read) and the release tags' commits
+ * (`FAKE_TAGS`). `curl` prints `FAKE_SERVED`; `jq` passes it on.
  */
 const FAKES = [
   'gh() {',
@@ -78,7 +84,15 @@ const FAKES = [
   '      case " $FAKE_STAGED " in *" $id "*) echo 1 ;; *) echo 0 ;; esac ;;',
   '    */compare/*)',
   '      [ "$2" = "repos/$REPO/compare/$FAKE_BASE...$SHA" ] || return 1',
-  `      printf '%s\\n' "$FAKE_COMPARE" ;;`,
+  '      if [ "$3 $4" = "--jq .status" ]; then echo "${FAKE_COMPARE%% *}"; else echo "$FAKE_COMPARE"; fi ;;',
+  '    */contents/packages/db\\?ref=*)',
+  '      while read -r commit tree; do',
+  '        if [ -n "$commit" ] && [ "$2" = "repos/$REPO/contents/packages/db?ref=$commit" ]; then',
+  '          echo "$tree"',
+  '          return 0',
+  '        fi',
+  '      done <<< "$FAKE_TREES"',
+  '      return 1 ;;',
   `    */matching-refs/tags/release-) printf '%s\\n' "$FAKE_TAGS" ;;`,
   '    *) return 1 ;;',
   '  esac',
@@ -290,6 +304,7 @@ describe('the release workflow', () => {
   });
 
   it('releases only what staging was migrated to first', () => {
+    const text = script(RELEASE, 'Staging is migrated to this commit');
     const step = faked(RELEASE, 'Staging is migrated to this commit');
     const given = {
       SHA,
@@ -297,27 +312,52 @@ describe('the release workflow', () => {
       FAKE_RUNS: `12 ${EARLIER}\n11 ${OLDER}`,
       FAKE_STAGED: '12',
       FAKE_BASE: EARLIER,
-      FAKE_COMPARE: 'ahead 4 0',
+      FAKE_COMPARE: 'ahead 4',
+      FAKE_TREES: `${SHA} ${MIGRATIONS}\n${EARLIER} ${MIGRATIONS}\n${OLDER} ${MIGRATIONS}`,
     };
     // Migrated from this commit, or from an earlier one with the same migrations.
-    const same = { FAKE_RUNS: `12 ${SHA}`, FAKE_BASE: SHA, FAKE_COMPARE: 'identical 0 0' };
+    const same = { FAKE_RUNS: `12 ${SHA}`, FAKE_BASE: SHA, FAKE_COMPARE: 'identical 0' };
     expect(bash(step, { ...given, ...same })).toBe(0);
-    expect(bash(step, given)).toBe(0);
+    const earlier = run(step, given);
+    expect(earlier.status).toBe(0);
+    expect(earlier.stdout).toContain(`Staging was migrated from ${EARLIER}, which has the migrations`);
     // The newest run migrated dev only: the one before it decides.
     expect(bash(step, { ...given, FAKE_STAGED: '11', FAKE_BASE: OLDER })).toBe(0);
-    // Staging never migrated from main, or the migrations changed since.
+    // More files changed than GitHub's comparison lists (300), none of them a migration.
+    const many = run(step, { ...given, FAKE_COMPARE: 'ahead 1250' });
+    expect(many.status).toBe(0);
+    expect(many.stdout).toContain(`Staging was migrated from ${EARLIER}`);
+    expect(text).not.toContain('.files');
+    // Staging never migrated from main.
     expect(bash(step, { ...given, FAKE_RUNS: '' })).toBe(1);
     expect(bash(step, { ...given, FAKE_STAGED: '' })).toBe(1);
-    expect(bash(step, { ...given, FAKE_COMPARE: 'ahead 4 1' })).toBe(1);
-    // Migrated from a commit that is not an earlier one of this, or GitHub listed its cap.
-    expect(bash(step, { ...given, FAKE_COMPARE: 'behind 2 0' })).toBe(1);
-    expect(bash(step, { ...given, FAKE_COMPARE: 'diverged 3 0' })).toBe(1);
-    expect(bash(step, { ...given, FAKE_COMPARE: 'ahead 300 0' })).toBe(1);
+    // A migration added, changed or removed since, with few files changed or many.
+    const moved = `${SHA} ${CHANGED}\n${EARLIER} ${MIGRATIONS}`;
+    for (const compare of ['ahead 1', 'ahead 1250']) {
+      const changed = run(step, { ...given, FAKE_TREES: moved, FAKE_COMPARE: compare });
+      expect(changed.status).toBe(1);
+      expect(changed.stdout).toContain(
+        `The migrations changed since staging was last migrated (from ${EARLIER}). Migrate staging to this commit first`,
+      );
+    }
+    // Staging's commit, or this one, cannot be read: the release stops.
+    for (const trees of [`${SHA} ${MIGRATIONS}`, `${EARLIER} ${MIGRATIONS}`, '']) {
+      const unread = run(step, { ...given, FAKE_TREES: trees });
+      expect(unread.status).toBe(1);
+      expect(unread.stdout).toContain(
+        `The migrations of ${EARLIER}, which staging was last migrated from, or of ${SHA} could not be read. Migrate staging to this commit first`,
+      );
+    }
+    // Migrated from a commit that is not an earlier one of this.
+    expect(bash(step, { ...given, FAKE_COMPARE: 'behind 2' })).toBe(1);
+    expect(bash(step, { ...given, FAKE_COMPARE: 'diverged 3' })).toBe(1);
     // GitHub did not answer the comparison.
-    expect(bash(step, { ...given, FAKE_BASE: OLDER })).toBe(1);
+    const unanswered = run(step, { ...given, FAKE_BASE: OLDER });
+    expect(unanswered.status).toBe(1);
+    expect(unanswered.stdout).toContain(`which is not an earlier commit of ${SHA}`);
     expect(job(RELEASE, 'check')).toMatch(/\n {6}actions: read\n {6}contents: read\n/);
-    // Eleven runs of the step, each a shell, which is slow on Windows under load.
-  }, 30_000);
+    // Fifteen runs of the step, each a shell, which is slow on Windows under load.
+  }, 120_000);
 
   it('notes what production serves before the deploy, and an unreleased commit', () => {
     const step = faked(RELEASE, 'What production serves now');
@@ -365,8 +405,9 @@ describe('the release workflow', () => {
     expect(missed.status).toBe(1);
     expect(missed.stdout).toContain(`Production does not serve ${SHA} after 20 minutes`);
     expect(missed.stdout).not.toContain('no release approved');
-    // The full waits start a shell per try, which is slow on Windows.
-  }, 90_000);
+    // The full waits start a shell per try: slow on Windows, and over 90 seconds on a freshly
+    // installed PC's first run.
+  }, 300_000);
 
   it('starts only a Vercel deploy hook', () => {
     const deploy = script(RELEASE, 'Deploy').replace(/\n\s*curl [^\n]*\n/, '\n');
