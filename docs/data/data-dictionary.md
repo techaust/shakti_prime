@@ -3507,7 +3507,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### playbook_directives
 
-**Catalogue entry** (05-database.md §6.9; created in 0160): `entity_id` (null for the whole group), `type` (`policy`, `priority`, `target`, `sop`, `faq`, `tone`), `audience` (`customer`, `staff`, `management`), `title` (at most 120 characters), `text` (at most 2,000), `source_file_id` (a vault file) and `source_position` (its passage), `state` (`draft`, `approved`, `retired`, the `playbook_directive` machine), `approved_by`, `approved_at`, `retired_reason`, `retired_at`, `conflicts_with` (the approved directives in unresolved conflict or overlap), `embedding vector(1024)` and `checked_at` (recorded by the conflict check only, `app.record_playbook_check()`); index `(state, type, created_at desc, id desc)` for the list, HNSW on `embedding` with cosine distance for the conflict candidates (§4.4)
+**Catalogue entry** (05-database.md §6.9; created in 0160): `entity_id` (null for the whole group), `type` (`policy`, `priority`, `target`, `sop`, `faq`, `tone`), `audience` (`customer`, `staff`, `management`), `title` (at most 120 characters), `text` (at most 2,000), `source_file_id` (a vault file) and `source_position` (its passage), `state` (`draft`, `approved`, `retired`, the `playbook_directive` machine), `approved_by`, `approved_at`, `retired_reason`, `retired_at`, `conflicts_with` (the approved directives in unresolved conflict or overlap), `embedding vector(1024)` and `checked_at` (recorded by the conflict check only, `app.record_playbook_check()`); index `(state, type, created_at desc, id desc)` for the list, no approximate index: the conflict candidates of a type are few enough to sort exactly (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3558,7 +3558,6 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Indexes**
 
-- `playbook_directives_embedding_idx` (hnsw): `embedding vector_cosine_ops`
 - `playbook_directives_source_file_idx` (btree): `source_file_id`
 - `playbook_directives_state_type_idx` (btree): `state, type, created_at desc, id desc`
 

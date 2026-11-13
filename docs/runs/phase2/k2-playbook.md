@@ -114,7 +114,7 @@ Skills loaded: `add-table`, `add-command`; the Claude API reference (`claude-api
 9. The fake transport's empty answer makes the journeys exercise the unlabelled path and the "no rule drafted" path; a labelled pair is shown from the seed's snapshot company.
 
 **Unfinished or uncertain**
-- Not yet read by any agent: A3 and B1 consume the approved set (row security already keeps drafts away, and the version key tells them when to reread).
+- Not yet read by any agent: A3 and B1 consume the approved set. Row security keeps drafts away from agents only; an Executive or a GM holds the playbook grants, so B1 and A3 must read through `approvedPlaybook()` (added in the fix round), and the version key tells them when to read again.
 - `source_voice_session_id` is left for V2.
 - The prompts of the label and drafting calls have unit tests of their filters, not an eval set; an eval set on recorded answers belongs with the first agent that reads the Playbook, or a follow-up.
 
