@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   callLogRefusal,
   checkDial,
+  DIAL_REFUSALS,
   isIndianMobile,
   istMinuteOfDay,
   nationalNumber,
@@ -142,6 +143,60 @@ describe('checkDial', () => {
         'recipient_on_dnd',
       ],
     });
+  });
+
+  it('refuses any call to a customer who withdrew consent to calls, service or promotional', () => {
+    expect(checkDial({ ...promotional, callConsentWithdrawn: true })).toEqual({
+      allowed: false,
+      refusals: ['call_consent_withdrawn'],
+    });
+    expect(checkDial({ ...service, callConsentWithdrawn: true })).toEqual({
+      allowed: false,
+      refusals: ['call_consent_withdrawn'],
+    });
+  });
+
+  it('refuses a call when the company has no number for its purpose', () => {
+    expect(checkDial({ ...promotional, callerId: null })).toEqual({
+      allowed: false,
+      refusals: ['company_number_missing'],
+    });
+    expect(checkDial({ ...service, callerId: null })).toEqual({
+      allowed: false,
+      refusals: ['company_number_missing'],
+    });
+  });
+
+  it('refuses a promotional call whose DND state could not be had, never a consented service call', () => {
+    expect(checkDial({ ...promotional, onDnd: 'unknown' })).toEqual({
+      allowed: false,
+      refusals: ['dnd_unknown'],
+    });
+    expect(checkDial({ ...service, onDnd: 'unknown' })).toEqual({ allowed: true });
+  });
+
+  it('lists every rule a call breaks, in one order', () => {
+    const all = checkDial({
+      ...service,
+      at: ist('2026-09-28T08:00:00'),
+      to: '0221234567',
+      callerId: '+911401234567',
+      hasRecordedConsent: false,
+      callConsentWithdrawn: true,
+    });
+    expect(all).toEqual({
+      allowed: false,
+      refusals: [
+        'outside_calling_hours',
+        'recipient_not_a_mobile_number',
+        'call_consent_withdrawn',
+        'caller_id_not_service',
+        'service_call_without_consent',
+      ],
+    });
+    if (all.allowed) throw new Error('refused above');
+    const order = all.refusals.map((r) => DIAL_REFUSALS.indexOf(r));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 });
 

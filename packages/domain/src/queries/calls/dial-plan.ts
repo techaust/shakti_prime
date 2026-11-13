@@ -44,7 +44,7 @@ export async function dialFacts(
     sql`select * from app.dial_facts(${input.opportunityId}::uuid, ${input.contactPhoneId}::uuid)`,
   )) as unknown as FactsRow[];
   const [row] = rows;
-  if (!row || row.entity_id !== input.entityId) {
+  if (row?.entity_id !== input.entityId) {
     throw new DomainError('not_found', `lead ${input.opportunityId} is not visible`, {
       reason: 'lead_missing',
     });
