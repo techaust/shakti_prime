@@ -596,4 +596,9 @@ export {
 export { EMBED_BATCH, indexKnowledgeFile, knowledgeReadKey } from './knowledge/index-file';
 export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
 export { knowledgeQueryVector } from './knowledge/search';
+export {
+  bumpPlaybookVersion,
+  PLAYBOOK_VERSION_KEY,
+  playbookVersion,
+} from './knowledge/playbook-version';
 export { checkZipArchive } from './imports/zip-guard';

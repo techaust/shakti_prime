@@ -443,7 +443,7 @@ const eventCatalogue = {
       'knowledge.playbook.retire',
       'knowledge.playbook.resolve_conflict',
     ],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         directiveEntityId: EntityIdSchema.nullable(),
