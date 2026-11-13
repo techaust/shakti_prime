@@ -60,7 +60,7 @@ test.describe('company numbers as an Executive', () => {
     await expect(sales.getByText('Not set')).toBeVisible();
 
     // A number outside the 140 series is kept, and the list says every sales call on it fails.
-    await sales.getByRole('button', { name: /^Add the Sales calls number/ }).click();
+    await sales.getByRole('button', { name: /^Add: Sales calls number/ }).click();
     await dialog.getByLabel('Number', { exact: true }).fill('080 4711 2233');
     await dialog.getByRole('button', { name: 'Save number' }).click();
     await expect(
@@ -72,7 +72,7 @@ test.describe('company numbers as an Executive', () => {
     await expectNoAxeViolations(page);
 
     // The 140-series number, checked: the warning goes.
-    await sales.getByRole('button', { name: /^Change the Sales calls number/ }).click();
+    await sales.getByRole('button', { name: /^Change: Sales calls number/ }).click();
     await dialog.getByLabel('Number', { exact: true }).fill('140 000 0401');
     await dialog.getByLabel('DLT header').fill('RCREF');
     await dialog.getByLabel('I have checked that this number works').check();
