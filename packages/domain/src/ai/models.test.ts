@@ -57,11 +57,18 @@ describe('the price table', () => {
     expect(costInPaise('claude-haiku-5-5', overLine)).toBe(359);
   });
 
-  it('holds the most a call can cost at the dearest prices the model has', () => {
-    // 1,000 bytes at Haiku 5.5's dearest input ($0.625) and 100 tokens at $2.50.
-    expect(maxCostInPaise('claude-haiku-5-5', 1_000, 100)).toBe(
-      Math.ceil(((1_000 * 0.625 + 100 * 2.5) * PAISE_PER_USD) / million),
+  it('holds a Haiku 5.5 call at its base prices up to the line, and its long prices over it', () => {
+    // 100,000 bytes cannot be more than 100,000 tokens: the base prices ($0.125 write, $0.50 out).
+    expect(maxCostInPaise('claude-haiku-5-5', 100_000, 100)).toBe(
+      Math.ceil(((100_000 * 0.125 + 100 * 0.5) * PAISE_PER_USD) / million),
     );
+    // One byte more may be over the line: the long prices ($0.625 write, $2.50 out).
+    expect(maxCostInPaise('claude-haiku-5-5', 100_001, 100)).toBe(
+      Math.ceil(((100_001 * 0.625 + 100 * 2.5) * PAISE_PER_USD) / million),
+    );
+  });
+
+  it('holds a call of a model with one price at its dearest input price', () => {
     expect(maxCostInPaise('claude-sonnet-5-5', 1_000, 100)).toBe(
       Math.ceil(((1_000 * 2.5 + 100 * 10) * PAISE_PER_USD) / million),
     );

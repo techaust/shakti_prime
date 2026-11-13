@@ -83,11 +83,14 @@ export function costInPaise(model: string, usage: TokenUsage): number {
 /**
  * The most a call can cost, held against the caps before it is sent: every byte of its text in
  * UTF-8 counted as a token (a token is never shorter than one byte) at the dearest input price,
- * and every output token it may write, at the long-prompt prices where the model has them.
+ * and every output token it may write. A model priced by prompt length is held at its long-prompt
+ * prices only when the bytes are over the tier's line: tokens are never more than bytes, so a call
+ * of fewer bytes cannot reach that tier.
  */
 export function maxCostInPaise(model: string, inputBytes: number, maxOutputTokens: number): number {
   const base = priceOf(model);
-  const price = base.longPrompt ?? base;
-  const input = Math.max(base.input, base.cacheWrite, price.input, price.cacheWrite);
-  return paiseOf(inputBytes * input + maxOutputTokens * Math.max(base.output, price.output));
+  const long = base.longPrompt;
+  const price = long !== undefined && inputBytes > long.overPromptTokens ? long : base;
+  const input = Math.max(price.input, price.cacheWrite);
+  return paiseOf(inputBytes * input + maxOutputTokens * price.output);
 }
