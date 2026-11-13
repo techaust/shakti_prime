@@ -1,42 +1,90 @@
-# Spike: LiveKit and speech latency, Roman-Hinglish pronunciation
+# Spike: LiveKit and speech latency, Roman-Hinglish pronunciation, the speech benchmark
 
-**Status (04-10-2026):** ready to run; waits for the LiveKit and speech-vendor sandboxes and the 20 to 30 voice samples (client-actions 19). Owner: the developer. Provider interfaces, wrappers over plain HTTP and the timing harness are built and tested with fixtures; nothing has called a vendor yet.
-**Roadmap:** §2 week 6 · **Blueprint:** §9.2 (target p50 below 1.5 s), §10 · **ADR:** 0014 (Roman-script Hinglish for speech)
+**Status (13-11-2026):** the speech adapters and the benchmark of Phase 2's V1 are built (part 1); the benchmark reproduces its numbers from written fixtures in CI, and nothing has called a vendor yet. Part 2 waits for the owner's Sarvam AI key, the second vendor's key once the owner approves its data terms, and the 30 stand-in recordings (§5). Owner: the developer.
+**Roadmap:** §2 week 6, §4 · **Blueprint:** §9.2 (target p50 below 1.5 s), §10 · **Design:** [phase2 §5.3, §9.2, §9.3](../03-roadmap-appendix/phase2.md#53-v1-speech-adapter-and-benchmark) · **ADR:** 0014 (Roman-script Hinglish for speech)
+
+**Contents:** [1. What is built](#1-what-is-built) · [2. What the user supplies](#2-what-the-user-supplies) · [3. Steps](#3-steps) · [4. Pass criteria](#4-pass-criteria) · [5. The stand-in set and the benchmark](#5-the-stand-in-set-and-the-benchmark) · [6. Speech vendors](#6-speech-vendors) · [7. Results](#7-results)
 
 ## 1. What is built
 | Piece | Where |
 |---|---|
-| Step interfaces: `SpeechToText`, `ReplyModel`, `TextToSpeech`, so vendors can be swapped | `apps/web/src/integrations/voice/ports.ts` |
-| Sarvam AI (lead candidate): speech to text (`POST /speech-to-text`, multipart, `saarika:v2.5`) and text to speech (`POST /text-to-speech`, `bulbul:v2`, speaker `anushka`); models and speaker set by environment | `apps/web/src/integrations/voice/sarvam.ts` |
-| Claude reply over the streaming Messages API (server-sent events), timing the first text and the end of the first sentence; the model comes from `VOICE_SPIKE_MODEL` (default `claude-sonnet-5`, blueprint §9.2, `DEFAULT_VOICE_SPIKE_MODEL`) at effort `low` unless `VOICE_SPIKE_EFFORT` says otherwise. The harness calls the API directly only to time it; production calls go through the provider wrapper of ADR 0011 (`docs/adr/0011-claude-provider-wrapper-voyage-pgvector.md`), which owns the model choice | `apps/web/src/integrations/voice/claude-stream.ts` |
+| Ports: batch `SpeechToText` and `TextToSpeech`; `StreamingSpeechToText` (speech start and end, partial and settled transcripts, each timed on a `Clock`); `StreamingTextToSpeech` (opened before the reply, then one sentence at a time, each audio chunk timed); `ReplyModel` with the tokens a reply used | `apps/web/src/integrations/voice/ports.ts` |
+| Roman script only: every transcript passes `romanOnly()`, which refuses one holding any Devanagari character (`\p{Script_Extensions=Devanagari}`) with an error that names no text | `apps/web/src/integrations/voice/roman-script.ts` |
+| Sarvam AI (lead candidate): batch speech to text (`POST /speech-to-text`, `saaras:v3` with `mode=translit`, which answers Roman script) and text to speech (`POST /text-to-speech`, `bulbul:v2`, speaker `anushka`); streaming speech to text (`wss://api.sarvam.ai/speech-to-text/ws`, base64 PCM up, voice-activity signals and settled transcripts back) and streaming text to speech (`wss://api.sarvam.ai/text-to-speech/ws`, a `config` frame, then `text` and `flush` per sentence, base64 16-bit PCM back until a `final` event); models, mode and speaker set by environment | `apps/web/src/integrations/voice/sarvam.ts` |
+| WebSockets without an SDK: Node's own `WebSocket`, which takes the key as a header, an open timeout, and a close the caller did not ask for reported as a `network` error with its code | `apps/web/src/integrations/voice/socket.ts` |
+| Whole recordings: `transcribeRecording()` cuts a 16-bit PCM WAV into pieces under 25 seconds, each at the quietest 20 ms near its end, transcribes them one by one with any batch adapter and joins the text (A2 and K3 use it) | `apps/web/src/integrations/voice/recording.ts` |
+| Claude reply over the streaming Messages API (server-sent events), timing the first text and the end of the first sentence, and reading the tokens used. The model, effort and thinking come from `AGENT_DEFAULTS.voice`: `claude-sonnet-5-5` at effort `low` with thinking off (`between_tools`); `VOICE_SPIKE_MODEL` may name another model of the price table to compare (Haiku 5.5, which then runs with its default thinking), `VOICE_SPIKE_EFFORT` another effort. A declined reply (`stop_reason: refusal`) is an error, not an answer. The harness calls the API directly only to time it; production calls go through the provider wrapper of ADR 0011 (`docs/adr/0011-claude-provider-wrapper-voyage-pgvector.md`) | `apps/web/src/integrations/voice/claude-stream.ts`, `packages/domain/src/ai/agent-defaults.ts` |
+| Recorded sessions: a socket, a streamed body and a clock replayed from JSON, so the adapters run in tests and in the benchmark's CI run without a vendor; and the recorder that keeps a live run's sessions in the same form | `apps/web/src/integrations/voice/recorded.ts` |
+| The benchmark: normalisation, the measures, the turn runner, the replay and the stand-in set's files (§5) | `apps/web/src/integrations/voice/benchmark/` |
 | LiveKit: access tokens (HS256 over the API secret, `video` grant) and the room service (create, list, delete) over HTTPS, for the round trip to the project's region | `apps/web/src/integrations/voice/livekit.ts` |
-| Timing: one turn = transcript, reply, speech of the first sentence (then the rest); `firstAudioMs` = transcript + first sentence + its speech, the measure the 1.5 s target applies to; nearest-rank p50 and p95 | `apps/web/src/integrations/voice/latency.ts` |
+| Timing of the batch turn: transcript, reply, speech of the first sentence (then the rest); `firstAudioMs` = transcript + first sentence + its speech; nearest-rank p50 and p95 | `apps/web/src/integrations/voice/latency.ts` |
 | Twelve Roman-Hinglish checklist lines (brand, HP, lakh and crore, kW, subsidy scheme, model code, date and time, document number, depth, recording notice, handoff) with what to listen for | `apps/web/src/integrations/voice/pronunciation-checklist.ts` |
-| Fixture tests (stream parsing across chunks, request shapes, error mapping, token claims, turn arithmetic, checklist has no Devanagari) | `apps/web/src/integrations/voice/voice.test.ts` |
-| Spike script: `latency` and `pronunciation` | `apps/web/scripts/spike/voice-latency.ts`, run with `pnpm --filter web spike:voice -- latency` or `-- pronunciation` |
+| Tests on fixtures: stream parsing across chunks, request shapes, error mapping, Devanagari refused, the opener on a local WebSocket server, the recorder, cutting a recording, token claims, turn arithmetic, normalisation and every measure, the fixture set's report, and no Devanagari in any voice file | `apps/web/src/integrations/voice/*.test.ts`, `benchmark/benchmark.test.ts` |
+| Spike script: `latency`, `pronunciation` and `benchmark` | `apps/web/scripts/spike/voice-latency.ts`, run with `pnpm --filter web spike:voice -- latency`, `-- pronunciation` or `-- benchmark` |
 
-No SDK is added: all three vendors are called with `fetch`. The real voice worker (LiveKit Agents, streaming speech, barge-in) is Phase 2; this spike measures the vendors, not WebRTC media. A batch speech-to-text call on the whole recording is slower than the streaming recogniser the worker will use, so `firstAudioMs` here is an upper bound.
+No SDK is added: every vendor is called with `fetch` or Node's `WebSocket`. The voice worker itself (LiveKit Agents, barge-in, the room's audio) is V2; the benchmark measures the vendors' steps, and the network and playback step of §9.3 stays at its 150 ms budget until V2 measures it in a room.
 
 ## 2. What the user supplies
-1. **20 to 30 recordings** of Shakti executives asking business questions (ROADMAP §10 client input): WAV, 16 kHz mono, 3 to 10 s each, one question per file, in a local folder outside the repository (`VOICE_SPIKE_AUDIO_DIR`). They stay on your machine and are sent only to Sarvam.
-2. A **Sarvam AI** account and API subscription key (`SARVAM_API_KEY`); optionally `SARVAM_STT_MODEL`, `SARVAM_TTS_MODEL`, `SARVAM_TTS_SPEAKER` to compare voices. Confirm Sarvam's data-retention terms before sending recordings.
-3. A **Claude API key** for the Shakti workspace (`ANTHROPIC_API_KEY`).
-4. A **LiveKit Cloud** project in the India region: `LIVEKIT_URL` (`wss://…livekit.cloud`), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`.
-5. A folder for the synthesised checklist audio (`VOICE_SPIKE_OUT_DIR`) and **three listeners** from the Shakti team (one tele-caller, one executive, one field engineer) to rate it.
-Optional: `VOICE_SPIKE_LANGUAGE` (default `hi-IN`), `VOICE_SPIKE_ROUNDS` (default 20), `VOICE_SPIKE_MODEL` (default `claude-sonnet-5`).
+1. **The stand-in set** (Phase 2, question 6 (a)): 30 recordings by the development team and the owner, with their reference transcripts and key terms (§5). They stay outside the repository and are sent only to the speech vendors.
+2. **The client's 20 to 30 samples** of Shakti executives asking business questions (final phase, client-actions 19), in the same format; they run through the same command.
+3. A **Sarvam AI** key (`SARVAM_API_KEY`), and the **second vendor's** key once the owner has approved its data terms (§6.2); on dev and staging only (question 14). Optionally `SARVAM_STT_MODEL` (default `saaras:v3`), `SARVAM_STT_MODE` (default `translit`), `SARVAM_TTS_MODEL` (default `bulbul:v2`), `SARVAM_TTS_SPEAKER` (default `anushka`). Confirm Sarvam's retention setting for the workspace before sending recordings (§6.1).
+4. A **Claude API key** for the Shakti workspace (`ANTHROPIC_API_KEY`).
+5. For the `latency` mode, a **LiveKit Cloud** project in the India region: `LIVEKIT_URL` (`wss://…livekit.cloud`), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and recordings in `VOICE_SPIKE_AUDIO_DIR`.
+6. A folder for the synthesised checklist audio (`VOICE_SPIKE_OUT_DIR`) and **three listeners** from the Shakti team (one tele-caller, one executive, one field engineer) to rate it and to mark the benchmark's turns on topic.
+Optional: `VOICE_SPIKE_LANGUAGE` (default `hi-IN`), `VOICE_SPIKE_ROUNDS` (default 20), `VOICE_SPIKE_MODEL` (default `AGENT_DEFAULTS.voice.model`), `VOICE_SPIKE_EFFORT` (default `low`).
 
 ## 3. Steps
 1. From a machine in India (ideally Mumbai, as the Vercel functions will be): `pnpm --filter web spike:voice -- latency`. It prints per-recording timings (never the words) and a JSON report.
-2. Repeat with `VOICE_SPIKE_EFFORT=medium` and, if Sarvam's streaming endpoints are in scope, note them as the next step.
-3. `pnpm --filter web spike:voice -- pronunciation`: writes one WAV per checklist line and `rating-sheet.md` into `VOICE_SPIKE_OUT_DIR`. Each listener rates every line 1 to 5.
-4. If a second speech vendor is on the shortlist, implement its two methods behind the same interfaces and run both steps again.
-5. Save the reports and the filled rating sheets under `docs/04-architecture-appendix/voice/` with the date; record the results below.
+2. `pnpm --filter web spike:voice -- pronunciation`: writes one WAV per checklist line and `rating-sheet.md` into `VOICE_SPIKE_OUT_DIR`. Each listener rates every line 1 to 5.
+3. The benchmark: `VOICE_BENCHMARK_SET=<set folder> pnpm --filter web spike:voice -- benchmark --save-replay <folder> --out <report.json>`. Each recording streams to the vendor at its own pace; the report holds the measures of §4 and never a transcript or a reply. `--save-replay` keeps each turn's sessions, which replace the written fixtures (§5) once they are checked.
+4. Run step 3 for the second vendor once its adapter exists, on the same set.
+5. Save the reports and the filled rating sheets under `docs/04-architecture-appendix/voice/` with the date; record the results in §7, and the chosen vendor in a new ADR (design §5.3).
+On recorded turns, with no key: `VOICE_BENCHMARK_SET=<set folder> pnpm --filter web spike:voice -- benchmark --replay <turns folder>`; this is the only mode allowed in CI.
 
 ## 4. Pass criteria
-- `firstAudioMs` p50 below 1 500 ms (blueprint §9.2); p95 recorded. If the batch upper bound misses, record the step that dominates and whether streaming closes the gap.
+- **Latency** (design §9.3, p50 from Mumbai): end of speech detected 250 ms, settled transcript after it 250 ms, the model's first sentence 600 ms, its first audio 250 ms, network and playback 150 ms; first audio after the person stops under 1,500 ms. The report names each step that misses.
+- **Accuracy** (design §9.2, the owner's decision on question 6 (a)): character error rate at most 12% on normalised Roman-script transcripts; key terms at least 95% right; at least 90% of turns on topic by the listeners' marks. Measured on the stand-in set now and confirmed on the client's samples in the final phase.
+- **Pronunciation:** every checklist line rated 4 or 5 by at least two of three listeners; lakh and crore amounts and the recording notice must pass.
 - LiveKit room-service round trip from India recorded (p50, p95), as a proxy for the region's distance.
-- Pronunciation: every checklist line rated 4 or 5 by at least two of three listeners; lakh and crore amounts and the recording notice must pass.
-- Speech-to-text understands Hinglish questions well enough that the reply answers them (listeners mark each turn's reply as on-topic or not from the stored audio, not from a printed transcript). The measurements of this run set the speech-to-text accuracy target of the Phase 2 exit gate, before Phase 2 starts (ROADMAP §4, PRD AI-03).
 
-## 5. Results
-Not run yet.
+## 5. The stand-in set and the benchmark
+**The set's folder** holds `set.json`, the WAV recordings and, once the listeners have marked the turns, `marks.json`:
+- `set.json`: `{ "name", "languageCode": "hi-IN", "items": [...] }`; each item has `id` (lower case, digits and hyphens), `file` (a `.wav` beside `set.json`, 16-bit PCM mono at 16 kHz or 8 kHz), `language` (`hindi`, `hinglish` or `english`), `speaker` (a label such as `team-2` or `owner`, never a name, since the repository is public), `accent` when the speaker has one (`rajasthani`), `reference` (what was said, in Roman script, numbers as spoken or as digits), `keyTerms` (each `{ "term", "kind" }`, the kind one of `number`, `amount`, `unit`, `product`, `place`), and optionally `speechEndMs` (where the speaker stops; otherwise worked out from the audio) and `durationMs`.
+- `marks.json`: a list of `{ "item", "listener", "onTopic" }`, the listener named by role (tele-caller, executive, field engineer), marked from the stored audio of the reply, not from a printed transcript.
+- **The 30 stand-in questions:** ten each in Hindi, Hinglish and English, recorded by the team and the owner (some with a Rajasthani accent where a speaker has one), about stock, prices in lakh and crore, HP and kW, model codes, dispatch dates and places, and subsidy; no customer or client voice.
+
+**The measures:**
+- **Normalisation** (`benchmark/normalise.ts`): lower case; marks dropped (a decimal point kept); letters spelled one by one joined ("H.P." is "hp"); spelling variants folded by `SPELLING_VARIANTS`; numbers as digits, in Hindi, English and Indian grouping ("ek lakh pachchees hazaar" and "1,25,000" are both 125000; "dhaai lakh" 250000; "saadhe teen" 3.5). Reference and transcript pass through the same function, so a word read as a number in both ("do", "saath") adds no error. The team extends the variant list from the stand-in references, and a change reruns both vendors.
+- **Character error rate:** edits over reference characters, both normalised, summed over the set, so longer questions weigh more. A failed turn counts every reference character as missed.
+- **Key terms:** each term, normalised, found as whole words in the normalised transcript; reported in all and by kind.
+- **On topic:** a turn is on topic when more than half of its listeners mark it so; the share is over the marked turns.
+- **Timing per step:** each event is timed on arrival; the speaker's stop is the first audio sent plus `speechEndMs`; first audio is the time from the stop to the settled transcript, plus the first sentence, plus its first audio, plus the 150 ms network and playback budget. p50 and p95 by nearest rank.
+- **Cost per minute** of the speakers' audio: speech to text on the audio sent, speech on every character of the reply (whether spoken or not), and the model's tokens at the price table's rates (`costInPaise`); Sarvam's prices are `SARVAM_PRICE` with the date they were read (§6.1).
+
+**The fixture set** (`benchmark/fixtures/`): five turns written by hand from the vendors' documented shapes, marked `written` in every session; not recordings and not results. Its report (`fixtures/report.json`) is what the test reproduces in CI, and these numbers were worked out by hand from the fixtures: character error rate 24 / 219 = 0.1096 (q01 hears "me" for "mein", q05 fails on a vendor error); key terms 7 of 8; on topic 3 of 4 marked turns; first audio 1,330, 1,490, 1,420 and 1,550 ms (p50 1,420); end of speech p50 260 ms, the one step that misses; speech to text 50 paise a minute.
+
+## 6. Speech vendors
+
+### 6.1 Sarvam AI (read 13-11-2026)
+The build session could not open `docs.sarvam.ai` or `sarvam.ai` (its network policy allows neither), so the shapes below come from search results quoting those pages, checked against Sarvam's SDK conventions; each is pinned by a written fixture and confirmed on the live service in part 2.
+- **Speech to text:** Saaras v3 and v4 take `mode`; `translit` answers in Roman script ("mera phone number hai 9840950950"), where `codemix` keeps Hindi words in Devanagari, so the adapter asks for `translit`. The REST call takes about 30 seconds of audio. The streaming endpoint `wss://api.sarvam.ai/speech-to-text/ws` takes the key in the `api-subscription-key` header, `language-code`, `model`, `mode`, `sample_rate` (16 kHz or 8 kHz), `vad_signals` and `high_vad_sensitivity`; it answers `START_SPEECH` and `END_SPEECH` signals and settled transcripts, and no partials. A realtime endpoint (`/speech-to-text-realtime/ws`) sends partials and needs access Sarvam grants; it is not built.
+- **Text to speech:** `wss://api.sarvam.ai/text-to-speech/ws?model=bulbul:v2`: a `config` frame (language, speaker, codec, sample rate), then `text` and `flush`; audio comes back in base64 chunks and an `event` frame closes the sentence.
+- **Prices:** speech to text ₹30 an hour of audio (₹45 with diarisation); Bulbul v2 ₹15 and Bulbul v3 ₹30 per 10,000 characters.
+- **Data terms (to confirm on the pages):** Sarvam states that API inputs are not used for training, that data is deleted after processing by default with retention set per workspace, and that processing stays in India; a third-party summary of its terms reads them as allowing training on inputs, so the owner confirms the terms and the workspace's retention before any key is used.
+
+### 6.2 The second vendor (question 7 (a)), compared on 13-11-2026
+Read through search results quoting each vendor's pages (the build session could open none of them directly); figures marked "to confirm" were not found.
+
+| Vendor | Region in India | Streaming Hindi speech to text | Hindi speech | Price | Data terms |
+|---|---|---|---|---|---|
+| **Amazon Transcribe and Polly** | Transcribe streaming in Mumbai (`ap-south-1`); Polly's region to confirm | Yes, `hi-IN` streaming in Mumbai | Polly Kajal, a bilingual Hindi and Indian-English neural voice | To confirm: the results quoted differing US East rates for streaming and none for Mumbai or Polly's neural voices | The group's existing AWS agreement (files, mail, backups); content use for service improvement is turned off by an AWS Organizations AI-services opt-out policy (to confirm on the page) |
+| Azure AI Speech | Central India | Yes, `hi-IN` | Neural `hi-IN` voices | About $1 an hour of audio for real-time speech to text and $15 per million characters for neural speech (third-party figures; to confirm) | Microsoft's own page: real-time audio is processed in memory and not stored |
+| ElevenLabs | India data residency for Enterprise customers only | Scribe v2 Realtime, Hindi included | Multilingual voices with Hindi | $0.28 an hour on annual Business plans; Enterprise by quote | Outside India unless on Enterprise |
+| Google Cloud Speech | `asia-south1` in preview only for Chirp 3 | Chirp 3 `hi-IN` streaming, generally available outside India | Chirp 3 HD voices | To confirm | Google Cloud terms |
+
+**Recommendation: Amazon Transcribe (streaming) and Polly**, in Mumbai. It adds no new data processor (the group's AWS account already holds its files and backups), runs in the same region as the files, and its streaming protocol (a signed WebSocket carrying AWS event-stream frames) is documented publicly, so the adapter needs no SDK. Azure AI Speech is the fallback: its real-time audio is never stored, but its streaming protocol is reached through the Speech SDK, which would be a new dependency. ElevenLabs keeps data in India only on Enterprise, and Google's Chirp 3 is only in preview in India.
+
+**Its adapter is not built yet:** the build session could not open the AWS pages to work from the current protocol, and the owner approves the data terms first (question 7). It is built behind the same ports when both are in hand, before part 2's run.
+
+## 7. Results
+Not run yet: the fixture set's numbers (§5) test the arithmetic and are not results. Part 2 records here, with the date, each vendor's report on the stand-in set.
