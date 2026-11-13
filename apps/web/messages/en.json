@@ -4778,8 +4778,8 @@
         "overlap": "They say the same thing",
         "none": "No clash"
       },
-      "approved": "Approved on {date}",
-      "retired": "Retired on {date}: {reason}",
+      "approved": "Approved on <date></date>",
+      "retired": "Retired on <date></date>: {reason}",
       "actions": "What to do with {title}"
     },
     "approve": "Approve",

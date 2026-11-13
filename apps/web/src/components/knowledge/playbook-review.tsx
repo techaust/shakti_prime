@@ -98,12 +98,17 @@ export function PlaybookReview({
       <p className="break-words whitespace-pre-line">{d.text}</p>
       {d.approvedAt === null ? null : (
         <p className="text-text-muted text-sm">
-          {t('review.approved', { date: formatDate(d.approvedAt) })}
+          {t.rich('review.approved', {
+            date: () => <time dateTime={d.approvedAt ?? ''}>{formatDate(d.approvedAt ?? '')}</time>,
+          })}
         </p>
       )}
       {d.retiredAt === null ? null : (
         <p className="text-text-muted text-sm">
-          {t('review.retired', { date: formatDate(d.retiredAt), reason: d.retiredReason ?? '' })}
+          {t.rich('review.retired', {
+            date: () => <time dateTime={d.retiredAt ?? ''}>{formatDate(d.retiredAt ?? '')}</time>,
+            reason: d.retiredReason ?? '',
+          })}
         </p>
       )}
       <div

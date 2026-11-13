@@ -11,7 +11,12 @@ import { Button, cn, EmptyState, Field, Select, StatusBadge } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { approveDirective, listPlaybook, loadPlaybookReview } from '../../actions/playbook';
+import {
+  approveDirective,
+  listPlaybook,
+  loadPlaybookReview,
+  recheckPlaybookReview,
+} from '../../actions/playbook';
 import { isTypingTarget } from '../../screens/calling';
 import { PLAYBOOK_STATE_VALUES, PLAYBOOK_TYPE_VALUES } from '../../screens/contract-values';
 import { approvable, playbookShortcut, stepDirective } from '../../screens/playbook';
@@ -37,6 +42,9 @@ export interface PlaybookCompany {
   id: number;
   name: string;
 }
+
+/** How often a rule waiting for its conflict check is read again. */
+const RECHECK_MS = 3_000;
 
 type CompanyFilter = number | 'group' | null;
 
@@ -100,6 +108,28 @@ export function PlaybookScreen({
     },
     [loadReview],
   );
+
+  // While the rule under review waits for its conflict check, it is read again until the check has
+  // run, and its line in the list follows.
+  const checkingId =
+    review?.directive.state === 'draft' && review.directive.checkedAt === null
+      ? review.directive.id
+      : undefined;
+  useEffect(() => {
+    if (checkingId === undefined) return;
+    const timer = setInterval(() => {
+      loadReview(
+        () => recheckPlaybookReview({ directiveId: checkingId }),
+        (found) => {
+          setReview((shown) => (shown?.directive.id === found.directive.id ? found : shown));
+          setList((all) => all.map((d) => (d.id === found.directive.id ? found.directive : d)));
+        },
+      );
+    }, RECHECK_MS);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [checkingId, loadReview]);
 
   function reload(next: Filters, keep?: string) {
     read.load(

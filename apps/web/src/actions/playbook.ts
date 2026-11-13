@@ -34,7 +34,7 @@ import { countRequest, type CapRule } from '../auth/request-cap';
 import { defaultAuthDeps } from '../auth/deps';
 import { aiProvider } from '../integrations/ai';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn } from './support';
+import { commandOptions, parseInput, requestMeta, signedIn, signedInQuietly } from './support';
 
 /*
  * The Business Playbook (docs/03-roadmap-appendix/phase2.md §5.4): thin wrappers (docs/06-api.md
@@ -74,6 +74,25 @@ export async function loadPlaybookReview(
       { requestId },
       (context) => loadPlaybookReviewQuery(context, rawInput),
       { name: 'loadPlaybookReview' },
+    );
+  });
+}
+
+/**
+ * The review read again while its conflict check runs: not the person's doing, so it never extends
+ * their session (WEB-8).
+ */
+export async function recheckPlaybookReview(
+  rawInput: unknown,
+): Promise<ActionResult<PlaybookReviewDto>> {
+  return toResult('recheckPlaybookReview', async () => {
+    const principal = await signedInQuietly();
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => loadPlaybookReviewQuery(context, rawInput),
+      { name: 'recheckPlaybookReview' },
     );
   });
 }

@@ -163,6 +163,23 @@ export const SNAPSHOT_VAULT = {
 } as const;
 
 /**
+ * The Playbook of the snapshot company, made once by the seed (playbook.spec.ts): an approved rule,
+ * and a draft close to it that the conflict check compared with it, the stand-in model labelling
+ * the pair with `reason`.
+ */
+export const SNAPSHOT_PLAYBOOK = {
+  approved: {
+    title: 'Panel cleaning visits',
+    text: 'Offer a free panel cleaning visit in the first month after every solar pump installation.',
+  },
+  draft: {
+    title: 'Cleaning visit offer',
+    text: 'Offer a free panel cleaning visit in the first three months after every solar pump installation.',
+  },
+  reason: 'Both rules set the free cleaning visit, for a different number of months.',
+} as const;
+
+/**
  * The stand-in agent's suggestions (setup/stand-in-agent.ts). Per project, three for the
  * tele-caller on her lead in company 1: one needing approval that she approves as it is, one she
  * edits first, and one under Suggest that she dismisses; the seed files them afresh on every run.
