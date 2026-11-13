@@ -59,6 +59,7 @@ import {
   TaskStateSchema,
   ThemeSchema,
   ContrastSchema,
+  WEBHOOK_PROVIDERS,
   DuplicateKindSchema,
   DuplicateReasonSchema,
   DuplicateStateSchema,
@@ -190,6 +191,7 @@ const PAIRS: Record<string, readonly string[]> = {
   caller_profiles_presence_check: CallerPresenceSchema.options,
   caller_profiles_languages_check: CustomerLanguageSchema.options,
   caller_profiles_segments_check: SegmentSchema.options,
+  webhook_inbox_provider_check: WEBHOOK_PROVIDERS,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

@@ -77,6 +77,7 @@ import {
   TargetMetricSchema,
   TargetPeriodSchema,
   TargetScopeSchema,
+  WebhookProviderSchema,
   CommissionAccrualStateSchema,
   SubsidySchemeSchema,
   SizingReasonSchema,
@@ -156,6 +157,7 @@ import {
   TARGET_METRICS,
   TARGET_PERIODS,
   TARGET_SCOPES,
+  WEBHOOK_PROVIDERS,
   QUOTE_ACCEPTED_VIA,
   COMMISSION_ACCRUAL_STATES,
   SUBSIDY_SCHEMES,
@@ -204,6 +206,7 @@ describe('the contract values copied for the browser', () => {
     expect(QUOTE_STATES).toEqual(QuoteStateSchema.options);
     expect(SALES_ORDER_STATES).toEqual(SalesOrderStateSchema.options);
     expect(TARGET_SCOPES).toEqual(TargetScopeSchema.options);
+    expect(WEBHOOK_PROVIDERS).toEqual(WebhookProviderSchema.options);
     expect(TARGET_METRICS).toEqual(TargetMetricSchema.options);
     expect(TARGET_PERIODS).toEqual(TargetPeriodSchema.options);
     expect(QUOTE_ACCEPTED_VIA).toEqual(QuoteAcceptedViaSchema.options);

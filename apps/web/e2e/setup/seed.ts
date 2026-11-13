@@ -313,6 +313,29 @@ async function holdBackUpdate(id: string, entityId: number, heldAt: string): Pro
 }
 
 /**
+ * A message from another system that failed after its retries (Integration health › Messages from
+ * other systems), as the failure callback leaves one. Written as the table owner: no request role
+ * writes `webhook_inbox`. Its payload is one the Lead Ads contract refuses, so Process again
+ * handles it and it fails once more (`payload_unreadable`): the list keeps one row per project
+ * whichever journeys ran, and the page's screenshot the same rows.
+ */
+async function failedWebhook(id: string): Promise<void> {
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      // A fixed id per project, written afresh each run (a delete is the purge's alone, so this
+      // transaction says it is one), so a database the journeys ran on before still lists the
+      // same rows and the screenshot stays the same.
+      await tx`select set_config('app.webhook_retention', 'purge', true)`;
+      await tx`delete from webhook_inbox where id = ${id}`;
+      await tx`insert into webhook_inbox (id, provider, provider_event_id, payload_json,
+                                          payload_sha256, attempts, failed_at, error_code)
+               values (${id}, 'meta_leadgen', ${id}, '{"object": "page", "entry": []}'::jsonb,
+                       ${createHash('sha256').update(id).digest('hex')}, 4, now(), 'handler_failed')`;
+    }),
+  );
+}
+
+/**
  * The referral partner of `users.ts`, made once in company 1 by the seed's Executive as a customer
  * of the kind Referral partner, with its code accepted on new leads. Found again by its code.
  */
@@ -784,6 +807,14 @@ await holdBackUpdate(SNAPSHOT_HELD_BACK_ID, SNAPSHOT_COMPANY.entityId, '2026-09-
 for (const project of PROJECTS) {
   await holdBackUpdate(newId(), SEND_AGAIN_COMPANY.entityId, new Date().toISOString());
   progress(`a held-back update for ${project}`);
+}
+
+progress('the failed messages from other systems');
+// Integration health: one failed message per project for the Process again journey, which
+// handles one each run; fixed ids, so each run resets them.
+for (const [n, project] of PROJECTS.entries()) {
+  await failedWebhook(`01a1a7e2-0000-7000-8000-00000000000${String(n + 1)}`);
+  progress(`a failed message for ${project}`);
 }
 
 progress('the suggestions of the stand-in agent');

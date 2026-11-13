@@ -481,6 +481,13 @@ export const API_FIXTURES: Record<
     },
     response: { received: true },
   },
+  'webhooks.leadgen.verify': {
+    query: {
+      'hub.mode': 'subscribe',
+      'hub.verify_token': 'w'.repeat(24),
+      'hub.challenge': '1158201445',
+    },
+  },
   'webhooks.leadgen': {
     request: {
       object: 'page',
@@ -548,7 +555,25 @@ export const API_FIXTURES: Record<
     response: { received: true },
   },
   'webhooks.exotel.incoming': {
+    params: { secret: 's'.repeat(32) },
     request: {
+      CallSid: 'b6cfaf0e-exotel-call-0002',
+      CallFrom: '09000000023',
+      CallTo: '08000000160',
+      Direction: 'incoming',
+      CallType: 'call-attempt',
+      Created: 'Sun, 27 Sep 2026 10:40:12',
+      StartTime: '2026-09-27 10:40:12',
+      DialWhomNumber: '',
+      CurrentTime: '2026-09-27 10:40:13',
+      digits: '"1"',
+      flow_id: '281122',
+    },
+    response: { received: true },
+  },
+  'webhooks.exotel.incoming.get': {
+    params: { secret: 's'.repeat(32) },
+    query: {
       CallSid: 'b6cfaf0e-exotel-call-0002',
       CallFrom: '09000000023',
       CallTo: '08000000160',
@@ -578,6 +603,10 @@ export const API_FIXTURES: Record<
       },
     },
     response: { received: true },
+  },
+  'workers.webhooks.process': {
+    request: { inboxId: IDS.event },
+    response: { inboxId: IDS.event, outcome: 'processed', handled: false },
   },
   'connector.heartbeat': {
     request: {
@@ -790,17 +819,32 @@ export const API_FIXTURES: Record<
         arrivedAt: '2026-09-27T05:05:12.842Z',
         milliseconds: 842,
       },
-      webhooks: [
-        {
-          provider: 'meta_whatsapp',
-          received24h: 1412,
-          failedSignature24h: 0,
-          unprocessed: 3,
-          failed: 0,
-          lastReceivedAt: '2026-09-27T05:06:31.000Z',
-          oldestUnprocessedAt: '2026-09-27T05:06:29.000Z',
+      webhooks: {
+        providers: [
+          {
+            provider: 'meta_whatsapp',
+            received24h: 1412,
+            processed24h: 1409,
+            failed24h: 1,
+            refused24h: 0,
+            waiting: 2,
+            oldestWaitingAt: '2026-09-27T05:06:29.000Z',
+          },
+        ],
+        failed: {
+          total: 1,
+          items: [
+            {
+              inboxId: IDS.eventB,
+              provider: 'meta_whatsapp',
+              errorCode: 'payload_unreadable',
+              attempts: 1,
+              receivedAt: '2026-09-27T04:58:10.000Z',
+              failedAt: '2026-09-27T04:58:11.000Z',
+            },
+          ],
         },
-      ],
+      },
       deadLetters: {
         total: 1,
         items: [

@@ -58,6 +58,7 @@ import {
   TARGET_METRICS,
   TARGET_PERIODS,
   TARGET_SCOPES,
+  WEBHOOK_PROVIDERS,
   QUOTE_ACCEPTED_VIA,
   COMMISSION_ACCRUAL_STATES,
   OPPORTUNITY_LOST_REASONS,
@@ -400,6 +401,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const agents = useTranslations('agents');
   const knowledge = useTranslations('knowledge');
   const targets = useTranslations('targets');
+  const integrations = useTranslations('integrations');
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -428,6 +430,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(SALES_ORDER_STATES, value) ? orders(`state.${value}`) : wordsOf(value);
       case 'acceptedVia':
         return oneOf(QUOTE_ACCEPTED_VIA, value) ? orders(`acceptedVia.${value}`) : wordsOf(value);
+      case 'webhookProvider':
+        return oneOf(WEBHOOK_PROVIDERS, value)
+          ? integrations(`webhooks.providers.${value}`)
+          : wordsOf(value);
       case 'targetScope':
         return oneOf(TARGET_SCOPES, value) ? targets(`scope.${value}`) : wordsOf(value);
       case 'targetMetric':

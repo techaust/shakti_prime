@@ -2,13 +2,13 @@
 -- and CRM-10): each company's own numbers per channel, the facts a dial is checked against, and
 -- the DND state of a phone, which only the platform records.
 
--- 1. The DND record is platform-only, like the other workers' grants (0142 holds the ten).
+-- 1. The DND record is platform-only, like the other workers' grants: 0161's eleven keys, kept, and this one.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
                'sales.quote.expire', 'notifications.send', 'knowledge.index',
                'crm.handover.run', 'platform.jobs.check', 'crm.retention.run',
-               'crm.dnd.record']::text[]
+               'webhooks.process', 'crm.dnd.record']::text[]
 $$;
 --> statement-breakpoint
 

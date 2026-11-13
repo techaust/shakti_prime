@@ -270,9 +270,10 @@ describe('the handover definers', () => {
         'crm.retention.run',
         'platform.jobs.check',
         'crm.dnd.record',
+        'webhooks.process',
       ]),
     );
-    expect(list?.keys).toHaveLength(11);
+    expect(list?.keys).toHaveLength(12);
   });
 
   it('refuses a caller without it, and a company outside the request', async () => {

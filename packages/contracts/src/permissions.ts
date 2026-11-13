@@ -111,6 +111,10 @@ export const PERMISSION_KEYS = [
   // phase2 §5.2): held only by the platform's worker principal, which writes the phone's DND state
   // through one narrow definer, nothing more; no person may mark or clear a number.
   'crm.dnd.record',
+  // The webhook worker and its sweep (docs/03-roadmap-appendix/phase2.md §5.1): held only by the
+  // platform's worker principal, which claims, marks and purges `webhook_inbox` rows through narrow
+  // definers, nothing more.
+  'webhooks.process',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -180,6 +184,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'crm.retention.run',
   'platform.jobs.check',
   'crm.dnd.record',
+  'webhooks.process',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -322,6 +327,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.retention.run': ['all'],
   'platform.jobs.check': ['all'],
   'crm.dnd.record': ['all'],
+  'webhooks.process': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

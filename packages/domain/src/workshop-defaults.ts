@@ -72,6 +72,13 @@ export interface WorkshopDefaults {
      * a file whose job ended is deleted at the next run. The database takes 1 to 90.
      */
     readonly importFileOpenDays: number;
+    /**
+     * Days a stored webhook payload is kept after its delivery was processed; then the sweep
+     * removes it and keeps the row (docs/03-roadmap-appendix/phase2.md §2, question 10). At least 1.
+     */
+    readonly webhookPayloadDays: number;
+    /** Days a `webhook_inbox` row is kept after it arrived; then the sweep removes it. At least 1. */
+    readonly webhookRowDays: number;
   };
 }
 
@@ -302,5 +309,12 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     importReconciliationDays: 30,
     /** Audit SEC-1: a week for an import left before its rows are added. For the owner to confirm. */
     importFileOpenDays: 7,
+    /**
+     * The owner's decision of 13-11-2026 (phase 2 design §2, question 10): payloads hold phone
+     * numbers and message text, so they go 30 days after processing and the row 90 days after it
+     * arrived. For the CA to confirm (phase 2 design §13, question 10).
+     */
+    webhookPayloadDays: 30,
+    webhookRowDays: 90,
   },
 };

@@ -50,5 +50,8 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The DND record of a customer's phone (`crm.phone.dnd_record`), taken when a dial's check is
     // stale: it writes what the register answered through one definer, nothing more.
     { key: 'crm.dnd.record', scope: 'all' },
+    // The webhook worker and its sweep: it claims, marks and purges `webhook_inbox` rows through
+    // definers, and reads no row of any company (docs/03-roadmap-appendix/phase2.md §5.1).
+    { key: 'webhooks.process', scope: 'all' },
   ],
 };

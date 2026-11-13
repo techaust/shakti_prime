@@ -17,12 +17,15 @@ export const DEFAULT_EMBEDDING_MODEL = 'voyage-3.5';
  */
 export const MODEL_CONTEXT_TOKENS: Readonly<Record<string, number>> = {
   'claude-haiku-4-5-20251001': 200_000,
+  'claude-sonnet-5-5': 1_000_000,
+  'claude-haiku-5-5': 1_000_000,
 };
 
 export type { ModelPrice };
 
 /**
- * The models a call may name, with their prices as checked on `AGENT_DEFAULTS.pricesCheckedOn`.
+ * The models a call may name, with their prices as checked on the dates in
+ * `AGENT_DEFAULTS.pricesCheckedOn`.
  * A call naming any other model is refused, so no spend goes uncounted.
  */
 export const MODEL_PRICES: Readonly<Record<string, ModelPrice>> = AGENT_DEFAULTS.modelPrices;
@@ -58,9 +61,16 @@ function priceOf(model: string): ModelPrice {
 const paiseOf = (microUsd: number): number =>
   Math.max(0, Math.ceil((microUsd * PAISE_PER_USD) / 1_000_000 - 1e-9));
 
+/** The prices that apply to one call: the long-prompt prices when its prompt is over their line. */
+function pricesFor(price: ModelPrice, usage: TokenUsage): Omit<ModelPrice, 'longPrompt'> {
+  const prompt = usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens;
+  const long = price.longPrompt;
+  return long !== undefined && prompt > long.overPromptTokens ? long : price;
+}
+
 /** What `usage` cost on `model`, in whole paise, rounded up. */
 export function costInPaise(model: string, usage: TokenUsage): number {
-  const price = priceOf(model);
+  const price = pricesFor(priceOf(model), usage);
   // Micro-dollars first, in whole numbers where the prices allow, then paise.
   return paiseOf(
     usage.inputTokens * price.input +
@@ -73,10 +83,14 @@ export function costInPaise(model: string, usage: TokenUsage): number {
 /**
  * The most a call can cost, held against the caps before it is sent: every byte of its text in
  * UTF-8 counted as a token (a token is never shorter than one byte) at the dearest input price,
- * and every output token it may write.
+ * and every output token it may write. A model priced by prompt length is held at its long-prompt
+ * prices only when the bytes are over the tier's line: tokens are never more than bytes, so a call
+ * of fewer bytes cannot reach that tier.
  */
 export function maxCostInPaise(model: string, inputBytes: number, maxOutputTokens: number): number {
-  const price = priceOf(model);
+  const base = priceOf(model);
+  const long = base.longPrompt;
+  const price = long !== undefined && inputBytes > long.overPromptTokens ? long : base;
   const input = Math.max(price.input, price.cacheWrite);
   return paiseOf(inputBytes * input + maxOutputTokens * price.output);
 }

@@ -8,8 +8,19 @@ export interface ModelPrice {
   output: number;
   /** Input read from the prompt cache. */
   cacheRead: number;
-  /** Input written to the prompt cache. */
+  /** Input written to the prompt cache (the five-minute write). */
   cacheWrite: number;
+  /**
+   * Dearer prices for a call whose prompt (input, cache reads and cache writes together) is over
+   * `overPromptTokens`, where the vendor prices by prompt length (Haiku 5.5 over 100,000 tokens).
+   */
+  longPrompt?: {
+    overPromptTokens: number;
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+  };
 }
 
 /** The record an action type needs before an agent may take it on its own (BLUEPRINT §9.3). */
@@ -33,13 +44,35 @@ export const AGENT_DEFAULTS = {
   paisePerUsd: 10_400,
 
   /**
-   * The models an agent may call and their prices, as published on `pricesCheckedOn`; only the
-   * models the design names (Haiku 4.5 and the Voyage embeddings). Flagged for the owner to check
-   * against the vendors' price pages; a call naming any other model is refused.
+   * The models an agent may call and their prices, each as published on its date in
+   * `pricesCheckedOn`: Haiku 4.5 and the Voyage embeddings (Phase 1), Sonnet 5.5 and Haiku 5.5
+   * (Phase 2, question 1 (a) of docs/03-roadmap-appendix/phase2.md). The Claude prices are from
+   * Anthropic's pricing page (platform.claude.com/docs/en/about-claude/pricing), the five-minute
+   * cache write as `cacheWrite`. Flagged for the owner to check against the vendors' price pages;
+   * a call naming any other model is refused.
    */
-  pricesCheckedOn: '2026-10-05',
+  pricesCheckedOn: {
+    'claude-haiku-4-5-20251001': '2026-11-13',
+    'claude-sonnet-5-5': '2026-11-13',
+    'claude-haiku-5-5': '2026-11-13',
+    'voyage-3.5': '2026-10-05',
+  },
   modelPrices: {
     'claude-haiku-4-5-20251001': { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+    'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
+    'claude-haiku-5-5': {
+      input: 0.1,
+      output: 0.5,
+      cacheRead: 0.01,
+      cacheWrite: 0.125,
+      longPrompt: {
+        overPromptTokens: 100_000,
+        input: 0.5,
+        output: 2.5,
+        cacheRead: 0.05,
+        cacheWrite: 0.625,
+      },
+    },
     'voyage-3.5': { input: 0.06, output: 0, cacheRead: 0, cacheWrite: 0 },
   } satisfies Record<string, ModelPrice>,
 
@@ -107,5 +140,19 @@ export const AGENT_DEFAULTS = {
     searchDailyCapPaise: 10_000,
     /** One person's daily share of the search cap: a fifth, so one person cannot use it all up. */
     searchPersonDailyCapPaise: 2_000,
+  },
+
+  /**
+   * Live voice's reply step (docs/03-roadmap-appendix/phase2.md §9.1, question 1 (a)): Sonnet 5.5,
+   * with thinking off (`between_tools`, which Sonnet 5.5 accepts at effort `high` or below) at
+   * effort `low`, so the first sentence comes quickly; a spoken reply is one or two sentences, so
+   * `maxTokens` stays small. The voice spike's `claude-stream.ts` and the benchmark read these; V2's
+   * worker takes them over, and the eval sets measure any change first.
+   */
+  voice: {
+    model: 'claude-sonnet-5-5',
+    effort: 'low',
+    thinking: 'between_tools',
+    maxTokens: 400,
   },
 } as const;

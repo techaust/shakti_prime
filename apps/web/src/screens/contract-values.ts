@@ -54,6 +54,7 @@ import type {
   TargetMetric,
   TargetPeriod,
   TargetScope,
+  WebhookProvider,
   SavedViewScreen,
   Scope,
   ScoreFactor,
@@ -764,3 +765,13 @@ export const FILE_SANITISING = [
   'sheet_checked',
   'document_checked',
 ] as const satisfies readonly FileSanitising[];
+
+/** The systems whose messages land in `webhook_inbox` (phase 2 design §5.1). */
+export const WEBHOOK_PROVIDERS = [
+  'meta_whatsapp',
+  'meta_leadgen',
+  'google_leadform',
+  'exotel_status',
+  'exotel_incoming',
+  'livekit',
+] as const satisfies readonly WebhookProvider[];

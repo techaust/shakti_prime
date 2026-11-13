@@ -83,6 +83,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.retention.run': 'Remove the personal details of old leads that never went ahead',
   'platform.jobs.check': 'Check that the scheduled upkeep tasks ran',
   'crm.dnd.record': 'Record whether a customer number is on the do-not-disturb list',
+  'webhooks.process': 'Handle the messages other systems send in',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

@@ -41,7 +41,7 @@ step dbverify pnpm db:verify
 step audit pnpm audit --audit-level=moderate
 
 # The build must pass with no .env and no database settings.
-unset DATABASE_URL DATABASE_URL_MIGRATOR DATABASE_URL_AUTH DATABASE_URL_OUTBOX DATABASE_URL_READER
+unset DATABASE_URL DATABASE_URL_MIGRATOR DATABASE_URL_AUTH DATABASE_URL_OUTBOX DATABASE_URL_READER DATABASE_URL_WEBHOOKS
 mv .env "$LOG.env-aside"
 step build pnpm exec turbo run build --force
 mv "$LOG.env-aside" .env

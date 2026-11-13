@@ -81,3 +81,5 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `retention.unqualifiedLeadMonths` | 24 |
 | `retention.importReconciliationDays` | 30 |
 | `retention.importFileOpenDays` | 7 |
+| `retention.webhookPayloadDays` | 30 |
+| `retention.webhookRowDays` | 90 |

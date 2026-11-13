@@ -482,6 +482,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.user_is_active(uuid)',
       // A vault upload is read with a vault file the reader may read (files_knowledge_read, 0123).
       'app.vault_upload_readable(uuid)',
+      // Integration Health's webhook counts and failed rows (P5).
+      'app.webhook_health(integer)',
     ]);
   });
 

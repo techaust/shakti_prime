@@ -58,6 +58,7 @@ export { requoteQuote } from './commands/sales/requote';
 export { withdrawQuote } from './commands/sales/withdraw-quote';
 export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
 export { anonymiseStaleLeads, LEAD_RETENTION_BATCH } from './commands/crm/anonymise-stale-leads';
+export { claimWebhook, markWebhook, replayWebhook, sweepWebhooks } from './commands/webhooks/inbox';
 export { countStaleLeads } from './queries/crm/stale-leads';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { acceptQuote } from './commands/sales/accept-quote';
@@ -220,6 +221,7 @@ export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
+export { readWebhookHealth, type StoredWebhookHealth } from './queries/platform/webhook-health';
 export {
   JOB_RUN_LIMIT_MINUTES,
   readScheduledJobs,

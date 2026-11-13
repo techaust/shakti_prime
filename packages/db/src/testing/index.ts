@@ -61,6 +61,7 @@ export async function prepareDatabase(): Promise<void> {
     'DATABASE_URL_AUTH',
     'DATABASE_URL_OUTBOX',
     'DATABASE_URL_READER',
+    'DATABASE_URL_WEBHOOKS',
   ]) {
     const url = process.env[name];
     if (url !== undefined && url !== '') assertLocalDatabase(url);
@@ -84,6 +85,18 @@ export async function asOutboxPublisher<T>(fn: (sql: postgres.Sql) => Promise<T>
     return await fn(publisher);
   } finally {
     await publisher.end();
+  }
+}
+
+/** Runs `fn` as `webhook_receiver`, the webhook routes' role, which may only store deliveries. */
+export async function asWebhookReceiver<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
+  const url = requireEnv('DATABASE_URL_WEBHOOKS');
+  assertLocalDatabase(url);
+  const receiver = postgres(url, { max: 1, prepare: false });
+  try {
+    return await fn(receiver);
+  } finally {
+    await receiver.end();
   }
 }
 
@@ -359,9 +372,10 @@ export const PRINCIPAL_TABLES = [
  * Platform tables of no company that only a database job writes and only a permission at scope
  * `all` reads (docs/05-database.md §7): no request role inserts, updates or deletes them, and most
  * callers with a context read nothing, so neither the shared loops (readable by any caller) nor
- * the entity loops (scoped by company) apply. Asserted in retention.test.ts and agents.test.ts.
+ * the entity loops (scoped by company) apply. Asserted in retention.test.ts, agents.test.ts and
+ * webhooks.test.ts (`webhook_inbox`, which no request role reads at all).
  */
-export const PLATFORM_TABLES = ['retention_runs', 'agent_evals'] as const;
+export const PLATFORM_TABLES = ['retention_runs', 'agent_evals', 'webhook_inbox'] as const;
 
 /**
  * CRM set-up tables that start empty until the workshop answers (docs/03-roadmap-appendix/phase1.md §11), so
