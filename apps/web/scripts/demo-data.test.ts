@@ -25,21 +25,25 @@ function run(env: Record<string, string>) {
 }
 
 describe('scripts/demo-data.ts', () => {
-  it('refuses a production address before it opens any connection', () => {
-    const address = (role: string) =>
-      `postgresql://${role}:pw@db.${PRODUCTION_PROJECT_REF}.invalid:5432/postgres`;
-    const result = run({
-      DATABASE_URL: address('app_user'),
-      DATABASE_URL_AUTH: address('auth_service'),
-      DATABASE_URL_MIGRATOR: address('postgres'),
-      DATABASE_URL_OUTBOX: address('outbox_publisher'),
-      DATABASE_URL_READER: address('app_reader'),
-      BOS_ENVIRONMENT: 'staging',
-    });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toMatch(/refused: DATABASE_URL names the production project/);
-    expect(result.stdout).not.toMatch(/acting as/);
-    // A connection attempt would have failed on the address instead.
-    expect(result.stderr).not.toMatch(/ENOTFOUND|getaddrinfo|ECONNREFUSED/);
-  }, CHILD_TIMEOUT_MS + 30_000);
+  it(
+    'refuses a production address before it opens any connection',
+    () => {
+      const address = (role: string) =>
+        `postgresql://${role}:pw@db.${PRODUCTION_PROJECT_REF}.invalid:5432/postgres`;
+      const result = run({
+        DATABASE_URL: address('app_user'),
+        DATABASE_URL_AUTH: address('auth_service'),
+        DATABASE_URL_MIGRATOR: address('postgres'),
+        DATABASE_URL_OUTBOX: address('outbox_publisher'),
+        DATABASE_URL_READER: address('app_reader'),
+        BOS_ENVIRONMENT: 'staging',
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(/refused: DATABASE_URL names the production project/);
+      expect(result.stdout).not.toMatch(/acting as/);
+      // A connection attempt would have failed on the address instead.
+      expect(result.stderr).not.toMatch(/ENOTFOUND|getaddrinfo|ECONNREFUSED/);
+    },
+    CHILD_TIMEOUT_MS + 30_000,
+  );
 });
