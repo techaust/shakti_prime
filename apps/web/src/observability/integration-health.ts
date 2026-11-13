@@ -2,6 +2,7 @@ import {
   DomainError,
   hasGrant,
   IntegrationHealthResponse,
+  WEBHOOK_PROVIDERS,
   type DeliveryCheck,
   type Principal,
 } from '@shakti/contracts';
@@ -11,12 +12,14 @@ import {
   readAgentSpend,
   readOutboxHealth,
   readScheduledJobs,
+  readWebhookHealth,
   runDeliveryProbe,
   type ExecuteOptions,
   type KeyValue,
 } from '@shakti/domain';
 import { logger } from '../log';
 import { readDeliveryCheck, rememberProbe } from '../workers/events/probe';
+import { refusedLastDay } from '../webhooks/refusals';
 import { lastPublisherRun } from '../workers/outbox';
 
 /**
@@ -44,8 +47,10 @@ async function fromStore<T>(requestId: string, read: () => Promise<T>): Promise<
  * Integration Health (`GET /api/v1/admin/integrations` and the page): the outbox by type and the
  * dead letters from the database, the AI spend per agent and company from the agents' runs (A1),
  * the database's scheduled jobs with their last run (`app.scheduled_jobs()`),
- * the last publisher run and the delivery check from the store. Webhooks, Tally connectors and
- * WhatsApp numbers have no source yet (Phase 2 and 5), so they answer empty.
+ * the last publisher run and the delivery check from the store, and the webhooks per provider from
+ * `app.webhook_health()` with the deliveries refused at their check counted in the store
+ * (docs/03-roadmap-appendix/phase2.md §5.1). Tally connectors and WhatsApp numbers have no source
+ * yet (Phase 5 and W1), so they answer empty.
  */
 export async function readIntegrationHealth(
   principal: Principal,
@@ -73,15 +78,27 @@ export async function readIntegrationHealth(
     (context) => readScheduledJobs(context, now),
     { name: 'readScheduledJobs' },
   );
-  const [lastRun, check] = await Promise.all([
+  const stored = await executeQuery(principal, { requestId }, readWebhookHealth, {
+    name: 'readWebhookHealth',
+  });
+  const [lastRun, check, refused] = await Promise.all([
     fromStore(requestId, () => lastPublisherRun(keyValue)),
     fromStore(requestId, () => readDeliveryCheck(keyValue, now)),
+    fromStore(requestId, () =>
+      Promise.all(WEBHOOK_PROVIDERS.map((p) => refusedLastDay(keyValue, p, now))),
+    ),
   ]);
   return IntegrationHealthResponse.parse({
     generatedAt: now.toISOString(),
     outbox: { byType: outbox.byType, lastPublisherRun: lastRun ?? null },
     deliveryCheck: check ?? null,
-    webhooks: [],
+    webhooks: {
+      providers: stored.providers.map((p) => ({
+        ...p,
+        refused24h: refused?.[WEBHOOK_PROVIDERS.indexOf(p.provider)] ?? 0,
+      })),
+      failed: stored.failed,
+    },
     deadLetters: outbox.deadLetters,
     connectors: [],
     whatsapp: [],

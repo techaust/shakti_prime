@@ -1,4 +1,4 @@
-import { newId, type Principal } from '@shakti/contracts';
+import { newId, type MarkWebhookInput, type Principal } from '@shakti/contracts';
 import { asMigrator, asPrincipal, closeDb, principalFor } from '@shakti/db/testing';
 import { createHash } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -22,7 +22,7 @@ async function stored(provider = 'livekit'): Promise<string> {
     (
       m,
     ) => m`insert into webhook_inbox (id, provider, provider_event_id, payload_json, payload_sha256)
-             values (${id}, ${provider}, ${`EV_${id}`}, ${{ id: `EV_${id}`, event: 'room_started' }}, ${hash})`,
+             values (${id}, ${provider}, ${`EV_${id}`}, ${JSON.stringify({ id: `EV_${id}`, event: 'room_started' })}::jsonb, ${hash})`,
   );
   return id;
 }
@@ -33,7 +33,7 @@ function claim(inboxId: string, principal: Principal = workers) {
   );
 }
 
-function mark(input: Parameters<typeof runCommand<typeof markWebhook>>[2], principal = workers) {
+function mark(input: MarkWebhookInput, principal = workers) {
   return asPrincipal(principal, (context) =>
     runCommand(markWebhook, { context, audit, outbox }, input),
   );

@@ -217,6 +217,7 @@ export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
+export { readWebhookHealth, type StoredWebhookHealth } from './queries/platform/webhook-health';
 export {
   JOB_RUN_LIMIT_MINUTES,
   readScheduledJobs,
