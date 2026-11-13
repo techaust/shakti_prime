@@ -76,6 +76,13 @@ import {
   reindexKnowledgeFile,
 } from '../commands/knowledge/files';
 import { recordKnowledgeIndex } from '../commands/knowledge/record-index';
+import {
+  approvePlaybookDirective,
+  draftPlaybookDirective,
+  editPlaybookDirective,
+  resolvePlaybookConflict,
+  retirePlaybookDirective,
+} from '../commands/knowledge/playbook';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
 import { failImportJob } from '../commands/imports/fail-job';
@@ -245,6 +252,11 @@ export const commands = Object.freeze({
   [reindexKnowledgeFile.name]: reindexKnowledgeFile,
   [archiveKnowledgeFile.name]: archiveKnowledgeFile,
   [recordKnowledgeIndex.name]: recordKnowledgeIndex,
+  [draftPlaybookDirective.name]: draftPlaybookDirective,
+  [editPlaybookDirective.name]: editPlaybookDirective,
+  [approvePlaybookDirective.name]: approvePlaybookDirective,
+  [retirePlaybookDirective.name]: retirePlaybookDirective,
+  [resolvePlaybookConflict.name]: resolvePlaybookConflict,
   [completeInboxItem.name]: completeInboxItem,
   [routeEnquiry.name]: routeEnquiry,
   [takeEnquiry.name]: takeEnquiry,

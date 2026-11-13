@@ -160,6 +160,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `knowledge.vault.read.management` | all | all | – | – | – | – | – | – | – | all | – |
 | `knowledge.vault.read.exec` | all | – | – | – | – | – | – | – | – | – | – |
 | `knowledge.vault.write` | all | all | – | – | – | – | – | – | – | – | – |
+| `knowledge.playbook.draft` | all | all | – | – | – | – | – | – | – | – | – |
 | `knowledge.playbook.approve` | all | – | – | – | – | – | – | – | – | – | – |
 | `agents.inbox.act` | all | entity | team | own | own | own | entity | entity | – | entity | – |
 | `agents.autonomy.write` | all | – | – | – | – | – | – | – | – | – | – |

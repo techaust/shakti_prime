@@ -60,6 +60,7 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'agent_action',
   'inbox_item',
   'knowledge_file',
+  'playbook_directive',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */

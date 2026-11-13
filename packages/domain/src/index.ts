@@ -576,6 +576,13 @@ export {
 export { recordKnowledgeIndex } from './commands/knowledge/record-index';
 export { knowledgeFileForIndex } from './commands/knowledge/shared';
 export {
+  approvePlaybookDirective,
+  draftPlaybookDirective,
+  editPlaybookDirective,
+  resolvePlaybookConflict,
+  retirePlaybookDirective,
+} from './commands/knowledge/playbook';
+export {
   KNOWLEDGE_PAGE_SIZE,
   listKnowledgeFiles,
   searchKnowledge,

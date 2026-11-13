@@ -144,7 +144,14 @@
     "expense_receipts_missing": "Add a receipt photo for every line before you submit the claim.",
     "expense_self_approval": "You can't approve your own expense claim. Ask your manager.",
     "expense_accounts_step": "This step is for Accounts, and for someone other than the manager who approved the claim.",
-    "directive_conflict": "This rule clashes with a rule already approved. Resolve the clash first.",
+    "playbook_conflict_open": "This rule clashes with a rule already approved. Resolve the clash first.",
+    "playbook_check_pending": "We are still checking this rule against the approved ones. Try again in a minute.",
+    "playbook_directive_missing": "We couldn't find this rule. It may have been removed, or you may not have access to it.",
+    "playbook_conflict_missing": "We couldn't find this clash. Refresh the page to see the rule as it stands.",
+    "playbook_conflict_resolved": "Someone has already settled this clash. Refresh the page to see the rule as it stands.",
+    "playbook_needs_all_companies": "Choose All companies at the top to change a rule for every company.",
+    "playbook_audience_not_held": "You can only write a rule for people whose rules you can read. Choose who it is for again.",
+    "playbook_source_missing": "We couldn't find the Knowledge Vault file this rule comes from. It may have been archived.",
     "voucher_no_match": "No matching order was found for this Tally entry. It has gone to the review list.",
     "voucher_has_match": "This Tally entry already matches an order.",
     "voucher_link_target_missing": "Choose the order or proforma to link this Tally entry to.",
@@ -1621,7 +1628,12 @@
       "importIdentityCheck": "Identity numbers removed from an earlier import",
       "importPurgeFailed": "Clearing an import's details did not finish, and is tried again",
       "importPurge": "What an import file said cleared after its check period",
-      "importFileDeleted": "Import file deleted once it was no longer needed"
+      "importFileDeleted": "Import file deleted once it was no longer needed",
+      "playbookDraft": "Playbook rule drafted",
+      "playbookEdit": "Playbook rule edited",
+      "playbookApprove": "Playbook rule approved",
+      "playbookRetire": "Playbook rule retired",
+      "playbookResolveConflict": "Playbook clash settled"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1672,7 +1684,8 @@
       "orderCreditHeld": "Order held for credit",
       "orderCreditReleased": "Credit hold released",
       "orderCancelled": "Order cancelled",
-      "commissionAccrued": "Referral commission recorded"
+      "commissionAccrued": "Referral commission recorded",
+      "playbookChanged": "Playbook rule changed"
     },
     "sheet": {
       "title": "{action}",
@@ -1913,7 +1926,16 @@
       "purgedAt": "What the file said cleared on",
       "deletedAt": "File deleted on",
       "leftOutColumns": "Columns of identity numbers left out",
-      "maskedValues": "Identity numbers hidden"
+      "maskedValues": "Identity numbers hidden",
+      "directiveType": "Kind of rule",
+      "audience": "Who it is for",
+      "directiveState": "Rule status",
+      "fromVaultFile": "Taken from a Knowledge Vault file",
+      "textChanged": "Wording changed",
+      "retiredReason": "Why it was retired",
+      "conflictsSettled": "Clashes settled",
+      "resolution": "How the clash was settled",
+      "resolutionNote": "Note on the clash"
     },
     "values": {
       "percent": "{value}%",
@@ -3231,6 +3253,7 @@
       "knowledge_vault_read_management": "Search management knowledge",
       "knowledge_vault_read_exec": "Search Executive knowledge",
       "knowledge_vault_write": "Add and archive Knowledge Vault files",
+      "knowledge_playbook_draft": "Draft and edit Playbook guidance",
       "knowledge_playbook_approve": "Approve Playbook guidance",
       "agents_inbox_act": "Act on Agent Inbox items",
       "agents_autonomy_write": "Choose how freely agents act",
@@ -4678,6 +4701,30 @@
         "outcome": "Save the call with that outcome",
         "help": "Show or hide this list"
       }
+    }
+  },
+  "playbook": {
+    "type": {
+      "policy": "Policy",
+      "priority": "Priority",
+      "target": "Target",
+      "sop": "How we work",
+      "faq": "Common question",
+      "tone": "Tone"
+    },
+    "audience": {
+      "customer": "Customers",
+      "staff": "Staff",
+      "management": "Management"
+    },
+    "state": {
+      "draft": "Draft",
+      "approved": "Approved",
+      "retired": "Retired"
+    },
+    "resolution": {
+      "not_a_conflict": "Not a clash",
+      "other_retired": "Other rule retired"
     }
   }
 }
