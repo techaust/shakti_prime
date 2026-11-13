@@ -3,12 +3,12 @@
 | | |
 |---|---|
 | Branch | `feat/k2-playbook` on GitHub, from `main` at 008066b7 |
-| PC worktree | none: built in a cloud session of its own (Postgres 54322, app 3000) |
+| PC worktree | `k2-playbook`, slot 2 (Postgres 54332, app 3032) for the lead's review, integration and baselines; built in a cloud session of its own |
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | build Opus 5.5 high, 5-hour window 11 % at the start |
-| State | fix round done, report written |
-| Next step | the reviewer re-checks the fixes, then integration; Linux baselines for the snapshot `playbook` and `checks-ok` for `js-budget.json` |
+| State | integrated on the PC (13-11-2026); pull request open |
+| Next step | the owner's `checks-ok` (`js-budget.json`), the merge, then dev and staging migrated (0165 to 0167) |
 
 ## Brief
 Read first:
@@ -178,3 +178,4 @@ Slice-reviewer, 13-11-2026, on 79ade220 (`git diff origin/main...HEAD`). Read by
 - Shared registration points touched: the permission catalogue, scopes, `SYSTEM_MATRIX`, seeds and labels; `en.json`; `nav.ts`; `ENTITY_TABLES` and the matrix fixture; `grants.test.ts` and `enum-sync.test.ts`; the agent refusal sweep; the event catalogue (`knowledge.playbook.changed`, subscribed) and the event workers' registry; `AGENT_DEFAULTS` (the 5.5 model prices, the same lines V1 adds, and `playbook`); `MODEL_CONTEXT_TOKENS`; the provider wrapper's `effort` field (`CompleteCall`, `ModelRequest`, the Anthropic transport), which V1's changes to the wrapper may meet.
 - `apps/web/js-budget.json` gains `/knowledge/playbook`: a check file, so the pull request needs the owner's `checks-ok`. `tools/copy-lint/copy-lint.config.json` gains four button suffixes (not a check file under the rule).
 - The snapshot `playbook` needs Linux baselines (desktop light, desktop dark, phone) from `e2e:snap`; the seed writes the snapshot company's Playbook once.
+- Integrated on the PC on 13-11-2026: `main` (V1 #242, P5 #243, E1 #244) merged in; migrations renumbered 0160 to 0162 → 0165 to 0167; 0167's `app.platform_only_permissions()` given back `webhooks.process` and `crm.dnd.record`, which the slice's definition would have dropped, and `caller-profiles.test.ts` lists all thirteen keys against `PLATFORM_ONLY_PERMISSIONS`; the documents cite the new numbers. `apps/web/src/workers/events/playbook-version.test.ts` moved to `apps/web/tests/` (the web security suite): its worker also runs the conflict check, which reads the database, and the unit job has none. Checks: lint, format, copy lint, generated, typecheck (again after the move) and audit; unit (web 1,060); the security suite on a fresh database (db 1,324, domain 1,119, web 357), `db:verify`; build with no `.env`, JavaScript budget, gitleaks; the journeys `playbook` and `knowledge` (35 passed). The `playbook` Linux baselines (three projects) made on a fresh database; two verification runs matched (35 passed each).
