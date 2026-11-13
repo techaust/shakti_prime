@@ -305,6 +305,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 
 **LAW-4 · Telecom registration and numbers** — Owner
 - *Needed:* the WhatsApp and calling numbers in use for each company, and the status of each company's registration on the telecom consent platform (DLT). Registration of all four companies and the promotional (140-series) and service (160-series) numbers should start now; they are needed in Phase 2.
+- *Today:* the numbers are entered by an Executive on Settings › Companies › Numbers once DLT gives them; none is set. A promotional call needs a do-not-disturb check newer than 7 days (`WORKSHOP_DEFAULTS.calling.dndFreshDays`), for the owner to confirm with the scrub service chosen at registration.
 
 **LAW-5 · Voice samples** — Owner
 - *Needed:* 20 to 30 short recordings of Executives speaking as they would to the assistant, in Hindi, Hinglish and English, for the speech test, which is needed before Phase 2.
