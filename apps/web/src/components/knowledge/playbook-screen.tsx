@@ -97,9 +97,16 @@ export function PlaybookScreen({
   const firstCompany = companies[0]?.id ?? 0;
   const loadReview = reviewQuery.load;
 
+  // Reads finish in any order, so only the latest of each counts: a list read the person has since
+  // replaced, or a rule they have since moved away from, never takes the screen back.
+  const selectedRef = useRef(initialReview?.directive.id);
+  const reviewSeq = useRef(0);
+  const listSeq = useRef(0);
   const open = useCallback(
     (id: string | undefined) => {
       setSelected(id);
+      selectedRef.current = id;
+      const seq = ++reviewSeq.current;
       if (id === undefined) {
         setReview(undefined);
         return;
@@ -107,7 +114,7 @@ export function PlaybookScreen({
       loadReview(
         () => loadPlaybookReview({ directiveId: id }),
         (found) => {
-          setReview(found);
+          if (seq === reviewSeq.current) setReview(found);
         },
       );
     },
@@ -147,12 +154,19 @@ export function PlaybookScreen({
   }, [checkingId, loadReview]);
 
   function reload(next: Filters, keep?: string) {
+    const seq = ++listSeq.current;
+    const openWhenAsked = selectedRef.current;
     read.load(
       () => listPlaybook({ ...next }),
       (page) => {
+        if (seq !== listSeq.current) return;
         setList(page.directives);
         setCursor(page.nextCursor);
-        const still = page.directives.find((d) => d.id === (keep ?? selected));
+        // The rule this change was about, unless the person opened another while the list was
+        // read; then the one they have open; else the first.
+        const movedMeanwhile = selectedRef.current !== openWhenAsked;
+        const wanted = movedMeanwhile ? selectedRef.current : (keep ?? selectedRef.current);
+        const still = page.directives.find((d) => d.id === wanted);
         open(still?.id ?? page.directives[0]?.id);
       },
     );
