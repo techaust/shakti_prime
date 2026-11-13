@@ -219,12 +219,15 @@ export async function checkPlaybook(
         reason: labelled?.reason ?? null,
       });
     }
+    // The record runs in the draft's own company (the event's for a draft of the whole group),
+    // so its audit row is filed there: an approval of a group rule rechecks drafts of every company.
+    const company = target.entityId ?? event.entityId;
     const result = await executeCommand(
-      deps.principal,
-      scope,
+      { ...deps.principal, entityIds: [company] },
+      { entityIds: [company], requestId: deps.requestId },
       recordPlaybookCheck,
       {
-        entityId: event.entityId,
+        entityId: company,
         directiveId: target.directiveId,
         wordingSha256: target.wordingSha256,
         checkedAsOf: readAt,

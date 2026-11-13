@@ -72,6 +72,11 @@ async function seen(who: Principal, ids: readonly string[]): Promise<string[]> {
   return rows.map((r) => r.id).sort();
 }
 
+/** Refused by the guard trigger or a write policy, never by a check constraint. */
+async function refused(write: Promise<unknown>): Promise<void> {
+  await expect(write).rejects.toMatchObject({ cause: { code: '42501' } });
+}
+
 const holds = (role: RoleKey, key: string): boolean =>
   grantsForRole(role).some((g) => g.key === key && g.scope === 'all');
 
@@ -136,53 +141,80 @@ describe('who writes a directive', () => {
   it('lets a drafter write a draft and refuses everyone else, any other state, and the group from one company', async () => {
     const gm = await createTestPrincipal('general_manager', [1]);
     await expect(insert(gm)).resolves.toBeDefined();
-    await expect(insert(gm, { state: 'approved' })).rejects.toThrow();
-    await expect(insert(gm, { entityId: null })).rejects.toThrow();
-    await expect(insert(gm, { entityId: 2 })).rejects.toThrow();
-    await expect(insert(await createTestPrincipal('accounts', [1]))).rejects.toThrow();
-    await expect(insert(principalFor('agent:copilot', [1]))).rejects.toThrow();
+    // An approved row that meets every check constraint: the insert policy alone refuses it.
+    await refused(
+      asPrincipal(gm, ({ tx }) =>
+        tx.execute(sql`insert into playbook_directives
+          (id, entity_id, type, audience, title, text, state, approved_by, approved_at, checked_at, created_by)
+          values (${newId()}, 1, 'faq', 'staff', 'rls rule', 'rls rule text', 'approved', ${gm.id},
+                  now(), now(), ${gm.id})`),
+      ),
+    );
+    await refused(insert(gm, { entityId: null }));
+    await refused(insert(gm, { entityId: 2 }));
+    await refused(insert(await createTestPrincipal('accounts', [1])));
+    await refused(insert(principalFor('agent:copilot', [1])));
     await asMigrator((m) => m`delete from playbook_directives where created_by = ${gm.id}`);
   });
 
-  it('keeps every change on the machine: approval by the approver once checked, no rewording after it', async () => {
+  it('keeps every change on the machine, each refusal the guard’s or a policy’s (42501)', async () => {
     const gm = await createTestPrincipal('general_manager', [1]);
     const exec = await createTestPrincipal('executive', [1]);
     const draft = await directive(1, 'staff', 'draft');
     const approve = (who: Principal, id: string) =>
       asPrincipal(who, ({ tx }) =>
         tx.execute(sql`update playbook_directives
-                          set state = 'approved', approved_by = ${who.id}, approved_at = now()
+                          set state = 'approved', approved_by = ${who.id}, approved_at = now(),
+                              conflicts_with = '{}'::uuid[]
                         where id = ${id}`),
       );
-    // Not yet checked: refused even to the approver.
-    await expect(approve(exec, draft)).rejects.toThrow();
+    // Checked, but before an approval of its type for its company: the check is stale.
     await asMigrator(
-      (m) => m`update playbook_directives set checked_at = now() where id = ${draft}`,
+      (m) =>
+        m`update playbook_directives set checked_at = now() - interval '1 hour' where id = ${draft}`,
     );
+    await directive(1, 'staff', 'approved');
+    await refused(approve(exec, draft));
+    // Checked after it, but an open pair remains, though the update clears `conflicts_with`.
+    const other = await directive(1, 'staff', 'approved');
+    const pair = newId();
+    await asMigrator(async (m) => {
+      await m`update playbook_directives set checked_at = clock_timestamp() where id = ${draft}`;
+      await m`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
+              values (${pair}, 1, ${draft}, ${other}, 0.1, 'conflict', 'rls reason')`;
+    });
+    await refused(approve(exec, draft));
+    await asMigrator((m) => m`delete from playbook_conflict_checks where id = ${pair}`);
     // A drafter is not an approver.
-    await expect(approve(gm, draft)).rejects.toThrow();
+    await refused(approve(gm, draft));
     // A request may not record a check or name a conflict.
-    await expect(
+    await refused(
       asPrincipal(exec, ({ tx }) =>
         tx.execute(
           sql`update playbook_directives set conflicts_with = array[${newId()}]::uuid[] where id = ${draft}`,
         ),
       ),
-    ).rejects.toThrow();
+    );
     await expect(approve(exec, draft)).resolves.toBeDefined();
-    await expect(
+    const [stamped] = await asMigrator(
+      (m) => m<{ later: boolean }[]>`
+        select approved_at > checked_at as later from playbook_directives where id = ${draft}`,
+    );
+    // The guard takes the approval's time from the database once the type's lock is held.
+    expect(stamped?.later).toBe(true);
+    await refused(
       asPrincipal(exec, ({ tx }) =>
         tx.execute(sql`update playbook_directives set text = 'rls reworded' where id = ${draft}`),
       ),
-    ).rejects.toThrow();
+    );
     // Retiring an approved directive is the approver's.
-    await expect(
+    await refused(
       asPrincipal(gm, ({ tx }) =>
         tx.execute(sql`update playbook_directives
                           set state = 'retired', retired_reason = 'rls', retired_at = now()
                         where id = ${draft}`),
       ),
-    ).rejects.toThrow();
+    );
   });
 
   it('rewording a draft clears its check', async () => {
@@ -236,7 +268,7 @@ describe('the conflict check’s pairs', () => {
     const exec = await createTestPrincipal('executive', [1]);
     // A drafter reads the pair but does not resolve it (no row passes the update policy).
     await resolve(gm, gm.id);
-    await expect(resolve(exec, gm.id)).rejects.toThrow();
+    await refused(resolve(exec, gm.id));
     await resolve(exec, exec.id);
     const [row] = await asMigrator(
       (m) =>
@@ -245,13 +277,13 @@ describe('the conflict check’s pairs', () => {
         >`select resolved_by from playbook_conflict_checks where id = ${pair}`,
     );
     expect(row?.resolved_by).toBe(exec.id);
-    await expect(resolve(exec, exec.id)).rejects.toThrow();
+    await refused(resolve(exec, exec.id));
     // No request inserts a pair.
-    await expect(
+    await refused(
       asPrincipal(exec, ({ tx }) =>
         tx.execute(sql`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance)
                        values (${newId()}, 1, ${draft}, ${other}, 0.1)`),
       ),
-    ).rejects.toThrow();
+    );
   });
 });

@@ -19,14 +19,21 @@ import { fakeModelTransport, fakeReply } from '../../src/ai/transport';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { Command } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
-import { editPlaybookDirective } from '../../src/commands/knowledge/playbook';
+import {
+  approvePlaybookDirective,
+  draftPlaybookDirective,
+  editPlaybookDirective,
+  retirePlaybookDirective,
+} from '../../src/commands/knowledge/playbook';
 import { draftPlaybookFromFile } from '../../src/commands/knowledge/playbook-from-file';
 import { filterDrafts, proposeDirectives } from '../../src/knowledge/playbook-draft';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryKeyValue } from '../../src/ports/key-value';
 import { memoryLogger } from '../../src/ports/logger';
 import {
+  approvedPlaybook,
   listPlaybook,
+  listPlaybookSources,
   loadPlaybookReview,
   playbookSourcePassages,
 } from '../../src/queries/knowledge/playbook';
@@ -259,6 +266,149 @@ describe('the Playbook list', () => {
     expect(group.directives.every((d) => d.entityId === null)).toBe(true);
     await expect(
       asPrincipal(principalFor('accounts', [1]), (ctx) => listPlaybook(ctx, {})),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('a typed draft that names a source (finding 8)', () => {
+  const typed = (
+    knowledgeFileId: string,
+    over: { wholeGroup?: boolean; sourcePosition?: number | null; audience?: string } = {},
+  ) =>
+    run(executive, draftPlaybookDirective, {
+      entityId: 1,
+      wholeGroup: over.wholeGroup ?? false,
+      type: 'faq',
+      audience: over.audience ?? 'staff',
+      title: 'Synthetic typed rule',
+      text: `Synthetic typed text ${newId()}`,
+      sourceFileId: knowledgeFileId,
+      sourcePosition: over.sourcePosition === undefined ? 0 : over.sourcePosition,
+    });
+
+  it('keeps the file rules of drafting from a file: company, group, passage, audience', async () => {
+    const companyFile = await vaultFile('staff_ai_ok', 1);
+    expect(await typed(companyFile)).toMatchObject({
+      sourceFileId: companyFile,
+      sourcePosition: 0,
+    });
+    // A company's file never gives a directive for the whole group.
+    await expect(typed(companyFile, { wholeGroup: true })).rejects.toMatchObject({
+      details: { reason: 'playbook_source_missing' },
+    });
+    await expect(typed(companyFile, { sourcePosition: 9 })).rejects.toMatchObject({
+      details: { reason: 'playbook_passage_missing' },
+    });
+    await expect(typed(await vaultFile('management', 1))).rejects.toMatchObject({
+      details: { reason: 'playbook_audience_above_source' },
+    });
+    await expect(typed(await vaultFile('exec_only', 1))).rejects.toMatchObject({
+      details: { reason: 'playbook_source_exec_only' },
+    });
+    // A file of another company is not this company's source.
+    await expect(typed(await vaultFile('staff_ai_ok', 2))).rejects.toMatchObject({
+      details: { reason: 'playbook_source_missing' },
+    });
+  });
+});
+
+describe('the approved Playbook, the agents’ and Ask’s one read (finding 3)', () => {
+  it('answers approved rules only, to an Executive and to a GM who hold the playbook grants', async () => {
+    const file = await vaultFile('staff_ai_ok');
+    const { drafts } = await fromFile(executive, file, [draft(), draft(), draft()]);
+    const [kept, retired, open] = drafts;
+    if (kept === undefined || retired === undefined || open === undefined)
+      throw new Error('drafts');
+    for (const d of [kept, retired]) {
+      await asMigrator(
+        (m) => m`update playbook_directives set checked_at = now() where id = ${d.id}`,
+      );
+      await run(executive, approvePlaybookDirective, { entityId: 1, directiveId: d.id });
+    }
+    await run(executive, retirePlaybookDirective, {
+      entityId: 1,
+      directiveId: retired.id,
+      reason: 'synthetic reason',
+    });
+    for (const who of [executive, gm]) {
+      const read = await asPrincipal(who, (ctx) => approvedPlaybook(ctx, {}));
+      const ids = read.map((d) => d.id);
+      expect(ids).toContain(kept.id);
+      expect(ids).not.toContain(retired.id);
+      expect(ids).not.toContain(open.id);
+    }
+    // Only the audiences asked for.
+    const managers = await asPrincipal(gm, (ctx) =>
+      approvedPlaybook(ctx, { audiences: ['management'] }),
+    );
+    expect(managers.map((d) => d.id)).not.toContain(kept.id);
+  });
+});
+
+describe('the review of a pair whose other rule the reader cannot read (finding 7)', () => {
+  it('leaves out the model’s reason with the hidden rule', async () => {
+    const other = await asMigrator(async (m) => {
+      const id = newId();
+      await m`insert into playbook_directives (id, entity_id, type, audience, title, text, state, approved_by, approved_at, checked_at, created_by)
+              values (${id}, 2, 'faq', 'staff', 'Hidden rule', 'Hidden rule text', 'approved', ${executive.id}, now(), now(), ${executive.id})`;
+      return id;
+    });
+    const group = await run(executive, draftPlaybookDirective, {
+      entityId: 1,
+      wholeGroup: true,
+      type: 'faq',
+      audience: 'staff',
+      title: 'Synthetic group rule',
+      text: `Synthetic group text ${newId()}`,
+    });
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
+               values (${newId()}, null, ${group.id}, ${other}, 0.1, 'conflict', 'About the hidden rule.')`,
+    );
+    const gmOfOne = principalFor('general_manager', [1], { id: gm.id });
+    const review = await asPrincipal(gmOfOne, (ctx) =>
+      loadPlaybookReview(ctx, { directiveId: group.id }),
+    );
+    expect(review.pairs).toHaveLength(1);
+    expect(review.pairs[0]).toMatchObject({
+      other: null,
+      check: { label: 'conflict', reason: null },
+    });
+    const full = await asPrincipal(executive, (ctx) =>
+      loadPlaybookReview(ctx, { directiveId: group.id }),
+    );
+    expect(full.pairs[0]?.check.reason).toBe('About the hidden rule.');
+    await asMigrator(async (m) => {
+      await m`delete from playbook_conflict_checks where directive_id = ${group.id}`;
+      await m`delete from playbook_directives where id in (${group.id}, ${other})`;
+    });
+  });
+});
+
+describe('the files a drafter may draft from (finding 11)', () => {
+  it('reaches every usable file by name and a page at a time, never an Executive-only one', async () => {
+    const mark = `zq${newId().slice(-8)}`;
+    const usable = await vaultFile('staff_ai_ok');
+    const hidden = await vaultFile('exec_only');
+    await asMigrator(async (m) => {
+      await m`update knowledge_files set title = ${`Rules ${mark} usable`} where id = ${usable}`;
+      await m`update knowledge_files set title = ${`Rules ${mark} hidden`} where id = ${hidden}`;
+    });
+    const found = await asPrincipal(executive, (ctx) => listPlaybookSources(ctx, { query: mark }));
+    expect(found.files.map((f) => f.id)).toEqual([usable]);
+    // Paging: every page continues after the last title, so all files are in reach.
+    const first = await asPrincipal(executive, (ctx) => listPlaybookSources(ctx, {}));
+    if (first.nextCursor !== null) {
+      const next = await asPrincipal(executive, (ctx) =>
+        listPlaybookSources(ctx, { cursor: first.nextCursor }),
+      );
+      const seen = new Set(first.files.map((f) => f.id));
+      expect(next.files.every((f) => !seen.has(f.id))).toBe(true);
+    }
+    await expect(
+      asPrincipal(principalFor('accounts', [1]), (ctx) => listPlaybookSources(ctx, {})),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });

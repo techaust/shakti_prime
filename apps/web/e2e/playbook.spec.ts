@@ -107,7 +107,10 @@ test.describe('as an Executive', () => {
     await page.getByRole('button', { name: 'Draft from a file' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'Draft rules from a file' })).toBeVisible();
-    await dialog.getByLabel('File').selectOption({ label: SNAPSHOT_VAULT.title });
+    // The file is found by its name, whichever page of the vault it is on.
+    await dialog.getByLabel('Find a file by its name').fill(SNAPSHOT_VAULT.title);
+    await expect(dialog.getByLabel('File', { exact: true })).toHaveValue(/.+/);
+    await dialog.getByLabel('File', { exact: true }).selectOption({ label: SNAPSHOT_VAULT.title });
     await expectNoAxeViolations(page);
     await dialog.getByRole('button', { name: 'Draft rules' }).click();
     await expect(dialog).toBeHidden({ timeout: 45_000 });

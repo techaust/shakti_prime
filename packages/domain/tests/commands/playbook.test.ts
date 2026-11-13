@@ -309,18 +309,22 @@ describe('knowledge.playbook.approve', () => {
     expect((await auditOf(row.id)).map((a) => a.command)).toContain('knowledge.playbook.approve');
   });
 
-  it('refuses in the database what the command would refuse', async () => {
-    const row = await draft(gm);
-    // The approver writing the row directly, past the command: the guard refuses an unchecked draft.
+  it('refuses in the database what the command would refuse: an open pair, whatever the update says (42501)', async () => {
+    const other = await approved({ type: 'policy' });
+    const row = await draft(gm, { type: 'policy' });
+    await checked(row.id, [{ otherId: other.id, label: 'conflict' }]);
+    // The approver writing the row directly, past the command, clearing `conflicts_with` itself:
+    // every check constraint is met, and the guard still refuses the open pair.
     await expect(
       asPrincipal(executive, ({ tx }) =>
         tx.execute(
           sql`update playbook_directives
-                 set state = 'approved', approved_by = ${executive.id}, approved_at = now()
+                 set state = 'approved', approved_by = ${executive.id}, approved_at = now(),
+                     conflicts_with = '{}'::uuid[]
                where id = ${row.id}`,
         ),
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
   });
 });
 

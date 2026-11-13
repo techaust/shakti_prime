@@ -11,7 +11,13 @@ import type { output, ZodType } from 'zod';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AGENT_DEFAULTS } from '../../src/ai/agent-defaults';
 import { createAiProvider, type AiProvider } from '../../src/ai/provider';
-import { fakeModelTransport, fakeReply, type FakeModelTransport } from '../../src/ai/transport';
+import {
+  fakeEmbedding,
+  fakeModelTransport,
+  fakeReply,
+  ModelCallError,
+  type FakeModelTransport,
+} from '../../src/ai/transport';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { Command } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
@@ -21,8 +27,12 @@ import {
   editPlaybookDirective,
   resolvePlaybookConflict,
 } from '../../src/commands/knowledge/playbook';
-import { recordPlaybookCheck } from '../../src/commands/knowledge/playbook-check';
-import { checkPlaybook } from '../../src/knowledge/playbook-check';
+import {
+  playbookCandidates,
+  playbookCheckTargets,
+  recordPlaybookCheck,
+} from '../../src/commands/knowledge/playbook-check';
+import { checkPlaybook, directiveText } from '../../src/knowledge/playbook-check';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryKeyValue } from '../../src/ports/key-value';
 import { memoryLogger } from '../../src/ports/logger';
@@ -276,17 +286,125 @@ describe('the conflict check', () => {
     expect((await directive(row.id))?.conflicts_with).toEqual([second.id]);
   });
 
-  it('records nothing for wording that changed since it was read, or for a directive no longer a draft', async () => {
-    const row = await draft(words());
+  it('compares a draft with a rule approved while its check was running (review finding 1)', async () => {
+    const shared = words();
+    const row = await draft(shared, { type: 'tone' });
+    // The check reads its candidates: nothing approved is near yet.
+    const [target] = await asPrincipal(workers(1), ({ tx }) => playbookCheckTargets(tx, row.id));
+    if (target === undefined) throw new Error('no target');
+    const embedding = fakeEmbedding(directiveText(target));
+    const read = await asPrincipal(workers(1), ({ tx }) =>
+      playbookCandidates(tx, row.id, embedding, 0.2, 5),
+    );
+    expect(read.candidates).toEqual([]);
+    // Y, close to the draft, is approved before the check records what it read.
+    const y = await approved(`${shared} ${words(1)}`, { type: 'tone' });
+    const recorded = await run(workers(1), recordPlaybookCheck, {
+      entityId: 1,
+      directiveId: row.id,
+      wordingSha256: target.wordingSha256,
+      checkedAsOf: read.readAt,
+      embedding,
+      pairs: [],
+    });
+    expect(recorded).toMatchObject({ skipped: false, open: 0 });
+    // The check is older than Y's approval, so the draft waits for a check against Y.
+    await expect(
+      run(executive, approvePlaybookDirective, { entityId: 1, directiveId: row.id }),
+    ).rejects.toMatchObject({ details: { reason: 'playbook_check_pending' } });
+    // Y's own event checks the draft again, against Y.
+    await check(y.id, provider({ replies: [label('conflict')] }).ai, 'approved');
+    expect((await pairs(row.id)).map((p) => p.other_id)).toEqual([y.id]);
+    await expect(
+      run(executive, approvePlaybookDirective, { entityId: 1, directiveId: row.id }),
+    ).rejects.toMatchObject({ details: { reason: 'playbook_conflict_open' } });
+    // A late record of the older check changes nothing now.
+    const late = await run(workers(1), recordPlaybookCheck, {
+      entityId: 1,
+      directiveId: row.id,
+      wordingSha256: target.wordingSha256,
+      checkedAsOf: read.readAt,
+      embedding,
+      pairs: [],
+    });
+    expect(late).toMatchObject({ skipped: true });
+    expect((await pairs(row.id)).map((p) => p.other_id)).toEqual([y.id]);
+  });
+
+  it('never lets two drafts of one type approved one after the other miss each other', async () => {
+    const shared = words();
+    const first = await draft(`${shared} ${words(1)}`, { type: 'target' });
+    const second = await draft(`${shared} ${words(1)}`, { type: 'target' });
+    const clear = provider({ replies: [label('none', 'Different cases.')] }).ai;
+    await check(first.id, clear);
+    await check(second.id, clear);
+    await run(executive, approvePlaybookDirective, { entityId: 1, directiveId: first.id });
+    // The second was checked before the first was approved: it waits for a check against it.
+    await expect(
+      run(executive, approvePlaybookDirective, { entityId: 1, directiveId: second.id }),
+    ).rejects.toMatchObject({ details: { reason: 'playbook_check_pending' } });
+    await check(first.id, provider({ replies: [label('overlap')] }).ai, 'approved');
+    expect((await pairs(second.id)).map((p) => p.other_id)).toEqual([first.id]);
+  });
+
+  it('records a pair unlabelled when the label call fails, and goes on (finding 6)', async () => {
+    const shared = words();
+    await approved(`${shared} ${words(1)}`, { type: 'faq' });
+    const row = await draft(shared, { type: 'faq' });
+    const transport = fakeModelTransport([new ModelCallError('http', { status: 400 })]);
+    const ai = createAiProvider({
+      claude: transport,
+      voyage: transport,
+      keyValue: memoryKeyValue(),
+      logger: memoryLogger(),
+    });
+    expect(await check(row.id, ai)).toEqual({ checked: 1, waiting: 0 });
+    expect(await pairs(row.id)).toMatchObject([{ label: null, reason: null }]);
+  });
+
+  it('records nothing for wording changed since it was read: type, audience, title or text (finding 5)', async () => {
+    const row = await draft(words(), { type: 'policy' });
+    const [target] = await asPrincipal(workers(1), ({ tx }) => playbookCheckTargets(tx, row.id));
+    if (target === undefined) throw new Error('no target');
+    const embedding = fakeEmbedding(directiveText(target));
+    const read = await asPrincipal(workers(1), ({ tx }) =>
+      playbookCandidates(tx, row.id, embedding, 0.2, 5),
+    );
+    // Only the type changes: the text is the same, the wording is not.
+    await run(gm, editPlaybookDirective, {
+      entityId: 1,
+      directiveId: row.id,
+      type: 'sop',
+      audience: 'staff',
+      title: 'Synthetic check rule',
+      text: target.text,
+    });
     const skipped = await run(workers(1), recordPlaybookCheck, {
       entityId: 1,
       directiveId: row.id,
-      textSha256: '0'.repeat(64),
-      embedding: Array.from({ length: 1024 }, () => 0.01),
+      wordingSha256: target.wordingSha256,
+      checkedAsOf: read.readAt,
+      embedding,
       pairs: [],
     });
     expect(skipped).toMatchObject({ skipped: true });
     expect((await directive(row.id))?.checked).toBe(false);
+  });
+
+  it('files the record under the draft’s company, whichever company the worker acts in (finding 9)', async () => {
+    const shared = words();
+    const row = await draft(shared, { type: 'priority', entityId: 3 });
+    const group = await approved(`${shared} ${words(1)}`, { type: 'priority', wholeGroup: true });
+    // The group rule's event, from a request for company 1, rechecks the company-3 draft.
+    await check(group.id, provider({ replies: [label('overlap')] }).ai, 'approved', 1);
+    expect((await pairs(row.id)).map((p) => p.other_id)).toContain(group.id);
+    const [row3] = await asMigrator(
+      (m) => m<{ entity_id: number | null }[]>`
+        select entity_id from audit_logs
+         where aggregate_id = ${row.id} and command = 'knowledge.playbook.record_check'
+         order by created_at desc limit 1`,
+    );
+    expect(row3?.entity_id).toBe(3);
   });
 
   it('is the platform’s alone: a person, an agent and another company are refused', async () => {
@@ -294,7 +412,8 @@ describe('the conflict check', () => {
     const input = {
       entityId: 1,
       directiveId: row.id,
-      textSha256: '0'.repeat(64),
+      wordingSha256: '0'.repeat(64),
+      checkedAsOf: '2026-11-13 00:00:00+00',
       embedding: Array.from({ length: 1024 }, () => 0.01),
       pairs: [],
     };
@@ -304,11 +423,17 @@ describe('the conflict check', () => {
     await expect(run(workers(2), recordPlaybookCheck, input)).rejects.toMatchObject({
       code: 'forbidden',
     });
-    // The definers refuse anyone without the platform's grant, whatever they read.
+    // The definers refuse anyone without the platform's grant, whatever they read, and the
+    // platform without a company (the check fails closed).
     await expect(
       asPrincipal(executive, ({ tx }) =>
         tx.execute(sql`select * from app.playbook_check_targets(${row.id}::uuid)`),
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
+    await expect(
+      asPrincipal({ ...workers(1), entityIds: [] }, ({ tx }) =>
+        tx.execute(sql`select * from app.playbook_check_targets(${row.id}::uuid)`),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
   });
 });
