@@ -327,7 +327,12 @@ export type PlaybookReviewDto = z.infer<typeof PlaybookReviewDto>;
  * (row security keeps to the companies of the request and the group's).
  */
 export const ApprovedPlaybookInput = z
-  .object({ audiences: z.array(PlaybookAudienceSchema).min(1).default([...PLAYBOOK_AUDIENCES]) })
+  .object({
+    audiences: z
+      .array(PlaybookAudienceSchema)
+      .min(1)
+      .default([...PLAYBOOK_AUDIENCES]),
+  })
   .strict();
 export type ApprovedPlaybookInput = z.input<typeof ApprovedPlaybookInput>;
 
