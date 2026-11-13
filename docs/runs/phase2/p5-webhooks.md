@@ -7,8 +7,8 @@
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | build Opus 5.5 high, 5-hour window 11 % at the start |
-| State | early check |
-| Next step | the lead reads the early-check diff, then the worker, sweep and screen |
+| State | built, reported |
+| Next step | the lead's review, the Linux screenshot baselines, integration |
 
 ## Brief
 Read first:
@@ -83,6 +83,43 @@ Skills loaded: `add-table`, `add-command` (`supabase-postgres-best-practices` is
 **Owner's steps for dev and staging (no values here; the hidden-prompt pattern of `tools/secrets`):** make a long random password for `webhook_receiver` per environment; set `WEBHOOK_RECEIVER_PASSWORD_DEV` and `_STAGING` as repository secrets; after the merge run *Migrate a hosted database* for each with *Set the login roles' passwords again* ticked (the first migrate creates the role without a password if the secret came later); set `DATABASE_URL_WEBHOOKS` (transaction pooler, user `webhook_receiver.<project ref>`) and the sandbox vendor secrets of DEPLOY §1 step 11 in each Vercel project, marked Sensitive. Production stays without them until the final phase (question 13); `tools/secrets/set-production-secrets.ps1` gains the role then.
 
 **Shared registration points touched (one line or entry each):** `permissions.ts`, seeds, `en.json` (two role lines, two audit labels), `audit.ts`, `turbo.json`, `.env.example`, the testing lists (`PLATFORM_TABLES`, `asWebhookReceiver`), `grants.test.ts`, `enum-sync.test.ts`, `caller-profiles.test.ts`, `reader-parity.test.ts`, `refusal-coverage.test.ts`. `WORKSHOP_DEFAULTS` not yet.
+
+### Done, 13-11-2026, cloud session (Postgres 54322)
+The lead approved the early check on 13-11-2026 with all fifteen decisions accepted; they are recorded in design §5.1 "Built (P5)". `main` (V1, and `integrate.sh`'s `.gitleaksignore` change) is merged into the branch; both `integrate.sh` changes are kept.
+
+**Built after the early check:**
+- The worker `POST /api/v1/workers/webhooks/process` (QStash signature, 4 KiB cap, `processWebhook`; a handler's error answers a retryable 5xx, 503 for a lock wait), its failure callback `POST /api/v1/workers/webhooks/failed` (64 KiB cap, signature, the row failed with `handler_failed` unless a live lease holds it, an `error` line with the row's id, status and code, which reaches Sentry), and `apps/web/src/workers/webhooks/failure.ts`.
+- The sweep `POST /api/v1/workers/webhooks/sweep` through `nightlyWorkerRoute` (failure streak, Sentry check-in by schedule), `runWebhookSweep` (`apps/web/src/workers/webhooks/sweep.ts`), the command `webhooks.inbox.sweep` (retention with `WORKSHOP_DEFAULTS.retention.webhookPayloadDays` 30 and `webhookRowDays` 90, one `retention_runs` row a run through `app.webhook_purge()`; up to 200 waiting rows republished as `<id>:s<attempts>`), and `webhook-sweep` every minute in `JOB_SCHEDULES` and `qstash-schedules.ts`.
+- `webhooks.event.replay` (people only, `integrations.dlq.replay` with `admin.integrations.write`, audited under no company with the provider, the cleared code and the attempts; `conflict` `webhook_not_failed`), `processAgain` (`apps/web/src/webhooks/replay.ts`: published as `<id>:r<attempts>`, or processed in process without a queue) and the server action `processWebhookAgain`. `app.webhook_replay()` now also answers the code it cleared (migration `0161` changed in place; it is not on `main`).
+- Integration health › Messages from other systems (`webhooks-health.tsx`): per provider the last day's received, handled, failed and turned-away messages and those waiting with the oldest; the failed ones newest first with Process again; counts, reasons and tries marked `data-dynamic`. Copy in `en.json` (`integrations.webhooks`, five columns, five `errors.*` sentences, two Activity log actions, two fields); the Activity log names the provider through a new code group `webhookProvider` (`contract-values.ts` `WEBHOOK_PROVIDERS`, checked against the contract).
+- The journey `e2e/integrations.spec.ts`: the Webhooks table on the existing Integration health journey, and "Process again handles a failed message once more" with axe; the seed adds one failed message per project whose payload its contract refuses, so Process again fails it once more and the list keeps the same rows whichever journeys ran.
+- Documents: design §5.1 "Built (P5)", API §3.4, §3.6 (the three worker rows), §3.7, ARCHITECTURE §6 (the schedule), DATABASE, SECURITY, DEPLOY (the schedule and the eight jobs the alerts watch), the workshop pack FIN-2 (the two defaults), `pnpm db:docs`, `machines:docs`.
+
+**Tests (all pass):** `packages/db/tests/security/webhooks.test.ts` 19; `packages/domain/tests/commands/webhooks.test.ts` 9 (claim, mark, sweep, replay: denied, the company refused, happy paths, the audit row, no audit row for bookkeeping); `apps/web/src/webhooks/checks.test.ts` 9 and `receive.test.ts` 15; `apps/web/tests/webhooks.test.ts` 11 (the acceptance lines of §5.1: each provider delivered twice is one row processed once; a changed byte stores nothing; a parse failure is `payload_unreadable`, visible and never retried; Process again processes a failed row once; plus the worker's refusals, the failure callback once, the sweep's republish id); the journey, 1 new case in each of three projects. Updated: `grants`, `enum-sync`, `caller-profiles`, `integration-health`, `reader-parity`, `refusal-coverage` (REVIEWED for the four commands, which name no company), `agent-refusals` (`webhooks.event.replay` in `INPUTS` and people-only), `qstash-schedules`, `check-ins`, `contract-values`, `workshop-defaults`, `lint-fences`, `release-workflows`.
+
+**Checks on the final tree (`main` merged):**
+- `pnpm test:security` on 54322: db 1292, domain 1056, web 353 passed (46, 79 and 27 files).
+- `pnpm exec turbo run test`: 8 of 8 tasks; domain 2359, web 1048 passed and 1 skipped, contracts 185, db 147.
+- `pnpm typecheck` 8 of 8; `pnpm lint` (whole repository) clean; `pnpm copy-lint` clean; `prettier --check .` clean.
+- `turbo run build --filter=web` with no `.env` and no database variables passes; `pnpm --filter web js-budget`: every page within budget, `/admin/integrations` 231.6 of 240 KB.
+- `pnpm --filter @shakti/db db:verify` passes.
+- Journeys (`e2e/integrations.spec.ts`, three projects, local Chromium on this session's database after `e2e:seed`): 23 passed; 3 failed, all on `toHaveScreenshot` of `integration-health`, since the page now carries the new section (expected 1335 px high, received 2461 px on this database, whose failed list also holds the security suites' rows). The Linux baselines are the lead's, on a fresh database; the Process again case and every axe check passed.
+- The document link check: its seven findings are `main`'s (five local-settings paths and the two run files listed as orphans, one of them this file).
+- Not run: the gitleaks scan (no Docker in this session).
+
+**EXPLAIN (ANALYZE):** as in the early check (300,000 rows): the failed list 0.53 ms, the day's counts per provider 0.02 to 0.05 ms, waiting per provider 1.8 ms, the sweep's 500 0.69 ms, `app.webhook_health(50)` 22.7 ms.
+
+**Decisions after the early check:**
+1. Process again is a server action, not an `/api/v1` route, as the brief's "Process again" on the screen needs no API.
+2. The failure callback reuses `OutboxFailureCallback`'s shape (QStash's) and answers `unchanged` for a row a live lease holds; the sweep takes such a row up once the lease lapses.
+3. The sweep runs every minute with no retries, as the publisher's schedule (`timeout` 30 s); production's schedule `webhook-sweep-production` is listed with the others, harmless while production stores nothing (question 13).
+4. `webhooks.inbox.sweep` writes no audit row; its record is the `retention_runs` row.
+5. The failed list shows the 50 newest with the total; it has no paging yet (the dead letters have one), since failed deliveries are expected to be few.
+6. The journey's seeded failures are unreadable on purpose (see above), so the screenshot's rows do not depend on the order the projects run in.
+
+**Owner's steps** (unchanged from the early check): `WEBHOOK_RECEIVER_PASSWORD_DEV` and `_STAGING`, a migrate run with the passwords set again, `DATABASE_URL_WEBHOOKS` and the sandbox vendor secrets in each Vercel project; and the schedule `webhook-sweep-<environment>` for dev and staging from `qstashSchedules()` (DEPLOY §2 step 6). Production's role password, address and schedule wait for the final phase.
+
+**For the lead:** the Linux baselines of `integration-health` (all three projects) on a fresh database; the branch changes checks files (`ci.yml`, `migrate.yml`, `release.yml`, `turbo.json`, `eslint.config.mjs`), so its pull request waits for `checks-ok`; migrations `0160` and `0161` are renumbered after `main`'s last at the merge, and `app.platform_only_permissions()` checked against `main`'s latest (E1 or K2 may add a key).
 
 ## Review
 | # | Severity | Finding | State |
