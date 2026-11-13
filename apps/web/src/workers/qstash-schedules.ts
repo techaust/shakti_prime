@@ -25,7 +25,7 @@ export function hostedEnvironment(value: string | undefined): HostedEnvironment 
  * address. Returns whether it removed one.
  */
 export function unsetBlankQStashUrl(env: NodeJS.ProcessEnv): boolean {
-  if (env.QSTASH_URL === undefined || env.QSTASH_URL.trim() !== '') return false;
+  if (env.QSTASH_URL?.trim() !== '') return false;
   delete env.QSTASH_URL;
   return true;
 }
