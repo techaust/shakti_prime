@@ -32,6 +32,11 @@ const rawClientImport = {
         'The outbox_publisher connection belongs to the outbox workers (apps/web/src/workers) and its tests.',
     },
     {
+      name: '@shakti/db/webhooks',
+      message:
+        'The webhook_receiver connection belongs to the webhook routes (apps/web/src/webhooks) and its tests.',
+    },
+    {
       name: '@shakti/db/bootstrap',
       message: 'The bootstrap writes as the table owner. Scripts only.',
     },
@@ -70,6 +75,8 @@ const rawClientImport = {
         '**/db/src/auth-client.ts',
         '**/db/src/outbox-client',
         '**/db/src/outbox-client.ts',
+        '**/db/src/webhook-client',
+        '**/db/src/webhook-client.ts',
         '**/db/src/bootstrap',
         '**/db/src/bootstrap.ts',
         '**/db/src/auth/user-grants',
@@ -147,10 +154,10 @@ const webPatternsOutsideAuth = [...webDatabasePatterns, webQueryBuilderPattern];
 
 // The restricted modules may not be reached by a dynamic import or require either (AUDIT M12).
 const restrictedModule =
-  '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap|grants)|@shakti\\/domain\\/testing|postgres|drizzle-orm\\/postgres-js)$/';
+  '/^(@shakti\\/db\\/(client|testing|auth|outbox|webhooks|bootstrap|grants)|@shakti\\/domain\\/testing|postgres|drizzle-orm\\/postgres-js)$/';
 // The same files named by a relative path into packages/db/src rather than by the package name.
 const restrictedFile =
-  '/(^|\\/)db\\/src\\/(client|auth-client|outbox-client|bootstrap|testing|auth\\/user-grants)(\\.[cm]?[jt]s)?(\\/|$)/';
+  '/(^|\\/)db\\/src\\/(client|auth-client|outbox-client|webhook-client|bootstrap|testing|auth\\/user-grants)(\\.[cm]?[jt]s)?(\\/|$)/';
 
 // The domain's testing settings, named by a relative path through packages/domain/src, which a
 // dynamic import could reach without the package name.
@@ -538,6 +545,24 @@ export default tseslint.config(
         {
           paths: [
             ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/outbox'),
+            ...webDatabasePaths,
+          ],
+          patterns: webPatternsOutsideAuth,
+        },
+      ],
+    },
+  },
+  {
+    // The webhook routes' helper is the one caller of the webhook_receiver connection, which may
+    // only store a delivery that passed its check (docs/03-roadmap-appendix/phase2.md §5.1).
+    files: ['apps/web/src/webhooks/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/webhooks'),
             ...webDatabasePaths,
           ],
           patterns: webPatternsOutsideAuth,
