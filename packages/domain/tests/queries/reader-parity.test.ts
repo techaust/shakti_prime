@@ -10,7 +10,12 @@ import { loadShadowReport } from '../../src/queries/agents/shadow-report';
 import { readAgentSpend } from '../../src/queries/agents/spend';
 import { readTriageFacts } from '../../src/ai/triage/read-facts';
 import { fakeEmbedding } from '../../src/ai/transport';
-import { listPlaybook, loadPlaybookReview } from '../../src/queries/knowledge/playbook';
+import {
+  approvedPlaybook,
+  listPlaybook,
+  listPlaybookSources,
+  loadPlaybookReview,
+} from '../../src/queries/knowledge/playbook';
 import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
 import { listCallerProfiles, loadOwnPresence } from '../../src/queries/crm/caller-profiles';
@@ -211,6 +216,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listKnowledgeFiles: (ctx) => listKnowledgeFiles(ctx, {}),
   searchKnowledge: (ctx) => searchKnowledge(ctx, fakeEmbedding('solar pump care')),
   listPlaybook: (ctx) => listPlaybook(ctx, {}),
+  listPlaybookSources: (ctx) => listPlaybookSources(ctx, {}),
   loadPlaybookReview: (ctx) => loadPlaybookReview(ctx, { directiveId: newId() }),
   listSizingPumps: (ctx) => listSizingPumps(ctx),
   listCallQueue: (ctx) => listCallQueue(ctx, { limit: 20 }, new Date(NOW)),
@@ -236,6 +242,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
  * pools for every caller.
  */
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
+  // The approved Playbook, the agents' and Ask's one read of it (K2).
+  approvedPlaybook: (ctx) => approvedPlaybook(ctx, {}),
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
   dialNumber: (ctx) =>
     dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),
