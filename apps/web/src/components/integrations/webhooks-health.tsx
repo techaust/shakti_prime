@@ -64,16 +64,20 @@ export function WebhooksHealth({ initial }: { initial: WebhookHealth }) {
     {
       id: 'reason',
       header: t('columns.reason'),
+      // data-dynamic: a row handled again comes back with its new reason and tries, so
+      // screenshots mask both.
       cell: (r) => (
-        <StatusBadge tone="danger">
-          {t(`webhooks.reasons.${webhookReason(r.errorCode)}`)}
-        </StatusBadge>
+        <span data-dynamic>
+          <StatusBadge tone="danger">
+            {t(`webhooks.reasons.${webhookReason(r.errorCode)}`)}
+          </StatusBadge>
+        </span>
       ),
     },
     {
       id: 'tries',
       header: t('columns.tries'),
-      cell: (r) => formatCount(r.attempts),
+      cell: (r) => <span data-dynamic>{formatCount(r.attempts)}</span>,
       numeric: true,
     },
     {
