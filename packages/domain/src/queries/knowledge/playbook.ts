@@ -1,7 +1,6 @@
 import {
-  APPROVED_PLAYBOOK_LIMIT,
-  ApprovedDirectiveDto,
   ApprovedPlaybookInput,
+  ApprovedPlaybookPageDto,
   IdSchema,
   ListPlaybookInput,
   ListPlaybookSourcesInput,
@@ -212,13 +211,15 @@ export async function playbookSourcePassages(
  * table. Approved directives only, whoever reads: row security already hides drafts and retired
  * directives from an agent, but not from an Executive or a GM, who hold the playbook grants and
  * ask questions too. Of the audiences asked for; row security keeps to the companies of the
- * request and the group's, and to the audiences the reader may read. By type, then title.
+ * request and the group's, and to the audiences the reader may read. By type, then title, a page
+ * at a time (at most 500): a reader reads on while `nextCursor` is set, so no rule is cut.
  */
 export async function approvedPlaybook(
   ctx: Ctx,
   rawInput: unknown = {},
-): Promise<ApprovedDirectiveDto[]> {
+): Promise<ApprovedPlaybookPageDto> {
   const input = parseQueryInput(ApprovedPlaybookInput, rawInput, 'knowledge.playbook.approved');
+  const after = input.cursor === null ? undefined : decodeCursor(ApprovedCursor, input.cursor);
   const d = schema.playbookDirectives;
   const rows = await ctx.tx
     .select({
@@ -231,13 +232,31 @@ export async function approvedPlaybook(
       approvedAt: d.approvedAt,
     })
     .from(d)
-    .where(and(eq(d.state, 'approved'), inArray(d.audience, input.audiences)))
+    .where(
+      and(
+        eq(d.state, 'approved'),
+        inArray(d.audience, input.audiences),
+        after === undefined
+          ? undefined
+          : sql`(${d.type}, ${d.title}, ${d.id}) > (${after.type}, ${after.title}, ${after.id}::uuid)`,
+      ),
+    )
     .orderBy(asc(d.type), asc(d.title), asc(d.id))
-    .limit(APPROVED_PLAYBOOK_LIMIT);
-  return rows.map((r) =>
-    ApprovedDirectiveDto.parse({ ...r, approvedAt: r.approvedAt?.toISOString() }),
-  );
+    .limit(input.limit + 1);
+  const page = rows.slice(0, input.limit);
+  const last = page.at(-1);
+  return ApprovedPlaybookPageDto.parse({
+    directives: page.map((r) => ({ ...r, approvedAt: r.approvedAt?.toISOString() })),
+    nextCursor:
+      rows.length > input.limit && last !== undefined
+        ? encodeCursor({ type: last.type, title: last.title, id: last.id })
+        : null,
+  });
 }
+
+const ApprovedCursor = z
+  .object({ type: z.string().max(20), title: z.string().max(120), id: IdSchema })
+  .strict();
 
 const SourceCursor = z.object({ title: z.string().max(200), id: IdSchema }).strict();
 

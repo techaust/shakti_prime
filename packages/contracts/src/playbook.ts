@@ -332,11 +332,14 @@ export const ApprovedPlaybookInput = z
       .array(PlaybookAudienceSchema)
       .min(1)
       .default([...PLAYBOOK_AUDIENCES]),
+    /** At most this many a page; the next page from `cursor`, until `nextCursor` is null. */
+    limit: z.number().int().min(1).max(500).default(500),
+    cursor: z.string().max(400).nullable().default(null),
   })
   .strict();
 export type ApprovedPlaybookInput = z.input<typeof ApprovedPlaybookInput>;
 
-/** The most approved directives one read answers. */
+/** The most approved directives one page answers. */
 export const APPROVED_PLAYBOOK_LIMIT = 500;
 
 /** An approved directive as an agent or Ask reads it. */
@@ -352,6 +355,15 @@ export const ApprovedDirectiveDto = z
   })
   .strict();
 export type ApprovedDirectiveDto = z.infer<typeof ApprovedDirectiveDto>;
+
+/**
+ * A page of the approved Playbook. A reader that needs the whole set reads on while `nextCursor`
+ * is set; nothing is ever cut silently.
+ */
+export const ApprovedPlaybookPageDto = z
+  .object({ directives: z.array(ApprovedDirectiveDto), nextCursor: z.string().nullable() })
+  .strict();
+export type ApprovedPlaybookPageDto = z.infer<typeof ApprovedPlaybookPageDto>;
 
 /** The vault files a person may draft rules from: read for search, not Executive-only, by title. */
 export const ListPlaybookSourcesInput = z

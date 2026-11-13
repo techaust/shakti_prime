@@ -331,19 +331,46 @@ describe('the approved Playbook, the agents’ and Ask’s one read (finding 3)'
       reason: 'synthetic reason',
     });
     for (const who of [executive, gm]) {
-      const read = await asPrincipal(who, (ctx) => approvedPlaybook(ctx, {}));
-      const ids = read.map((d) => d.id);
+      const ids = (await allApproved(who)).map((d) => d.id);
       expect(ids).toContain(kept.id);
       expect(ids).not.toContain(retired.id);
       expect(ids).not.toContain(open.id);
     }
     // Only the audiences asked for.
-    const managers = await asPrincipal(gm, (ctx) =>
-      approvedPlaybook(ctx, { audiences: ['management'] }),
-    );
+    const managers = await allApproved(gm, ['management']);
     expect(managers.map((d) => d.id)).not.toContain(kept.id);
   });
+
+  it('reads the whole set a page at a time, never cutting it silently (finding 13)', async () => {
+    const all = await allApproved(executive);
+    expect(all.length).toBeGreaterThan(2);
+    const first = await asPrincipal(executive, (ctx) => approvedPlaybook(ctx, { limit: 2 }));
+    expect(first.directives).toHaveLength(2);
+    expect(first.nextCursor).not.toBeNull();
+    // Paged by two, the same rules in the same order as one long read, none twice.
+    const paged = await allApproved(executive, undefined, 2);
+    expect(paged.map((d) => d.id)).toEqual(all.map((d) => d.id));
+    expect(new Set(paged.map((d) => d.id)).size).toBe(paged.length);
+  });
 });
+
+/** Every approved rule the reader may read, page after page. */
+async function allApproved(
+  who: Principal,
+  audiences?: ('customer' | 'staff' | 'management')[],
+  limit = 500,
+) {
+  const out = [];
+  let cursor: string | null = null;
+  for (;;) {
+    const page = await asPrincipal(who, (ctx) =>
+      approvedPlaybook(ctx, { limit, cursor, ...(audiences === undefined ? {} : { audiences }) }),
+    );
+    out.push(...page.directives);
+    if (page.nextCursor === null) return out;
+    cursor = page.nextCursor;
+  }
+}
 
 describe('the review of a pair whose other rule the reader cannot read (finding 7)', () => {
   it('leaves out the model’s reason with the hidden rule', async () => {
