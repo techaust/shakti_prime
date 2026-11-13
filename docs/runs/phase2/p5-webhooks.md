@@ -3,12 +3,12 @@
 | | |
 |---|---|
 | Branch | `feat/p5-webhooks` on GitHub, from `main` at 008066b7 |
-| PC worktree | none: built in a cloud session of its own (Postgres 54322, app 3000) |
+| PC worktree | `p5-webhooks`, slot 1 (Postgres 54331, app 3031) for the lead's review, integration and baselines; built in a cloud session of its own |
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
-| Usage | build Opus 5.5 high, 5-hour window 11 % at the start |
-| State | fix round done |
-| Next step | the reviewer re-checks (finding 1 was high), then the baselines and integration |
+| Usage | build, fixes and integration on Opus 5.5 high; the 5-hour window 11 % at the build's start, 75 % at integration |
+| State | integrated on the PC (13-11-2026); pull request open |
+| Next step | the owner's `checks-ok`, the merge, then dev and staging migrated with the owner's `webhook_receiver` steps |
 
 ## Brief
 Read first:
@@ -197,3 +197,4 @@ Re-check, 13-11-2026, on the PC, at `7f83ec30` (`git diff 14937bec..7f83ec30`), 
 
 ## Integration notes
 - Migrations are numbered after `main`'s last at merge; check `app.platform_only_permissions()` against `main`'s latest definition (E1 or K2 may add a key).
+- Integrated on the PC on 13-11-2026: `main` already in the branch, migrations 0160 and 0161 after `main`'s 0159 (nothing to renumber), `db:generate` no changes; review findings 12 and 13 fixed by the lead (3341e2bc); `integrate.sh` passed every step (security suite on a fresh database: db 1,294, domain 1,057, web 356); the `integration-health` Linux baselines remade on a fresh database and matched twice in a row after the seed's failed messages were given fixed ids (c59a490b).
