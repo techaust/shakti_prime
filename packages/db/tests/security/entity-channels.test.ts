@@ -254,3 +254,29 @@ describe('app.dial_facts()', () => {
     }
   });
 });
+
+describe('app.call_opt_out()', () => {
+  const optOut = (who: Principal, account: string) =>
+    rows<{ out: boolean }>(who, sql`select app.call_opt_out(${account}::uuid) as out`);
+
+  it('answers a principal who reads leads or customers or logs calls, for a customer of the request', async () => {
+    const account = fx.accounts.a[0] ?? '';
+    expect(await optOut(fx.principals.a, account)).toEqual([{ out: false }]);
+    expect(await optOut(fx.principals.gm, account)).toEqual([{ out: false }]);
+  });
+
+  it('refuses (42501), never answering "not opted out", a caller without the grants or a customer outside the request', async () => {
+    const account = fx.accounts.b[0] ?? '';
+    const hr = await createTestPrincipal('hr_admin', [1]);
+    expect(await failure(optOut(hr, account))).toMatch(
+      /crm.lead.read, crm.account.read or calls.log is required/,
+    );
+    // Customer b is known to company 1 only; a request for company 2 cannot ask about it.
+    expect(await failure(optOut(fx.principals.d, account))).toMatch(
+      /is of no company of the request/,
+    );
+    expect(await failure(withoutContext(sql`select app.call_opt_out(${account}::uuid)`))).toMatch(
+      /is required/,
+    );
+  });
+});

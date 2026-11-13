@@ -26,6 +26,7 @@ import { archiveEntityChannel, setEntityChannel } from '../../src/commands/org/c
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { fixtureDndRegistry, unavailableDndRegistry, type DndRegistry } from '../../src/ports/dnd';
 import { dialNumber, loadCallLead } from '../../src/queries/calls/call-queue';
+import { loadAccount360 } from '../../src/queries/crm/customers';
 import { dialFacts, dndRecordInput, toDialPlanDto } from '../../src/queries/calls/dial-plan';
 import { listEntityChannels } from '../../src/queries/org/list-channels';
 import { prepareDial } from '../../src/telecom/dial-plan';
@@ -445,6 +446,12 @@ describe('the dial rules through app.dial_facts() (PRD TEL-04, CRM-10)', () => {
     });
     expect(await queueFlag(y)).toBe(true);
     expect((await plan(y)).refusals).toContain('call_consent_withdrawn');
+    // Account 360 offers no call link to the number (review 8); its consent panel keeps the
+    // customer's own rule, and Y's own contacts withdrew nothing.
+    const view = await asPrincipal(caller, (ctx) =>
+      loadAccount360(ctx, { entityId: ENTITY, accountId: y.accountId }),
+    );
+    expect(view).toMatchObject({ callOptOut: true, callConsentWithdrawn: false });
   });
 
   it('refuses Show number for a sales call to a number recorded on DND, never for a consented service call or an unchecked number (review 1)', async () => {
