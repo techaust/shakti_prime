@@ -119,8 +119,11 @@ export async function observeTurn(
       sampleRate: audio.sampleRate,
     });
     let startedAt: number | undefined;
+    // Set once the turn is over, so a recogniser that failed early is not fed the rest.
+    let stopped = false;
     const send = async () => {
       for (const chunk of audio.chunks) {
+        if (stopped) return;
         startedAt ??= clock.now();
         stream.send(chunk);
         await options.pace(audio.chunkMs);
@@ -138,6 +141,7 @@ export async function observeTurn(
     try {
       await Promise.all([send(), listen()]);
     } finally {
+      stopped = true;
       stream.close();
     }
     const last = finals.at(-1);
