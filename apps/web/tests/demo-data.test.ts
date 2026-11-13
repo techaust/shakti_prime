@@ -47,10 +47,19 @@ const set = demoSet({
   })(),
 });
 const forgotten: string[] = [];
+// The shared price lists the loader makes when none is live; they stay after remove, so the file
+// archives them itself and leaves no live list for another file's price lists to overlap.
+const madeLists: string[] = [];
 let operator: Principal;
 let deps: DemoDeps;
 
 afterAll(async () => {
+  if (madeLists.length > 0) {
+    await asMigrator(
+      (m) => m`update price_lists set archived_at = now()
+        where id = any(${madeLists}::uuid[]) and archived_at is null`,
+    );
+  }
   await closeAuthDb();
   await closeDb();
 });
@@ -79,7 +88,10 @@ beforeAll(async () => {
       forgotten.push(userId);
       return Promise.resolve();
     },
-    log: () => undefined,
+    log: (line) => {
+      const made = /made the shared \w+ price list ([0-9a-f-]{36})/.exec(line);
+      if (made?.[1] !== undefined) madeLists.push(made[1]);
+    },
   };
 });
 
