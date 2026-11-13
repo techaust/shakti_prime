@@ -54,7 +54,7 @@ export { requoteQuote } from './commands/sales/requote';
 export { withdrawQuote } from './commands/sales/withdraw-quote';
 export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
 export { anonymiseStaleLeads, LEAD_RETENTION_BATCH } from './commands/crm/anonymise-stale-leads';
-export { claimWebhook, markWebhook } from './commands/webhooks/inbox';
+export { claimWebhook, markWebhook, replayWebhook, sweepWebhooks } from './commands/webhooks/inbox';
 export { countStaleLeads } from './queries/crm/stale-leads';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { acceptQuote } from './commands/sales/accept-quote';

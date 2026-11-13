@@ -327,3 +327,28 @@ export const WebhookProcessResult = z.discriminatedUnion('outcome', [
     .strict(),
 ]);
 export type WebhookProcessResult = z.infer<typeof WebhookProcessResult>;
+
+/**
+ * `POST /workers/webhooks/failed`: QStash's failure callback for a webhook job it gave up on
+ * (`OutboxFailureCallback`'s shape). The row is failed with `handler_failed` (`failed`), or was
+ * already processed or failed, or is held by a live lease, and the sweep takes it up (`unchanged`).
+ */
+export const WebhookFailureResult = z
+  .object({ inboxId: IdSchema, outcome: z.enum(['failed', 'unchanged']) })
+  .strict();
+export type WebhookFailureResult = z.infer<typeof WebhookFailureResult>;
+
+/** `POST /workers/webhooks/sweep`: the minute schedule `webhook-sweep-<environment>`, with `{}`. */
+export const WebhookSweepWorkerBody = z.object({}).strict();
+export type WebhookSweepWorkerBody = z.infer<typeof WebhookSweepWorkerBody>;
+
+/** One sweep: what the retention removed, and the waiting rows published again or not. */
+export const WebhookSweepWorkerResponse = z
+  .object({
+    payloadsRemoved: Count,
+    rowsRemoved: Count,
+    republished: Count,
+    notRepublished: Count,
+  })
+  .strict();
+export type WebhookSweepWorkerResponse = z.infer<typeof WebhookSweepWorkerResponse>;

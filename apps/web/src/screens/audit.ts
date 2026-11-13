@@ -175,6 +175,8 @@ const ACTIONS = {
   'crm.lead.anonymise': 'leadAnonymise',
   'webhooks.event.claim': 'webhookClaim',
   'webhooks.event.mark': 'webhookMark',
+  'webhooks.inbox.sweep': 'webhookSweep',
+  'webhooks.event.replay': 'webhookReplay',
   'crm.duplicate.scan': 'duplicateScan',
   'crm.duplicate.dismiss': 'duplicateDismiss',
   'crm.duplicate.suggest': 'duplicateSuggest',
@@ -358,6 +360,7 @@ const CODE_GROUPS = [
   'consentChannel',
   'consentPurpose',
   'consentSource',
+  'webhookProvider',
   'itemCategory',
   'itemUnit',
   'priceTier',
@@ -546,6 +549,9 @@ const FIELD_KINDS = [
   ['attempts', 'number'],
   ['deadLetteredAt', 'time'],
   ['requestedAt', 'time'],
+  // Messages other systems send in (P5)
+  ['provider', 'webhookProvider'],
+  ['failed', 'yesNo'],
   // Pipelines, call outcomes, scoring and referrals
   ['lockHours', 'number'],
   ['firstContactSlaMinutes', 'number'],

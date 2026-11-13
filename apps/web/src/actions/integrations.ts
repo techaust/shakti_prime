@@ -1,12 +1,14 @@
 'use server';
 
 // Admin › Integration Health (docs/03-roadmap-appendix/phase1.md §5.2, docs/06-api.md §3.7). The dead-letter
-// replay is `replayDeadLetter` in ./admin.
+// replay is `replayDeadLetter` in ./admin; Process again of a failed webhook delivery is here.
 
 import {
   DeliveryProbeDto,
+  ReplayWebhookInput,
   type DeliveryCheck,
   type IntegrationHealthResponse,
+  type ReplayedWebhookDto,
 } from '@shakti/contracts';
 import { defaultAuthDeps } from '../auth/deps';
 import {
@@ -14,6 +16,7 @@ import {
   readIntegrationHealth,
   startDeliveryCheck,
 } from '../observability/integration-health';
+import { processAgain } from '../webhooks/replay';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
@@ -54,5 +57,21 @@ export async function deliveryCheck(rawProbe: unknown): Promise<ActionResult<Del
     const principal = await signedIn();
     const probe = parseInput(DeliveryProbeDto, rawProbe);
     return deliveryCheckStatus(principal, probe, defaultAuthDeps().keyValue);
+  });
+}
+
+/**
+ * "Process again" on a failed webhook delivery (`webhooks.event.replay`, phase 2 design §5.1):
+ * the row waits again and is sent to the worker once more.
+ */
+export async function processWebhookAgain(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<ReplayedWebhookDto>> {
+  return toResult('processWebhookAgain', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ReplayWebhookInput, rawInput);
+    const meta = await requestMeta();
+    return processAgain(principal, meta.requestId, input, commandOptions(meta, idempotencyKey));
   });
 }

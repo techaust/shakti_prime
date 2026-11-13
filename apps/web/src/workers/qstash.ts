@@ -48,6 +48,9 @@ export const WEBHOOK_PROCESS_PATH = '/api/v1/workers/webhooks/process';
 /** Where QStash reports a webhook job it gave up on after its last retry. */
 export const WEBHOOK_FAILED_PATH = '/api/v1/workers/webhooks/failed';
 
+/** Where the minute schedule calls the webhook sweep: retention, and waiting rows sent again. */
+export const WEBHOOK_SWEEP_PATH = '/api/v1/workers/webhooks/sweep';
+
 /**
  * Event types whose worker has a route and a body of its own (docs/06-api.md §3.6) instead of the
  * event worker route: the publisher sends each such event to its route as the job it stands for,

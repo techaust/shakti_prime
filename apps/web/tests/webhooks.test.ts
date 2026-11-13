@@ -1,8 +1,8 @@
 import { newId, type WebhookProvider } from '@shakti/contracts';
 import { closeWebhookDb } from '@shakti/db/webhooks';
 import { asMigrator, closeDb } from '@shakti/db/testing';
-import { createHmac } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createHash, createHmac } from 'node:crypto';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { POST as GOOGLE } from '../src/app/api/v1/webhooks/google/leadform/route';
 import { POST as EXOTEL_STATUS } from '../src/app/api/v1/webhooks/exotel/call-status/route';
 import {
@@ -22,7 +22,12 @@ import {
   TEST_WEBHOOK_ENV,
   type SignedDelivery,
 } from '../src/webhooks/signed-deliveries';
+import { POST as FAILED } from '../src/app/api/v1/workers/webhooks/failed/route';
+import { POST as PROCESS } from '../src/app/api/v1/workers/webhooks/process/route';
+import { processAgain } from '../src/webhooks/replay';
 import { processWebhook } from '../src/workers/webhooks/process';
+import { runWebhookSweep } from '../src/workers/webhooks/sweep';
+import { createTestPrincipal } from '@shakti/db/testing';
 
 // The webhook routes on real Postgres (docs/03-roadmap-appendix/phase2.md §5.1): stored through
 // `webhook_receiver`, and, with no queue configured (as locally and in CI), processed in this
@@ -209,5 +214,233 @@ describe('the webhook routes on real Postgres', () => {
       LEADGEN_GET(check('/api/v1/webhooks/meta/leadgen', TEST_WEBHOOK_ENV.WHATSAPP_VERIFY_TOKEN))
         .status,
     ).toBe(403);
+  });
+});
+
+// --- The worker, its failure callback, the sweep and Process again -----------------------------
+
+const SIGNING_KEY = 'webhook-worker-test-current-signing-key';
+const QUEUE_ENV = {
+  QSTASH_TOKEN: 'webhook-worker-test-token',
+  QSTASH_CURRENT_SIGNING_KEY: SIGNING_KEY,
+  QSTASH_NEXT_SIGNING_KEY: 'webhook-worker-test-next-signing-key',
+  BETTER_AUTH_URL: TEST_ORIGIN,
+};
+const b64url = (value: string | Buffer) => Buffer.from(value).toString('base64url');
+
+/** A signature as QStash makes it: an HS256 token naming the address and the body's hash. */
+function qstashSignature(body: string, address: string): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const claims = b64url(
+    JSON.stringify({
+      iss: 'Upstash',
+      sub: address,
+      iat: now,
+      nbf: now,
+      exp: now + 300,
+      jti: newId(),
+      body: createHash('sha256').update(body).digest('base64url'),
+    }),
+  );
+  const signature = createHmac('sha256', SIGNING_KEY)
+    .update(`${header}.${claims}`)
+    .digest('base64url');
+  return `${header}.${claims}.${signature}`;
+}
+
+function signedCall(
+  handler: (request: Request) => Promise<Response>,
+  path: string,
+  body: string,
+  signed = true,
+): Promise<Response> {
+  const address = `${TEST_ORIGIN}${path}`;
+  const headers = new Headers({ 'content-type': 'application/json' });
+  if (signed) headers.set('upstash-signature', qstashSignature(body, address));
+  return handler(new Request(address, { method: 'POST', headers, body }));
+}
+
+/** A stored delivery that waits, written as the table owner. */
+async function waitingRow(
+  provider = 'livekit',
+  payload: unknown = { id: `EV_${newId()}`, event: 'room_started', createdAt: '1790500900' },
+): Promise<string> {
+  const id = newId();
+  await asMigrator(
+    (
+      m,
+    ) => m`insert into webhook_inbox (id, provider, provider_event_id, payload_json, payload_sha256)
+             values (${id}, ${provider}, ${id}, ${JSON.stringify(payload)}::text::jsonb,
+                     ${createHash('sha256').update(id).digest('hex')})`,
+  );
+  return id;
+}
+
+async function rowOf(id: string): Promise<Row> {
+  const [row] = await asMigrator(
+    (m) => m<Row[]>`
+      select id, provider, provider_event_id, attempts, processed_at is not null as processed,
+             failed_at is not null as failed, error_code
+        from webhook_inbox where id = ${id}`,
+  );
+  if (row === undefined) throw new Error(`no row ${id}`);
+  return row;
+}
+
+describe('the webhook worker and its failure callback', () => {
+  const kept = new Map<string, string | undefined>();
+  beforeEach(() => {
+    for (const name of Object.keys(QUEUE_ENV)) kept.set(name, process.env[name]);
+    Object.assign(process.env, QUEUE_ENV);
+  });
+  afterEach(() => {
+    for (const [name, value] of kept) {
+      if (value === undefined) Reflect.deleteProperty(process.env, name);
+      else process.env[name] = value;
+    }
+  });
+
+  it('processes a stored row once for a signed job, and answers a repeat as a duplicate', async () => {
+    const id = await waitingRow();
+    const body = JSON.stringify({ inboxId: id });
+    const first = await signedCall(PROCESS, '/api/v1/workers/webhooks/process', body);
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ inboxId: id, outcome: 'processed', handled: false });
+    const again = await signedCall(PROCESS, '/api/v1/workers/webhooks/process', body);
+    expect(await again.json()).toEqual({ inboxId: id, outcome: 'duplicate' });
+    expect(await rowOf(id)).toMatchObject({
+      processed: true,
+      attempts: 1,
+      error_code: 'no_handler',
+    });
+  });
+
+  it('refuses an unsigned job, a body over 4 KiB and a body that is not a job', async () => {
+    const id = await waitingRow();
+    const body = JSON.stringify({ inboxId: id });
+    expect(
+      (await signedCall(PROCESS, '/api/v1/workers/webhooks/process', body, false)).status,
+    ).toBe(401);
+    const big = JSON.stringify({ inboxId: id, padding: 'p'.repeat(5000) });
+    const tooLarge = await signedCall(PROCESS, '/api/v1/workers/webhooks/process', big);
+    expect(tooLarge.status).toBe(400);
+    expect(tooLarge.headers.get('upstash-nonretryable-error')).toBe('true');
+    expect((await signedCall(PROCESS, '/api/v1/workers/webhooks/process', '{"id":1}')).status).toBe(
+      400,
+    );
+    expect(await rowOf(id)).toMatchObject({ processed: false, attempts: 0 });
+  });
+
+  it('fails a row QStash gave up on with handler_failed, once', async () => {
+    const id = await waitingRow();
+    const callback = JSON.stringify({
+      status: 500,
+      sourceBody: Buffer.from(JSON.stringify({ inboxId: id })).toString('base64'),
+      retried: 3,
+      maxRetries: 3,
+    });
+    const first = await signedCall(FAILED, '/api/v1/workers/webhooks/failed', callback);
+    expect(await first.json()).toEqual({ inboxId: id, outcome: 'failed' });
+    const again = await signedCall(FAILED, '/api/v1/workers/webhooks/failed', callback);
+    expect(await again.json()).toEqual({ inboxId: id, outcome: 'unchanged' });
+    expect(await rowOf(id)).toMatchObject({ failed: true, error_code: 'handler_failed' });
+    expect(
+      (await signedCall(FAILED, '/api/v1/workers/webhooks/failed', callback, false)).status,
+    ).toBe(401);
+  });
+
+  it('the sweep publishes a row left waiting once per attempt it is on', async () => {
+    const id = await waitingRow();
+    await asMigrator(
+      (m) =>
+        m`update webhook_inbox set claimed_until = now() - interval '5 minutes' where id = ${id}`,
+    );
+    // The row arrived just now; the sweep takes rows idle a minute, so it is aged as the owner.
+    await asMigrator((m) => m`alter table webhook_inbox disable trigger webhook_inbox_guard`);
+    try {
+      await asMigrator(
+        (m) =>
+          m`update webhook_inbox set received_at = now() - interval '5 minutes' where id = ${id}`,
+      );
+    } finally {
+      await asMigrator((m) => m`alter table webhook_inbox enable trigger webhook_inbox_guard`);
+    }
+    const published: { inboxId: string; deduplicationId: string }[] = [];
+    const result = await runWebhookSweep({
+      requestId: newId(),
+      publish: (_config, inboxId, deduplicationId) => {
+        published.push({ inboxId, deduplicationId });
+        return Promise.resolve();
+      },
+    });
+    expect(published).toContainEqual({ inboxId: id, deduplicationId: `${id}:s0` });
+    expect(result.republished).toBe(published.length);
+  });
+});
+
+describe('Process again', () => {
+  it('processes a failed row once more, once', async () => {
+    const executive = await createTestPrincipal('executive');
+    // A WhatsApp row its contract refuses: failed for good with payload_unreadable.
+    const id = await waitingRow('meta_whatsapp', {
+      object: 'whatsapp_business_account',
+      entry: [],
+    });
+    expect(await processWebhook(id, { requestId: newId() })).toMatchObject({ outcome: 'failed' });
+    const processed: string[] = [];
+    const replayed = await processAgain(
+      executive,
+      newId(),
+      { inboxId: id },
+      {},
+      {
+        qstash: () => undefined,
+        later: (task) => {
+          void task();
+        },
+        process: async (inboxId, options) => {
+          processed.push(inboxId);
+          return processWebhook(inboxId, options);
+        },
+      },
+    );
+    expect(replayed).toEqual({ inboxId: id, provider: 'meta_whatsapp', attempts: 1 });
+    expect(processed).toEqual([id]);
+    // The same bytes fail the same way, and stay failed until Process again once more.
+    expect(await settled(id)).toMatchObject({ failed: true, attempts: 2 });
+    await expect(
+      processAgain(executive, newId(), { inboxId: newId() }, {}, { qstash: () => undefined }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+  });
+
+  it('publishes it under an id of its own for the attempt it is on, with a queue', async () => {
+    const executive = await createTestPrincipal('executive');
+    const id = await waitingRow('meta_whatsapp', {
+      object: 'whatsapp_business_account',
+      entry: [],
+    });
+    await processWebhook(id, { requestId: newId() });
+    const published: string[] = [];
+    await processAgain(
+      executive,
+      newId(),
+      { inboxId: id },
+      {},
+      {
+        qstash: () => ({
+          token: 'webhook-replay-test-token',
+          currentSigningKey: SIGNING_KEY,
+          nextSigningKey: 'webhook-replay-test-next',
+          baseUrl: undefined,
+          publishUrl: `${TEST_ORIGIN}/api/v1/workers/outbox/publish`,
+        }),
+        publish: (_config, _inboxId, deduplicationId) => {
+          published.push(deduplicationId);
+          return Promise.resolve();
+        },
+      },
+    );
+    expect(published).toEqual([`${id}:r1`]);
   });
 });

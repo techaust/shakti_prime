@@ -1,10 +1,21 @@
 import { newId, type MarkWebhookInput, type Principal } from '@shakti/contracts';
-import { asMigrator, asPrincipal, closeDb, principalFor } from '@shakti/db/testing';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  createTestPrincipal,
+  principalFor,
+} from '@shakti/db/testing';
 import { createHash } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { failureOf, runCommand } from '../../src/command/run-command';
-import { claimWebhook, markWebhook } from '../../src/commands/webhooks/inbox';
+import {
+  claimWebhook,
+  markWebhook,
+  replayWebhook,
+  sweepWebhooks,
+} from '../../src/commands/webhooks/inbox';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 
 // The webhook worker's commands on real Postgres (docs/03-roadmap-appendix/phase2.md §5.1): the
@@ -22,7 +33,7 @@ async function stored(provider = 'livekit'): Promise<string> {
     (
       m,
     ) => m`insert into webhook_inbox (id, provider, provider_event_id, payload_json, payload_sha256)
-             values (${id}, ${provider}, ${`EV_${id}`}, ${JSON.stringify({ id: `EV_${id}`, event: 'room_started' })}::jsonb, ${hash})`,
+             values (${id}, ${provider}, ${`EV_${id}`}, ${JSON.stringify({ id: `EV_${id}`, event: 'room_started' })}::text::jsonb, ${hash})`,
   );
   return id;
 }
@@ -145,5 +156,111 @@ describe('webhooks.event.claim and webhooks.event.mark', () => {
       (m) => m`select 1 from audit_logs where request_id = ${requestId}`,
     );
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe('webhooks.inbox.sweep', () => {
+  it('is denied to every person and agent', async () => {
+    for (const role of ['executive', 'general_manager', 'agent:triage'] as const) {
+      const error = await refusal(
+        asPrincipal(principalFor(role, [1]), (context) =>
+          runCommand(sweepWebhooks, { context, audit, outbox }, {}),
+        ),
+      );
+      expect({ role, ...error }).toEqual({ role, code: 'forbidden', stage: 'guard' });
+    }
+  });
+
+  it('removes what is past its retention, records the run and answers the rows left waiting', async () => {
+    const waiting = newId();
+    const old = newId();
+    const hash = (id: string) => createHash('sha256').update(id).digest('hex');
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into webhook_inbox (id, provider, provider_event_id, payload_json, payload_sha256,
+                                          received_at, processed_at)
+               values (${waiting}, 'livekit', ${waiting}, '{}'::jsonb, ${hash(waiting)},
+                       now() - interval '1 hour', null),
+                      (${old}, 'livekit', ${old}, '{}'::jsonb, ${hash(old)},
+                       now() - interval '45 days', now() - interval '44 days')`,
+    );
+    const swept = await asPrincipal(workers, (context) =>
+      runCommand(sweepWebhooks, { context, audit, outbox }, {}),
+    );
+    expect(swept.payloadsRemoved).toBeGreaterThanOrEqual(1);
+    expect(swept.waiting).toContainEqual({ inboxId: waiting, attempts: 0 });
+    const [row] = await asMigrator(
+      (m) => m<{ purged: boolean }[]>`select payload_purged_at is not null as purged
+                                        from webhook_inbox where id = ${old}`,
+    );
+    expect(row?.purged).toBe(true);
+    const [run] = await asMigrator(
+      (m) => m<{ error: string | null }[]>`select error from retention_runs
+                                             where job = 'webhook-inbox-purge'
+                                             order by started_at desc limit 1`,
+    );
+    expect(run).toEqual({ error: null });
+  });
+});
+
+describe('webhooks.event.replay (Process again)', () => {
+  async function failed(): Promise<string> {
+    const id = await stored('meta_leadgen');
+    const lease = await claim(id);
+    if (!lease.claimed) throw new Error('expected a lease');
+    await mark({
+      inboxId: id,
+      lease: lease.lease,
+      outcome: 'failed',
+      errorCode: 'payload_unreadable',
+    });
+    return id;
+  }
+
+  it('is denied to anyone without integrations.dlq.replay, the workers and agents included', async () => {
+    const id = await failed();
+    for (const role of ['general_manager', 'accounts', 'system:workers', 'agent:triage'] as const) {
+      const error = await refusal(
+        asPrincipal(principalFor(role, [1]), (context) =>
+          runCommand(replayWebhook, { context, audit, outbox }, { inboxId: id }),
+        ),
+      );
+      expect({ role, ...error }).toEqual({ role, code: 'forbidden', stage: 'guard' });
+    }
+  });
+
+  it('puts a failed row back once, audited under no company, and refuses a row that has not failed', async () => {
+    const executive = await createTestPrincipal('executive');
+    const id = await failed();
+    const requestId = newId();
+    const replayed = await asPrincipal(executive, (context) =>
+      runCommand(
+        replayWebhook,
+        { context: { ...context, requestId }, audit, outbox },
+        { inboxId: id },
+      ),
+    );
+    expect(replayed).toEqual({ inboxId: id, provider: 'meta_leadgen', attempts: 1 });
+    const [row] = await asMigrator(
+      (m) => m<{ entity_id: number | null; before_json: unknown; after_json: unknown }[]>`
+        select entity_id, before_json, after_json from audit_logs
+         where request_id = ${requestId} and command = 'webhooks.event.replay'`,
+    );
+    expect(row).toEqual({
+      entity_id: null,
+      before_json: { provider: 'meta_leadgen', errorCode: 'payload_unreadable', failed: true },
+      after_json: { provider: 'meta_leadgen', errorCode: null, failed: false, attempts: 1 },
+    });
+    expect(
+      await refusal(
+        asPrincipal(executive, (context) =>
+          runCommand(replayWebhook, { context, audit, outbox }, { inboxId: id }),
+        ),
+      ),
+    ).toMatchObject({ code: 'conflict' });
+    // Processed once from here: one claim takes it, the next finds nothing.
+    expect(await claim(id)).toMatchObject({ claimed: true, attempts: 2 });
+    expect(await claim(id)).toEqual({ claimed: false });
   });
 });

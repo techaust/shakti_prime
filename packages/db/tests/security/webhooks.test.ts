@@ -473,13 +473,16 @@ describe('Integration Health and Process again', () => {
           (await tx.execute(sql`select * from app.webhook_replay(${id}::uuid)`)) as unknown as {
             provider: string;
             attempts: number;
+            error_code: string | null;
           }[],
       );
     expect(await failure(replay(principalFor('general_manager')))).toMatch(
       /integrations\.dlq\.replay/,
     );
     expect(await failure(replay(workers))).toMatch(/integrations\.dlq\.replay/);
-    expect(await replay()).toEqual([{ provider: 'meta_leadgen', attempts: 1 }]);
+    expect(await replay()).toEqual([
+      { provider: 'meta_leadgen', attempts: 1, error_code: 'payload_unreadable' },
+    ]);
     expect(await replay()).toEqual([]);
     const [again] = await claim(id);
     expect(again?.attempts).toBe(2);

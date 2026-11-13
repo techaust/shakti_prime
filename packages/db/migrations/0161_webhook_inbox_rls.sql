@@ -359,20 +359,29 @@ grant execute on function app.webhook_health(integer) to app_user, app_reader;
 
 -- 10. Process again (`webhooks.event.replay`; `integrations.dlq.replay:all`, a person): a failed
 --     row whose payload is still held loses its failure and its code and waits again; answers its
---     provider and attempts, which name its next delivery, or nothing when the row is not failed
---     or its payload is gone.
+--     provider, its attempts, which name its next delivery, and the code it had, or nothing when
+--     the row is not failed or its payload is gone.
 create or replace function app.webhook_replay(p_id uuid)
-  returns table (provider text, attempts integer)
+  returns table (provider text, attempts integer, error_code text)
   language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_code text;
 begin
   if app.user_id() is null or not app.has_perm('integrations.dlq.replay:all') then
     raise exception 'integrations.dlq.replay:all is required' using errcode = '42501';
   end if;
+  select w.error_code into v_code
+    from public.webhook_inbox w
+   where w.id = p_id and w.failed_at is not null and w.payload_json is not null
+     for update;
+  if not found then
+    return;
+  end if;
   return query
     update public.webhook_inbox w
        set failed_at = null, error_code = null, claimed_until = null
-     where w.id = p_id and w.failed_at is not null and w.payload_json is not null
-    returning w.provider, w.attempts;
+     where w.id = p_id
+    returning w.provider, w.attempts, v_code;
 end
 $$;
 --> statement-breakpoint

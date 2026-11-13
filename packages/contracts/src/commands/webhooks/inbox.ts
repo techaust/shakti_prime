@@ -72,3 +72,42 @@ export type MarkWebhookInput = z.input<typeof MarkWebhookInput>;
 /** Whether the row changed: false when the lease had lapsed or the row was no longer waiting. */
 export const MarkedWebhookDto = z.object({ changed: z.boolean() }).strict();
 export type MarkedWebhookDto = z.infer<typeof MarkedWebhookDto>;
+
+/** How many waiting rows one sweep publishes again, oldest first. */
+export const WEBHOOK_SWEEP_BATCH = 200;
+
+/** How long a row waits unclaimed before the sweep publishes it again, in seconds. */
+export const WEBHOOK_SWEEP_IDLE_SECONDS = 60;
+
+/** `webhooks.inbox.sweep`: no input; the retention periods are workshop defaults. */
+export const SweepWebhooksInput = z.object({}).strict();
+export type SweepWebhooksInput = z.input<typeof SweepWebhooksInput>;
+
+/**
+ * One sweep: the payloads and rows the retention removed, and the waiting rows to publish again,
+ * each with the attempt it is on, which names its next delivery.
+ */
+export const WebhookSweepDto = z
+  .object({
+    payloadsRemoved: z.number().int().min(0),
+    rowsRemoved: z.number().int().min(0),
+    waiting: z
+      .array(z.object({ inboxId: IdSchema, attempts: z.number().int().min(0) }).strict())
+      .max(WEBHOOK_SWEEP_BATCH),
+  })
+  .strict();
+export type WebhookSweepDto = z.infer<typeof WebhookSweepDto>;
+
+/** `webhooks.event.replay` (Process again): one failed row, by its id. */
+export const ReplayWebhookInput = z.object({ inboxId: IdSchema }).strict();
+export type ReplayWebhookInput = z.input<typeof ReplayWebhookInput>;
+
+/** The row put back to wait, with the attempt it is on, which names its next delivery. */
+export const ReplayedWebhookDto = z
+  .object({
+    inboxId: IdSchema,
+    provider: WebhookProviderSchema,
+    attempts: z.number().int().min(0),
+  })
+  .strict();
+export type ReplayedWebhookDto = z.infer<typeof ReplayedWebhookDto>;

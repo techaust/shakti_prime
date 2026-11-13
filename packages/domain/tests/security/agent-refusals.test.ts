@@ -188,6 +188,7 @@ const INPUTS: Record<string, unknown> = {
   },
   'files.file.recheck': { olderThanMinutes: 10 },
   'integrations.dlq.replay': { eventId: newId() },
+  'webhooks.event.replay': { inboxId: newId() },
   'platform.probe.run': {},
   'org.entity.update': { entityId: 1, brandName: 'Refused brand' },
   'print.proof.request': { entityId: 1 },
@@ -332,6 +333,8 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       'sales.dealer_terms.set',
       'sales.dealer_outstanding.record',
       'sales.target.set',
+      // Process again of a failed webhook delivery (P5): a person's decision.
+      'webhooks.event.replay',
     ].map((name) => [name, INPUTS[name]]),
   ),
 };
