@@ -69,11 +69,17 @@ export const webhookInbox = pgTable(
     index('webhook_inbox_failed_idx')
       .on(t.failedAt.desc(), t.id.desc())
       .where(sql`${t.failedAt} is not null`),
-    // The last day's processed counts and the payload purge.
-    index('webhook_inbox_processed_idx')
-      .on(t.processedAt)
+    // The last day's processed counts per provider.
+    index('webhook_inbox_provider_processed_idx')
+      .on(t.provider, t.processedAt)
       .where(sql`${t.processedAt} is not null`),
-    // The last day's received counts and the removal of rows 90 days after arrival.
+    // The payload purge: processed rows that still hold their payload, so purged rows leave it.
+    index('webhook_inbox_purge_idx')
+      .on(t.processedAt)
+      .where(sql`${t.processedAt} is not null and ${t.payloadJson} is not null`),
+    // The last day's received counts per provider.
+    index('webhook_inbox_provider_received_idx').on(t.provider, t.receivedAt),
+    // The removal of rows 90 days after arrival, oldest first.
     index('webhook_inbox_received_idx').on(t.receivedAt),
     index('webhook_inbox_entity_idx')
       .on(t.entityId)

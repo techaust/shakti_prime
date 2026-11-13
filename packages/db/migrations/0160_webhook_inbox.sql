@@ -27,6 +27,8 @@ CREATE TABLE "webhook_inbox" (
 ALTER TABLE "webhook_inbox" ADD CONSTRAINT "webhook_inbox_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "webhook_inbox_waiting_idx" ON "webhook_inbox" USING btree ("received_at") WHERE "webhook_inbox"."processed_at" is null and "webhook_inbox"."failed_at" is null;--> statement-breakpoint
 CREATE INDEX "webhook_inbox_failed_idx" ON "webhook_inbox" USING btree ("failed_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE "webhook_inbox"."failed_at" is not null;--> statement-breakpoint
-CREATE INDEX "webhook_inbox_processed_idx" ON "webhook_inbox" USING btree ("processed_at") WHERE "webhook_inbox"."processed_at" is not null;--> statement-breakpoint
+CREATE INDEX "webhook_inbox_provider_processed_idx" ON "webhook_inbox" USING btree ("provider","processed_at") WHERE "webhook_inbox"."processed_at" is not null;--> statement-breakpoint
+CREATE INDEX "webhook_inbox_purge_idx" ON "webhook_inbox" USING btree ("processed_at") WHERE "webhook_inbox"."processed_at" is not null and "webhook_inbox"."payload_json" is not null;--> statement-breakpoint
+CREATE INDEX "webhook_inbox_provider_received_idx" ON "webhook_inbox" USING btree ("provider","received_at");--> statement-breakpoint
 CREATE INDEX "webhook_inbox_received_idx" ON "webhook_inbox" USING btree ("received_at");--> statement-breakpoint
 CREATE INDEX "webhook_inbox_entity_idx" ON "webhook_inbox" USING btree ("entity_id") WHERE "webhook_inbox"."entity_id" is not null;

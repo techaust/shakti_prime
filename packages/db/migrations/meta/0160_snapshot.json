@@ -1,5 +1,5 @@
 {
-  "id": "5ae38eef-fde6-48e8-a9ae-fafe4c048373",
+  "id": "22f38ac0-71aa-46a5-ba78-019ff17192d9",
   "prevId": "b917d60b-7efb-4635-9cdc-e14a425239a2",
   "version": "7",
   "dialect": "postgresql",
@@ -15366,9 +15366,15 @@
           "method": "btree",
           "with": {}
         },
-        "webhook_inbox_processed_idx": {
-          "name": "webhook_inbox_processed_idx",
+        "webhook_inbox_provider_processed_idx": {
+          "name": "webhook_inbox_provider_processed_idx",
           "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "processed_at",
               "isExpression": false,
@@ -15378,6 +15384,43 @@
           ],
           "isUnique": false,
           "where": "\"webhook_inbox\".\"processed_at\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "webhook_inbox_purge_idx": {
+          "name": "webhook_inbox_purge_idx",
+          "columns": [
+            {
+              "expression": "processed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"webhook_inbox\".\"processed_at\" is not null and \"webhook_inbox\".\"payload_json\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "webhook_inbox_provider_received_idx": {
+          "name": "webhook_inbox_provider_received_idx",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -1,6 +1,6 @@
 {
-  "id": "a9e63db4-eba0-4421-aac9-f6a49acd9c30",
-  "prevId": "5ae38eef-fde6-48e8-a9ae-fafe4c048373",
+  "id": "2c918479-3878-445d-9160-e7bf8a85b2f6",
+  "prevId": "22f38ac0-71aa-46a5-ba78-019ff17192d9",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15366,9 +15366,15 @@
           "where": "\"webhook_inbox\".\"failed_at\" is not null",
           "concurrently": false
         },
-        "webhook_inbox_processed_idx": {
-          "name": "webhook_inbox_processed_idx",
+        "webhook_inbox_provider_processed_idx": {
+          "name": "webhook_inbox_provider_processed_idx",
           "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "processed_at",
               "isExpression": false,
@@ -15380,6 +15386,43 @@
           "with": {},
           "method": "btree",
           "where": "\"webhook_inbox\".\"processed_at\" is not null",
+          "concurrently": false
+        },
+        "webhook_inbox_purge_idx": {
+          "name": "webhook_inbox_purge_idx",
+          "columns": [
+            {
+              "expression": "processed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"webhook_inbox\".\"processed_at\" is not null and \"webhook_inbox\".\"payload_json\" is not null",
+          "concurrently": false
+        },
+        "webhook_inbox_provider_received_idx": {
+          "name": "webhook_inbox_provider_received_idx",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
           "concurrently": false
         },
         "webhook_inbox_received_idx": {

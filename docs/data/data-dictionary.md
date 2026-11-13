@@ -3102,7 +3102,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `webhook_inbox_entity_idx` (btree): `entity_id` where `"webhook_inbox"."entity_id" is not null`
 - `webhook_inbox_failed_idx` (btree): `failed_at desc, id desc` where `"webhook_inbox"."failed_at" is not null`
-- `webhook_inbox_processed_idx` (btree): `processed_at` where `"webhook_inbox"."processed_at" is not null`
+- `webhook_inbox_provider_processed_idx` (btree): `provider, processed_at` where `"webhook_inbox"."processed_at" is not null`
+- `webhook_inbox_provider_received_idx` (btree): `provider, received_at`
+- `webhook_inbox_purge_idx` (btree): `processed_at` where `"webhook_inbox"."processed_at" is not null and "webhook_inbox"."payload_json" is not null`
 - `webhook_inbox_received_idx` (btree): `received_at`
 - `webhook_inbox_waiting_idx` (btree): `received_at` where `"webhook_inbox"."processed_at" is null and "webhook_inbox"."failed_at" is null`
 

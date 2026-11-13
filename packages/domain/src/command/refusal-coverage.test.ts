@@ -55,6 +55,10 @@ const REVIEWED: Record<string, string> = {
     'Tax rates are shared by every company: the company case is a request for fewer than every company, refused in tax.test.ts ("is refused to Accounts … acting for fewer than every company" and "… acting for one company").',
   'tax.rate.set':
     'Tax rates are shared by every company: the company case is a request for fewer than every company, refused in tax.test.ts ("is refused to Accounts … acting for fewer than every company" and "… acting for one company").',
+  'webhooks.event.claim':
+    'A webhook delivery belongs to no company when it is claimed (`webhook_inbox`, platform data): the worker runs with no company, and the denied case refuses every person and agent in webhooks.test.ts.',
+  'webhooks.event.mark':
+    'A webhook delivery belongs to no company until its handler names one: the company case is a company the group does not have, refused in webhooks.test.ts "refuses a company the group does not have, and a failure with no code".',
 };
 
 const DENIED = "'forbidden'";
