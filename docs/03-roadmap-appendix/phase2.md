@@ -160,6 +160,13 @@ The scope of `knowledge.ask` only opens the screen; what an answer reads comes f
 - **Selection:** a new ADR records the chosen vendor, the measures, the data terms and the fallback; the adapter stays swappable.
 - **Acceptance:** both adapters pass their recorded tests; the benchmark reproduces its numbers from recorded responses in CI; the ADR names the vendor and the target of question 6.
 - **Final phase:** the client's samples and three listeners (LAW-5) rerun the benchmark; the exit gate's accuracy item is met on them.
+**Built (V1, part 1):**
+- the ports `StreamingSpeechToText`, `StreamingTextToSpeech` and `transcribeRecording()` (`apps/web/src/integrations/voice/ports.ts`, `recording.ts`), every transcript in Roman script by `romanOnly()` (`roman-script.ts`);
+- Sarvam AI asked for Roman script (`saaras:v3`, `mode=translit`) in batch, and streaming speech to text and text to speech over its WebSockets (`sarvam.ts`, `socket.ts`), tested on fixtures written from its documented shapes and marked `written`;
+- the second vendor compared in `docs/04-architecture-appendix/voice.md` §6.2, recommending Amazon Transcribe and Polly in Mumbai; its adapter waits for the owner's yes on its data terms and the vendor's current protocol pages;
+- the benchmark `pnpm --filter web spike:voice -- benchmark` (`apps/web/src/integrations/voice/benchmark/`): the measures above as pure functions, a live run that can keep its sessions (`--save-replay`), and a replay (`--replay`) that reproduces the fixture set's report in CI;
+- `claude-stream.ts` reading `AGENT_DEFAULTS.voice` (`claude-sonnet-5-5`, effort `low`, thinking `between_tools`), and the price table with Sonnet 5.5 and Haiku 5.5 (Haiku 5.5's dearer prices above 100,000 prompt tokens), each model with the date its price was checked;
+- the stand-in set's format in `voice.md` §5. Part 2 (the keys, the 30 recordings, both vendors' runs and the ADR) waits for the owner.
 
 ### 5.4 K2 Playbook directives
 - **Table `playbook_directives`** (DATABASE §6.9, planned): `entity_id` (null for the group), `type` (`policy`, `priority`, `target`, `sop`, `faq`, `tone`), `audience` (`customer`: the Concierge may state it; `staff`; `management`), `title` (≤ 120), `text` (≤ 2,000), `source_file_id` (a vault file) or `source_voice_session_id` (V2), `state` (the built `playbook-directive` machine: `draft`, `approved`, `retired`), `approved_by`, `approved_at`, `retired_reason`, `conflicts_with` (ids), `embedding vector(1024)`; `playbook_conflict_checks` (`directive_id`, `other_id`, `label` `conflict`, `overlap` or `none`, `reason` ≤ 300, `resolved_by`, `resolution`). Read: `customer` and `staff` by every staff role of the company, `management` with `knowledge.vault.read.management`; written only by the commands.
@@ -396,7 +403,7 @@ Every slice, as in Phase 1: unit tests beside the code; for each new table its p
 | G2 | The shadow report queries; the alerts fire on synthetic counts |
 
 ## 15. Gaps and conflicts in the governing documents
-- **Models:** BLUEPRINT §1, §5, §9.2 and §9.3 name Sonnet 5 and Haiku 4.5; Sonnet 5.5 and Haiku 5.5 succeed them (question 1), and the voice spike's default `claude-sonnet-5` follows the answer.
+- **Models:** BLUEPRINT §1, §5, §9.2 and §9.3 name Sonnet 5 and Haiku 4.5; Sonnet 5.5 and Haiku 5.5 succeed them (question 1), and the voice spike reads `AGENT_DEFAULTS.voice.model` (`claude-sonnet-5-5`).
 - **First touch:** the Concierge's first touch under 60 seconds (BLUEPRINT §9.3) needs either a deterministic welcome or Automatic, which the owner keeps for Phase 6 (question 2); at BLUEPRINT §13's volume, people approving every Concierge reply would be about 6,000 approvals a day, so Needs approval for replies is a stage of the rollout, not the steady state.
 - **The accuracy target:** ROADMAP §4 and PRD AI-03 set it from the voice spike before Phase 2 starts, but the spike waits for the client's samples, which moved to the final phase (question 6, §9.2).
 - **The exit gate:** "DLT numbers live" and accuracy "on real samples" cannot close before the final phase; §12 splits the gate.

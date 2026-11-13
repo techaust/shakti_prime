@@ -1,0 +1,102 @@
+{
+  "speechToText": {
+    "source": "written",
+    "note": "written from Sarvam's streaming speech-to-text reference (voice.md section 6), 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 50,
+        "data": {
+          "type": "events",
+          "data": {
+            "signal_type": "START_SPEECH"
+          }
+        }
+      },
+      {
+        "atMs": 3460,
+        "data": {
+          "type": "events",
+          "data": {
+            "signal_type": "END_SPEECH"
+          }
+        }
+      },
+      {
+        "atMs": 3690,
+        "data": {
+          "type": "data",
+          "data": {
+            "request_id": "fixture",
+            "transcript": "jodhpur mein tin kilowatt ka solar system kitne ka padega",
+            "language_code": "hi-IN"
+          }
+        }
+      }
+    ]
+  },
+  "reply": {
+    "source": "written",
+    "note": "written from the Messages API streaming reference, 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 300,
+        "text": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_fixture\",\"role\":\"assistant\",\"usage\":{\"input_tokens\":131,\"output_tokens\":1}}}\n\n"
+      },
+      {
+        "atMs": 450,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Jodhpur mein 3 kilowatt \"}}\n\n"
+      },
+      {
+        "atMs": 610,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"system ka quote bana deti hoon. \"}}\n\n"
+      },
+      {
+        "atMs": 820,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Chhat ka size bata dijiye.\"}}\n\n"
+      },
+      {
+        "atMs": 860,
+        "text": "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":27}}\n\n"
+      },
+      {
+        "atMs": 865,
+        "text": "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+      }
+    ]
+  },
+  "speech": {
+    "source": "written",
+    "note": "written from Sarvam's streaming text-to-speech reference (voice.md section 6), 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 240,
+        "data": {
+          "type": "audio",
+          "data": {
+            "content_type": "audio/L16;rate=16000",
+            "audio": "AAAAAAAAAAA="
+          }
+        }
+      },
+      {
+        "atMs": 280,
+        "data": {
+          "type": "audio",
+          "data": {
+            "content_type": "audio/L16;rate=16000",
+            "audio": "AAAAAAAAAAA="
+          }
+        }
+      },
+      {
+        "atMs": 300,
+        "data": {
+          "type": "event",
+          "data": {
+            "event_type": "final"
+          }
+        }
+      }
+    ]
+  }
+}
