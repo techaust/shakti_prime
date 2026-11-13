@@ -115,6 +115,12 @@ export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
 export const SNAPSHOT_COMPANY = { entityId: 3, name: 'Agro Solar Hub' } as const;
 
 /**
+ * Company 1's calling numbers the seed sets (seed.ts), synthetic DLT ones: the workspaces' call
+ * plan names them (channels.spec.ts).
+ */
+export const CALLING_NUMBERS = { promo: '+911400000101', service: '+911600000101' } as const;
+
+/**
  * The team of the snapshot company that the home pages' and Targets' screenshots show: the lead and
  * the tracked caller are its two people (users.ts, `snapshotLead` and `snapshotTracker`). The seed
  * sets the caller's daily call target and logs her calls on the quote lead below, relative to the

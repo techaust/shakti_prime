@@ -57,6 +57,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `calling.attemptDays` | 0, 1, 2 |
 | `calling.nurtureCallDays` | 7, 30, 90 |
 | `calling.logGraceMinutes` | 15 |
+| `calling.dndFreshDays` | 7 |
 | `sizing.hazenWilliamsC.hdpe` | 140 |
 | `sizing.hazenWilliamsC.gi` | 120 |
 | `sizing.fittingsLossFraction` | 0.1 |
@@ -80,3 +81,5 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `retention.unqualifiedLeadMonths` | 24 |
 | `retention.importReconciliationDays` | 30 |
 | `retention.importFileOpenDays` | 7 |
+| `retention.webhookPayloadDays` | 30 |
+| `retention.webhookRowDays` | 90 |

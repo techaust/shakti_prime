@@ -99,6 +99,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   duplicate_candidates: 'x.id::text',
   customer_merges: 'x.id::text',
   caller_profiles: 'x.id::text',
+  entity_channels: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -185,6 +186,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from targets where id::text like ${like}`;
       await tx`alter table targets enable trigger targets_append_only`;
       await tx`delete from caller_profiles where id::text like ${like}`;
+      await tx`delete from entity_channels where id::text like ${like}`;
       await tx`delete from agent_configs where id::text like ${like}`;
       await tx`delete from user_entity_roles where id::text like ${like}`;
       await tx`delete from users where id::text like ${like}`;
@@ -324,6 +326,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     duplicate_candidates: [],
     customer_merges: [],
     caller_profiles: [],
+    entity_channels: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -468,6 +471,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const ownTarget = per(e, 0x46);
         const othersTarget = per(e, 0x47);
         const teamTarget = per(e, 0x48);
+        // A number the company took out of use, so it never stands in for a real one.
+        const channel = per(e, 0x49);
         const commissionRule = per(e, 0x37);
         const commission = per(e, 0x38);
         // A second customer of the company with the first one's name, put forward as its
@@ -555,6 +560,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into caller_profiles (id, user_id, entity_id, is_converter, presence) values
           (${ownProfile}, ${ownerId}, ${e}, true, 'present'),
           (${othersProfile}, ${otherUserId}, ${e}, false, 'away')`;
+        await tx`insert into entity_channels (id, entity_id, channel, number_e164, is_active, created_by)
+          values (${channel}, ${e}, 'missed_call', ${`+91800000000${e.toString()}`}, false, ${ownerId})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -693,6 +700,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: ownProfile, entities: only },
           { key: othersProfile, entities: only, othersOwn: true },
         );
+        rows.entity_channels.push({ key: channel, entities: only });
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
         rows.playbook_directives.push(

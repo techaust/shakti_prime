@@ -95,6 +95,8 @@ import { purgeImportRows, recordImportFilesDeleted } from '../commands/imports/p
 import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
+import { archiveEntityChannel, setEntityChannel } from '../commands/org/channels';
+import { recordPhoneDnd } from '../commands/crm/record-phone-dnd';
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
@@ -116,6 +118,12 @@ import { setTarget } from '../commands/sales/set-target';
 import { createQuote } from '../commands/sales/create-quote';
 import { expireQuotes } from '../commands/sales/expire-quotes';
 import { anonymiseStaleLeads } from '../commands/crm/anonymise-stale-leads';
+import {
+  claimWebhook,
+  markWebhook,
+  replayWebhook,
+  sweepWebhooks,
+} from '../commands/webhooks/inbox';
 import { releaseCredit } from '../commands/sales/release-credit';
 import { requoteQuote } from '../commands/sales/requote';
 import { sendQuote } from '../commands/sales/send-quote';
@@ -132,6 +140,9 @@ import type { AnyCommand } from './define-command';
 /** Frozen: no command can be added, replaced or removed at run time (audit ARCH-1). */
 export const commands = Object.freeze({
   [updateEntity.name]: updateEntity,
+  [setEntityChannel.name]: setEntityChannel,
+  [archiveEntityChannel.name]: archiveEntityChannel,
+  [recordPhoneDnd.name]: recordPhoneDnd,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
   [assignOpportunity.name]: assignOpportunity,
@@ -234,6 +245,10 @@ export const commands = Object.freeze({
   [withdrawQuote.name]: withdrawQuote,
   [expireQuotes.name]: expireQuotes,
   [anonymiseStaleLeads.name]: anonymiseStaleLeads,
+  [claimWebhook.name]: claimWebhook,
+  [markWebhook.name]: markWebhook,
+  [sweepWebhooks.name]: sweepWebhooks,
+  [replayWebhook.name]: replayWebhook,
   [attachQuotePdf.name]: attachQuotePdf,
   [acceptQuote.name]: acceptQuote,
   [createSalesOrder.name]: createSalesOrder,

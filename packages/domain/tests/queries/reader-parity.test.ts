@@ -80,8 +80,11 @@ import {
 import { readEntityBankDetails, readSealedBankDetails } from '../../src/queries/org/bank-details';
 import { loadCompanyForPrint } from '../../src/queries/org/company-print';
 import { listEntities } from '../../src/queries/org/list-entities';
+import { listEntityChannels } from '../../src/queries/org/list-channels';
+import { dialFacts } from '../../src/queries/calls/dial-plan';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { readScheduledJobs } from '../../src/queries/platform/scheduled-jobs';
+import { readWebhookHealth } from '../../src/queries/platform/webhook-health';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
 import { listKitPrices, listPriceChanges } from '../../src/queries/pricing/price-history';
 import { listPriceTierOptions } from '../../src/queries/pricing/price-tiers';
@@ -179,11 +182,13 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listImportRows: (ctx) => listImportRows(ctx, { entityId: 1, jobId: newId(), limit: 20 }),
   listImportTemplates: (ctx) => listImportTemplates(ctx, { entityId: 1, kind: 'leads' }),
   listEntities: (ctx) => listEntities(ctx),
+  listEntityChannels: (ctx) => listEntityChannels(ctx, { entityId: 1 }),
   readSealedBankDetails: (ctx) => readSealedBankDetails(ctx, 1),
   readEntityBankDetails: (ctx) => readEntityBankDetails(ctx, CIPHER, 1),
   loadCompanyForPrint: (ctx) => loadCompanyForPrint(ctx, 1),
   readOutboxHealth: (ctx) => readOutboxHealth(ctx, { limit: 20 }),
   readScheduledJobs: (ctx) => readScheduledJobs(ctx, new Date('2026-09-29T00:00:00Z')),
+  readWebhookHealth: (ctx) => readWebhookHealth(ctx),
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
   listKitPrices: (ctx) => listKitPrices(ctx, { priceListId: newId(), limit: 20 }),
@@ -247,6 +252,9 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
   dialNumber: (ctx) =>
     dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),
+  // The facts a dial is checked against (app.dial_facts(), design phase2 §5.2).
+  dialFacts: (ctx) =>
+    dialFacts(ctx, { entityId: 1, opportunityId: newId(), contactPhoneId: newId() }),
   // The home pages and the targets (docs/03-roadmap-appendix/phase1.md §9).
   myProgress: (ctx) => myProgress(ctx, {}, new Date(NOW)),
   teamProgress: (ctx) => teamProgress(ctx, { entityId: 1, period: 'week' }, new Date(NOW)),

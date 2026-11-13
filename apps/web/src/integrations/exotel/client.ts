@@ -38,6 +38,8 @@ export interface ClickToDialInput {
   purpose: CallPurpose;
   hasRecordedConsent: boolean;
   onDnd: boolean;
+  /** A contact of the customer, or anyone holding the number, withdrew consent to calls (CRM-10). */
+  callConsentWithdrawn: boolean;
   /** Where Exotel posts the final state; made by `signedStatusCallbackUrl()`. */
   statusCallbackUrl: string;
   record: boolean;
@@ -106,6 +108,7 @@ export function exotelClient(
         to: input.customerNumber,
         hasRecordedConsent: input.hasRecordedConsent,
         onDnd: input.onDnd,
+        callConsentWithdrawn: input.callConsentWithdrawn,
       });
       if (!decision.allowed) throw new DialRefusedError(decision.refusals);
 

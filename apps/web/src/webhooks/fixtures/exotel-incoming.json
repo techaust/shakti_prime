@@ -1,0 +1,13 @@
+{
+  "CallSid": "b6cfaf0e-exotel-call-0002",
+  "CallFrom": "09000000023",
+  "CallTo": "08000000160",
+  "Direction": "incoming",
+  "CallType": "call-attempt",
+  "Created": "Sun, 27 Sep 2026 10:40:12",
+  "StartTime": "2026-09-27 10:40:12",
+  "DialWhomNumber": "",
+  "CurrentTime": "2026-09-27 10:40:13",
+  "digits": "\"1\"",
+  "flow_id": "281122"
+}

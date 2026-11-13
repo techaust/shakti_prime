@@ -212,6 +212,8 @@ jobs:
       OUTBOX_PUBLISHER_PASSWORD: outbox_publisher_ci
       DATABASE_URL_READER: postgres://app_reader:app_reader_ci@localhost:5432/postgres
       APP_READER_PASSWORD: app_reader_ci
+      DATABASE_URL_WEBHOOKS: postgres://webhook_receiver:webhook_receiver_ci@localhost:5432/postgres
+      WEBHOOK_RECEIVER_PASSWORD: webhook_receiver_ci
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
       TURNSTILE_SITE_KEY: 1x00000000000000000000AA

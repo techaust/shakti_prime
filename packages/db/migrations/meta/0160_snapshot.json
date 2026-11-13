@@ -1,5 +1,5 @@
 {
-  "id": "192cc921-32dc-4bbf-a18c-04377690210d",
+  "id": "2d23c225-0204-448b-a0a9-3ff99698000d",
   "prevId": "b917d60b-7efb-4635-9cdc-e14a425239a2",
   "version": "7",
   "dialect": "postgresql",
@@ -10004,488 +10004,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.playbook_conflict_checks": {
-      "name": "playbook_conflict_checks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "directive_id": {
-          "name": "directive_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "other_id": {
-          "name": "other_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "distance": {
-          "name": "distance",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolution": {
-          "name": "resolution",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolution_note": {
-          "name": "resolution_note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolved_by": {
-          "name": "resolved_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolved_at": {
-          "name": "resolved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "playbook_conflict_checks_other_idx": {
-          "name": "playbook_conflict_checks_other_idx",
-          "columns": [
-            {
-              "expression": "other_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "playbook_conflict_checks_entity_id_entities_id_fk": {
-          "name": "playbook_conflict_checks_entity_id_entities_id_fk",
-          "tableFrom": "playbook_conflict_checks",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "playbook_conflict_checks_directive_id_playbook_directives_id_fk": {
-          "name": "playbook_conflict_checks_directive_id_playbook_directives_id_fk",
-          "tableFrom": "playbook_conflict_checks",
-          "tableTo": "playbook_directives",
-          "columnsFrom": [
-            "directive_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "playbook_conflict_checks_other_id_playbook_directives_id_fk": {
-          "name": "playbook_conflict_checks_other_id_playbook_directives_id_fk",
-          "tableFrom": "playbook_conflict_checks",
-          "tableTo": "playbook_directives",
-          "columnsFrom": [
-            "other_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "playbook_conflict_checks_resolved_by_principals_id_fk": {
-          "name": "playbook_conflict_checks_resolved_by_principals_id_fk",
-          "tableFrom": "playbook_conflict_checks",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "resolved_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "playbook_conflict_checks_pair_unique": {
-          "name": "playbook_conflict_checks_pair_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "directive_id",
-            "other_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "playbook_conflict_checks_label_check": {
-          "name": "playbook_conflict_checks_label_check",
-          "value": "\"playbook_conflict_checks\".\"label\" in ('conflict', 'overlap', 'none')"
-        },
-        "playbook_conflict_checks_resolution_check": {
-          "name": "playbook_conflict_checks_resolution_check",
-          "value": "\"playbook_conflict_checks\".\"resolution\" in ('not_a_conflict', 'other_retired')"
-        },
-        "playbook_conflict_checks_pair_check": {
-          "name": "playbook_conflict_checks_pair_check",
-          "value": "\"playbook_conflict_checks\".\"directive_id\" <> \"playbook_conflict_checks\".\"other_id\""
-        },
-        "playbook_conflict_checks_distance_check": {
-          "name": "playbook_conflict_checks_distance_check",
-          "value": "\"playbook_conflict_checks\".\"distance\" between 0 and 2"
-        },
-        "playbook_conflict_checks_reason_check": {
-          "name": "playbook_conflict_checks_reason_check",
-          "value": "(\"playbook_conflict_checks\".\"label\" is null) = (\"playbook_conflict_checks\".\"reason\" is null) and char_length(\"playbook_conflict_checks\".\"reason\") between 1 and 300"
-        },
-        "playbook_conflict_checks_resolved_check": {
-          "name": "playbook_conflict_checks_resolved_check",
-          "value": "(\"playbook_conflict_checks\".\"resolution\" is null) = (\"playbook_conflict_checks\".\"resolved_at\" is null) and (\"playbook_conflict_checks\".\"resolved_at\" is null) = (\"playbook_conflict_checks\".\"resolved_by\" is null) and (\"playbook_conflict_checks\".\"resolution\" is null or coalesce(\"playbook_conflict_checks\".\"label\", '') <> 'none')"
-        },
-        "playbook_conflict_checks_note_check": {
-          "name": "playbook_conflict_checks_note_check",
-          "value": "\"playbook_conflict_checks\".\"resolution_note\" is null or (char_length(\"playbook_conflict_checks\".\"resolution_note\") between 1 and 300 and \"playbook_conflict_checks\".\"resolution\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.playbook_directives": {
-      "name": "playbook_directives",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "audience": {
-          "name": "audience",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "text": {
-          "name": "text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_file_id": {
-          "name": "source_file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_position": {
-          "name": "source_position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "approved_by": {
-          "name": "approved_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "approved_at": {
-          "name": "approved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "retired_reason": {
-          "name": "retired_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "retired_at": {
-          "name": "retired_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "conflicts_with": {
-          "name": "conflicts_with",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::uuid[]"
-        },
-        "embedding": {
-          "name": "embedding",
-          "type": "vector(1024)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "checked_at": {
-          "name": "checked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "playbook_directives_state_type_idx": {
-          "name": "playbook_directives_state_type_idx",
-          "columns": [
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "playbook_directives_source_file_idx": {
-          "name": "playbook_directives_source_file_idx",
-          "columns": [
-            {
-              "expression": "source_file_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "playbook_directives_entity_id_entities_id_fk": {
-          "name": "playbook_directives_entity_id_entities_id_fk",
-          "tableFrom": "playbook_directives",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "playbook_directives_source_file_id_knowledge_files_id_fk": {
-          "name": "playbook_directives_source_file_id_knowledge_files_id_fk",
-          "tableFrom": "playbook_directives",
-          "tableTo": "knowledge_files",
-          "columnsFrom": [
-            "source_file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "playbook_directives_approved_by_principals_id_fk": {
-          "name": "playbook_directives_approved_by_principals_id_fk",
-          "tableFrom": "playbook_directives",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "approved_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "playbook_directives_created_by_principals_id_fk": {
-          "name": "playbook_directives_created_by_principals_id_fk",
-          "tableFrom": "playbook_directives",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "playbook_directives_updated_by_principals_id_fk": {
-          "name": "playbook_directives_updated_by_principals_id_fk",
-          "tableFrom": "playbook_directives",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "playbook_directives_type_check": {
-          "name": "playbook_directives_type_check",
-          "value": "\"playbook_directives\".\"type\" in ('policy', 'priority', 'target', 'sop', 'faq', 'tone')"
-        },
-        "playbook_directives_audience_check": {
-          "name": "playbook_directives_audience_check",
-          "value": "\"playbook_directives\".\"audience\" in ('customer', 'staff', 'management')"
-        },
-        "playbook_directives_state_check": {
-          "name": "playbook_directives_state_check",
-          "value": "\"playbook_directives\".\"state\" in ('draft', 'approved', 'retired')"
-        },
-        "playbook_directives_title_check": {
-          "name": "playbook_directives_title_check",
-          "value": "char_length(\"playbook_directives\".\"title\") between 1 and 120"
-        },
-        "playbook_directives_text_check": {
-          "name": "playbook_directives_text_check",
-          "value": "char_length(\"playbook_directives\".\"text\") between 1 and 2000"
-        },
-        "playbook_directives_source_check": {
-          "name": "playbook_directives_source_check",
-          "value": "\"playbook_directives\".\"source_position\" is null or (\"playbook_directives\".\"source_file_id\" is not null and \"playbook_directives\".\"source_position\" >= 0)"
-        },
-        "playbook_directives_approval_check": {
-          "name": "playbook_directives_approval_check",
-          "value": "(\"playbook_directives\".\"approved_by\" is null) = (\"playbook_directives\".\"approved_at\" is null) and (\"playbook_directives\".\"state\" <> 'approved' or \"playbook_directives\".\"approved_at\" is not null) and (\"playbook_directives\".\"state\" <> 'draft' or \"playbook_directives\".\"approved_at\" is null)"
-        },
-        "playbook_directives_retired_check": {
-          "name": "playbook_directives_retired_check",
-          "value": "(\"playbook_directives\".\"state\" <> 'retired') = (\"playbook_directives\".\"retired_at\" is null) and (\"playbook_directives\".\"retired_at\" is null) = (\"playbook_directives\".\"retired_reason\" is null) and char_length(\"playbook_directives\".\"retired_reason\") between 1 and 300"
-        },
-        "playbook_directives_approved_checked": {
-          "name": "playbook_directives_approved_checked",
-          "value": "\"playbook_directives\".\"state\" <> 'approved' or \"playbook_directives\".\"checked_at\" is not null"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.price_change_log": {
       "name": "price_change_log",
       "schema": "",
@@ -15713,6 +15231,308 @@
         "users_status_check": {
           "name": "users_status_check",
           "value": "\"users\".\"status\" in ('invited', 'active', 'suspended', 'offboarded')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.webhook_inbox": {
+      "name": "webhook_inbox",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_event_id": {
+          "name": "provider_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "signature_ok": {
+          "name": "signature_ok",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "payload_json": {
+          "name": "payload_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payload_sha256": {
+          "name": "payload_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_until": {
+          "name": "claimed_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "attempts_at_replay": {
+          "name": "attempts_at_replay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "retry_at": {
+          "name": "retry_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failed_at": {
+          "name": "failed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_code": {
+          "name": "error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payload_purged_at": {
+          "name": "payload_purged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "webhook_inbox_waiting_idx": {
+          "name": "webhook_inbox_waiting_idx",
+          "columns": [
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"webhook_inbox\".\"processed_at\" is null and \"webhook_inbox\".\"failed_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "webhook_inbox_failed_idx": {
+          "name": "webhook_inbox_failed_idx",
+          "columns": [
+            {
+              "expression": "failed_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"webhook_inbox\".\"failed_at\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "webhook_inbox_provider_processed_idx": {
+          "name": "webhook_inbox_provider_processed_idx",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "processed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"webhook_inbox\".\"processed_at\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "webhook_inbox_purge_idx": {
+          "name": "webhook_inbox_purge_idx",
+          "columns": [
+            {
+              "expression": "processed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"webhook_inbox\".\"processed_at\" is not null and \"webhook_inbox\".\"payload_json\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "webhook_inbox_provider_received_idx": {
+          "name": "webhook_inbox_provider_received_idx",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "webhook_inbox_received_idx": {
+          "name": "webhook_inbox_received_idx",
+          "columns": [
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "webhook_inbox_entity_idx": {
+          "name": "webhook_inbox_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"webhook_inbox\".\"entity_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "webhook_inbox_entity_id_entities_id_fk": {
+          "name": "webhook_inbox_entity_id_entities_id_fk",
+          "tableFrom": "webhook_inbox",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "webhook_inbox_provider_event_unique": {
+          "name": "webhook_inbox_provider_event_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "provider",
+            "provider_event_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "webhook_inbox_provider_check": {
+          "name": "webhook_inbox_provider_check",
+          "value": "\"webhook_inbox\".\"provider\" in ('meta_whatsapp', 'meta_leadgen', 'google_leadform', 'exotel_status', 'exotel_incoming', 'livekit')"
+        },
+        "webhook_inbox_event_id_check": {
+          "name": "webhook_inbox_event_id_check",
+          "value": "char_length(\"webhook_inbox\".\"provider_event_id\") between 1 and 200"
+        },
+        "webhook_inbox_signature_check": {
+          "name": "webhook_inbox_signature_check",
+          "value": "\"webhook_inbox\".\"signature_ok\""
+        },
+        "webhook_inbox_sha256_check": {
+          "name": "webhook_inbox_sha256_check",
+          "value": "\"webhook_inbox\".\"payload_sha256\" ~ '^[0-9a-f]{64}$'"
+        },
+        "webhook_inbox_attempts_check": {
+          "name": "webhook_inbox_attempts_check",
+          "value": "\"webhook_inbox\".\"attempts\" >= 0"
+        },
+        "webhook_inbox_attempts_at_replay_check": {
+          "name": "webhook_inbox_attempts_at_replay_check",
+          "value": "\"webhook_inbox\".\"attempts_at_replay\" between 0 and \"webhook_inbox\".\"attempts\""
+        },
+        "webhook_inbox_error_code_check": {
+          "name": "webhook_inbox_error_code_check",
+          "value": "\"webhook_inbox\".\"error_code\" ~ '^[a-z][a-z0-9_]{0,63}$'"
+        },
+        "webhook_inbox_outcome_check": {
+          "name": "webhook_inbox_outcome_check",
+          "value": "\"webhook_inbox\".\"processed_at\" is null or \"webhook_inbox\".\"failed_at\" is null"
+        },
+        "webhook_inbox_purge_check": {
+          "name": "webhook_inbox_purge_check",
+          "value": "(\"webhook_inbox\".\"payload_json\" is null) = (\"webhook_inbox\".\"payload_purged_at\" is not null)"
         }
       },
       "isRLSEnabled": false

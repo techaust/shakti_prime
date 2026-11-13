@@ -72,6 +72,13 @@ export interface WorkshopDefaults {
      * a file whose job ended is deleted at the next run. The database takes 1 to 90.
      */
     readonly importFileOpenDays: number;
+    /**
+     * Days a stored webhook payload is kept after its delivery was processed; then the sweep
+     * removes it and keeps the row (docs/03-roadmap-appendix/phase2.md §2, question 10). At least 1.
+     */
+    readonly webhookPayloadDays: number;
+    /** Days a `webhook_inbox` row is kept after it arrived; then the sweep removes it. At least 1. */
+    readonly webhookRowDays: number;
   };
 }
 
@@ -89,6 +96,11 @@ export interface CallingDefaults {
    * (workshop CALL-8): its outcome is recorded instead of lost.
    */
   readonly logGraceMinutes: number;
+  /**
+   * Days a DND check of a number stays fresh for a promotional call (BLUEPRINT §7.7); an older one
+   * is looked up again at the dial (docs/03-roadmap-appendix/phase2.md §5.2, §11).
+   */
+  readonly dndFreshDays: number;
 }
 
 /** The engineering constants the sizing calculators use (docs/03-roadmap-appendix/phase1.md §6.7, §11). */
@@ -211,6 +223,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * 9:15 PM (the sales-integrity audit fix of 13-10-2026, DOM-6); a later log is refused.
      */
     logGraceMinutes: 15,
+    /**
+     * Phase 2 design §11, for the client in the final phase (LAW-4): a promotional dial needs a DND
+     * check newer than 7 days.
+     */
+    dndFreshDays: 7,
   },
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is
@@ -292,5 +309,12 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     importReconciliationDays: 30,
     /** Audit SEC-1: a week for an import left before its rows are added. For the owner to confirm. */
     importFileOpenDays: 7,
+    /**
+     * The owner's decision of 13-11-2026 (phase 2 design §2, question 10): payloads hold phone
+     * numbers and message text, so they go 30 days after processing and the row 90 days after it
+     * arrived. For the CA to confirm (phase 2 design §13, question 10).
+     */
+    webhookPayloadDays: 30,
+    webhookRowDays: 90,
   },
 };

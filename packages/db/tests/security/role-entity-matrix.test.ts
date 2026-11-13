@@ -267,6 +267,8 @@ const RULES: Record<MatrixTable, TableRule> = {
     readRow: (row) => (row.othersOwn === true ? grant('crm.lead.assign', 'team') : CONTEXT),
     leak: otherCompany,
   },
+  // A company's numbers: every principal acting in the company reads them (design phase2 §5.2).
+  entity_channels: { read: CONTEXT, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {

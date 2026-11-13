@@ -24,6 +24,7 @@ import {
   ActivityTypeSchema,
   AUDIT_OUTCOMES,
   ConsentChannelSchema,
+  EntityChannelKindSchema,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   ContactRoleSchema,
@@ -58,6 +59,7 @@ import {
   TaskStateSchema,
   ThemeSchema,
   ContrastSchema,
+  WEBHOOK_PROVIDERS,
   DuplicateKindSchema,
   DuplicateReasonSchema,
   DuplicateStateSchema,
@@ -111,6 +113,7 @@ const PAIRS: Record<string, readonly string[]> = {
   commission_rules_trigger_check: CommissionTriggerSchema.options,
   composite_supply_rules_segment_check: SegmentSchema.options,
   consents_channel_check: ConsentChannelSchema.options,
+  entity_channels_channel_check: EntityChannelKindSchema.options,
   consents_purpose_check: ConsentPurposeSchema.options,
   consents_source_check: ConsentSourceSchema.options,
   contacts_preferred_language_check: CustomerLanguageSchema.options,
@@ -198,6 +201,7 @@ const PAIRS: Record<string, readonly string[]> = {
   caller_profiles_presence_check: CallerPresenceSchema.options,
   caller_profiles_languages_check: CustomerLanguageSchema.options,
   caller_profiles_segments_check: SegmentSchema.options,
+  webhook_inbox_provider_check: WEBHOOK_PROVIDERS,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

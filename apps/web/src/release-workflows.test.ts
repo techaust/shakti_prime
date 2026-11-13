@@ -136,6 +136,7 @@ describe('the migrate workflow', () => {
       'OUTBOX_PUBLISHER_PASSWORD',
       'DATABASE_CA_CERT',
       'APP_READER_PASSWORD',
+      'WEBHOOK_RECEIVER_PASSWORD',
     ]) {
       expect(production).toContain(`\${{ secrets.${name} }}`);
     }

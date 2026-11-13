@@ -304,6 +304,10 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'platform.jobs.check': {},
   // The platform's conflict check of Playbook directives; no person's role holds it (SECURITY §3.3).
   'knowledge.playbook.check': {},
+  // The platform's record of the DND register for a phone; no person's role holds it (SECURITY §3.3).
+  'crm.dnd.record': {},
+  // The platform's webhook worker and sweep; no person's role holds it (SECURITY §3.3).
+  'webhooks.process': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

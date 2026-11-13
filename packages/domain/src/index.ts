@@ -25,6 +25,10 @@ export { commands, getCommand } from './command/registry';
 export { executeCommand, executeQuery } from './command/execute';
 export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
+export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
+export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
+export { listEntityChannels } from './queries/org/list-channels';
+export { dialFacts, dndRecordInput, toDialPlanDto } from './queries/calls/dial-plan';
 export { createLead } from './commands/crm/create-lead';
 export { moveOpportunityStage } from './commands/crm/move-opportunity-stage';
 export { assignOpportunity } from './commands/crm/assign-opportunity';
@@ -54,6 +58,7 @@ export { requoteQuote } from './commands/sales/requote';
 export { withdrawQuote } from './commands/sales/withdraw-quote';
 export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
 export { anonymiseStaleLeads, LEAD_RETENTION_BATCH } from './commands/crm/anonymise-stale-leads';
+export { claimWebhook, markWebhook, replayWebhook, sweepWebhooks } from './commands/webhooks/inbox';
 export { countStaleLeads } from './queries/crm/stale-leads';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { acceptQuote } from './commands/sales/accept-quote';
@@ -216,6 +221,7 @@ export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
+export { readWebhookHealth, type StoredWebhookHealth } from './queries/platform/webhook-health';
 export {
   JOB_RUN_LIMIT_MINUTES,
   readScheduledJobs,
@@ -433,6 +439,19 @@ export type {
   DialRequest,
   NumberSeries,
 } from './telecom/dial-policy';
+export { DIAL_REFUSALS } from './telecom/dial-policy';
+export { CUSTOMER_REQUEST_CHANNELS, callPurpose } from './telecom/call-purpose';
+export type { PurposeDecision, PurposeFacts, PurposeReason } from './telecom/call-purpose';
+export { DND_LOOKUP_TIMEOUT_MS, dndIsFresh, planDial, prepareDial } from './telecom/dial-plan';
+export type { DialFacts, DialPlan, DndState, PrepareDialDeps } from './telecom/dial-plan';
+export {
+  DndRegistryNotSetUp,
+  DndRegistryUnavailable,
+  FIXTURE_DND_NUMBERS,
+  fixtureDndRegistry,
+  unavailableDndRegistry,
+} from './ports/dnd';
+export type { DndAnswer, DndRegistry } from './ports/dnd';
 export {
   checkBatch,
   connectorHealth,

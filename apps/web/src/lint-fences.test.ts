@@ -225,6 +225,7 @@ describe('the import fences', { timeout: 60_000 }, () => {
       'client',
       'auth-client',
       'outbox-client',
+      'webhook-client',
       'bootstrap',
       'testing/index',
       'auth/user-grants',
@@ -239,6 +240,19 @@ describe('the import fences', { timeout: 60_000 }, () => {
     expect(
       await fences(WEB, "export const c = () => import('../../../../packages/db/src/client');\n"),
     ).toContain('no-restricted-syntax');
+  });
+
+  it('keep the webhook_receiver connection to the webhook routes\u2019 helper', async () => {
+    const store =
+      "import { storeWebhookDelivery } from '@shakti/db/webhooks';\nexport const s = storeWebhookDelivery;\n";
+    expect(await fences('apps/web/src/webhooks/fence-probe.ts', store)).toEqual([]);
+    for (const file of [WEB, 'apps/web/src/workers/fence-probe.ts', DOMAIN]) {
+      expect(await fences(file, store), file).toEqual(['no-restricted-imports']);
+      expect(
+        await fences(file, "export const s = () => import('@shakti/db/webhooks');\n"),
+        file,
+      ).toEqual(['no-restricted-syntax']);
+    }
   });
 
   it('let packages/db reach its own files', async () => {

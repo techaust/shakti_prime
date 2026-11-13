@@ -32,6 +32,7 @@ import {
   AccountTypeSchema,
   ActivityTypeSchema,
   ConsentChannelSchema,
+  EntityChannelKindSchema,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
@@ -80,6 +81,7 @@ import {
   TargetMetricSchema,
   TargetPeriodSchema,
   TargetScopeSchema,
+  WebhookProviderSchema,
   CommissionAccrualStateSchema,
   SubsidySchemeSchema,
   SizingReasonSchema,
@@ -108,6 +110,7 @@ import {
   ACCOUNT_TYPES,
   ACTIVITY_TYPES,
   CONSENT_CHANNELS,
+  ENTITY_CHANNEL_KINDS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -158,6 +161,7 @@ import {
   TARGET_METRICS,
   TARGET_PERIODS,
   TARGET_SCOPES,
+  WEBHOOK_PROVIDERS,
   QUOTE_ACCEPTED_VIA,
   COMMISSION_ACCRUAL_STATES,
   SUBSIDY_SCHEMES,
@@ -210,6 +214,7 @@ describe('the contract values copied for the browser', () => {
     expect(QUOTE_STATES).toEqual(QuoteStateSchema.options);
     expect(SALES_ORDER_STATES).toEqual(SalesOrderStateSchema.options);
     expect(TARGET_SCOPES).toEqual(TargetScopeSchema.options);
+    expect(WEBHOOK_PROVIDERS).toEqual(WebhookProviderSchema.options);
     expect(TARGET_METRICS).toEqual(TargetMetricSchema.options);
     expect(TARGET_PERIODS).toEqual(TargetPeriodSchema.options);
     expect(QUOTE_ACCEPTED_VIA).toEqual(QuoteAcceptedViaSchema.options);
@@ -247,6 +252,7 @@ describe('the contract values copied for the browser', () => {
     expect(SITE_TYPES).toEqual(SiteTypeSchema.options);
     expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);
     expect(CONSENT_CHANNELS).toEqual(ConsentChannelSchema.options);
+    expect(ENTITY_CHANNEL_KINDS).toEqual(EntityChannelKindSchema.options);
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);

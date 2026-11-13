@@ -31,7 +31,7 @@ import {
   sortText,
   type SortKeys,
 } from '../keyset-sort';
-import { callConsentWithdrawn } from '../calls/consent';
+import { callConsentWithdrawn, callOptOut } from '../calls/consent';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 import { accountSalesOrders } from '../sales/list-orders';
 import { accountQuotes } from '../sales/list-quotes';
@@ -465,6 +465,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     timeline,
     owner,
     callsWithdrawn,
+    optedOut,
   ] = await Promise.all([
     ctx.tx
       .select({
@@ -541,6 +542,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
       ? []
       : ctx.tx.select({ name: p.displayName }).from(p).where(eq(p.id, here.ownerId)).limit(1),
     callConsentWithdrawn(ctx.tx, accountId),
+    callOptOut(ctx.tx, accountId),
   ]);
 
   const perms = ctx.principal.permissions;
@@ -592,6 +594,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
         })),
     })),
     callConsentWithdrawn: callsWithdrawn,
+    callOptOut: optedOut,
     sites: sites.map((s) => ({
       id: s.id,
       type: s.type,

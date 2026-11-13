@@ -148,6 +148,15 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
   if ((env.FIELD_ENCRYPTION_KEY ?? '') !== '') {
     problems.push('FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key');
   }
+  // The two webhook secrets a caller sends as they are (Google's form key, Exotel's inbound path
+  // segment) are compared directly, so a short one could be guessed (phase 2 design §5.1). Unset,
+  // the route is off.
+  for (const name of ['GOOGLE_LEADFORM_KEY', 'EXOTEL_INCOMING_SECRET'] as const) {
+    const value = env[name] ?? '';
+    if (value !== '' && value.length < MIN_SECRET_LENGTH) {
+      problems.push(`${name} must be at least ${String(MIN_SECRET_LENGTH)} characters when set`);
+    }
+  }
   // The fake AI transport stands in for the vendors on a developer's machine and in the journeys.
   if ((env.AI_TRANSPORT ?? '') !== '') {
     problems.push('AI_TRANSPORT is for development; a hosted environment calls the AI services');

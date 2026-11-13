@@ -14,6 +14,7 @@ import type {
   ConsentSource,
   CustomerLanguage,
   CustomerSort,
+  EntityChannelKind,
   DispositionNextAction,
   DuplicateKind,
   DuplicateReason,
@@ -53,6 +54,7 @@ import type {
   TargetMetric,
   TargetPeriod,
   TargetScope,
+  WebhookProvider,
   SavedViewScreen,
   Scope,
   ScoreFactor,
@@ -141,6 +143,15 @@ export const ACCOUNT_TYPES = [
 export const SITE_TYPES = ['borewell', 'rooftop', 'factory'] as const satisfies readonly SiteType[];
 
 export const CUSTOMER_LANGUAGES = ['hinglish', 'en'] as const satisfies readonly CustomerLanguage[];
+
+/** A company's channels (`ENTITY_CHANNEL_KINDS`), in the order Settings › Companies lists them. */
+export const ENTITY_CHANNEL_KINDS = [
+  'whatsapp',
+  'call_promo_140',
+  'call_service_160',
+  'ivr',
+  'missed_call',
+] as const satisfies readonly EntityChannelKind[];
 
 export const CONSENT_CHANNELS = [
   'whatsapp',
@@ -766,3 +777,12 @@ export const PLAYBOOK_STATE_VALUES = ['draft', 'approved', 'retired'] as const;
 
 /** `PLAYBOOK_RESOLUTIONS` (`@shakti/contracts`). */
 export const PLAYBOOK_RESOLUTION_VALUES = ['not_a_conflict', 'other_retired'] as const;
+/** The systems whose messages land in `webhook_inbox` (phase 2 design §5.1). */
+export const WEBHOOK_PROVIDERS = [
+  'meta_whatsapp',
+  'meta_leadgen',
+  'google_leadform',
+  'exotel_status',
+  'exotel_incoming',
+  'livekit',
+] as const satisfies readonly WebhookProvider[];

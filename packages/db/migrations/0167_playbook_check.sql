@@ -6,14 +6,14 @@
 -- from a request with at least one company; they answer only directives' wording and ids, never a
 -- customer's data. Approval and every state change stay the commands' (0161).
 
--- 1. The worker's permission is platform-only, like the other workers' (0142); every key of the
---    latest definition is kept.
+-- 1. The worker's permission is platform-only, like the other workers'; every key of the latest
+--    definition (0163's twelve) is kept.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
                'sales.quote.expire', 'notifications.send', 'knowledge.index',
                'crm.handover.run', 'platform.jobs.check', 'crm.retention.run',
-               'knowledge.playbook.check']::text[]
+               'webhooks.process', 'crm.dnd.record', 'knowledge.playbook.check']::text[]
 $$;
 --> statement-breakpoint
 

@@ -91,6 +91,9 @@ const ACTIONS = {
   'crm.consent.record': 'consentRecord',
   'crm.consent.withdraw': 'consentWithdraw',
   'org.entity.update': 'entityUpdate',
+  'org.channel.set': 'channelSet',
+  'org.channel.archive': 'channelArchive',
+  'crm.phone.dnd_record': 'phoneDndRecord',
   'pricing.price.set': 'priceSet',
   'pricing.list.create': 'priceListCreate',
   'pricing.list.approve': 'priceListApprove',
@@ -180,6 +183,10 @@ const ACTIONS = {
   'crm.lead.rescore': 'leadRescore',
   'crm.lead.score_refresh': 'leadScoreRefresh',
   'crm.lead.anonymise': 'leadAnonymise',
+  'webhooks.event.claim': 'webhookClaim',
+  'webhooks.event.mark': 'webhookMark',
+  'webhooks.inbox.sweep': 'webhookSweep',
+  'webhooks.event.replay': 'webhookReplay',
   'crm.duplicate.scan': 'duplicateScan',
   'crm.duplicate.dismiss': 'duplicateDismiss',
   'crm.duplicate.suggest': 'duplicateSuggest',
@@ -364,6 +371,7 @@ const CODE_GROUPS = [
   'consentChannel',
   'consentPurpose',
   'consentSource',
+  'webhookProvider',
   'itemCategory',
   'itemUnit',
   'priceTier',
@@ -393,6 +401,7 @@ const CODE_GROUPS = [
   'targetScope',
   'targetMetric',
   'targetPeriod',
+  'channelKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -496,6 +505,14 @@ const FIELD_KINDS = [
   ['givenAt', 'time'],
   ['withdrawnAt', 'time'],
   ['evidence', 'yesNo'],
+  // A company's numbers (org.channel.set) and a phone's do-not-disturb check
+  ['channelKind', 'channelKind'],
+  ['channelNumber', 'text'],
+  ['providerRef', 'text'],
+  ['dltHeader', 'text'],
+  ['verified', 'yesNo'],
+  ['isDnd', 'yesNo'],
+  ['dndCheckedAt', 'time'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],
@@ -556,6 +573,9 @@ const FIELD_KINDS = [
   ['attempts', 'number'],
   ['deadLetteredAt', 'time'],
   ['requestedAt', 'time'],
+  // Messages other systems send in (P5)
+  ['provider', 'webhookProvider'],
+  ['failed', 'yesNo'],
   // Pipelines, call outcomes, scoring and referrals
   ['lockHours', 'number'],
   ['firstContactSlaMinutes', 'number'],

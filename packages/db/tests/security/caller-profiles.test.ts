@@ -274,6 +274,8 @@ describe('the handover definers', () => {
         'crm.handover.run',
         'crm.retention.run',
         'platform.jobs.check',
+        'crm.dnd.record',
+        'webhooks.process',
         'knowledge.playbook.check',
       ]),
     );

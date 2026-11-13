@@ -28,6 +28,7 @@ const dial: ClickToDialInput = {
   purpose: 'promotional',
   hasRecordedConsent: false,
   onDnd: false,
+  callConsentWithdrawn: false,
   statusCallbackUrl: 'https://bos.shakti.test/api/v1/webhooks/exotel/call-status',
   record: true,
   customField: CALL_REF,
@@ -75,6 +76,23 @@ describe('click-to-dial', () => {
     await expect(client(fetchImpl).connectCall({ ...dial, purpose: 'service' })).rejects.toEqual(
       new DialRefusedError(['caller_id_not_service', 'service_call_without_consent']),
     );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('never calls Exotel for a customer who withdrew consent to calls, on either series', async () => {
+    const fetchImpl = stubFetch(Response.json(connectResponse));
+    await expect(
+      client(fetchImpl).connectCall({ ...dial, callConsentWithdrawn: true }),
+    ).rejects.toEqual(new DialRefusedError(['call_consent_withdrawn']));
+    await expect(
+      client(fetchImpl).connectCall({
+        ...dial,
+        purpose: 'service',
+        callerId: '1600000000',
+        hasRecordedConsent: true,
+        callConsentWithdrawn: true,
+      }),
+    ).rejects.toEqual(new DialRefusedError(['call_consent_withdrawn']));
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 

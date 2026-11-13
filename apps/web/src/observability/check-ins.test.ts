@@ -64,6 +64,6 @@ describe('sendCheckIn (audit 2026-10, OPS-4)', () => {
     expect(checkInMarginMinutes('jobs-check')).toBe(20);
     expect(checkInMarginMinutes('lead-rescore')).toBe(60);
     expect(checkInMarginMinutes('lead-anonymise')).toBe(60);
-    expect(Object.keys(JOB_SCHEDULES)).toHaveLength(8);
+    expect(Object.keys(JOB_SCHEDULES)).toHaveLength(9);
   });
 });
