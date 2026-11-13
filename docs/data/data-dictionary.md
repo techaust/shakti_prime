@@ -3056,7 +3056,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### webhook_inbox
 
-**Catalogue entry** (05-database.md §6.10; created in 0160; append-only but its delivery columns): `provider` (`meta_whatsapp`, `meta_leadgen`, `google_leadform`, `exotel_status`, `exotel_incoming`, `livekit`), `provider_event_id` (the provider's own id, or the body's SHA-256 for WhatsApp's batches; unique per provider), `received_at`, `signature_ok` (always true: a delivery that fails its check is never stored), `payload_json` (the delivery as JSON; untrusted; removed 30 days after processing), `payload_sha256` (of the raw bytes), `entity_id` (set when a handler names the company), `claimed_until`, `attempts`, `processed_at`, `failed_at`, `error_code` (`payload_unreadable`, `no_handler`, `handler_failed`, `too_many_attempts` or a handler's code), `payload_purged_at`; of no company; no request role selects or writes it, and every read and write is a definer of §4.1 (0161); rows are removed 90 days after arrival (§7)
+**Catalogue entry** (05-database.md §6.10; created in 0160; append-only but its delivery columns): `provider` (`meta_whatsapp`, `meta_leadgen`, `google_leadform`, `exotel_status`, `exotel_incoming`, `livekit`), `provider_event_id` (the provider's own id, or the body's SHA-256 for WhatsApp's batches; unique per provider), `received_at`, `signature_ok` (always true: a delivery that fails its check is never stored), `payload_json` (the delivery as JSON; untrusted; removed 30 days after processing), `payload_sha256` (of the raw bytes), `entity_id` (set when a handler names the company), `claimed_until`, `attempts` (only rises: each delivery's deduplication id names it), `attempts_at_replay` (the attempts when Process again last put the row back; ten tries count from it), `retry_at` (after a handler error, when the row may be tried again), `processed_at`, `failed_at`, `error_code` (`payload_unreadable`, `no_handler`, `handler_failed`, `too_many_attempts` or a handler's code), `payload_purged_at`; a Google lead is kept without its form key; of no company; no request role selects or writes it, and every read and write is a definer of §4.1 (0161); a processed or failed row is removed 90 days after arrival, a waiting or leased one never (§7)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3070,6 +3070,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `entity_id` | smallint | yes |  | → `entities.id` |
 | `claimed_until` | timestamp with time zone | yes |  |  |
 | `attempts` | integer | no | `0` |  |
+| `attempts_at_replay` | integer | no | `0` |  |
+| `retry_at` | timestamp with time zone | yes |  |  |
 | `processed_at` | timestamp with time zone | yes |  |  |
 | `failed_at` | timestamp with time zone | yes |  |  |
 | `error_code` | text | yes |  |  |
@@ -3089,6 +3091,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Check constraints**
 
+- `webhook_inbox_attempts_at_replay_check`: `"webhook_inbox"."attempts_at_replay" between 0 and "webhook_inbox"."attempts"`
 - `webhook_inbox_attempts_check`: `"webhook_inbox"."attempts" >= 0`
 - `webhook_inbox_error_code_check`: `"webhook_inbox"."error_code" ~ '^[a-z][a-z0-9_]{0,63}$'`
 - `webhook_inbox_event_id_check`: `char_length("webhook_inbox"."provider_event_id") between 1 and 200`

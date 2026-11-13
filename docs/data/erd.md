@@ -879,6 +879,8 @@ erDiagram
     smallint entity_id FK "null"
     timestamptz claimed_until "null"
     integer attempts
+    integer attempts_at_replay
+    timestamptz retry_at "null"
     timestamptz processed_at "null"
     timestamptz failed_at "null"
     text error_code "null"
