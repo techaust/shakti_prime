@@ -191,7 +191,7 @@ describe("Exotel's inbound secret path segment (P5 review 4)", () => {
       ],
     });
     expect(JSON.stringify(event)).not.toContain(secret);
-    expect(event.request?.url).toBe('https://bos.test/api/v1/webhooks/exotel/incoming/[secret]');
+    expect(event.request.url).toBe('https://bos.test/api/v1/webhooks/exotel/incoming/[secret]');
     expect(event.transaction).toBe('GET /api/v1/webhooks/exotel/incoming/[secret]');
     const crumb = scrubBreadcrumb({ message: `fetch ${path}`, data: { url: path } });
     expect(JSON.stringify(crumb)).not.toContain(secret);
