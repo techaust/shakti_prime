@@ -49,3 +49,4 @@ export {
   dealerOutstanding,
   commissionAccruals,
 } from './sales-orders';
+export { entityChannels } from './entity-channels';

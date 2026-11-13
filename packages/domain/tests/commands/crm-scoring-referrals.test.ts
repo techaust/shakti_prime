@@ -435,7 +435,8 @@ describe('crm.lead.score_refresh', () => {
           g.key !== 'crm.score.refresh' &&
           g.key !== 'crm.duplicates.scan' &&
           g.key !== 'crm.handover.run' &&
-          g.key !== 'crm.retention.run',
+          g.key !== 'crm.retention.run' &&
+          g.key !== 'crm.dnd.record',
       ),
     ).toEqual([]);
     const l = await lead();

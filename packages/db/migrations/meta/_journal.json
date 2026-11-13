@@ -1121,6 +1121,20 @@
       "when": 1792281770544,
       "tag": "0159_pipeline_lock_hours",
       "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1794551774444,
+      "tag": "0160_entity_channels",
+      "breakpoints": true
+    },
+    {
+      "idx": 161,
+      "version": "7",
+      "when": 1794551836174,
+      "tag": "0161_e1_channels_rls",
+      "breakpoints": true
     }
   ]
 }

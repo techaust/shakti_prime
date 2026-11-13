@@ -269,9 +269,10 @@ describe('the handover definers', () => {
         'crm.handover.run',
         'crm.retention.run',
         'platform.jobs.check',
+        'crm.dnd.record',
       ]),
     );
-    expect(list?.keys).toHaveLength(10);
+    expect(list?.keys).toHaveLength(11);
   });
 
   it('refuses a caller without it, and a company outside the request', async () => {

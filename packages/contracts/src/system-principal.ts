@@ -47,5 +47,8 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The check of the database's scheduled jobs (`jobs-check`): it reads each job's last run and
     // error through one definer, and nothing of any company.
     { key: 'platform.jobs.check', scope: 'all' },
+    // The DND record of a customer's phone (`crm.phone.dnd_record`), taken when a dial's check is
+    // stale: it writes what the register answered through one definer, nothing more.
+    { key: 'crm.dnd.record', scope: 'all' },
   ],
 };

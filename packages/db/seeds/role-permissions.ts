@@ -301,6 +301,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // (SECURITY §3.3).
   'crm.retention.run': {},
   'platform.jobs.check': {},
+  // The platform's record of the DND register for a phone; no person's role holds it (SECURITY §3.3).
+  'crm.dnd.record': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */
