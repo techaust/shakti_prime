@@ -393,7 +393,7 @@ Every slice, as in Phase 1: unit tests beside the code; for each new table its p
 | G2 | The shadow report queries; the alerts fire on synthetic counts |
 
 ## 15. Gaps and conflicts in the governing documents
-- **Models:** BLUEPRINT §1, §5, §9.2 and §9.3 name Sonnet 5 and Haiku 4.5; Sonnet 5.5 and Haiku 5.5 succeed them (question 1), and the voice spike reads `AGENT_DEFAULTS.voice.model` (`claude-sonnet-5-5`) since V1.
+- **Models:** BLUEPRINT §1, §5, §9.2 and §9.3 name Sonnet 5 and Haiku 4.5; Sonnet 5.5 and Haiku 5.5 succeed them (question 1), and the voice spike reads `AGENT_DEFAULTS.voice.model` (`claude-sonnet-5-5`).
 - **First touch:** the Concierge's first touch under 60 seconds (BLUEPRINT §9.3) needs either a deterministic welcome or Automatic, which the owner keeps for Phase 6 (question 2); at BLUEPRINT §13's volume, people approving every Concierge reply would be about 6,000 approvals a day, so Needs approval for replies is a stage of the rollout, not the steady state.
 - **The accuracy target:** ROADMAP §4 and PRD AI-03 set it from the voice spike before Phase 2 starts, but the spike waits for the client's samples, which moved to the final phase (question 6, §9.2).
 - **The exit gate:** "DLT numbers live" and accuracy "on real samples" cannot close before the final phase; §12 splits the gate.
