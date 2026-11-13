@@ -114,7 +114,7 @@ Each gets a row in SECURITY §3.2, its seed in `packages/db/seeds/role-permissio
 | `knowledge.ask` (Ask the Business) | all | all | team | – | – | – | entity | entity | – | entity | – | – | B1 |
 | `agents.note.write` (the Co-pilot's briefs and call summaries) | – | – | – | – | – | – | – | – | – | – | – | Co-pilot entity | A2 |
 
-WhatsApp threads are read under the customer's read rule (`crm.account.read` over the thread's customer, as Account 360), so no read permission is added. Channels are set with `admin.entities.write` and replay with `integrations.dlq.replay`.
+The scope of `knowledge.ask` only opens the screen; what an answer reads comes from the person's own grants and RLS. WhatsApp threads are read under the customer's read rule (`crm.account.read` over the thread's customer, as Account 360), so no read permission is added. Channels are set with `admin.entities.write` and replay with `integrations.dlq.replay`.
 
 **Platform-only grants** (`PLATFORM_ONLY_PERMISSIONS`, `SYSTEM_MATRIX`, SECURITY §3.3), each used only through definers that check it, never a person's `crm.*` or `sales.*` grant (ADR 0020):
 
