@@ -8,6 +8,9 @@ import { PRODUCTION_PROJECT_REF } from './demo-data-target';
 // production project on hosts under `.invalid`, which never resolve, so even a script that tried
 // to connect could reach nothing; it must stop at the guard, before it looks for the Executive.
 const webRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+// On a freshly installed machine the child's first `tsx` start compiles the script and its imports
+// with a cold cache, which took longer than a minute; the test waits a little longer than the child.
+const CHILD_TIMEOUT_MS = 180_000;
 
 function run(env: Record<string, string>) {
   const clean = Object.fromEntries(
@@ -17,7 +20,7 @@ function run(env: Record<string, string>) {
     cwd: webRoot,
     env: { ...clean, ...env } as NodeJS.ProcessEnv,
     encoding: 'utf8',
-    timeout: 60_000,
+    timeout: CHILD_TIMEOUT_MS,
   });
 }
 
@@ -38,5 +41,5 @@ describe('scripts/demo-data.ts', () => {
     expect(result.stdout).not.toMatch(/acting as/);
     // A connection attempt would have failed on the address instead.
     expect(result.stderr).not.toMatch(/ENOTFOUND|getaddrinfo|ECONNREFUSED/);
-  }, 60_000);
+  }, CHILD_TIMEOUT_MS + 30_000);
 });
