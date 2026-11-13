@@ -319,6 +319,31 @@ describe('the pronunciation checklist', () => {
   });
 });
 
+describe('a reply outside Roman script', () => {
+  it('is refused, whether the event carries the script or its escape', async () => {
+    const config = claudeConfig({ ANTHROPIC_API_KEY: 'anthropic-test-key' });
+    if (config === undefined) throw new Error('config expected');
+    const pump = String.fromCodePoint(0x092a, 0x0902, 0x092a);
+    for (const piece of [pump, '\\u092a']) {
+      const model = claudeReplyModel(config, {
+        fetch: () =>
+          Promise.resolve(
+            new Response(
+              stream([
+                `event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Ji, ${piece} stock mein hai."}}\n\n`,
+              ]),
+            ),
+          ),
+        timeoutMs: 1_000,
+      });
+      await expect(model.reply('s', 'u')).rejects.toMatchObject({
+        provider: 'anthropic',
+        vendorCode: 'not_roman_script',
+      });
+    }
+  });
+});
+
 describe('vendor text in errors', () => {
   it('turns a malformed Sarvam frame or Claude event into an error with no cause or text', async () => {
     const config = claudeConfig({ ANTHROPIC_API_KEY: 'anthropic-test-key' });

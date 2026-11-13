@@ -20,7 +20,7 @@ import { newId } from '@shakti/contracts';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { readRecordedTurns, readSetFolder } from '../../src/integrations/voice/benchmark/files';
-import { replayBenchmark } from '../../src/integrations/voice/benchmark/replay';
+import { holdsOtherScript, replayBenchmark } from '../../src/integrations/voice/benchmark/replay';
 import {
   observeTurn,
   pcmChunks,
@@ -257,10 +257,13 @@ if (mode === 'pronunciation') {
       if (saveFolder !== undefined) {
         const [speechToText, speech] = sockets.sessions;
         const [reply] = http.sessions;
-        writeFileSync(
-          join(saveFolder, `${item.id}.json`),
-          `${JSON.stringify({ speechToText, reply, speech }, null, 2)}\n`,
-        );
+        const turn = { speechToText, reply, speech };
+        // Nothing outside Roman script is written to disk (ADR 0014); only the id is printed.
+        if (holdsOtherScript(turn)) {
+          console.error(`${item.id}: not saved, it holds text outside Roman script`);
+        } else {
+          writeFileSync(join(saveFolder, `${item.id}.json`), `${JSON.stringify(turn, null, 2)}\n`);
+        }
       }
     }
     report = scoreBenchmark({

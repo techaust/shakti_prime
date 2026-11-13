@@ -9,6 +9,7 @@ import {
   providerFetch,
   type HttpDeps,
 } from '../http';
+import { romanOnly } from './roman-script';
 import { keyFrom, parseVendorJson } from './vendor-json';
 import { systemClock, type Clock, type ReplyModel, type ReplyUsage } from './ports';
 
@@ -203,6 +204,9 @@ export function claudeReplyModel(
       if (text.trim() === '') {
         throw new ProviderError('anthropic', 'invalid_response', { status: response.status });
       }
+      // The prompt asks for Roman script; a reply in another script is refused here, as a
+      // transcript is in the speech adapter (ADR 0014), so nothing past this point holds it.
+      romanOnly('anthropic', text, response.status);
       return {
         text: text.trim(),
         firstTokenMs: firstTokenMs ?? totalMs,

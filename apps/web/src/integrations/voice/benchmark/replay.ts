@@ -1,6 +1,7 @@
 import { AGENT_DEFAULTS } from '@shakti/domain';
 import { asArray, asObject, asString } from '../../http';
 import { claudeReplyModel, type ClaudeConfig } from '../claude-stream';
+import { isRomanScript } from '../roman-script';
 import { replayFetch, replaySockets, ReplayClock, type RecordedSession } from '../recorded';
 import { sarvamConfig, sarvamStreamingStt, sarvamStreamingTts } from '../sarvam';
 import type { ListenerMark, SpeechPrice } from './measures';
@@ -46,6 +47,29 @@ export function parseRecordedTurn(json: unknown, where: string): RecordedTurn {
     reply: session(raw?.reply, `${where}.reply`),
     speech: session(raw?.speech, `${where}.speech`),
   };
+}
+
+/**
+ * Whether a recorded turn holds text outside Roman script anywhere: in a frame's JSON, or in the
+ * JSON of a server-sent event's `data:` line, where the reply may arrive escaped (`\u0915`).
+ * `--save-replay` refuses to write such a turn, so it can never be committed as a fixture.
+ */
+export function holdsOtherScript(value: unknown): boolean {
+  if (typeof value === 'string') {
+    if (!isRomanScript(value)) return true;
+    return value.split('\n').some((line) => {
+      if (!line.startsWith('data:')) return false;
+      try {
+        return holdsOtherScript(JSON.parse(line.slice(5)) as unknown);
+      } catch {
+        return false;
+      }
+    });
+  }
+  if (Array.isArray(value)) return value.some(holdsOtherScript);
+  if (typeof value === 'object' && value !== null)
+    return Object.values(value).some(holdsOtherScript);
+  return false;
 }
 
 /** The replay's stand-in key: a phrase, never sent anywhere. */

@@ -15,7 +15,7 @@ import {
   stepSummary,
 } from './measures';
 import { normalise, numbersAsDigits } from './normalise';
-import { replayBenchmark } from './replay';
+import { holdsOtherScript, replayBenchmark } from './replay';
 import { parseMarks, parseStandInSet, SARVAM_PRICE } from './stand-in-set';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -163,6 +163,41 @@ describe('reading a set', () => {
     expect(() => parseMarks([{ item: 'q09', listener: 'executive', onTopic: true }], set)).toThrow(
       'marks[0].item',
     );
+  });
+});
+
+describe('text outside Roman script', () => {
+  const pump = String.fromCodePoint(0x092a, 0x0902, 0x092a);
+
+  it('is refused in a reference or a key term, naming the field and not the text', () => {
+    const item = {
+      id: 'q01',
+      file: 'q01.wav',
+      language: 'hindi',
+      speaker: 'team-1',
+      reference: `${pump} ka stock`,
+      keyTerms: [],
+    };
+    const parse = () => parseStandInSet({ name: 's', languageCode: 'hi-IN', items: [item] });
+    expect(parse).toThrow('set.items[0].reference: Roman script is expected');
+    expect(parse).not.toThrow(/stock/);
+    expect(() =>
+      parseStandInSet({
+        name: 's',
+        languageCode: 'hi-IN',
+        items: [{ ...item, reference: 'pump', keyTerms: [{ term: pump, kind: 'product' }] }],
+      }),
+    ).toThrow('set.items[0].keyTerms[0].term');
+  });
+
+  it('is found in a recorded turn, in a frame or escaped in an event', () => {
+    const clean = readRecordedTurns(readSetFolder(FIXTURES).set, join(FIXTURES, 'turns'));
+    for (const turn of clean.values()) expect(holdsOtherScript(turn)).toBe(false);
+    expect(holdsOtherScript({ frames: [{ atMs: 1, data: { transcript: pump } }] })).toBe(true);
+    // The reply's text as the Messages API may send it: JSON with the script escaped.
+    const escaped = 'event: content_block_delta\ndata: {"delta":{"text":"\\u092a"}}\n\n';
+    expect(escaped).not.toMatch(/[^\x20-\x7e\n]/);
+    expect(holdsOtherScript({ frames: [{ atMs: 1, text: escaped }] })).toBe(true);
   });
 });
 

@@ -1,3 +1,4 @@
+import { isRomanScript } from '../roman-script';
 import type { KeyTerm, KeyTermKind, ListenerMark, SpeechPrice } from './measures';
 
 /**
@@ -50,6 +51,13 @@ function text(value: unknown, where: string, max = 1_000): string {
   return value;
 }
 
+/** A text in Roman script, as ADR 0014 asks of every reference and key term. */
+function roman(value: unknown, where: string, max = 1_000): string {
+  const checked = text(value, where, max);
+  if (!isRomanScript(checked)) fail(where, 'Roman script is expected (ADR 0014)');
+  return checked;
+}
+
 function optionalMs(value: unknown, where: string): number | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 600_000) {
@@ -70,7 +78,7 @@ function keyTerm(value: unknown, where: string): KeyTerm {
   const kind = raw.kind;
   if (typeof kind !== 'string' || !KINDS.includes(kind))
     fail(where, `kind is one of ${KINDS.join(', ')}`);
-  return { term: text(raw.term, `${where}.term`, 80), kind: kind as KeyTermKind };
+  return { term: roman(raw.term, `${where}.term`, 80), kind: kind as KeyTermKind };
 }
 
 /** Reads `set.json`; throws naming the first field that is wrong. */
@@ -104,7 +112,7 @@ export function parseStandInSet(json: unknown): StandInSet {
       language: language as SpokenLanguage,
       speaker: text(item.speaker, `${where}.speaker`, 40),
       ...(item.accent === undefined ? {} : { accent: text(item.accent, `${where}.accent`, 40) }),
-      reference: text(item.reference, `${where}.reference`),
+      reference: roman(item.reference, `${where}.reference`),
       keyTerms: item.keyTerms.map((term: unknown, t) =>
         keyTerm(term, `${where}.keyTerms[${String(t)}]`),
       ),
