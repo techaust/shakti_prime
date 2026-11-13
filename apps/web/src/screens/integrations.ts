@@ -50,3 +50,16 @@ export function heldReason(code: string | null): HeldReasonKey {
 /** How often the page asks again while a delivery check is on its way, and for how long. */
 export const CHECK_POLL_MS = 1_000;
 export const CHECK_POLL_TRIES = 20;
+
+/**
+ * Why a message from another system failed, as the page names it (phase 2 design §5.1): the
+ * backbone's own codes, and `other` for a code a provider's handler gives.
+ */
+const WEBHOOK_REASONS = ['payload_unreadable', 'handler_failed', 'too_many_attempts'] as const;
+export type WebhookReasonKey = (typeof WEBHOOK_REASONS)[number] | 'other';
+
+export function webhookReason(code: string): WebhookReasonKey {
+  return (WEBHOOK_REASONS as readonly string[]).includes(code)
+    ? (code as WebhookReasonKey)
+    : 'other';
+}

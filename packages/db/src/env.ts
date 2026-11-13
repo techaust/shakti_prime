@@ -17,7 +17,8 @@ export function requireEnv(
     | 'APP_USER_PASSWORD'
     | 'AUTH_SERVICE_PASSWORD'
     | 'OUTBOX_PUBLISHER_PASSWORD'
-    | 'APP_READER_PASSWORD',
+    | 'APP_READER_PASSWORD'
+    | 'DATABASE_URL_WEBHOOKS',
 ): string {
   const value = process.env[name];
   if (value === undefined || value === '') {
@@ -28,10 +29,16 @@ export function requireEnv(
 
 /**
  * A variable the app runs without: `DATABASE_URL_READER` (the queries then read on `app_user` in a
- * read-only transaction) and `APP_READER_PASSWORD` (the role `app_reader` then has no password).
+ * read-only transaction), `APP_READER_PASSWORD` (the role `app_reader` then has no password),
+ * `DATABASE_URL_WEBHOOKS` (the webhook routes then answer `integration_unavailable`) and
+ * `WEBHOOK_RECEIVER_PASSWORD` (the role `webhook_receiver` then has no password).
  */
 export function optionalEnv(
-  name: 'DATABASE_URL_READER' | 'APP_READER_PASSWORD',
+  name:
+    | 'DATABASE_URL_READER'
+    | 'APP_READER_PASSWORD'
+    | 'DATABASE_URL_WEBHOOKS'
+    | 'WEBHOOK_RECEIVER_PASSWORD',
 ): string | undefined {
   const value = process.env[name];
   return value === undefined || value === '' ? undefined : value;

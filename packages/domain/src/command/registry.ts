@@ -107,6 +107,12 @@ import { setTarget } from '../commands/sales/set-target';
 import { createQuote } from '../commands/sales/create-quote';
 import { expireQuotes } from '../commands/sales/expire-quotes';
 import { anonymiseStaleLeads } from '../commands/crm/anonymise-stale-leads';
+import {
+  claimWebhook,
+  markWebhook,
+  replayWebhook,
+  sweepWebhooks,
+} from '../commands/webhooks/inbox';
 import { releaseCredit } from '../commands/sales/release-credit';
 import { requoteQuote } from '../commands/sales/requote';
 import { sendQuote } from '../commands/sales/send-quote';
@@ -225,6 +231,10 @@ export const commands = Object.freeze({
   [withdrawQuote.name]: withdrawQuote,
   [expireQuotes.name]: expireQuotes,
   [anonymiseStaleLeads.name]: anonymiseStaleLeads,
+  [claimWebhook.name]: claimWebhook,
+  [markWebhook.name]: markWebhook,
+  [sweepWebhooks.name]: sweepWebhooks,
+  [replayWebhook.name]: replayWebhook,
   [attachQuotePdf.name]: attachQuotePdf,
   [acceptQuote.name]: acceptQuote,
   [createSalesOrder.name]: createSalesOrder,

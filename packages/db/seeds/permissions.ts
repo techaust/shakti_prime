@@ -82,6 +82,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.handover.run': 'Give a qualified lead to a Lead Converter',
   'crm.retention.run': 'Remove the personal details of old leads that never went ahead',
   'platform.jobs.check': 'Check that the scheduled upkeep tasks ran',
+  'webhooks.process': 'Handle the messages other systems send in',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

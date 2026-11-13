@@ -107,6 +107,10 @@ export const PERMISSION_KEYS = [
   // The hourly check of the database's scheduled jobs (audit 2026-10, DATA-3): held only by the
   // platform's worker principal, which reads each job's last run through one definer, nothing more.
   'platform.jobs.check',
+  // The webhook worker and its sweep (docs/03-roadmap-appendix/phase2.md §5.1): held only by the
+  // platform's worker principal, which claims, marks and purges `webhook_inbox` rows through narrow
+  // definers, nothing more.
+  'webhooks.process',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -175,6 +179,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'crm.handover.run',
   'crm.retention.run',
   'platform.jobs.check',
+  'webhooks.process',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -316,6 +321,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.handover.run': ['all'],
   'crm.retention.run': ['all'],
   'platform.jobs.check': ['all'],
+  'webhooks.process': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

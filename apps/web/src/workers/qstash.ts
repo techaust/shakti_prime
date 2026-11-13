@@ -42,6 +42,15 @@ export const NOTIFICATION_SCAN_PATH = '/api/v1/workers/notifications/scan';
 /** Where the hourly schedule calls the check of the database's scheduled jobs. */
 export const JOBS_CHECK_PATH = '/api/v1/workers/jobs/check';
 
+/** Where QStash calls the webhook worker with a `WebhookProcessJob` (phase 2 design §5.1). */
+export const WEBHOOK_PROCESS_PATH = '/api/v1/workers/webhooks/process';
+
+/** Where QStash reports a webhook job it gave up on after its last retry. */
+export const WEBHOOK_FAILED_PATH = '/api/v1/workers/webhooks/failed';
+
+/** Where the minute schedule calls the webhook sweep: retention, and waiting rows sent again. */
+export const WEBHOOK_SWEEP_PATH = '/api/v1/workers/webhooks/sweep';
+
 /**
  * Event types whose worker has a route and a body of its own (docs/06-api.md §3.6) instead of the
  * event worker route: the publisher sends each such event to its route as the job it stands for,
@@ -287,6 +296,64 @@ export async function publishImportCommit(
     }),
     QUEUE_TIMEOUT_MS,
   );
+}
+
+/**
+ * How often QStash calls the webhook worker again after a failure; the failure callback then
+ * fails the row (`handler_failed`) so Integration Health lists it for Process again.
+ */
+export const WEBHOOK_PROCESS_RETRIES = 3;
+
+/** A publish from a webhook route waits at most this long: the route answers within 2 seconds. */
+const WEBHOOK_PUBLISH_TIMEOUT_MS = 800;
+
+/**
+ * Asks QStash to process one stored delivery (`WebhookProcessJob`), retried if the worker fails,
+ * with the failure callback, and sent once for a `deduplicationId` already taken: the row's id
+ * when the route publishes it, the id with the attempt it is on when the sweep or Process again
+ * publishes it once more.
+ */
+export async function publishWebhookJob(
+  config: QStashConfig,
+  inboxId: string,
+  deduplicationId: string,
+  timeoutMs: number = WEBHOOK_PUBLISH_TIMEOUT_MS,
+): Promise<void> {
+  await withTimeout(
+    client(config).publishJSON({
+      url: workerUrl(config, WEBHOOK_PROCESS_PATH),
+      body: { inboxId },
+      retries: WEBHOOK_PROCESS_RETRIES,
+      deduplicationId,
+      failureCallback: workerUrl(config, WEBHOOK_FAILED_PATH),
+    }),
+    timeoutMs,
+  );
+}
+
+/**
+ * Publishes many webhook jobs in one batch call (the sweep), each as `publishWebhookJob` would,
+ * within `timeoutMs`; answers, in order, whether QStash took each.
+ */
+export async function publishWebhookJobs(
+  config: QStashConfig,
+  jobs: readonly { inboxId: string; deduplicationId: string }[],
+  timeoutMs: number,
+): Promise<boolean[]> {
+  if (jobs.length === 0) return [];
+  const answers: unknown[] = await withTimeout(
+    client(config).batchJSON(
+      jobs.map((job) => ({
+        url: workerUrl(config, WEBHOOK_PROCESS_PATH),
+        body: { inboxId: job.inboxId },
+        retries: WEBHOOK_PROCESS_RETRIES,
+        deduplicationId: job.deduplicationId,
+        failureCallback: workerUrl(config, WEBHOOK_FAILED_PATH),
+      })),
+    ),
+    timeoutMs,
+  );
+  return jobs.map((job, i) => resultOf(job.inboxId, answers[i]).ok);
 }
 
 /**
