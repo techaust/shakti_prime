@@ -1,4 +1,7 @@
-import { register } from 'node:module';
+import { readFileSync } from 'node:fs';
+// eslint-disable-next-line no-restricted-syntax -- registerHooks only, to load the catalogue; no require() is built
+import { registerHooks } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { crc32, deflateSync } from 'node:zlib';
 import type { PrintImage } from '../../src/print/company';
 import { spikeCompany, spikeQuote } from '../../src/print/fixtures/spike-documents';
@@ -9,30 +12,32 @@ import { solidPng } from './png';
 // the renderer the render worker uses (`src/workers/pdf/render-job.ts`), so the PDF's footer and
 // its page break are compared, which the HTML snapshots of `print.spec.ts` cannot show.
 
+/** The message catalogue the print module imports (`src/print/copy.ts`). */
+const CATALOGUE = new URL('../../messages/en.json', import.meta.url).href;
+
 /**
- * The print module reads the message catalogue through a plain JSON import, which Node refuses in
- * the Playwright runner without an import attribute (`next build`, vitest and tsx accept it). This
- * load step serves such a JSON file as a module whose default export is its content, as those
- * tools do; an import that names its type keeps Node's own handling. It is registered by the first
- * call below, before the print module is imported, in the worker that prints.
+ * `src/print/copy.ts` imports the message catalogue as plain JSON, which Node refuses in the
+ * Playwright runner without an import attribute (`next build`, vitest and tsx accept it). This
+ * load step serves that one file as a module whose default export is its content, as those tools
+ * do; every other file loads as before. It is registered by the first call below, before the
+ * print module is imported, in the worker that prints.
  */
-const JSON_AS_MODULE = `
-import { readFile } from 'node:fs/promises';
-export async function load(url, context, next) {
-  if (url.startsWith('file:') && url.endsWith('.json') && context.importAttributes?.type === undefined) {
-    const text = await readFile(new URL(url), 'utf8');
-    return { format: 'module', source: 'export default ' + text + ';', shortCircuit: true };
-  }
-  return next(url, context);
-}`;
-let jsonModules = false;
+let catalogueAsModule = false;
+function loadCatalogueAsModule(): void {
+  if (catalogueAsModule) return;
+  registerHooks({
+    load(url, context, nextLoad) {
+      if (url !== CATALOGUE) return nextLoad(url, context);
+      const text = readFileSync(fileURLToPath(url), 'utf8');
+      return { format: 'module', source: `export default ${text};`, shortCircuit: true };
+    },
+  });
+  catalogueAsModule = true;
+}
 
 /** The print module's template and renderer, imported once the JSON step is in place. */
 async function printModule() {
-  if (!jsonModules) {
-    register(`data:text/javascript,${encodeURIComponent(JSON_AS_MODULE)}`);
-    jsonModules = true;
-  }
+  loadCatalogueAsModule();
   const [template, renderer] = await Promise.all([
     import('../../src/print/quote-template'),
     import('../../src/print/renderer'),
