@@ -7,8 +7,8 @@
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | build Opus 5.5 high, 5-hour window 11 % at the start |
-| State | early check |
-| Next step | the lead reads the early check |
+| State | done |
+| Next step | the lead reviews and integrates |
 
 ## Brief
 Read first:
@@ -64,6 +64,42 @@ Skills loaded: `add-table`, `add-command`. Everything below is committed and pus
 7. Production has no DND register until the final phase (question 13): the runtime will use `unavailableDndRegistry()` there, so a promotional dial with a stale check is refused; dev and staging the fixture. To be wired with the screens.
 
 **For the lead:** DATABASE §6.1 cites the table as Built (0160): renumber with the migrations. Two tests of `main` change with the new platform-only key (`caller-profiles.test.ts` length 11, `crm-scoring-referrals.test.ts` exception list); P5 and K2 add keys there too.
+
+### Full report, 13-11-2026, cloud session
+The early check above stands; the lead accepted its seven decisions, now in design §5.2 "Built (E1)". Skills loaded: `add-table`, `add-command`.
+
+**Built after the early check:**
+- **Runtime DND register** `apps/web/src/integrations/dnd/registry.ts`: the fixture register on a developer's machine, in tests, CI and the journeys' local production run, and on `BOS_ENVIRONMENT` `dev` and `staging`; `unavailableDndRegistry()` on production and on any hosted runtime that names no known environment (fails closed; question 13). No new variable.
+- **Call plan** (`planCall` in `apps/web/src/actions/calling.ts`): facts read as the caller (`executeQuery`, name `planCall`), `prepareDial` with the runtime register, a stale check recorded by `system:workers` (`crm.phone.dnd_record`) in a command of its own for the lead's company. `DialPlanInput.contactPhoneId` is optional: without it the plan is of the customer's main number (the owner contact's primary phone, as `dialNumber` reads it; `dial_number_missing` otherwise).
+- **Workspaces:** `apps/web/src/components/calling/call-plan.tsx` in the Cold Caller workspace (under the number) and the Converting calls panel: service or sales call and why, the company's 140 or 160 number, the DND check's date for a sales call, and every broken rule in plain words (`calling.plan.*`). No Dial key (T3).
+- **Settings › Companies › Numbers** (`components/companies/channels-dialog.tsx`, loaded on demand from a Numbers button per company; actions `listEntityChannels`, `setEntityChannel`, `archiveEntityChannel` in `actions/org.ts`): the five channels with the number or Not set, Checked and working or Not checked yet, and for a 140 or 160 channel whose number is not of its series: "This is not a 140-series number, so every sales call on it will be refused. Enter the 140-series number." (`EntityChannelDto.inSeries`, computed by `numberSeries` in the domain). Add, Change (number, service reference, DLT header for calling numbers, "I have checked that this number works") and Take out of use.
+- **Journeys** `apps/web/e2e/channels.spec.ts` (axe at each step): the Executive sets RCREF's sales number out of series, sees the warning, changes it to a 140-series number marked checked, then takes it out of use (desktop-light only, so two browsers never edit one company); the tele-caller's plan of a new lead in hours (sales call, company 1's seeded 140 number, DND checked, every rule met) and after hours (the hours rule). The seed sets company 1's synthetic 140 and 160 numbers through `org.channel.set` (`CALLING_NUMBERS` in `e2e/support/users.ts`).
+- **Documents:** design §5.2 "Built (E1)" with the seven decisions; DATABASE §6.1 (`entity_channels`, `contact_phones` DND write rule) and §4.1's definer table (`app.dial_facts()`, `app.record_phone_dnd()`); SECURITY §3.1 to §3.3 (`crm.dnd.record`); the telecom document `docs/04-architecture-appendix/exotel.md`; workshop pack LAW-4 ("Today": numbers entered on the screen, DND fresh for 7 days); `pnpm db:docs` and `machines:docs` (`calling.dndFreshDays`) regenerated.
+- **Fixes on the way:** the purpose decision's key is `why`, not `reason` (`errors-catalogue.test.ts` reads every `reason: '…'` as an error reason); the activity log's channel names live in `activity.values.channelKind`, so `/admin` sends no new namespace (`client-namespaces.test.ts`); the Numbers dialog's buttons are named from their visible text (axe `label-content-name-mismatch`); `workshop-defaults.test.ts` holds `dndFreshDays: 7`.
+
+**Tests added since the early check:** `apps/web/src/integrations/dnd/registry.test.ts` (3); `e2e/channels.spec.ts` (3 journeys, the first in one project: 7 runs); `dial-rules.test.ts` asserts the main-number default. In all: unit 3 + 14 + 2 + 4 + 3, security-suite files `entity-channels.test.ts` (9) and `dial-rules.test.ts` (17), reader parity +2 reads, agent sweep +3 inputs.
+
+**Checks (last run of each, on 4ae2f1f):**
+- `bash tools/integration/heavy.sh pnpm test:security` on the local Postgres: db 46 files, 1285 tests; domain 79 files, 1064; web 26 files, 342; 4 of 4 tasks.
+- `pnpm typecheck`: 8 of 8 tasks. `pnpm test` (unit): every workspace passes (domain 88 files, 2377 tests; web 129 files, 973 passed, 1 skipped; contracts 20, db 12, ui 11, tokens 3, copy-lint 1 files) after the three fixes above; the run before them failed `workshop-defaults.test.ts`, `errors-catalogue.test.ts` and `client-namespaces.test.ts`.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within its budget (46 pages); `/settings/companies` 223.7 of 235, `/converting` 201.7 of 213, `/calling` 199.0 of 206 (KiB compressed).
+- Journeys `channels`, `calling`, `converting`, `admin` (three projects, built app, seeded): 39 passed, 2 skipped (the Executive's channel journey outside desktop-light), 18 failed, every one a screenshot comparison: `companies`, `calling` and `converting-board` change with this slice (the Numbers button, the call plan), and `team-members`, `activity-log` and `design`, which E1 does not touch, fail the same way, since this VM is not the pinned Linux Playwright image. Every behaviour and axe assertion passed.
+- `pnpm copy-lint`: clean. `bash tools/integration/heavy.sh pnpm lint` (whole repository, the last check): clean.
+- `python3 tools/integration/check-doc-links.py`: three `PATH` findings to `.claude/settings.local.json` that exist on `main` (the file is the PC's), and `ORPHAN docs/runs/phase2/e1-channels.md` (no document links the Phase 2 run files yet).
+
+**EXPLAIN:** as in the early check; the channel list and `app.dial_facts()` are the only new reads.
+
+**Not done, or for the lead:**
+- Linux screenshot baselines for `companies`, `calling` and `converting-board` (all three projects), to be made in the Playwright image at integration.
+- DATABASE cites the migrations as 0160 and 0161, and the Built record too: renumber with the migrations.
+- The run file is not yet in the Phase 2 run files' list (the link check's orphan).
+- `app.platform_only_permissions()` here is 0142's ten keys plus `crm.dnd.record`; P5's and K2's keys join it at integration, with `caller-profiles.test.ts`'s length and list.
+- The workspaces' plan looks a stale DND check up when a lead opens (a server action, so a prefetch never triggers it); T3's dial should call `prepareDial` again at the dial itself.
+
+**Decisions taken after the early check:**
+8. Settings › Companies › Channels is a Numbers dialog per company, as Branding and Bank account are, not a page of its own; it needs `admin.entities.write:all`, as the page does.
+9. The workspaces plan the call to the customer's main number, the one `D` shows; another of the customer's phones waits for T3's dial.
+10. The call plan says when the DND list was checked only for a sales call; a service call never asks it.
 
 ## Review
 | # | Severity | Finding | State |
