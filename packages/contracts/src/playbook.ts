@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from './ids';
+import { KNOWLEDGE_EMBEDDING_DIMENSIONS } from './knowledge';
 
 // The Business Playbook (docs/03-roadmap-appendix/phase2.md §5.4, BLUEPRINT §9.1, PRD AI-01): typed
 // directives an Executive approves before they steer any agent, each linked to its source, and the
@@ -158,3 +159,47 @@ export const PlaybookConflictCheckDto = z
   })
   .strict();
 export type PlaybookConflictCheckDto = z.infer<typeof PlaybookConflictCheckDto>;
+
+/** One pair the conflict check labelled; `label` null when the model could not label it. */
+export const PlaybookCheckPairInput = z
+  .object({
+    otherId: IdSchema,
+    distance: z.number().min(0).max(2),
+    label: PlaybookConflictLabelSchema.nullable(),
+    reason: z.string().trim().min(1).max(300).nullable(),
+  })
+  .strict()
+  .refine((p) => (p.label === null) === (p.reason === null), {
+    path: ['reason'],
+    message: 'a label comes with its reason',
+  });
+
+/** The most candidates one check may record (`AGENT_DEFAULTS.playbook.candidatesPerCheck` or fewer). */
+export const PLAYBOOK_MAX_CANDIDATES = 20;
+
+/**
+ * `knowledge.playbook.record_check` (the conflict check, `knowledge.playbook.check`): a draft's
+ * embedding and the labelled pairs, for the wording whose SHA-256 is `textSha256`. `entityId` is
+ * the company the worker acts in.
+ */
+export const RecordPlaybookCheckInput = z
+  .object({
+    entityId: EntityIdSchema,
+    directiveId: IdSchema,
+    textSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    embedding: z.array(z.number()).length(KNOWLEDGE_EMBEDDING_DIMENSIONS),
+    pairs: z.array(PlaybookCheckPairInput).max(PLAYBOOK_MAX_CANDIDATES),
+  })
+  .strict();
+export type RecordPlaybookCheckInput = z.input<typeof RecordPlaybookCheckInput>;
+
+/** What the record came to: `skipped` when the draft changed or was decided meanwhile. */
+export const PlaybookCheckRecordDto = z
+  .object({
+    directiveId: IdSchema,
+    skipped: z.boolean(),
+    pairs: z.number().int().min(0),
+    open: z.number().int().min(0),
+  })
+  .strict();
+export type PlaybookCheckRecordDto = z.infer<typeof PlaybookCheckRecordDto>;

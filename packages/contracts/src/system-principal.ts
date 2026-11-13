@@ -47,5 +47,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The check of the database's scheduled jobs (`jobs-check`): it reads each job's last run and
     // error through one definer, and nothing of any company.
     { key: 'platform.jobs.check', scope: 'all' },
+    // The Playbook's conflict check (`knowledge.playbook.record_check`): it reads a draft and the
+    // approved directives near it and records the labelled pairs through three definers, and
+    // reads no directive by audience.
+    { key: 'knowledge.playbook.check', scope: 'all' },
   ],
 };

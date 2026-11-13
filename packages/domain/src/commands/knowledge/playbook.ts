@@ -10,7 +10,7 @@ import {
   RetirePlaybookDirectiveInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { requireEntity } from '../crm/opportunity-shared';
 import {
@@ -20,6 +20,7 @@ import {
   firePlaybookDirective,
   lockPlaybookDirective,
   openConflicts,
+  openLabel,
   playbookChangedPayload,
   playbookConflictCheckDto,
   playbookDirectiveDto,
@@ -281,13 +282,7 @@ export const retirePlaybookDirective = defineCommand({
       const settled = await ctx.tx
         .update(c)
         .set({ resolution: 'other_retired', resolvedBy: ctx.principal.id, resolvedAt: ctx.now })
-        .where(
-          and(
-            eq(c.otherId, row.id),
-            inArray(c.label, ['conflict', 'overlap']),
-            isNull(c.resolvedAt),
-          ),
-        )
+        .where(and(eq(c.otherId, row.id), openLabel(c.label), isNull(c.resolvedAt)))
         .returning({ id: c.id });
       conflictsSettled = settled.length;
       await ctx.tx
@@ -347,7 +342,7 @@ export const resolvePlaybookConflict = defineCommand({
       .where(eq(c.id, input.checkId))
       .limit(1)
       .for('update');
-    if (check === undefined || (check.label !== 'conflict' && check.label !== 'overlap')) {
+    if (check === undefined || check.label === 'none') {
       throw new DomainError('not_found', `conflict ${input.checkId} is not open`, {
         reason: 'playbook_conflict_missing',
       });

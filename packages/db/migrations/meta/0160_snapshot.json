@@ -10188,7 +10188,7 @@
         },
         "playbook_conflict_checks_resolved_check": {
           "name": "playbook_conflict_checks_resolved_check",
-          "value": "(\"playbook_conflict_checks\".\"resolution\" is null) = (\"playbook_conflict_checks\".\"resolved_at\" is null) and (\"playbook_conflict_checks\".\"resolved_at\" is null) = (\"playbook_conflict_checks\".\"resolved_by\" is null) and (\"playbook_conflict_checks\".\"resolution\" is null or (\"playbook_conflict_checks\".\"label\" is not null and \"playbook_conflict_checks\".\"label\" <> 'none'))"
+          "value": "(\"playbook_conflict_checks\".\"resolution\" is null) = (\"playbook_conflict_checks\".\"resolved_at\" is null) and (\"playbook_conflict_checks\".\"resolved_at\" is null) = (\"playbook_conflict_checks\".\"resolved_by\" is null) and (\"playbook_conflict_checks\".\"resolution\" is null or coalesce(\"playbook_conflict_checks\".\"label\", '') <> 'none')"
         },
         "playbook_conflict_checks_note_check": {
           "name": "playbook_conflict_checks_note_check",

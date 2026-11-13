@@ -83,6 +83,7 @@ import {
   resolvePlaybookConflict,
   retirePlaybookDirective,
 } from '../commands/knowledge/playbook';
+import { recordPlaybookCheck } from '../commands/knowledge/playbook-check';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
 import { failImportJob } from '../commands/imports/fail-job';
@@ -257,6 +258,7 @@ export const commands = Object.freeze({
   [approvePlaybookDirective.name]: approvePlaybookDirective,
   [retirePlaybookDirective.name]: retirePlaybookDirective,
   [resolvePlaybookConflict.name]: resolvePlaybookConflict,
+  [recordPlaybookCheck.name]: recordPlaybookCheck,
   [completeInboxItem.name]: completeInboxItem,
   [routeEnquiry.name]: routeEnquiry,
   [takeEnquiry.name]: takeEnquiry,

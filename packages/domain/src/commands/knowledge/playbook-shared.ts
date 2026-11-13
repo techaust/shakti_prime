@@ -9,7 +9,7 @@ import {
   type Principal,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, or, sql, type SQL, type Column } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { transition } from '../../state-machines/define-machine';
 import {
@@ -21,6 +21,14 @@ import {
 
 export type PlaybookDirectiveRow = typeof schema.playbookDirectives.$inferSelect;
 export type PlaybookConflictCheckRow = typeof schema.playbookConflictChecks.$inferSelect;
+
+/**
+ * A pair that blocks approval until resolved: labelled `conflict` or `overlap`, or not labelled
+ * at all (the model could not label it), which a person then decides.
+ */
+export function openLabel(label: Column): SQL {
+  return sql`coalesce(${label}, '') <> 'none'`;
+}
 
 /** The directive as the Playbook screen and the commands answer it; never its embedding. */
 export function playbookDirectiveDto(row: PlaybookDirectiveRow): PlaybookDirectiveDto {
@@ -169,8 +177,8 @@ export async function checkIsFresh(
 }
 
 /**
- * The approved directives still in conflict or overlap with `row`: every unresolved conflict or
- * overlap its check found, and every id `conflicts_with` names, except those the caller sees
+ * The approved directives still in conflict or overlap with `row`: every unresolved pair its check
+ * found that is not labelled `none`, and every id `conflicts_with` names, except those the caller sees
  * retired. A pair the caller cannot see is counted as open, so a narrower view never approves
  * past a conflict.
  */
@@ -183,13 +191,7 @@ export async function openConflicts(
   const checks = await ctx.tx
     .select({ otherId: c.otherId })
     .from(c)
-    .where(
-      and(
-        eq(c.directiveId, row.id),
-        inArray(c.label, ['conflict', 'overlap']),
-        isNull(c.resolvedAt),
-      ),
-    );
+    .where(and(eq(c.directiveId, row.id), openLabel(c.label), isNull(c.resolvedAt)));
   const ids = [...new Set([...row.conflictsWith, ...checks.map((r) => r.otherId)])];
   if (ids.length === 0) return [];
   const retired = await ctx.tx

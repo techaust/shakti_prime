@@ -601,4 +601,7 @@ export {
   PLAYBOOK_VERSION_KEY,
   playbookVersion,
 } from './knowledge/playbook-version';
+export { checkPlaybook, parseLabel } from './knowledge/playbook-check';
+export type { PlaybookCheckDeps, PlaybookCheckOutcome } from './knowledge/playbook-check';
+export { recordPlaybookCheck } from './commands/knowledge/playbook-check';
 export { checkZipArchive } from './imports/zip-guard';

@@ -1633,7 +1633,8 @@
       "playbookEdit": "Playbook rule edited",
       "playbookApprove": "Playbook rule approved",
       "playbookRetire": "Playbook rule retired",
-      "playbookResolveConflict": "Playbook clash settled"
+      "playbookResolveConflict": "Playbook clash settled",
+      "playbookCheckRecorded": "Playbook rule checked against the approved rules"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1935,7 +1936,9 @@
       "retiredReason": "Why it was retired",
       "conflictsSettled": "Clashes settled",
       "resolution": "How the clash was settled",
-      "resolutionNote": "Note on the clash"
+      "resolutionNote": "Note on the clash",
+      "pairs": "Approved rules compared",
+      "openConflicts": "Clashes left to settle"
     },
     "values": {
       "percent": "{value}%",
@@ -3281,7 +3284,8 @@
       "notifications_send": "Send notices to the people who act on them",
       "crm_handover_run": "Give a qualified lead to a Lead Converter",
       "crm_retention_run": "Remove the personal details of old leads that never went ahead",
-      "platform_jobs_check": "Check that the scheduled upkeep tasks ran"
+      "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
+      "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance"
     },
     "empty": "There are no roles to show.",
     "locked": {

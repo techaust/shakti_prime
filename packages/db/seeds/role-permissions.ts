@@ -302,6 +302,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // (SECURITY §3.3).
   'crm.retention.run': {},
   'platform.jobs.check': {},
+  // The platform's conflict check of Playbook directives; no person's role holds it (SECURITY §3.3).
+  'knowledge.playbook.check': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

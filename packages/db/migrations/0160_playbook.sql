@@ -17,7 +17,7 @@ CREATE TABLE "playbook_conflict_checks" (
 	CONSTRAINT "playbook_conflict_checks_pair_check" CHECK ("playbook_conflict_checks"."directive_id" <> "playbook_conflict_checks"."other_id"),
 	CONSTRAINT "playbook_conflict_checks_distance_check" CHECK ("playbook_conflict_checks"."distance" between 0 and 2),
 	CONSTRAINT "playbook_conflict_checks_reason_check" CHECK (("playbook_conflict_checks"."label" is null) = ("playbook_conflict_checks"."reason" is null) and char_length("playbook_conflict_checks"."reason") between 1 and 300),
-	CONSTRAINT "playbook_conflict_checks_resolved_check" CHECK (("playbook_conflict_checks"."resolution" is null) = ("playbook_conflict_checks"."resolved_at" is null) and ("playbook_conflict_checks"."resolved_at" is null) = ("playbook_conflict_checks"."resolved_by" is null) and ("playbook_conflict_checks"."resolution" is null or ("playbook_conflict_checks"."label" is not null and "playbook_conflict_checks"."label" <> 'none'))),
+	CONSTRAINT "playbook_conflict_checks_resolved_check" CHECK (("playbook_conflict_checks"."resolution" is null) = ("playbook_conflict_checks"."resolved_at" is null) and ("playbook_conflict_checks"."resolved_at" is null) = ("playbook_conflict_checks"."resolved_by" is null) and ("playbook_conflict_checks"."resolution" is null or coalesce("playbook_conflict_checks"."label", '') <> 'none')),
 	CONSTRAINT "playbook_conflict_checks_note_check" CHECK ("playbook_conflict_checks"."resolution_note" is null or (char_length("playbook_conflict_checks"."resolution_note") between 1 and 300 and "playbook_conflict_checks"."resolution" is not null))
 );
 --> statement-breakpoint

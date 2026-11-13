@@ -182,8 +182,9 @@ export const playbookDirectives = pgTable(
 /**
  * One pair the conflict check compared (docs/03-roadmap-appendix/phase2.md §5.4): a draft and an
  * approved directive of the same type whose companies overlap and whose embeddings are close,
- * with the label the model gave (null while it is still to be labelled) and its short reason. An
- * Executive resolves a `conflict` or `overlap` as not a conflict, with a note, or by retiring the
+ * with the label the model gave and its short reason; a null label is a pair the model could not
+ * label (no key, or an answer that could not be read), which counts as open like a `conflict` or an
+ * `overlap`. An Executive resolves an open pair as not a conflict, with a note, or by retiring the
  * other directive. `entity_id` is the draft's. Written by the check's definer; a person changes
  * only the resolution.
  */
@@ -222,10 +223,10 @@ export const playbookConflictChecks = pgTable(
       'playbook_conflict_checks_reason_check',
       sql`(${t.label} is null) = (${t.reason} is null) and char_length(${t.reason}) between 1 and 300`,
     ),
-    // A resolution names who resolved it and when, and only a conflict or an overlap has one.
+    // A resolution names who resolved it and when; a pair labelled `none` has none.
     check(
       'playbook_conflict_checks_resolved_check',
-      sql`(${t.resolution} is null) = (${t.resolvedAt} is null) and (${t.resolvedAt} is null) = (${t.resolvedBy} is null) and (${t.resolution} is null or (${t.label} is not null and ${t.label} <> 'none'))`,
+      sql`(${t.resolution} is null) = (${t.resolvedAt} is null) and (${t.resolvedAt} is null) = (${t.resolvedBy} is null) and (${t.resolution} is null or coalesce(${t.label}, '') <> 'none')`,
     ),
     check(
       'playbook_conflict_checks_note_check',

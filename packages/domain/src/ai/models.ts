@@ -17,6 +17,8 @@ export const DEFAULT_EMBEDDING_MODEL = 'voyage-3.5';
  */
 export const MODEL_CONTEXT_TOKENS: Readonly<Record<string, number>> = {
   'claude-haiku-4-5-20251001': 200_000,
+  'claude-haiku-5-5': 1_000_000,
+  'claude-sonnet-5-5': 1_000_000,
 };
 
 export type { ModelPrice };

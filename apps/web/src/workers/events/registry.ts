@@ -1,6 +1,12 @@
 import type { DeliveredEvent, EventType, Principal } from '@shakti/contracts';
-import { bumpPlaybookVersion, indexKnowledgeFile, type KeyValue } from '@shakti/domain';
+import {
+  bumpPlaybookVersion,
+  checkPlaybook,
+  indexKnowledgeFile,
+  type KeyValue,
+} from '@shakti/domain';
 import { hostedRuntime } from '../../auth/deps';
+import { aiProvider } from '../../integrations/ai';
 import { requireFileStore } from '../../files/uploads';
 import { handleFileUploaded } from '../files/handle-file-uploaded';
 import { indexJobOf } from '../knowledge/job';
@@ -98,12 +104,19 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
     },
   },
   // A Playbook directive changed (docs/03-roadmap-appendix/phase2.md §5.4): a new version id, so
-  // the agents and Ask read the approved directives again. Every event bumps it; a repeat only
-  // bumps it once more, which costs one reread.
+  // the agents and Ask read the approved directives again, then the conflict check of the draft
+  // whose wording is new, or of the drafts an approval made stale. A repeat bumps the version once
+  // more and checks only what is still unchecked.
   'knowledge.playbook.changed': {
     ordering: 'every',
-    handle: async (_event, ctx) => {
+    handle: async (event, ctx) => {
       await bumpPlaybookVersion(ctx.keyValue);
+      await checkPlaybook(event, {
+        principal: ctx.principal,
+        provider: aiProvider(),
+        requestId: ctx.requestId,
+        hosted: hostedRuntime(),
+      });
     },
   },
   // A lead that reached Qualified goes to a Lead Converter, or to the Sales Team Lead when none
