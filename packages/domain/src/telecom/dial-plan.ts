@@ -63,7 +63,7 @@ export function dndIsFresh(
 
 /** The plan for a known DND state. */
 export function planDial(facts: DialFacts, at: Date, dnd: DndState): DialPlan {
-  const { purpose, reason } = callPurpose(facts);
+  const { purpose, why } = callPurpose(facts);
   const callerId = purpose === 'service' ? facts.serviceNumber : facts.promoNumber;
   const decision = checkDial({
     at,
@@ -76,7 +76,7 @@ export function planDial(facts: DialFacts, at: Date, dnd: DndState): DialPlan {
   });
   return {
     purpose,
-    purposeReason: reason,
+    purposeReason: why,
     callerId,
     series: callerId === null ? null : numberSeries(callerId),
     dnd,

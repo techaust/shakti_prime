@@ -2008,7 +2008,14 @@
         "handover_kit": "Handover kit",
         "company_letterhead_proof": "Proof page of the letterhead"
       },
-      "listSeparator": ", "
+      "listSeparator": ", ",
+      "channelKind": {
+        "whatsapp": "WhatsApp number",
+        "call_promo_140": "Sales calls number (140 series)",
+        "call_service_160": "Service calls number (160 series)",
+        "ivr": "Incoming calls number",
+        "missed_call": "Missed-call number"
+      }
     }
   },
   "print": {

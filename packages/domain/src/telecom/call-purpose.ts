@@ -46,16 +46,17 @@ export type PurposeReason =
 
 export interface PurposeDecision {
   purpose: CallPurpose;
-  reason: PurposeReason;
+  /** Named `why`, not `reason`: it is not an error reason (errors-catalogue.test.ts). */
+  why: PurposeReason;
 }
 
 /** The call's purpose and why. An order outranks a callback, which outranks an enquiry. */
 export function callPurpose(facts: PurposeFacts): PurposeDecision {
-  if (!facts.hasServiceConsent) return { purpose: 'promotional', reason: 'promotional_no_consent' };
-  if (facts.hasOrder) return { purpose: 'service', reason: 'service_order' };
-  if (facts.hasOpenCallback) return { purpose: 'service', reason: 'service_callback' };
+  if (!facts.hasServiceConsent) return { purpose: 'promotional', why: 'promotional_no_consent' };
+  if (facts.hasOrder) return { purpose: 'service', why: 'service_order' };
+  if (facts.hasOpenCallback) return { purpose: 'service', why: 'service_callback' };
   if (facts.sourceChannel !== null && CUSTOMER_REQUEST_CHANNELS.includes(facts.sourceChannel)) {
-    return { purpose: 'service', reason: 'service_enquiry' };
+    return { purpose: 'service', why: 'service_enquiry' };
   }
-  return { purpose: 'promotional', reason: 'promotional_not_requested' };
+  return { purpose: 'promotional', why: 'promotional_not_requested' };
 }

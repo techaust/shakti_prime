@@ -289,6 +289,11 @@ describe('the dial rules through app.dial_facts() (PRD TEL-04, CRM-10)', () => {
 
   it('sends a consented enquiry out as a service call on the 160 number', async () => {
     const lead = await leadOf({ source: 'website', consent: true });
+    // Without a phone, the plan is of the customer's main number, as the workspaces dial it.
+    const facts = await asPrincipal(caller, (ctx) =>
+      dialFacts(ctx, { entityId: ENTITY, opportunityId: lead.id }),
+    );
+    expect(facts.contactPhoneId).toBe(lead.phoneId);
     expect(await plan(lead)).toMatchObject({
       purpose: 'service',
       purposeReason: 'service_enquiry',

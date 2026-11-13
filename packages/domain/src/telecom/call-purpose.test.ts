@@ -18,7 +18,7 @@ describe('callPurpose (BLUEPRINT §7.7, design phase2 §5.2)', () => {
     ]) {
       expect(callPurpose(facts)).toEqual({
         purpose: 'promotional',
-        reason: 'promotional_no_consent',
+        why: 'promotional_no_consent',
       });
     }
   });
@@ -27,16 +27,16 @@ describe('callPurpose (BLUEPRINT §7.7, design phase2 §5.2)', () => {
     const consented = { ...cold, hasServiceConsent: true };
     expect(callPurpose({ ...consented, hasOrder: true, hasOpenCallback: true })).toEqual({
       purpose: 'service',
-      reason: 'service_order',
+      why: 'service_order',
     });
     expect(callPurpose({ ...consented, hasOpenCallback: true })).toEqual({
       purpose: 'service',
-      reason: 'service_callback',
+      why: 'service_callback',
     });
     for (const channel of CUSTOMER_REQUEST_CHANNELS) {
       expect(callPurpose({ ...consented, sourceChannel: channel })).toEqual({
         purpose: 'service',
-        reason: 'service_enquiry',
+        why: 'service_enquiry',
       });
     }
   });
@@ -45,7 +45,7 @@ describe('callPurpose (BLUEPRINT §7.7, design phase2 §5.2)', () => {
     for (const sourceChannel of ['referral', 'import', 'manual', null] as const) {
       expect(callPurpose({ ...cold, hasServiceConsent: true, sourceChannel })).toEqual({
         purpose: 'promotional',
-        reason: 'promotional_not_requested',
+        why: 'promotional_not_requested',
       });
     }
   });

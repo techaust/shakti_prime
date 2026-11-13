@@ -400,7 +400,6 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const agents = useTranslations('agents');
   const knowledge = useTranslations('knowledge');
   const targets = useTranslations('targets');
-  const companies = useTranslations('companies');
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -478,7 +477,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
           : wordsOf(value);
       case 'channelKind':
         return oneOf(ENTITY_CHANNEL_KINDS, value)
-          ? companies(`channels.kind.${value}`)
+          ? t(`values.channelKind.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)
