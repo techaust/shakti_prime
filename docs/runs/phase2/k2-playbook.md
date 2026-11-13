@@ -7,8 +7,8 @@
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | build Opus 5.5 high, 5-hour window 11 % at the start |
-| State | integrated on the PC (13-11-2026); pull request open |
-| Next step | the owner's `checks-ok` (`js-budget.json`), the merge, then dev and staging migrated (0165 to 0167) |
+| State | merged (#245) on 13-11-2026; dev and staging migrated |
+| Next step | none |
 
 ## Brief
 Read first:
