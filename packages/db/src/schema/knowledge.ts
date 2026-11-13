@@ -156,7 +156,7 @@ export const playbookDirectives = pgTable(
     ),
     check(
       'playbook_directives_retired_check',
-      sql`(${t.state} = 'retired') = (${t.retiredAt} is not null) and (${t.retiredAt} is null) = (${t.retiredReason} is null) and char_length(${t.retiredReason}) between 1 and 300`,
+      sql`(${t.state} <> 'retired') = (${t.retiredAt} is null) and (${t.retiredAt} is null) = (${t.retiredReason} is null) and char_length(${t.retiredReason}) between 1 and 300`,
     ),
     // An approved directive passed the conflict check with nothing left open.
     check(
@@ -219,7 +219,7 @@ export const playbookConflictChecks = pgTable(
     // A resolution names who resolved it and when, and only a conflict or an overlap has one.
     check(
       'playbook_conflict_checks_resolved_check',
-      sql`(${t.resolution} is null) = (${t.resolvedAt} is null) and (${t.resolvedAt} is null) = (${t.resolvedBy} is null) and (${t.resolution} is null or ${t.label} in ('conflict', 'overlap'))`,
+      sql`(${t.resolution} is null) = (${t.resolvedAt} is null) and (${t.resolvedAt} is null) = (${t.resolvedBy} is null) and (${t.resolution} is null or (${t.label} is not null and ${t.label} <> 'none'))`,
     ),
     check(
       'playbook_conflict_checks_note_check',

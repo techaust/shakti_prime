@@ -226,6 +226,31 @@ const INPUTS: Record<string, unknown> = {
     oldestUnpaidInvoiceNo: null,
     asOf: '2026-04-01',
   },
+  // The Playbook (docs/03-roadmap-appendix/phase2.md §5.4): drafting and approving directives are
+  // people's; no agent holds either grant.
+  'knowledge.playbook.draft': {
+    entityId: 1,
+    type: 'faq',
+    audience: 'staff',
+    title: 'Refused rule',
+    text: 'Refused rule text',
+  },
+  'knowledge.playbook.edit': {
+    entityId: 1,
+    directiveId: newId(),
+    type: 'faq',
+    audience: 'staff',
+    title: 'Refused rule',
+    text: 'Refused rule text',
+  },
+  'knowledge.playbook.approve': { entityId: 1, directiveId: newId() },
+  'knowledge.playbook.retire': { entityId: 1, directiveId: newId(), reason: 'Refused retire' },
+  'knowledge.playbook.resolve_conflict': {
+    entityId: 1,
+    checkId: newId(),
+    resolution: 'not_a_conflict',
+    note: 'Refused note',
+  },
   // Targets are what people are held to: a person sets them, never an agent.
   'sales.target.set': {
     entityId: 1,
@@ -326,6 +351,15 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   },
   'sales.order.confirm': { entityId: 1, orderId: newId() },
   'sales.order.cancel': { entityId: 1, orderId: newId(), reason: 'Refused cancel' },
+  ...Object.fromEntries(
+    [
+      'knowledge.playbook.draft',
+      'knowledge.playbook.edit',
+      'knowledge.playbook.approve',
+      'knowledge.playbook.retire',
+      'knowledge.playbook.resolve_conflict',
+    ].map((name) => [name, INPUTS[name]]),
+  ),
   ...Object.fromEntries(
     [
       'sales.credit.release',

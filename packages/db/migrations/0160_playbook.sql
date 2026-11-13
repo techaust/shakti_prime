@@ -17,7 +17,7 @@ CREATE TABLE "playbook_conflict_checks" (
 	CONSTRAINT "playbook_conflict_checks_pair_check" CHECK ("playbook_conflict_checks"."directive_id" <> "playbook_conflict_checks"."other_id"),
 	CONSTRAINT "playbook_conflict_checks_distance_check" CHECK ("playbook_conflict_checks"."distance" between 0 and 2),
 	CONSTRAINT "playbook_conflict_checks_reason_check" CHECK (("playbook_conflict_checks"."label" is null) = ("playbook_conflict_checks"."reason" is null) and char_length("playbook_conflict_checks"."reason") between 1 and 300),
-	CONSTRAINT "playbook_conflict_checks_resolved_check" CHECK (("playbook_conflict_checks"."resolution" is null) = ("playbook_conflict_checks"."resolved_at" is null) and ("playbook_conflict_checks"."resolved_at" is null) = ("playbook_conflict_checks"."resolved_by" is null) and ("playbook_conflict_checks"."resolution" is null or "playbook_conflict_checks"."label" in ('conflict', 'overlap'))),
+	CONSTRAINT "playbook_conflict_checks_resolved_check" CHECK (("playbook_conflict_checks"."resolution" is null) = ("playbook_conflict_checks"."resolved_at" is null) and ("playbook_conflict_checks"."resolved_at" is null) = ("playbook_conflict_checks"."resolved_by" is null) and ("playbook_conflict_checks"."resolution" is null or ("playbook_conflict_checks"."label" is not null and "playbook_conflict_checks"."label" <> 'none'))),
 	CONSTRAINT "playbook_conflict_checks_note_check" CHECK ("playbook_conflict_checks"."resolution_note" is null or (char_length("playbook_conflict_checks"."resolution_note") between 1 and 300 and "playbook_conflict_checks"."resolution" is not null))
 );
 --> statement-breakpoint
@@ -49,7 +49,7 @@ CREATE TABLE "playbook_directives" (
 	CONSTRAINT "playbook_directives_text_check" CHECK (char_length("playbook_directives"."text") between 1 and 2000),
 	CONSTRAINT "playbook_directives_source_check" CHECK ("playbook_directives"."source_position" is null or ("playbook_directives"."source_file_id" is not null and "playbook_directives"."source_position" >= 0)),
 	CONSTRAINT "playbook_directives_approval_check" CHECK (("playbook_directives"."approved_by" is null) = ("playbook_directives"."approved_at" is null) and ("playbook_directives"."state" <> 'approved' or "playbook_directives"."approved_at" is not null) and ("playbook_directives"."state" <> 'draft' or "playbook_directives"."approved_at" is null)),
-	CONSTRAINT "playbook_directives_retired_check" CHECK (("playbook_directives"."state" = 'retired') = ("playbook_directives"."retired_at" is not null) and ("playbook_directives"."retired_at" is null) = ("playbook_directives"."retired_reason" is null) and char_length("playbook_directives"."retired_reason") between 1 and 300),
+	CONSTRAINT "playbook_directives_retired_check" CHECK (("playbook_directives"."state" <> 'retired') = ("playbook_directives"."retired_at" is null) and ("playbook_directives"."retired_at" is null) = ("playbook_directives"."retired_reason" is null) and char_length("playbook_directives"."retired_reason") between 1 and 300),
 	CONSTRAINT "playbook_directives_approved_checked" CHECK ("playbook_directives"."state" <> 'approved' or "playbook_directives"."checked_at" is not null)
 );
 --> statement-breakpoint

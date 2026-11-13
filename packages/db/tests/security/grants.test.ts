@@ -141,6 +141,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // chunks are written only by the index job's definer (knowledge.test.ts).
     knowledge_files: { i: true, u: false },
     knowledge_chunks: { i: false, u: false },
+    // A directive changes only through its column grants and guard (0161); a conflict check's
+    // pair is written by the check's definer, and a person changes only its resolution.
+    playbook_directives: { i: true, u: false },
+    playbook_conflict_checks: { i: false, u: false },
     // A notice is written only by the notify worker's definer; a person changes its read time
     // alone (notifications.test.ts).
     notifications: { i: false, u: false },

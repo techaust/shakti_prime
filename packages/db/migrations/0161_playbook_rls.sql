@@ -42,7 +42,7 @@ begin
     new.checked_at := null;
     new.conflicts_with := '{}'::uuid[];
   end if;
-  if new.embedding is not null and new.embedding is distinct from old.embedding then
+  if new.embedding is not null and new.embedding::text is distinct from old.embedding::text then
     raise exception 'only the conflict check records an embedding'
       using errcode = 'insufficient_privilege';
   end if;
