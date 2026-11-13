@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { hostedEnvironment, qstashSchedules } from './qstash-schedules';
+import { qstashConfig } from './qstash';
+import { hostedEnvironment, qstashSchedules, unsetBlankQStashUrl } from './qstash-schedules';
 import { JOB_SCHEDULES } from './schedules';
 
 const SITE = 'https://shaktiprime.com/api/v1/workers/outbox/publish';
@@ -58,5 +59,27 @@ describe('the QStash schedules of an environment', () => {
     for (const value of ['local', 'prod', 'Production', '', undefined]) {
       expect(hostedEnvironment(value)).toBeUndefined();
     }
+  });
+
+  it('treats an empty or blank QSTASH_URL as unset, so the client uses its default address', () => {
+    const base: NodeJS.ProcessEnv = {
+      NODE_ENV: 'test',
+      QSTASH_TOKEN: 'qstash-token-for-tests',
+      QSTASH_CURRENT_SIGNING_KEY: 'current-signing-key-for-tests',
+      QSTASH_NEXT_SIGNING_KEY: 'next-signing-key-for-tests',
+      BETTER_AUTH_URL: 'https://shaktiprime.com',
+    };
+    for (const blank of ['', '   ', '\t']) {
+      const env: NodeJS.ProcessEnv = { ...base, QSTASH_URL: blank };
+      expect(unsetBlankQStashUrl(env)).toBe(true);
+      expect('QSTASH_URL' in env).toBe(false);
+      expect(qstashConfig(env)?.baseUrl).toBeUndefined();
+    }
+    const regional: NodeJS.ProcessEnv = { ...base, QSTASH_URL: 'https://qstash-eu.example.io' };
+    expect(unsetBlankQStashUrl(regional)).toBe(false);
+    expect(qstashConfig(regional)?.baseUrl).toBe('https://qstash-eu.example.io');
+    const unset: NodeJS.ProcessEnv = { ...base };
+    expect(unsetBlankQStashUrl(unset)).toBe(false);
+    expect('QSTASH_URL' in unset).toBe(false);
   });
 });
