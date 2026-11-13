@@ -12,6 +12,7 @@ import { orderHref } from '../../screens/orders';
 import { QUOTE_STATE_TONE } from '../../screens/quotes';
 import { nextTab } from '../../screens/sizing';
 import { panelsFor, sizingKindFor } from '../../screens/converting';
+import { CallPlan } from '../calling/call-plan';
 import { DialNumber, Outcomes, Panel } from '../calling/calling-parts';
 import { TimelineRow } from '../customers/timeline-row';
 import { DateTime, momentValues } from '../date-time';
@@ -112,6 +113,7 @@ function CallsPanel({
         pending={dial.pending}
         onShow={calling.showNumber}
       />
+      <CallPlan entityId={lead.entityId} opportunityId={lead.opportunityId} />
       <Outcomes lead={lead} pending={save.pending} onPick={calling.pick} />
       <FailureMessage failure={picked === undefined ? save.failure : undefined} />
       <Panel id="converting-activity" title={t('activity.title')}>

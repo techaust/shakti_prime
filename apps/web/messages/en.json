@@ -3687,6 +3687,35 @@
       "next": "N",
       "dial": "D",
       "search": "/"
+    },
+    "plan": {
+      "title": "How this call would go out",
+      "loading": "Checking the calling rules.",
+      "purpose": {
+        "service_order": "A service call: the customer has an order with us and agreed to service calls.",
+        "service_callback": "A service call: the customer asked us to call back and agreed to service calls.",
+        "service_enquiry": "A service call: the customer contacted us first and agreed to service calls.",
+        "promotional_no_consent": "A sales call: the customer has not agreed to service calls.",
+        "promotional_not_requested": "A sales call: we are contacting the customer first."
+      },
+      "number": "It goes out on the company's {series}-series number {number}.",
+      "noNumber": "The company has no {series}-series number yet.",
+      "dndChecked": "Do-not-disturb list checked on {when}",
+      "allowedBadge": "Can call",
+      "allowed": "Every calling rule is met.",
+      "refusedBadge": "Cannot call now",
+      "refused": "This call breaks these rules:",
+      "refusal": {
+        "outside_calling_hours": "It is outside calling hours. Calls can be made from 9 AM to 9 PM.",
+        "recipient_not_a_mobile_number": "The customer's number is not an Indian mobile number. Check it on the customer page.",
+        "call_consent_withdrawn": "The customer asked us not to call. Do not call this number.",
+        "company_number_missing": "The company has no number for this kind of call. Ask an Executive to add one in Settings, Companies.",
+        "caller_id_not_promotional": "The company's sales calls number is not in the 140 series. Ask an Executive to check it.",
+        "caller_id_not_service": "The company's service calls number is not in the 160 series. Ask an Executive to check it.",
+        "service_call_without_consent": "The customer has not agreed to service calls.",
+        "recipient_on_dnd": "The number is on the do-not-disturb list and the customer has not agreed to service calls.",
+        "dnd_unknown": "We could not check the do-not-disturb list just now. Try again in a few minutes."
+      }
     }
   },
   "duplicates": {

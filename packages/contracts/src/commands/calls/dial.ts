@@ -34,12 +34,15 @@ export const PhoneDndDto = z
   .strict();
 export type PhoneDndDto = z.infer<typeof PhoneDndDto>;
 
-/** A call to one phone of a lead's customer, to plan. */
+/**
+ * A call to one phone of a lead's customer, to plan; without `contactPhoneId`, the main number of
+ * the customer's owner contact, the one the workspaces dial.
+ */
 export const DialPlanInput = z
   .object({
     entityId: EntityIdSchema,
     opportunityId: IdSchema,
-    contactPhoneId: IdSchema,
+    contactPhoneId: IdSchema.optional(),
   })
   .strict();
 export type DialPlanInput = z.input<typeof DialPlanInput>;

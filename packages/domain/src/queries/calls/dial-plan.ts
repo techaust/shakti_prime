@@ -25,14 +25,38 @@ interface FactsRow {
 }
 
 /**
+ * The main number of the lead's customer, as the workspaces dial it (`dialNumber`): the primary
+ * phone of the owner contact, read under the caller's policies.
+ */
+async function mainPhoneId(
+  ctx: Pick<RequestContext, 'tx'>,
+  opportunityId: string,
+): Promise<string> {
+  const [row] = (await ctx.tx.execute(sql`
+    select p.id
+      from opportunities o
+      join account_contacts ac on ac.account_id = o.account_id and ac.role = 'owner'
+      join contact_phones p on p.contact_id = ac.contact_id and p.is_primary
+     where o.id = ${opportunityId}::uuid
+     limit 1`)) as unknown as { id: string }[];
+  if (!row) {
+    throw new DomainError('not_found', 'the customer has no main number', {
+      reason: 'dial_number_missing',
+    });
+  }
+  return row.id;
+}
+
+/**
  * What `checkDial` needs for a call to one phone of a lead's customer (`app.dial_facts()`), for a
- * person holding `calls.dial` who reads the lead. A lead the caller cannot read, of another
- * company, or a phone that is not a contact's of its customer is not found.
+ * person holding `calls.dial` who reads the lead; without a phone, the customer's main number. A
+ * lead the caller cannot read, of another company, or a phone that is not a contact's of its
+ * customer is not found. Answers the phone the facts are about with them.
  */
 export async function dialFacts(
   ctx: Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>,
   rawInput: DialPlanInput,
-): Promise<DialFacts> {
+): Promise<DialFacts & { contactPhoneId: string }> {
   const input = DialPlanInput.parse(rawInput);
   checkPermission(ctx.principal, 'calls.dial', 'own');
   if (!ctx.entityIds.includes(input.entityId)) {
@@ -40,8 +64,9 @@ export async function dialFacts(
       entityId: input.entityId,
     });
   }
+  const contactPhoneId = input.contactPhoneId ?? (await mainPhoneId(ctx, input.opportunityId));
   const rows = (await ctx.tx.execute(
-    sql`select * from app.dial_facts(${input.opportunityId}::uuid, ${input.contactPhoneId}::uuid)`,
+    sql`select * from app.dial_facts(${input.opportunityId}::uuid, ${contactPhoneId}::uuid)`,
   )) as unknown as FactsRow[];
   const [row] = rows;
   if (row?.entity_id !== input.entityId) {
@@ -51,6 +76,7 @@ export async function dialFacts(
   }
   const source = LeadChannelSchema.safeParse(row.source_channel);
   return {
+    contactPhoneId,
     entityId: row.entity_id,
     sourceChannel: source.success ? source.data : null,
     hasOpenCallback: row.has_open_callback,
