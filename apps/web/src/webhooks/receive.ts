@@ -11,12 +11,12 @@ import { publishWebhookJob, qstashConfig, type QStashConfig } from '../workers/q
 import { workerFailure } from '../workers/route-answers';
 import { processWebhook } from '../workers/webhooks/process';
 import { metaChallenge } from './checks';
-import type { Delivery, WebhookVerifier } from './providers';
+import type { Delivery, WebhookEnv, WebhookVerifier } from './providers';
 import { countRefusal } from './refusals';
 
 /** What a webhook route reaches beyond the request; tests pass their own. */
 export interface WebhookDeps {
-  env: NodeJS.ProcessEnv;
+  env: WebhookEnv;
   now: () => Date;
   receiverConfigured: () => boolean;
   keyValue: () => KeyValue;

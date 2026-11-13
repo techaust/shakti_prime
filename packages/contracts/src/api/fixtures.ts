@@ -481,6 +481,13 @@ export const API_FIXTURES: Record<
     },
     response: { received: true },
   },
+  'webhooks.leadgen.verify': {
+    query: {
+      'hub.mode': 'subscribe',
+      'hub.verify_token': 'w'.repeat(24),
+      'hub.challenge': '1158201445',
+    },
+  },
   'webhooks.leadgen': {
     request: {
       object: 'page',
@@ -550,6 +557,23 @@ export const API_FIXTURES: Record<
   'webhooks.exotel.incoming': {
     params: { secret: 's'.repeat(32) },
     request: {
+      CallSid: 'b6cfaf0e-exotel-call-0002',
+      CallFrom: '09000000023',
+      CallTo: '08000000160',
+      Direction: 'incoming',
+      CallType: 'call-attempt',
+      Created: 'Sun, 27 Sep 2026 10:40:12',
+      StartTime: '2026-09-27 10:40:12',
+      DialWhomNumber: '',
+      CurrentTime: '2026-09-27 10:40:13',
+      digits: '"1"',
+      flow_id: '281122',
+    },
+    response: { received: true },
+  },
+  'webhooks.exotel.incoming.get': {
+    params: { secret: 's'.repeat(32) },
+    query: {
       CallSid: 'b6cfaf0e-exotel-call-0002',
       CallFrom: '09000000023',
       CallTo: '08000000160',

@@ -173,6 +173,8 @@ const ACTIONS = {
   'crm.lead.rescore': 'leadRescore',
   'crm.lead.score_refresh': 'leadScoreRefresh',
   'crm.lead.anonymise': 'leadAnonymise',
+  'webhooks.event.claim': 'webhookClaim',
+  'webhooks.event.mark': 'webhookMark',
   'crm.duplicate.scan': 'duplicateScan',
   'crm.duplicate.dismiss': 'duplicateDismiss',
   'crm.duplicate.suggest': 'duplicateSuggest',

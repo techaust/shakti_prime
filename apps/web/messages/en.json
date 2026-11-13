@@ -1617,6 +1617,8 @@
       "leadHandOver": "Qualified lead given to a Lead Converter",
       "leadReassignAll": "All leads of a person moved",
       "leadAnonymise": "Personal details of an old lead removed overnight",
+      "webhookClaim": "A message from another system taken up",
+      "webhookMark": "A message from another system handled",
       "enquiryTake": "Enquiry taken: a lead added, or passed to a colleague",
       "importIdentityCheck": "Identity numbers removed from an earlier import",
       "importPurgeFailed": "Clearing an import's details did not finish, and is tried again",
@@ -3176,7 +3178,8 @@
       "integrations": "Other systems",
       "files": "Uploaded files",
       "notifications": "Notices",
-      "platform": "Upkeep"
+      "platform": "Upkeep",
+      "webhooks": "Messages from other systems"
     },
     "permissions": {
       "crm_lead_read": "See leads",
@@ -3258,7 +3261,8 @@
       "notifications_send": "Send notices to the people who act on them",
       "crm_handover_run": "Give a qualified lead to a Lead Converter",
       "crm_retention_run": "Remove the personal details of old leads that never went ahead",
-      "platform_jobs_check": "Check that the scheduled upkeep tasks ran"
+      "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
+      "webhooks_process": "Handle the messages other systems send in"
     },
     "empty": "There are no roles to show.",
     "locked": {

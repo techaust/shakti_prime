@@ -14,6 +14,9 @@ export const META_BODY_MAX_BYTES = 256 * 1024;
 /** Every other provider sends one event of a few kilobytes. */
 export const WEBHOOK_BODY_MAX_BYTES = 64 * 1024;
 
+/** The environment a route reads its secrets from. */
+export type WebhookEnv = Readonly<Record<string, string | undefined>>;
+
 /** One delivery as it arrived: the raw bytes, read once, and what the route knows of it. */
 export interface Delivery {
   raw: Uint8Array;
@@ -32,7 +35,7 @@ export interface Delivery {
  */
 export interface WebhookVerifier<S> {
   maxBytes: number;
-  secrets(env: NodeJS.ProcessEnv): S | undefined;
+  secrets(env: WebhookEnv): S | undefined;
   check(delivery: Delivery, secrets: S, now: Date): Promise<CheckResult & { ref?: string }>;
   payload(delivery: Delivery, check: { ref?: string }): unknown;
   /** The provider's event id, or undefined to key the row on the body's SHA-256. */
