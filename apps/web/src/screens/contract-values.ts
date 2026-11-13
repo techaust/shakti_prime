@@ -14,6 +14,7 @@ import type {
   ConsentSource,
   CustomerLanguage,
   CustomerSort,
+  EntityChannelKind,
   DispositionNextAction,
   DuplicateKind,
   DuplicateReason,
@@ -142,6 +143,15 @@ export const ACCOUNT_TYPES = [
 export const SITE_TYPES = ['borewell', 'rooftop', 'factory'] as const satisfies readonly SiteType[];
 
 export const CUSTOMER_LANGUAGES = ['hinglish', 'en'] as const satisfies readonly CustomerLanguage[];
+
+/** A company's channels (`ENTITY_CHANNEL_KINDS`), in the order Settings › Companies lists them. */
+export const ENTITY_CHANNEL_KINDS = [
+  'whatsapp',
+  'call_promo_140',
+  'call_service_160',
+  'ivr',
+  'missed_call',
+] as const satisfies readonly EntityChannelKind[];
 
 export const CONSENT_CHANNELS = [
   'whatsapp',

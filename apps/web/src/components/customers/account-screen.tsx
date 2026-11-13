@@ -315,9 +315,10 @@ function Contacts({ view, onEdit }: { view: Account360Dto; onEdit: (id: string) 
             <ul className="flex flex-col gap-1">
               {c.phones.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2">
-                  {p.isDnd || view.callConsentWithdrawn ? (
-                    // A number on the do-not-disturb list, or of a customer who withdrew consent
-                    // to calls (CRM-10), is shown, never offered for a call.
+                  {p.isDnd || view.callOptOut ? (
+                    // A number on the do-not-disturb list, or one the dial rules refuse because
+                    // the customer, or anyone holding a number of theirs, withdrew consent to calls
+                    // (CRM-10, `app.call_opt_out()`), is shown, never offered for a call.
                     <span className="tabular-nums">{formatPhone(p.e164)}</span>
                   ) : (
                     <a

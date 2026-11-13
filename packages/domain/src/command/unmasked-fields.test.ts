@@ -91,6 +91,8 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
     'bankDetails.accountNumber': AADHAAR,
     upiId: `${MOBILE_91}@okaxis`,
   },
+  // A WhatsApp phone_number_id is a long number; an Aadhaar-shaped one stays whole.
+  'org.channel.set': { providerRef: AADHAAR },
   'catalogue.item.create': { sku: AADHAAR },
   'catalogue.item.update': { sku: AADHAAR },
   'catalogue.kit.create': { sku: AADHAAR },

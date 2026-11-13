@@ -86,6 +86,8 @@ import { purgeImportRows, recordImportFilesDeleted } from '../commands/imports/p
 import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
+import { archiveEntityChannel, setEntityChannel } from '../commands/org/channels';
+import { recordPhoneDnd } from '../commands/crm/record-phone-dnd';
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
@@ -129,6 +131,9 @@ import type { AnyCommand } from './define-command';
 /** Frozen: no command can be added, replaced or removed at run time (audit ARCH-1). */
 export const commands = Object.freeze({
   [updateEntity.name]: updateEntity,
+  [setEntityChannel.name]: setEntityChannel,
+  [archiveEntityChannel.name]: archiveEntityChannel,
+  [recordPhoneDnd.name]: recordPhoneDnd,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
   [assignOpportunity.name]: assignOpportunity,

@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CallPlan } from './call-plan';
 import { dialNumber, listCallQueue, loadCallLead, logCall } from '../../actions/calling';
 import {
   isTypingTarget,
@@ -397,6 +398,7 @@ export function CallingScreen({
                 pending={dial.pending}
                 onShow={showNumber}
               />
+              <CallPlan entityId={lead.entityId} opportunityId={lead.opportunityId} />
               <p className="text-sm">
                 {lead.nextCall === null ? (
                   t('lead.noNextCall')

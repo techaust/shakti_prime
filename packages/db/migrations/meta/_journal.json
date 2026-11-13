@@ -1135,6 +1135,27 @@
       "when": 1794557758459,
       "tag": "0161_webhook_inbox_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1794557759459,
+      "tag": "0162_entity_channels",
+      "breakpoints": true
+    },
+    {
+      "idx": 163,
+      "version": "7",
+      "when": 1794557760459,
+      "tag": "0163_e1_channels_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 164,
+      "version": "7",
+      "when": 1794557761459,
+      "tag": "0164_e1_opt_out",
+      "breakpoints": true
     }
   ]
 }

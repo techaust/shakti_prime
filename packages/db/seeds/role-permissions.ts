@@ -301,6 +301,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // (SECURITY §3.3).
   'crm.retention.run': {},
   'platform.jobs.check': {},
+  // The platform's record of the DND register for a phone; no person's role holds it (SECURITY §3.3).
+  'crm.dnd.record': {},
   // The platform's webhook worker and sweep; no person's role holds it (SECURITY §3.3).
   'webhooks.process': {},
 };

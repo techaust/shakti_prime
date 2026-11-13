@@ -40,6 +40,7 @@ import {
   KNOWLEDGE_SENSITIVITY_VALUES,
   KNOWLEDGE_SOURCE_VALUES,
   CONSENT_CHANNELS,
+  ENTITY_CHANNEL_KINDS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CONTRASTS,
@@ -479,6 +480,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'consentChannel':
         return oneOf(CONSENT_CHANNELS, value)
           ? customers(`consent.channel.${value}`)
+          : wordsOf(value);
+      case 'channelKind':
+        return oneOf(ENTITY_CHANNEL_KINDS, value)
+          ? t(`values.channelKind.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)

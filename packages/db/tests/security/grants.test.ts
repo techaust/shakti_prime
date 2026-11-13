@@ -118,6 +118,9 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // A lead changes only what the commands change (its stage, owner, team, state, lock, score,
     // referral partner and stamps; column grants, SEC-4), never its customer or company.
     opportunities: { i: true, u: false },
+    // A number keeps its company, channel and digits: only its references, verification and the
+    // active mark change after the insert (column grants, 0161).
+    entity_channels: { i: true, u: false },
     // A quote changes only its state and withdrawal (column grants, 0110 and DOM-4); its lines and
     // versions are append-only.
     quotes: { i: true, u: false },
@@ -440,6 +443,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
        order by 1
     `);
     expect(rows.map((r) => r.fn)).toEqual([
+      // A customer's opt-out by the dial rules, for the queue, the leads list and Show number (E1).
+      'app.call_opt_out(uuid)',
       // A caller profile is read by its person and by whoever manages them, and the converters
       // page lists the people of a manager's scope (0125).
       'app.caller_profile_manages(uuid,smallint)',
@@ -447,6 +452,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.customer_search_ids(text,text,integer)',
       // The dealer credit screen's figures, the one place the exposure is worked out (0117).
       'app.dealer_credit_position(smallint,uuid,uuid)',
+      // What a dial is checked against, for the workspaces' plan of a call (0161).
+      'app.dial_facts(uuid,uuid)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',

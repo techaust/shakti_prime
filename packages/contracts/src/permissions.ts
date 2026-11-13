@@ -107,6 +107,10 @@ export const PERMISSION_KEYS = [
   // The hourly check of the database's scheduled jobs (audit 2026-10, DATA-3): held only by the
   // platform's worker principal, which reads each job's last run through one definer, nothing more.
   'platform.jobs.check',
+  // Recording what the DND register answered for a customer's phone (BLUEPRINT §7.7, design
+  // phase2 §5.2): held only by the platform's worker principal, which writes the phone's DND state
+  // through one narrow definer, nothing more; no person may mark or clear a number.
+  'crm.dnd.record',
   // The webhook worker and its sweep (docs/03-roadmap-appendix/phase2.md §5.1): held only by the
   // platform's worker principal, which claims, marks and purges `webhook_inbox` rows through narrow
   // definers, nothing more.
@@ -179,6 +183,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'crm.handover.run',
   'crm.retention.run',
   'platform.jobs.check',
+  'crm.dnd.record',
   'webhooks.process',
 ];
 
@@ -321,6 +326,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.handover.run': ['all'],
   'crm.retention.run': ['all'],
   'platform.jobs.check': ['all'],
+  'crm.dnd.record': ['all'],
   'webhooks.process': ['all'],
 };
 
