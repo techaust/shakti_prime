@@ -57,6 +57,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.vault.read.management': 'Search management knowledge',
   'knowledge.vault.read.exec': 'Search executive knowledge',
   'knowledge.vault.write': 'Add and archive Knowledge Vault files',
+  'knowledge.playbook.draft': 'Draft and edit Playbook directives',
   'knowledge.playbook.approve': 'Approve Playbook directives',
   'agents.inbox.act': 'Act on Agent Inbox items',
   'agents.autonomy.write': 'Change agent autonomy',
@@ -82,6 +83,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.handover.run': 'Give a qualified lead to a Lead Converter',
   'crm.retention.run': 'Remove the personal details of old leads that never went ahead',
   'platform.jobs.check': 'Check that the scheduled upkeep tasks ran',
+  'knowledge.playbook.check': 'Check new Playbook guidance against the approved guidance',
   'crm.dnd.record': 'Record whether a customer number is on the do-not-disturb list',
   'webhooks.process': 'Handle the messages other systems send in',
 };

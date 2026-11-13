@@ -46,7 +46,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-49 types, 10 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+50 types, 11 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -139,6 +139,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`knowledge.file.index_requested`](#knowledgefileindex_requested) | A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, or when indexed again. | `knowledge.file.add`, `knowledge.file.reindex`, `files.file.mark_ready` | `POST /api/v1/workers/outbox/knowledge.file.index_requested` (QStash URL group `evt-knowledge.file.index_requested`) |
+| [`knowledge.playbook.changed`](#knowledgeplaybookchanged) | A Playbook directive was drafted, edited, approved or retired, or a conflict on it was resolved; `recheck` says its wording is new and the conflict check is due. | `knowledge.playbook.draft`, `knowledge.playbook.draft_from_file`, `knowledge.playbook.edit`, `knowledge.playbook.approve`, `knowledge.playbook.retire`, `knowledge.playbook.resolve_conflict` | `POST /api/v1/workers/outbox/knowledge.playbook.changed` (QStash URL group `evt-knowledge.playbook.changed`) |
 
 ### sales
 
@@ -419,6 +420,15 @@ No fields apart from `v`.
 |---|---|
 | `knowledgeEntityId` | whole number from 1 to 32767 or null |
 | `sensitivity` | one of `staff_ai_ok`, `management`, `exec_only` |
+
+### knowledge.playbook.changed
+
+| Field | Type |
+|---|---|
+| `directiveEntityId` | whole number from 1 to 32767 or null |
+| `change` | one of `drafted`, `edited`, `approved`, `retired`, `conflict_resolved` |
+| `state` | one of `draft`, `approved`, `retired` |
+| `recheck` | true or false |
 
 ### sales.quote.created
 

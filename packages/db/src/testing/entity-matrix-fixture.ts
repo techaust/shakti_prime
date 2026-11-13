@@ -86,6 +86,8 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   inbox_items: 'x.id::text',
   knowledge_files: 'x.id::text',
   knowledge_chunks: 'x.id::text',
+  playbook_directives: 'x.id::text',
+  playbook_conflict_checks: 'x.id::text',
   notifications: 'x.id::text',
   targets: 'x.id::text',
   pipelines: 'x.id::text',
@@ -191,6 +193,8 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from import_rows where job_id::text like ${like}`;
       await tx`delete from import_jobs where id::text like ${like}`;
       await tx`delete from import_mapping_templates where id::text like ${like}`;
+      await tx`delete from playbook_conflict_checks where id::text like ${like}`;
+      await tx`delete from playbook_directives where id::text like ${like}`;
       await tx`delete from knowledge_chunks where id::text like ${like}`;
       await tx`delete from knowledge_files where id::text like ${like}`;
       await tx`delete from files where id::text like ${like}`;
@@ -309,6 +313,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     inbox_items: [],
     knowledge_files: [],
     knowledge_chunks: [],
+    playbook_directives: [],
+    playbook_conflict_checks: [],
     notifications: [],
     targets: [],
     pipelines: [{ key: groupPipeline, entities: null }],
@@ -335,6 +341,17 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   rows.knowledge_files.push({ key: groupVaultFile, entities: null });
   rows.knowledge_chunks.push({ key: groupVaultChunk, entities: null });
   rows.files.push({ key: groupVaultUpload, entities: [1], purpose: 'knowledge' });
+  // Two approved staff directives of the whole group and the pair the conflict check compared:
+  // a reader of staff knowledge sees the directives acting in any company, a holder of a playbook
+  // grant the pair too.
+  const groupDirective = id(0x000f);
+  const groupOtherDirective = id(0x0010);
+  const groupConflictCheck = id(0x0011);
+  rows.playbook_directives.push(
+    { key: groupDirective, entities: null },
+    { key: groupOtherDirective, entities: null },
+  );
+  rows.playbook_conflict_checks.push({ key: groupConflictCheck, entities: null });
   // The fixture's agent rows name an agent no other suite sets, so its settings change nothing.
   const MATRIX_AGENT = 'agent:orchestrator';
   const agentId = AGENT_PRINCIPAL_IDS[MATRIX_AGENT];
@@ -381,6 +398,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         values (${groupVaultFile}, null, ${groupVaultUpload}, 'matrix group vault file', 'staff_ai_ok', 'pdf', 'indexed', ${ownerId})`;
       await tx`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
         values (${groupVaultChunk}, ${groupVaultFile}, null, 'staff_ai_ok', 0, 'matrix group passage', array_fill(0.1::real, array[1024])::vector)`;
+      await tx`insert into playbook_directives (id, entity_id, type, audience, title, text, state, approved_by, approved_at, checked_at, created_by) values
+        (${groupDirective}, null, 'faq', 'staff', 'matrix group rule', 'matrix group rule text', 'approved', ${ownerId}, now(), now(), ${ownerId}),
+        (${groupOtherDirective}, null, 'faq', 'staff', 'matrix group rule two', 'matrix group rule text two', 'approved', ${ownerId}, now(), now(), ${ownerId})`;
+      await tx`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
+        values (${groupConflictCheck}, null, ${groupDirective}, ${groupOtherDirective}, 0.1, 'none', 'matrix reason')`;
 
       for (const e of ALL_ENTITY_IDS) {
         const team = per(e, 0x01);
@@ -425,6 +447,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         // The company's vault file (staff knowledge) on its vault upload, with one chunk.
         const vaultFile = per(e, 0x42);
         const vaultChunk = per(e, 0x43);
+        // Two approved staff directives of the company and the pair the conflict check compared.
+        const directive = per(e, 0x50);
+        const otherDirective = per(e, 0x51);
+        const conflictCheck = per(e, 0x52);
         // The owner's caller profile and another person's.
         const ownProfile = per(e, 0x44);
         const othersProfile = per(e, 0x45);
@@ -526,6 +552,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${vaultFile}, ${e}, ${per(e, 0x17)}, ${`matrix vault file ${e.toString()}`}, 'staff_ai_ok', 'pdf', 'indexed', ${ownerId})`;
         await tx`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
           values (${vaultChunk}, ${vaultFile}, ${e}, 'staff_ai_ok', 0, 'matrix passage', array_fill(0.1::real, array[1024])::vector)`;
+        await tx`insert into playbook_directives (id, entity_id, type, audience, title, text, state, approved_by, approved_at, checked_at, created_by) values
+          (${directive}, ${e}, 'faq', 'staff', 'matrix rule', 'matrix rule text', 'approved', ${ownerId}, now(), now(), ${ownerId}),
+          (${otherDirective}, ${e}, 'faq', 'staff', 'matrix rule two', 'matrix rule text two', 'approved', ${ownerId}, now(), now(), ${ownerId})`;
+        await tx`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
+          values (${conflictCheck}, ${e}, ${directive}, ${otherDirective}, 0.1, 'none', 'matrix reason')`;
         await tx`insert into caller_profiles (id, user_id, entity_id, is_converter, presence) values
           (${ownProfile}, ${ownerId}, ${e}, true, 'present'),
           (${othersProfile}, ${otherUserId}, ${e}, false, 'away')`;
@@ -672,6 +703,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.entity_channels.push({ key: channel, entities: only });
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
+        rows.playbook_directives.push(
+          { key: directive, entities: only },
+          { key: otherDirective, entities: only },
+        );
+        rows.playbook_conflict_checks.push({ key: conflictCheck, entities: only });
         rows.targets.push(
           { key: ownTarget, entities: only },
           { key: othersTarget, entities: only, othersOwn: true },

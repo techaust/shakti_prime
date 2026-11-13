@@ -13,11 +13,15 @@ import {
 } from '@shakti/db/testing';
 import {
   addKnowledgeFile,
+  approvePlaybookDirective,
+  checkPlaybook,
   createAiProvider,
+  draftPlaybookDirective,
   createImportJob,
   createLead,
   executeCommand,
   fakeModelTransport,
+  fakeReply,
   indexKnowledgeFile,
   memoryKeyValue,
   memoryLogger,
@@ -65,6 +69,7 @@ import {
   SNAPSHOT_LEADS,
   SNAPSHOT_SUGGESTIONS,
   SNAPSHOT_TEAM,
+  SNAPSHOT_PLAYBOOK,
   SNAPSHOT_VAULT,
   type ProjectName,
   type SeededUsers,
@@ -507,6 +512,58 @@ async function ensureSnapshotVault(executiveId: string): Promise<void> {
   );
 }
 
+/**
+ * The snapshot company's Playbook, made once (SNAPSHOT_PLAYBOOK): an approved rule, and a draft the
+ * conflict check compared with it through the stand-in model, which labels the pair an overlap.
+ */
+async function ensureSnapshotPlaybook(executiveId: string): Promise<void> {
+  const company = SNAPSHOT_COMPANY.entityId;
+  const [found] = await asMigrator(
+    (m) => m<{ n: number }[]>`select count(*)::int as n from playbook_directives
+                              where entity_id = ${company} and created_by = ${executiveId}`,
+  );
+  if ((found?.n ?? 0) > 0) return;
+  const executive = principalFor('executive', [1, 2, 3, 4], { id: executiveId });
+  const workers = principalFor('system:workers', [company], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
+  const check = (directiveId: string, reply: string) => {
+    const fake = fakeModelTransport([fakeReply(reply)]);
+    return checkPlaybook(
+      {
+        entityId: company,
+        aggregateId: directiveId,
+        payload: { v: 1, change: 'drafted', recheck: true },
+      },
+      {
+        principal: workers,
+        provider: createAiProvider({
+          claude: fake,
+          voyage: fake,
+          keyValue: memoryKeyValue(),
+          logger: memoryLogger(),
+        }),
+        requestId: newId(),
+        hosted: false,
+        logger: memoryLogger(),
+      },
+    );
+  };
+  const draft = (rule: { title: string; text: string }) =>
+    executeCommand(executive, { entityIds: [company] }, draftPlaybookDirective, {
+      entityId: company,
+      type: 'policy',
+      audience: 'customer',
+      ...rule,
+    });
+  const first = await draft(SNAPSHOT_PLAYBOOK.approved);
+  await check(first.id, JSON.stringify({ label: 'none', reason: 'Nothing to compare.' }));
+  await executeCommand(executive, { entityIds: [company] }, approvePlaybookDirective, {
+    entityId: company,
+    directiveId: first.id,
+  });
+  const second = await draft(SNAPSHOT_PLAYBOOK.draft);
+  await check(second.id, JSON.stringify({ label: 'overlap', reason: SNAPSHOT_PLAYBOOK.reason }));
+}
+
 progress('migrating and seeding the database');
 await prepareDatabase();
 
@@ -720,6 +777,8 @@ for (const lead of SNAPSHOT_LEADS) {
 await ensureSnapshotImport(ids.executive ?? '');
 progress('the snapshot company’s Knowledge Vault file');
 await ensureSnapshotVault(ids.executive ?? '');
+progress('the snapshot company’s Playbook');
+await ensureSnapshotPlaybook(ids.executive ?? '');
 
 progress('the quotes');
 const quotes = await ensureQuoteJourneys(ids.executive ?? '');

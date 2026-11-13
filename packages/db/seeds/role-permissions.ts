@@ -236,6 +236,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'knowledge.vault.read.management': { ...EXEC, general_manager: 'all', accounts: 'all' },
   'knowledge.vault.read.exec': { ...EXEC },
   'knowledge.vault.write': { ...EXEC, general_manager: 'all' },
+  'knowledge.playbook.draft': { ...EXEC, general_manager: 'all' },
   'knowledge.playbook.approve': { ...EXEC },
   'agents.inbox.act': {
     ...EXEC,
@@ -301,6 +302,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // (SECURITY §3.3).
   'crm.retention.run': {},
   'platform.jobs.check': {},
+  // The platform's conflict check of Playbook directives; no person's role holds it (SECURITY §3.3).
+  'knowledge.playbook.check': {},
   // The platform's record of the DND register for a phone; no person's role holds it (SECURITY §3.3).
   'crm.dnd.record': {},
   // The platform's webhook worker and sweep; no person's role holds it (SECURITY §3.3).

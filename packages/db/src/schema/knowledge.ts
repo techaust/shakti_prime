@@ -4,6 +4,7 @@ import {
   index,
   integer,
   pgTable,
+  real,
   smallint,
   text,
   timestamp,
@@ -14,6 +15,7 @@ import {
 import { actorsRequired, timestamps } from './columns';
 import { entities } from './entities';
 import { files } from './files';
+import { principals } from './principals';
 
 /**
  * A Knowledge Vault file (docs/05-database.md §6.9, docs/03-roadmap-appendix/phase1.md §8.4): an upload of the
@@ -94,5 +96,141 @@ export const knowledgeChunks = pgTable(
     unique('knowledge_chunks_file_position_unique').on(t.knowledgeFileId, t.position),
     // Retrieval: nearest passages by cosine distance; the policies filter the rows the scan finds.
     index('knowledge_chunks_embedding_idx').using('hnsw', t.embedding.op('vector_cosine_ops')),
+  ],
+);
+
+/**
+ * A Playbook directive (docs/03-roadmap-appendix/phase2.md §5.4, BLUEPRINT §9.1, PRD AI-01): a typed
+ * rule an Executive approves before it steers any agent. `entity_id` null is a directive for the
+ * whole group. `audience` says who may read it: `customer` (an agent may state it to a customer)
+ * and `staff` with `knowledge.vault.read.staff`, `management` with
+ * `knowledge.vault.read.management`; a draft or retired directive is read only by the holders of
+ * the playbook grants, so a draft never reaches an agent. `state` is the `playbook_directive`
+ * machine. The conflict check records `embedding` and `checked_at` through a definer, and
+ * `conflicts_with` holds the approved directives it found in conflict or overlap that nobody has
+ * resolved; an edit clears all three until the check runs again.
+ */
+export const playbookDirectives = pgTable(
+  'playbook_directives',
+  {
+    id: uuid('id').primaryKey(),
+    entityId: smallint('entity_id').references(() => entities.id),
+    type: text('type').notNull(),
+    audience: text('audience').notNull(),
+    title: text('title').notNull(),
+    text: text('text').notNull(),
+    sourceFileId: uuid('source_file_id').references(() => knowledgeFiles.id),
+    sourcePosition: integer('source_position'),
+    state: text('state').notNull().default('draft'),
+    approvedBy: uuid('approved_by').references(() => principals.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    retiredReason: text('retired_reason'),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+    conflictsWith: uuid('conflicts_with')
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
+    embedding: vector('embedding', { dimensions: 1024 }),
+    checkedAt: timestamp('checked_at', { withTimezone: true }),
+    ...timestamps,
+    ...actorsRequired,
+  },
+  (t) => [
+    check(
+      'playbook_directives_type_check',
+      sql`${t.type} in ('policy', 'priority', 'target', 'sop', 'faq', 'tone')`,
+    ),
+    check(
+      'playbook_directives_audience_check',
+      sql`${t.audience} in ('customer', 'staff', 'management')`,
+    ),
+    check('playbook_directives_state_check', sql`${t.state} in ('draft', 'approved', 'retired')`),
+    check('playbook_directives_title_check', sql`char_length(${t.title}) between 1 and 120`),
+    check('playbook_directives_text_check', sql`char_length(${t.text}) between 1 and 2000`),
+    check(
+      'playbook_directives_source_check',
+      sql`${t.sourcePosition} is null or (${t.sourceFileId} is not null and ${t.sourcePosition} >= 0)`,
+    ),
+    // An approved directive names who approved it and when; a draft has neither. A retired one
+    // keeps the approval it had, if any.
+    check(
+      'playbook_directives_approval_check',
+      sql`(${t.approvedBy} is null) = (${t.approvedAt} is null) and (${t.state} <> 'approved' or ${t.approvedAt} is not null) and (${t.state} <> 'draft' or ${t.approvedAt} is null)`,
+    ),
+    check(
+      'playbook_directives_retired_check',
+      sql`(${t.state} <> 'retired') = (${t.retiredAt} is null) and (${t.retiredAt} is null) = (${t.retiredReason} is null) and char_length(${t.retiredReason}) between 1 and 300`,
+    ),
+    // An approved directive passed the conflict check with nothing left open.
+    check(
+      'playbook_directives_approved_checked',
+      sql`${t.state} <> 'approved' or ${t.checkedAt} is not null`,
+    ),
+    // The list: by state and type, newest first.
+    index('playbook_directives_state_type_idx').on(
+      t.state,
+      t.type,
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
+    index('playbook_directives_source_file_idx').on(t.sourceFileId),
+  ],
+);
+
+/**
+ * One pair the conflict check compared (docs/03-roadmap-appendix/phase2.md §5.4): a draft and an
+ * approved directive of the same type whose companies overlap and whose embeddings are close,
+ * with the label the model gave and its short reason; a null label is a pair the model could not
+ * label (no key, or an answer that could not be read), which counts as open like a `conflict` or an
+ * `overlap`. An Executive resolves an open pair as not a conflict, with a note, or by retiring the
+ * other directive. `entity_id` is the draft's. Written by the check's definer; a person changes
+ * only the resolution.
+ */
+export const playbookConflictChecks = pgTable(
+  'playbook_conflict_checks',
+  {
+    id: uuid('id').primaryKey(),
+    entityId: smallint('entity_id').references(() => entities.id),
+    directiveId: uuid('directive_id')
+      .notNull()
+      .references(() => playbookDirectives.id),
+    otherId: uuid('other_id')
+      .notNull()
+      .references(() => playbookDirectives.id),
+    distance: real('distance').notNull(),
+    label: text('label'),
+    reason: text('reason'),
+    resolution: text('resolution'),
+    resolutionNote: text('resolution_note'),
+    resolvedBy: uuid('resolved_by').references(() => principals.id),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      'playbook_conflict_checks_label_check',
+      sql`${t.label} in ('conflict', 'overlap', 'none')`,
+    ),
+    check(
+      'playbook_conflict_checks_resolution_check',
+      sql`${t.resolution} in ('not_a_conflict', 'other_retired')`,
+    ),
+    check('playbook_conflict_checks_pair_check', sql`${t.directiveId} <> ${t.otherId}`),
+    check('playbook_conflict_checks_distance_check', sql`${t.distance} between 0 and 2`),
+    check(
+      'playbook_conflict_checks_reason_check',
+      sql`(${t.label} is null) = (${t.reason} is null) and char_length(${t.reason}) between 1 and 300`,
+    ),
+    // A resolution names who resolved it and when; a pair labelled `none` has none.
+    check(
+      'playbook_conflict_checks_resolved_check',
+      sql`(${t.resolution} is null) = (${t.resolvedAt} is null) and (${t.resolvedAt} is null) = (${t.resolvedBy} is null) and (${t.resolution} is null or coalesce(${t.label}, '') <> 'none')`,
+    ),
+    check(
+      'playbook_conflict_checks_note_check',
+      sql`${t.resolutionNote} is null or (char_length(${t.resolutionNote}) between 1 and 300 and ${t.resolution} is not null)`,
+    ),
+    unique('playbook_conflict_checks_pair_unique').on(t.directiveId, t.otherId),
+    index('playbook_conflict_checks_other_idx').on(t.otherId),
   ],
 );

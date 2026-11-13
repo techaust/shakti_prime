@@ -326,6 +326,11 @@ export const ENTITY_TABLES = [
   // sensitivity as well (docs/03-roadmap-appendix/phase1.md §8.4)
   'knowledge_files',
   'knowledge_chunks',
+  // Playbook directives allow entity_id null for the whole group and are read by audience, and
+  // a draft only by the playbook grants; the conflict check's pairs are read with their draft
+  // (docs/03-roadmap-appendix/phase2.md §5.4)
+  'playbook_directives',
+  'playbook_conflict_checks',
   // a person's own notices in the request's companies (docs/03-roadmap-appendix/phase1.md §8.1)
   'notifications',
   // a caller's or a team's targets: the subject, their team lead, the GM and the Executive read

@@ -17,6 +17,7 @@ import {
   ModelCallError,
   type ModelDocument,
   type EmbeddingTransport,
+  type ModelEffort,
   type ModelReply,
   type ModelTransport,
 } from './transport';
@@ -58,7 +59,8 @@ export interface SpendCap {
 export type AiSpender =
   | AgentRoleKey
   | (typeof AGENT_DEFAULTS.knowledge)['indexName']
-  | (typeof AGENT_DEFAULTS.knowledge)['searchName'];
+  | (typeof AGENT_DEFAULTS.knowledge)['searchName']
+  | (typeof AGENT_DEFAULTS.playbook)['spendName'];
 
 interface CallBase {
   agent: AiSpender;
@@ -108,6 +110,8 @@ export interface CompleteCall extends CallBase {
    */
   documents?: readonly ModelDocument[];
   maxTokens?: number;
+  /** How much the model thinks before answering (`AGENT_DEFAULTS`); the model's default if left out. */
+  effort?: ModelEffort;
   /**
    * Milliseconds per attempt, for a call that writes a long answer (copying out a vault file's
    * text); `AI_CALL_TIMEOUT_MS` when left out.
@@ -353,7 +357,14 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
           'anthropic',
           (signal) =>
             claude.complete(
-              { model, system, user, maxTokens, ...(documents.length > 0 ? { documents } : {}) },
+              {
+                model,
+                system,
+                user,
+                maxTokens,
+                ...(documents.length > 0 ? { documents } : {}),
+                ...(call.effort === undefined ? {} : { effort: call.effort }),
+              },
               signal,
             ),
           call.timeoutMs ?? timeoutMs,

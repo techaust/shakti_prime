@@ -39,6 +39,10 @@ import {
   KNOWLEDGE_FILE_STATE_VALUES,
   KNOWLEDGE_SENSITIVITY_VALUES,
   KNOWLEDGE_SOURCE_VALUES,
+  PLAYBOOK_AUDIENCE_VALUES,
+  PLAYBOOK_RESOLUTION_VALUES,
+  PLAYBOOK_STATE_VALUES,
+  PLAYBOOK_TYPE_VALUES,
   CONSENT_CHANNELS,
   ENTITY_CHANNEL_KINDS,
   CONSENT_PURPOSES,
@@ -400,6 +404,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const orders = useTranslations('orders');
   const agents = useTranslations('agents');
   const knowledge = useTranslations('knowledge');
+  const playbook = useTranslations('playbook');
   const targets = useTranslations('targets');
   const integrations = useTranslations('integrations');
   return (group, value) => {
@@ -564,6 +569,18 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'knowledgeSource':
         return oneOf(KNOWLEDGE_SOURCE_VALUES, value)
           ? knowledge(`source.${value}`)
+          : wordsOf(value);
+      case 'playbookType':
+        return oneOf(PLAYBOOK_TYPE_VALUES, value) ? playbook(`type.${value}`) : wordsOf(value);
+      case 'playbookAudience':
+        return oneOf(PLAYBOOK_AUDIENCE_VALUES, value)
+          ? playbook(`audience.${value}`)
+          : wordsOf(value);
+      case 'playbookState':
+        return oneOf(PLAYBOOK_STATE_VALUES, value) ? playbook(`state.${value}`) : wordsOf(value);
+      case 'playbookResolution':
+        return oneOf(PLAYBOOK_RESOLUTION_VALUES, value)
+          ? playbook(`resolution.${value}`)
           : wordsOf(value);
     }
   };

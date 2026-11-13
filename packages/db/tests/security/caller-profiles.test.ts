@@ -1,4 +1,9 @@
-import { newId, SYSTEM_WORKERS_PRINCIPAL_ID, type Principal } from '@shakti/contracts';
+import {
+  newId,
+  PLATFORM_ONLY_PERMISSIONS,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type Principal,
+} from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -271,9 +276,10 @@ describe('the handover definers', () => {
         'platform.jobs.check',
         'crm.dnd.record',
         'webhooks.process',
+        'knowledge.playbook.check',
       ]),
     );
-    expect(list?.keys).toHaveLength(12);
+    expect(list?.keys).toHaveLength(PLATFORM_ONLY_PERMISSIONS.length);
   });
 
   it('refuses a caller without it, and a company outside the request', async () => {

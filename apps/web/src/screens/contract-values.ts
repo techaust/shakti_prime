@@ -766,6 +766,17 @@ export const FILE_SANITISING = [
   'document_checked',
 ] as const satisfies readonly FileSanitising[];
 
+/** `PLAYBOOK_DIRECTIVE_TYPES` (`@shakti/contracts`). */
+export const PLAYBOOK_TYPE_VALUES = ['policy', 'priority', 'target', 'sop', 'faq', 'tone'] as const;
+
+/** `PLAYBOOK_AUDIENCES` (`@shakti/contracts`). */
+export const PLAYBOOK_AUDIENCE_VALUES = ['customer', 'staff', 'management'] as const;
+
+/** `PLAYBOOK_DIRECTIVE_STATES` (`@shakti/contracts`). */
+export const PLAYBOOK_STATE_VALUES = ['draft', 'approved', 'retired'] as const;
+
+/** `PLAYBOOK_RESOLUTIONS` (`@shakti/contracts`). */
+export const PLAYBOOK_RESOLUTION_VALUES = ['not_a_conflict', 'other_retired'] as const;
 /** The systems whose messages land in `webhook_inbox` (phase 2 design §5.1). */
 export const WEBHOOK_PROVIDERS = [
   'meta_whatsapp',

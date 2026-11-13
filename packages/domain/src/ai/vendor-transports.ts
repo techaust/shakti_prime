@@ -63,6 +63,7 @@ export function anthropicTransport(
             max_tokens: request.maxTokens,
             system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }],
             messages: [{ role: 'user', content: userContent(request) }],
+            ...(request.effort === undefined ? {} : { output_config: { effort: request.effort } }),
           },
           { signal },
         );

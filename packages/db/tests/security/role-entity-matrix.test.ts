@@ -81,6 +81,12 @@ const INBOX = grant('agents.inbox.act', 'own');
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
+/** The conflict check's pairs, read by either playbook grant with their directive (0161). */
+const PLAYBOOK_GRANTS: Rule = {
+  kind: 'any',
+  rules: [grant('knowledge.playbook.draft', 'all'), grant('knowledge.playbook.approve', 'all')],
+};
+
 /**
  * A file is read by its purpose (0062, `app.file_purpose_grant()`); the matrix acts as the file's
  * uploader, so `own` is the narrowest scope that reads one. A logo and a letterhead are read by
@@ -238,6 +244,9 @@ const RULES: Record<MatrixTable, TableRule> = {
   inbox_items: { read: INBOX, leak: otherCompany },
   knowledge_files: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
   knowledge_chunks: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
+  // Every fixture directive is an approved one for staff, which every staff role reads.
+  playbook_directives: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
+  playbook_conflict_checks: { read: PLAYBOOK_GRANTS, group: PLAYBOOK_GRANTS, leak: otherCompany },
   // A person's own notices in the company they act in, whatever their role; never another's.
   notifications: {
     read: CONTEXT,

@@ -8,6 +8,7 @@ import { FilePurposeSchema } from '../api/files';
 import { PdfDocumentTypeSchema } from '../api/print-documents';
 import { ImportKindSchema } from '../imports/enums';
 import { KNOWLEDGE_PDF_MAX_PAGES, KnowledgeSensitivitySchema } from '../knowledge';
+import { PlaybookDirectiveStateSchema } from '../playbook';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -423,6 +424,33 @@ const eventCatalogue = {
       .object({
         knowledgeEntityId: EntityIdSchema.nullable(),
         sensitivity: KnowledgeSensitivitySchema,
+      })
+      .strict(),
+  },
+  /**
+   * A Playbook directive changed (docs/03-roadmap-appendix/phase2.md §5.4). The event's company is
+   * the one the request acted for; `directiveEntityId` is the directive's (null for the whole
+   * group). `recheck` says its wording is new, so the conflict check is due; any change bumps the
+   * Playbook's version, so the agents and Ask read the approved set again.
+   */
+  'knowledge.playbook.changed': {
+    meaning:
+      'A Playbook directive was drafted, edited, approved or retired, or a conflict on it was resolved; `recheck` says its wording is new and the conflict check is due.',
+    emittedBy: [
+      'knowledge.playbook.draft',
+      'knowledge.playbook.draft_from_file',
+      'knowledge.playbook.edit',
+      'knowledge.playbook.approve',
+      'knowledge.playbook.retire',
+      'knowledge.playbook.resolve_conflict',
+    ],
+    subscribed: true,
+    payload: z
+      .object({
+        directiveEntityId: EntityIdSchema.nullable(),
+        change: z.enum(['drafted', 'edited', 'approved', 'retired', 'conflict_resolved']),
+        state: PlaybookDirectiveStateSchema,
+        recheck: z.boolean(),
       })
       .strict(),
   },

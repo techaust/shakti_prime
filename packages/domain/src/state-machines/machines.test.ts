@@ -211,7 +211,7 @@ const FIXTURES: Fixture[] = [
   },
   {
     machine: playbookDirectiveMachine,
-    record: { conflictsWith: [] },
+    record: { checked: true, conflictsWith: [] },
     params: { reason: 'superseded by the new pricing rule' },
   },
   {
@@ -929,9 +929,17 @@ const GUARDS: GuardCase[] = [
     fixture: 'playbook_directive',
     from: 'draft',
     event: 'approve',
-    record: { conflictsWith: [newId()] },
+    record: { checked: true, conflictsWith: [newId()] },
     code: 'conflict',
-    reason: 'directive_conflict',
+    reason: 'playbook_conflict_open',
+  },
+  {
+    fixture: 'playbook_directive',
+    from: 'draft',
+    event: 'approve',
+    record: { checked: false, conflictsWith: [] },
+    code: 'conflict',
+    reason: 'playbook_check_pending',
   },
   // Tally voucher
   {
@@ -1193,7 +1201,7 @@ describe('guards that let some actors through', () => {
     ).toThrow(expect.objectContaining({ code: 'forbidden' }));
   });
 
-  it('playbook directive: an agent can draft but never approve', () => {
+  it('playbook directive: an agent can neither draft nor approve; the platform drafts', () => {
     const agent: Actor = {
       kind: 'principal',
       principal: {
@@ -1205,6 +1213,13 @@ describe('guards that let some actors through', () => {
       },
     };
     const base = setup(fixtureOf('playbook_directive'), 'draft', 'approve');
+    expect(() =>
+      transition(playbookDirectiveMachine, { ...base.record, state: null } as never, 'create', {
+        actor: agent,
+        now: NOW,
+        params: {},
+      }),
+    ).toThrow(expect.objectContaining({ code: 'forbidden' }));
     expect(() =>
       transition(playbookDirectiveMachine, base.record as never, 'approve', {
         actor: agent,

@@ -595,6 +595,13 @@ export {
 export { recordKnowledgeIndex } from './commands/knowledge/record-index';
 export { knowledgeFileForIndex } from './commands/knowledge/shared';
 export {
+  approvePlaybookDirective,
+  draftPlaybookDirective,
+  editPlaybookDirective,
+  resolvePlaybookConflict,
+  retirePlaybookDirective,
+} from './commands/knowledge/playbook';
+export {
   KNOWLEDGE_PAGE_SIZE,
   listKnowledgeFiles,
   searchKnowledge,
@@ -608,4 +615,26 @@ export {
 export { EMBED_BATCH, indexKnowledgeFile, knowledgeReadKey } from './knowledge/index-file';
 export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
 export { knowledgeQueryVector } from './knowledge/search';
+export {
+  bumpPlaybookVersion,
+  PLAYBOOK_VERSION_KEY,
+  playbookVersion,
+} from './knowledge/playbook-version';
+export { checkPlaybook, parseLabel, playbookCheckWait } from './knowledge/playbook-check';
+export type { PlaybookCheckDeps, PlaybookCheckOutcome } from './knowledge/playbook-check';
+export { recordPlaybookCheck } from './commands/knowledge/playbook-check';
+export {
+  audiencesFromSource,
+  draftPlaybookFromFile,
+} from './commands/knowledge/playbook-from-file';
+export { DRAFT_SYSTEM, filterDrafts, proposeDirectives } from './knowledge/playbook-draft';
+export {
+  approvedPlaybook,
+  listPlaybook,
+  listPlaybookSources,
+  loadPlaybookReview,
+  playbookListQuery,
+  playbookSourcePassages,
+} from './queries/knowledge/playbook';
+export type { PlaybookSource } from './queries/knowledge/playbook';
 export { checkZipArchive } from './imports/zip-guard';

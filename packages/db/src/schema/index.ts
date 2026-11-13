@@ -39,7 +39,12 @@ export {
   userEntityRoles,
 } from './identity';
 export { quotes, quoteLines, quoteVersions } from './quotes';
-export { knowledgeFiles, knowledgeChunks } from './knowledge';
+export {
+  knowledgeFiles,
+  knowledgeChunks,
+  playbookDirectives,
+  playbookConflictChecks,
+} from './knowledge';
 export { notifications, notificationPreferences, pushSubscriptions } from './notifications';
 export { callerProfiles } from './caller-profiles';
 export {

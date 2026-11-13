@@ -23,7 +23,12 @@ export interface ModelRequest {
   /** Files read with the turn, before its text. */
   documents?: readonly ModelDocument[];
   maxTokens: number;
+  /** How much the model thinks before it answers; the model's own default when left out. */
+  effort?: ModelEffort;
 }
+
+/** The effort levels a model call may name (`output_config.effort`). */
+export type ModelEffort = 'low' | 'medium' | 'high';
 
 export interface ModelReply {
   text: string;

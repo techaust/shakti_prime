@@ -143,6 +143,39 @@ export const AGENT_DEFAULTS = {
   },
 
   /**
+   * The Playbook's model work (docs/03-roadmap-appendix/phase2.md §5.4), which no agent principal
+   * does, counted under its own spend name for the whole group. Each value is flagged for the
+   * owner to confirm:
+   * - `conflictDistance`: approved directives of the same type whose embedding lies within this
+   *   cosine distance of a draft's are its conflict candidates (0.20, workshop default);
+   * - `candidatesPerCheck`: the most candidates one check labels, nearest first;
+   * - `labelModel` (Haiku 5.5) labels each candidate pair, `draftModel` (Sonnet 5.5) drafts from a
+   *   vault file (question 1 (a)); each at its own effort and answer length;
+   * - `draftsPerFile`: the most drafts one vault file yields; `passagesPerDraft`: the most
+   *   passages of the file the model reads, in order, so a call stays well inside the prompt
+   *   size Haiku's and Sonnet's prices hold for;
+   * - `dailyCapPaise`: ₹300 a day for the group; `personDailyCapPaise`: one person's share of it
+   *   for drafting, a third;
+   * - `promptVersion`: named with every change of the two prompts.
+   */
+  playbook: {
+    spendName: 'knowledge:playbook',
+    conflictDistance: 0.2,
+    candidatesPerCheck: 5,
+    labelModel: 'claude-haiku-5-5',
+    labelEffort: 'low',
+    labelMaxTokens: 2_000,
+    draftModel: 'claude-sonnet-5-5',
+    draftEffort: 'medium',
+    draftMaxTokens: 16_000,
+    draftsPerFile: 10,
+    passagesPerDraft: 60,
+    dailyCapPaise: 30_000,
+    personDailyCapPaise: 10_000,
+    promptVersion: 'playbook-1',
+  },
+
+  /**
    * Live voice's reply step (docs/03-roadmap-appendix/phase2.md §9.1, question 1 (a)): Sonnet 5.5,
    * with thinking off (`between_tools`, which Sonnet 5.5 accepts at effort `high` or below) at
    * effort `low`, so the first sentence comes quickly; a spoken reply is one or two sentences, so
