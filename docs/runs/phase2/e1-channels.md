@@ -3,12 +3,12 @@
 | | |
 |---|---|
 | Branch | `feat/e1-channels` on GitHub, from `main` at 008066b7 |
-| PC worktree | none: built in a cloud session of its own (Postgres 54322, app 3000) |
+| PC worktree | `e1-channels`, slot 1 (Postgres 54331, app 3031) for the lead's review, integration and baselines; built in a cloud session of its own |
 | Runs on | a cloud session, the lead on the PC (owner, 13-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | build Opus 5.5 high, 5-hour window 11 % at the start |
-| State | done |
-| Next step | the lead reviews and integrates |
+| State | integrated on the PC (13-11-2026); pull request open |
+| Next step | the merge on green, then dev and staging migrated (0162 to 0164) |
 
 ## Brief
 Read first:
@@ -160,3 +160,5 @@ Not checked:
 
 ## Integration notes
 - Migrations are numbered after `main`'s last at merge; if E1 redefines `app.platform_only_permissions()`, keep every key P5 or K2 adds.
+- Integrated on the PC on 13-11-2026: `main` (V1 #242, P5 #243) merged in; migrations renumbered 0160 to 0162 → 0162 to 0164; 0163's `app.platform_only_permissions()` given back `webhooks.process` (P5's 0161), which the slice's definition would have dropped, and `caller-profiles.test.ts` counts twelve keys; the documents cite the new numbers. Checks on cee694bc: lint, format, copy lint, generated, typecheck and unit; the security suite on a fresh database (db 1,309, domain 1,077, web 356), `db:verify`, audit, build with no `.env`, JavaScript budget, gitleaks; the journeys `channels`, `calling`, `converting` and `customers` (78 passed, 2 skipped by design). An app restart stopped the first run mid-build and left the worktree without its `.env`; a worktree's `.env` must also carry the slot's app port in `BETTER_AUTH_URL` and `E2E_BASE_URL` (as `setup-worktree.sh` writes), or the uploads of the customers journey are signed for port 3000. The Linux baselines `companies`, `calling` and `converting-board` (three projects) remade on a fresh database; two verification runs over the four specs matched (57 passed each).
+- Follow-up: the Companies table's Actions column now wraps its five buttons onto three lines on desktop; a menu or a row of fewer buttons is a design choice for later.
