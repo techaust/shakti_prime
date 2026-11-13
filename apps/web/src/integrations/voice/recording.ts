@@ -29,7 +29,30 @@ function ascii(bytes: Uint8Array, at: number): string {
   return String.fromCharCode(...bytes.subarray(at, at + 4));
 }
 
-/** Reads a 16-bit PCM WAV; throws for anything else. */
+/** The sample rates and channel counts a recording may have; anything else is refused. */
+export const MIN_SAMPLE_RATE = 8_000;
+export const MAX_SAMPLE_RATE = 48_000;
+export const MAX_CHANNELS = 2;
+
+/**
+ * Refuses a recording whose shape would break the cutting: no channels (the frames would never
+ * move), or a rate under 8 kHz (a 20 ms frame shrinks to a sample and a file into thousands of
+ * paid pieces).
+ */
+export function assertPlayable(audio: Pick<PcmAudio, 'channels' | 'sampleRate'>): void {
+  if (!Number.isInteger(audio.channels) || audio.channels < 1 || audio.channels > MAX_CHANNELS) {
+    throw new Error('a WAV of one or two channels is read');
+  }
+  if (
+    !Number.isInteger(audio.sampleRate) ||
+    audio.sampleRate < MIN_SAMPLE_RATE ||
+    audio.sampleRate > MAX_SAMPLE_RATE
+  ) {
+    throw new Error('a WAV sampled at 8 to 48 kHz is read');
+  }
+}
+
+/** Reads a 16-bit PCM WAV; throws for anything else, a header out of range or no audio. */
 export function readWav(bytes: Uint8Array): PcmAudio {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (bytes.length < 12 || ascii(bytes, 0) !== 'RIFF' || ascii(bytes, 8) !== 'WAVE') {
@@ -42,16 +65,23 @@ export function readWav(bytes: Uint8Array): PcmAudio {
     const size = view.getUint32(offset + 4, true);
     const body = offset + 8;
     if (id === 'fmt ') {
+      if (size < 16 || body + 16 > bytes.length) throw new Error('WAV format chunk too short');
       const audioFormat = view.getUint16(body, true);
       const bits = view.getUint16(body + 14, true);
       if (audioFormat !== 1 || bits !== 16) throw new Error('only 16-bit PCM WAV is read');
-      format = {
-        channels: view.getUint16(body + 2, true),
-        sampleRate: view.getUint32(body + 4, true),
-      };
+      const channels = view.getUint16(body + 2, true);
+      const sampleRate = view.getUint32(body + 4, true);
+      assertPlayable({ channels, sampleRate });
+      if (view.getUint16(body + 12, true) !== channels * 2) {
+        throw new Error('WAV block size does not match its channels');
+      }
+      format = { channels, sampleRate };
     } else if (id === 'data') {
       if (format === undefined) throw new Error('WAV data before its format');
-      const length = Math.min(size, bytes.length - body) & ~1;
+      const frameBytes = format.channels * 2;
+      const available = Math.min(size, bytes.length - body);
+      const length = available - (available % frameBytes);
+      if (length === 0) throw new Error('WAV without audio');
       const samples = new Int16Array(length / 2);
       for (let i = 0; i < samples.length; i += 1) samples[i] = view.getInt16(body + i * 2, true);
       return { ...format, samples };
@@ -95,6 +125,7 @@ export function durationMs(audio: PcmAudio): number {
 
 /** Root-mean-square loudness of each 20 ms frame, channels together. */
 function frameLoudness(audio: PcmAudio): { frameSamples: number; loudness: number[] } {
+  assertPlayable(audio);
   const frameSamples =
     Math.max(1, Math.round((audio.sampleRate * FRAME_MS) / 1000)) * audio.channels;
   const loudness: number[] = [];

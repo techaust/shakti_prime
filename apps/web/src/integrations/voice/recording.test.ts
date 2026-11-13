@@ -47,6 +47,48 @@ describe('WAV reading and writing', () => {
   });
 });
 
+describe('a WAV header out of range', () => {
+  /** A one-frame mono WAV with one little-endian header field of 2 or 4 bytes rewritten. */
+  function patched(offset: number, width: 2 | 4, value: number): Uint8Array {
+    const bytes = writeWav(pcm([true]));
+    const view = new DataView(bytes.buffer);
+    if (width === 2) view.setUint16(offset, value, true);
+    else view.setUint32(offset, value, true);
+    return bytes;
+  }
+
+  it('refuses no channels before anything loops over the samples', () => {
+    expect(() => readWav(patched(22, 2, 0))).toThrow('one or two channels');
+    // The cutter refuses the same shape however it is reached, so it cannot spin on empty frames.
+    const silent: PcmAudio = { sampleRate: RATE, channels: 0, samples: new Int16Array(160) };
+    expect(() => cutPoints(silent)).toThrow('one or two channels');
+    expect(() => speechEndMs(silent)).toThrow('one or two channels');
+  });
+
+  it('refuses three channels', () => {
+    expect(() => readWav(patched(22, 2, 3))).toThrow('one or two channels');
+  });
+
+  it('refuses a sample rate outside 8 to 48 kHz', () => {
+    expect(() => readWav(patched(24, 4, 7_999))).toThrow('8 to 48 kHz');
+    expect(() => readWav(patched(24, 4, 48_001))).toThrow('8 to 48 kHz');
+    expect(() => readWav(patched(24, 4, 12))).toThrow('8 to 48 kHz');
+  });
+
+  it('refuses a format chunk under 16 bytes', () => {
+    expect(() => readWav(patched(16, 4, 14))).toThrow('format chunk too short');
+  });
+
+  it('refuses a block size other than two bytes a channel', () => {
+    expect(() => readWav(patched(32, 2, 4))).toThrow('block size');
+  });
+
+  it('refuses an empty data chunk', () => {
+    const empty = writeWav({ sampleRate: RATE, channels: 1, samples: new Int16Array(0) });
+    expect(() => readWav(empty)).toThrow('WAV without audio');
+  });
+});
+
 describe('where the speaker stops', () => {
   it('is the end of the last loud frame, or undefined for silence', () => {
     expect(speechEndMs(pcm([false, true, true, false, true, false, false]))).toBe(100);
