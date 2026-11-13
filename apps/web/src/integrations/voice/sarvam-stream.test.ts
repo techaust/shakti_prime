@@ -62,6 +62,33 @@ function silentSocket(): { open: OpenSocket; closed: () => boolean } {
   return { open: () => Promise.resolve(socket), closed: () => closed };
 }
 
+/** A socket whose frames the test sends later, at the times it names. */
+function scriptedSocket(): {
+  open: OpenSocket;
+  later: (ms: number, frame: unknown) => void;
+  closed: () => boolean;
+} {
+  const frames = new AsyncQueue<string>();
+  let closed = false;
+  const socket: VendorSocket = {
+    send: () => undefined,
+    close: () => {
+      closed = true;
+      frames.close();
+    },
+    messages: frames,
+  };
+  return {
+    open: () => Promise.resolve(socket),
+    later: (ms, frame) => {
+      setTimeout(() => {
+        frames.push(JSON.stringify(frame));
+      }, ms);
+    },
+    closed: () => closed,
+  };
+}
+
 async function collect<T>(items: AsyncIterable<T>): Promise<T[]> {
   const out: T[] = [];
   for await (const item of items) out.push(item);
@@ -190,6 +217,45 @@ describe('Sarvam streaming text to speech', () => {
     await expect(collect(stream.speak('Ji.'))).rejects.toMatchObject({
       failure: 'invalid_response',
     });
+  });
+
+  it('times out per frame, not per sentence, and not while the reader holds a chunk', async () => {
+    const live = scriptedSocket();
+    const tts = sarvamStreamingTts(config, { openSocket: live.open, settleMs: 40 });
+    const stream = await tts.open({ languageCode: 'hi-IN' });
+    // Six chunks 25 ms apart: 150 ms for the sentence, far over 40 ms, but no gap reaches it.
+    for (let i = 0; i < 6; i += 1)
+      live.later(25 * (i + 1), { type: 'audio', data: { audio: 'AAAA' } });
+    live.later(170, { type: 'event', data: { event_type: 'final' } });
+    let chunks = 0;
+    for await (const chunk of stream.speak('Ji, stock mein hai.')) {
+      chunks += 1;
+      expect(chunk.audio.length).toBe(3);
+      // The reader holds the first chunk for 80 ms: frames queue meanwhile, and nothing times out.
+      if (chunks === 1) await new Promise((done) => setTimeout(done, 80));
+    }
+    expect(chunks).toBe(6);
+    expect(live.closed()).toBe(false);
+    stream.close();
+    expect(live.closed()).toBe(true);
+  });
+
+  it('closes the stream when the reader leaves a sentence early', async () => {
+    const live = scriptedSocket();
+    const tts = sarvamStreamingTts(config, { openSocket: live.open });
+    const stream = await tts.open({ languageCode: 'hi-IN' });
+    live.later(1, { type: 'audio', data: { audio: 'AAAA' } });
+    live.later(2, { type: 'audio', data: { audio: 'AAAA' } });
+    live.later(3, { type: 'event', data: { event_type: 'final' } });
+    for await (const chunk of stream.speak('Ji.')) {
+      expect(chunk.audio.length).toBe(3);
+      break;
+    }
+    // The sentence's other frames would be read as the next sentence's: the stream is closed.
+    expect(live.closed()).toBe(true);
+    await expect(collect(stream.speak('Kal aayega.'))).rejects.toThrow(
+      'the speech stream is closed',
+    );
   });
 
   it('times out a sentence the vendor never finishes, and closes the stream', async () => {

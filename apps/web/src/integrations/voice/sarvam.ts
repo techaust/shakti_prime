@@ -310,16 +310,23 @@ export function sarvamStreamingTts(
       // One reader for the socket's life: each `speak()` reads its sentence's frames from it.
       const frames = socket.messages[Symbol.asyncIterator]();
       let speaking = false;
+      let closed = false;
+      const close = () => {
+        closed = true;
+        socket.close();
+      };
 
       async function* speak(text: string): AsyncGenerator<SpeechChunk> {
         if (speaking) throw new Error('one sentence at a time on a speech stream');
+        if (closed) throw new Error('the speech stream is closed');
         speaking = true;
-        const deadline = Date.now() + settleMs;
+        let finished = false;
         try {
           socket.send(JSON.stringify({ type: 'text', data: { text } }));
           socket.send(JSON.stringify({ type: 'flush' }));
           for (;;) {
-            const frame = await nextWithin(frames, deadline - Date.now());
+            // An idle limit per frame: the time a consumer holds a chunk does not count.
+            const frame = await nextWithin(frames, settleMs);
             if (frame.done === true) throw new ProviderError('sarvam', 'invalid_response');
             const { type, data } = parseFrame(frame.value);
             if (type === 'error') throw frameError(data);
@@ -334,24 +341,19 @@ export function sarvamStreamingTts(
                 atMs: clock.now(),
               };
             } else if (type === 'event' && asObject(data)?.event_type === 'final') {
+              finished = true;
               return;
             }
           }
-        } catch (error) {
-          // A sentence that failed leaves the stream in an unknown place: it is not used again.
-          socket.close();
-          throw error;
         } finally {
           speaking = false;
+          // A sentence that failed, or that its reader left early, leaves its remaining frames
+          // in the socket, where the next sentence would read them: the stream is not used again.
+          if (!finished) close();
         }
       }
 
-      return {
-        speak,
-        close: () => {
-          socket.close();
-        },
-      };
+      return { speak, close };
     },
   };
 }
