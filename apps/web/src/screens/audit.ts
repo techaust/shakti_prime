@@ -158,6 +158,7 @@ const ACTIONS = {
   'knowledge.playbook.retire': 'playbookRetire',
   'knowledge.playbook.resolve_conflict': 'playbookResolveConflict',
   'knowledge.playbook.record_check': 'playbookCheckRecorded',
+  'knowledge.playbook.draft_from_file': 'playbookDraftFromFile',
   'agents.inbox.complete': 'inboxComplete',
   'crm.enquiry.route': 'enquiryRoute',
   'crm.enquiry.take': 'enquiryTake',
@@ -662,6 +663,7 @@ const FIELD_KINDS = [
   ['resolutionNote', 'text'],
   ['pairs', 'number'],
   ['openConflicts', 'number'],
+  ['drafts', 'number'],
   // Notifications and routed enquiries
   ['note', 'text'],
   ['notices', 'number'],

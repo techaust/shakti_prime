@@ -152,6 +152,19 @@ export const editPlaybookDirective = defineCommand({
       'edit',
     );
     requireAudience(ctx.principal, input.audience);
+    if (row.sourceFileId !== null && input.audience !== 'management') {
+      const k = schema.knowledgeFiles;
+      const [source] = await ctx.tx
+        .select({ sensitivity: k.sensitivity })
+        .from(k)
+        .where(eq(k.id, row.sourceFileId))
+        .limit(1);
+      if (source?.sensitivity !== 'staff_ai_ok') {
+        throw new DomainError('forbidden', 'a directive is read by no more people than its file', {
+          reason: 'playbook_audience_above_source',
+        });
+      }
+    }
     const d = schema.playbookDirectives;
     // The guard trigger clears the check whenever the wording, type or audience changes.
     const [updated] = await ctx.tx

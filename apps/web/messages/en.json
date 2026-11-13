@@ -152,6 +152,10 @@
     "playbook_needs_all_companies": "Choose All companies at the top to change a rule for every company.",
     "playbook_audience_not_held": "You can only write a rule for people whose rules you can read. Choose who it is for again.",
     "playbook_source_missing": "We couldn't find the Knowledge Vault file this rule comes from. It may have been archived.",
+    "playbook_source_exec_only": "Rules can't be drafted from a file only Executives can find. Choose another file.",
+    "playbook_audience_above_source": "This rule comes from a file for managers, so it can only be for management. Choose Management.",
+    "playbook_passage_missing": "A drafted rule points to a part of the file that is no longer there. Draft from the file again.",
+    "playbook_drafting_unavailable": "Drafting rules from files is not set up yet. Type the rule in yourself for now.",
     "voucher_no_match": "No matching order was found for this Tally entry. It has gone to the review list.",
     "voucher_has_match": "This Tally entry already matches an order.",
     "voucher_link_target_missing": "Choose the order or proforma to link this Tally entry to.",
@@ -1634,7 +1638,8 @@
       "playbookApprove": "Playbook rule approved",
       "playbookRetire": "Playbook rule retired",
       "playbookResolveConflict": "Playbook clash settled",
-      "playbookCheckRecorded": "Playbook rule checked against the approved rules"
+      "playbookCheckRecorded": "Playbook rule checked against the approved rules",
+      "playbookDraftFromFile": "Playbook rules drafted from a Knowledge Vault file"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1938,7 +1943,8 @@
       "resolution": "How the clash was settled",
       "resolutionNote": "Note on the clash",
       "pairs": "Approved rules compared",
-      "openConflicts": "Clashes left to settle"
+      "openConflicts": "Clashes left to settle",
+      "drafts": "Rules drafted"
     },
     "values": {
       "percent": "{value}%",

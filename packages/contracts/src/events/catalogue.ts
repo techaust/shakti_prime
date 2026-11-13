@@ -438,6 +438,7 @@ const eventCatalogue = {
       'A Playbook directive was drafted, edited, approved or retired, or a conflict on it was resolved; `recheck` says its wording is new and the conflict check is due.',
     emittedBy: [
       'knowledge.playbook.draft',
+      'knowledge.playbook.draft_from_file',
       'knowledge.playbook.edit',
       'knowledge.playbook.approve',
       'knowledge.playbook.retire',

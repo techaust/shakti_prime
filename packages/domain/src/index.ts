@@ -604,4 +604,13 @@ export {
 export { checkPlaybook, parseLabel } from './knowledge/playbook-check';
 export type { PlaybookCheckDeps, PlaybookCheckOutcome } from './knowledge/playbook-check';
 export { recordPlaybookCheck } from './commands/knowledge/playbook-check';
+export { audiencesFromSource, draftPlaybookFromFile } from './commands/knowledge/playbook-from-file';
+export { DRAFT_SYSTEM, filterDrafts, proposeDirectives } from './knowledge/playbook-draft';
+export {
+  listPlaybook,
+  loadPlaybookReview,
+  playbookListQuery,
+  playbookSourcePassages,
+} from './queries/knowledge/playbook';
+export type { PlaybookSource } from './queries/knowledge/playbook';
 export { checkZipArchive } from './imports/zip-guard';

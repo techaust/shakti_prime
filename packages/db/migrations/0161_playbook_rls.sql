@@ -16,7 +16,8 @@ create trigger set_updated_at before update on playbook_directives
 
 -- What a request may change, beyond what the policies and the column grants already refuse:
 -- - a directive's wording, type and audience only while it is a draft; changing them clears the
---   conflict check (`embedding`, `checked_at`, `conflicts_with`) until it runs again;
+--   conflict check (`embedding`, `checked_at`, `conflicts_with`) until it runs again, and an
+--   audience wider than the source vault file's sensitivity is refused;
 -- - `embedding` and `checked_at` only to null: the conflict check records them as the owner;
 -- - `conflicts_with` only by dropping ids (a resolution), never by adding one;
 -- - approval only by a holder of knowledge.playbook.approve, as themselves, of a draft whose check
@@ -41,6 +42,12 @@ begin
     new.embedding := null;
     new.checked_at := null;
     new.conflicts_with := '{}'::uuid[];
+    if new.audience <> 'management' and new.source_file_id is not null
+       and exists (select 1 from public.knowledge_files kf
+                    where kf.id = new.source_file_id and kf.sensitivity <> 'staff_ai_ok') then
+      raise exception 'a directive is read by no more people than its source'
+        using errcode = 'insufficient_privilege';
+    end if;
   end if;
   if new.embedding is not null and new.embedding::text is distinct from old.embedding::text then
     raise exception 'only the conflict check records an embedding'
@@ -99,7 +106,8 @@ create policy playbook_directives_read on playbook_directives for select to app_
 -- A draft is written by a holder of knowledge.playbook.draft as themselves, for an audience they
 -- read, for a company of the request or, in a request for every company, for the whole group; it
 -- starts unchecked and unapproved. Its source, when it names one, is a vault file the caller
--- reads (the subselect runs under knowledge_files_read).
+-- reads (the subselect runs under knowledge_files_read), and never one read by fewer people than
+-- the directive: a management file gives only management directives, an Executive-only file none.
 create policy playbook_directives_insert on playbook_directives for insert to app_user with check (
   (select app.has_perm('knowledge.playbook.draft:all'))
   and created_by = (select app.user_id())
@@ -111,7 +119,10 @@ create policy playbook_directives_insert on playbook_directives for insert to ap
   and (entity_id = any ((select app.entity_ids())::int[])
     or (entity_id is null and (select app.request_covers_group())))
   and (source_file_id is null
-    or exists (select 1 from knowledge_files kf where kf.id = playbook_directives.source_file_id)));
+    or exists (select 1 from knowledge_files kf
+                where kf.id = playbook_directives.source_file_id
+                  and (kf.sensitivity = 'staff_ai_ok'
+                    or (kf.sensitivity = 'management' and playbook_directives.audience = 'management')))));
 --> statement-breakpoint
 -- Changed by a holder of either playbook grant who reads the directive's audience; a directive of
 -- the whole group only in a request for every company. The guard above says which change needs

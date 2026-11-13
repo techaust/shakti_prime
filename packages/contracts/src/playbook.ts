@@ -203,3 +203,113 @@ export const PlaybookCheckRecordDto = z
   })
   .strict();
 export type PlaybookCheckRecordDto = z.infer<typeof PlaybookCheckRecordDto>;
+
+/** The most drafts one vault file yields (`AGENT_DEFAULTS.playbook.draftsPerFile`). */
+export const PLAYBOOK_MAX_DRAFTS_PER_FILE = 10;
+
+/** One draft taken from a vault file, citing the passage (`position`) it comes from. */
+export const PlaybookFileDraftInput = z
+  .object({
+    type: PlaybookDirectiveTypeSchema,
+    audience: PlaybookAudienceSchema,
+    title: PlaybookTitleSchema,
+    text: PlaybookTextSchema,
+    sourcePosition: z.number().int().min(0),
+  })
+  .strict();
+export type PlaybookFileDraftInput = z.infer<typeof PlaybookFileDraftInput>;
+
+/**
+ * `knowledge.playbook.draft_from_file` (people only, `knowledge.playbook.draft`): the drafts the
+ * model proposed from a vault file the caller reads, each citing its passage, for the file's
+ * company or, from a file of the whole group, for the request's company or with `wholeGroup` for
+ * every company.
+ */
+export const DraftFromVaultFileInput = z
+  .object({
+    entityId: EntityIdSchema,
+    knowledgeFileId: IdSchema,
+    wholeGroup: z.boolean().default(false),
+    drafts: z.array(PlaybookFileDraftInput).min(1).max(PLAYBOOK_MAX_DRAFTS_PER_FILE),
+  })
+  .strict();
+export type DraftFromVaultFileInput = z.input<typeof DraftFromVaultFileInput>;
+
+/** The drafts written from a vault file. */
+export const PlaybookDraftsDto = z.object({ drafts: z.array(PlaybookDirectiveDto) }).strict();
+export type PlaybookDraftsDto = z.infer<typeof PlaybookDraftsDto>;
+
+/** "Draft from a vault file" on the Playbook screen: the file and, for a group file, the scope. */
+export const DraftFromFileRequest = z
+  .object({
+    entityId: EntityIdSchema,
+    knowledgeFileId: IdSchema,
+    wholeGroup: z.boolean().default(false),
+  })
+  .strict();
+export type DraftFromFileRequest = z.input<typeof DraftFromFileRequest>;
+
+/** The Playbook list's page size. */
+export const PLAYBOOK_PAGE_SIZE = 50;
+
+/**
+ * The Playbook list: by state, type and company (a company id, or `group` for the whole group's),
+ * newest first, from the start or after the cursor of the page before.
+ */
+export const ListPlaybookInput = z
+  .object({
+    state: PlaybookDirectiveStateSchema.nullable().default(null),
+    type: PlaybookDirectiveTypeSchema.nullable().default(null),
+    company: z
+      .union([z.literal('group'), EntityIdSchema])
+      .nullable()
+      .default(null),
+    cursor: z.string().max(200).nullable().default(null),
+  })
+  .strict();
+export type ListPlaybookInput = z.input<typeof ListPlaybookInput>;
+
+export const PlaybookPageDto = z
+  .object({ directives: z.array(PlaybookDirectiveDto), nextCursor: z.string().nullable() })
+  .strict();
+export type PlaybookPageDto = z.infer<typeof PlaybookPageDto>;
+
+/** One directive for the review sheet. */
+export const PlaybookReviewInput = z.object({ directiveId: IdSchema }).strict();
+export type PlaybookReviewInput = z.input<typeof PlaybookReviewInput>;
+
+/** The other directive of a pair, as far as the reader may read it (null when they may not). */
+export const PlaybookOtherDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema.nullable(),
+    title: z.string(),
+    text: z.string(),
+    state: PlaybookDirectiveStateSchema,
+  })
+  .strict();
+export type PlaybookOtherDto = z.infer<typeof PlaybookOtherDto>;
+
+/**
+ * The review sheet: the directive, the vault passage it was drawn from (null when it names none;
+ * `text` null when the passage is no longer there), and each pair the conflict check compared it
+ * with, beside the other directive.
+ */
+export const PlaybookReviewDto = z
+  .object({
+    directive: PlaybookDirectiveDto,
+    source: z
+      .object({
+        knowledgeFileId: IdSchema,
+        title: z.string(),
+        position: z.number().int().min(0).nullable(),
+        text: z.string().nullable(),
+      })
+      .strict()
+      .nullable(),
+    pairs: z.array(
+      z.object({ check: PlaybookConflictCheckDto, other: PlaybookOtherDto.nullable() }).strict(),
+    ),
+  })
+  .strict();
+export type PlaybookReviewDto = z.infer<typeof PlaybookReviewDto>;
