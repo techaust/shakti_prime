@@ -169,6 +169,24 @@ export const SNAPSHOT_VAULT = {
 } as const;
 
 /**
+ * Two vault recordings (K3), made once by the seed with a transcript already read (no speech
+ * service runs in the journeys): one of management knowledge in the snapshot company, whose page an
+ * Executive corrects and the screenshots show, and one of staff knowledge in company 1, which a
+ * tele-caller reads and may not change (knowledge-audio.spec.ts). Synthetic speech.
+ */
+export const SNAPSHOT_RECORDING = {
+  title: 'Borewell site visit',
+  transcript:
+    'Borewell ki gehrai 180 feet hai. Pump 5 HP ka lagega, aur panel 12 lagenge. Customer ne kaha ki bijli din mein 6 ghante aati hai.',
+} as const;
+
+export const READER_RECORDING = {
+  title: 'Drip line morning check',
+  transcript:
+    'Subah drip line ke filter saaf karo. Pressure 1.5 bar se kam ho to valve check karo.',
+} as const;
+
+/**
  * The Playbook of the snapshot company, made once by the seed (playbook.spec.ts): an approved rule,
  * and a draft close to it that the conflict check compared with it, the stand-in model labelling
  * the pair with `reason`.
