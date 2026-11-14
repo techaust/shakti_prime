@@ -58,7 +58,9 @@ describe('upload limits', () => {
       expect(uploadLimitProblem('knowledge', type, 10)).toBe('file_type_not_allowed');
     }
     expect(uploadLimitProblem('consent_evidence', 'audio/wav', 10)).toBe('file_type_not_allowed');
-    expect(uploadKey(1, 'knowledge', newId(), 'audio/wav')).toMatch(/^1\/knowledge\/[0-9a-f-]+\.wav$/);
+    expect(uploadKey(1, 'knowledge', newId(), 'audio/wav')).toMatch(
+      /^1\/knowledge\/[0-9a-f-]+\.wav$/,
+    );
   });
 
   it('makes a safe key per company, purpose and file', () => {

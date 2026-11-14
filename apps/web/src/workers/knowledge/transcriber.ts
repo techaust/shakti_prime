@@ -84,9 +84,13 @@ export function recordingTranscriber(stt: SpeechToText, price: SpeechPrice): Rec
         }
         if (error instanceof ProviderError) {
           if (refusedAudio(error)) {
-            throw new KnowledgeExtractError('knowledge_unreadable', 'the speech service refused it', {
-              cause: error,
-            });
+            throw new KnowledgeExtractError(
+              'knowledge_unreadable',
+              'the speech service refused it',
+              {
+                cause: error,
+              },
+            );
           }
           throw new DomainError(
             'integration_unavailable',
@@ -108,5 +112,7 @@ export function vaultTranscriber(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): RecordingTranscriber | undefined {
   const config = sarvamConfig(env);
-  return config === undefined ? undefined : recordingTranscriber(sarvamSpeech(config), SARVAM_PRICE);
+  return config === undefined
+    ? undefined
+    : recordingTranscriber(sarvamSpeech(config), SARVAM_PRICE);
 }

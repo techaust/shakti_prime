@@ -9,13 +9,7 @@ export const KNOWLEDGE_FILE_MACHINE_STATES = [
 ] as const;
 export type KnowledgeFileMachineState = (typeof KNOWLEDGE_FILE_MACHINE_STATES)[number];
 export type KnowledgeFileEvent =
-  | 'add'
-  | 'index'
-  | 'fail'
-  | 'hold'
-  | 'reindex'
-  | 'correct'
-  | 'archive';
+  'add' | 'index' | 'fail' | 'hold' | 'reindex' | 'correct' | 'archive';
 
 /** What the vault commands preload for the machine. */
 export interface KnowledgeFileRecord {

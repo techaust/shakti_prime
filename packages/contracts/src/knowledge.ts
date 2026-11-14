@@ -118,7 +118,11 @@ export const KNOWLEDGE_TRANSCRIPT_MAX_CHARS = 100_000;
  * A recording's transcript as it is stored: Roman script only (ADR 0014), with its personal numbers
  * masked by the command that stores it.
  */
-export const KnowledgeTranscriptSchema = z.string().trim().min(1).max(KNOWLEDGE_TRANSCRIPT_MAX_CHARS);
+export const KnowledgeTranscriptSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(KNOWLEDGE_TRANSCRIPT_MAX_CHARS);
 
 /**
  * `knowledge.transcript.correct` (people only, `knowledge.vault.write`): a person's corrected

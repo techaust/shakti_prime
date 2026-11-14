@@ -404,10 +404,7 @@ describe('createAiProvider', () => {
     expect(await keyValue.get(spendKey('knowledge:index', null, day))).toBe('300');
     // And the index's cap stops it too.
     await expect(
-      provider.metered(
-        { ...metered, caps: [{ paise: 350, entityId: null }], maxPaise: 100 },
-        work,
-      ),
+      provider.metered({ ...metered, caps: [{ paise: 350, entityId: null }], maxPaise: 100 }, work),
     ).rejects.toMatchObject({ details: { reason: 'agent_spend_cap_reached' } });
     expect(work).not.toHaveBeenCalled();
     expect(

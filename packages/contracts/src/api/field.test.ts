@@ -22,9 +22,9 @@ describe('uploads', () => {
 
   it('takes a WAV recording of up to 25 MB as a vault file only', () => {
     const recording = { ...presign, purpose: 'knowledge', contentType: 'audio/wav' };
-    expect(FilePresignRequest.safeParse({ ...recording, size: MAX_AUDIO_UPLOAD_BYTES }).success).toBe(
-      true,
-    );
+    expect(
+      FilePresignRequest.safeParse({ ...recording, size: MAX_AUDIO_UPLOAD_BYTES }).success,
+    ).toBe(true);
     expect(
       FilePresignRequest.safeParse({ ...recording, size: MAX_AUDIO_UPLOAD_BYTES + 1 }).success,
     ).toBe(false);
@@ -38,7 +38,9 @@ describe('uploads', () => {
     ).toBe(false);
     expect(FilePresignRequest.safeParse({ ...recording, purpose: 'receipt' }).success).toBe(false);
     for (const other of ['audio/mpeg', 'audio/mp4', 'audio/ogg']) {
-      expect(FilePresignRequest.safeParse({ ...recording, contentType: other }).success).toBe(false);
+      expect(FilePresignRequest.safeParse({ ...recording, contentType: other }).success).toBe(
+        false,
+      );
     }
   });
 
