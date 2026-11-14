@@ -82,7 +82,7 @@ grant update (name, pipeline_id, field_map_json, consent_question_key, consent_t
 
 -- 3. ingest_keys: made and revoked by an Executive (crm.sources.write:all) in a company of the
 --    request. Only the key's SHA-256 is stored, and no request role selects it; the website route
---    finds a key by its hash through app.ingest_key_use(). A revoked key stays revoked.
+--    finds a key by its hash through app.ingest_key_find(). A revoked key stays revoked.
 create or replace function app.ingest_keys_guard() returns trigger
   language plpgsql set search_path = '' as $$
 begin

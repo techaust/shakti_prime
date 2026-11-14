@@ -117,8 +117,8 @@ export const ingestSources = pgTable(
  * A company's key for the website ingest API (`POST /api/v1/ingest/leads`, docs/06-api.md §3.3):
  * only its SHA-256 is stored (`key_hash`, never selectable by a request role), and the key is
  * shown once when it is made (`crm.ingest_key.create`). `key_hint` is its last four characters, so
- * the screen tells keys apart. A revoked key stays revoked; `last_used_at` is written by the route's
- * lookup (`app.ingest_key_use()`).
+ * the screen tells keys apart. A revoked key stays revoked; `last_used_at` is stamped by the lead the
+ * key sends (`app.ingest_lead_write()`), never by the route's read-only lookup.
  */
 export const ingestKeys = pgTable(
   'ingest_keys',

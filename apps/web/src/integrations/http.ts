@@ -6,7 +6,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  * errors it throws carry the vendor's status and code only.
  */
 
-export type ProviderName = 'exotel' | 'whatsapp' | 'meta_leadgen' | 'sarvam' | 'anthropic' | 'livekit';
+export type ProviderName =
+  'exotel' | 'whatsapp' | 'meta_leadgen' | 'sarvam' | 'anthropic' | 'livekit';
 
 export type ProviderFailure = 'timeout' | 'network' | 'http' | 'invalid_response';
 

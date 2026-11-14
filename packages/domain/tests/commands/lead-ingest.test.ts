@@ -30,10 +30,12 @@ import { ingestLead } from '../../src/commands/crm/ingest-lead';
 import {
   archiveIngestSource,
   createIngestKey,
+  recordSourceQuestions,
   revokeIngestKey,
   setIngestSource,
 } from '../../src/commands/crm/ingest-sources';
 import { setLeadQualification } from '../../src/commands/crm/lead-qualification';
+import { listUnownedIngestLeads } from '../../src/queries/crm/ingest-sources';
 import { moveOpportunityStage } from '../../src/commands/crm/move-opportunity-stage';
 import { updateStage } from '../../src/commands/crm/pipeline-settings';
 import { newIngestKey } from '../../src/crm/ingest-key';
@@ -395,6 +397,42 @@ describe('crm.lead.ingest', () => {
     ]);
   });
 
+  it('leaves the lead unassigned with no caller and no Sales Team Lead, and Integration health lists it', async () => {
+    await onlyPresent();
+    // Every Sales Team Lead of the company is away from work for this case only.
+    const leads = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        select u.id from users u
+          join user_entity_roles uer on uer.user_id = u.id and uer.entity_id = ${ENTITY}
+          join roles r on r.id = uer.role_id and r.key = 'sales_team_lead'
+         where u.status = 'active'`,
+    );
+    const ids = leads.map((l) => l.id);
+    await asMigrator((m) => m`update users set status = 'suspended' where id = any(${ids})`);
+    try {
+      const out = await run<LeadIngestResultDto>(
+        workers(),
+        ingestLead,
+        lead({ channel: 'website' }),
+      );
+      expect(out).toMatchObject({ outcome: 'created', ownerId: null, assignedTo: 'unassigned' });
+      const listed = await asPrincipal(exec, (ctx) => listUnownedIngestLeads(ctx));
+      expect(listed.items.find((i) => i.id === out.leadId)).toMatchObject({
+        entityId: ENTITY,
+        accountId: out.accountId,
+        channel: 'website',
+      });
+      expect(listed.total).toBeGreaterThanOrEqual(1);
+      // A lead typed in by a person is never listed, nor one that has an owner.
+      expect(listed.items.every((i) => i.channel !== 'manual')).toBe(true);
+      // Another company's Executive sees none of this company's.
+      const elsewhere = await asPrincipal(execElsewhere, (ctx) => listUnownedIngestLeads(ctx));
+      expect(elsewhere.items.find((i) => i.id === out.leadId)).toBeUndefined();
+    } finally {
+      await asMigrator((m) => m`update users set status = 'active' where id = any(${ids})`);
+    }
+  });
+
   it('lands a lead on its connected source, and refuses a source of another company', async () => {
     await onlyPresent(callerA.id);
     const source = await run<IngestSourceDto>(exec, setIngestSource, {
@@ -425,6 +463,47 @@ describe('crm.lead.ingest', () => {
         ),
       ),
     ).toMatchObject({ code: 'validation_failed', reason: 'lead_source_missing' });
+  });
+});
+
+describe('crm.source.record_questions', () => {
+  it("is 'forbidden' to every person, and to the platform for another company", async () => {
+    const input = { entityId: ENTITY, sourceId: newId(), questions: [] };
+    expect(await refusal(run(exec, recordSourceQuestions, input))).toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await refusal(run(workers([1]), recordSourceQuestions, input))).toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
+  it("records a form's questions for the preview, keys and labels only", async () => {
+    const source = await run<IngestSourceDto>(exec, setIngestSource, {
+      entityId: ENTITY,
+      provider: 'google_leadform',
+      externalId: `questions-${newId()}`,
+      name: 'Questions form',
+      pipelineId: PUMPS.id,
+      fieldMap: {},
+      consent: null,
+    });
+    const questions = [
+      { key: 'FULL_NAME', label: 'Full Name' },
+      { key: 'PHONE_NUMBER', label: null },
+    ];
+    expect(
+      await run(workers(), recordSourceQuestions, {
+        entityId: ENTITY,
+        sourceId: source.id,
+        questions,
+      }),
+    ).toEqual({ recorded: true });
+    const [row] = await asMigrator(
+      (m) => m<{ q: unknown; at: Date | null }[]>`
+        select last_questions_json as q, last_lead_at as at from ingest_sources where id = ${source.id}`,
+    );
+    expect(row?.q).toEqual(questions);
+    expect(row?.at).not.toBeNull();
   });
 });
 
@@ -667,8 +746,8 @@ describe('crm.ingest_key.create and crm.ingest_key.revoke', () => {
     });
     expect(key).toMatchObject({ label: 'Company website', keyHint: made.keyHint, revokedAt: null });
     const use = () =>
-      asPrincipal(workers([1, 2, 3, 4]), (ctx) =>
-        ctx.tx.execute(sql`select key_id, entity_id from app.ingest_key_use(${made.keyHash})`),
+      asPrincipal(workers([]), (ctx) =>
+        ctx.tx.execute(sql`select key_id, entity_id from app.ingest_key_find(${made.keyHash})`),
       ) as unknown as Promise<{ key_id: string; entity_id: number }[]>;
     expect(await use()).toEqual([{ key_id: key.id, entity_id: ENTITY }]);
     const audited = await asMigrator(

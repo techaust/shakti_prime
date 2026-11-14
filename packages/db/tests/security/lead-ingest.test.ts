@@ -233,7 +233,8 @@ describe('the ingest definers', () => {
   const ALL = [
     sql`select * from app.ingest_source('meta_leadgen', ${source.external})`,
     sql`select app.ingest_source_token(${source.id}::uuid)`,
-    sql`select * from app.ingest_key_use(${key.hash})`,
+    sql`select * from app.ingest_key_find(${key.hash})`,
+    sql`select app.ingest_record_questions(${source.id}::uuid, '[]'::jsonb)`,
     sql`select * from app.ingest_customer(1::smallint, '+919800000000', 'farmer_pumps', now())`,
     sql`select * from app.ingest_candidates(1::smallint)`,
     sql`select * from app.ingest_team_lead(1::smallint)`,
@@ -254,19 +255,21 @@ describe('the ingest definers', () => {
     for (const query of ALL.slice(3)) {
       expect(await failure(rows(workers([2]), query))).toMatch(/outside the request/);
     }
-    // The lookups by a form or a key find nothing of another company.
-    expect(
-      await rows(
-        workers([2]),
-        sql`select * from app.ingest_source('meta_leadgen', ${source.external})`,
-      ),
-    ).toEqual([]);
+    // The token of another company's form is not given.
     expect(
       await rows(workers([2]), sql`select app.ingest_source_token(${source.id}::uuid) as t`),
     ).toEqual([{ t: null }]);
-    expect(await rows(workers([2]), sql`select * from app.ingest_key_use(${key.hash})`)).toEqual(
-      [],
-    );
+    // A delivery and a website request name no company until their form or key is found: those
+    // two lookups answer the platform with none in the request, and say which company it is.
+    expect(
+      await rows(
+        workers([]),
+        sql`select entity_id from app.ingest_source('meta_leadgen', ${source.external})`,
+      ),
+    ).toEqual([{ entity_id: 1 }]);
+    expect(
+      await rows(workers([]), sql`select key_id, entity_id from app.ingest_key_find(${key.hash})`),
+    ).toEqual([{ key_id: key.id, entity_id: 1 }]);
   });
 
   it('find the form, the token and the key for the platform, and the customer of a number, by ids only', async () => {
@@ -285,9 +288,19 @@ describe('the ingest definers', () => {
     expect(
       await rows(workers([1]), sql`select app.ingest_source_token(${source.id}::uuid) as t`),
     ).toEqual([{ t: { v: 1, sealed: 'not a real envelope' } }]);
-    expect(await rows(workers([1]), sql`select * from app.ingest_key_use(${key.hash})`)).toEqual([
-      { key_id: key.id, entity_id: 1 },
+    const [entity] = await asMigrator(
+      (m) => m<{ code: string }[]>`select code from entities where id = 1`,
+    );
+    expect(await rows(workers([1]), sql`select * from app.ingest_key_find(${key.hash})`)).toEqual([
+      { key_id: key.id, entity_id: 1, entity_code: entity?.code },
     ]);
+    expect(
+      await rows(
+        workers([1]),
+        sql`select app.ingest_record_questions(${source.id}::uuid,
+              '[{"key":"full_name","label":null}]'::jsonb) as recorded`,
+      ),
+    ).toEqual([{ recorded: true }]);
     const contact = fx.contacts.a[0] ?? '';
     const [phone] = await asMigrator(
       (m) =>
