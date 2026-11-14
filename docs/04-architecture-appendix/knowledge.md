@@ -29,3 +29,10 @@ Run it with `pnpm spike:knowledge` (`packages/domain/tests/spike/knowledge-expla
 - The hosted stack (Supabase Mumbai), where the round trip and not the plan dominates.
 - The client's documents: their real passage count and mix of companies and sensitivities, and the real embeddings, whose neighbourhoods are not random.
 - The embedding call for the question (Voyage, in the request before the search), which this spike leaves out.
+
+## Recordings (K3)
+A vault file may be a recording, a 16-bit PCM WAV of up to 25 MB and 30 minutes (docs/03-roadmap-appendix/phase2.md §6.4). The index job transcribes it with Sarvam AI's batch speech to text through V1's `transcribeRecording()` (pieces under 25 seconds, four at a time), keeps the masked transcript in Roman script as the file's text (`knowledge_files.transcript`), then cuts and embeds it like any other text; a person holding `knowledge.vault.write` corrects the transcript on the file's page, which reads the file again from the correction. Its passages and transcript are read by the file's company and sensitivity, the same as a document's.
+- **What is masked:** the transcript and its passages, before they are kept (identity numbers, phone numbers and emails written in digits; a number spoken as words is not found). The recording itself is not: the stored WAV and the pieces sent to the speech vendor carry whatever was said. No Claude model receives audio.
+- **The vendor's terms:** the owner approves Sarvam's data terms and the workspace's retention before `SARVAM_API_KEY` is set on any environment, since recordings are sent as soon as it is (voice.md §6.1).
+- **Spend:** counted under `knowledge:index` and held to its own cap, `AGENT_DEFAULTS.knowledge.transcribeDailyCapPaise` (₹300 a day, ten hours at Sarvam's published ₹30 an hour); the reservation is the recording's length at that price, settled at the audio sent.
+- **Search:** a recording's passages go through the same search and plans as above; no new list or search was added.
