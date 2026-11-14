@@ -484,7 +484,8 @@
     "dealerCredit": "Dealer credit",
     "targets": "Targets",
     "converters": "Lead converters",
-    "converting": "Converting"
+    "converting": "Converting",
+    "settingsLeadSources": "Lead sources"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -559,7 +560,8 @@
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "targets": "Set what each caller and team is aiming for, and see what was set before.",
       "converters": "Choose who takes qualified leads, how many each person takes and who is present.",
-      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen."
+      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen.",
+      "settingsLeadSources": "Connect Facebook, Google and website lead forms, and make website keys."
     },
     "progress": {
       "period": {
@@ -1711,7 +1713,8 @@
       "sourceSet": "Lead source connected or changed",
       "sourceArchive": "Lead source disconnected",
       "ingestKeyCreate": "Website key made",
-      "ingestKeyRevoke": "Website key turned off"
+      "ingestKeyRevoke": "Website key turned off",
+      "sourceQuestionsRecord": "A lead form's questions noted"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2927,6 +2930,20 @@
         "page_token_refused": "Facebook turned down the Page connection",
         "other": "Something else went wrong"
       }
+    },
+    "unowned": {
+      "heading": "Leads nobody has yet",
+      "intro": "Leads from ads, forms, websites and WhatsApp that came in when no tele-caller was present and the company has no sales team lead. Give each one to someone from the leads board.",
+      "caption": "Leads from other systems with no owner, newest first",
+      "empty": "Every lead from other systems has an owner.",
+      "total": "{count, plural, one {# lead has no owner} other {# leads have no owner}}",
+      "columns": {
+        "company": "Company",
+        "channel": "Came in by",
+        "arrived": "Arrived",
+        "customer": "Customer"
+      },
+      "open": "Open the customer"
     }
   },
   "files": {
@@ -5046,5 +5063,128 @@
       "settled": "Clash settled.",
       "drafted": "{count, plural, =0 {The file states no rule we could draft.} one {# draft rule added.} other {# draft rules added.}}"
     }
+  },
+  "leadSources": {
+    "title": "Lead sources",
+    "intro": "Connect each company's Facebook and Instagram lead forms, Google lead forms and website, and make the keys a website sends leads with.",
+    "company": "Company",
+    "noCompany": "You do not work for any company yet.",
+    "sourcesHeading": "Forms and websites",
+    "sourcesIntro": "Leads from these arrive on their own and go to a tele-caller in turn. A form not connected here is kept aside on Integration health until it is.",
+    "connect": "Connect a form",
+    "noSources": "No forms or websites are connected to this company yet.",
+    "provider": {
+      "meta_leadgen": "Facebook and Instagram lead form",
+      "google_leadform": "Google lead form",
+      "website": "Company website"
+    },
+    "matched": "Name and phone matched",
+    "notMatched": "Name or phone not matched",
+    "consentQuestion": "Has a consent question",
+    "noConsentQuestion": "No consent question",
+    "pageConnected": "Facebook Page connected",
+    "pageMissing": "Facebook Page not connected",
+    "noLeadYet": "No lead has come in from it yet.",
+    "lastLead": "Last lead came in on <time>{when}</time>.",
+    "change": "Change",
+    "changeLabel": "Change {name}",
+    "disconnect": "Disconnect",
+    "disconnectLabel": "Disconnect {name}",
+    "disconnected": "{name} is disconnected.",
+    "connectTitle": "Connect a form",
+    "changeTitle": "Change a form",
+    "dialogIntro": "Choose where its leads go and match each question of the form to a lead detail.",
+    "kind": "Kind of form",
+    "formId": "Form ID",
+    "formIdHelper": "Copy it from the form's page in Facebook or Google Ads.",
+    "siteHost": "Website address",
+    "siteHostHelper": "The address the site is on, such as shaktisupreme.com, without https.",
+    "fixed": "A connected form cannot be swapped. Disconnect it and connect the new one instead.",
+    "name": "Name shown here",
+    "pipeline": "Line of business",
+    "pipelineHelper": "Every lead from this form goes to this line of business.",
+    "questions": "Questions of the form",
+    "questionsIntro": "These are the questions of the newest lead the form sent. Choose what each one fills in.",
+    "noQuestionsYet": "No lead has come in yet. Send a trial lead from the form's own page, or add its questions by hand.",
+    "targets": {
+      "none": "Not used",
+      "fullName": "Full name",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Mobile number",
+      "pin": "PIN code",
+      "village": "Village or town",
+      "message": "Message",
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number"
+    },
+    "addQuestion": "Add a question",
+    "addQuestionHelper": "Type the question's ID exactly as the form names it.",
+    "add": "Add",
+    "incomplete": "Match a name question and the mobile number question, or leads from this form are kept aside.",
+    "consent": "Consent",
+    "consentKey": "Consent question",
+    "consentKeyHelper": "A lead gets a consent only when the person ticked this question.",
+    "noConsent": "The form asks for no consent",
+    "consentVersion": "Version of the consent wording",
+    "consentVersionHelper": "Change it whenever the wording on the form changes, so each consent shows what was agreed.",
+    "consentChannels": "A tick agrees to",
+    "channels": {
+      "whatsapp": "WhatsApp messages",
+      "call": "Calls",
+      "sms": "Text messages",
+      "email": "Emails"
+    },
+    "consentPurpose": "For",
+    "purposes": {
+      "service": "Service about their enquiry",
+      "promotional": "Offers and promotions"
+    },
+    "pageToken": "Facebook Page access key",
+    "pageTokenHelper": "Paste the Page access key from Facebook. It is locked away when saved and never shown again.",
+    "pageTokenKept": "A Page access key is saved. Paste a new one only to replace it.",
+    "save": "Save form",
+    "saved": "{name} is saved.",
+    "close": "Close",
+    "keysHeading": "Website keys",
+    "keysIntro": "A company's website sends its enquiries with one of these keys. Turn a key off when the website no longer uses it.",
+    "keyLabel": "Name of the new key",
+    "keyLabelHelper": "Such as the website it is for.",
+    "makeKey": "Make a key",
+    "keyMade": "The key for {label}",
+    "keyOnce": "Copy it into the website now. It is not shown again.",
+    "keyCopied": "I have copied it",
+    "noKeys": "This company has no website keys yet.",
+    "endsWith": "Ends with {hint}",
+    "neverUsed": "Not used yet.",
+    "lastUsed": "Last used on <time>{when}</time>.",
+    "turnedOff": "Turned off on <time>{when}</time>.",
+    "turnOff": "Turn off",
+    "turnOffLabel": "Turn off {label}",
+    "keyTurnedOff": "{label} is turned off.",
+    "off": "Off"
+  },
+  "qualification": {
+    "heading": "Lead details",
+    "edit": "Change details",
+    "none": "No details recorded yet.",
+    "save": "Save details",
+    "saved": "The lead details are saved.",
+    "facts": {
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number"
+    },
+    "show": "Lead details",
+    "hide": "Hide lead details",
+    "dialogTitle": "Lead details of {name}",
+    "dialogIntro": "What the customer told us about their site and needs. A stage may need some of these before a lead moves on."
   }
 }

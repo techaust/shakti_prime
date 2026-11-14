@@ -16,6 +16,7 @@ import type {
   CustomerSort,
   EntityChannelKind,
   IngestAssignee,
+  IngestFieldTarget,
   IngestChannel,
   IngestSourceProvider,
   LeadQualificationFact,
@@ -185,6 +186,23 @@ export const INGEST_SOURCE_PROVIDERS = [
   'google_leadform',
   'website',
 ] as const satisfies readonly IngestSourceProvider[];
+
+/** What a form's question may fill on a lead (`INGEST_FIELD_TARGETS`). */
+export const INGEST_FIELD_TARGETS = [
+  'fullName',
+  'firstName',
+  'lastName',
+  'phone',
+  'pin',
+  'village',
+  'message',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+  'discomConsumerNo',
+] as const satisfies readonly IngestFieldTarget[];
 
 /** The qualification facts, in the order the card shows them (`LEAD_QUALIFICATION_FACTS`). */
 export const LEAD_QUALIFICATION_FACTS = [

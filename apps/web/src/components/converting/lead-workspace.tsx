@@ -23,6 +23,10 @@ import type { useCallLogging } from './use-call-logging';
 // load carries neither.
 const SizingPanel = dynamic(() => import('../sizing/sizing-panel').then((m) => m.SizingPanel));
 const QuotePanel = dynamic(() => import('./quote-panel').then((m) => m.QuotePanel));
+// The lead's qualification details, shown with the sizing they feed.
+const QualificationCard = dynamic(() =>
+  import('../leads/qualification-card').then((m) => m.QualificationCard),
+);
 
 // The dialog for an outcome's detail loads when an outcome first needs it, as in the calling
 // workspace.
@@ -212,15 +216,22 @@ export function LeadWorkspace({
   const body: Record<ConvertingPanel, ReactNode> = {
     calls: <CallsPanel lead={lead} calling={calling} />,
     sizing: (
-      <SizingPanel
-        entityId={lead.entityId}
-        opportunityId={lead.opportunityId}
-        canWrite={canWrite}
-        initialKind={sizingKindFor(lead.segment)}
-        onSaved={(saved) => {
-          onChanged(saved);
-        }}
-      />
+      <div className="flex flex-col gap-6">
+        <QualificationCard
+          entityId={lead.entityId}
+          opportunityId={lead.opportunityId}
+          canWrite={canWrite}
+        />
+        <SizingPanel
+          entityId={lead.entityId}
+          opportunityId={lead.opportunityId}
+          canWrite={canWrite}
+          initialKind={sizingKindFor(lead.segment)}
+          onSaved={(saved) => {
+            onChanged(saved);
+          }}
+        />
+      </div>
     ),
     quote: (
       <QuotePanel

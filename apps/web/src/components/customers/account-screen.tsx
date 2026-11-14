@@ -43,6 +43,10 @@ import type { CustomerDialogKind } from './customer-dialogs';
 // The dialogs and the sizing panel load on first use, so the page ships only what it shows.
 const CustomerDialog = dynamic(() => import('./customer-dialogs').then((m) => m.CustomerDialog));
 const SizingPanel = dynamic(() => import('../sizing/sizing-panel').then((m) => m.SizingPanel));
+// A lead's qualification details load when they are first shown.
+const QualificationCard = dynamic(() =>
+  import('../leads/qualification-card').then((m) => m.QualificationCard),
+);
 // The duplicate cards load only for a customer that has one (CRM-03).
 const AccountDuplicates = dynamic(() =>
   import('../duplicates/account-duplicates').then((m) => m.AccountDuplicates),
@@ -547,9 +551,12 @@ function Leads({
 }) {
   const t = useTranslations('customers');
   const leadsT = useTranslations('leads');
+  const qualification = useTranslations('qualification');
   const untag = useCommand(untagLead);
   // The lead whose sizing panel is open: one at a time, loaded when first opened.
   const [sizing, setSizing] = useState<string | undefined>();
+  // The lead whose qualification details are open, one at a time.
+  const [details, setDetails] = useState<string | undefined>();
   return (
     <Section id="account-leads" title={t('leads.sectionTitle')}>
       <FailureMessage failure={untag.failure} />
@@ -628,6 +635,26 @@ function Leads({
                 >
                   {sizing === l.id ? t('leads.hideSizing') : t('leads.sizeLead')}
                 </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-expanded={details === l.id}
+                  aria-controls={`account-details-${l.id}`}
+                  onClick={() => {
+                    setDetails((open) => (open === l.id ? undefined : l.id));
+                  }}
+                >
+                  {details === l.id ? qualification('hide') : qualification('show')}
+                </Button>
+              </div>
+              <div id={`account-details-${l.id}`} hidden={details !== l.id} className="pt-2">
+                {details === l.id ? (
+                  <QualificationCard
+                    entityId={view.entityId}
+                    opportunityId={l.id}
+                    canWrite={view.canWorkLeads}
+                  />
+                ) : null}
               </div>
               <div id={`account-sizing-${l.id}`} hidden={sizing !== l.id} className="pt-2">
                 {sizing === l.id ? (

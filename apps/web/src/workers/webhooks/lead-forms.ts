@@ -132,7 +132,7 @@ function attribution(fields: Record<string, unknown>): LeadAttribution {
       const r = ref(v);
       return r === undefined ? [] : [[k, r]];
     }),
-  ) as LeadAttribution;
+  );
 }
 
 /** Meta's answers: each question's values joined, and each consent box as yes or no. */

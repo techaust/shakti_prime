@@ -98,6 +98,7 @@ const ACTIONS = {
   'crm.lead.qualification.set': 'leadQualificationSet',
   'crm.source.set': 'sourceSet',
   'crm.source.archive': 'sourceArchive',
+  'crm.source.record_questions': 'sourceQuestionsRecord',
   'crm.ingest_key.create': 'ingestKeyCreate',
   'crm.ingest_key.revoke': 'ingestKeyRevoke',
   'pricing.price.set': 'priceSet',
