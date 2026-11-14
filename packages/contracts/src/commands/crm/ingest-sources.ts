@@ -77,7 +77,11 @@ export const SetIngestSourceInput = z
     pipelineId: IdSchema,
     fieldMap: IngestFieldMapSchema,
     consent: IngestSourceConsentSchema.nullable(),
-    pageToken: z.string().trim().min(20).max(1000).optional(),
+    pageToken: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9_.|=+/-]{20,1000}$/)
+      .optional(),
   })
   .strict()
   .refine((v) => v.pageToken === undefined || v.provider === 'meta_leadgen', {

@@ -29,7 +29,10 @@ export const IngestChannelSchema = z.enum(INGEST_CHANNELS);
 export type IngestChannel = z.infer<typeof IngestChannelSchema>;
 
 /** A provider's id (a campaign, ad, form, lead or click id): kept whole, never shown to a customer. */
-const ProviderRef = z.string().trim().min(1).max(200);
+const ProviderRef = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_.:=+/-]{1,200}$/);
 
 const UtmSchema = z
   .object({

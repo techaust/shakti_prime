@@ -8,9 +8,9 @@ import {
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { ActivityRecord } from '../../activities/activity';
-import type { DomainEvent } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { findDuplicates, recordDuplicates } from '../../crm/duplicates';
+import { emitLeadCreated } from '../../crm/lead-events';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 import { applyLeadAttribution } from './lead-attribution';
 import { firstStage } from './opportunity-shared';
@@ -80,33 +80,6 @@ export function leadCreatedActivity(
       pipelineKey: input.pipelineKey,
       sourceCode: input.sourceCode ?? null,
       existingAccount: input.existingAccountId !== undefined,
-    },
-  };
-}
-
-/**
- * The event of a new lead (`crm.lead.created`), as every intake sends it: the lead form, an import
- * row and a lead from an integration (`crm.lead.ingest`).
- */
-export function leadCreatedEvent(args: {
-  entityId: number;
-  opportunityId: string;
-  pipelineKey: string;
-  sourceCode: string | null;
-  existingAccount: boolean;
-  imported?: boolean;
-}): DomainEvent {
-  return {
-    type: 'crm.lead.created',
-    entityId: args.entityId,
-    aggregateType: 'opportunity',
-    aggregateId: args.opportunityId,
-    payload: {
-      pipelineKey: args.pipelineKey,
-      sourceCode: args.sourceCode,
-      existingAccount: args.existingAccount,
-      // A row an import commits is history brought in; no agent triages it.
-      ...(args.imported === true ? { imported: true as const } : {}),
     },
   };
 }
@@ -390,18 +363,16 @@ export const createLead = defineCommand({
       },
     });
 
-    ctx.emit(
-      leadCreatedEvent({
-        entityId,
-        opportunityId: opportunity.id,
-        pipelineKey: input.pipelineKey,
-        sourceCode: input.sourceCode ?? null,
-        existingAccount: input.existingAccountId !== undefined,
-        // A row an import commits one at a time is history brought in, as the batch path marks
-        // it (`commitLeadBatch`).
-        imported: ctx.inImportBatch === true,
-      }),
-    );
+    emitLeadCreated(ctx, {
+      entityId,
+      opportunityId: opportunity.id,
+      pipelineKey: input.pipelineKey,
+      sourceCode: input.sourceCode ?? null,
+      existingAccount: input.existingAccountId !== undefined,
+      // A row an import commits one at a time is history brought in, as the batch path marks it
+      // (`commitLeadBatch`).
+      imported: ctx.inImportBatch === true,
+    });
 
     // Other customers that may be this one, and another open lead of the segment (CRM-03).
     if (ctx.inImportBatch !== true) {

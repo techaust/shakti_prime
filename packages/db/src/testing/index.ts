@@ -340,6 +340,12 @@ export const ENTITY_TABLES = [
   'caller_profiles',
   // a company's numbers, read by every principal acting in it (docs/03-roadmap-appendix/phase2.md §5.2)
   'entity_channels',
+  // a company's connected forms and sites, and its website keys: read and written by an Executive
+  // (crm.sources.write); a lead's qualification facts, read with the lead
+  // (docs/03-roadmap-appendix/phase2.md §6.2)
+  'ingest_sources',
+  'ingest_keys',
+  'lead_qualifications',
 ] as const;
 
 /**

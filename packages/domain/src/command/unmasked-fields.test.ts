@@ -91,6 +91,23 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
     'bankDetails.accountNumber': AADHAAR,
     upiId: `${MOBILE_91}@okaxis`,
   },
+  // A provider's ids of a lead from an integration, kept whole as attribution.
+  'crm.lead.ingest': {
+    externalId: AADHAAR,
+    'attribution.campaignId': AADHAAR,
+    'attribution.adsetId': AADHAAR,
+    'attribution.adId': AADHAAR,
+    'attribution.formId': AADHAAR,
+    'attribution.pageId': AADHAAR,
+    'attribution.gclid': `Cj0${AADHAAR}_BwE`,
+    'attribution.ctwaClid': `ARA${AADHAAR}kLkA`,
+    'attribution.referralSourceId': AADHAAR,
+    'qualification.discomConsumerNo': AADHAAR,
+  },
+  'crm.lead.qualification.set': { 'facts.discomConsumerNo': AADHAAR },
+  // A form or Page id, the Page's token and a key's hash are matched or sealed whole.
+  'crm.source.set': { externalId: AADHAAR, pageToken: `EAAG${AADHAAR}ZCZBxyzw` },
+  'crm.ingest_key.create': { keyHash: HEX },
   // A WhatsApp phone_number_id is a long number; an Aadhaar-shaped one stays whole.
   'org.channel.set': { providerRef: AADHAAR },
   'catalogue.item.create': { sku: AADHAAR },

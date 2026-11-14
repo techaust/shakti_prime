@@ -60,6 +60,7 @@ import {
   ThemeSchema,
   ContrastSchema,
   WEBHOOK_PROVIDERS,
+  INGEST_SOURCE_PROVIDERS,
   DuplicateKindSchema,
   DuplicateReasonSchema,
   DuplicateStateSchema,
@@ -202,6 +203,11 @@ const PAIRS: Record<string, readonly string[]> = {
   caller_profiles_languages_check: CustomerLanguageSchema.options,
   caller_profiles_segments_check: SegmentSchema.options,
   webhook_inbox_provider_check: WEBHOOK_PROVIDERS,
+  ingest_sources_provider_check: INGEST_SOURCE_PROVIDERS,
+  // Only a Lead Ads form is fetched with a Page token.
+  ingest_sources_page_token_check: ['meta_leadgen'],
+  ingest_sources_consent_channels_check: ConsentChannelSchema.options,
+  ingest_sources_consent_purpose_check: ConsentPurposeSchema.options,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

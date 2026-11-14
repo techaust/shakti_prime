@@ -145,9 +145,6 @@ export const setIngestSource = defineCommand({
   unmaskedFields: [
     // A form or Page id is a long number by design, kept whole.
     'externalId',
-    // A form's own names for its questions, matched whole against what the form sends.
-    'fieldMap',
-    'consent.questionKey',
     // The Page's access token, sealed whole; masking would break it.
     'pageToken',
   ],

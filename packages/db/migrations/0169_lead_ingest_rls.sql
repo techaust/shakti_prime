@@ -22,7 +22,8 @@ $$;
 --    request. The sealed Page token is written but never read back by a request role (no select
 --    grant on the column); the Lead Ads handler opens it through app.ingest_source_token(). The
 --    form's last questions are the platform's to write. An archived connection stays archived, so a
---    form connected again is a new row and what named the old one keeps it.
+--    form connected again is a new row and what named the old one keeps it. A new row starts live,
+--    with no lead seen yet.
 create trigger set_updated_at before update on ingest_sources
   for each row execute function app.set_updated_at();
 --> statement-breakpoint
@@ -52,7 +53,9 @@ create policy ingest_sources_read on ingest_sources for select to app_user, app_
 create policy ingest_sources_insert on ingest_sources for insert to app_user
   with check ((select app.has_perm('crm.sources.write:all'))
               and entity_id = any ((select app.entity_ids())::int[])
-              and created_by = (select app.user_id()));
+              and created_by = (select app.user_id())
+              and archived_at is null and last_lead_at is null
+              and last_questions_json = '[]'::jsonb);
 --> statement-breakpoint
 create policy ingest_sources_update on ingest_sources for update to app_user
   using ((select app.has_perm('crm.sources.write:all'))
@@ -69,10 +72,7 @@ grant select (id, entity_id, provider, external_id, name, pipeline_id, field_map
               updated_at, created_by, updated_by)
   on ingest_sources to app_user, app_reader;
 --> statement-breakpoint
-grant insert (id, entity_id, provider, external_id, name, pipeline_id, field_map_json,
-              consent_question_key, consent_text_version, consent_channels, consent_purpose,
-              page_token_sealed, created_by)
-  on ingest_sources to app_user;
+grant insert on ingest_sources to app_user;
 --> statement-breakpoint
 grant update (name, pipeline_id, field_map_json, consent_question_key, consent_text_version,
               consent_channels, consent_purpose, page_token_sealed, archived_at, updated_at,
@@ -109,7 +109,8 @@ create policy ingest_keys_read on ingest_keys for select to app_user, app_reader
 create policy ingest_keys_insert on ingest_keys for insert to app_user
   with check ((select app.has_perm('crm.sources.write:all'))
               and entity_id = any ((select app.entity_ids())::int[])
-              and created_by = (select app.user_id()));
+              and created_by = (select app.user_id())
+              and revoked_at is null and revoked_by is null and last_used_at is null);
 --> statement-breakpoint
 create policy ingest_keys_update on ingest_keys for update to app_user
   using ((select app.has_perm('crm.sources.write:all'))
@@ -124,7 +125,7 @@ grant select (id, entity_id, label, key_hint, last_used_at, revoked_at, revoked_
               created_by)
   on ingest_keys to app_user, app_reader;
 --> statement-breakpoint
-grant insert (id, entity_id, label, key_hash, key_hint, created_by) on ingest_keys to app_user;
+grant insert on ingest_keys to app_user;
 --> statement-breakpoint
 grant update (revoked_at, revoked_by) on ingest_keys to app_user;
 --> statement-breakpoint

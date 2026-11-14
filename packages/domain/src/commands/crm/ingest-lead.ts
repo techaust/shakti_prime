@@ -16,12 +16,13 @@ import { sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { pickCaller, type CallerCandidate } from '../../crm/handover';
+import { emitLeadCreated } from '../../crm/lead-events';
 import { loadScoreRules, scoreChanged, writeRefreshedScores } from '../../crm/lead-scoring';
 import { scoreLead } from '../../crm/score';
 import { transition } from '../../state-machines/define-machine';
 import { opportunityMachine } from '../../state-machines/machines/opportunity';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
-import { leadCreatedEvent, lockNewNumber } from './create-lead';
+import { lockNewNumber } from './create-lead';
 import { requireEntity } from './opportunity-shared';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -269,7 +270,14 @@ export const ingestLead = defineCommand({
   unmaskedFields: [
     // The provider's own ids, long numbers by design, kept whole as attribution.
     'externalId',
-    'attribution',
+    'attribution.campaignId',
+    'attribution.adsetId',
+    'attribution.adId',
+    'attribution.formId',
+    'attribution.pageId',
+    'attribution.gclid',
+    'attribution.ctwaClid',
+    'attribution.referralSourceId',
     // A DISCOM consumer number is a long number by design.
     'qualification.discomConsumerNo',
   ],
@@ -395,15 +403,13 @@ export const ingestLead = defineCommand({
     });
 
     if (row.outcome === 'created') {
-      ctx.emit(
-        leadCreatedEvent({
-          entityId: input.entityId,
-          opportunityId: row.opportunity_id,
-          pipelineKey: row.pipeline_key,
-          sourceCode: row.source_code,
-          existingAccount,
-        }),
-      );
+      emitLeadCreated(ctx, {
+        entityId: input.entityId,
+        opportunityId: row.opportunity_id,
+        pipelineKey: row.pipeline_key,
+        sourceCode: row.source_code,
+        existingAccount,
+      });
     } else {
       ctx.emit({
         type: 'crm.lead.attached',

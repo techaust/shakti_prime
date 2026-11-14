@@ -153,13 +153,19 @@ describe('app_user role (docs/05-database.md §3)', () => {
     notifications: { i: false, u: false },
     // A profile changes only its settings and presence (column grants, 0125); never deleted.
     caller_profiles: { i: true, u: false },
+    // A lead source is written column by column, its sealed Page token never read back; a key
+    // keeps its hash and changes only by its revoke (column grants, I1); a lead's facts change
+    // only their values.
+    ingest_sources: { i: true, u: false },
+    ingest_keys: { i: true, u: false },
+    lead_qualifications: { i: true, u: false },
   };
 
   /**
    * Tables selected column by column: `entities`, whose sealed bank account no request role may
    * select (the test below).
    */
-  const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities']);
+  const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities', 'ingest_sources', 'ingest_keys']);
 
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; u: boolean; d: boolean }>(sql`
