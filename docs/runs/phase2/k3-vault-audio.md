@@ -37,3 +37,26 @@ Done when: AGENTS §10 holds on the branch; the acceptance lines of §6.4 pass; 
 Not in K3: Teach sessions' audio (V2 stores it here later); call recordings (T3, A2).
 
 ## Report
+
+### 14-11-2026, lead's cloud VM (slot 4): stopped at step 2's format check, before any code
+**Finding: no decoder package is needed for WAV; one would be needed for MP3, M4A and OGG as the design asks.**
+- `recording.ts` reads 16-bit PCM WAV only, and cuts each piece at the quietest 20 ms before 25 s, which needs the audio as PCM. Its header says a recording in another format "is converted when it is copied in (T3, K3)", and converting needs a decoder.
+- The repository does not say which formats Sarvam's REST speech-to-text takes. `voice.md` §6.1 records that the build session could not open `docs.sarvam.ai`, and this session cannot either. The only thing recorded is "about 30 seconds of audio" per call. The adapter sends every piece as `turn.wav`. My own memory of Sarvam's pages lists MP3, AAC, OGG and M4A among the accepted types, but no recorded answer or page in the repository confirms that.
+- Even if the vendor takes them, a file of up to 30 minutes still has to go in pieces under 30 s. Cutting compressed audio without decoding it:
+  - **MP3:** can be cut on frame boundaries by hand. The cut lands at a fixed time, not a pause, so a word can be split.
+  - **OGG (Opus or Vorbis):** can be cut on page boundaries by hand, with the header pages repeated and the page numbers and CRCs rewritten. A fixed-time cut again.
+  - **M4A:** needs an MP4 demuxer and a remuxer (sample tables, or AAC frames rewrapped as ADTS) written by hand. It is a sizeable, fragile binary parser and the vendor's acceptance is still unconfirmed.
+- No audio package is installed (`node_modules/.pnpm` has none for ffmpeg, mp3, ogg, mp4 or audio).
+
+**For the lead to decide:**
+- (a) WAV only for now: upload accepts `audio/wav` alone, and the job runs `transcribeRecording()` as built.
+- (b) A decoder package, with the owner's yes, so the job converts MP3, M4A and OGG to PCM before `transcribeRecording()`.
+- (c) Hand-written MP3 and OGG frame/page cutting with fixed-time cuts, after the vendor's format list is confirmed. M4A waits for (b).
+
+Steps 1 and 3 and the WAV path of step 2 do not depend on this choice. I can build them as soon as the lead answers.
+
+**Two things the brief does not settle, also for the lead:**
+- `MAX_UPLOAD_BYTES` is 15 MB (`packages/contracts/src/api/files.ts`) and the `knowledge` purpose uses it, but the design allows 25 MB for audio. I would give audio its own cap of 25 MB within the `knowledge` purpose, unless the lead says otherwise.
+- A 30-minute 16 kHz mono 16-bit WAV is about 57.6 MB, so under a 25 MB cap a WAV can hold only about 13 minutes at 16 kHz, or about 26 minutes at 8 kHz. Under (a), the 30-minute limit is effectively the size limit.
+
+Checks run: none (no code changed). Skills loaded: none yet (`add-command` is loaded when step 3 starts).
