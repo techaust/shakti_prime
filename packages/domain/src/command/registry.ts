@@ -102,6 +102,7 @@ import { setLeadQualification } from '../commands/crm/lead-qualification';
 import {
   archiveIngestSource,
   createIngestKey,
+  recordSourceQuestions,
   revokeIngestKey,
   setIngestSource,
 } from '../commands/crm/ingest-sources';
@@ -157,6 +158,7 @@ export const commands = Object.freeze({
   [archiveIngestSource.name]: archiveIngestSource,
   [createIngestKey.name]: createIngestKey,
   [revokeIngestKey.name]: revokeIngestKey,
+  [recordSourceQuestions.name]: recordSourceQuestions,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
   [assignOpportunity.name]: assignOpportunity,

@@ -128,8 +128,9 @@ export const LeadIngestInput = z
     pipelineKey: z.string().trim().min(1).max(40).optional(),
     /**
      * The provider's own id of this lead or message (Meta `leadgen_id`, Google `lead_id`, the
-     * WhatsApp message id): the caller runs the command with an idempotency key made from it, so a
-     * repeated event makes nothing.
+     * WhatsApp message id): the caller runs the command with the idempotency key
+     * `ingestIdempotencyKey(channel, externalId)` (`@shakti/domain`), so a repeated event makes
+     * nothing.
      */
     externalId: ProviderRef.optional(),
     contact: z
@@ -153,6 +154,8 @@ export const LeadIngestInput = z
     attribution: LeadAttributionSchema.optional(),
     consent: IngestConsentSchema.optional(),
     qualification: LeadQualificationFactsSchema.optional(),
+    /** The website key the lead came with (`POST /ingest/leads`), stamped as used. */
+    ingestKeyId: IdSchema.optional(),
     /** What the person wrote on the form, kept on the lead's timeline with numbers masked. */
     message: z.string().trim().min(1).max(1000).optional(),
   })

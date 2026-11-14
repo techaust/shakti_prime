@@ -196,9 +196,10 @@ $$;
 revoke execute on function app.require_ingest(smallint) from public, readonly_reporter;
 --> statement-breakpoint
 
--- 6. A connected form, Page or site by its provider and id, in a company of the request: what a
---    handler needs to land a lead (its company, pipeline, segment, field map and consent question),
---    and whether a Page token is recorded. Never the token itself.
+-- 6. A live connected form, Page or site by its provider and id: what a handler needs to land a
+--    lead (its company, pipeline, segment, field map and consent question), and whether a Page
+--    token is recorded, never the token itself. A delivery names no company until this answers, so
+--    the lookup needs none in the request, as `app.webhook_claim()` does.
 create or replace function app.ingest_source(p_provider text, p_external_id text)
   returns table (source_id uuid, entity_id smallint, pipeline_id uuid, pipeline_key text,
                  segment text, field_map_json jsonb, consent_question_key text,
@@ -216,14 +217,13 @@ begin
       join public.pipelines p on p.id = s.pipeline_id
      where s.provider = p_provider
        and s.external_id = p_external_id
-       and s.archived_at is null
-       and s.entity_id = any (coalesce(app.entity_ids(), '{}'::int[]));
+       and s.archived_at is null;
 end
 $$;
 --> statement-breakpoint
 revoke execute on function app.ingest_source(text, text) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.ingest_source(text, text) to app_user;
+grant execute on function app.ingest_source(text, text) to app_user, app_reader;
 --> statement-breakpoint
 
 -- 7. The sealed Page token of a live Meta connection in a company of the request, for the Lead Ads
@@ -246,30 +246,58 @@ $$;
 --> statement-breakpoint
 revoke execute on function app.ingest_source_token(uuid) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.ingest_source_token(uuid) to app_user;
+grant execute on function app.ingest_source_token(uuid) to app_user, app_reader;
 --> statement-breakpoint
 
--- 8. The website route's key: the live key with this SHA-256 in a company of the request, stamped
---    as used now. No row for an unknown or revoked key.
-create or replace function app.ingest_key_use(p_hash text)
-  returns table (key_id uuid, entity_id smallint)
-  language plpgsql volatile security definer set search_path = '' as $$
+-- 8. The website route's key: the live key with this SHA-256 and its company, or no row for an
+--    unknown or revoked key, with the company's code the request must name. Read only, so the route asks it before any write; the lead the key
+--    sends stamps it as used (app.ingest_lead_write()). A request names no company until this
+--    answers.
+create or replace function app.ingest_key_find(p_hash text)
+  returns table (key_id uuid, entity_id smallint, entity_code text)
+  language plpgsql stable security definer set search_path = '' as $$
 #variable_conflict use_column
 begin
   perform app.require_ingest(null);
   return query
-    update public.ingest_keys k
-       set last_used_at = pg_catalog.now()
+    select k.id, k.entity_id, e.code
+      from public.ingest_keys k
+      join public.entities e on e.id = k.entity_id
      where k.key_hash = p_hash
-       and k.revoked_at is null
-       and k.entity_id = any (coalesce(app.entity_ids(), '{}'::int[]))
-    returning k.id, k.entity_id;
+       and k.revoked_at is null;
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.ingest_key_use(text) from public, readonly_reporter;
+revoke execute on function app.ingest_key_find(text) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.ingest_key_use(text) to app_user;
+grant execute on function app.ingest_key_find(text) to app_user, app_reader;
+--> statement-breakpoint
+
+-- 8a. The questions of the newest lead a connected form sent (keys and labels, never the answers),
+--     for the field map's preview, in a company of the request.
+create or replace function app.ingest_record_questions(p_source uuid, p_questions jsonb)
+  returns boolean
+  language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_entity smallint;
+begin
+  select s.entity_id into v_entity from public.ingest_sources s
+   where s.id = p_source and s.archived_at is null;
+  perform app.require_ingest(coalesce(v_entity, -1)::smallint);
+  if jsonb_typeof(p_questions) <> 'array' or jsonb_array_length(p_questions) > 100
+     or octet_length(p_questions::text) > 20000 then
+    raise exception 'the questions are a list of at most 100' using errcode = 'check_violation';
+  end if;
+  update public.ingest_sources
+     set last_questions_json = p_questions, last_lead_at = pg_catalog.now()
+   where id = p_source;
+  return found;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.ingest_record_questions(uuid, jsonb) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.ingest_record_questions(uuid, jsonb) to app_user;
 --> statement-breakpoint
 
 -- 9. Who an integration's lead might be for in a company: the customer of the company with this
@@ -646,6 +674,13 @@ begin
     insert into public.activities (id, entity_id, opportunity_id, account_id, type,
                                    actor_principal_id, body)
       values (app.new_uuid7(), p_entity, v_lead, v_account, 'note', v_actor, p ->> 'message');
+  end if;
+
+  -- The website key the lead came with, stamped as used.
+  if p ->> 'ingestKeyId' is not null then
+    update public.ingest_keys k
+       set last_used_at = pg_catalog.now()
+     where k.id = (p ->> 'ingestKeyId')::uuid and k.entity_id = p_entity and k.revoked_at is null;
   end if;
 
   if v_mode = 'create' and v_owner is not null

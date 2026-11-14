@@ -32,10 +32,27 @@ export { setLeadQualification } from './commands/crm/lead-qualification';
 export {
   archiveIngestSource,
   createIngestKey,
+  recordSourceQuestions,
   revokeIngestKey,
   setIngestSource,
 } from './commands/crm/ingest-sources';
 export { hashIngestKey, newIngestKey } from './crm/ingest-key';
+export {
+  formQuestions,
+  ingestIdempotencyKey,
+  isTicked,
+  mapFormAnswers,
+} from './crm/ingest-map';
+export type { FormAnswer, MappedLead, SourceMapping } from './crm/ingest-map';
+export {
+  findIngestKey,
+  findIngestSource,
+  ingestSourceToken,
+  listIngestSources,
+  listUnownedIngestLeads,
+  readLeadQualification,
+} from './queries/crm/ingest-sources';
+export type { FoundIngestSource } from './queries/crm/ingest-sources';
 export { listEntityChannels } from './queries/org/list-channels';
 export { dialFacts, dndRecordInput, toDialPlanDto } from './queries/calls/dial-plan';
 export { createLead } from './commands/crm/create-lead';

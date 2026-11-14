@@ -7,13 +7,15 @@ import {
   IngestSourceDto,
   IngestSourceProviderSchema,
   newId,
+  RecordSourceQuestionsDto,
+  RecordSourceQuestionsInput,
   RevokeIngestKeyInput,
   SetIngestSourceInput,
   SourceQuestionSchema,
   type IngestSourceConsent,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
@@ -31,7 +33,7 @@ import { requireEntity } from './opportunity-shared';
 const s = schema.ingestSources;
 
 /** Every column a request may read of a source (the sealed token is not one of them). */
-const SOURCE_COLUMNS = {
+export const SOURCE_COLUMNS = {
   id: s.id,
   entityId: s.entityId,
   provider: s.provider,
@@ -273,7 +275,7 @@ export const archiveIngestSource = defineCommand({
 const k = schema.ingestKeys;
 
 /** Every column a request may read of a key (the hash is not one of them). */
-const KEY_COLUMNS = {
+export const KEY_COLUMNS = {
   id: k.id,
   entityId: k.entityId,
   label: k.label,
@@ -370,5 +372,28 @@ export const revokeIngestKey = defineCommand({
       after: { revokedAt: ctx.now.toISOString() },
     });
     return toIngestKeyDto(row);
+  },
+});
+
+/**
+ * `crm.source.record_questions` (the platform's, `crm.ingest.run`): the questions of the newest lead
+ * a connected form sent, keys and labels only, through `app.ingest_record_questions()`, so the field
+ * map can be set from what the form really asks. Bookkeeping: no audit row.
+ */
+export const recordSourceQuestions = defineCommand({
+  name: 'crm.source.record_questions',
+  permission: 'crm.ingest.run',
+  minScope: 'entity',
+  input: RecordSourceQuestionsInput,
+  output: RecordSourceQuestionsDto,
+  auditFields: [],
+  auditWhen: 'changed',
+  async handler(ctx, input) {
+    requireEntity(ctx, input.entityId);
+    const [row] = (await ctx.tx.execute(
+      sql`select app.ingest_record_questions(${input.sourceId}::uuid,
+                                             ${JSON.stringify(input.questions)}::jsonb) as recorded`,
+    )) as unknown as { recorded: boolean }[];
+    return { recorded: row?.recorded === true };
   },
 });

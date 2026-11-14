@@ -118,6 +118,7 @@ export interface IngestWriteArgs {
   attribution: LeadIngestInput['attribution'] | null;
   qualification: LeadIngestInput['qualification'] | null;
   message: string | null;
+  ingestKeyId: string | null;
 }
 
 /** The lead's pipeline in the company: the connected source's, else the one the input names. */
@@ -365,6 +366,7 @@ export const ingestLead = defineCommand({
       attribution: input.attribution ?? null,
       qualification: input.qualification ?? null,
       message: input.message ?? null,
+      ingestKeyId: input.ingestKeyId ?? null,
     };
     const [row] = (await ctx.tx.execute(
       sql`select outcome, opportunity_id, account_id, contact_id, contact_phone_id, owner_id,

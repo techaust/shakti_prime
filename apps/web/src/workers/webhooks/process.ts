@@ -27,6 +27,8 @@ type Claimed = Extract<ClaimedWebhookDto, { claimed: true }>;
  * - A payload the contract refuses fails the row with `payload_unreadable` for good: another try
  *   reads the same bytes.
  * - With no handler registered the row is processed with the code `no_handler`.
+ * - A handler may set the row aside for good with its own code (`failed`), or keep a code on a
+ *   processed row.
  * - A handler's error releases the row into a backoff that grows with its tries (1, 2, 4, 8, 16,
  *   then 30 minutes) and answers `retrying`, so QStash's chain ends; the sweep sends the row again
  *   once the backoff has passed, so an outage of a few minutes uses few of the ten tries. A release
@@ -87,9 +89,9 @@ export async function processWebhook(
     await mark('processed', 'no_handler');
     return WebhookProcessResult.parse({ inboxId, outcome: 'processed', handled: false });
   }
-  let entityId: number | null;
+  let handled: Awaited<ReturnType<WebhookHandler<WebhookProvider>>>;
   try {
-    ({ entityId } = await handler(parsed.data, context(claimed, inboxId, requestId)));
+    handled = await handler(parsed.data, context(claimed, inboxId, requestId));
   } catch (error) {
     logger.log('warn', 'webhooks.handler_failed', {
       requestId,
@@ -102,7 +104,21 @@ export async function processWebhook(
     await mark('released');
     return WebhookProcessResult.parse({ inboxId, outcome: 'retrying' });
   }
-  const { changed } = await mark('processed', null, entityId);
+  const { entityId } = handled;
+  if (handled.failed === true) {
+    // Set aside for good by the handler (a form nobody has connected), never retried: Process
+    // again sends it once more after the cause is fixed.
+    const errorCode = handled.code ?? 'handler_failed';
+    await mark('failed', errorCode, entityId);
+    logger.log('info', 'webhooks.set_aside', {
+      requestId,
+      inboxId,
+      provider: claimed.provider,
+      errorCode,
+    });
+    return WebhookProcessResult.parse({ inboxId, outcome: 'failed', errorCode });
+  }
+  const { changed } = await mark('processed', handled.code ?? null, entityId);
   if (!changed) {
     // The lease lapsed while the handler ran and another call took the row; the handler's records
     // are idempotent by the provider's own ids, so that call's work and this one's are the same.

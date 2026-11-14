@@ -466,6 +466,11 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.dial_facts(uuid,uuid)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
+      // The ingest lookups of a form, its sealed Page token and a website key, which the lead
+      // handlers and the website route ask as queries (I1).
+      'app.ingest_key_find(text)',
+      'app.ingest_source(text,text)',
+      'app.ingest_source_token(uuid)',
       'app.lead_search_ids(text,boolean,text,integer)',
       // The ⌘K and /orders search's candidate orders (RPT-03).
       'app.order_search_ids(text,text,integer)',

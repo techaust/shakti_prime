@@ -138,6 +138,12 @@ export const CreateIngestKeyInput = z
   .strict();
 export type CreateIngestKeyInput = z.infer<typeof CreateIngestKeyInput>;
 
+/** What the screen sends to make a key: the action makes the key itself (`createIngestKey`). */
+export const CreateIngestKeyRequest = z
+  .object({ entityId: EntityIdSchema, label: z.string().trim().min(1).max(80) })
+  .strict();
+export type CreateIngestKeyRequest = z.infer<typeof CreateIngestKeyRequest>;
+
 export const RevokeIngestKeyInput = z
   .object({ entityId: EntityIdSchema, keyId: IdSchema })
   .strict();
@@ -155,3 +161,60 @@ export const IngestKeyDto = z
   })
   .strict();
 export type IngestKeyDto = z.infer<typeof IngestKeyDto>;
+
+/** Settings › Lead sources: one company's connections and keys. */
+export const ListIngestSourcesInput = z.object({ entityId: EntityIdSchema }).strict();
+export type ListIngestSourcesInput = z.infer<typeof ListIngestSourcesInput>;
+
+export const IngestSourcesDto = z
+  .object({
+    sources: z.array(IngestSourceDto),
+    keys: z.array(IngestKeyDto),
+  })
+  .strict();
+export type IngestSourcesDto = z.infer<typeof IngestSourcesDto>;
+
+/**
+ * `crm.source.record_questions` (the platform's): the questions of the newest lead a connected
+ * form sent, keys and labels only, for the field map's preview.
+ */
+export const RecordSourceQuestionsInput = z
+  .object({
+    entityId: EntityIdSchema,
+    sourceId: IdSchema,
+    questions: z.array(SourceQuestionSchema).max(100),
+  })
+  .strict();
+export type RecordSourceQuestionsInput = z.infer<typeof RecordSourceQuestionsInput>;
+
+export const RecordSourceQuestionsDto = z.object({ recorded: z.boolean() }).strict();
+export type RecordSourceQuestionsDto = z.infer<typeof RecordSourceQuestionsDto>;
+
+/** How many leads from integrations without an owner Integration health lists, newest first. */
+export const UNOWNED_LEADS_SHOWN = 50;
+
+/**
+ * A lead from an integration that nobody owns (the company had no caller present and no Sales
+ * Team Lead), for Integration health, so it is never left unseen.
+ */
+export const UnownedIngestLeadDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    accountId: IdSchema,
+    channel: z.string(),
+    createdAt: z.iso.datetime(),
+  })
+  .strict();
+export type UnownedIngestLeadDto = z.infer<typeof UnownedIngestLeadDto>;
+
+export const UnownedIngestLeadsDto = z
+  .object({ total: z.number().int().min(0), items: z.array(UnownedIngestLeadDto) })
+  .strict();
+export type UnownedIngestLeadsDto = z.infer<typeof UnownedIngestLeadsDto>;
+
+/** The lead sheet's qualification card: the lead whose facts it reads. */
+export const ReadLeadQualificationInput = z
+  .object({ entityId: EntityIdSchema, opportunityId: IdSchema })
+  .strict();
+export type ReadLeadQualificationInput = z.infer<typeof ReadLeadQualificationInput>;

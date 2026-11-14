@@ -379,7 +379,14 @@
     "lead_source_missing": "This lead source is no longer connected. Refresh the page to see the sources as they are now.",
     "lead_source_fixed": "A connected form cannot be swapped for another. Disconnect this one and connect the new form.",
     "lead_source_taken": "This form is already connected to a company. Disconnect it there first.",
-    "ingest_key_missing": "This website key has already been turned off. Refresh the page to see the keys as they are now."
+    "ingest_key_missing": "This website key has already been turned off. Refresh the page to see the keys as they are now.",
+    "ingest_key_refused": "This website key is not recognised or has been turned off. Ask an Executive for a new key.",
+    "ingest_key_other_company": "This website key belongs to another company. Use the key made for this company.",
+    "turnstile_failed": "We could not confirm the form was sent by a person. Please try again.",
+    "form_unmapped": "This lead form is not connected to a company yet. Connect it in Lead sources, then process it again.",
+    "form_map_incomplete": "This lead form's questions do not say which is the name and which is the phone. Match them in Lead sources, then process it again.",
+    "page_token_missing": "The Facebook Page of this form is not connected. Connect it in Lead sources, then process it again.",
+    "page_token_refused": "Facebook turned down the Page connection of this form. Connect the Page again in Lead sources, then process it again."
   },
   "auth": {
     "signIn": {
@@ -2914,6 +2921,10 @@
         "payload_unreadable": "We could not read it",
         "handler_failed": "The step that handles it failed",
         "too_many_attempts": "It failed ten times",
+        "form_unmapped": "The lead form is not connected to a company",
+        "form_map_incomplete": "The form's name or phone question is not matched",
+        "page_token_missing": "The Facebook Page is not connected",
+        "page_token_refused": "Facebook turned down the Page connection",
         "other": "Something else went wrong"
       }
     }
