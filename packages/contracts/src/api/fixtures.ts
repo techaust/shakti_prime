@@ -33,6 +33,9 @@ export const IDS = {
   claimLine: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0c',
   lead: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0d',
   voiceSession: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0e',
+  askConversation: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a2a',
+  askMessage: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a2b',
+  askAccount: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a2c',
   qc: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0f',
   event: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a10',
   eventB: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a11',
@@ -224,6 +227,41 @@ export const API_FIXTURES: Record<
       token: fixtureJwt('ES256', REALTIME_CLAIMS),
       expiresAt: '2026-09-27T05:21:40.000Z',
       channels: [`user:${IDS.user}`, 'entity:1:queue', 'entity:3:queue'],
+    },
+  },
+  ask: {
+    request: { question: 'How many open leads are in each stage?' },
+    response: {
+      type: 'answer',
+      turn: {
+        conversation: {
+          id: IDS.askConversation,
+          entityId: 1,
+          entityIds: [1],
+          title: 'How many open leads are in each stage?',
+          createdAt: '2026-09-27T05:06:40.000Z',
+          updatedAt: '2026-09-27T05:06:40.000Z',
+        },
+        message: {
+          id: IDS.askMessage,
+          conversationId: IDS.askConversation,
+          question: 'How many open leads are in each stage?',
+          answer: `Qualified has 12 open leads [ref:${IDS.lead}].`,
+          outcome: 'answered',
+          unsourced: 0,
+          cited: [{ kind: 'opportunity', id: IDS.lead }],
+          createdAt: '2026-09-27T05:06:40.000Z',
+        },
+      },
+      sources: [
+        {
+          kind: 'opportunity',
+          id: IDS.lead,
+          label: 'Synthetic customer',
+          entityId: 1,
+          accountId: IDS.askAccount,
+        },
+      ],
     },
   },
   'voice.session': {

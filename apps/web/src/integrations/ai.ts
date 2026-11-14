@@ -2,6 +2,8 @@ import {
   createAiProvider,
   fakeModelTransport,
   jsonLogger,
+  recordedAskTransport,
+  STAND_IN_ASK,
   vendorTransports,
   type AiProvider,
 } from '@shakti/domain';
@@ -27,14 +29,15 @@ export function aiProvider(): AiProvider {
 /**
  * The vendors the keys allow; on a developer's machine or a journey's local run with
  * `AI_TRANSPORT=fake`, the fake transport instead (its embeddings put texts that share words close
- * together, and its model answers with nothing), so the Knowledge Vault can be tried end to end
- * without a key. A hosted runtime never uses it, and refuses to start with it set
+ * together, and its model answers with nothing, but Ask the Business, which plays its stand-in
+ * recording through the real lookups and filter), so the Knowledge Vault and Ask can be tried end
+ * to end without a key. A hosted runtime never uses it, and refuses to start with it set
  * (`productionConfigProblems()`).
  */
 function transports(): ReturnType<typeof vendorTransports> {
   if (process.env.AI_TRANSPORT === 'fake' && !hostedRuntime()) {
     const fake = fakeModelTransport();
-    return { claude: fake, voyage: fake };
+    return { claude: recordedAskTransport(() => STAND_IN_ASK, fake), voyage: fake };
   }
   return vendorTransports(process.env);
 }

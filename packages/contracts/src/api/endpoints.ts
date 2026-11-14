@@ -38,6 +38,7 @@ import {
   MobileTokenRequest,
   MobileTokenResponse,
 } from './mobile-auth';
+import { AskInput, AskStreamEvent } from '../ask';
 import { RealtimeTokenRequest, RealtimeTokenResponse } from './realtime';
 import { SyncPullQuery, SyncPullResponse, SyncPushRequest, SyncPushResponse } from './sync';
 import { VoiceSessionRequest, VoiceSessionResponse } from './voice';
@@ -179,6 +180,18 @@ export const API_ENDPOINTS = {
     response: RealtimeTokenResponse,
     // A body with any field; signing keys or the issuer not configured (realtime/handlers.ts).
     errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // One question to Ask the Business (docs/03-roadmap-appendix/phase2.md §6.5): the response is a
+  // stream of `AskStreamEvent` lines; the example is its last line. The key answers a repeated
+  // question from its record. A failure once the stream has begun is its last line instead.
+  ask: {
+    method: 'POST',
+    path: '/ask',
+    auth: 'session_or_bearer',
+    idempotencyKey: true,
+    request: AskInput,
+    response: AskStreamEvent,
+    errors: ['validation_failed', ...AUTHED, 'not_found', 'integration_unavailable'],
   },
   'voice.session': {
     method: 'POST',
