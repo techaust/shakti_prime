@@ -656,14 +656,14 @@ describe('whatsapp_templates', () => {
     expect(await rows(otherCaller, read)).toHaveLength(1);
     expect(await rows(await createTestPrincipal('executive', [2]), read)).toHaveLength(0);
     const status = (who: Principal, s: string) =>
-      rows<{ template_id: string; previous_status: string }>(
+      rows<{ template_id: string; entity_id: number; previous_status: string }>(
         who,
         sql`select * from app.whatsapp_record_template_status(${name}, 'en', ${s})`,
       );
     expect(await failure(status(exec1, 'approved'))).toMatch(/messaging.process is required/);
     expect(await status(workers([2]), 'approved')).toEqual([]);
     expect(await status(workers([1]), 'approved')).toEqual([
-      { template_id: id, previous_status: 'pending' },
+      { template_id: id, entity_id: 1, previous_status: 'pending' },
     ]);
     expect(await status(workers([1]), 'approved')).toEqual([]);
   });
