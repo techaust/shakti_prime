@@ -45,6 +45,7 @@ export const JOB_RUN_LIMIT_MINUTES: Readonly<Record<DatabaseJob, number>> = {
   'idempotency-keys-purge': 6,
   'outbox-events-purge': 30,
   'audit-logs-detach': 30,
+  'whatsapp-messages-partitions': 3,
 };
 
 const MINUTE_MS = 60 * 1000;

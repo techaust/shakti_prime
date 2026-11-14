@@ -153,6 +153,13 @@ describe('app_user role (docs/05-database.md §3)', () => {
     notifications: { i: false, u: false },
     // A profile changes only its settings and presence (column grants, 0125); never deleted.
     caller_profiles: { i: true, u: false },
+    // A thread is written by the platform's definers; a person changes only who answers it and
+    // whether it waits for a reply (column grants, docs/03-roadmap-appendix/phase2.md §6.1). A
+    // message is queued by a person and moved on only by the definers; a template changes only
+    // what it says and carries, never its status (column grants; whatsapp.test.ts).
+    whatsapp_threads: { i: false, u: false },
+    whatsapp_messages: { i: true, u: false },
+    whatsapp_templates: { i: true, u: false },
   };
 
   /**

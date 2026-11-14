@@ -104,6 +104,7 @@ describe('GET /api/v1/admin/integrations (docs/06-api.md §3.7)', () => {
       'audit-logs-partitions',
       'idempotency-keys-purge',
       'outbox-events-purge',
+      'whatsapp-messages-partitions',
     ]);
     // The agents' spend, from their runs; the suites' own runs may be in it.
     expect(body.aiSpend.today).toMatch(/^\d+\.\d{2}$/);

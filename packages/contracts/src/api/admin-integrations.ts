@@ -177,6 +177,7 @@ export const DATABASE_JOBS = [
   'audit-logs-partitions',
   'idempotency-keys-purge',
   'outbox-events-purge',
+  'whatsapp-messages-partitions',
 ] as const;
 export const DatabaseJobSchema = z.enum(DATABASE_JOBS);
 export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
@@ -184,7 +185,8 @@ export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
 /**
  * How often each job is meant to run, in hours, shown for a job the database no longer schedules
  * (a scheduled job's period is read from its own schedule): the partition makers and the purges
- * daily, the audit archive monthly (31 days), and the activity partitions on the 25th.
+ * daily, the audit archive monthly (31 days), and the activity and WhatsApp message partitions on
+ * the 25th.
  */
 export const DATABASE_JOB_EVERY_HOURS: Readonly<Record<DatabaseJob, number>> = {
   'activities-partitions': 31 * 24,
@@ -192,6 +194,7 @@ export const DATABASE_JOB_EVERY_HOURS: Readonly<Record<DatabaseJob, number>> = {
   'audit-logs-partitions': 24,
   'idempotency-keys-purge': 24,
   'outbox-events-purge': 24,
+  'whatsapp-messages-partitions': 31 * 24,
 };
 
 /**

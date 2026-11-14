@@ -38,6 +38,7 @@ const JOBS = [
   'audit-logs-partitions',
   'idempotency-keys-purge',
   'outbox-events-purge',
+  'whatsapp-messages-partitions',
 ];
 
 /** A rollback that carries the answer out of a transaction the test must leave as it found it. */

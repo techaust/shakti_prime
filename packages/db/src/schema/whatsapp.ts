@@ -190,12 +190,19 @@ export const whatsappMessages = pgTable(
     ),
     check(
       'whatsapp_messages_template_check',
-      sql`(${t.kind} in ('template', 'system')) = (${t.templateName} is not null)
-          and (${t.templateName} is null or ${t.templateName} ~ '^[a-z0-9_]{1,512}$')
-          and (${t.templateParams} is null
-               or (jsonb_typeof(${t.templateParams}) = 'array'
-                   and jsonb_array_length(${t.templateParams}) <= 20
-                   and octet_length(${t.templateParams}::text) <= 8000))`,
+      sql`(${t.kind} in ('template', 'system')) = (${t.templateName} is not null)`,
+    ),
+    check(
+      'whatsapp_messages_template_name_check',
+      sql`${t.templateName} is null
+          or (${t.templateName} ~ '^[a-z0-9_]+$' and char_length(${t.templateName}) <= 512)`,
+    ),
+    check(
+      'whatsapp_messages_template_params_check',
+      sql`${t.templateParams} is null
+          or (jsonb_typeof(${t.templateParams}) = 'array'
+              and jsonb_array_length(${t.templateParams}) <= 20
+              and octet_length(${t.templateParams}::text) <= 8000)`,
     ),
     check(
       'whatsapp_messages_body_check',
@@ -292,7 +299,7 @@ export const whatsappTemplates = pgTable(
   },
   (t) => [
     unique('whatsapp_templates_entity_name_unique').on(t.entityId, t.name, t.language),
-    check('whatsapp_templates_name_check', sql`${t.name} ~ '^[a-z0-9_]{1,512}$'`),
+    check('whatsapp_templates_name_check', sql`${t.name} ~ '^[a-z0-9_]+$' and char_length(${t.name}) <= 512`),
     check('whatsapp_templates_language_check', sql`${t.language} in ('en')`),
     check(
       'whatsapp_templates_category_check',

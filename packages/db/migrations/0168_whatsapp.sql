@@ -41,12 +41,13 @@ CREATE TABLE "whatsapp_messages" (
                     and "whatsapp_messages"."send_attempted_at" is null
                else "whatsapp_messages"."status" is not null and "whatsapp_messages"."sent_by" is not null end),
 	CONSTRAINT "whatsapp_messages_refused_check" CHECK (("whatsapp_messages"."status" = 'refused') = ("whatsapp_messages"."refusal" is not null)),
-	CONSTRAINT "whatsapp_messages_template_check" CHECK (("whatsapp_messages"."kind" in ('template', 'system')) = ("whatsapp_messages"."template_name" is not null)
-          and ("whatsapp_messages"."template_name" is null or "whatsapp_messages"."template_name" ~ '^[a-z0-9_]{1,512}$')
-          and ("whatsapp_messages"."template_params" is null
-               or (jsonb_typeof("whatsapp_messages"."template_params") = 'array'
-                   and jsonb_array_length("whatsapp_messages"."template_params") <= 20
-                   and octet_length("whatsapp_messages"."template_params"::text) <= 8000))),
+	CONSTRAINT "whatsapp_messages_template_check" CHECK (("whatsapp_messages"."kind" in ('template', 'system')) = ("whatsapp_messages"."template_name" is not null)),
+	CONSTRAINT "whatsapp_messages_template_name_check" CHECK ("whatsapp_messages"."template_name" is null
+          or ("whatsapp_messages"."template_name" ~ '^[a-z0-9_]+$' and char_length("whatsapp_messages"."template_name") <= 512)),
+	CONSTRAINT "whatsapp_messages_template_params_check" CHECK ("whatsapp_messages"."template_params" is null
+          or (jsonb_typeof("whatsapp_messages"."template_params") = 'array'
+              and jsonb_array_length("whatsapp_messages"."template_params") <= 20
+              and octet_length("whatsapp_messages"."template_params"::text) <= 8000)),
 	CONSTRAINT "whatsapp_messages_body_check" CHECK ("whatsapp_messages"."body_masked" is null or char_length("whatsapp_messages"."body_masked") between 1 and 4096),
 	CONSTRAINT "whatsapp_messages_provider_id_check" CHECK ("whatsapp_messages"."provider_message_id" is null or char_length("whatsapp_messages"."provider_message_id") between 1 and 256),
 	CONSTRAINT "whatsapp_messages_button_check" CHECK ("whatsapp_messages"."button_payload" is null or char_length("whatsapp_messages"."button_payload") between 1 and 256)
@@ -69,7 +70,7 @@ CREATE TABLE "whatsapp_templates" (
 	"created_by" uuid NOT NULL,
 	"updated_by" uuid,
 	CONSTRAINT "whatsapp_templates_entity_name_unique" UNIQUE("entity_id","name","language"),
-	CONSTRAINT "whatsapp_templates_name_check" CHECK ("whatsapp_templates"."name" ~ '^[a-z0-9_]{1,512}$'),
+	CONSTRAINT "whatsapp_templates_name_check" CHECK ("whatsapp_templates"."name" ~ '^[a-z0-9_]+$' and char_length("whatsapp_templates"."name") <= 512),
 	CONSTRAINT "whatsapp_templates_language_check" CHECK ("whatsapp_templates"."language" in ('en')),
 	CONSTRAINT "whatsapp_templates_category_check" CHECK ("whatsapp_templates"."category" in ('utility', 'marketing', 'authentication')),
 	CONSTRAINT "whatsapp_templates_status_check" CHECK ("whatsapp_templates"."status" in ('pending', 'approved', 'rejected', 'paused', 'disabled')),

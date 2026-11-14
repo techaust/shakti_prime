@@ -1,6 +1,6 @@
 {
-  "id": "c8502f98-5292-4a35-91d1-d14d6a422614",
-  "prevId": "c343321b-e7f5-48a8-8795-a19697f8a861",
+  "id": "1a406392-a40a-4aa8-8129-df83344f8807",
+  "prevId": "d29f3921-0e3d-4fa6-a515-7558d25567c3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -16616,7 +16616,15 @@
         },
         "whatsapp_messages_template_check": {
           "name": "whatsapp_messages_template_check",
-          "value": "(\"whatsapp_messages\".\"kind\" in ('template', 'system')) = (\"whatsapp_messages\".\"template_name\" is not null)\n          and (\"whatsapp_messages\".\"template_name\" is null or \"whatsapp_messages\".\"template_name\" ~ '^[a-z0-9_]{1,512}$')\n          and (\"whatsapp_messages\".\"template_params\" is null\n               or (jsonb_typeof(\"whatsapp_messages\".\"template_params\") = 'array'\n                   and jsonb_array_length(\"whatsapp_messages\".\"template_params\") <= 20\n                   and octet_length(\"whatsapp_messages\".\"template_params\"::text) <= 8000))"
+          "value": "(\"whatsapp_messages\".\"kind\" in ('template', 'system')) = (\"whatsapp_messages\".\"template_name\" is not null)"
+        },
+        "whatsapp_messages_template_name_check": {
+          "name": "whatsapp_messages_template_name_check",
+          "value": "\"whatsapp_messages\".\"template_name\" is null\n          or (\"whatsapp_messages\".\"template_name\" ~ '^[a-z0-9_]+$' and char_length(\"whatsapp_messages\".\"template_name\") <= 512)"
+        },
+        "whatsapp_messages_template_params_check": {
+          "name": "whatsapp_messages_template_params_check",
+          "value": "\"whatsapp_messages\".\"template_params\" is null\n          or (jsonb_typeof(\"whatsapp_messages\".\"template_params\") = 'array'\n              and jsonb_array_length(\"whatsapp_messages\".\"template_params\") <= 20\n              and octet_length(\"whatsapp_messages\".\"template_params\"::text) <= 8000)"
         },
         "whatsapp_messages_body_check": {
           "name": "whatsapp_messages_body_check",
@@ -16809,7 +16817,7 @@
       "checkConstraints": {
         "whatsapp_templates_name_check": {
           "name": "whatsapp_templates_name_check",
-          "value": "\"whatsapp_templates\".\"name\" ~ '^[a-z0-9_]{1,512}$'"
+          "value": "\"whatsapp_templates\".\"name\" ~ '^[a-z0-9_]+$' and char_length(\"whatsapp_templates\".\"name\") <= 512"
         },
         "whatsapp_templates_language_check": {
           "name": "whatsapp_templates_language_check",

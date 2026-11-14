@@ -2895,7 +2895,8 @@
         "audit-logs-partitions": "Make room for next months’ activity log",
         "audit-logs-detach": "Archive activity log entries older than eight years",
         "idempotency-keys-purge": "Clear out old records of forms already sent",
-        "outbox-events-purge": "Clear out updates sent more than 30 days ago"
+        "outbox-events-purge": "Clear out updates sent more than 30 days ago",
+        "whatsapp-messages-partitions": "Make room for next months’ WhatsApp messages"
       },
       "state": {
         "ok": "Ran well",

@@ -25,6 +25,16 @@ import {
   AUDIT_OUTCOMES,
   ConsentChannelSchema,
   EntityChannelKindSchema,
+  MESSAGING_REFUSALS,
+  WHATSAPP_HANDOFF_REASONS,
+  WHATSAPP_MESSAGE_DIRECTIONS,
+  WHATSAPP_MESSAGE_KINDS,
+  WHATSAPP_MESSAGE_STATUSES,
+  WHATSAPP_TEMPLATE_CATEGORIES,
+  WHATSAPP_TEMPLATE_LANGUAGES,
+  WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_TEMPLATE_STATUSES,
+  WHATSAPP_THREAD_HANDLERS,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   ContactRoleSchema,
@@ -202,6 +212,25 @@ const PAIRS: Record<string, readonly string[]> = {
   caller_profiles_languages_check: CustomerLanguageSchema.options,
   caller_profiles_segments_check: SegmentSchema.options,
   webhook_inbox_provider_check: WEBHOOK_PROVIDERS,
+  whatsapp_threads_handled_by_check: WHATSAPP_THREAD_HANDLERS,
+  whatsapp_threads_handoff_reason_check: WHATSAPP_HANDOFF_REASONS,
+  // Handed to people with a reason and a time: the check names the people's handler twice.
+  whatsapp_threads_handoff_check: ['people', 'people'],
+  whatsapp_messages_direction_check: WHATSAPP_MESSAGE_DIRECTIONS,
+  whatsapp_messages_kind_check: WHATSAPP_MESSAGE_KINDS,
+  whatsapp_messages_status_check: WHATSAPP_MESSAGE_STATUSES,
+  whatsapp_messages_refusal_check: MESSAGING_REFUSALS,
+  // An inbound message's shape differs from an outbound one's; a refused one has its refusal.
+  whatsapp_messages_direction_shape_check: ['inbound'],
+  whatsapp_messages_refused_check: ['refused'],
+  // A template, or the platform's confirmation of a STOP, names its template.
+  whatsapp_messages_template_check: WHATSAPP_MESSAGE_KINDS.filter(
+    (k) => k === 'template' || k === 'system',
+  ),
+  whatsapp_templates_language_check: WHATSAPP_TEMPLATE_LANGUAGES,
+  whatsapp_templates_category_check: WHATSAPP_TEMPLATE_CATEGORIES,
+  whatsapp_templates_status_check: WHATSAPP_TEMPLATE_STATUSES,
+  whatsapp_templates_purpose_check: WHATSAPP_TEMPLATE_PURPOSES,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

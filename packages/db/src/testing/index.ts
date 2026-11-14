@@ -16,6 +16,8 @@ import { assertLocalDatabase } from './local-database';
 
 export { closeDb } from '../client';
 export { testPhone } from './phone';
+export { whatsappChannel, whatsappCustomer } from './whatsapp-fixture';
+export type { WhatsAppChannelFixture, WhatsAppCustomerFixture } from './whatsapp-fixture';
 /** The seed, so a test can prove a re-run keeps what an Executive changed (docs/05-database.md §9). */
 export { runSeeds };
 export { ALL_ENTITY_IDS } from '../../seeds/entities';
@@ -340,6 +342,11 @@ export const ENTITY_TABLES = [
   'caller_profiles',
   // a company's numbers, read by every principal acting in it (docs/03-roadmap-appendix/phase2.md §5.2)
   'entity_channels',
+  // WhatsApp threads and their messages, read under the customer's read rule; a company's
+  // templates, read by every principal acting in it (docs/03-roadmap-appendix/phase2.md §6.1)
+  'whatsapp_threads',
+  'whatsapp_messages',
+  'whatsapp_templates',
 ] as const;
 
 /**
@@ -378,9 +385,15 @@ export const PRINCIPAL_TABLES = [
  * `all` reads (docs/05-database.md §7): no request role inserts, updates or deletes them, and most
  * callers with a context read nothing, so neither the shared loops (readable by any caller) nor
  * the entity loops (scoped by company) apply. Asserted in retention.test.ts, agents.test.ts and
- * webhooks.test.ts (`webhook_inbox`, which no request role reads at all).
+ * webhooks.test.ts (`webhook_inbox`, which no request role reads at all) and whatsapp.test.ts
+ * (`whatsapp_message_keys`, Meta's message ids, read and written only by the WhatsApp definers).
  */
-export const PLATFORM_TABLES = ['retention_runs', 'agent_evals', 'webhook_inbox'] as const;
+export const PLATFORM_TABLES = [
+  'retention_runs',
+  'agent_evals',
+  'webhook_inbox',
+  'whatsapp_message_keys',
+] as const;
 
 /**
  * CRM set-up tables that start empty until the workshop answers (docs/03-roadmap-appendix/phase1.md §11), so
