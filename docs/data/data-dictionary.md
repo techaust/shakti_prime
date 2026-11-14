@@ -1422,7 +1422,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### ingest_keys
 
-**Catalogue entry** (05-database.md §6.2; created in 0168, 0169): `entity_id`, `label`, `key_hash` (the SHA-256 of the website key; unique; no request role selects it), `key_hint` (its last four characters), `last_used_at` (stamped by `app.ingest_key_use()`), `revoked_at`, `revoked_by`; made through `crm.ingest_key.create` (the key shown once, never stored) and turned off through `crm.ingest_key.revoke`, by an Executive (`crm.sources.write:all`); a revoked key stays revoked (`app.ingest_keys_guard()`), and only the revoke changes a key (column grants)
+**Catalogue entry** (05-database.md §6.2; created in 0168, 0169): `entity_id`, `label`, `key_hash` (the SHA-256 of the website key; unique; no request role selects it), `key_hint` (its last four characters), `last_used_at` (stamped by the lead the key sends, `app.ingest_lead_write()`), `revoked_at`, `revoked_by`; made through `crm.ingest_key.create` (the key shown once, never stored) and turned off through `crm.ingest_key.revoke`, by an Executive (`crm.sources.write:all`); a revoked key stays revoked (`app.ingest_keys_guard()`), and only the revoke changes a key (column grants)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

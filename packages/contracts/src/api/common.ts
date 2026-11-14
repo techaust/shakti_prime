@@ -36,6 +36,10 @@ export const API_ERROR_REASONS = [
   'cursor_mismatch',
   'idempotency_mismatch',
   'not_dead_lettered',
+  // The website ingest route (docs/06-api.md §3.3, I1).
+  'ingest_key_refused',
+  'ingest_key_other_company',
+  'lead_source_missing',
 ] as const;
 export const ApiErrorReasonSchema = z.enum(API_ERROR_REASONS);
 export type ApiErrorReason = z.infer<typeof ApiErrorReasonSchema>;

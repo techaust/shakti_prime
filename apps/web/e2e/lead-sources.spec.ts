@@ -97,7 +97,10 @@ test.describe('lead sources as an Executive', () => {
     await expect(page.getByRole('heading', { name: 'Website keys' })).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'lead-sources', {
-      mask: [page.getByRole('list', { name: 'Forms and websites' }), page.getByRole('list', { name: 'Website keys' })],
+      mask: [
+        page.getByRole('list', { name: 'Forms and websites' }),
+        page.getByRole('list', { name: 'Website keys' }),
+      ],
     });
   });
 
