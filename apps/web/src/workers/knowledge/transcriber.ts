@@ -107,10 +107,24 @@ export function recordingTranscriber(stt: SpeechToText, price: SpeechPrice): Rec
   };
 }
 
-/** Sarvam's speech to text when `SARVAM_API_KEY` is set; otherwise none, and a recording waits. */
+/**
+ * Whether vault recordings may go to the speech vendor: `KNOWLEDGE_TRANSCRIBE=on`, read at run
+ * time and off by default. `SARVAM_API_KEY` alone serves V1's benchmark; vault recordings are sent
+ * only with this switch as well, which is turned on once the owner has approved Sarvam's data terms
+ * (SECURITY §5).
+ */
+export function vaultTranscribeOn(env: Readonly<Record<string, string | undefined>>): boolean {
+  return env.KNOWLEDGE_TRANSCRIBE?.trim() === 'on';
+}
+
+/**
+ * Sarvam's speech to text when vault transcription is switched on (`vaultTranscribeOn`) and
+ * `SARVAM_API_KEY` is set; otherwise none, and a recording waits as unavailable.
+ */
 export function vaultTranscriber(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): RecordingTranscriber | undefined {
+  if (!vaultTranscribeOn(env)) return undefined;
   const config = sarvamConfig(env);
   return config === undefined
     ? undefined

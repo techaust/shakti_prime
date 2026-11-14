@@ -2,7 +2,8 @@ import {
   CorrectKnowledgeTranscriptInput,
   DomainError,
   isRomanScript,
-  KnowledgeFileDto,
+  KNOWLEDGE_TRANSCRIPT_MAX_CHARS,
+  KnowledgeFileDetailDto,
   KnowledgeSensitivitySchema,
   KnowledgeTranscriptRecordDto,
   RecordKnowledgeTranscriptInput,
@@ -88,8 +89,10 @@ export const recordKnowledgeTranscript = defineCommand({
  * corrected transcript (BLUEPRINT §9.1: Rajasthani and Marwari words the speech service mishears)
  * replaces the stored one, masked, and the file goes back to waiting and is sent to be read again,
  * so its passages are cut and embedded from the correction and replace the old ones. Refused for a
- * file that is not a recording, while the file is being read, for an archived file, and while its
- * upload has not passed its checks.
+ * file that is not a recording, while the file is being read, for an archived file, while its
+ * upload has not passed its checks, and when masking makes it longer than a transcript may be
+ * (`knowledge_too_long`). It answers the file with the transcript as kept, masked, so the screen
+ * shows at once what was stored.
  */
 export const correctKnowledgeTranscript = defineCommand({
   name: 'knowledge.transcript.correct',
@@ -97,7 +100,7 @@ export const correctKnowledgeTranscript = defineCommand({
   minScope: 'all',
   peopleOnly: true,
   input: CorrectKnowledgeTranscriptInput,
-  output: KnowledgeFileDto,
+  output: KnowledgeFileDetailDto,
   auditFields: ['knowledgeState', 'transcriptChars'],
   auditInput: (input) => ({
     knowledgeFileId: input.knowledgeFileId,
@@ -137,6 +140,12 @@ export const correctKnowledgeTranscript = defineCommand({
       });
     }
     const transcript = maskWholeText(input.transcript);
+    // Masking can lengthen a text (an address becomes `[email]`); checked as it will be stored.
+    if (transcript.length > KNOWLEDGE_TRANSCRIPT_MAX_CHARS) {
+      throw new DomainError('validation_failed', 'the masked transcript is too long', {
+        reason: 'knowledge_too_long',
+      });
+    }
     const [updated] = await ctx.tx
       .update(k)
       .set({
@@ -165,6 +174,10 @@ export const correctKnowledgeTranscript = defineCommand({
       before: { knowledgeState: row.state, transcriptChars: row.transcript?.length ?? 0 },
       after: { knowledgeState: to, transcriptChars: transcript.length },
     });
-    return knowledgeFileDto(updated);
+    return KnowledgeFileDetailDto.parse({
+      ...knowledgeFileDto(updated),
+      transcript: updated.transcript,
+      transcriptCorrectedAt: updated.transcriptCorrectedAt?.toISOString() ?? null,
+    });
   },
 });

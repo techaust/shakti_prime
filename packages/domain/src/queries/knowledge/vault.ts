@@ -12,7 +12,7 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission } from '../../command/run-command';
-import { knowledgeFileDto } from '../../commands/knowledge/shared';
+import { KNOWLEDGE_FILE_COLUMNS, knowledgeFileDto } from '../../commands/knowledge/shared';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -29,20 +29,23 @@ const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}
  */
 export function knowledgeListQuery(ctx: Ctx, after: { t: string; id: string } | undefined) {
   const k = schema.knowledgeFiles;
-  return ctx.tx
-    .select({ file: k, createdText: sql<string>`${k.createdAt}::text` })
-    .from(k)
-    .where(
-      and(
-        or(inArray(k.entityId, [...ctx.entityIds]), isNull(k.entityId)),
-        ne(k.state, 'archived'),
-        after === undefined
-          ? undefined
-          : sql`(${k.createdAt}, ${k.id}) < (${after.t}::text::timestamptz, ${after.id}::uuid)`,
-      ),
-    )
-    .orderBy(desc(k.createdAt), desc(k.id))
-    .limit(KNOWLEDGE_PAGE_SIZE + 1);
+  return (
+    ctx.tx
+      // Named columns: a recording's transcript is never read for the list.
+      .select({ file: KNOWLEDGE_FILE_COLUMNS, createdText: sql<string>`${k.createdAt}::text` })
+      .from(k)
+      .where(
+        and(
+          or(inArray(k.entityId, [...ctx.entityIds]), isNull(k.entityId)),
+          ne(k.state, 'archived'),
+          after === undefined
+            ? undefined
+            : sql`(${k.createdAt}, ${k.id}) < (${after.t}::text::timestamptz, ${after.id}::uuid)`,
+        ),
+      )
+      .orderBy(desc(k.createdAt), desc(k.id))
+      .limit(KNOWLEDGE_PAGE_SIZE + 1)
+  );
 }
 
 /**

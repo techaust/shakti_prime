@@ -38,7 +38,9 @@ test.describe('as an Executive', () => {
     await dialog.getByLabel('Title').fill(title);
     await dialog.getByLabel('For').selectOption({ label: 'Shakti Supreme' });
     await expect(
-      dialog.getByText('or a recording as a WAV file up to 25 MB and 30 minutes', { exact: false }),
+      dialog.getByText('or a recording as a WAV file up to 25 MB, which holds about 13 minutes', {
+        exact: false,
+      }),
     ).toBeVisible();
     // An MP3 is refused before a byte is sent, with a sentence that asks for a WAV.
     const input = dialog.locator('input[type="file"]');
@@ -126,6 +128,13 @@ test.describe('as a tele-caller of the snapshot company', () => {
     await expect(page.getByRole('heading', { name: 'Knowledge', level: 1 })).toBeVisible();
     await expect(page.getByRole('link', { name: SNAPSHOT_RECORDING.title })).toHaveCount(0);
     await page.goto(`/knowledge/files/${seededUsers().recordings.snapshot}`);
+    // The not-found screen, as for any address the caller may not read.
+    await expect(
+      page
+        .getByRole('heading', { name: 'We couldn’t find this screen' })
+        .or(page.getByRole('heading', { name: "We couldn't find this screen" })),
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Go to the home screen' })).toBeVisible();
     await expect(
       page.getByRole('heading', { name: SNAPSHOT_RECORDING.title, level: 1 }),
     ).toHaveCount(0);

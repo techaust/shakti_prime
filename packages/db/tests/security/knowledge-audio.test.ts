@@ -224,8 +224,8 @@ describe('a request changes a transcript only as a correction', () => {
         () => false,
       );
     expect(await write(pdf, 'text')).toBe(false);
-    // Devanagari, as escapes so this file holds none.
-    expect(await write(audio, 'pump पंप')).toBe(false);
+    // Devanagari, built from code points so this file holds none.
+    expect(await write(audio, `pump ${String.fromCodePoint(0x092a, 0x0902, 0x092a)}`)).toBe(false);
     expect(await write(audio, 'pump ki service, 120 meter')).toBe(true);
   });
 });

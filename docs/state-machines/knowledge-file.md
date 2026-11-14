@@ -37,7 +37,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 - `add`: `knowledge.file.add`, people only, from the person’s own vault upload; the event is sent at once when the upload has passed its checks, and otherwise by `files.file.mark_ready` when it does.
 - `index`: `knowledge.file.record_index`: the passages replace the file’s earlier ones in one transaction.
 - `fail`: `knowledge.file.record_index`, or `files.file.reject` when the upload fails its checks.
-- `hold`: `knowledge.file.record_index` when `ANTHROPIC_API_KEY` or `VOYAGE_API_KEY` is not set, or `SARVAM_API_KEY` for a recording with no transcript yet.
+- `hold`: `knowledge.file.record_index` when `ANTHROPIC_API_KEY` or `VOYAGE_API_KEY` is not set, or, for a recording with no transcript yet, `SARVAM_API_KEY` with `KNOWLEDGE_TRANSCRIBE=on`.
 - `reindex`: `knowledge.file.reindex`, people only; refused while the upload has not passed its checks, and for a file waiting less than `KNOWLEDGE_WAITING_STALE_SECONDS` (the index job is still within its time).
 - `correct`: `knowledge.transcript.correct`, people only, on a recording: the corrected transcript replaces the stored one and the file is read again from it, its passages replaced once it is. Refused while the file is waiting, so a reading never cuts a transcript that changes under it.
 - `archive`: `knowledge.file.archive`, people only.

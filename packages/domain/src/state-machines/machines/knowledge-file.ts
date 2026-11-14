@@ -83,7 +83,7 @@ export const knowledgeFileMachine = defineMachine<
       to: 'unavailable',
       permission: null,
       system: true,
-      note: '`knowledge.file.record_index` when `ANTHROPIC_API_KEY` or `VOYAGE_API_KEY` is not set, or `SARVAM_API_KEY` for a recording with no transcript yet.',
+      note: '`knowledge.file.record_index` when `ANTHROPIC_API_KEY` or `VOYAGE_API_KEY` is not set, or, for a recording with no transcript yet, `SARVAM_API_KEY` with `KNOWLEDGE_TRANSCRIBE=on`.',
     },
     {
       from: ['waiting', 'indexed', 'failed', 'unavailable'],

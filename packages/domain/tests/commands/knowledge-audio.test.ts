@@ -304,8 +304,10 @@ describe('the index job and a vault recording', () => {
 
   it('keeps no transcript in another script, nor an empty one, nor one the service could not read', async () => {
     const devanagari = await add(gm, await upload(gm));
-    // "Pump" written in Devanagari, as escapes so this file holds none.
-    await index(devanagari.id, { transcriber: fakeTranscriber(['पंप']) });
+    // "Pump" written in Devanagari, built from code points so this file holds none.
+    await index(devanagari.id, {
+      transcriber: fakeTranscriber([String.fromCodePoint(0x092a, 0x0902, 0x092a)]),
+    });
     expect(await fileRow(devanagari.id)).toMatchObject({
       state: 'failed',
       error_reason: 'knowledge_unreadable',
@@ -379,6 +381,10 @@ describe('knowledge.transcript.correct', () => {
       ),
     );
     expect(answer).toMatchObject({ id: vault.id, state: 'waiting' });
+    // The answer is the transcript as kept, its numbers covered, for the screen to show at once.
+    expect(answer.transcript).toContain('ka head 120 meter hai');
+    expect(answer.transcript).not.toContain('6789');
+    expect(answer.transcriptCorrectedAt).not.toBeNull();
     const row = await fileRow(vault.id);
     expect(row?.transcript).toContain('ka head 120 meter hai');
     expect(row?.transcript).not.toContain('6789');
@@ -430,7 +436,9 @@ describe('knowledge.transcript.correct', () => {
     });
 
     const vault = await indexedRecording('Inverter ki battery');
-    await expect(correct(vault.id, 'Inverter की battery')).rejects.toMatchObject({
+    await expect(
+      correct(vault.id, `Inverter ${String.fromCodePoint(0x0915, 0x0940)} battery`),
+    ).rejects.toMatchObject({
       code: 'validation_failed',
       details: { reason: 'knowledge_transcript_not_roman' },
     });
@@ -439,6 +447,24 @@ describe('knowledge.transcript.correct', () => {
       details: { reason: 'knowledge_file_transition_not_allowed' },
     });
     expect((await fileRow(vault.id))?.transcript).toBe('Inverter ki battery');
+  });
+
+  it('refuses a correction that masking makes longer than a transcript may be', async () => {
+    const vault = await indexedRecording('Tank ki safai');
+    // Six characters an address, seven once masked: within the limit typed, past it once covered.
+    const addresses = Array.from({ length: 14_000 }, () => 'x@b.in').join(' ');
+    expect(addresses.length).toBeLessThanOrEqual(100_000);
+    await expect(
+      run(gm, correctKnowledgeTranscript, {
+        entityId: 1,
+        knowledgeFileId: vault.id,
+        transcript: addresses,
+      }),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'knowledge_too_long' },
+    });
+    expect((await fileRow(vault.id))?.transcript).toBe('Tank ki safai');
   });
 
   it('lets a person type a transcript the speech service could not give', async () => {

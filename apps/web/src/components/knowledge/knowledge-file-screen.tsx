@@ -3,14 +3,24 @@
 import type { KnowledgeFileDetailDto } from '@shakti/contracts';
 import { Button, Field, StatusBadge, Textarea, type StatusTone } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { openFile } from '../../actions/files';
 import { correctKnowledgeTranscript, recheckKnowledgeFile } from '../../actions/knowledge';
+import { settle } from '../screens/settle';
 import { formatDate } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
 
 /** How often the file is read again while it is being transcribed and read. */
 const REFRESH_MS = 4_000;
+/**
+ * How old a player's signed address may be before the page signs it again when it reads the file:
+ * under the store's 15 minutes (`PRESIGN_SECONDS`).
+ */
+const RESIGN_AFTER_MS = 10 * 60 * 1000;
+/** A player that fails sooner than this after its address was signed is not signed again. */
+const RESIGN_MIN_MS = 5_000;
+
 /** The longest transcript a person may save (`KNOWLEDGE_TRANSCRIPT_MAX_CHARS`). */
 const TRANSCRIPT_MAX = 100_000;
 
@@ -58,15 +68,41 @@ export function KnowledgeFileScreen({
   const reload = read.load;
   const waiting = file.state === 'waiting';
 
+  // The player's address lapses after 15 minutes: it is signed again when the player fails on it,
+  // or when the page reads the file and the address is getting old, and resumes where it was.
+  const [playUrl, setPlayUrl] = useState(audioUrl);
+  const signedAt = useRef(0);
+  const resumeAt = useRef<number | undefined>(undefined);
+  const player = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    signedAt.current = Date.now();
+  }, []);
+  const signAgain = useCallback(() => {
+    if (Date.now() - signedAt.current < RESIGN_MIN_MS) return;
+    signedAt.current = Date.now();
+    resumeAt.current = player.current?.currentTime;
+    void settle(() => openFile(file.fileId)).then((result) => {
+      if (result.ok) setPlayUrl(result.data.url);
+    });
+  }, [file.fileId]);
+
   useEffect(() => {
     if (!waiting) return;
     const timer = setInterval(() => {
-      reload(() => recheckKnowledgeFile(file.id), setFile);
+      reload(
+        () => recheckKnowledgeFile(file.id),
+        (fresh) => {
+          setFile(fresh);
+          if (playUrl !== undefined && Date.now() - signedAt.current > RESIGN_AFTER_MS) {
+            signAgain();
+          }
+        },
+      );
     }, REFRESH_MS);
     return () => {
       clearInterval(timer);
     };
-  }, [waiting, reload, file.id]);
+  }, [waiting, reload, file.id, playUrl, signAgain]);
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -111,15 +147,22 @@ export function KnowledgeFileScreen({
             <h2 id="knowledge-file-recording" className="text-h3">
               {t('file.recording')}
             </h2>
-            {audioUrl === undefined ? (
+            {playUrl === undefined ? (
               <p className="text-text-muted text-sm">{t('file.cannotPlay')}</p>
             ) : (
               // A spoken recording has no captions; its transcript beside it is its text
               // alternative (WCAG 1.2.1), named to the player by `aria-describedby`.
               <audio
+                ref={player}
                 controls
                 preload="metadata"
-                src={audioUrl}
+                src={playUrl}
+                onError={signAgain}
+                onLoadedMetadata={(event) => {
+                  const at = resumeAt.current;
+                  resumeAt.current = undefined;
+                  if (at !== undefined && at > 0) event.currentTarget.currentTime = at;
+                }}
                 aria-label={t('file.player', { title: file.title })}
                 aria-describedby="knowledge-file-transcript"
                 className="w-full"
@@ -176,11 +219,8 @@ function TranscriptPanel({
     setProblem(undefined);
     correct.run({ entityId, knowledgeFileId: file.id, transcript: text }, (updated) => {
       setNotice(t('file.savedNotice'));
-      onSaved({
-        ...updated,
-        transcript: text.trim(),
-        transcriptCorrectedAt: new Date().toISOString(),
-      });
+      // The transcript as kept, its numbers covered, shown at once.
+      onSaved(updated);
     });
   }
 

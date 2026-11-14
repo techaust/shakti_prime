@@ -4339,7 +4339,7 @@
     "forHint": "A file for every company can be added only while All companies is chosen at the top.",
     "findByLabel": "Who can find it",
     "fileLabel": "File",
-    "fileHint": "{types} up to {size}, or a recording as a WAV file up to {recordingSize} and 30 minutes",
+    "fileHint": "{types} up to {size}, or a recording as a WAV file up to {recordingSize}, which holds about 13 minutes of a standard recording",
     "fileWrongType": "This kind of file cannot be added. Choose a {types} file. Save a recording as a WAV file first: MP3, M4A and OGG recordings cannot be added.",
     "fileTooLarge": "This file is too large. A document or photo can be up to {size}, and a WAV recording up to {recordingSize}.",
     "uploaded": "Uploaded and checked. Add it to the vault.",

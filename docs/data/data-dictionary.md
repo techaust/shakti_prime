@@ -3505,7 +3505,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### knowledge_files
 
-**Catalogue entry** (05-database.md §6.9; created in 0122): `entity_id` (null for the whole group), `file_id` (a `knowledge` upload, one vault file each), `title`, `sensitivity` (`staff_ai_ok`, `management`, `exec_only`), `source_type` (`pdf`, `photo`, `word`, `excel`), `state` (`waiting`, `indexed`, `failed`, `unavailable`, `archived`, the `knowledge_file` machine), `chunks`, `indexed_at`, `error_reason`; index `(entity_id, created_at desc, id desc)` for the vault list (§4.4)
+**Catalogue entry** (05-database.md §6.9; created in 0122): `entity_id` (null for the whole group), `file_id` (a `knowledge` upload, one vault file each), `title`, `sensitivity` (`staff_ai_ok`, `management`, `exec_only`), `source_type` (`pdf`, `photo`, `word`, `excel`, `audio` from a WAV upload, 0168), `state` (`waiting`, `indexed`, `failed`, `unavailable`, `archived`, the `knowledge_file` machine), `chunks`, `indexed_at`, `error_reason`, `transcript` (a recording's text, masked, Roman script only, at most 100,000 characters, only on `audio`) and `transcript_corrected_at` (a person's last correction); index `(entity_id, created_at desc, id desc)` for the vault list (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

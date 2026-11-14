@@ -18,8 +18,32 @@ import {
 
 export type KnowledgeFileRow = typeof schema.knowledgeFiles.$inferSelect;
 
+const k = schema.knowledgeFiles;
+
+/**
+ * The columns a vault file is listed and answered by: every one but a recording's transcript (up
+ * to 100,000 characters, kept out of line), which only the file's page reads (K3).
+ */
+export const KNOWLEDGE_FILE_COLUMNS = {
+  id: k.id,
+  entityId: k.entityId,
+  fileId: k.fileId,
+  title: k.title,
+  sensitivity: k.sensitivity,
+  sourceType: k.sourceType,
+  state: k.state,
+  chunks: k.chunks,
+  indexedAt: k.indexedAt,
+  errorReason: k.errorReason,
+  createdAt: k.createdAt,
+  updatedAt: k.updatedAt,
+};
+
+/** A vault file as `KNOWLEDGE_FILE_COLUMNS` reads it. */
+export type KnowledgeFileFields = Pick<KnowledgeFileRow, keyof typeof KNOWLEDGE_FILE_COLUMNS>;
+
 /** The vault file as the vault screen and the commands answer it. */
-export function knowledgeFileDto(row: KnowledgeFileRow): KnowledgeFileDto {
+export function knowledgeFileDto(row: KnowledgeFileFields): KnowledgeFileDto {
   return KnowledgeFileDto.parse({
     id: row.id,
     entityId: row.entityId,

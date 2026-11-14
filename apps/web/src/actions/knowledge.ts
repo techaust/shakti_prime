@@ -200,12 +200,12 @@ export async function archiveKnowledgeFile(
 
 /**
  * Replaces a recording's transcript with a person's correction (K3); the file is read again from
- * it, and its passages replaced once it is.
+ * it, and its passages replaced once it is. Answers the file with the transcript as kept, masked.
  */
 export async function correctKnowledgeTranscript(
   rawInput: unknown,
   idempotencyKey?: unknown,
-): Promise<ActionResult<KnowledgeFileDto>> {
+): Promise<ActionResult<KnowledgeFileDetailDto>> {
   return toResult('correctKnowledgeTranscript', async () => {
     const principal = await signedIn();
     const input = parseInput(CorrectKnowledgeTranscriptInput, rawInput);
