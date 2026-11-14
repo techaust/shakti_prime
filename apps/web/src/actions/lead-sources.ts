@@ -36,7 +36,9 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /** A company's connected forms and sites and its website keys. */
-export async function listIngestSources(rawInput: unknown): Promise<ActionResult<IngestSourcesDto>> {
+export async function listIngestSources(
+  rawInput: unknown,
+): Promise<ActionResult<IngestSourcesDto>> {
   return toResult('listIngestSources', async () => {
     const principal = await signedIn();
     const input = parseInput(ListIngestSourcesInput, rawInput);
@@ -108,7 +110,12 @@ export async function createIngestKey(
       principal,
       { entityIds: [input.entityId], requestId: meta.requestId },
       createIngestKeyCommand,
-      { entityId: input.entityId, label: input.label, keyHash: made.keyHash, keyHint: made.keyHint },
+      {
+        entityId: input.entityId,
+        label: input.label,
+        keyHash: made.keyHash,
+        keyHint: made.keyHint,
+      },
       commandOptions(meta, idempotencyKey),
     );
     return { key, secret: made.key };

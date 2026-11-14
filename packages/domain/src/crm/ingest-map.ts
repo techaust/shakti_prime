@@ -46,7 +46,18 @@ export type MappedLead =
   | { ok: false; missing: ('name' | 'phone')[] };
 
 /** The answers a person ticking a box or choosing "yes" gives, in English and Roman Hindi. */
-const TICKED = new Set(['yes', 'y', 'true', '1', 'agree', 'i agree', 'checked', 'on', 'haan', 'ha']);
+const TICKED = new Set([
+  'yes',
+  'y',
+  'true',
+  '1',
+  'agree',
+  'i agree',
+  'checked',
+  'on',
+  'haan',
+  'ha',
+]);
 
 /** Whether a consent question's answer is a tick. Anything else, an empty answer included, is not. */
 export function isTicked(value: string): boolean {
@@ -158,7 +169,9 @@ export function mapFormAnswers(
 }
 
 /** The questions a form asked, for the field map's preview: keys and labels, never the answers. */
-export function formQuestions(answers: readonly FormAnswer[]): { key: string; label: string | null }[] {
+export function formQuestions(
+  answers: readonly FormAnswer[],
+): { key: string; label: string | null }[] {
   const seen = new Set<string>();
   const out: { key: string; label: string | null }[] = [];
   for (const a of answers) {

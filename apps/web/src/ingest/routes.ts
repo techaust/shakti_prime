@@ -50,7 +50,12 @@ export interface IngestRouteDeps {
   now: () => Date;
 }
 
-function fail(code: ErrorCode, requestId: string, reason?: string, headers?: Record<string, string>) {
+function fail(
+  code: ErrorCode,
+  requestId: string,
+  reason?: string,
+  headers?: Record<string, string>,
+) {
   return apiFailure(code, requestId, reason === undefined ? undefined : { reason }, headers);
 }
 
@@ -185,7 +190,10 @@ export async function ingestLeadRoute(request: Request, deps: IngestRouteDeps): 
 }
 
 /** `GET /api/v1/ingest/health`: the key works, for which company, and the minute's allowance. */
-export async function ingestHealthRoute(request: Request, deps: IngestRouteDeps): Promise<Response> {
+export async function ingestHealthRoute(
+  request: Request,
+  deps: IngestRouteDeps,
+): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
   if (!deps.enabled) return fail('integration_unavailable', requestId);
   let key;

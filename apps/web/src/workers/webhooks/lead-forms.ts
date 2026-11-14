@@ -237,9 +237,7 @@ export function metaLeadgenHandler(deps: () => LeadFormDeps = defaultDeps) {
         if (code !== undefined) setAside ??= code;
       }
     }
-    return setAside === undefined
-      ? { entityId }
-      : { entityId, code: setAside, failed: true };
+    return setAside === undefined ? { entityId } : { entityId, code: setAside, failed: true };
   };
 }
 

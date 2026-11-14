@@ -124,8 +124,13 @@ describe('the webhook routes on real Postgres', () => {
       const rows = (await rowsAfter(mark)).filter((r) => r.provider === d.provider);
       expect(rows, d.provider).toHaveLength(1);
       const row = await settled(rows[0]?.id ?? '');
-      // No slice has registered a handler yet, so the row is processed with its code.
-      expect(row).toMatchObject({ processed: true, attempts: 1, error_code: 'no_handler' });
+      // A provider with no handler yet has its row processed with that code; the lead forms'
+      // handlers (I1) set a delivery for a form no company has connected aside, never guessed.
+      expect(row).toMatchObject(
+        d.provider === 'meta_leadgen' || d.provider === 'google_leadform'
+          ? { failed: true, attempts: 1, error_code: 'form_unmapped' }
+          : { processed: true, attempts: 1, error_code: 'no_handler' },
+      );
       // Processing it again changes nothing.
       expect(await processWebhook(row.id, { requestId: newId() })).toEqual({
         inboxId: row.id,

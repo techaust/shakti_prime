@@ -37,12 +37,7 @@ export {
   setIngestSource,
 } from './commands/crm/ingest-sources';
 export { hashIngestKey, newIngestKey } from './crm/ingest-key';
-export {
-  formQuestions,
-  ingestIdempotencyKey,
-  isTicked,
-  mapFormAnswers,
-} from './crm/ingest-map';
+export { formQuestions, ingestIdempotencyKey, isTicked, mapFormAnswers } from './crm/ingest-map';
 export type { FormAnswer, MappedLead, SourceMapping } from './crm/ingest-map';
 export {
   findIngestKey,
