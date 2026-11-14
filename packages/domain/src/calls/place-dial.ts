@@ -35,8 +35,12 @@ export interface PlaceDialDeps {
   hosted: boolean;
   /** The clock the calling rules are checked on; the journeys and tests pass their own. */
   now?: Date;
-  /** The person's own command options (the request's client, the publisher's nudge). */
-  options?: Omit<ExecuteOptions, 'now' | 'hosted'>;
+  /**
+   * The person's own command options (the request's client, the publisher's nudge). Never an
+   * idempotency key: the dial's answer carries the phones, which a stored answer would keep, and
+   * a repeated press is refused by the command itself (`dial_in_progress`).
+   */
+  options?: Omit<ExecuteOptions, 'now' | 'hosted' | 'idempotencyKey' | 'idempotency'>;
   logger?: Logger;
 }
 

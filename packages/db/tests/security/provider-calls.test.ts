@@ -93,13 +93,14 @@ describe('provider_calls', () => {
     expect(await rows(fx.principals.d, read)).toHaveLength(0);
 
     // Not as someone else, not already ended, not on another's lead, not to another customer's phone.
+    // Each attempt runs on its own, one after the other.
     for (const attempt of [
-      dialling(a, 'a', phoneA, { callerId: b.id }),
-      dialling(a, 'a', phoneA, { status: 'completed' }),
-      dialling(a, 'b', phoneB),
-      dialling(a, 'a', phoneB),
+      () => dialling(a, 'a', phoneA, { callerId: b.id }),
+      () => dialling(a, 'a', phoneA, { status: 'completed' }),
+      () => dialling(a, 'b', phoneB),
+      () => dialling(a, 'a', phoneB),
     ]) {
-      expect(await failure(attempt)).toMatch(/row-level security/);
+      expect(await failure(attempt())).toMatch(/row-level security/);
     }
     // Never an agent or the platform, whatever they hold.
     const agent = {
