@@ -37,7 +37,7 @@ import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryFileStore, sha256Hex } from '../../src/ports/file-store';
 import { memoryKeyValue, type KeyValue } from '../../src/ports/key-value';
 import { memoryLogger } from '../../src/ports/logger';
-import { searchKnowledge } from '../../src/queries/knowledge/vault';
+import { getKnowledgeFile, searchKnowledge } from '../../src/queries/knowledge/vault';
 
 // Vault recordings on real Postgres (docs/03-roadmap-appendix/phase2.md §6.4, K3): the index job
 // transcribes a recording through the speech service it is given (a fake here, as recorded
@@ -453,5 +453,34 @@ describe('knowledge.transcript.correct', () => {
     // Read from the typed transcript without any speech service.
     await index(vault.id, { transcriber: undefined });
     expect(await fileRow(vault.id)).toMatchObject({ state: 'indexed', chunks: 1 });
+  });
+});
+
+describe('a vault file’s page', () => {
+  const page = (who: Principal, id: string, entityIds = [1]) =>
+    executeQuery(who, { entityIds }, (ctx) => getKnowledgeFile(ctx, id), {
+      name: 'test.getKnowledgeFile',
+    });
+
+  it('shows a recording’s transcript to whoever reads its sensitivity, and nothing to anyone else', async () => {
+    const staff = await indexedRecording(`Valve ${RUN} ki jaanch`);
+    expect(await page(caller, staff.id)).toMatchObject({
+      id: staff.id,
+      sourceType: 'audio',
+      state: 'indexed',
+      transcript: `Valve ${RUN} ki jaanch`,
+      transcriptCorrectedAt: null,
+    });
+    const management = await add(gm, await upload(gm), { sensitivity: 'management' });
+    expect(await page(caller, management.id)).toBeUndefined();
+    expect(await page(gm, management.id)).toMatchObject({ transcript: null, state: 'waiting' });
+    // Another company's request does not reach it.
+    expect(await page(executive, staff.id, [2])).toBeUndefined();
+    // A document has no transcript.
+    const pdf = await add(
+      gm,
+      await upload(gm, { contentType: 'application/pdf', sanitising: 'masked' }),
+    );
+    expect(await page(gm, pdf.id)).toMatchObject({ sourceType: 'pdf', transcript: null });
   });
 });
