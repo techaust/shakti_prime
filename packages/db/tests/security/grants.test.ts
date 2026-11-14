@@ -468,6 +468,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // The ⌘K and /orders search's candidate orders (RPT-03).
       'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
+      // Which recordings on a timeline page its reader may play (T3, 0171).
+      'app.playable_recordings(uuid[])',
       // The quote print loader of the render worker (0110).
       'app.quote_for_print(uuid)',
       // The ⌘K search's candidate quotes (0110).
