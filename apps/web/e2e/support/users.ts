@@ -385,6 +385,11 @@ export interface SeededUsers {
   orders: OrderJourneySeed;
   /** The UAT journeys' fixtures. */
   uat: UatJourneySeed;
+  /**
+   * The vault recordings' ids, so their pages open by address however far down the vault list
+   * later files push them.
+   */
+  recordings: { snapshot: string; reader: string };
 }
 
 export const AUTH_DIR = join(import.meta.dirname, '..', '.auth');

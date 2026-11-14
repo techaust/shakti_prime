@@ -525,12 +525,13 @@ async function ensureRecording(
   recording: { title: string; transcript: string },
   entityId: number,
   sensitivity: 'staff_ai_ok' | 'management',
-): Promise<void> {
+): Promise<string> {
   const [found] = await asMigrator(
-    (m) => m<{ n: number }[]>`select count(*)::int as n from knowledge_files
-                              where entity_id = ${entityId} and title = ${recording.title}`,
+    (m) => m<{ id: string }[]>`select id from knowledge_files
+                              where entity_id = ${entityId} and title = ${recording.title}
+                              order by created_at limit 1`,
   );
-  if ((found?.n ?? 0) > 0) return;
+  if (found !== undefined) return found.id;
   const store = fileStore();
   if (store === undefined) throw new Error('no local file store for the vault recordings');
   // One second of a quiet tone: enough for the player, never sent anywhere.
@@ -587,6 +588,7 @@ async function ensureRecording(
       logger: memoryLogger(),
     },
   );
+  return added.id;
 }
 
 /**
@@ -855,13 +857,15 @@ await ensureSnapshotImport(ids.executive ?? '');
 progress('the snapshot company’s Knowledge Vault file');
 await ensureSnapshotVault(ids.executive ?? '');
 progress('the vault recordings');
-await ensureRecording(
-  ids.executive ?? '',
-  SNAPSHOT_RECORDING,
-  SNAPSHOT_COMPANY.entityId,
-  'management',
-);
-await ensureRecording(ids.executive ?? '', READER_RECORDING, 1, 'staff_ai_ok');
+const recordings = {
+  snapshot: await ensureRecording(
+    ids.executive ?? '',
+    SNAPSHOT_RECORDING,
+    SNAPSHOT_COMPANY.entityId,
+    'management',
+  ),
+  reader: await ensureRecording(ids.executive ?? '', READER_RECORDING, 1, 'staff_ai_ok'),
+};
 progress('the snapshot company’s Playbook');
 await ensureSnapshotPlaybook(ids.executive ?? '');
 
@@ -1070,6 +1074,7 @@ const seeded: SeededUsers = {
   quotes,
   orders,
   uat,
+  recordings,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

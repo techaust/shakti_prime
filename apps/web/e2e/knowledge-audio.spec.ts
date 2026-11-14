@@ -7,7 +7,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { READER_RECORDING, SNAPSHOT_RECORDING } from './support/users';
+import { READER_RECORDING, SNAPSHOT_RECORDING, seededUsers } from './support/users';
 
 // Vault recordings (docs/03-roadmap-appendix/phase2.md §6.4, K3). No speech service runs in the
 // journeys (no `SARVAM_API_KEY`): a recording uploaded here waits for search until a person types
@@ -89,8 +89,7 @@ test.describe('as an Executive', () => {
   });
 
   test('sees a recording beside its transcript, ready to correct', async ({ page }) => {
-    await page.goto('/knowledge');
-    await page.getByRole('link', { name: SNAPSHOT_RECORDING.title }).click();
+    await page.goto(`/knowledge/files/${seededUsers().recordings.snapshot}`);
     await expect(
       page.getByRole('heading', { name: SNAPSHOT_RECORDING.title, level: 1 }),
     ).toBeVisible();
@@ -108,8 +107,7 @@ test.describe('as a tele-caller', () => {
   test.use(signedInAs('teleCaller'));
 
   test('reads a staff recording’s transcript and cannot change it', async ({ page }) => {
-    await page.goto('/knowledge');
-    await page.getByRole('link', { name: READER_RECORDING.title }).click();
+    await page.goto(`/knowledge/files/${seededUsers().recordings.reader}`);
     await expect(
       page.getByRole('heading', { name: READER_RECORDING.title, level: 1 }),
     ).toBeVisible();
@@ -123,9 +121,14 @@ test.describe('as a tele-caller', () => {
 test.describe('as a tele-caller of the snapshot company', () => {
   test.use(signedInAs('snapshotCaller'));
 
-  test('never sees a management recording in the list', async ({ page }) => {
+  test('never sees a management recording, in the list or by its address', async ({ page }) => {
     await page.goto('/knowledge');
     await expect(page.getByRole('heading', { name: 'Knowledge', level: 1 })).toBeVisible();
     await expect(page.getByRole('link', { name: SNAPSHOT_RECORDING.title })).toHaveCount(0);
+    await page.goto(`/knowledge/files/${seededUsers().recordings.snapshot}`);
+    await expect(
+      page.getByRole('heading', { name: SNAPSHOT_RECORDING.title, level: 1 }),
+    ).toHaveCount(0);
+    await expect(page.getByText(SNAPSHOT_RECORDING.transcript)).toHaveCount(0);
   });
 });
