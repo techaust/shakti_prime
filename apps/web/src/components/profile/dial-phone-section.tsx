@@ -1,4 +1,3 @@
-import { hasGrant } from '@shakti/contracts';
 import { ownDialPhone } from '../../actions/dialling';
 import { companyNames, screenAccess } from '../../screens/access';
 import { DialPhoneForm } from './dial-phone-form';
@@ -9,8 +8,8 @@ import { DialPhoneForm } from './dial-phone-form';
  * else.
  */
 export async function DialPhoneSection() {
-  const { principal, access } = await screenAccess();
-  if (!hasGrant(principal.permissions, 'calls.dial', 'own')) return null;
+  const { principal, access, can } = await screenAccess();
+  if (!can('calls.dial', 'own')) return null;
   const names = companyNames(access);
   const rows = (
     await Promise.all(

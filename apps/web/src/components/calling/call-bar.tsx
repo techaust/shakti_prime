@@ -108,13 +108,8 @@ export function CallBar({
     );
   }, [entityId, readiness?.entityId, ready]);
 
-  // Another lead opened: its bar starts empty.
-  useEffect(() => {
-    setCall(undefined);
-    setRefusals(undefined);
-    onCall(undefined);
-  }, [opportunityId, onCall]);
-
+  // Another lead opened: its bar starts empty, since the call and the refusals shown are only
+  // ever the open lead's, and the workspace keeps a call only for the lead it was placed on.
   const shown = call?.opportunityId === opportunityId ? call : undefined;
   const live = shown !== undefined && !ENDS.has(shown.status);
 
@@ -155,7 +150,7 @@ export function CallBar({
     ok !== undefined && ok.available && lead.phoneLast4 !== null && !lead.consentWithdrawn;
 
   const press = useCallback(() => {
-    if (!offered || ok?.dialPhoneSet !== true || live || dial.pending) return;
+    if (!offered || !ok.dialPhoneSet || live || dial.pending) return;
     setRefusals(undefined);
     dial.load(
       () => dialCall({ entityId, opportunityId }),
@@ -224,7 +219,7 @@ export function CallBar({
       ) : (
         <p className="text-sm">
           {t('noOwnPhone')}{' '}
-          <Link href="/settings/profile#dial-phone" className="text-accent underline">
+          <Link href="/settings/profile#dial-phone" className="text-accent-text underline">
             {t('addOwnPhone')}
           </Link>
         </p>

@@ -107,6 +107,7 @@ test.describe('click-to-dial as a tele-caller', () => {
     await snap(page, 'call-bar-ended', {
       mask: [
         page.getByRole('region', { name: 'Queue' }),
+        page.getByRole('searchbox', { name: /Find a lead/ }),
         page.getByRole('heading', { level: 2, name: lead }),
         page.getByRole('region', { name: 'Recent activity' }),
         page.getByRole('region', { name: 'How this call would go out' }),

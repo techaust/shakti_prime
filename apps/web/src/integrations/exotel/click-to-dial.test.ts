@@ -100,7 +100,7 @@ describe('Exotel behind the dial port', () => {
         },
       }),
     ).toBeDefined();
-    expect(clickToDial(report, { env: { NODE_ENV: 'test' } as NodeJS.ProcessEnv })).toBeDefined();
+    expect(clickToDial(report, { env: { NODE_ENV: 'test' } })).toBeDefined();
   });
 });
 

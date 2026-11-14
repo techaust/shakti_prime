@@ -2,6 +2,7 @@
 
 import {
   DialCallInput,
+  DialOutcomeDto,
   DialReadinessInput,
   DomainError,
   newId,
@@ -9,7 +10,6 @@ import {
   PlayCallRecordingInput,
   ProviderCallRefInput,
   SetDialPhoneInput,
-  type DialOutcomeDto,
   type DialPhoneDto,
   type DialReadinessDto,
   type ProviderCallDto,
@@ -99,13 +99,9 @@ export async function dialCall(rawInput: unknown): Promise<ActionResult<DialOutc
       });
       return { kind: 'placed', call };
     } catch (e) {
-      const refusals = e instanceof DomainError ? e.details?.refusals : undefined;
-      if (
-        e instanceof DomainError &&
-        e.details?.reason === 'dial_refused' &&
-        Array.isArray(refusals)
-      ) {
-        return { kind: 'refused', refusals } as DialOutcomeDto;
+      if (e instanceof DomainError && e.details?.reason === 'dial_refused') {
+        // Every rule the dial broke, read through the contract so only known rules reach the screen.
+        return DialOutcomeDto.parse({ kind: 'refused', refusals: e.details.refusals });
       }
       throw e;
     }
