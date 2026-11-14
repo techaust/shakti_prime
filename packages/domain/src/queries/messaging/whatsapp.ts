@@ -351,6 +351,8 @@ export interface SendFactsRow {
   templateCategory: string | null;
   templateStatus: string | null;
   sentLastHour: number;
+  /** The company's own numbers, the only ones a message may name. */
+  companyNumbers: string[];
 }
 
 /** The facts the messaging worker checks a queued message against, as the platform reads them. */
@@ -362,6 +364,11 @@ export async function readSendFacts(ctx: Ctx, messageId: string): Promise<SendFa
   const params = Array.isArray(r.template_params)
     ? r.template_params.filter((p): p is string => typeof p === 'string')
     : [];
+  const numbers = (await ctx.tx.execute(sql`
+    select number_e164 from entity_channels
+     where entity_id = ${Number(r.entity_id)} and is_active`)) as unknown as {
+    number_e164: string;
+  }[];
   return {
     messageId: String(r.message_id),
     createdAt: iso(r.created_at as Date | string) ?? '',
@@ -383,6 +390,7 @@ export async function readSendFacts(ctx: Ctx, messageId: string): Promise<SendFa
     templateCategory: (r.template_category as string | null) ?? null,
     templateStatus: (r.template_status as string | null) ?? null,
     sentLastHour: Number(r.sent_last_hour),
+    companyNumbers: numbers.map((n) => n.number_e164),
   };
 }
 

@@ -15,6 +15,7 @@ import { handleHandoverEvent } from '../handover/handover-event';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
 import { renderJobOf } from '../pdf/job';
+import { sendJobOf } from '../messaging/job';
 import { recordProbeArrival } from './probe';
 
 /** What a handler is given: the system principal for the event's company and the shared store. */
@@ -134,6 +135,20 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
     ordering: 'every',
     handle: async (event, ctx) => {
       await handleTriageEvent(event, ctx);
+    },
+  },
+  // A queued WhatsApp message (docs/06-api.md §6). Hosted, the publisher sends this type to the
+  // messaging route as a `MessagingSendJob` (`EVENT_JOB_ROUTES`); without a queue it is checked and
+  // sent here. A message is taken once, so a repeat never sends it twice.
+  'messaging.message.requested': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      const { sendQueuedMessage } = await import('../messaging/send');
+      const { sendDeps } = await import('../messaging/send-deps');
+      await sendQueuedMessage(
+        sendJobOf(event),
+        sendDeps(ctx.principal, ctx.keyValue, ctx.requestId, hostedRuntime()),
+      );
     },
   },
   // The notices people act on (docs/03-roadmap-appendix/phase1.md §8.1). Hosted, the publisher sends these

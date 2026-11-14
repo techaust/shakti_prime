@@ -88,8 +88,11 @@ export async function processWebhook(
     return WebhookProcessResult.parse({ inboxId, outcome: 'processed', handled: false });
   }
   let entityId: number | null;
+  let code: string | null = null;
   try {
-    ({ entityId } = await handler(parsed.data, context(claimed, inboxId, requestId)));
+    const handled = await handler(parsed.data, context(claimed, inboxId, requestId));
+    entityId = handled.entityId;
+    code = handled.code ?? null;
   } catch (error) {
     logger.log('warn', 'webhooks.handler_failed', {
       requestId,
@@ -102,7 +105,7 @@ export async function processWebhook(
     await mark('released');
     return WebhookProcessResult.parse({ inboxId, outcome: 'retrying' });
   }
-  const { changed } = await mark('processed', null, entityId);
+  const { changed } = await mark('processed', code, entityId);
   if (!changed) {
     // The lease lapsed while the handler ran and another call took the row; the handler's records
     // are idempotent by the provider's own ids, so that call's work and this one's are the same.

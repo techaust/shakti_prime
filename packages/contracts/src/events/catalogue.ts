@@ -469,7 +469,7 @@ const eventCatalogue = {
     meaning:
       'A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it.',
     emittedBy: ['messaging.message.send', 'messaging.message.queue'],
-    subscribed: false,
+    subscribed: true,
     payload: MessageRequested,
   },
   /**
