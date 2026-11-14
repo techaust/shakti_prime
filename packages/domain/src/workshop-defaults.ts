@@ -112,6 +112,11 @@ export interface WhatsAppDefaults {
    * so until then a message with a link is held back by the output filter.
    */
   readonly linkHosts: readonly string[];
+  /**
+   * The pipeline a lead from a WhatsApp number no customer holds starts in (`crm.lead.ingest` needs
+   * one, since WhatsApp has no ingest source); the Triage agent and the callers move it on.
+   */
+  readonly leadPipelineKey: string;
 }
 
 /** The cold calling rules (docs/03-roadmap-appendix/phase1.md §7.2, §11; workshop CALL-3 and CALL-5). */
@@ -278,6 +283,9 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     messagesPerThreadHour: 20,
     replyWaitMinutes: 10,
     linkHosts: [],
+    // For the sales head to confirm (phase 2 design §13, question 8): the farm pump line, the
+    // group's largest by enquiries, until a WhatsApp number per business line is known.
+    leadPipelineKey: 'farmer_pumps',
   },
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is

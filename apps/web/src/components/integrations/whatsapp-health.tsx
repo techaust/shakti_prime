@@ -90,6 +90,7 @@ export function WhatsAppHealth({
           columns={columns}
           rows={numbers}
           rowKey={(r) => r.channelId}
+          empty={t('noNumbers')}
         />
       )}
       <h3 className="font-medium">{t('notSentHeading')}</h3>

@@ -23,6 +23,7 @@ import {
   type FileStore,
   type KeyValue,
   type Logger,
+  WORKSHOP_DEFAULTS,
 } from '@shakti/domain';
 import { createHash } from 'node:crypto';
 import type { DownloadedMedia } from '../../integrations/whatsapp/media';
@@ -31,32 +32,73 @@ import { systemWorkersPrincipal } from '../events/system-principal';
 import type { WebhookHandled, WebhookHandlerContext } from './registry';
 
 /**
- * What the intake makes of a number no customer of the company holds: a lead through I1's
- * `crm.lead.ingest` (channel `whatsapp`, the click-to-WhatsApp `referral` as its attribution, no
- * consent), answering the customer it recorded, or null when no lead was made. The lead wires it to
- * the command once I1 has merged; until then no lead is made and the chat stays unmatched.
+ * The lead intake's call for a number no customer of the company holds (docs/03-roadmap-appendix/
+ * phase2.md §6.1): I1's `crm.lead.ingest` input as WhatsApp fills it (channel `whatsapp`, the
+ * pipeline by key since WhatsApp has no ingest source, the message id as the external id, the
+ * click-to-WhatsApp `referral` as the attribution, never a consent) and the idempotency key it runs
+ * with, `whatsapp:<externalId>`, so a repeated message makes no second lead. The port answers the
+ * customer the intake recorded, or null when it made no lead; the lead wires it to the command
+ * once I1 has merged, which is then a one-line change in `whatsapp-deps.ts`.
  */
-export interface WhatsAppLeadIntake {
-  entityId: number;
-  /** The customer's number in E.164. */
-  phone: string;
-  /** The name the customer set in WhatsApp, untrusted; absent when they set none. */
-  profileName: string | undefined;
-  referral:
-    | {
-        ctwaClid: string | undefined;
-        sourceId: string | undefined;
-        sourceType: string | undefined;
-        sourceUrl: string | undefined;
-      }
-    | undefined;
-  /** Meta's message id, the intake's idempotency key. */
-  providerMessageId: string;
+export interface WhatsAppIngestCall {
+  input: {
+    entityId: number;
+    channel: 'whatsapp';
+    pipelineKey: string;
+    externalId: string;
+    contact: { name: string; phone: string };
+    attribution?: {
+      ctwaClid?: string;
+      referralSourceId?: string;
+      referralSourceType?: string;
+      sourceUrl?: string;
+    };
+  };
+  idempotencyKey: string;
 }
-export type IngestLeadPort = (intake: WhatsAppLeadIntake) => Promise<{ accountId: string } | null>;
+export type IngestLeadPort = (call: WhatsAppIngestCall) => Promise<{ accountId: string } | null>;
 
 /** No intake wired yet: no lead is made, and the chat waits unmatched for staff. */
 export const unwiredIngest: IngestLeadPort = () => Promise.resolve(null);
+
+/** A provider id as `crm.lead.ingest` takes it; anything else is left out. */
+const WORKSHOP_DEFAULTS_PIPELINE = WORKSHOP_DEFAULTS.whatsapp.leadPipelineKey;
+const PROVIDER_REF = /^[A-Za-z0-9_.:=+/-]{1,200}$/;
+const ref = (value: string | undefined): string | undefined =>
+  value !== undefined && PROVIDER_REF.test(value) ? value : undefined;
+
+/** The intake's call for a message from a number no customer holds. */
+export function ingestCallFor(
+  entityId: number,
+  message: WhatsAppInboundMessage,
+  profileName: string | undefined,
+): WhatsAppIngestCall | null {
+  const externalId = ref(message.id);
+  if (externalId === undefined) return null;
+  const referral = message.referral;
+  const attribution: NonNullable<WhatsAppIngestCall['input']['attribution']> = {};
+  const clid = ref(referral?.ctwa_clid);
+  if (clid !== undefined) attribution.ctwaClid = clid;
+  const sourceId = ref(referral?.source_id);
+  if (sourceId !== undefined) attribution.referralSourceId = sourceId;
+  const sourceType = referral?.source_type?.trim() ?? '';
+  if (sourceType !== '') attribution.referralSourceType = sourceType.slice(0, 40);
+  if (referral?.source_url?.startsWith('https://') === true) {
+    attribution.sourceUrl = referral.source_url.slice(0, 500);
+  }
+  const name = profileName?.trim().slice(0, 120) ?? '';
+  return {
+    input: {
+      entityId,
+      channel: 'whatsapp',
+      pipelineKey: WORKSHOP_DEFAULTS_PIPELINE,
+      externalId,
+      contact: { name: name === '' ? `+${message.from}` : name, phone: `+${message.from}` },
+      ...(Object.keys(attribution).length === 0 ? {} : { attribution }),
+    },
+    idempotencyKey: `whatsapp:${externalId}`,
+  };
+}
 
 export interface WhatsAppHandlerDeps {
   keyValue: KeyValue;
@@ -268,21 +310,8 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
     if (recorded.duplicate) return;
 
     if (recorded.accountId === null && recorded.holders === 0) {
-      const made = await deps.ingestLead({
-        entityId,
-        phone: `+${message.from}`,
-        profileName: profiles.get(message.from),
-        referral:
-          message.referral === undefined
-            ? undefined
-            : {
-                ctwaClid: message.referral.ctwa_clid,
-                sourceId: message.referral.source_id,
-                sourceType: message.referral.source_type,
-                sourceUrl: message.referral.source_url,
-              },
-        providerMessageId: message.id,
-      });
+      const call = ingestCallFor(entityId, message, profiles.get(message.from));
+      const made = call === null ? null : await deps.ingestLead(call);
       if (made !== null) {
         await run(matchWhatsAppThread, { ...thread, accountId: made.accountId });
       }
