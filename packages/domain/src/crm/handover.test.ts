@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { pickConverter, qualifiesAsConverter, type ConverterCandidate } from './handover';
+import {
+  pickCaller,
+  pickConverter,
+  qualifiesAsConverter,
+  type CallerCandidate,
+  type ConverterCandidate,
+} from './handover';
 
 const lead = { language: 'hinglish', segment: 'farmer_pumps' } as const;
 
@@ -106,5 +112,36 @@ describe('pickConverter', () => {
       if (taker) taker.openLeads += 1;
     }
     expect(order).toEqual(['a', 'b', 'c', 'a', 'b', 'c']);
+  });
+});
+
+describe('pickCaller', () => {
+  // A Cold Calling Tele-Caller takes a lead from an integration whatever their converter switch.
+  const caller = (id: string, over: Partial<CallerCandidate> = {}): CallerCandidate => ({
+    userId: id,
+    presence: 'present',
+    maxOpen: null,
+    languages: [],
+    segments: [],
+    openLeads: 0,
+    ...over,
+  });
+
+  it('takes a present caller under their cap, of the language and business line', () => {
+    expect(pickCaller([caller('a')], lead, null)).toBe('a');
+    expect(pickCaller([caller('a', { presence: 'away' })], lead, null)).toBeNull();
+    expect(pickCaller([caller('a', { maxOpen: 1, openLeads: 1 })], lead, null)).toBeNull();
+    expect(pickCaller([caller('a', { segments: ['dealer_wholesale'] })], lead, null)).toBeNull();
+    expect(pickCaller([caller('a', { languages: ['en'] })], lead, null)).toBeNull();
+  });
+
+  it('gives the lead to the fewest open leads, ties in turn after the last one given', () => {
+    const three = [caller('a'), caller('b'), caller('c', { openLeads: 1 })];
+    expect(pickCaller(three, lead, null)).toBe('a');
+    expect(pickCaller(three, lead, 'a')).toBe('b');
+    expect(pickCaller(three, lead, 'b')).toBe('a');
+    expect(
+      pickCaller([caller('a', { openLeads: 4 }), caller('b', { openLeads: 2 })], lead, 'b'),
+    ).toBe('b');
   });
 });

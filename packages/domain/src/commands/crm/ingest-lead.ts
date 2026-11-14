@@ -143,10 +143,12 @@ async function ingestPipeline(
 /**
  * The owner of a new lead (the owner's decision on question 3 of
  * docs/03-roadmap-appendix/phase2.md): the colleague who already looks after the customer in the
- * company while they still work on leads there; else T2's weighted round-robin among the company's
- * present Cold Calling Tele-Callers (fewest open leads, ties in turn after the one the platform gave
- * a lead to last); else the company's Sales Team Lead, with routed work; else nobody, and the lead
- * waits for whoever reads the company's leads.
+ * company while they still work on leads there, with routed work; else T2's weighted round-robin
+ * among the company's present Cold Calling Tele-Callers (fewest open leads, ties in turn after the
+ * one the platform gave a lead to last); else the company's Sales Team Lead, with routed work; else
+ * nobody, and the lead waits for whoever reads the company's leads. The company's intake is taken
+ * one lead at a time from here (an advisory lock to the end of the transaction), so two leads
+ * arriving together never read the same open-lead counts.
  */
 async function chooseOwner(
   ctx: CommandContext,
@@ -157,6 +159,9 @@ async function chooseOwner(
   if (customer?.holder_id != null && customer.holder_works) {
     return { ownerId: customer.holder_id, assignedTo: 'customer_owner' };
   }
+  await ctx.tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`lead-ingest:${String(entityId)}`}, 0))`,
+  );
   const rows = (await ctx.tx.execute(
     sql`select user_id, presence, max_open, languages, segments, open_leads, last_given_at
           from app.ingest_candidates(${entityId}::smallint)`,
@@ -174,7 +179,7 @@ async function chooseOwner(
   let latest = Number.NEGATIVE_INFINITY;
   for (const r of rows) {
     const at =
-      r.last_given_at === null ? Number.NEGATIVE_INFINITY : Date.parse(String(r.last_given_at));
+      r.last_given_at === null ? Number.NEGATIVE_INFINITY : new Date(r.last_given_at).getTime();
     if (at > latest) {
       latest = at;
       cursor = r.user_id;
