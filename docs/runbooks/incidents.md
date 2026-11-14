@@ -21,6 +21,7 @@ Never send a password, key or secret value; a screenshot of a settings page is c
 9. [CI jobs do not start](#9-ci-jobs-do-not-start)
 10. [Trouble on the owner's PC](#10-trouble-on-the-owners-pc)
 11. [A scheduled job failed or stopped](#11-a-scheduled-job-failed-or-stopped)
+12. [Calling from the screen is down](#12-calling-from-the-screen-is-down)
 
 ## 1. The site is down
 1. Open `<site>/api/v1/health`. A 200 means the app is running; no answer means the deployment itself is down (go to step 3).
@@ -109,3 +110,9 @@ Two kinds of work run on a timer: the app's worker routes, which QStash calls (t
 3. **A failed `activities-partitions` month** needs care: once a month's rows have landed in the default partition, that month's partition cannot be made until the developer moves them out (DATABASE §7). Tell the developer the same day; nothing is lost meanwhile, the timeline only reads more slowly.
 4. Each problem is told once per job and run, and again after a week while it lasts; a job that runs well again clears it by itself.
 
+## 12. Calling from the screen is down
+Calls placed from the screen go through Exotel ([phase 2 design §6.3](../03-roadmap-appendix/phase2.md#63-t3-click-to-dial-and-recordings)); when Exotel is down, people dial by hand as before and nothing is lost.
+- **What it looks like:** pressing **Call** on the Cold Caller or Converting workspace says the call could not be placed, or the call bar stays on **Placing the call** and no phone rings. In Vercel › **Logs**, `calls.dial.uncertain` or failed `dialCall` actions name the calls by id; Exotel's status page shows the outage.
+1. Callers keep working: **Show number** (`D`) on the same lead shows the number to dial on their own phone, and the outcome keys save the call as before.
+2. A call that never rang is closed as not gone through by the hourly sweep an hour after it was pressed, so the lead's history stays right; nothing is done by hand.
+3. When Exotel is back, **Call** works again at once. If it still fails, tell the developer (see *Who to tell*) with the time and a request id.
