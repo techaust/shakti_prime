@@ -81,6 +81,72 @@ describe('anthropicTransport', () => {
     });
   });
 
+  it('offers strict tools with auto choice, reads the calls, and sends a round back unchanged', async () => {
+    const asked = {
+      ...MESSAGE,
+      content: [
+        { type: 'thinking', thinking: '', signature: 'sig-1' },
+        { type: 'tool_use', id: 'toolu_1', name: 'pipeline_by_stage', input: {} },
+      ],
+      stop_reason: 'tool_use',
+    };
+    let sent: Record<string, unknown> = {};
+    const transport = anthropicTransport('test phrase', {
+      fetch: (_url, init) => {
+        sent = JSON.parse(typeof init?.body === 'string' ? init.body : '') as Record<
+          string,
+          unknown
+        >;
+        return Promise.resolve(
+          new Response(JSON.stringify(asked), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      },
+    });
+    const tool = {
+      name: 'pipeline_by_stage',
+      description: 'Open leads by stage.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    };
+    const first = await transport.complete({ ...REQUEST, tools: [tool] }, signal());
+    expect(sent).toMatchObject({
+      tools: [
+        {
+          name: 'pipeline_by_stage',
+          description: 'Open leads by stage.',
+          input_schema: tool.inputSchema,
+          strict: true,
+        },
+      ],
+      tool_choice: { type: 'auto' },
+    });
+    expect(first.toolCalls).toEqual([{ id: 'toolu_1', name: 'pipeline_by_stage', input: {} }]);
+    expect(first.assistant).toEqual(asked.content);
+    await transport.complete(
+      {
+        ...REQUEST,
+        tools: [tool],
+        rounds: [
+          {
+            assistant: first.assistant,
+            results: [{ callId: 'toolu_1', content: 'stage rows', isError: false }],
+          },
+        ],
+      },
+      signal(),
+    );
+    expect(sent.messages).toEqual([
+      { role: 'user', content: 'u' },
+      { role: 'assistant', content: asked.content },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'stage rows' }],
+      },
+    ]);
+  });
+
   it('turns a refusal and a vendor error into its own terms', async () => {
     const refused = anthropicTransport('test phrase', {
       fetch: respond(200, { ...MESSAGE, stop_reason: 'refusal' }),

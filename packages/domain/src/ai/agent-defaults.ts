@@ -176,6 +176,36 @@ export const AGENT_DEFAULTS = {
   },
 
   /**
+   * Ask the Business (docs/03-roadmap-appendix/phase2.md §6.5, §11, questions 1 and 9): Sonnet 5.5
+   * with read-only lookups, counted under its own spend name for the whole group. Each value is
+   * flagged for the owner to confirm:
+   * - `dailyCapPaise`: ₹1,000 a day for the group; `personDailyCapPaise`: ₹50 a day a person;
+   * - `effort` medium, thinking left adaptive (§9.1), `maxTokens` per call, thinking included;
+   * - `maxModelCalls`: the most model calls one question makes, lookups included; the last one
+   *   offers no more lookups, so the model answers with what it read;
+   * - `totalTimeoutMs`: one call's time, every attempt included;
+   * - `rowsPerLookup`: the most records one lookup returns; `passagesPerSearch`: the most vault
+   *   passages one search returns; `directivesRead`: the most Playbook directives read;
+   * - `earlierTurns`: the most earlier questions and answers of the conversation the model reads;
+   * - `promptVersion`: named with every change of the prompt or the lookups.
+   */
+  ask: {
+    spendName: 'knowledge:ask',
+    model: 'claude-sonnet-5-5',
+    effort: 'medium',
+    maxTokens: 6_000,
+    maxModelCalls: 5,
+    totalTimeoutMs: 45_000,
+    dailyCapPaise: 100_000,
+    personDailyCapPaise: 5_000,
+    rowsPerLookup: 25,
+    passagesPerSearch: 8,
+    directivesRead: 200,
+    earlierTurns: 4,
+    promptVersion: 'ask-1',
+  },
+
+  /**
    * Live voice's reply step (docs/03-roadmap-appendix/phase2.md §9.1, question 1 (a)): Sonnet 5.5,
    * with thinking off (`between_tools`, which Sonnet 5.5 accepts at effort `high` or below) at
    * effort `low`, so the first sentence comes quickly; a spoken reply is one or two sentences, so

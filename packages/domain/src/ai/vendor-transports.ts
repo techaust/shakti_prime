@@ -41,6 +41,47 @@ function userContent(request: ModelRequest): string | Anthropic.ContentBlockPara
 }
 
 /**
+ * The conversation as the vendor takes it: the turn, then each round of lookups as the model's
+ * own turn, sent back exactly as it came (its thinking blocks included, which the vendor checks),
+ * and the answers to its calls in one turn of results.
+ */
+function messagesOf(request: ModelRequest): Anthropic.MessageParam[] {
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: userContent(request) }];
+  for (const round of request.rounds ?? []) {
+    messages.push({ role: 'assistant', content: round.assistant as Anthropic.ContentBlockParam[] });
+    messages.push({
+      role: 'user',
+      content: round.results.map(
+        (r): Anthropic.ToolResultBlockParam => ({
+          type: 'tool_result',
+          tool_use_id: r.callId,
+          content: r.content,
+          ...(r.isError === true ? { is_error: true } : {}),
+        }),
+      ),
+    });
+  }
+  return messages;
+}
+
+/** The lookups as strict tools: the vendor holds each call to its schema. */
+function toolsOf(request: ModelRequest): Pick<Anthropic.MessageCreateParamsNonStreaming, 'tools' | 'tool_choice'> {
+  const tools = request.tools ?? [];
+  if (tools.length === 0) return {};
+  return {
+    tools: tools.map(
+      (t): Anthropic.Tool => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.inputSchema as Anthropic.Tool.InputSchema,
+        strict: true,
+      }),
+    ),
+    tool_choice: { type: 'auto' },
+  };
+}
+
+/**
  * Claude through `@anthropic-ai/sdk`. The system text is marked for the prompt cache, since it is
  * the same on every call of an agent (ADR 0011, cost controls).
  */
@@ -62,7 +103,8 @@ export function anthropicTransport(
             model: request.model,
             max_tokens: request.maxTokens,
             system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }],
-            messages: [{ role: 'user', content: userContent(request) }],
+            messages: messagesOf(request),
+            ...toolsOf(request),
             ...(request.effort === undefined ? {} : { output_config: { effort: request.effort } }),
           },
           { signal },
@@ -73,8 +115,12 @@ export function anthropicTransport(
       const text = message.content
         .map((block) => (block.type === 'text' ? block.text : ''))
         .join('');
+      const toolCalls = message.content.flatMap((block) =>
+        block.type === 'tool_use' ? [{ id: block.id, name: block.name, input: block.input }] : [],
+      );
       return {
         text,
+        ...(toolCalls.length === 0 ? {} : { toolCalls, assistant: message.content }),
         usage: {
           inputTokens: message.usage.input_tokens,
           outputTokens: message.usage.output_tokens,

@@ -15,6 +15,8 @@ import {
 } from './models';
 import {
   ModelCallError,
+  type ModelToolCall,
+  type ModelTool,
   type ModelDocument,
   type EmbeddingTransport,
   type ModelEffort,
@@ -60,7 +62,8 @@ export type AiSpender =
   | AgentRoleKey
   | (typeof AGENT_DEFAULTS.knowledge)['indexName']
   | (typeof AGENT_DEFAULTS.knowledge)['searchName']
-  | (typeof AGENT_DEFAULTS.playbook)['spendName'];
+  | (typeof AGENT_DEFAULTS.playbook)['spendName']
+  | (typeof AGENT_DEFAULTS.ask)['spendName'];
 
 interface CallBase {
   agent: AiSpender;
@@ -117,6 +120,17 @@ export interface CompleteCall extends CallBase {
    * text); `AI_CALL_TIMEOUT_MS` when left out.
    */
   timeoutMs?: number;
+  /** Read-only lookups the model may ask for (Ask the Business); none when left out. */
+  tools?: readonly ModelTool[];
+  /**
+   * The rounds of lookups so far: the model's turn as the last call returned it (`assistant`),
+   * and each call's answer, which is data from the business (records people and customers
+   * wrote), so the wrapper masks it and labels it as data under `source`, as it does `untrusted`.
+   */
+  rounds?: readonly {
+    assistant: unknown;
+    results: readonly { callId: string; source: string; content: string; isError?: boolean }[];
+  }[];
 }
 
 export interface CompleteResult {
@@ -125,6 +139,9 @@ export interface CompleteResult {
   usage: TokenUsage;
   costPaise: number;
   stopped: ModelReply['stopped'];
+  /** The lookups the model asks for, and its turn to send back with their answers. */
+  toolCalls?: readonly ModelToolCall[];
+  assistant?: unknown;
 }
 
 export interface EmbedCall extends CallBase {
@@ -344,11 +361,24 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       ].join('\n\n');
       const maxTokens = call.maxTokens ?? 1024;
       const documents = call.documents ?? [];
+      const tools = call.tools ?? [];
+      const rounds = (call.rounds ?? []).map((r) => ({
+        assistant: r.assistant,
+        results: r.results.map((x) => ({
+          callId: x.callId,
+          content: labelUntrusted(x.source, x.content),
+          ...(x.isError === true ? { isError: true } : {}),
+        })),
+      }));
       // A document's tokens cannot be counted from its bytes; the context window bounds them all.
+      // Tools and earlier rounds are sent as JSON, which their own JSON's bytes bound.
       const inputBound =
         documents.length > 0
           ? (MODEL_CONTEXT_TOKENS[model] ?? Number.MAX_SAFE_INTEGER)
-          : bytes(system) + bytes(user);
+          : bytes(system) +
+            bytes(user) +
+            (tools.length === 0 ? 0 : bytes(JSON.stringify(tools))) +
+            (rounds.length === 0 ? 0 : bytes(JSON.stringify(rounds)));
       const held = await reserve(call, maxCostInPaise(model, inputBound, maxTokens));
       const started = now().getTime();
       let reply: ModelReply;
@@ -363,6 +393,8 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
                 user,
                 maxTokens,
                 ...(documents.length > 0 ? { documents } : {}),
+                ...(tools.length > 0 ? { tools } : {}),
+                ...(rounds.length > 0 ? { rounds } : {}),
                 ...(call.effort === undefined ? {} : { effort: call.effort }),
               },
               signal,
@@ -384,11 +416,21 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
           reply.usage.inputTokens + reply.usage.cacheReadTokens + reply.usage.cacheWriteTokens,
         tokensOut: reply.usage.outputTokens,
         documents: documents.length,
+        toolCalls: reply.toolCalls?.length ?? 0,
         costPaise,
         stopped: reply.stopped,
         durationMs: now().getTime() - started,
       });
-      return { text: reply.text, model, usage: reply.usage, costPaise, stopped: reply.stopped };
+      return {
+        text: reply.text,
+        model,
+        usage: reply.usage,
+        costPaise,
+        stopped: reply.stopped,
+        ...(reply.toolCalls === undefined || reply.toolCalls.length === 0
+          ? {}
+          : { toolCalls: reply.toolCalls, assistant: reply.assistant }),
+      };
     },
 
     async embed(call) {
