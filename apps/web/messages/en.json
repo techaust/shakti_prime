@@ -293,6 +293,14 @@
     "lost_reason_missing": "Choose why the lead was lost.",
     "nurture_reason_missing": "Choose why the lead should be followed up later.",
     "dial_number_missing": "This customer has no main phone number. Add one on the customer page.",
+    "dial_refused": "This call cannot be placed now. The reasons are shown on the call card.",
+    "dial_phone_missing": "Add your own phone number on your profile first. The call rings that phone before the customer's.",
+    "dial_in_progress": "Your last call is still being placed. Wait a moment before calling again.",
+    "dial_failed": "The call could not be placed. Try again, or dial by hand and save the call.",
+    "calling_not_set_up": "Calling from the screen is not set up yet. Dial by hand and save the call.",
+    "provider_call_missing": "This call was not found on this lead. Reload the page and save the call again.",
+    "provider_call_logged": "This call is saved already.",
+    "recording_missing": "There is no recording of this call to play.",
     "duplicate_missing": "This possible duplicate has been dealt with, or you cannot see both customers. Reload the page to see the latest.",
     "duplicate_not_matching": "These two leads are not open leads of the same customer for the same kind of work, so they cannot be put forward as one.",
     "duplicate_candidate_transition_not_allowed": "This possible duplicate has already been dealt with. Reload the page to see the latest.",
@@ -1691,6 +1699,12 @@
       "channelSet": "Company number set",
       "channelArchive": "Company number taken out of use",
       "phoneDndRecord": "Do-not-disturb list checked",
+      "callDial": "Call placed from the screen",
+      "providerCallRecord": "Call progress recorded",
+      "callRecordingAttach": "Call recording kept",
+      "callRecordingDelete": "Old call recording removed",
+      "callRecordingPlay": "Call recording played",
+      "callerProfileSetDialPhone": "Own calling phone changed",
       "webhookClaim": "A message from another system taken up",
       "webhookMark": "A message from another system handled",
       "webhookSweep": "Old messages from other systems cleared out",
@@ -1746,7 +1760,8 @@
       "orderCreditReleased": "Credit hold released",
       "orderCancelled": "Order cancelled",
       "commissionAccrued": "Referral commission recorded",
-      "playbookChanged": "Playbook rule changed"
+      "playbookChanged": "Playbook rule changed",
+      "dialCompleted": "Call from the screen ended"
     },
     "sheet": {
       "title": "{action}",
@@ -2007,6 +2022,12 @@
       "verified": "Checked and working",
       "isDnd": "On the do-not-disturb list",
       "dndCheckedAt": "Do-not-disturb list checked",
+      "callPurpose": "Kind of call",
+      "numberSeries": "Calling line",
+      "callStatus": "Call status",
+      "endedAt": "Ended",
+      "listenedAt": "Played",
+      "dialPhone": "Own calling phone",
       "provider": "From",
       "failed": "Failed"
     },
@@ -2060,6 +2081,20 @@
         "call_service_160": "Service calls number (160 series)",
         "ivr": "Incoming calls number",
         "missed_call": "Missed-call number"
+      },
+      "callPurpose": {
+        "promotional": "Sales call",
+        "service": "Service call"
+      },
+      "callStatus": {
+        "dialling": "Dialling",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Ended after talking",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Did not go through",
+        "canceled": "Stopped before answered"
       }
     }
   },

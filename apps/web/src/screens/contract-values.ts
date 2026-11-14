@@ -10,6 +10,8 @@ import type {
   CommissionAccrualState,
   CommissionBasis,
   ConsentChannel,
+  DialPurpose,
+  ProviderCallStatus,
   ConsentPurpose,
   ConsentSource,
   CustomerLanguage,
@@ -143,6 +145,21 @@ export const ACCOUNT_TYPES = [
 export const SITE_TYPES = ['borewell', 'rooftop', 'factory'] as const satisfies readonly SiteType[];
 
 export const CUSTOMER_LANGUAGES = ['hinglish', 'en'] as const satisfies readonly CustomerLanguage[];
+
+/** Why a call is made (`CALL_PURPOSES`): selling, or about something the customer asked for. */
+export const CALL_PURPOSE_VALUES = ['promotional', 'service'] as const satisfies readonly DialPurpose[];
+
+/** Where a click-to-dial call stands (`PROVIDER_CALL_STATUSES`), first to last. */
+export const PROVIDER_CALL_STATUS_VALUES = [
+  'dialling',
+  'ringing',
+  'in_progress',
+  'completed',
+  'no_answer',
+  'busy',
+  'failed',
+  'canceled',
+] as const satisfies readonly ProviderCallStatus[];
 
 /** A company's channels (`ENTITY_CHANNEL_KINDS`), in the order Settings › Companies lists them. */
 export const ENTITY_CHANNEL_KINDS = [

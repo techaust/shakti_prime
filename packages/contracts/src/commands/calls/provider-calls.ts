@@ -10,6 +10,9 @@ import { CALL_PURPOSES, DIAL_REFUSAL_REASONS } from './dial';
  * provider's reports, the call's recording, and the caller's own dial phone.
  */
 
+/** Why a call is made: selling (promotional) or about something the customer asked for (service). */
+export type DialPurpose = (typeof CALL_PURPOSES)[number];
+
 /**
  * Where a provider call stands. Dialling (the person pressed Dial), ringing (the provider took the
  * call), in progress (both phones on the line), then one of the ends, after which nothing changes.

@@ -25,6 +25,10 @@ import {
   AUDIT_OUTCOMES,
   ConsentChannelSchema,
   EntityChannelKindSchema,
+  CALL_PURPOSES,
+  DIALLED_SERIES,
+  PROVIDER_CALL_SERIES,
+  PROVIDER_CALL_STATUSES,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   ContactRoleSchema,
@@ -202,6 +206,12 @@ const PAIRS: Record<string, readonly string[]> = {
   caller_profiles_languages_check: CustomerLanguageSchema.options,
   caller_profiles_segments_check: SegmentSchema.options,
   webhook_inbox_provider_check: WEBHOOK_PROVIDERS,
+  provider_calls_direction_check: CallDirectionSchema.options,
+  provider_calls_series_check: PROVIDER_CALL_SERIES,
+  provider_calls_purpose_check: CALL_PURPOSES,
+  provider_calls_status_check: PROVIDER_CALL_STATUSES,
+  // An outbound call is a person's dial, on one of the lines a person dials out on.
+  provider_calls_outbound_check: ['outbound', ...DIALLED_SERIES],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {
