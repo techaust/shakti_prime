@@ -40,7 +40,7 @@ function echoEverything(tag: string): AskRecording {
     lookups: [
       { name: 'find_items', input: { query: tag } },
       { name: 'search_vault', input: { query: `${tag} pump kit costing supplier rate margin` } },
-      { name: 'read_playbook', input: {} },
+      { name: 'read_playbook', input: { topic: tag } },
       { name: 'dealer_credit', input: {} },
     ],
     // Everything it read about the tagged records (the rest of the database is left out, so the

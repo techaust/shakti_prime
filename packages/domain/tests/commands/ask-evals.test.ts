@@ -82,7 +82,7 @@ const CASES: readonly EvalCase[] = [
     name: 'a policy from the Playbook, with its figure',
     question: (d) => `How soon must we install a ${d.tag} pump?`,
     recording: (d) => ({
-      lookups: [{ name: 'read_playbook', input: {} }],
+      lookups: [{ name: 'read_playbook', input: { topic: `${d.tag} install` } }],
       answer: (r) => {
         const rule = record(r, 'read_playbook', 'rules', `Install every ${d.tag}`);
         return rule === undefined
@@ -138,7 +138,7 @@ const CASES: readonly EvalCase[] = [
     name: 'a model that adds a figure of its own loses it',
     question: (d) => `How soon must we install a ${d.tag} pump, and what does it earn?`,
     recording: (d) => ({
-      lookups: [{ name: 'read_playbook', input: {} }],
+      lookups: [{ name: 'read_playbook', input: { topic: `${d.tag} install` } }],
       answer: (r) => {
         const rule = record(r, 'read_playbook', 'rules', `Install every ${d.tag}`);
         return `Within 30 days [ref:${String(rule?.ref)}], and each earns ₹4,999.`;

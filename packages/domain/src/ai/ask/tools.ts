@@ -144,32 +144,59 @@ const searchVault: AskTool = {
   },
 };
 
+/** The words of a text a topic is matched on: three letters or more, in lower case. */
+const wordsOf = (text: string): Set<string> =>
+  new Set((text.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? []).filter(Boolean));
+
 const readPlaybook: AskTool = {
   name: 'read_playbook',
   description:
-    "Reads the business's approved Playbook: the policies, priorities, procedures, common questions and tone the Executives approved. Returns each rule with its type and title.",
-  inputSchema: NO_INPUT,
-  input: NoInput,
+    "Reads the business's approved Playbook: the policies, priorities, procedures, common questions and tone the Executives approved. Give a topic in a few words to get the rules about it first; null reads them in order. Returns each rule with its type and title, and whether more rules were left out.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      topic: { type: ['string', 'null'], description: 'What the rules should be about, or null.' },
+    },
+    required: ['topic'],
+    additionalProperties: false,
+  },
+  input: z.object({ topic: z.string().trim().max(200).nullable() }).strict(),
   offered: (p) => hasGrant(p.permissions, 'knowledge.vault.read.staff', 'all'),
-  async run(ctx) {
+  async run(ctx, raw) {
+    const { topic } = z.object({ topic: z.string().nullable() }).parse(raw);
     const audiences: PlaybookAudience[] = ['customer', 'staff'];
     if (hasGrant(ctx.principal.permissions, 'knowledge.vault.read.management', 'all')) {
       audiences.push('management');
     }
-    const directives = await read(ctx, 'read_playbook', async (c) => {
+    // Every approved rule the person reads, a page at a time, up to the scan's bound.
+    const all = await read(ctx, 'read_playbook', async (c) => {
       const out: Awaited<ReturnType<typeof approvedPlaybook>>['directives'] = [];
       let cursor: string | null = null;
       do {
         const page = await approvedPlaybook(c, {
           audiences,
-          limit: Math.min(500, ASK.directivesRead - out.length),
+          limit: Math.min(500, ASK.directivesScanned - out.length),
           ...(cursor === null ? {} : { cursor }),
         });
         out.push(...page.directives);
         cursor = page.nextCursor;
-      } while (cursor !== null && out.length < ASK.directivesRead);
+      } while (cursor !== null && out.length < ASK.directivesScanned);
       return out;
     });
+    // With a topic, the rules sharing the most of its words come first, and none sharing none.
+    const asked = topic === null ? new Set<string>() : wordsOf(topic);
+    const ranked =
+      asked.size === 0
+        ? all
+        : all
+            .map((d) => ({
+              d,
+              score: [...wordsOf(`${d.title} ${d.text}`)].filter((w) => asked.has(w)).length,
+            }))
+            .filter((r) => r.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .map((r) => r.d);
+    const directives = ranked.slice(0, ASK.directivesRead);
     return {
       data: {
         rules: directives.map((d) => ({
@@ -180,6 +207,7 @@ const readPlaybook: AskTool = {
           title: d.title,
           text: d.text,
         })),
+        more: ranked.length > directives.length,
       },
       sources: directives.map((d) => ({ kind: 'playbook_directive', id: d.id })),
     };

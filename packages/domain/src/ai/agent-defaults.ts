@@ -185,7 +185,9 @@ export const AGENT_DEFAULTS = {
    *   offers no more lookups, so the model answers with what it read;
    * - `totalTimeoutMs`: one call's time, every attempt included;
    * - `rowsPerLookup`: the most records one lookup returns; `passagesPerSearch`: the most vault
-   *   passages one search returns; `directivesRead`: the most Playbook directives read;
+   *   passages one search returns; `directivesScanned`: the most approved Playbook directives the
+   *   Playbook lookup reads, and `directivesRead` the most it gives the model, those of its topic
+   *   first, saying when more were left out;
    * - `earlierTurns`: the most earlier questions and answers of the conversation the model reads;
    * - `promptVersion`: named with every change of the prompt or the lookups.
    */
@@ -200,7 +202,8 @@ export const AGENT_DEFAULTS = {
     personDailyCapPaise: 5_000,
     rowsPerLookup: 25,
     passagesPerSearch: 8,
-    directivesRead: 200,
+    directivesScanned: 2_000,
+    directivesRead: 50,
     earlierTurns: 4,
     promptVersion: 'ask-1',
   },
