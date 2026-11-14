@@ -2893,7 +2893,8 @@
       "letterhead": "Letterhead",
       "knowledge": "Knowledge Vault document",
       "consent_evidence": "Proof of consent",
-      "print_proof": "Proof page"
+      "print_proof": "Proof page",
+      "call_recording": "Call recording"
     },
     "types": {
       "jpeg": "JPEG picture",

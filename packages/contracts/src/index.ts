@@ -43,6 +43,7 @@ export * from './dto/customer';
 export * from './commands/org/update-entity';
 export * from './commands/org/channels';
 export * from './commands/calls/dial';
+export * from './commands/calls/provider-calls';
 export * from './commands/crm/create-lead';
 export * from './commands/crm/opportunity';
 export * from './commands/crm/config';

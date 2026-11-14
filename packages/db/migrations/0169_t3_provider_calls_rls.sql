@@ -189,8 +189,8 @@ revoke execute on function app.require_calls_process(smallint) from public, read
 --    provider's id is taken when the call has none yet and no other call holds it; a call that
 --    holds another id, or an id another call holds, answers 'other_call' and nothing changes. A
 --    status further on than the call's moves it there with the times and length that come with
---    it, each kept once set; the same or an earlier status changes nothing ('unchanged'). Answers
---    the call as it now stands.
+--    it, each kept once set (status_moved); the same or an earlier status changes nothing
+--    ('unchanged'). Answers the call as it now stands.
 create or replace function app.record_provider_call(
   p_entity smallint,
   p_call uuid,
@@ -199,8 +199,8 @@ create or replace function app.record_provider_call(
   p_answered_at timestamptz,
   p_ended_at timestamptz,
   p_duration_s integer
-) returns table (outcome text, status text, opportunity_id uuid, caller_id uuid,
-                 provider_call_sid text, ended_at timestamptz, duration_s integer)
+) returns table (outcome text, status_moved boolean, status text, opportunity_id uuid,
+                 caller_id uuid, provider_call_sid text, ended_at timestamptz, duration_s integer)
   language plpgsql volatile security definer set search_path = '' as $$
 #variable_conflict use_column
 declare
@@ -217,7 +217,7 @@ begin
    where pc.id = p_call and pc.entity_id = p_entity
      for update;
   if not found then
-    return query select 'missing'::text, null::text, null::uuid, null::uuid, null::text,
+    return query select 'missing'::text, false, null::text, null::uuid, null::uuid, null::text,
                         null::timestamptz, null::integer;
     return;
   end if;
@@ -225,7 +225,7 @@ begin
      and v_call.provider_call_sid is distinct from p_sid
      and (v_call.provider_call_sid is not null
           or exists (select 1 from public.provider_calls o where o.provider_call_sid = p_sid)) then
-    return query select 'other_call'::text, v_call.status, v_call.opportunity_id, v_call.caller_id,
+    return query select 'other_call'::text, false, v_call.status, v_call.opportunity_id, v_call.caller_id,
                         v_call.provider_call_sid, v_call.ended_at, v_call.duration_s;
     return;
   end if;
@@ -245,7 +245,7 @@ begin
     returning pc.* into v_call;
   end if;
   return query select case when v_forward or v_adopt then 'moved' else 'unchanged' end::text,
-                      v_call.status, v_call.opportunity_id, v_call.caller_id,
+                      v_forward, v_call.status, v_call.opportunity_id, v_call.caller_id,
                       v_call.provider_call_sid, v_call.ended_at, v_call.duration_s;
 end
 $$;

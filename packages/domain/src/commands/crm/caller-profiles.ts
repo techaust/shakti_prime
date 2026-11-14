@@ -1,10 +1,12 @@
 import {
   CallerProfileDto,
   CustomerLanguageSchema,
+  DialPhoneDto,
   DomainError,
   newId,
   SegmentSchema,
   SetCallerProfileInput,
+  SetDialPhoneInput,
   SetPresenceInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
@@ -153,5 +155,52 @@ export const setPresence = defineCommand({
       });
     }
     return toDto(row);
+  },
+});
+
+/**
+ * `crm.caller_profile.set_dial_phone` (docs/03-roadmap-appendix/phase2.md §6.3): the caller's own
+ * phone in one company, which click-to-dial rings first before the customer's; null clears it.
+ * Only the caller's own row, never another person's (the insert policy and the guard trigger); a
+ * person with no profile yet gets one that is not a Lead Converter until a manager says so. For a
+ * person who dials (`calls.dial`), people only.
+ */
+export const setDialPhone = defineCommand({
+  name: 'crm.caller_profile.set_dial_phone',
+  permission: 'calls.dial',
+  minScope: 'own',
+  peopleOnly: true,
+  input: SetDialPhoneInput,
+  output: DialPhoneDto,
+  auditFields: ['dialPhone'],
+  async handler(ctx, input) {
+    requireEntity(ctx, input.entityId);
+    const before = await ownProfile(ctx, ctx.principal.id, input.entityId);
+    const cp = schema.callerProfiles;
+    const [row] = await ctx.tx
+      .insert(cp)
+      .values({
+        id: newId(),
+        userId: ctx.principal.id,
+        entityId: input.entityId,
+        dialPhoneE164: input.phone,
+        updatedBy: ctx.principal.id,
+      })
+      .onConflictDoUpdate({
+        target: [cp.userId, cp.entityId],
+        set: { dialPhoneE164: input.phone, updatedBy: ctx.principal.id },
+      })
+      .returning();
+    if (!row) throw new DomainError('internal', 'caller profile upsert returned no row');
+    if (before?.dialPhoneE164 !== row.dialPhoneE164) {
+      ctx.audit({
+        aggregateType: 'caller_profile',
+        aggregateId: row.id,
+        entityId: input.entityId,
+        before: { dialPhone: before?.dialPhoneE164 ?? null },
+        after: { dialPhone: row.dialPhoneE164 },
+      });
+    }
+    return { entityId: row.entityId, dialPhone: row.dialPhoneE164 };
   },
 });

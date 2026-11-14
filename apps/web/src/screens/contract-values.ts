@@ -715,6 +715,7 @@ export const FILE_PURPOSES = [
   'print_proof',
   'knowledge',
   'consent_evidence',
+  'call_recording',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */

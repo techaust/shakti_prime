@@ -100,6 +100,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   customer_merges: 'x.id::text',
   caller_profiles: 'x.id::text',
   entity_channels: 'x.id::text',
+  provider_calls: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -185,6 +186,9 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`alter table targets disable trigger targets_append_only`;
       await tx`delete from targets where id::text like ${like}`;
       await tx`alter table targets enable trigger targets_append_only`;
+      await tx`alter table provider_calls disable trigger provider_calls_no_delete`;
+      await tx`delete from provider_calls where id::text like ${like}`;
+      await tx`alter table provider_calls enable trigger provider_calls_no_delete`;
       await tx`delete from caller_profiles where id::text like ${like}`;
       await tx`delete from entity_channels where id::text like ${like}`;
       await tx`delete from agent_configs where id::text like ${like}`;
@@ -327,6 +331,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     customer_merges: [],
     caller_profiles: [],
     entity_channels: [],
+    provider_calls: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -456,6 +461,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const othersProfile = per(e, 0x45);
         const sizing = per(e, 0x1b);
         const call = per(e, 0x30);
+        // A provider call of the owner on the company's lead, ended, with its recording, which
+        // only the file checks read as a file (calls.recording.play hears it).
+        const providerCall = per(e, 0x53);
+        const recording = per(e, 0x54);
         const quote = per(e, 0x1c);
         const quoteLine = per(e, 0x1d);
         const quoteVersion = per(e, 0x1e);
@@ -562,6 +571,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           (${othersProfile}, ${otherUserId}, ${e}, false, 'away')`;
         await tx`insert into entity_channels (id, entity_id, channel, number_e164, is_active, created_by)
           values (${channel}, ${e}, 'missed_call', ${`+91800000000${e.toString()}`}, false, ${ownerId})`;
+        await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+          values (${recording}, ${e}, 'call_recording', 'matrix', ${`matrix/${recording}`}, 'matrix file', 'audio/mpeg', 1, ${sha}, 'ready', ${ownerId})`;
+        await tx`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, provider_call_sid, status, started_at, ended_at, duration_s, recording_file_id, call_id)
+          values (${providerCall}, ${e}, ${opportunity}, ${phone}, ${ownerId}, 'outbound', '140', 'promotional', ${`matrix-${providerCall}`}, 'completed', now(), now(), 30, ${recording}, ${call})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -701,6 +714,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: othersProfile, entities: only, othersOwn: true },
         );
         rows.entity_channels.push({ key: channel, entities: only });
+        rows.provider_calls.push({ key: providerCall, entities: only });
+        rows.files.push({ key: recording, entities: only, purpose: 'call_recording' });
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
         rows.playbook_directives.push(

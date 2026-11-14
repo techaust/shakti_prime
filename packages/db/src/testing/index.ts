@@ -340,6 +340,8 @@ export const ENTITY_TABLES = [
   'caller_profiles',
   // a company's numbers, read by every principal acting in it (docs/03-roadmap-appendix/phase2.md §5.2)
   'entity_channels',
+  // a provider's call, a child of the lead, read with it (docs/03-roadmap-appendix/phase2.md §6.3)
+  'provider_calls',
 ] as const;
 
 /**

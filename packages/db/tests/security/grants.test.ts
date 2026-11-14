@@ -153,6 +153,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     notifications: { i: false, u: false },
     // A profile changes only its settings and presence (column grants, 0125); never deleted.
     caller_profiles: { i: true, u: false },
+    // A provider call is inserted as dialling by the person who dials; after that a person sets
+    // only the link to their log (a column grant), and the platform's definers write the rest
+    // (0169, provider-calls.test.ts).
+    provider_calls: { i: true, u: false },
   };
 
   /**

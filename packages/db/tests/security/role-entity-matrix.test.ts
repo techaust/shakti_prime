@@ -103,6 +103,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   consent_evidence: grant('crm.account.write', 'own'),
   // A company's proof page prints its bank account: an Executive's alone.
   print_proof: grant('admin.entities.write', 'own'),
+  // A call's recording is heard only through calls.recording.play, never read as a file.
+  call_recording: NEVER,
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({
@@ -269,6 +271,8 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   // A company's numbers: every principal acting in the company reads them (design phase2 §5.2).
   entity_channels: { read: CONTEXT, leak: otherCompany },
+  // A provider's call is a child of the lead: read with it, as the call log is.
+  provider_calls: { read: LEAD_READ, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {

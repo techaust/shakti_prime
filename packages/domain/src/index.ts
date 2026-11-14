@@ -27,12 +27,31 @@ export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
+export { dialCall, recordedDndState } from './commands/calls/dial-call';
+export { playCallRecording } from './commands/calls/play-recording';
+export {
+  attachCallRecording,
+  callRecordingKey,
+  deleteCallRecording,
+  recordProviderCall,
+  toProviderCallDto,
+} from './commands/calls/provider-calls';
+export { placeDial } from './calls/place-dial';
+export type { PlaceDialDeps } from './calls/place-dial';
+export {
+  ClickToDialNotSetUp,
+  ClickToDialRefused,
+  ClickToDialUncertain,
+  fakeClickToDial,
+  unreachableClickToDial,
+} from './ports/click-to-dial';
+export type { ClickToDial, ClickToDialRequest, PlacedProviderCall } from './ports/click-to-dial';
 export { listEntityChannels } from './queries/org/list-channels';
 export { dialFacts, dndRecordInput, toDialPlanDto } from './queries/calls/dial-plan';
 export { createLead } from './commands/crm/create-lead';
 export { moveOpportunityStage } from './commands/crm/move-opportunity-stage';
 export { assignOpportunity } from './commands/crm/assign-opportunity';
-export { setCallerProfile, setPresence } from './commands/crm/caller-profiles';
+export { setCallerProfile, setDialPhone, setPresence } from './commands/crm/caller-profiles';
 export { handOverLead } from './commands/crm/hand-over-lead';
 export { reassignAllLeads, REASSIGN_ALL_LIMIT } from './commands/crm/reassign-all';
 export { listCallerProfiles, loadOwnPresence } from './queries/crm/caller-profiles';
