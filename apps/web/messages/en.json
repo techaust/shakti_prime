@@ -375,7 +375,11 @@
     "payload_unreadable": "The message from the other system could not be read, so it was set aside.",
     "handler_failed": "The message from the other system could not be handled after several tries.",
     "no_handler": "The message from the other system was kept. Nothing handles this kind of message yet.",
-    "too_many_attempts": "The message from the other system failed ten times, so it was set aside."
+    "too_many_attempts": "The message from the other system failed ten times, so it was set aside.",
+    "lead_source_missing": "This lead source is no longer connected. Refresh the page to see the sources as they are now.",
+    "lead_source_fixed": "A connected form cannot be swapped for another. Disconnect this one and connect the new form.",
+    "lead_source_taken": "This form is already connected to a company. Disconnect it there first.",
+    "ingest_key_missing": "This website key has already been turned off. Refresh the page to see the keys as they are now."
   },
   "auth": {
     "signIn": {
@@ -1694,7 +1698,13 @@
       "webhookClaim": "A message from another system taken up",
       "webhookMark": "A message from another system handled",
       "webhookSweep": "Old messages from other systems cleared out",
-      "webhookReplay": "A failed message from another system handled again"
+      "webhookReplay": "A failed message from another system handled again",
+      "leadIngest": "Lead came in from an ad, form, website or WhatsApp",
+      "leadQualificationSet": "Lead details recorded",
+      "sourceSet": "Lead source connected or changed",
+      "sourceArchive": "Lead source disconnected",
+      "ingestKeyCreate": "Website key made",
+      "ingestKeyRevoke": "Website key turned off"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2008,7 +2018,23 @@
       "isDnd": "On the do-not-disturb list",
       "dndCheckedAt": "Do-not-disturb list checked",
       "provider": "From",
-      "failed": "Failed"
+      "failed": "Failed",
+      "leadChannel": "Came in by",
+      "ingestOutcome": "What happened",
+      "assignedTo": "Given to",
+      "attribution": "Ad details recorded",
+      "qualification": "Lead details recorded",
+      "sourceProvider": "Kind of source",
+      "externalId": "Form or site",
+      "fieldMap": "Form questions matched",
+      "pageTokenSet": "Facebook Page connected",
+      "keyHint": "Key ends with",
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number"
     },
     "values": {
       "percent": "{value}%",
@@ -2060,6 +2086,30 @@
         "call_service_160": "Service calls number (160 series)",
         "ivr": "Incoming calls number",
         "missed_call": "Missed-call number"
+      },
+      "leadChannel": {
+        "meta_ads": "Facebook or Instagram ad",
+        "google_ads": "Google ad",
+        "website": "Company website",
+        "whatsapp": "WhatsApp message",
+        "ivr": "Incoming call",
+        "missed_call": "Missed call"
+      },
+      "ingestOutcome": {
+        "created": "New lead made",
+        "attached": "Added to the open lead"
+      },
+      "ingestAssignee": {
+        "caller": "A tele-caller, in turn",
+        "team_lead": "The sales team lead, as work to pass on",
+        "customer_owner": "The colleague who looks after the customer",
+        "lead_owner": "The owner of the open lead",
+        "unassigned": "Nobody yet"
+      },
+      "sourceProvider": {
+        "meta_leadgen": "Facebook and Instagram lead form",
+        "google_leadform": "Google lead form",
+        "website": "Company website"
       }
     }
   },
@@ -3387,6 +3437,7 @@
       "files_process": "Check uploaded files before they are used",
       "imports_process": "Stop an import that could not finish",
       "crm_config_write": "Set up pipelines, call outcomes, lead scores and referral codes",
+      "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_score_refresh": "Bring lead scores up to date each night",
       "crm_duplicates_scan": "Look for duplicate customers and leads each night",
       "sales_quote_expire": "Mark quotes past their validity as expired each day",
@@ -3399,7 +3450,8 @@
       "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
       "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance",
       "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list",
-      "webhooks_process": "Handle the messages other systems send in"
+      "webhooks_process": "Handle the messages other systems send in",
+      "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp"
     },
     "empty": "There are no roles to show.",
     "locked": {

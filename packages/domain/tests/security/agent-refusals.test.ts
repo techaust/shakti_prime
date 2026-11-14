@@ -198,6 +198,23 @@ const INPUTS: Record<string, unknown> = {
     verified: false,
   },
   'org.channel.archive': { entityId: 1, channelId: newId() },
+  'crm.source.set': {
+    entityId: 1,
+    provider: 'website',
+    externalId: 'refused.example',
+    name: 'Refused site',
+    pipelineId: newId(),
+    fieldMap: {},
+    consent: null,
+  },
+  'crm.source.archive': { entityId: 1, sourceId: newId() },
+  'crm.ingest_key.create': {
+    entityId: 1,
+    label: 'Refused key',
+    keyHash: 'b'.repeat(64),
+    keyHint: 'abcd',
+  },
+  'crm.ingest_key.revoke': { entityId: 1, keyId: newId() },
   'print.proof.request': { entityId: 1 },
   'pricing.list.approve': { priceListId: newId() },
   'pricing.list.archive': { priceListId: newId() },
@@ -390,6 +407,11 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       'sales.target.set',
       // Process again of a failed webhook delivery (P5): a person's decision.
       'webhooks.event.replay',
+      // Where leads come in from, and the website keys (I1): an Executive's.
+      'crm.source.set',
+      'crm.source.archive',
+      'crm.ingest_key.create',
+      'crm.ingest_key.revoke',
     ].map((name) => [name, INPUTS[name]]),
   ),
 };
@@ -774,6 +796,12 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },
     'crm.lead.anonymise': { entityId: 1, after: null },
+    'crm.lead.ingest': {
+      entityId: 1,
+      channel: 'meta_ads',
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Refused lead', phone: '+919812345678' },
+    },
     'crm.phone.dnd_record': {
       entityId: 1,
       contactPhoneId: newId(),

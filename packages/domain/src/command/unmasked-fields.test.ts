@@ -99,7 +99,7 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
     'attribution.adId': AADHAAR,
     'attribution.formId': AADHAAR,
     'attribution.pageId': AADHAAR,
-    'attribution.gclid': `Cj0${AADHAAR}_BwE`,
+    'attribution.gclid': `Cj${AADHAAR}_BwE`,
     'attribution.ctwaClid': `ARA${AADHAAR}kLkA`,
     'attribution.referralSourceId': AADHAAR,
     'qualification.discomConsumerNo': AADHAAR,

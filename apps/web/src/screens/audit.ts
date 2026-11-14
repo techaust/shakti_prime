@@ -94,6 +94,12 @@ const ACTIONS = {
   'org.channel.set': 'channelSet',
   'org.channel.archive': 'channelArchive',
   'crm.phone.dnd_record': 'phoneDndRecord',
+  'crm.lead.ingest': 'leadIngest',
+  'crm.lead.qualification.set': 'leadQualificationSet',
+  'crm.source.set': 'sourceSet',
+  'crm.source.archive': 'sourceArchive',
+  'crm.ingest_key.create': 'ingestKeyCreate',
+  'crm.ingest_key.revoke': 'ingestKeyRevoke',
   'pricing.price.set': 'priceSet',
   'pricing.list.create': 'priceListCreate',
   'pricing.list.approve': 'priceListApprove',
@@ -402,6 +408,10 @@ const CODE_GROUPS = [
   'targetMetric',
   'targetPeriod',
   'channelKind',
+  'leadChannel',
+  'ingestOutcome',
+  'ingestAssignee',
+  'sourceProvider',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -694,6 +704,23 @@ const FIELD_KINDS = [
   ['pushOff', 'number'],
   ['quietFrom', 'text'],
   ['quietTo', 'text'],
+  // Leads from integrations, lead sources, website keys and qualification facts (I1)
+  ['leadChannel', 'leadChannel'],
+  ['ingestOutcome', 'ingestOutcome'],
+  ['assignedTo', 'ingestAssignee'],
+  ['attribution', 'recorded'],
+  ['qualification', 'recorded'],
+  ['sourceProvider', 'sourceProvider'],
+  ['externalId', 'text'],
+  ['fieldMap', 'recorded'],
+  ['pageTokenSet', 'yesNo'],
+  ['keyHint', 'text'],
+  ['pumpDepthFt', 'number'],
+  ['requiredHp', 'number'],
+  ['monthlyBillRupees', 'number'],
+  ['roofAreaSqFt', 'number'],
+  ['sanctionedLoadKw', 'number'],
+  ['discomConsumerNo', 'text'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

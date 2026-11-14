@@ -45,6 +45,10 @@ import {
   PLAYBOOK_TYPE_VALUES,
   CONSENT_CHANNELS,
   ENTITY_CHANNEL_KINDS,
+  INGEST_ASSIGNEES,
+  INGEST_CHANNELS,
+  INGEST_OUTCOMES,
+  INGEST_SOURCE_PROVIDERS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CONTRASTS,
@@ -489,6 +493,18 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'channelKind':
         return oneOf(ENTITY_CHANNEL_KINDS, value)
           ? t(`values.channelKind.${value}`)
+          : wordsOf(value);
+      case 'leadChannel':
+        return oneOf(INGEST_CHANNELS, value) ? t(`values.leadChannel.${value}`) : wordsOf(value);
+      case 'ingestOutcome':
+        return oneOf(INGEST_OUTCOMES, value) ? t(`values.ingestOutcome.${value}`) : wordsOf(value);
+      case 'ingestAssignee':
+        return oneOf(INGEST_ASSIGNEES, value)
+          ? t(`values.ingestAssignee.${value}`)
+          : wordsOf(value);
+      case 'sourceProvider':
+        return oneOf(INGEST_SOURCE_PROVIDERS, value)
+          ? t(`values.sourceProvider.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)

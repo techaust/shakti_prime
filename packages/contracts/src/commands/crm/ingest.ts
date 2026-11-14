@@ -172,16 +172,19 @@ export type LeadIngestInput = z.infer<typeof LeadIngestInput>;
  * round-robin, the Sales Team Lead as routed work when none is present, the colleague who already
  * looks after the customer in the company, or the owner of the open lead the enquiry joined.
  */
-export const IngestAssigneeSchema = z.enum([
+export const INGEST_ASSIGNEES = [
   'caller',
   'team_lead',
   'customer_owner',
   'lead_owner',
   'unassigned',
-]);
+] as const;
+export const IngestAssigneeSchema = z.enum(INGEST_ASSIGNEES);
 export type IngestAssignee = z.infer<typeof IngestAssigneeSchema>;
 
 /** `created` opened a new lead; `attached` added the enquiry to the customer's open lead. */
+export const INGEST_OUTCOMES = ['created', 'attached'] as const;
+
 export const LeadIngestResultDto = z
   .object({
     leadId: IdSchema,
@@ -189,7 +192,7 @@ export const LeadIngestResultDto = z
     accountId: IdSchema,
     contactId: IdSchema,
     contactPhoneId: IdSchema,
-    outcome: z.enum(['created', 'attached']),
+    outcome: z.enum(INGEST_OUTCOMES),
     ownerId: IdSchema.nullable(),
     assignedTo: IngestAssigneeSchema,
   })

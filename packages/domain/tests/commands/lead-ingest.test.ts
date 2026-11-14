@@ -543,6 +543,17 @@ describe('crm.source.set and crm.source.archive', () => {
     expect(await refusal(run(execElsewhere, setIngestSource, source()))).toMatchObject({
       code: 'forbidden',
     });
+    expect(
+      await refusal(
+        run(execElsewhere, archiveIngestSource, { entityId: ENTITY, sourceId: newId() }),
+      ),
+    ).toMatchObject({ code: 'forbidden' });
+  });
+
+  it("is 'forbidden' to archive for a General Manager", async () => {
+    expect(
+      await refusal(run(gm, archiveIngestSource, { entityId: ENTITY, sourceId: newId() })),
+    ).toMatchObject({ code: 'forbidden' });
   });
 
   it('connects a form with its sealed Page token, changes it, refuses a second company, and archives it', async () => {

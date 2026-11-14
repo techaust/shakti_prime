@@ -87,7 +87,7 @@ export function toIngestSourceDto(row: SourceRow): IngestSourceDto {
 /** What the audit row shows of a source: never the Page token, only whether one is recorded. */
 function audited(row: SourceRow) {
   return {
-    provider: row.provider,
+    sourceProvider: row.provider,
     externalId: row.externalId,
     name: row.name,
     pipelineId: row.pipelineId,
@@ -141,7 +141,7 @@ export const setIngestSource = defineCommand({
   peopleOnly: true,
   input: SetIngestSourceInput,
   output: IngestSourceDto,
-  auditFields: ['provider', 'externalId', 'name', 'fieldMap', 'consent', 'pageTokenSet'],
+  auditFields: ['sourceProvider', 'externalId', 'name', 'fieldMap', 'consent', 'pageTokenSet'],
   unmaskedFields: [
     // A form or Page id is a long number by design, kept whole.
     'externalId',
