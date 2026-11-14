@@ -23,6 +23,7 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, desc, eq, exists, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission, isAgent } from '../../command/run-command';
+import { playableRecordings } from '../calls/provider-calls';
 import {
   afterCursor,
   keysetOrder,
@@ -339,15 +340,31 @@ export async function listTimeline(ctx: Ctx, rawInput: unknown): Promise<Timelin
               .where(inArray(schema.callDispositions.id, outcomeIds))
           ).map((d) => [d.id, d.label]),
         );
+  // A call placed from the screen names its provider call: whether its reader may play the
+  // recording is asked now, under the reader's own grants (`app.playable_recordings()`).
+  const dialledCalls = [
+    ...new Set(
+      page.flatMap((r) => {
+        const id = (r.payload as Record<string, unknown>).providerCallId;
+        return r.type === 'call_logged' && typeof id === 'string' && IdSchema.safeParse(id).success
+          ? [id]
+          : [];
+      }),
+    ),
+  ];
+  const playable = await playableRecordings(ctx, dialledCalls);
   const withNames = (payload: unknown): Record<string, unknown> => {
     const p = payload as Record<string, unknown>;
     const name = typeof p.tagId === 'string' ? tagNames.get(p.tagId) : undefined;
     const outcome =
       typeof p.dispositionId === 'string' ? outcomeNames.get(p.dispositionId) : undefined;
+    const recordingCompany =
+      typeof p.providerCallId === 'string' ? playable.get(p.providerCallId) : undefined;
     return {
       ...p,
       ...(name === undefined ? {} : { tagName: name }),
       ...(outcome === undefined ? {} : { outcomeName: outcome }),
+      ...(recordingCompany === undefined ? {} : { recordingCompany }),
     };
   };
   return {

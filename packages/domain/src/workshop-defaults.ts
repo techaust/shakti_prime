@@ -79,6 +79,11 @@ export interface WorkshopDefaults {
     readonly webhookPayloadDays: number;
     /** Days a `webhook_inbox` row is kept after it arrived; then the sweep removes it. At least 1. */
     readonly webhookRowDays: number;
+    /**
+     * Months a call's recording is kept; then the hourly sweep removes its bytes and keeps the
+     * call and its file's row (BLUEPRINT §7.9, docs/03-roadmap-appendix/phase2.md §6.3). At least 1.
+     */
+    readonly callRecordingMonths: number;
   };
 }
 
@@ -101,6 +106,13 @@ export interface CallingDefaults {
    * is looked up again at the dial (docs/03-roadmap-appendix/phase2.md §5.2, §11).
    */
   readonly dndFreshDays: number;
+  /**
+   * The voice prompt said to the customer before a click-to-dial call is recorded
+   * (`packages/contracts/src/templates/voice`, LAW-3): the company's Exotel flow plays it, and
+   * until a flow can be attached to a click-to-dial call it is the first line of the caller's
+   * script card (docs/03-roadmap-appendix/phase2.md §6.3).
+   */
+  readonly recordingNotice: 'call_recording_notice';
 }
 
 /** The engineering constants the sizing calculators use (docs/03-roadmap-appendix/phase1.md §6.7, §11). */
@@ -228,6 +240,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * check newer than 7 days.
      */
     dndFreshDays: 7,
+    /**
+     * Phase 2 design §11 and §13 question 3 (LAW-3): the wording is the developer's, plain and
+     * true whether or not the call is recorded, until the owner's legal adviser gives the final text.
+     */
+    recordingNotice: 'call_recording_notice',
   },
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is
@@ -316,5 +333,10 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      */
     webhookPayloadDays: 30,
     webhookRowDays: 90,
+    /**
+     * BLUEPRINT §7.9 and phase 2 design §11: call recordings twelve months. For the CA to confirm
+     * (phase 2 design §13, question 10).
+     */
+    callRecordingMonths: 12,
   },
 };

@@ -111,6 +111,10 @@ export const providerCalls = pgTable(
     ),
     // A caller's calls of a day, and the one they are on now.
     index('provider_calls_caller_started_idx').on(t.callerId, t.startedAt),
+    // A dial the provider never took nor reported, which the hourly sweep closes as failed.
+    index('provider_calls_unplaced_idx')
+      .on(t.startedAt)
+      .where(sql`${t.status} = 'dialling' and ${t.providerCallSid} is null`),
     index('provider_calls_contact_phone_idx').on(t.contactPhoneId),
     index('provider_calls_recording_idx')
       .on(t.recordingFileId)

@@ -37,6 +37,16 @@ export {
   toProviderCallDto,
 } from './commands/calls/provider-calls';
 export { placeDial } from './calls/place-dial';
+export {
+  dialReadiness,
+  dueCallRecordings,
+  ownDialPhone,
+  ownProviderCall,
+  playableRecordings,
+  providerCallForReport,
+  toDialReadiness,
+  unplacedProviderCalls,
+} from './queries/calls/provider-calls';
 export type { PlaceDialDeps } from './calls/place-dial';
 export {
   ClickToDialNotSetUp,

@@ -1,0 +1,1 @@
+CREATE INDEX "provider_calls_unplaced_idx" ON "provider_calls" USING btree ("started_at") WHERE "provider_calls"."status" = 'dialling' and "provider_calls"."provider_call_sid" is null;

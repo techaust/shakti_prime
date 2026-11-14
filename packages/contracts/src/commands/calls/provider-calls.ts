@@ -259,3 +259,56 @@ export const DialPhoneDto = z
   .object({ entityId: EntityIdSchema, dialPhone: E164Schema.nullable() })
   .strict();
 export type DialPhoneDto = z.infer<typeof DialPhoneDto>;
+
+/**
+ * Whether the Dial key is offered on a lead of a company: the runtime has a telephony provider and
+ * the company a 140 or 160 calling number in use (`available`), and whether the caller has set
+ * their own dial phone there. Without it the manual flow stays.
+ */
+export const DialReadinessDto = z
+  .object({ available: z.boolean(), dialPhoneSet: z.boolean() })
+  .strict();
+export type DialReadinessDto = z.infer<typeof DialReadinessDto>;
+
+/** A company the workspace asks about. */
+export const DialReadinessInput = z.object({ entityId: EntityIdSchema }).strict();
+export type DialReadinessInput = z.input<typeof DialReadinessInput>;
+
+/**
+ * What the Dial key answers: the call as placed, or every calling rule the dial broke, which the
+ * screen lists. A failure of another kind (not set up, the provider refused) is the action's error.
+ */
+export const DialOutcomeDto = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('placed'), call: ProviderCallDto }).strict(),
+  z.object({ kind: z.literal('refused'), refusals: z.array(DialRefusalSchema).min(1) }).strict(),
+]);
+export type DialOutcomeDto = z.infer<typeof DialOutcomeDto>;
+
+/** One provider call of a company, as its caller's call bar reads it again. */
+export const ProviderCallRefInput = z
+  .object({ entityId: EntityIdSchema, providerCallId: IdSchema })
+  .strict();
+export type ProviderCallRefInput = z.input<typeof ProviderCallRefInput>;
+
+/** A short-lived address that plays a call recording, and when it stops working. */
+export const RecordingAddressDto = z
+  .object({ url: z.string().min(1), expiresAt: z.iso.datetime() })
+  .strict();
+export type RecordingAddressDto = z.infer<typeof RecordingAddressDto>;
+
+/** The platform's view of a reported call: its company, status, provider id and recording. */
+export const ProviderCallForReportDto = z
+  .object({
+    entityId: EntityIdSchema,
+    status: ProviderCallStatusSchema,
+    providerCallSid: ProviderCallSidSchema.nullable(),
+    hasRecording: z.boolean(),
+  })
+  .strict();
+export type ProviderCallForReportDto = z.infer<typeof ProviderCallForReportDto>;
+
+/** A dial the provider never took nor reported, for the sweep to close as failed. */
+export const UnplacedProviderCallDto = z
+  .object({ id: IdSchema, entityId: EntityIdSchema })
+  .strict();
+export type UnplacedProviderCallDto = z.infer<typeof UnplacedProviderCallDto>;
