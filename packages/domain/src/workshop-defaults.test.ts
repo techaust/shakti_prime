@@ -52,6 +52,36 @@ describe('workshop defaults', () => {
         logGraceMinutes: 15,
         dndFreshDays: 7,
       },
+      // The Phase 2 design §11 (W1), each for the client to confirm in the final phase.
+      whatsapp: {
+        keywords: {
+          stop: [
+            'stop',
+            'unsubscribe',
+            'stop all',
+            'band karo',
+            'band kar do',
+            'mat bhejo',
+            'message mat bhejo',
+          ],
+          human: [
+            'human',
+            'agent',
+            'person',
+            'talk to a person',
+            'insaan',
+            'insaan se baat',
+            'kisi se baat karni hai',
+          ],
+          status: ['status', 'order status', 'mera order'],
+        },
+        marketingHoldShare: 0.8,
+        startingLimit: 250,
+        messagesPerThreadHour: 20,
+        replyWaitMinutes: 10,
+        linkHosts: [],
+        leadPipelineKey: 'farmer_pumps',
+      },
       sizing: {
         hazenWilliamsC: { hdpe: 140, gi: 120 },
         fittingsLossFraction: 0.1,
@@ -80,6 +110,7 @@ describe('workshop defaults', () => {
         importFileOpenDays: 7,
         webhookPayloadDays: 30,
         webhookRowDays: 90,
+        whatsappMediaYears: 3,
       },
     });
   });

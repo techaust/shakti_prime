@@ -29,6 +29,7 @@ export const BOS_PREFIXES = [
   '/targets',
   '/converters',
   '/converting',
+  '/messages',
   '/inbox',
   '/imports',
   '/price-master',

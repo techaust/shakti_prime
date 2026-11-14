@@ -386,7 +386,8 @@
     "whatsapp_template_purpose_taken": "This company already has a template sent for this. Clear it on the other template first.",
     "whatsapp_template_changed_meanwhile": "Someone else saved this template at the same moment. Refresh the page to see it, then try again.",
     "whatsapp_number_unknown": "This WhatsApp number is not set up for any company.",
-    "whatsapp_message_missing": "We couldn't find this WhatsApp message. Refresh the page."
+    "whatsapp_message_missing": "We couldn't find this WhatsApp message. Refresh the page.",
+    "whatsapp_unavailable": "WhatsApp is not set up yet, so the message waits and is sent once it is."
   },
   "auth": {
     "signIn": {

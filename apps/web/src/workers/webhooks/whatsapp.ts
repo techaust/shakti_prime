@@ -111,6 +111,9 @@ export interface WhatsAppHandlerDeps {
   logger?: Logger;
 }
 
+/** Why a chat goes to people when the customer writes HUMAN. */
+const KEYWORD_HANDOFF = 'keyword';
+
 /** The file types a customer's message brings in: photos and PDFs, as the file checks read them. */
 const MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 
@@ -327,7 +330,8 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       return;
     }
     if (keyword === 'human') {
-      await run(recordWhatsAppHandOff, { ...thread, reason: 'keyword' });
+      const handOff = { ...thread, reason: KEYWORD_HANDOFF };
+      await run(recordWhatsAppHandOff, handOff);
     }
     // The welcome on a chat's first message (question 2 (a)); a customer who asked for a person
     // with their first word has people answering instead.

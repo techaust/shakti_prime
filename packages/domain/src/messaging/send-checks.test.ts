@@ -106,7 +106,7 @@ describe('decideSend: the messaging worker’s checks, in order (docs/06-api.md 
     });
     expect(
       decideSend(template({ ...outside, templateCategory: 'marketing' }), budget({ used: 200 }), NOW, RULES),
-    ).toEqual({ kind: 'wait', reason: 'marketing_held' });
+    ).toEqual({ kind: 'wait', until: 'marketing_held' });
     expect(decideSend(template(outside), budget({ used: 250 }), NOW, RULES)).toEqual({
       kind: 'refuse',
       refusal: 'tier_budget_reached',
@@ -137,7 +137,7 @@ describe('decideSend: the messaging worker’s checks, in order (docs/06-api.md 
     });
     expect(decideSend(facts({ sentLastHour: 20 }), budget(), NOW, RULES)).toEqual({
       kind: 'wait',
-      reason: 'rate_limited',
+      until: 'rate_limited',
     });
   });
 });

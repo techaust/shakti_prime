@@ -25,6 +25,7 @@ import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import {
+  attachWhatsAppMedia,
   claimWhatsAppMessage,
   matchWhatsAppThread,
   queueWhatsAppMessage,
@@ -826,5 +827,74 @@ describe('messaging.message.claim and messaging.message.record_send', () => {
         }),
       ),
     ).toMatchObject({ code: 'not_found', reason: 'whatsapp_message_missing' });
+  });
+});
+
+describe('messaging.media.attach', () => {
+  async function mediaMessage(waId: string): Promise<string> {
+    const recorded = await run<InboundWhatsAppRecorded>(workers([1]), recordInboundWhatsApp, {
+      phoneNumberId: channel.phoneNumberId,
+      waId,
+      providerMessageId: `wamid.${newId()}`,
+      kind: 'media',
+      body: null,
+      buttonPayload: null,
+      sentAt: new Date().toISOString(),
+    });
+    return recorded.messageId;
+  }
+  const input = (messageId: string, entityId = 1) => ({
+    entityId,
+    messageId,
+    fileId: messageId,
+    bucket: 'memory',
+    key: `${String(entityId)}/whatsapp_media/${messageId}.png`,
+    contentType: 'image/png',
+    size: 12,
+    sha256: 'b'.repeat(64),
+  });
+
+  it('is forbidden to people and agents: the platform keeps a customer’s files', async () => {
+    const customer = await whatsappCustomer(1);
+    const messageId = await mediaMessage(customer.waId);
+    for (const who of [exec, customer.owner, principalFor('agent:concierge', [1])]) {
+      expect(await refusal(run(who, attachWhatsAppMedia, input(messageId)))).toMatchObject({
+        code: 'forbidden',
+      });
+    }
+  });
+
+  it('refuses a company outside the request', async () => {
+    const customer = await whatsappCustomer(1);
+    const messageId = await mediaMessage(customer.waId);
+    expect(await refusal(run(workers([2]), attachWhatsAppMedia, input(messageId)))).toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
+  it('records the file waiting for its checks, attaches it once and starts the checks once', async () => {
+    const customer = await whatsappCustomer(1);
+    const messageId = await mediaMessage(customer.waId);
+    expect(await run(workers([1]), attachWhatsAppMedia, input(messageId))).toEqual({
+      messageId,
+      fileId: messageId,
+      attached: true,
+    });
+    expect(await run(workers([1]), attachWhatsAppMedia, input(messageId))).toMatchObject({
+      attached: true,
+    });
+    const [file] = await asMigrator(
+      (m) => m<{ status: string; purpose: string }[]>`select status, purpose from files where id = ${messageId}`,
+    );
+    expect(file).toEqual({ status: 'scanning', purpose: 'whatsapp_media' });
+    const events = await asOutboxPublisher(
+      (p) => p<{ type: string }[]>`select type from outbox_events where aggregate_id = ${messageId}`,
+    );
+    expect(events.map((e) => e.type)).toEqual(['files.file.uploaded']);
+    expect(
+      await refusal(
+        run(workers([1]), attachWhatsAppMedia, { ...input(messageId), key: 'elsewhere.png' }),
+      ),
+    ).toMatchObject({ code: 'validation_failed', reason: 'file_upload_mismatch' });
   });
 });

@@ -101,6 +101,7 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   },
   'messaging.status.record': { providerMessageId: `wamid.${AADHAAR}` },
   'messaging.message.record_send': { providerMessageId: `wamid.${AADHAAR}` },
+  'messaging.media.attach': { sha256: HEX },
   'catalogue.item.create': { sku: AADHAAR },
   'catalogue.item.update': { sku: AADHAAR },
   'catalogue.kit.create': { sku: AADHAAR },

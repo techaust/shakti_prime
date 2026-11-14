@@ -33,7 +33,7 @@ export interface SendBudget {
 export type SendDecision =
   | { kind: 'skip' }
   | { kind: 'refuse'; refusal: MessagingRefusal }
-  | { kind: 'wait'; reason: MessagingRetryable }
+  | { kind: 'wait'; until: MessagingRetryable }
   /** Send it; `businessInitiated` when the window is closed, so it counts in the budget. */
   | { kind: 'send'; businessInitiated: boolean };
 
@@ -80,14 +80,14 @@ export function decideSend(
   if (businessInitiated && !budget.alreadyCounted) {
     const marketing = facts.templateCategory === 'marketing';
     if (marketing && budget.used >= Math.floor(budget.limit * rules.marketingHoldShare)) {
-      return { kind: 'wait', reason: 'marketing_held' };
+      return { kind: 'wait', until: 'marketing_held' };
     }
     if (budget.used >= budget.limit) return { kind: 'refuse', refusal: 'tier_budget_reached' };
   }
   const texts = facts.kind === 'text' ? [facts.body ?? ''] : [...facts.templateParams];
   if (!filterOutbound(texts, rules).ok) return { kind: 'refuse', refusal: 'output_filter' };
   if (facts.sentLastHour >= rules.messagesPerThreadHour) {
-    return { kind: 'wait', reason: 'rate_limited' };
+    return { kind: 'wait', until: 'rate_limited' };
   }
   return { kind: 'send', businessInitiated };
 }

@@ -18,16 +18,16 @@ describe('filterOutbound (BLUEPRINT §9.4, design phase2 §6.1)', () => {
   });
 
   it('refuses a message longer than WhatsApp takes', () => {
-    expect(filterOutbound(['x'.repeat(4097)], rules)).toEqual({ ok: false, reason: 'too_long' });
+    expect(filterOutbound(['x'.repeat(4097)], rules)).toEqual({ ok: false, rule: 'too_long' });
   });
 
   it('refuses a link to any other site, written in any of its usual shapes', () => {
     for (const text of ['https://bit.ly/abc', 'www.example-shop.com', 'visit cheap-pumps.in/offer']) {
-      expect(filterOutbound([text], rules)).toEqual({ ok: false, reason: 'link' });
+      expect(filterOutbound([text], rules)).toEqual({ ok: false, rule: 'link' });
     }
     expect(filterOutbound(['https://shaktisupreme.in'], { ...rules, linkHosts: [] })).toEqual({
       ok: false,
-      reason: 'link',
+      rule: 'link',
     });
   });
 
@@ -37,11 +37,11 @@ describe('filterOutbound (BLUEPRINT §9.4, design phase2 §6.1)', () => {
       'Your number XXXX XXXX 0124 is noted',
       'Account number 123456789012',
     ]) {
-      expect(filterOutbound([text], rules)).toEqual({ ok: false, reason: 'identity_number' });
+      expect(filterOutbound([text], rules)).toEqual({ ok: false, rule: 'identity_number' });
     }
   });
 
   it('refuses a phone number other than the company’s own', () => {
-    expect(filterOutbound(['Call me on 98123 45678'], rules)).toEqual({ ok: false, reason: 'phone' });
+    expect(filterOutbound(['Call me on 98123 45678'], rules)).toEqual({ ok: false, rule: 'phone' });
   });
 });

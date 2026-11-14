@@ -47,7 +47,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-53 types, 11 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+53 types, 12 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -127,7 +127,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck`, `files.file.continue_check` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
+| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck`, `files.file.continue_check`, `messaging.media.attach` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
 
 ### print
 
@@ -146,7 +146,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue` | none |
+| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
 | [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread. | `messaging.inbound.record` | none |
 | [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. | `messaging.inbound.record` | none |
 
@@ -412,7 +412,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `whatsapp_media` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested

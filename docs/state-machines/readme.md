@@ -58,6 +58,15 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `calling.nurtureCallDays` | 7, 30, 90 |
 | `calling.logGraceMinutes` | 15 |
 | `calling.dndFreshDays` | 7 |
+| `whatsapp.keywords.stop` | stop, unsubscribe, stop all, band karo, band kar do, mat bhejo, message mat bhejo |
+| `whatsapp.keywords.human` | human, agent, person, talk to a person, insaan, insaan se baat, kisi se baat karni hai |
+| `whatsapp.keywords.status` | status, order status, mera order |
+| `whatsapp.marketingHoldShare` | 0.8 |
+| `whatsapp.startingLimit` | 250 |
+| `whatsapp.messagesPerThreadHour` | 20 |
+| `whatsapp.replyWaitMinutes` | 10 |
+| `whatsapp.linkHosts` | none |
+| `whatsapp.leadPipelineKey` | farmer_pumps |
 | `sizing.hazenWilliamsC.hdpe` | 140 |
 | `sizing.hazenWilliamsC.gi` | 120 |
 | `sizing.fittingsLossFraction` | 0.1 |
@@ -83,3 +92,4 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `retention.importFileOpenDays` | 7 |
 | `retention.webhookPayloadDays` | 30 |
 | `retention.webhookRowDays` | 90 |
+| `retention.whatsappMediaYears` | 3 |

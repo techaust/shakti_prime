@@ -88,7 +88,7 @@ export async function sendQueuedMessage(
     return { eventId: job.eventId, outcome: 'done', status: 'refused', refusal: decision.refusal };
   }
   if (decision.kind === 'wait') {
-    if (decision.reason === 'rate_limited') {
+    if (decision.until === 'rate_limited') {
       throw new DomainError('rate_limited', `thread ${facts.threadId} is over its hourly limit`);
     }
     log.log('info', 'messaging.send_held', { requestId: deps.requestId, messageId: job.messageId });

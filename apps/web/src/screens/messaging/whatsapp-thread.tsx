@@ -129,6 +129,9 @@ export const WhatsAppThread = forwardRef<
   );
 });
 
+/** Why a person takes a chat over from this screen: someone asked for a person. */
+const PERSON_HANDOFF = 'request';
+
 /** Take the chat over from the assistant, or give it back. */
 function Handover({
   entityId,
@@ -151,7 +154,7 @@ function Handover({
           variant="secondary"
           disabled={take.pending}
           onClick={() => {
-            take.run({ ...input, reason: 'request' }, () => {
+            take.run({ ...input, reason: PERSON_HANDOFF }, () => {
               toast.success(t('takenOver'));
               onChanged();
             });
@@ -214,8 +217,8 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
     <li
       className={
         inbound
-          ? 'border-border bg-surface-2 flex max-w-[85%] flex-col gap-1 self-start rounded-lg border p-3'
-          : 'border-border bg-accent-soft flex max-w-[85%] flex-col gap-1 self-end rounded-lg border p-3'
+          ? 'border-border bg-surface-2 flex max-w-xl flex-col gap-1 self-start rounded-lg border p-3'
+          : 'border-border bg-accent-soft flex max-w-xl flex-col gap-1 self-end rounded-lg border p-3'
       }
     >
       <p className="text-text-muted text-xs">

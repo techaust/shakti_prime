@@ -43,12 +43,12 @@ const lastTen = (digits: string): string => digits.replace(/\D/g, '').slice(-10)
 export function filterOutbound(
   texts: readonly string[],
   rules: OutputFilterRules,
-): { ok: true } | { ok: false; reason: OutputFilterReason } {
+): { ok: true } | { ok: false; rule: OutputFilterReason } {
   const own = new Set(rules.companyNumbers.map(lastTen));
   for (const text of texts) {
-    if (text.length > WHATSAPP_BODY_MAX) return { ok: false, reason: 'too_long' };
+    if (text.length > WHATSAPP_BODY_MAX) return { ok: false, rule: 'too_long' };
     for (const match of text.matchAll(LINK)) {
-      if (!allowedHost(hostOf(match[0]), rules.linkHosts)) return { ok: false, reason: 'link' };
+      if (!allowedHost(hostOf(match[0]), rules.linkHosts)) return { ok: false, rule: 'link' };
     }
     const numbers = findPersonalNumbers(text);
     // A number written after a `+` is a phone, though its digits may also pass an Aadhaar check.
@@ -57,11 +57,11 @@ export function filterOutbound(
       (span) => !phones.some((p) => p.start <= span.start && p.end >= span.end),
     );
     if (identity.length > 0 || /X{4,}[\s-]?X{0,4}[\s-]?\d{4}/.test(text)) {
-      return { ok: false, reason: 'identity_number' };
+      return { ok: false, rule: 'identity_number' };
     }
     for (const found of numbers) {
-      if (found.kind === 'aadhaar' && !found.alsoPhone) return { ok: false, reason: 'identity_number' };
-      if (!own.has(lastTen(found.digits))) return { ok: false, reason: 'phone' };
+      if (found.kind === 'aadhaar' && !found.alsoPhone) return { ok: false, rule: 'identity_number' };
+      if (!own.has(lastTen(found.digits))) return { ok: false, rule: 'phone' };
     }
   }
   return { ok: true };
