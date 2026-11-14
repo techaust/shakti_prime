@@ -5,6 +5,7 @@ import {
   DialReadinessInput,
   DomainError,
   newId,
+  normaliseIndianPhone,
   PlayCallRecordingInput,
   ProviderCallRefInput,
   SetDialPhoneInput,
@@ -178,7 +179,17 @@ export async function saveDialPhone(
 ): Promise<ActionResult<DialPhoneDto>> {
   return toResult('saveDialPhone', async () => {
     const principal = await signedIn();
-    const input = parseInput(SetDialPhoneInput, rawInput);
+    // The phone as typed (ten digits, with or without +91 or a 0); empty clears it.
+    const raw = rawInput as { entityId?: unknown; phone?: unknown } | null;
+    const typed = typeof raw?.phone === 'string' ? raw.phone.trim() : raw?.phone;
+    const phone = typeof typed === 'string' && typed !== '' ? normaliseIndianPhone(typed) : null;
+    if (typeof typed === 'string' && typed !== '' && phone === null) {
+      throw new DomainError('validation_failed', 'not an Indian phone number', {
+        reason: 'phone_invalid',
+        issues: [{ path: 'phone', message: 'phone_invalid' }],
+      });
+    }
+    const input = parseInput(SetDialPhoneInput, { entityId: raw?.entityId, phone });
     const meta = await requestMeta();
     return executeCommand(
       principal,

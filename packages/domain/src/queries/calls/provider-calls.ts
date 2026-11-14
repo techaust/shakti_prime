@@ -1,4 +1,5 @@
 import {
+  CALL_RECORDING_NOTICE,
   DialReadinessDto,
   DomainError,
   DueCallRecordingDto,
@@ -66,6 +67,7 @@ export function toDialReadiness(
   return DialReadinessDto.parse({
     available: providerSetUp && facts.companyHasNumbers,
     dialPhoneSet: facts.dialPhoneSet,
+    notice: { hinglish: CALL_RECORDING_NOTICE.hinglish, en: CALL_RECORDING_NOTICE.en },
   });
 }
 

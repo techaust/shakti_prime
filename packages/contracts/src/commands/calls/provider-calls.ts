@@ -267,7 +267,15 @@ export type DialPhoneDto = z.infer<typeof DialPhoneDto>;
  * their own dial phone there. Without it the manual flow stays.
  */
 export const DialReadinessDto = z
-  .object({ available: z.boolean(), dialPhoneSet: z.boolean() })
+  .object({
+    available: z.boolean(),
+    dialPhoneSet: z.boolean(),
+    /**
+     * The recording notice (`WORKSHOP_DEFAULTS.calling.recordingNotice`) in both variants, which
+     * the caller says first while no Exotel flow plays it; the customer's language picks one.
+     */
+    notice: z.object({ hinglish: z.string(), en: z.string() }).strict(),
+  })
   .strict();
 export type DialReadinessDto = z.infer<typeof DialReadinessDto>;
 

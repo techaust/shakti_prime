@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
 import { dialNumber, logCall } from '../../actions/calling';
 import { outcomeNeeds, type OutcomeNeed } from '../../screens/calling';
+import type { DialledCall } from '../calling/call-bar';
 import { savedMessage } from '../calling/calling-parts';
 import type { OutcomeDetail } from '../calling/outcome-dialog';
 import { useCommand, useQuery } from '../screens/use-command';
@@ -25,6 +26,8 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
     dialledAt: string;
   }>();
   const [picked, setPicked] = useState<{ outcome: DispositionDto; need: OutcomeNeed }>();
+  // A call placed from the screen (T3): its log takes the provider call's start and length.
+  const [dialled, setDialled] = useState<DialledCall | undefined>();
   const dial = useQuery<{ e164: string; dialledAt: string }>();
   // One form per lead: another lead's call is sent under a key of its own.
   const save = useCommand(logCall, lead?.opportunityId);
@@ -51,7 +54,16 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
           entityId: lead.entityId,
           opportunityId: lead.opportunityId,
           dispositionId: outcome.id,
-          ...(number?.opportunityId === lead.opportunityId ? { startedAt: number.dialledAt } : {}),
+          ...(dialled?.opportunityId === lead.opportunityId
+            ? {
+                providerCallId: dialled.providerCallId,
+                ...(dialled.durationSeconds === undefined
+                  ? {}
+                  : { durationSeconds: dialled.durationSeconds }),
+              }
+            : number?.opportunityId === lead.opportunityId
+              ? { startedAt: number.dialledAt }
+              : {}),
           ...detail,
         },
         (result) => {
@@ -63,7 +75,7 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
         },
       );
     },
-    [lead, save, t, onSaved, number],
+    [lead, save, t, onSaved, number, dialled],
   );
 
   const pick = useCallback(
@@ -85,5 +97,6 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
     pick,
     saveCall,
     save,
+    onDialled: setDialled,
   };
 }

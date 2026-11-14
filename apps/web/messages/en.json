@@ -627,6 +627,16 @@
     }
   },
   "profile": {
+    "dialPhone": {
+      "heading": "Your phone for calls",
+      "intro": "When you call a customer from the screen, this phone rings first. Answer it, and the customer's phone rings next.",
+      "label": "Your phone number",
+      "labelIn": "Your phone number for {company}",
+      "helper": "Your 10-digit mobile number. Leave it empty to stop calling from the screen.",
+      "save": "Save",
+      "saved": "Your phone for calls is saved.",
+      "cleared": "Your phone for calls is removed."
+    },
     "title": "Your profile",
     "intro": "How the screens look for you, your password and whether you take new leads.",
     "presence": {
@@ -2665,6 +2675,8 @@
         "leads_merged": "Another lead merged into this one"
       },
       "tagDetail": "Tag: {name}",
+      "play": "Play recording",
+      "recordingLabel": "Recording of the call",
       "callDetail": "Outcome: {outcome}",
       "sizingInBounds": "{kind} sizing, within limits",
       "sizingOutOfBounds": "{kind} sizing, outside limits"
@@ -3840,7 +3852,29 @@
     "keys": {
       "next": "N",
       "dial": "D",
+      "callFromScreen": "C",
       "search": "/"
+    },
+    "bar": {
+      "title": "Call from the screen",
+      "noticeFirst": "Say this first:",
+      "dial": "Call",
+      "howItWorks": "Your own phone rings first. Answer it, and the customer's phone rings next.",
+      "timeLabel": "Time on the call",
+      "status": {
+        "dialling": "Placing the call",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Call ended",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Call did not go through",
+        "canceled": "Call stopped"
+      },
+      "logNow": "The call has ended. Choose its outcome to save it.",
+      "refused": "This call cannot be placed now:",
+      "noOwnPhone": "To call from the screen, add the phone you take calls on.",
+      "addOwnPhone": "Add it on your profile"
     },
     "plan": {
       "title": "How this call would go out",

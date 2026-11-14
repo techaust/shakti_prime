@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { SIZING_KINDS, TASK_KINDS } from '../../screens/contract-values';
 import { isOneOf as oneOf } from '../../screens/customers';
 import { formatDateTime } from '../../screens/format';
+import { PlayRecording } from '../calling/play-recording';
 
 /** A timeline row in words: what happened, a detail when it has one, who and when. */
 export function TimelineRow({ item }: { item: ActivityDto }) {
@@ -35,6 +36,14 @@ export function TimelineRow({ item }: { item: ActivityDto }) {
     <li className="border-border flex min-w-0 flex-col gap-0.5 border-l-2 pl-3">
       <span className="font-medium">{t(`timeline.type.${item.type}`)}</span>
       {detail === null ? null : <span className="break-words whitespace-pre-line">{detail}</span>}
+      {item.type === 'call_logged' &&
+      typeof item.payload.providerCallId === 'string' &&
+      typeof item.payload.recordingCompany === 'number' ? (
+        <PlayRecording
+          entityId={item.payload.recordingCompany}
+          providerCallId={item.payload.providerCallId}
+        />
+      ) : null}
       <span className="text-text-muted text-xs">
         {t('timeline.by', {
           name: item.actorName ?? t('timeline.someone'),
