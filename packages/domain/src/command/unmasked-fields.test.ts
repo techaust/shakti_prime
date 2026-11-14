@@ -101,6 +101,9 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   'files.upload.complete': { 'stored.sha256': HEX },
   'files.file.mark_ready': { 'stored.sha256': HEX },
   'files.document.record': { sha256: HEX },
+  // The provider's id of a call and a copied recording's SHA-256.
+  'calls.provider_call.record': { callSid: HEX },
+  'calls.recording.attach': { sha256: HEX },
   'knowledge.playbook.record_check': { wordingSha256: HEX },
   'admin.role.permissions.set': { expectedVersion: HEX },
   'crm.lead.create': { referralCode: AADHAAR },

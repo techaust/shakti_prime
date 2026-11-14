@@ -56,7 +56,10 @@ export const PROVIDER_CALL_SERIES = ['140', '160', 'ivr', 'missed_call'] as cons
 export const ProviderCallSeriesSchema = z.enum(PROVIDER_CALL_SERIES);
 
 /** The lines a person dials out on. */
-export const DIALLED_SERIES = ['140', '160'] as const satisfies readonly (typeof PROVIDER_CALL_SERIES)[number][];
+export const DIALLED_SERIES = [
+  '140',
+  '160',
+] as const satisfies readonly (typeof PROVIDER_CALL_SERIES)[number][];
 
 /** The provider's own id of a call (Exotel's CallSid). */
 export const ProviderCallSidSchema = z.string().regex(/^[A-Za-z0-9_.:-]{1,80}$/);
@@ -146,7 +149,12 @@ export type RecordProviderCallInput = z.input<typeof RecordProviderCallInput>;
  * (`unchanged`: the same or an earlier status), found no such call of the company (`missing`), or
  * named a call that holds another id (`other_call`).
  */
-export const PROVIDER_CALL_RECORD_OUTCOMES = ['moved', 'unchanged', 'missing', 'other_call'] as const;
+export const PROVIDER_CALL_RECORD_OUTCOMES = [
+  'moved',
+  'unchanged',
+  'missing',
+  'other_call',
+] as const;
 
 export const ProviderCallRecordDto = z
   .object({
@@ -210,9 +218,7 @@ export const DeleteCallRecordingInput = z
   .strict();
 export type DeleteCallRecordingInput = z.input<typeof DeleteCallRecordingInput>;
 
-export const DeleteCallRecordingDto = z
-  .object({ fileId: IdSchema, deleted: z.boolean() })
-  .strict();
+export const DeleteCallRecordingDto = z.object({ fileId: IdSchema, deleted: z.boolean() }).strict();
 export type DeleteCallRecordingDto = z.infer<typeof DeleteCallRecordingDto>;
 
 /** A recording due for removal, as the sweep reads it. */

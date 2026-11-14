@@ -63,10 +63,7 @@ export const providerCalls = pgTable(
   },
   (t) => [
     check('provider_calls_direction_check', sql`${t.direction} in ('outbound', 'inbound')`),
-    check(
-      'provider_calls_series_check',
-      sql`${t.series} in ('140', '160', 'ivr', 'missed_call')`,
-    ),
+    check('provider_calls_series_check', sql`${t.series} in ('140', '160', 'ivr', 'missed_call')`),
     check(
       'provider_calls_purpose_check',
       sql`${t.purpose} is null or ${t.purpose} in ('promotional', 'service')`,

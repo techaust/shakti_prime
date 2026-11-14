@@ -99,8 +99,7 @@ export const recordProviderCall = defineCommand({
     }
     const status = row.status === null ? null : ProviderCallStatusSchema.parse(row.status);
     if (outcome === 'moved' && status !== null) {
-      const endedAt =
-        row.ended_at === null ? null : new Date(row.ended_at).toISOString();
+      const endedAt = row.ended_at === null ? null : new Date(row.ended_at).toISOString();
       ctx.audit({
         aggregateType: 'provider_call',
         aggregateId: input.providerCallId,

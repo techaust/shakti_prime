@@ -88,7 +88,12 @@ const workers = (entityId: number = ENTITY): Principal => ({
   kind: 'system',
 });
 
-function run(principal: Principal, command: AnyCommand, input: unknown, now?: Date): Promise<unknown> {
+function run(
+  principal: Principal,
+  command: AnyCommand,
+  input: unknown,
+  now?: Date,
+): Promise<unknown> {
   return asPrincipal(principal, (context) =>
     runCommand(command, { context, audit, outbox, ...(now === undefined ? {} : { now }) }, input),
   );
@@ -402,7 +407,9 @@ describe('calls.call.dial (PRD TEL-01, TEL-04)', () => {
     const lead = await leadOf();
     await checked(lead, false, new Date(NOON.getTime() - 30 * DAY));
     expect(
-      await failure(run(caller, dialCall, { entityId: ENTITY, opportunityId: lead.id }, nextMinute())),
+      await failure(
+        run(caller, dialCall, { entityId: ENTITY, opportunityId: lead.id }, nextMinute()),
+      ),
     ).toMatchObject({ reason: 'dial_refused', refusals: ['dnd_unknown'] });
     // The dialler refreshes it through the platform first, and the call goes out.
     const port = fakeClickToDial();
@@ -448,9 +455,10 @@ describe('calls.call.dial (PRD TEL-01, TEL-04)', () => {
     const at = nextMinute();
     const port = fakeClickToDial();
     await dial(lead, deps(port, at));
-    expect(
-      await failure(dial(lead, deps(port, new Date(at.getTime() + 10_000)))),
-    ).toMatchObject({ code: 'conflict', reason: 'dial_in_progress' });
+    expect(await failure(dial(lead, deps(port, new Date(at.getTime() + 10_000))))).toMatchObject({
+      code: 'conflict',
+      reason: 'dial_in_progress',
+    });
     expect(port.placed).toHaveLength(1);
   });
 
@@ -513,13 +521,21 @@ describe("calls.provider_call.record: the provider's reports", () => {
     const { lead, call, sid } = await placed();
     const answeredAt = new Date(NOON.getTime() + 5_000).toISOString();
     const endedAt = new Date(NOON.getTime() + 95_000).toISOString();
-    expect(await report({ providerCallId: call.id, callSid: sid, status: 'in_progress', answeredAt })).toEqual({
+    expect(
+      await report({ providerCallId: call.id, callSid: sid, status: 'in_progress', answeredAt }),
+    ).toEqual({
       providerCallId: call.id,
       outcome: 'moved',
       status: 'in_progress',
     });
     expect(
-      await report({ providerCallId: call.id, callSid: sid, status: 'completed', endedAt, durationSeconds: 90 }),
+      await report({
+        providerCallId: call.id,
+        callSid: sid,
+        status: 'completed',
+        endedAt,
+        durationSeconds: 90,
+      }),
     ).toMatchObject({ outcome: 'moved', status: 'completed' });
     // The same end again, an earlier status and another end all change nothing.
     for (const status of ['completed', 'ringing', 'in_progress', 'failed', 'no_answer']) {
@@ -556,17 +572,25 @@ describe("calls.provider_call.record: the provider's reports", () => {
     const lead = await leadOf({ source: 'website', consent: true });
     const call = await dial(lead, deps(fakeClickToDial({ fail: 'uncertain' })));
     const sid = `late${newId().replaceAll('-', '')}`;
-    expect(await report({ providerCallId: call.id, callSid: sid, status: 'no_answer' })).toMatchObject({
+    expect(
+      await report({ providerCallId: call.id, callSid: sid, status: 'no_answer' }),
+    ).toMatchObject({
       outcome: 'moved',
       status: 'no_answer',
     });
     expect((await providerCall(call.id)).provider_call_sid).toBe(sid);
     // Another id for the same call, or this id for another call, is not taken.
     expect(
-      await report({ providerCallId: call.id, callSid: `other${newId().replaceAll('-', '')}`, status: 'completed' }),
+      await report({
+        providerCallId: call.id,
+        callSid: `other${newId().replaceAll('-', '')}`,
+        status: 'completed',
+      }),
     ).toMatchObject({ outcome: 'other_call' });
     const { call: second } = await placed();
-    expect(await report({ providerCallId: second.id, callSid: sid, status: 'completed' })).toMatchObject({
+    expect(
+      await report({ providerCallId: second.id, callSid: sid, status: 'completed' }),
+    ).toMatchObject({
       outcome: 'other_call',
     });
   });
@@ -715,8 +739,18 @@ describe('call recordings: kept, removed after the retention period, played only
       ),
     );
     expect((due as unknown as { file_id: string }[]).map((r) => r.file_id)).toContain(fileId);
-    expect(await failure(run(exec, deleteCallRecording, { entityId: ENTITY, fileId }))).toMatchObject({
+    expect(
+      await failure(run(exec, deleteCallRecording, { entityId: ENTITY, fileId })),
+    ).toMatchObject({
       code: 'forbidden',
+    });
+    // Not for a company outside the request, and the workers of another company remove nothing.
+    expect(
+      await failure(run(workers(), deleteCallRecording, { entityId: 2, fileId })),
+    ).toMatchObject({ code: 'forbidden' });
+    expect(await run(workers(2), deleteCallRecording, { entityId: 2, fileId })).toEqual({
+      fileId,
+      deleted: false,
     });
     expect(await run(workers(), deleteCallRecording, { entityId: ENTITY, fileId })).toEqual({
       fileId,
@@ -728,7 +762,9 @@ describe('call recordings: kept, removed after the retention period, played only
     });
     expect((await providerCall(call.id)).recording_file_id).toBe(fileId);
     expect(
-      await failure(run(teamLead, playCallRecording, { entityId: ENTITY, providerCallId: call.id })),
+      await failure(
+        run(teamLead, playCallRecording, { entityId: ENTITY, providerCallId: call.id }),
+      ),
     ).toMatchObject({ reason: 'recording_missing' });
   });
 });

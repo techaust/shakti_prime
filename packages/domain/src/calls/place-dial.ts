@@ -112,7 +112,10 @@ export async function placeDial(
     ({ sid } = await dialler.place({ ...dialled.placement, ref: call.id, record: true }));
   } catch (e) {
     if (e instanceof ClickToDialUncertain) {
-      logger.log('warn', 'calls.dial.uncertain', { providerCallId: call.id, requestId: deps.requestId });
+      logger.log('warn', 'calls.dial.uncertain', {
+        providerCallId: call.id,
+        requestId: deps.requestId,
+      });
       return call;
     }
     await record('failed').catch((recordError: unknown) => {

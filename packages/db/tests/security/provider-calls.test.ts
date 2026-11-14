@@ -141,7 +141,10 @@ describe('provider_calls', () => {
     ).toHaveLength(1);
     // Linked once: another log of the same call finds nothing to link.
     expect(
-      await rows(a, sql`update provider_calls set call_id = ${other} where id = ${id} returning id`),
+      await rows(
+        a,
+        sql`update provider_calls set call_id = ${other} where id = ${id} returning id`,
+      ),
     ).toHaveLength(0);
   });
 });
