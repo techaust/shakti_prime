@@ -26,7 +26,7 @@ const companiesCheck = (entityId: unknown, entityIds: unknown) =>
   sql`cardinality(${entityIds}) between 1 and 32
       and array_position(${entityIds}, null) is null
       and case when ${entityId} is null then cardinality(${entityIds}) > 1
-               else ${entityIds} = array[${entityId}] end`;
+               else cardinality(${entityIds}) = 1 and ${entityIds}[1] = ${entityId} end`;
 
 /**
  * A person's Ask the Business conversation (docs/03-roadmap-appendix/phase2.md §6.5): its title is

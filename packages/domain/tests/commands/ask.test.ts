@@ -1,5 +1,5 @@
 import { hasGrant, newId, type AskSource, type Principal } from '@shakti/contracts';
-import { asMigrator, closeDb, createTestPrincipal } from '@shakti/db/testing';
+import { asMigrator, closeDb, createTestPrincipal, principalFor } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AGENT_DEFAULTS } from '../../src/ai/agent-defaults';
 import { askTheBusiness } from '../../src/ai/ask/ask';
@@ -78,7 +78,8 @@ async function auditOf(conversationId: string) {
 describe('knowledge.ask.record', () => {
   it('is refused without knowledge.ask, and to every agent', async () => {
     await expect(record(caller, {})).rejects.toMatchObject({ code: 'forbidden' });
-    const agent = await createTestPrincipal('agent:triage', [1]);
+    // No principals row: the guard refuses an agent before anything is read.
+    const agent = principalFor('agent:triage', [1]);
     await expect(record(agent, {})).rejects.toMatchObject({ code: 'forbidden' });
   });
 
@@ -253,7 +254,7 @@ describe('askTheBusiness', () => {
   it('refuses an agent and a person without knowledge.ask before any model call', async () => {
     const transport = fakeModelTransport([fakeReply('No.')]);
     const ai = provider(transport);
-    const agent = await createTestPrincipal('agent:concierge', [1]);
+    const agent = principalFor('agent:concierge', [1]);
     await expect(ask(agent, ai, { question: 'Leads?' })).rejects.toMatchObject({
       code: 'forbidden',
     });
