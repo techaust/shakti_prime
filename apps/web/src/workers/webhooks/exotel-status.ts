@@ -113,9 +113,14 @@ export function exotelStatusHandler(deps: ExotelStatusDeps = defaultDeps) {
       (payload.Legs ?? [])
         .map((leg) => seconds(leg.OnCallDuration))
         .filter((n): n is number => n !== undefined)
-        .reduce<number | undefined>((max, n) => (max === undefined ? n : Math.max(max, n)), undefined);
+        .reduce<number | undefined>(
+          (max, n) => (max === undefined ? n : Math.max(max, n)),
+          undefined,
+        );
     const answeredAt = status === 'in_progress' ? exotelInstant(payload.DateUpdated) : undefined;
-    const endedAt = end ? (exotelInstant(payload.EndTime) ?? exotelInstant(payload.DateUpdated)) : undefined;
+    const endedAt = end
+      ? (exotelInstant(payload.EndTime) ?? exotelInstant(payload.DateUpdated))
+      : undefined;
     const recorded = await executeCommand(workers, scope, recordProviderCall, {
       entityId,
       providerCallId: ref,
@@ -128,7 +133,12 @@ export function exotelStatusHandler(deps: ExotelStatusDeps = defaultDeps) {
     if (recorded.outcome === 'other_call' || recorded.outcome === 'missing') return { entityId };
 
     const link = payload.RecordingUrl;
-    if (recorded.status !== 'completed' || link === undefined || link === '' || found.hasRecording) {
+    if (
+      recorded.status !== 'completed' ||
+      link === undefined ||
+      link === '' ||
+      found.hasRecording
+    ) {
       return { entityId };
     }
     const client = deps.client();

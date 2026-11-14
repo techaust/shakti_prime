@@ -100,7 +100,11 @@ export async function dialCall(rawInput: unknown): Promise<ActionResult<DialOutc
       return { kind: 'placed', call };
     } catch (e) {
       const refusals = e instanceof DomainError ? e.details?.refusals : undefined;
-      if (e instanceof DomainError && e.details?.reason === 'dial_refused' && Array.isArray(refusals)) {
+      if (
+        e instanceof DomainError &&
+        e.details?.reason === 'dial_refused' &&
+        Array.isArray(refusals)
+      ) {
         return { kind: 'refused', refusals } as DialOutcomeDto;
       }
       throw e;
@@ -109,7 +113,9 @@ export async function dialCall(rawInput: unknown): Promise<ActionResult<DialOutc
 }
 
 /** The caller's own call as it now stands, for the call bar. */
-export async function providerCallStatus(rawInput: unknown): Promise<ActionResult<ProviderCallDto>> {
+export async function providerCallStatus(
+  rawInput: unknown,
+): Promise<ActionResult<ProviderCallDto>> {
   return toResult('providerCallStatus', async () => {
     const principal = await signedIn();
     const input = parseInput(ProviderCallRefInput, rawInput);
@@ -134,7 +140,9 @@ export async function playRecording(rawInput: unknown): Promise<ActionResult<Rec
     const meta = await requestMeta();
     const store = fileStore();
     if (store === undefined) {
-      throw new DomainError('integration_unavailable', 'no file store', { reason: 'recording_missing' });
+      throw new DomainError('integration_unavailable', 'no file store', {
+        reason: 'recording_missing',
+      });
     }
     const stored = await executeCommand(
       principal,

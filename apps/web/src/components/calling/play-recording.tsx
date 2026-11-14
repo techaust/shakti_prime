@@ -25,7 +25,13 @@ export function PlayRecording({
   const [address, setAddress] = useState<string>();
   if (address !== undefined) {
     return (
-      <audio controls autoPlay src={address} aria-label={t('recordingLabel')} className="w-full max-w-sm" />
+      <audio
+        controls
+        autoPlay
+        src={address}
+        aria-label={t('recordingLabel')}
+        className="w-full max-w-sm"
+      />
     );
   }
   return (

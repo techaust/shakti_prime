@@ -74,7 +74,9 @@ beforeAll(async () => {
 
   exec = await createTestPrincipal('executive', [ENTITY]);
   const team = await createTestTeam(ENTITY, 'click-to-dial web team');
-  const user = await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_cc', teamId: team }]);
+  const user = await createTestUser([
+    { entityId: ENTITY, roleKey: 'tele_caller_cc', teamId: team },
+  ]);
   caller = await createTestPrincipal('tele_caller_cc', [ENTITY], { id: user.id, teamId: team });
   await asMigrator(
     (m) =>
@@ -229,16 +231,16 @@ describe('the exotel_status handler', () => {
     expect(exotel.downloads).toEqual([link]);
   });
 
-  it("records nothing for a report of no call of ours, or of a call that holds another CallSid", async () => {
+  it('records nothing for a report of no call of ours, or of a call that holds another CallSid', async () => {
     const { call } = await placed();
     const handle = exotelStatusHandler({ client: () => undefined, store: () => undefined });
     const context = { requestId: newId() };
     expect(await handle(report(newId(), `x${newId().replaceAll('-', '')}`), context)).toEqual({
       entityId: null,
     });
-    expect(
-      await handle(report(call.id, `other${newId().replaceAll('-', '')}`), context),
-    ).toEqual({ entityId: null });
+    expect(await handle(report(call.id, `other${newId().replaceAll('-', '')}`), context)).toEqual({
+      entityId: null,
+    });
     expect(await stored(call.id)).toMatchObject({ status: 'ringing' });
   });
 
@@ -247,10 +249,9 @@ describe('the exotel_status handler', () => {
     expect(await stored(call.id)).toMatchObject({ status: 'dialling', provider_call_sid: null });
     const sid = `late${newId().replaceAll('-', '')}`;
     const handle = exotelStatusHandler({ client: () => undefined, store: () => undefined });
-    await handle(
-      report(call.id, sid, { RecordingUrl: 'https://recordings.exotel.com/a.mp3' }),
-      { requestId: newId() },
-    );
+    await handle(report(call.id, sid, { RecordingUrl: 'https://recordings.exotel.com/a.mp3' }), {
+      requestId: newId(),
+    });
     expect(await stored(call.id)).toMatchObject({
       status: 'completed',
       provider_call_sid: sid,
@@ -351,16 +352,21 @@ describe('the hourly calls sweep', () => {
     expect(file?.deleted).toBe(true);
     expect((await stored(call.id)).recording_file_id).toBe(call.id);
     // The attach of a removed recording is not taken again.
-    const again = await executeCommand(workers(ENTITY), { entityIds: [ENTITY] }, attachCallRecording, {
-      entityId: ENTITY,
-      providerCallId: call.id,
-      fileId: call.id,
-      bucket: files.bucket,
-      key,
-      contentType: 'audio/mpeg',
-      size: 1,
-      sha256: 'c'.repeat(64),
-    });
+    const again = await executeCommand(
+      workers(ENTITY),
+      { entityIds: [ENTITY] },
+      attachCallRecording,
+      {
+        entityId: ENTITY,
+        providerCallId: call.id,
+        fileId: call.id,
+        bucket: files.bucket,
+        key,
+        contentType: 'audio/mpeg',
+        size: 1,
+        sha256: 'c'.repeat(64),
+      },
+    );
     expect(again.outcome).toBe('already');
   });
 });

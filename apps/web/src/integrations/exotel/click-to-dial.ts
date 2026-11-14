@@ -117,7 +117,10 @@ export function simulatedClickToDial(
             CustomField: request.ref,
             bos_ref: request.ref,
           }).catch((error: unknown) => {
-            logger.log('warn', 'calls.simulated_report_failed', { providerCallId: request.ref, error });
+            logger.log('warn', 'calls.simulated_report_failed', {
+              providerCallId: request.ref,
+              error,
+            });
           });
         }, delayMs);
       };

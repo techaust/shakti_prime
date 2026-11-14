@@ -21,14 +21,22 @@ const call: ProviderCallDto = {
 
 describe('the call bar’s time', () => {
   it('reads minutes and seconds', () => {
-    expect([clock(0), clock(9), clock(65), clock(3_600)]).toEqual(['0:00', '0:09', '1:05', '60:00']);
+    expect([clock(0), clock(9), clock(65), clock(3_600)]).toEqual([
+      '0:00',
+      '0:09',
+      '1:05',
+      '60:00',
+    ]);
   });
 
   it('counts from the press while ringing, from the answer on the line, and the length once ended', () => {
     const now = Date.parse('2026-09-28T05:30:30.000Z');
     expect(elapsedSeconds(call, now)).toBe(30);
     expect(
-      elapsedSeconds({ ...call, status: 'in_progress', answeredAt: '2026-09-28T05:30:10.000Z' }, now),
+      elapsedSeconds(
+        { ...call, status: 'in_progress', answeredAt: '2026-09-28T05:30:10.000Z' },
+        now,
+      ),
     ).toBe(20);
     expect(
       elapsedSeconds(

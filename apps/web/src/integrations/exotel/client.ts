@@ -119,7 +119,10 @@ export function isExotelRecordingUrl(raw: string): boolean {
 }
 
 /** The kind of a downloaded recording, by the type Exotel sent or the file's extension. */
-function recordingType(contentType: string | null, url: string): 'audio/mpeg' | 'audio/wav' | undefined {
+function recordingType(
+  contentType: string | null,
+  url: string,
+): 'audio/mpeg' | 'audio/wav' | undefined {
   const type = (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
   if (type === 'audio/mpeg' || type === 'audio/mp3') return 'audio/mpeg';
   if (type === 'audio/wav' || type === 'audio/x-wav' || type === 'audio/wave') return 'audio/wav';

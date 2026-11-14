@@ -65,9 +65,9 @@ describe('Exotel behind the dial port', () => {
 
   it("answers a refusal by the rules or by Exotel as refused, and a timeout or Exotel's 5xx as uncertain", async () => {
     const never = stubFetch(() => Response.json(connectResponse));
-    await expect(
-      port(never).place({ ...request, purpose: 'service' }),
-    ).rejects.toBeInstanceOf(ClickToDialRefused);
+    await expect(port(never).place({ ...request, purpose: 'service' })).rejects.toBeInstanceOf(
+      ClickToDialRefused,
+    );
     expect(never).not.toHaveBeenCalled();
     await expect(
       port(stubFetch(() => Response.json({}, { status: 400 }))).place(request),

@@ -88,7 +88,10 @@ export async function ownDialPhone(ctx: Ctx, entityId: number): Promise<string |
  * One provider call of the caller's own, as their call bar reads it again while the provider
  * reports; a call of someone else, of another company or one the caller cannot read is not found.
  */
-export async function ownProviderCall(ctx: Ctx, rawInput: ProviderCallRefInput): Promise<ProviderCallDto> {
+export async function ownProviderCall(
+  ctx: Ctx,
+  rawInput: ProviderCallRefInput,
+): Promise<ProviderCallDto> {
   const input = ProviderCallRefInput.parse(rawInput);
   checkPermission(ctx.principal, 'calls.dial', 'own');
   inRequest(ctx, input.entityId);
