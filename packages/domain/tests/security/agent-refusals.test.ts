@@ -198,6 +198,9 @@ const INPUTS: Record<string, unknown> = {
     verified: false,
   },
   'org.channel.archive': { entityId: 1, channelId: newId() },
+  // The WhatsApp template registry decides what the platform may send in a company's name
+  // (docs/03-roadmap-appendix/phase2.md §4): an Executive's, never an agent's.
+  'messaging.template.register': { entityId: 1, name: 'refused_template', category: 'utility' },
   'print.proof.request': { entityId: 1 },
   'pricing.list.approve': { priceListId: newId() },
   'pricing.list.archive': { priceListId: newId() },
@@ -390,8 +393,12 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       'sales.target.set',
       // Process again of a failed webhook delivery (P5): a person's decision.
       'webhooks.event.replay',
+      'messaging.template.register',
     ].map((name) => [name, INPUTS[name]]),
   ),
+  // Taking a WhatsApp chat over from the assistant, and giving it back, is a person's decision.
+  'messaging.thread.hand_off': { entityId: 1, threadId: newId(), reason: 'request' },
+  'messaging.thread.return_to_assistant': { entityId: 1, threadId: newId() },
 };
 
 describe('commands for people only', () => {
