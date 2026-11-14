@@ -17,8 +17,11 @@ export const KNOWLEDGE_READ_PERMISSION = {
   exec_only: 'knowledge.vault.read.exec',
 } as const satisfies Record<KnowledgeSensitivity, string>;
 
-/** What a vault file is, which decides how its text is read (BLUEPRINT §9.1). */
-export const KNOWLEDGE_SOURCE_TYPES = ['pdf', 'photo', 'word', 'excel'] as const;
+/**
+ * What a vault file is, which decides how its text is read (BLUEPRINT §9.1): a recording (`audio`,
+ * K3) is transcribed, and its transcript is the text.
+ */
+export const KNOWLEDGE_SOURCE_TYPES = ['pdf', 'photo', 'word', 'excel', 'audio'] as const;
 export const KnowledgeSourceTypeSchema = z.enum(KNOWLEDGE_SOURCE_TYPES);
 export type KnowledgeSourceType = z.infer<typeof KnowledgeSourceTypeSchema>;
 
@@ -103,6 +106,53 @@ export type KnowledgeChunkInput = z.infer<typeof KnowledgeChunkInput>;
 
 /** The most chunks one vault file may have; a longer file is `knowledge_too_long`. */
 export const KNOWLEDGE_MAX_CHUNKS = 400;
+
+/**
+ * The longest transcript of a vault recording, in characters: half an hour of speech is about
+ * 30,000, so a correction has room to add what the speech service missed
+ * (`knowledge_files_transcript_check`).
+ */
+export const KNOWLEDGE_TRANSCRIPT_MAX_CHARS = 100_000;
+
+/**
+ * A recording's transcript as it is stored: Roman script only (ADR 0014), with its personal numbers
+ * masked by the command that stores it.
+ */
+export const KnowledgeTranscriptSchema = z.string().trim().min(1).max(KNOWLEDGE_TRANSCRIPT_MAX_CHARS);
+
+/**
+ * `knowledge.transcript.correct` (people only, `knowledge.vault.write`): a person's corrected
+ * transcript of a vault recording replaces the stored one, and the file is read again from it.
+ * A transcript in another script is refused by the command with its own reason.
+ */
+export const CorrectKnowledgeTranscriptInput = z
+  .object({
+    entityId: EntityIdSchema,
+    knowledgeFileId: IdSchema,
+    transcript: KnowledgeTranscriptSchema,
+  })
+  .strict();
+export type CorrectKnowledgeTranscriptInput = z.input<typeof CorrectKnowledgeTranscriptInput>;
+
+/**
+ * `knowledge.file.record_transcript` (the index job, `knowledge.index`): the transcript of a waiting
+ * vault recording, kept as its text before it is cut into passages, so a delivery tried again reads
+ * it instead of paying for the recording twice.
+ */
+export const RecordKnowledgeTranscriptInput = z
+  .object({
+    entityId: EntityIdSchema,
+    knowledgeFileId: IdSchema,
+    transcript: KnowledgeTranscriptSchema,
+  })
+  .strict();
+export type RecordKnowledgeTranscriptInput = z.input<typeof RecordKnowledgeTranscriptInput>;
+
+/** What the index job's recording of a transcript came to: `stored` false when one was kept already. */
+export const KnowledgeTranscriptRecordDto = z
+  .object({ knowledgeFileId: IdSchema, stored: z.boolean() })
+  .strict();
+export type KnowledgeTranscriptRecordDto = z.infer<typeof KnowledgeTranscriptRecordDto>;
 
 /** The most pages a vault PDF may have: each page is masked and read as a picture. */
 export const KNOWLEDGE_PDF_MAX_PAGES = 12;

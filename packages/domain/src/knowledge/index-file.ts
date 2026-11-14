@@ -1,10 +1,14 @@
 import {
   DomainError,
   hasGrant,
+  isRomanScript,
   KNOWLEDGE_MAX_CHUNKS,
   KNOWLEDGE_PDF_MAX_PAGES,
+  KNOWLEDGE_TRANSCRIPT_MAX_CHARS,
+  MAX_AUDIO_MS,
   type EmbeddingsIndexJob,
   type KnowledgeErrorReason,
+  type KnowledgeSourceType,
   type Principal,
 } from '@shakti/contracts';
 import { AGENT_DEFAULTS } from '../ai/agent-defaults';
@@ -12,7 +16,8 @@ import type { AiProvider, SpendCap } from '../ai/provider';
 import type { ModelDocument } from '../ai/transport';
 import { executeCommand, executeQuery } from '../command/execute';
 import { recordKnowledgeIndex } from '../commands/knowledge/record-index';
-import { knowledgeFileForIndex } from '../commands/knowledge/shared';
+import { knowledgeFileForIndex, knowledgeFileTranscript } from '../commands/knowledge/shared';
+import { recordKnowledgeTranscript } from '../commands/knowledge/transcript';
 import { sha256Hex, type FileStore } from '../ports/file-store';
 import type { KeyValue } from '../ports/key-value';
 import { jsonLogger, type Logger } from '../ports/logger';
@@ -25,7 +30,7 @@ import {
   KnowledgeExtractError,
   needsModel,
 } from './extract';
-import { knowledgePassages } from './passages';
+import { knowledgePassages, maskWholeText } from './passages';
 
 /** Passages sent to the embedding model in one call (the vendor takes many more). */
 export const EMBED_BATCH = 128;
@@ -44,6 +49,31 @@ export const KNOWLEDGE_READ_CLAIM_SECONDS = 330;
 export const knowledgeReadKey = (knowledgeFileId: string): string =>
   `knowledge:reading:${knowledgeFileId}`;
 
+/**
+ * The speech service a vault recording is transcribed by (K3): the web app's batch speech-to-text
+ * adapter (Sarvam, Roman script only) behind V1's `transcribeRecording()`, which only the web app
+ * holds.
+ */
+export interface RecordingTranscriber {
+  /** Who transcribes, for the spend log (`sarvam`). */
+  readonly vendor: string;
+  /** Paise an hour of audio costs at the vendor's published price, for the spend reservation. */
+  readonly paisePerHour: number;
+  /** The recording's length; throws a `KnowledgeExtractError` when it cannot be read. */
+  durationMs(bytes: Uint8Array, contentType: string): number;
+  /**
+   * The recording's whole text in Roman script, piece by piece. `sent` is told each piece's length
+   * as it goes to the vendor, which bills it. Throws a `KnowledgeExtractError` for a recording it
+   * cannot read, a transcript in another script, or a reading `signal` stopped
+   * (`knowledge_timed_out`); a vendor that fails throws anything else, and the delivery is tried
+   * again.
+   */
+  transcribe(
+    bytes: Uint8Array,
+    options: { contentType: string; signal: AbortSignal; sent: (audioMs: number) => void },
+  ): Promise<string>;
+}
+
 export interface IndexKnowledgeDeps {
   /** `system:workers` for the job's file company (`knowledge.index`), never a person. */
   principal: Principal;
@@ -56,6 +86,8 @@ export interface IndexKnowledgeDeps {
    * order; throws when it cannot (the web app's PDFium, which only the web app holds).
    */
   pdfPages: (bytes: Uint8Array) => Promise<Uint8Array[]>;
+  /** Transcribes a recording; left out where no speech service key is set (`unavailable`). */
+  transcriber?: RecordingTranscriber | undefined;
   requestId: string;
   hosted: boolean;
   logger?: Logger;
@@ -79,6 +111,16 @@ export interface IndexKnowledgeOutcome {
 function indexCaps(): SpendCap[] {
   return [{ paise: AGENT_DEFAULTS.knowledge.indexDailyCapPaise, entityId: null }];
 }
+
+/** Transcribing's own share of the index's spend, a cap of its own beside the index's. */
+const TRANSCRIBE_PART = {
+  name: AGENT_DEFAULTS.knowledge.transcribePart,
+  capPaise: AGENT_DEFAULTS.knowledge.transcribeDailyCapPaise,
+} as const;
+
+/** What a stretch of audio costs at the vendor's price, in paise. */
+const audioPaise = (transcriber: RecordingTranscriber, audioMs: number): number =>
+  (audioMs / 3_600_000) * transcriber.paisePerHour;
 
 const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -131,7 +173,9 @@ async function asDocuments(
  * 2. without the keys the file needs (Voyage always, Claude for a PDF or a photo) it is recorded
  *    `unavailable` and nothing calls out;
  * 3. its text by type (a PDF's masked pages, drawn as pictures by `pdfPages`, and a masked photo by
- *    Claude, a workbook sheet by sheet, a Word document by `readWord`), masked whole, cut into
+ *    Claude, a workbook sheet by sheet, a Word document by `readWord`, a recording by its kept
+ *    transcript or else by `transcriber`, whose transcript is masked and kept first through
+ *    `knowledge.file.record_transcript`, so a delivery tried again never pays for it twice), masked whole, cut into
  *    passages and masked again passage by passage (`knowledgePassages`), then embedded as a document through the provider wrapper, the spend counted under the vault's own
  *    name for its company (or the group only, for a file of the whole group);
  * 4. `knowledge.file.record_index` replaces its passages in one transaction, or records why it
@@ -235,28 +279,114 @@ async function readVaultFile(
   };
   const fail = (reason: KnowledgeErrorReason) => record({ outcome: 'failed', reason });
 
-  const source = facts.sourceType as 'pdf' | 'photo' | 'word' | 'excel';
+  const source = facts.sourceType as KnowledgeSourceType;
+  // A recording's transcript, once kept, is its text: read again without the speech service.
+  const kept =
+    source === 'audio'
+      ? await executeQuery(
+          deps.principal,
+          scope,
+          ({ tx }) => knowledgeFileTranscript(tx, facts.knowledgeFileId),
+          { name: 'knowledge.index.transcript', pool: 'app_user' },
+        )
+      : null;
+  const { transcriber } = deps;
   if (
     !deps.provider.embeddingsAvailable ||
-    (needsModel(source) && !deps.provider.claudeAvailable)
+    (needsModel(source) && !deps.provider.claudeAvailable) ||
+    (source === 'audio' && kept === null && transcriber === undefined)
   ) {
     return record({ outcome: 'unavailable', reason: 'knowledge_service_missing' });
   }
 
-  const bytes = await deps.store.get(file.key);
-  if (bytes === undefined || sha256Hex(bytes) !== file.sha256) {
-    throw new DomainError('integration_unavailable', `vault upload ${file.id} could not be read`);
-  }
+  const upload = async (): Promise<Uint8Array> => {
+    const bytes = await deps.store.get(file.key);
+    if (bytes === undefined || sha256Hex(bytes) !== file.sha256) {
+      throw new DomainError('integration_unavailable', `vault upload ${file.id} could not be read`);
+    }
+    return bytes;
+  };
 
   const spend = {
     agent: AGENT_DEFAULTS.knowledge.indexName,
     entityId: facts.entityId,
     caps: indexCaps(),
   } as const;
+
+  /**
+   * A recording's transcript, masked, or undefined when nothing was heard: its length checked
+   * again (`MAX_AUDIO_MS`, as the upload's checks did), the most it can cost reserved against the
+   * index's cap and transcribing's own, and the pieces sent counted as they go.
+   */
+  const transcribe = async (
+    speech: RecordingTranscriber,
+    contentType: string,
+    bytes: Uint8Array,
+  ): Promise<string | undefined> => {
+    const audioMs = speech.durationMs(bytes, contentType);
+    if (audioMs > MAX_AUDIO_MS) {
+      throw new KnowledgeExtractError('knowledge_too_long', 'the recording is too long');
+    }
+    const left = Math.min(deadlines.extract, deadlines.job - (Date.now() - started));
+    const heard = await deps.provider.metered(
+      {
+        ...spend,
+        purpose: 'knowledge_transcribe',
+        vendor: speech.vendor,
+        part: TRANSCRIBE_PART,
+        maxPaise: audioPaise(speech, audioMs),
+      },
+      (paid) =>
+        speech.transcribe(bytes, {
+          contentType,
+          signal: AbortSignal.timeout(Math.max(0, left)),
+          sent: (pieceMs) => {
+            paid(audioPaise(speech, pieceMs));
+          },
+        }),
+    );
+    // The adapter answers Roman script only; a transcript that is not is never kept (ADR 0014).
+    if (!isRomanScript(heard)) {
+      throw new KnowledgeExtractError('knowledge_unreadable', 'the transcript is not Roman script');
+    }
+    const masked = maskWholeText(heard).trim();
+    if (masked.length > KNOWLEDGE_TRANSCRIPT_MAX_CHARS) {
+      throw new KnowledgeExtractError('knowledge_too_long', 'the transcript is too long to keep');
+    }
+    return masked === '' ? undefined : masked;
+  };
   try {
     let text: string;
-    if (source === 'excel') text = await extractWorkbook(bytes);
+    if (source === 'audio') {
+      if (kept !== null) text = kept;
+      else if (transcriber === undefined) {
+        return await record({ outcome: 'unavailable', reason: 'knowledge_service_missing' });
+      } else {
+        const heard = await transcribe(transcriber, file.contentType, await upload());
+        if (heard === undefined) return await fail('knowledge_empty');
+        // Kept before it is cut, so a delivery tried again reads it; another kept first wins.
+        const result = await executeCommand(
+          deps.principal,
+          scope,
+          recordKnowledgeTranscript,
+          { entityId: job.fileEntityId, knowledgeFileId: facts.knowledgeFileId, transcript: heard },
+          { hosted: deps.hosted },
+        );
+        const stored = result.stored
+          ? heard
+          : await executeQuery(
+              deps.principal,
+              scope,
+              ({ tx }) => knowledgeFileTranscript(tx, facts.knowledgeFileId),
+              { name: 'knowledge.index.transcript', pool: 'app_user' },
+            );
+        // No longer waiting: recording the outcome would be skipped, so stop here.
+        if (stored === null) return unchanged;
+        text = stored;
+      }
+    } else if (source === 'excel') text = await extractWorkbook(await upload());
     else if (source === 'word') {
+      const bytes = await upload();
       try {
         text = await deps.readWord(bytes);
       } catch (error) {
@@ -265,7 +395,7 @@ async function readVaultFile(
         });
       }
     } else {
-      const documents = await asDocuments(file, bytes, deps);
+      const documents = await asDocuments(file, await upload(), deps);
       text = await extractWithModel(
         (call) => deps.provider.complete({ ...spend, purpose: 'knowledge_extract', ...call }),
         documents,
@@ -299,6 +429,7 @@ async function readVaultFile(
       eventId: job.eventId,
       knowledgeFileId: facts.knowledgeFileId,
       source,
+      transcribed: source === 'audio' && kept === null,
       chunks: outcome.chunks,
       replaced: outcome.replaced,
       durationMs: Date.now() - started,

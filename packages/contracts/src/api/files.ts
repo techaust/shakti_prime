@@ -44,12 +44,25 @@ export const UPLOAD_CONTENT_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   // A Knowledge Vault file (`knowledge`) may be a Word document.
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // A Knowledge Vault recording (`knowledge`, K3): a WAV of 16-bit PCM. MP3, M4A and OGG would need
+  // a decoder, which the BOS does not have, so they are refused with a sentence that asks for a WAV.
+  'audio/wav',
 ] as const;
 export const UploadContentTypeSchema = z.enum(UPLOAD_CONTENT_TYPES);
 export type UploadContentType = z.infer<typeof UploadContentTypeSchema>;
 
 /** 15 MB: a compressed phone photo is well under it; a scanned PDF fits; an import file is 10 MB at most. */
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+/**
+ * 25 MB: a vault recording (docs/03-roadmap-appendix/phase2.md §6.4). A 16-bit WAV is not
+ * compressed, so this size, not the 30-minute limit, is what bounds its length: about 13 minutes
+ * of mono speech at 16 kHz, or 26 at 8 kHz. The largest upload of any kind.
+ */
+export const MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+/** The longest vault recording, checked when it is uploaded and again when it is read. */
+export const MAX_AUDIO_MS = 30 * 60 * 1000;
 
 /** A file's SHA-256 as lowercase hex, as `files.sha256` stores it. */
 export const FileSha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
@@ -78,15 +91,25 @@ export const UPLOAD_FIELDS = {
   purpose: FilePurposeSchema,
   name: FileNameSchema,
   contentType: UploadContentTypeSchema,
-  size: z.number().int().min(1).max(MAX_UPLOAD_BYTES),
+  // The largest upload of any kind; each purpose and type has its own limit (`UPLOAD_LIMITS`).
+  size: z.number().int().min(1).max(MAX_AUDIO_UPLOAD_BYTES),
   sha256: FileSha256Schema,
 };
 
+/** The most bytes an upload of a type may have: a recording more than any other file. */
+export function maxUploadBytes(contentType: string): number {
+  return contentType === 'audio/wav' ? MAX_AUDIO_UPLOAD_BYTES : MAX_UPLOAD_BYTES;
+}
+
 /** The rules every upload keeps, whichever door it comes through. */
-export function withUploadRules<T extends z.ZodType<{ purpose: FilePurpose; contentType: string }>>(
-  schema: T,
-): T {
+export function withUploadRules<
+  T extends z.ZodType<{ purpose: FilePurpose; contentType: string; size: number }>,
+>(schema: T): T {
   return schema
+    .refine((v) => v.size <= maxUploadBytes(v.contentType), {
+      message: 'the file is larger than its type may be',
+      path: ['size'],
+    })
     .refine((v) => v.purpose !== 'signature' || v.contentType === 'image/png', {
       message: 'a signature is a PNG',
       path: ['contentType'],
@@ -115,7 +138,11 @@ export function withUploadRules<T extends z.ZodType<{ purpose: FilePurpose; cont
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         v.purpose === 'knowledge',
       { message: 'a Word document is a vault file', path: ['contentType'] },
-    );
+    )
+    .refine((v) => v.contentType !== 'audio/wav' || v.purpose === 'knowledge', {
+      message: 'a recording is a vault file',
+      path: ['contentType'],
+    });
 }
 
 /**

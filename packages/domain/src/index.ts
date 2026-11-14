@@ -498,7 +498,13 @@ export {
   uploadPermission,
 } from './files/purposes';
 export type { FilePurposeRule } from './files/purposes';
-export { EXTENSIONS, UPLOAD_LIMITS, uploadKey, uploadLimitProblem } from './files/limits';
+export {
+  EXTENSIONS,
+  UPLOAD_LIMITS,
+  uploadKey,
+  uploadLimitProblem,
+  uploadMaxBytes,
+} from './files/limits';
 export type { UploadLimit, UploadLimitProblem } from './files/limits';
 export { fileUploadMachine } from './state-machines/machines/file-upload';
 export {
@@ -593,7 +599,11 @@ export {
   reindexKnowledgeFile,
 } from './commands/knowledge/files';
 export { recordKnowledgeIndex } from './commands/knowledge/record-index';
-export { knowledgeFileForIndex } from './commands/knowledge/shared';
+export {
+  correctKnowledgeTranscript,
+  recordKnowledgeTranscript,
+} from './commands/knowledge/transcript';
+export { knowledgeFileForIndex, knowledgeFileTranscript } from './commands/knowledge/shared';
 export {
   approvePlaybookDirective,
   draftPlaybookDirective,
@@ -613,7 +623,12 @@ export {
   knowledgeSourceType,
 } from './knowledge/extract';
 export { EMBED_BATCH, indexKnowledgeFile, knowledgeReadKey } from './knowledge/index-file';
-export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
+export { KnowledgeExtractError } from './knowledge/extract';
+export type {
+  IndexKnowledgeDeps,
+  IndexKnowledgeOutcome,
+  RecordingTranscriber,
+} from './knowledge/index-file';
 export { knowledgeQueryVector } from './knowledge/search';
 export {
   bumpPlaybookVersion,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CheckInRequest } from './attendance';
 import { CreateExpenseRequest } from './expenses';
-import { FilePresignRequest, MAX_UPLOAD_BYTES } from './files';
+import { FilePresignRequest, MAX_AUDIO_UPLOAD_BYTES, MAX_UPLOAD_BYTES } from './files';
 import { API_FIXTURES } from './fixtures';
 
 const presign = API_FIXTURES['files.presign'].request as Record<string, unknown>;
@@ -18,6 +18,28 @@ describe('uploads', () => {
     expect(FilePresignRequest.safeParse({ ...presign, contentType: 'image/heic' }).success).toBe(
       false,
     );
+  });
+
+  it('takes a WAV recording of up to 25 MB as a vault file only', () => {
+    const recording = { ...presign, purpose: 'knowledge', contentType: 'audio/wav' };
+    expect(FilePresignRequest.safeParse({ ...recording, size: MAX_AUDIO_UPLOAD_BYTES }).success).toBe(
+      true,
+    );
+    expect(
+      FilePresignRequest.safeParse({ ...recording, size: MAX_AUDIO_UPLOAD_BYTES + 1 }).success,
+    ).toBe(false);
+    // Another vault file keeps the smaller limit.
+    expect(
+      FilePresignRequest.safeParse({
+        ...recording,
+        contentType: 'application/pdf',
+        size: MAX_UPLOAD_BYTES + 1,
+      }).success,
+    ).toBe(false);
+    expect(FilePresignRequest.safeParse({ ...recording, purpose: 'receipt' }).success).toBe(false);
+    for (const other of ['audio/mpeg', 'audio/mp4', 'audio/ogg']) {
+      expect(FilePresignRequest.safeParse({ ...recording, contentType: other }).success).toBe(false);
+    }
   });
 
   it('takes a signature as a PNG only', () => {

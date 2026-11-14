@@ -169,3 +169,17 @@ export async function knowledgeFileForIndex(
     chunks: row.chunks,
   };
 }
+
+/**
+ * The transcript kept for a vault recording, for the index job (`knowledge.index`, the upload in a
+ * company of the request): the job's own or a person's correction; null while it has none.
+ */
+export async function knowledgeFileTranscript(
+  tx: RequestTx,
+  knowledgeFileId: string,
+): Promise<string | null> {
+  const rows = (await tx.execute(
+    sql`select app.knowledge_file_transcript(${knowledgeFileId}::uuid) as transcript`,
+  )) as unknown as { transcript: string | null }[];
+  return rows[0]?.transcript ?? null;
+}

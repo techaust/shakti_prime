@@ -8,7 +8,14 @@ export const KNOWLEDGE_FILE_MACHINE_STATES = [
   'archived',
 ] as const;
 export type KnowledgeFileMachineState = (typeof KNOWLEDGE_FILE_MACHINE_STATES)[number];
-export type KnowledgeFileEvent = 'add' | 'index' | 'fail' | 'hold' | 'reindex' | 'archive';
+export type KnowledgeFileEvent =
+  | 'add'
+  | 'index'
+  | 'fail'
+  | 'hold'
+  | 'reindex'
+  | 'correct'
+  | 'archive';
 
 /** What the vault commands preload for the machine. */
 export interface KnowledgeFileRecord {
@@ -19,7 +26,7 @@ export interface KnowledgeFileRecord {
  * A Knowledge Vault file (docs/03-roadmap-appendix/phase1.md §8.4, PRD AI-01, BLUEPRINT §9.1): added waiting to
  * be read; the index job reads it, cuts its text into passages and embeds them, or records why it
  * could not; an Executive or GM indexes it again or archives it, which takes its passages out of
- * search.
+ * search. A recording (K3) is transcribed first; a correction of its transcript reads it again.
  */
 export const knowledgeFileMachine = defineMachine<
   KnowledgeFileMachineState,
@@ -82,7 +89,7 @@ export const knowledgeFileMachine = defineMachine<
       to: 'unavailable',
       permission: null,
       system: true,
-      note: '`knowledge.file.record_index` when `ANTHROPIC_API_KEY` or `VOYAGE_API_KEY` is not set.',
+      note: '`knowledge.file.record_index` when `ANTHROPIC_API_KEY` or `VOYAGE_API_KEY` is not set, or `SARVAM_API_KEY` for a recording with no transcript yet.',
     },
     {
       from: ['waiting', 'indexed', 'failed', 'unavailable'],
@@ -92,6 +99,15 @@ export const knowledgeFileMachine = defineMachine<
       scope: 'all',
       emits: 'knowledge.file.index_requested',
       note: '`knowledge.file.reindex`, people only; refused while the upload has not passed its checks, and for a file waiting less than `KNOWLEDGE_WAITING_STALE_SECONDS` (the index job is still within its time).',
+    },
+    {
+      from: ['indexed', 'failed', 'unavailable'],
+      event: 'correct',
+      to: 'waiting',
+      permission: 'knowledge.vault.write',
+      scope: 'all',
+      emits: 'knowledge.file.index_requested',
+      note: '`knowledge.transcript.correct`, people only, on a recording: the corrected transcript replaces the stored one and the file is read again from it, its passages replaced once it is. Refused while the file is waiting, so a reading never cuts a transcript that changes under it.',
     },
     {
       from: ['waiting', 'indexed', 'failed', 'unavailable'],

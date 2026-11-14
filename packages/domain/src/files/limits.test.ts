@@ -49,6 +49,18 @@ describe('upload limits', () => {
     expect(uploadKey(1, 'knowledge', newId(), docx)).toMatch(/^1\/knowledge\/[0-9a-f-]+\.docx$/);
   });
 
+  it('takes a vault recording as a WAV of up to 25 MB, every other vault file up to 15 MB', () => {
+    const mb = 1024 * 1024;
+    expect(uploadLimitProblem('knowledge', 'audio/wav', 25 * mb)).toBeUndefined();
+    expect(uploadLimitProblem('knowledge', 'audio/wav', 25 * mb + 1)).toBe('file_too_large');
+    expect(uploadLimitProblem('knowledge', 'application/pdf', 15 * mb + 1)).toBe('file_too_large');
+    for (const type of ['audio/mpeg', 'audio/mp4', 'audio/ogg']) {
+      expect(uploadLimitProblem('knowledge', type, 10)).toBe('file_type_not_allowed');
+    }
+    expect(uploadLimitProblem('consent_evidence', 'audio/wav', 10)).toBe('file_type_not_allowed');
+    expect(uploadKey(1, 'knowledge', newId(), 'audio/wav')).toMatch(/^1\/knowledge\/[0-9a-f-]+\.wav$/);
+  });
+
   it('makes a safe key per company, purpose and file', () => {
     const id = newId();
     const key = uploadKey(3, 'letterhead', id, 'image/webp');

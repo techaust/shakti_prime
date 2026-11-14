@@ -21,7 +21,10 @@ import { principals } from './principals';
  * A Knowledge Vault file (docs/05-database.md §6.9, docs/03-roadmap-appendix/phase1.md §8.4): an upload of the
  * `knowledge` purpose with its title and who may retrieve it (`sensitivity`), for its company or,
  * with `entity_id` null, for the whole group. `state` is the `knowledge_file` machine; the index
- * job records `chunks`, `indexed_at` and `error_reason` through a definer, never a request.
+ * job records `chunks`, `indexed_at` and `error_reason` through a definer, never a request. A
+ * recording (`audio`, K3) keeps its `transcript`, masked and in Roman script, as the text its
+ * passages are cut from: written by the index job through a definer, and replaced by a person's
+ * correction (`transcript_corrected_at`), after which the file is read again.
  */
 export const knowledgeFiles = pgTable(
   'knowledge_files',
@@ -38,6 +41,8 @@ export const knowledgeFiles = pgTable(
     chunks: integer('chunks').notNull().default(0),
     indexedAt: timestamp('indexed_at', { withTimezone: true }),
     errorReason: text('error_reason'),
+    transcript: text('transcript'),
+    transcriptCorrectedAt: timestamp('transcript_corrected_at', { withTimezone: true }),
     ...timestamps,
     ...actorsRequired,
   },
@@ -48,7 +53,7 @@ export const knowledgeFiles = pgTable(
     ),
     check(
       'knowledge_files_source_type_check',
-      sql`${t.sourceType} in ('pdf', 'photo', 'word', 'excel')`,
+      sql`${t.sourceType} in ('pdf', 'photo', 'word', 'excel', 'audio')`,
     ),
     check(
       'knowledge_files_state_check',
@@ -60,6 +65,16 @@ export const knowledgeFiles = pgTable(
     ),
     check('knowledge_files_title_check', sql`char_length(${t.title}) between 1 and 200`),
     check('knowledge_files_chunks_check', sql`${t.chunks} >= 0`),
+    // Only a recording has a transcript: Roman script (no character of the Devanagari blocks, ADR
+    // 0014) and at most 100,000 characters; a correction needs a transcript.
+    check(
+      'knowledge_files_transcript_check',
+      sql`${t.transcript} is null or (${t.sourceType} = 'audio' and char_length(${t.transcript}) between 1 and 100000 and ${t.transcript} !~ '[\\u0900-\\u097F\\uA8E0-\\uA8FF\\u1CD0-\\u1CFF]')`,
+    ),
+    check(
+      'knowledge_files_transcript_corrected_check',
+      sql`${t.transcriptCorrectedAt} is null or ${t.transcript} is not null`,
+    ),
     // One vault file per upload.
     unique('knowledge_files_file_unique').on(t.fileId),
     // The vault list: newest first, in the companies of the request and the group's.
