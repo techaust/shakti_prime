@@ -77,6 +77,8 @@ export async function crmFixture(): Promise<CrmFixture> {
       await tx`delete from calls where opportunity_id::text like ${`${P}%`}`;
       await tx`alter table calls enable trigger calls_append_only`;
       await tx`delete from consents where id::text like ${`${P}%`}`;
+      // A lead's qualification facts (lead-ingest.test.ts writes them).
+      await tx`delete from lead_qualifications where opportunity_id::text like ${`${P}%`}`;
       await tx`delete from opportunities where id::text like ${`${P}%`}`;
       await tx`delete from customer_sites where id::text like ${`${P}%`}`;
       await tx`delete from account_contacts where account_id::text like ${`${P}%`}`;
