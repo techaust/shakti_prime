@@ -47,6 +47,10 @@ const SizingPanel = dynamic(() => import('../sizing/sizing-panel').then((m) => m
 const AccountDuplicates = dynamic(() =>
   import('../duplicates/account-duplicates').then((m) => m.AccountDuplicates),
 );
+// The customer's WhatsApp chats (docs/03-roadmap-appendix/phase2.md §6.1), read when shown.
+const WhatsAppChats = dynamic(() =>
+  import('../../screens/messaging/whatsapp-chats').then((m) => m.WhatsAppChats),
+);
 
 const STATE_TONE: Record<CustomerLeadDto['state'], StatusTone> = {
   open: 'accent',
@@ -241,6 +245,7 @@ export function AccountScreen({
             }}
             onChanged={reload}
           />
+          <WhatsAppChats entityId={view.entityId} accountId={view.account.id} />
           <Quotes view={view} />
           <Orders view={view} />
           <Tasks

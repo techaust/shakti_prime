@@ -23,6 +23,10 @@ import type { useCallLogging } from './use-call-logging';
 // load carries neither.
 const SizingPanel = dynamic(() => import('../sizing/sizing-panel').then((m) => m.SizingPanel));
 const QuotePanel = dynamic(() => import('./quote-panel').then((m) => m.QuotePanel));
+// The customer's WhatsApp chat beside the lead (docs/03-roadmap-appendix/phase2.md §6.1).
+const WhatsAppChats = dynamic(() =>
+  import('../../screens/messaging/whatsapp-chats').then((m) => m.WhatsAppChats),
+);
 
 // The dialog for an outcome's detail loads when an outcome first needs it, as in the calling
 // workspace.
@@ -263,6 +267,7 @@ export function LeadWorkspace({
         </div>
         <Summary lead={lead} facts={facts} />
       </section>
+      <WhatsAppChats key={lead.accountId} entityId={lead.entityId} accountId={lead.accountId} />
 
       <div
         role="tablist"

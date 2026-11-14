@@ -3,6 +3,7 @@ import { MoneySchema } from '../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { CursorSchema, PageLimitSchema, SemverSchema } from './common';
 import { TallyCompanySchema } from './connector';
+import { MessagingRefusalSchema } from './messaging';
 import { AgentNameSchema } from './worker-jobs';
 
 /**
@@ -146,6 +147,23 @@ export const WhatsAppNumberHealth = z
   })
   .strict();
 export type WhatsAppNumberHealth = z.infer<typeof WhatsAppNumberHealth>;
+
+/**
+ * The portfolio's WhatsApp messaging (docs/03-roadmap-appendix/phase2.md §6.1): the limit Meta
+ * reports (or the starting tier until it does), the business-initiated conversations to distinct
+ * customers in the rolling 24 hours, and the last day's messages refused, by the check that refused
+ * them, and failed.
+ */
+export const WhatsAppBudgetHealth = z
+  .object({
+    limit: Count,
+    limitReported: z.boolean(),
+    used: Count,
+    refusals: z.array(z.object({ refusal: MessagingRefusalSchema, count: Count }).strict()),
+    failed: Count,
+  })
+  .strict();
+export type WhatsAppBudgetHealth = z.infer<typeof WhatsAppBudgetHealth>;
 
 /**
  * One agent's model spend in one company, in rupees, from its runs (`agent_runs`): today's and the
@@ -310,6 +328,7 @@ export const IntegrationHealthResponse = z
       .strict(),
     connectors: z.array(ConnectorHealth),
     whatsapp: z.array(WhatsAppNumberHealth),
+    whatsappBudget: WhatsAppBudgetHealth,
     /** The database's scheduled jobs, each with its state and last run (audit 2026-10, DATA-3). */
     jobs: z.array(ScheduledJobHealth),
     aiSpend: z

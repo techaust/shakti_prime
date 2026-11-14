@@ -13,6 +13,7 @@ import {
   Inbox,
   IndianRupee,
   Library,
+  MessageCircle,
   ListTodo,
   Package,
   PhoneCall,
@@ -102,6 +103,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
       { key: 'calls.log', scope: 'own' },
       { key: 'sales.quote.create', scope: 'own' },
     ],
+  },
+  {
+    id: 'messages',
+    href: '/messages',
+    label: 'messages',
+    icon: MessageCircle,
+    group: 'work',
+    // The WhatsApp chats waiting for a reply that the caller may answer (messaging.send, design
+    // phase2 §6.1); listWaitingThreads keeps to the chats the caller's scope covers.
+    requires: [{ key: 'messaging.send', scope: 'own' }],
   },
   {
     id: 'customers',

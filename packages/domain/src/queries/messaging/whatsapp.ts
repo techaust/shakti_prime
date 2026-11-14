@@ -300,20 +300,31 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
 }
 
 /**
- * Integration Health's counts from the database (the budget and quality come from the key-value
- * store): each company's active WhatsApp number, and the last day's refusals by reason and
- * failures, of the messages the caller reads in the request's companies.
+ * Integration Health's counts from the database (the quality, limit and budget come from the
+ * key-value store): each company's active WhatsApp number with its templates waiting for Meta's
+ * review or turned down, and the last day's messages refused (by reason) and failed in the
+ * request's companies, as the caller reads them.
  */
 export async function readWhatsAppCounts(ctx: Ctx): Promise<{
-  numbers: { entityId: number; number: string }[];
+  numbers: { entityId: number; channelId: string; pending: number; rejected: number }[];
   refusals: { refusal: MessagingRefusal; count: number }[];
   failed: number;
 }> {
   const companies = entityList(ctx.entityIds);
   const numbers = (await ctx.tx.execute(sql`
-    select entity_id, number_e164 from entity_channels
-     where channel = 'whatsapp' and is_active and entity_id = any(${companies}::int[])
-     order by entity_id`)) as unknown as { entity_id: number; number_e164: string }[];
+    select ec.entity_id, ec.id,
+           (select count(*)::int from whatsapp_templates wt
+             where wt.entity_id = ec.entity_id and wt.status = 'pending') as pending,
+           (select count(*)::int from whatsapp_templates wt
+             where wt.entity_id = ec.entity_id and wt.status = 'rejected') as rejected
+      from entity_channels ec
+     where ec.channel = 'whatsapp' and ec.is_active and ec.entity_id = any(${companies}::int[])
+     order by ec.entity_id`)) as unknown as {
+    entity_id: number;
+    id: string;
+    pending: number;
+    rejected: number;
+  }[];
   const counts = (await ctx.tx.execute(sql`
     select coalesce(m.refusal, 'failed') as reason, count(*)::int as n
       from whatsapp_messages m
@@ -322,7 +333,12 @@ export async function readWhatsAppCounts(ctx: Ctx): Promise<{
        and m.status in ('refused', 'failed')
      group by 1 order by 1`)) as unknown as { reason: string; n: number }[];
   return {
-    numbers: numbers.map((n) => ({ entityId: n.entity_id, number: n.number_e164 })),
+    numbers: numbers.map((n) => ({
+      entityId: n.entity_id,
+      channelId: n.id,
+      pending: n.pending,
+      rejected: n.rejected,
+    })),
     refusals: counts
       .filter((c) => c.reason !== 'failed')
       .map((c) => ({ refusal: c.reason as MessagingRefusal, count: c.n })),

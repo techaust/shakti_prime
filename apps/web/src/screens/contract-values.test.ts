@@ -33,6 +33,7 @@ import {
   ActivityTypeSchema,
   ConsentChannelSchema,
   EntityChannelKindSchema,
+  MessagingRefusalSchema,
   WhatsAppHandoffReasonSchema,
   WhatsAppMessageDirectionSchema,
   WhatsAppMessageKindSchema,
@@ -119,6 +120,7 @@ import {
   ACTIVITY_TYPES,
   CONSENT_CHANNELS,
   ENTITY_CHANNEL_KINDS,
+  MESSAGING_REFUSALS,
   WHATSAPP_HANDOFF_REASONS,
   WHATSAPP_MESSAGE_DIRECTIONS,
   WHATSAPP_MESSAGE_KINDS,
@@ -269,6 +271,7 @@ describe('the contract values copied for the browser', () => {
     expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);
     expect(CONSENT_CHANNELS).toEqual(ConsentChannelSchema.options);
     expect(ENTITY_CHANNEL_KINDS).toEqual(EntityChannelKindSchema.options);
+    expect(MESSAGING_REFUSALS).toEqual(MessagingRefusalSchema.options);
     expect(WHATSAPP_THREAD_HANDLERS).toEqual(WhatsAppThreadHandlerSchema.options);
     expect(WHATSAPP_HANDOFF_REASONS).toEqual(WhatsAppHandoffReasonSchema.options);
     expect(WHATSAPP_MESSAGE_DIRECTIONS).toEqual(WhatsAppMessageDirectionSchema.options);

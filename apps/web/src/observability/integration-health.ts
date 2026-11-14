@@ -10,6 +10,8 @@ import {
   executeCommand,
   executeQuery,
   readAgentSpend,
+  readMessagingHealth,
+  readWhatsAppCounts,
   readOutboxHealth,
   readScheduledJobs,
   readWebhookHealth,
@@ -49,8 +51,10 @@ async function fromStore<T>(requestId: string, read: () => Promise<T>): Promise<
  * the database's scheduled jobs with their last run (`app.scheduled_jobs()`),
  * the last publisher run and the delivery check from the store, and the webhooks per provider from
  * `app.webhook_health()` with the deliveries refused at their check counted in the store
- * (docs/03-roadmap-appendix/phase2.md §5.1). Tally connectors and WhatsApp numbers have no source
- * yet (Phase 5 and W1), so they answer empty.
+ * (docs/03-roadmap-appendix/phase2.md §5.1), and each company's WhatsApp number with its quality,
+ * templates and the portfolio's budget (§6.1: the quality, limit and budget from the store, the
+ * templates, refusals and failures from the database). Tally connectors have no source yet
+ * (Phase 5), so they answer empty.
  */
 export async function readIntegrationHealth(
   principal: Principal,
@@ -81,6 +85,16 @@ export async function readIntegrationHealth(
   const stored = await executeQuery(principal, { requestId }, readWebhookHealth, {
     name: 'readWebhookHealth',
   });
+  const whatsapp = await executeQuery(principal, { requestId }, readWhatsAppCounts, {
+    name: 'readWhatsAppCounts',
+  });
+  const messaging = await fromStore(requestId, () =>
+    readMessagingHealth(
+      keyValue,
+      whatsapp.numbers.map((n) => n.entityId),
+      now,
+    ),
+  );
   const [lastRun, check, refused] = await Promise.all([
     fromStore(requestId, () => lastPublisherRun(keyValue)),
     fromStore(requestId, () => readDeliveryCheck(keyValue, now)),
@@ -101,7 +115,25 @@ export async function readIntegrationHealth(
     },
     deadLetters: outbox.deadLetters,
     connectors: [],
-    whatsapp: [],
+    whatsapp: whatsapp.numbers.map((n) => {
+      const quality = messaging?.quality.find((q) => q.entityId === n.entityId);
+      return {
+        entityId: n.entityId,
+        channelId: n.channelId,
+        quality: qualityRating(quality?.event ?? null),
+        messagingTier: messaging?.limitReported === true ? tierName(messaging.limit) : 'unknown',
+        templatesPending: n.pending,
+        templatesRejected: n.rejected,
+        updatedAt: quality?.at ?? null,
+      };
+    }),
+    whatsappBudget: {
+      limit: messaging?.limit ?? 0,
+      limitReported: messaging?.limitReported ?? false,
+      used: messaging?.used ?? 0,
+      refusals: whatsapp.refusals,
+      failed: whatsapp.failed,
+    },
     jobs: jobs.map((j) => j.health),
     aiSpend,
   });
@@ -134,4 +166,33 @@ export async function deliveryCheckStatus(
   const check = await readDeliveryCheck(keyValue, new Date(), probe);
   if (check === undefined) throw new DomainError('not_found', 'no such delivery check');
   return check;
+}
+
+/**
+ * A number's quality as Meta's last `phone_number_quality_update` left it: flagged is low (red), a
+ * downgrade medium (yellow), unflagged or an upgrade high (green); anything else is not known.
+ */
+function qualityRating(event: string | null): 'green' | 'yellow' | 'red' | 'unknown' {
+  switch (event?.toUpperCase()) {
+    case 'FLAGGED':
+      return 'red';
+    case 'DOWNGRADE':
+      return 'yellow';
+    case 'UNFLAGGED':
+    case 'UPGRADE':
+      return 'green';
+    default:
+      return 'unknown';
+  }
+}
+
+/** The tier a limit is. */
+function tierName(
+  limit: number,
+): 'tier_250' | 'tier_1k' | 'tier_10k' | 'tier_100k' | 'unlimited' | 'unknown' {
+  if (limit >= 1_000_000_000) return 'unlimited';
+  if (limit >= 100_000) return 'tier_100k';
+  if (limit >= 10_000) return 'tier_10k';
+  if (limit >= 1_000) return 'tier_1k';
+  return limit >= 250 ? 'tier_250' : 'unknown';
 }

@@ -15,6 +15,7 @@ import type {
   CustomerLanguage,
   CustomerSort,
   EntityChannelKind,
+  MessagingRefusal,
   WhatsAppHandoffReason,
   WhatsAppMessageDirection,
   WhatsAppMessageKind,
@@ -160,6 +161,15 @@ export const ENTITY_CHANNEL_KINDS = [
   'ivr',
   'missed_call',
 ] as const satisfies readonly EntityChannelKind[];
+
+/** Why the messaging worker did not send a WhatsApp message (`MESSAGING_REFUSALS`). */
+export const MESSAGING_REFUSALS = [
+  'opted_out',
+  'window_closed',
+  'template_not_approved',
+  'tier_budget_reached',
+  'output_filter',
+] as const satisfies readonly MessagingRefusal[];
 
 /** WhatsApp (docs/03-roadmap-appendix/phase2.md §6.1): who answers a thread. */
 export const WHATSAPP_THREAD_HANDLERS = [

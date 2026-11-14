@@ -257,28 +257,3 @@ export const ThreadViewDto = z
   })
   .strict();
 export type ThreadViewDto = z.infer<typeof ThreadViewDto>;
-
-/** Integration Health's WhatsApp section: each number, the portfolio's budget, refusals by reason. */
-export const WhatsAppHealthDto = z
-  .object({
-    numbers: z.array(
-      z
-        .object({
-          entityId: EntityIdSchema,
-          number: z.string().max(20),
-          /** Meta's last quality event for the number (`FLAGGED`, `UPGRADE`, …) and when. */
-          quality: z.string().max(40).nullable(),
-          qualityAt: z.iso.datetime().nullable(),
-        })
-        .strict(),
-    ),
-    limit: z.number().int().min(0),
-    limitReported: z.boolean(),
-    used: z.number().int().min(0),
-    refusals: z.array(
-      z.object({ refusal: MessagingRefusalSchema, count: z.number().int().min(0) }).strict(),
-    ),
-    failed: z.number().int().min(0),
-  })
-  .strict();
-export type WhatsAppHealthDto = z.infer<typeof WhatsAppHealthDto>;

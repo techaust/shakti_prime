@@ -484,7 +484,8 @@
     "dealerCredit": "Dealer credit",
     "targets": "Targets",
     "converters": "Lead converters",
-    "converting": "Converting"
+    "converting": "Converting",
+    "messages": "Messages"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -559,7 +560,8 @@
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "targets": "Set what each caller and team is aiming for, and see what was set before.",
       "converters": "Choose who takes qualified leads, how many each person takes and who is present.",
-      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen."
+      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen.",
+      "messages": "Answer the WhatsApp chats waiting for a reply from you or your team."
     },
     "progress": {
       "period": {
@@ -4475,6 +4477,67 @@
       "turnOffPush": "Turn off alerts",
       "pushOnDone": "Alerts are on for this browser.",
       "pushOffDone": "Alerts are off for this browser."
+    }
+  },
+  "messaging": {
+    "title": "Messages",
+    "intro": "WhatsApp chats waiting for a reply from you or your team, newest first.",
+    "listLabel": "Chats waiting for a reply",
+    "empty": "No chats are waiting for a reply.",
+    "loadMore": "Show more chats",
+    "keysHelp": "Press J and K to move between chats, and R to write a reply.",
+    "noChat": "Choose a chat to read it.",
+    "unknownCustomer": "Customer not recorded yet",
+    "lastMessage": "Last message {time}",
+    "thread": {
+      "sectionTitle": "WhatsApp",
+      "none": "No WhatsApp chat with this customer yet.",
+      "chatWith": "Chat with {number}",
+      "assistant": "The assistant answers",
+      "people": "The team answers",
+      "optedOut": "Stopped WhatsApp messages",
+      "windowOpen": "Replies can be typed freely until {time}.",
+      "windowClosed": "The customer last wrote more than 24 hours ago. Send an approved template.",
+      "takeOver": "Take over chat",
+      "giveBack": "Give back to assistant",
+      "holders": "More than one customer has this number. Ask who is writing, then open that customer:",
+      "noHolders": "No customer has this number yet. The chat is linked once the customer is recorded.",
+      "showEarlier": "Show earlier messages",
+      "messagesLabel": "Messages in this chat",
+      "fromCustomer": "Customer",
+      "fromSystem": "Sent automatically",
+      "template": "Template: {name}",
+      "templateValues": "Filled in: {values}",
+      "mediaNotKept": "The customer sent something this chat cannot show.",
+      "file": "File from the customer",
+      "open": "Open",
+      "status": {
+        "queued": "Waiting to send",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "read": "Read",
+        "failed": "Not delivered",
+        "refused": "Not sent"
+      },
+      "refusal": {
+        "opted_out": "The customer stopped WhatsApp messages.",
+        "window_closed": "The customer last wrote more than 24 hours ago.",
+        "template_not_approved": "The template is not approved.",
+        "tier_budget_reached": "Today's WhatsApp limit was reached.",
+        "output_filter": "It had a link, a phone number or an ID number that cannot be sent."
+      },
+      "readOnly": "You can read this chat but cannot reply to it.",
+      "optedOutNote": "This customer stopped WhatsApp messages, so nothing more can be sent.",
+      "reply": "Reply",
+      "replyHelper": "Do not type ID or bank account numbers. They are hidden before the message is kept.",
+      "send": "Send",
+      "templateLabel": "Template",
+      "templateChoose": "Choose a template",
+      "noTemplates": "No approved templates yet. An Executive adds them.",
+      "sendTemplate": "Send template",
+      "sent": "Your message is on its way.",
+      "takenOver": "You now answer this chat.",
+      "givenBack": "The assistant answers this chat again."
     }
   },
   "pushAlerts": {
