@@ -38,7 +38,7 @@ import type { AiProvider } from '../provider';
 // What a lookup returns is data for the model, never instructions (the wrapper labels it so).
 // It names records by id (`ref`, which the answer cites) and by their document numbers, never a
 // customer's or a person's name, phone or address: the screen shows each cited record as the
-// person may read it. Dates are calendar days in India, amounts rupees as written in the books.
+// person may read it. Dates are calendar days in India, amounts rupees to the paisa after ₹.
 
 const ASK = AGENT_DEFAULTS.ask;
 
@@ -84,6 +84,13 @@ function read<T>(ctx: AskToolContext, name: string, query: (c: Read) => Promise<
 
 const day = (at: string | Date | null): string | null =>
   at === null ? null : istCalendarDate(typeof at === 'string' ? new Date(at) : at);
+
+/**
+ * An amount as the model reads it: rupees to the paisa after ₹, which the masking keeps as an
+ * amount (a bare run of nine digits or more would be masked as a number).
+ */
+const rupees = (amount: string | null): string | null =>
+  amount === null ? null : `₹${(Math.round(Number(amount) * 100) / 100).toFixed(2)}`;
 
 const company = (ctx: AskToolContext, entityId: number | null): string =>
   entityId === null
@@ -288,7 +295,7 @@ const listQuotesTool: AskTool = {
           company: company(ctx, q.entityId),
           number: q.quoteNo,
           state: q.state,
-          grandTotal: q.grandTotal,
+          grandTotal: rupees(q.grandTotal),
           made: day(q.createdAt),
           validUntil: day(q.validUntil),
         })),
@@ -331,7 +338,7 @@ const listOrdersTool: AskTool = {
           number: o.soNo,
           state: o.state,
           heldForCredit: o.creditHeld,
-          grandTotal: o.grandTotal,
+          grandTotal: rupees(o.grandTotal),
           made: day(o.createdAt),
         })),
         more: page.nextCursor !== null,
@@ -375,7 +382,7 @@ const salesThisMonth: AskTool = {
           quotesSentWaiting: r.quotes_sent,
           quotesAcceptedThisMonth: r.quotes_accepted,
           ordersConfirmedThisMonth: r.orders_confirmed,
-          ordersConfirmedValue: r.orders_value,
+          ordersConfirmedValue: rupees(r.orders_value),
         })),
       },
       sources: [],
@@ -461,12 +468,12 @@ const dealerCredit: AskTool = {
         dealers: rows.map(({ entityId, row }) => ({
           ref: row.accountId,
           company: company(ctx, entityId),
-          creditLimit: row.creditLimit,
+          creditLimit: rupees(row.creditLimit),
           creditDays: row.creditDays,
-          outstanding: row.outstanding,
+          outstanding: rupees(row.outstanding),
           outstandingAsOf: row.asOf,
-          confirmedNotInvoiced: row.confirmedUnpaid,
-          exposure: row.exposure,
+          confirmedNotInvoiced: rupees(row.confirmedUnpaid),
+          exposure: rupees(row.exposure),
           oldestUnpaidInvoice: row.oldestUnpaidInvoiceNo,
           oldestUnpaidOn: row.oldestUnpaidInvoiceDate,
           oldestUnpaidAgeDays: row.oldestUnpaidAgeDays,
@@ -517,8 +524,8 @@ const findItems: AskTool = {
                   .filter((c) => c.itemId === i.id)
                   .map((c) => ({
                     company: company(ctx, c.entityId),
-                    movingAverageCost: c.movingAvgCost,
-                    lastPurchaseRate: c.lastPurchaseRate,
+                    movingAverageCost: rupees(c.movingAvgCost),
+                    lastPurchaseRate: rupees(c.lastPurchaseRate),
                     asOf: day(c.asOf),
                   })),
               }),
