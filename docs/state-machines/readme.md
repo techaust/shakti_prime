@@ -83,3 +83,4 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `retention.importFileOpenDays` | 7 |
 | `retention.webhookPayloadDays` | 30 |
 | `retention.webhookRowDays` | 90 |
+| `retention.askDays` | 90 |

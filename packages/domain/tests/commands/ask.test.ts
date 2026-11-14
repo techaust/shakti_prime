@@ -158,6 +158,21 @@ describe('knowledge.ask.record', () => {
 });
 
 describe('knowledge.ask.delete', () => {
+  it('never removes the person’s conversation of another company while they act in company 1', async () => {
+    const turn = await record(gm2, {}, [2]);
+    made.conversations.push(turn.conversation.id);
+    await expect(
+      executeCommand(gm1, { entityIds: [1] }, deleteAskConversation, {
+        conversationId: turn.conversation.id,
+      }),
+    ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'ask_conversation_missing' } });
+    await expect(
+      executeCommand(gm2, { entityIds: [2] }, deleteAskConversation, {
+        conversationId: turn.conversation.id,
+      }),
+    ).resolves.toEqual({ conversationId: turn.conversation.id });
+  });
+
   it('removes the person’s own conversation with its messages, and nobody else’s', async () => {
     const turn = await record(gm1, {}, [1]);
     await record(gm1, { conversationId: turn.conversation.id }, [1]);
