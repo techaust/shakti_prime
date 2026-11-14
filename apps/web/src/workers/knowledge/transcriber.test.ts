@@ -16,8 +16,11 @@ import { recordingTranscriber, vaultTranscriber } from './transcriber';
 // answers written in Sarvam's documented shapes (voice.md §6.1; no vendor is called): what each
 // vendor answer becomes for the index job, and what the spend counts. Synthetic audio and text.
 
-const config = sarvamConfig({ SARVAM_API_KEY: 'sarvam-test-key' });
-if (config === undefined) throw new Error('config expected');
+const config = (() => {
+  const found = sarvamConfig({ SARVAM_API_KEY: 'sarvam-test-key' });
+  if (found === undefined) throw new Error('config expected');
+  return found;
+})();
 
 /** A minute of a steady tone at 8 kHz: three pieces of 25, 25 and 10 seconds. */
 const MINUTE = (() => {
