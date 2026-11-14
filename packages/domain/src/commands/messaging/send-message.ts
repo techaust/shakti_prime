@@ -68,7 +68,7 @@ export const sendWhatsAppMessage = defineCommand({
         )
         .limit(1);
       // A template the platform sends for a purpose is not offered to people.
-      if (!template || template.purpose !== null) {
+      if (template?.purpose !== null) {
         throw new DomainError('not_found', `template ${input.templateName} is not registered`, {
           reason: 'whatsapp_template_missing',
         });
