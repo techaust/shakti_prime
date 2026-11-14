@@ -31,6 +31,7 @@ export { sendWhatsAppMessage } from './commands/messaging/send-message';
 export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
 export {
+  attachWhatsAppMedia,
   claimWhatsAppMessage,
   matchWhatsAppThread,
   queueWhatsAppMessage,
@@ -652,3 +653,31 @@ export {
 } from './queries/knowledge/playbook';
 export type { PlaybookSource } from './queries/knowledge/playbook';
 export { checkZipArchive } from './imports/zip-guard';
+export {
+  listAccountThreads,
+  listWaitingThreads,
+  readSendFacts,
+  readWhatsAppCounts,
+  readWhatsAppThread,
+  threadMessagesSql,
+  waitingThreadsSql,
+  whatsappChannelEntity,
+  whatsappTemplateEntities,
+  type SendFactsRow,
+} from './queries/messaging/whatsapp';
+export { matchKeyword, type WhatsAppKeyword } from './messaging/keywords';
+export { filterOutbound, type OutputFilterReason } from './messaging/output-filter';
+export {
+  decideSend,
+  DEFAULT_SEND_RULES,
+  type SendBudget,
+  type SendDecision,
+  type SendFacts,
+} from './messaging/send-checks';
+export {
+  countConversation,
+  readBudget,
+  readMessagingHealth,
+  recordQuality,
+  tierLimit,
+} from './messaging/budget';

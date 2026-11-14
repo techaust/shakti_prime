@@ -49,7 +49,7 @@ export const files = pgTable(
   (t) => [
     check(
       'files_purpose_check',
-      sql`${t.purpose} in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence')`,
+      sql`${t.purpose} in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence', 'whatsapp_media')`,
     ),
     check(
       'files_status_check',

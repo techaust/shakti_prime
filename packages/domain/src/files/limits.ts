@@ -38,6 +38,7 @@ export const UPLOAD_LIMITS: Readonly<Partial<Record<FilePurpose, UploadLimit>>> 
   print_proof: { contentTypes: ['application/pdf'], maxBytes: 10 * MB },
   knowledge: { contentTypes: VAULT, maxBytes: MAX_UPLOAD_BYTES },
   consent_evidence: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
+  whatsapp_media: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
   import: { contentTypes: SHEETS, maxBytes: IMPORT_LIMITS.maxFileBytes },
 };
 

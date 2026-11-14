@@ -384,7 +384,12 @@ const eventCatalogue = {
   'files.file.uploaded': {
     meaning:
       'An upload landed and waits for its checks; sent again for a file whose checks stalled.',
-    emittedBy: ['files.upload.complete', 'files.file.recheck', 'files.file.continue_check'],
+    emittedBy: [
+      'files.upload.complete',
+      'files.file.recheck',
+      'files.file.continue_check',
+      'messaging.media.attach',
+    ],
     subscribed: true,
     payload: z
       .object({

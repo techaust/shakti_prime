@@ -168,6 +168,8 @@ export const WhatsAppMessageDto = z
     status: WhatsAppMessageStatusSchema.nullable(),
     refusal: MessagingRefusalSchema.nullable(),
     sentBy: IdSchema.nullable(),
+    /** Who queued an outbound message, as the screens name them; null for the customer's own. */
+    sentByName: z.string().max(200).nullable(),
     createdAt: z.iso.datetime(),
     statusAt: z.iso.datetime().nullable(),
   })
@@ -189,3 +191,94 @@ export const WhatsAppTemplateDto = z
   })
   .strict();
 export type WhatsAppTemplateDto = z.infer<typeof WhatsAppTemplateDto>;
+
+// --- Reads ----------------------------------------------------------------------------------------
+
+const ListLimit = z.number().int().min(1).max(50);
+
+/**
+ * `/messages`: the chats waiting for a reply that the caller may answer, in the request's companies
+ * (or one), newest customer message first, keyset on `(last_inbound_at, id)`.
+ */
+export const ListWaitingThreadsInput = z
+  .object({
+    entityId: EntityIdSchema.optional(),
+    cursor: z.string().max(300).optional(),
+    limit: ListLimit.default(25),
+  })
+  .strict();
+export type ListWaitingThreadsInput = z.input<typeof ListWaitingThreadsInput>;
+
+/** A chat on `/messages`: the thread, its customer's name when one is matched and readable. */
+export const WaitingThreadDto = WhatsAppThreadDto.extend({
+  customerName: z.string().max(200).nullable(),
+}).strict();
+export type WaitingThreadDto = z.infer<typeof WaitingThreadDto>;
+
+export const WaitingThreadPageDto = z
+  .object({ items: z.array(WaitingThreadDto), nextCursor: z.string().nullable() })
+  .strict();
+export type WaitingThreadPageDto = z.infer<typeof WaitingThreadPageDto>;
+
+/** A customer's chats in one company (Account 360's WhatsApp tab, the Converting workspace). */
+export const ListAccountThreadsInput = z
+  .object({ entityId: EntityIdSchema, accountId: IdSchema })
+  .strict();
+export type ListAccountThreadsInput = z.infer<typeof ListAccountThreadsInput>;
+
+/** One chat with a page of its messages, newest first, keyset on `(created_at, id)`. */
+export const ReadThreadInput = z
+  .object({
+    entityId: EntityIdSchema,
+    threadId: IdSchema,
+    cursor: z.string().max(300).optional(),
+    limit: ListLimit.default(30),
+  })
+  .strict();
+export type ReadThreadInput = z.input<typeof ReadThreadInput>;
+
+/** A customer of the company holding an unmatched chat's number, for staff to match it. */
+export const ThreadHolderDto = z
+  .object({ accountId: IdSchema, name: z.string().max(200) })
+  .strict();
+export type ThreadHolderDto = z.infer<typeof ThreadHolderDto>;
+
+export const ThreadViewDto = z
+  .object({
+    thread: WaitingThreadDto,
+    messages: z.array(WhatsAppMessageDto),
+    nextCursor: z.string().nullable(),
+    /** For a chat matched to no customer: the company's customers holding the number. */
+    holders: z.array(ThreadHolderDto),
+    /** The approved templates of the company that people may send. */
+    templates: z.array(WhatsAppTemplateDto),
+    /** Whether the caller may send on this chat (`messaging.send` over it). */
+    canSend: z.boolean(),
+  })
+  .strict();
+export type ThreadViewDto = z.infer<typeof ThreadViewDto>;
+
+/** Integration Health's WhatsApp section: each number, the portfolio's budget, refusals by reason. */
+export const WhatsAppHealthDto = z
+  .object({
+    numbers: z.array(
+      z
+        .object({
+          entityId: EntityIdSchema,
+          number: z.string().max(20),
+          /** Meta's last quality event for the number (`FLAGGED`, `UPGRADE`, …) and when. */
+          quality: z.string().max(40).nullable(),
+          qualityAt: z.iso.datetime().nullable(),
+        })
+        .strict(),
+    ),
+    limit: z.number().int().min(0),
+    limitReported: z.boolean(),
+    used: z.number().int().min(0),
+    refusals: z.array(
+      z.object({ refusal: MessagingRefusalSchema, count: z.number().int().min(0) }).strict(),
+    ),
+    failed: z.number().int().min(0),
+  })
+  .strict();
+export type WhatsAppHealthDto = z.infer<typeof WhatsAppHealthDto>;

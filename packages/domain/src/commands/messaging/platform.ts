@@ -1,4 +1,5 @@
 import {
+  AttachWhatsAppMediaInput,
   ClaimWhatsAppMessageInput,
   DomainError,
   EntityIdSchema,
@@ -12,6 +13,7 @@ import {
   RecordWhatsAppStatusInput,
   RecordWhatsAppTemplateStatusInput,
   WhatsAppHandOffRecorded,
+  WhatsAppMediaAttached,
   WhatsAppHandoffReasonSchema,
   WhatsAppMessageClaimed,
   WhatsAppMessageQueued,
@@ -27,6 +29,7 @@ import {
 import { schema } from '@shakti/db';
 import { and, eq, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { uploadKey } from '../../files/limits';
 import { requireEntity } from '../crm/opportunity-shared';
 import { isoOf, maskMessageText, threadOptedOut } from './shared';
 
@@ -471,5 +474,76 @@ export const recordWhatsAppSend = defineCommand({
       status: WhatsAppMessageStatusSchema.parse(row.status),
       changed: row.changed,
     };
+  },
+});
+
+/**
+ * `messaging.media.attach`: a file a customer sent on WhatsApp, which the handler downloaded from
+ * Meta with the system key and stored under its purpose's key, is recorded as a `whatsapp_media`
+ * file waiting for its checks (`scanning`; `files.file.uploaded` starts them: malware scan,
+ * re-encoding, masking) and attached to the inbound message it came on through
+ * `app.whatsapp_attach_media()`, which takes only a file of the message's company that no other
+ * message holds. A delivery that runs again finds the file it recorded and attaches nothing twice.
+ * Needs `files.process` beside `messaging.process`, as the file checks' worker holds both.
+ */
+export const attachWhatsAppMedia = defineCommand({
+  name: 'messaging.media.attach',
+  permission: 'messaging.process',
+  minScope: 'entity',
+  alsoRequires: [{ permission: 'files.process', minScope: 'entity' }],
+  input: AttachWhatsAppMediaInput,
+  output: WhatsAppMediaAttached,
+  auditFields: [],
+  auditWhen: 'changed',
+  unmaskedFields: [
+    // The stored file's SHA-256 in hexadecimal, as the store holds it.
+    'sha256',
+  ],
+  async handler(ctx, input) {
+    requireEntity(ctx, input.entityId);
+    if (input.key !== uploadKey(input.entityId, 'whatsapp_media', input.fileId, input.contentType)) {
+      throw new DomainError('validation_failed', 'a WhatsApp file is stored under its own key', {
+        reason: 'file_upload_mismatch',
+      });
+    }
+    const f = schema.files;
+    const [existing] = await ctx.tx.select().from(f).where(eq(f.id, input.fileId)).limit(1);
+    if (existing === undefined) {
+      await ctx.tx.insert(f).values({
+        id: input.fileId,
+        entityId: input.entityId,
+        purpose: 'whatsapp_media',
+        bucket: input.bucket,
+        key: input.key,
+        name: input.key.slice(input.key.lastIndexOf('/') + 1),
+        contentType: input.contentType,
+        size: input.size,
+        sha256: input.sha256,
+        status: 'scanning',
+        createdBy: ctx.principal.id,
+      });
+    } else if (
+      existing.entityId !== input.entityId ||
+      existing.purpose !== 'whatsapp_media' ||
+      existing.key !== input.key
+    ) {
+      throw new DomainError('conflict', `file ${input.fileId} is another file`, {
+        reason: 'file_upload_mismatch',
+      });
+    }
+    const rows = (await ctx.tx.execute(
+      sql`select app.whatsapp_attach_media(${input.messageId}::uuid, ${input.fileId}::uuid) as attached`,
+    )) as unknown as { attached: boolean }[];
+    const attached = rows[0]?.attached === true;
+    if (existing === undefined) {
+      ctx.emit({
+        type: 'files.file.uploaded',
+        entityId: input.entityId,
+        aggregateType: 'file',
+        aggregateId: input.fileId,
+        payload: { purpose: 'whatsapp_media' },
+      });
+    }
+    return { messageId: input.messageId, fileId: input.fileId, attached };
   },
 });

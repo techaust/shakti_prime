@@ -1191,6 +1191,20 @@
       "when": 1794643239300,
       "tag": "0169_whatsapp_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1794646282263,
+      "tag": "0170_whatsapp_media_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 171,
+      "version": "7",
+      "when": 1794646288995,
+      "tag": "0171_whatsapp_handler",
+      "breakpoints": true
     }
   ]
 }

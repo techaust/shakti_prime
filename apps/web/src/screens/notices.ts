@@ -4,6 +4,7 @@
 import type { NoticeType } from '@shakti/contracts';
 import type { Route } from 'next';
 import { customerHref } from './customers';
+import { messagesHref } from './messaging/links';
 import { orderHref } from './orders';
 import { quoteHref } from './quotes';
 
@@ -21,7 +22,8 @@ export interface NoticeLinkFacts {
  * The screen the person acts on: their calling queue for a call that fell due (due calls come
  * first there), the quote for one about to lapse, their Agent Inbox for an enquiry passed to them
  * (where its interest and note are, and Done), the order for one held for credit (where the
- * Executive releases it), and the customer's Account 360, in the notice's
+ * Executive releases it), the chat for a WhatsApp customer waiting for a reply, and the customer's
+ * Account 360, in the notice's
  * company, for a lead given to them, a possible duplicate or a late first call.
  */
 export function noticeHref(notice: NoticeLinkFacts): Route {
@@ -32,6 +34,8 @@ export function noticeHref(notice: NoticeLinkFacts): Route {
       return '/inbox';
     case 'order_credit_held':
       return orderHref(notice.entityId, notice.subjectId);
+    case 'whatsapp_reply_waiting':
+      return messagesHref(notice.entityId, notice.subjectId);
     case 'quote_expiring':
       return notice.quoteId === null ? '/quotes' : quoteHref(notice.entityId, notice.quoteId);
     default:

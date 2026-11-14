@@ -495,8 +495,12 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.vault_upload_readable(uuid)',
       // Integration Health's webhook counts and failed rows (P5).
       'app.webhook_health(integer)',
+      // The company of a WhatsApp delivery, and the companies of a template, found before the
+      // handler acts in one company's request (W1).
+      'app.whatsapp_channel_entity(text,text)',
       // What the messaging worker checks before a send, read before it takes the message (W1).
       'app.whatsapp_send_facts(uuid)',
+      'app.whatsapp_template_entities(text,text)',
       // Whether a thread's number opted out, for the thread and the composer (W1).
       'app.whatsapp_thread_opted_out(uuid)',
     ]);

@@ -304,3 +304,27 @@ export const WhatsAppSendRecorded = z
   })
   .strict();
 export type WhatsAppSendRecorded = z.infer<typeof WhatsAppSendRecorded>;
+
+/**
+ * `messaging.media.attach`: the platform stored a file a customer sent (downloaded from Meta with
+ * the system key) and attaches it to the inbound message it came on, as a `whatsapp_media` file
+ * waiting for its checks (malware scan, re-encoding, masking) before anyone can open it.
+ */
+export const AttachWhatsAppMediaInput = z
+  .object({
+    entityId: EntityIdSchema,
+    messageId: IdSchema,
+    fileId: IdSchema,
+    bucket: z.string().min(1).max(63),
+    key: z.string().min(1).max(300),
+    contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
+    size: z.number().int().min(1),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .strict();
+export type AttachWhatsAppMediaInput = z.input<typeof AttachWhatsAppMediaInput>;
+
+export const WhatsAppMediaAttached = z
+  .object({ messageId: IdSchema, fileId: IdSchema, attached: z.boolean() })
+  .strict();
+export type WhatsAppMediaAttached = z.infer<typeof WhatsAppMediaAttached>;

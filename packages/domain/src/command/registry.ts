@@ -101,6 +101,7 @@ import { sendWhatsAppMessage } from '../commands/messaging/send-message';
 import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messaging/threads';
 import { registerWhatsAppTemplate } from '../commands/messaging/templates';
 import {
+  attachWhatsAppMedia,
   claimWhatsAppMessage,
   matchWhatsAppThread,
   queueWhatsAppMessage,
@@ -170,6 +171,7 @@ export const commands = Object.freeze({
   [queueWhatsAppMessage.name]: queueWhatsAppMessage,
   [claimWhatsAppMessage.name]: claimWhatsAppMessage,
   [recordWhatsAppSend.name]: recordWhatsAppSend,
+  [attachWhatsAppMedia.name]: attachWhatsAppMedia,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
   [assignOpportunity.name]: assignOpportunity,

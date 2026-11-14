@@ -107,6 +107,7 @@ const ACTIONS = {
   'messaging.message.queue': 'whatsappQueue',
   'messaging.message.claim': 'whatsappClaim',
   'messaging.message.record_send': 'whatsappSendRecorded',
+  'messaging.media.attach': 'whatsappMediaAttach',
   'pricing.price.set': 'priceSet',
   'pricing.list.create': 'priceListCreate',
   'pricing.list.approve': 'priceListApprove',

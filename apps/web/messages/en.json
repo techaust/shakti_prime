@@ -1718,7 +1718,8 @@
       "whatsappPlatformHandOff": "WhatsApp chat passed to the team",
       "whatsappQueue": "Automatic WhatsApp message prepared",
       "whatsappClaim": "WhatsApp message taken up for sending",
-      "whatsappSendRecorded": "WhatsApp sending result recorded"
+      "whatsappSendRecorded": "WhatsApp sending result recorded",
+      "whatsappMediaAttach": "File from a WhatsApp chat kept for checking"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2964,7 +2965,8 @@
       "letterhead": "Letterhead",
       "knowledge": "Knowledge Vault document",
       "consent_evidence": "Proof of consent",
-      "print_proof": "Proof page"
+      "print_proof": "Proof page",
+      "whatsapp_media": "File sent on WhatsApp"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -4442,7 +4444,8 @@
       "quote_expiring": "A quote on your lead lapses within a day",
       "first_call_late": "A new lead was not called in time",
       "enquiry_routed": "An enquiry from your customer was passed to you",
-      "order_credit_held": "A dealer order is held for credit"
+      "order_credit_held": "A dealer order is held for credit",
+      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply"
     },
     "settings": {
       "title": "Notification settings",
@@ -4502,6 +4505,10 @@
     "order_credit_held": {
       "title": "A dealer order is held for credit",
       "body": "The order waits until its credit is cleared or someone who can release it does so. Tap to open it."
+    },
+    "whatsapp_reply_waiting": {
+      "title": "A customer is waiting on WhatsApp",
+      "body": "A customer has waited 10 minutes for a reply. Tap to open the chat."
     }
   },
   "orders": {

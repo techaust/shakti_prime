@@ -30,6 +30,8 @@ export const FILE_PURPOSES = [
   'knowledge',
   // The evidence of a customer's consent (a signed form, a photo of it).
   'consent_evidence',
+  // A photo or PDF a customer sent on WhatsApp, read with its thread (docs/03-roadmap-appendix/phase2.md §6.1).
+  'whatsapp_media',
 ] as const;
 export const FilePurposeSchema = z.enum(FILE_PURPOSES);
 export type FilePurpose = z.infer<typeof FilePurposeSchema>;

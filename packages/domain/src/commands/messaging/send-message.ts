@@ -137,6 +137,7 @@ export const sendWhatsAppMessage = defineCommand({
       status: 'queued' as const,
       refusal: null,
       sentBy: ctx.principal.id,
+      sentByName: null,
       createdAt: ctx.now.toISOString(),
       statusAt: null,
     };
