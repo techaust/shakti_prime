@@ -174,3 +174,68 @@ After the lead's decision (a): **WAV only**. MP3, M4A and OGG are refused at upl
 - **Sarvam's formats and size limits** are still unconfirmed against its live pages (part 2 of V1). The adapter sends 25-second 16-bit WAV pieces.
 - **The migration split.** The check split is a third migration (0170, re-added `NOT VALID`) and was not folded into 0168. 0168 had already been applied to the slot database, and the migrator (AUDIT M22) refuses an applied file that was edited. The lead may fold 0170 into 0168 at renumbering on a fresh database.
 - **The documents for steps 4 to 6 are not written yet:** DATABASE, the knowledge document, "Built (K3)" with the WAV-only known limit and the size note, and API/SECURITY. The `.env.example` comment for `SARVAM_API_KEY` also still names only the voice spike.
+
+### 14-11-2026, lead's cloud VM (slot 4): final, steps 4 to 6
+The lead accepted the early check and its decisions. Skills loaded: `add-command`.
+
+**Built (steps 4 to 6):**
+- **Screen:** the vault file page, `/knowledge/files/[knowledgeFileId]`.
+  - Files: `apps/web/src/app/(bos)/knowledge/files/[knowledgeFileId]/page.tsx` and `apps/web/src/components/knowledge/knowledge-file-screen.tsx`. Each title in the vault list now links to its file's page.
+  - The page shows the company, who can find the file, its kind, and its status with the reason it could not be read. A spend cap that is hit shows "Reading files has reached its limit for today…".
+  - A recording shows its player beside the transcript. The player's address comes from `openFile()`, the file checks' signed address.
+  - A holder of `knowledge.vault.write` corrects the transcript and saves it when the file is indexed, failed or unavailable. Anyone else reads it only.
+  - While the file is waiting, the page is read again every 4 seconds and says the recording is being turned into text.
+- **Supporting changes for the screen:**
+  - the query `getKnowledgeFile()`, under the file's row security;
+  - the DTO `KnowledgeFileDetailDto`;
+  - the actions `getKnowledgeFile` and `recheckKnowledgeFile` (the quiet one, for the polling);
+  - copy under `knowledge.file.*` in `en.json`;
+  - `media-src 'self' <bucket>` in the page's content security policy (`csp.ts`, with a test), so a hosted page can play from the bucket's signed address.
+- **JavaScript budget:** `/knowledge/files/[knowledgeFileId]` measured 192.4 kB; the budget is set at 202 kB in `apps/web/js-budget.json`. This file is a checks file, so the pull request needs the owner's `checks-ok` label.
+- **Journeys:** `apps/web/e2e/knowledge-audio.spec.ts`, 4 tests in each of the 3 projects, with axe on every screen.
+  - The Executive uploads a WAV. An MP3 is refused first with the sentence asking for a WAV. With no speech key the file shows "Waiting for search". The Executive opens the page, types a transcript (an empty one is refused), saves it, sees the phone number covered and the file "Ready to search", and finds the passage by search.
+  - The Executive's view of a seeded management recording, with the snapshot `knowledge-recording` (the player masked).
+  - A tele-caller reads a staff recording's transcript with no box and no Save.
+  - The snapshot company's tele-caller sees the management recording neither in the list nor at its address.
+  - The seed (`ensureRecording()` in `e2e/setup/seed.ts`) makes the two recordings once, with a stand-in transcriber, and hands their ids to the specs (`SeededUsers.recordings`).
+- **Documents:**
+  - SECURITY: §3.2 (recordings), the `knowledge.index` row, and §5 (the transcript masked; the stored WAV and the pieces sent to the vendor not masked; no Claude model receives audio; the owner approves Sarvam's terms before `SARVAM_API_KEY` is set on any environment).
+  - DATABASE: §4.1 (the two definers), §4.4 (the correction rule) and §6.9 (`source_type` `audio`, `transcript`, `transcript_corrected_at`).
+  - API: the index worker's row.
+  - `docs/04-architecture-appendix/knowledge.md`: "Recordings (K3)".
+  - phase2.md "Built (K3)": the WAV-only known limit, and the 25 MB cap that holds about 13 minutes of 16 kHz mono.
+  - The `.env.example` comment for `SARVAM_API_KEY`.
+  - `db:docs` and `machines:docs` regenerated.
+
+**Tests added since the early check:**
+- `knowledge-audio.test.ts` (+1, now 10): the page's query by sensitivity, company and kind.
+- `reader-parity` covers `getKnowledgeFile`.
+- `csp.test.ts` (+2 expectations).
+- The 12 journey runs above.
+
+**Checks:**
+- `pnpm test:security` on 54334: db 49 files and 1,338 tests passed; domain 84 files and 1,129 tests passed; web 28 files and 357 tests passed.
+- Web unit tests: 139 files, 1,065 passed and 1 skipped. The other workspaces' unit tests are as at the early check.
+- `pnpm --filter web js-budget`: every page within its budget, the new page 192.4 of 202 kB.
+- `pnpm build`: passed.
+- `pnpm copy-lint`: clean.
+- The final whole-repository `pnpm lint`, through the lock: passed, exit 0.
+- Journeys (`e2e/knowledge-audio.spec.ts e2e/knowledge.spec.ts`, after `e2e:seed`, through the lock): 29 passed, 3 failed. The 3 failures are the existing `knowledge` screenshot in each project:
+  - The VM ran the journeys outside the Playwright image, so every glyph's anti-aliasing differs (3,322 pixels, a ratio of 0.01).
+  - The list's titles are now links in the accent colour.
+  - So the `knowledge` baselines need remaking in the image, along with the new `knowledge-recording` ones. Baselines written in the VM were deleted and never committed.
+- `EXPLAIN (ANALYZE)`: no new list or search. The page reads one file by primary key.
+
+**Decisions the brief did not settle:**
+- **Page address and scope:** the page lives at `/knowledge/files/[id]`, beside `/knowledge/playbook`. Every vault file has one, and only a recording shows the player and the transcript.
+- **The seeded recording files are opened by id.** The security suite adds vault files to company 1 on every run, which pushes the seeded files off the list's first page. The journeys' first run, on a database aged by two suite runs, failed for exactly that reason.
+
+**For the lead:**
+- **Integration:**
+  - The SECURITY and DATABASE lines cite this branch's migration numbers (0168, 0169); they move with the renumbering and the folding of 0170 into 0168.
+  - `js-budget.json` needs `checks-ok`.
+  - Remake the `knowledge` and `knowledge-recording` baselines in the image.
+  - `check-doc-links.py` reports this run file as an orphan until the runs index links it. Its other six findings are older links to `.claude/settings.local.json`, which this slice did not touch.
+- **Your message named SECURITY §7, which is Telecom compliance.** I wrote the recording rules into §5 (Data protection, the "Not masked" item and a "Vault recordings' transcripts" item) and §3.2 (the vault rules).
+- **A slip, fixed:** a stray `git checkout` detached the worktree while a build ran. I went back to the branch at once and rebuilt with `--force`. Nothing was lost; the branch was clean and pushed.
+- **Still open:** the owner's yes on Sarvam's data terms before any key is set, and the decoder package for MP3, M4A and OGG, also for the owner.
