@@ -209,7 +209,7 @@ export function AskScreen({
                   )}
                 >
                   <span className="line-clamp-2 text-sm font-medium break-words">{c.title}</span>
-                  <span className="text-text-subtle text-xs">
+                  <span className="text-text-muted text-xs">
                     <time dateTime={c.updatedAt}>{formatDateTime(c.updatedAt)}</time>
                   </span>
                 </button>
@@ -222,7 +222,7 @@ export function AskScreen({
             {t('conversations.loadMore')}
           </Button>
         )}
-        <p className="text-text-subtle text-xs">{t('conversations.kept')}</p>
+        <p className="text-text-muted text-xs">{t('conversations.kept')}</p>
       </nav>
 
       <section aria-labelledby="ask-open" className="flex min-w-0 flex-col gap-6">
@@ -382,7 +382,7 @@ function Turn({
                 const words = source?.label ?? t('answer.sourceGone');
                 return (
                   <li key={id} className="flex flex-wrap items-baseline gap-2 text-sm">
-                    <span className="text-text-subtle tabular-nums">{numbers.get(id)}.</span>
+                    <span className="text-text-muted tabular-nums">{numbers.get(id)}.</span>
                     {source === undefined ? null : (
                       <span className="text-text-muted">{t(`kind.${source.kind}`)}</span>
                     )}
