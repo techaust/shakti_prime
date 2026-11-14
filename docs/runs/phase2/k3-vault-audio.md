@@ -60,3 +60,117 @@ Steps 1 and 3 and the WAV path of step 2 do not depend on this choice. I can bui
 - A 30-minute 16 kHz mono 16-bit WAV is about 57.6 MB, so under a 25 MB cap a WAV can hold only about 13 minutes at 16 kHz, or about 26 minutes at 8 kHz. Under (a), the 30-minute limit is effectively the size limit.
 
 Checks run: none (no code changed). Skills loaded: none yet (`add-command` is loaded when step 3 starts).
+
+### 14-11-2026, lead's cloud VM (slot 4): early check, steps 1 to 3
+After the lead's decision (a): **WAV only**. MP3, M4A and OGG are refused at upload with a sentence asking for a WAV. A decoder package is a follow-up that needs the owner's yes. Skills loaded: `add-command`.
+
+**Built:**
+- **Uploads** (`packages/contracts/src/api/files.ts`, `packages/domain/src/files/limits.ts`):
+  - `audio/wav` is an upload type, for the `knowledge` purpose only.
+  - `MAX_AUDIO_UPLOAD_BYTES` is 25 MB. Every other vault file keeps 15 MB (`UploadLimit.maxBytesOf`, `uploadMaxBytes()`). The contract checks size by type (`maxUploadBytes()`).
+  - `MAX_AUDIO_MS` is 30 minutes. A 16-bit WAV is uncompressed, so the 25 MB cap is what really limits length: about 13 minutes of 16 kHz mono, or 26 minutes at 8 kHz. The document's doc comment says so.
+- **File checks** (`apps/web/src/workers/files/audio-check.ts`, called from `handle-file-uploaded.ts`):
+  - A vault WAV is read with V1's `readWav()`. Anything else is refused as `file_unreadable`, including a non-PCM WAV or an MP3 renamed to `.wav`.
+  - A recording over 30 minutes is refused as `file_audio_too_long`.
+  - The file is written afresh from its samples (`audio_checked`), so a `LIST` chunk naming the speaker or device is not kept.
+- **Schema** (migrations 0168, 0169 and 0170 on this branch; the lead renumbers them):
+  - `knowledge_files` gains `source_type` `audio` (widened `NOT VALID`), `transcript` and `transcript_corrected_at`.
+  - Checks:
+    - `knowledge_files_transcript_check`: 1 to 100,000 characters, and no character from the Devanagari blocks, written as regex escapes so no migration holds a Devanagari character.
+    - `knowledge_files_transcript_source_check`: only `audio` has a transcript. It is paired in `enum-sync`.
+    - `knowledge_files_transcript_corrected_check`: a correction needs a transcript.
+  - Row security and functions:
+    - The insert policy maps `audio/wav` to `audio`, with no transcript at insert.
+    - The guard lets a request change the transcript only as a correction: an `audio` file that is indexed, failed or unavailable, sent back to `waiting`, with the time stamped from the database clock.
+    - The column grant is on `transcript` and `transcript_corrected_at`.
+    - Two `knowledge.index` definers, `app.knowledge_file_transcript()` and `app.record_knowledge_transcript()`. The second keeps the first transcript of a waiting recording and answers false afterwards.
+  - The transcript is a column of the vault file, so it is read by the file's company and sensitivity (`knowledge_files_read`), the same as a document.
+- **Commands** (`packages/domain/src/commands/knowledge/transcript.ts`; registry; audit labels):
+  - `knowledge.file.record_transcript` (the index job's, `knowledge.index`).
+  - `knowledge.transcript.correct` (`knowledge.vault.write`, `peopleOnly`):
+    - Refuses a non-Roman transcript (`knowledge_transcript_not_roman`), a file that is not a recording (`knowledge_transcript_not_audio`), a file still being read (`knowledge_still_reading`), an archived file (the machine) and an upload that is not ready.
+    - Masks the transcript with `maskWholeText()`, sends the file back to `waiting` and emits `knowledge.file.index_requested`.
+    - The audit rows hold character counts, never the words.
+  - A new machine transition `correct` (indexed/failed/unavailable to waiting). The event catalogue names the correction among the emitters. The server action is `correctKnowledgeTranscript`.
+- **Index job** (`packages/domain/src/knowledge/index-file.ts`):
+  - A recording's kept transcript (the job's own or a person's correction) is its text. Without one, the job:
+    1. checks the length again against `MAX_AUDIO_MS`;
+    2. transcribes through the `RecordingTranscriber` dependency, under `provider.metered()`;
+    3. refuses a non-Roman answer;
+    4. masks the transcript, keeps it through `knowledge.file.record_transcript`, and then cuts and embeds it.
+  - A retry reads the kept transcript and never pays twice.
+  - With no `SARVAM_API_KEY` and no transcript, the file is recorded `unavailable` (`knowledge_service_missing`).
+- **Spend** (`AGENT_DEFAULTS.knowledge`, `packages/domain/src/ai/provider.ts`):
+  - Transcription is counted under `knowledge:index`, inside its ₹500 a day.
+  - It is also held to its own cap, `transcribeDailyCapPaise`: ₹300 a day, which is ten hours at Sarvam's published ₹30 an hour. The cap is a "part" (`part: { name: 'transcribe' }`), counted beside the caps the way a person's share is.
+  - `metered()` reserves the most the recording can cost and settles at the audio actually sent, even when the call fails, because the vendor bills what it heard. A cap that is hit records `knowledge_spend_cap_reached`, which the list already shows as a plain sentence.
+- **Web transcriber** (`apps/web/src/workers/knowledge/transcriber.ts`, wired in `index-deps.ts`): Sarvam's batch speech-to-text behind `transcribeRecording()`, priced from `SARVAM_PRICE`, with `hi-IN` and four pieces at a time. It maps failures as follows:
+  - unreadable audio and vendor refusals: `knowledge_unreadable`;
+  - running out of time: `knowledge_timed_out`;
+  - other vendor failures: `integration_unavailable`, so the delivery is tried again.
+- **Upload screen** (step 1 only):
+  - The vault dialog takes a WAV, recognising the browser names for WAV and the `.wav` ending.
+  - Its hint gives both sizes. A document over 15 MB is refused before sending.
+  - A plain sentence asks for a WAV instead of an MP3, M4A or OGG.
+  - New copy in `en.json`: errors, file types, the sanitising line, `knowledge.source.audio`, and the dialog's hint, wrong-type and too-large sentences.
+- **Changes to V1's `apps/web/src/integrations/voice`:**
+  - `transcribeRecording()` takes optional `concurrency`, `signal` and `onPiece`. Its default behaviour is unchanged. Pieces are joined in the recording's order, and a failed piece stops further sending.
+  - `roman-script.ts` now re-exports `isRomanScript`, `hasDevanagari` and `DEVANAGARI` from `@shakti/contracts` (the new `roman-script.ts` there), so the command and the adapter share one test. Its behaviour is unchanged.
+
+**Tests added:**
+- `packages/domain/tests/commands/knowledge-audio.test.ts`, 9 tests on Postgres with a fake transcriber. They cover:
+  - transcription, masking (a synthetic Aadhaar number and a phone number), search and the spend;
+  - idempotency on a retry;
+  - waiting without a key, too long, and the part cap;
+  - Devanagari, empty and refused transcripts;
+  - the workers-only record;
+  - the correction: denied to a reader, wrong company, an Executive-only file, the happy path with audit and event and passages replaced on the re-read, every refusal, and a typed transcript where none was heard.
+- `packages/db/tests/security/knowledge-audio.test.ts`, 14 tests:
+  - the transcript is read by sensitivity per role (seven roles and agents, and company 2);
+  - the guard refuses every change that is not a correction, and refuses readers;
+  - the insert policy;
+  - the checks hold against the table owner;
+  - the definers: once only, a person refused, the wrong company refused, a non-recording refused.
+- Smaller additions:
+  - the refusal sweep (`knowledge.transcript.correct` in the people-only inputs, `knowledge.file.record_transcript` in the platform checks);
+  - `provider.test.ts` (+1, metered spend and the part cap);
+  - `limits.test.ts` (+1);
+  - `field.test.ts` (+1);
+  - `recording.test.ts` (+2: order, concurrency, stopping);
+  - `audio-check.test.ts` (3);
+  - `enum-sync` pairing.
+
+**Checks:**
+- `pnpm test:security` on 54334: db 49 files and 1,338 tests passed; domain 84 files and 1,128 tests passed; web 28 files and 357 tests passed.
+- Unit tests:
+  - contracts: 186 passed;
+  - domain: 2,410, all passing after the catalogue fix;
+  - db: 150 passed;
+  - web: 1,065 passed and 1 skipped.
+- Typecheck of contracts, db, domain and web, and eslint of every folder I touched: clean.
+- `pnpm copy-lint`: clean.
+- `db:docs` and `machines:docs` were regenerated.
+- The whole-repository `pnpm lint` and the journeys have not run yet; they come with steps 4 to 6.
+- `EXPLAIN (ANALYZE)`: no new list or search. The transcript is read by primary key in a definer.
+
+**Decisions the brief did not settle:**
+- **Cap and language:**
+  - The transcription cap is a part of `knowledge:index`'s spend (₹300 a day, flagged for the owner like the others), not a separate spend name.
+  - The language is `hi-IN` (`VAULT_AUDIO_LANGUAGE`), the same as the voice benchmark set.
+  - Transcription uses four pieces at a time so a 25 MB WAV fits inside the index route's time.
+- **Corrections:**
+  - A correction is refused while the file is waiting, so a reading never cuts a transcript that changes under it.
+  - The old passages stay searchable until the re-read replaces them, as with Read again.
+  - A person may type a transcript for a recording the service could not transcribe (for example, no key yet). The job then needs only the embeddings.
+- **Stored transcript:**
+  - It is masked with `maskWholeText()`, the same masking the passages get (identity numbers, phones and emails), so the stored text matches what is cut.
+  - It is refused if it would pass 100,000 characters (`knowledge_too_long`).
+- **Sarvam errors:** 4xx refusals (except 401, 403 and 429) and invalid answers are recorded `knowledge_unreadable`. Timeouts, 5xx, 429 and key errors are left to the queue.
+- **Env list:** `SARVAM_API_KEY` is not added to `turbo.json`. It is read only at runtime, like the webhook secrets, and adding it would be a checks change that needs `checks-ok`.
+
+**Uncertain, or for the lead:**
+- **The recording itself is not masked.** Speech cannot be covered the way a photo can. The stored WAV and the pieces sent to Sarvam carry whatever was said, including any spoken identity number. Only the transcript and passages are masked, and a number spoken as words may escape the masker's digit patterns. No model (Claude) ever receives audio.
+- **Sarvam's data terms and workspace retention** need the owner's confirmation before any key is set (`voice.md` §6.1). The vault starts sending recordings as soon as `SARVAM_API_KEY` exists.
+- **Sarvam's formats and size limits** are still unconfirmed against its live pages (part 2 of V1). The adapter sends 25-second 16-bit WAV pieces.
+- **The migration split.** The check split is a third migration (0170, re-added `NOT VALID`) and was not folded into 0168. 0168 had already been applied to the slot database, and the migrator (AUDIT M22) refuses an applied file that was edited. The lead may fold 0170 into 0168 at renumbering on a fresh database.
+- **The documents for steps 4 to 6 are not written yet:** DATABASE, the knowledge document, "Built (K3)" with the WAV-only known limit and the size note, and API/SECURITY. The `.env.example` comment for `SARVAM_API_KEY` also still names only the voice spike.
