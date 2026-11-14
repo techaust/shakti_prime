@@ -50,10 +50,16 @@ export function filterOutbound(
     for (const match of text.matchAll(LINK)) {
       if (!allowedHost(hostOf(match[0]), rules.linkHosts)) return { ok: false, reason: 'link' };
     }
-    if (findIdentityNumbers(text).length > 0 || /X{4,}[\s-]?X{0,4}[\s-]?\d{4}/.test(text)) {
+    const numbers = findPersonalNumbers(text);
+    // A number written after a `+` is a phone, though its digits may also pass an Aadhaar check.
+    const phones = numbers.filter((n) => n.kind === 'phone');
+    const identity = findIdentityNumbers(text).filter(
+      (span) => !phones.some((p) => p.start <= span.start && p.end >= span.end),
+    );
+    if (identity.length > 0 || /X{4,}[\s-]?X{0,4}[\s-]?\d{4}/.test(text)) {
       return { ok: false, reason: 'identity_number' };
     }
-    for (const found of findPersonalNumbers(text)) {
+    for (const found of numbers) {
       if (found.kind === 'aadhaar' && !found.alsoPhone) return { ok: false, reason: 'identity_number' };
       if (!own.has(lastTen(found.digits))) return { ok: false, reason: 'phone' };
     }
