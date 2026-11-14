@@ -7,6 +7,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  createTestUser,
   PLATFORM_TABLES,
   principalFor,
   whatsappChannel,
@@ -666,5 +667,151 @@ describe('whatsapp_templates', () => {
       { template_id: id, entity_id: 1, previous_status: 'pending' },
     ]);
     expect(await status(workers([1]), 'approved')).toEqual([]);
+  });
+});
+
+describe('the company of a delivery (app.whatsapp_channel_entity)', () => {
+  it('names the company of an active number, by its reference or its number, to the platform only', async () => {
+    const ask = (who: Principal, ref: string | null, number: string | null) =>
+      rows<{ entity_id: number | null }>(
+        who,
+        sql`select app.whatsapp_channel_entity(${ref}, ${number}) as entity_id`,
+      );
+    // With no company in the request at all, as the webhook worker asks.
+    expect((await ask(workers([]), channel1.phoneNumberId, null))[0]?.entity_id).toBe(1);
+    expect((await ask(workers([]), 'no-such-number', null))[0]?.entity_id).toBeNull();
+    const [number] = await asMigrator(
+      (m) => m<{ number_e164: string }[]>`select number_e164 from entity_channels
+                                            where id = ${channel1.channelId}`,
+    );
+    expect((await ask(workers([]), null, number?.number_e164 ?? ''))[0]?.entity_id).toBe(1);
+    expect(await failure(ask(exec1, channel1.phoneNumberId, null))).toMatch(
+      /messaging.process is required/,
+    );
+  });
+});
+
+describe('a customer’s file on WhatsApp (app.whatsapp_attach_media, files_whatsapp_read)', () => {
+  async function mediaMessage(customer: WhatsAppCustomerFixture): Promise<Inbound> {
+    const [row] = await rows<Inbound>(
+      workers([1]),
+      sql`select * from app.whatsapp_record_inbound(${channel1.phoneNumberId}, ${customer.waId},
+            ${`wamid.${newId()}`}, 'media', null, null, now())`,
+    );
+    if (!row) throw new Error('no message');
+    return row;
+  }
+  async function mediaFile(entityId: number, purpose = 'whatsapp_media'): Promise<string> {
+    const id = newId();
+    await asMigrator(
+      (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+        values (${id}, ${entityId}, ${purpose}, 'test', ${`${String(entityId)}/${purpose}/${id}.png`}, 'photo',
+                'image/png', 10, ${'a'.repeat(64)}, 'scanning', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
+    );
+    return id;
+  }
+  const attach = (who: Principal, message: string, file: string) =>
+    rows<{ attached: boolean }>(
+      who,
+      sql`select app.whatsapp_attach_media(${message}::uuid, ${file}::uuid) as attached`,
+    );
+
+  it('attaches a file once, only to the message it came on, and it is read with that chat alone', async () => {
+    const customer = await whatsappCustomer(1);
+    const other = await whatsappCustomer(1);
+    const message = await mediaMessage(customer);
+    const otherMessage = await mediaMessage(other);
+    const file = await mediaFile(1);
+    expect(await failure(attach(exec1, message.message_id, file))).toMatch(
+      /messaging.process is required/,
+    );
+    expect((await attach(workers([1]), message.message_id, file))[0]?.attached).toBe(true);
+    expect((await attach(workers([1]), message.message_id, file))[0]?.attached).toBe(true);
+    // Never on another customer's message, never a file of another purpose or company, never a
+    // second file on a message that has one.
+    expect(await failure(attach(workers([1]), otherMessage.message_id, file))).toMatch(
+      /not this message/,
+    );
+    expect(
+      await failure(attach(workers([1]), otherMessage.message_id, await mediaFile(1, 'import'))),
+    ).toMatch(/not this message/);
+    expect(await failure(attach(workers([1]), otherMessage.message_id, await mediaFile(2)))).toMatch(
+      /not this message/,
+    );
+    expect((await attach(workers([1]), message.message_id, await mediaFile(1)))[0]?.attached).toBe(
+      false,
+    );
+    const read = sql`select id from files where id = ${file}`;
+    expect(await rows(customer.owner, read)).toHaveLength(1);
+    expect(await rows(other.owner, read)).toHaveLength(0);
+    expect(await rows(gm1, read)).toHaveLength(1);
+    expect(await rows(await createTestPrincipal('general_manager', [2]), read)).toHaveLength(0);
+  });
+});
+
+describe('the customer merge moves the merged customer’s chats (app.merge_customers)', () => {
+  it('moves every chat to the kept customer, those on a lead with it, and back when undone', async () => {
+    const kept = await whatsappCustomer(1);
+    const merged = await whatsappCustomer(1);
+    const onLead = (await openThread(merged)).thread_id;
+    const noLead = newId();
+    await asMigrator(
+      (m) => m`insert into whatsapp_threads (id, entity_id, channel_id, wa_id, account_id, created_by)
+        values (${noLead}, 1, ${channel1.channelId}, ${`91${String(6_000_000_000 + Math.floor(Math.random() * 999_999_999))}`},
+                ${merged.accountId}, ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
+    );
+    const mergeId = newId();
+    const [result] = await rows<{ result: { status: string; moved: { whatsappThreads: string[] } } }>(
+      gm1,
+      sql`select app.merge_customers(${mergeId}::uuid, ${kept.accountId}::uuid, ${merged.accountId}::uuid,
+                                     1::smallint, null::uuid) as result`,
+    );
+    expect(result?.result.status).toBe('merged');
+    expect([...(result?.result.moved.whatsappThreads ?? [])].sort()).toEqual([onLead, noLead].sort());
+    const accountsOf = () =>
+      asMigrator(
+        (m) => m<{ id: string; account_id: string }[]>`
+          select id, account_id from whatsapp_threads where id in (${onLead}, ${noLead})`,
+      );
+    expect((await accountsOf()).map((t) => t.account_id)).toEqual([kept.accountId, kept.accountId]);
+    const [undone] = await rows<{ result: { status: string } }>(
+      gm1,
+      sql`select app.unmerge_customers(${mergeId}::uuid) as result`,
+    );
+    expect(undone?.result.status).toBe('undone');
+    expect((await accountsOf()).map((t) => t.account_id)).toEqual([
+      merged.accountId,
+      merged.accountId,
+    ]);
+  });
+});
+
+describe('the notice of a chat waiting for a reply (app.notice_whatsapp_waiting)', () => {
+  it('names a chat handed to people that waited, once per customer message, to the notify worker only', async () => {
+    const customer = await whatsappCustomer(1);
+    const thread = await openThread(customer);
+    const person = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    await asMigrator(
+      (m) => m`update whatsapp_threads
+                  set assignee_id = ${person.id}, handled_by = 'people', handoff_reason = 'keyword',
+                      handed_off_at = now(), last_inbound_at = now() - interval '15 minutes'
+                where id = ${thread.thread_id}`,
+    );
+    const notifier: Principal = workers([1]);
+    const waiting = (who: Principal, before: string) =>
+      rows<{ thread_id: string; user_id: string }>(
+        who,
+        sql`select thread_id, user_id from app.notice_whatsapp_waiting(1::smallint, ${before}::timestamptz, 100)`,
+      );
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+    expect(
+      (await waiting(notifier, tenMinutesAgo)).filter((r) => r.thread_id === thread.thread_id),
+    ).toEqual([{ thread_id: thread.thread_id, user_id: person.id }]);
+    // Not yet waited long enough, or answered: nothing.
+    const twentyMinutesAgo = new Date(Date.now() - 20 * 60_000).toISOString();
+    expect(
+      (await waiting(notifier, twentyMinutesAgo)).filter((r) => r.thread_id === thread.thread_id),
+    ).toEqual([]);
+    expect(await failure(waiting(exec1, tenMinutesAgo))).toMatch(/notifications.send is required/);
   });
 });

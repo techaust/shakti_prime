@@ -124,8 +124,13 @@ describe('the webhook routes on real Postgres', () => {
       const rows = (await rowsAfter(mark)).filter((r) => r.provider === d.provider);
       expect(rows, d.provider).toHaveLength(1);
       const row = await settled(rows[0]?.id ?? '');
-      // No slice has registered a handler yet, so the row is processed with its code.
-      expect(row).toMatchObject({ processed: true, attempts: 1, error_code: 'no_handler' });
+      // A provider no slice handles yet is processed with `no_handler`; the WhatsApp handler (W1)
+      // finds no company for the signed fixture's number and records nothing, with its code.
+      expect(row).toMatchObject({
+        processed: true,
+        attempts: 1,
+        error_code: d.provider === 'meta_whatsapp' ? 'whatsapp_number_unknown' : 'no_handler',
+      });
       // Processing it again changes nothing.
       expect(await processWebhook(row.id, { requestId: newId() })).toEqual({
         inboxId: row.id,
