@@ -43,6 +43,11 @@ export const callerProfiles = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /**
+     * The person's own phone that click-to-dial rings first (docs/03-roadmap-appendix/phase2.md
+     * §6.3), set by the person alone on their profile; null until they set it.
+     */
+    dialPhoneE164: text('dial_phone_e164'),
     updatedBy: uuid('updated_by').references(() => principals.id),
     ...timestamps,
   },
@@ -60,6 +65,10 @@ export const callerProfiles = pgTable(
     check(
       'caller_profiles_segments_check',
       sql`${t.segments} <@ array['farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale']::text[]`,
+    ),
+    check(
+      'caller_profiles_dial_phone_check',
+      sql`${t.dialPhoneE164} is null or ${t.dialPhoneE164} ~ '^\\+[1-9]\\d{6,14}$'`,
     ),
     // The handover reads a company's present converters.
     index('caller_profiles_converters_idx')

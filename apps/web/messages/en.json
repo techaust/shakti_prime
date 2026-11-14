@@ -3399,6 +3399,7 @@
       "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
       "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance",
       "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list",
+      "calls_process": "Record how a placed call went and keep its recording",
       "webhooks_process": "Handle the messages other systems send in"
     },
     "empty": "There are no roles to show.",

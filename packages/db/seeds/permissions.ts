@@ -86,6 +86,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.playbook.check': 'Check new Playbook guidance against the approved guidance',
   'crm.dnd.record': 'Record whether a customer number is on the do-not-disturb list',
   'webhooks.process': 'Handle the messages other systems send in',
+  'calls.process': 'Record how a placed call went and keep its recording',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

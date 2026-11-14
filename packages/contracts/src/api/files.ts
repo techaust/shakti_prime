@@ -30,6 +30,9 @@ export const FILE_PURPOSES = [
   'knowledge',
   // The evidence of a customer's consent (a signed form, a photo of it).
   'consent_evidence',
+  // A provider call's recording, copied from the provider by the platform (T3); played only through
+  // `calls.recording.play`, never opened as a file.
+  'call_recording',
 ] as const;
 export const FilePurposeSchema = z.enum(FILE_PURPOSES);
 export type FilePurpose = z.infer<typeof FilePurposeSchema>;

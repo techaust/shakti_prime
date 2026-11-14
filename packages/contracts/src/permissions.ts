@@ -120,6 +120,10 @@ export const PERMISSION_KEYS = [
   // platform's worker principal, which claims, marks and purges `webhook_inbox` rows through narrow
   // definers, nothing more.
   'webhooks.process',
+  // The provider's call status, recording copy and recording removal (docs/03-roadmap-appendix/
+  // phase2.md §6.3): held only by the platform's worker principal, which writes `provider_calls`
+  // and their recordings through narrow definers, nothing more.
+  'calls.process',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -193,6 +197,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'knowledge.playbook.check',
   'crm.dnd.record',
   'webhooks.process',
+  'calls.process',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -338,6 +343,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'knowledge.playbook.check': ['all'],
   'crm.dnd.record': ['all'],
   'webhooks.process': ['all'],
+  'calls.process': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {
