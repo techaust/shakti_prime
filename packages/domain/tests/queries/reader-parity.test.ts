@@ -17,6 +17,7 @@ import {
   loadPlaybookReview,
 } from '../../src/queries/knowledge/playbook';
 import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
+import { loadAskConversation } from '../../src/queries/knowledge/ask';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
 import { listCallerProfiles, loadOwnPresence } from '../../src/queries/crm/caller-profiles';
 import {
@@ -223,6 +224,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listPlaybook: (ctx) => listPlaybook(ctx, {}),
   listPlaybookSources: (ctx) => listPlaybookSources(ctx, {}),
   loadPlaybookReview: (ctx) => loadPlaybookReview(ctx, { directiveId: newId() }),
+  loadAskConversation: (ctx) => loadAskConversation(ctx, newId(), 4),
   listSizingPumps: (ctx) => listSizingPumps(ctx),
   listCallQueue: (ctx) => listCallQueue(ctx, { limit: 20 }, new Date(NOW)),
   loadCallLead: (ctx) => loadCallLead(ctx, { entityId: 1, opportunityId: newId() }),
