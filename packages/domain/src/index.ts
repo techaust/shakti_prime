@@ -27,6 +27,15 @@ export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
+export { ingestLead } from './commands/crm/ingest-lead';
+export { setLeadQualification } from './commands/crm/lead-qualification';
+export {
+  archiveIngestSource,
+  createIngestKey,
+  revokeIngestKey,
+  setIngestSource,
+} from './commands/crm/ingest-sources';
+export { hashIngestKey, newIngestKey } from './crm/ingest-key';
 export { listEntityChannels } from './queries/org/list-channels';
 export { dialFacts, dndRecordInput, toDialPlanDto } from './queries/calls/dial-plan';
 export { createLead } from './commands/crm/create-lead';
@@ -36,8 +45,8 @@ export { setCallerProfile, setPresence } from './commands/crm/caller-profiles';
 export { handOverLead } from './commands/crm/hand-over-lead';
 export { reassignAllLeads, REASSIGN_ALL_LIMIT } from './commands/crm/reassign-all';
 export { listCallerProfiles, loadOwnPresence } from './queries/crm/caller-profiles';
-export { pickConverter, qualifiesAsConverter } from './crm/handover';
-export type { ConverterCandidate, HandoverLead } from './crm/handover';
+export { pickCaller, pickConverter, qualifiesAsConverter } from './crm/handover';
+export type { CallerCandidate, ConverterCandidate, HandoverLead } from './crm/handover';
 export { nurtureOpportunity } from './commands/crm/nurture-opportunity';
 export { recordSizing } from './commands/crm/record-sizing';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';

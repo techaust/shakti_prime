@@ -118,8 +118,8 @@ export const LeadIngestInput = z
     entityId: EntityIdSchema,
     channel: IngestChannelSchema,
     /**
-     * The company's connected form, page or site (`lead_sources`): its pipeline, segment and
-     * channel are the lead's. Without one, `pipelineKey` names the pipeline (WhatsApp, calls).
+     * The company's connected form, Page or site (`ingest_sources`): its pipeline, and so its
+     * business line, is the lead's. Without one, `pipelineKey` names the pipeline (WhatsApp, calls).
      */
     sourceId: IdSchema.optional(),
     pipelineKey: z.string().trim().min(1).max(40).optional(),
@@ -192,3 +192,54 @@ export const LeadIngestResultDto = z
   })
   .strict();
 export type LeadIngestResultDto = z.infer<typeof LeadIngestResultDto>;
+
+/**
+ * `crm.lead.qualification.set`: the lead's qualification facts as the card saves them. A fact
+ * left out stays as it is; `null` clears it.
+ */
+export const SetLeadQualificationInput = z
+  .object({
+    entityId: EntityIdSchema,
+    opportunityId: IdSchema,
+    facts: z
+      .object({
+        pumpDepthFt: LeadQualificationFactsSchema.shape.pumpDepthFt.unwrap().nullable().optional(),
+        requiredHp: LeadQualificationFactsSchema.shape.requiredHp.unwrap().nullable().optional(),
+        monthlyBillRupees: LeadQualificationFactsSchema.shape.monthlyBillRupees
+          .unwrap()
+          .nullable()
+          .optional(),
+        roofAreaSqFt: LeadQualificationFactsSchema.shape.roofAreaSqFt
+          .unwrap()
+          .nullable()
+          .optional(),
+        sanctionedLoadKw: LeadQualificationFactsSchema.shape.sanctionedLoadKw
+          .unwrap()
+          .nullable()
+          .optional(),
+        discomConsumerNo: LeadQualificationFactsSchema.shape.discomConsumerNo
+          .unwrap()
+          .nullable()
+          .optional(),
+      })
+      .strict()
+      .refine((f) => Object.keys(f).length > 0, { message: 'at least one fact' }),
+  })
+  .strict();
+export type SetLeadQualificationInput = z.infer<typeof SetLeadQualificationInput>;
+
+/** A lead's qualification facts; a fact nobody recorded is null. */
+export const LeadQualificationDto = z
+  .object({
+    opportunityId: IdSchema,
+    entityId: EntityIdSchema,
+    pumpDepthFt: z.number().int().nullable(),
+    requiredHp: z.number().nullable(),
+    monthlyBillRupees: z.number().int().nullable(),
+    roofAreaSqFt: z.number().int().nullable(),
+    sanctionedLoadKw: z.number().nullable(),
+    discomConsumerNo: z.string().nullable(),
+    updatedAt: z.iso.datetime().nullable(),
+  })
+  .strict();
+export type LeadQualificationDto = z.infer<typeof LeadQualificationDto>;

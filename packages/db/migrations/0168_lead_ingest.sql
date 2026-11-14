@@ -28,6 +28,7 @@ CREATE TABLE "ingest_sources" (
 	"consent_channels" text[],
 	"consent_purpose" text,
 	"page_token_sealed" jsonb,
+	"page_token_set" boolean GENERATED ALWAYS AS (page_token_sealed is not null) STORED NOT NULL,
 	"last_questions_json" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"last_lead_at" timestamp with time zone,
 	"archived_at" timestamp with time zone,

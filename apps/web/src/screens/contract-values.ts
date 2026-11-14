@@ -660,6 +660,11 @@ export const RECORDED_STAGE_EXIT_FIELDS = [
   'village',
   'pin',
   'source',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
 ] as const satisfies readonly StageExitField[];
 
 /** The stages every pipeline keeps, which cannot be archived (`PROTECTED_STAGE_KEYS`). */

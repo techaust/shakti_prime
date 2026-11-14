@@ -1,5 +1,5 @@
 {
-  "id": "af41d2ee-9188-4ddc-83b3-b5600b75b38c",
+  "id": "bd579f33-3168-42b6-9e09-3c9762f472c0",
   "prevId": "647e0af9-0306-4af2-86e3-6b019583f33b",
   "version": "7",
   "dialect": "postgresql",
@@ -7368,6 +7368,16 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
+        },
+        "page_token_set": {
+          "name": "page_token_set",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "page_token_sealed is not null",
+            "type": "stored"
+          }
         },
         "last_questions_json": {
           "name": "last_questions_json",

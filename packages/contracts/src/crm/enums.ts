@@ -73,15 +73,22 @@ export type StageExitField = z.infer<typeof StageExitFieldSchema>;
 
 /**
  * The exit fields a stage may require today: the lead's source, and its site with the village and
- * PIN, which the lead form records and `crm.site.upsert` (slice C2) lets a caller fill in later.
- * The GST state code and the sizing details join this list when a screen records them; until then
- * a stage cannot require one, so no lead is held by a detail nobody can fill in.
+ * PIN, which the lead form records and `crm.site.upsert` (slice C2) lets a caller fill in later,
+ * and the qualification facts the qualification card records (`crm.lead.qualification.set`,
+ * docs/03-roadmap-appendix/phase2.md §6.2). The GST state code joins this list when a screen
+ * records it; until then a stage cannot require it, so no lead is held by a detail nobody can fill
+ * in.
  */
 export const RECORDED_STAGE_EXIT_FIELDS = [
   'site',
   'village',
   'pin',
   'source',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
 ] as const satisfies readonly StageExitField[];
 
 /**

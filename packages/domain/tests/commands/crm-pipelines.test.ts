@@ -267,7 +267,7 @@ describe('stages', () => {
 
     expect(
       await refusal(
-        run(exec, updateStage, { stageId: p.stages.new, requiredFields: ['pumpDepthFt'] }),
+        run(exec, updateStage, { stageId: p.stages.new, requiredFields: ['stateCode'] }),
       ),
     ).toMatchObject({ details: { reason: 'stage_field_not_recorded' } });
     expect(

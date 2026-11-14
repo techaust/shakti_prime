@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   index,
@@ -53,6 +54,10 @@ export const ingestSources = pgTable(
     consentChannels: text('consent_channels').array(),
     consentPurpose: text('consent_purpose'),
     pageTokenSealed: jsonb('page_token_sealed'),
+    /** Whether a Page token is recorded, readable where the sealed value is not. */
+    pageTokenSet: boolean('page_token_set')
+      .notNull()
+      .generatedAlwaysAs(sql`page_token_sealed is not null`),
     lastQuestionsJson: jsonb('last_questions_json').notNull().default([]),
     lastLeadAt: timestamp('last_lead_at', { withTimezone: true }),
     ...archivable,
@@ -64,15 +69,9 @@ export const ingestSources = pgTable(
       'ingest_sources_provider_check',
       sql`${t.provider} in ('meta_leadgen', 'google_leadform', 'website')`,
     ),
-    check(
-      'ingest_sources_external_id_check',
-      sql`${t.externalId} ~ '^[A-Za-z0-9_.:-]{1,200}$'`,
-    ),
+    check('ingest_sources_external_id_check', sql`${t.externalId} ~ '^[A-Za-z0-9_.:-]{1,200}$'`),
     check('ingest_sources_name_check', sql`char_length(${t.name}) between 1 and 80`),
-    check(
-      'ingest_sources_field_map_check',
-      sql`jsonb_typeof(${t.fieldMapJson}) = 'object'`,
-    ),
+    check('ingest_sources_field_map_check', sql`jsonb_typeof(${t.fieldMapJson}) = 'object'`),
     check(
       'ingest_sources_consent_check',
       sql`(${t.consentQuestionKey} is null) = (${t.consentTextVersion} is null)
@@ -143,10 +142,7 @@ export const ingestKeys = pgTable(
     check('ingest_keys_label_check', sql`char_length(${t.label}) between 1 and 80`),
     check('ingest_keys_key_hash_check', sql`${t.keyHash} ~ '^[0-9a-f]{64}$'`),
     check('ingest_keys_key_hint_check', sql`${t.keyHint} ~ '^[A-Za-z0-9_-]{4}$'`),
-    check(
-      'ingest_keys_revoked_check',
-      sql`(${t.revokedAt} is null) = (${t.revokedBy} is null)`,
-    ),
+    check('ingest_keys_revoked_check', sql`(${t.revokedAt} is null) = (${t.revokedBy} is null)`),
     uniqueIndex('ingest_keys_key_hash_unique').on(t.keyHash),
     index('ingest_keys_entity_idx').on(t.entityId, t.createdAt.desc()),
   ],

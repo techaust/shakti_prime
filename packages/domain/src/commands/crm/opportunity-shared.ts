@@ -82,6 +82,19 @@ export async function opportunityRecord(
           .from(cs)
           .where(eq(cs.id, row.siteId))
           .limit(1);
+  // The lead's qualification facts (`lead_qualifications`), read under its read rule.
+  const lq = schema.leadQualifications;
+  const [facts] = await ctx.tx
+    .select({
+      pumpDepthFt: lq.pumpDepthFt,
+      requiredHp: lq.requiredHp,
+      monthlyBillRupees: lq.monthlyBillRupees,
+      roofAreaSqFt: lq.roofAreaSqFt,
+      sanctionedLoadKw: lq.sanctionedLoadKw,
+    })
+    .from(lq)
+    .where(eq(lq.opportunityId, row.id))
+    .limit(1);
   // Read with the lead, as the caller reads it: an accepted quote, or an order confirmed and not
   // cancelled (the states past confirmed come with dispatch and the Tally link).
   const [sale] = (await ctx.tx.execute(
@@ -102,6 +115,11 @@ export async function opportunityRecord(
       pin: site?.pin ?? null,
       stateCode: site?.stateCode ?? null,
       source: row.sourceId,
+      pumpDepthFt: facts?.pumpDepthFt ?? null,
+      requiredHp: facts?.requiredHp ?? null,
+      monthlyBillRupees: facts?.monthlyBillRupees ?? null,
+      roofAreaSqFt: facts?.roofAreaSqFt ?? null,
+      sanctionedLoadKw: facts?.sanctionedLoadKw ?? null,
     },
     lockedUntil: row.lockedUntil,
     stateChangedAt: row.stateChangedAt,

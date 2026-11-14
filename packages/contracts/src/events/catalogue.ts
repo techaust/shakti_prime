@@ -72,7 +72,12 @@ const eventCatalogue = {
   'crm.lead.created': {
     meaning:
       'A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer.',
-    emittedBy: ['crm.enquiry.take', 'crm.lead.create', 'imports.job.commit_batch'],
+    emittedBy: [
+      'crm.enquiry.take',
+      'crm.lead.create',
+      'crm.lead.ingest',
+      'imports.job.commit_batch',
+    ],
     subscribed: true,
     undeliveredWhen: 'imported',
     payload: z
@@ -88,7 +93,12 @@ const eventCatalogue = {
   'crm.lead.attached': {
     meaning:
       "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates.",
-    emittedBy: ['crm.enquiry.take', 'crm.lead.create', 'imports.job.commit_batch'],
+    emittedBy: [
+      'crm.enquiry.take',
+      'crm.lead.create',
+      'crm.lead.ingest',
+      'imports.job.commit_batch',
+    ],
     subscribed: false,
     payload: z.object({ pipelineKey: Code, sourceCode: Code.nullable() }).strict(),
   },
@@ -145,8 +155,8 @@ const eventCatalogue = {
   },
   'crm.enquiry.routed': {
     meaning:
-      'An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04); the notify worker tells them.',
-    emittedBy: ['crm.enquiry.route', 'crm.enquiry.take'],
+      'An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04), or a lead from an integration went to the Sales Team Lead as routed work with no caller present; the notify worker tells them.',
+    emittedBy: ['crm.enquiry.route', 'crm.enquiry.take', 'crm.lead.ingest'],
     subscribed: true,
     payload: z.object({ assigneeId: IdSchema, accountId: IdSchema }).strict(),
   },
