@@ -24,7 +24,8 @@ export function sentryIngestOrigin(dsn: string | undefined): string | undefined 
  * adds `'unsafe-eval'`, which React needs there to rebuild server error stacks. Inline styles stay
  * allowed: pages set colours and sizes through `style`, which a nonce cannot cover. The browser
  * may send error reports to Sentry's ingest host only when a DSN names one (`sentryOrigin`).
- * `fileOrigins` adds the origins a page uploads to directly (the environment's file bucket).
+ * `fileOrigins` adds the origins a page uploads to directly (the environment's file bucket), and
+ * plays a vault recording from (K3: the player reads the bucket's signed address).
  */
 export function contentSecurityPolicy(
   nonce: string,
@@ -42,6 +43,7 @@ export function contentSecurityPolicy(
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${TURNSTILE}${development ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
+    `media-src 'self'${fileOrigins.map((origin) => ` ${origin}`).join('')}`,
     "font-src 'self'",
     // The push service worker (`/push-sw.js`), registered from this site only.
     "worker-src 'self'",

@@ -4,9 +4,11 @@ import {
   AddKnowledgeFileInput,
   CorrectKnowledgeTranscriptInput,
   DomainError,
+  IdSchema,
   KnowledgeFileRefInput,
   ListKnowledgeFilesInput,
   SearchKnowledgeInput,
+  type KnowledgeFileDetailDto,
   type KnowledgeFileDto,
   type KnowledgeFilePageDto,
   type KnowledgeSearchDto,
@@ -19,6 +21,7 @@ import {
   correctKnowledgeTranscript as correctKnowledgeTranscriptCommand,
   executeCommand,
   executeQuery,
+  getKnowledgeFile as getKnowledgeFileQuery,
   knowledgeQueryVector,
   listKnowledgeFiles as listKnowledgeFilesQuery,
   reindexKnowledgeFile as reindexKnowledgeFileCommand,
@@ -66,6 +69,40 @@ async function listFiles(principal: Principal, rawInput: unknown): Promise<Knowl
     (context) => listKnowledgeFilesQuery(context, input),
     { name: 'listKnowledgeFiles' },
   );
+}
+
+/** One vault file the caller may read, with a recording's transcript, for its page (K3). */
+export async function getKnowledgeFile(
+  rawId: unknown,
+): Promise<ActionResult<KnowledgeFileDetailDto>> {
+  return toResult('getKnowledgeFile', async () => readFile(await signedIn(), rawId));
+}
+
+/**
+ * The file again, read while a recording is being transcribed and read: not the person's doing,
+ * so it never extends their session (WEB-8).
+ */
+export async function recheckKnowledgeFile(
+  rawId: unknown,
+): Promise<ActionResult<KnowledgeFileDetailDto>> {
+  return toResult('recheckKnowledgeFile', async () => readFile(await signedInQuietly(), rawId));
+}
+
+async function readFile(principal: Principal, rawId: unknown): Promise<KnowledgeFileDetailDto> {
+  const id = parseInput(IdSchema, rawId);
+  const { requestId } = await requestMeta();
+  const file = await executeQuery(
+    principal,
+    { requestId },
+    (context) => getKnowledgeFileQuery(context, id),
+    { name: 'getKnowledgeFile' },
+  );
+  if (file === undefined) {
+    throw new DomainError('not_found', 'vault file not visible', {
+      reason: 'knowledge_file_missing',
+    });
+  }
+  return file;
 }
 
 /**

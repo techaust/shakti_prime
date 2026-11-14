@@ -49,6 +49,11 @@ describe('the file bucket in the page policy', () => {
     expect(contentSecurityPolicy('n', false, undefined, origins)).toContain(
       "connect-src 'self' https://challenges.cloudflare.com https://shakti-prime-dev-files.s3.ap-south-1.amazonaws.com",
     );
+    // A vault recording plays from the bucket's signed address (K3); nowhere else.
+    expect(contentSecurityPolicy('n', false, undefined, origins)).toContain(
+      "media-src 'self' https://shakti-prime-dev-files.s3.ap-south-1.amazonaws.com;",
+    );
+    expect(contentSecurityPolicy('n', false)).toContain("media-src 'self';");
   });
 
   it('never writes a name that could widen the policy', () => {

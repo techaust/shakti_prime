@@ -17,6 +17,7 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import {
   listKnowledgeFiles,
@@ -164,7 +165,14 @@ export function KnowledgeScreen({
                 className="border-border bg-surface flex flex-col gap-2 rounded-md border p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="min-w-0 font-medium break-words">{file.title}</h3>
+                  <h3 className="min-w-0 font-medium break-words">
+                    <Link
+                      href={`/knowledge/files/${file.id}`}
+                      className="text-accent-text underline-offset-4 hover:underline"
+                    >
+                      {file.title}
+                    </Link>
+                  </h3>
                   <StatusBadge tone={STATE_TONE[file.state]}>
                     {t(`state.${file.state}`)}
                   </StatusBadge>

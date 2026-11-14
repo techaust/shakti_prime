@@ -228,6 +228,18 @@ export const KnowledgeFileDto = z
   .strict();
 export type KnowledgeFileDto = z.infer<typeof KnowledgeFileDto>;
 
+/**
+ * One vault file as its page shows it: the list's fields, and a recording's transcript (K3) with
+ * when a person last corrected it; both null for any other file, and the transcript null while a
+ * recording has none yet. Read under the file's own row security, so a reader sees the transcript
+ * of a recording only of a sensitivity they hold.
+ */
+export const KnowledgeFileDetailDto = KnowledgeFileDto.extend({
+  transcript: z.string().nullable(),
+  transcriptCorrectedAt: z.iso.datetime().nullable(),
+}).strict();
+export type KnowledgeFileDetailDto = z.infer<typeof KnowledgeFileDetailDto>;
+
 /** A page of the vault's files, newest first; `nextCursor` reads the next page. */
 export const KnowledgeFilePageDto = z
   .object({ files: z.array(KnowledgeFileDto), nextCursor: z.string().nullable() })

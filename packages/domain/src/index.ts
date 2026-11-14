@@ -612,6 +612,7 @@ export {
   retirePlaybookDirective,
 } from './commands/knowledge/playbook';
 export {
+  getKnowledgeFile,
   KNOWLEDGE_PAGE_SIZE,
   listKnowledgeFiles,
   searchKnowledge,

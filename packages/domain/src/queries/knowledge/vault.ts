@@ -1,5 +1,6 @@
 import {
   IdSchema,
+  KnowledgeFileDetailDto,
   KNOWLEDGE_EMBEDDING_DIMENSIONS,
   KNOWLEDGE_SEARCH_LIMIT,
   KnowledgeFilePageDto,
@@ -8,7 +9,7 @@ import {
   DomainError,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission } from '../../command/run-command';
 import { knowledgeFileDto } from '../../commands/knowledge/shared';
@@ -69,6 +70,31 @@ export async function listKnowledgeFiles(
       rows.length > KNOWLEDGE_PAGE_SIZE && last !== undefined
         ? encodeCursor({ t: last.createdText, id: last.file.id })
         : null,
+  });
+}
+
+/**
+ * One vault file the caller may read, for its page (K3): the list's fields with a recording's
+ * transcript, by primary key under `knowledge_files_read` (its company and sensitivity), archived
+ * or not; undefined when the caller may not read it.
+ */
+export async function getKnowledgeFile(
+  ctx: Ctx,
+  rawId: unknown,
+): Promise<KnowledgeFileDetailDto | undefined> {
+  const id = parseQueryInput(IdSchema, rawId, 'knowledge.files.get');
+  checkPermission(ctx.principal, 'knowledge.vault.read.staff', 'all');
+  const k = schema.knowledgeFiles;
+  const [row] = await ctx.tx
+    .select()
+    .from(k)
+    .where(and(eq(k.id, id), or(inArray(k.entityId, [...ctx.entityIds]), isNull(k.entityId))))
+    .limit(1);
+  if (row === undefined) return undefined;
+  return KnowledgeFileDetailDto.parse({
+    ...knowledgeFileDto(row),
+    transcript: row.transcript,
+    transcriptCorrectedAt: row.transcriptCorrectedAt?.toISOString() ?? null,
   });
 }
 

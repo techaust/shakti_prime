@@ -4351,7 +4351,25 @@
     "archive": "Archive",
     "archiveTitle": "Archive this file?",
     "archiveIntro": "{title} will no longer appear in search. This cannot be undone.",
-    "archivedNotice": "Archived. The file no longer appears in search."
+    "archivedNotice": "Archived. The file no longer appears in search.",
+    "file": {
+      "title": "Knowledge Vault file",
+      "back": "Back to Knowledge",
+      "about": "About this file",
+      "recording": "Recording",
+      "player": "Play the recording {title}",
+      "cannotPlay": "This recording cannot be played here. Ask your administrator to check file storage.",
+      "transcript": "Transcript",
+      "transcriptLabel": "What was said",
+      "transcriptHint": "Correct any words the speech service heard wrongly, such as Rajasthani or Marwari words. Write in English letters. Numbers like Aadhaar and phone numbers are covered when you save.",
+      "transcriptMissing": "Write what was said before you save.",
+      "save": "Save transcript",
+      "savedNotice": "Saved. The recording is being read again for search from your transcript.",
+      "correctedOn": "Corrected on",
+      "transcribing": "The recording is being turned into text. The transcript shows here when it is ready.",
+      "readingAgain": "This transcript is being read again for search. You can correct it once that is done.",
+      "noTranscript": "There is no transcript yet. The reason is shown above."
+    }
   },
   "notifications": {
     "bell": "Notifications",
