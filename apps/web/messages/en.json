@@ -3313,7 +3313,8 @@
       "files": "Uploaded files",
       "notifications": "Notices",
       "platform": "Upkeep",
-      "webhooks": "Messages from other systems"
+      "webhooks": "Messages from other systems",
+      "messaging": "WhatsApp"
     },
     "permissions": {
       "crm_lead_read": "See leads",
@@ -3370,6 +3371,8 @@
       "knowledge_vault_write": "Add and archive Knowledge Vault files",
       "knowledge_playbook_draft": "Draft and edit Playbook guidance",
       "knowledge_playbook_approve": "Approve Playbook guidance",
+      "messaging_send": "Send WhatsApp messages to customers",
+      "messaging_templates_write": "Keep the list of WhatsApp message templates",
       "agents_inbox_act": "Act on Agent Inbox items",
       "agents_autonomy_write": "Choose how freely agents act",
       "agents_killswitch": "Pause agents",
@@ -3399,7 +3402,8 @@
       "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
       "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance",
       "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list",
-      "webhooks_process": "Handle the messages other systems send in"
+      "webhooks_process": "Handle the messages other systems send in",
+      "messaging_process": "Receive and send WhatsApp messages for the companies"
     },
     "empty": "There are no roles to show.",
     "locked": {

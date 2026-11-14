@@ -56,3 +56,9 @@ export {
 } from './sales-orders';
 export { entityChannels } from './entity-channels';
 export { webhookInbox } from './webhook-inbox';
+export {
+  whatsappThreads,
+  whatsappMessages,
+  whatsappMessageKeys,
+  whatsappTemplates,
+} from './whatsapp';

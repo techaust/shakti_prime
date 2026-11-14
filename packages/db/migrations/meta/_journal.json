@@ -1177,6 +1177,20 @@
       "when": 1794557764459,
       "tag": "0167_playbook_check",
       "breakpoints": true
+    },
+    {
+      "idx": 168,
+      "version": "7",
+      "when": 1794641473440,
+      "tag": "0168_whatsapp",
+      "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1794641481436,
+      "tag": "0169_whatsapp_rls",
+      "breakpoints": true
     }
   ]
 }

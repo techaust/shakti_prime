@@ -277,6 +277,7 @@ describe('the handover definers', () => {
         'crm.dnd.record',
         'webhooks.process',
         'knowledge.playbook.check',
+        'messaging.process',
       ]),
     );
     expect(list?.keys).toHaveLength(PLATFORM_ONLY_PERMISSIONS.length);

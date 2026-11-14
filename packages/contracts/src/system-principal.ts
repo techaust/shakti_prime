@@ -57,5 +57,10 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The webhook worker and its sweep: it claims, marks and purges `webhook_inbox` rows through
     // definers, and reads no row of any company (docs/03-roadmap-appendix/phase2.md §5.1).
     { key: 'webhooks.process', scope: 'all' },
+    // The WhatsApp handler and the messaging worker: they record inbound messages, statuses and
+    // template states, open and match threads, record an opt-out or a hand-off, and queue, take
+    // and record the platform's sends through definers, and read no thread by a customer grant
+    // (docs/03-roadmap-appendix/phase2.md §6.1).
+    { key: 'messaging.process', scope: 'all' },
   ],
 };
