@@ -1,22 +1,26 @@
 import {
   ASK_RETURNED_MAX,
   AskInput,
+  AskTurnDto,
+  type AskLookup,
   DomainError,
   newId,
   type AskOutcome,
   type AskSource,
-  type AskTurnDto,
   type Principal,
 } from '@shakti/contracts';
+import { schema } from '@shakti/db';
+import { and, eq } from 'drizzle-orm';
 import { executeCommand, executeQuery, type ExecuteOptions } from '../../command/execute';
 import { checkPermission, isAgent } from '../../command/run-command';
 import { recordAsk } from '../../commands/knowledge/ask';
 import { istCalendarDate } from '../../numbering/financial-year';
+import type { KeyValue } from '../../ports/key-value';
 import { jsonLogger, type Logger } from '../../ports/logger';
 import { parseQueryInput } from '../../queries/parse-input';
 import { loadAskConversation } from '../../queries/knowledge/ask';
 import { AGENT_DEFAULTS } from '../agent-defaults';
-import type { AiProvider, CompleteCall } from '../provider';
+import { spendKey, type AiProvider, type CompleteCall } from '../provider';
 import { collectFigures, groundAnswer } from './grounding';
 import { ASK_SYSTEM, askQuestion, LAST_LOOKUPS_NOTE } from './prompt';
 import { companyNames, toolsFor, type AskTool, type AskToolContext } from './tools';
@@ -43,9 +47,58 @@ export interface AskOptions {
    */
   entityIds?: readonly number[];
   /** Told the name of each lookup as it starts, for a screen that shows the work going on. */
-  onLookup?: (tool: string) => void;
+  onLookup?: (tool: AskLookup) => void;
   /** Passed on to `knowledge.ask.record` (the caller's address, the outbox nudge). */
   command?: Omit<ExecuteOptions, 'idempotencyKey'>;
+  /**
+   * The caller's key for this question (docs/06-api.md §1): a question already answered under it
+   * is answered again from its record, with no model call and no lookup.
+   */
+  idempotencyKey?: string;
+}
+
+/**
+ * The key of one person's spend of a day, as the provider wrapper keeps it (`CallBase.person`); a
+ * test holds the two together.
+ */
+export function personSpendKey(agent: string, personId: string, day: string): string {
+  return `ai:spend:${agent}:person:${personId}:${day}`;
+}
+
+/** Where a daily cap stands before a question: `person` or `group` when one is reached. */
+export async function askCapReached(
+  keyValue: KeyValue,
+  personId: string,
+  now: Date = new Date(),
+): Promise<'person' | 'group' | undefined> {
+  const day = istCalendarDate(now);
+  const spent = async (key: string) => Number((await keyValue.get(key)) ?? 0);
+  if ((await spent(spendKey(ASK.spendName, null, day))) >= ASK.dailyCapPaise) return 'group';
+  if ((await spent(personSpendKey(ASK.spendName, personId, day))) >= ASK.personDailyCapPaise) {
+    return 'person';
+  }
+  return undefined;
+}
+
+/** The answer recorded under the caller's key for this question, if one was. */
+function recordedTurn(principal: Principal, key: string): Promise<AskTurnDto | undefined> {
+  return executeQuery(
+    principal,
+    {},
+    async ({ tx }) => {
+      const k = schema.idempotencyKeys;
+      const [row] = await tx
+        .select({ command: k.command, response: k.responseJson })
+        .from(k)
+        .where(and(eq(k.principalId, principal.id), eq(k.key, key)))
+        .limit(1);
+      if (row?.command !== recordAsk.name) return undefined;
+      const answer = AskTurnDto.safeParse(row.response);
+      return answer.success ? answer.data : undefined;
+    },
+    // The keys are the caller's own and only `app_user` reads them (0037).
+    { name: 'ask.recorded', pool: 'app_user' },
+  );
 }
 
 /** The provider's refusal at a spend cap, in Ask's own words. */
@@ -147,6 +200,10 @@ export async function askTheBusiness(
   const now = (deps.now ?? (() => new Date()))();
   const requestId = options.requestId ?? newId();
   const viewing = [...(options.entityIds ?? principal.entityIds)];
+  if (options.idempotencyKey !== undefined) {
+    const recorded = await recordedTurn(principal, options.idempotencyKey);
+    if (recorded !== undefined) return recorded;
+  }
 
   const earlier =
     input.conversationId === null
@@ -233,7 +290,8 @@ export async function askTheBusiness(
     if (call === ASK.maxModelCalls) break;
     const results = [];
     for (const c of calls) {
-      options.onLookup?.(c.name);
+      const known = byName.get(c.name);
+      if (known !== undefined) options.onLookup?.(known.name as AskLookup);
       const before = new Set(turn.returned.keys());
       results.push(await runLookup(byName, toolCtx, c, turn, logger));
       for (const [id, s] of turn.returned) if (!before.has(id)) thisTurn.set(id, s);
@@ -269,26 +327,43 @@ export async function askTheBusiness(
     unsourced,
     costPaise: turn.costPaise,
   });
-  return executeCommand(
-    principal,
-    { entityIds: [...entityIds], requestId },
-    recordAsk,
-    {
-      conversationId: earlier?.conversation.id ?? newId(),
-      question: input.question,
-      answer,
-      outcome,
-      unsourced,
-      cited,
-      // What this turn's lookups returned, the records it cites first, so the cap never drops one.
-      returned: [
-        ...new Map(
-          [...cited.filter((s) => thisTurn.has(s.id)), ...thisTurn.values()].map((s) => [s.id, s]),
-        ).values(),
-      ].slice(0, ASK_RETURNED_MAX),
-      model: turn.model,
-      costPaise: turn.costPaise,
-    },
-    options.command ?? {},
-  );
+  const record = {
+    conversationId: earlier?.conversation.id ?? newId(),
+    question: input.question,
+    answer,
+    outcome,
+    unsourced,
+    cited,
+    // What this turn's lookups returned, the records it cites first, so the cap never drops one.
+    returned: [
+      ...new Map(
+        [...cited.filter((s) => thisTurn.has(s.id)), ...thisTurn.values()].map((s) => [s.id, s]),
+      ).values(),
+    ].slice(0, ASK_RETURNED_MAX),
+    model: turn.model,
+    costPaise: turn.costPaise,
+  };
+  try {
+    return await executeCommand(
+      principal,
+      { entityIds: [...entityIds], requestId },
+      recordAsk,
+      record,
+      {
+        ...(options.command ?? {}),
+        ...(options.idempotencyKey === undefined ? {} : { idempotencyKey: options.idempotencyKey }),
+      },
+    );
+  } catch (error) {
+    // Another call with the same key recorded its answer while this one asked the model.
+    if (
+      options.idempotencyKey !== undefined &&
+      error instanceof DomainError &&
+      error.details?.reason === 'idempotency_mismatch'
+    ) {
+      const recorded = await recordedTurn(principal, options.idempotencyKey);
+      if (recorded !== undefined) return recorded;
+    }
+    throw error;
+  }
 }

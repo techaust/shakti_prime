@@ -19,8 +19,8 @@ export const ASK_RETURNED_MAX = 500;
 
 /**
  * The records a tool returns for citation, each a link on the screen: a vault file, an approved
- * Playbook directive, a pipeline stage (its open leads), a lead, a quote, an order and a dealer
- * (its credit). Totals of a company (this month's sales, targets) cite nothing: their figures are
+ * Playbook directive, a pipeline stage (its open leads), a lead, a quote, an order, a dealer (its
+ * credit) and a catalogue item. Totals of a company (this month's sales, targets) cite nothing: their figures are
  * still checked against what the lookup returned.
  */
 export const ASK_SOURCE_KINDS = [
@@ -31,6 +31,7 @@ export const ASK_SOURCE_KINDS = [
   'quote',
   'sales_order',
   'account',
+  'item',
 ] as const;
 export const AskSourceKindSchema = z.enum(ASK_SOURCE_KINDS);
 export type AskSourceKind = z.infer<typeof AskSourceKindSchema>;
@@ -124,3 +125,87 @@ export type DeleteAskConversationInput = z.input<typeof DeleteAskConversationInp
 
 export const DeletedAskConversationDto = z.object({ conversationId: IdSchema }).strict();
 export type DeletedAskConversationDto = z.infer<typeof DeletedAskConversationDto>;
+
+/**
+ * The lookups Ask may run (`packages/domain/src/ai/ask/tools.ts`), by name: the screen says which
+ * one is running while a question is answered.
+ */
+export const ASK_LOOKUPS = [
+  'search_vault',
+  'read_playbook',
+  'pipeline_by_stage',
+  'list_leads',
+  'list_quotes',
+  'list_orders',
+  'sales_this_month',
+  'targets_progress',
+  'dealer_credit',
+  'find_items',
+] as const;
+export const AskLookupSchema = z.enum(ASK_LOOKUPS);
+export type AskLookup = z.infer<typeof AskLookupSchema>;
+
+/** The person's conversations, last used first, a page at a time. */
+export const ASK_CONVERSATION_PAGE_SIZE = 30;
+export const ListAskConversationsInput = z
+  .object({ cursor: z.string().max(200).nullable().default(null) })
+  .strict();
+export type ListAskConversationsInput = z.input<typeof ListAskConversationsInput>;
+
+export const AskConversationPageDto = z
+  .object({ conversations: z.array(AskConversationDto), nextCursor: z.string().nullable() })
+  .strict();
+export type AskConversationPageDto = z.infer<typeof AskConversationPageDto>;
+
+/**
+ * A cited record as the person may read it now: its words (a quote's or an order's number, a
+ * customer's or a dealer's name, a file's or a rule's title, a stage's name, an item's name) and
+ * what its link needs. Null words when the person can no longer read the record.
+ */
+export const AskSourceLabelDto = z
+  .object({
+    kind: AskSourceKindSchema,
+    id: IdSchema,
+    label: z.string().nullable(),
+    entityId: EntityIdSchema.nullable(),
+    accountId: IdSchema.nullable(),
+  })
+  .strict();
+export type AskSourceLabelDto = z.infer<typeof AskSourceLabelDto>;
+
+export const ReadAskConversationInput = z.object({ conversationId: IdSchema }).strict();
+export type ReadAskConversationInput = z.input<typeof ReadAskConversationInput>;
+
+/** One conversation with its questions and answers in order, and the records they cite. */
+export const AskConversationDetailDto = z
+  .object({
+    conversation: AskConversationDto,
+    messages: z.array(AskMessageDto),
+    sources: z.array(AskSourceLabelDto),
+  })
+  .strict();
+export type AskConversationDetailDto = z.infer<typeof AskConversationDetailDto>;
+
+/**
+ * What `POST /api/v1/ask` streams, one JSON object a line (`application/x-ndjson`): a line for
+ * each lookup as it starts, then the answer once the grounding filter has passed it, with the
+ * records it cites, or the failure in the error envelope's terms. No line carries a figure the
+ * filter has not passed.
+ */
+export const AskStreamEvent = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('lookup'), lookup: AskLookupSchema }).strict(),
+  z
+    .object({
+      type: z.literal('answer'),
+      turn: AskTurnDto,
+      sources: z.array(AskSourceLabelDto),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('error'),
+      error: z.object({ code: z.string(), reason: z.string().nullable() }).strict(),
+    })
+    .strict(),
+]);
+export type AskStreamEvent = z.infer<typeof AskStreamEvent>;

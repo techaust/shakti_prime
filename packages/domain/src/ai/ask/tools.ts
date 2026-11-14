@@ -14,6 +14,8 @@ import { executeQuery } from '../../command/execute';
 import { istCalendarDate } from '../../numbering/financial-year';
 import { pipelineByStageSql, salesThisMonthSql } from '../../queries/home/home';
 import { listLeads } from '../../queries/crm/list-leads';
+import { listItems } from '../../queries/catalogue/list-items';
+import { itemCostsFor } from '../../queries/knowledge/ask';
 import { listPipelines } from '../../queries/crm/list-pipelines';
 import { approvedPlaybook } from '../../queries/knowledge/playbook';
 import { searchKnowledge } from '../../queries/knowledge/vault';
@@ -475,6 +477,58 @@ const dealerCredit: AskTool = {
   },
 };
 
+const findItems: AskTool = {
+  name: 'find_items',
+  description:
+    "Finds catalogue items (pumps, panels, kits' parts and the rest) by part of their name or code: each item's code, name, category and unit, and, only for a person who may read costs, its cost and last purchase rate in each company.",
+  inputSchema: {
+    type: 'object',
+    properties: { query: { type: 'string', description: 'Part of the name or the code.' } },
+    required: ['query'],
+    additionalProperties: false,
+  },
+  input: z.object({ query: z.string().trim().min(1).max(100) }).strict(),
+  offered: () => true,
+  async run(ctx, raw) {
+    const { query } = z.object({ query: z.string() }).parse(raw);
+    const { items, costs } = await read(ctx, 'find_items', async (c) => {
+      const page = await listItems(c, { q: query, limit: ASK.rowsPerLookup });
+      // Costs only through the person's own cost grant and the cost policy (CLAUDE.md).
+      const withCosts = hasGrant(c.principal.permissions, 'finance.cost.read', 'entity')
+        ? await itemCostsFor(
+            c,
+            page.items.map((i) => i.id),
+          )
+        : [];
+      return { items: page.items, costs: withCosts };
+    });
+    return {
+      data: {
+        items: items.map((i) => ({
+          ref: i.id,
+          code: i.sku,
+          name: i.name,
+          category: i.category,
+          unit: i.unit,
+          ...(costs.length === 0
+            ? {}
+            : {
+                costs: costs
+                  .filter((c) => c.itemId === i.id)
+                  .map((c) => ({
+                    company: company(ctx, c.entityId),
+                    movingAverageCost: c.movingAvgCost,
+                    lastPurchaseRate: c.lastPurchaseRate,
+                    asOf: day(c.asOf),
+                  })),
+              }),
+        })),
+      },
+      sources: items.map((i) => ({ kind: 'item', id: i.id })),
+    };
+  },
+};
+
 /** Every lookup, in the order the model is offered them. */
 export const ASK_TOOLS: readonly AskTool[] = [
   searchVault,
@@ -486,6 +540,7 @@ export const ASK_TOOLS: readonly AskTool[] = [
   salesThisMonth,
   targetsTool,
   dealerCredit,
+  findItems,
 ];
 
 /** The lookups a person's grants let answer. */
