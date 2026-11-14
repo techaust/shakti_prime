@@ -380,7 +380,7 @@ describe('the lookups offered', () => {
   it('are closed schemas, as strict tools need', () => {
     for (const tool of ASK_TOOLS) {
       expect(tool.inputSchema).toMatchObject({ type: 'object', additionalProperties: false });
-      const props = Object.keys((tool.inputSchema.properties ?? {}) as Record<string, unknown>);
+      const props = Object.keys(tool.inputSchema.properties ?? {});
       expect([...((tool.inputSchema.required ?? []) as string[])].sort()).toEqual(props.sort());
     }
   });
