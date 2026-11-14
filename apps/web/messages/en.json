@@ -2822,6 +2822,7 @@
       "caption": "Scheduled upkeep tasks and their last run",
       "names": {
         "activities-partitions": "Make room for next months’ customer history",
+        "ask-conversations-purge": "Remove Ask the Business conversations unused for 90 days",
         "audit-logs-partitions": "Make room for next months’ activity log",
         "audit-logs-detach": "Archive activity log entries older than eight years",
         "idempotency-keys-purge": "Clear out old records of forms already sent",
@@ -3370,6 +3371,7 @@
       "knowledge_vault_write": "Add and archive Knowledge Vault files",
       "knowledge_playbook_draft": "Draft and edit Playbook guidance",
       "knowledge_playbook_approve": "Approve Playbook guidance",
+      "knowledge_ask": "Ask the Business questions",
       "agents_inbox_act": "Act on Agent Inbox items",
       "agents_autonomy_write": "Choose how freely agents act",
       "agents_killswitch": "Pause agents",

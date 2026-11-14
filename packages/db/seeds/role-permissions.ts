@@ -238,6 +238,14 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'knowledge.vault.write': { ...EXEC, general_manager: 'all' },
   'knowledge.playbook.draft': { ...EXEC, general_manager: 'all' },
   'knowledge.playbook.approve': { ...EXEC },
+  'knowledge.ask': {
+    ...EXEC,
+    general_manager: 'all',
+    sales_team_lead: 'team',
+    inventory_manager: 'entity',
+    project_manager: 'entity',
+    accounts: 'entity',
+  },
   'agents.inbox.act': {
     ...EXEC,
     general_manager: 'entity',

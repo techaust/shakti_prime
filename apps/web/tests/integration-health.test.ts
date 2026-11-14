@@ -100,6 +100,7 @@ describe('GET /api/v1/admin/integrations (docs/06-api.md §3.7)', () => {
     // Every scheduled job of the database, by its state, never with an error's text (DATA-3).
     expect(body.jobs.map((j) => j.job)).toEqual([
       'activities-partitions',
+      'ask-conversations-purge',
       'audit-logs-detach',
       'audit-logs-partitions',
       'idempotency-keys-purge',

@@ -79,6 +79,12 @@ export interface WorkshopDefaults {
     readonly webhookPayloadDays: number;
     /** Days a `webhook_inbox` row is kept after it arrived; then the sweep removes it. At least 1. */
     readonly webhookRowDays: number;
+    /**
+     * Days an Ask the Business conversation is kept after it was last used, and a question and
+     * its answer after it was asked; then the database's daily sweep removes them
+     * (`ask-conversations-purge`, whose days a security test keeps equal to this). At least 1.
+     */
+    readonly askDays: number;
   };
 }
 
@@ -316,5 +322,10 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      */
     webhookPayloadDays: 30,
     webhookRowDays: 90,
+    /**
+     * The owner's decision of 13-11-2026 (phase 2 design §11): 90 days. For the CA to confirm
+     * (phase 2 design §13, question 10).
+     */
+    askDays: 90,
   },
 };

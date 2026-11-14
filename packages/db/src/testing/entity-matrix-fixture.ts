@@ -89,6 +89,8 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   playbook_directives: 'x.id::text',
   playbook_conflict_checks: 'x.id::text',
   notifications: 'x.id::text',
+  ask_conversations: 'x.id::text',
+  ask_messages: 'x.id::text',
   targets: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
@@ -182,6 +184,8 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       // inbox items naming them are removed, so no screen shows a fixture's suggestion.
       await tx`delete from inbox_items where id::text like ${like}`;
       await tx`delete from notifications where id::text like ${like}`;
+      // A conversation's messages go with it.
+      await tx`delete from ask_conversations where id::text like ${like}`;
       await tx`alter table targets disable trigger targets_append_only`;
       await tx`delete from targets where id::text like ${like}`;
       await tx`alter table targets enable trigger targets_append_only`;
@@ -316,6 +320,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     playbook_directives: [],
     playbook_conflict_checks: [],
     notifications: [],
+    ask_conversations: [],
+    ask_messages: [],
     targets: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
@@ -352,6 +358,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     { key: groupOtherDirective, entities: null },
   );
   rows.playbook_conflict_checks.push({ key: groupConflictCheck, entities: null });
+  // An Ask conversation of the owner over every company, with one message: read only in a request
+  // covering every company, so nobody acting in one company reads it.
+  const groupConversation = id(0x0012);
+  const groupAskMessage = id(0x0013);
+  rows.ask_conversations.push({ key: groupConversation, entities: null });
+  rows.ask_messages.push({ key: groupAskMessage, entities: null });
   // The fixture's agent rows name an agent no other suite sets, so its settings change nothing.
   const MATRIX_AGENT = 'agent:orchestrator';
   const agentId = AGENT_PRINCIPAL_IDS[MATRIX_AGENT];
@@ -403,6 +415,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         (${groupOtherDirective}, null, 'faq', 'staff', 'matrix group rule two', 'matrix group rule text two', 'approved', ${ownerId}, now(), now(), ${ownerId})`;
       await tx`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
         values (${groupConflictCheck}, null, ${groupDirective}, ${groupOtherDirective}, 0.1, 'none', 'matrix reason')`;
+      await tx`insert into ask_conversations (id, user_id, entity_id, entity_ids, title)
+        values (${groupConversation}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'matrix question')`;
+      await tx`insert into ask_messages (id, conversation_id, user_id, entity_id, entity_ids, question, answer, outcome)
+        values (${groupAskMessage}, ${groupConversation}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'matrix question', 'matrix answer', 'answered')`;
 
       for (const e of ALL_ENTITY_IDS) {
         const team = per(e, 0x01);
@@ -431,6 +447,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const inboxItem = per(e, 0x1d);
         // The owner's notice and another person's, about the company's lead.
         const ownNotice = per(e, 0x40);
+        const ownConversation = per(e, 0x53);
+        const othersConversation = per(e, 0x54);
+        const ownAskMessage = per(e, 0x55);
+        const othersAskMessage = per(e, 0x56);
         const othersNotice = per(e, 0x41);
         const agentRun = newId();
         const agentAction = newId();
@@ -538,6 +558,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id, dedupe_key) values
           (${ownNotice}, ${ownerId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${ownNotice}`}),
           (${othersNotice}, ${otherUserId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${othersNotice}`})`;
+        await tx`insert into ask_conversations (id, user_id, entity_id, entity_ids, title) values
+          (${ownConversation}, ${ownerId}, ${e}, ${[e]}::smallint[], 'matrix question'),
+          (${othersConversation}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'matrix question')`;
+        await tx`insert into ask_messages (id, conversation_id, user_id, entity_id, entity_ids, question, answer, outcome) values
+          (${ownAskMessage}, ${ownConversation}, ${ownerId}, ${e}, ${[e]}::smallint[], 'matrix question', 'matrix answer', 'answered'),
+          (${othersAskMessage}, ${othersConversation}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'matrix question', 'matrix answer', 'answered')`;
         await tx`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by) values
           (${ownTarget}, ${e}, 'caller', ${ownerId}, ${team}, 'calls', 'day', '2026-01-01', 10, ${ownerId}),
           (${othersTarget}, ${e}, 'caller', ${otherUserId}, ${team}, 'calls', 'day', '2026-01-01', 12, ${ownerId}),
@@ -716,6 +742,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.notifications.push(
           { key: ownNotice, entities: only },
           { key: othersNotice, entities: only, othersOwn: true },
+        );
+        rows.ask_conversations.push(
+          { key: ownConversation, entities: only },
+          { key: othersConversation, entities: only, othersOwn: true },
+        );
+        rows.ask_messages.push(
+          { key: ownAskMessage, entities: only },
+          { key: othersAskMessage, entities: only, othersOwn: true },
         );
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },

@@ -59,6 +59,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.vault.write': 'Add and archive Knowledge Vault files',
   'knowledge.playbook.draft': 'Draft and edit Playbook directives',
   'knowledge.playbook.approve': 'Approve Playbook directives',
+  'knowledge.ask': 'Ask the Business',
   'agents.inbox.act': 'Act on Agent Inbox items',
   'agents.autonomy.write': 'Change agent autonomy',
   'agents.killswitch': 'Pause agents',

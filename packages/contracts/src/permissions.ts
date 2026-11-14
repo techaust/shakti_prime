@@ -60,6 +60,7 @@ export const PERMISSION_KEYS = [
   'knowledge.vault.write',
   'knowledge.playbook.draft',
   'knowledge.playbook.approve',
+  'knowledge.ask',
   'agents.inbox.act',
   'agents.autonomy.write',
   'agents.killswitch',
@@ -160,6 +161,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   // Drafting and approving Playbook directives are people's (docs/03-roadmap-appendix/phase2.md §4).
   'knowledge.playbook.draft',
   'knowledge.playbook.approve',
+  // Ask the Business answers people from their own grants (docs/03-roadmap-appendix/phase2.md §4).
+  'knowledge.ask',
   'sales.credit.release',
   // Dealer credit limits, credit days and outstanding decide which orders are held (SAL-07).
   'sales.credit.write',
@@ -310,6 +313,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'knowledge.vault.write': ['all'],
   'knowledge.playbook.draft': ['all'],
   'knowledge.playbook.approve': ['all'],
+  'knowledge.ask': ['team', 'entity', 'all'],
   'agents.inbox.act': ['own', 'team', 'entity', 'all'],
   'agents.autonomy.write': ['all'],
   'agents.killswitch': ['all'],

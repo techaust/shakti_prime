@@ -253,6 +253,20 @@ const RULES: Record<MatrixTable, TableRule> = {
     readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
     leak: otherCompany,
   },
+  // A person's own Ask conversations and messages in the company they act in, whatever their
+  // role; never another's, and never one covering several companies to someone acting in one.
+  ask_conversations: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
+    group: NEVER,
+    leak: otherCompany,
+  },
+  ask_messages: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
+    group: NEVER,
+    leak: otherCompany,
+  },
   // A caller's own target and their team's, whatever their role; another caller's only to a
   // holder of sales.targets.write over the team (a team lead), the company or the group.
   targets: {

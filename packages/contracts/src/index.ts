@@ -9,6 +9,7 @@ export * from './agents';
 export * from './triage';
 export * from './knowledge';
 export * from './playbook';
+export * from './ask';
 export * from './auth/enums';
 export * from './audit/audit';
 export * from './crm/enums';

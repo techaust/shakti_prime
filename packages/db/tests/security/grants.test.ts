@@ -151,6 +151,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // A notice is written only by the notify worker's definer; a person changes its read time
     // alone (notifications.test.ts).
     notifications: { i: false, u: false },
+    // An Ask conversation changes only its last-used time and is removed by its person with its
+    // messages; a message is written once (ask.test.ts).
+    ask_conversations: { i: true, u: false, d: true },
+    ask_messages: { i: true, u: false },
     // A profile changes only its settings and presence (column grants, 0125); never deleted.
     caller_profiles: { i: true, u: false },
   };
