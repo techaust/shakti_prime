@@ -67,6 +67,7 @@ import {
   KNOWLEDGE_FILE_STATES,
   KNOWLEDGE_SENSITIVITIES,
   KNOWLEDGE_SOURCE_TYPES,
+  KnowledgeSourceTypeSchema,
   PLAYBOOK_AUDIENCES,
   PLAYBOOK_CONFLICT_LABELS,
   PLAYBOOK_DIRECTIVE_STATES,
@@ -190,6 +191,8 @@ const PAIRS: Record<string, readonly string[]> = {
   users_contrast_check: ContrastSchema.options,
   knowledge_files_sensitivity_check: KNOWLEDGE_SENSITIVITIES,
   knowledge_files_source_type_check: KNOWLEDGE_SOURCE_TYPES,
+  // Only a recording has a transcript (K3).
+  knowledge_files_transcript_source_check: KnowledgeSourceTypeSchema.extract(['audio']).options,
   knowledge_files_state_check: KNOWLEDGE_FILE_STATES,
   knowledge_files_error_reason_check: KNOWLEDGE_ERROR_REASONS,
   knowledge_chunks_sensitivity_check: KNOWLEDGE_SENSITIVITIES,

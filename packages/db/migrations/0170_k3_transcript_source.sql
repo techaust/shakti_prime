@@ -1,0 +1,3 @@
+ALTER TABLE "knowledge_files" DROP CONSTRAINT "knowledge_files_transcript_check";--> statement-breakpoint
+ALTER TABLE "knowledge_files" ADD CONSTRAINT "knowledge_files_transcript_source_check" CHECK ("knowledge_files"."transcript" is null or "knowledge_files"."source_type" = 'audio');--> statement-breakpoint
+ALTER TABLE "knowledge_files" ADD CONSTRAINT "knowledge_files_transcript_check" CHECK ("knowledge_files"."transcript" is null or (char_length("knowledge_files"."transcript") between 1 and 100000 and "knowledge_files"."transcript" !~ '[\u0900-\u097F\uA8E0-\uA8FF\u1CD0-\u1CFF]')) NOT VALID;

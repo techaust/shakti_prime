@@ -65,11 +65,15 @@ export const knowledgeFiles = pgTable(
     ),
     check('knowledge_files_title_check', sql`char_length(${t.title}) between 1 and 200`),
     check('knowledge_files_chunks_check', sql`${t.chunks} >= 0`),
-    // Only a recording has a transcript: Roman script (no character of the Devanagari blocks, ADR
-    // 0014) and at most 100,000 characters; a correction needs a transcript.
+    // A transcript is Roman script (no character of the Devanagari blocks, ADR 0014) and at most
+    // 100,000 characters; only a recording has one; a correction needs one.
     check(
       'knowledge_files_transcript_check',
-      sql`${t.transcript} is null or (${t.sourceType} = 'audio' and char_length(${t.transcript}) between 1 and 100000 and ${t.transcript} !~ '[\\u0900-\\u097F\\uA8E0-\\uA8FF\\u1CD0-\\u1CFF]')`,
+      sql`${t.transcript} is null or (char_length(${t.transcript}) between 1 and 100000 and ${t.transcript} !~ '[\\u0900-\\u097F\\uA8E0-\\uA8FF\\u1CD0-\\u1CFF]')`,
+    ),
+    check(
+      'knowledge_files_transcript_source_check',
+      sql`${t.transcript} is null or ${t.sourceType} = 'audio'`,
     ),
     check(
       'knowledge_files_transcript_corrected_check',
