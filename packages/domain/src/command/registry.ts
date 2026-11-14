@@ -97,6 +97,20 @@ import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
 import { archiveEntityChannel, setEntityChannel } from '../commands/org/channels';
 import { recordPhoneDnd } from '../commands/crm/record-phone-dnd';
+import { sendWhatsAppMessage } from '../commands/messaging/send-message';
+import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messaging/threads';
+import { registerWhatsAppTemplate } from '../commands/messaging/templates';
+import {
+  claimWhatsAppMessage,
+  matchWhatsAppThread,
+  queueWhatsAppMessage,
+  recordInboundWhatsApp,
+  recordWhatsAppHandOff,
+  recordWhatsAppOptOut,
+  recordWhatsAppSend,
+  recordWhatsAppStatus,
+  recordWhatsAppTemplateStatus,
+} from '../commands/messaging/platform';
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
@@ -143,6 +157,19 @@ export const commands = Object.freeze({
   [setEntityChannel.name]: setEntityChannel,
   [archiveEntityChannel.name]: archiveEntityChannel,
   [recordPhoneDnd.name]: recordPhoneDnd,
+  [sendWhatsAppMessage.name]: sendWhatsAppMessage,
+  [handOffWhatsAppThread.name]: handOffWhatsAppThread,
+  [returnWhatsAppThread.name]: returnWhatsAppThread,
+  [registerWhatsAppTemplate.name]: registerWhatsAppTemplate,
+  [recordInboundWhatsApp.name]: recordInboundWhatsApp,
+  [matchWhatsAppThread.name]: matchWhatsAppThread,
+  [recordWhatsAppStatus.name]: recordWhatsAppStatus,
+  [recordWhatsAppTemplateStatus.name]: recordWhatsAppTemplateStatus,
+  [recordWhatsAppOptOut.name]: recordWhatsAppOptOut,
+  [recordWhatsAppHandOff.name]: recordWhatsAppHandOff,
+  [queueWhatsAppMessage.name]: queueWhatsAppMessage,
+  [claimWhatsAppMessage.name]: claimWhatsAppMessage,
+  [recordWhatsAppSend.name]: recordWhatsAppSend,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
   [assignOpportunity.name]: assignOpportunity,

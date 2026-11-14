@@ -93,6 +93,14 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   },
   // A WhatsApp phone_number_id is a long number; an Aadhaar-shaped one stays whole.
   'org.channel.set': { providerRef: AADHAAR },
+  // WhatsApp's ids for a company number, a customer number and a message stay whole.
+  'messaging.inbound.record': {
+    phoneNumberId: AADHAAR,
+    waId: MOBILE_91,
+    providerMessageId: `wamid.${AADHAAR}`,
+  },
+  'messaging.status.record': { providerMessageId: `wamid.${AADHAAR}` },
+  'messaging.message.record_send': { providerMessageId: `wamid.${AADHAAR}` },
   'catalogue.item.create': { sku: AADHAAR },
   'catalogue.item.update': { sku: AADHAAR },
   'catalogue.kit.create': { sku: AADHAAR },

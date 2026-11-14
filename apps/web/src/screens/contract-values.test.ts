@@ -33,6 +33,14 @@ import {
   ActivityTypeSchema,
   ConsentChannelSchema,
   EntityChannelKindSchema,
+  WhatsAppHandoffReasonSchema,
+  WhatsAppMessageDirectionSchema,
+  WhatsAppMessageKindSchema,
+  WhatsAppMessageStatusSchema,
+  WhatsAppTemplateCategorySchema,
+  WhatsAppTemplatePurposeSchema,
+  WhatsAppTemplateStatusSchema,
+  WhatsAppThreadHandlerSchema,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
@@ -111,6 +119,14 @@ import {
   ACTIVITY_TYPES,
   CONSENT_CHANNELS,
   ENTITY_CHANNEL_KINDS,
+  WHATSAPP_HANDOFF_REASONS,
+  WHATSAPP_MESSAGE_DIRECTIONS,
+  WHATSAPP_MESSAGE_KINDS,
+  WHATSAPP_MESSAGE_STATUSES,
+  WHATSAPP_TEMPLATE_CATEGORIES,
+  WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_TEMPLATE_STATUSES,
+  WHATSAPP_THREAD_HANDLERS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -253,6 +269,14 @@ describe('the contract values copied for the browser', () => {
     expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);
     expect(CONSENT_CHANNELS).toEqual(ConsentChannelSchema.options);
     expect(ENTITY_CHANNEL_KINDS).toEqual(EntityChannelKindSchema.options);
+    expect(WHATSAPP_THREAD_HANDLERS).toEqual(WhatsAppThreadHandlerSchema.options);
+    expect(WHATSAPP_HANDOFF_REASONS).toEqual(WhatsAppHandoffReasonSchema.options);
+    expect(WHATSAPP_MESSAGE_DIRECTIONS).toEqual(WhatsAppMessageDirectionSchema.options);
+    expect(WHATSAPP_MESSAGE_KINDS).toEqual(WhatsAppMessageKindSchema.options);
+    expect(WHATSAPP_MESSAGE_STATUSES).toEqual(WhatsAppMessageStatusSchema.options);
+    expect(WHATSAPP_TEMPLATE_CATEGORIES).toEqual(WhatsAppTemplateCategorySchema.options);
+    expect(WHATSAPP_TEMPLATE_STATUSES).toEqual(WhatsAppTemplateStatusSchema.options);
+    expect(WHATSAPP_TEMPLATE_PURPOSES).toEqual(WhatsAppTemplatePurposeSchema.options);
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);

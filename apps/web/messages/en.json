@@ -375,7 +375,18 @@
     "payload_unreadable": "The message from the other system could not be read, so it was set aside.",
     "handler_failed": "The message from the other system could not be handled after several tries.",
     "no_handler": "The message from the other system was kept. Nothing handles this kind of message yet.",
-    "too_many_attempts": "The message from the other system failed ten times, so it was set aside."
+    "too_many_attempts": "The message from the other system failed ten times, so it was set aside.",
+    "whatsapp_thread_missing": "We couldn't find this WhatsApp chat. Refresh the page and try again.",
+    "whatsapp_opted_out": "This customer asked not to get WhatsApp messages, so nothing was sent.",
+    "whatsapp_window_closed": "The customer last wrote more than 24 hours ago. Choose an approved template to send instead.",
+    "whatsapp_template_missing": "We couldn't find this template. Refresh the page and choose another one.",
+    "whatsapp_template_not_approved": "This template is not approved by WhatsApp yet. Choose an approved template.",
+    "whatsapp_template_values": "Fill in every blank of the template, then send it again.",
+    "whatsapp_template_purpose_values": "A template the system sends by itself cannot have blanks to fill in. Remove them, or clear what it is sent as.",
+    "whatsapp_template_purpose_taken": "This company already has a template sent for this. Clear it on the other template first.",
+    "whatsapp_template_changed_meanwhile": "Someone else saved this template at the same moment. Refresh the page to see it, then try again.",
+    "whatsapp_number_unknown": "This WhatsApp number is not set up for any company.",
+    "whatsapp_message_missing": "We couldn't find this WhatsApp message. Refresh the page."
   },
   "auth": {
     "signIn": {
@@ -1694,7 +1705,20 @@
       "webhookClaim": "A message from another system taken up",
       "webhookMark": "A message from another system handled",
       "webhookSweep": "Old messages from other systems cleared out",
-      "webhookReplay": "A failed message from another system handled again"
+      "webhookReplay": "A failed message from another system handled again",
+      "whatsappSend": "WhatsApp message sent to a customer",
+      "whatsappHandOff": "WhatsApp chat taken over by a person",
+      "whatsappReturn": "WhatsApp chat given back to the assistant",
+      "whatsappTemplateRegister": "WhatsApp message template saved",
+      "whatsappInbound": "WhatsApp message received",
+      "whatsappMatch": "WhatsApp chat linked to its customer",
+      "whatsappStatus": "WhatsApp delivery update recorded",
+      "whatsappTemplateStatus": "WhatsApp template review recorded",
+      "whatsappOptOut": "Customer stopped WhatsApp messages",
+      "whatsappPlatformHandOff": "WhatsApp chat passed to the team",
+      "whatsappQueue": "Automatic WhatsApp message prepared",
+      "whatsappClaim": "WhatsApp message taken up for sending",
+      "whatsappSendRecorded": "WhatsApp sending result recorded"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1746,7 +1770,10 @@
       "orderCreditReleased": "Credit hold released",
       "orderCancelled": "Order cancelled",
       "commissionAccrued": "Referral commission recorded",
-      "playbookChanged": "Playbook rule changed"
+      "playbookChanged": "Playbook rule changed",
+      "whatsappRequested": "WhatsApp message waiting to be sent",
+      "whatsappReceived": "WhatsApp message received",
+      "whatsappButtonPressed": "WhatsApp button pressed"
     },
     "sheet": {
       "title": "{action}",
@@ -2007,6 +2034,16 @@
       "verified": "Checked and working",
       "isDnd": "On the do-not-disturb list",
       "dndCheckedAt": "Do-not-disturb list checked",
+      "messageKind": "Kind of message",
+      "templateName": "Template",
+      "handledBy": "Answered by",
+      "handoffReason": "Why people took over",
+      "templateCategory": "Kind of template",
+      "templateStatus": "Review by WhatsApp",
+      "templatePurpose": "Sent automatically as",
+      "matched": "Linked to the customer",
+      "optedOutAt": "Stopped WhatsApp messages on",
+      "consentsWithdrawn": "WhatsApp agreements withdrawn",
       "provider": "From",
       "failed": "Failed"
     },
@@ -2060,6 +2097,39 @@
         "call_service_160": "Service calls number (160 series)",
         "ivr": "Incoming calls number",
         "missed_call": "Missed-call number"
+      },
+      "whatsappMessageKind": {
+        "text": "Message",
+        "template": "Template",
+        "media": "File",
+        "button": "Button reply",
+        "system": "Stop confirmation"
+      },
+      "whatsappHandler": {
+        "assistant": "The assistant",
+        "people": "The team"
+      },
+      "whatsappHandoffReason": {
+        "keyword": "The customer asked for a person",
+        "request": "Someone asked for a person",
+        "filter_refusals": "The assistant's replies were held back",
+        "complaint": "A complaint"
+      },
+      "whatsappTemplateCategory": {
+        "utility": "Updates",
+        "marketing": "Offers",
+        "authentication": "One-time codes"
+      },
+      "whatsappTemplateStatus": {
+        "pending": "Waiting for review",
+        "approved": "Approved",
+        "rejected": "Turned down",
+        "paused": "Paused",
+        "disabled": "Switched off"
+      },
+      "whatsappTemplatePurpose": {
+        "welcome": "Welcome",
+        "opt_out_confirmation": "Stop confirmation"
       }
     }
   },

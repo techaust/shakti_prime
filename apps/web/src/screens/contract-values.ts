@@ -15,6 +15,14 @@ import type {
   CustomerLanguage,
   CustomerSort,
   EntityChannelKind,
+  WhatsAppHandoffReason,
+  WhatsAppMessageDirection,
+  WhatsAppMessageKind,
+  WhatsAppMessageStatus,
+  WhatsAppTemplateCategory,
+  WhatsAppTemplatePurpose,
+  WhatsAppTemplateStatus,
+  WhatsAppThreadHandler,
   DispositionNextAction,
   DuplicateKind,
   DuplicateReason,
@@ -152,6 +160,61 @@ export const ENTITY_CHANNEL_KINDS = [
   'ivr',
   'missed_call',
 ] as const satisfies readonly EntityChannelKind[];
+
+/** WhatsApp (docs/03-roadmap-appendix/phase2.md §6.1): who answers a thread. */
+export const WHATSAPP_THREAD_HANDLERS = [
+  'assistant',
+  'people',
+] as const satisfies readonly WhatsAppThreadHandler[];
+
+/** Why a WhatsApp thread went to people. */
+export const WHATSAPP_HANDOFF_REASONS = [
+  'keyword',
+  'request',
+  'filter_refusals',
+  'complaint',
+] as const satisfies readonly WhatsAppHandoffReason[];
+
+export const WHATSAPP_MESSAGE_DIRECTIONS = [
+  'inbound',
+  'outbound',
+] as const satisfies readonly WhatsAppMessageDirection[];
+
+export const WHATSAPP_MESSAGE_KINDS = [
+  'text',
+  'template',
+  'media',
+  'button',
+  'system',
+] as const satisfies readonly WhatsAppMessageKind[];
+
+export const WHATSAPP_MESSAGE_STATUSES = [
+  'queued',
+  'sent',
+  'delivered',
+  'read',
+  'failed',
+  'refused',
+] as const satisfies readonly WhatsAppMessageStatus[];
+
+export const WHATSAPP_TEMPLATE_CATEGORIES = [
+  'utility',
+  'marketing',
+  'authentication',
+] as const satisfies readonly WhatsAppTemplateCategory[];
+
+export const WHATSAPP_TEMPLATE_STATUSES = [
+  'pending',
+  'approved',
+  'rejected',
+  'paused',
+  'disabled',
+] as const satisfies readonly WhatsAppTemplateStatus[];
+
+export const WHATSAPP_TEMPLATE_PURPOSES = [
+  'welcome',
+  'opt_out_confirmation',
+] as const satisfies readonly WhatsAppTemplatePurpose[];
 
 export const CONSENT_CHANNELS = [
   'whatsapp',

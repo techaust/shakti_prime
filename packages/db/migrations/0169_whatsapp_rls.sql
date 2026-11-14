@@ -603,12 +603,10 @@ grant execute on function app.whatsapp_record_status(text, text, timestamptz, in
 
 -- 9d. A template's status from Meta's template events (messaging.template.record_status), in every
 --     company of the request that registered it under that name and language (one business
---     portfolio holds every company's templates). Answers how many changed.
+--     portfolio holds every company's templates). Answers the templates it changed.
 create or replace function app.whatsapp_record_template_status(p_name text, p_language text, p_status text)
-  returns int
+  returns table (template_id uuid, entity_id smallint, previous_status text)
   language plpgsql volatile security definer set search_path = '' as $$
-declare
-  v_changed int;
 begin
   if app.user_id() is null or not app.has_perm('messaging.process:entity') then
     raise exception 'messaging.process is required' using errcode = '42501';
@@ -616,12 +614,18 @@ begin
   if p_status is null or p_status not in ('pending', 'approved', 'rejected', 'paused', 'disabled') then
     raise exception 'unknown template status' using errcode = 'check_violation';
   end if;
-  update public.whatsapp_templates wt
-     set status = p_status, status_at = pg_catalog.now(), updated_by = app.user_id()
-   where wt.name = p_name and wt.language = p_language and wt.status <> p_status
-     and wt.entity_id = any (coalesce(app.entity_ids(), '{}'::int[]));
-  get diagnostics v_changed = row_count;
-  return v_changed;
+  return query
+    with before as (
+      select wt.id, wt.status
+        from public.whatsapp_templates wt
+       where wt.name = p_name and wt.language = p_language and wt.status <> p_status
+         and wt.entity_id = any (coalesce(app.entity_ids(), '{}'::int[]))
+       for update)
+    update public.whatsapp_templates wt
+       set status = p_status, status_at = pg_catalog.now(), updated_by = app.user_id()
+      from before b
+     where wt.id = b.id
+    returning wt.id, wt.entity_id, b.status;
 end
 $$;
 --> statement-breakpoint

@@ -710,13 +710,7 @@ export const API_FIXTURES: Record<
     request: {
       eventId: IDS.eventB,
       entityId: 1,
-      message: {
-        threadId: IDS.thread,
-        kind: 'template',
-        templateName: 'quote_sent',
-        params: ['SS/QT/2026-27/0231', '15-10-2026'],
-        fileId: IDS.pdf,
-      },
+      messageId: IDS.event,
     },
     response: {
       eventId: IDS.eventB,

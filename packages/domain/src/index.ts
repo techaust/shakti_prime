@@ -27,6 +27,20 @@ export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
+export { sendWhatsAppMessage } from './commands/messaging/send-message';
+export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
+export { registerWhatsAppTemplate } from './commands/messaging/templates';
+export {
+  claimWhatsAppMessage,
+  matchWhatsAppThread,
+  queueWhatsAppMessage,
+  recordInboundWhatsApp,
+  recordWhatsAppHandOff,
+  recordWhatsAppOptOut,
+  recordWhatsAppSend,
+  recordWhatsAppStatus,
+  recordWhatsAppTemplateStatus,
+} from './commands/messaging/platform';
 export { listEntityChannels } from './queries/org/list-channels';
 export { dialFacts, dndRecordInput, toDialPlanDto } from './queries/calls/dial-plan';
 export { createLead } from './commands/crm/create-lead';
