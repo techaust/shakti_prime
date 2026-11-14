@@ -13,7 +13,7 @@ import {
   RecordProviderCallInput,
   type ProviderCallStatus,
 } from '@shakti/contracts';
-import { schema } from '@shakti/db';
+import { type schema } from '@shakti/db';
 import { sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { assertEntityInScope } from '../imports/shared';

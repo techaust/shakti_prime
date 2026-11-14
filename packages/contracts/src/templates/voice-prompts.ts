@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import callRecordingNotice from './voice/call-recording-notice.json';
-import { SCRIPT_LANGUAGES } from './index';
+import { type SCRIPT_LANGUAGES } from './index';
 
 /**
  * Voice prompts (docs/08-design-system.md §11.4 and §11.5, ADR 0014): what is said to a customer
