@@ -59,6 +59,20 @@ export async function dialReadiness(
   };
 }
 
+/**
+ * Whether a number is a customer's or a company's (`app.dial_phone_taken()`), for a person holding
+ * `calls.dial`: a dial phone is the caller's own, so such a number is refused as one.
+ */
+export async function dialPhoneTaken(
+  ctx: Pick<RequestContext, 'tx'>,
+  e164: string,
+): Promise<boolean> {
+  const [row] = (await ctx.tx.execute(
+    sql`select app.dial_phone_taken(${e164}::text) as taken`,
+  )) as unknown as { taken: boolean }[];
+  return row?.taken === true;
+}
+
 /** The workspace's answer, once the web app knows whether a provider is set up. */
 export function toDialReadiness(
   facts: { companyHasNumbers: boolean; dialPhoneSet: boolean },
@@ -144,14 +158,21 @@ export async function providerCallForReport(
       });
 }
 
-/** The request's companies' dials never taken nor reported that started before `before`. */
-export async function unplacedProviderCalls(
+/**
+ * The request's companies' calls left open: a dial never taken nor reported that started before
+ * `unplacedBefore`, and a call ringing or on the line whose end never came that started before
+ * `openBefore` (`app.unended_provider_calls()`).
+ */
+export async function unendedProviderCalls(
   ctx: Pick<RequestContext, 'tx'>,
-  before: Date,
+  unplacedBefore: Date,
+  openBefore: Date,
   limit: number,
 ): Promise<UnplacedProviderCallDto[]> {
   const rows = (await ctx.tx.execute(sql`
-    select id, entity_id from app.unplaced_provider_calls(${before.toISOString()}::timestamptz, ${limit}::integer)`)) as unknown as {
+    select id, entity_id
+      from app.unended_provider_calls(${unplacedBefore.toISOString()}::timestamptz,
+                                      ${openBefore.toISOString()}::timestamptz, ${limit}::integer)`)) as unknown as {
     id: string;
     entity_id: number;
   }[];

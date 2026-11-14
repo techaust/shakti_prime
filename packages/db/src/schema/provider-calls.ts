@@ -38,8 +38,13 @@ export const providerCalls = pgTable(
       .notNull()
       .references(() => entities.id),
     opportunityId: uuid('opportunity_id').notNull(),
-    /** The customer's phone called; it is never copied here, only named. */
-    contactPhoneId: uuid('contact_phone_id').references(() => contactPhones.id),
+    /**
+     * The customer's phone called; it is never copied here, only named. Cleared when the number
+     * comes off the customer or the customer is anonymised, so the call never holds a number back.
+     */
+    contactPhoneId: uuid('contact_phone_id').references(() => contactPhones.id, {
+      onDelete: 'set null',
+    }),
     /** The person who pressed Dial. */
     callerId: uuid('caller_id').references(() => principals.id),
     direction: text('direction').notNull(),
@@ -72,10 +77,11 @@ export const providerCalls = pgTable(
       'provider_calls_status_check',
       sql`${t.status} in ('dialling', 'ringing', 'in_progress', 'completed', 'no_answer', 'busy', 'failed', 'canceled')`,
     ),
-    // An outbound call is a person's dial: it names the person, the phone and the purpose.
+    // An outbound call is a person's dial: it names the person and the purpose, on a line a person
+    // dials out on; the phone is named until it comes off the customer.
     check(
       'provider_calls_outbound_check',
-      sql`${t.direction} <> 'outbound' or (${t.callerId} is not null and ${t.contactPhoneId} is not null and ${t.purpose} is not null and ${t.series} in ('140', '160'))`,
+      sql`${t.direction} <> 'outbound' or (${t.callerId} is not null and ${t.purpose} is not null and ${t.series} in ('140', '160'))`,
     ),
     check(
       'provider_calls_sid_check',
@@ -111,10 +117,10 @@ export const providerCalls = pgTable(
     ),
     // A caller's calls of a day, and the one they are on now.
     index('provider_calls_caller_started_idx').on(t.callerId, t.startedAt),
-    // A dial the provider never took nor reported, which the hourly sweep closes as failed.
-    index('provider_calls_unplaced_idx')
+    // Calls not ended yet, which the hourly sweep closes as failed once they are left open.
+    index('provider_calls_open_idx')
       .on(t.startedAt)
-      .where(sql`${t.status} = 'dialling' and ${t.providerCallSid} is null`),
+      .where(sql`${t.status} in ('dialling', 'ringing', 'in_progress')`),
     index('provider_calls_contact_phone_idx').on(t.contactPhoneId),
     index('provider_calls_recording_idx')
       .on(t.recordingFileId)

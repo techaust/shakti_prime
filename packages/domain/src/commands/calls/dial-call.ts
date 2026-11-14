@@ -1,9 +1,10 @@
 import { DialCallInput, DialPlacementDto, DomainError, newId } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, gt, inArray } from 'drizzle-orm';
+import { and, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { dialFacts } from '../../queries/calls/dial-plan';
+import { dialPhoneTaken } from '../../queries/calls/provider-calls';
 import { callPurpose } from '../../telecom/call-purpose';
 import { dndIsFresh, planDial, type DialFacts, type DndState } from '../../telecom/dial-plan';
 import { requireEntity } from '../crm/opportunity-shared';
@@ -45,10 +46,31 @@ async function ownDialPhone(ctx: CommandContext, entityId: number): Promise<stri
 }
 
 /**
+ * The caller's own phone must be theirs: never a customer's number nor a company's (set as one
+ * before such a number was added), and never the number being called. Checked at every dial, not
+ * only when the phone is set.
+ */
+async function refuseForeignDialPhone(
+  ctx: CommandContext,
+  agentNumber: string,
+  customerNumber: string,
+): Promise<void> {
+  if (agentNumber === customerNumber || (await dialPhoneTaken(ctx, agentNumber))) {
+    throw new DomainError('validation_failed', "the dial phone is not the caller's own", {
+      reason: 'dial_phone_not_own',
+    });
+  }
+}
+
+/**
  * A double press: the caller's own call of the last minute that the provider has not yet taken
- * or rung.
+ * or rung. The caller's dials wait for each other on a lock held to the end of the transaction, so
+ * two presses at once see each other: the second finds the first's row and is refused.
  */
 async function refuseRepeat(ctx: CommandContext): Promise<void> {
+  await ctx.tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`calls.dial:${ctx.principal.id}`}, 0))`,
+  );
   const pc = schema.providerCalls;
   const [row] = await ctx.tx
     .select({ id: pc.id })
@@ -78,8 +100,9 @@ async function refuseRepeat(ctx: CommandContext): Promise<void> {
  * a promotional call, to anyone who withdrew consent to calls, without consent for a service
  * call, or without the company's number for the purpose: every broken rule is listed
  * (`dial_refused`, `refusals`) and nothing is written. The caller must have set their own dial
- * phone (`dial_phone_missing`), and a second press while their last call is still being placed is
- * refused (`dial_in_progress`).
+ * phone (`dial_phone_missing`), one that is a customer's or a company's number or the number
+ * called (`dial_phone_not_own`), and a second press while their last call is still being placed,
+ * even at the same moment, is refused (`dial_in_progress`).
  *
  * An allowed dial is recorded as `dialling` and answered with what the provider is to be asked:
  * the caller's phone, the customer's, the company's number and the facts the provider adapter
@@ -110,6 +133,7 @@ export const dialCall = defineCommand({
       throw new DomainError('internal', 'an allowed dial has the company number of its purpose');
     }
     const agentNumber = await ownDialPhone(ctx, input.entityId);
+    await refuseForeignDialPhone(ctx, agentNumber, facts.phoneE164);
     await refuseRepeat(ctx);
 
     const [row] = await ctx.tx

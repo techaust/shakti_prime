@@ -256,6 +256,22 @@ describe('crm.caller_profile.set_dial_phone', () => {
     );
     expect(JSON.stringify(rows)).not.toContain('9800000402');
     expect(JSON.stringify(rows)).toContain('0402');
+    // Every save is on the trail, the same number saved again included.
+    const again = newId();
+    await executeCommand(
+      colleague,
+      { entityIds: [ENTITY], requestId: again },
+      setDialPhone,
+      { entityId: ENTITY, phone: '+919800000402' },
+      { hosted: false },
+    );
+    const saved = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from audit_logs
+         where request_id = ${again} and command = 'crm.caller_profile.set_dial_phone'
+           and outcome = 'ok' and after_json is not null`,
+    );
+    expect(saved[0]?.n).toBe(1);
     expect(await run(colleague, setDialPhone, { entityId: ENTITY, phone: null })).toEqual({
       entityId: ENTITY,
       dialPhone: null,
@@ -448,6 +464,53 @@ describe('calls.call.dial (PRD TEL-01, TEL-04)', () => {
       reason: 'dial_phone_missing',
     });
     expect(port.placed).toHaveLength(0);
+  });
+
+  it('places one call for two presses at the same moment (a lock per caller)', async () => {
+    const lead = await leadOf({ source: 'website', consent: true });
+    const at = nextMinute();
+    const port = fakeClickToDial();
+    const results = await Promise.allSettled([
+      dial(lead, deps(port, at)),
+      dial(lead, deps(port, at)),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const refused = results.find((r) => r.status === 'rejected');
+    expect((refused?.reason as { details?: { reason?: string } }).details?.reason).toBe(
+      'dial_in_progress',
+    );
+    expect(port.placed).toHaveLength(1);
+    const rows = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from provider_calls where opportunity_id = ${lead.id}`,
+    );
+    expect(rows[0]?.n).toBe(1);
+  });
+
+  it("refuses a dial phone that is a customer's or a company's number, when set and at every dial", async () => {
+    const lead = await leadOf({ source: 'website', consent: true });
+    const other = await leadOf({ source: 'website', consent: true });
+    for (const phone of [other.e164, PROMO]) {
+      expect(await failure(run(colleague, setDialPhone, { entityId: ENTITY, phone }))).toEqual({
+        code: 'validation_failed',
+        reason: 'dial_phone_not_own',
+      });
+    }
+    // A phone set before the number became a customer's is refused at the dial, before the provider.
+    await asMigrator(
+      (m) => m`update caller_profiles set dial_phone_e164 = ${other.e164}
+                where user_id = ${caller.id} and entity_id = ${ENTITY}`,
+    );
+    try {
+      const port = unreachableClickToDial();
+      expect(await failure(dial(lead, deps(port)))).toMatchObject({ reason: 'dial_phone_not_own' });
+      expect(port.calls).toBe(0);
+    } finally {
+      await asMigrator(
+        (m) => m`update caller_profiles set dial_phone_e164 = ${CALLER_PHONE}
+                  where user_id = ${caller.id} and entity_id = ${ENTITY}`,
+      );
+    }
   });
 
   it('refuses a second press while the last call is being placed', async () => {

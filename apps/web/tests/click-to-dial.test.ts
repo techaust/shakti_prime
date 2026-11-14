@@ -27,7 +27,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { POST as EXOTEL_STATUS } from '../src/app/api/v1/webhooks/exotel/call-status/route';
 import type { ExotelClient } from '../src/integrations/exotel/client';
 import { signedStatusCallbackUrl } from '../src/integrations/exotel/status-callback';
-import { sweepCalls, UNPLACED_DIAL_MINUTES } from '../src/workers/calls/sweep-calls';
+import {
+  OPEN_CALL_HOURS,
+  sweepCalls,
+  UNPLACED_DIAL_MINUTES,
+} from '../src/workers/calls/sweep-calls';
 import { exotelStatusHandler } from '../src/workers/webhooks/exotel-status';
 import { TEST_ORIGIN, TEST_WEBHOOK_ENV } from '../src/webhooks/signed-deliveries';
 import exotelStatus from '../src/integrations/exotel/fixtures/status-callback.json';
@@ -173,6 +177,7 @@ function recordings(): { client: ExotelClient; downloads: string[] } {
   const client = {
     connectCall: () => Promise.reject(new Error('not dialled here')),
     getCall: () => Promise.reject(new Error('not read here')),
+    recordingAllowed: (url: string) => url.startsWith('https://recordings.exotel.com/'),
     fetchRecording: (url: string) => {
       downloads.push(url);
       return Promise.resolve({
@@ -321,6 +326,24 @@ describe('the hourly calls sweep', () => {
     const handle = exotelStatusHandler({ client: () => undefined, store: () => undefined });
     await handle(report(call.id, `late${newId().replaceAll('-', '')}`), { requestId: newId() });
     expect(await stored(call.id)).toMatchObject({ status: 'failed', duration_s: null });
+  });
+
+  it('closes a call left ringing or on the line three hours after the press, and nothing sooner', async () => {
+    const { call } = await placed();
+    expect(await stored(call.id)).toMatchObject({ status: 'ringing' });
+    const started = Date.parse(call.startedAt);
+    await sweepCalls({
+      store: undefined,
+      requestId: newId(),
+      now: () => new Date(started + (OPEN_CALL_HOURS * 60 - 5) * 60_000),
+    });
+    expect(await stored(call.id)).toMatchObject({ status: 'ringing' });
+    await sweepCalls({
+      store: undefined,
+      requestId: newId(),
+      now: () => new Date(started + (OPEN_CALL_HOURS * 60 + 5) * 60_000),
+    });
+    expect(await stored(call.id)).toMatchObject({ status: 'failed' });
   });
 
   it('removes a recording past twelve months from the store, keeping the call and its file row', async () => {

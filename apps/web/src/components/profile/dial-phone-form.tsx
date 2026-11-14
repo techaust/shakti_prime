@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { saveDialPhone } from '../../actions/dialling';
 import { formatPhone } from '../../screens/format';
-import { FailureMessage } from '../screens/failure';
+import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { useCommand } from '../screens/use-command';
 
 export interface DialPhoneRow {
@@ -17,9 +17,9 @@ export interface DialPhoneRow {
 /** One company's dial phone: the number, saved with its own button beside it. */
 function DialPhoneField({ row, showCompany }: { row: DialPhoneRow; showCompany: boolean }) {
   const t = useTranslations('profile.dialPhone');
-  const errors = useTranslations('errors');
   const [value, setValue] = useState(row.phone === null ? '' : formatPhone(row.phone));
   const { run, pending, failure } = useCommand(saveDialPhone, `dial-phone-${String(row.entityId)}`);
+  const { fieldError, formFailure } = useFieldFailure(failure, ['phone']);
   const id = `dial-phone-${String(row.entityId)}`;
   return (
     <form
@@ -36,7 +36,7 @@ function DialPhoneField({ row, showCompany }: { row: DialPhoneRow; showCompany: 
         id={id}
         label={showCompany ? t('labelIn', { company: row.company }) : t('label')}
         helper={t('helper')}
-        error={failure?.field === 'phone' ? errors('phone_invalid') : undefined}
+        error={fieldError('phone')}
         actions={
           <Button type="submit" variant="secondary" pending={pending}>
             {t('save')}
@@ -54,7 +54,7 @@ function DialPhoneField({ row, showCompany }: { row: DialPhoneRow; showCompany: 
           }}
         />
       </Field>
-      {failure?.field === 'phone' ? null : <FailureMessage failure={failure} />}
+      <FailureMessage failure={formFailure} />
     </form>
   );
 }

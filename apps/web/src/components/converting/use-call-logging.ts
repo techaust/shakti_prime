@@ -28,6 +28,9 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
   const [picked, setPicked] = useState<{ outcome: DispositionDto; need: OutcomeNeed }>();
   // A call placed from the screen (T3): its log takes the provider call's start and length.
   const [dialled, setDialled] = useState<DialledCall | undefined>();
+  // Calls saved: the call bar is mounted afresh after each, so a saved dialled call is never sent
+  // again with the next log.
+  const [saves, setSaves] = useState(0);
   const dial = useQuery<{ e164: string; dialledAt: string }>();
   // One form per lead: another lead's call is sent under a key of its own.
   const save = useCommand(logCall, lead?.opportunityId);
@@ -70,6 +73,8 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
           setPicked(undefined);
           // The next call on the lead starts when Dial is pressed again.
           setNumber(undefined);
+          setDialled(undefined);
+          setSaves((n) => n + 1);
           toast.success(savedMessage(t, result));
           onSaved();
         },
@@ -98,5 +103,6 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
     saveCall,
     save,
     onDialled: setDialled,
+    barKey: saves,
   };
 }

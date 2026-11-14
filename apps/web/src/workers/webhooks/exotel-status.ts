@@ -16,7 +16,9 @@ import {
   type FileStore,
 } from '@shakti/domain';
 import { fileStore } from '../../files/store';
+import { hostedRuntime } from '../../auth/deps';
 import { exotelClient, exotelConfig, type ExotelClient } from '../../integrations/exotel/client';
+import { simulatedRecordings } from '../../integrations/exotel/click-to-dial';
 import { logger } from '../../log';
 import { systemWorkersPrincipal } from '../events/system-principal';
 import type { WebhookHandled, WebhookHandlerContext } from './registry';
@@ -29,9 +31,11 @@ export interface ExotelStatusDeps {
 }
 
 const defaultDeps: ExotelStatusDeps = {
+  // The account's client; off a hosted runtime without one, the simulated provider's recordings.
   client: () => {
     const config = exotelConfig();
-    return config === undefined ? undefined : exotelClient(config);
+    if (config !== undefined) return exotelClient(config);
+    return hostedRuntime() ? undefined : simulatedRecordings();
   },
   store: () => fileStore(),
 };
@@ -145,6 +149,11 @@ export function exotelStatusHandler(deps: ExotelStatusDeps = defaultDeps) {
     const store = deps.store();
     if (client === undefined || store === undefined) {
       logger.log('warn', 'calls.recording_not_copied', { requestId, providerCallId: ref });
+      return { entityId };
+    }
+    if (!client.recordingAllowed(link)) {
+      // Not one of the account's recording hosts: never asked, nor tried again.
+      logger.log('warn', 'calls.recording_host_refused', { requestId, providerCallId: ref });
       return { entityId };
     }
     const recording = await client.fetchRecording(link, CALL_RECORDING_MAX_BYTES);

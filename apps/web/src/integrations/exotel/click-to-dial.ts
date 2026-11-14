@@ -8,14 +8,24 @@ import {
 import { hostedRuntime } from '../../auth/deps';
 import { logger } from '../../log';
 import { ProviderError } from '../http';
-import { DialRefusedError, exotelClient, exotelConfig, type ExotelClient } from './client';
+import {
+  DialRefusedError,
+  exotelClient,
+  exotelConfig,
+  type ExotelClient,
+  type FetchedRecording,
+} from './client';
 import { signedStatusCallbackUrl } from './status-callback';
 
 /** Where Exotel posts a call's status: the webhook route of docs/06-api.md §3.4. */
 export const STATUS_CALLBACK_PATH = '/api/v1/webhooks/exotel/call-status';
 
-/** The longest call Exotel lets run, in seconds: the four hours a call log takes. */
-const CALL_TIME_LIMIT_SECONDS = 4 * 60 * 60;
+/**
+ * The longest call Exotel lets run, in seconds: two and a half hours, so every call has ended,
+ * and been reported, before the hourly sweep takes a call still open after three hours as one
+ * whose end was lost (`OPEN_CALL_HOURS`).
+ */
+export const CALL_TIME_LIMIT_SECONDS = 150 * 60;
 
 /**
  * Exotel behind the dial's port (docs/03-roadmap-appendix/phase2.md §6.3): the caller's phone is
@@ -80,6 +90,53 @@ export function exotelClickToDial(
 /** A report the simulated provider sends, as Exotel would post it to the status address. */
 export type SimulatedReport = (report: Record<string, unknown>) => Promise<void>;
 
+/** Where the simulated provider says it keeps a call's recording. */
+export const SIMULATED_RECORDINGS = 'https://recordings.exotel.com/simulated/';
+
+/** Half a second of silence as a WAV file (8 kHz, 8-bit, mono): the simulated recording. */
+function silentWav(): Uint8Array {
+  const samples = 4_000;
+  const bytes = new Uint8Array(44 + samples);
+  const view = new DataView(bytes.buffer);
+  const text = (at: number, value: string) => {
+    for (let i = 0; i < value.length; i += 1) bytes[at + i] = value.charCodeAt(i);
+  };
+  text(0, 'RIFF');
+  view.setUint32(4, 36 + samples, true);
+  text(8, 'WAVE');
+  text(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, 8_000, true);
+  view.setUint32(28, 8_000, true);
+  view.setUint16(32, 1, true);
+  view.setUint16(34, 8, true);
+  text(36, 'data');
+  view.setUint32(40, samples, true);
+  bytes.fill(128, 44);
+  return bytes;
+}
+
+/**
+ * The simulated provider's recordings (a developer's machine and the journeys only): every
+ * simulated call has one, half a second of silence, so the copy, the timeline's Play recording and
+ * the 12-month removal run without Exotel. Any other link is refused.
+ */
+export function simulatedRecordings(): ExotelClient {
+  const refused = () => Promise.reject(new Error('the simulated provider places no call here'));
+  return {
+    connectCall: refused,
+    getCall: refused,
+    recordingAllowed: (url) => url.startsWith(SIMULATED_RECORDINGS),
+    fetchRecording(url): Promise<FetchedRecording> {
+      return url.startsWith(SIMULATED_RECORDINGS)
+        ? Promise.resolve({ bytes: silentWav(), contentType: 'audio/wav' })
+        : Promise.reject(new Error('not a simulated recording'));
+    },
+  };
+}
+
 /** Exotel's time format, India time, for the simulated reports. */
 function exotelTime(at: Date): string {
   return new Date(at.getTime() + 5.5 * 3_600_000).toISOString().slice(0, 19).replace('T', ' ');
@@ -88,7 +145,8 @@ function exotelTime(at: Date): string {
 /**
  * The provider a developer's machine and the journeys use (never a hosted runtime): it takes every
  * call, and, as Exotel would, reports the customer answering after `answerMs` and the call ending
- * after `endMs`, through the same status handler a real report reaches. Nothing rings.
+ * after `endMs` with a recording (`simulatedRecordings`), through the same status handler a real
+ * report reaches. Nothing rings.
  */
 export function simulatedClickToDial(
   report: SimulatedReport,
@@ -111,7 +169,7 @@ export function simulatedClickToDial(
               ? {
                   EndTime: exotelTime(at),
                   ConversationDuration: String(Math.round((endMs - answerMs) / 1000)),
-                  RecordingUrl: '',
+                  RecordingUrl: `${SIMULATED_RECORDINGS}${sid}.wav`,
                 }
               : {}),
             CustomField: request.ref,

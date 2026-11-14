@@ -209,6 +209,9 @@ export function CallingScreen({
   const [dialledAt, setDialledAt] = useState<string | undefined>();
   // A call placed from the screen (T3): its log takes the provider call's start and length.
   const [dialled, setDialled] = useState<DialledCall | undefined>();
+  // Calls saved on this screen: the call bar is mounted afresh after each, so a saved dialled call
+  // is never sent again with the next log.
+  const [saves, setSaves] = useState(0);
   const [picked, setPicked] = useState<{ outcome: DispositionDto; need: OutcomeNeed }>();
   const searchRef = useRef<HTMLInputElement>(null);
   const workspaceRef = useRef<HTMLHeadingElement>(null);
@@ -277,6 +280,8 @@ export function CallingScreen({
         },
         (result) => {
           setPicked(undefined);
+          setDialled(undefined);
+          setSaves((n) => n + 1);
           toast.success(savedMessage(t, result));
           open(lead);
           refreshQueue();
@@ -411,7 +416,7 @@ export function CallingScreen({
                 onShow={showNumber}
               />
               <CallPlan entityId={lead.entityId} opportunityId={lead.opportunityId} />
-              <CallBar lead={lead} dialKey onCall={setDialled} />
+              <CallBar key={saves} lead={lead} dialKey onCall={setDialled} />
               <p className="text-sm">
                 {lead.nextCall === null ? (
                   t('lead.noNextCall')

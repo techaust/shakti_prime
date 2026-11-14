@@ -31,8 +31,11 @@ type Refusals = Extract<DialOutcomeDto, { kind: 'refused' }>['refusals'];
 
 /** How often the bar reads the call again while the provider reports it. */
 const POLL_MS = 2_000;
-/** The bar stops reading a call whose status has not changed for this long. */
-const QUIET_MS = 15 * 60_000;
+/**
+ * The bar stops reading a call this long after it was pressed, whatever its status: by then the
+ * hourly sweep has closed a call whose end was never reported (`OPEN_CALL_HOURS`).
+ */
+const POLL_LIMIT_MS = 3 * 3_600_000;
 
 const ENDS: ReadonlySet<ProviderCallDto['status']> = new Set([
   'completed',
@@ -75,7 +78,8 @@ export function elapsedSeconds(call: ProviderCallDto, now: number): number {
  * lead's company has a calling number, and asks the caller to add their own phone first; the
  * manual flow beside it stays for every other case. A refused dial lists every rule it broke.
  * `onCall` hands the call to the workspace, whose log of it takes the provider call's start and
- * length.
+ * length; once that log is saved the workspace mounts the bar afresh (a new `key`), so the next
+ * call on the lead starts from Call again.
  */
 export function CallBar({
   lead,
@@ -116,7 +120,7 @@ export function CallBar({
   // The provider's reports reach the call on the server; the bar reads it again while it runs.
   useEffect(() => {
     if (shown === undefined || !live) return;
-    if (Date.now() - Date.parse(shown.startedAt) > QUIET_MS && shown.status === 'dialling') return;
+    if (Date.now() - Date.parse(shown.startedAt) > POLL_LIMIT_MS) return;
     const timer = setTimeout(() => {
       void providerCallStatus({ entityId: shown.entityId, providerCallId: shown.id }).then(
         (result) => {

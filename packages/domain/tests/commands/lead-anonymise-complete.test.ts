@@ -5,6 +5,7 @@ import {
   type Principal,
 } from '@shakti/contracts';
 import { asMigrator, asPrincipal, closeDb, createTestUser, principalFor } from '@shakti/db/testing';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAiProvider } from '../../src/ai/provider';
 import { runTriage } from '../../src/ai/triage/run-triage';
@@ -46,6 +47,8 @@ const DIGITS = `96${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
 let person: Principal;
 let colleague: Principal;
 let lead: LeadDto;
+/** A call placed from the screen to the person (T3), with its recording. */
+const dialled = { call: newId(), recording: newId() };
 
 function run<T>(principal: Principal, command: AnyCommand, input: unknown): Promise<T> {
   return asPrincipal(principal, (context) =>
@@ -160,6 +163,24 @@ beforeAll(async () => {
     note: `${MARK} came to the shop about a pump`,
   });
 
+  // A call placed from the screen to the person's number, ended, with its recording and the
+  // provider's id carrying the marker (T3): none of it may keep the number or the marker.
+  await asMigrator(async (m) => {
+    const [phoneRow] = await m<{ id: string }[]>`
+      select id from contact_phones where contact_id = ${contactId} limit 1`;
+    await m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256,
+                               status, created_by)
+            values (${dialled.recording}, ${E}, 'call_recording', 'local',
+                    ${`${String(E)}/call_recording/${dialled.recording}.mp3`}, 'call-recording.mp3',
+                    'audio/mpeg', 10, ${'d'.repeat(64)}, 'ready', ${person.id})`;
+    await m`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id,
+                                        direction, series, purpose, provider_call_sid, status,
+                                        started_at, ended_at, duration_s, recording_file_id)
+            values (${dialled.call}, ${E}, ${lead.id}, ${phoneRow?.id ?? ''}, ${person.id},
+                    'outbound', '160', 'service', ${`exo${MARK}`}, 'completed',
+                    now(), now(), 30, ${dialled.recording})`;
+  });
+
   // Thirty months on: every moment of the customer and its lead moved back, the triggers that
   // stamp or guard those moments set aside for the move alone.
   await asMigrator((m) =>
@@ -255,5 +276,21 @@ describe('an anonymised customer made through the commands', () => {
       }
     });
     expect(hits).toEqual([]);
+
+    // The call placed from the screen stays, with no number and no provider id, and its recording
+    // is due for removal at the next sweep, whatever its age.
+    const [call] = await asMigrator(
+      (m) => m<{ contact_phone_id: string | null; provider_call_sid: string | null }[]>`
+        select contact_phone_id, provider_call_sid from provider_calls where id = ${dialled.call}`,
+    );
+    expect(call).toEqual({ contact_phone_id: null, provider_call_sid: null });
+    const due = await asPrincipal(workers, ({ tx }) =>
+      tx.execute(
+        sql`select file_id from app.call_recordings_due(now() - interval '12 months', 500)`,
+      ),
+    );
+    expect((due as unknown as { file_id: string }[]).map((r) => r.file_id)).toContain(
+      dialled.recording,
+    );
   }, 180_000);
 });

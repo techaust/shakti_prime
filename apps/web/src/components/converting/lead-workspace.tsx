@@ -115,7 +115,7 @@ function CallsPanel({
         onShow={calling.showNumber}
       />
       <CallPlan entityId={lead.entityId} opportunityId={lead.opportunityId} />
-      <CallBar lead={lead} onCall={calling.onDialled} />
+      <CallBar key={calling.barKey} lead={lead} onCall={calling.onDialled} />
       <Outcomes lead={lead} pending={save.pending} onPick={calling.pick} />
       <FailureMessage failure={picked === undefined ? save.failure : undefined} />
       <Panel id="converting-activity" title={t('activity.title')}>

@@ -45,7 +45,8 @@ export {
   playableRecordings,
   providerCallForReport,
   toDialReadiness,
-  unplacedProviderCalls,
+  unendedProviderCalls,
+  dialPhoneTaken,
 } from './queries/calls/provider-calls';
 export type { PlaceDialDeps } from './calls/place-dial';
 export {

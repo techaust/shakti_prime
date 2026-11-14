@@ -13,6 +13,7 @@ import { schema } from '@shakti/db';
 import { and, eq, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { dialPhoneTaken } from '../../queries/calls/provider-calls';
 import { requireEntity } from './opportunity-shared';
 
 type ProfileRow = typeof schema.callerProfiles.$inferSelect;
@@ -175,6 +176,13 @@ export const setDialPhone = defineCommand({
   auditFields: ['dialPhone'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    // The caller's own phone: never a customer's number nor a company's (checked again at each dial).
+    if (input.phone !== null && (await dialPhoneTaken(ctx, input.phone))) {
+      throw new DomainError('validation_failed', "the dial phone is not the caller's own", {
+        reason: 'dial_phone_not_own',
+        issues: [{ path: 'phone', message: 'dial_phone_not_own' }],
+      });
+    }
     const before = await ownProfile(ctx, ctx.principal.id, input.entityId);
     const cp = schema.callerProfiles;
     const [row] = await ctx.tx
@@ -192,15 +200,14 @@ export const setDialPhone = defineCommand({
       })
       .returning();
     if (!row) throw new DomainError('internal', 'caller profile upsert returned no row');
-    if (before?.dialPhoneE164 !== row.dialPhoneE164) {
-      ctx.audit({
-        aggregateType: 'caller_profile',
-        aggregateId: row.id,
-        entityId: input.entityId,
-        before: { dialPhone: before?.dialPhoneE164 ?? null },
-        after: { dialPhone: row.dialPhoneE164 },
-      });
-    }
+    // Every save of the phone is on the trail, its digits masked to the last four.
+    ctx.audit({
+      aggregateType: 'caller_profile',
+      aggregateId: row.id,
+      entityId: input.entityId,
+      before: { dialPhone: before?.dialPhoneE164 ?? null },
+      after: { dialPhone: row.dialPhoneE164 },
+    });
     return { entityId: row.entityId, dialPhone: row.dialPhoneE164 };
   },
 });

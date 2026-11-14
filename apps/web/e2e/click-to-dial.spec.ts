@@ -78,9 +78,10 @@ test.describe('click-to-dial as a tele-caller', () => {
     await expectNoAxeViolations(page);
   });
 
-  test('calls a lead from the screen with C and saves the call with its time', async ({
+  test('calls a lead from the screen with C, saves the call with its time, and its recording plays', async ({
     page,
     context,
+    browser,
   }) => {
     test.setTimeout(180_000);
     await setServerClock(context, insideCallingHours());
@@ -122,6 +123,47 @@ test.describe('click-to-dial as a tele-caller', () => {
     await expect(
       page.getByRole('region', { name: 'Recent activity' }).getByText('Outcome: Not reachable'),
     ).toBeVisible();
+
+    // The bar starts afresh, and a call dialled by hand next on the same lead saves as its own.
+    await expect(bar.getByRole('status')).toHaveCount(0);
+    await expect(bar.getByText('The call has ended. Choose its outcome to save it.')).toHaveCount(
+      0,
+    );
+    await expect(bar.getByRole('button', { name: /^Call/ })).toBeEnabled();
+    const heading = page.getByRole('heading', { name: lead, level: 2 });
+    await heading.focus();
+    await page.keyboard.press('d');
+    await expect(page.getByText('Number to dial')).toBeVisible();
+    await page.keyboard.press('3');
+    await expect(page.getByText(/^Call saved\. /).first()).toBeVisible();
+    await expect(page.getByText('This call is saved already.')).toHaveCount(0);
+    await expect(
+      page.getByRole('region', { name: 'Recent activity' }).getByText('Outcome: Not reachable'),
+    ).toHaveCount(2);
+    const customer = await page.getByRole('link', { name: 'Open customer' }).getAttribute('href');
+
+    // An Executive hears the call's recording on the customer's page (the simulated provider
+    // records every call): the address is the store's, which the page's policy lets play.
+    const executive = await browser.newContext({
+      storageState: signedInAs('executive').storageState,
+    });
+    try {
+      const own = await executive.newPage();
+      await own.goto(customer ?? '/customers');
+      const play = own.getByRole('button', { name: 'Play recording' }).first();
+      await (await hydrated(play)).click();
+      const audio = own.getByLabel('Recording of the call').first();
+      await expect(audio).toBeVisible();
+      await expect
+        .poll(() => audio.evaluate((el) => (el as HTMLAudioElement).readyState), {
+          timeout: 15_000,
+        })
+        .toBeGreaterThan(0);
+      expect(await audio.evaluate((el) => (el as HTMLAudioElement).error)).toBeNull();
+      await expectNoAxeViolations(own);
+    } finally {
+      await executive.close();
+    }
   });
 
   test('lists the broken rule and places nothing outside calling hours', async ({

@@ -5,7 +5,7 @@ import {
   executeCommand,
   executeQuery,
   recordProviderCall,
-  unplacedProviderCalls,
+  unendedProviderCalls,
   WORKSHOP_DEFAULTS,
   type FileStore,
   type Logger,
@@ -19,6 +19,14 @@ import { systemWorkersPrincipal } from '../events/system-principal';
  * leaves room for a slow report and keeps a timeline honest the same afternoon.
  */
 export const UNPLACED_DIAL_MINUTES = 60;
+
+/**
+ * How long a call may stay ringing or on the line before the sweep takes its end as never coming:
+ * Exotel ends every call by its time limit (`CALL_TIME_LIMIT_SECONDS`, two and a half hours) and
+ * reports it within minutes, so a call still open three hours after the press is one whose end
+ * was lost. The call bar stops reading a call after the same time.
+ */
+export const OPEN_CALL_HOURS = 3;
 
 /** Rows a call reads at a time. */
 const PAGE = 200;
@@ -55,8 +63,10 @@ export function monthsBefore(at: Date, months: number): Date {
  * files sweep by the worker principal (`calls.process`), for each company in turn in a request for
  * that company alone:
  * 1. a dial still `dialling` with no provider id an hour after it started (a provider that never
- *    answered the dial nor reported the call) is recorded as failed (`calls.provider_call.record`),
- *    so no call stays open on a timeline, and a report that comes later changes nothing back;
+ *    answered the dial nor reported the call), and a call still ringing or on the line three hours
+ *    after it started (its end never reported), are recorded as failed
+ *    (`calls.provider_call.record`), so no call stays open on a timeline, and a report that comes
+ *    later changes nothing back;
  * 2. call recordings older than `WORKSHOP_DEFAULTS.retention.callRecordingMonths` have their bytes
  *    deleted from the store (every version it kept), then are recorded deleted
  *    (`calls.recording.delete`), keeping the call and the file's row; a recording the store refuses
@@ -91,13 +101,14 @@ export async function sweepCalls(deps: CallsSweepDeps): Promise<CallsSweepResult
     if (standing === 'missing') break;
     result.companies += 1;
 
-    // 1. Dials the provider never took.
-    const cutoff = new Date(now().getTime() - UNPLACED_DIAL_MINUTES * 60_000);
+    // 1. Dials the provider never took, and calls whose end never came.
+    const unplacedBefore = new Date(now().getTime() - UNPLACED_DIAL_MINUTES * 60_000);
+    const openBefore = new Date(now().getTime() - OPEN_CALL_HOURS * 3_600_000);
     const unplaced = await executeQuery(
       principal,
       call(entityId),
-      (ctx) => unplacedProviderCalls(ctx, cutoff, PAGE),
-      { name: 'calls.sweep.unplaced', pool: 'app_user' },
+      (ctx) => unendedProviderCalls(ctx, unplacedBefore, openBefore, PAGE),
+      { name: 'calls.sweep.unended', pool: 'app_user' },
     );
     for (const dial of unplaced) {
       try {

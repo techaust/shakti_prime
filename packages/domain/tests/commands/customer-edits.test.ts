@@ -212,6 +212,41 @@ describe('crm.contact.update', () => {
     expect(Object.keys(row?.after_json ?? {}).sort()).toEqual(['phones', 'primaryPhone']);
   });
 
+  it('takes off a number a call from the screen dialled, and the call keeps no number (T3)', async () => {
+    const k = await customerOf(caller);
+    const [dialled] = await phonesOf(k.contactId);
+    const callId = newId();
+    // A provider call of the caller's on the lead, ended, naming the number it dialled.
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id,
+                                          direction, series, purpose, status, started_at, ended_at)
+               values (${callId}, 1, ${k.leadId}, ${dialled?.id ?? ''}, ${caller.id}, 'outbound',
+                       '140', 'promotional', 'completed', now(), now())`,
+    );
+    await run(caller, updateContact, {
+      entityId: 1,
+      accountId: k.accountId,
+      contactId: k.contactId,
+      addPhones: [{ phone: phone(), isWhatsapp: false }],
+    });
+    const added = (await phonesOf(k.contactId))[1]?.id ?? '';
+    await run(caller, updateContact, {
+      entityId: 1,
+      accountId: k.accountId,
+      contactId: k.contactId,
+      primaryPhoneId: added,
+      removePhoneIds: [dialled?.id ?? ''],
+    });
+    expect((await phonesOf(k.contactId)).map((p) => p.id)).toEqual([added]);
+    const [call] = await asMigrator(
+      (m) => m<{ contact_phone_id: string | null; status: string }[]>`
+        select contact_phone_id, status from provider_calls where id = ${callId}`,
+    );
+    expect(call).toEqual({ contact_phone_id: null, status: 'completed' });
+  });
+
   it('keeps at least one number, and refuses a number already on the contact', async () => {
     const k = await customerOf(caller);
     const [only] = await phonesOf(k.contactId);

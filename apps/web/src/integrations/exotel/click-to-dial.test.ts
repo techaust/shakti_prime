@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '../http';
 import { bodyOf, stubFetch, urlOf } from '../test-fetch';
 import { clickToDial, exotelClickToDial, simulatedClickToDial } from './click-to-dial';
-import { exotelClient, isExotelRecordingUrl } from './client';
+import { exotelClient, exotelConfig, isExotelRecordingUrl } from './client';
 import connectResponse from './fixtures/connect-response.json';
 import { verifyStatusCallbackUrl } from './status-callback';
 
@@ -51,7 +51,7 @@ describe('Exotel behind the dial port', () => {
       // No flow plays the recording notice before the caller is joined (design §6.3).
       Record: 'false',
       CustomField: REF,
-      TimeLimit: '14400',
+      TimeLimit: '9000',
     });
     const status = form.StatusCallback ?? '';
     expect(status.startsWith('https://bos.shakti.test/api/v1/webhooks/exotel/call-status?')).toBe(
@@ -122,7 +122,10 @@ describe('the simulated provider', () => {
         ['in-progress', sid, REF],
         ['completed', sid, REF],
       ]);
-      expect(reports[1]).toMatchObject({ ConversationDuration: '2', RecordingUrl: '' });
+      expect(reports[1]).toMatchObject({
+        ConversationDuration: '2',
+        RecordingUrl: `https://recordings.exotel.com/simulated/${sid}.wav`,
+      });
     } finally {
       vi.useRealTimers();
     }
@@ -130,23 +133,30 @@ describe('the simulated provider', () => {
 });
 
 describe("a recording's copy", () => {
-  const client = (fetchImpl: typeof fetch) =>
-    exotelClient(CONFIG, { fetch: fetchImpl, timeoutMs: 1_000, now: () => ELEVEN_AM_IST });
+  const client = (fetchImpl: typeof fetch, recordingHosts?: readonly string[]) =>
+    exotelClient(
+      { ...CONFIG, ...(recordingHosts === undefined ? {} : { recordingHosts }) },
+      { fetch: fetchImpl, timeoutMs: 1_000, now: () => ELEVEN_AM_IST },
+    );
   const mp3 = (status = 200, headers: Record<string, string> = {}) =>
     new Response(status === 200 ? new Uint8Array([1, 2, 3]) : null, {
       status,
       headers: { 'content-type': 'audio/mpeg', ...headers },
     });
 
-  it("is taken only from Exotel's own hosts and bucket", () => {
+  it("is taken only from the account's recording hosts, exactly", () => {
     expect(isExotelRecordingUrl('https://recordings.exotel.com/a/b.mp3')).toBe(true);
     expect(
-      isExotelRecordingUrl('https://s3-ap-southeast-1.amazonaws.com/exotelrecordings/a/b.mp3'),
+      isExotelRecordingUrl('https://s3-ap-southeast-1.amazonaws.com/exotelrecordings/a/b.mp3', [
+        's3-ap-southeast-1.amazonaws.com',
+      ]),
     ).toBe(true);
     for (const url of [
       'http://recordings.exotel.com/a.mp3',
+      'https://my.exotel.com/a.mp3',
+      'https://api.in.exotel.com/a.mp3',
       'https://exotel.com.evil.test/a.mp3',
-      'https://s3-ap-southeast-1.amazonaws.com/other-bucket/a.mp3',
+      'https://s3-ap-southeast-1.amazonaws.com/exotelrecordings/a/b.mp3',
       'https://user:pw@recordings.exotel.com/a.mp3',
       'https://recordings.exotel.com:8443/a.mp3',
       'https://169.254.169.254/latest/meta-data',
@@ -156,47 +166,83 @@ describe("a recording's copy", () => {
     }
   });
 
-  it("sends the account's key to Exotel alone and follows one redirect to its bucket", async () => {
+  it('reads the hosts from the configuration', () => {
+    const env = {
+      EXOTEL_ACCOUNT_SID: 'shaktiprime1',
+      EXOTEL_API_KEY: 'exotel-test-key',
+      EXOTEL_API_TOKEN: 'exotel-test-token',
+    };
+    expect(exotelConfig(env)?.recordingHosts).toEqual(['recordings.exotel.com']);
+    expect(
+      exotelConfig({ ...env, EXOTEL_RECORDING_HOSTS: ' Rec.Exotel.com , bad host!, b.exotel.in' })
+        ?.recordingHosts,
+    ).toEqual(['rec.exotel.com', 'b.exotel.in']);
+  });
+
+  it("sends the account's key to an allowed host and follows one redirect to another", async () => {
+    const hosts = ['recordings.exotel.com', 'store.exotel.com'];
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
         new Response(null, {
           status: 302,
-          headers: {
-            location: 'https://s3-ap-southeast-1.amazonaws.com/exotelrecordings/shaktiprime1/a.mp3',
-          },
+          headers: { location: 'https://store.exotel.com/shaktiprime1/a.mp3' },
         }),
       )
       .mockResolvedValueOnce(mp3());
-    const recording = await client(fetchImpl).fetchRecording(
+    const recording = await client(fetchImpl, hosts).fetchRecording(
       'https://recordings.exotel.com/shaktiprime1/a.mp3',
       10,
     );
     expect(recording).toEqual({ bytes: new Uint8Array([1, 2, 3]), contentType: 'audio/mpeg' });
     const [first, second] = fetchImpl.mock.calls;
     expect(new Headers(first?.[1]?.headers).get('authorization')).not.toBeNull();
-    expect(urlOf(second?.[0])).toContain('amazonaws.com/exotelrecordings/');
-    expect(new Headers(second?.[1]?.headers).get('authorization')).toBeNull();
+    expect(urlOf(second?.[0])).toBe('https://store.exotel.com/shaktiprime1/a.mp3');
   });
 
-  it('refuses a redirect elsewhere, a file too large and one that is not audio', async () => {
+  it('refuses a redirect elsewhere, a host not allowed and a file that is not audio', async () => {
     const away = stubFetch(
-      () => new Response(null, { status: 302, headers: { location: 'https://evil.test/a.mp3' } }),
+      () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://my.exotel.com/a.mp3' },
+        }),
     );
     await expect(
       client(away).fetchRecording('https://recordings.exotel.com/a.mp3', 10),
     ).rejects.toBeInstanceOf(ProviderError);
     expect(away).toHaveBeenCalledTimes(1);
+    const never = stubFetch(() => mp3());
     await expect(
-      client(stubFetch(() => mp3())).fetchRecording('https://recordings.exotel.com/a.mp3', 2),
+      client(never).fetchRecording('https://my.exotel.com/a.mp3', 100),
     ).rejects.toBeInstanceOf(ProviderError);
+    expect(never).not.toHaveBeenCalled();
     await expect(
       client(
         stubFetch(() => new Response('<html>', { headers: { 'content-type': 'text/html' } })),
       ).fetchRecording('https://recordings.exotel.com/a', 100),
     ).rejects.toBeInstanceOf(ProviderError);
+  });
+
+  it('stops reading a download once it passes the limit, with no length declared', async () => {
+    let pulled = 0;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(new Uint8Array(4));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const endless = stubFetch(
+      () => new Response(body, { headers: { 'content-type': 'audio/mpeg' } }),
+    );
     await expect(
-      client(stubFetch(() => mp3())).fetchRecording('https://evil.test/a.mp3', 100),
+      client(endless).fetchRecording('https://recordings.exotel.com/a.mp3', 10),
     ).rejects.toBeInstanceOf(ProviderError);
+    expect(cancelled).toBe(true);
+    expect(pulled).toBeLessThan(10);
   });
 });
