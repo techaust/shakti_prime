@@ -270,7 +270,7 @@ describe('the ingest definers', () => {
   });
 
   it('find the form, the token and the key for the platform, and the customer of a number, by ids only', async () => {
-    const [found] = await rows<Record<string, unknown>>(
+    const [found] = await rows(
       workers([1]),
       sql`select source_id, entity_id, pipeline_key, segment, has_page_token
             from app.ingest_source('meta_leadgen', ${source.external})`,
@@ -295,7 +295,7 @@ describe('the ingest definers', () => {
           { e164: string }[]
         >`select e164 from contact_phones where contact_id = ${contact} limit 1`,
     );
-    const [customer] = await rows<Record<string, unknown>>(
+    const [customer] = await rows(
       workers([1]),
       sql`select * from app.ingest_customer(1::smallint, ${phone?.e164 ?? ''}, 'farmer_pumps',
                                            now() - interval '30 days')`,
