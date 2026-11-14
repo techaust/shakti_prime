@@ -14,6 +14,7 @@ import {
   IndianRupee,
   Library,
   ListTodo,
+  MessageCircleQuestion,
   Package,
   PhoneCall,
   Palette,
@@ -215,6 +216,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // listPlaybook: drafts and their review are the drafters' (Executive and GM, every company);
     // approving and settling a clash also need knowledge.playbook.approve, which the commands check.
     requires: [{ key: 'knowledge.playbook.draft', scope: 'all' }],
+  },
+  {
+    id: 'ask',
+    href: '/ask',
+    label: 'ask',
+    icon: MessageCircleQuestion,
+    group: 'work',
+    // Ask the Business: the scope only opens the screen; what an answer reads comes from the
+    // person's own grants and row security (docs/03-roadmap-appendix/phase2.md §4).
+    requires: [{ key: 'knowledge.ask', scope: 'team' }],
   },
   {
     id: 'price-master',

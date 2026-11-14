@@ -474,6 +474,7 @@
     "adminAgents": "Agents",
     "knowledge": "Knowledge",
     "knowledgePlaybook": "Playbook",
+    "ask": "Ask the Business",
     "orders": "Orders",
     "dealerCredit": "Dealer credit",
     "targets": "Targets",
@@ -549,6 +550,7 @@
       "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
       "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
       "knowledgePlaybook": "Review the rules staff and the assistants follow, and approve new ones.",
+      "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from.",
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "targets": "Set what each caller and team is aiming for, and see what was set before.",
@@ -4995,6 +4997,63 @@
       "retired": "Rule retired.",
       "settled": "Clash settled.",
       "drafted": "{count, plural, =0 {The file states no rule we could draft.} one {# draft rule added.} other {# draft rules added.}}"
+    }
+  },
+  "ask": {
+    "title": "Ask the Business",
+    "intro": "Ask about your leads, quotes, orders, targets and the business's own files. Each answer shows the records it comes from, and only what you can see yourself.",
+    "conversations": {
+      "heading": "Your conversations",
+      "empty": "You have not asked anything yet.",
+      "newConversation": "New conversation",
+      "loadMore": "Show older",
+      "kept": "Conversations are removed 90 days after you last use them.",
+      "covers": "Covers {companies}"
+    },
+    "composer": {
+      "label": "Your question",
+      "askButton": "Ask",
+      "working": "Finding the answer",
+      "followUp": "Ask a follow-up question in this conversation."
+    },
+    "lookup": {
+      "search_vault": "Searching the Knowledge Vault",
+      "read_playbook": "Reading the Playbook",
+      "pipeline_by_stage": "Counting open leads by stage",
+      "list_leads": "Reading leads",
+      "list_quotes": "Reading quotes",
+      "list_orders": "Reading orders",
+      "sales_this_month": "Reading this month's sales",
+      "targets_progress": "Reading targets",
+      "dealer_credit": "Reading dealer credit",
+      "find_items": "Finding catalogue items"
+    },
+    "answer": {
+      "you": "You asked",
+      "unsourcedFigure": "a figure not found in the records",
+      "unsourcedNote": "Some figures could not be found in the records Ask read, so they are left out.",
+      "noAnswer": "Ask could not find an answer in the records you can see. Try asking in other words.",
+      "figures": "Figures in this answer",
+      "sources": "Where this comes from",
+      "sourceNumber": "Record {number}",
+      "sourceGone": "A record you can no longer open"
+    },
+    "kind": {
+      "knowledge_file": "Knowledge Vault file",
+      "playbook_directive": "Playbook rule",
+      "pipeline_stage": "Pipeline stage",
+      "opportunity": "Lead",
+      "quote": "Quote",
+      "sales_order": "Order",
+      "account": "Dealer",
+      "item": "Catalogue item"
+    },
+    "delete": {
+      "deleteButton": "Delete",
+      "deleteForGood": "Delete for good",
+      "keepIt": "Keep it",
+      "question": "Delete this conversation and all its answers?",
+      "done": "Conversation deleted."
     }
   }
 }

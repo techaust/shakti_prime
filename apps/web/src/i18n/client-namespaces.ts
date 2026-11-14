@@ -41,6 +41,7 @@ export const CLIENT_SCOPES = {
     'targets',
     'users',
   ],
+  '/ask': ['ask'],
   '/calling': ['activity', 'calling', 'common', 'customers', 'leads', 'pipelineSettings', 'sizing'],
   '/catalogue': ['catalogue', 'common'],
   '/converters': ['common', 'converters', 'roles', 'users'],
