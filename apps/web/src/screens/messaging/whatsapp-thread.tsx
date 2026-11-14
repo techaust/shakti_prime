@@ -108,7 +108,10 @@ export const WhatsAppThread = forwardRef<
       </ol>
       <p className="text-text-muted text-sm">
         {thread.windowOpenUntil !== null && Date.parse(thread.windowOpenUntil) > Date.now()
-          ? t('windowOpen', { time: formatDateTime(thread.windowOpenUntil) })
+          ? t.rich('windowOpen', {
+              when: formatDateTime(thread.windowOpenUntil),
+              time: (chunks) => <time dateTime={thread.windowOpenUntil ?? ''}>{chunks}</time>,
+            })
           : t('windowClosed')}
       </p>
       {thread.optedOut ? (
@@ -223,7 +226,7 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
     >
       <p className="text-text-muted text-xs">
         {inbound ? t('fromCustomer') : (message.sentByName ?? t('fromSystem'))} ·{' '}
-        {formatDateTime(message.createdAt)}
+        <time dateTime={message.createdAt}>{formatDateTime(message.createdAt)}</time>
       </p>
       {message.templateName === null ? null : (
         <p className="text-sm font-medium">{t('template', { name: message.templateName })}</p>

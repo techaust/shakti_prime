@@ -378,3 +378,26 @@ export function storageStatePath(role: SignedInRole): string {
 export function seededUsers(): SeededUsers {
   return JSON.parse(readFileSync(join(AUTH_DIR, 'users.json'), 'utf8')) as SeededUsers;
 }
+
+/**
+ * WhatsApp (messages.spec.ts): each company's number as Meta names it, a customer per project for
+ * the tele-caller in company 1 whose message waits for a reply (written again by every seed run,
+ * so its reply window is open), and the snapshot company's chat with one customer.
+ */
+export const WHATSAPP = {
+  numbers: {
+    1: { e164: '+919900000101', phoneNumberId: 'e2e-whatsapp-1' },
+    3: { e164: '+919900000103', phoneNumberId: 'e2e-whatsapp-3' },
+  },
+  customers: {
+    'desktop-light': { name: 'Sunita Meena', phone: '98765 40051' },
+    'desktop-dark': { name: 'Mohan Lal Saini', phone: '98765 40052' },
+    phone: { name: 'Hemraj Yadav', phone: '98765 40053' },
+  },
+  customerMessage: 'Is the 3 HP solar pump available this week?',
+  template: { name: 'visit_update', meaning: 'Visit date' },
+  snapshot: {
+    customer: SNAPSHOT_LEADS[1],
+    message: 'When will the engineer come for the site visit?',
+  },
+} as const;

@@ -100,9 +100,17 @@ export function MessagesScreen({
                     </span>
                     <span className="text-text-muted text-xs">
                       {companies[item.entityId] ?? ''}
-                      {item.lastInboundAt === null
-                        ? ''
-                        : ` · ${t('lastMessage', { time: formatDateTime(item.lastInboundAt) })}`}
+                      {item.lastInboundAt === null ? null : (
+                        <>
+                          {' · '}
+                          {t.rich('lastMessage', {
+                            when: formatDateTime(item.lastInboundAt),
+                            time: (chunks) => (
+                              <time dateTime={item.lastInboundAt ?? ''}>{chunks}</time>
+                            ),
+                          })}
+                        </>
+                      )}
                     </span>
                     {item.customerName === null ? (
                       <span className="text-text-muted text-xs">{t('unknownCustomer')}</span>

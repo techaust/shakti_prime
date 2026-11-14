@@ -4513,7 +4513,7 @@
     "keysHelp": "Press J and K to move between chats, and R to write a reply.",
     "noChat": "Choose a chat to read it.",
     "unknownCustomer": "Customer not recorded yet",
-    "lastMessage": "Last message {time}",
+    "lastMessage": "Last message <time>{when}</time>",
     "thread": {
       "sectionTitle": "WhatsApp",
       "none": "No WhatsApp chat with this customer yet.",
@@ -4521,7 +4521,7 @@
       "assistant": "The assistant answers",
       "people": "The team answers",
       "optedOut": "Stopped WhatsApp messages",
-      "windowOpen": "Replies can be typed freely until {time}.",
+      "windowOpen": "Replies can be typed freely until <time>{when}</time>.",
       "windowClosed": "The customer last wrote more than 24 hours ago. Send an approved template.",
       "takeOver": "Take over chat",
       "giveBack": "Give back to assistant",
