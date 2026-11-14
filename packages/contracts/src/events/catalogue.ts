@@ -417,8 +417,13 @@ const eventCatalogue = {
    */
   'knowledge.file.index_requested': {
     meaning:
-      'A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, or when indexed again.',
-    emittedBy: ['knowledge.file.add', 'knowledge.file.reindex', 'files.file.mark_ready'],
+      'A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, when indexed again, or when a recording’s transcript is corrected.',
+    emittedBy: [
+      'knowledge.file.add',
+      'knowledge.file.reindex',
+      'knowledge.transcript.correct',
+      'files.file.mark_ready',
+    ],
     subscribed: true,
     payload: z
       .object({
