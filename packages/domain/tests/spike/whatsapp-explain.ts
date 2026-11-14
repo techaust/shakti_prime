@@ -106,7 +106,7 @@ async function main(): Promise<void> {
     await explain(
       '/messages, second page, General Manager',
       gm,
-      waitingThreadsSql(ctx(gm), 26, ENTITY, second === undefined ? undefined : second),
+      waitingThreadsSql(ctx(gm), 26, ENTITY, second),
     );
     await explain('the chat, newest page (2,010 messages), caller', caller, threadMessagesSql(big.thread, ENTITY, 31, undefined));
     const [older] = await asMigrator(
@@ -117,7 +117,7 @@ async function main(): Promise<void> {
     await explain(
       'the chat, the page before, caller',
       caller,
-      threadMessagesSql(big.thread, ENTITY, 31, older === undefined ? undefined : older),
+      threadMessagesSql(big.thread, ENTITY, 31, older),
     );
     await explain(
       'a customer’s chats (Account 360), caller',

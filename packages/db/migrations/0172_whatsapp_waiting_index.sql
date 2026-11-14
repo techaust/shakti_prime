@@ -1,0 +1,2 @@
+DROP INDEX "whatsapp_threads_waiting_idx";--> statement-breakpoint
+CREATE INDEX "whatsapp_threads_waiting_idx" ON "whatsapp_threads" USING btree ("last_inbound_at" DESC NULLS FIRST,"id" DESC NULLS FIRST) WHERE "whatsapp_threads"."needs_reply";

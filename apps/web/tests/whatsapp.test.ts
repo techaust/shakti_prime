@@ -108,7 +108,7 @@ function delivery(
         ],
       },
     ],
-  } as WhatsAppWebhook;
+  };
 }
 
 const text = (from: string, body: string, id = `wamid.${newId()}`) => ({
@@ -355,7 +355,7 @@ describe('the meta_whatsapp handler', () => {
             ],
           },
         ],
-      } as WhatsAppWebhook,
+      },
       context(),
     );
     expect(result).toEqual({ entityId: null });
@@ -384,7 +384,7 @@ describe('the meta_whatsapp handler', () => {
             ],
           },
         ],
-      } as WhatsAppWebhook,
+      },
       context(),
     );
     expect(await kv.get('whatsapp:limit')).toBe('1000');

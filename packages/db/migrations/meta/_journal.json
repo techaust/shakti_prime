@@ -1205,6 +1205,13 @@
       "when": 1794646288995,
       "tag": "0171_whatsapp_handler",
       "breakpoints": true
+    },
+    {
+      "idx": 172,
+      "version": "7",
+      "when": 1794663497891,
+      "tag": "0172_whatsapp_waiting_index",
+      "breakpoints": true
     }
   ]
 }

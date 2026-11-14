@@ -47,6 +47,7 @@ interface ThreadRow extends Record<string, unknown> {
   opportunity_id: string | null;
   assignee_id: string | null;
   window_open_until: Date | string | null;
+  window_open: boolean;
   opted_out: boolean;
   handled_by: string;
   handoff_reason: string | null;
@@ -60,6 +61,7 @@ interface ThreadRow extends Record<string, unknown> {
 /** The thread columns every read answers, over the alias `t`. */
 const THREAD_COLUMNS = sql`
   t.id, t.entity_id, t.wa_id, t.account_id, t.opportunity_id, t.assignee_id, t.window_open_until,
+  coalesce(t.window_open_until > now(), false) as window_open,
   app.whatsapp_thread_opted_out(t.id) as opted_out, t.handled_by, t.handoff_reason,
   t.handed_off_at, t.last_inbound_at, t.last_inbound_at::text as last_text, t.needs_reply,
   (select a.name from accounts a where a.id = t.account_id) as customer_name`;
@@ -80,6 +82,7 @@ function toThread(row: ThreadRow): WaitingThreadDto {
     lastInboundAt: iso(row.last_inbound_at),
     needsReply: row.needs_reply,
     customerName: row.customer_name,
+    windowOpen: row.window_open,
   });
 }
 
@@ -87,8 +90,9 @@ function toThread(row: ThreadRow): WaitingThreadDto {
  * The page of `/messages` as SQL, exported so the plan of the very statement can be explained:
  * chats of the request's companies (or one) waiting for a reply that the caller may answer
  * (`app.whatsapp_send_scope_ok()`), read under the chat's read rule, newest customer message
- * first. The waiting index `(entity_id, last_inbound_at desc, id desc) where needs_reply` gives
- * the order, so a page stops after `limit` rows.
+ * first. Each company is read on its own, in the order of the waiting index
+ * `(entity_id, last_inbound_at desc, id desc) where needs_reply`, so each stops after `limit` rows
+ * the caller may answer, and the companies' pages are merged.
  */
 export function waitingThreadsSql(
   ctx: Ctx,
@@ -102,13 +106,18 @@ export function waitingThreadsSql(
       ? sql`true`
       : sql`(t.last_inbound_at, t.id) < (${after.t}::text::timestamptz, ${after.id}::uuid)`;
   return sql`
-    select ${THREAD_COLUMNS}
-      from whatsapp_threads t
-     where t.needs_reply
-       and t.entity_id = any(${entityList(companies)}::int[])
-       and ${keyset}
-       and app.whatsapp_send_scope_ok(t.entity_id, t.account_id, t.opportunity_id)
-     order by t.last_inbound_at desc, t.id desc
+    select w.*
+      from unnest(${entityList(companies)}::int[]) c(entity_id)
+     cross join lateral (
+       select ${THREAD_COLUMNS}
+         from whatsapp_threads t
+        where t.needs_reply
+          and t.entity_id = c.entity_id
+          and ${keyset}
+          and app.whatsapp_send_scope_ok(t.entity_id, t.account_id, t.opportunity_id)
+        order by t.last_inbound_at desc, t.id desc
+        limit ${limit}) w
+     order by w.last_inbound_at desc, w.id desc
      limit ${limit}`;
 }
 
@@ -434,5 +443,5 @@ export async function whatsappTemplateEntities(
   const rows = (await ctx.tx.execute(
     sql`select app.whatsapp_template_entities(${name}, ${language}) as entity_id`,
   )) as unknown as { entity_id: number }[];
-  return rows.map((r) => Number(r.entity_id));
+  return rows.map((r) => r.entity_id);
 }

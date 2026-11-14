@@ -107,7 +107,7 @@ export const WhatsAppThread = forwardRef<
         ))}
       </ol>
       <p className="text-text-muted text-sm">
-        {thread.windowOpenUntil !== null && Date.parse(thread.windowOpenUntil) > Date.now()
+        {thread.windowOpen && thread.windowOpenUntil !== null
           ? t.rich('windowOpen', {
               when: formatDateTime(thread.windowOpenUntil),
               time: (chunks) => <time dateTime={thread.windowOpenUntil ?? ''}>{chunks}</time>,
@@ -118,7 +118,7 @@ export const WhatsAppThread = forwardRef<
         <p className="text-text-muted text-sm">{t('optedOutNote')}</p>
       ) : view.canSend ? (
         <Composer
-          key={`${String(view.messages[0]?.id)}`}
+          key={String(view.messages[0]?.id)}
           ref={replyRef}
           id={id}
           entityId={entityId}
@@ -280,7 +280,7 @@ const Composer = forwardRef<
   const [templateName, setTemplateName] = useState('');
   const [values, setValues] = useState<string[]>([]);
   const open =
-    view.thread.windowOpenUntil !== null && Date.parse(view.thread.windowOpenUntil) > Date.now();
+    view.thread.windowOpen;
   const template = view.templates.find((tpl) => tpl.name === templateName);
   const done = () => {
     toast.success(t('sent'));

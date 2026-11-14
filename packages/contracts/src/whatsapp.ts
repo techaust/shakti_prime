@@ -212,6 +212,8 @@ export type ListWaitingThreadsInput = z.input<typeof ListWaitingThreadsInput>;
 /** A chat on `/messages`: the thread, its customer's name when one is matched and readable. */
 export const WaitingThreadDto = WhatsAppThreadDto.extend({
   customerName: z.string().max(200).nullable(),
+  /** Whether the customer's 24-hour window is open now, by the database's clock. */
+  windowOpen: z.boolean(),
 }).strict();
 export type WaitingThreadDto = z.infer<typeof WaitingThreadDto>;
 

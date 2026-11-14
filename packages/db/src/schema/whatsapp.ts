@@ -95,9 +95,11 @@ export const whatsappThreads = pgTable(
     // Account 360's WhatsApp tab: the customer's threads in the company.
     index('whatsapp_threads_account_idx').on(t.accountId, t.entityId),
     index('whatsapp_threads_opportunity_idx').on(t.opportunityId),
-    // `/messages`: the company's threads waiting for a reply, newest customer message first.
+    // `/messages`: threads waiting for a reply, newest customer message first. Time order with no
+    // company column: the policies' `entity_id = any(...)` condition would otherwise turn the scan
+    // into a sort of every waiting thread; the company filter runs on the rows in time order.
     index('whatsapp_threads_waiting_idx')
-      .on(t.entityId, t.lastInboundAt.desc(), t.id.desc())
+      .on(t.lastInboundAt.desc().nullsFirst(), t.id.desc().nullsFirst())
       .where(sql`${t.needsReply}`),
     index('whatsapp_threads_assignee_idx')
       .on(t.assigneeId, t.lastInboundAt.desc(), t.id.desc())
