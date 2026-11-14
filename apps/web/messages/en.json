@@ -2940,6 +2940,30 @@
         "too_many_attempts": "It failed ten times",
         "other": "Something else went wrong"
       }
+    },
+    "whatsapp": {
+      "heading": "WhatsApp",
+      "caption": "Each company's WhatsApp number",
+      "budget": "{used} of today's {limit} new chats started by the companies are used.",
+      "budgetStarting": "{used} of {limit} new chats started by the companies are used today. The limit is the starting one until WhatsApp reports the companies' own.",
+      "noNumbers": "No company has a WhatsApp number yet. An Executive adds them in Settings › Companies.",
+      "notSentHeading": "Messages not sent in the last 24 hours",
+      "noneHeld": "Every message was sent.",
+      "failed": "Not delivered:",
+      "never": "Not yet",
+      "columns": {
+        "company": "Company",
+        "quality": "Quality",
+        "pending": "Templates waiting",
+        "rejected": "Templates turned down",
+        "updated": "Last update"
+      },
+      "quality": {
+        "green": "High",
+        "yellow": "Medium",
+        "red": "Low",
+        "unknown": "Not known yet"
+      }
     }
   },
   "files": {
