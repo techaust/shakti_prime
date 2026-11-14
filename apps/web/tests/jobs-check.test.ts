@@ -17,7 +17,7 @@ describe('the hourly check of the scheduled jobs (audit 2026-10, DATA-3)', () =>
     // and record it, so that one at least has a problem to tell (review L8).
     const now = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     const first = await runJobsCheck({ requestId: 'jobs-check-1', keyValue, alerts, now });
-    expect(first.jobs).toBe(5);
+    expect(first.jobs).toBe(6);
     expect(first.problems).toBeGreaterThan(0);
     expect(first.alerted).toBe(first.problems);
     expect(alerts.alerts).toContainEqual({
@@ -74,7 +74,7 @@ describe('the hourly check of the scheduled jobs (audit 2026-10, DATA-3)', () =>
       now: new Date(0),
     });
     // At the epoch no run is in the past, so nothing is late; a failure would still be told.
-    expect(answer.jobs).toBe(5);
+    expect(answer.jobs).toBe(6);
     expect(alerts.alerts.filter((a) => a.fields.problem === 'late')).toEqual([]);
   });
 });
@@ -98,7 +98,7 @@ describe('the age of the newest database copy in the same check (docs/05-databas
       alerts,
       backups: { listing: listing([{ key: 'a', at: at(2) }]), environment: 'production' },
     });
-    expect(answer.jobs).toBe(6);
+    expect(answer.jobs).toBe(7);
     expect(backupAlerts(alerts)).toEqual([]);
   });
 
@@ -145,7 +145,7 @@ describe('the age of the newest database copy in the same check (docs/05-databas
       alerts,
       backups: null,
     });
-    expect(answer.jobs).toBe(5);
+    expect(answer.jobs).toBe(6);
     expect(backupAlerts(alerts)).toEqual([]);
   });
 });
