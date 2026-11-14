@@ -251,6 +251,19 @@ const INPUTS: Record<string, unknown> = {
     title: 'Refused rule',
     text: 'Refused rule text',
   },
+  // Ask the Business (docs/03-roadmap-appendix/phase2.md §4): a person's own conversation.
+  'knowledge.ask.record': {
+    conversationId: newId(),
+    question: 'Refused question',
+    answer: 'Refused answer',
+    outcome: 'answered',
+    unsourced: 0,
+    cited: [],
+    returned: [],
+    model: null,
+    costPaise: 0,
+  },
+  'knowledge.ask.delete': { conversationId: newId() },
   'knowledge.playbook.approve': { entityId: 1, directiveId: newId() },
   'knowledge.playbook.retire': { entityId: 1, directiveId: newId(), reason: 'Refused retire' },
   'knowledge.playbook.resolve_conflict': {
@@ -380,6 +393,8 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       'knowledge.playbook.retire',
       'knowledge.playbook.resolve_conflict',
       'knowledge.playbook.draft_from_file',
+      'knowledge.ask.record',
+      'knowledge.ask.delete',
     ].map((name) => [name, INPUTS[name]]),
   ),
   ...Object.fromEntries(

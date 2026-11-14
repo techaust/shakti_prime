@@ -87,6 +87,15 @@ export const recordAsk = defineCommand({
   input: RecordAskInput,
   output: AskTurnDto,
   auditFields: ['askAnswered', 'citedSources', 'unsourcedFigures'],
+  // Never the question or the answer: what happened and which records it points to.
+  auditInput: (input) => ({
+    conversationId: input.conversationId,
+    outcome: input.outcome,
+    unsourced: input.unsourced,
+    cited: input.cited,
+    model: input.model,
+    costPaise: input.costPaise,
+  }),
   // Another person's conversation by the same id: it is not this person's to follow up.
   constraintReasons: { ask_conversations_pkey: 'ask_conversation_missing' },
   async handler(ctx, input) {
