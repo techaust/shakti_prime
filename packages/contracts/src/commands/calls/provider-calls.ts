@@ -50,6 +50,7 @@ export const REPORTED_CALL_STATUSES = [
   'canceled',
 ] as const satisfies readonly ProviderCallStatus[];
 export const ReportedCallStatusSchema = z.enum(REPORTED_CALL_STATUSES);
+export type ReportedCallStatus = z.infer<typeof ReportedCallStatusSchema>;
 
 /** The company's line a provider call used: the 140 or 160 calling number, the IVR or missed-call number. */
 export const PROVIDER_CALL_SERIES = ['140', '160', 'ivr', 'missed_call'] as const;

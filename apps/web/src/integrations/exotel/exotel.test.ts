@@ -62,6 +62,7 @@ describe('click-to-dial', () => {
       CallerId: '1400000000',
       Record: 'true',
       'StatusCallbackEvents[0]': 'terminal',
+      'StatusCallbackEvents[1]': 'answered',
       StatusCallbackContentType: 'application/json',
       CustomField: CALL_REF,
     });
