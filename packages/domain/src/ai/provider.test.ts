@@ -115,9 +115,7 @@ describe('createAiProvider', () => {
       },
     ];
     const first = await provider.complete(call({ tools }));
-    expect(first.toolCalls).toEqual([
-      { id: 'call-1', name: 'list_leads', input: { stage: null } },
-    ]);
+    expect(first.toolCalls).toEqual([{ id: 'call-1', name: 'list_leads', input: { stage: null } }]);
     expect(transport.requests[0]?.tools).toEqual(tools);
     const second = await provider.complete(
       call({

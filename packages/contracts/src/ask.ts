@@ -19,8 +19,9 @@ export const ASK_RETURNED_MAX = 500;
 
 /**
  * The records a tool returns for citation, each a link on the screen: a vault file, an approved
- * Playbook directive, a pipeline stage (its open leads), a lead, a quote, an order, a target and a
- * dealer (its credit).
+ * Playbook directive, a pipeline stage (its open leads), a lead, a quote, an order and a dealer
+ * (its credit). Totals of a company (this month's sales, targets) cite nothing: their figures are
+ * still checked against what the lookup returned.
  */
 export const ASK_SOURCE_KINDS = [
   'knowledge_file',
@@ -29,7 +30,6 @@ export const ASK_SOURCE_KINDS = [
   'opportunity',
   'quote',
   'sales_order',
-  'target',
   'account',
 ] as const;
 export const AskSourceKindSchema = z.enum(ASK_SOURCE_KINDS);

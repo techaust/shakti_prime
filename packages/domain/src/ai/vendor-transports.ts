@@ -51,32 +51,30 @@ function messagesOf(request: ModelRequest): Anthropic.MessageParam[] {
     messages.push({ role: 'assistant', content: round.assistant as Anthropic.ContentBlockParam[] });
     messages.push({
       role: 'user',
-      content: round.results.map(
-        (r): Anthropic.ToolResultBlockParam => ({
-          type: 'tool_result',
-          tool_use_id: r.callId,
-          content: r.content,
-          ...(r.isError === true ? { is_error: true } : {}),
-        }),
-      ),
+      content: round.results.map((r): Anthropic.ToolResultBlockParam => ({
+        type: 'tool_result',
+        tool_use_id: r.callId,
+        content: r.content,
+        ...(r.isError === true ? { is_error: true } : {}),
+      })),
     });
   }
   return messages;
 }
 
 /** The lookups as strict tools: the vendor holds each call to its schema. */
-function toolsOf(request: ModelRequest): Pick<Anthropic.MessageCreateParamsNonStreaming, 'tools' | 'tool_choice'> {
+function toolsOf(
+  request: ModelRequest,
+): Pick<Anthropic.MessageCreateParamsNonStreaming, 'tools' | 'tool_choice'> {
   const tools = request.tools ?? [];
   if (tools.length === 0) return {};
   return {
-    tools: tools.map(
-      (t): Anthropic.Tool => ({
-        name: t.name,
-        description: t.description,
-        input_schema: t.inputSchema as Anthropic.Tool.InputSchema,
-        strict: true,
-      }),
-    ),
+    tools: tools.map((t): Anthropic.Tool => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.inputSchema as Anthropic.Tool.InputSchema,
+      strict: true,
+    })),
     tool_choice: { type: 'auto' },
   };
 }

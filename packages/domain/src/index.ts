@@ -637,4 +637,11 @@ export {
   playbookSourcePassages,
 } from './queries/knowledge/playbook';
 export type { PlaybookSource } from './queries/knowledge/playbook';
+export { askTheBusiness } from './ai/ask/ask';
+export type { AskDeps, AskOptions } from './ai/ask/ask';
+export { ASK_SYSTEM } from './ai/ask/prompt';
+export { citationMarker, collectFigures, groundAnswer, UNSOURCED } from './ai/ask/grounding';
+export { ASK_TOOLS, toolsFor } from './ai/ask/tools';
+export { deleteAskConversation, recordAsk } from './commands/knowledge/ask';
+export { loadAskConversation } from './queries/knowledge/ask';
 export { checkZipArchive } from './imports/zip-guard';

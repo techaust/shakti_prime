@@ -162,6 +162,8 @@ const ACTIONS = {
   'knowledge.playbook.resolve_conflict': 'playbookResolveConflict',
   'knowledge.playbook.record_check': 'playbookCheckRecorded',
   'knowledge.playbook.draft_from_file': 'playbookDraftFromFile',
+  'knowledge.ask.record': 'askRecord',
+  'knowledge.ask.delete': 'askDelete',
   'agents.inbox.complete': 'inboxComplete',
   'crm.enquiry.route': 'enquiryRoute',
   'crm.enquiry.take': 'enquiryTake',
@@ -684,6 +686,11 @@ const FIELD_KINDS = [
   ['pairs', 'number'],
   ['openConflicts', 'number'],
   ['drafts', 'number'],
+  // Ask the Business: what happened, never the question or the answer
+  ['askAnswered', 'yesNo'],
+  ['citedSources', 'number'],
+  ['unsourcedFigures', 'number'],
+  ['askMessages', 'number'],
   // Notifications and routed enquiries
   ['note', 'text'],
   ['notices', 'number'],

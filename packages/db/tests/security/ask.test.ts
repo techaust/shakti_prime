@@ -213,9 +213,9 @@ describe('ask_conversations and ask_messages (DATABASE §6.9)', () => {
       await m`insert into ask_messages (id, conversation_id, user_id, entity_id, entity_ids, question, answer, outcome, created_at)
         values (${oldMessageInRecent}, ${recent.c}, ${gm.id}, 1, '{1}', 'q', 'a', 'answered', now() - interval '91 days')`;
     });
-    expect(
-      await failure(rows(gm, sql`select app.purge_ask_conversations(90)`)),
-    ).toMatch(/permission denied/);
+    expect(await failure(rows(gm, sql`select app.purge_ask_conversations(90)`))).toMatch(
+      /permission denied/,
+    );
     await asMigrator((m) => m`select app.purge_ask_conversations(90)`);
     const left = await asMigrator(
       (m) => m<{ id: string }[]>`
