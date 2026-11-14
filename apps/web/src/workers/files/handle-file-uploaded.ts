@@ -25,6 +25,7 @@ import {
 } from '@shakti/domain';
 import { logger as appLogger } from '../../log';
 import type { DocumentMasker } from '../ocr/mask-document';
+import { checkRecording } from './audio-check';
 import { checkOfficeFile, isOfficeType } from './office-check';
 import { checkPdf } from './pdf-check';
 import {
@@ -104,7 +105,8 @@ type Checked =
  *    as the CSV or workbook it says it is (a vault PDF is drawn page by page, each page masked, and
  *    kept as a PDF of the masked pictures; a delivery masks one page and sends the next, since a
  *    page takes about half a minute and a delivery lives for a minute), a vault Word document or workbook checked as the ZIP
- *    archive of its type. A changed copy is stored under its own key and the
+ *    archive of its type, a vault recording read as a WAV no longer than 30 minutes and written
+ *    afresh from its samples. A changed copy is stored under its own key and the
  *    upload's bytes are deleted, every version of them.
  * 3. `ready` with the checked copy's key, type, size and checksum, or `rejected` with the reason
  *    the uploader is shown; a rejected file's bytes are deleted.
@@ -381,6 +383,19 @@ async function check(
           regionsMasked: 0,
         }
       : pdf;
+  }
+  if (file.purpose === 'knowledge' && file.contentType === 'audio/wav') {
+    // A vault recording: read as a WAV, its length checked, kept without its other chunks.
+    const recording = checkRecording(bytes);
+    return recording.ok
+      ? {
+          ok: true,
+          sanitising: recording.sanitising,
+          bytes: recording.bytes,
+          contentType: 'audio/wav',
+          regionsMasked: 0,
+        }
+      : recording;
   }
   if (!isImageType(file.contentType)) return { ok: false, reason: 'file_unreadable' };
   if (MASKED_PURPOSES.has(file.purpose)) {

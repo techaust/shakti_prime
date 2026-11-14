@@ -43,10 +43,13 @@ const STATE_TONE: Readonly<Record<KnowledgeFileDto['state'], StatusTone>> = {
   archived: 'neutral',
 };
 
-/** What an Executive or GM may do here: the sensitivities they may give and the upload's limits. */
+/**
+ * What an Executive or GM may do here: the sensitivities they may give and the upload's limits, a
+ * recording's (a WAV) larger than any other file's.
+ */
 export interface KnowledgeWriter {
   sensitivities: readonly KnowledgeSensitivity[];
-  limit: { contentTypes: readonly string[]; maxBytes: number };
+  limit: { contentTypes: readonly string[]; maxBytes: number; recordingMaxBytes: number };
 }
 
 export interface KnowledgeCompany {

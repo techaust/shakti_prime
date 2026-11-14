@@ -2,6 +2,7 @@
 
 import {
   AddKnowledgeFileInput,
+  CorrectKnowledgeTranscriptInput,
   DomainError,
   KnowledgeFileRefInput,
   ListKnowledgeFilesInput,
@@ -15,6 +16,7 @@ import {
   addKnowledgeFile as addKnowledgeFileCommand,
   archiveKnowledgeFile as archiveKnowledgeFileCommand,
   checkPermission,
+  correctKnowledgeTranscript as correctKnowledgeTranscriptCommand,
   executeCommand,
   executeQuery,
   knowledgeQueryVector,
@@ -153,6 +155,28 @@ export async function archiveKnowledgeFile(
       principal,
       { requestId: meta.requestId },
       archiveKnowledgeFileCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/**
+ * Replaces a recording's transcript with a person's correction (K3); the file is read again from
+ * it, and its passages replaced once it is.
+ */
+export async function correctKnowledgeTranscript(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<KnowledgeFileDto>> {
+  return toResult('correctKnowledgeTranscript', async () => {
+    const principal = await signedIn();
+    const input = parseInput(CorrectKnowledgeTranscriptInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      correctKnowledgeTranscriptCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );

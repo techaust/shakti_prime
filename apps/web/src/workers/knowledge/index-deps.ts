@@ -6,13 +6,15 @@ import { aiProvider } from '../../integrations/ai';
 import { logger } from '../../log';
 import { renderMaskedPages } from '../files/pdf-pages';
 import { readWordText } from './read-word';
+import { vaultTranscriber } from './transcriber';
 
 /**
  * What the index job runs with in this runtime: the worker principal of the upload's company, the
  * file store (none on a hosted runtime without S3: `integration_unavailable`, delivered again), the
  * provider wrapper (no key: the file is recorded unavailable), the Word reader and the drawing of
- * a masked PDF's pages, and the shared store, where a reading claims its file so two readings of
- * one file never run at once.
+ * a masked PDF's pages, the speech service for a recording (none without `SARVAM_API_KEY`: the
+ * recording is recorded unavailable), and the shared store, where a reading claims its file so two
+ * readings of one file never run at once.
  */
 export function indexDeps(
   principal: Principal,
@@ -26,6 +28,7 @@ export function indexDeps(
     provider: aiProvider(),
     readWord: readWordText,
     pdfPages: renderMaskedPages,
+    transcriber: vaultTranscriber(),
     requestId,
     hosted: hostedRuntime(),
     logger,

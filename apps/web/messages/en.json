@@ -27,6 +27,8 @@
     "knowledge_timed_out": "Reading this file took too long. Read it again in a few minutes.",
     "knowledge_still_reading": "This file is still being read. Try again in a few minutes.",
     "knowledge_person_search_cap_reached": "You have used your share of today's searches. It works again tomorrow.",
+    "knowledge_transcript_not_roman": "Write the transcript in English letters only, as you would type Hindi words in a phone message, then save it again.",
+    "knowledge_transcript_not_audio": "Only a recording has a transcript to correct. Refresh the page to see this file as it is.",
     "validation_failed": "Some details are missing or incorrect. Please check and try again.",
     "unauthorized": "Please sign in to continue.",
     "forbidden": "You don't have access to this. Ask your manager if you need it.",
@@ -228,6 +230,7 @@
     "file_pdf_page_too_dense": "One page of this PDF is too dense for us to check. Take a photo of each page and upload the photos instead.",
     "file_masking_unavailable": "The Knowledge Vault cannot check scanned pages and photos yet. Ask your administrator to finish setting it up, or upload a Word document or a workbook.",
     "file_mask_failed": "We could not find the numbers we must cover on this photo or page, so it was not kept. Use a clearer copy and upload it again.",
+    "file_audio_too_long": "This recording is longer than 30 minutes. Split it into shorter recordings and upload each one as a WAV file.",
     "catalogue_item_missing": "This item is no longer in the catalogue. Refresh the page to see the current list.",
     "catalogue_kit_missing": "This kit is no longer in the catalogue. Refresh the page to see the current list.",
     "item_sku_taken": "Another item already uses this item code. Choose a different code.",
@@ -1653,6 +1656,8 @@
       "knowledgeFileReindex": "Knowledge Vault file read again",
       "knowledgeFileArchive": "Knowledge Vault file archived",
       "knowledgeFileIndexed": "Knowledge Vault file read for search",
+      "knowledgeTranscriptKept": "Recording's transcript kept",
+      "knowledgeTranscriptCorrect": "Recording's transcript corrected",
       "quoteAccept": "Quote accepted with the signed copy",
       "orderCreate": "Dealer order made",
       "orderConfirm": "Order confirmed or held for credit",
@@ -1945,6 +1950,7 @@
       "chunks": "Passages",
       "replaced": "Passages replaced",
       "errorReason": "Why it could not be read",
+      "transcriptChars": "Characters in the transcript",
       "acceptedVia": "How it was accepted",
       "soNo": "Order number",
       "orderState": "Order status",
@@ -2902,7 +2908,8 @@
       "pdf": "PDF document",
       "csv": "CSV file",
       "xlsx": "Excel workbook",
-      "docx": "Word document"
+      "docx": "Word document",
+      "wav": "WAV recording"
     },
     "shortTypes": {
       "jpeg": "JPEG",
@@ -2911,7 +2918,8 @@
       "pdf": "PDF",
       "csv": "CSV",
       "xlsx": "XLSX",
-      "docx": "DOCX"
+      "docx": "DOCX",
+      "wav": "WAV"
     },
     "size": {
       "kb": "{value} KB",
@@ -2926,7 +2934,8 @@
       "pdf_checked": "PDF checked for scripts and attached files",
       "masked": "Numbers on the photo covered",
       "sheet_checked": "Spreadsheet checked before reading",
-      "document_checked": "Word document opened and its text read"
+      "document_checked": "Word document opened and its text read",
+      "audio_checked": "Recording checked and saved again without hidden details"
     },
     "scanStatus": {
       "NO_THREATS_FOUND": "No harmful content found",
@@ -4310,7 +4319,8 @@
       "pdf": "PDF",
       "photo": "Photo",
       "word": "Word document",
-      "excel": "Excel workbook"
+      "excel": "Excel workbook",
+      "audio": "Recording"
     },
     "state": {
       "waiting": "Being read",
@@ -4321,7 +4331,7 @@
     },
     "add": "Add a file",
     "addTitle": "Add a file to the Knowledge Vault",
-    "addIntro": "Give it a title and choose who can find it, then upload a PDF, a photo, a Word document or an Excel workbook. Numbers on photos are covered before they are read.",
+    "addIntro": "Give it a title and choose who can find it, then upload a PDF, a photo, a Word document, an Excel workbook or a recording. Numbers on photos are covered before they are read, and numbers in a recording's transcript before it is kept.",
     "titleLabel": "Title",
     "titleHint": "A name people will recognise in search results.",
     "titleMissing": "Give the file a title.",
@@ -4329,6 +4339,9 @@
     "forHint": "A file for every company can be added only while All companies is chosen at the top.",
     "findByLabel": "Who can find it",
     "fileLabel": "File",
+    "fileHint": "{types} up to {size}, or a recording as a WAV file up to {recordingSize} and 30 minutes",
+    "fileWrongType": "This kind of file cannot be added. Choose a {types} file. Save a recording as a WAV file first: MP3, M4A and OGG recordings cannot be added.",
+    "fileTooLarge": "This file is too large. A document or photo can be up to {size}, and a WAV recording up to {recordingSize}.",
     "uploaded": "Uploaded and checked. Add it to the vault.",
     "uploadFirst": "Upload the file before you add it.",
     "addToVault": "Add to the vault",

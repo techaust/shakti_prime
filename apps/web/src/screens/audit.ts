@@ -155,6 +155,8 @@ const ACTIONS = {
   'knowledge.file.reindex': 'knowledgeFileReindex',
   'knowledge.file.archive': 'knowledgeFileArchive',
   'knowledge.file.record_index': 'knowledgeFileIndexed',
+  'knowledge.file.record_transcript': 'knowledgeTranscriptKept',
+  'knowledge.transcript.correct': 'knowledgeTranscriptCorrect',
   'knowledge.playbook.draft': 'playbookDraft',
   'knowledge.playbook.edit': 'playbookEdit',
   'knowledge.playbook.approve': 'playbookApprove',
@@ -671,6 +673,7 @@ const FIELD_KINDS = [
   ['chunks', 'number'],
   ['replaced', 'number'],
   ['errorReason', 'errorCode'],
+  ['transcriptChars', 'number'],
   // The Playbook
   ['directiveType', 'playbookType'],
   ['audience', 'playbookAudience'],

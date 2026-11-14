@@ -3,7 +3,7 @@ import {
   KNOWLEDGE_WAITING_STALE_SECONDS,
   type KnowledgeSensitivity,
 } from '@shakti/contracts';
-import { UPLOAD_LIMITS } from '@shakti/domain';
+import { UPLOAD_LIMITS, uploadMaxBytes } from '@shakti/domain';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { listKnowledgeFiles } from '../../../actions/knowledge';
@@ -25,7 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
 function vaultLimit() {
   const found = UPLOAD_LIMITS.knowledge;
   if (found === undefined) throw new Error('no upload limits for the vault');
-  return { contentTypes: [...found.contentTypes], maxBytes: found.maxBytes };
+  return {
+    contentTypes: [...found.contentTypes],
+    maxBytes: found.maxBytes,
+    recordingMaxBytes: uploadMaxBytes(found, 'audio/wav'),
+  };
 }
 
 /**

@@ -24,13 +24,18 @@ import { FailureMessage } from '../screens/failure';
 import { useCommand } from '../screens/use-command';
 import type { KnowledgeCompany, KnowledgeWriter } from './knowledge-screen';
 
-/** The vault's Office types by their name's ending, for a browser that does not say the type. */
+/** The vault's Office and WAV types by their name's ending, for a browser that does not say the type. */
 const BY_ENDING: Readonly<Record<string, string>> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  wav: 'audio/wav',
 };
 
+/** The names browsers give a WAV, each taken as the one type the vault knows. */
+const WAV_NAMES = new Set(['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave']);
+
 function vaultTypeOf(file: File): string {
+  if (WAV_NAMES.has(file.type)) return 'audio/wav';
   if (file.type !== '') return file.type;
   const ending = file.name.split('.').pop()?.toLowerCase() ?? '';
   return Object.hasOwn(BY_ENDING, ending) ? (BY_ENDING[ending] ?? '') : '';
@@ -81,14 +86,17 @@ export function AddFileDialog({
   const [problem, setProblem] = useState<'titleMissing' | 'uploadFirst' | undefined>();
 
   const storedIn = forChoice === 'group' ? firstCompany : forChoice;
+  // Documents and photos, then a recording, each with its own size.
   const types = new Intl.ListFormat('en-IN', { type: 'disjunction' }).format(
     writer.limit.contentTypes.flatMap((type) => {
       const key = fileTypeKey(type);
-      return key === undefined ? [] : [files(`shortTypes.${key}`)];
+      return key === undefined || type === 'audio/wav' ? [] : [files(`shortTypes.${key}`)];
     }),
   );
   const size = sizeParts(writer.limit.maxBytes);
   const sizeText = files(`size.${size.unit}`, { value: size.value });
+  const recordingSize = sizeParts(writer.limit.recordingMaxBytes);
+  const recordingSizeText = files(`size.${recordingSize.unit}`, { value: recordingSize.value });
 
   function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -185,9 +193,9 @@ export function AddFileDialog({
           <Uploader
             id="knowledge-file"
             label={t('fileLabel')}
-            hint={files('uploader.limits', { types, size: sizeText })}
+            hint={t('fileHint', { types, size: sizeText, recordingSize: recordingSizeText })}
             accept={writer.limit.contentTypes}
-            maxBytes={writer.limit.maxBytes}
+            maxBytes={Math.max(writer.limit.maxBytes, writer.limit.recordingMaxBytes)}
             typeOf={vaultTypeOf}
             text={{
               choose: files('uploader.choose'),
@@ -198,12 +206,20 @@ export function AddFileDialog({
               halfway: files('uploader.halfway'),
               cancelled: files('uploader.cancelled'),
               failed: files('uploader.failed'),
-              wrongType: files('uploader.wrongType', { types }),
-              tooLarge: files('uploader.tooLarge', { size: sizeText }),
+              wrongType: t('fileWrongType', { types }),
+              tooLarge: t('fileTooLarge', { size: sizeText, recordingSize: recordingSizeText }),
               empty: files('uploader.empty'),
             }}
             upload={(file: File, controls: UploadControls) => {
               setLanded(false);
+              // The uploader holds every file to a recording's size; any other file is smaller.
+              if (vaultTypeOf(file) !== 'audio/wav' && file.size > writer.limit.maxBytes) {
+                return Promise.resolve({
+                  status: 'failed' as const,
+                  message: t('fileTooLarge', { size: sizeText, recordingSize: recordingSizeText }),
+                  canRetry: false,
+                });
+              }
               return sendFile(
                 file,
                 { entityId: storedIn, purpose: 'knowledge', contentType: vaultTypeOf(file) },
