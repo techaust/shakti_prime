@@ -63,6 +63,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     project_manager: 'entity',
   },
   'crm.config.write': { ...EXEC },
+  // Lead sources, form field maps and website ingest keys (design phase2 §4).
+  'crm.sources.write': { ...EXEC },
   'calls.dial': {
     ...EXEC,
     general_manager: 'entity',
@@ -308,6 +310,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'crm.dnd.record': {},
   // The platform's webhook worker and sweep; no person's role holds it (SECURITY §3.3).
   'webhooks.process': {},
+  // The platform's lead from an integration; no person's role holds it (SECURITY §3.3).
+  'crm.ingest.run': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

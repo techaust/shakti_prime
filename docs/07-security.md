@@ -103,7 +103,7 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 - **Who may hold a permission** is fixed, whoever writes (BLUEPRINT §7.1 to §7.3; `roleMayHold()` in `@shakti/contracts` and `app.role_may_hold()`, which a security test compares for every role and permission):
   - every `admin.*` permission and `integrations.dlq.replay`: the Executive role only (`EXECUTIVE_ONLY_PERMISSIONS`);
   - `finance.cost.read`: Executive and Accounts only; `procurement.rate.read`: Executive, Inventory Manager and Accounts only (`COST_PERMISSION_HOLDERS`);
-  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`, `knowledge.index`, `crm.handover.run`, `crm.retention.run`, `platform.jobs.check`, `crm.dnd.record`, `webhooks.process`, `knowledge.playbook.check`): a system role only.
+  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`, `knowledge.index`, `crm.handover.run`, `crm.retention.run`, `platform.jobs.check`, `crm.dnd.record`, `webhooks.process`, `knowledge.playbook.check`, `crm.ingest.run`): a system role only.
 - The command refuses any other holder (`permission_not_for_role`, `permission_platform_only`), the trigger `role_permissions_holder_guard` refuses it in the database, the seed included, and the editor shows such a permission locked with its reason.
 - Each permission is offered only at the scopes it honours (`PERMISSION_SCOPES`, the scopes the matrix in §3.2 uses for it: `admin.*` all companies, the cost permissions a company or all; `scope_not_offered`).
 - The Executive role always keeps `admin.roles.write:all` and `admin.users.write:all` (`EXECUTIVE_KEPT_GRANTS`, `executive_keeps_admin`), which a deferred constraint trigger also checks at the end of every transaction, so the group cannot lock itself out.
@@ -124,6 +124,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `crm.lead.merge` | all | entity | team | – | – | – | – | – | – | – | – |
 | `crm.account.read` / `.write` | all | entity | team | own | own | own | entity (read) | entity | own (read) | entity (read) | – |
 | `crm.config.write` | all | – | – | – | – | – | – | – | – | – | – |
+| `crm.sources.write` | all | – | – | – | – | – | – | – | – | – | – |
 | `calls.dial` | all | entity | team | own | own | own | – | – | – | – | – |
 | `calls.log` | all | entity | team | own | own | own | – | – | – | – | – |
 | `calls.recording.listen` | all | entity | team | – | – | – | – | – | – | – | – |
@@ -185,6 +186,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `crm.dnd.record` | – | – | – | – | – | – | – | – | – | – | – |
 | `webhooks.process` | – | – | – | – | – | – | – | – | – | – | – |
 | `knowledge.playbook.check` | – | – | – | – | – | – | – | – | – | – | – |
+| `crm.ingest.run` | – | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
 

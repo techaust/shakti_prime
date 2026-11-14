@@ -9,6 +9,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.account.read': 'See customers',
   'crm.account.write': 'Add and update customers',
   'crm.config.write': 'Set up pipelines, call outcomes and lead scoring',
+  'crm.sources.write': 'Connect lead forms and websites, and manage their keys',
   'calls.dial': 'Make calls from the app',
   'calls.log': 'Log calls and their outcomes',
   'calls.recording.listen': 'Listen to call recordings',
@@ -86,6 +87,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.playbook.check': 'Check new Playbook guidance against the approved guidance',
   'crm.dnd.record': 'Record whether a customer number is on the do-not-disturb list',
   'webhooks.process': 'Handle the messages other systems send in',
+  'crm.ingest.run': 'Add leads that arrive from ads, lead forms, websites and WhatsApp',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

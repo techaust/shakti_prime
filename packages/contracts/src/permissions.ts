@@ -10,6 +10,9 @@ export const PERMISSION_KEYS = [
   'crm.account.read',
   'crm.account.write',
   'crm.config.write',
+  // The companies' lead sources: connected Lead Ads and Google forms, their field maps and the
+  // website ingest keys (docs/03-roadmap-appendix/phase2.md §4).
+  'crm.sources.write',
   'calls.dial',
   'calls.log',
   'calls.recording.listen',
@@ -120,6 +123,10 @@ export const PERMISSION_KEYS = [
   // platform's worker principal, which claims, marks and purges `webhook_inbox` rows through narrow
   // definers, nothing more.
   'webhooks.process',
+  // A lead from an integration (`crm.lead.ingest`, docs/03-roadmap-appendix/phase2.md §6.2): held
+  // only by the platform's worker principal, which makes or attaches the lead, its customer,
+  // attribution, consent and owner through narrow definers, nothing more.
+  'crm.ingest.run',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -171,6 +178,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'integrations.dlq.replay',
   // Pipelines, stages, dispositions and score rules shape every caller's work (design §4).
   'crm.config.write',
+  // Where leads come in from, and the keys that let a website send them (design phase2 §4).
+  'crm.sources.write',
 ] as const satisfies readonly PermissionKey[];
 
 /**
@@ -193,6 +202,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'knowledge.playbook.check',
   'crm.dnd.record',
   'webhooks.process',
+  'crm.ingest.run',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -260,6 +270,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.account.read': ['own', 'team', 'entity', 'all'],
   'crm.account.write': ['own', 'team', 'entity', 'all'],
   'crm.config.write': ['all'],
+  'crm.sources.write': ['all'],
   'calls.dial': ['own', 'team', 'entity', 'all'],
   'calls.log': ['own', 'team', 'entity', 'all'],
   'calls.recording.listen': ['team', 'entity', 'all'],
@@ -338,6 +349,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'knowledge.playbook.check': ['all'],
   'crm.dnd.record': ['all'],
   'webhooks.process': ['all'],
+  'crm.ingest.run': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

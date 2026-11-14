@@ -57,5 +57,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The webhook worker and its sweep: it claims, marks and purges `webhook_inbox` rows through
     // definers, and reads no row of any company (docs/03-roadmap-appendix/phase2.md §5.1).
     { key: 'webhooks.process', scope: 'all' },
+    // A lead from Lead Ads, a Google lead form, a website or WhatsApp (`crm.lead.ingest`): it makes
+    // or attaches the lead, with its customer, attribution, consent and owner, through definers,
+    // and reads no lead or customer by a person's rule (docs/03-roadmap-appendix/phase2.md §6.2).
+    { key: 'crm.ingest.run', scope: 'all' },
   ],
 };
