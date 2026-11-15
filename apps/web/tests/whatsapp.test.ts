@@ -12,9 +12,11 @@ import {
 import {
   claimWhatsAppMessage,
   executeCommand,
+  executeQuery,
   memoryFileStore,
   memoryKeyValue,
   recordWhatsAppOptOut,
+  readWhatsAppThread,
   recordWhatsAppSend,
   sendWhatsAppMessage,
   type KeyValue,
@@ -294,7 +296,8 @@ describe('the meta_whatsapp handler', () => {
     );
     expect(file).toEqual({ purpose: 'whatsapp_media', status: 'scanning', entity_id: 1 });
     expect(store.objects.size).toBe(1);
-    expect(downloads).toEqual(['media-1', 'media-1']);
+    // Kept once: a repeat finds the file and downloads nothing.
+    expect(downloads).toEqual(['media-1']);
     // Read with its chat: the customer's owner reads it, a caller of another team does not.
     const sees = (who: Principal) =>
       asPrincipal(who, async ({ tx }) =>
@@ -302,6 +305,111 @@ describe('the meta_whatsapp handler', () => {
       );
     expect(await sees(customer.owner)).toBe(1);
     expect(await sees(await createTestPrincipal('tele_caller_cc', [1]))).toBe(0);
+  });
+
+  it('never downloads or stores a kept file again after its checks replaced the original', async () => {
+    const customer = await whatsappCustomer(1);
+    const store = memoryFileStore();
+    const downloads: string[] = [];
+    const handle = whatsappHandler(
+      deps({
+        store,
+        downloadMedia: (mediaId) => {
+          downloads.push(mediaId);
+          return Promise.resolve({ bytes: PNG, contentType: 'image/png' });
+        },
+      }),
+    );
+    const photo = {
+      from: customer.waId,
+      id: `wamid.${newId()}`,
+      timestamp: seconds(),
+      type: 'image',
+      image: { id: 'media-aadhaar', mime_type: 'image/png' },
+    };
+    await handle(delivery(one.phoneNumberId, { messages: [photo] }), context());
+    const [thread] = await threadsOf(customer.waId);
+    const fileId = (await messagesOf(thread?.id ?? '')).find((m) => m.direction === 'inbound')?.file_id;
+    // The checks as they end for a masked identity document: the masked copy under a new key,
+    // the original deleted from the store.
+    const [original] = await asMigrator(
+      (m) => m<{ key: string }[]>`select key from files where id = ${fileId ?? ''}`,
+    );
+    const masked = (original?.key ?? '').replace(/\.png$/, '-masked.png');
+    await store.put(masked, PNG, 'image/png');
+    await store.delete(original?.key ?? '');
+    await asPrincipal(systemWorkersPrincipal(1), ({ tx }) =>
+      tx.execute(sql`update files set key = ${masked}, status = 'ready' where id = ${fileId ?? ''}::uuid`),
+    );
+    // Meta sends the message again, in another batch.
+    await handle(delivery(one.phoneNumberId, { messages: [photo] }), context());
+    expect(downloads).toEqual(['media-aadhaar']);
+    expect([...store.objects.keys()]).toEqual([masked]);
+  });
+
+  it('finishes every step on the next try when one failed after the message was recorded', async () => {
+    const waId = `91${String(7_000_000_000 + Math.floor(Math.random() * 999_999_999))}`;
+    let failing = true;
+    const handle = whatsappHandler(
+      deps({
+        ingestLead: () =>
+          failing ? Promise.reject(new Error('the intake is down')) : Promise.resolve(null),
+      }),
+    );
+    const stop = text(waId, 'STOP');
+    // The STOP is recorded, then the intake fails before the opt-out: the delivery is retried.
+    await expect(handle(delivery(one.phoneNumberId, { messages: [stop] }), context())).rejects.toThrow();
+    let [thread] = await threadsOf(waId);
+    expect(thread?.opted_out_at).toBeNull();
+    // A new chat starts with the team while no assistant answers.
+    expect(thread?.handled_by).toBe('people');
+    failing = false;
+    await handle(delivery(one.phoneNumberId, { messages: [stop] }), context());
+    await handle(delivery(one.phoneNumberId, { messages: [stop] }), context());
+    [thread] = await threadsOf(waId);
+    expect(thread?.opted_out_at).not.toBeNull();
+    const messages = await messagesOf(thread?.id ?? '');
+    expect(messages.filter((m) => m.direction === 'inbound')).toHaveLength(1);
+    expect(messages.filter((m) => m.direction === 'outbound').map((m) => m.kind)).toEqual(['system']);
+
+    // The welcome too: missed on the first try, sent once on the next ones.
+    const other = `91${String(7_000_000_000 + Math.floor(Math.random() * 999_999_999))}`;
+    failing = true;
+    const hello = text(other, 'Hello');
+    await expect(handle(delivery(one.phoneNumberId, { messages: [hello] }), context())).rejects.toThrow();
+    failing = false;
+    await handle(delivery(one.phoneNumberId, { messages: [hello] }), context());
+    await handle(delivery(one.phoneNumberId, { messages: [hello] }), context());
+    const [chat] = await threadsOf(other);
+    expect(
+      (await messagesOf(chat?.id ?? '')).filter((m) => m.direction === 'outbound').map((m) => m.template_name),
+    ).toEqual([welcome]);
+  });
+
+  it('opts the number out of every company on a STOP, and on Meta’s Stop promotions button', async () => {
+    const customer = await whatsappCustomer(1);
+    const handle = whatsappHandler(deps());
+    await handle(delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }), context());
+    await handle(delivery(two.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }), context());
+    await handle(
+      delivery(one.phoneNumberId, {
+        messages: [
+          {
+            from: customer.waId,
+            id: `wamid.${newId()}`,
+            timestamp: seconds(),
+            type: 'button',
+            button: { text: 'Stop promotions', payload: 'Stop promotions' },
+          },
+        ],
+      }),
+      context(),
+    );
+    const threads = await threadsOf(customer.waId);
+    expect(threads.map((t) => [t.entity_id, t.opted_out_at !== null])).toEqual([
+      [1, true],
+      [2, true],
+    ]);
   });
 
   it('moves a sent message’s status only forward, whatever order the statuses come in', async () => {
@@ -463,6 +571,63 @@ describe('the messaging worker', () => {
       refusal: 'opted_out',
     });
     expect(sent).toEqual([]);
+  });
+
+  it('refuses a message whose number opted out between its checks and its sending', async () => {
+    const { messageId, threadId } = await queuedText();
+    const { fake, sent } = client(() => Promise.resolve({ messageId: 'wamid.z', waId: undefined }));
+    // The STOP lands after the worker read its facts: while it reads the budget, before it takes
+    // the message.
+    const store = memoryKeyValue();
+    let stopped = false;
+    const racing: KeyValue = {
+      ...store,
+      get: async (key) => {
+        if (!stopped) {
+          stopped = true;
+          await executeCommand(systemWorkersPrincipal(1), { entityIds: [1] }, recordWhatsAppOptOut, {
+            entityId: 1,
+            threadId,
+            at: new Date().toISOString(),
+          });
+        }
+        return store.get(key);
+      },
+    };
+    expect(await sendQueuedMessage(job(messageId), workerDeps(fake, racing))).toMatchObject({
+      status: 'refused',
+      refusal: 'opted_out',
+    });
+    expect(stopped).toBe(true);
+    expect(sent).toEqual([]);
+    expect((await messagesOf(threadId)).find((m) => m.id === messageId)?.status).toBe('refused');
+  });
+
+  it('shows a message taken but never answered as not delivered, and the platform’s as sent automatically', async () => {
+    const customer = await whatsappCustomer(1);
+    await whatsappHandler(deps())(
+      delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }),
+      context(),
+    );
+    const [thread] = await threadsOf(customer.waId);
+    const [queued] = (await messagesOf(thread?.id ?? '')).filter((m) => m.direction === 'outbound');
+    // Taken by a worker that stopped before it recorded Meta's answer, five minutes ago.
+    await asMigrator(
+      (m) => m`update whatsapp_messages set send_attempted_at = now() - interval '5 minutes'
+                where id = ${queued?.id ?? ''}`,
+    );
+    const view = await executeQuery(
+      customer.owner,
+      { entityIds: [1] },
+      (ctx) => readWhatsAppThread(ctx, { entityId: 1, threadId: thread?.id }),
+      { name: 'messaging.thread' },
+    );
+    expect(view.assistantOn).toBe(false);
+    expect(view.messages.find((m) => m.id === queued?.id)).toMatchObject({
+      status: 'failed',
+      sentByName: null,
+      templateLabel: expect.any(String),
+    });
   });
 
   it('records a timeout as failed and never sends the message again', async () => {

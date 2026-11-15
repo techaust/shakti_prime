@@ -115,6 +115,7 @@ function receive(
     body: extra.body === undefined ? 'Is the pump in stock?' : extra.body,
     buttonPayload: extra.kind === 'button' ? 'Talk to a person' : null,
     sentAt: extra.at ?? new Date().toISOString(),
+    handledBy: 'assistant',
   });
 }
 
@@ -435,6 +436,7 @@ describe('messaging.inbound.record', () => {
             body: 'Hello',
             buttonPayload: null,
             sentAt: new Date().toISOString(),
+            handledBy: 'assistant',
           }),
         ),
       ).toMatchObject({ code: 'forbidden' });
@@ -453,6 +455,7 @@ describe('messaging.inbound.record', () => {
           body: 'Hello',
           buttonPayload: null,
           sentAt: new Date().toISOString(),
+          handledBy: 'assistant',
         }),
       ),
     ).toMatchObject({ code: 'not_found', reason: 'whatsapp_number_unknown' });
@@ -704,6 +707,8 @@ describe('messaging.message.queue', () => {
       });
     const welcome = await queue('welcome');
     expect(welcome.queued).toBe(true);
+    // Once per thread, however often it is asked for.
+    expect(await queue('welcome')).toMatchObject({ queued: false, messageId: null });
     const events = await eventsOf(customer.threadId);
     expect(events.at(-1)).toMatchObject({
       type: 'messaging.message.requested',
@@ -717,9 +722,8 @@ describe('messaging.message.queue', () => {
     expect(await queue('welcome')).toMatchObject({ queued: false, messageId: null });
     const confirmation = await queue('opt_out_confirmation');
     expect(confirmation.queued).toBe(true);
-    expect(await refusal(queue('opt_out_confirmation'))).toMatchObject({
-      code: 'validation_failed',
-    });
+    // Asked again (a delivery handled again), it queues nothing.
+    expect(await queue('opt_out_confirmation')).toMatchObject({ queued: false, messageId: null });
     // Company 2 registered no welcome, so nothing is queued there.
     const elsewhere = await whatsappCustomer(2);
     const channel2 = await whatsappChannel(2);
@@ -731,6 +735,7 @@ describe('messaging.message.queue', () => {
       body: 'Hello',
       buttonPayload: null,
       sentAt: new Date().toISOString(),
+      handledBy: 'assistant',
     });
     expect(
       await run(workers([2]), queueWhatsAppMessage, {
@@ -781,10 +786,11 @@ describe('messaging.message.claim and messaging.message.record_send', () => {
 
   it('takes a message once, never twice, and records a refusal only for one not taken', async () => {
     const customer = await customerWithThread();
-    const queue = () =>
+    const second = await customerWithThread();
+    const queue = (threadId = customer.threadId) =>
       run<WhatsAppMessageQueued>(workers([1]), queueWhatsAppMessage, {
         entityId: 1,
-        threadId: customer.threadId,
+        threadId,
         purpose: 'welcome',
       });
     const refused = (await queue()).messageId ?? '';
@@ -796,7 +802,7 @@ describe('messaging.message.claim and messaging.message.record_send', () => {
         refusal: 'template_not_approved',
       }),
     ).toMatchObject({ status: 'refused', changed: true });
-    const taken = (await queue()).messageId ?? '';
+    const taken = (await queue(second.threadId)).messageId ?? '';
     const claim = () => run(workers([1]), claimWhatsAppMessage, { entityId: 1, messageId: taken });
     expect(await claim()).toEqual({ messageId: taken, claimed: true });
     expect(await claim()).toEqual({ messageId: taken, claimed: false });
@@ -840,6 +846,7 @@ describe('messaging.media.attach', () => {
       body: null,
       buttonPayload: null,
       sentAt: new Date().toISOString(),
+      handledBy: 'assistant',
     });
     return recorded.messageId;
   }

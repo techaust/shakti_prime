@@ -58,6 +58,7 @@ export async function ensureWhatsAppJourneys(executiveId: string): Promise<void>
         body,
         buttonPayload: null,
         sentAt: new Date().toISOString(),
+        handledBy: 'people',
       },
     );
   for (const project of PROJECTS) {
@@ -74,11 +75,20 @@ export async function ensureWhatsAppJourneys(executiveId: string): Promise<void>
     await inbound(SNAPSHOT_COMPANY.entityId, snapshotWaId, WHATSAPP.snapshot.message);
   }
   // The snapshot chat waits for its reply with its window open on every run, so its screenshot
-  // shows the same reply box whatever day the database was made.
+  // shows the same reply box whatever day the database was made. Every journey chat is answered
+  // by people, as a new chat is while no assistant answers.
   await asMigrator(
     (m) => m`update whatsapp_threads
                 set window_open_until = now() + interval '1 day', needs_reply = true,
-                    handled_by = 'assistant', handoff_reason = null, handed_off_at = null
+                    handled_by = 'people', handoff_reason = 'no_assistant',
+                    handed_off_at = coalesce(handed_off_at, now())
               where entity_id = ${SNAPSHOT_COMPANY.entityId} and wa_id = ${snapshotWaId}`,
+  );
+  await asMigrator(
+    (m) => m`update whatsapp_threads
+                set handled_by = 'people', handoff_reason = 'no_assistant',
+                    handed_off_at = coalesce(handed_off_at, now())
+              where entity_id = 1 and wa_id = any (${PROJECTS.map((p) => waIdOf(WHATSAPP.customers[p].phone))})
+                and handled_by = 'assistant'`,
   );
 }
