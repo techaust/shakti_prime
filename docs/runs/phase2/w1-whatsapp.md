@@ -221,3 +221,36 @@ Every finding of the review, with the lead's decisions on M1 and M2. Migrations 
 - `app.anonymise_stale_leads()`: reconcile T3's two lines with 0174's at the merge.
 - The demo-data case above, on a fresh database.
 - The seven baselines and `messages`, in the Linux image; `js-budget.json` and the owner's `checks-ok` as before.
+
+### Re-check, 15-11-2026, the lead's cloud VM (slot 2, Postgres 54332), fixes d2e36794..dd281af4
+All fourteen findings are fixed; the three highs no longer block. Three new low findings below, none blocking.
+
+**`pnpm test:security`** once through the lock on the freshly recreated database: db 49 files, 1368 passed; domain 84 files, 1152 passed; web 29 files, 374 passed (`tests/demo-data.test.ts` 9 of 9 passed); 4 of 4 tasks. The demo-data failure of the fix round was the old database's, as the builder said.
+
+| # | Fixed? | Evidence |
+|---|---|---|
+| H1 | fixed | `whatsapp.ts` no longer returns on a repeat; every step runs again. `whatsapp_record_inbound()` (0174 §4) answers on a repeat what the first delivery did (`first_message` when no earlier inbound message is on the thread, the holders, the file). Each step is safe twice: the opt-out (already opted out changes nothing, a thread of the number with no STOP takes this one), the hand-off (keeps its first reason), the confirmation once after each STOP and the welcome once per thread (`welcomed_at`), both held by `whatsapp_queue_message()` under the thread lock, the intake by its idempotency key. A STOP older than a WhatsApp consent given since returns before anything changes. The test fails the step after the record and delivers again (`finishes every step on the next try…`). |
+| H2 | fixed, with N2 below | The handler keeps a file only while `recorded.fileId` is null, so a delivery after the attach never downloads or writes again (test with the checks replacing the original between two deliveries: one download, only the masked key stored). A try that stopped after the `put` but before the attach writes the same original to the same key, before any checks, since the file row, the attach and `files.file.uploaded` commit together. |
+| H3 | fixed | 0173: `contact_phone_id` `ON DELETE SET NULL`; the customer check allows a null phone with a customer; the threads have no guard and no column grant changed, so nothing else opens. Tests remove a number and anonymise a customer with a chat. |
+| M1 | fixed | `AGENT_DEFAULTS.concierge.handlesNewThreads = false`: new chats start with people (`no_assistant`, check and contract widened `NOT VALID`), the chat says so, "Give back" is hidden while `assistantOn` is false, and the waiting notice now covers every chat with an owner. |
+| M2 | fixed | By number in every company: `whatsapp_number_opted_out()` reads the latest STOP of any thread with the number (`whatsapp_threads_wa_idx`); `whatsapp_record_opt_out()` stamps every company's thread and withdraws every holder's consent; a chat a company opens later starts with the number's STOP. Tested across three companies with no consent row. |
+| M3 | fixed | `anonymise_stale_leads()` diffed line by line against `main`'s 0142 (its only definition on `main`): nothing dropped; it adds the customer's chats to the subjects, clears `wa_id` and `needs_reply`, and clears inbound text and button replies through `app.lead_anonymise_scope`, which is a table checked against the transaction id, so no request can open the guard's new exception. Can a customer avoid it for ever? Only by writing on WhatsApp at least once each period, which is real activity, and passed-by customers cannot hold back others, since the job's batches move on by a keyset cursor (`app.stale_leads()`). See N3 for the dry run. |
+| L1 | fixed | The sender's name only for `principals.kind = 'user'`. |
+| L2 | fixed | `whatsapp_templates.label` (1 to 60), shown in the composer and the chat. |
+| L3 | fixed | The `sent` record is outside the `catch`; a message taken with no answer after 120 seconds shows as not delivered. |
+| L4 | fixed | `whatsapp_claim_send()` checks the opt-out (the confirmation excepted); a claim refused for it is recorded `refused` / `opted_out` (test with the STOP landing between the checks and the claim). |
+| L5 | fixed | The key goes only to `https://lookaside.fbsbx.com` (exact host, default port). |
+| L6 | fixed | "stop promotions" in the keywords and the workshop pack. |
+| L7, L8 | fixed | PRD §8 rows name W1's suites; DATABASE's merge row has no change-log wording. |
+
+**New findings**
+
+| # | Severity | Where | What is wrong | Fix | |
+|---|---|---|---|---|---|
+| N1 | low | `0174_whatsapp_fix_round_rls.sql` §6 (`whatsapp_queue_message`, kind `system`) | The confirmation is queued when the thread has a STOP and none since, without asking whether the number is still opted out. A STOP whose first delivery failed between the opt-out and the queue, retried after a person recorded a new WhatsApp consent, queues and sends "you are unsubscribed" to a customer who opted back in (the guard and the worker both let a `system` message through to a number not opted out). | Queue `system` only when `app.whatsapp_number_opted_out()` is true. | confirmed by reading |
+| N2 | low | `apps/web/src/workers/webhooks/whatsapp.ts` (`keepMedia`) | Two deliveries of one photo running at once (P5's lease lapse) both find no file, both download, and both `put` the original. If the first's file finishes its checks before the second's `put`, the unmasked original comes back under its first key; the second's attach then fails `file_upload_mismatch`. Needs the malware scan and masking to finish within the second download, so narrow. | Record the file row before the `put` (one claim per message), or write the original only if the key is absent. | plausible |
+| N3 | low | `anonymise_stale_leads()` (0174) vs `app.stale_leads()` / `app.customer_idle()` (0142) | The WhatsApp pass-by lives only in the anonymisation (decision 21), so the window and the dry run still count a customer who wrote recently as stale. Each night's `examined` and the dry run's count overstate what will be anonymised. | Add the `last_inbound_at` test to `app.customer_idle()` when T3's lines are reconciled, or note the difference in DATABASE. | confirmed by reading |
+
+Also read and sound: the old seven-argument `whatsapp_record_inbound` is dropped before the new one; every redefined definer keeps its permission check, `search_path = ''` and its revokes and grants; the guard refuses any outbound row to a chat whose number was removed, and the queue and claim answer such a chat with nothing instead of an error; button payloads read for keywords come from the companies' own templates (S3 should keep its button ids clear of the keyword lists).
+
+Not checked: screenshots and journeys (the lead makes the baselines); T3's two lines in `anonymise_stale_leads()` (the lead reconciles them at the merge).
