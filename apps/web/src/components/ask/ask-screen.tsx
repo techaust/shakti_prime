@@ -132,6 +132,8 @@ export function AskScreen({
       }
       const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
       let rest = '';
+      // Whether the stream ended as it should: with the answer or with a failure.
+      let ended = false;
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -142,10 +144,17 @@ export function AskScreen({
           if (line.trim() === '') continue;
           const event = JSON.parse(line) as AskStreamEvent;
           if (event.type === 'lookup') setLookups((all) => [...all, event.lookup]);
-          else if (event.type === 'answer') answered(event);
-          else fail(event.error.reason ?? event.error.code);
+          else if (event.type === 'answer') {
+            ended = true;
+            answered(event);
+          } else {
+            ended = true;
+            fail(event.error.reason ?? event.error.code);
+          }
         }
       }
+      // A stream cut off (a time limit, a lost connection) says so instead of nothing.
+      if (!ended) fail('ask_interrupted');
     } catch {
       fail('internal');
     } finally {

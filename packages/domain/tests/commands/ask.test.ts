@@ -338,6 +338,43 @@ describe('askTheBusiness', () => {
     expect(followUp.message).toMatchObject({ outcome: 'answered', unsourced: 0 });
   });
 
+  it('answers a repeated key from its record only while its message is there and its companies are the person’s', async () => {
+    const transport = fakeModelTransport([fakeReply('Nothing to add.')]);
+    const ai = provider(transport);
+    const key = newId();
+    const keyed = (who: Principal, entityIds: number[]) =>
+      askTheBusiness(
+        who,
+        { question: 'Anything new?' },
+        { provider: ai },
+        { entityIds, idempotencyKey: key },
+      );
+
+    const first = await keyed(gm2, [1, 2]);
+    made.conversations.push(first.conversation.id);
+    expect(first.conversation.entityIds).toEqual([1, 2]);
+    const calls = transport.requests.length;
+    // Again, as it stands: from the record, with no model call.
+    expect(await keyed(gm2, [1, 2])).toEqual(first);
+    expect(transport.requests).toHaveLength(calls);
+
+    // The person no longer covers company 2: asked again as a new question in company 1.
+    const narrower = await keyed(gm1, [1]);
+    made.conversations.push(narrower.conversation.id);
+    expect(narrower.conversation.id).not.toBe(first.conversation.id);
+    expect(narrower.conversation.entityIds).toEqual([1]);
+    expect(transport.requests.length).toBeGreaterThan(calls);
+
+    // Deleted: asked again as a new question.
+    await executeCommand(gm2, { entityIds: [1, 2] }, deleteAskConversation, {
+      conversationId: first.conversation.id,
+    });
+    const afresh = await keyed(gm2, [1, 2]);
+    made.conversations.push(afresh.conversation.id);
+    expect(afresh.conversation.id).not.toBe(first.conversation.id);
+    expect(afresh.message.answer).toBe('Nothing to add.');
+  });
+
   it('ends with no answer when the model only asks for lookups', async () => {
     const transport = fakeModelTransport([
       fakeToolReply([{ name: 'targets_progress', input: {} }]),

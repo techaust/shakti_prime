@@ -71,7 +71,12 @@ export interface AnswerFigure {
   sourceId: string | undefined;
 }
 
-const FIGURE = /₹\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:lakh|crore))?|\b\d[\d,]*(?:\.\d+)?\s?%/gi;
+/**
+ * A rupee amount with its magnitude word, as the filter reads it (`₹50 thousand`, `₹7k`, `₹1.2
+ * lakh`), or a percentage. The stored answer's digits are ASCII: the filter wrote them so.
+ */
+const FIGURE =
+  /₹\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:hundred|thousand|k|lakhs?|lacs?|crores?|cr|millions?|mn|billions?|bn)\b)?|\b\d[\d,]*(?:\.\d+)?\s?%/gi;
 
 /**
  * The amounts in rupees and the percentages of an answer, as cards, each once, with the first

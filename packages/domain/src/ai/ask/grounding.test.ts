@@ -1,4 +1,4 @@
-import type { AskSource } from '@shakti/contracts';
+import { newId, type AskSource } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import { citationMarker, collectFigures, groundAnswer, UNSOURCED } from './grounding';
 
@@ -107,5 +107,72 @@ describe('groundAnswer', () => {
     expect([...keys].sort()).toEqual(
       ['date:2026-11-14', 'month:2026-11', 'daymonth:11-14', 'n:2026'].sort(),
     );
+  });
+
+  it('never reads a record’s id as a figure (review finding 1 a)', () => {
+    // Twenty-five leads with real ids, and no lookup giving 7.
+    const results = [
+      JSON.stringify({
+        leads: Array.from({ length: 25 }, () => ({ ref: newId(), lead: newId(), score: 40 })),
+      }),
+    ];
+    const grounded = ground('There are 7 open leads with a score of 40.', results);
+    expect(grounded.text).toBe(`There are ${UNSOURCED} open leads with a score of 40.`);
+    expect(grounded.unsourced).toBe(1);
+    // Nor a number from 2 to 999 at all, from the ids alone.
+    const keys = collectFigures(results);
+    expect([...keys].filter((k) => k !== 'n:40')).toEqual([]);
+  });
+
+  it('reads magnitude words after digits and after number words (review finding 1 b)', () => {
+    const small = [JSON.stringify({ count: 7, value: 50 })];
+    for (const answer of [
+      'Sales were ₹50 thousand.',
+      'Sales were ₹7k.',
+      'Sales were 7 million rupees.',
+      'Sales were fifty lakh.',
+      'Sales were seven gazillion.',
+    ]) {
+      const grounded = ground(answer, small);
+      expect({ answer, unsourced: grounded.unsourced }).toEqual({ answer, unsourced: 1 });
+      expect(grounded.text).toMatch(/^Sales were \[unsourced\]( rupees)?\.$/);
+    }
+    const big = [
+      JSON.stringify({ a: '₹50000.00', b: '₹7000.00', c: 7000000, d: '₹5000000.00', e: 500 }),
+    ];
+    for (const answer of [
+      'Sales were ₹50 thousand.',
+      'Sales were ₹7k.',
+      'Sales were 7 million rupees.',
+      'Sales were fifty lakh.',
+      'Sales were ₹0.5 crore.',
+      'Sales were five hundred.',
+      'Sales were ₹50,000.',
+    ]) {
+      expect({ answer, unsourced: ground(answer, big).unsourced }).toEqual({
+        answer,
+        unsourced: 0,
+      });
+    }
+    expect(ground('It costs one lakh.', big).unsourced).toBe(1);
+    expect(ground('It is the one in Jaipur.', []).unsourced).toBe(0);
+  });
+
+  it('reads digits of every script as their ASCII digits, on both sides (review finding 1 c)', () => {
+    expect(ground('Total: ३१२५० rupees.', []).text).toBe(`Total: ${UNSOURCED} rupees.`);
+    expect(ground('Total: ３１２５０ rupees.', []).text).toBe(`Total: ${UNSOURCED} rupees.`);
+    expect(ground('Total: ३१२५० rupees.', [JSON.stringify({ total: 31250 })]).unsourced).toBe(0);
+    expect(ground('Total: 31250 rupees.', ['{"total":"３１２５０"}']).unsourced).toBe(0);
+  });
+
+  it('takes a line-start number as numbering only in a run counting up from 1 (review finding 1 d)', () => {
+    expect(ground('Margin:\n23. percent of the price', []).text).toBe(
+      `Margin:\n${UNSOURCED}. percent of the price`,
+    );
+    expect(ground('Steps:\n1. Call\n2. Visit\n3. Quote', []).unsourced).toBe(0);
+    expect(ground('Steps:\n1. Call\n3. Quote', []).text).toBe(
+      `Steps:\n1. Call\n${UNSOURCED}. Quote`,
+    );
+    expect(ground('A:\n1. x\n2. y\nB:\n1. z', []).unsourced).toBe(0);
   });
 });

@@ -22,7 +22,10 @@ export interface AskData {
     jobCost: string;
     margin: string;
   };
-  /** Every way those figures could be written, which must never reach a General Manager. */
+  /**
+   * Every way those figures could be written, which must never reach a General Manager under any
+   * field name. The costs are under nine digits, so the masking can never hide one as a number.
+   */
   costPatterns: readonly RegExp[];
 }
 
@@ -45,7 +48,7 @@ export async function seedAskData(ownerId: string): Promise<AskData> {
     await m`insert into items (id, sku, name, category, hsn, unit)
       values (${itemId}, ${tag.toUpperCase()}, ${`Synthetic ${tag} pump`}, 'pump', '8413', 'nos')`;
     await m`insert into item_costs (id, item_id, entity_id, moving_avg_cost, last_purchase_rate, as_of)
-      values (${newId()}, ${itemId}, 1, 31250.5000, 29875.0000, now())`;
+      values (${newId()}, ${itemId}, 1, 4215.7500, 3980.2500, now())`;
     await m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
       values (${upload}, 1, 'knowledge', 'test', ${`1/knowledge/${upload}.pdf`}, 'costing.pdf',
               'application/pdf', 10, ${'d'.repeat(64)}, 'ready', ${ownerId})`;
@@ -72,13 +75,13 @@ export async function seedAskData(ownerId: string): Promise<AskData> {
     staffRuleId,
     managementRuleId,
     costs: {
-      movingAverage: '31250.5000',
-      lastPurchase: '29875.0000',
+      movingAverage: '4215.7500',
+      lastPurchase: '3980.2500',
       supplierRate: '27,640',
       jobCost: '41,385',
       margin: '23.5',
     },
-    costPatterns: [/31,?250/, /29,?875/, /27,?640/, /41,?385/, /23\.5/],
+    costPatterns: [/4,?215/, /3,?980/, /27,?640/, /41,?385/, /23\.5/],
   };
 }
 

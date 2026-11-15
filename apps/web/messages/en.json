@@ -161,6 +161,7 @@
     "ask_unavailable": "Ask the Business is not set up yet. Try again later.",
     "ask_person_cap_reached": "You have reached today's limit for Ask the Business. You can ask again tomorrow.",
     "ask_cap_reached": "Ask the Business has reached today's limit for everyone. You can ask again tomorrow.",
+    "ask_interrupted": "The answer did not arrive. Check your connection and ask again.",
     "voucher_no_match": "No matching order was found for this Tally entry. It has gone to the review list.",
     "voucher_has_match": "This Tally entry already matches an order.",
     "voucher_link_target_missing": "Choose the order or proforma to link this Tally entry to.",

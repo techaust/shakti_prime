@@ -1,8 +1,9 @@
 import type { Principal } from '@shakti/contracts';
 import { asMigrator, closeDb, createTestPrincipal } from '@shakti/db/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { askTheBusiness } from '../../src/ai/ask/ask';
 import { recordedAskTransport, type AskRecording } from '../../src/ai/ask/recorded';
+import { ASK_TOOLS } from '../../src/ai/ask/tools';
 import { createAiProvider } from '../../src/ai/provider';
 import { fakeModelTransport, type ModelRequest, type ModelTransport } from '../../src/ai/transport';
 import { memoryKeyValue } from '../../src/ports/key-value';
@@ -15,7 +16,9 @@ import { removeAskData, seedAskData, type AskData } from '../fixtures/ask-data';
 // supplier's rate, a job's cost and a margin. The model is the worst case: a recording that asks
 // for every lookup that could touch them and writes back every figure it read. No cost, margin or
 // supplier rate reaches the General Manager's lookups, answer, stored message or log lines; the
-// Executive, who holds `finance.cost.read` and reads Executive files, gets them.
+// Executive, who holds `finance.cost.read` and reads Executive files, gets them. The lookups are
+// read twice: as they answered (before the wrapper masks and labels them) and as the model got
+// them, and the costs are under nine digits, so masking can never hide a leak under any field.
 
 let data: AskData;
 let executive: Principal;
@@ -66,6 +69,8 @@ const QUESTIONS = (tag: string) => [
 ];
 
 interface Asked {
+  /** Every lookup's own answer, before the wrapper masks it. */
+  raw: string;
   lookups: string;
   answers: string;
   stored: string;
@@ -88,6 +93,15 @@ async function askAs(principal: Principal): Promise<Asked> {
     keyValue: memoryKeyValue(),
     logger,
   });
+  const raw: string[] = [];
+  const spies = ASK_TOOLS.map((tool) => {
+    const run = tool.run.bind(tool);
+    return vi.spyOn(tool, 'run').mockImplementation(async (ctx, input) => {
+      const output = await run(ctx, input);
+      raw.push(JSON.stringify(output));
+      return output;
+    });
+  });
   const answers: string[] = [];
   for (const question of QUESTIONS(data.tag)) {
     const turn = await askTheBusiness(
@@ -99,12 +113,14 @@ async function askAs(principal: Principal): Promise<Asked> {
     conversations.push(turn.conversation.id);
     answers.push(turn.message.answer);
   }
+  for (const spy of spies) spy.mockRestore();
   const stored = await asMigrator(
     (m) => m<{ question: string; answer: string; cited: unknown; returned: unknown }[]>`
       select question, answer, cited_json as cited, returned_json as returned
         from ask_messages where conversation_id = any(${conversations.slice(-2)})`,
   );
   return {
+    raw: raw.join('\n'),
     lookups: requests
       .flatMap((r) => r.rounds ?? [])
       .flatMap((round) => round.results.map((x) => x.content))
@@ -118,19 +134,25 @@ async function askAs(principal: Principal): Promise<Asked> {
 describe('the same questions as a General Manager and as an Executive (phase2 §6.5 acceptance)', () => {
   it('give the Executive the costs, the supplier rate and the margin they may read', async () => {
     const asked = await askAs(executive);
-    expect(asked.lookups).toContain('"movingAverageCost":"₹31250.50"');
-    expect(asked.lookups).toContain('"lastPurchaseRate":"₹29875.00"');
+    expect(asked.raw).toContain('"movingAverageCost":"₹4215.75"');
+    expect(asked.raw).toContain('"lastPurchaseRate":"₹3980.25"');
+    expect(asked.lookups).toContain('"movingAverageCost":"₹4215.75"');
+    expect(asked.lookups).toContain('"lastPurchaseRate":"₹3980.25"');
     expect(asked.lookups).toContain('₹27,640');
     expect(asked.lookups).toContain('23.5 percent');
-    expect(asked.answers).toMatch(/31250\.5/);
+    expect(asked.answers).toMatch(/4215\.75/);
     expect(asked.answers).toMatch(/27,640/);
-    expect(asked.stored).toMatch(/31250\.5/);
+    expect(asked.stored).toMatch(/4215\.75/);
+    // Every pattern of the General Manager's check finds the Executive's figures, so the check
+    // below can fail.
+    for (const pattern of data.costPatterns) expect(pattern.test(asked.raw)).toBe(true);
   });
 
   it('never give the General Manager a cost, a margin or a supplier rate: not in a lookup, the answer, the stored message or a log line', async () => {
     const asked = await askAs(gm);
     // The General Manager's lookups ran and read what they may: the item without its cost side,
     // the staff and management rules, no Executive file.
+    expect(asked.raw).toContain(data.tag.toUpperCase());
     expect(asked.lookups).toContain(data.tag.toUpperCase());
     expect(asked.lookups).toContain(data.managementRuleId);
     expect(asked.lookups).not.toContain('movingAverageCost');
@@ -140,10 +162,11 @@ describe('the same questions as a General Manager and as an Executive (phase2 §
     // Dealer credit is not a lookup a General Manager has.
     expect(asked.lookups).not.toContain('creditLimit');
     for (const pattern of data.costPatterns) {
-      expect({ pattern: String(pattern), lookups: pattern.test(asked.lookups) }).toEqual({
+      expect({
         pattern: String(pattern),
-        lookups: false,
-      });
+        raw: pattern.test(asked.raw),
+        lookups: pattern.test(asked.lookups),
+      }).toEqual({ pattern: String(pattern), raw: false, lookups: false });
       expect(pattern.test(asked.answers)).toBe(false);
       expect(pattern.test(asked.stored)).toBe(false);
       expect(pattern.test(asked.logs)).toBe(false);

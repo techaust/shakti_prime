@@ -1,8 +1,15 @@
 import { newId, type Principal, type RoleKey } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
-import { closeDb, PIPELINE_SEED, principalFor, STAGE_SEED } from '@shakti/db/testing';
+import {
+  closeDb,
+  createTestPrincipal,
+  PIPELINE_SEED,
+  principalFor,
+  STAGE_SEED,
+} from '@shakti/db/testing';
 import { randomBytes } from 'node:crypto';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { removeAskData, seedAskData, type AskData } from '../fixtures/ask-data';
 import { executeQuery } from '../../src/command/execute';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
@@ -18,6 +25,8 @@ import {
 } from '../../src/queries/knowledge/playbook';
 import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
 import {
+  askSourceLabels,
+  itemCostsFor,
   listAskConversations,
   loadAskConversation,
   readAskConversation,
@@ -120,7 +129,17 @@ import {
 } from '../../src/queries/home/home';
 import { myProgress, targetsScreen, teamProgress } from '../../src/queries/sales/targets';
 
-afterAll(closeDb);
+/** Ask's seeded records (an item with its cost side, a vault file, two rules), for its reads. */
+let askData: AskData;
+
+beforeAll(async () => {
+  askData = await seedAskData((await createTestPrincipal('executive')).id);
+});
+
+afterAll(async () => {
+  await removeAskData();
+  await closeDb();
+});
 
 /** A dealer no row names. */
 const NO_DEALER = newId();
@@ -257,6 +276,16 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   // The approved Playbook, the agents' and Ask's one read of it (K2).
   approvedPlaybook: (ctx) => approvedPlaybook(ctx, {}),
+  // Ask's cited records' words and an item's cost side (B1), on real records.
+  askSourceLabels: (ctx) =>
+    askSourceLabels(ctx, [
+      { kind: 'item', id: askData.itemId },
+      { kind: 'knowledge_file', id: askData.vaultFileId },
+      { kind: 'playbook_directive', id: askData.staffRuleId },
+      { kind: 'playbook_directive', id: askData.managementRuleId },
+      { kind: 'pipeline_stage', id: STAGE },
+    ]),
+  itemCostsFor: (ctx) => itemCostsFor(ctx, [askData.itemId]),
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
   dialNumber: (ctx) =>
     dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),

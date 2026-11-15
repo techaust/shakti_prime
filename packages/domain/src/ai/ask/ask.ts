@@ -10,7 +10,7 @@ import {
   type Principal,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import { executeCommand, executeQuery, type ExecuteOptions } from '../../command/execute';
 import { checkPermission, isAgent } from '../../command/run-command';
 import { recordAsk } from '../../commands/knowledge/ask';
@@ -80,9 +80,19 @@ export async function askCapReached(
   return undefined;
 }
 
-/** The answer recorded under the caller's key for this question, if one was. */
-function recordedTurn(principal: Principal, key: string): Promise<AskTurnDto | undefined> {
-  return executeQuery(
+/**
+ * What the caller's key for this question holds: the answer recorded under it, while the key has
+ * not expired, its message is still there and the person still covers its conversation's
+ * companies (`answer`); a key whose answer was deleted since or whose companies the person no
+ * longer covers (`stale`), which is asked again as a new question; or nothing (`none`).
+ */
+async function recordedTurn(
+  principal: Principal,
+  key: string,
+  viewing: readonly number[],
+  now: Date,
+): Promise<{ state: 'answer'; turn: AskTurnDto } | { state: 'stale' } | { state: 'none' }> {
+  const recorded = await executeQuery(
     principal,
     {},
     async ({ tx }) => {
@@ -90,7 +100,7 @@ function recordedTurn(principal: Principal, key: string): Promise<AskTurnDto | u
       const [row] = await tx
         .select({ command: k.command, response: k.responseJson })
         .from(k)
-        .where(and(eq(k.principalId, principal.id), eq(k.key, key)))
+        .where(and(eq(k.principalId, principal.id), eq(k.key, key), gt(k.expiresAt, now)))
         .limit(1);
       if (row?.command !== recordAsk.name) return undefined;
       const answer = AskTurnDto.safeParse(row.response);
@@ -99,6 +109,23 @@ function recordedTurn(principal: Principal, key: string): Promise<AskTurnDto | u
     // The keys are the caller's own and only `app_user` reads them (0037).
     { name: 'ask.recorded', pool: 'app_user' },
   );
+  if (recorded === undefined) return { state: 'none' };
+  // Row security shows the message only to its person, in a request covering its companies.
+  const visible = await executeQuery(
+    principal,
+    { entityIds: [...viewing] },
+    async ({ tx }) => {
+      const m = schema.askMessages;
+      const [row] = await tx
+        .select({ id: m.id })
+        .from(m)
+        .where(eq(m.id, recorded.message.id))
+        .limit(1);
+      return row !== undefined;
+    },
+    { name: 'ask.recorded_visible' },
+  );
+  return visible ? { state: 'answer', turn: recorded } : { state: 'stale' };
 }
 
 /** The provider's refusal at a spend cap, in Ask's own words. */
@@ -200,9 +227,13 @@ export async function askTheBusiness(
   const now = (deps.now ?? (() => new Date()))();
   const requestId = options.requestId ?? newId();
   const viewing = [...(options.entityIds ?? principal.entityIds)];
-  if (options.idempotencyKey !== undefined) {
-    const recorded = await recordedTurn(principal, options.idempotencyKey);
-    if (recorded !== undefined) return recorded;
+  // The key, unless its answer was deleted or its companies are no longer the person's: then
+  // the question is asked again as a new one, recorded without it.
+  let key = options.idempotencyKey;
+  if (key !== undefined) {
+    const recorded = await recordedTurn(principal, key, viewing, now);
+    if (recorded.state === 'answer') return recorded.turn;
+    if (recorded.state === 'stale') key = undefined;
   }
 
   const earlier =
@@ -351,18 +382,18 @@ export async function askTheBusiness(
       record,
       {
         ...(options.command ?? {}),
-        ...(options.idempotencyKey === undefined ? {} : { idempotencyKey: options.idempotencyKey }),
+        ...(key === undefined ? {} : { idempotencyKey: key }),
       },
     );
   } catch (error) {
     // Another call with the same key recorded its answer while this one asked the model.
     if (
-      options.idempotencyKey !== undefined &&
+      key !== undefined &&
       error instanceof DomainError &&
       error.details?.reason === 'idempotency_mismatch'
     ) {
-      const recorded = await recordedTurn(principal, options.idempotencyKey);
-      if (recorded !== undefined) return recorded;
+      const recorded = await recordedTurn(principal, key, viewing, now);
+      if (recorded.state === 'answer') return recorded.turn;
     }
     throw error;
   }

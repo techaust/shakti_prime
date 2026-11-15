@@ -105,14 +105,24 @@ export function firstRecord(
 
 /**
  * The recording the journeys and a developer's machine use (`AI_TRANSPORT=fake`): the open leads
- * of the first pipeline stage that has any, cited.
+ * of the first pipeline stage that has any, cited, and the value of the orders its company
+ * confirmed this month, as a rupee amount the screen shows as a card.
  */
 export const STAND_IN_ASK: AskRecording = {
-  lookups: [{ name: 'pipeline_by_stage', input: {} }],
+  lookups: [
+    { name: 'pipeline_by_stage', input: {} },
+    { name: 'sales_this_month', input: {} },
+  ],
   answer(results) {
     const rows = (results.pipeline_by_stage?.[0]?.stages ?? []) as Record<string, unknown>[];
     const stage = rows.find((r) => typeof r.openLeads === 'number' && r.openLeads > 0);
-    if (stage === undefined) return 'None of the leads you can see is open right now.';
-    return `The stage ${String(stage.stage)} of ${String(stage.company)} has ${String(stage.openLeads)} open leads [ref:${String(stage.ref)}].`;
+    const sales = (results.sales_this_month?.[0]?.companies ?? []) as Record<string, unknown>[];
+    const month = sales.find((c) => c.company === stage?.company) ?? sales[0];
+    const value =
+      month === undefined
+        ? ''
+        : ` Orders confirmed this month come to ${String(month.ordersConfirmedValue)}.`;
+    if (stage === undefined) return `None of the leads you can see is open right now.${value}`;
+    return `The stage ${String(stage.stage)} of ${String(stage.company)} has ${String(stage.openLeads)} open leads [ref:${String(stage.ref)}].${value}`;
   },
 };

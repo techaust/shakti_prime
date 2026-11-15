@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import {
   expect,
   expectNoAxeViolations,
@@ -13,8 +14,21 @@ import {
 // model asks for the open leads by stage and answers with the first stage that has any, citing it.
 // The lookup, the grounding filter, the stored conversation and the screen are all real.
 
-/** An answer in the open conversation: a cited stage, or the plain sentence when none is open. */
-const ANSWERED = /open leads|None of the leads you can see is open right now\./;
+/** The stand-in's answer: a cited stage with open leads (the seed gives each company some). */
+const ANSWERED = /has \d+ open leads/;
+
+/** The answer's sources and its figure card, which every answer of the stand-in has. */
+async function expectSourcesAndFigure(open: Locator): Promise<void> {
+  await expect(
+    open.getByRole('region', { name: 'Where this comes from' }).first().getByText('Pipeline stage'),
+  ).toBeVisible();
+  await expect(
+    open
+      .getByRole('region', { name: 'Figures in this answer' })
+      .first()
+      .getByText(/^₹[\d,]+\.\d{2}$/),
+  ).toBeVisible();
+}
 
 test.describe('as a General Manager', () => {
   test.use(signedInAs('gm'));
@@ -36,10 +50,7 @@ test.describe('as a General Manager', () => {
     // The citation is a numbered link to its record, never the raw mark.
     await expect(open).not.toContainText('[ref:');
     await expect(open).not.toContainText('[unsourced]');
-    const sources = open.getByRole('region', { name: 'Where this comes from' });
-    if ((await sources.count()) > 0) {
-      await expect(sources.getByText('Pipeline stage')).toBeVisible();
-    }
+    await expectSourcesAndFigure(open);
     await expectNoAxeViolations(page);
 
     // The conversation is in the list, and a follow-up stays in it.
@@ -80,6 +91,7 @@ test.describe('as the snapshot company’s Executive', () => {
     await page.getByRole('button', { name: 'Ask', exact: true }).click();
     const open = page.getByRole('region', { name: question });
     await expect(open.getByRole('article')).toContainText(ANSWERED, { timeout: 45_000 });
+    await expectSourcesAndFigure(open);
     await expectNoAxeViolations(page);
     // The list grows with every project's run of this journey, so only the answer is compared.
     await snap(page, 'ask', {

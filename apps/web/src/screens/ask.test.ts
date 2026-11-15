@@ -53,6 +53,13 @@ describe('an answer on screen', () => {
     expect(sourceHref({ ...base, kind: 'quote', id: A, label: null })).toBeUndefined();
   });
 
+  it('keeps an amount’s magnitude word on its card', () => {
+    expect(answerFigures('Sales were ₹50 thousand and ₹7k.').map((f) => f.value)).toEqual([
+      '₹50 thousand',
+      '₹7k',
+    ]);
+  });
+
   it('shows rupee amounts and percentages as cards with the record their sentence cites', () => {
     expect(
       answerFigures(

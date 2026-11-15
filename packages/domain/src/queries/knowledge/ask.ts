@@ -16,6 +16,7 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { checkPermission } from '../../command/run-command';
 import { askMessageDto } from '../../commands/knowledge/ask';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
@@ -256,14 +257,23 @@ export async function askSourceLabels(
       put(r.id, r.name);
     }
   }
+  // Through `approvedPlaybook()`, a page at a time, until every cited rule is found, and never
+  // past the bound the Playbook lookup reads to.
   const rules = new Set(idsOf(sources, 'playbook_directive'));
   if (rules.size > 0) {
     let cursor: string | null = null;
+    let read = 0;
+    let left = rules.size;
     do {
       const page = await approvedPlaybook(ctx, cursor === null ? {} : { cursor });
-      for (const d of page.directives) if (rules.has(d.id)) put(d.id, d.title, d.entityId);
+      read += page.directives.length;
+      for (const d of page.directives) {
+        if (!rules.has(d.id)) continue;
+        put(d.id, d.title, d.entityId);
+        left -= 1;
+      }
       cursor = page.nextCursor;
-    } while (cursor !== null);
+    } while (cursor !== null && left > 0 && read < AGENT_DEFAULTS.ask.directivesScanned);
   }
 
   const seen = new Set<string>();
