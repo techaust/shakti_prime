@@ -95,7 +95,7 @@ function factValue(fact: LeadQualificationFact, value: string): number | string 
           })();
   if (candidate === undefined) return undefined;
   const parsed = schema.safeParse(candidate);
-  return parsed.success ? (parsed.data as number | string | undefined) : undefined;
+  return parsed.success ? parsed.data : undefined;
 }
 
 const clean = (value: string): string => value.replace(/\s+/g, ' ').trim();

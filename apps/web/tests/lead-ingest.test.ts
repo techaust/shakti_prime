@@ -31,7 +31,7 @@ import leadFixture from '../src/integrations/meta-leadgen/fixtures/lead.json';
 
 const fetched = vi.hoisted(() => ({ calls: [] as { leadgenId: string; token: string }[] }));
 vi.mock('../src/integrations/meta-leadgen/client', async (original) => {
-  const real = await original<typeof import('../src/integrations/meta-leadgen/client')>();
+  const real = await original<Record<string, unknown>>();
   const lead = (await import('../src/integrations/meta-leadgen/fixtures/lead.json')).default;
   return {
     ...real,
@@ -370,6 +370,12 @@ describe('the website route', () => {
       keyHint: made.keyHint,
     });
     key = { secret: made.key, dto };
+    // An earlier run's connection of the site is archived, so this run connects it afresh.
+    await asMigrator(
+      (m) => m`update ingest_sources set archived_at = now()
+                where provider = 'website' and external_id = 'shakti-website.example'
+                  and archived_at is null`,
+    );
     await connect('website', 'shakti-website.example', {}, {});
   });
 
