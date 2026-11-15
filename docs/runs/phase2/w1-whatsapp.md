@@ -118,7 +118,7 @@ Steps 5 to 9 of the brief on `feat/w1-whatsapp`, with the coordinator's four ans
 
 **`EXPLAIN (ANALYZE, BUFFERS)`** (`packages/domain/tests/spike/whatsapp-explain.ts`, local only: 20,000 customers in one company with a lead and a chat each, a third waiting, 50 callers, about 200,000 messages and one chat of 2,010):
 - `/messages`, first page, General Manager: 8.2 ms; caller (own scope): 11.2 ms; second page, General Manager: 6.0 ms. With the first index `(entity_id, last_inbound_at desc, id desc) where needs_reply` the same pages took 428 to 497 ms: the policies' `entity_id = any(...)` condition turned the scan into a sort of all 6,670 waiting chats. The index is now `(last_inbound_at desc, id desc) where needs_reply` (0172), read per company in time order.
-- One chat, newest page (2,010 messages): 0.33 ms; the page before: 0.34 ms (`whatsapp_messages_thread_idx`, one partition per month pruned by the keyset).
+- One chat, newest page (2,010 messages): 0.33 ms; the page before: 0.34 ms (`whatsapp_messages_thread_created_idx` on each monthly partition).
 - A customer's chats (Account 360, Converting): 0.11 ms (`whatsapp_threads_account_idx`).
 
 **Review checklist:** customer text masked before storage and output, media through the file checks before `ready`; no message to an opted-out number on any path (person, worker, welcome; the STOP confirmation once, by definer and guard); a repeated message or status changes nothing (`whatsapp_message_keys`, forward-only statuses); a file attached only to its own message's chat; the platform writes only through definers checking `messaging.process`; a timed-out send is never sent again (`send_attempted_at`). All hold, each with a test above.
