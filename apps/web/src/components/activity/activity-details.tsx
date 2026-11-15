@@ -507,6 +507,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'sourceProvider':
         return oneOf(INGEST_SOURCE_PROVIDERS, value)
           ? t(`values.sourceProvider.${value}`)
+          : wordsOf(value);
       case 'callPurpose':
         return oneOf(CALL_PURPOSE_VALUES, value)
           ? t(`values.callPurpose.${value}`)
