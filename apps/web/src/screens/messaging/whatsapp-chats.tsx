@@ -20,10 +20,13 @@ export function WhatsAppChats({ entityId, accountId }: { entityId: number; accou
   const [threads, setThreads] = useState<WaitingThreadDto[] | undefined>();
   const [chosen, setChosen] = useState<string | undefined>();
   const read = useQuery<WaitingThreadDto[]>();
+  // `load` is stable; `read` is a new object each render, so it is not a dependency (it would read
+  // the chats again after every render, in a loop that keeps the page from being left).
+  const { load } = read;
 
   useEffect(() => {
-    read.load(() => listAccountThreads({ entityId, accountId }), setThreads);
-  }, [read, entityId, accountId]);
+    load(() => listAccountThreads({ entityId, accountId }), setThreads);
+  }, [load, entityId, accountId]);
 
   const current = chosen ?? threads?.[0]?.id;
   return (
