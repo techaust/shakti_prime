@@ -310,3 +310,36 @@ Nothing else new: the stale-key path records without the key, so a retry after a
 - The whole-repository `pnpm lint`: exit 0.
 
 **Still for you:** the `ask` Linux baselines (`e2e:snap` on a fresh database); folding `0170` into `0168` at the renumbering if you wish; the owner's `checks-ok` for `js-budget.json`; the filing rule with the owner.
+
+### Second re-check
+Slice-reviewer, 15-11-2026, in the lead's cloud VM, on 4011ee01 (`git diff 2e95a2f4..HEAD`). Ran through `heavy.sh`:
+- domain `src/ai`: 10 files, 152 passed;
+- domain security `ask-cost`, `ask`, `ask-evals`, `reader-parity` and `agent-refusals`: 5 files, 84 passed;
+- web `src/screens/ask.test.ts`: 7 passed; web `tests/ask-route.test.ts`: 7 passed;
+- the filter run directly with `tsx` on lookups written as the tools write them: two stages (7 and 23 open leads); a quote `SS/Q/2026-27/0012` of ₹50000.00 made 14-11-2026; this month's orders ₹7.00 with 12 quotes waiting; a calls target of 100 with 80 done and `percentOfTarget` 80; a passage "within 30 days … Warranty 5 years".
+
+**Every sentence of the re-check's table is refused**, as are the first review's sentences: the Hindi, plural, hyphenated and stacked magnitudes; `a lakh`, `a dozen`; `1. crore rupees` and `3. lakh rupees` as list numbers; "23%", "7 percent" and "₹23 a kit" from counts; "50000 open leads" from an amount; "2026 open leads" from a date; "27 open leads" from a quote number; Devanagari totals. "There are 12 dealers." passed only because these lookups held a real count of 12; a count is sourced by any count, whatever its noun (see row B).
+
+**Also refused:** `₹7 hajar`, `₹7 lac`, `₹7 crores`, `₹7 lakh` (no ₹7,00,000 given), `₹7 thousand` (the amount kept and the word taken out), "Open leads (7).", "5-7 leads", "7 per cent", "the 7th lead", "₹80" and "80 rupees" from a percentage, "7%" from a count, a wrong quote number, a quote number's part, and "for 2026".
+
+**Correct figures still pass**, so the filter is usable:
+- "has 7 open leads [ref:…]";
+- the quote number whole with "₹50,000" and "30-11-2026";
+- "₹50 thousand" against ₹50000.00, and "₹7.00";
+- "80% of your calls target, 80 of 100 calls";
+- "within 30 days", "made on 14 November 2026", "Rs. 50,000/-", "12 quotes waiting";
+- a numbered list from 1.
+
+The usability cost: a count with no word after it is refused even when it is right ("Open leads: 7"). Rupee amounts, percentages and dates are not affected, and the eval set passes.
+
+**The cost test's low is fixed.** Every text has its ids taken out before any pattern is tried. The checks that used ids now read titles (`Synthetic <tag> priority` present, `Synthetic <tag> costing` absent), so they still mean the same. The run tag keeps ten hex characters, so a chance match of a cost pattern there is negligible. The leak check was proved again and reverted: a temporary `unitBasis: '4215.7500'` on `find_items` fails the General Manager's case on `raw: true`.
+
+| # | State on 4011ee01 |
+|---|---|
+| 1 | **The high is closed:** the fail-open classes are gone (digits inside ids, bare and joined numbers, known magnitudes in any form, number words in English and the listed Roman Hindi, list numbers). What remains is row A, medium. |
+| 10 | **Closed for kinds:** amounts, percentages, counts, dates and document numbers are matched only within their kind, from typed fields. What remains is row B, medium. |
+| Low (cost test) | **Fixed.** |
+| A | **Medium, new (confirmed): a magnitude word outside the list is read as no magnitude.** With ₹7.00 and 7 open leads given, these pass unchanged: `₹7 karod`, `₹7 karor`, `₹7 hajaar`, `₹7 laakh`, `Rs. 7 grand` (read as ₹7), `7 karod rupees` (read as a count of 7), and `1. karod rupees` (numbering). `zero` is in no list, so "There are zero open leads." passes. Lists of spellings stay open by nature. Fix: treat any word after an amount as its magnitude unless it is one of a closed set of following words (and, for, in, of, on, per, each, is, was, a, an, the, to, from, with, by, at, as, or, than, this, that, which, are, were, rupees and the like), so an unknown word refuses the amount; for counts, add the families `k[ae]?r[oa]+[rd]e?s?`, `la+c?k?h?s?`, `ha[jz]{1,2}a+r(on)?` and `grand`, together with `zero`; numbering refuses them too; tests with these sentences. |
+| B | **Medium, new (confirmed): a unit word outside the list falls back to a count.** "Margin 7 pct." and "Margin 7 percentage points." pass as counts of 7; "7 rupiya" and "7 rupaiya" pass as counts. Within counts the noun is not compared: "Warranty is 30 years." passes from "30 days". Fix: add `pct`, `percentage( points)?`, `rupiya`, `rupaiya`, `rupiye` to the percent and rupee words (and refuse a count before them), and say in SECURITY §3.2 that a count is matched by number and kind only, not by what it counts. |
+
+Nothing else new. The documents (SECURITY §3.2, the design's Built record) describe the closed filter; with rows A and B they overstate it slightly for spellings outside the lists.
