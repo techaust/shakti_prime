@@ -1,28 +1,33 @@
 import { ASK_ANSWER_MAX, ASK_CITED_MAX, type AskSource } from '@shakti/contracts';
 import { asciiDigits } from '../../privacy/model-text';
 
-// The grounding filter of Ask the Business (docs/03-roadmap-appendix/phase2.md §6.5): pure and
-// deterministic, so no model decides what reaches a person. An answer may cite only a record a
-// lookup returned in this conversation, and every figure in it (a count, an amount, a date) must
-// be one a lookup returned in this turn or the person wrote in their question. Whatever fails is
-// taken out and replaced by `UNSOURCED`, which the screen says in words, so a figure nobody can
-// trace back is never shown.
+// The grounding filter of Ask the Business (docs/03-roadmap-appendix/phase2.md §6.5): pure,
+// deterministic and closed by default, so no model decides what reaches a person. An answer may
+// cite only a record a lookup returned in this conversation, and every figure in it must be one a
+// lookup returned in this turn, the person wrote in their question, or today's date: of the same
+// kind and the same value. Whatever fails, and whatever looks like a number but cannot be read
+// with confidence, is taken out and replaced by `UNSOURCED`, which the screen says in words.
 //
-// Figures are read the same way from the answer and from the lookups' answers, so a quote number
-// or a date is compared in the same form on both sides, every decimal digit of any script read as
-// its ASCII digit first (Devanagari, full-width and the rest, as the masking reads them):
-// - dates (`14-11-2026`, `2026-11-14`, `14 November 2026`, `Nov 14, 2026`) as the calendar day,
-//   a month and year (`November 2026`) as the month, a day and month (`14 Nov`) as both;
-// - amounts and counts (`₹1,20,000`, `1.2 lakh`, `₹50 thousand`, `7k`, `3 crore`, `7 million`,
-//   `45%`, `7.5`) as their value, the magnitude word after the digits multiplied out (hundred,
-//   thousand, k, lakh, crore, million, billion), grouping commas dropped; a magnitude word it does
-//   not know (`7 gazillion`) is never sourced;
-// - number words (`twelve`, `twenty-five`, `fifty lakh`, `one crore`, `five hundred`) as their
-//   value with their magnitude; "one" and "zero" alone are left alone, since they mostly are not
-//   figures ("the one in Jaipur").
-// The lookups' answers are read with every id taken out first, so the digits inside a record's
-// id never pass for a figure. A list's own numbering at the start of a line is not a figure, but
-// only as a run counting up from 1.
+// Every decimal digit of any script is read as its ASCII digit first. A figure is one of:
+// - a rupee amount (`inr:`): digits after ₹, Rs or INR, or before rupees, with at most one
+//   magnitude word after the digits (thousand, lakh, crore, million, billion), singular and after a
+//   space (`₹1,20,000`, `₹1.2 lakh`, `50,000 rupees`);
+// - a percentage (`pct:`): digits before %, percent, per cent or pc;
+// - a count (`n:`): digits right before a word that is not a magnitude (`23 open leads`,
+//   `30 days`);
+// - a date (`date:`, `month:`, `daymonth:`): a calendar day in any common form, a month and year,
+//   a day and month; a lookup's date gives no bare year;
+// - a document number (`doc:`): letters and digits together, compared whole, never by its parts
+//   (`SS/Q/2026-27/0012`, an item code).
+// Anything else number-like is never sourced: a bare number, digits with an unknown, plural,
+// hyphenated or stacked magnitude word, a number word in English or Roman Hindi (`twelve`,
+// `fifty lakh`, `do sau`, `hazaar`, `a dozen`, `a lakh`). A line-start number is a list's own
+// numbering only in a run counting up from 1, before words that are not a magnitude.
+//
+// The lookups' answers are read by their fields: each money field gives an amount (the lookups
+// write rupees after ₹), each rate field a percentage, each other number a count, each date a
+// date, each document field its number whole; every other text is read as the answer is, with the
+// records' ids taken out first, and only what it can type supplies a figure.
 
 /** What the answer shows in place of a figure or a citation that could not be sourced. */
 export const UNSOURCED = '[unsourced]';
@@ -35,6 +40,8 @@ const CITATION = new RegExp(
   `\\[\\s*ref\\s*:\\s*(${UUID})\\s*\\]|(?<![0-9a-z-])(${UUID})(?![0-9a-z-])`,
   'gi',
 );
+/** Any id, as the lookups name records (`ref`, `lead`, `quote`). */
+const ANY_UUID = new RegExp(UUID, 'gi');
 
 const MONTHS = [
   'jan',
@@ -54,69 +61,128 @@ const MONTH =
   '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?';
 const ORDINAL = '(?:st|nd|rd|th)?';
 
-const WORDS: Readonly<Record<string, number>> = {
-  two: 2,
-  three: 3,
-  four: 4,
-  five: 5,
-  six: 6,
-  seven: 7,
-  eight: 8,
-  nine: 9,
-  ten: 10,
-  eleven: 11,
-  twelve: 12,
-  thirteen: 13,
-  fourteen: 14,
-  fifteen: 15,
-  sixteen: 16,
-  seventeen: 17,
-  eighteen: 18,
-  nineteen: 19,
-};
-const TENS: Readonly<Record<string, number>> = {
-  twenty: 20,
-  thirty: 30,
-  forty: 40,
-  fifty: 50,
-  sixty: 60,
-  seventy: 70,
-  eighty: 80,
-  ninety: 90,
-};
-const UNITS = 'one|two|three|four|five|six|seven|eight|nine';
-/** The magnitude words after a figure, and what each multiplies by. */
-const MULTIPLIER: Readonly<Record<string, number>> = {
-  hundred: 1e2,
+/** The magnitude words an amount may carry, singular, and what each multiplies by. */
+const KNOWN_MAGNITUDE: Readonly<Record<string, number>> = {
   thousand: 1e3,
-  k: 1e3,
   lakh: 1e5,
-  lakhs: 1e5,
-  lac: 1e5,
-  lacs: 1e5,
   crore: 1e7,
-  crores: 1e7,
-  cr: 1e7,
   million: 1e6,
-  millions: 1e6,
-  mn: 1e6,
   billion: 1e9,
-  billions: 1e9,
-  bn: 1e9,
 };
-/** A magnitude after digits: the known words, or any other word ending in -illion (never sourced). */
-const MAGNITUDE =
-  '(hundred|thousand|k|lakhs?|lacs?|crores?|cr|millions?|mn|billions?|bn|[a-z]+illions?)';
-const NUMBER_WORD = new RegExp(
-  `(?<![\\p{L}])(?:(${Object.keys(TENS).join('|')})(?:[ -](${UNITS}))?|(one|${Object.keys(WORDS).join('|')}))` +
-    `(?:\\s+(hundred))?(?:\\s+(thousand|lakhs?|lacs?|crores?|millions?|billions?|[a-z]+illions?))?(?![\\p{L}])`,
-  'giu',
-);
 
-/** One kind of figure: its pattern and the keys it stands for (none: not a figure). */
-interface Shape {
-  pattern: RegExp;
-  keys: (m: RegExpExecArray) => string[];
+/**
+ * The words that say how many, in English and in Roman Hindi, in one list. A number written this
+ * way is never sourced: a figure is written in digits. The Roman Hindi units that are also
+ * everyday English words (`do`, `teen`, `char`) count only beside a magnitude or a rupee word,
+ * "one" only before a magnitude, `score` and the short magnitudes only after a number word or "a".
+ */
+export const NUMBER_WORDS = {
+  english: [
+    'two',
+    'three',
+    'four',
+    'five',
+    'six',
+    'seven',
+    'eight',
+    'nine',
+    'ten',
+    'eleven',
+    'twelve',
+    'thirteen',
+    'fourteen',
+    'fifteen',
+    'sixteen',
+    'seventeen',
+    'eighteen',
+    'nineteen',
+    'twenty',
+    'thirty',
+    'forty',
+    'fifty',
+    'sixty',
+    'seventy',
+    'eighty',
+    'ninety',
+  ],
+  magnitudes: [
+    'hundred',
+    'hundreds',
+    'thousand',
+    'thousands',
+    'million',
+    'millions',
+    'billion',
+    'billions',
+    'dozen',
+    'dozens',
+    'lakh',
+    'lakhs',
+    'lac',
+    'lacs',
+    'crore',
+    'crores',
+    'sau',
+    'hazaar',
+    'hazar',
+    'hajar',
+    'hazaron',
+    'arab',
+    'kharab',
+  ],
+  shortMagnitudes: ['k', 'mn', 'bn', 'cr'],
+  romanHindiUnits: [
+    'ek',
+    'do',
+    'teen',
+    'char',
+    'chaar',
+    'paanch',
+    'panch',
+    'chhe',
+    'chhah',
+    'saat',
+    'aath',
+    'nau',
+    'das',
+    'gyarah',
+    'barah',
+    'terah',
+    'chaudah',
+    'pandrah',
+    'solah',
+    'satrah',
+    'atharah',
+    'unnis',
+    'bees',
+    'tees',
+    'chalis',
+    'chalees',
+    'pachas',
+    'pachaas',
+    'sattar',
+    'assi',
+    'nabbe',
+  ],
+} as const;
+
+const ENGLISH_NUMBERS = new Set<string>(NUMBER_WORDS.english);
+const MAGNITUDES = new Set<string>(NUMBER_WORDS.magnitudes);
+const SHORT_MAGNITUDES = new Set<string>(NUMBER_WORDS.shortMagnitudes);
+const HINDI_UNITS = new Set<string>(NUMBER_WORDS.romanHindiUnits);
+
+/** A word that says how many times over: a known magnitude, its plural, a short one, any -illion. */
+const isMagnitudeLike = (word: string): boolean => {
+  const w = word.toLowerCase();
+  return MAGNITUDES.has(w) || SHORT_MAGNITUDES.has(w) || /illions?$/.test(w) || /^scores?$/.test(w);
+};
+const RUPEE_WORD = /^(?:rupees?|rupaye|rupay|rs|inr)$/i;
+
+/** A figure found in a text: where it is, and the keys that would source it (none: never). */
+interface Found {
+  start: number;
+  end: number;
+  keys: string[];
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -129,26 +195,21 @@ function dayKeys(year: number, month: number, day: number): string[] {
   return [`date:${String(year)}-${pad(month)}-${pad(day)}`];
 }
 
-/** The value of an amount or count as text: whole numbers plain, others to two places. */
-function valueKey(value: number): string {
-  if (!Number.isFinite(value)) return 'n:?';
+/** A value as text: whole numbers plain, others to two places. */
+function valueText(value: number): string {
   const rounded = Math.round(value * 100) / 100;
-  return Number.isInteger(rounded) ? `n:${String(rounded)}` : `n:${rounded.toFixed(2)}`;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
 }
 
-/** A key no figure of the lookups gives: what a figure with an unknown magnitude stands for. */
-const NEVER_SOURCED = 'never';
-
-// Order matters: a date is read before the numbers inside it, an amount before its digits.
-const SHAPES: readonly Shape[] = [
+const DATE_SHAPES: readonly { pattern: RegExp; keys: (m: RegExpExecArray) => string[] }[] = [
   {
     // 2026-11-14, with a time after it in a timestamp.
-    pattern: /(?<!\d)(\d{4})-(\d{2})-(\d{2})(?:T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?(?!\d)/g,
+    pattern: /(?<![\d/-])(\d{4})-(\d{2})-(\d{2})(?:T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?(?![\d/-])/g,
     keys: (m) => dayKeys(Number(m[1]), Number(m[2]), Number(m[3])),
   },
   {
     // 14-11-2026, 14/11/2026, 14.11.2026 (day first, as India writes it).
-    pattern: /(?<![\d.])(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?![\d])/g,
+    pattern: /(?<![\d./-])(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?![\d/-])/g,
     keys: (m) => dayKeys(Number(m[3]), Number(m[2]), Number(m[1])),
   },
   {
@@ -182,96 +243,205 @@ const SHAPES: readonly Shape[] = [
     pattern: new RegExp(`(?<![\\p{L}])${MONTH}\\s+(\\d{1,2})${ORDINAL}(?![\\d\\p{L}])`, 'giu'),
     keys: (m) => [`daymonth:${pad(monthOf(m[1] ?? ''))}-${pad(Number(m[2]))}`],
   },
-  {
-    // An amount or a count: ₹1,20,000.50, Rs 3.5 lakh, ₹50 thousand, 7k, 45%, 7.5.
-    pattern: new RegExp(
-      `(?:(?:₹|\\brs\\.?|\\binr)\\s*)?(?<![\\d.])(\\d+(?:,\\d+)*(?:\\.\\d+)?)(?:\\s*${MAGNITUDE}\\b)?`,
-      'giu',
-    ),
-    keys: (m) => {
-      const value = Number((m[1] ?? '').replace(/,/g, ''));
-      const unit = (m[2] ?? '').toLowerCase();
-      if (unit === '') return [valueKey(value)];
-      const by = MULTIPLIER[unit];
-      return [by === undefined ? NEVER_SOURCED : valueKey(value * by)];
-    },
-  },
 ];
 
-/** A figure found in a text: where it is and the keys that would source it. */
-interface Found {
-  start: number;
-  end: number;
-  keys: string[];
+/** Letters and digits together, with / or - between parts: a document number, read whole. */
+const DOCUMENT =
+  /(?<![\p{L}\p{N}/-])(?=[\p{L}\p{N}/-]*\p{N})(?=[\p{L}\p{N}/-]*\p{L})[\p{L}\p{N}]+(?:[/-][\p{L}\p{N}]+)*(?![\p{L}\p{N}])/gu;
+
+/** A number standing alone: no letter, digit, slash or hyphen joined to it before. */
+const NUMBER = /(?<![\p{L}\p{N}/.-])\d+(?:,\d+)*(?:\.\d+)?(?![\p{N}])/gu;
+
+const WORD = /[\p{L}]+/gu;
+
+/** Where the rupee sign or word right before `at` starts, if there is one. */
+function rupeeBefore(text: string, at: number): number | undefined {
+  const m = /(₹|\brs\.?|\binr)\s*$/i.exec(text.slice(Math.max(0, at - 6), at));
+  return m === null ? undefined : at - m[0].length;
 }
 
-/** Every figure of `text`, left to right, each span read once by the first shape that fits. */
+/** The kind and value of the number at [start, end), from what stands around it. */
+function typeNumber(text: string, start: number, end: number): Found {
+  const value = Number(text.slice(start, end).replace(/,/g, ''));
+  const rupeeStart = rupeeBefore(text, start);
+  const from = rupeeStart ?? start;
+  let at = end;
+  // The magnitude words right after the digits, each after a space or a hyphen.
+  const magnitudes: { word: string; separator: string }[] = [];
+  for (;;) {
+    const m = /^([ \t]+|-)([\p{L}]+)/u.exec(text.slice(at));
+    if (m === null || !isMagnitudeLike(m[2] ?? '')) break;
+    magnitudes.push({ word: (m[2] ?? '').toLowerCase(), separator: m[1] ?? '' });
+    at += m[0].length;
+  }
+  let multiplier = 1;
+  const [only] = magnitudes;
+  if (only !== undefined) {
+    const known = KNOWN_MAGNITUDE[only.word];
+    // One known magnitude, singular, after a space; anything else is never sourced.
+    if (magnitudes.length > 1 || known === undefined || only.separator === '-') {
+      return { start: from, end: at, keys: [] };
+    }
+    multiplier = known;
+  }
+  let rupee = rupeeStart !== undefined;
+  const rupeeWord = /^\s+(rupees?|rupaye|rupay|rs\.?|inr)\b/i.exec(text.slice(at));
+  if (rupeeWord !== null) {
+    rupee = true;
+    at += rupeeWord[0].length;
+  }
+  if (rupee) return { start: from, end: at, keys: [`inr:${valueText(value * multiplier)}`] };
+  if (only !== undefined) return { start: from, end: at, keys: [] };
+  const percent = /^\s*(%|percent\b|per cent\b|pc\b)/i.exec(text.slice(at));
+  if (percent !== null) {
+    return { start: from, end: at + percent[0].length, keys: [`pct:${valueText(value)}`] };
+  }
+  // A count: the digits right before a word.
+  if (/^[ \t]+[\p{L}]/u.test(text.slice(at))) {
+    return { start: from, end: at, keys: [`n:${valueText(value)}`] };
+  }
+  return { start: from, end: at, keys: [] };
+}
+
+/**
+ * Every figure of `text`, left to right, each span read once: dates, then numbers standing alone
+ * with their kind, then document numbers, then number words and any digits left, never sourced.
+ */
 function findFigures(text: string): Found[] {
   const found: Found[] = [];
   const taken = Array.from({ length: text.length }, () => false);
-  const free = (start: number, end: number) => !taken.slice(start, end).some(Boolean);
-  for (const shape of SHAPES) {
+  const free = (f: Found) => !taken.slice(f.start, f.end).some(Boolean);
+  const take = (f: Found) => {
+    if (!free(f)) return;
+    for (let i = f.start; i < f.end; i += 1) taken[i] = true;
+    found.push(f);
+  };
+  for (const shape of DATE_SHAPES) {
     for (const m of text.matchAll(shape.pattern)) {
-      const start = m.index;
-      const end = start + m[0].length;
-      if (!free(start, end)) continue;
       const keys = shape.keys(m);
-      if (keys.length === 0) continue;
-      for (let i = start; i < end; i += 1) taken[i] = true;
-      found.push({ start, end, keys });
+      if (keys.length > 0) take({ start: m.index, end: m.index + m[0].length, keys });
     }
   }
-  for (const m of text.matchAll(NUMBER_WORD)) {
-    const start = m.index;
-    const end = start + m[0].length;
-    if (!free(start, end)) continue;
-    const [, tens, unit, word, hundred, magnitude] = m;
-    const lower = word?.toLowerCase();
-    // "one" alone is not a figure; "one lakh" and "one hundred" are.
-    if (lower === 'one' && hundred === undefined && magnitude === undefined) continue;
-    const base =
-      lower !== undefined
-        ? lower === 'one'
-          ? 1
-          : (WORDS[lower] ?? 0)
-        : (TENS[(tens ?? '').toLowerCase()] ?? 0) +
-          (unit === undefined
-            ? 0
-            : unit.toLowerCase() === 'one'
-              ? 1
-              : (WORDS[unit.toLowerCase()] ?? 0));
-    if (magnitude !== undefined && MULTIPLIER[magnitude.toLowerCase()] === undefined) {
-      found.push({ start, end, keys: [NEVER_SOURCED] });
-      continue;
+  for (const m of text.matchAll(NUMBER)) {
+    const end = m.index + m[0].length;
+    // A number joined to a letter (`7k`, `5HP`) is left to the document numbers.
+    if (/^[\p{L}]/u.test(text.slice(end))) continue;
+    if (!free({ start: m.index, end, keys: [] })) continue;
+    take(typeNumber(text, m.index, end));
+  }
+  for (const m of text.matchAll(DOCUMENT)) {
+    take({ start: m.index, end: m.index + m[0].length, keys: [`doc:${m[0].toUpperCase()}`] });
+  }
+  // Number words, in English or Roman Hindi, never sourced; side by side (`fifty lakh`, `do sau`,
+  // `a dozen`) they are taken out as one.
+  const words: RegExpExecArray[] = [...text.matchAll(WORD)];
+  const joined = (a: RegExpExecArray | undefined, b: RegExpExecArray | undefined): boolean =>
+    a !== undefined &&
+    b !== undefined &&
+    /^[ \t-]+$/.test(text.slice(a.index + a[0].length, b.index));
+  const flagged = words.map((m, i) => {
+    const word = m[0].toLowerCase();
+    const next = joined(m, words[i + 1]) ? (words[i + 1]?.[0].toLowerCase() ?? '') : '';
+    const previous = joined(words[i - 1], m) ? (words[i - 1]?.[0].toLowerCase() ?? '') : '';
+    const counted = (w: string) => ENGLISH_NUMBERS.has(w) || w === 'a' || w === 'an';
+    if (ENGLISH_NUMBERS.has(word)) return true;
+    if (word === 'one') return isMagnitudeLike(next);
+    if (HINDI_UNITS.has(word)) {
+      return (
+        isMagnitudeLike(next) ||
+        RUPEE_WORD.test(next) ||
+        /(₹|\brs\.?)\s*$/i.test(text.slice(Math.max(0, m.index - 4), m.index))
+      );
     }
-    const value =
-      base *
-      (hundred === undefined ? 1 : 100) *
-      (magnitude === undefined ? 1 : (MULTIPLIER[magnitude.toLowerCase()] ?? 1));
-    found.push({ start, end, keys: [valueKey(value)] });
+    if (word === 'a' || word === 'an') return isMagnitudeLike(next) && !SHORT_MAGNITUDES.has(next);
+    if (/^scores?$/.test(word) || SHORT_MAGNITUDES.has(word)) return counted(previous);
+    return isMagnitudeLike(word);
+  });
+  for (let i = 0; i < words.length; i += 1) {
+    const first = words[i];
+    if (first === undefined || flagged[i] !== true) continue;
+    let last = first;
+    while (flagged[i + 1] === true && joined(last, words[i + 1])) {
+      i += 1;
+      last = words[i] ?? last;
+    }
+    take({ start: first.index, end: last.index + last[0].length, keys: [] });
+  }
+  for (const m of text.matchAll(/\d+/g)) {
+    take({ start: m.index, end: m.index + m[0].length, keys: [] });
   }
   return found.sort((a, b) => a.start - b.start);
 }
 
+function addKey(keys: Set<string>, key: string): void {
+  keys.add(key);
+  const day = /^date:(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (day) {
+    keys.add(`month:${String(Number(day[1]))}-${day[2] ?? ''}`);
+    keys.add(`daymonth:${day[2] ?? ''}-${day[3] ?? ''}`);
+  }
+}
+
+/** What a text supplies: the keys of every figure it can type, the ids taken out first. */
+function addTextKeys(keys: Set<string>, text: string): void {
+  for (const f of findFigures(asciiDigits(text).replace(ANY_UUID, ' '))) {
+    for (const key of f.keys) addKey(keys, key);
+  }
+}
+
+/** The lookups' fields that name records: never a figure. */
+const ID_FIELDS = new Set(['ref', 'lead', 'quote', 'id']);
+/** The lookups' fields holding a document number, compared whole. */
+const DOCUMENT_FIELDS = new Set(['number', 'code', 'oldestUnpaidInvoice']);
+/** The lookups' number fields that are percentages. */
+const PERCENT_FIELDS = new Set(['percentOfTarget']);
+
+/** What one value of a lookup's answer supplies, by its field. */
+function addValueKeys(keys: Set<string>, value: unknown, field: string): void {
+  if (Array.isArray(value)) {
+    for (const v of value) addValueKeys(keys, v, field);
+    return;
+  }
+  if (value !== null && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) addValueKeys(keys, v, k);
+    return;
+  }
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) {
+      addKey(keys, `${PERCENT_FIELDS.has(field) ? 'pct' : 'n'}:${valueText(value)}`);
+    }
+    return;
+  }
+  if (typeof value !== 'string' || ID_FIELDS.has(field)) return;
+  const text = asciiDigits(value).trim();
+  if (DOCUMENT_FIELDS.has(field)) {
+    addKey(keys, `doc:${text.toUpperCase()}`);
+    return;
+  }
+  // A money field: rupees after ₹, as the lookups write them.
+  const money = /^₹(\d+(?:\.\d+)?)$/.exec(text);
+  if (money) {
+    addKey(keys, `inr:${valueText(Number(money[1]))}`);
+    return;
+  }
+  addTextKeys(keys, text);
+}
+
 /**
- * The keys of every figure in `texts` (the lookups' answers as JSON, and the question): a day also
- * gives its month, its day and month and its year, so an answer may name any of them.
+ * The keys of every figure the turn may give: the lookups' answers as JSON, read by their fields,
+ * and plain texts (the question, today's date), read as an answer is.
  */
 export function collectFigures(texts: readonly string[]): Set<string> {
   const keys = new Set<string>();
   for (const text of texts) {
-    // A record's id is never a figure: its digits are taken out before anything is read.
-    for (const f of findFigures(asciiDigits(text).replace(ANY_UUID, ' '))) {
-      for (const key of f.keys) {
-        keys.add(key);
-        const day = /^date:(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-        if (day) {
-          keys.add(`month:${String(Number(day[1]))}-${day[2] ?? ''}`);
-          keys.add(`daymonth:${day[2] ?? ''}-${day[3] ?? ''}`);
-          keys.add(valueKey(Number(day[1])));
-        }
-      }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = undefined;
     }
+    if (parsed !== null && typeof parsed === 'object') addValueKeys(keys, parsed, '');
+    else addTextKeys(keys, text);
   }
   return keys;
 }
@@ -281,21 +451,18 @@ export function collectFigures(texts: readonly string[]): Set<string> {
  * block per item, so no figure pattern can read a digit in it. A block holds 2,000 items, far
  * more than an answer's citations or list lines.
  */
-const CITED_TOKENS = { base: 0xe000, pattern: /[\ue000-\ue7cf]/g };
-const NUMBERING_TOKENS = { base: 0xe800, pattern: /[\ue800-\uefcf]/g };
+const CITED_TOKENS = { base: 0xe000, pattern: /[-]/g };
+const NUMBERING_TOKENS = { base: 0xe800, pattern: /[-]/g };
 const token = (kind: { base: number }, i: number): string => String.fromCharCode(kind.base + i);
 const untoken = (kind: { base: number }, t: string): number => t.charCodeAt(0) - kind.base;
 
-/** Any id, as the lookups name records (`ref`, `lead`, `quote`). */
-const ANY_UUID = new RegExp(UUID, 'gi');
-
-/** A line's number at its start (`1. `, `2) `). */
-const LINE_NUMBER = /^(\s*)(\d{1,2})([.)])(?=\s)/;
+/** A line's number at its start (`1. `, `2) `) and what follows it. */
+const LINE_NUMBER = /^(\s*)(\d{1,2})([.)])(?=\s+(\S+))/u;
 
 /**
- * Sets aside a list's own numbering: a line-start number is numbering only as part of a run that
- * counts up from 1 (1, 2, 3 …, a new run starting again at 1); any other line-start number is a
- * figure and is checked like the rest.
+ * Sets aside a list's own numbering: a line-start number is numbering only in a run counting up
+ * from 1, and only before words that begin with no magnitude, rupee or percent word; any other
+ * line-start number is a figure and is checked like the rest.
  */
 function setAsideNumbering(text: string, numbering: string[]): string {
   let next = 1;
@@ -304,6 +471,10 @@ function setAsideNumbering(text: string, numbering: string[]): string {
     .map((line) => {
       const m = LINE_NUMBER.exec(line);
       if (m === null) return line;
+      const word = (m[4] ?? '').replace(/[^\p{L}%]/gu, '');
+      if (isMagnitudeLike(word) || RUPEE_WORD.test(word) || /^(%|percent|pc)$/i.test(word)) {
+        return line;
+      }
       const n = Number(m[2]);
       if (n !== next && n !== 1) return line;
       next = n + 1;
@@ -339,8 +510,8 @@ function capped(text: string): string {
 
 /**
  * The model's answer with every citation checked against the records returned and every figure
- * against the figures returned; whatever fails is replaced by `UNSOURCED`. A citation beyond the
- * fiftieth is dropped without a mark.
+ * against the figures returned; whatever fails, or cannot be read with confidence, is replaced by
+ * `UNSOURCED`. A citation beyond the fiftieth is dropped without a mark.
  */
 export function groundAnswer(answer: string, facts: GroundingFacts): GroundedAnswer {
   const cited: AskSource[] = [];
@@ -351,7 +522,7 @@ export function groundAnswer(answer: string, facts: GroundingFacts): GroundedAns
   // Any private-use character the model wrote is dropped, so it cannot pass for a stand-in.
   let text = asciiDigits(answer)
     .replace(/\r\n?/g, '\n')
-    .replace(/[\ue000-\uf8ff]/g, '')
+    .replace(/[-]/g, '')
     .replace(CITATION, (_all, marked?: string, bare?: string) => {
       const id = (marked ?? bare ?? '').toLowerCase();
       const source = facts.returned.get(id);

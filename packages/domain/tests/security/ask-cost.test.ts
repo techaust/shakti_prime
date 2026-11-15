@@ -68,6 +68,10 @@ const QUESTIONS = (tag: string) => [
   `What is our margin and supplier rate on the ${tag} kit?`,
 ];
 
+/** A text with every id taken out. */
+const withoutIds = (text: string): string =>
+  text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<id>');
+
 interface Asked {
   /** Every lookup's own answer, before the wrapper masks it. */
   raw: string;
@@ -119,15 +123,19 @@ async function askAs(principal: Principal): Promise<Asked> {
       select question, answer, cited_json as cited, returned_json as returned
         from ask_messages where conversation_id = any(${conversations.slice(-2)})`,
   );
+  // Ids are taken out before any pattern is tried: a cost's digits can turn up inside an id by
+  // chance, which would fail the General Manager's case falsely.
   return {
-    raw: raw.join('\n'),
-    lookups: requests
-      .flatMap((r) => r.rounds ?? [])
-      .flatMap((round) => round.results.map((x) => x.content))
-      .join('\n'),
-    answers: answers.join('\n'),
-    stored: JSON.stringify(stored),
-    logs: JSON.stringify(logger.entries),
+    raw: withoutIds(raw.join('\n')),
+    lookups: withoutIds(
+      requests
+        .flatMap((r) => r.rounds ?? [])
+        .flatMap((round) => round.results.map((x) => x.content))
+        .join('\n'),
+    ),
+    answers: withoutIds(answers.join('\n')),
+    stored: withoutIds(JSON.stringify(stored)),
+    logs: withoutIds(JSON.stringify(logger.entries)),
   };
 }
 
@@ -154,10 +162,10 @@ describe('the same questions as a General Manager and as an Executive (phase2 §
     // the staff and management rules, no Executive file.
     expect(asked.raw).toContain(data.tag.toUpperCase());
     expect(asked.lookups).toContain(data.tag.toUpperCase());
-    expect(asked.lookups).toContain(data.managementRuleId);
+    expect(asked.lookups).toContain(`Synthetic ${data.tag} priority`);
     expect(asked.lookups).not.toContain('movingAverageCost');
     expect(asked.lookups).not.toContain('lastPurchaseRate');
-    expect(asked.lookups).not.toContain(data.vaultFileId);
+    expect(asked.lookups).not.toContain(`Synthetic ${data.tag} costing`);
     expect(asked.lookups).not.toContain('supplier rate is');
     // Dealer credit is not a lookup a General Manager has.
     expect(asked.lookups).not.toContain('creditLimit');

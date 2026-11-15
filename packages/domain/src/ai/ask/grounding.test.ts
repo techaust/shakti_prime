@@ -2,9 +2,12 @@ import { newId, type AskSource } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import { citationMarker, collectFigures, groundAnswer, UNSOURCED } from './grounding';
 
-// The grounding filter (docs/03-roadmap-appendix/phase2.md §6.5, §14): a citation only of a record
-// a lookup returned in the conversation, a figure only one a lookup returned in the turn or the
-// question holds; whatever fails never reaches the person.
+// The grounding filter (docs/03-roadmap-appendix/phase2.md §6.5, §14), closed by default: a
+// citation only of a record a lookup returned in the conversation; a figure only one of the same
+// kind and value a lookup returned in the turn, the question holds or today is; anything
+// number-like it cannot read with confidence is taken out. The lookups' answers below are shaped
+// as the lookups write them (amounts after ₹, counts as numbers, dates as days, document numbers
+// in their own fields, ids beside them).
 
 const QUOTE: AskSource = { kind: 'quote', id: '01990000-0000-7000-8000-00000000a001' };
 const LEAD: AskSource = { kind: 'opportunity', id: '01990000-0000-7000-8000-00000000a002' };
@@ -16,163 +19,167 @@ function ground(answer: string, results: readonly string[]) {
   return groundAnswer(answer, { returned, figures: collectFigures(results) });
 }
 
-describe('groundAnswer', () => {
-  it('keeps an answer whose citations were returned and whose figures a lookup gave', () => {
-    const results = [
-      JSON.stringify({
-        quotes: [{ ref: QUOTE.id, grandTotal: '120000.00', validUntil: '2026-11-30' }],
-      }),
-      JSON.stringify({ leads: 12 }),
-    ];
-    const answer = `There are 12 leads. The quote [ref:${QUOTE.id}] is for ₹1,20,000 and is valid until 30-11-2026.`;
-    expect(ground(answer, results)).toEqual({ text: answer, cited: [QUOTE], unsourced: 0 });
+/** The lookups of most cases: a quote, its lead's stage, a target and this month's sales. */
+const LOOKUPS = [
+  JSON.stringify({
+    quotes: [
+      {
+        ref: QUOTE.id,
+        lead: LEAD.id,
+        number: 'SS/Q/2026-27/0012',
+        grandTotal: '₹120000.00',
+        made: '2026-11-14',
+        validUntil: '2026-11-30',
+      },
+    ],
+  }),
+  JSON.stringify({ stages: [{ ref: newId(), stage: 'New', openLeads: 23 }, { openLeads: 7 }] }),
+  JSON.stringify({
+    mine: [{ metrics: [{ metric: 'calls', target: 40, actual: 32, percentOfTarget: 80 }] }],
+  }),
+  JSON.stringify({
+    companies: [{ ordersConfirmedValue: '₹50000.00', ordersConfirmedThisMonth: 4 }],
+  }),
+];
+
+describe('figures that pass', () => {
+  it.each([
+    ['a rupee total', 'The quote is for ₹1,20,000.'],
+    ['the same total in lakh', 'The quote is for ₹1.2 lakh.'],
+    ['the same total after Rs', 'The quote is for Rs. 1,20,000.00.'],
+    ['the same total before rupees', 'The quote is for 1,20,000 rupees.'],
+    ['a percentage', 'Calls are at 80% of target.'],
+    ['a percentage in words', 'Calls are at 80 percent of target.'],
+    ['a count', 'There are 23 open leads.'],
+    ['another count', 'Calls stand at 32 against a target of 40 calls.'],
+    ['a date in every common form', 'It is valid until 30-11-2026, made on 14 November 2026.'],
+    ['a month and a day', 'It was made in November 2026, on 14th Nov.'],
+    ['a quote number, whole', 'The newest is SS/Q/2026-27/0012.'],
+    ['an amount of this month', 'Orders confirmed this month come to ₹50,000.'],
+    ['the same amount with its magnitude', 'Orders confirmed this month come to ₹50 thousand.'],
+    ['a list counting up from 1', 'Open leads:\n1. New has 23 open leads\n2. Others hold 7 leads'],
+    ['a second list from 1', 'A:\n1. first\n2. second\nB:\n1. third'],
+    ['words with no figure', 'The one in Jaipur is waiting, and I do not see a quote for it.'],
+  ])('%s', (_name, answer) => {
+    expect(ground(answer, LOOKUPS)).toEqual({ text: answer, cited: [], unsourced: 0 });
   });
 
-  it('reads amounts in lakh and crore, words for counts, and dates in every common form', () => {
-    const results = [
-      JSON.stringify({ total: '250000.00', big: '30000000.00', count: 25, day: '2026-11-14' }),
-    ];
-    for (const answer of [
-      'The total is ₹2.5 lakh.',
-      'The total is Rs. 2,50,000.00.',
-      'The big order is ₹3 crore.',
-      'Twenty-five leads are open.',
-      'It came on 14 November 2026.',
-      'It came on Nov 14, 2026.',
-      'It came on 14/11/2026.',
-      'It came in November 2026.',
-      'It came on 14th Nov.',
-    ]) {
-      expect(ground(answer, results)).toEqual({ text: answer, cited: [], unsourced: 0 });
-    }
-  });
-
-  it('takes out a figure no lookup gave and says so, never showing it', () => {
-    const results = [JSON.stringify({ grandTotal: '120000.00', leads: 12 })];
-    const answer = 'There are 12 leads worth about ₹1.5 lakh, with 7 due on 20-11-2026.';
-    const grounded = ground(answer, results);
-    expect(grounded.text).toBe(
-      `There are 12 leads worth about ${UNSOURCED}, with ${UNSOURCED} due on ${UNSOURCED}.`,
-    );
-    expect(grounded.unsourced).toBe(3);
-    expect(grounded.text).not.toMatch(/1\.5|20-11|\b7\b/);
-  });
-
-  it('takes out a citation of a record no lookup returned, marked or bare', () => {
-    const grounded = ground(
-      `See [ref:${NOT_RETURNED}] and ${NOT_RETURNED}, and the lead ${LEAD.id}.`,
-      [],
-    );
-    expect(grounded.text).toBe(
-      `See ${UNSOURCED} and ${UNSOURCED}, and the lead ${citationMarker(LEAD.id)}.`,
-    );
-    expect(grounded.cited).toEqual([LEAD]);
-    expect(grounded.unsourced).toBe(2);
-  });
-
-  it('lists each cited record once, in order, and never reads an id as a figure', () => {
-    const grounded = ground(
-      `[ref: ${LEAD.id}] then [REF:${QUOTE.id.toUpperCase()}] then [ref:${LEAD.id}]`,
-      [],
-    );
-    expect(grounded.cited).toEqual([LEAD, QUOTE]);
-    expect(grounded.unsourced).toBe(0);
-    expect(grounded.text).toBe(
-      `${citationMarker(LEAD.id)} then ${citationMarker(QUOTE.id)} then ${citationMarker(LEAD.id)}`,
-    );
-  });
-
-  it('allows a figure the person wrote in the question, and a list’s own numbering', () => {
-    const answer = 'Leads above 5 HP:\n1. one lead in Jaipur\n2. none elsewhere';
-    expect(ground(answer, ['Which leads are above 5 HP?'])).toEqual({
-      text: answer,
-      cited: [],
+  it('keeps citations of returned records, each once, in order, and never reads an id as a figure', () => {
+    const answer = `The quote [ref:${QUOTE.id}] of the lead [REF: ${LEAD.id.toUpperCase()}] is for ₹1,20,000 [ref:${QUOTE.id}].`;
+    expect(ground(answer, LOOKUPS)).toEqual({
+      text: `The quote ${citationMarker(QUOTE.id)} of the lead ${citationMarker(LEAD.id)} is for ₹1,20,000 ${citationMarker(QUOTE.id)}.`,
+      cited: [QUOTE, LEAD],
       unsourced: 0,
     });
   });
 
-  it('compares document numbers in the same form on both sides', () => {
-    const results = [JSON.stringify({ number: 'SS/Q/2026-27/0012' })];
-    expect(ground('Quote SS/Q/2026-27/0012 is the newest.', results).unsourced).toBe(0);
-    expect(ground('Quote SS/Q/2026-27/0013 is the newest.', results).unsourced).toBe(1);
+  it('allows a figure the person wrote in the question, and today', () => {
+    expect(ground('Leads above 5 HP: none.', ['Which leads are above 5 HP?']).unsourced).toBe(0);
+    expect(ground('Today, 15-11-2026, none is due.', ['2026-11-15']).unsourced).toBe(0);
   });
 
-  it('drops characters that could pass for its own stand-ins', () => {
-    const grounded = ground('A total of 9.', []);
-    expect(grounded.text).toBe(`A total of ${UNSOURCED}.`);
+  it('reads digits of every script as their ASCII digits, on both sides', () => {
+    expect(ground('There are २३ open leads.', LOOKUPS).text).toBe('There are 23 open leads.');
+    expect(ground('There are ２３ open leads.', LOOKUPS).unsourced).toBe(0);
+    expect(ground('There are 23 open leads.', ['{"openLeads":"２３ open leads"}']).unsourced).toBe(
+      0,
+    );
   });
+});
 
-  it('gives each day its month, day and year as sourced figures', () => {
-    const keys = collectFigures(['{"on":"2026-11-14T05:30:00Z"}']);
-    expect([...keys].sort()).toEqual(
-      ['date:2026-11-14', 'month:2026-11', 'daymonth:11-14', 'n:2026'].sort(),
+describe('figures refused (review finding 1, the re-check and finding 10)', () => {
+  it.each([
+    // Magnitude words the filter does not read with confidence.
+    ['₹7 hazaar'],
+    ['₹7 arab'],
+    ['50 sau rupees'],
+    ['₹7 thousands'],
+    ['seven hundreds'],
+    ['seven-thousand rupees'],
+    ['₹7-thousand'],
+    ['₹7 lakh crore'],
+    ['a lakh rupees'],
+    ['a dozen orders'],
+    ['₹7k'],
+    ['7 million rupees'],
+    ['fifty lakh'],
+    ['seven gazillion'],
+    ['do sau rupaye'],
+    ['ek crore'],
+    ['twenty-three open leads'],
+    // A figure of the wrong kind, or a part of another.
+    ['The margin is 23%.'],
+    ['The margin is 7 percent.'],
+    ['The rate is ₹23 a kit.'],
+    ['There are 50000 open leads.'],
+    ['There are 2026 open leads.'],
+    ['There are 27 open leads.'],
+    ['There are 12 dealers.'],
+    ['The newest is SS/Q/2026-27/0013.'],
+    // A bare number, and numbers in other scripts that no lookup gave.
+    ['A total of 9.'],
+    ['Total: ३१२५० rupees.'],
+    ['Total: ３１２５０ rupees.'],
+  ])('%s', (answer) => {
+    const grounded = ground(answer, LOOKUPS);
+    expect(grounded.unsourced).toBeGreaterThan(0);
+    expect(grounded.text).toContain(UNSOURCED);
+    expect(grounded.text).not.toMatch(
+      /\d|hazaar|arab|sau|thousand|lakh|crore|dozen|seven|fifty|gazillion|twenty|ek |do sau|million|k\b/i,
     );
   });
 
-  it('never reads a record’s id as a figure (review finding 1 a)', () => {
-    // Twenty-five leads with real ids, and no lookup giving 7.
+  it.each([
+    ['Profit:\n1. crore rupees'],
+    ['1. a\n2. b\n3. lakh rupees'],
+    ['Margin:\n23. percent of the price'],
+    ['Steps:\n1. Call\n3. Quote'],
+  ])('a line-start number before a magnitude, or out of a run from 1: %j', (answer) => {
+    const grounded = ground(answer, LOOKUPS);
+    expect(grounded.unsourced).toBeGreaterThan(0);
+    // The list's own numbering stays; the figure written as one does not.
+    expect(grounded.text.split('\n').at(-1)).not.toMatch(/\d|crore|lakh/);
+  });
+
+  it('refuses a magnitude the lookups did not give, which they would have to give whole', () => {
+    const small = [JSON.stringify({ count: 7, value: 50, total: '₹50.00' })];
+    for (const answer of [
+      'Sales were ₹50 thousand.',
+      'Sales were ₹7k.',
+      'Sales were 7 million rupees.',
+    ]) {
+      expect({ answer, unsourced: ground(answer, small).unsourced }).toEqual({
+        answer,
+        unsourced: 1,
+      });
+    }
+  });
+
+  it('never takes a figure from the digits of the ids beside the values', () => {
     const results = [
       JSON.stringify({
         leads: Array.from({ length: 25 }, () => ({ ref: newId(), lead: newId(), score: 40 })),
       }),
     ];
-    const grounded = ground('There are 7 open leads with a score of 40.', results);
-    expect(grounded.text).toBe(`There are ${UNSOURCED} open leads with a score of 40.`);
-    expect(grounded.unsourced).toBe(1);
-    // Nor a number from 2 to 999 at all, from the ids alone.
-    const keys = collectFigures(results);
-    expect([...keys].filter((k) => k !== 'n:40')).toEqual([]);
-  });
-
-  it('reads magnitude words after digits and after number words (review finding 1 b)', () => {
-    const small = [JSON.stringify({ count: 7, value: 50 })];
-    for (const answer of [
-      'Sales were ₹50 thousand.',
-      'Sales were ₹7k.',
-      'Sales were 7 million rupees.',
-      'Sales were fifty lakh.',
-      'Sales were seven gazillion.',
-    ]) {
-      const grounded = ground(answer, small);
-      expect({ answer, unsourced: grounded.unsourced }).toEqual({ answer, unsourced: 1 });
-      expect(grounded.text).toMatch(/^Sales were \[unsourced\]( rupees)?\.$/);
-    }
-    const big = [
-      JSON.stringify({ a: '₹50000.00', b: '₹7000.00', c: 7000000, d: '₹5000000.00', e: 500 }),
-    ];
-    for (const answer of [
-      'Sales were ₹50 thousand.',
-      'Sales were ₹7k.',
-      'Sales were 7 million rupees.',
-      'Sales were fifty lakh.',
-      'Sales were ₹0.5 crore.',
-      'Sales were five hundred.',
-      'Sales were ₹50,000.',
-    ]) {
-      expect({ answer, unsourced: ground(answer, big).unsourced }).toEqual({
-        answer,
-        unsourced: 0,
-      });
-    }
-    expect(ground('It costs one lakh.', big).unsourced).toBe(1);
-    expect(ground('It is the one in Jaipur.', []).unsourced).toBe(0);
-  });
-
-  it('reads digits of every script as their ASCII digits, on both sides (review finding 1 c)', () => {
-    expect(ground('Total: ३१२५० rupees.', []).text).toBe(`Total: ${UNSOURCED} rupees.`);
-    expect(ground('Total: ３１２５０ rupees.', []).text).toBe(`Total: ${UNSOURCED} rupees.`);
-    expect(ground('Total: ३१२५० rupees.', [JSON.stringify({ total: 31250 })]).unsourced).toBe(0);
-    expect(ground('Total: 31250 rupees.', ['{"total":"３１２５０"}']).unsourced).toBe(0);
-  });
-
-  it('takes a line-start number as numbering only in a run counting up from 1 (review finding 1 d)', () => {
-    expect(ground('Margin:\n23. percent of the price', []).text).toBe(
-      `Margin:\n${UNSOURCED}. percent of the price`,
+    expect(ground('There are 7 open leads.', results).text).toBe(
+      `There are ${UNSOURCED} open leads.`,
     );
-    expect(ground('Steps:\n1. Call\n2. Visit\n3. Quote', []).unsourced).toBe(0);
-    expect(ground('Steps:\n1. Call\n3. Quote', []).text).toBe(
-      `Steps:\n1. Call\n${UNSOURCED}. Quote`,
+    expect([...collectFigures(results)]).toEqual(['n:40']);
+  });
+
+  it('takes out a citation of a record no lookup returned, marked or bare', () => {
+    const grounded = ground(`See [ref:${NOT_RETURNED}] and ${NOT_RETURNED}.`, LOOKUPS);
+    expect(grounded.text).toBe(`See ${UNSOURCED} and ${UNSOURCED}.`);
+    expect(grounded.unsourced).toBe(2);
+  });
+
+  it('drops characters that could pass for its own stand-ins', () => {
+    expect(ground('A\ue000 total of 9.', []).text).toBe(`A total of ${UNSOURCED}.`);
+  });
+
+  it('gives a day its month and its day and month, but no bare year', () => {
+    expect([...collectFigures(['{"on":"2026-11-14"}'])].sort()).toEqual(
+      ['date:2026-11-14', 'month:2026-11', 'daymonth:11-14'].sort(),
     );
-    expect(ground('A:\n1. x\n2. y\nB:\n1. z', []).unsourced).toBe(0);
   });
 });
