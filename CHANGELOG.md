@@ -4,11 +4,18 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ## Contents
 
-- [Phase 2](#phase-2): [wave 1](#phase-2-wave-1)
+- [Phase 2](#phase-2): [wave 2](#phase-2-wave-2) · [wave 1](#phase-2-wave-1)
 - [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 6 and the Phase 0–1 audit](#phase-1-wave-6-and-the-phase-01-audit) · [wave 5](#phase-1-wave-5) · [wave 4](#phase-1-wave-4) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
 - [Phase 0](#phase-0): [hosted environments and the close](#phase-0-hosted-environments-and-the-close) · [gap-closing waves](#phase-0-gap-closing-waves) · [completeness pass and tooling](#phase-0-completeness-pass-and-tooling) · [weeks 4 to 8](#phase-0-weeks-4-to-8) · [weeks 1 to 3](#phase-0-weeks-1-to-3) · [production-readiness audit](#phase-0-production-readiness-audit) · [before pull requests](#phase-0-before-pull-requests)
 
 ## Phase 2
+
+### Phase 2 wave 2
+
+- **#250** (15-11-2026) B1 Ask the Business: `/ask` and `POST /api/v1/ask` answer from nine read-only lookups run as the asking person on the reader pool (the Playbook only through `approvedPlaybook()`, item costs only with `finance.cost.read`, dealer credit only with `sales.credit.write`), Sonnet 5.5 within ₹50 a person and ₹1,000 a day; a grounding filter that fails closed shows a figure only when a lookup returned a value of the same kind and number, and a cited id only when a lookup returned it; `knowledge.ask`; `ask_conversations` and `ask_messages`, the person's own, masked, removed after 90 days by `ask-conversations-purge`; a security test proves no cost, margin or supplier rate reaches a General Manager. Migrations 0179 to 0181.
+- **#249** (15-11-2026) I1 Lead Ads, lead forms and website ingest: `crm.lead.ingest` (platform-only `crm.ingest.run`, every write through `app.ingest_lead_write()` for the integration channels), the Lead Ads and Google lead form handlers on P5 (an unconnected form set aside and made by Process again once connected; P5's handlers may now fail a row with a code, logged at `error`), `POST /api/v1/ingest/leads` with keys tied to a website, the rate limit and Turnstile before any write, a consent only for a ticked box with the site's purpose; `ingest_sources`, `ingest_keys`, `lead_qualifications`, Settings › Lead sources, the qualification card and Integration health's leads nobody has; the calling and converting journeys run inside the calling hours whatever the clock. Migrations 0177 and 0178.
+- **#248** (15-11-2026) T3 click-to-dial and recordings: `calls.call.dial` through `checkDial` with a per-caller lock, Exotel asked only after the dial commits, the caller's own phone refused when it is a customer's or a company's number; `provider_calls` (status forward only, the phone and provider id cleared only), the `exotel_status` handler copying recordings from listed Exotel hosts into KMS files, `calls.recording.play` audited, the hourly sweep closing stuck calls and removing recordings after 12 months; the call bar, the dial phone on the profile and Play recording; calls placed unrecorded until an Exotel flow plays the notice; the stale-lead anonymisation covers provider calls. Migrations 0168 to 0173.
+- **#247** (15-11-2026) K3 Vault audio: WAV recordings (25 MB, about 13 minutes) in the Knowledge Vault, transcribed through V1's `transcribeRecording()` only when `KNOWLEDGE_TRANSCRIBE=on` as well as the Sarvam key, masked, Roman script only, reused on a retry; `knowledge.transcript.correct`; a page per vault file with the player and the editable transcript; its own transcription cap (₹300 a day); the CSP's `media-src` for the file bucket. Migrations 0174 to 0176.
 
 ### Phase 2 wave 1
 

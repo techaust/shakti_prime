@@ -6,9 +6,9 @@
 | Worktree | `k3-vault-audio`, slot 4 (Postgres 54334, app 3034), in the lead's cloud VM |
 | Runs on | the lead's cloud session (owner, 14-11-2026, a cloud day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
-| Usage | build Opus 5.5 high; 5-hour window 0 % at 07:00 UTC (the owner's reading) |
-| State | building |
-| Next step | the builder's early check |
+| Usage | build Opus 5.5 high; 5-hour window 0 % at 07:00 UTC (the owner's reading); share of the session's requests (agent-usage.py, 14 and 15-11-2026): build 8.3 %, review 1.6 %, all on Opus 5.5 at high |
+| State | merged (#247) on 15-11-2026; dev and staging migrated |
+| Next step | none |
 
 ## Brief
 Read first:

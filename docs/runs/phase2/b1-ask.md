@@ -6,9 +6,9 @@
 | Worktree | `b1-ask`, slot 5 (Postgres 54335, app 3035), in the lead's cloud VM |
 | Runs on | the lead's cloud session (owner, 14-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
-| Usage | build Opus 5.5 high; 5-hour window 0 % at 07:00 UTC (the owner's reading) |
-| State | building |
-| Next step | the builder's early check |
+| Usage | build Opus 5.5 high; 5-hour window 0 % at 07:00 UTC (the owner's reading); share of the session's requests (agent-usage.py, 14 and 15-11-2026): build 20.7 %, review 2.3 %, all on Opus 5.5 at high |
+| State | merged (#250) on 15-11-2026; dev and staging migrated |
+| Next step | none |
 
 ## Brief
 Read first:
@@ -178,7 +178,7 @@ Slice-reviewer, 15-11-2026, in the lead's cloud VM on 14058deb (`git diff origin
 | 5 | Low | **Reader parity does not cover two reads that run on the reader pool (confirmed).** The run file says `askSourceLabels` is in reader parity, but `readAskConversation` is called there with an unknown id and refuses before `askSourceLabels` runs, and neither `askSourceLabels` (the route's `labels`, `route-deps.ts:20-25`, reader pool) nor `itemCostsFor` is in `QUERIES` (`reader-parity.test.ts`). Fix: add both with real ids (a conversation and an item of the fixture). | open |
 | 6 | Low | **Opening a conversation that cites a Playbook rule reads every approved rule (confirmed by code path).** `askSourceLabels` (`queries/knowledge/ask.ts:259-267`) pages through `approvedPlaybook()` until the end, with no bound, on each `readAskConversation` and each answer. Fix: stop once every cited rule is found, and bound it by `AGENT_DEFAULTS.ask.directivesScanned`, or give `approvedPlaybook()` an `ids` input. | open |
 | 7 | Low | **The journeys never prove the sources or a figure card (confirmed).** `ANSWERED` accepts "None of the leads you can see is open right now." and the sources check runs only `if ((await sources.count()) > 0)` (`e2e/ask.spec.ts:17`, `39-41`); `STAND_IN_ASK` answers with a count only, so no ₹ amount or percentage is ever shown and the `ask` snapshot has no figure card (§6.5: "the figures shown as cards"). Fix: assert the open lead and the sources region unconditionally on the seeded company, and give the stand-in an answer with a rupee amount (from `sales_this_month`) so the snapshot holds a card. | open |
-| 8 | Low | **The PRD trace is not updated (confirmed).** `docs/02-prd.md:412` still reads `AI-02 \| 2 \| — \| —`. Fix: name B1 and its tests (`ask-cost.test.ts`, `ask-evals.test.ts`, `ask.test.ts`, `grounding.test.ts`, `ask-route.test.ts`, `e2e/ask.spec.ts`). | open |
+| 8 | Low | **The PRD trace is not updated (confirmed).** `docs/02-prd.md` (line 412) still reads `AI-02 \| 2 \| — \| —`. Fix: name B1 and its tests (`ask-cost.test.ts`, `ask-evals.test.ts`, `ask.test.ts`, `grounding.test.ts`, `ask-route.test.ts`, `e2e/ask.spec.ts`). | open |
 | 9 | Low | **For the lead and the owner: a management file's margins reach a General Manager's answer (plausible, not new in B1).** Ask's vault search follows the file's sensitivity, and the GM reads `management` files (`knowledge.vault.read.management`) without `finance.cost.read`, so a costing sheet filed as `management` gives its margin and supplier rate to the GM through Ask, as the `/knowledge` search already does; the acceptance test seeds only an `exec_only` file. Fix: either SECURITY §3.2 says that a file's sensitivity, not the cost grants, governs vault text, or Ask's vault search leaves out `management` files for a person without `finance.cost.read`. | open, for the lead |
 
 Found sound:
