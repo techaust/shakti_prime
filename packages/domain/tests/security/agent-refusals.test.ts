@@ -198,6 +198,24 @@ const INPUTS: Record<string, unknown> = {
     verified: false,
   },
   'org.channel.archive': { entityId: 1, channelId: newId() },
+  'crm.source.set': {
+    entityId: 1,
+    provider: 'website',
+    externalId: 'refused.example',
+    name: 'Refused site',
+    pipelineId: newId(),
+    fieldMap: {},
+    consent: null,
+  },
+  'crm.source.archive': { entityId: 1, sourceId: newId() },
+  'crm.ingest_key.create': {
+    entityId: 1,
+    label: 'Refused key',
+    keyHash: 'b'.repeat(64),
+    keyHint: 'abcd',
+    sourceId: null,
+  },
+  'crm.ingest_key.revoke': { entityId: 1, keyId: newId() },
   'print.proof.request': { entityId: 1 },
   'pricing.list.approve': { priceListId: newId() },
   'pricing.list.archive': { priceListId: newId() },
@@ -367,6 +385,11 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     },
   },
   'calls.call.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
+  // Click-to-dial, a caller's own dial phone and listening to a recording (phase 2 design §6.3):
+  // no agent holds calls.dial or calls.recording.listen, and only people may use them.
+  'calls.call.dial': { entityId: 1, opportunityId: newId() },
+  'calls.recording.play': { entityId: 1, providerCallId: newId() },
+  'crm.caller_profile.set_dial_phone': { entityId: 1, phone: '+919800000000' },
   // The Knowledge Vault's files are added, read again and archived by people (docs/03-roadmap-appendix/phase1.md §8.4).
   'knowledge.file.add': {
     entityId: 1,
@@ -376,6 +399,12 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   },
   'knowledge.file.reindex': { entityId: 1, knowledgeFileId: newId() },
   'knowledge.file.archive': { entityId: 1, knowledgeFileId: newId() },
+  // A recording's transcript is corrected by a person (K3).
+  'knowledge.transcript.correct': {
+    entityId: 1,
+    knowledgeFileId: newId(),
+    transcript: 'Refused correction',
+  },
   // Orders, acceptance and dealer credit (docs/03-roadmap-appendix/phase1.md §8.3): a person's decisions.
   'sales.quote.accept': { entityId: 1, quoteId: newId(), signedFileId: newId() },
   'sales.order.create': {
@@ -405,6 +434,11 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       'sales.target.set',
       // Process again of a failed webhook delivery (P5): a person's decision.
       'webhooks.event.replay',
+      // Where leads come in from, and the website keys (I1): an Executive's.
+      'crm.source.set',
+      'crm.source.archive',
+      'crm.ingest_key.create',
+      'crm.ingest_key.revoke',
     ].map((name) => [name, INPUTS[name]]),
   ),
 };
@@ -789,6 +823,13 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },
     'crm.lead.anonymise': { entityId: 1, after: null },
+    'crm.source.record_questions': { entityId: 1, sourceId: newId(), questions: [] },
+    'crm.lead.ingest': {
+      entityId: 1,
+      channel: 'meta_ads',
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Refused lead', phone: '+919812345678' },
+    },
     'crm.phone.dnd_record': {
       entityId: 1,
       contactPhoneId: newId(),
@@ -832,6 +873,11 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       knowledgeFileId: newId(),
       outcome: 'failed',
       reason: 'knowledge_unreadable',
+    },
+    'knowledge.file.record_transcript': {
+      entityId: 1,
+      knowledgeFileId: newId(),
+      transcript: 'Refused transcript',
     },
   };
 

@@ -157,13 +157,23 @@ describe('app_user role (docs/05-database.md §3)', () => {
     ask_messages: { i: true, u: false },
     // A profile changes only its settings and presence (column grants, 0125); never deleted.
     caller_profiles: { i: true, u: false },
+    // A lead source is written column by column, its sealed Page token never read back; a key
+    // keeps its hash and changes only by its revoke (column grants, I1); a lead's facts change
+    // only their values.
+    ingest_sources: { i: true, u: false },
+    ingest_keys: { i: true, u: false },
+    lead_qualifications: { i: true, u: false },
+    // A provider call is inserted as dialling by the person who dials; after that a person sets
+    // only the link to their log (a column grant), and the platform's definers write the rest
+    // (0169, provider-calls.test.ts).
+    provider_calls: { i: true, u: false },
   };
 
   /**
    * Tables selected column by column: `entities`, whose sealed bank account no request role may
    * select (the test below).
    */
-  const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities']);
+  const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities', 'ingest_sources', 'ingest_keys']);
 
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; u: boolean; d: boolean }>(sql`
@@ -464,10 +474,17 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.dial_facts(uuid,uuid)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
+      // The ingest lookups of a form, its sealed Page token and a website key, which the lead
+      // handlers and the website route ask as queries (I1).
+      'app.ingest_key_find(text)',
+      'app.ingest_source_token(uuid)',
+      'app.ingest_source(text,text)',
       'app.lead_search_ids(text,boolean,text,integer)',
       // The ⌘K and /orders search's candidate orders (RPT-03).
       'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
+      // Which recordings on a timeline page its reader may play (T3, 0171).
+      'app.playable_recordings(uuid[])',
       // The quote print loader of the render worker (0110).
       'app.quote_for_print(uuid)',
       // The ⌘K search's candidate quotes (0110).

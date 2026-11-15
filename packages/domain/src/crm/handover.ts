@@ -26,15 +26,25 @@ export interface HandoverLead {
   segment: Segment;
 }
 
-/** Whether the candidate may take this lead now: every rule but the order they are tried in. */
-export function qualifiesAsConverter(candidate: ConverterCandidate, lead: HandoverLead): boolean {
+/** A person who might take a lead from an integration: a Cold Calling Tele-Caller of the company. */
+export type CallerCandidate = Omit<ConverterCandidate, 'isConverter'>;
+
+/**
+ * Whether the person may take this lead now, whichever pool they are in: present, under their
+ * cap, and taking the customer's language and the lead's business line.
+ */
+export function qualifiesForLead(candidate: CallerCandidate, lead: HandoverLead): boolean {
   return (
-    candidate.isConverter &&
     candidate.presence === 'present' &&
     (candidate.maxOpen === null || candidate.openLeads < candidate.maxOpen) &&
     (candidate.languages.length === 0 || candidate.languages.includes(lead.language)) &&
     (candidate.segments.length === 0 || candidate.segments.includes(lead.segment))
   );
+}
+
+/** Whether the candidate may take this lead now: every rule but the order they are tried in. */
+export function qualifiesAsConverter(candidate: ConverterCandidate, lead: HandoverLead): boolean {
+  return candidate.isConverter && qualifiesForLead(candidate, lead);
 }
 
 /**
@@ -48,7 +58,36 @@ export function pickConverter(
   lead: HandoverLead,
   cursor: string | null,
 ): string | null {
-  const qualified = candidates.filter((c) => qualifiesAsConverter(c, lead));
+  return pickInTurn(
+    candidates.filter((c) => qualifiesAsConverter(c, lead)),
+    cursor,
+  );
+}
+
+/**
+ * The Cold Calling Tele-Caller who takes a lead from an integration (the owner's decision on
+ * question 3 of docs/03-roadmap-appendix/phase2.md): the same weighted round-robin as the
+ * handover, over the company's callers. Null when nobody qualifies.
+ */
+export function pickCaller(
+  candidates: readonly CallerCandidate[],
+  lead: HandoverLead,
+  cursor: string | null,
+): string | null {
+  return pickInTurn(
+    candidates.filter((c) => qualifiesForLead(c, lead)),
+    cursor,
+  );
+}
+
+/**
+ * Of the people who qualify, the one with the fewest open leads; among those tied, the first after
+ * `cursor` in id order, starting again from the first after the last.
+ */
+function pickInTurn(
+  qualified: readonly Pick<CallerCandidate, 'userId' | 'openLeads'>[],
+  cursor: string | null,
+): string | null {
   if (qualified.length === 0) return null;
   const fewest = Math.min(...qualified.map((c) => c.openLeads));
   const tied = qualified

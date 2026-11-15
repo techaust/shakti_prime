@@ -192,7 +192,12 @@ test.describe('calling as a sales team lead', () => {
 test.describe('calling in the snapshot company', () => {
   test.use(signedInAs('snapshotCaller'));
 
-  test('shows the caller’s queue, oldest lead first, and its workspace', async ({ page }) => {
+  test('shows the caller’s queue, oldest lead first, and its workspace', async ({
+    page,
+    context,
+  }) => {
+    // Inside the calling hours, so the call plan in the picture never depends on the wall clock.
+    await setServerClock(context, insideCallingHours());
     await page.goto('/calling');
     const queue = page.getByRole('region', { name: 'Queue' });
     for (const lead of SNAPSHOT_LEADS) {

@@ -9,10 +9,20 @@ describe('website lead ingest', () => {
     expect(IngestLeadRequest.parse(lead).phone).toBe('+919829000017');
   });
 
-  it('refuses a lead without the consent wording and time', () => {
-    expect(IngestLeadRequest.safeParse({ ...lead, consent: undefined }).success).toBe(false);
-    const consent = { purpose: 'service', text: 'yes', givenAt: '2026-09-27T04:12:09Z' };
-    expect(IngestLeadRequest.safeParse({ ...lead, consent }).success).toBe(false);
+  it('takes a lead with no consent box, and refuses a box without its tick, wording or time', () => {
+    expect(IngestLeadRequest.safeParse({ ...lead, consent: undefined }).success).toBe(true);
+    const text = 'I agree to be called about my enquiry.';
+    const givenAt = '2026-09-27T04:12:09Z';
+    expect(IngestLeadRequest.safeParse({ ...lead, consent: { text, givenAt } }).success).toBe(
+      false,
+    );
+    expect(
+      IngestLeadRequest.safeParse({ ...lead, consent: { ticked: true, text: 'yes', givenAt } })
+        .success,
+    ).toBe(false);
+    expect(
+      IngestLeadRequest.safeParse({ ...lead, consent: { ticked: false, text, givenAt } }).success,
+    ).toBe(true);
   });
 
   it('refuses a field the contract does not name', () => {

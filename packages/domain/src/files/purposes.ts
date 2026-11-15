@@ -43,6 +43,10 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   // A vault file is added by an Executive or GM and read by its sensitivity (docs/03-roadmap-appendix/phase1.md §8.4).
   knowledge: { write: needs('knowledge.vault.write', 'all'), read: 'vault' },
   consent_evidence: { write: needs('crm.account.write', 'own'), read: 'crm.account.write' },
+  // A call's recording is stored by the platform (`app.attach_call_recording()`) and heard only
+  // through `calls.recording.play`, which checks `calls.recording.listen` and audits each listen;
+  // no request uploads or opens it as a file.
+  call_recording: { write: null, read: null },
 };
 
 /** The answer `app.file_purpose_grant(purpose, access)` gives, in its own shape. */

@@ -49,7 +49,7 @@ export const files = pgTable(
   (t) => [
     check(
       'files_purpose_check',
-      sql`${t.purpose} in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence')`,
+      sql`${t.purpose} in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence', 'call_recording')`,
     ),
     check(
       'files_status_check',
@@ -72,5 +72,9 @@ export const files = pgTable(
     index('files_import_kept_idx')
       .on(t.entityId, t.createdAt)
       .where(sql`${t.purpose} = 'import' and ${t.deletedAt} is null`),
+    // The recordings' sweep: call recordings still stored, oldest first, across the companies.
+    index('files_call_recording_kept_idx')
+      .on(t.createdAt)
+      .where(sql`${t.purpose} = 'call_recording' and ${t.deletedAt} is null`),
   ],
 );

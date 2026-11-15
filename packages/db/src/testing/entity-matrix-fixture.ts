@@ -102,6 +102,10 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   customer_merges: 'x.id::text',
   caller_profiles: 'x.id::text',
   entity_channels: 'x.id::text',
+  ingest_sources: 'x.id::text',
+  ingest_keys: 'x.id::text',
+  lead_qualifications: 'x.opportunity_id::text',
+  provider_calls: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -189,8 +193,14 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`alter table targets disable trigger targets_append_only`;
       await tx`delete from targets where id::text like ${like}`;
       await tx`alter table targets enable trigger targets_append_only`;
+      await tx`alter table provider_calls disable trigger provider_calls_no_delete`;
+      await tx`delete from provider_calls where id::text like ${like}`;
+      await tx`alter table provider_calls enable trigger provider_calls_no_delete`;
       await tx`delete from caller_profiles where id::text like ${like}`;
       await tx`delete from entity_channels where id::text like ${like}`;
+      await tx`delete from ingest_sources where id::text like ${like}`;
+      await tx`delete from ingest_keys where id::text like ${like}`;
+      await tx`delete from lead_qualifications where opportunity_id::text like ${like}`;
       await tx`delete from agent_configs where id::text like ${like}`;
       await tx`delete from user_entity_roles where id::text like ${like}`;
       await tx`delete from users where id::text like ${like}`;
@@ -333,6 +343,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     customer_merges: [],
     caller_profiles: [],
     entity_channels: [],
+    ingest_sources: [],
+    ingest_keys: [],
+    lead_qualifications: [],
+    provider_calls: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -476,6 +490,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const othersProfile = per(e, 0x45);
         const sizing = per(e, 0x1b);
         const call = per(e, 0x30);
+        // A provider call of the owner on the company's lead, ended, with its recording, which
+        // only the file checks read as a file (calls.recording.play hears it).
+        const providerCall = per(e, 0x53);
+        const recording = per(e, 0x54);
         const quote = per(e, 0x1c);
         const quoteLine = per(e, 0x1d);
         const quoteVersion = per(e, 0x1e);
@@ -493,6 +511,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const teamTarget = per(e, 0x48);
         // A number the company took out of use, so it never stands in for a real one.
         const channel = per(e, 0x49);
+        // A connected website and a revoked key of the company (I1).
+        const ingestSource = per(e, 0x53);
+        const ingestKey = per(e, 0x54);
         const commissionRule = per(e, 0x37);
         const commission = per(e, 0x38);
         // A second customer of the company with the first one's name, put forward as its
@@ -588,6 +609,16 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           (${othersProfile}, ${otherUserId}, ${e}, false, 'away')`;
         await tx`insert into entity_channels (id, entity_id, channel, number_e164, is_active, created_by)
           values (${channel}, ${e}, 'missed_call', ${`+91800000000${e.toString()}`}, false, ${ownerId})`;
+        await tx`insert into ingest_sources (id, entity_id, provider, external_id, name, pipeline_id, created_by)
+          values (${ingestSource}, ${e}, 'website', ${`matrix-${e.toString()}.invalid`}, 'matrix site', ${pipeline.id}, ${ownerId})`;
+        await tx`insert into ingest_keys (id, entity_id, label, key_hash, key_hint, revoked_at, revoked_by, created_by)
+          values (${ingestKey}, ${e}, 'matrix key', ${`${'0'.repeat(60)}${(0xb000 + e).toString(16)}`}, 'mtrx', now(), ${ownerId}, ${ownerId})`;
+        await tx`insert into lead_qualifications (opportunity_id, entity_id, pump_depth_ft, updated_by)
+          values (${opportunity}, ${e}, 120, ${ownerId})`;
+        await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+          values (${recording}, ${e}, 'call_recording', 'matrix', ${`matrix/${recording}`}, 'matrix file', 'audio/mpeg', 1, ${sha}, 'ready', ${ownerId})`;
+        await tx`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, provider_call_sid, status, started_at, ended_at, duration_s, recording_file_id, call_id)
+          values (${providerCall}, ${e}, ${opportunity}, ${phone}, ${ownerId}, 'outbound', '140', 'promotional', ${`matrix-${providerCall}`}, 'completed', now(), now(), 30, ${recording}, ${call})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -727,6 +758,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: othersProfile, entities: only, othersOwn: true },
         );
         rows.entity_channels.push({ key: channel, entities: only });
+        rows.ingest_sources.push({ key: ingestSource, entities: only });
+        rows.ingest_keys.push({ key: ingestKey, entities: only });
+        rows.lead_qualifications.push({ key: opportunity, entities: only });
+        rows.provider_calls.push({ key: providerCall, entities: only });
+        rows.files.push({ key: recording, entities: only, purpose: 'call_recording' });
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
         rows.playbook_directives.push(

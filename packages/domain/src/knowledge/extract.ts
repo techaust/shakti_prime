@@ -5,7 +5,8 @@ import type { ModelDocument } from '../ai/transport';
 
 // Reading a Knowledge Vault file's text, by what the file is (BLUEPRINT §9.1, docs/03-roadmap-appendix/phase1.md
 // §8.4): a PDF and a masked photo by Claude through the provider wrapper, an Excel workbook sheet by
-// sheet here, a Word document by the web app's reader (`mammoth`, which only the web app holds).
+// sheet here, a Word document by the web app's reader (`mammoth`, which only the web app holds), a
+// recording by the web app's speech service (K3, `index-file.ts`).
 
 /** What a vault upload of each type is. */
 export const KNOWLEDGE_SOURCE_OF_TYPE: Readonly<Record<string, KnowledgeSourceType>> = {
@@ -15,6 +16,7 @@ export const KNOWLEDGE_SOURCE_OF_TYPE: Readonly<Record<string, KnowledgeSourceTy
   'image/webp': 'photo',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'word',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'excel',
+  'audio/wav': 'audio',
 };
 
 /** What a vault upload is, or undefined for a type the vault does not take. */

@@ -142,4 +142,81 @@ describe('cutting a long recording', () => {
       transcribeRecording(recording, { mimeType: 'audio/mpeg', languageCode: 'hi-IN' }, stt),
     ).rejects.toThrow('WAV only');
   });
+
+  it('sends pieces a few at a time and keeps the recording’s order, counting each as it goes', async () => {
+    const recording = writeWav(pcm(Array.from({ length: 250 }, () => true)));
+    let open = 0;
+    let most = 0;
+    let calls = 0;
+    const counted: number[] = [];
+    const stt: SpeechToText = {
+      vendor: 'fake',
+      transcribe: async () => {
+        calls += 1;
+        const piece = calls;
+        open += 1;
+        most = Math.max(most, open);
+        // Earlier pieces answer later, so the order is the recording's, not the answers'.
+        await new Promise((resolve) => setTimeout(resolve, (6 - piece) * 3));
+        open -= 1;
+        return { text: `p${String(piece)}`, languageCode: undefined, ms: 10 };
+      },
+    };
+    const transcript = await transcribeRecording(
+      recording,
+      {
+        mimeType: 'audio/wav',
+        languageCode: 'hi-IN',
+        maxPieceMs: 1_000,
+        concurrency: 3,
+        onPiece: (ms) => counted.push(ms),
+      },
+      stt,
+    );
+    expect(transcript.text).toBe('p1 p2 p3 p4 p5');
+    expect(transcript.ms).toBe(50);
+    expect(most).toBe(3);
+    expect(counted).toEqual([1_000, 1_000, 1_000, 1_000, 1_000]);
+  });
+
+  it('stops sending once a piece fails or the signal is aborted', async () => {
+    const recording = writeWav(pcm(Array.from({ length: 250 }, () => true)));
+    let sent = 0;
+    const failing: SpeechToText = {
+      vendor: 'fake',
+      transcribe: () => {
+        sent += 1;
+        return sent === 2
+          ? Promise.reject(new Error('vendor down'))
+          : Promise.resolve({ text: 'ok', languageCode: undefined, ms: 1 });
+      },
+    };
+    await expect(
+      transcribeRecording(
+        recording,
+        { mimeType: 'audio/wav', languageCode: 'hi-IN', maxPieceMs: 1_000 },
+        failing,
+      ),
+    ).rejects.toThrow('vendor down');
+    expect(sent).toBe(2);
+
+    const stop = new AbortController();
+    let heard = 0;
+    const stopping: SpeechToText = {
+      vendor: 'fake',
+      transcribe: () => {
+        heard += 1;
+        stop.abort(new Error('out of time'));
+        return Promise.resolve({ text: 'ok', languageCode: undefined, ms: 1 });
+      },
+    };
+    await expect(
+      transcribeRecording(
+        recording,
+        { mimeType: 'audio/wav', languageCode: 'hi-IN', maxPieceMs: 1_000, signal: stop.signal },
+        stopping,
+      ),
+    ).rejects.toThrow('out of time');
+    expect(heard).toBe(1);
+  });
 });

@@ -1,0 +1,290 @@
+import { z } from 'zod';
+import {
+  ConsentChannelSchema,
+  ConsentPurposeSchema,
+  CustomerLanguageSchema,
+} from '../../crm/enums';
+import { PhoneInputSchema } from '../../crm/phone';
+import { EntityIdSchema, IdSchema } from '../../ids';
+import customerNames from '../../templates/customer-names.json';
+
+/**
+ * `crm.lead.ingest` (docs/03-roadmap-appendix/phase2.md §6.2): a lead that arrives from an
+ * integration, made by the platform (`system:workers`, the platform-only `crm.ingest.run`) with the
+ * same normalisation, PIN lookup, dedupe and attach-to-open-lead as a lead typed in. Its callers:
+ * the Lead Ads and Google lead form handlers and the website route (I1), the WhatsApp inbound
+ * handler for an unknown number (W1: channel `whatsapp`, the click-to-WhatsApp `referral` with
+ * `ctwaClid` as attribution, no consent), and inbound and missed calls (T4).
+ */
+
+/** The channels a lead may arrive by without a person typing it, as `lead_sources.channel` names them. */
+export const INGEST_CHANNELS = [
+  'meta_ads',
+  'google_ads',
+  'website',
+  'whatsapp',
+  'ivr',
+  'missed_call',
+] as const;
+export const IngestChannelSchema = z.enum(INGEST_CHANNELS);
+export type IngestChannel = z.infer<typeof IngestChannelSchema>;
+
+/** The longest message a lead from an integration keeps; a longer one is cut. */
+export const MESSAGE_MAX = 1000;
+
+/** The channels a lead may come by with no name: a WhatsApp message and the calls. */
+const NAMELESS_CHANNELS: ReadonlySet<string> = new Set(['whatsapp', 'ivr', 'missed_call']);
+
+/**
+ * The plain name a customer who came with none is given until staff change it, from the templates'
+ * catalogue (`packages/contracts/src/templates`, checked by the copy lint).
+ */
+export const UNNAMED_CUSTOMER_NAMES: Readonly<Record<'whatsapp' | 'ivr' | 'missed_call', string>> =
+  customerNames;
+
+/** A provider's id (a campaign, ad, form, lead or click id): kept whole, never shown to a customer. */
+const ProviderRef = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_.:=+/-]{1,200}$/);
+
+const UtmSchema = z
+  .object({
+    source: z.string().trim().min(1).max(100).optional(),
+    medium: z.string().trim().min(1).max(100).optional(),
+    campaign: z.string().trim().min(1).max(150).optional(),
+    term: z.string().trim().min(1).max(150).optional(),
+    content: z.string().trim().min(1).max(150).optional(),
+  })
+  .strict();
+
+/**
+ * Where the lead came from, kept on the lead (`opportunities.campaign_json`) for return on ad spend
+ * (BLUEPRINT §8.1): the provider's ids as they arrived. `ctwaClid` and `sourceUrl` are the
+ * click-to-WhatsApp `referral`; `gclid` is Google's click id; `utm` the website's.
+ */
+export const LeadAttributionSchema = z
+  .object({
+    campaignId: ProviderRef.optional(),
+    adsetId: ProviderRef.optional(),
+    adId: ProviderRef.optional(),
+    formId: ProviderRef.optional(),
+    pageId: ProviderRef.optional(),
+    gclid: ProviderRef.optional(),
+    ctwaClid: ProviderRef.optional(),
+    referralSourceId: ProviderRef.optional(),
+    referralSourceType: z.string().trim().min(1).max(40).optional(),
+    // A web address only: a `javascript:` or `data:` address never reaches a screen that links it.
+    sourceUrl: z
+      .url({ protocol: /^https?$/ })
+      .max(500)
+      .optional(),
+    utm: UtmSchema.optional(),
+  })
+  .strict();
+export type LeadAttribution = z.infer<typeof LeadAttributionSchema>;
+
+/**
+ * The qualification facts a lead carries (`lead_qualifications`), each optional: from a form's
+ * mapped questions, from `crm.lead.qualification.set`, or proposed by an agent.
+ */
+export const LeadQualificationFactsSchema = z
+  .object({
+    pumpDepthFt: z.number().int().min(1).max(5000).optional(),
+    requiredHp: z.number().min(0.5).max(500).optional(),
+    monthlyBillRupees: z.number().int().min(1).max(100_000_000).optional(),
+    roofAreaSqFt: z.number().int().min(1).max(10_000_000).optional(),
+    sanctionedLoadKw: z.number().min(0.1).max(100_000).optional(),
+    discomConsumerNo: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9/-]{4,30}$/)
+      .optional(),
+  })
+  .strict();
+export type LeadQualificationFacts = z.infer<typeof LeadQualificationFactsSchema>;
+
+/** The names of the qualification facts, in the order a screen shows them. */
+export const LEAD_QUALIFICATION_FACTS = [
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+  'discomConsumerNo',
+] as const satisfies readonly (keyof LeadQualificationFacts)[];
+export type LeadQualificationFact = (typeof LEAD_QUALIFICATION_FACTS)[number];
+
+/**
+ * A consent the person gave on the form: only when the form's mapped consent question was ticked
+ * (a website's consent box, a Lead Ads form's consent question), with the version of the text it
+ * showed. Recorded with the source `web_form`, one row per channel. Never sent for WhatsApp.
+ */
+export const IngestConsentSchema = z
+  .object({
+    channels: z.array(ConsentChannelSchema).min(1).max(4),
+    purpose: ConsentPurposeSchema,
+    textVersion: z.string().trim().min(1).max(60),
+    givenAt: z.iso.datetime(),
+  })
+  .strict()
+  .refine((c) => new Set(c.channels).size === c.channels.length, {
+    message: 'each channel once',
+    path: ['channels'],
+  });
+export type IngestConsent = z.infer<typeof IngestConsentSchema>;
+
+export const LeadIngestInput = z
+  .object({
+    entityId: EntityIdSchema,
+    channel: IngestChannelSchema,
+    /**
+     * The company's connected form, Page or site (`ingest_sources`): its pipeline, and so its
+     * business line, is the lead's. Without one, `pipelineKey` names the pipeline (WhatsApp, calls).
+     */
+    sourceId: IdSchema.optional(),
+    pipelineKey: z.string().trim().min(1).max(40).optional(),
+    /**
+     * The provider's own id of this lead or message (Meta `leadgen_id`, Google `lead_id`, the
+     * WhatsApp message id): the caller runs the command with the idempotency key
+     * `ingestIdempotencyKey(channel, externalId)` (`@shakti/domain`), so a repeated event makes
+     * nothing.
+     */
+    externalId: ProviderRef.optional(),
+    /**
+     * The person. A name is needed from a form; a WhatsApp message or a call may come with none,
+     * and the customer is then named by `UNNAMED_CUSTOMER_NAMES` until staff change it.
+     */
+    contact: z
+      .object({
+        name: z.string().trim().min(1).max(120).optional(),
+        phone: PhoneInputSchema,
+        preferredLanguage: CustomerLanguageSchema.optional(),
+      })
+      .strict(),
+    site: z
+      .object({
+        village: z.string().trim().min(2).max(120).optional(),
+        pin: z
+          .string()
+          .trim()
+          .regex(/^[1-9][0-9]{5}$/)
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    attribution: LeadAttributionSchema.optional(),
+    consent: IngestConsentSchema.optional(),
+    qualification: LeadQualificationFactsSchema.optional(),
+    /** The website key the lead came with (`POST /ingest/leads`), stamped as used. */
+    ingestKeyId: IdSchema.optional(),
+    /**
+     * What the person wrote, kept on the lead's timeline with identity numbers masked: cut to
+     * 1,000 characters, and nothing when it is empty.
+     */
+    message: z
+      .string()
+      .max(20_000)
+      .optional()
+      .transform((m) => {
+        const text = m?.trim() ?? '';
+        return text === '' ? undefined : text.slice(0, MESSAGE_MAX);
+      }),
+  })
+  .strict()
+  .refine((v) => v.sourceId !== undefined || v.pipelineKey !== undefined, {
+    message: 'a source or a pipeline is required',
+    path: ['pipelineKey'],
+  })
+  .refine((v) => v.contact.name !== undefined || NAMELESS_CHANNELS.has(v.channel), {
+    message: 'a name is needed from a form',
+    path: ['contact', 'name'],
+  })
+  .refine((v) => v.channel !== 'whatsapp' || v.consent === undefined, {
+    message: 'a WhatsApp message carries no form consent',
+    path: ['consent'],
+  });
+export type LeadIngestInput = z.infer<typeof LeadIngestInput>;
+
+/**
+ * Who the lead went to (question 3 of the design): a Cold Calling Tele-Caller by the weighted
+ * round-robin, the Sales Team Lead as routed work when none is present, the colleague who already
+ * looks after the customer in the company, or the owner of the open lead the enquiry joined.
+ */
+export const INGEST_ASSIGNEES = [
+  'caller',
+  'team_lead',
+  'customer_owner',
+  'lead_owner',
+  'unassigned',
+] as const;
+export const IngestAssigneeSchema = z.enum(INGEST_ASSIGNEES);
+export type IngestAssignee = z.infer<typeof IngestAssigneeSchema>;
+
+/** `created` opened a new lead; `attached` added the enquiry to the customer's open lead. */
+export const INGEST_OUTCOMES = ['created', 'attached'] as const;
+
+export const LeadIngestResultDto = z
+  .object({
+    leadId: IdSchema,
+    entityId: EntityIdSchema,
+    accountId: IdSchema,
+    contactId: IdSchema,
+    contactPhoneId: IdSchema,
+    outcome: z.enum(INGEST_OUTCOMES),
+    ownerId: IdSchema.nullable(),
+    assignedTo: IngestAssigneeSchema,
+  })
+  .strict();
+export type LeadIngestResultDto = z.infer<typeof LeadIngestResultDto>;
+
+/**
+ * `crm.lead.qualification.set`: the lead's qualification facts as the card saves them. A fact
+ * left out stays as it is; `null` clears it.
+ */
+export const SetLeadQualificationInput = z
+  .object({
+    entityId: EntityIdSchema,
+    opportunityId: IdSchema,
+    facts: z
+      .object({
+        pumpDepthFt: LeadQualificationFactsSchema.shape.pumpDepthFt.unwrap().nullable().optional(),
+        requiredHp: LeadQualificationFactsSchema.shape.requiredHp.unwrap().nullable().optional(),
+        monthlyBillRupees: LeadQualificationFactsSchema.shape.monthlyBillRupees
+          .unwrap()
+          .nullable()
+          .optional(),
+        roofAreaSqFt: LeadQualificationFactsSchema.shape.roofAreaSqFt
+          .unwrap()
+          .nullable()
+          .optional(),
+        sanctionedLoadKw: LeadQualificationFactsSchema.shape.sanctionedLoadKw
+          .unwrap()
+          .nullable()
+          .optional(),
+        discomConsumerNo: LeadQualificationFactsSchema.shape.discomConsumerNo
+          .unwrap()
+          .nullable()
+          .optional(),
+      })
+      .strict()
+      .refine((f) => Object.keys(f).length > 0, { message: 'at least one fact' }),
+  })
+  .strict();
+export type SetLeadQualificationInput = z.infer<typeof SetLeadQualificationInput>;
+
+/** A lead's qualification facts; a fact nobody recorded is null. */
+export const LeadQualificationDto = z
+  .object({
+    opportunityId: IdSchema,
+    entityId: EntityIdSchema,
+    pumpDepthFt: z.number().int().nullable(),
+    requiredHp: z.number().nullable(),
+    monthlyBillRupees: z.number().int().nullable(),
+    roofAreaSqFt: z.number().int().nullable(),
+    sanctionedLoadKw: z.number().nullable(),
+    discomConsumerNo: z.string().nullable(),
+    updatedAt: z.iso.datetime().nullable(),
+  })
+  .strict();
+export type LeadQualificationDto = z.infer<typeof LeadQualificationDto>;

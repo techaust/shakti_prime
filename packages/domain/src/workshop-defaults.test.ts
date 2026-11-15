@@ -51,6 +51,7 @@ describe('workshop defaults', () => {
         nurtureCallDays: [7, 30, 90],
         logGraceMinutes: 15,
         dndFreshDays: 7,
+        recordingNotice: 'call_recording_notice',
       },
       sizing: {
         hazenWilliamsC: { hdpe: 140, gi: 120 },
@@ -81,6 +82,7 @@ describe('workshop defaults', () => {
         webhookPayloadDays: 30,
         webhookRowDays: 90,
         askDays: 90,
+        callRecordingMonths: 12,
       },
     });
   });

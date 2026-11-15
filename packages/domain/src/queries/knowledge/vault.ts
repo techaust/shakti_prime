@@ -1,5 +1,6 @@
 import {
   IdSchema,
+  KnowledgeFileDetailDto,
   KNOWLEDGE_EMBEDDING_DIMENSIONS,
   KNOWLEDGE_SEARCH_LIMIT,
   KnowledgeFilePageDto,
@@ -8,10 +9,10 @@ import {
   DomainError,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission } from '../../command/run-command';
-import { knowledgeFileDto } from '../../commands/knowledge/shared';
+import { KNOWLEDGE_FILE_COLUMNS, knowledgeFileDto } from '../../commands/knowledge/shared';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -28,20 +29,23 @@ const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}
  */
 export function knowledgeListQuery(ctx: Ctx, after: { t: string; id: string } | undefined) {
   const k = schema.knowledgeFiles;
-  return ctx.tx
-    .select({ file: k, createdText: sql<string>`${k.createdAt}::text` })
-    .from(k)
-    .where(
-      and(
-        or(inArray(k.entityId, [...ctx.entityIds]), isNull(k.entityId)),
-        ne(k.state, 'archived'),
-        after === undefined
-          ? undefined
-          : sql`(${k.createdAt}, ${k.id}) < (${after.t}::text::timestamptz, ${after.id}::uuid)`,
-      ),
-    )
-    .orderBy(desc(k.createdAt), desc(k.id))
-    .limit(KNOWLEDGE_PAGE_SIZE + 1);
+  return (
+    ctx.tx
+      // Named columns: a recording's transcript is never read for the list.
+      .select({ file: KNOWLEDGE_FILE_COLUMNS, createdText: sql<string>`${k.createdAt}::text` })
+      .from(k)
+      .where(
+        and(
+          or(inArray(k.entityId, [...ctx.entityIds]), isNull(k.entityId)),
+          ne(k.state, 'archived'),
+          after === undefined
+            ? undefined
+            : sql`(${k.createdAt}, ${k.id}) < (${after.t}::text::timestamptz, ${after.id}::uuid)`,
+        ),
+      )
+      .orderBy(desc(k.createdAt), desc(k.id))
+      .limit(KNOWLEDGE_PAGE_SIZE + 1)
+  );
 }
 
 /**
@@ -69,6 +73,31 @@ export async function listKnowledgeFiles(
       rows.length > KNOWLEDGE_PAGE_SIZE && last !== undefined
         ? encodeCursor({ t: last.createdText, id: last.file.id })
         : null,
+  });
+}
+
+/**
+ * One vault file the caller may read, for its page (K3): the list's fields with a recording's
+ * transcript, by primary key under `knowledge_files_read` (its company and sensitivity), archived
+ * or not; undefined when the caller may not read it.
+ */
+export async function getKnowledgeFile(
+  ctx: Ctx,
+  rawId: unknown,
+): Promise<KnowledgeFileDetailDto | undefined> {
+  const id = parseQueryInput(IdSchema, rawId, 'knowledge.files.get');
+  checkPermission(ctx.principal, 'knowledge.vault.read.staff', 'all');
+  const k = schema.knowledgeFiles;
+  const [row] = await ctx.tx
+    .select()
+    .from(k)
+    .where(and(eq(k.id, id), or(inArray(k.entityId, [...ctx.entityIds]), isNull(k.entityId))))
+    .limit(1);
+  if (row === undefined) return undefined;
+  return KnowledgeFileDetailDto.parse({
+    ...knowledgeFileDto(row),
+    transcript: row.transcript,
+    transcriptCorrectedAt: row.transcriptCorrectedAt?.toISOString() ?? null,
   });
 }
 
