@@ -373,8 +373,9 @@ grant execute on function app.whatsapp_record_opt_out(uuid, timestamptz) to app_
 
 -- 6. The platform queues a template of its own (messaging.message.queue), as 0169 did, now safe
 --    to ask for twice: the welcome (kind template) once per thread (`welcomed_at`), and the STOP
---    confirmation (kind system) once after each STOP; a second ask, or one for a thread whose
---    number was removed, queues nothing and answers a row with no message. No row when the
+--    confirmation (kind system) once after each STOP and only while the number is still opted
+--    out (a consent given since the STOP means no confirmation); a second ask, or one for a thread
+--    whose number was removed, queues nothing and answers a row with no message. No row when the
 --    thread is not of the request's companies.
 create or replace function app.whatsapp_queue_message(
   p_thread uuid,
@@ -405,6 +406,7 @@ begin
      or (p_kind = 'template' and v_thread.welcomed_at is not null)
      or (p_kind = 'system'
          and (v_thread.opted_out_at is null
+              or not app.whatsapp_number_opted_out('+' || v_thread.wa_id, v_thread.opted_out_at)
               or exists (select 1 from public.whatsapp_messages m
                           where m.thread_id = v_thread.id and m.kind = 'system'
                             and m.direction = 'outbound' and m.created_at >= v_thread.opted_out_at))) then

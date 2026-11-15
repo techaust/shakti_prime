@@ -1,5 +1,6 @@
 import {
   DomainError,
+  newId,
   type WhatsAppInboundMessage,
   type WhatsAppStatus,
   type WhatsAppWebhook,
@@ -385,17 +386,29 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       return;
     }
     const contentType = media.contentType as 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf';
-    const key = uploadKey(entityId, 'whatsapp_media', messageId, contentType);
+    // A file id, and so a key, of this try's own: a delivery of the same message running at the
+    // same time stores under another key, so neither can write an original over a copy the
+    // checks already masked. Whichever attaches first keeps its file; the other's attach is
+    // refused and it deletes what it stored, as does a try whose attach fails for any reason.
+    const fileId = newId();
+    const key = uploadKey(entityId, 'whatsapp_media', fileId, contentType);
     await deps.store.put(key, media.bytes, contentType);
-    await run(attachWhatsAppMedia, {
-      entityId,
-      messageId,
-      fileId: messageId,
-      bucket: deps.store.bucket,
-      key,
-      contentType,
-      size: media.bytes.length,
-      sha256: createHash('sha256').update(media.bytes).digest('hex'),
-    });
+    try {
+      await run(attachWhatsAppMedia, {
+        entityId,
+        messageId,
+        fileId,
+        bucket: deps.store.bucket,
+        key,
+        contentType,
+        size: media.bytes.length,
+        sha256: createHash('sha256').update(media.bytes).digest('hex'),
+      });
+    } catch (error) {
+      // Not attached, so never checked: the stored original is deleted, whatever stopped it.
+      await deps.store.delete(key);
+      if (error instanceof DomainError && error.details?.reason === 'whatsapp_media_taken') return;
+      throw error;
+    }
   }
 }

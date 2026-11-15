@@ -490,7 +490,10 @@ export const recordWhatsAppSend = defineCommand({
  * file waiting for its checks (`scanning`; `files.file.uploaded` starts them: malware scan,
  * re-encoding, masking) and attached to the inbound message it came on through
  * `app.whatsapp_attach_media()`, which takes only a file of the message's company that no other
- * message holds. A delivery that runs again finds the file it recorded and attaches nothing twice.
+ * message holds. A delivery that runs again finds the file it recorded and attaches nothing twice;
+ * a message that already holds another file (a delivery running at the same time attached its own
+ * first) is refused (`whatsapp_media_taken`), so this file's row and its checks are not recorded
+ * and the caller deletes the bytes it stored.
  * Needs `files.process` beside `messaging.process`, as the file checks' worker holds both.
  */
 export const attachWhatsAppMedia = defineCommand({
@@ -542,6 +545,11 @@ export const attachWhatsAppMedia = defineCommand({
       sql`select app.whatsapp_attach_media(${input.messageId}::uuid, ${input.fileId}::uuid) as attached`,
     )) as unknown as { attached: boolean }[];
     const attached = rows[0]?.attached === true;
+    if (!attached) {
+      throw new DomainError('conflict', `message ${input.messageId} holds another file`, {
+        reason: 'whatsapp_media_taken',
+      });
+    }
     if (existing === undefined) {
       ctx.emit({
         type: 'files.file.uploaded',

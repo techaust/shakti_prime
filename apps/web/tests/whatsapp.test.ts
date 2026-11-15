@@ -17,6 +17,7 @@ import {
   memoryKeyValue,
   recordWhatsAppOptOut,
   readWhatsAppThread,
+  recordInboundWhatsApp,
   recordWhatsAppSend,
   sendWhatsAppMessage,
   type KeyValue,
@@ -289,7 +290,7 @@ describe('the meta_whatsapp handler', () => {
     const inbound = (await messagesOf(thread?.id ?? '')).filter((m) => m.direction === 'inbound');
     expect(inbound).toHaveLength(1);
     const fileId = inbound[0]?.file_id ?? '';
-    expect(fileId).toBe(inbound[0]?.id);
+    expect(fileId).not.toBe('');
     const [file] = await asMigrator(
       (m) => m<{ purpose: string; status: string; entity_id: number }[]>`
         select purpose, status, entity_id from files where id = ${fileId}`,
@@ -305,6 +306,94 @@ describe('the meta_whatsapp handler', () => {
       );
     expect(await sees(customer.owner)).toBe(1);
     expect(await sees(await createTestPrincipal('tele_caller_cc', [1]))).toBe(0);
+  });
+
+  it('keeps one file when two deliveries of a photo run at once, even if the checks finish between them', async () => {
+    const customer = await whatsappCustomer(1);
+    const store = memoryFileStore();
+    const photo = {
+      from: customer.waId,
+      id: `wamid.${newId()}`,
+      timestamp: seconds(),
+      type: 'image',
+      image: { id: 'media-twice', mime_type: 'image/png' },
+    };
+    // The slow delivery: it reads the message (no file yet), then waits inside its download.
+    let started: () => void = () => undefined;
+    const inDownload = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const slow = whatsappHandler(
+      deps({
+        store,
+        downloadMedia: async () => {
+          started();
+          await released;
+          return { bytes: PNG, contentType: 'image/png' };
+        },
+      }),
+    )(delivery(one.phoneNumberId, { messages: [photo] }), context());
+    await inDownload;
+    // The other delivery keeps the file, and its checks mask it and delete the original.
+    await whatsappHandler(
+      deps({ store, downloadMedia: () => Promise.resolve({ bytes: PNG, contentType: 'image/png' }) }),
+    )(delivery(one.phoneNumberId, { messages: [photo] }), context());
+    const [thread] = await threadsOf(customer.waId);
+    const fileId = (await messagesOf(thread?.id ?? '')).find((m) => m.direction === 'inbound')?.file_id;
+    const [kept] = await asMigrator(
+      (m) => m<{ key: string }[]>`select key from files where id = ${fileId ?? ''}`,
+    );
+    const masked = (kept?.key ?? '').replace(/\.png$/, '-masked.png');
+    await store.put(masked, PNG, 'image/png');
+    await store.delete(kept?.key ?? '');
+    await asPrincipal(systemWorkersPrincipal(1), ({ tx }) =>
+      tx.execute(sql`update files set key = ${masked}, status = 'ready' where id = ${fileId ?? ''}::uuid`),
+    );
+    // The slow delivery finishes: its attach is refused and what it stored is deleted.
+    release();
+    await slow;
+    expect([...store.objects.keys()]).toEqual([masked]);
+    const after = (await messagesOf(thread?.id ?? '')).find((m) => m.direction === 'inbound');
+    expect(after?.file_id).toBe(fileId);
+    const [files] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from files
+                                 where purpose = 'whatsapp_media' and key like ${`%${fileId ?? ''}%`}`,
+    );
+    expect(files?.n).toBe(1);
+  });
+
+  it('sends no STOP confirmation on a retry after the customer opted back in', async () => {
+    const customer = await whatsappCustomer(1);
+    const stop = text(customer.waId, 'STOP');
+    const workers = systemWorkersPrincipal(1);
+    // The first try recorded the message and the opt-out, then stopped before the confirmation.
+    const recorded = await executeCommand(workers, { entityIds: [1] }, recordInboundWhatsApp, {
+      phoneNumberId: one.phoneNumberId,
+      waId: customer.waId,
+      providerMessageId: stop.id,
+      kind: 'text',
+      body: 'STOP',
+      buttonPayload: null,
+      sentAt: new Date(Number(stop.timestamp) * 1000).toISOString(),
+      handledBy: 'people',
+    });
+    await executeCommand(workers, { entityIds: [1] }, recordWhatsAppOptOut, {
+      entityId: 1,
+      threadId: recorded.threadId,
+      at: new Date(Number(stop.timestamp) * 1000).toISOString(),
+    });
+    // The customer opts back in before the retry.
+    await asMigrator(
+      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+        values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'verbal', 'v1', now() + interval '1 second', ${customer.owner.id})`,
+    );
+    await whatsappHandler(deps())(delivery(one.phoneNumberId, { messages: [stop] }), context());
+    const outbound = (await messagesOf(recorded.threadId)).filter((m) => m.direction === 'outbound');
+    expect(outbound.map((m) => m.kind)).not.toContain('system');
   });
 
   it('never downloads or stores a kept file again after its checks replaced the original', async () => {

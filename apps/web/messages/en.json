@@ -216,6 +216,7 @@
     "file_type_not_allowed": "This kind of file cannot be used here. Choose one of the kinds listed.",
     "file_too_large": "This file is too large. Choose a smaller file.",
     "file_upload_mismatch": "The file did not arrive whole. Upload it again.",
+    "whatsapp_media_taken": "This WhatsApp message already has its file. Nothing more is needed.",
     "files_unavailable": "Files cannot be uploaded here yet. Ask your administrator to finish setting up file storage.",
     "file_upload_transition_not_allowed": "This file has already moved on. Refresh the page to see where it stands.",
     "file_infected": "This file was refused because it carries something harmful. Check your computer for viruses and use another copy.",

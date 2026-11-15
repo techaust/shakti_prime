@@ -563,6 +563,23 @@ describe('a number that opted out (app.whatsapp_record_opt_out)', () => {
     ).toEqual([{ message_id: null, created_at: null }]);
   });
 
+  it('confirms a STOP only while the number is still opted out', async () => {
+    const customer = await whatsappCustomer(1);
+    const thread = await openThread(customer);
+    await rows(workers([1]), sql`select * from app.whatsapp_record_opt_out(${thread.thread_id}::uuid, now())`);
+    // The customer opts back in before the confirmation is asked for (a retried delivery).
+    await asMigrator(
+      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+        values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'verbal', 'v1', now() + interval '1 second', ${customer.owner.id})`,
+    );
+    expect(
+      await rows(
+        workers([1]),
+        sql`select * from app.whatsapp_queue_message(${thread.thread_id}::uuid, 'system', 'stop_note', '[]'::jsonb)`,
+      ),
+    ).toEqual([{ message_id: null, created_at: null }]);
+  });
+
   it('a STOP opts the number out in every company, with or without a consent, and a later chat too', async () => {
     const channel2 = await whatsappChannel(2);
     const customer = await whatsappCustomer(1);
