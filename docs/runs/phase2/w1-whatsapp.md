@@ -177,3 +177,47 @@ Three high findings block the merge; the rest are follow-ups unless the fix is o
 **Not checked**
 - Screenshots and layout: no Linux baselines exist yet (the lead makes them); the journeys were not run again here.
 - The I1 wiring of `IngestLeadPort`, Meta's sandbox, and anything hosted.
+
+### Fix round, 15-11-2026, the lead's cloud VM (slot 2, Postgres 54332)
+Every finding of the review, with the lead's decisions on M1 and M2. Migrations (the lead renumbers): `0173_whatsapp_fix_round.sql` (generated, hand-edited: `label` filled from `name` before `NOT NULL`, the two widened checks `NOT VALID`) and `0174_whatsapp_fix_round_rls.sql` (custom, every function redefined whole).
+
+**Fixes**
+- **H1** (`apps/web/src/workers/webhooks/whatsapp.ts`): a repeated delivery no longer returns after the record; the intake, STOP, HUMAN and the welcome run again, each safe twice. `app.whatsapp_record_inbound()` answers on a repeat what the first delivery did (`first_message` when it was the thread's first, the holders, the message's file); the STOP confirmation is asked for after every STOP and `app.whatsapp_queue_message()` queues it once after each STOP; the welcome is queued once per thread (`whatsapp_threads.welcomed_at`, set by the definer); asked again, the definer answers a row with no message and the command `queued: false`. A STOP older than a consent given since changes nothing, so a late repeat never undoes a consent.
+- **H2**: the handler downloads and stores a file only while the message has none (`fileId` from the record), so a repeat after the checks never writes the original back.
+- **H3**: `whatsapp_threads.contact_phone_id` `ON DELETE SET NULL` (0173); removing a number keeps the chat.
+- **M1**: `AGENT_DEFAULTS.concierge.handlesNewThreads = false` (named default, `packages/domain/src/ai/agent-defaults.ts`): a new chat starts with people (`handoff_reason` `no_assistant`, a new value in the check and the contract), the thread view carries `assistantOn`, "Give back to assistant" is hidden while it is off, the chat says "Your team answers every WhatsApp chat. No assistant replies to customers yet.", and the waiting notice (chats handled by people) now fires for every new chat.
+- **M2**: by number, across companies: `app.whatsapp_number_opted_out()` reads the latest STOP of any company's thread to the number; `app.whatsapp_record_opt_out()` stamps every company's thread, withdraws every holder's WhatsApp consent whether or not one existed, and a thread of an opted-out number with no STOP takes this one (so it is confirmed); a chat a company opens later starts with the number's STOP.
+- **M3**: `app.anonymise_stale_leads()` from 0142, every line kept, adds: the customer's chats in every company lose `wa_id` (now nullable, check `wa_id is null or …`) and `needs_reply`, and the customer's own text and button replies are cleared, through `app.lead_anonymise_scope` (the guard's one exception: an inbound message's `body_masked` and `button_payload` to null and nothing else). A customer who wrote on WhatsApp within the period is passed by. A thread with no number counts as opted out and takes no outbound message, the confirmation included. T3's two lines in the same function are for the lead to reconcile.
+- **L1**: a sender's name only for a person (`principals.kind = 'user'`), so the platform's messages show "Sent automatically".
+- **L2**: `whatsapp_templates.label` (1 to 60 characters, registered by the Executive with `messaging.template.register`, update grant added); the composer and the chat show it, never Meta's name.
+- **L3**: the `sent` record is outside the send's `catch`; a message taken with no answer 120 seconds later (the route stops at 30) shows as not delivered (`threadMessagesSql`).
+- **L4**: `app.whatsapp_claim_send()` checks the opt-out again (the confirmation excepted); a claim refused for it is recorded `refused` / `opted_out`.
+- **L5**: `WHATSAPP_MEDIA_HOSTS = ['lookaside.fbsbx.com']` in `WhatsAppAccess.mediaHosts`; the key goes only to an https address on exactly that host, no other port.
+- **L6**: "stop promotions" in `WORKSHOP_DEFAULTS.whatsapp.keywords.stop` and the workshop pack; a button reply's payload is read for a keyword as its text is.
+- **L7**: PRD §8 rows of CRM-10, TEL-03 and WA-01/03/04 name W1's suites. **L8**: DATABASE's merge row reworded.
+- Also: the endpoint catalogue lists `rate_limited` for `workers.messaging.send` (API §3.6 named it; `endpoints.test.ts` had failed since the report); DATABASE §4.1, §4.4 and §6, SECURITY §3.2 and §7, the design's "Built (W1)", `pnpm db:docs` and `machines:docs` updated.
+
+**Tests added or changed**
+- `packages/db/tests/security/whatsapp.test.ts`: 31 (8 new: a STOP across three companies with no consent and an old STOP after a consent; the welcome once; the claim refusing an opted-out number but the confirmation; a chat starting with people; removing a number; the anonymisation clearing number and words, passing by a recent writer, and the guard refusing any other clearing). Repeat answers and confirmations changed.
+- `apps/web/tests/whatsapp.test.ts`: 17 (5 new: a STOP from an unknown number whose intake fails first, finished on the next delivery, the welcome likewise once; no second download or store after the checks replaced the original; a STOP to every company and Meta's "Stop promotions" button; the STOP landing between the worker's checks and its claim; a taken message with no answer shown as not delivered, sent automatically, with its label).
+- `packages/domain/tests/commands/messaging.test.ts`: 32 (queue and claim cases changed for once-only); `apps/web/src/integrations/whatsapp/whatsapp.test.ts`: 2 new (the media host allowlist); `keywords.test.ts`, `workshop-defaults.test.ts`, `contract-values.ts`, `agent-refusals.test.ts`, the matrix fixture and the journey seed follow the label and the new reason.
+- `apps/web/e2e/messages.spec.ts`: the tele-caller's journey now checks that the team answers and nothing offers to give the chat back.
+
+**Checks**
+- `pnpm test:security` (through the lock): db 49 files, 1368 passed; domain 84 files, 1152 passed; web 29 files, 373 passed, 1 failed: `tests/demo-data.test.ts` "puts the items, kits and prices …" (`PUMP-3HP` price undefined), failing again when run alone. Not this slice's (the slice touches no pricing or demo code): every run of the demo loader on this slot database adds a retail list effective today, and with four of them dated 15-11-2026 the test reads another run's list. It needs a fresh database, which the lead makes.
+- Before that run, `lead-anonymise.test.ts` "looks at the oldest change first" failed because my new anonymisation fixtures were dated 2001; they are now 2010 and leave the window afterwards, and the two files pass together (53).
+- `pnpm build`; `pnpm --filter web js-budget`: "Every page is within its budget (48 pages)".
+- Journeys (through the lock): 96 passed, 2 skipped, 21 failed, all the same seven intended screenshots as before (`customer-sizing`, `converting-board`, `integration-health`, `notification-settings`, `not-found-tele-caller`, `customers-list`, `notification-centre` in three projects); the new `messages` baselines (now with "The team answers") written locally and not committed.
+- `pnpm lint` (whole repository, through the lock): clean. Typecheck of the four workspaces: clean. ESLint per edited folder: clean. `pnpm copy-lint`: clean. Unit: `@shakti/domain` `src` 96 files, 2424 passed after the two fixes (defaults list, `machines:docs`); `@shakti/contracts` 185 passed; web `src/screens` 216 passed, `src/integrations/whatsapp` 13 passed.
+
+**Decisions in this round**
+20. A STOP older than a WhatsApp consent given since changes nothing (a late repeat must not undo a consent).
+21. A customer who wrote on WhatsApp within the retention period is not anonymised that night (checked in `anonymise_stale_leads()`, not in `app.customer_idle()`, to keep the change inside the one function W1 redefines).
+22. The anonymisation keeps the chats, their message keys and the customer's WhatsApp files; the files are left to the media retention job (decision 15).
+23. A taken message shows as not delivered after 120 seconds with no answer (`SEND_ANSWER_SECONDS`, four times the route's limit).
+24. Templates registered before 0173 are labelled with their Meta name (only local rows exist).
+
+**Open for the lead**
+- `app.anonymise_stale_leads()`: reconcile T3's two lines with 0174's at the merge.
+- The demo-data case above, on a fresh database.
+- The seven baselines and `messages`, in the Linux image; `js-budget.json` and the owner's `checks-ok` as before.
