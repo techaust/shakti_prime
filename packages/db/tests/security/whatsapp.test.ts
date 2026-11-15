@@ -936,12 +936,16 @@ describe('a customer’s number removed (whatsapp_threads.contact_phone_id on de
 });
 
 describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', () => {
-  /** A customer idle since 2001 with one lead and a chat in company 1, last written at `wrote`. */
+  /**
+   * A customer idle since 2010 with one lead and a chat in company 1, last written at `wrote`:
+   * past the period, but newer than lead-anonymise.test.ts' rows of 2001, which must come first
+   * in company 1's window.
+   */
   async function staleCustomer(wrote: string) {
     const ids = { account: newId(), contact: newId(), phone: newId(), lead: newId(), thread: newId() };
     const digits = `9196${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
     const pipeline = PIPELINE_SEED[0]?.id ?? '';
-    const at = '2001-01-01';
+    const at = '2010-01-01';
     await asMigrator(async (m) => {
       await m`insert into contacts (id, name, created_by, created_at, updated_at)
               values (${ids.contact}, 'WhatsApp stale person', ${exec1.id}, ${at}, ${at})`;
@@ -968,6 +972,9 @@ describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', (
     });
     return { ...ids, digits };
   }
+  /** The lead changed now, so it leaves company 1's window for the other suites. */
+  const active = (lead: string) =>
+    asMigrator((m) => m`update opportunities set updated_at = now() where id = ${lead}`);
   const anonymise = (lead: string) =>
     rows<{ result: { leads: { id: string }[]; failed: number } }>(
       workers([1]),
@@ -975,7 +982,7 @@ describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', (
     );
 
   it('removes the number and the customer’s words from the chat, and keeps the chat as a fact', async () => {
-    const stale = await staleCustomer('2001-01-01');
+    const stale = await staleCustomer('2010-01-01');
     const [run] = await anonymise(stale.lead);
     expect(run?.result).toMatchObject({ leads: [{ id: stale.lead }], failed: 0 });
     const [thread] = await asMigrator(
@@ -1006,10 +1013,11 @@ describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', (
     const recent = await staleCustomer(new Date().toISOString());
     const [run] = await anonymise(recent.lead);
     expect(run?.result).toMatchObject({ leads: [], failed: 0 });
+    await active(recent.lead);
   });
 
   it('is the only way a customer’s words leave a message', async () => {
-    const stale = await staleCustomer('2001-01-01');
+    const stale = await staleCustomer('2010-01-01');
     expect(
       await failure(
         asMigrator(
@@ -1018,5 +1026,6 @@ describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', (
         ),
       ),
     ).toMatch(/keeps what it was written with/);
+    await active(stale.lead);
   });
 });
