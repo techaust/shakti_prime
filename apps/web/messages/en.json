@@ -27,9 +27,6 @@
     "knowledge_timed_out": "Reading this file took too long. Read it again in a few minutes.",
     "knowledge_still_reading": "This file is still being read. Try again in a few minutes.",
     "knowledge_person_search_cap_reached": "You have used your share of today's searches. It works again tomorrow.",
-    "knowledge_transcript_not_roman": "Write the transcript in English letters only, as you would type Hindi words in a phone message, then save it again.",
-    "knowledge_transcript_not_audio": "Only a recording has a transcript to correct. Refresh the page to see this file as it is.",
-    "knowledge_transcript_too_long": "This transcript is too long to save. Shorten it, then save it again.",
     "validation_failed": "Some details are missing or incorrect. Please check and try again.",
     "unauthorized": "Please sign in to continue.",
     "forbidden": "You don't have access to this. Ask your manager if you need it.",
@@ -231,7 +228,6 @@
     "file_pdf_page_too_dense": "One page of this PDF is too dense for us to check. Take a photo of each page and upload the photos instead.",
     "file_masking_unavailable": "The Knowledge Vault cannot check scanned pages and photos yet. Ask your administrator to finish setting it up, or upload a Word document or a workbook.",
     "file_mask_failed": "We could not find the numbers we must cover on this photo or page, so it was not kept. Use a clearer copy and upload it again.",
-    "file_audio_too_long": "This recording is longer than 30 minutes. Split it into shorter recordings and upload each one as a WAV file.",
     "catalogue_item_missing": "This item is no longer in the catalogue. Refresh the page to see the current list.",
     "catalogue_kit_missing": "This kit is no longer in the catalogue. Refresh the page to see the current list.",
     "item_sku_taken": "Another item already uses this item code. Choose a different code.",
@@ -297,15 +293,6 @@
     "lost_reason_missing": "Choose why the lead was lost.",
     "nurture_reason_missing": "Choose why the lead should be followed up later.",
     "dial_number_missing": "This customer has no main phone number. Add one on the customer page.",
-    "dial_refused": "This call cannot be placed now. The reasons are listed under Call from the screen.",
-    "dial_phone_not_own": "This number belongs to a customer or a company line, or is the number you are calling. Enter the phone you take calls on.",
-    "dial_phone_missing": "Add your own phone number on your profile first. The call rings that phone before the customer's.",
-    "dial_in_progress": "Your last call is still being placed. Wait a moment before calling again.",
-    "dial_failed": "The call could not be placed. Try again, or dial by hand and save the call.",
-    "calling_not_set_up": "Calling from the screen is not set up yet. Dial by hand and save the call.",
-    "provider_call_missing": "This call was not found on this lead. Reload the page and save the call again.",
-    "provider_call_logged": "This call is saved already.",
-    "recording_missing": "There is no recording of this call to play.",
     "duplicate_missing": "This possible duplicate has been dealt with, or you cannot see both customers. Reload the page to see the latest.",
     "duplicate_not_matching": "These two leads are not open leads of the same customer for the same kind of work, so they cannot be put forward as one.",
     "duplicate_candidate_transition_not_allowed": "This possible duplicate has already been dealt with. Reload the page to see the latest.",
@@ -388,7 +375,31 @@
     "payload_unreadable": "The message from the other system could not be read, so it was set aside.",
     "handler_failed": "The message from the other system could not be handled after several tries.",
     "no_handler": "The message from the other system was kept. Nothing handles this kind of message yet.",
-    "too_many_attempts": "The message from the other system failed ten times, so it was set aside."
+    "too_many_attempts": "The message from the other system failed ten times, so it was set aside.",
+    "lead_source_missing": "This lead source is no longer connected. Refresh the page to see the sources as they are now.",
+    "lead_source_fixed": "A connected form cannot be swapped for another. Disconnect this one and connect the new form.",
+    "lead_source_taken": "This form is already connected to a company. Disconnect it there first.",
+    "ingest_key_missing": "This website key has already been turned off. Refresh the page to see the keys as they are now.",
+    "ingest_key_refused": "This website key is not recognised or has been turned off. Ask an Executive for a new key.",
+    "ingest_key_other_company": "This website key belongs to another company. Use the key made for this company.",
+    "turnstile_failed": "We could not confirm the form was sent by a person. Please try again.",
+    "form_unmapped": "This lead form is not connected to a company yet. Connect it in Lead sources, then process it again.",
+    "form_map_incomplete": "This lead form's questions do not say which is the name and which is the phone. Match them in Lead sources, then process it again.",
+    "page_token_missing": "The Facebook Page of this form is not connected. Connect it in Lead sources, then process it again.",
+    "page_token_refused": "Facebook turned down the Page connection of this form. Connect the Page again in Lead sources, then process it again.",
+    "knowledge_transcript_not_roman": "Write the transcript in English letters only, as you would type Hindi words in a phone message, then save it again.",
+    "knowledge_transcript_not_audio": "Only a recording has a transcript to correct. Refresh the page to see this file as it is.",
+    "knowledge_transcript_too_long": "This transcript is too long to save. Shorten it, then save it again.",
+    "file_audio_too_long": "This recording is longer than 30 minutes. Split it into shorter recordings and upload each one as a WAV file.",
+    "dial_refused": "This call cannot be placed now. The reasons are listed under Call from the screen.",
+    "dial_phone_not_own": "This number belongs to a customer or a company line, or is the number you are calling. Enter the phone you take calls on.",
+    "dial_phone_missing": "Add your own phone number on your profile first. The call rings that phone before the customer's.",
+    "dial_in_progress": "Your last call is still being placed. Wait a moment before calling again.",
+    "dial_failed": "The call could not be placed. Try again, or dial by hand and save the call.",
+    "calling_not_set_up": "Calling from the screen is not set up yet. Dial by hand and save the call.",
+    "provider_call_missing": "This call was not found on this lead. Reload the page and save the call again.",
+    "provider_call_logged": "This call is saved already.",
+    "recording_missing": "There is no recording of this call to play."
   },
   "auth": {
     "signIn": {
@@ -486,7 +497,8 @@
     "dealerCredit": "Dealer credit",
     "targets": "Targets",
     "converters": "Lead converters",
-    "converting": "Converting"
+    "converting": "Converting",
+    "settingsLeadSources": "Lead sources"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -561,7 +573,8 @@
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "targets": "Set what each caller and team is aiming for, and see what was set before.",
       "converters": "Choose who takes qualified leads, how many each person takes and who is present.",
-      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen."
+      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen.",
+      "settingsLeadSources": "Connect Facebook, Google and website lead forms, and make website keys."
     },
     "progress": {
       "period": {
@@ -632,6 +645,15 @@
     }
   },
   "profile": {
+    "title": "Your profile",
+    "intro": "How the screens look for you, your password and whether you take new leads.",
+    "presence": {
+      "heading": "Taking new leads",
+      "intro": "When you are present, a qualified lead can be given to you if your manager has made you a Lead Converter. Switch to away when you cannot take more.",
+      "label": "I am present in {company}",
+      "present": "You are present in {company}.",
+      "away": "You are away in {company}."
+    },
     "dialPhone": {
       "heading": "Your phone for calls",
       "intro": "When you call a customer from the screen, this phone rings first. Answer it, and the customer's phone rings next.",
@@ -641,15 +663,6 @@
       "save": "Save",
       "saved": "Your phone for calls is saved.",
       "cleared": "Your phone for calls is removed."
-    },
-    "title": "Your profile",
-    "intro": "How the screens look for you, your password and whether you take new leads.",
-    "presence": {
-      "heading": "Taking new leads",
-      "intro": "When you are present, a qualified lead can be given to you if your manager has made you a Lead Converter. Switch to away when you cannot take more.",
-      "label": "I am present in {company}",
-      "present": "You are present in {company}.",
-      "away": "You are away in {company}."
     }
   },
   "mail": {
@@ -1676,8 +1689,6 @@
       "knowledgeFileReindex": "Knowledge Vault file read again",
       "knowledgeFileArchive": "Knowledge Vault file archived",
       "knowledgeFileIndexed": "Knowledge Vault file read for search",
-      "knowledgeTranscriptKept": "Recording's transcript kept",
-      "knowledgeTranscriptCorrect": "Recording's transcript corrected",
       "quoteAccept": "Quote accepted with the signed copy",
       "orderCreate": "Dealer order made",
       "orderConfirm": "Order confirmed or held for credit",
@@ -1716,16 +1727,25 @@
       "channelSet": "Company number set",
       "channelArchive": "Company number taken out of use",
       "phoneDndRecord": "Do-not-disturb list checked",
+      "webhookClaim": "A message from another system taken up",
+      "webhookMark": "A message from another system handled",
+      "webhookSweep": "Old messages from other systems cleared out",
+      "webhookReplay": "A failed message from another system handled again",
+      "leadIngest": "Lead came in from an ad, form, website or WhatsApp",
+      "leadQualificationSet": "Lead details recorded",
+      "sourceSet": "Lead source connected or changed",
+      "sourceArchive": "Lead source disconnected",
+      "ingestKeyCreate": "Website key made",
+      "ingestKeyRevoke": "Website key turned off",
+      "sourceQuestionsRecord": "A lead form's questions noted",
+      "knowledgeTranscriptKept": "Recording's transcript kept",
+      "knowledgeTranscriptCorrect": "Recording's transcript corrected",
       "callDial": "Call placed from the screen",
       "providerCallRecord": "Call progress recorded",
       "callRecordingAttach": "Call recording kept",
       "callRecordingDelete": "Old call recording removed",
       "callRecordingPlay": "Call recording played",
-      "callerProfileSetDialPhone": "Own calling phone changed",
-      "webhookClaim": "A message from another system taken up",
-      "webhookMark": "A message from another system handled",
-      "webhookSweep": "Old messages from other systems cleared out",
-      "webhookReplay": "A failed message from another system handled again"
+      "callerProfileSetDialPhone": "Own calling phone changed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1977,7 +1997,6 @@
       "chunks": "Passages",
       "replaced": "Passages replaced",
       "errorReason": "Why it could not be read",
-      "transcriptChars": "Characters in the transcript",
       "acceptedVia": "How it was accepted",
       "soNo": "Order number",
       "orderState": "Order status",
@@ -2040,14 +2059,31 @@
       "verified": "Checked and working",
       "isDnd": "On the do-not-disturb list",
       "dndCheckedAt": "Do-not-disturb list checked",
+      "provider": "From",
+      "failed": "Failed",
+      "leadChannel": "Came in by",
+      "ingestOutcome": "What happened",
+      "assignedTo": "Given to",
+      "attribution": "Ad details recorded",
+      "qualification": "Lead details recorded",
+      "sourceProvider": "Kind of source",
+      "externalId": "Form or site",
+      "fieldMap": "Form questions matched",
+      "pageTokenSet": "Facebook Page connected",
+      "keyHint": "Key ends with",
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number",
+      "transcriptChars": "Characters in the transcript",
       "callPurpose": "Kind of call",
       "numberSeries": "Calling line",
       "callStatus": "Call status",
       "endedAt": "Ended",
       "listenedAt": "Played",
-      "dialPhone": "Own calling phone",
-      "provider": "From",
-      "failed": "Failed"
+      "dialPhone": "Own calling phone"
     },
     "values": {
       "percent": "{value}%",
@@ -2099,6 +2135,30 @@
         "call_service_160": "Service calls number (160 series)",
         "ivr": "Incoming calls number",
         "missed_call": "Missed-call number"
+      },
+      "leadChannel": {
+        "meta_ads": "Facebook or Instagram ad",
+        "google_ads": "Google ad",
+        "website": "Company website",
+        "whatsapp": "WhatsApp message",
+        "ivr": "Incoming call",
+        "missed_call": "Missed call"
+      },
+      "ingestOutcome": {
+        "created": "New lead made",
+        "attached": "Added to the open lead"
+      },
+      "ingestAssignee": {
+        "caller": "A tele-caller, in turn",
+        "team_lead": "The sales team lead, as work to pass on",
+        "customer_owner": "The colleague who looks after the customer",
+        "lead_owner": "The owner of the open lead",
+        "unassigned": "Nobody yet"
+      },
+      "sourceProvider": {
+        "meta_leadgen": "Facebook and Instagram lead form",
+        "google_leadform": "Google lead form",
+        "website": "Company website"
       },
       "callPurpose": {
         "promotional": "Sales call",
@@ -2683,11 +2743,11 @@
         "leads_merged": "Another lead merged into this one"
       },
       "tagDetail": "Tag: {name}",
-      "play": "Play recording",
-      "recordingLabel": "Recording of the call",
       "callDetail": "Outcome: {outcome}",
       "sizingInBounds": "{kind} sizing, within limits",
-      "sizingOutOfBounds": "{kind} sizing, outside limits"
+      "sizingOutOfBounds": "{kind} sizing, outside limits",
+      "play": "Play recording",
+      "recordingLabel": "Recording of the call"
     },
     "dialogs": {
       "accountTitle": "Edit customer details",
@@ -2919,8 +2979,28 @@
         "payload_unreadable": "We could not read it",
         "handler_failed": "The step that handles it failed",
         "too_many_attempts": "It failed ten times",
+        "form_unmapped": "The lead form is not connected to a company",
+        "form_map_incomplete": "The form's name or phone question is not matched",
+        "page_token_missing": "The Facebook Page is not connected",
+        "page_token_refused": "Facebook turned down the Page connection",
+        "lead_unreadable": "Facebook sent a lead we could not read",
+        "lead_fetch_refused": "Facebook did not give the lead",
         "other": "Something else went wrong"
       }
+    },
+    "unowned": {
+      "heading": "Leads nobody has yet",
+      "intro": "Leads from ads, forms, websites and WhatsApp that came in when no tele-caller was present and the company has no sales team lead. Give each one to someone from the leads board.",
+      "caption": "Leads from other systems with no owner, newest first",
+      "empty": "Every lead from other systems has an owner.",
+      "total": "{count, plural, one {# lead has no owner} other {# leads have no owner}}",
+      "columns": {
+        "company": "Company",
+        "channel": "Came in by",
+        "arrived": "Arrived",
+        "customer": "Customer"
+      },
+      "open": "Open the customer"
     }
   },
   "files": {
@@ -3446,6 +3526,7 @@
       "files_process": "Check uploaded files before they are used",
       "imports_process": "Stop an import that could not finish",
       "crm_config_write": "Set up pipelines, call outcomes, lead scores and referral codes",
+      "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_score_refresh": "Bring lead scores up to date each night",
       "crm_duplicates_scan": "Look for duplicate customers and leads each night",
       "sales_quote_expire": "Mark quotes past their validity as expired each day",
@@ -3458,8 +3539,9 @@
       "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
       "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance",
       "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list",
-      "calls_process": "Record how a placed call went and keep its recording",
-      "webhooks_process": "Handle the messages other systems send in"
+      "webhooks_process": "Handle the messages other systems send in",
+      "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
+      "calls_process": "Record how a placed call went and keep its recording"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3863,29 +3945,8 @@
     "keys": {
       "next": "N",
       "dial": "D",
-      "callFromScreen": "C",
-      "search": "/"
-    },
-    "bar": {
-      "title": "Call from the screen",
-      "noticeFirst": "Say this first:",
-      "dial": "Call",
-      "howItWorks": "Your own phone rings first. Answer it, and the customer's phone rings next.",
-      "timeLabel": "Time on the call",
-      "status": {
-        "dialling": "Placing the call",
-        "ringing": "Ringing",
-        "in_progress": "On the line",
-        "completed": "Call ended",
-        "no_answer": "Not answered",
-        "busy": "Line busy",
-        "failed": "Call did not go through",
-        "canceled": "Call stopped"
-      },
-      "logNow": "The call has ended. Choose its outcome to save it.",
-      "refused": "This call cannot be placed now:",
-      "noOwnPhone": "To call from the screen, add the phone you take calls on.",
-      "addOwnPhone": "Add it on your profile"
+      "search": "/",
+      "callFromScreen": "C"
     },
     "plan": {
       "title": "How this call would go out",
@@ -3916,6 +3977,27 @@
         "dnd_unknown": "We could not check the do-not-disturb list just now. Try again in a few minutes.",
         "dnd_not_set_up": "The do-not-disturb check is not set up yet, so sales calls cannot be checked against it."
       }
+    },
+    "bar": {
+      "title": "Call from the screen",
+      "noticeFirst": "Say this first:",
+      "dial": "Call",
+      "howItWorks": "Your own phone rings first. Answer it, and the customer's phone rings next.",
+      "timeLabel": "Time on the call",
+      "status": {
+        "dialling": "Placing the call",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Call ended",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Call did not go through",
+        "canceled": "Call stopped"
+      },
+      "logNow": "The call has ended. Choose its outcome to save it.",
+      "refused": "This call cannot be placed now:",
+      "noOwnPhone": "To call from the screen, add the phone you take calls on.",
+      "addOwnPhone": "Add it on your profile"
     }
   },
   "duplicates": {
@@ -4412,9 +4494,6 @@
     "forHint": "A file for every company can be added only while All companies is chosen at the top.",
     "findByLabel": "Who can find it",
     "fileLabel": "File",
-    "fileHint": "{types} up to {size}, or a recording as a WAV file up to {recordingSize}, which holds about 13 minutes of a standard recording",
-    "fileWrongType": "This kind of file cannot be added. Choose a {types} file. Save a recording as a WAV file first: MP3, M4A and OGG recordings cannot be added.",
-    "fileTooLarge": "This file is too large. A document or photo can be up to {size}, and a WAV recording up to {recordingSize}.",
     "uploaded": "Uploaded and checked. Add it to the vault.",
     "uploadFirst": "Upload the file before you add it.",
     "addToVault": "Add to the vault",
@@ -4425,6 +4504,9 @@
     "archiveTitle": "Archive this file?",
     "archiveIntro": "{title} will no longer appear in search. This cannot be undone.",
     "archivedNotice": "Archived. The file no longer appears in search.",
+    "fileHint": "{types} up to {size}, or a recording as a WAV file up to {recordingSize}, which holds about 13 minutes of a standard recording",
+    "fileWrongType": "This kind of file cannot be added. Choose a {types} file. Save a recording as a WAV file first: MP3, M4A and OGG recordings cannot be added.",
+    "fileTooLarge": "This file is too large. A document or photo can be up to {size}, and a WAV recording up to {recordingSize}.",
     "file": {
       "title": "Knowledge Vault file",
       "back": "Back to Knowledge",
@@ -5087,5 +5169,133 @@
       "settled": "Clash settled.",
       "drafted": "{count, plural, =0 {The file states no rule we could draft.} one {# draft rule added.} other {# draft rules added.}}"
     }
+  },
+  "leadSources": {
+    "title": "Lead sources",
+    "intro": "Connect each company's Facebook and Instagram lead forms, Google lead forms and website, and make the keys a website sends leads with.",
+    "company": "Company",
+    "noCompany": "You do not work for any company yet.",
+    "sourcesHeading": "Forms and websites",
+    "sourcesIntro": "Leads from these arrive on their own and go to a tele-caller in turn. A form not connected here is kept aside on Integration health until it is.",
+    "connect": "Connect a form",
+    "noSources": "No forms or websites are connected to this company yet.",
+    "provider": {
+      "meta_leadgen": "Facebook and Instagram lead form",
+      "google_leadform": "Google lead form",
+      "website": "Company website"
+    },
+    "matched": "Name and phone matched",
+    "notMatched": "Name or phone not matched",
+    "consentQuestion": "Has a consent question",
+    "noConsentQuestion": "No consent question",
+    "pageConnected": "Facebook Page connected",
+    "pageMissing": "Facebook Page not connected",
+    "noLeadYet": "No lead has come in from it yet.",
+    "lastLead": "Last lead came in on <time>{when}</time>.",
+    "change": "Change",
+    "changeLabel": "Change {name}",
+    "disconnect": "Disconnect",
+    "disconnectLabel": "Disconnect {name}",
+    "disconnected": "{name} is disconnected.",
+    "connectTitle": "Connect a form",
+    "changeTitle": "Change a form",
+    "dialogIntro": "Choose where its leads go and match each question of the form to a lead detail.",
+    "kind": "Kind of form",
+    "formId": "Form ID",
+    "formIdHelper": "Copy it from the form's page in Facebook or Google Ads.",
+    "siteHost": "Website address",
+    "siteHostHelper": "The address the site is on, such as shaktisupreme.com, without https. It is kept in small letters.",
+    "fixed": "A connected form cannot be swapped. Disconnect it and connect the new one instead.",
+    "name": "Name shown here",
+    "pipeline": "Line of business",
+    "pipelineHelper": "Every lead from this form goes to this line of business.",
+    "questions": "Questions of the form",
+    "questionsIntro": "These are the questions of the newest lead the form sent. Choose what each one fills in.",
+    "noQuestionsYet": "No lead has come in yet. Send a trial lead from the form's own page, or add its questions by hand.",
+    "targets": {
+      "none": "Not used",
+      "fullName": "Full name",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Mobile number",
+      "pin": "PIN code",
+      "village": "Village or town",
+      "message": "Message",
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number"
+    },
+    "addQuestion": "Add a question",
+    "addQuestionHelper": "Type the question's ID exactly as the form names it.",
+    "add": "Add",
+    "incomplete": "Match a name question and the mobile number question, or leads from this form are kept aside.",
+    "consent": "Consent",
+    "consentKey": "Consent question",
+    "consentKeyHelper": "A lead gets a consent only when the person ticked this question.",
+    "noConsent": "The form asks for no consent",
+    "consentVersion": "Version of the consent wording",
+    "consentVersionHelper": "Change it whenever the wording on the form changes, so each consent shows what was agreed.",
+    "consentChannels": "A tick agrees to",
+    "channels": {
+      "whatsapp": "WhatsApp messages",
+      "call": "Calls",
+      "sms": "Text messages",
+      "email": "Emails"
+    },
+    "consentPurpose": "For",
+    "purposes": {
+      "service": "Service about their enquiry",
+      "promotional": "Offers and promotions"
+    },
+    "pageToken": "Facebook Page access key",
+    "pageTokenHelper": "Paste the Page access key from Facebook. It is locked away when saved and never shown again.",
+    "pageTokenKept": "A Page access key is saved. Paste a new one only to replace it.",
+    "save": "Save form",
+    "saved": "{name} is saved.",
+    "close": "Close",
+    "keysHeading": "Website keys",
+    "keysIntro": "A company's website sends its enquiries with one of these keys. Turn a key off when the website no longer uses it.",
+    "keyLabel": "Name of the new key",
+    "keyLabelHelper": "Such as the website it is for.",
+    "makeKey": "Make a key",
+    "keyMade": "The key for {label}",
+    "keyOnce": "Copy it into the website now. It is not shown again.",
+    "keyCopied": "I have copied it",
+    "noKeys": "This company has no website keys yet.",
+    "endsWith": "Ends with {hint}",
+    "neverUsed": "Not used yet.",
+    "lastUsed": "Last used on <time>{when}</time>.",
+    "turnedOff": "Turned off on <time>{when}</time>.",
+    "turnOff": "Turn off",
+    "turnOffLabel": "Turn off {label}",
+    "keyTurnedOff": "{label} is turned off.",
+    "off": "Off",
+    "keySite": "Website the key is for",
+    "keySiteHelper": "Its leads go to that website's line of business, and its consent box is recorded as set there.",
+    "noSite": "No website: the form must name the line of business",
+    "forSite": "For {name}",
+    "siteGone": "a website no longer connected"
+  },
+  "qualification": {
+    "heading": "Lead details",
+    "edit": "Change details",
+    "none": "No details recorded yet.",
+    "save": "Save details",
+    "saved": "The lead details are saved.",
+    "facts": {
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number"
+    },
+    "show": "Lead details",
+    "hide": "Hide lead details",
+    "dialogTitle": "Lead details of {name}",
+    "dialogIntro": "What the customer told us about their site and needs. A stage may need some of these before a lead moves on."
   }
 }

@@ -249,10 +249,16 @@ export const API_ENDPOINTS = {
     method: 'POST',
     path: '/ingest/leads',
     auth: 'ingest_key',
-    idempotencyKey: false,
+    idempotencyKey: true,
     request: IngestLeadRequest,
     response: IngestLeadResponse,
-    errors: ['validation_failed', 'unauthorized', 'forbidden', 'rate_limited'],
+    errors: [
+      'validation_failed',
+      'unauthorized',
+      'forbidden',
+      'rate_limited',
+      'integration_unavailable',
+    ],
   },
   'ingest.health': {
     method: 'GET',
@@ -260,7 +266,7 @@ export const API_ENDPOINTS = {
     auth: 'ingest_key',
     idempotencyKey: false,
     response: IngestHealthResponse,
-    errors: ['unauthorized', 'rate_limited'],
+    errors: ['unauthorized', 'integration_unavailable'],
   },
   'webhooks.whatsapp.verify': {
     method: 'GET',

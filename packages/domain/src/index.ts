@@ -27,6 +27,27 @@ export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
+export { ingestLead } from './commands/crm/ingest-lead';
+export { setLeadQualification } from './commands/crm/lead-qualification';
+export {
+  archiveIngestSource,
+  createIngestKey,
+  recordSourceQuestions,
+  revokeIngestKey,
+  setIngestSource,
+} from './commands/crm/ingest-sources';
+export { hashIngestKey, newIngestKey } from './crm/ingest-key';
+export { formQuestions, ingestIdempotencyKey, isTicked, mapFormAnswers } from './crm/ingest-map';
+export type { FormAnswer, MappedLead, SourceMapping } from './crm/ingest-map';
+export {
+  findIngestKey,
+  findIngestSource,
+  ingestSourceToken,
+  listIngestSources,
+  listUnownedIngestLeads,
+  readLeadQualification,
+} from './queries/crm/ingest-sources';
+export type { FoundIngestSource } from './queries/crm/ingest-sources';
 export { dialCall, recordedDndState } from './commands/calls/dial-call';
 export { playCallRecording } from './commands/calls/play-recording';
 export {
@@ -66,8 +87,8 @@ export { setCallerProfile, setDialPhone, setPresence } from './commands/crm/call
 export { handOverLead } from './commands/crm/hand-over-lead';
 export { reassignAllLeads, REASSIGN_ALL_LIMIT } from './commands/crm/reassign-all';
 export { listCallerProfiles, loadOwnPresence } from './queries/crm/caller-profiles';
-export { pickConverter, qualifiesAsConverter } from './crm/handover';
-export type { ConverterCandidate, HandoverLead } from './crm/handover';
+export { pickCaller, pickConverter, qualifiesAsConverter } from './crm/handover';
+export type { CallerCandidate, ConverterCandidate, HandoverLead } from './crm/handover';
 export { nurtureOpportunity } from './commands/crm/nurture-opportunity';
 export { recordSizing } from './commands/crm/record-sizing';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';

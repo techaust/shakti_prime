@@ -108,6 +108,15 @@ import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
 import { archiveEntityChannel, setEntityChannel } from '../commands/org/channels';
 import { recordPhoneDnd } from '../commands/crm/record-phone-dnd';
+import { ingestLead } from '../commands/crm/ingest-lead';
+import { setLeadQualification } from '../commands/crm/lead-qualification';
+import {
+  archiveIngestSource,
+  createIngestKey,
+  recordSourceQuestions,
+  revokeIngestKey,
+  setIngestSource,
+} from '../commands/crm/ingest-sources';
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
@@ -154,6 +163,13 @@ export const commands = Object.freeze({
   [setEntityChannel.name]: setEntityChannel,
   [archiveEntityChannel.name]: archiveEntityChannel,
   [recordPhoneDnd.name]: recordPhoneDnd,
+  [ingestLead.name]: ingestLead,
+  [setLeadQualification.name]: setLeadQualification,
+  [setIngestSource.name]: setIngestSource,
+  [archiveIngestSource.name]: archiveIngestSource,
+  [createIngestKey.name]: createIngestKey,
+  [revokeIngestKey.name]: revokeIngestKey,
+  [recordSourceQuestions.name]: recordSourceQuestions,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
   [assignOpportunity.name]: assignOpportunity,

@@ -56,6 +56,10 @@ import type { DialogKind } from './board-dialogs';
 
 /** A card's dialogs (move, assign, nurture, lose, win, reopen), fetched when one first opens. */
 const BoardDialog = dynamic(() => import('./board-dialogs').then((m) => m.BoardDialog));
+// A lead's qualification details, loaded when a card's menu first opens them.
+const QualificationDialog = dynamic(() =>
+  import('./qualification-card').then((m) => m.QualificationDialog),
+);
 
 const STATE_TONE: Record<BoardLeadDto['state'], StatusTone> = {
   open: 'accent',
@@ -99,6 +103,7 @@ export function LeadBoardScreen({
   const states = statesFor(show);
   const [board, setBoard] = useState(initial);
   const [dialog, setDialog] = useState<{ kind: DialogKind; lead: BoardLeadDto } | undefined>();
+  const [details, setDetails] = useState<BoardLeadDto | undefined>();
   const [dragging, setDragging] = useState<string | undefined>();
   const [over, setOver] = useState<string | undefined>();
   const [showDropFailure, setShowDropFailure] = useState(false);
@@ -332,6 +337,9 @@ export function LeadBoardScreen({
                     onOpen={(kind) => {
                       open(kind, lead);
                     }}
+                    onDetails={() => {
+                      setDetails(lead);
+                    }}
                   />
                 }
               />
@@ -340,6 +348,19 @@ export function LeadBoardScreen({
         ))}
       </div>
 
+      {details === undefined ? null : (
+        <QualificationDialog
+          entityId={details.entityId}
+          opportunityId={details.id}
+          name={details.customerName}
+          canWrite={can.write}
+          closeLabel={common('close')}
+          returnFocusTo={returnFocusTo(details)}
+          onClose={() => {
+            setDetails(undefined);
+          }}
+        />
+      )}
       {dialog === undefined ? null : (
         <BoardDialog
           kind={dialog.kind}
@@ -511,6 +532,7 @@ function CardMenu({
   label,
   focusTargets,
   onOpen,
+  onDetails,
 }: {
   lead: BoardLeadDto;
   can: { write: boolean; assign: boolean };
@@ -518,10 +540,12 @@ function CardMenu({
   /** Files the Actions button, so focus comes back to it when the dialog closes. */
   focusTargets: FocusTargets<string>;
   onOpen: (kind: DialogKind) => void;
+  /** Opens the lead's qualification details, which anyone who sees the card may read. */
+  onDetails: () => void;
 }) {
   const t = useTranslations('leads.board');
+  const qualification = useTranslations('qualification');
   const actions = cardActions(lead.state, can);
-  if (!Object.values(actions).some(Boolean)) return null;
   const item = (kind: DialogKind, text: string) => (
     <DropdownMenuItem
       onSelect={() => {
@@ -540,6 +564,7 @@ function CardMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={onDetails}>{qualification('show')}</DropdownMenuItem>
         {actions.move ? item('move', t('menuMove')) : null}
         {actions.assign ? item('assign', t('menuAssign')) : null}
         {actions.nurture ? item('nurture', t('menuNurture')) : null}

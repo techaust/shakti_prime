@@ -10,6 +10,7 @@ import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { ActivityRecord } from '../../activities/activity';
 import { defineCommand } from '../../command/define-command';
 import { findDuplicates, recordDuplicates } from '../../crm/duplicates';
+import { emitLeadCreated } from '../../crm/lead-events';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 import { applyLeadAttribution } from './lead-attribution';
 import { firstStage } from './opportunity-shared';
@@ -362,19 +363,15 @@ export const createLead = defineCommand({
       },
     });
 
-    ctx.emit({
-      type: 'crm.lead.created',
+    emitLeadCreated(ctx, {
       entityId,
-      aggregateType: 'opportunity',
-      aggregateId: opportunity.id,
-      payload: {
-        pipelineKey: input.pipelineKey,
-        sourceCode: input.sourceCode ?? null,
-        existingAccount: input.existingAccountId !== undefined,
-        // A row an import commits one at a time is history brought in, as the batch path marks it
-        // (`commitLeadBatch`); no agent triages it.
-        ...(ctx.inImportBatch === true ? { imported: true as const } : {}),
-      },
+      opportunityId: opportunity.id,
+      pipelineKey: input.pipelineKey,
+      sourceCode: input.sourceCode ?? null,
+      existingAccount: input.existingAccountId !== undefined,
+      // A row an import commits one at a time is history brought in, as the batch path marks it
+      // (`commitLeadBatch`).
+      imported: ctx.inImportBatch === true,
     });
 
     // Other customers that may be this one, and another open lead of the segment (CRM-03).

@@ -17,6 +17,11 @@ import type {
   CustomerLanguage,
   CustomerSort,
   EntityChannelKind,
+  IngestAssignee,
+  IngestFieldTarget,
+  IngestChannel,
+  IngestSourceProvider,
+  LeadQualificationFact,
   DispositionNextAction,
   DuplicateKind,
   DuplicateReason,
@@ -172,6 +177,62 @@ export const ENTITY_CHANNEL_KINDS = [
   'ivr',
   'missed_call',
 ] as const satisfies readonly EntityChannelKind[];
+
+/** The channels a lead may arrive by from an integration (`INGEST_CHANNELS`). */
+export const INGEST_CHANNELS = [
+  'meta_ads',
+  'google_ads',
+  'website',
+  'whatsapp',
+  'ivr',
+  'missed_call',
+] as const satisfies readonly IngestChannel[];
+
+/** What a lead from an integration did (`INGEST_OUTCOMES`). */
+export const INGEST_OUTCOMES = ['created', 'attached'] as const;
+
+/** Who a lead from an integration went to (`INGEST_ASSIGNEES`). */
+export const INGEST_ASSIGNEES = [
+  'caller',
+  'team_lead',
+  'customer_owner',
+  'lead_owner',
+  'unassigned',
+] as const satisfies readonly IngestAssignee[];
+
+/** The kinds of connected lead source (`INGEST_SOURCE_PROVIDERS`). */
+export const INGEST_SOURCE_PROVIDERS = [
+  'meta_leadgen',
+  'google_leadform',
+  'website',
+] as const satisfies readonly IngestSourceProvider[];
+
+/** What a form's question may fill on a lead (`INGEST_FIELD_TARGETS`). */
+export const INGEST_FIELD_TARGETS = [
+  'fullName',
+  'firstName',
+  'lastName',
+  'phone',
+  'pin',
+  'village',
+  'message',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+  'discomConsumerNo',
+] as const satisfies readonly IngestFieldTarget[];
+
+/** The qualification facts, in the order the card shows them (`LEAD_QUALIFICATION_FACTS`). */
+export const LEAD_QUALIFICATION_FACTS = [
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+  'discomConsumerNo',
+] as const satisfies readonly LeadQualificationFact[];
 
 export const CONSENT_CHANNELS = [
   'whatsapp',
@@ -681,6 +742,11 @@ export const RECORDED_STAGE_EXIT_FIELDS = [
   'village',
   'pin',
   'source',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
 ] as const satisfies readonly StageExitField[];
 
 /** The stages every pipeline keeps, which cannot be archived (`PROTECTED_STAGE_KEYS`). */

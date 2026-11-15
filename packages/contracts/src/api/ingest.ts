@@ -36,14 +36,21 @@ export const IngestLeadRequest = z
     segment: SegmentSchema.optional(),
     message: z.string().trim().max(1000).optional(),
     utm: Utm.optional(),
-    /** The consent wording exactly as the form showed it, and when the person ticked it. */
+    /**
+     * The form's consent box: sent with `ticked: true` only when the person ticked it, with the
+     * wording exactly as the form showed it and when they ticked it. Left out, or not ticked, no
+     * consent is recorded. What a tick agrees to (its channels and purpose) is the Executive's
+     * setting of the key's website, never the request's: a `purpose` sent is ignored.
+     */
     consent: z
       .object({
-        purpose: ConsentPurposeSchema,
+        ticked: z.boolean(),
+        purpose: ConsentPurposeSchema.optional(),
         text: z.string().trim().min(10).max(2000),
         givenAt: z.iso.datetime(),
       })
-      .strict(),
+      .strict()
+      .optional(),
     turnstileToken: z.string().min(1).max(2048),
   })
   .strict();

@@ -271,6 +271,11 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   // A company's numbers: every principal acting in the company reads them (design phase2 §5.2).
   entity_channels: { read: CONTEXT, leak: otherCompany },
+  // A company's connected forms and sites and its website keys: an Executive's (design phase2 §6.2).
+  ingest_sources: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
+  ingest_keys: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
+  // A lead's qualification facts, read with the lead.
+  lead_qualifications: { read: LEAD_READ, leak: otherCompany },
   // A provider's call is a child of the lead: read with it, as the call log is.
   provider_calls: { read: LEAD_READ, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
