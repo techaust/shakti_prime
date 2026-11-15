@@ -23,7 +23,10 @@ test.describe('as a tele-caller', () => {
     await expect(page.getByRole('heading', { name: 'Messages', level: 1 })).toBeVisible();
     const list = page.getByRole('region', { name: 'Chats waiting for a reply' });
     await hydrated(list.getByRole('button', { name: new RegExp(customer.name) }).first());
-    await list.getByRole('button', { name: new RegExp(customer.name) }).first().click();
+    await list
+      .getByRole('button', { name: new RegExp(customer.name) })
+      .first()
+      .click();
     const chat = page.getByRole('region', { name: 'WhatsApp' });
     await expect(chat.getByText(WHATSAPP.customerMessage).last()).toBeVisible();
     await expectNoAxeViolations(page);
@@ -41,7 +44,9 @@ test.describe('as a tele-caller', () => {
     // No assistant answers chats yet: the team does, and nothing offers to give it back.
     await expect(chat.getByText('The team answers', { exact: true })).toBeVisible();
     await expect(
-      chat.getByText('Your team answers every WhatsApp chat. No assistant replies to customers yet.'),
+      chat.getByText(
+        'Your team answers every WhatsApp chat. No assistant replies to customers yet.',
+      ),
     ).toBeVisible();
     await expect(chat.getByRole('button', { name: 'Give back to assistant' })).toHaveCount(0);
     await expectNoAxeViolations(page);

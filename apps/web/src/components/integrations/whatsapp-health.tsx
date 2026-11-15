@@ -1,10 +1,13 @@
 'use client';
 
-import type {
-  WhatsAppBudgetHealth,
-  WhatsAppNumberHealth,
-} from '@shakti/contracts';
-import { DataGrid, EmptyState, StatusBadge, type DataGridColumn, type StatusTone } from '@shakti/ui';
+import type { WhatsAppBudgetHealth, WhatsAppNumberHealth } from '@shakti/contracts';
+import {
+  DataGrid,
+  EmptyState,
+  StatusBadge,
+  type DataGridColumn,
+  type StatusTone,
+} from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { MESSAGING_REFUSALS } from '../../screens/contract-values';
 import { isOneOf } from '../../screens/customers';
@@ -46,7 +49,9 @@ export function WhatsAppHealth({
     {
       id: 'quality',
       header: t('columns.quality'),
-      cell: (r) => <StatusBadge tone={QUALITY_TONE[r.quality]}>{t(`quality.${r.quality}`)}</StatusBadge>,
+      cell: (r) => (
+        <StatusBadge tone={QUALITY_TONE[r.quality]}>{t(`quality.${r.quality}`)}</StatusBadge>
+      ),
     },
     {
       id: 'pending',
@@ -64,7 +69,9 @@ export function WhatsAppHealth({
       id: 'updated',
       header: t('columns.updated'),
       cell: (r) => (
-        <span data-dynamic>{r.updatedAt === null ? t('never') : <DateTime value={r.updatedAt} />}</span>
+        <span data-dynamic>
+          {r.updatedAt === null ? t('never') : <DateTime value={r.updatedAt} />}
+        </span>
       ),
     },
   ];

@@ -17,6 +17,7 @@ export function sendDeps(
     requestId,
     hosted,
     now: () => new Date(),
-    client: (phoneNumberId) => (access === undefined ? undefined : clientFor(access, phoneNumberId)),
+    client: (phoneNumberId) =>
+      access === undefined ? undefined : clientFor(access, phoneNumberId),
   };
 }

@@ -37,9 +37,10 @@ export function MessagesScreen({
   const [items, setItems] = useState<WaitingThreadDto[]>(initial.items);
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [chosen, setChosen] = useState<{ entityId: number; threadId: string } | undefined>(
-    initialThread ?? (initial.items[0] === undefined
-      ? undefined
-      : { entityId: initial.items[0].entityId, threadId: initial.items[0].id }),
+    initialThread ??
+      (initial.items[0] === undefined
+        ? undefined
+        : { entityId: initial.items[0].entityId, threadId: initial.items[0].id }),
   );
   const more = useQuery<WaitingThreadPageDto>();
   const reply = useRef<HTMLTextAreaElement>(null);
@@ -158,9 +159,7 @@ export function MessagesScreen({
               ref={reply}
               entityId={chosen.entityId}
               threadId={chosen.threadId}
-              initial={
-                initialThread?.threadId === chosen.threadId ? initialThread.view : undefined
-              }
+              initial={initialThread?.threadId === chosen.threadId ? initialThread.view : undefined}
             />
           )}
         </section>

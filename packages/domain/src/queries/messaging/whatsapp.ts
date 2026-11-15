@@ -143,10 +143,7 @@ export async function listWaitingThreads(ctx: Ctx, rawInput: unknown): Promise<W
 }
 
 /** A customer's chats in one company, newest customer message first (Account 360, Converting). */
-export async function listAccountThreads(
-  ctx: Ctx,
-  rawInput: unknown,
-): Promise<WaitingThreadDto[]> {
+export async function listAccountThreads(ctx: Ctx, rawInput: unknown): Promise<WaitingThreadDto[]> {
   const input = parseQueryInput(ListAccountThreadsInput, rawInput, 'messaging.account_threads');
   if (!ctx.entityIds.includes(input.entityId)) {
     throw new DomainError('forbidden', 'entity outside the request scope');

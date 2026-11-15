@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { MessagingRefusalSchema, WHATSAPP_BODY_MAX, WhatsAppTemplateNameSchema } from './api/messaging';
+import {
+  MessagingRefusalSchema,
+  WHATSAPP_BODY_MAX,
+  WhatsAppTemplateNameSchema,
+} from './api/messaging';
 import { E164Schema } from './crm/phone';
 import { EntityIdSchema, IdSchema } from './ids';
 

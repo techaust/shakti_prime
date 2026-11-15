@@ -80,14 +80,14 @@ export const WhatsAppThread = forwardRef<
           <StatusBadge tone={thread.handledBy === 'people' ? 'accent' : 'neutral'}>
             {t(thread.handledBy)}
           </StatusBadge>
-          {view.canSend ? (
-            <Handover entityId={entityId} view={view} onChanged={reload} />
-          ) : null}
+          {view.canSend ? <Handover entityId={entityId} view={view} onChanged={reload} /> : null}
         </div>
       </div>
       {view.assistantOn ? null : <p className="text-text-muted text-sm">{t('peopleOnly')}</p>}
       <FailureMessage failure={read.failure ?? more.failure} />
-      {thread.accountId === null && thread.number !== null ? <Holders view={view} entityId={entityId} /> : null}
+      {thread.accountId === null && thread.number !== null ? (
+        <Holders view={view} entityId={entityId} />
+      ) : null}
       {cursor === null ? null : (
         <Button
           size="sm"
@@ -206,7 +206,10 @@ function Holders({ view, entityId }: { view: ThreadViewDto; entityId: number }) 
       <ul className="flex flex-wrap gap-x-4 gap-y-1">
         {view.holders.map((h) => (
           <li key={h.accountId}>
-            <Link href={customerHref(h.accountId, entityId)} className="text-accent-text hover:underline">
+            <Link
+              href={customerHref(h.accountId, entityId)}
+              className="text-accent-text hover:underline"
+            >
               {h.name}
             </Link>
           </li>
@@ -243,7 +246,9 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
         </p>
       )}
       {message.templateParams === null || message.templateParams.length === 0 ? null : (
-        <p className="text-sm">{t('templateValues', { values: message.templateParams.join(', ') })}</p>
+        <p className="text-sm">
+          {t('templateValues', { values: message.templateParams.join(', ') })}
+        </p>
       )}
       {message.body === null ? null : <p className="text-sm whitespace-pre-wrap">{message.body}</p>}
       {message.kind === 'media' ? (
@@ -290,8 +295,7 @@ const Composer = forwardRef<
   const [body, setBody] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [values, setValues] = useState<string[]>([]);
-  const open =
-    view.thread.windowOpen;
+  const open = view.thread.windowOpen;
   const template = view.templates.find((tpl) => tpl.name === templateName);
   const done = () => {
     toast.success(t('sent'));
@@ -363,7 +367,11 @@ const Composer = forwardRef<
         </Select>
       </Field>
       {template?.params.map((meaning, index) => (
-        <Field key={`${template.name}-${String(index)}`} id={`${id}-value-${String(index)}`} label={meaning}>
+        <Field
+          key={`${template.name}-${String(index)}`}
+          id={`${id}-value-${String(index)}`}
+          label={meaning}
+        >
           <Input
             maxLength={1024}
             value={values[index] ?? ''}
@@ -376,9 +384,7 @@ const Composer = forwardRef<
       <Button
         type="submit"
         className="self-start"
-        disabled={
-          send.pending || template === undefined || values.some((v) => v.trim() === '')
-        }
+        disabled={send.pending || template === undefined || values.some((v) => v.trim() === '')}
       >
         {t('sendTemplate')}
       </Button>

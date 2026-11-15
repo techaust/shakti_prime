@@ -291,8 +291,25 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
    */
   whatsapp: {
     keywords: {
-      stop: ['stop', 'unsubscribe', 'stop all', 'stop promotions', 'band karo', 'band kar do', 'mat bhejo', 'message mat bhejo'],
-      human: ['human', 'agent', 'person', 'talk to a person', 'insaan', 'insaan se baat', 'kisi se baat karni hai'],
+      stop: [
+        'stop',
+        'unsubscribe',
+        'stop all',
+        'stop promotions',
+        'band karo',
+        'band kar do',
+        'mat bhejo',
+        'message mat bhejo',
+      ],
+      human: [
+        'human',
+        'agent',
+        'person',
+        'talk to a person',
+        'insaan',
+        'insaan se baat',
+        'kisi se baat karni hai',
+      ],
       status: ['status', 'order status', 'mera order'],
     },
     marketingHoldShare: 0.8,

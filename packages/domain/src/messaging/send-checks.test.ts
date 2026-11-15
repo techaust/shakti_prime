@@ -74,7 +74,12 @@ describe('decideSend: the messaging worker’s checks, in order (docs/06-api.md 
       refusal: 'opted_out',
     });
     expect(
-      decideSend(template({ kind: 'system', optedOut: true, confirmation: true }), budget(), NOW, RULES),
+      decideSend(
+        template({ kind: 'system', optedOut: true, confirmation: true }),
+        budget(),
+        NOW,
+        RULES,
+      ),
     ).toMatchObject({ kind: 'send' });
     // A template that is not the confirmation stays refused.
     expect(decideSend(template({ optedOut: true }), budget(), NOW, RULES)).toEqual({
@@ -85,7 +90,12 @@ describe('decideSend: the messaging worker’s checks, in order (docs/06-api.md 
 
   it('then refuses free text outside the window, and an unapproved template', () => {
     expect(
-      decideSend(facts({ windowOpenUntil: CLOSED, body: 'https://bit.ly/x' }), budget(), NOW, RULES),
+      decideSend(
+        facts({ windowOpenUntil: CLOSED, body: 'https://bit.ly/x' }),
+        budget(),
+        NOW,
+        RULES,
+      ),
     ).toEqual({ kind: 'refuse', refusal: 'window_closed' });
     expect(decideSend(facts({ windowOpenUntil: null }), budget(), NOW, RULES)).toEqual({
       kind: 'refuse',
@@ -93,7 +103,12 @@ describe('decideSend: the messaging worker’s checks, in order (docs/06-api.md 
     });
     for (const status of ['pending', 'rejected', 'paused', null]) {
       expect(
-        decideSend(template({ templateStatus: status, windowOpenUntil: CLOSED }), budget({ used: 999 }), NOW, RULES),
+        decideSend(
+          template({ templateStatus: status, windowOpenUntil: CLOSED }),
+          budget({ used: 999 }),
+          NOW,
+          RULES,
+        ),
       ).toEqual({ kind: 'refuse', refusal: 'template_not_approved' });
     }
   });
@@ -105,7 +120,12 @@ describe('decideSend: the messaging worker’s checks, in order (docs/06-api.md 
       businessInitiated: true,
     });
     expect(
-      decideSend(template({ ...outside, templateCategory: 'marketing' }), budget({ used: 200 }), NOW, RULES),
+      decideSend(
+        template({ ...outside, templateCategory: 'marketing' }),
+        budget({ used: 200 }),
+        NOW,
+        RULES,
+      ),
     ).toEqual({ kind: 'wait', until: 'marketing_held' });
     expect(decideSend(template(outside), budget({ used: 250 }), NOW, RULES)).toEqual({
       kind: 'refuse',
@@ -122,7 +142,9 @@ describe('decideSend: the messaging worker’s checks, in order (docs/06-api.md 
   });
 
   it('then runs the output filter over the text or the template values', () => {
-    expect(decideSend(facts({ body: 'Call 98123 45678', sentLastHour: 99 }), budget(), NOW, RULES)).toEqual({
+    expect(
+      decideSend(facts({ body: 'Call 98123 45678', sentLastHour: 99 }), budget(), NOW, RULES),
+    ).toEqual({
       kind: 'refuse',
       refusal: 'output_filter',
     });

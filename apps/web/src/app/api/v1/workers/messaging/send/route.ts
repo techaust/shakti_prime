@@ -1,4 +1,9 @@
-import { DomainError, MessagingSendJob, MessagingSendResult, type ErrorCode } from '@shakti/contracts';
+import {
+  DomainError,
+  MessagingSendJob,
+  MessagingSendResult,
+  type ErrorCode,
+} from '@shakti/contracts';
 import { defaultAuthDeps, hostedRuntime } from '../../../../../../auth/deps';
 import { logger } from '../../../../../../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';

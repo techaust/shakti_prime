@@ -93,16 +93,30 @@ export async function downloadMedia(
   const url = asString(at(body, 'url'));
   const contentType = asString(at(body, 'mime_type'));
   const size = asNumber(at(body, 'file_size'));
-  if (url === undefined || contentType === undefined || !mediaAddressAllowed(url, access.mediaHosts)) {
+  if (
+    url === undefined ||
+    contentType === undefined ||
+    !mediaAddressAllowed(url, access.mediaHosts)
+  ) {
     throw new ProviderError('whatsapp', 'invalid_response', { status: info.status });
   }
   if (size !== undefined && size > MEDIA_MAX_BYTES) {
     throw new ProviderError('whatsapp', 'invalid_response', { status: info.status });
   }
-  const file = await providerFetch('whatsapp', deps, url, { method: 'GET', headers }, { retries: 1 });
+  const file = await providerFetch(
+    'whatsapp',
+    deps,
+    url,
+    { method: 'GET', headers },
+    { retries: 1 },
+  );
   if (!file.ok) throw new ProviderError('whatsapp', 'http', { status: file.status });
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > MEDIA_MAX_BYTES || (size !== undefined && bytes.length !== size)) {
+  if (
+    bytes.length === 0 ||
+    bytes.length > MEDIA_MAX_BYTES ||
+    (size !== undefined && bytes.length !== size)
+  ) {
     throw new ProviderError('whatsapp', 'invalid_response', { status: file.status });
   }
   return { bytes, contentType: contentType.split(';')[0]?.trim().toLowerCase() ?? contentType };

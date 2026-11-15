@@ -135,10 +135,15 @@ describe('the WhatsApp tables', () => {
              has_table_privilege('app_user', 'whatsapp_message_keys', 'INSERT') as app_insert,
              has_table_privilege('app_reader', 'whatsapp_message_keys', 'SELECT') as reader,
              has_table_privilege('readonly_reporter', 'whatsapp_message_keys', 'SELECT') as reporter`);
-    expect(grants).toEqual({ app_select: false, app_insert: false, reader: false, reporter: false });
-    expect(
-      await failure(rows(exec1, sql`select count(*) from whatsapp_message_keys`)),
-    ).toMatch(/permission denied/);
+    expect(grants).toEqual({
+      app_select: false,
+      app_insert: false,
+      reader: false,
+      reporter: false,
+    });
+    expect(await failure(rows(exec1, sql`select count(*) from whatsapp_message_keys`))).toMatch(
+      /permission denied/,
+    );
   });
 
   it('keep the monthly message partitions in a schema no request role may use, made each month', async () => {
@@ -199,13 +204,15 @@ describe('an inbound message (app.whatsapp_record_inbound)', () => {
       handled_by: 'assistant',
     });
     const [thread] = await asMigrator(
-      (m) => m<{
-        contact_phone_id: string;
-        assignee_id: string;
-        window_open_until: Date;
-        needs_reply: boolean;
-        last_inbound_at: Date;
-      }[]>`select contact_phone_id, assignee_id, window_open_until, needs_reply, last_inbound_at
+      (m) => m<
+        {
+          contact_phone_id: string;
+          assignee_id: string;
+          window_open_until: Date;
+          needs_reply: boolean;
+          last_inbound_at: Date;
+        }[]
+      >`select contact_phone_id, assignee_id, window_open_until, needs_reply, last_inbound_at
              from whatsapp_threads where id = ${row?.thread_id ?? ''}`,
     );
     expect(thread).toMatchObject({
@@ -239,7 +246,11 @@ describe('an inbound message (app.whatsapp_record_inbound)', () => {
       file_id: null,
     });
     const [next] = await inbound(customer.waId);
-    expect(next).toMatchObject({ duplicate: false, first_message: false, thread_id: first?.thread_id });
+    expect(next).toMatchObject({
+      duplicate: false,
+      first_message: false,
+      thread_id: first?.thread_id,
+    });
     const [count] = await asMigrator(
       (m) => m<{ n: number }[]>`select count(*)::int as n from whatsapp_messages
                                  where thread_id = ${first?.thread_id ?? ''}`,
@@ -328,10 +339,16 @@ describe('a message status', () => {
     expect((await status('read'))[0]).toEqual({ status: 'read', changed: false });
     // An unknown id, or one of another company's request, is no message.
     expect(
-      await rows(workers([1]), sql`select * from app.whatsapp_record_status('wamid.none', 'read', now(), null)`),
+      await rows(
+        workers([1]),
+        sql`select * from app.whatsapp_record_status('wamid.none', 'read', now(), null)`,
+      ),
     ).toEqual([]);
     expect(
-      await rows(workers([2]), sql`select * from app.whatsapp_record_status(${wamid}, 'read', now(), null)`),
+      await rows(
+        workers([2]),
+        sql`select * from app.whatsapp_record_status(${wamid}, 'read', now(), null)`,
+      ),
     ).toEqual([]);
     expect(
       await failure(
@@ -369,7 +386,8 @@ describe('a message keeps what it was written with', () => {
     const thread = await openThread(await whatsappCustomer(1));
     const { messageId } = await sentMessage(thread.thread_id);
     const changes = [
-      (m: Migrator) => m`update whatsapp_messages set body_masked = 'changed' where id = ${messageId}`,
+      (m: Migrator) =>
+        m`update whatsapp_messages set body_masked = 'changed' where id = ${messageId}`,
       (m: Migrator) =>
         m`update whatsapp_messages set provider_message_id = 'wamid.other' where id = ${messageId}`,
       (m: Migrator) => m`update whatsapp_messages set sent_by = null where id = ${messageId}`,
@@ -423,9 +441,9 @@ describe('a person queues a message (whatsapp_messages_insert)', () => {
         ),
       ),
     ).toMatch(/row-level security|starts queued/);
-    expect(await failure(queue(customer.owner, thread.thread_id, new Date().toISOString()))).toMatch(
-      /row-level security/,
-    );
+    expect(
+      await failure(queue(customer.owner, thread.thread_id, new Date().toISOString())),
+    ).toMatch(/row-level security/);
     expect(
       await failure(
         rows(
@@ -446,7 +464,10 @@ describe('a person queues a message (whatsapp_messages_insert)', () => {
         sql`update whatsapp_threads set ${set} where id = ${thread.thread_id} returning id`,
       );
     expect(
-      await update(customer.owner, sql`handled_by = 'people', handoff_reason = 'request', handed_off_at = now()`),
+      await update(
+        customer.owner,
+        sql`handled_by = 'people', handoff_reason = 'request', handed_off_at = now()`,
+      ),
     ).toHaveLength(1);
     expect(await update(otherCaller, sql`needs_reply = false`)).toHaveLength(0);
     for (const set of [
@@ -465,7 +486,9 @@ describe('a number that opted out (app.whatsapp_record_opt_out)', () => {
     const other = await whatsappCustomer(1, { e164: `+91${customer.waId.slice(2)}` });
     const consents = [newId(), newId()];
     await asMigrator(
-      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by) values
+      (
+        m,
+      ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by) values
         (${consents[0] ?? ''}, ${customer.contactId}, 'whatsapp', 'service', 'whatsapp_opt_in', 'v1', now() - interval '1 day', ${customer.owner.id}),
         (${consents[1] ?? ''}, ${other.contactId}, 'whatsapp', 'promotional', 'whatsapp_opt_in', 'v1', now() - interval '1 day', ${other.owner.id})`,
     );
@@ -530,7 +553,9 @@ describe('a number that opted out (app.whatsapp_record_opt_out)', () => {
     expect(await rows(workers([1]), confirm)).toEqual([{ message_id: null, created_at: null }]);
     // A WhatsApp consent given since lifts it.
     await asMigrator(
-      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+      (
+        m,
+      ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
         values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'verbal', 'v1', now() + interval '1 second', ${customer.owner.id})`,
     );
     // The other holder's withdrawal still stands, so the number stays opted out.
@@ -566,10 +591,15 @@ describe('a number that opted out (app.whatsapp_record_opt_out)', () => {
   it('confirms a STOP only while the number is still opted out', async () => {
     const customer = await whatsappCustomer(1);
     const thread = await openThread(customer);
-    await rows(workers([1]), sql`select * from app.whatsapp_record_opt_out(${thread.thread_id}::uuid, now())`);
+    await rows(
+      workers([1]),
+      sql`select * from app.whatsapp_record_opt_out(${thread.thread_id}::uuid, now())`,
+    );
     // The customer opts back in before the confirmation is asked for (a retried delivery).
     await asMigrator(
-      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+      (
+        m,
+      ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
         values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'verbal', 'v1', now() + interval '1 second', ${customer.owner.id})`,
     );
     expect(
@@ -621,7 +651,9 @@ describe('a number that opted out (app.whatsapp_record_opt_out)', () => {
     expect(inThree?.opted_out).toBe(true);
     // A STOP older than a consent given since changes nothing.
     await asMigrator(
-      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+      (
+        m,
+      ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
         values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'verbal', 'v1', now() + interval '1 second', ${customer.owner.id})`,
     );
     const [old] = await rows<{ newly: boolean; consents_withdrawn: number }>(
@@ -692,7 +724,9 @@ describe('the messaging worker’s definers', () => {
       }
     }
     // Another company's request finds nothing.
-    expect(await rows(workers([2]), sql`select * from app.whatsapp_send_facts(${id}::uuid)`)).toEqual([]);
+    expect(
+      await rows(workers([2]), sql`select * from app.whatsapp_send_facts(${id}::uuid)`),
+    ).toEqual([]);
   });
 
   it('queue the welcome once per thread, however often it is asked for', async () => {
@@ -709,9 +743,15 @@ describe('the messaging worker’s definers', () => {
       workers([1]),
       sql`select * from app.whatsapp_queue_message(${thread.thread_id}::uuid, 'template', 'welcome_note', '[]'::jsonb)`,
     );
-    await rows(workers([1]), sql`select * from app.whatsapp_record_opt_out(${thread.thread_id}::uuid, now())`);
+    await rows(
+      workers([1]),
+      sql`select * from app.whatsapp_record_opt_out(${thread.thread_id}::uuid, now())`,
+    );
     const claim = (id: string) =>
-      rows<{ claimed: boolean }>(workers([1]), sql`select app.whatsapp_claim_send(${id}::uuid) as claimed`);
+      rows<{ claimed: boolean }>(
+        workers([1]),
+        sql`select app.whatsapp_claim_send(${id}::uuid) as claimed`,
+      );
     expect((await claim(queued?.message_id ?? ''))[0]?.claimed).toBe(false);
     const [confirmation] = await rows<{ message_id: string }>(
       workers([1]),
@@ -822,7 +862,9 @@ describe('a customer’s file on WhatsApp (app.whatsapp_attach_media, files_what
   async function mediaFile(entityId: number, purpose = 'whatsapp_media'): Promise<string> {
     const id = newId();
     await asMigrator(
-      (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+      (
+        m,
+      ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
         values (${id}, ${entityId}, ${purpose}, 'test', ${`${String(entityId)}/${purpose}/${id}.png`}, 'photo',
                 'image/png', 10, ${'a'.repeat(64)}, 'scanning', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
     );
@@ -853,9 +895,9 @@ describe('a customer’s file on WhatsApp (app.whatsapp_attach_media, files_what
     expect(
       await failure(attach(workers([1]), otherMessage.message_id, await mediaFile(1, 'import'))),
     ).toMatch(/not this message/);
-    expect(await failure(attach(workers([1]), otherMessage.message_id, await mediaFile(2)))).toMatch(
-      /not this message/,
-    );
+    expect(
+      await failure(attach(workers([1]), otherMessage.message_id, await mediaFile(2))),
+    ).toMatch(/not this message/);
     expect((await attach(workers([1]), message.message_id, await mediaFile(1)))[0]?.attached).toBe(
       false,
     );
@@ -874,18 +916,24 @@ describe('the customer merge moves the merged customer’s chats (app.merge_cust
     const onLead = (await openThread(merged)).thread_id;
     const noLead = newId();
     await asMigrator(
-      (m) => m`insert into whatsapp_threads (id, entity_id, channel_id, wa_id, account_id, created_by)
+      (
+        m,
+      ) => m`insert into whatsapp_threads (id, entity_id, channel_id, wa_id, account_id, created_by)
         values (${noLead}, 1, ${channel1.channelId}, ${`91${String(6_000_000_000 + Math.floor(Math.random() * 999_999_999))}`},
                 ${merged.accountId}, ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
     );
     const mergeId = newId();
-    const [result] = await rows<{ result: { status: string; moved: { whatsappThreads: string[] } } }>(
+    const [result] = await rows<{
+      result: { status: string; moved: { whatsappThreads: string[] } };
+    }>(
       gm1,
       sql`select app.merge_customers(${mergeId}::uuid, ${kept.accountId}::uuid, ${merged.accountId}::uuid,
                                      1::smallint, null::uuid) as result`,
     );
     expect(result?.result.status).toBe('merged');
-    expect([...(result?.result.moved.whatsappThreads ?? [])].sort()).toEqual([onLead, noLead].sort());
+    expect([...(result?.result.moved.whatsappThreads ?? [])].sort()).toEqual(
+      [onLead, noLead].sort(),
+    );
     const accountsOf = () =>
       asMigrator(
         (m) => m<{ id: string; account_id: string }[]>`
@@ -959,7 +1007,13 @@ describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', (
    * in company 1's window.
    */
   async function staleCustomer(wrote: string) {
-    const ids = { account: newId(), contact: newId(), phone: newId(), lead: newId(), thread: newId() };
+    const ids = {
+      account: newId(),
+      contact: newId(),
+      phone: newId(),
+      lead: newId(),
+      thread: newId(),
+    };
     const digits = `9196${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
     const pipeline = PIPELINE_SEED[0]?.id ?? '';
     const at = '2010-01-01';
@@ -1003,7 +1057,14 @@ describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', (
     const [run] = await anonymise(stale.lead);
     expect(run?.result).toMatchObject({ leads: [{ id: stale.lead }], failed: 0 });
     const [thread] = await asMigrator(
-      (m) => m<{ wa_id: string | null; contact_phone_id: string | null; needs_reply: boolean; account_id: string }[]>`
+      (m) => m<
+        {
+          wa_id: string | null;
+          contact_phone_id: string | null;
+          needs_reply: boolean;
+          account_id: string;
+        }[]
+      >`
         select wa_id, contact_phone_id, needs_reply, account_id from whatsapp_threads where id = ${stale.thread}`,
     );
     expect(thread).toEqual({

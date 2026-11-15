@@ -22,7 +22,11 @@ describe('filterOutbound (BLUEPRINT §9.4, design phase2 §6.1)', () => {
   });
 
   it('refuses a link to any other site, written in any of its usual shapes', () => {
-    for (const text of ['https://bit.ly/abc', 'www.example-shop.com', 'visit cheap-pumps.in/offer']) {
+    for (const text of [
+      'https://bit.ly/abc',
+      'www.example-shop.com',
+      'visit cheap-pumps.in/offer',
+    ]) {
       expect(filterOutbound([text], rules)).toEqual({ ok: false, rule: 'link' });
     }
     expect(filterOutbound(['https://shaktisupreme.in'], { ...rules, linkHosts: [] })).toEqual({

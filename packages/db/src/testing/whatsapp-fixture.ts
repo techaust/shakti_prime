@@ -68,7 +68,8 @@ export async function whatsappCustomer(
 ): Promise<WhatsAppCustomerFixture> {
   const teamId = newId();
   await asMigrator(
-    (m) => m`insert into teams (id, entity_id, name) values (${teamId}, ${entityId}, 'whatsapp team')`,
+    (m) =>
+      m`insert into teams (id, entity_id, name) values (${teamId}, ${entityId}, 'whatsapp team')`,
   );
   const owner = await createTestPrincipal(options.role ?? 'tele_caller_cc', [entityId], { teamId });
   const accountId = newId();

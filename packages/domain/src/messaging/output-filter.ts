@@ -60,7 +60,8 @@ export function filterOutbound(
       return { ok: false, rule: 'identity_number' };
     }
     for (const found of numbers) {
-      if (found.kind === 'aadhaar' && !found.alsoPhone) return { ok: false, rule: 'identity_number' };
+      if (found.kind === 'aadhaar' && !found.alsoPhone)
+        return { ok: false, rule: 'identity_number' };
       if (!own.has(lastTen(found.digits))) return { ok: false, rule: 'phone' };
     }
   }

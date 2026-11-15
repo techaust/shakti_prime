@@ -35,9 +35,7 @@ export async function budgetFor(
   const stored = await kv.get(LIMIT_KEY);
   const limit = stored === null ? WORKSHOP_DEFAULTS.whatsapp.startingLimit : Number(stored);
   const hour = Math.floor(now.getTime() / HOUR_MS);
-  const counts = await Promise.all(
-    Array.from({ length: 24 }, (_, i) => kv.get(hourKey(hour - i))),
-  );
+  const counts = await Promise.all(Array.from({ length: 24 }, (_, i) => kv.get(hourKey(hour - i))));
   const used = counts.reduce((sum, c) => sum + (c === null ? 0 : Number(c)), 0);
   return { used, limit, alreadyCounted: (await kv.get(customerKey(waId))) !== null };
 }

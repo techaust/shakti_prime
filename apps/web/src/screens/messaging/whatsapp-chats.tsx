@@ -36,7 +36,9 @@ export function WhatsAppChats({ entityId, accountId }: { entityId: number; accou
       </h2>
       <FailureMessage failure={read.failure} />
       {threads === undefined ? (
-        read.failure === undefined ? <Skeleton className="h-24" /> : null
+        read.failure === undefined ? (
+          <Skeleton className="h-24" />
+        ) : null
       ) : threads.length === 0 || current === undefined ? (
         <EmptyState message={t('none')} />
       ) : (

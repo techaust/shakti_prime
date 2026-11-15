@@ -85,7 +85,10 @@ export const whatsappThreads = pgTable(
       columns: [t.opportunityId, t.entityId, t.accountId],
       foreignColumns: [opportunities.id, opportunities.entityId, opportunities.accountId],
     }).onUpdate('cascade'),
-    check('whatsapp_threads_wa_id_check', sql`${t.waId} is null or ${t.waId} ~ '^[1-9][0-9]{6,14}$'`),
+    check(
+      'whatsapp_threads_wa_id_check',
+      sql`${t.waId} is null or ${t.waId} ~ '^[1-9][0-9]{6,14}$'`,
+    ),
     check('whatsapp_threads_handled_by_check', sql`${t.handledBy} in ('assistant', 'people')`),
     check(
       'whatsapp_threads_handoff_reason_check',
@@ -315,7 +318,10 @@ export const whatsappTemplates = pgTable(
   },
   (t) => [
     unique('whatsapp_templates_entity_name_unique').on(t.entityId, t.name, t.language),
-    check('whatsapp_templates_name_check', sql`${t.name} ~ '^[a-z0-9_]+$' and char_length(${t.name}) <= 512`),
+    check(
+      'whatsapp_templates_name_check',
+      sql`${t.name} ~ '^[a-z0-9_]+$' and char_length(${t.name}) <= 512`,
+    ),
     check('whatsapp_templates_language_check', sql`${t.language} in ('en')`),
     check('whatsapp_templates_label_check', sql`char_length(btrim(${t.label})) between 1 and 60`),
     check(
@@ -326,7 +332,10 @@ export const whatsappTemplates = pgTable(
       'whatsapp_templates_status_check',
       sql`${t.status} in ('pending', 'approved', 'rejected', 'paused', 'disabled')`,
     ),
-    check('whatsapp_templates_purpose_check', sql`${t.purpose} is null or ${t.purpose} in ('welcome', 'opt_out_confirmation')`),
+    check(
+      'whatsapp_templates_purpose_check',
+      sql`${t.purpose} is null or ${t.purpose} in ('welcome', 'opt_out_confirmation')`,
+    ),
     // One template a company's platform sends for each purpose.
     uniqueIndex('whatsapp_templates_purpose_unique')
       .on(t.entityId, t.purpose)

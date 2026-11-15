@@ -96,8 +96,16 @@ async function main(): Promise<void> {
   const ctx = (p: Principal) => ({ tx: undefined as never, principal: p, entityIds: [ENTITY] });
 
   try {
-    await explain('/messages, first page, General Manager', gm, waitingThreadsSql(ctx(gm), 26, ENTITY, undefined));
-    await explain('/messages, first page, caller (own scope)', caller, waitingThreadsSql(ctx(caller), 26, ENTITY, undefined));
+    await explain(
+      '/messages, first page, General Manager',
+      gm,
+      waitingThreadsSql(ctx(gm), 26, ENTITY, undefined),
+    );
+    await explain(
+      '/messages, first page, caller (own scope)',
+      caller,
+      waitingThreadsSql(ctx(caller), 26, ENTITY, undefined),
+    );
     const [second] = await asMigrator(
       (m) => m<{ t: string; id: string }[]>`
         select last_inbound_at::text as t, id from whatsapp_threads
@@ -108,7 +116,11 @@ async function main(): Promise<void> {
       gm,
       waitingThreadsSql(ctx(gm), 26, ENTITY, second),
     );
-    await explain('the chat, newest page (2,010 messages), caller', caller, threadMessagesSql(big.thread, ENTITY, 31, undefined));
+    await explain(
+      'the chat, newest page (2,010 messages), caller',
+      caller,
+      threadMessagesSql(big.thread, ENTITY, 31, undefined),
+    );
     const [older] = await asMigrator(
       (m) => m<{ t: string; id: string }[]>`
         select created_at::text as t, id from whatsapp_messages

@@ -120,9 +120,7 @@ function receive(
 }
 
 /** A new customer of company 1 who has written once: the thread is open and its window too. */
-async function customerWithThread(): Promise<
-  WhatsAppCustomerFixture & { threadId: string }
-> {
+async function customerWithThread(): Promise<WhatsAppCustomerFixture & { threadId: string }> {
   const customer = await whatsappCustomer(1);
   const recorded = await receive(customer.waId);
   return { ...customer, threadId: recorded.threadId };
@@ -137,7 +135,12 @@ beforeAll(async () => {
   // The company's templates, registered again on every run under the same names.
   for (const input of [
     { name: WELCOME, label: 'Visit update', category: 'utility', purpose: 'welcome' },
-    { name: STOP_NOTE, label: 'Visit update', category: 'utility', purpose: 'opt_out_confirmation' },
+    {
+      name: STOP_NOTE,
+      label: 'Visit update',
+      category: 'utility',
+      purpose: 'opt_out_confirmation',
+    },
     { name: UPDATE, label: 'Visit update', category: 'utility', params: ['Visit date'] },
   ]) {
     await run(exec, registerWhatsAppTemplate, { entityId: 1, ...input });
@@ -162,7 +165,11 @@ describe('messaging.message.send', () => {
 
   it('is forbidden without messaging.send, and to an agent that holds none', async () => {
     const customer = await customerWithThread();
-    for (const who of [accounts, principalFor('agent:concierge', [1]), principalFor('hr_admin', [1])]) {
+    for (const who of [
+      accounts,
+      principalFor('agent:concierge', [1]),
+      principalFor('hr_admin', [1]),
+    ]) {
       expect(await refusal(text(who, customer.threadId))).toMatchObject({ code: 'forbidden' });
     }
   });
@@ -255,9 +262,18 @@ describe('messaging.message.send', () => {
       reason: 'whatsapp_template_values',
     });
     const sent = await template(UPDATE, ['28-11-2026']);
-    expect(sent).toMatchObject({ kind: 'template', templateName: UPDATE, templateParams: ['28-11-2026'] });
+    expect(sent).toMatchObject({
+      kind: 'template',
+      templateName: UPDATE,
+      templateParams: ['28-11-2026'],
+    });
     const pending = `w1_suite_pending_${newId().slice(-6).replaceAll('-', '')}`;
-    await run(exec, registerWhatsAppTemplate, { entityId: 1, name: pending, label: 'Visit update', category: 'marketing' });
+    await run(exec, registerWhatsAppTemplate, {
+      entityId: 1,
+      name: pending,
+      label: 'Visit update',
+      category: 'marketing',
+    });
     expect(await refusal(template(pending, []))).toMatchObject({
       reason: 'whatsapp_template_not_approved',
     });
@@ -350,7 +366,12 @@ describe('messaging.template.register', () => {
     for (const who of [gm, principalFor('agent:concierge', [1])]) {
       expect(
         await refusal(
-          run(who, registerWhatsAppTemplate, { entityId: 1, name: name(), label: 'Visit update', category: 'utility' }),
+          run(who, registerWhatsAppTemplate, {
+            entityId: 1,
+            name: name(),
+            label: 'Visit update',
+            category: 'utility',
+          }),
         ),
       ).toMatchObject({ code: 'forbidden' });
     }
@@ -362,7 +383,8 @@ describe('messaging.template.register', () => {
         run(execElsewhere, registerWhatsAppTemplate, {
           entityId: 1,
           name: name(),
-          label: 'Visit update', category: 'utility',
+          label: 'Visit update',
+          category: 'utility',
         }),
       ),
     ).toMatchObject({ code: 'forbidden' });
@@ -373,7 +395,8 @@ describe('messaging.template.register', () => {
     const first = await run<WhatsAppTemplateDto>(exec, registerWhatsAppTemplate, {
       entityId: 1,
       name: n,
-      label: 'Visit update', category: 'utility',
+      label: 'Visit update',
+      category: 'utility',
       params: ['Customer name'],
       buttons: [{ kind: 'quick_reply', text: 'Call me' }],
     });
@@ -386,7 +409,8 @@ describe('messaging.template.register', () => {
     const again = await run<WhatsAppTemplateDto>(exec, registerWhatsAppTemplate, {
       entityId: 1,
       name: n,
-      label: 'Visit update', category: 'marketing',
+      label: 'Visit update',
+      category: 'marketing',
       params: [],
     });
     expect(again).toMatchObject({ id: first.id, category: 'marketing', status: 'approved' });
@@ -403,7 +427,8 @@ describe('messaging.template.register', () => {
         run(exec, registerWhatsAppTemplate, {
           entityId: 1,
           name: name(),
-          label: 'Visit update', category: 'utility',
+          label: 'Visit update',
+          category: 'utility',
           purpose: 'welcome',
           params: ['Customer name'],
         }),
@@ -414,7 +439,8 @@ describe('messaging.template.register', () => {
         run(exec, registerWhatsAppTemplate, {
           entityId: 1,
           name: name(),
-          label: 'Visit update', category: 'utility',
+          label: 'Visit update',
+          category: 'utility',
           purpose: 'welcome',
         }),
       ),
@@ -554,7 +580,12 @@ describe('messaging.status.record', () => {
   it('is forbidden to people; another company’s request knows no such message', async () => {
     const customer = await customerWithThread();
     const { wamid } = await sentByPlatform(customer.threadId);
-    const input = { providerMessageId: wamid, status: 'read', at: new Date().toISOString(), errorCode: null };
+    const input = {
+      providerMessageId: wamid,
+      status: 'read',
+      at: new Date().toISOString(),
+      errorCode: null,
+    };
     expect(await refusal(run(exec, recordWhatsAppStatus, input))).toMatchObject({
       code: 'forbidden',
     });
@@ -574,7 +605,11 @@ describe('messaging.status.record', () => {
         at: new Date().toISOString(),
         errorCode: null,
       });
-    expect(await status('delivered')).toMatchObject({ messageId, status: 'delivered', changed: true });
+    expect(await status('delivered')).toMatchObject({
+      messageId,
+      status: 'delivered',
+      changed: true,
+    });
     expect(await status('sent')).toMatchObject({ status: 'delivered', changed: false });
     expect(await status('read')).toMatchObject({ status: 'read', changed: true });
     expect(await status('delivered')).toMatchObject({ status: 'read', changed: false });
@@ -593,7 +628,12 @@ describe('messaging.template.record_status', () => {
 
   it('records the status of the company’s template, once', async () => {
     const n = `w1_suite_${newId().slice(-12).replaceAll('-', '')}`;
-    await run(exec, registerWhatsAppTemplate, { entityId: 1, name: n, label: 'Visit update', category: 'utility' });
+    await run(exec, registerWhatsAppTemplate, {
+      entityId: 1,
+      name: n,
+      label: 'Visit update',
+      category: 'utility',
+    });
     const input = { name: n, language: 'en', status: 'rejected' };
     expect(await run(workers([1]), recordWhatsAppTemplateStatus, input)).toEqual({ changed: 1 });
     expect(await run(workers([1]), recordWhatsAppTemplateStatus, input)).toEqual({ changed: 0 });
@@ -658,7 +698,9 @@ describe('messaging.opt_out.record and messaging.thread.record_hand_off', () => 
   it('record a STOP once, withdrawing the number’s consent, and a hand-off once, each audited', async () => {
     const customer = await customerWithThread();
     await asMigrator(
-      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+      (
+        m,
+      ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
         values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'whatsapp_opt_in', 'v1',
                 now() - interval '1 hour', ${customer.owner.id})`,
     );
@@ -676,7 +718,11 @@ describe('messaging.opt_out.record and messaging.thread.record_hand_off', () => 
         threadId: customer.threadId,
         reason: 'keyword',
       });
-    expect(await handOff()).toMatchObject({ handledBy: 'people', handoffReason: 'keyword', changed: true });
+    expect(await handOff()).toMatchObject({
+      handledBy: 'people',
+      handoffReason: 'keyword',
+      changed: true,
+    });
     expect(await handOff()).toMatchObject({ changed: false });
     expect((await auditOf(customer.threadId)).map((r) => r.command)).toEqual([
       'messaging.opt_out.record',
@@ -762,7 +808,12 @@ describe('messaging.message.claim and messaging.message.record_send', () => {
       ).toMatchObject({ code: 'forbidden' });
       expect(
         await refusal(
-          run(who, recordWhatsAppSend, { entityId: 1, messageId, status: 'failed', errorCode: null }),
+          run(who, recordWhatsAppSend, {
+            entityId: 1,
+            messageId,
+            status: 'failed',
+            errorCode: null,
+          }),
         ),
       ).toMatchObject({ code: 'forbidden' });
     }
@@ -779,9 +830,10 @@ describe('messaging.message.claim and messaging.message.record_send', () => {
         }),
       ),
     ).toMatchObject({ code: 'forbidden' });
-    expect(
-      await run(workers([2]), claimWhatsAppMessage, { entityId: 2, messageId }),
-    ).toEqual({ messageId, claimed: false });
+    expect(await run(workers([2]), claimWhatsAppMessage, { entityId: 2, messageId })).toEqual({
+      messageId,
+      claimed: false,
+    });
   });
 
   it('takes a message once, never twice, and records a refusal only for one not taken', async () => {
@@ -891,11 +943,15 @@ describe('messaging.media.attach', () => {
       attached: true,
     });
     const [file] = await asMigrator(
-      (m) => m<{ status: string; purpose: string }[]>`select status, purpose from files where id = ${messageId}`,
+      (m) =>
+        m<
+          { status: string; purpose: string }[]
+        >`select status, purpose from files where id = ${messageId}`,
     );
     expect(file).toEqual({ status: 'scanning', purpose: 'whatsapp_media' });
     const events = await asOutboxPublisher(
-      (p) => p<{ type: string }[]>`select type from outbox_events where aggregate_id = ${messageId}`,
+      (p) =>
+        p<{ type: string }[]>`select type from outbox_events where aggregate_id = ${messageId}`,
     );
     expect(events.map((e) => e.type)).toEqual(['files.file.uploaded']);
     expect(

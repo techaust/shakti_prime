@@ -387,7 +387,9 @@ export const queueWhatsAppMessage = defineCommand({
     const [template] = await ctx.tx
       .select({ name: w.name })
       .from(w)
-      .where(and(eq(w.entityId, input.entityId), eq(w.purpose, input.purpose), eq(w.language, 'en')))
+      .where(
+        and(eq(w.entityId, input.entityId), eq(w.purpose, input.purpose), eq(w.language, 'en')),
+      )
       .limit(1);
     if (!template) return none;
     if (input.purpose === 'welcome' && (await threadOptedOut(ctx, input.threadId))) return none;
@@ -395,7 +397,9 @@ export const queueWhatsAppMessage = defineCommand({
     const rows = (await ctx.tx.execute(sql`
       select message_id
         from app.whatsapp_queue_message(${input.threadId}::uuid, ${kind}, ${template.name},
-                                        '[]'::jsonb)`)) as unknown as { message_id: string | null }[];
+                                        '[]'::jsonb)`)) as unknown as {
+      message_id: string | null;
+    }[];
     const row = rows[0];
     if (row === undefined) {
       throw new DomainError('not_found', `thread ${input.threadId} is not visible`, {
@@ -511,7 +515,9 @@ export const attachWhatsAppMedia = defineCommand({
   ],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
-    if (input.key !== uploadKey(input.entityId, 'whatsapp_media', input.fileId, input.contentType)) {
+    if (
+      input.key !== uploadKey(input.entityId, 'whatsapp_media', input.fileId, input.contentType)
+    ) {
       throw new DomainError('validation_failed', 'a WhatsApp file is stored under its own key', {
         reason: 'file_upload_mismatch',
       });

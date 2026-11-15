@@ -47,10 +47,7 @@ type Outcome = Exclude<MessagingSendResult, { outcome: 'duplicate' }>;
  * claim checks the opt-out again, so a STOP recorded meanwhile is still a refusal.
  * Logs carry ids and codes, never the text or the number.
  */
-export async function sendQueuedMessage(
-  job: MessagingSendJob,
-  deps: SendDeps,
-): Promise<Outcome> {
+export async function sendQueuedMessage(job: MessagingSendJob, deps: SendDeps): Promise<Outcome> {
   const log = deps.logger ?? appLogger;
   const scope = { entityIds: [job.entityId], requestId: deps.requestId };
   const done = (status: 'failed' | 'held' | 'skipped'): Outcome => ({

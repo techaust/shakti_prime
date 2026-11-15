@@ -509,7 +509,7 @@ const eventCatalogue = {
   /** A customer pressed a button of a WhatsApp message; the reply's id is in the stored message. */
   'messaging.button.pressed': {
     meaning:
-      'A customer pressed a button of a WhatsApp message (a quick reply); the button\'s own id is stored with the message.',
+      "A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message.",
     emittedBy: ['messaging.inbound.record'],
     subscribed: false,
     payload: z
