@@ -198,3 +198,44 @@ Not checked:
 - The journeys and the `ask` screenshots (the lead's Linux baselines are not made yet, so no layout review).
 - The live model on the eval set (by hand only).
 - The plans were read from the report, not reproduced.
+
+### Fix round, 15-11-2026 (the lead's cloud VM, worktree `b1-ask`, Postgres 54335 made fresh by the lead)
+Every finding of the review, as the lead directed:
+1. **The grounding filter** (`grounding.ts`):
+   - The lookups' answers are read with every id taken out first, so the digits inside a `ref`, `lead` or `quote` never pass for a figure.
+   - Every decimal digit of any script is read as ASCII on both sides (`asciiDigits`; the stored answer keeps the ASCII digits).
+   - Hundred, thousand, k, lakh, crore, million, mn, billion and bn after digits, and the same after number words ("fifty lakh", "one crore", "five hundred"), are read as multipliers. Any other "-illion" word after a figure is never sourced, and "one" alone is still not a figure.
+   - A line-start number is numbering only in a run counting up from 1 (a new run starts again at 1).
+   - Tests in `grounding.test.ts` (13, four new), one per gap with real `newId()` refs, and the reviewer's sentences:
+     - 25 leads with ids and "There are 7 open leads." loses the 7, and no figure is collected from the ids alone;
+     - "₹50 thousand", "₹7k", "7 million rupees", "fifty lakh" and "seven gazillion" are lost against a 7 and a 50, and kept against the right values;
+     - "Total: ३१२५० rupees." and "Total: ３１２５０ rupees." are lost with no source and kept against 31250;
+     - "Margin:\n23. percent" is lost, while "1. 2. 3." and a second run from 1 are kept.
+   - The screen's figure cards keep the magnitude word (`₹50 thousand`), with a test.
+2. **The cost test** (`ask-cost.test.ts`):
+   - Each lookup's own answer is captured before the wrapper masks it, by spying on every `ASK_TOOLS` `run`.
+   - The costs are seeded under nine digits (₹4,215.75 and ₹3,980.25), so masking cannot hide one.
+   - The test proves every cost pattern finds the Executive's figures, then proves none appears in the General Manager's raw lookups, masked lookups, answers, stored messages or logs, under any field name.
+3. **A repeated key** is answered from its record only while the key has not expired, its message is still there and the person still covers its conversation's companies, read as the person (`recordedTurn`). Otherwise the question is asked again as a new one and recorded without the key. The test in `ask.test.ts` covers the replay, the loss of company 2 and a deleted conversation.
+4. **A stream that ends with no answer or error line** shows `errors.ask_interrupted` ("The answer did not arrive. Check your connection and ask again.").
+5. **Reader parity** covers `askSourceLabels` and `itemCostsFor` on real records, seeded by `tests/fixtures/ask-data.ts`: an item with its cost side, a vault file and two rules.
+6. **The labels' Playbook read** stops once every cited rule is found and never reads past `AGENT_DEFAULTS.ask.directivesScanned`.
+7. **The stand-in recording** also reads this month's sales and ends with the confirmed orders' value as a rupee amount. The journeys assert, unconditionally, a cited stage with open leads, the sources region with "Pipeline stage", and the figure card (`₹…`), for the GM and for the snapshot.
+8. **The PRD AI-02 trace row** names B1 and its tests.
+9. **The lead's decision, a filing rule:**
+   - A document holding costs, margins or supplier rates is filed Executive only, because a management file is read by the General Manager, and the vault search and Ask follow a file's sensitivity.
+   - Written in SECURITY §3.2 (the Knowledge Vault bullet, which said management or Executive only), SECURITY §3.4, and the phase 1 design §8.4 (the vault's own record; the knowledge spike results page holds only plans).
+   - The design's "Built (B1)" also names the filter's new readings.
+
+**Checks** (each through the lock):
+- Affected suites:
+  - web `src/screens` and `src/i18n`: 29 files, 253 passed;
+  - domain `src/ai` and `src/command`: 20 files, 243 passed;
+  - domain security `ask.test.ts`, `ask-evals.test.ts`, `ask-cost.test.ts` and `reader-parity.test.ts`: 4 files, 35 passed;
+  - web `ask-route.test.ts`: 7 passed;
+  - `pnpm copy-lint` clean.
+- `pnpm test:security`: db 49 files, 1338 passed; domain 86 files, 1146 passed; web 29 files, 364 passed (`demo-data.test.ts` among them, on the fresh database); `Tasks: 4 successful, 4 total`.
+- Journeys after `pnpm build`, `e2e:seed` and `playwright test e2e/ask.spec.ts`: `23 passed (23.3s)`. The host run's `ask` screenshots were deleted, not committed. The phone picture showed the answer with its citation, the card `₹0.00` and the source "Pipeline stage New".
+- The whole-repository `pnpm lint`: exit 0.
+
+**Still for you:** the `ask` Linux baselines (`e2e:snap` on a fresh database); folding `0170` into `0168` at the renumbering if you wish; the owner's `checks-ok` for `js-budget.json`; and raising the filing rule with the owner.
