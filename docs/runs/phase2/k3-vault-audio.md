@@ -297,3 +297,48 @@ Slice-reviewer, 14-11-2026, on fcb27c2d (`git diff origin/main...HEAD`), in the 
 - The `knowledge-recording` and `knowledge` screenshots: none are committed (the lead remakes them in the image), so there was no layout review.
 - A live Sarvam call: its formats, size limits, price and per-request billing are unconfirmed, as the builder reported.
 - `EXPLAIN`: there is no new list. Finding 2 is a column cost, not a plan change.
+
+### 15-11-2026, lead's cloud VM (slot 4): fix round
+Every review finding is fixed. The screen fixes (6 and 7) were already in 8120b07f before the usage limit stopped the run. The checks below ran to the end before the VM restarted, and their logs survived.
+
+**Your commit e4bf721a held one problem.** It contained the three `knowledge-recording.png` baselines my journeys wrote outside the Playwright image. I removed them in this commit. The lead makes those baselines in the image, as agreed.
+
+**Fixes:**
+1. **Data dictionary:** `pnpm db:docs` regenerated `docs/data/data-dictionary.md`, and `data-docs.test.ts` passes.
+2. **Vault list columns:** `KNOWLEDGE_FILE_COLUMNS` in `commands/knowledge/shared.ts` names every column except `transcript`. `knowledgeListQuery()` selects those columns, and `knowledgeFileDto()` takes them (`KnowledgeFileFields`). Only `getKnowledgeFile()` reads the transcript.
+3. **Transcriber tests:** `apps/web/src/workers/knowledge/transcriber.test.ts` has 7 tests. They run `recordingTranscriber()` over `transcribeRecording()` and the Sarvam adapter, on answers written in its documented shapes. They cover:
+   - a minute in three pieces, with `sent` adding up to 60,000 ms;
+   - 400, 413 and 422, and a Devanagari answer (built from code points), each becoming `knowledge_unreadable`;
+   - 401, 403, 429, 500, 503 and an unreachable host, each becoming `integration_unavailable`;
+   - an aborted signal becoming `knowledge_timed_out`, with nothing sent;
+   - a file that is not a WAV refused;
+   - under `metered()`, the transcribe part counting 50 paise for the minute, then refusing a second minute at the cap (scope `part`) before any piece goes;
+   - `vaultTranscriber()` is not set up without the switch, whatever the key.
+4. **Upload hint:** it reads "…or a recording as a WAV file up to 25 MB, which holds about 13 minutes of a standard recording". "30 minutes" is gone from the hint. The check stays in code, and "Built (K3)" explains that no WAV the vault reads can reach it under 25 MB (a phone's 44.1 kHz stereo WAV holds about 2.5 minutes).
+5. **Masked length:** `knowledge.transcript.correct` checks the length after masking and refuses with `knowledge_too_long`. A test covers it: 14,000 six-character addresses fit under the limit typed, but not once masked.
+6. **Masked answer:** the command answers `KnowledgeFileDetailDto` with the transcript as kept, masked (asserted in the domain test). The panel shows that answer at once (`onSaved(updated)`), so the typed digits are never shown back.
+7. **Player address:** the page signs the address again (`openFile()`) on the player's `error` event, at most once every 5 seconds. It also signs again when the page re-reads the file and the address is 10 minutes old (the store signs for 15). Either way the player resumes where it was.
+8. **"Built (K3)"** states that a transcription failing part way pays again for the pieces already sent, bounded by the ₹300 transcription cap.
+9. **The switch** (the lead's decision): vault transcription needs `KNOWLEDGE_TRANSCRIBE=on` as well as `SARVAM_API_KEY` (`vaultTranscribeOn()`, `vaultTranscriber()`). It is read at runtime only, off by default, and is in `.env.example` with a comment. SECURITY §5, `voice.md` §2 item 3, "Built (K3)" and `knowledge.md` state the same rule, word for word: the key alone serves V1's benchmark, and vault recordings go to Sarvam only with the switch, which is turned on only after the owner's yes on Sarvam's data terms and the workspace's retention. API, the machine's note (with `machines:docs` regenerated) and `index-deps.ts` say the same.
+10. **Literal Devanagari:** the db and domain tests now build their Devanagari with `String.fromCodePoint`. No file on the branch holds a literal Devanagari character; the run file's review row only names them.
+11. **Not-found journey:** the management-recording journey now asserts the not-found screen (its heading and "Go to the home screen").
+12. **PRD trace:** `docs/02-prd.md` §8 AI-01 reads "P2, K1, K2, K3" and lists the K3 tests (db and domain `knowledge-audio.test.ts`, `audio-check.test.ts`, `transcriber.test.ts`, `e2e/knowledge-audio.spec.ts`).
+
+**Checks** (each through the lock, on 54334):
+
+| Check | Result |
+|---|---|
+| `pnpm test:security` | db 49 files, 1,338 passed; domain 84 files, 1,130 passed; web 28 files, 357 passed |
+| Unit tests | web 140 files, 1,072 passed and 1 skipped; domain 92 files, 2,410 passed; db 12 files, 150 passed (`data-docs.test.ts` among them) |
+| `pnpm build` | passed |
+| `pnpm --filter web js-budget` | the file page 192.6 of 202 kB, every page within budget |
+| Journeys (`e2e:seed`, then `knowledge-audio.spec.ts` and `knowledge.spec.ts`) | 29 passed, 3 failed |
+| Final whole-repository `pnpm lint` | passed, exit 0 |
+| `pnpm copy-lint` | clean |
+| Typecheck of domain and web | clean |
+
+The 3 journey failures are the existing `knowledge` screenshot in each project, as before. The VM renders outside the Playwright image, and the list's titles are now links. Its baselines and the new `knowledge-recording` ones are the lead's to make in the image.
+
+**Decisions:**
+- The switch's value is exactly `on`; anything else is off.
+- The page signs the player's address again only on an error, or once it is 10 minutes old, so a re-read never restarts playback needlessly.
