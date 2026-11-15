@@ -374,7 +374,7 @@ describe('the ingest definers', () => {
         accountId: fx.accounts.d[0],
         contactId: contactD,
         contactPhoneId: await phoneOf(contactD),
-        ownerId: fx.principals.a.id,
+        ownerId: null,
       }),
     ).toMatch(/not the company's/);
     // Another company's lead, attached to.

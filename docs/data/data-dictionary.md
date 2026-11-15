@@ -1422,7 +1422,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### ingest_keys
 
-**Catalogue entry** (05-database.md §6.2; created in 0168, 0169): `entity_id`, `label`, `key_hash` (the SHA-256 of the website key; unique; no request role selects it), `key_hint` (its last four characters), `last_used_at` (stamped by the lead the key sends, `app.ingest_lead_write()`), `revoked_at`, `revoked_by`; made through `crm.ingest_key.create` (the key shown once, never stored) and turned off through `crm.ingest_key.revoke`, by an Executive (`crm.sources.write:all`); a revoked key stays revoked (`app.ingest_keys_guard()`), and only the revoke changes a key (column grants)
+**Catalogue entry** (05-database.md §6.2; created in 0168, 0169): `entity_id`, `label`, `key_hash` (the SHA-256 of the website key; unique; no request role selects it), `key_hint` (its last four characters), `source_id` (the company's live website the key is for, set when it is made: the route takes the site, its line of business and consent setting from the key; the insert policy holds it to a live website of the key's company), `last_used_at` (stamped by the lead the key sends, `app.ingest_lead_write()`), `revoked_at`, `revoked_by`; made through `crm.ingest_key.create` (the key shown once, never stored) and turned off through `crm.ingest_key.revoke`, by an Executive (`crm.sources.write:all`); a revoked key stays revoked (`app.ingest_keys_guard()`), and only the revoke changes a key (column grants)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1431,6 +1431,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `label` | text | no |  |  |
 | `key_hash` | text | no |  |  |
 | `key_hint` | text | no |  |  |
+| `source_id` | uuid | yes |  | → `ingest_sources.id` |
 | `last_used_at` | timestamp with time zone | yes |  |  |
 | `revoked_at` | timestamp with time zone | yes |  |  |
 | `revoked_by` | uuid | yes |  | → `principals.id` |
@@ -1446,6 +1447,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `ingest_keys_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
 - `ingest_keys_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
 - `ingest_keys_revoked_by_principals_id_fk`: (`revoked_by`) → `principals` (`id`)
+- `ingest_keys_source_id_ingest_sources_id_fk`: (`source_id`) → `ingest_sources` (`id`)
 
 **Check constraints**
 
@@ -1458,6 +1460,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `ingest_keys_entity_idx` (btree): `entity_id, created_at desc`
 - `ingest_keys_key_hash_unique` (btree, unique): `key_hash`
+- `ingest_keys_source_idx` (btree): `source_id`
 
 **Triggers**
 
@@ -1465,7 +1468,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Row-level security:** enabled and forced; 3 policies.
 
-- `ingest_keys_insert` (insert, to app_user): with check `(select app.has_perm('crm.sources.write:all')) and entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and revoked_at is null and revoked_by is null and last_used_at is null`
+- `ingest_keys_insert` (insert, to app_user): with check `(select app.has_perm('crm.sources.write:all')) and entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and revoked_at is null and revoked_by is null and last_used_at is null and (source_id is null or exists (select 1 from ingest_sources s where s.id = ingest_keys.source_id and s.entity_id = ingest_keys.entity_id and s.provider = 'website' and s.archived_at is null))`
 - `ingest_keys_read` (select, to app_user, app_reader): using `(select app.has_perm('crm.sources.write:all')) and entity_id = any ((select app.entity_ids())::int[])`
 - `ingest_keys_update` (update, to app_user): using `(select app.has_perm('crm.sources.write:all')) and entity_id = any ((select app.entity_ids())::int[])`; with check `(select app.has_perm('crm.sources.write:all')) and entity_id = any ((select app.entity_ids())::int[]) and revoked_by = (select app.user_id())`
 

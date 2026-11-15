@@ -517,9 +517,9 @@ describe('the website route', () => {
         .status,
     ).toBe(200);
     const absent = `+91${testPhone()}`;
-    const { consent: _left, ...noConsent } = enquiry(absent);
-    void _left;
-    expect((await ingestLeadRoute(post(noConsent), deps)).status).toBe(200);
+    expect(
+      (await ingestLeadRoute(post({ ...enquiry(absent), consent: undefined }), deps)).status,
+    ).toBe(200);
     expect(await purposesOf(unticked)).toEqual([]);
     expect(await purposesOf(absent)).toEqual([]);
     expect(await leadsOf(absent)).toHaveLength(1);
@@ -593,11 +593,18 @@ describe('the website route', () => {
       }),
       deps,
     );
-    expect(await health.json()).toMatchObject({
+    const allowance = (await health.json()) as {
+      keyValid: boolean;
+      entityCode: string;
+      rateLimit: { limit: number; remaining: number };
+    };
+    expect(allowance).toMatchObject({
       keyValid: true,
       entityCode: CODE,
-      rateLimit: { limit: INGEST_PER_MINUTE, remaining: INGEST_PER_MINUTE - 1 },
+      rateLimit: { limit: INGEST_PER_MINUTE },
     });
+    // This minute's enquiries with the key are counted; the health check itself is not.
+    expect(allowance.rateLimit.remaining).toBeLessThanOrEqual(INGEST_PER_MINUTE - 1);
   });
 
   it('refuses a failed Turnstile check, another company, an unknown key and a revoked key, writing nothing', async () => {

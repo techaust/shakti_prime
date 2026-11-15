@@ -382,6 +382,7 @@ erDiagram
     text label
     text key_hash
     text key_hint
+    uuid source_id FK "null"
     timestamptz last_used_at "null"
     timestamptz revoked_at "null"
     uuid revoked_by FK "null"
@@ -596,6 +597,7 @@ erDiagram
   duplicate_candidates }o--o| opportunities : "other_opportunity_id, entity_id"
   ingest_keys }o--|| entities : "entity_id"
   ingest_keys }o--o| principals : "revoked_by"
+  ingest_keys }o--o| ingest_sources : "source_id"
   ingest_sources }o--|| entities : "entity_id"
   ingest_sources }o--|| pipelines : "pipeline_id"
   lead_qualifications }o--|| entities : "entity_id"
