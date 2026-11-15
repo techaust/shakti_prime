@@ -62,6 +62,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.playbook.approve': 'Approve Playbook directives',
   'messaging.send': 'Send WhatsApp messages to customers',
   'messaging.templates.write': 'Keep the list of WhatsApp message templates',
+  'knowledge.ask': 'Ask the Business',
   'agents.inbox.act': 'Act on Agent Inbox items',
   'agents.autonomy.write': 'Change agent autonomy',
   'agents.killswitch': 'Pause agents',

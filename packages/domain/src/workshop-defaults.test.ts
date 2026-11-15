@@ -113,6 +113,7 @@ describe('workshop defaults', () => {
         webhookPayloadDays: 30,
         webhookRowDays: 90,
         whatsappMediaYears: 3,
+        askDays: 90,
         callRecordingMonths: 12,
       },
     });

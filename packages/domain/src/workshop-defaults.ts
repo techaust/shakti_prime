@@ -86,6 +86,12 @@ export interface WorkshopDefaults {
      */
     readonly whatsappMediaYears: number;
     /**
+     * Days an Ask the Business conversation is kept after it was last used, and a question and
+     * its answer after it was asked; then the database's daily sweep removes them
+     * (`ask-conversations-purge`, whose days a security test keeps equal to this). At least 1.
+     */
+    readonly askDays: number;
+    /**
      * Months a call's recording is kept; then the hourly sweep removes its bytes and keeps the
      * call and its file's row (BLUEPRINT §7.9, docs/03-roadmap-appendix/phase2.md §6.3). At least 1.
      */
@@ -410,6 +416,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     webhookRowDays: 90,
     /** BLUEPRINT §7.9: WhatsApp media three years, then the text alone. For the CA to confirm. */
     whatsappMediaYears: 3,
+    /**
+     * The owner's decision of 13-11-2026 (phase 2 design §11): 90 days. For the CA to confirm
+     * (phase 2 design §13, question 10).
+     */
+    askDays: 90,
     /**
      * BLUEPRINT §7.9 and phase 2 design §11: call recordings twelve months. For the CA to confirm
      * (phase 2 design §13, question 10).

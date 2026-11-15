@@ -108,6 +108,8 @@ describe('the /api/v1 endpoint catalogue', () => {
     const keyed = entries.filter(([, e]) => e.idempotencyKey).map(([id]) => id);
     expect(keyed.sort()).toEqual(
       [
+        // A repeated question is answered from its record, with no second model call.
+        'ask',
         'attendance.checkIn',
         'connector.batches',
         'connector.snapshot',

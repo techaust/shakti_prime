@@ -11,6 +11,7 @@ export * from './knowledge';
 export * from './roman-script';
 export * from './playbook';
 export * from './whatsapp';
+export * from './ask';
 export * from './auth/enums';
 export * from './audit/audit';
 export * from './crm/enums';

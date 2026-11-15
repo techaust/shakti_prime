@@ -412,7 +412,13 @@
     "calling_not_set_up": "Calling from the screen is not set up yet. Dial by hand and save the call.",
     "provider_call_missing": "This call was not found on this lead. Reload the page and save the call again.",
     "provider_call_logged": "This call is saved already.",
-    "recording_missing": "There is no recording of this call to play."
+    "recording_missing": "There is no recording of this call to play.",
+    "ask_conversation_missing": "We couldn't find this conversation. It may have been deleted, or it covers companies you are not viewing.",
+    "ask_citation_unreturned": "We couldn't keep this answer because it points to records we did not read. Ask the question again.",
+    "ask_unavailable": "Ask the Business is not set up yet. Try again later.",
+    "ask_person_cap_reached": "You have reached today's limit for Ask the Business. You can ask again tomorrow.",
+    "ask_cap_reached": "Ask the Business has reached today's limit for everyone. You can ask again tomorrow.",
+    "ask_interrupted": "The answer did not arrive. Check your connection and ask again."
   },
   "auth": {
     "signIn": {
@@ -512,7 +518,8 @@
     "converters": "Lead converters",
     "converting": "Converting",
     "messages": "Messages",
-    "settingsLeadSources": "Lead sources"
+    "settingsLeadSources": "Lead sources",
+    "ask": "Ask the Business"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -589,7 +596,8 @@
       "converters": "Choose who takes qualified leads, how many each person takes and who is present.",
       "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen.",
       "messages": "Answer the WhatsApp chats waiting for a reply from you or your team.",
-      "settingsLeadSources": "Connect Facebook, Google and website lead forms, and make website keys."
+      "settingsLeadSources": "Connect Facebook, Google and website lead forms, and make website keys.",
+      "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from."
     },
     "progress": {
       "period": {
@@ -1774,7 +1782,9 @@
       "callRecordingAttach": "Call recording kept",
       "callRecordingDelete": "Old call recording removed",
       "callRecordingPlay": "Call recording played",
-      "callerProfileSetDialPhone": "Own calling phone changed"
+      "callerProfileSetDialPhone": "Own calling phone changed",
+      "askRecord": "Question asked in Ask the Business",
+      "askDelete": "Ask the Business conversation deleted"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2125,7 +2135,11 @@
       "callStatus": "Call status",
       "endedAt": "Ended",
       "listenedAt": "Played",
-      "dialPhone": "Own calling phone"
+      "dialPhone": "Own calling phone",
+      "askAnswered": "Answered",
+      "citedSources": "Records it points to",
+      "unsourcedFigures": "Figures left out because no record shows them",
+      "askMessages": "Questions in it"
     },
     "values": {
       "percent": "{value}%",
@@ -3017,7 +3031,8 @@
         "audit-logs-detach": "Archive activity log entries older than eight years",
         "idempotency-keys-purge": "Clear out old records of forms already sent",
         "outbox-events-purge": "Clear out updates sent more than 30 days ago",
-        "whatsapp-messages-partitions": "Make room for next months’ WhatsApp messages"
+        "whatsapp-messages-partitions": "Make room for next months’ WhatsApp messages",
+        "ask-conversations-purge": "Remove Ask the Business conversations unused for 90 days"
       },
       "state": {
         "ok": "Ran well",
@@ -3647,7 +3662,8 @@
       "messaging_process": "Receive and send WhatsApp messages for the companies",
       "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
-      "calls_process": "Record how a placed call went and keep its recording"
+      "calls_process": "Record how a placed call went and keep its recording",
+      "knowledge_ask": "Ask the Business questions"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -5472,5 +5488,62 @@
     "hide": "Hide lead details",
     "dialogTitle": "Lead details of {name}",
     "dialogIntro": "What the customer told us about their site and needs. A stage may need some of these before a lead moves on."
+  },
+  "ask": {
+    "title": "Ask the Business",
+    "intro": "Ask about your leads, quotes, orders, targets and the business's own files. Each answer shows the records it comes from, and only what you can see yourself.",
+    "conversations": {
+      "heading": "Your conversations",
+      "empty": "You have not asked anything yet.",
+      "newConversation": "New conversation",
+      "loadMore": "Show older",
+      "kept": "Conversations are removed 90 days after you last use them.",
+      "covers": "Covers {companies}"
+    },
+    "composer": {
+      "label": "Your question",
+      "askButton": "Ask",
+      "working": "Finding the answer",
+      "followUp": "Ask a follow-up question in this conversation."
+    },
+    "lookup": {
+      "search_vault": "Searching the Knowledge Vault",
+      "read_playbook": "Reading the Playbook",
+      "pipeline_by_stage": "Counting open leads by stage",
+      "list_leads": "Reading leads",
+      "list_quotes": "Reading quotes",
+      "list_orders": "Reading orders",
+      "sales_this_month": "Reading this month's sales",
+      "targets_progress": "Reading targets",
+      "dealer_credit": "Reading dealer credit",
+      "find_items": "Finding catalogue items"
+    },
+    "answer": {
+      "you": "You asked",
+      "unsourcedFigure": "a figure not found in the records",
+      "unsourcedNote": "Some figures could not be found in the records Ask read, so they are left out.",
+      "noAnswer": "Ask could not find an answer in the records you can see. Try asking in other words.",
+      "figures": "Figures in this answer",
+      "sources": "Where this comes from",
+      "sourceNumber": "Record {number}",
+      "sourceGone": "A record you can no longer open"
+    },
+    "kind": {
+      "knowledge_file": "Knowledge Vault file",
+      "playbook_directive": "Playbook rule",
+      "pipeline_stage": "Pipeline stage",
+      "opportunity": "Lead",
+      "quote": "Quote",
+      "sales_order": "Order",
+      "account": "Dealer",
+      "item": "Catalogue item"
+    },
+    "delete": {
+      "deleteButton": "Delete",
+      "deleteForGood": "Delete for good",
+      "keepIt": "Keep it",
+      "question": "Delete this conversation and all its answers?",
+      "done": "Conversation deleted."
+    }
   }
 }

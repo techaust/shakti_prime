@@ -1,6 +1,6 @@
 {
-  "id": "42c7081f-f007-4503-a88a-1c6ba5d4c6bb",
-  "prevId": "ba943283-9f60-47f5-9ab3-00c5cf5cd579",
+  "id": "14f598cc-b977-4420-b7a1-66d8b53e569e",
+  "prevId": "30ad8ab2-e1d8-497d-9d29-cac2548597fc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1625,6 +1625,378 @@
         "agent_runs_request_id_check": {
           "name": "agent_runs_request_id_check",
           "value": "char_length(\"agent_runs\".\"request_id\") between 1 and 128"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ask_conversations": {
+      "name": "ask_conversations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_ids": {
+          "name": "entity_ids",
+          "type": "smallint[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ask_conversations_user_updated_idx": {
+          "name": "ask_conversations_user_updated_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ask_conversations_updated_idx": {
+          "name": "ask_conversations_updated_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ask_conversations_user_id_principals_id_fk": {
+          "name": "ask_conversations_user_id_principals_id_fk",
+          "tableFrom": "ask_conversations",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "ask_conversations_entity_id_entities_id_fk": {
+          "name": "ask_conversations_entity_id_entities_id_fk",
+          "tableFrom": "ask_conversations",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "ask_conversations_owner_unique": {
+          "name": "ask_conversations_owner_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "user_id",
+            "entity_ids"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "ask_conversations_companies_check": {
+          "name": "ask_conversations_companies_check",
+          "value": "cardinality(\"ask_conversations\".\"entity_ids\") between 1 and 32\n      and array_position(\"ask_conversations\".\"entity_ids\", null) is null\n      and case when \"ask_conversations\".\"entity_id\" is null then cardinality(\"ask_conversations\".\"entity_ids\") > 1\n               else cardinality(\"ask_conversations\".\"entity_ids\") = 1 and \"ask_conversations\".\"entity_ids\"[1] = \"ask_conversations\".\"entity_id\" end"
+        },
+        "ask_conversations_title_check": {
+          "name": "ask_conversations_title_check",
+          "value": "char_length(\"ask_conversations\".\"title\") between 1 and 120"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ask_messages": {
+      "name": "ask_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_ids": {
+          "name": "entity_ids",
+          "type": "smallint[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question": {
+          "name": "question",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "answer": {
+          "name": "answer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unsourced": {
+          "name": "unsourced",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cited_json": {
+          "name": "cited_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "returned_json": {
+          "name": "returned_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cost_paise": {
+          "name": "cost_paise",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ask_messages_conversation_idx": {
+          "name": "ask_messages_conversation_idx",
+          "columns": [
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ask_messages_created_idx": {
+          "name": "ask_messages_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ask_messages_user_id_principals_id_fk": {
+          "name": "ask_messages_user_id_principals_id_fk",
+          "tableFrom": "ask_messages",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "ask_messages_entity_id_entities_id_fk": {
+          "name": "ask_messages_entity_id_entities_id_fk",
+          "tableFrom": "ask_messages",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "ask_messages_conversation_fk": {
+          "name": "ask_messages_conversation_fk",
+          "tableFrom": "ask_messages",
+          "tableTo": "ask_conversations",
+          "columnsFrom": [
+            "conversation_id",
+            "user_id",
+            "entity_ids"
+          ],
+          "columnsTo": [
+            "id",
+            "user_id",
+            "entity_ids"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ask_messages_companies_check": {
+          "name": "ask_messages_companies_check",
+          "value": "cardinality(\"ask_messages\".\"entity_ids\") between 1 and 32\n      and array_position(\"ask_messages\".\"entity_ids\", null) is null\n      and case when \"ask_messages\".\"entity_id\" is null then cardinality(\"ask_messages\".\"entity_ids\") > 1\n               else cardinality(\"ask_messages\".\"entity_ids\") = 1 and \"ask_messages\".\"entity_ids\"[1] = \"ask_messages\".\"entity_id\" end"
+        },
+        "ask_messages_question_check": {
+          "name": "ask_messages_question_check",
+          "value": "char_length(\"ask_messages\".\"question\") between 1 and 2000"
+        },
+        "ask_messages_answer_check": {
+          "name": "ask_messages_answer_check",
+          "value": "char_length(\"ask_messages\".\"answer\") <= 8000"
+        },
+        "ask_messages_outcome_check": {
+          "name": "ask_messages_outcome_check",
+          "value": "\"ask_messages\".\"outcome\" in ('answered', 'unsourced', 'no_answer')"
+        },
+        "ask_messages_unsourced_check": {
+          "name": "ask_messages_unsourced_check",
+          "value": "\"ask_messages\".\"unsourced\" between 0 and 1000"
+        },
+        "ask_messages_cited_check": {
+          "name": "ask_messages_cited_check",
+          "value": "jsonb_typeof(\"ask_messages\".\"cited_json\") = 'array' and jsonb_array_length(\"ask_messages\".\"cited_json\") <= 50"
+        },
+        "ask_messages_returned_check": {
+          "name": "ask_messages_returned_check",
+          "value": "jsonb_typeof(\"ask_messages\".\"returned_json\") = 'array' and jsonb_array_length(\"ask_messages\".\"returned_json\") <= 500"
+        },
+        "ask_messages_model_check": {
+          "name": "ask_messages_model_check",
+          "value": "char_length(\"ask_messages\".\"model\") <= 60"
+        },
+        "ask_messages_cost_check": {
+          "name": "ask_messages_cost_check",
+          "value": "\"ask_messages\".\"cost_paise\" >= 0"
         }
       },
       "isRLSEnabled": false
