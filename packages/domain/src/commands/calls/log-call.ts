@@ -62,6 +62,46 @@ function callStart(now: Date, durationS: number | null, given: string | undefine
   return new Date(Math.min(at, latest));
 }
 
+/**
+ * The click-to-dial call a log is of (`providerCallId`): the caller's own, on this lead, not
+ * logged yet, read under the caller's policies. Its start, its length once the provider reported
+ * it, and its line are what the log keeps.
+ */
+async function providerCallToLog(
+  ctx: CommandContext,
+  lead: OpportunityRow,
+  providerCallId: string,
+): Promise<{ id: string; startedAt: Date; durationS: number | null; series: '140' | '160' }> {
+  const pc = schema.providerCalls;
+  const [row] = await ctx.tx
+    .select({
+      id: pc.id,
+      startedAt: pc.startedAt,
+      durationS: pc.durationS,
+      series: pc.series,
+      callId: pc.callId,
+    })
+    .from(pc)
+    .where(
+      and(
+        eq(pc.id, providerCallId),
+        eq(pc.opportunityId, lead.id),
+        eq(pc.callerId, ctx.principal.id),
+        eq(pc.direction, 'outbound'),
+      ),
+    )
+    .limit(1);
+  if (row === undefined || (row.series !== '140' && row.series !== '160')) {
+    throw new DomainError('not_found', `provider call ${providerCallId} is not this caller's`, {
+      reason: 'provider_call_missing',
+    });
+  }
+  if (row.callId !== null) {
+    refuse('conflict', 'provider_call_logged', 'the dialled call is logged already');
+  }
+  return { id: row.id, startedAt: row.startedAt, durationS: row.durationS, series: row.series };
+}
+
 /** What the outcome needs beyond itself, checked before anything is written. */
 function checkOutcomeInput(
   ctx: CommandContext,
@@ -208,6 +248,12 @@ async function before(
  * `WORKSHOP_DEFAULTS.calling.logGraceMinutes` (CALL-8) after calling hours ended on its day
  * (`call_logged_too_late`), and for a customer who withdrew consent to calls
  * (`call_consent_withdrawn`). For people only.
+ *
+ * A call placed by click-to-dial names its provider call (`providerCallId`, phase 2 design §6.3):
+ * the caller's own on this lead, not yet logged (`provider_call_missing`, `provider_call_logged`).
+ * The log then keeps the provider call's start (when Dial was pressed), its length as the provider
+ * reported it (the screen's until it has), and its line (140 or 160), and the provider call is
+ * linked to the log once.
  */
 export const logCall = defineCommand({
   name: 'calls.call.log',
@@ -224,10 +270,20 @@ export const logCall = defineCommand({
     if (state !== 'open' && state !== 'nurture') {
       refuse('conflict', 'call_lead_closed', `lead ${lead.id} is ${state}`);
     }
+    // A dialled call's start and length are the provider call's: the time Dial was pressed and
+    // the length the provider reported (the screen's own measure until it has).
+    const dialled =
+      input.providerCallId === undefined
+        ? undefined
+        : await providerCallToLog(ctx, lead, input.providerCallId);
     // Calling hours hold for the call's real start (DOM-6): the time Dial was pressed, else its
     // duration before now.
-    const durationS = input.durationSeconds ?? null;
-    const startedAt = callStart(ctx.now, durationS, input.startedAt);
+    const durationS = dialled?.durationS ?? input.durationSeconds ?? null;
+    const startedAt = callStart(
+      ctx.now,
+      durationS,
+      dialled?.startedAt.toISOString() ?? input.startedAt,
+    );
     const late = callLogRefusal(startedAt, ctx.now);
     if (late !== undefined) {
       refuse('validation_failed', late, 'a call is logged for a start in calling hours');
@@ -264,7 +320,7 @@ export const logCall = defineCommand({
         opportunityId: lead.id,
         callerId: ctx.principal.id,
         direction: 'outbound',
-        numberSeries: 'manual',
+        numberSeries: dialled?.series ?? 'manual',
         dispositionId: outcome.id,
         attemptNo,
         startedAt,
@@ -272,6 +328,18 @@ export const logCall = defineCommand({
       })
       .returning();
     if (!call) throw new DomainError('internal', 'call insert returned no row');
+    if (dialled !== undefined) {
+      // The provider call names its log once; a log that raced this one took it first.
+      const pc = schema.providerCalls;
+      const linked = await ctx.tx
+        .update(pc)
+        .set({ callId: call.id })
+        .where(and(eq(pc.id, dialled.id), isNull(pc.callId)))
+        .returning({ id: pc.id });
+      if (linked.length === 0) {
+        refuse('conflict', 'provider_call_logged', 'the dialled call is logged already');
+      }
+    }
     ctx.audit({
       aggregateType: 'call',
       aggregateId: call.id,
@@ -296,6 +364,7 @@ export const logCall = defineCommand({
         code: outcome.code,
         nextAction,
         attemptNo,
+        ...(dialled === undefined ? {} : { providerCallId: dialled.id }),
       },
     });
 

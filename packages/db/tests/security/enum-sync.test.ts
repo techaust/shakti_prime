@@ -25,6 +25,10 @@ import {
   AUDIT_OUTCOMES,
   ConsentChannelSchema,
   EntityChannelKindSchema,
+  CALL_PURPOSES,
+  DIALLED_SERIES,
+  PROVIDER_CALL_SERIES,
+  PROVIDER_CALL_STATUSES,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   ContactRoleSchema,
@@ -68,6 +72,7 @@ import {
   KNOWLEDGE_FILE_STATES,
   KNOWLEDGE_SENSITIVITIES,
   KNOWLEDGE_SOURCE_TYPES,
+  KnowledgeSourceTypeSchema,
   PLAYBOOK_AUDIENCES,
   PLAYBOOK_CONFLICT_LABELS,
   PLAYBOOK_DIRECTIVE_STATES,
@@ -191,6 +196,8 @@ const PAIRS: Record<string, readonly string[]> = {
   users_contrast_check: ContrastSchema.options,
   knowledge_files_sensitivity_check: KNOWLEDGE_SENSITIVITIES,
   knowledge_files_source_type_check: KNOWLEDGE_SOURCE_TYPES,
+  // Only a recording has a transcript (K3).
+  knowledge_files_transcript_source_check: KnowledgeSourceTypeSchema.extract(['audio']).options,
   knowledge_files_state_check: KNOWLEDGE_FILE_STATES,
   knowledge_files_error_reason_check: KNOWLEDGE_ERROR_REASONS,
   knowledge_chunks_sensitivity_check: KNOWLEDGE_SENSITIVITIES,
@@ -208,6 +215,12 @@ const PAIRS: Record<string, readonly string[]> = {
   ingest_sources_page_token_check: ['meta_leadgen'],
   ingest_sources_consent_channels_check: ConsentChannelSchema.options,
   ingest_sources_consent_purpose_check: ConsentPurposeSchema.options,
+  provider_calls_direction_check: CallDirectionSchema.options,
+  provider_calls_series_check: PROVIDER_CALL_SERIES,
+  provider_calls_purpose_check: CALL_PURPOSES,
+  provider_calls_status_check: PROVIDER_CALL_STATUSES,
+  // An outbound call is a person's dial, on one of the lines a person dials out on.
+  provider_calls_outbound_check: ['outbound', ...DIALLED_SERIES],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

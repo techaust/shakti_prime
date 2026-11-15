@@ -162,6 +162,8 @@ const ACTIONS = {
   'knowledge.file.reindex': 'knowledgeFileReindex',
   'knowledge.file.archive': 'knowledgeFileArchive',
   'knowledge.file.record_index': 'knowledgeFileIndexed',
+  'knowledge.file.record_transcript': 'knowledgeTranscriptKept',
+  'knowledge.transcript.correct': 'knowledgeTranscriptCorrect',
   'knowledge.playbook.draft': 'playbookDraft',
   'knowledge.playbook.edit': 'playbookEdit',
   'knowledge.playbook.approve': 'playbookApprove',
@@ -208,6 +210,12 @@ const ACTIONS = {
   'crm.referral_partner.create': 'referralPartnerCreate',
   'crm.commission_rule.set': 'commissionRuleSet',
   'calls.call.log': 'callLog',
+  'calls.call.dial': 'callDial',
+  'calls.provider_call.record': 'providerCallRecord',
+  'calls.recording.attach': 'callRecordingAttach',
+  'calls.recording.delete': 'callRecordingDelete',
+  'calls.recording.play': 'callRecordingPlay',
+  'crm.caller_profile.set_dial_phone': 'callerProfileSetDialPhone',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -276,6 +284,7 @@ const EVENT_NAMES = {
   'sales.quote.expired': 'quoteExpired',
   'knowledge.file.index_requested': 'knowledgeIndexRequested',
   'knowledge.playbook.changed': 'playbookChanged',
+  'calls.dial.completed': 'dialCompleted',
   'sales.quote.accepted': 'quoteAccepted',
   'sales.order.created': 'orderCreated',
   'sales.order.confirmed': 'orderConfirmed',
@@ -413,6 +422,8 @@ const CODE_GROUPS = [
   'ingestOutcome',
   'ingestAssignee',
   'sourceProvider',
+  'callPurpose',
+  'callStatus',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -606,6 +617,13 @@ const FIELD_KINDS = [
   ['callOutcome', 'text'],
   ['attemptNo', 'number'],
   ['durationSeconds', 'number'],
+  // Click-to-dial calls and their recordings
+  ['callPurpose', 'callPurpose'],
+  ['numberSeries', 'text'],
+  ['callStatus', 'callStatus'],
+  ['endedAt', 'time'],
+  ['listenedAt', 'time'],
+  ['dialPhone', 'text'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],
   ['purpose', 'filePurpose'],
@@ -682,6 +700,7 @@ const FIELD_KINDS = [
   ['chunks', 'number'],
   ['replaced', 'number'],
   ['errorReason', 'errorCode'],
+  ['transcriptChars', 'number'],
   // The Playbook
   ['directiveType', 'playbookType'],
   ['audience', 'playbookAudience'],

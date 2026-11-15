@@ -48,12 +48,42 @@ export {
   readLeadQualification,
 } from './queries/crm/ingest-sources';
 export type { FoundIngestSource } from './queries/crm/ingest-sources';
+export { dialCall, recordedDndState } from './commands/calls/dial-call';
+export { playCallRecording } from './commands/calls/play-recording';
+export {
+  attachCallRecording,
+  callRecordingKey,
+  deleteCallRecording,
+  recordProviderCall,
+  toProviderCallDto,
+} from './commands/calls/provider-calls';
+export { placeDial } from './calls/place-dial';
+export {
+  dialReadiness,
+  dueCallRecordings,
+  ownDialPhone,
+  ownProviderCall,
+  playableRecordings,
+  providerCallForReport,
+  toDialReadiness,
+  unendedProviderCalls,
+  dialPhoneTaken,
+} from './queries/calls/provider-calls';
+export type { PlaceDialDeps } from './calls/place-dial';
+export {
+  ClickToDialNotSetUp,
+  ClickToDialRefused,
+  ClickToDialUncertain,
+  fakeClickToDial,
+  unreachableClickToDial,
+} from './ports/click-to-dial';
+export type { ClickToDial, ClickToDialRequest, PlacedProviderCall } from './ports/click-to-dial';
 export { listEntityChannels } from './queries/org/list-channels';
 export { dialFacts, dndRecordInput, toDialPlanDto } from './queries/calls/dial-plan';
 export { createLead } from './commands/crm/create-lead';
 export { moveOpportunityStage } from './commands/crm/move-opportunity-stage';
 export { assignOpportunity } from './commands/crm/assign-opportunity';
-export { setCallerProfile, setPresence } from './commands/crm/caller-profiles';
+export { setCallerProfile, setDialPhone, setPresence } from './commands/crm/caller-profiles';
 export { handOverLead } from './commands/crm/hand-over-lead';
 export { reassignAllLeads, REASSIGN_ALL_LIMIT } from './commands/crm/reassign-all';
 export { listCallerProfiles, loadOwnPresence } from './queries/crm/caller-profiles';
@@ -519,7 +549,13 @@ export {
   uploadPermission,
 } from './files/purposes';
 export type { FilePurposeRule } from './files/purposes';
-export { EXTENSIONS, UPLOAD_LIMITS, uploadKey, uploadLimitProblem } from './files/limits';
+export {
+  EXTENSIONS,
+  UPLOAD_LIMITS,
+  uploadKey,
+  uploadLimitProblem,
+  uploadMaxBytes,
+} from './files/limits';
 export type { UploadLimit, UploadLimitProblem } from './files/limits';
 export { fileUploadMachine } from './state-machines/machines/file-upload';
 export {
@@ -614,7 +650,11 @@ export {
   reindexKnowledgeFile,
 } from './commands/knowledge/files';
 export { recordKnowledgeIndex } from './commands/knowledge/record-index';
-export { knowledgeFileForIndex } from './commands/knowledge/shared';
+export {
+  correctKnowledgeTranscript,
+  recordKnowledgeTranscript,
+} from './commands/knowledge/transcript';
+export { knowledgeFileForIndex, knowledgeFileTranscript } from './commands/knowledge/shared';
 export {
   approvePlaybookDirective,
   draftPlaybookDirective,
@@ -623,6 +663,7 @@ export {
   retirePlaybookDirective,
 } from './commands/knowledge/playbook';
 export {
+  getKnowledgeFile,
   KNOWLEDGE_PAGE_SIZE,
   listKnowledgeFiles,
   searchKnowledge,
@@ -634,7 +675,12 @@ export {
   knowledgeSourceType,
 } from './knowledge/extract';
 export { EMBED_BATCH, indexKnowledgeFile, knowledgeReadKey } from './knowledge/index-file';
-export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
+export { KnowledgeExtractError } from './knowledge/extract';
+export type {
+  IndexKnowledgeDeps,
+  IndexKnowledgeOutcome,
+  RecordingTranscriber,
+} from './knowledge/index-file';
 export { knowledgeQueryVector } from './knowledge/search';
 export {
   bumpPlaybookVersion,

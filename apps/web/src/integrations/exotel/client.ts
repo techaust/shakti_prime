@@ -23,7 +23,18 @@ export interface ExotelConfig {
   apiToken: string;
   /** `api.in.exotel.com` (Mumbai cluster, the default) or `api.exotel.com` (Singapore). */
   subdomain: string;
+  /**
+   * The exact hosts a recording is copied from, which alone receive the account's key
+   * (`EXOTEL_RECORDING_HOSTS`, comma-separated; `DEFAULT_RECORDING_HOSTS` when unset).
+   */
+  recordingHosts?: readonly string[];
 }
+
+/**
+ * Exotel's recording host, as its call API documents `RecordingUrl`; the spike's step 5 confirms
+ * it on the live account, and `EXOTEL_RECORDING_HOSTS` replaces the list.
+ */
+export const DEFAULT_RECORDING_HOSTS: readonly string[] = ['recordings.exotel.com'];
 
 /** Exotel answers within a few seconds; a slow dial is reported and never repeated. */
 export const DIAL_TIMEOUT_MS = 8_000;
@@ -73,9 +84,86 @@ async function failure(response: Response): Promise<ProviderError> {
   });
 }
 
+/** A recording as copied from Exotel: its bytes and kind. */
+export interface FetchedRecording {
+  bytes: Uint8Array;
+  contentType: 'audio/mpeg' | 'audio/wav';
+}
+
 export interface ExotelClient {
   connectCall(input: ClickToDialInput): Promise<PlacedCall>;
   getCall(sid: string): Promise<PlacedCall>;
+  /**
+   * Copies a call's recording from the `RecordingUrl` of its status report: only from Exotel's
+   * own recording hosts (`isExotelRecordingUrl`), with the account's key on Exotel's hosts, at
+   * most `maxBytes`, an MP3 or a WAV. The link itself is never kept.
+   */
+  fetchRecording(url: string, maxBytes: number): Promise<FetchedRecording>;
+  /** Whether a link is on one of the account's recording hosts, so `fetchRecording` may ask it. */
+  recordingAllowed(url: string): boolean;
+}
+
+/** How long a recording's download may take: a long call's MP3 is a few megabytes. */
+export const RECORDING_TIMEOUT_MS = 30_000;
+
+/**
+ * Whether a report's `RecordingUrl` may be fetched: https, no user, password or port, on one of
+ * the account's recording hosts exactly. A report's link is unsigned body data, so any other
+ * address is refused and never receives the account's key.
+ */
+export function isExotelRecordingUrl(
+  raw: string,
+  hosts: readonly string[] = DEFAULT_RECORDING_HOSTS,
+): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.username !== '' || url.password !== '' || url.port !== '') {
+    return false;
+  }
+  return hosts.includes(url.hostname.toLowerCase());
+}
+
+/** The body of a response, read a chunk at a time and given up once it passes `maxBytes`. */
+async function readWithin(response: Response, maxBytes: number): Promise<Uint8Array | undefined> {
+  const reader = response.body?.getReader();
+  if (reader === undefined) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return bytes;
+}
+
+/** The kind of a downloaded recording, by the type Exotel sent or the file's extension. */
+function recordingType(
+  contentType: string | null,
+  url: string,
+): 'audio/mpeg' | 'audio/wav' | undefined {
+  const type = (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+  if (type === 'audio/mpeg' || type === 'audio/mp3') return 'audio/mpeg';
+  if (type === 'audio/wav' || type === 'audio/x-wav' || type === 'audio/wave') return 'audio/wav';
+  const path = new URL(url).pathname.toLowerCase();
+  if (path.endsWith('.mp3')) return 'audio/mpeg';
+  if (path.endsWith('.wav')) return 'audio/wav';
+  return undefined;
 }
 
 export function exotelClient(
@@ -119,6 +207,8 @@ export function exotelClient(
         Record: input.record ? 'true' : 'false',
         StatusCallback: input.statusCallbackUrl,
         'StatusCallbackEvents[0]': 'terminal',
+        // The answer too, so the caller's call bar shows the customer on the line as it happens.
+        'StatusCallbackEvents[1]': 'answered',
         StatusCallbackContentType: 'application/json',
       });
       if (input.timeLimitSeconds !== undefined) {
@@ -133,6 +223,50 @@ export function exotelClient(
         body: form,
       });
       return parseCall(response);
+    },
+
+    recordingAllowed(url) {
+      return isExotelRecordingUrl(url, config.recordingHosts ?? DEFAULT_RECORDING_HOSTS);
+    },
+
+    async fetchRecording(url, maxBytes) {
+      const hosts = config.recordingHosts ?? DEFAULT_RECORDING_HOSTS;
+      if (!isExotelRecordingUrl(url, hosts)) {
+        throw new ProviderError('exotel', 'invalid_response');
+      }
+      const download = (address: string) =>
+        providerFetch(
+          'exotel',
+          { ...deps, timeoutMs: Math.max(deps.timeoutMs, RECORDING_TIMEOUT_MS) },
+          address,
+          // Only an allowed recording host is ever asked, so the key goes to those alone.
+          { method: 'GET', headers: { authorization }, redirect: 'manual' },
+          { retries: 2 },
+        );
+      let final = url;
+      let response = await download(url);
+      // Exotel may send the download on once, only to another of the allowed recording hosts.
+      const next = response.headers.get('location');
+      if (response.status >= 300 && response.status < 400 && next !== null) {
+        const target = new URL(next, url).toString();
+        if (!isExotelRecordingUrl(target, hosts)) {
+          throw new ProviderError('exotel', 'invalid_response');
+        }
+        final = target;
+        response = await download(target);
+      }
+      if (!response.ok) throw new ProviderError('exotel', 'http', { status: response.status });
+      const declared = Number(response.headers.get('content-length') ?? '0');
+      if (declared > maxBytes) {
+        throw new ProviderError('exotel', 'invalid_response', { status: response.status });
+      }
+      // Read with a running count: a body that passes the limit is cancelled, never held whole.
+      const bytes = await readWithin(response, maxBytes);
+      const contentType = recordingType(response.headers.get('content-type'), final);
+      if (bytes === undefined || bytes.length === 0 || contentType === undefined) {
+        throw new ProviderError('exotel', 'invalid_response', { status: response.status });
+      }
+      return { bytes, contentType };
     },
 
     async getCall(sid) {
@@ -157,10 +291,15 @@ export function exotelConfig(
   const apiToken = env.EXOTEL_API_TOKEN ?? '';
   const subdomain = env.EXOTEL_SUBDOMAIN ?? '';
   if (accountSid === '' || apiKey === '' || apiToken === '') return undefined;
+  const hosts = (env.EXOTEL_RECORDING_HOSTS ?? '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter((host) => /^[a-z0-9.-]+$/.test(host));
   return {
     accountSid,
     apiKey,
     apiToken,
     subdomain: subdomain === '' ? 'api.in.exotel.com' : subdomain,
+    recordingHosts: hosts.length === 0 ? DEFAULT_RECORDING_HOSTS : hosts,
   };
 }

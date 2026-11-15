@@ -386,7 +386,20 @@
     "form_unmapped": "This lead form is not connected to a company yet. Connect it in Lead sources, then process it again.",
     "form_map_incomplete": "This lead form's questions do not say which is the name and which is the phone. Match them in Lead sources, then process it again.",
     "page_token_missing": "The Facebook Page of this form is not connected. Connect it in Lead sources, then process it again.",
-    "page_token_refused": "Facebook turned down the Page connection of this form. Connect the Page again in Lead sources, then process it again."
+    "page_token_refused": "Facebook turned down the Page connection of this form. Connect the Page again in Lead sources, then process it again.",
+    "knowledge_transcript_not_roman": "Write the transcript in English letters only, as you would type Hindi words in a phone message, then save it again.",
+    "knowledge_transcript_not_audio": "Only a recording has a transcript to correct. Refresh the page to see this file as it is.",
+    "knowledge_transcript_too_long": "This transcript is too long to save. Shorten it, then save it again.",
+    "file_audio_too_long": "This recording is longer than 30 minutes. Split it into shorter recordings and upload each one as a WAV file.",
+    "dial_refused": "This call cannot be placed now. The reasons are listed under Call from the screen.",
+    "dial_phone_not_own": "This number belongs to a customer or a company line, or is the number you are calling. Enter the phone you take calls on.",
+    "dial_phone_missing": "Add your own phone number on your profile first. The call rings that phone before the customer's.",
+    "dial_in_progress": "Your last call is still being placed. Wait a moment before calling again.",
+    "dial_failed": "The call could not be placed. Try again, or dial by hand and save the call.",
+    "calling_not_set_up": "Calling from the screen is not set up yet. Dial by hand and save the call.",
+    "provider_call_missing": "This call was not found on this lead. Reload the page and save the call again.",
+    "provider_call_logged": "This call is saved already.",
+    "recording_missing": "There is no recording of this call to play."
   },
   "auth": {
     "signIn": {
@@ -640,6 +653,16 @@
       "label": "I am present in {company}",
       "present": "You are present in {company}.",
       "away": "You are away in {company}."
+    },
+    "dialPhone": {
+      "heading": "Your phone for calls",
+      "intro": "When you call a customer from the screen, this phone rings first. Answer it, and the customer's phone rings next.",
+      "label": "Your phone number",
+      "labelIn": "Your phone number for {company}",
+      "helper": "Your 10-digit mobile number. Leave it empty to stop calling from the screen.",
+      "save": "Save",
+      "saved": "Your phone for calls is saved.",
+      "cleared": "Your phone for calls is removed."
     }
   },
   "mail": {
@@ -1714,7 +1737,15 @@
       "sourceArchive": "Lead source disconnected",
       "ingestKeyCreate": "Website key made",
       "ingestKeyRevoke": "Website key turned off",
-      "sourceQuestionsRecord": "A lead form's questions noted"
+      "sourceQuestionsRecord": "A lead form's questions noted",
+      "knowledgeTranscriptKept": "Recording's transcript kept",
+      "knowledgeTranscriptCorrect": "Recording's transcript corrected",
+      "callDial": "Call placed from the screen",
+      "providerCallRecord": "Call progress recorded",
+      "callRecordingAttach": "Call recording kept",
+      "callRecordingDelete": "Old call recording removed",
+      "callRecordingPlay": "Call recording played",
+      "callerProfileSetDialPhone": "Own calling phone changed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1766,7 +1797,8 @@
       "orderCreditReleased": "Credit hold released",
       "orderCancelled": "Order cancelled",
       "commissionAccrued": "Referral commission recorded",
-      "playbookChanged": "Playbook rule changed"
+      "playbookChanged": "Playbook rule changed",
+      "dialCompleted": "Call from the screen ended"
     },
     "sheet": {
       "title": "{action}",
@@ -2044,7 +2076,14 @@
       "monthlyBillRupees": "Monthly electricity bill (rupees)",
       "roofAreaSqFt": "Roof area (square feet)",
       "sanctionedLoadKw": "Sanctioned load (kW)",
-      "discomConsumerNo": "Electricity consumer number"
+      "discomConsumerNo": "Electricity consumer number",
+      "transcriptChars": "Characters in the transcript",
+      "callPurpose": "Kind of call",
+      "numberSeries": "Calling line",
+      "callStatus": "Call status",
+      "endedAt": "Ended",
+      "listenedAt": "Played",
+      "dialPhone": "Own calling phone"
     },
     "values": {
       "percent": "{value}%",
@@ -2120,6 +2159,20 @@
         "meta_leadgen": "Facebook and Instagram lead form",
         "google_leadform": "Google lead form",
         "website": "Company website"
+      },
+      "callPurpose": {
+        "promotional": "Sales call",
+        "service": "Service call"
+      },
+      "callStatus": {
+        "dialling": "Dialling",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Ended after talking",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Did not go through",
+        "canceled": "Stopped before answered"
       }
     }
   },
@@ -2692,7 +2745,9 @@
       "tagDetail": "Tag: {name}",
       "callDetail": "Outcome: {outcome}",
       "sizingInBounds": "{kind} sizing, within limits",
-      "sizingOutOfBounds": "{kind} sizing, outside limits"
+      "sizingOutOfBounds": "{kind} sizing, outside limits",
+      "play": "Play recording",
+      "recordingLabel": "Recording of the call"
     },
     "dialogs": {
       "accountTitle": "Edit customer details",
@@ -2973,7 +3028,8 @@
       "letterhead": "Letterhead",
       "knowledge": "Knowledge Vault document",
       "consent_evidence": "Proof of consent",
-      "print_proof": "Proof page"
+      "print_proof": "Proof page",
+      "call_recording": "Call recording"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -2982,7 +3038,8 @@
       "pdf": "PDF document",
       "csv": "CSV file",
       "xlsx": "Excel workbook",
-      "docx": "Word document"
+      "docx": "Word document",
+      "wav": "WAV recording"
     },
     "shortTypes": {
       "jpeg": "JPEG",
@@ -2991,7 +3048,8 @@
       "pdf": "PDF",
       "csv": "CSV",
       "xlsx": "XLSX",
-      "docx": "DOCX"
+      "docx": "DOCX",
+      "wav": "WAV"
     },
     "size": {
       "kb": "{value} KB",
@@ -3006,7 +3064,8 @@
       "pdf_checked": "PDF checked for scripts and attached files",
       "masked": "Numbers on the photo covered",
       "sheet_checked": "Spreadsheet checked before reading",
-      "document_checked": "Word document opened and its text read"
+      "document_checked": "Word document opened and its text read",
+      "audio_checked": "Recording checked and saved again without hidden details"
     },
     "scanStatus": {
       "NO_THREATS_FOUND": "No harmful content found",
@@ -3481,7 +3540,8 @@
       "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance",
       "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list",
       "webhooks_process": "Handle the messages other systems send in",
-      "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp"
+      "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
+      "calls_process": "Record how a placed call went and keep its recording"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3885,7 +3945,8 @@
     "keys": {
       "next": "N",
       "dial": "D",
-      "search": "/"
+      "search": "/",
+      "callFromScreen": "C"
     },
     "plan": {
       "title": "How this call would go out",
@@ -3916,6 +3977,27 @@
         "dnd_unknown": "We could not check the do-not-disturb list just now. Try again in a few minutes.",
         "dnd_not_set_up": "The do-not-disturb check is not set up yet, so sales calls cannot be checked against it."
       }
+    },
+    "bar": {
+      "title": "Call from the screen",
+      "noticeFirst": "Say this first:",
+      "dial": "Call",
+      "howItWorks": "Your own phone rings first. Answer it, and the customer's phone rings next.",
+      "timeLabel": "Time on the call",
+      "status": {
+        "dialling": "Placing the call",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Call ended",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Call did not go through",
+        "canceled": "Call stopped"
+      },
+      "logNow": "The call has ended. Choose its outcome to save it.",
+      "refused": "This call cannot be placed now:",
+      "noOwnPhone": "To call from the screen, add the phone you take calls on.",
+      "addOwnPhone": "Add it on your profile"
     }
   },
   "duplicates": {
@@ -4392,7 +4474,8 @@
       "pdf": "PDF",
       "photo": "Photo",
       "word": "Word document",
-      "excel": "Excel workbook"
+      "excel": "Excel workbook",
+      "audio": "Recording"
     },
     "state": {
       "waiting": "Being read",
@@ -4403,7 +4486,7 @@
     },
     "add": "Add a file",
     "addTitle": "Add a file to the Knowledge Vault",
-    "addIntro": "Give it a title and choose who can find it, then upload a PDF, a photo, a Word document or an Excel workbook. Numbers on photos are covered before they are read.",
+    "addIntro": "Give it a title and choose who can find it, then upload a PDF, a photo, a Word document, an Excel workbook or a recording. Numbers on photos are covered before they are read, and numbers in a recording's transcript before it is kept.",
     "titleLabel": "Title",
     "titleHint": "A name people will recognise in search results.",
     "titleMissing": "Give the file a title.",
@@ -4420,7 +4503,28 @@
     "archive": "Archive",
     "archiveTitle": "Archive this file?",
     "archiveIntro": "{title} will no longer appear in search. This cannot be undone.",
-    "archivedNotice": "Archived. The file no longer appears in search."
+    "archivedNotice": "Archived. The file no longer appears in search.",
+    "fileHint": "{types} up to {size}, or a recording as a WAV file up to {recordingSize}, which holds about 13 minutes of a standard recording",
+    "fileWrongType": "This kind of file cannot be added. Choose a {types} file. Save a recording as a WAV file first: MP3, M4A and OGG recordings cannot be added.",
+    "fileTooLarge": "This file is too large. A document or photo can be up to {size}, and a WAV recording up to {recordingSize}.",
+    "file": {
+      "title": "Knowledge Vault file",
+      "back": "Back to Knowledge",
+      "about": "About this file",
+      "recording": "Recording",
+      "player": "Play the recording {title}",
+      "cannotPlay": "This recording cannot be played here. Ask your administrator to check file storage.",
+      "transcript": "Transcript",
+      "transcriptLabel": "What was said",
+      "transcriptHint": "Correct any words the speech service heard wrongly, such as Rajasthani or Marwari words. Write in English letters. Numbers like Aadhaar and phone numbers are covered when you save.",
+      "transcriptMissing": "Write what was said before you save.",
+      "save": "Save transcript",
+      "savedNotice": "Saved. The recording is being read again for search from your transcript.",
+      "correctedOn": "Corrected on",
+      "transcribing": "The recording is being turned into text. The transcript shows here when it is ready.",
+      "readingAgain": "This transcript is being read again for search. You can correct it once that is done.",
+      "noTranscript": "There is no transcript yet. The reason is shown above."
+    }
   },
   "notifications": {
     "bell": "Notifications",

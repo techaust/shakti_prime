@@ -372,6 +372,11 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     },
   },
   'calls.call.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
+  // Click-to-dial, a caller's own dial phone and listening to a recording (phase 2 design §6.3):
+  // no agent holds calls.dial or calls.recording.listen, and only people may use them.
+  'calls.call.dial': { entityId: 1, opportunityId: newId() },
+  'calls.recording.play': { entityId: 1, providerCallId: newId() },
+  'crm.caller_profile.set_dial_phone': { entityId: 1, phone: '+919800000000' },
   // The Knowledge Vault's files are added, read again and archived by people (docs/03-roadmap-appendix/phase1.md §8.4).
   'knowledge.file.add': {
     entityId: 1,
@@ -381,6 +386,12 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   },
   'knowledge.file.reindex': { entityId: 1, knowledgeFileId: newId() },
   'knowledge.file.archive': { entityId: 1, knowledgeFileId: newId() },
+  // A recording's transcript is corrected by a person (K3).
+  'knowledge.transcript.correct': {
+    entityId: 1,
+    knowledgeFileId: newId(),
+    transcript: 'Refused correction',
+  },
   // Orders, acceptance and dealer credit (docs/03-roadmap-appendix/phase1.md §8.3): a person's decisions.
   'sales.quote.accept': { entityId: 1, quoteId: newId(), signedFileId: newId() },
   'sales.order.create': {
@@ -847,6 +858,11 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       knowledgeFileId: newId(),
       outcome: 'failed',
       reason: 'knowledge_unreadable',
+    },
+    'knowledge.file.record_transcript': {
+      entityId: 1,
+      knowledgeFileId: newId(),
+      transcript: 'Refused transcript',
     },
   };
 

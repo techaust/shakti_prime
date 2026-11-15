@@ -312,6 +312,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'webhooks.process': {},
   // The platform's lead from an integration; no person's role holds it (SECURITY §3.3).
   'crm.ingest.run': {},
+  // The platform's record of a provider call and its recording; no person's role holds it
+  // (SECURITY §3.3).
+  'calls.process': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

@@ -346,6 +346,8 @@ export const ENTITY_TABLES = [
   'ingest_sources',
   'ingest_keys',
   'lead_qualifications',
+  // a provider's call, a child of the lead, read with it (docs/03-roadmap-appendix/phase2.md §6.3)
+  'provider_calls',
 ] as const;
 
 /**

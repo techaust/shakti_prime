@@ -49,6 +49,8 @@ import {
   INGEST_CHANNELS,
   INGEST_OUTCOMES,
   INGEST_SOURCE_PROVIDERS,
+  CALL_PURPOSE_VALUES,
+  PROVIDER_CALL_STATUS_VALUES,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CONTRASTS,
@@ -505,6 +507,13 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'sourceProvider':
         return oneOf(INGEST_SOURCE_PROVIDERS, value)
           ? t(`values.sourceProvider.${value}`)
+      case 'callPurpose':
+        return oneOf(CALL_PURPOSE_VALUES, value)
+          ? t(`values.callPurpose.${value}`)
+          : wordsOf(value);
+      case 'callStatus':
+        return oneOf(PROVIDER_CALL_STATUS_VALUES, value)
+          ? t(`values.callStatus.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)

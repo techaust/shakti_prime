@@ -61,5 +61,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // or attaches the lead, with its customer, attribution, consent and owner, through definers,
     // and reads no lead or customer by a person's rule (docs/03-roadmap-appendix/phase2.md §6.2).
     { key: 'crm.ingest.run', scope: 'all' },
+    // A provider call's status, its recording's copy and removal (`calls.provider_call.record`,
+    // `calls.recording.attach`, `calls.recording.delete`): it writes `provider_calls` and the
+    // recording's file through definers, and reads no customer row.
+    { key: 'calls.process', scope: 'all' },
   ],
 };

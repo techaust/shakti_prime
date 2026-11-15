@@ -60,6 +60,11 @@ export const LogCallInput = z
     callbackAt: z.iso.datetime({ offset: true }).optional(),
     lostReason: OpportunityLostReasonSchema.optional(),
     nurtureReason: OpportunityNurtureReasonSchema.optional(),
+    /**
+     * The click-to-dial call this log is of (`calls.call.dial`): its start and length then come
+     * from the provider's call, not from the screen, and the call keeps its line (140 or 160).
+     */
+    providerCallId: IdSchema.optional(),
   })
   .strict();
 export type LogCallInput = z.infer<typeof LogCallInput>;

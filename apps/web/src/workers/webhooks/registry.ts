@@ -1,6 +1,7 @@
 import type { WebhookErrorCode, WebhookProvider } from '@shakti/contracts';
 import type { WebhookPayload } from './contracts';
 import { handleGoogleLeadform, handleMetaLeadgen } from './lead-forms';
+import { handleExotelStatus } from './exotel-status';
 
 /** What a handler is told besides the payload. */
 export interface WebhookHandlerContext {
@@ -48,4 +49,6 @@ export type WebhookHandlers = { readonly [P in WebhookProvider]?: WebhookHandler
 export const WEBHOOK_HANDLERS: WebhookHandlers = {
   meta_leadgen: handleMetaLeadgen,
   google_leadform: handleGoogleLeadform,
+  // T3: a click-to-dial call's status and recording (docs/03-roadmap-appendix/phase2.md §6.3).
+  exotel_status: handleExotelStatus,
 };

@@ -10,6 +10,8 @@ import type {
   CommissionAccrualState,
   CommissionBasis,
   ConsentChannel,
+  DialPurpose,
+  ProviderCallStatus,
   ConsentPurpose,
   ConsentSource,
   CustomerLanguage,
@@ -148,6 +150,24 @@ export const ACCOUNT_TYPES = [
 export const SITE_TYPES = ['borewell', 'rooftop', 'factory'] as const satisfies readonly SiteType[];
 
 export const CUSTOMER_LANGUAGES = ['hinglish', 'en'] as const satisfies readonly CustomerLanguage[];
+
+/** Why a call is made (`CALL_PURPOSES`): selling, or about something the customer asked for. */
+export const CALL_PURPOSE_VALUES = [
+  'promotional',
+  'service',
+] as const satisfies readonly DialPurpose[];
+
+/** Where a click-to-dial call stands (`PROVIDER_CALL_STATUSES`), first to last. */
+export const PROVIDER_CALL_STATUS_VALUES = [
+  'dialling',
+  'ringing',
+  'in_progress',
+  'completed',
+  'no_answer',
+  'busy',
+  'failed',
+  'canceled',
+] as const satisfies readonly ProviderCallStatus[];
 
 /** A company's channels (`ENTITY_CHANNEL_KINDS`), in the order Settings › Companies lists them. */
 export const ENTITY_CHANNEL_KINDS = [
@@ -339,6 +359,7 @@ export const KNOWLEDGE_SOURCE_VALUES = [
   'photo',
   'word',
   'excel',
+  'audio',
 ] as const satisfies readonly KnowledgeSourceType[];
 
 /** An agent's role key without its `agent:` prefix: the key of its name under `agents.names`. */
@@ -781,6 +802,7 @@ export const FILE_PURPOSES = [
   'print_proof',
   'knowledge',
   'consent_evidence',
+  'call_recording',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */
@@ -792,6 +814,7 @@ export const UPLOAD_CONTENT_TYPES = [
   'text/csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'audio/wav',
 ] as const satisfies readonly UploadContentType[];
 
 /** Why the checks refused a file; each has a sentence under `errors`. */
@@ -808,6 +831,7 @@ export const FILE_REJECT_REASONS = [
   'file_masking_unavailable',
   'file_upload_abandoned',
   'file_replaced',
+  'file_audio_too_long',
 ] as const satisfies readonly FileRejectReason[];
 
 /** What the malware scan said, and what the checks did to the bytes. */
@@ -830,6 +854,7 @@ export const FILE_SANITISING = [
   'masked',
   'sheet_checked',
   'document_checked',
+  'audio_checked',
 ] as const satisfies readonly FileSanitising[];
 
 /** `PLAYBOOK_DIRECTIVE_TYPES` (`@shakti/contracts`). */

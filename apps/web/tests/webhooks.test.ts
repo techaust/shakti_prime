@@ -131,6 +131,13 @@ describe('the webhook routes on real Postgres', () => {
           ? { failed: true, attempts: 1, error_code: 'form_unmapped' }
           : { processed: true, attempts: 1, error_code: 'no_handler' },
       );
+      // A provider with no handler yet is processed with its code; Exotel's status has T3's,
+      // which finds no call of ours for the fixture's reference and records nothing.
+      expect(row).toMatchObject({
+        processed: true,
+        attempts: 1,
+        error_code: d.provider === 'exotel_status' ? null : 'no_handler',
+      });
       // Processing it again changes nothing.
       expect(await processWebhook(row.id, { requestId: newId() })).toEqual({
         inboxId: row.id,

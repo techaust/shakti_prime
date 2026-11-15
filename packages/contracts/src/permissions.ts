@@ -127,6 +127,10 @@ export const PERMISSION_KEYS = [
   // only by the platform's worker principal, which makes or attaches the lead, its customer,
   // attribution, consent and owner through narrow definers, nothing more.
   'crm.ingest.run',
+  // The provider's call status, recording copy and recording removal (docs/03-roadmap-appendix/
+  // phase2.md §6.3): held only by the platform's worker principal, which writes `provider_calls`
+  // and their recordings through narrow definers, nothing more.
+  'calls.process',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -203,6 +207,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'crm.dnd.record',
   'webhooks.process',
   'crm.ingest.run',
+  'calls.process',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -350,6 +355,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.dnd.record': ['all'],
   'webhooks.process': ['all'],
   'crm.ingest.run': ['all'],
+  'calls.process': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

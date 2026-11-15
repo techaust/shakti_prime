@@ -38,6 +38,7 @@ import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
 import { renderMaskedPages } from '../../src/workers/files/pdf-pages';
+import { writeWav } from '../../src/integrations/voice/recording';
 import { readWordText } from '../../src/workers/knowledge/read-word';
 import { converterKey, CONVERTER_NAME } from '../converting-fixtures';
 import { wordDocument } from '../support/docx';
@@ -70,6 +71,8 @@ import {
   SNAPSHOT_SUGGESTIONS,
   SNAPSHOT_TEAM,
   SNAPSHOT_PLAYBOOK,
+  READER_RECORDING,
+  SNAPSHOT_RECORDING,
   SNAPSHOT_VAULT,
   type ProjectName,
   type SeededUsers,
@@ -513,6 +516,82 @@ async function ensureSnapshotVault(executiveId: string): Promise<void> {
 }
 
 /**
+ * A vault recording made once (K3): a checked WAV upload added by the Executive and read at once by
+ * the index job, its speech service a stand-in that answers the recording's synthetic transcript,
+ * since no speech service runs in the journeys.
+ */
+async function ensureRecording(
+  executiveId: string,
+  recording: { title: string; transcript: string },
+  entityId: number,
+  sensitivity: 'staff_ai_ok' | 'management',
+): Promise<string> {
+  const [found] = await asMigrator(
+    (m) => m<{ id: string }[]>`select id from knowledge_files
+                              where entity_id = ${entityId} and title = ${recording.title}
+                              order by created_at limit 1`,
+  );
+  if (found !== undefined) return found.id;
+  const store = fileStore();
+  if (store === undefined) throw new Error('no local file store for the vault recordings');
+  // One second of a quiet tone: enough for the player, never sent anywhere.
+  const samples = new Int16Array(16_000);
+  for (let i = 0; i < samples.length; i += 1) {
+    samples[i] = Math.round(800 * Math.sin((2 * Math.PI * 220 * i) / 16_000));
+  }
+  const bytes = writeWav({ sampleRate: 16_000, channels: 1, samples });
+  const fileId = newId();
+  const key = `${String(entityId)}/knowledge/${fileId}.wav`;
+  await store.put(key, bytes, 'audio/wav');
+  await asMigrator(
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by, scan_result)
+      values (${fileId}, ${entityId}, 'knowledge', ${store.bucket}, ${key}, ${`${recording.title}.wav`},
+              'audio/wav', ${bytes.length}, ${createHash('sha256').update(bytes).digest('hex')}, 'ready',
+              ${executiveId}, ${JSON.stringify({ sanitising: 'audio_checked' })}::jsonb)`,
+  );
+  const added = await executeCommand(
+    principalFor('executive', [1, 2, 3, 4], { id: executiveId }),
+    { entityIds: [entityId] },
+    addKnowledgeFile,
+    { entityId, fileId, title: recording.title, sensitivity },
+  );
+  const fake = fakeModelTransport();
+  await indexKnowledgeFile(
+    {
+      eventId: newId(),
+      knowledgeFileId: added.id,
+      entityId,
+      fileEntityId: entityId,
+      sensitivity,
+    },
+    {
+      principal: principalFor('system:workers', [entityId], { id: SYSTEM_WORKERS_PRINCIPAL_ID }),
+      store,
+      provider: createAiProvider({
+        claude: fake,
+        voyage: fake,
+        keyValue: memoryKeyValue(),
+        logger: memoryLogger(),
+      }),
+      readWord: readWordText,
+      pdfPages: renderMaskedPages,
+      transcriber: {
+        vendor: 'stand-in',
+        paisePerHour: 0,
+        durationMs: () => 1_000,
+        transcribe: () => Promise.resolve(recording.transcript),
+      },
+      requestId: newId(),
+      hosted: false,
+      logger: memoryLogger(),
+    },
+  );
+  return added.id;
+}
+
+/**
  * The snapshot company's Playbook, made once (SNAPSHOT_PLAYBOOK): an approved rule, and a draft the
  * conflict check compared with it through the stand-in model, which labels the pair an overlap.
  */
@@ -777,6 +856,16 @@ for (const lead of SNAPSHOT_LEADS) {
 await ensureSnapshotImport(ids.executive ?? '');
 progress('the snapshot company’s Knowledge Vault file');
 await ensureSnapshotVault(ids.executive ?? '');
+progress('the vault recordings');
+const recordings = {
+  snapshot: await ensureRecording(
+    ids.executive ?? '',
+    SNAPSHOT_RECORDING,
+    SNAPSHOT_COMPANY.entityId,
+    'management',
+  ),
+  reader: await ensureRecording(ids.executive ?? '', READER_RECORDING, 1, 'staff_ai_ok'),
+};
 progress('the snapshot company’s Playbook');
 await ensureSnapshotPlaybook(ids.executive ?? '');
 
@@ -985,6 +1074,7 @@ const seeded: SeededUsers = {
   quotes,
   orders,
   uat,
+  recordings,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

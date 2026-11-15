@@ -39,6 +39,8 @@ import {
   ActivityTypeSchema,
   ConsentChannelSchema,
   EntityChannelKindSchema,
+  CALL_PURPOSES,
+  PROVIDER_CALL_STATUSES,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
@@ -123,6 +125,8 @@ import {
   INGEST_OUTCOMES,
   INGEST_SOURCE_PROVIDERS,
   LEAD_QUALIFICATION_FACTS,
+  CALL_PURPOSE_VALUES,
+  PROVIDER_CALL_STATUS_VALUES,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -271,6 +275,8 @@ describe('the contract values copied for the browser', () => {
     expect(INGEST_FIELD_TARGETS).toEqual(CONTRACT_INGEST_FIELD_TARGETS);
     expect(INGEST_SOURCE_PROVIDERS).toEqual(CONTRACT_INGEST_SOURCE_PROVIDERS);
     expect(LEAD_QUALIFICATION_FACTS).toEqual(CONTRACT_LEAD_QUALIFICATION_FACTS);
+    expect(CALL_PURPOSE_VALUES).toEqual(CALL_PURPOSES);
+    expect(PROVIDER_CALL_STATUS_VALUES).toEqual(PROVIDER_CALL_STATUSES);
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);

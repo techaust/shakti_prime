@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { ownPresence } from '../../../../actions/handover';
 import { ChangePasswordForm } from '../../../../components/auth/home-forms';
+import { DialPhoneSection } from '../../../../components/profile/dial-phone-section';
 import { PresenceForm } from '../../../../components/profile/presence-form';
 import { Page } from '../../../../components/shell/page';
 import { ContrastSwitch, ThemeSwitch } from '../../../../components/theme';
@@ -53,6 +54,7 @@ export default async function ProfilePage() {
           />
         </section>
       )}
+      <DialPhoneSection />
       <section
         id="change-password"
         className="bg-surface border-border scroll-mt-20 rounded-lg border p-6"

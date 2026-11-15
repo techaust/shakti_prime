@@ -88,6 +88,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.dnd.record': 'Record whether a customer number is on the do-not-disturb list',
   'webhooks.process': 'Handle the messages other systems send in',
   'crm.ingest.run': 'Add leads that arrive from ads, lead forms, websites and WhatsApp',
+  'calls.process': 'Record how a placed call went and keep its recording',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

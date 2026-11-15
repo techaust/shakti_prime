@@ -6,15 +6,15 @@
 -- customer and their timeline goes through these definers, each checking `crm.ingest.run` and the
 -- request's company.
 
--- 1. crm.ingest.run is platform-only, like the other workers' grants: 0167's thirteen keys, kept,
---    and this one.
+-- 1. crm.ingest.run is platform-only, like the other workers' grants: the fourteen keys of 0169
+--    (with T3's calls.process), kept, and this one.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
                'sales.quote.expire', 'notifications.send', 'knowledge.index',
                'crm.handover.run', 'platform.jobs.check', 'crm.retention.run',
                'webhooks.process', 'crm.dnd.record', 'knowledge.playbook.check',
-               'crm.ingest.run']::text[]
+               'calls.process', 'crm.ingest.run']::text[]
 $$;
 --> statement-breakpoint
 

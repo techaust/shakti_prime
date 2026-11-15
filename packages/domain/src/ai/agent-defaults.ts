@@ -130,13 +130,19 @@ export const AGENT_DEFAULTS = {
    * staff search embeds each question. Each is counted under its own name in the spend totals and
    * held against its own daily cap for the whole group, in paise: ₹500 a day for reading and
    * embedding files (reading a PDF or a photo reserves about ₹25 before it is sent, and costs a few rupees), and
-   * ₹100 a day for search questions (each costs a paisa). Both caps are flagged for the owner to
+   * ₹100 a day for search questions (each costs a paisa). Transcribing vault recordings (K3) is
+   * counted under the index's name, inside its ₹500, and held as well to a cap of its own,
+   * `transcribeDailyCapPaise`: ₹300 a day, ten hours of audio at Sarvam's published ₹30 an hour,
+   * so recordings never take the whole day's reading. Each cap is flagged for the owner to
    * confirm; a change moves only how much the vault may read or answer in a day.
    */
   knowledge: {
     indexName: 'knowledge:index',
     searchName: 'knowledge:search',
     indexDailyCapPaise: 50_000,
+    /** The part of the index's spend that transcribing recordings may take in a day. */
+    transcribePart: 'transcribe',
+    transcribeDailyCapPaise: 30_000,
     searchDailyCapPaise: 10_000,
     /** One person's daily share of the search cap: a fifth, so one person cannot use it all up. */
     searchPersonDailyCapPaise: 2_000,
