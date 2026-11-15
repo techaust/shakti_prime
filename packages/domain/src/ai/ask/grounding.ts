@@ -78,6 +78,7 @@ const KNOWN_MAGNITUDE: Readonly<Record<string, number>> = {
  */
 export const NUMBER_WORDS = {
   english: [
+    'zero',
     'two',
     'three',
     'four',
@@ -129,8 +130,9 @@ export const NUMBER_WORDS = {
     'hazaron',
     'arab',
     'kharab',
+    'shunya',
   ],
-  shortMagnitudes: ['k', 'mn', 'bn', 'cr'],
+  shortMagnitudes: ['k', 'mn', 'bn', 'cr', 'grand'],
   romanHindiUnits: [
     'ek',
     'do',
@@ -171,12 +173,84 @@ const MAGNITUDES = new Set<string>(NUMBER_WORDS.magnitudes);
 const SHORT_MAGNITUDES = new Set<string>(NUMBER_WORDS.shortMagnitudes);
 const HINDI_UNITS = new Set<string>(NUMBER_WORDS.romanHindiUnits);
 
+/**
+ * The spelling families of the Indian magnitudes, beside the list: crore (karod, karor, karode,
+ * kror), lakh (laakh, lak, lac, lacs, lakhs), hazaar (hajaar, hajar, hazar, hazaars, hazaron).
+ */
+const MAGNITUDE_FAMILIES = [
+  /^k[ae]?r[oa]+[rd]e?s?$/,
+  /^cror?e?s?$/,
+  /^la+(?:kh|k|c)s?$/,
+  /^ha[jz]{1,2}a+r(?:on|s)?$/,
+];
+
 /** A word that says how many times over: a known magnitude, its plural, a short one, any -illion. */
 const isMagnitudeLike = (word: string): boolean => {
   const w = word.toLowerCase();
-  return MAGNITUDES.has(w) || SHORT_MAGNITUDES.has(w) || /illions?$/.test(w) || /^scores?$/.test(w);
+  return (
+    MAGNITUDES.has(w) ||
+    SHORT_MAGNITUDES.has(w) ||
+    MAGNITUDE_FAMILIES.some((f) => f.test(w)) ||
+    /illions?$/.test(w) ||
+    /^scores?$/.test(w)
+  );
 };
-const RUPEE_WORD = /^(?:rupees?|rupaye|rupay|rs|inr)$/i;
+/** The rupee words, every common spelling. */
+const RUPEE_WORDS = 'rupees?|rupaye|rupay|rupiya|rupiye|rupaiya|rupaiye|rupaye|rs|inr';
+const RUPEE_WORD = new RegExp(`^(?:${RUPEE_WORDS})$`, 'i');
+/** The percent words, and percentage points, a kind of their own no lookup gives. */
+const PERCENT_AFTER = /^\s*(%|percent\b|per cent\b|pct\b|pc\b)/i;
+const POINTS_AFTER = /^\s*percentage\s+points?\b/i;
+
+/**
+ * The words that may stand right after an amount: punctuation or none, or one of these ordinary
+ * words. Any other word after an amount (an unknown magnitude, a unit) leaves it unsourced.
+ */
+const AFTER_AMOUNT = new Set([
+  'a',
+  'an',
+  'the',
+  'for',
+  'per',
+  'of',
+  'in',
+  'on',
+  'and',
+  'or',
+  'to',
+  'from',
+  'with',
+  'each',
+  'total',
+  'only',
+  'is',
+  'was',
+  'are',
+  'were',
+  'has',
+  'had',
+  'will',
+  'by',
+  'this',
+  'that',
+  'these',
+  'those',
+  'at',
+  'as',
+  'than',
+  'which',
+  'plus',
+  'so',
+  'but',
+  'against',
+  'since',
+  'until',
+  'after',
+  'before',
+  'over',
+  'under',
+  'into',
+]);
 
 /** A figure found in a text: where it is, and the keys that would source it (none: never). */
 interface Found {
@@ -285,14 +359,26 @@ function typeNumber(text: string, start: number, end: number): Found {
     multiplier = known;
   }
   let rupee = rupeeStart !== undefined;
-  const rupeeWord = /^\s+(rupees?|rupaye|rupay|rs\.?|inr)\b/i.exec(text.slice(at));
+  const rupeeWord = new RegExp(`^\\s+(${RUPEE_WORDS})\\.?(?![\\p{L}])`, 'iu').exec(text.slice(at));
   if (rupeeWord !== null) {
     rupee = true;
     at += rupeeWord[0].length;
   }
-  if (rupee) return { start: from, end: at, keys: [`inr:${valueText(value * multiplier)}`] };
+  if (rupee) {
+    // An amount stands before punctuation, nothing or an ordinary word; any other word right
+    // after it (an unknown magnitude such as `karod` or `grand`, a unit) leaves it unsourced.
+    const next = /^[ \t]+([\p{L}]+)/u.exec(text.slice(at));
+    if (next !== null && !AFTER_AMOUNT.has((next[1] ?? '').toLowerCase())) {
+      return { start: from, end: at + next[0].length, keys: [] };
+    }
+    return { start: from, end: at, keys: [`inr:${valueText(value * multiplier)}`] };
+  }
   if (only !== undefined) return { start: from, end: at, keys: [] };
-  const percent = /^\s*(%|percent\b|per cent\b|pc\b)/i.exec(text.slice(at));
+  const points = POINTS_AFTER.exec(text.slice(at));
+  if (points !== null) {
+    return { start: from, end: at + points[0].length, keys: [`pp:${valueText(value)}`] };
+  }
+  const percent = PERCENT_AFTER.exec(text.slice(at));
   if (percent !== null) {
     return { start: from, end: at + percent[0].length, keys: [`pct:${valueText(value)}`] };
   }
@@ -472,7 +558,11 @@ function setAsideNumbering(text: string, numbering: string[]): string {
       const m = LINE_NUMBER.exec(line);
       if (m === null) return line;
       const word = (m[4] ?? '').replace(/[^\p{L}%]/gu, '');
-      if (isMagnitudeLike(word) || RUPEE_WORD.test(word) || /^(%|percent|pc)$/i.test(word)) {
+      if (
+        isMagnitudeLike(word) ||
+        RUPEE_WORD.test(word) ||
+        /^(%|percent|pct|pc|percentage)$/i.test(word)
+      ) {
         return line;
       }
       const n = Number(m[2]);

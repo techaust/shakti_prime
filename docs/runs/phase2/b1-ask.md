@@ -343,3 +343,29 @@ The usability cost: a count with no word after it is refused even when it is rig
 | B | **Medium, new (confirmed): a unit word outside the list falls back to a count.** "Margin 7 pct." and "Margin 7 percentage points." pass as counts of 7; "7 rupiya" and "7 rupaiya" pass as counts. Within counts the noun is not compared: "Warranty is 30 years." passes from "30 days". Fix: add `pct`, `percentage( points)?`, `rupiya`, `rupaiya`, `rupiye` to the percent and rupee words (and refuse a count before them), and say in SECURITY §3.2 that a count is matched by number and kind only, not by what it counts. |
 
 Nothing else new. The documents (SECURITY §3.2, the design's Built record) describe the closed filter; with rows A and B they overstate it slightly for spellings outside the lists.
+
+### Findings A and B, 15-11-2026 (the lead's cloud VM, worktree `b1-ask`)
+The second re-check (ba4ddaf2) closed findings 1 and 10 and the cost-test low, and left two mediums. These were fixed narrowly; the lead checks the diff, with no further review.
+- **A:**
+  - An amount is sourced only before punctuation, nothing, or a word of a fixed list of ordinary following words (`AFTER_AMOUNT`: a, an, the, for, per, of, in, on, and, or, to, from, with, each, total, only, is, was, are, were, has, had, will, by, this, that, these, those, at, as, than, which, plus and a few more). Any other word right after it, such as an unknown magnitude or a unit, leaves it unsourced and is taken out with it.
+  - The magnitude spelling families are read in amounts, counts and after list numbers alike:
+    - crore: karod, karor, karode, kror, crores;
+    - lakh: laakh, lak, lac, lacs, lakhs;
+    - hazaar: hajaar, hajar, hazar, hazaars, hazaron;
+    - `grand`, only after a number;
+    - `zero` and `shunya`, as number words.
+- **B:**
+  - `pct` is a percentage.
+  - `percentage point(s)` is a kind of its own (`pp:`), which no lookup gives and which never matches a percentage.
+  - Every spelling of rupees makes an amount: rupiya, rupiye, rupaiya, rupaiye, rupaye, rupay.
+  - SECURITY §3.2 and the design's "Built (B1)" state that a count is matched by its number and kind only, not by what it counts ("30 years" is sourced by "30 days"), and describe the list of words after an amount and the spellings.
+- **Tests** (`grounding.test.ts`, now 84), on lookups shaped like the re-check's:
+  - refused, from row A: `₹7 karod`, `₹7 karor`, `₹7 hajaar`, `₹7 laakh`, `Rs. 7 grand`, `7 karod rupees`, `1. karod rupees` and "There are zero open leads.", plus `shunya`, `₹7 crores`, `₹7 hazaars` and `₹7 kits`;
+  - refused, from row B: "Margin 7 pct.", "Margin 7 percentage points." and "80 percentage points", and `7 rupiya`, `7 rupaiya` and `7 rupaye`, these last on lookups with no amount of 7, since "7 rupiya" against a real ₹7.00 is a correct amount;
+  - still passing: the re-check's correct sentences ("has 7 open leads [ref:…]", the quote number with ₹50,000 and 30-11-2026, ₹50 thousand, ₹7.00, "80% … 80 of 100 calls", "within 30 days", "14 November 2026", "Rs. 50,000/-", "12 quotes waiting", a list from 1), and "Warranty is 30 years." as the documented case of a count matched by number.
+- **Checks** (through the lock):
+  - domain `src/ai`: 10 files, 180 passed;
+  - domain security `ask.test.ts`, `ask-evals.test.ts`, `ask-cost.test.ts`, `reader-parity.test.ts` and `agent-refusals.test.ts`: 5 files, 84 passed;
+  - web `ask-route.test.ts`: 7 passed;
+  - `pnpm --filter @shakti/domain typecheck` clean;
+  - `eslint --max-warnings 0` on `packages/domain/src/ai`, `tests/commands` and `tests/security`: clean.

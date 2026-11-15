@@ -183,3 +183,72 @@ describe('figures refused (review finding 1, the re-check and finding 10)', () =
     );
   });
 });
+
+describe('the second re-check: rows A and B', () => {
+  /** The re-check's lookups, written as the tools write them. */
+  const RECHECK = [
+    JSON.stringify({ stages: [{ ref: LEAD.id, stage: 'New', openLeads: 7 }, { openLeads: 23 }] }),
+    JSON.stringify({
+      quotes: [
+        {
+          ref: QUOTE.id,
+          number: 'SS/Q/2026-27/0012',
+          grandTotal: '₹50000.00',
+          made: '2026-11-14',
+          validUntil: '2026-11-30',
+        },
+      ],
+    }),
+    JSON.stringify({ companies: [{ ordersConfirmedValue: '₹7.00', quotesSentWaiting: 12 }] }),
+    JSON.stringify({ mine: [{ metrics: [{ target: 100, actual: 80, percentOfTarget: 80 }] }] }),
+    JSON.stringify({ rules: [{ text: 'Install within 30 days of the order. Warranty 5 years.' }] }),
+  ];
+  /** The same without any amount of 7, for the unit words that would otherwise be ₹7. */
+  const COUNTS_ONLY = [JSON.stringify({ openLeads: 7, percentOfTarget: 80 })];
+
+  it.each([
+    ['₹7 karod', RECHECK],
+    ['₹7 karor', RECHECK],
+    ['₹7 hajaar', RECHECK],
+    ['₹7 laakh', RECHECK],
+    ['Rs. 7 grand', RECHECK],
+    ['7 karod rupees', RECHECK],
+    ['1. karod rupees', RECHECK],
+    ['There are zero open leads.', RECHECK],
+    ['Nothing: shunya.', RECHECK],
+    ['₹7 crores', RECHECK],
+    ['₹7 hazaars', RECHECK],
+    ['Margin 7 pct.', COUNTS_ONLY],
+    ['Margin 7 percentage points.', COUNTS_ONLY],
+    ['Margin 80 percentage points.', COUNTS_ONLY],
+    ['It costs 7 rupiya.', COUNTS_ONLY],
+    ['It costs 7 rupaiya.', COUNTS_ONLY],
+    ['It costs 7 rupaye.', COUNTS_ONLY],
+    ['It costs ₹7 kits.', RECHECK],
+  ])('refuses %j', (answer, lookups) => {
+    const grounded = ground(answer, lookups);
+    expect(grounded.unsourced).toBeGreaterThan(0);
+    expect(grounded.text).not.toMatch(
+      /\d|karod|karor|hajaar|laakh|grand|zero|shunya|crores|hazaars/i,
+    );
+  });
+
+  it.each([
+    [`New has 7 open leads [ref:${LEAD.id}].`],
+    ['Quote SS/Q/2026-27/0012 is for ₹50,000 and is valid until 30-11-2026.'],
+    ['Orders come to ₹50 thousand.'],
+    ['Orders confirmed this month come to ₹7.00.'],
+    ['You are at 80% of your calls target, 80 of 100 calls.'],
+    ['Install within 30 days; it was made on 14 November 2026.'],
+    ['It is Rs. 50,000/- in all.'],
+    ['There are 12 quotes waiting.'],
+    ['Stages:\n1. New\n2. Qualified'],
+  ])('still passes %j', (answer) => {
+    expect(ground(answer, RECHECK).unsourced).toBe(0);
+  });
+
+  it('matches a count by its number and kind only, not by what it counts', () => {
+    // Documented in SECURITY §3.2: "30 years" is sourced by "30 days".
+    expect(ground('Warranty is 30 years.', RECHECK).unsourced).toBe(0);
+  });
+});
