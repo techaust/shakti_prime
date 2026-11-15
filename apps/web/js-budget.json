@@ -37,6 +37,10 @@
       "maxKb": 206,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Cold Caller workspace: the queue, the lead with its outcome keys, script card, checklist and recent activity, and the search; the dialog that asks for a call back time or a reason loads when an outcome first needs it. Measured 196.6 kB on 05-10-2026, plus 5 %."
     },
+    "/messages": {
+      "maxKb": 208,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the chats waiting for a reply with the open chat: its messages, the reply box, the template choice and the take over and give back buttons. Measured 197.3 kB on 15-11-2026, plus 5 %."
+    },
     "/converting": {
       "maxKb": 213,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Lead Converter workspace: the list of what to do next, the board by stage, the open lead with its calls and outcome keys, and the search; the sizing form, the quote form and the dialog that asks for a call back time load when first needed. Measured 203.1 kB on 09-10-2026, plus 5 %."
