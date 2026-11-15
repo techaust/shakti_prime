@@ -45,6 +45,8 @@ import {
   PLAYBOOK_TYPE_VALUES,
   CONSENT_CHANNELS,
   ENTITY_CHANNEL_KINDS,
+  CALL_PURPOSE_VALUES,
+  PROVIDER_CALL_STATUS_VALUES,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CONTRASTS,
@@ -489,6 +491,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'channelKind':
         return oneOf(ENTITY_CHANNEL_KINDS, value)
           ? t(`values.channelKind.${value}`)
+          : wordsOf(value);
+      case 'callPurpose':
+        return oneOf(CALL_PURPOSE_VALUES, value)
+          ? t(`values.callPurpose.${value}`)
+          : wordsOf(value);
+      case 'callStatus':
+        return oneOf(PROVIDER_CALL_STATUS_VALUES, value)
+          ? t(`values.callStatus.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)

@@ -1,5 +1,6 @@
 import type { WebhookProvider } from '@shakti/contracts';
 import type { WebhookPayload } from './contracts';
+import { handleExotelStatus } from './exotel-status';
 
 /** What a handler is told besides the payload. */
 export interface WebhookHandlerContext {
@@ -37,4 +38,7 @@ export type WebhookHandlers = { readonly [P in WebhookProvider]?: WebhookHandler
  * with the code `no_handler` until the slice that handles it (W1, I1, T3, T4, V2) adds its line
  * here, which is the only change that slice makes to the backbone.
  */
-export const WEBHOOK_HANDLERS: WebhookHandlers = {};
+export const WEBHOOK_HANDLERS: WebhookHandlers = {
+  // T3: a click-to-dial call's status and recording (docs/03-roadmap-appendix/phase2.md §6.3).
+  exotel_status: handleExotelStatus,
+};

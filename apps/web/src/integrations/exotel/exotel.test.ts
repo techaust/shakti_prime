@@ -62,6 +62,7 @@ describe('click-to-dial', () => {
       CallerId: '1400000000',
       Record: 'true',
       'StatusCallbackEvents[0]': 'terminal',
+      'StatusCallbackEvents[1]': 'answered',
       StatusCallbackContentType: 'application/json',
       CustomField: CALL_REF,
     });
@@ -136,7 +137,13 @@ describe('click-to-dial', () => {
     expect(exotelConfig({})).toBeUndefined();
     expect(
       exotelConfig({ EXOTEL_ACCOUNT_SID: 'a', EXOTEL_API_KEY: 'b', EXOTEL_API_TOKEN: 'c' }),
-    ).toEqual({ accountSid: 'a', apiKey: 'b', apiToken: 'c', subdomain: 'api.in.exotel.com' });
+    ).toEqual({
+      accountSid: 'a',
+      apiKey: 'b',
+      apiToken: 'c',
+      subdomain: 'api.in.exotel.com',
+      recordingHosts: ['recordings.exotel.com'],
+    });
   });
 });
 

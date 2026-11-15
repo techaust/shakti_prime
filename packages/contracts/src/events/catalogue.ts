@@ -9,6 +9,7 @@ import { PdfDocumentTypeSchema } from '../api/print-documents';
 import { ImportKindSchema } from '../imports/enums';
 import { KNOWLEDGE_PDF_MAX_PAGES, KnowledgeSensitivitySchema } from '../knowledge';
 import { PlaybookDirectiveStateSchema } from '../playbook';
+import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -451,6 +452,20 @@ const eventCatalogue = {
         change: z.enum(['drafted', 'edited', 'approved', 'retired', 'conflict_resolved']),
         state: PlaybookDirectiveStateSchema,
         recheck: z.boolean(),
+      })
+      .strict(),
+  },
+  'calls.dial.completed': {
+    meaning:
+      'A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line.',
+    emittedBy: ['calls.provider_call.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        callerId: IdSchema.nullable(),
+        status: z.enum(PROVIDER_CALL_ENDS),
+        durationSeconds: z.number().int().min(0).nullable(),
       })
       .strict(),
   },

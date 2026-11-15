@@ -15,9 +15,16 @@ import { setRolePermissions } from '../commands/admin/set-role-permissions';
 import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
+import { dialCall } from '../commands/calls/dial-call';
 import { logCall } from '../commands/calls/log-call';
+import { playCallRecording } from '../commands/calls/play-recording';
+import {
+  attachCallRecording,
+  deleteCallRecording,
+  recordProviderCall,
+} from '../commands/calls/provider-calls';
 import { assignOpportunity } from '../commands/crm/assign-opportunity';
-import { setCallerProfile, setPresence } from '../commands/crm/caller-profiles';
+import { setCallerProfile, setDialPhone, setPresence } from '../commands/crm/caller-profiles';
 import { handOverLead } from '../commands/crm/hand-over-lead';
 import { reassignAllLeads } from '../commands/crm/reassign-all';
 import { createLead } from '../commands/crm/create-lead';
@@ -148,6 +155,7 @@ export const commands = Object.freeze({
   [assignOpportunity.name]: assignOpportunity,
   [setCallerProfile.name]: setCallerProfile,
   [setPresence.name]: setPresence,
+  [setDialPhone.name]: setDialPhone,
   [handOverLead.name]: handOverLead,
   [reassignAllLeads.name]: reassignAllLeads,
   [nurtureOpportunity.name]: nurtureOpportunity,
@@ -188,6 +196,11 @@ export const commands = Object.freeze({
   [recordConsent.name]: recordConsent,
   [withdrawConsent.name]: withdrawConsent,
   [logCall.name]: logCall,
+  [dialCall.name]: dialCall,
+  [recordProviderCall.name]: recordProviderCall,
+  [attachCallRecording.name]: attachCallRecording,
+  [deleteCallRecording.name]: deleteCallRecording,
+  [playCallRecording.name]: playCallRecording,
   [setPrice.name]: setPrice,
   [createPriceList.name]: createPriceList,
   [approvePriceList.name]: approvePriceList,
