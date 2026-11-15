@@ -12,6 +12,7 @@ import {
 import {
   createIngestKey,
   executeCommand,
+  ingestIdempotencyKey,
   memoryKeyValue,
   newIngestKey,
   revokeIngestKey,
@@ -571,6 +572,24 @@ describe('the website route', () => {
     );
     expect(ok.status).toBe(200);
     expect(await purposesOf(phone)).toEqual([]);
+  });
+
+  it('keeps a site’s Idempotency-Key in a space of its own, so it never meets a Lead Ads key', async () => {
+    // The key a Lead Ads delivery computes from a public lead id, sent by a site as its own.
+    const leadAdsKey = ingestIdempotencyKey('meta_ads', `L${testPhone()}`);
+    const phone = `+91${testPhone()}`;
+    const body = enquiry(phone);
+    const first = await ingestLeadRoute(post(body, { 'idempotency-key': leadAdsKey }), deps);
+    expect(first.status).toBe(200);
+    const again = await ingestLeadRoute(post(body, { 'idempotency-key': leadAdsKey }), deps);
+    expect(((await again.json()) as { leadId: string }).leadId).toBe(
+      ((await first.json()) as { leadId: string }).leadId,
+    );
+    const [stored] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from idempotency_keys where key = ${leadAdsKey}`,
+    );
+    expect(stored?.n).toBe(0);
   });
 
   it('makes the lead with its consent and stamps the key as used', async () => {

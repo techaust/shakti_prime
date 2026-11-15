@@ -11,6 +11,7 @@ import {
   executeQuery,
   findIngestKey,
   hashIngestKey,
+  ingestIdempotencyKey,
   ingestLead,
   type ExecuteOptions,
   type KeyValue,
@@ -165,7 +166,11 @@ export async function ingestLeadRoute(request: Request, deps: IngestRouteDeps): 
       input,
       {
         ...deps.options({ client }),
-        ...(idempotency?.success === true ? { idempotencyKey: idempotency.data } : {}),
+        // The site's key is moved into a space of its own, per ingest key, so it can never meet the
+        // key a Lead Ads or Google delivery computes from its public provider id (review N1).
+        ...(idempotency?.success === true
+          ? { idempotencyKey: ingestIdempotencyKey(`website-key:${key.keyId}`, idempotency.data) }
+          : {}),
       },
     );
     return Response.json(IngestLeadResponse.parse({ leadId: out.leadId, outcome: out.outcome }), {
