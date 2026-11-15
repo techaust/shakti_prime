@@ -297,6 +297,15 @@
     "lost_reason_missing": "Choose why the lead was lost.",
     "nurture_reason_missing": "Choose why the lead should be followed up later.",
     "dial_number_missing": "This customer has no main phone number. Add one on the customer page.",
+    "dial_refused": "This call cannot be placed now. The reasons are listed under Call from the screen.",
+    "dial_phone_not_own": "This number belongs to a customer or a company line, or is the number you are calling. Enter the phone you take calls on.",
+    "dial_phone_missing": "Add your own phone number on your profile first. The call rings that phone before the customer's.",
+    "dial_in_progress": "Your last call is still being placed. Wait a moment before calling again.",
+    "dial_failed": "The call could not be placed. Try again, or dial by hand and save the call.",
+    "calling_not_set_up": "Calling from the screen is not set up yet. Dial by hand and save the call.",
+    "provider_call_missing": "This call was not found on this lead. Reload the page and save the call again.",
+    "provider_call_logged": "This call is saved already.",
+    "recording_missing": "There is no recording of this call to play.",
     "duplicate_missing": "This possible duplicate has been dealt with, or you cannot see both customers. Reload the page to see the latest.",
     "duplicate_not_matching": "These two leads are not open leads of the same customer for the same kind of work, so they cannot be put forward as one.",
     "duplicate_candidate_transition_not_allowed": "This possible duplicate has already been dealt with. Reload the page to see the latest.",
@@ -623,6 +632,16 @@
     }
   },
   "profile": {
+    "dialPhone": {
+      "heading": "Your phone for calls",
+      "intro": "When you call a customer from the screen, this phone rings first. Answer it, and the customer's phone rings next.",
+      "label": "Your phone number",
+      "labelIn": "Your phone number for {company}",
+      "helper": "Your 10-digit mobile number. Leave it empty to stop calling from the screen.",
+      "save": "Save",
+      "saved": "Your phone for calls is saved.",
+      "cleared": "Your phone for calls is removed."
+    },
     "title": "Your profile",
     "intro": "How the screens look for you, your password and whether you take new leads.",
     "presence": {
@@ -1697,6 +1716,12 @@
       "channelSet": "Company number set",
       "channelArchive": "Company number taken out of use",
       "phoneDndRecord": "Do-not-disturb list checked",
+      "callDial": "Call placed from the screen",
+      "providerCallRecord": "Call progress recorded",
+      "callRecordingAttach": "Call recording kept",
+      "callRecordingDelete": "Old call recording removed",
+      "callRecordingPlay": "Call recording played",
+      "callerProfileSetDialPhone": "Own calling phone changed",
       "webhookClaim": "A message from another system taken up",
       "webhookMark": "A message from another system handled",
       "webhookSweep": "Old messages from other systems cleared out",
@@ -1752,7 +1777,8 @@
       "orderCreditReleased": "Credit hold released",
       "orderCancelled": "Order cancelled",
       "commissionAccrued": "Referral commission recorded",
-      "playbookChanged": "Playbook rule changed"
+      "playbookChanged": "Playbook rule changed",
+      "dialCompleted": "Call from the screen ended"
     },
     "sheet": {
       "title": "{action}",
@@ -2014,6 +2040,12 @@
       "verified": "Checked and working",
       "isDnd": "On the do-not-disturb list",
       "dndCheckedAt": "Do-not-disturb list checked",
+      "callPurpose": "Kind of call",
+      "numberSeries": "Calling line",
+      "callStatus": "Call status",
+      "endedAt": "Ended",
+      "listenedAt": "Played",
+      "dialPhone": "Own calling phone",
       "provider": "From",
       "failed": "Failed"
     },
@@ -2067,6 +2099,20 @@
         "call_service_160": "Service calls number (160 series)",
         "ivr": "Incoming calls number",
         "missed_call": "Missed-call number"
+      },
+      "callPurpose": {
+        "promotional": "Sales call",
+        "service": "Service call"
+      },
+      "callStatus": {
+        "dialling": "Dialling",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Ended after talking",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Did not go through",
+        "canceled": "Stopped before answered"
       }
     }
   },
@@ -2637,6 +2683,8 @@
         "leads_merged": "Another lead merged into this one"
       },
       "tagDetail": "Tag: {name}",
+      "play": "Play recording",
+      "recordingLabel": "Recording of the call",
       "callDetail": "Outcome: {outcome}",
       "sizingInBounds": "{kind} sizing, within limits",
       "sizingOutOfBounds": "{kind} sizing, outside limits"
@@ -2900,7 +2948,8 @@
       "letterhead": "Letterhead",
       "knowledge": "Knowledge Vault document",
       "consent_evidence": "Proof of consent",
-      "print_proof": "Proof page"
+      "print_proof": "Proof page",
+      "call_recording": "Call recording"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -3409,6 +3458,7 @@
       "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
       "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance",
       "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list",
+      "calls_process": "Record how a placed call went and keep its recording",
       "webhooks_process": "Handle the messages other systems send in"
     },
     "empty": "There are no roles to show.",
@@ -3813,7 +3863,29 @@
     "keys": {
       "next": "N",
       "dial": "D",
+      "callFromScreen": "C",
       "search": "/"
+    },
+    "bar": {
+      "title": "Call from the screen",
+      "noticeFirst": "Say this first:",
+      "dial": "Call",
+      "howItWorks": "Your own phone rings first. Answer it, and the customer's phone rings next.",
+      "timeLabel": "Time on the call",
+      "status": {
+        "dialling": "Placing the call",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Call ended",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Call did not go through",
+        "canceled": "Call stopped"
+      },
+      "logNow": "The call has ended. Choose its outcome to save it.",
+      "refused": "This call cannot be placed now:",
+      "noOwnPhone": "To call from the screen, add the phone you take calls on.",
+      "addOwnPhone": "Add it on your profile"
     },
     "plan": {
       "title": "How this call would go out",

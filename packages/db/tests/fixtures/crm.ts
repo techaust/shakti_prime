@@ -72,6 +72,11 @@ export async function crmFixture(): Promise<CrmFixture> {
       await tx`alter table sizings disable trigger sizings_append_only`;
       await tx`delete from sizings where opportunity_id::text like ${`${P}%`}`;
       await tx`alter table sizings enable trigger sizings_append_only`;
+      // Provider calls are children of the leads and name their logs (provider-calls.test.ts
+      // writes them); no role deletes one, so the trigger is set aside here.
+      await tx`alter table provider_calls disable trigger provider_calls_no_delete`;
+      await tx`delete from provider_calls where opportunity_id::text like ${`${P}%`}`;
+      await tx`alter table provider_calls enable trigger provider_calls_no_delete`;
       // Calls are append-only children of the leads (calls.test.ts writes them).
       await tx`alter table calls disable trigger calls_append_only`;
       await tx`delete from calls where opportunity_id::text like ${`${P}%`}`;
@@ -86,6 +91,8 @@ export async function crmFixture(): Promise<CrmFixture> {
       await tx`delete from contacts where id::text like ${`${P}%`}`;
       await tx`delete from teams where id::text like ${`${P}%`}`;
       await tx`delete from pin_codes where id::text like ${`${P}%`}`;
+      // A profile of a fixture person (provider-calls.test.ts sets one's dial phone).
+      await tx`delete from caller_profiles where user_id::text like ${`${P}%`}`;
       await tx`delete from principals where id::text like ${`${P}%`}`;
 
       for (const [key, principalId] of Object.entries(pid)) {

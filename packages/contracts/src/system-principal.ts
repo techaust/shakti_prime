@@ -57,5 +57,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The webhook worker and its sweep: it claims, marks and purges `webhook_inbox` rows through
     // definers, and reads no row of any company (docs/03-roadmap-appendix/phase2.md §5.1).
     { key: 'webhooks.process', scope: 'all' },
+    // A provider call's status, its recording's copy and removal (`calls.provider_call.record`,
+    // `calls.recording.attach`, `calls.recording.delete`): it writes `provider_calls` and the
+    // recording's file through definers, and reads no customer row.
+    { key: 'calls.process', scope: 'all' },
   ],
 };
