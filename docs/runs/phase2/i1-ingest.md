@@ -153,7 +153,7 @@ Diff `origin/main...feat/i1-ingest` (88 files). Not findings, as the lead accept
 **`pnpm test:security`** (through the lock, on 54331, on f61c1371): db 49 files, 1,345 passed; domain 84 files, 1,141 passed; web 28 of 29 files, 362 of 363 passed. Every I1 file passed (db `lead-ingest` 9, domain `lead-ingest` 22, web `lead-ingest` 6, `webhooks` 14). The one failure is `apps/web/tests/demo-data.test.ts:175` (`expected undefined to be '31000.00'`), which the slice does not touch. Its `pricedOn()` reads only the first 200 prices of the shared live retail list, so on this slot's aged database (the builder's journeys and runs since then) the demo pump most likely falls past row 200. This is plausible, not reproduced, and not an I1 finding. The builder's run on a younger database passed 363 of 363; rerun it on a fresh database at integration.
 
 ### Fix round, 15-11-2026, the lead's cloud VM (worktree `i1-ingest`, Postgres 54331)
-Every finding of the review, with the lead's decision on M3. Commits 8e0c0f2d…, then the fix commits up to this report (`git log ed1043da..HEAD`).
+Every finding of the review, with the lead's decision on M3. Commits a91ca0ba, 482cfd0b and 4ec23017 (`git log ed1043da..HEAD`).
 
 | # | Fix | Test |
 |---|---|---|
