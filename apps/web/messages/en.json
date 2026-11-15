@@ -156,6 +156,12 @@
     "playbook_audience_above_source": "This rule comes from a file for managers, so it can only be for management. Choose Management.",
     "playbook_passage_missing": "A drafted rule points to a part of the file that is no longer there. Draft from the file again.",
     "playbook_drafting_unavailable": "Drafting rules from files is not set up yet. Type the rule in yourself for now.",
+    "ask_conversation_missing": "We couldn't find this conversation. It may have been deleted, or it covers companies you are not viewing.",
+    "ask_citation_unreturned": "We couldn't keep this answer because it points to records we did not read. Ask the question again.",
+    "ask_unavailable": "Ask the Business is not set up yet. Try again later.",
+    "ask_person_cap_reached": "You have reached today's limit for Ask the Business. You can ask again tomorrow.",
+    "ask_cap_reached": "Ask the Business has reached today's limit for everyone. You can ask again tomorrow.",
+    "ask_interrupted": "The answer did not arrive. Check your connection and ask again.",
     "voucher_no_match": "No matching order was found for this Tally entry. It has gone to the review list.",
     "voucher_has_match": "This Tally entry already matches an order.",
     "voucher_link_target_missing": "Choose the order or proforma to link this Tally entry to.",
@@ -493,6 +499,7 @@
     "adminAgents": "Agents",
     "knowledge": "Knowledge",
     "knowledgePlaybook": "Playbook",
+    "ask": "Ask the Business",
     "orders": "Orders",
     "dealerCredit": "Dealer credit",
     "targets": "Targets",
@@ -569,6 +576,7 @@
       "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
       "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
       "knowledgePlaybook": "Review the rules staff and the assistants follow, and approve new ones.",
+      "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from.",
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "targets": "Set what each caller and team is aiming for, and see what was set before.",
@@ -1724,6 +1732,8 @@
       "playbookResolveConflict": "Playbook clash settled",
       "playbookCheckRecorded": "Playbook rule checked against the approved rules",
       "playbookDraftFromFile": "Playbook rules drafted from a Knowledge Vault file",
+      "askRecord": "Question asked in Ask the Business",
+      "askDelete": "Ask the Business conversation deleted",
       "channelSet": "Company number set",
       "channelArchive": "Company number taken out of use",
       "phoneDndRecord": "Do-not-disturb list checked",
@@ -2052,6 +2062,10 @@
       "pairs": "Approved rules compared",
       "openConflicts": "Clashes left to settle",
       "drafts": "Rules drafted",
+      "askAnswered": "Answered",
+      "citedSources": "Records it points to",
+      "unsourcedFigures": "Figures left out because no record shows them",
+      "askMessages": "Questions in it",
       "channelKind": "Channel",
       "channelNumber": "Number",
       "providerRef": "Reference from the calling or WhatsApp service",
@@ -2937,6 +2951,7 @@
       "caption": "Scheduled upkeep tasks and their last run",
       "names": {
         "activities-partitions": "Make room for next months’ customer history",
+        "ask-conversations-purge": "Remove Ask the Business conversations unused for 90 days",
         "audit-logs-partitions": "Make room for next months’ activity log",
         "audit-logs-detach": "Archive activity log entries older than eight years",
         "idempotency-keys-purge": "Clear out old records of forms already sent",
@@ -2979,13 +2994,13 @@
         "payload_unreadable": "We could not read it",
         "handler_failed": "The step that handles it failed",
         "too_many_attempts": "It failed ten times",
+        "other": "Something else went wrong",
         "form_unmapped": "The lead form is not connected to a company",
         "form_map_incomplete": "The form's name or phone question is not matched",
         "page_token_missing": "The Facebook Page is not connected",
         "page_token_refused": "Facebook turned down the Page connection",
         "lead_unreadable": "Facebook sent a lead we could not read",
-        "lead_fetch_refused": "Facebook did not give the lead",
-        "other": "Something else went wrong"
+        "lead_fetch_refused": "Facebook did not give the lead"
       }
     },
     "unowned": {
@@ -3509,6 +3524,7 @@
       "knowledge_vault_write": "Add and archive Knowledge Vault files",
       "knowledge_playbook_draft": "Draft and edit Playbook guidance",
       "knowledge_playbook_approve": "Approve Playbook guidance",
+      "knowledge_ask": "Ask the Business questions",
       "agents_inbox_act": "Act on Agent Inbox items",
       "agents_autonomy_write": "Choose how freely agents act",
       "agents_killswitch": "Pause agents",
@@ -3526,7 +3542,6 @@
       "files_process": "Check uploaded files before they are used",
       "imports_process": "Stop an import that could not finish",
       "crm_config_write": "Set up pipelines, call outcomes, lead scores and referral codes",
-      "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_score_refresh": "Bring lead scores up to date each night",
       "crm_duplicates_scan": "Look for duplicate customers and leads each night",
       "sales_quote_expire": "Mark quotes past their validity as expired each day",
@@ -3540,6 +3555,7 @@
       "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance",
       "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list",
       "webhooks_process": "Handle the messages other systems send in",
+      "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
       "calls_process": "Record how a placed call went and keep its recording"
     },
@@ -5168,6 +5184,63 @@
       "retired": "Rule retired.",
       "settled": "Clash settled.",
       "drafted": "{count, plural, =0 {The file states no rule we could draft.} one {# draft rule added.} other {# draft rules added.}}"
+    }
+  },
+  "ask": {
+    "title": "Ask the Business",
+    "intro": "Ask about your leads, quotes, orders, targets and the business's own files. Each answer shows the records it comes from, and only what you can see yourself.",
+    "conversations": {
+      "heading": "Your conversations",
+      "empty": "You have not asked anything yet.",
+      "newConversation": "New conversation",
+      "loadMore": "Show older",
+      "kept": "Conversations are removed 90 days after you last use them.",
+      "covers": "Covers {companies}"
+    },
+    "composer": {
+      "label": "Your question",
+      "askButton": "Ask",
+      "working": "Finding the answer",
+      "followUp": "Ask a follow-up question in this conversation."
+    },
+    "lookup": {
+      "search_vault": "Searching the Knowledge Vault",
+      "read_playbook": "Reading the Playbook",
+      "pipeline_by_stage": "Counting open leads by stage",
+      "list_leads": "Reading leads",
+      "list_quotes": "Reading quotes",
+      "list_orders": "Reading orders",
+      "sales_this_month": "Reading this month's sales",
+      "targets_progress": "Reading targets",
+      "dealer_credit": "Reading dealer credit",
+      "find_items": "Finding catalogue items"
+    },
+    "answer": {
+      "you": "You asked",
+      "unsourcedFigure": "a figure not found in the records",
+      "unsourcedNote": "Some figures could not be found in the records Ask read, so they are left out.",
+      "noAnswer": "Ask could not find an answer in the records you can see. Try asking in other words.",
+      "figures": "Figures in this answer",
+      "sources": "Where this comes from",
+      "sourceNumber": "Record {number}",
+      "sourceGone": "A record you can no longer open"
+    },
+    "kind": {
+      "knowledge_file": "Knowledge Vault file",
+      "playbook_directive": "Playbook rule",
+      "pipeline_stage": "Pipeline stage",
+      "opportunity": "Lead",
+      "quote": "Quote",
+      "sales_order": "Order",
+      "account": "Dealer",
+      "item": "Catalogue item"
+    },
+    "delete": {
+      "deleteButton": "Delete",
+      "deleteForGood": "Delete for good",
+      "keepIt": "Keep it",
+      "question": "Delete this conversation and all its answers?",
+      "done": "Conversation deleted."
     }
   },
   "leadSources": {

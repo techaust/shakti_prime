@@ -333,6 +333,10 @@ export const ENTITY_TABLES = [
   'playbook_conflict_checks',
   // a person's own notices in the request's companies (docs/03-roadmap-appendix/phase1.md §8.1)
   'notifications',
+  // a person's own Ask the Business conversations and their messages, read in a request covering
+  // every company the conversation covers (docs/03-roadmap-appendix/phase2.md §6.5)
+  'ask_conversations',
+  'ask_messages',
   // a caller's or a team's targets: the subject, their team lead, the GM and the Executive read
   // them (docs/03-roadmap-appendix/phase1.md §9)
   'targets',

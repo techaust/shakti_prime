@@ -173,6 +173,7 @@ export type AgentSpend = z.infer<typeof AgentSpend>;
  */
 export const DATABASE_JOBS = [
   'activities-partitions',
+  'ask-conversations-purge',
   'audit-logs-detach',
   'audit-logs-partitions',
   'idempotency-keys-purge',
@@ -188,6 +189,7 @@ export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
  */
 export const DATABASE_JOB_EVERY_HOURS: Readonly<Record<DatabaseJob, number>> = {
   'activities-partitions': 31 * 24,
+  'ask-conversations-purge': 24,
   'audit-logs-detach': 31 * 24,
   'audit-logs-partitions': 24,
   'idempotency-keys-purge': 24,

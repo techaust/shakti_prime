@@ -13,6 +13,34 @@ export interface ModelDocument {
   bytes: Uint8Array;
 }
 
+/**
+ * A read-only lookup the model may ask for (Ask the Business): its name, what it is for, and the
+ * JSON schema of its input, closed (`additionalProperties: false`) so the vendor holds the model
+ * to it (strict tools). The model asks with `auto`: Sonnet 5.5 refuses a forced tool choice.
+ */
+export interface ModelTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+/** One lookup the model asked for: the vendor's id for it, the tool and its input as JSON. */
+export interface ModelToolCall {
+  id: string;
+  name: string;
+  input: unknown;
+}
+
+/**
+ * One round of lookups: the model's own turn exactly as the vendor gave it (its thinking and its
+ * calls, which must go back unchanged), and the answer to each call, already masked and labelled
+ * as data by the wrapper.
+ */
+export interface ModelToolRound {
+  assistant: unknown;
+  results: readonly { callId: string; content: string; isError?: boolean }[];
+}
+
 /** One text request to a chat model. Every text here has already been masked by the wrapper. */
 export interface ModelRequest {
   model: string;
@@ -25,6 +53,10 @@ export interface ModelRequest {
   maxTokens: number;
   /** How much the model thinks before it answers; the model's own default when left out. */
   effort?: ModelEffort;
+  /** The lookups the model may ask for; none when left out. */
+  tools?: readonly ModelTool[];
+  /** The rounds of lookups so far, after the turn, in order. */
+  rounds?: readonly ModelToolRound[];
 }
 
 /** The effort levels a model call may name (`output_config.effort`). */
@@ -35,6 +67,10 @@ export interface ModelReply {
   usage: TokenUsage;
   /** The vendor stopped for its own reasons (`refusal`, `max_tokens`) rather than finishing. */
   stopped: 'finished' | 'too_long' | 'refused';
+  /** The lookups the model asks for before it answers; none when it has answered. */
+  toolCalls?: readonly ModelToolCall[];
+  /** The model's turn as the vendor gave it, to send back in the next round. */
+  assistant?: unknown;
 }
 
 export interface EmbeddingRequest {
@@ -153,6 +189,24 @@ export function fakeModelTransport(script: readonly FakeStep[] = []): FakeModelT
       const tokens = request.texts.reduce((n, t) => n + Math.ceil(t.length / 4), 0);
       return Promise.resolve({ vectors, tokens });
     },
+  };
+}
+
+/**
+ * A reply that asks for lookups, as the fake transport gives it: each call gets an id
+ * (`call-<n>`), and the assistant turn is the calls themselves.
+ */
+export function fakeToolReply(
+  calls: readonly { name: string; input: unknown }[],
+  usage: Partial<TokenUsage> = {},
+): ModelReply {
+  const toolCalls = calls.map((c, i) => ({ id: `call-${String(i + 1)}`, ...c }));
+  return {
+    text: '',
+    usage: { ...NO_USAGE, inputTokens: 100, outputTokens: 20, ...usage },
+    stopped: 'finished',
+    toolCalls,
+    assistant: toolCalls,
   };
 }
 

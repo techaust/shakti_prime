@@ -34,6 +34,7 @@ interface JobRow {
 
 const JOBS = [
   'activities-partitions',
+  'ask-conversations-purge',
   'audit-logs-detach',
   'audit-logs-partitions',
   'idempotency-keys-purge',

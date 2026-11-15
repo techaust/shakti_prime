@@ -81,6 +81,7 @@ describe('workshop defaults', () => {
         importFileOpenDays: 7,
         webhookPayloadDays: 30,
         webhookRowDays: 90,
+        askDays: 90,
         callRecordingMonths: 12,
       },
     });

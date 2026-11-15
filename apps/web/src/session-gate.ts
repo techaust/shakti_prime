@@ -38,6 +38,7 @@ export const BOS_PREFIXES = [
   '/design',
   '/calling',
   '/knowledge',
+  '/ask',
 ] as const;
 
 /** True for a path inside the `(bos)` route group. */

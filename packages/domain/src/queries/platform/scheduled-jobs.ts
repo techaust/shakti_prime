@@ -43,6 +43,7 @@ export const JOB_RUN_LIMIT_MINUTES: Readonly<Record<DatabaseJob, number>> = {
   'activities-partitions': 3,
   'audit-logs-partitions': 3,
   'idempotency-keys-purge': 6,
+  'ask-conversations-purge': 6,
   'outbox-events-purge': 30,
   'audit-logs-detach': 30,
 };
