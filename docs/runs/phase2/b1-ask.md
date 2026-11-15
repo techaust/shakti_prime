@@ -265,3 +265,48 @@ The first run of the five files together failed both `ask-cost.test.ts` cases (`
 | 10 | **New, medium (confirmed; it predates the fix round): the filter compares values, never units.** Every amount, percentage and count shares one key (`n:<value>`), a date gives its year as a count, and a document number gives its parts. With a lookup giving 23 open leads, 7 leads, `SS/Q/2026-27/0012` and ₹50,000, these all passed: "The margin is 23%.", "The margin is 7 percent.", "The rate is ₹23 a kit.", "There are 50000 open leads.", "There are 2026 open leads.", "There are 27 open leads." and "There are 12 dealers.". A model's own percentage or a count shown as rupees passes whenever the bare number appears anywhere in the turn's lookups. Fix: key figures by kind on both sides (`inr:` after ₹, Rs, INR or rupees; `pct:` before % or percent; `n:` for counts, with a rupee field of the lookups giving `inr:` from its ₹ and a count field `n:`); a date gives no bare year; a document number is compared whole, never by its parts. Tests with these sentences. |
 
 Nothing else new: the stale-key path records without the key, so a retry after a deletion asks the model again (one more model call, within the caps); copy (`ask_interrupted`) is plain and in `en.json`.
+
+### Second fix round, 15-11-2026 (the lead's cloud VM, worktree `b1-ask`, Postgres 54335)
+**A second round, and why:** the re-check (cb061a12, 2e95a2f4) found finding 1 (high) still open, a new finding 10 (medium: the filter compared values, never kinds) and a new low on the cost test. Because a high finding was open, the lead gave a second fix round limited to these three, and asked for a change of approach instead of more patched cases: the grounding filter now fails closed.
+
+1 and 10. **The grounding filter, rewritten** (`grounding.ts`):
+- **Every figure is typed** on both sides:
+  - a rupee amount (`inr:`): digits after ₹, Rs or INR, or before rupees, with at most one magnitude word after them (thousand, lakh, crore, million or billion), singular and after a space;
+  - a percentage (`pct:`): before %, percent, per cent or pc;
+  - a count (`n:`): the digits right before a word that is not a magnitude;
+  - a date: a day, a month and year, or a day and month;
+  - a document number (`doc:`): letters and digits together, matched whole and never by its parts.
+- **A figure is sourced only by a value of the same kind and number.**
+- **The lookups' answers are read by their fields:**
+  - money fields (the lookups write rupees after ₹) give amounts;
+  - `percentOfTarget` gives a percentage;
+  - every other number gives a count;
+  - a date gives its day, month and day-and-month, never a bare year;
+  - `number`, `code` and `oldestUnpaidInvoice` give document numbers, whole;
+  - every other text is typed as the answer is, with ids taken out first.
+- **Anything number-like it cannot type is taken out:**
+  - a bare number;
+  - digits joined to letters (`7k`, `5HP`), unless they match a document number of the lookups whole;
+  - a plural, hyphenated, stacked or unknown magnitude;
+  - any number word, from one list holding English and Roman Hindi side by side (`NUMBER_WORDS`: two to ninety; hundred, thousand, million, billion, dozen, lakh, crore and their plurals; sau, hazaar, hazar, hajar, arab, kharab; the units ek to nabbe); `a`/`an` with a magnitude; and `score` after a number word.
+  - Words that are also everyday English count only where they cannot be English: "one", and `do`, `teen` and `char`, only beside a magnitude or a rupee word.
+- **A line-start number is numbering** only in a run counting up from 1, and only before a word that is no magnitude, rupee or percent word.
+- **Tests** (`grounding.test.ts`, 56):
+  - every sentence of the re-check's table is refused: `₹7 hazaar`, `₹7 arab`, `50 sau rupees`, `₹7 thousands`, `seven hundreds`, `seven-thousand rupees`, `₹7-thousand`, `₹7 lakh crore`, `a lakh rupees`, `a dozen orders`, `Profit:\n1. crore rupees`, `1. a\n2. b\n3. lakh rupees`, and finding 10's "The margin is 23%.", "The margin is 7 percent.", "The rate is ₹23 a kit.", "There are 50000 open leads.", "There are 2026 open leads.", "There are 27 open leads.", "There are 12 dealers.";
+  - also refused: the first review's sentences, `do sau rupaye`, `ek crore`, `twenty-three open leads`, the wrong quote number, a bare number, Devanagari and full-width totals with no source, and the ids-only case;
+  - these pass: a correct rupee total (written as ₹1,20,000, ₹1.2 lakh, Rs. 1,20,000.00 and 1,20,000 rupees), ₹50,000 and ₹50 thousand against ₹50,000, a correct percentage (80% and 80 percent), correct counts, dates in every form and a month, a quote number whole, lists from 1, a question's figure, today's date, and words with no figure ("the one in Jaipur", "I do not").
+- SECURITY §3.2 and the design's "Built (B1)" now describe the closed filter.
+
+**The cost test (low):** each text has its ids taken out before any pattern is tried, so a cost's digits that turn up inside an id cannot fail the General Manager's case falsely. The rule and file checks now read titles, not ids.
+
+**Checks** (each through the lock):
+- Affected suites:
+  - domain `src/ai`: 10 files, 152 passed;
+  - domain security `ask.test.ts`, `ask-evals.test.ts`, `ask-cost.test.ts` and `reader-parity.test.ts`: 4 files, 35 passed;
+  - web `ask-route.test.ts`: 7 passed;
+  - web `screens/ask.test.ts`: 7 passed.
+- `pnpm test:security`: db 49 files, 1338 passed; domain 86 files, 1146 passed; web 29 files, 364 passed; `Tasks: 4 successful, 4 total`.
+- Journeys after `pnpm build`, `e2e:seed` and `playwright test e2e/ask.spec.ts`: `23 passed (20.5s)`. The host-made screenshots were deleted, not committed.
+- The whole-repository `pnpm lint`: exit 0.
+
+**Still for you:** the `ask` Linux baselines (`e2e:snap` on a fresh database); folding `0170` into `0168` at the renumbering if you wish; the owner's `checks-ok` for `js-budget.json`; the filing rule with the owner.
