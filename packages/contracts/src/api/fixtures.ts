@@ -396,7 +396,7 @@ export const API_FIXTURES: Record<
       message: 'Need a 7.5 HP solar pump for a 250 foot borewell',
       utm: { source: 'facebook', medium: 'cpc', campaign: 'kusum-rabi-2026' },
       consent: {
-        purpose: 'service',
+        ticked: true,
         text: 'I agree that Agro Solar Hub may call me and message me on WhatsApp about my enquiry.',
         givenAt: '2026-09-27T04:12:09.000Z',
       },

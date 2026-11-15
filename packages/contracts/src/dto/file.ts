@@ -32,6 +32,8 @@ export const FileRejectReasonSchema = z.enum([
   'file_upload_abandoned',
   // A newer file of the same kind replaced it (a company's proof page, once a new one is printed).
   'file_replaced',
+  // A vault recording longer than `MAX_AUDIO_MS`.
+  'file_audio_too_long',
 ]);
 export type FileRejectReason = z.infer<typeof FileRejectReasonSchema>;
 

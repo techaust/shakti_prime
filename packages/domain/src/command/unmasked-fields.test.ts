@@ -91,6 +91,23 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
     'bankDetails.accountNumber': AADHAAR,
     upiId: `${MOBILE_91}@okaxis`,
   },
+  // A provider's ids of a lead from an integration, kept whole as attribution.
+  'crm.lead.ingest': {
+    externalId: AADHAAR,
+    'attribution.campaignId': AADHAAR,
+    'attribution.adsetId': AADHAAR,
+    'attribution.adId': AADHAAR,
+    'attribution.formId': AADHAAR,
+    'attribution.pageId': AADHAAR,
+    'attribution.gclid': `Cj${AADHAAR}_BwE`,
+    'attribution.ctwaClid': `ARA${AADHAAR}kLkA`,
+    'attribution.referralSourceId': AADHAAR,
+    'qualification.discomConsumerNo': AADHAAR,
+  },
+  'crm.lead.qualification.set': { 'facts.discomConsumerNo': AADHAAR },
+  // A form or Page id, the Page's token and a key's hash are matched or sealed whole.
+  'crm.source.set': { externalId: AADHAAR, pageToken: `EAAG${AADHAAR}ZCZBxyzw` },
+  'crm.ingest_key.create': { keyHash: HEX },
   // A WhatsApp phone_number_id is a long number; an Aadhaar-shaped one stays whole.
   'org.channel.set': { providerRef: AADHAAR },
   // WhatsApp's ids for a company number, a customer number and a message stay whole.
@@ -110,6 +127,9 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   'files.upload.complete': { 'stored.sha256': HEX },
   'files.file.mark_ready': { 'stored.sha256': HEX },
   'files.document.record': { sha256: HEX },
+  // The provider's id of a call and a copied recording's SHA-256.
+  'calls.provider_call.record': { callSid: HEX },
+  'calls.recording.attach': { sha256: HEX },
   'knowledge.playbook.record_check': { wordingSha256: HEX },
   'admin.role.permissions.set': { expectedVersion: HEX },
   'crm.lead.create': { referralCode: AADHAAR },

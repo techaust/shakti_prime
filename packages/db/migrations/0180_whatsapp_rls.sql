@@ -3,15 +3,15 @@
 -- messages, and the definers through which the platform (`system:workers`, the platform-only
 -- `messaging.process`) records what Meta tells it and sends what it may.
 
--- 1. messaging.process is platform-only, like the other workers' grants: 0167's thirteen keys,
---    kept, and this one.
+-- 1. messaging.process is platform-only, like the other workers' grants: the fifteen keys of 0178
+--    (with T3's calls.process and I1's crm.ingest.run), kept, and this one.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
                'sales.quote.expire', 'notifications.send', 'knowledge.index',
                'crm.handover.run', 'platform.jobs.check', 'crm.retention.run',
                'webhooks.process', 'crm.dnd.record', 'knowledge.playbook.check',
-               'messaging.process']::text[]
+               'calls.process', 'crm.ingest.run', 'messaging.process']::text[]
 $$;
 --> statement-breakpoint
 

@@ -1,5 +1,7 @@
-import type { WebhookProvider } from '@shakti/contracts';
+import type { WebhookErrorCode, WebhookProvider } from '@shakti/contracts';
 import type { WebhookPayload } from './contracts';
+import { handleGoogleLeadform, handleMetaLeadgen } from './lead-forms';
+import { handleExotelStatus } from './exotel-status';
 
 /** What a handler is told besides the payload. */
 export interface WebhookHandlerContext {
@@ -18,10 +20,13 @@ export interface WebhookHandlerContext {
 export interface WebhookHandled {
   entityId: number | null;
   /**
-   * A code recorded on the processed row when the delivery was handled but recorded nothing (a
-   * WhatsApp number of no company: `whatsapp_number_unknown`), shown on Integration Health.
+   * A code the row keeps: with `failed`, why the handler set the delivery aside for good (a lead
+   * form nobody has connected yet), shown on Integration health's failed list with Process again;
+   * without it, a note on a processed row (a provider's test lead, which makes nothing; a WhatsApp
+   * number of no company, `whatsapp_number_unknown`).
    */
-  code?: string;
+  code?: WebhookErrorCode;
+  failed?: boolean;
 }
 
 /**
@@ -38,8 +43,9 @@ export type WebhookHandler<P extends WebhookProvider> = (
 export type WebhookHandlers = { readonly [P in WebhookProvider]?: WebhookHandler<P> };
 
 /**
- * The handler of each provider: a provider's rows are stored and marked processed with the code
- * `no_handler` until the slice that handles it (W1, I1, T3, T4, V2) adds its line here.
+ * The handler of each provider. A provider without one has its rows stored and marked processed
+ * with the code `no_handler` until the slice that handles it (W1, I1, T3, T4, V2) adds its line
+ * here. I1 handles the Lead Ads and Google lead forms (`./lead-forms.ts`).
  */
 export const WEBHOOK_HANDLERS: WebhookHandlers = {
   // WhatsApp (W1, docs/03-roadmap-appendix/phase2.md §6.1): messages, statuses, template events
@@ -49,4 +55,8 @@ export const WEBHOOK_HANDLERS: WebhookHandlers = {
     const { whatsappHandlerDeps } = await import('./whatsapp-deps');
     return whatsappHandler(whatsappHandlerDeps())(payload, context);
   },
+  meta_leadgen: handleMetaLeadgen,
+  google_leadform: handleGoogleLeadform,
+  // T3: a click-to-dial call's status and recording (docs/03-roadmap-appendix/phase2.md §6.3).
+  exotel_status: handleExotelStatus,
 };

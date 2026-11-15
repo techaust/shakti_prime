@@ -51,6 +51,7 @@ describe('workshop defaults', () => {
         nurtureCallDays: [7, 30, 90],
         logGraceMinutes: 15,
         dndFreshDays: 7,
+        recordingNotice: 'call_recording_notice',
       },
       // The Phase 2 design §11 (W1), each for the client to confirm in the final phase.
       whatsapp: {
@@ -112,6 +113,7 @@ describe('workshop defaults', () => {
         webhookPayloadDays: 30,
         webhookRowDays: 90,
         whatsappMediaYears: 3,
+        callRecordingMonths: 12,
       },
     });
   });

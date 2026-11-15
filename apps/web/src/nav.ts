@@ -19,6 +19,7 @@ import {
   PhoneCall,
   Palette,
   Percent,
+  Plug,
   ScrollText,
   Shuffle,
   Store,
@@ -313,6 +314,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // crm.pipeline.update, crm.stage.*, crm.disposition.set and crm.score_rule.set
     requires: [{ key: 'crm.config.write', scope: 'all' }],
+  },
+  {
+    id: 'settings-lead-sources',
+    href: '/settings/lead-sources',
+    label: 'settingsLeadSources',
+    icon: Plug,
+    group: 'admin',
+    // crm.source.set, crm.source.archive and the website keys (design phase2 §6.2)
+    requires: [{ key: 'crm.sources.write', scope: 'all' }],
   },
   {
     id: 'settings-tax',

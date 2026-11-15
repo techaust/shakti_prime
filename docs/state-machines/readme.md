@@ -26,7 +26,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Tally voucher | no | 5 | 7 | 6 | [tally-voucher.md](tally-voucher.md) |
 | Agent action | **yes** | 6 | 6 | 0 | [agent-action.md](agent-action.md) |
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
-| Knowledge Vault file | **yes** | 5 | 6 | 0 | [knowledge-file.md](knowledge-file.md) |
+| Knowledge Vault file | **yes** | 5 | 7 | 0 | [knowledge-file.md](knowledge-file.md) |
 
 ## Workshop defaults
 
@@ -58,15 +58,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `calling.nurtureCallDays` | 7, 30, 90 |
 | `calling.logGraceMinutes` | 15 |
 | `calling.dndFreshDays` | 7 |
-| `whatsapp.keywords.stop` | stop, unsubscribe, stop all, stop promotions, band karo, band kar do, mat bhejo, message mat bhejo |
-| `whatsapp.keywords.human` | human, agent, person, talk to a person, insaan, insaan se baat, kisi se baat karni hai |
-| `whatsapp.keywords.status` | status, order status, mera order |
-| `whatsapp.marketingHoldShare` | 0.8 |
-| `whatsapp.startingLimit` | 250 |
-| `whatsapp.messagesPerThreadHour` | 20 |
-| `whatsapp.replyWaitMinutes` | 10 |
-| `whatsapp.linkHosts` | none |
-| `whatsapp.leadPipelineKey` | farmer_pumps |
+| `calling.recordingNotice` | call_recording_notice |
 | `sizing.hazenWilliamsC.hdpe` | 140 |
 | `sizing.hazenWilliamsC.gi` | 120 |
 | `sizing.fittingsLossFraction` | 0.1 |
@@ -92,4 +84,4 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `retention.importFileOpenDays` | 7 |
 | `retention.webhookPayloadDays` | 30 |
 | `retention.webhookRowDays` | 90 |
-| `retention.whatsappMediaYears` | 3 |
+| `retention.callRecordingMonths` | 12 |

@@ -16,7 +16,11 @@ import {
   listPlaybookSources,
   loadPlaybookReview,
 } from '../../src/queries/knowledge/playbook';
-import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
+import {
+  getKnowledgeFile,
+  listKnowledgeFiles,
+  searchKnowledge,
+} from '../../src/queries/knowledge/vault';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
 import { listCallerProfiles, loadOwnPresence } from '../../src/queries/crm/caller-profiles';
 import {
@@ -82,6 +86,11 @@ import { loadCompanyForPrint } from '../../src/queries/org/company-print';
 import { listEntities } from '../../src/queries/org/list-entities';
 import { listEntityChannels } from '../../src/queries/org/list-channels';
 import { dialFacts } from '../../src/queries/calls/dial-plan';
+import {
+  listIngestSources,
+  listUnownedIngestLeads,
+  readLeadQualification,
+} from '../../src/queries/crm/ingest-sources';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { readScheduledJobs } from '../../src/queries/platform/scheduled-jobs';
 import { readWebhookHealth } from '../../src/queries/platform/webhook-health';
@@ -190,6 +199,11 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listImportTemplates: (ctx) => listImportTemplates(ctx, { entityId: 1, kind: 'leads' }),
   listEntities: (ctx) => listEntities(ctx),
   listEntityChannels: (ctx) => listEntityChannels(ctx, { entityId: 1 }),
+  // Settings › Lead sources, Integration health's leads with no owner and the qualification card (I1).
+  listIngestSources: (ctx) => listIngestSources(ctx, { entityId: 1 }),
+  listUnownedIngestLeads: (ctx) => listUnownedIngestLeads(ctx),
+  readLeadQualification: (ctx) =>
+    readLeadQualification(ctx, { entityId: 1, opportunityId: newId() }),
   readSealedBankDetails: (ctx) => readSealedBankDetails(ctx, 1),
   readEntityBankDetails: (ctx) => readEntityBankDetails(ctx, CIPHER, 1),
   loadCompanyForPrint: (ctx) => loadCompanyForPrint(ctx, 1),
@@ -226,6 +240,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
       new Date(NOW),
     ),
   listKnowledgeFiles: (ctx) => listKnowledgeFiles(ctx, {}),
+  getKnowledgeFile: (ctx) => getKnowledgeFile(ctx, newId()),
   searchKnowledge: (ctx) => searchKnowledge(ctx, fakeEmbedding('solar pump care')),
   listPlaybook: (ctx) => listPlaybook(ctx, {}),
   listPlaybookSources: (ctx) => listPlaybookSources(ctx, {}),

@@ -13,6 +13,7 @@ import {
   claimWhatsAppMessage,
   executeCommand,
   executeQuery,
+  ingestIdempotencyKey,
   memoryFileStore,
   memoryKeyValue,
   recordWhatsAppOptOut,
@@ -32,6 +33,7 @@ import {
   type WhatsAppHandlerDeps,
   type WhatsAppIngestCall,
 } from '../src/workers/webhooks/whatsapp';
+import { ingestThroughCommand } from '../src/workers/webhooks/whatsapp-deps';
 
 // W1 on real Postgres (docs/03-roadmap-appendix/phase2.md §6.1): the `meta_whatsapp` handler
 // given recorded-shape deliveries, and the messaging worker with a fake WhatsApp client. Company 1
@@ -124,27 +126,31 @@ const text = (from: string, body: string, id = `wamid.${newId()}`) => ({
 
 async function threadsOf(waId: string) {
   return asMigrator(
-    (m) => m<{
-      id: string;
-      entity_id: number;
-      account_id: string | null;
-      handled_by: string;
-      opted_out_at: Date | null;
-    }[]>`select id, entity_id, account_id, handled_by, opted_out_at from whatsapp_threads
+    (m) => m<
+      {
+        id: string;
+        entity_id: number;
+        account_id: string | null;
+        handled_by: string;
+        opted_out_at: Date | null;
+      }[]
+    >`select id, entity_id, account_id, handled_by, opted_out_at from whatsapp_threads
           where wa_id = ${waId} order by entity_id`,
   );
 }
 
 async function messagesOf(threadId: string) {
   return asMigrator(
-    (m) => m<{
-      id: string;
-      direction: string;
-      kind: string;
-      template_name: string | null;
-      file_id: string | null;
-      status: string | null;
-    }[]>`select id, direction, kind, template_name, file_id, status from whatsapp_messages
+    (m) => m<
+      {
+        id: string;
+        direction: string;
+        kind: string;
+        template_name: string | null;
+        file_id: string | null;
+        status: string | null;
+      }[]
+    >`select id, direction, kind, template_name, file_id, status from whatsapp_messages
           where thread_id = ${threadId} order by created_at, id`,
   );
 }
@@ -154,12 +160,22 @@ describe('the meta_whatsapp handler', () => {
     const customer = await whatsappCustomer(1);
     const d = deps();
     const handle = whatsappHandler(d);
-    expect(await handle(delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hi')] }), context())).toEqual({
+    expect(
+      await handle(
+        delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hi')] }),
+        context(),
+      ),
+    ).toEqual({
       entityId: 1,
     });
     // The same customer writes to company 2's number: company 2 has no such customer, so its own
     // chat opens unmatched there and goes to the intake; company 1's chat is untouched.
-    expect(await handle(delivery(two.phoneNumberId, { messages: [text(customer.waId, 'Hi')] }), context())).toEqual({
+    expect(
+      await handle(
+        delivery(two.phoneNumberId, { messages: [text(customer.waId, 'Hi')] }),
+        context(),
+      ),
+    ).toEqual({
       entityId: 2,
     });
     const threads = await threadsOf(customer.waId);
@@ -167,7 +183,9 @@ describe('the meta_whatsapp handler', () => {
       [1, customer.accountId],
       [2, null],
     ]);
-    expect((await messagesOf(threads[0]?.id ?? '')).filter((m) => m.direction === 'inbound')).toHaveLength(1);
+    expect(
+      (await messagesOf(threads[0]?.id ?? '')).filter((m) => m.direction === 'inbound'),
+    ).toHaveLength(1);
     expect(d.calls.map((c) => c.input.entityId)).toEqual([2]);
   });
 
@@ -188,7 +206,10 @@ describe('the meta_whatsapp handler', () => {
     const first = text(customer.waId, 'Is the 5 HP pump in stock?');
     await handle(delivery(one.phoneNumberId, { messages: [first] }), context());
     await handle(delivery(one.phoneNumberId, { messages: [first] }), context());
-    await handle(delivery(one.phoneNumberId, { messages: [text(customer.waId, 'And the price?')] }), context());
+    await handle(
+      delivery(one.phoneNumberId, { messages: [text(customer.waId, 'And the price?')] }),
+      context(),
+    );
     const [thread] = await threadsOf(customer.waId);
     const messages = await messagesOf(thread?.id ?? '');
     expect(messages.filter((m) => m.direction === 'inbound')).toHaveLength(2);
@@ -200,17 +221,30 @@ describe('the meta_whatsapp handler', () => {
   it('opts a number out on STOP and queues the one confirmation; HUMAN hands the chat to people', async () => {
     const customer = await whatsappCustomer(1);
     const handle = whatsappHandler(deps());
-    await handle(delivery(one.phoneNumberId, { messages: [text(customer.waId, 'HUMAN')] }), context());
+    await handle(
+      delivery(one.phoneNumberId, { messages: [text(customer.waId, 'HUMAN')] }),
+      context(),
+    );
     let [thread] = await threadsOf(customer.waId);
     expect(thread?.handled_by).toBe('people');
     // HUMAN as the first word: people answer, so no welcome.
-    expect((await messagesOf(thread?.id ?? '')).filter((m) => m.direction === 'outbound')).toEqual([]);
-    await handle(delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Band karo')] }), context());
-    await handle(delivery(one.phoneNumberId, { messages: [text(customer.waId, 'stop')] }), context());
+    expect((await messagesOf(thread?.id ?? '')).filter((m) => m.direction === 'outbound')).toEqual(
+      [],
+    );
+    await handle(
+      delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Band karo')] }),
+      context(),
+    );
+    await handle(
+      delivery(one.phoneNumberId, { messages: [text(customer.waId, 'stop')] }),
+      context(),
+    );
     [thread] = await threadsOf(customer.waId);
     expect(thread?.opted_out_at).not.toBeNull();
     expect(
-      (await messagesOf(thread?.id ?? '')).filter((m) => m.direction === 'outbound').map((m) => m.kind),
+      (await messagesOf(thread?.id ?? ''))
+        .filter((m) => m.direction === 'outbound')
+        .map((m) => m.kind),
     ).toEqual(['system']);
   });
 
@@ -257,11 +291,34 @@ describe('the meta_whatsapp handler', () => {
             referralSourceType: 'ad',
           },
         },
-        idempotencyKey: `whatsapp:${message.id}`,
+        idempotencyKey: ingestIdempotencyKey('whatsapp', message.id),
       },
     ]);
     const [thread] = await threadsOf(waId);
     expect(thread?.account_id).toBe(made);
+  });
+
+  it('makes one WhatsApp lead through I1’s crm.lead.ingest for a number no customer holds, though the message comes twice', async () => {
+    const waId = `91${String(7_000_000_000 + Math.floor(Math.random() * 999_999_999))}`;
+    const handle = whatsappHandler(deps({ ingestLead: ingestThroughCommand }));
+    const payload = delivery(one.phoneNumberId, {
+      messages: [text(waId, 'Solar pump ka rate batao')],
+      contacts: [{ wa_id: waId, profile: { name: 'Suresh' } }],
+    });
+    await handle(payload, context());
+    await handle(payload, context());
+    const leads = await asMigrator(
+      (m) => m<{ source: string; entity_id: number; account_id: string }[]>`
+        select ls.code as source, o.entity_id, o.account_id from opportunities o
+          join lead_sources ls on ls.id = o.source_id
+          join account_contacts ac on ac.account_id = o.account_id
+          join contact_phones cp on cp.contact_id = ac.contact_id
+         where cp.e164 = ${`+${waId}`}`,
+    );
+    expect(leads).toHaveLength(1);
+    expect(leads[0]).toMatchObject({ source: 'whatsapp', entity_id: 1 });
+    const [thread] = await threadsOf(waId);
+    expect(thread?.account_id).toBe(leads[0]?.account_id);
   });
 
   it('keeps a customer’s photo as a file of their own chat, waiting for its checks, once', async () => {
@@ -301,8 +358,9 @@ describe('the meta_whatsapp handler', () => {
     expect(downloads).toEqual(['media-1']);
     // Read with its chat: the customer's owner reads it, a caller of another team does not.
     const sees = (who: Principal) =>
-      asPrincipal(who, async ({ tx }) =>
-        (await tx.execute(sql`select id from files where id = ${fileId}`)).length,
+      asPrincipal(
+        who,
+        async ({ tx }) => (await tx.execute(sql`select id from files where id = ${fileId}`)).length,
       );
     expect(await sees(customer.owner)).toBe(1);
     expect(await sees(await createTestPrincipal('tele_caller_cc', [1]))).toBe(0);
@@ -340,10 +398,15 @@ describe('the meta_whatsapp handler', () => {
     await inDownload;
     // The other delivery keeps the file, and its checks mask it and delete the original.
     await whatsappHandler(
-      deps({ store, downloadMedia: () => Promise.resolve({ bytes: PNG, contentType: 'image/png' }) }),
+      deps({
+        store,
+        downloadMedia: () => Promise.resolve({ bytes: PNG, contentType: 'image/png' }),
+      }),
     )(delivery(one.phoneNumberId, { messages: [photo] }), context());
     const [thread] = await threadsOf(customer.waId);
-    const fileId = (await messagesOf(thread?.id ?? '')).find((m) => m.direction === 'inbound')?.file_id;
+    const fileId = (await messagesOf(thread?.id ?? '')).find(
+      (m) => m.direction === 'inbound',
+    )?.file_id;
     const [kept] = await asMigrator(
       (m) => m<{ key: string }[]>`select key from files where id = ${fileId ?? ''}`,
     );
@@ -351,7 +414,9 @@ describe('the meta_whatsapp handler', () => {
     await store.put(masked, PNG, 'image/png');
     await store.delete(kept?.key ?? '');
     await asPrincipal(systemWorkersPrincipal(1), ({ tx }) =>
-      tx.execute(sql`update files set key = ${masked}, status = 'ready' where id = ${fileId ?? ''}::uuid`),
+      tx.execute(
+        sql`update files set key = ${masked}, status = 'ready' where id = ${fileId ?? ''}::uuid`,
+      ),
     );
     // The slow delivery finishes: its attach is refused and what it stored is deleted.
     release();
@@ -388,11 +453,15 @@ describe('the meta_whatsapp handler', () => {
     });
     // The customer opts back in before the retry.
     await asMigrator(
-      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+      (
+        m,
+      ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
         values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'verbal', 'v1', now() + interval '1 second', ${customer.owner.id})`,
     );
     await whatsappHandler(deps())(delivery(one.phoneNumberId, { messages: [stop] }), context());
-    const outbound = (await messagesOf(recorded.threadId)).filter((m) => m.direction === 'outbound');
+    const outbound = (await messagesOf(recorded.threadId)).filter(
+      (m) => m.direction === 'outbound',
+    );
     expect(outbound.map((m) => m.kind)).not.toContain('system');
   });
 
@@ -418,7 +487,9 @@ describe('the meta_whatsapp handler', () => {
     };
     await handle(delivery(one.phoneNumberId, { messages: [photo] }), context());
     const [thread] = await threadsOf(customer.waId);
-    const fileId = (await messagesOf(thread?.id ?? '')).find((m) => m.direction === 'inbound')?.file_id;
+    const fileId = (await messagesOf(thread?.id ?? '')).find(
+      (m) => m.direction === 'inbound',
+    )?.file_id;
     // The checks as they end for a masked identity document: the masked copy under a new key,
     // the original deleted from the store.
     const [original] = await asMigrator(
@@ -428,7 +499,9 @@ describe('the meta_whatsapp handler', () => {
     await store.put(masked, PNG, 'image/png');
     await store.delete(original?.key ?? '');
     await asPrincipal(systemWorkersPrincipal(1), ({ tx }) =>
-      tx.execute(sql`update files set key = ${masked}, status = 'ready' where id = ${fileId ?? ''}::uuid`),
+      tx.execute(
+        sql`update files set key = ${masked}, status = 'ready' where id = ${fileId ?? ''}::uuid`,
+      ),
     );
     // Meta sends the message again, in another batch.
     await handle(delivery(one.phoneNumberId, { messages: [photo] }), context());
@@ -447,7 +520,9 @@ describe('the meta_whatsapp handler', () => {
     );
     const stop = text(waId, 'STOP');
     // The STOP is recorded, then the intake fails before the opt-out: the delivery is retried.
-    await expect(handle(delivery(one.phoneNumberId, { messages: [stop] }), context())).rejects.toThrow();
+    await expect(
+      handle(delivery(one.phoneNumberId, { messages: [stop] }), context()),
+    ).rejects.toThrow();
     let [thread] = await threadsOf(waId);
     expect(thread?.opted_out_at).toBeNull();
     // A new chat starts with the team while no assistant answers.
@@ -459,27 +534,39 @@ describe('the meta_whatsapp handler', () => {
     expect(thread?.opted_out_at).not.toBeNull();
     const messages = await messagesOf(thread?.id ?? '');
     expect(messages.filter((m) => m.direction === 'inbound')).toHaveLength(1);
-    expect(messages.filter((m) => m.direction === 'outbound').map((m) => m.kind)).toEqual(['system']);
+    expect(messages.filter((m) => m.direction === 'outbound').map((m) => m.kind)).toEqual([
+      'system',
+    ]);
 
     // The welcome too: missed on the first try, sent once on the next ones.
     const other = `91${String(7_000_000_000 + Math.floor(Math.random() * 999_999_999))}`;
     failing = true;
     const hello = text(other, 'Hello');
-    await expect(handle(delivery(one.phoneNumberId, { messages: [hello] }), context())).rejects.toThrow();
+    await expect(
+      handle(delivery(one.phoneNumberId, { messages: [hello] }), context()),
+    ).rejects.toThrow();
     failing = false;
     await handle(delivery(one.phoneNumberId, { messages: [hello] }), context());
     await handle(delivery(one.phoneNumberId, { messages: [hello] }), context());
     const [chat] = await threadsOf(other);
     expect(
-      (await messagesOf(chat?.id ?? '')).filter((m) => m.direction === 'outbound').map((m) => m.template_name),
+      (await messagesOf(chat?.id ?? ''))
+        .filter((m) => m.direction === 'outbound')
+        .map((m) => m.template_name),
     ).toEqual([welcome]);
   });
 
   it('opts the number out of every company on a STOP, and on Meta’s Stop promotions button', async () => {
     const customer = await whatsappCustomer(1);
     const handle = whatsappHandler(deps());
-    await handle(delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }), context());
-    await handle(delivery(two.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }), context());
+    await handle(
+      delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }),
+      context(),
+    );
+    await handle(
+      delivery(two.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }),
+      context(),
+    );
     await handle(
       delivery(one.phoneNumberId, {
         messages: [
@@ -504,7 +591,10 @@ describe('the meta_whatsapp handler', () => {
   it('moves a sent message’s status only forward, whatever order the statuses come in', async () => {
     const customer = await whatsappCustomer(1);
     const handle = whatsappHandler(deps());
-    await handle(delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }), context());
+    await handle(
+      delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }),
+      context(),
+    );
     const [thread] = await threadsOf(customer.waId);
     const [queued] = (await messagesOf(thread?.id ?? '')).filter((m) => m.direction === 'outbound');
     const wamid = `wamid.${newId()}`;
@@ -519,16 +609,30 @@ describe('the meta_whatsapp handler', () => {
       status: 'sent',
       providerMessageId: wamid,
     });
-    const status = (s: string) => ({ id: wamid, status: s, timestamp: seconds(), recipient_id: customer.waId });
-    await handle(delivery(one.phoneNumberId, { statuses: [status('read'), status('delivered'), status('sent')] }), context());
-    expect((await messagesOf(thread?.id ?? '')).find((m) => m.id === queued?.id)?.status).toBe('read');
+    const status = (s: string) => ({
+      id: wamid,
+      status: s,
+      timestamp: seconds(),
+      recipient_id: customer.waId,
+    });
+    await handle(
+      delivery(one.phoneNumberId, {
+        statuses: [status('read'), status('delivered'), status('sent')],
+      }),
+      context(),
+    );
+    expect((await messagesOf(thread?.id ?? '')).find((m) => m.id === queued?.id)?.status).toBe(
+      'read',
+    );
   });
 
   it('records a template’s status in each company that registered it, and a number’s quality', async () => {
     const exec = await createTestPrincipal('executive', [1, 2]);
     const name = `w1_web_${newId().slice(-12).replaceAll('-', '')}`;
     await asMigrator(
-      (m) => m`insert into whatsapp_templates (id, entity_id, name, label, category, created_by) values
+      (
+        m,
+      ) => m`insert into whatsapp_templates (id, entity_id, name, label, category, created_by) values
         (${newId()}, 1, ${name}, 'Visit update', 'utility', ${exec.id}),
         (${newId()}, 2, ${name}, 'Visit update', 'utility', ${exec.id})`,
     );
@@ -562,7 +666,10 @@ describe('the meta_whatsapp handler', () => {
     );
     expect(statuses.map((s) => s.status)).toEqual(['approved', 'approved']);
     const [channel] = await asMigrator(
-      (m) => m<{ number_e164: string }[]>`select number_e164 from entity_channels where id = ${one.channelId}`,
+      (m) =>
+        m<
+          { number_e164: string }[]
+        >`select number_e164 from entity_channels where id = ${one.channelId}`,
     );
     await handle(
       {
@@ -586,7 +693,9 @@ describe('the meta_whatsapp handler', () => {
       context(),
     );
     expect(await kv.get('whatsapp:limit')).toBe('1000');
-    expect(JSON.parse((await kv.get('whatsapp:quality:1')) ?? '{}')).toMatchObject({ event: 'FLAGGED' });
+    expect(JSON.parse((await kv.get('whatsapp:quality:1')) ?? '{}')).toMatchObject({
+      event: 'FLAGGED',
+    });
   });
 });
 
@@ -613,12 +722,12 @@ describe('the messaging worker', () => {
       context(),
     );
     const [thread] = await threadsOf(customer.waId);
-    const queued = await executeCommand(
-      customer.owner,
-      { entityIds: [1] },
-      sendWhatsAppMessage,
-      { entityId: 1, threadId: thread?.id, kind: 'text', body: 'Your engineer visits tomorrow.' },
-    );
+    const queued = await executeCommand(customer.owner, { entityIds: [1] }, sendWhatsAppMessage, {
+      entityId: 1,
+      threadId: thread?.id,
+      kind: 'text',
+      body: 'Your engineer visits tomorrow.',
+    });
     return { owner: customer.owner, threadId: thread?.id ?? '', messageId: queued.id };
   }
 
@@ -674,11 +783,16 @@ describe('the messaging worker', () => {
       get: async (key) => {
         if (!stopped) {
           stopped = true;
-          await executeCommand(systemWorkersPrincipal(1), { entityIds: [1] }, recordWhatsAppOptOut, {
-            entityId: 1,
-            threadId,
-            at: new Date().toISOString(),
-          });
+          await executeCommand(
+            systemWorkersPrincipal(1),
+            { entityIds: [1] },
+            recordWhatsAppOptOut,
+            {
+              entityId: 1,
+              threadId,
+              at: new Date().toISOString(),
+            },
+          );
         }
         return store.get(key);
       },
@@ -715,10 +829,12 @@ describe('the messaging worker', () => {
     const shown = view.messages.find((m) => m.id === queued?.id);
     expect(shown).toMatchObject({ status: 'failed', sentByName: null });
     expect(shown?.templateLabel).toEqual(
-      (await asMigrator(
-        (m) => m<{ label: string }[]>`select label from whatsapp_templates
+      (
+        await asMigrator(
+          (m) => m<{ label: string }[]>`select label from whatsapp_templates
                                        where entity_id = 1 and name = ${welcome}`,
-      ))[0]?.label,
+        )
+      )[0]?.label,
     );
   });
 

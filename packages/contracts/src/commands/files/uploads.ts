@@ -69,6 +69,8 @@ export const FileSanitisingSchema = z.enum([
   'sheet_checked',
   // A vault Word document opened and its text read.
   'document_checked',
+  // A vault recording read as a 16-bit WAV and its length checked.
+  'audio_checked',
 ]);
 export type FileSanitising = z.infer<typeof FileSanitisingSchema>;
 

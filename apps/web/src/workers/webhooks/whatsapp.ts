@@ -10,6 +10,7 @@ import {
   attachWhatsAppMedia,
   executeCommand,
   executeQuery,
+  ingestIdempotencyKey,
   matchKeyword,
   matchWhatsAppThread,
   queueWhatsAppMessage,
@@ -38,9 +39,9 @@ import type { WebhookHandled, WebhookHandlerContext } from './registry';
  * phase2.md §6.1): I1's `crm.lead.ingest` input as WhatsApp fills it (channel `whatsapp`, the
  * pipeline by key since WhatsApp has no ingest source, the message id as the external id, the
  * click-to-WhatsApp `referral` as the attribution, never a consent) and the idempotency key it runs
- * with, `whatsapp:<externalId>`, so a repeated message makes no second lead. The port answers the
- * customer the intake recorded, or null when it made no lead; the lead wires it to the command
- * once I1 has merged, which is then a one-line change in `whatsapp-deps.ts`.
+ * with, `ingestIdempotencyKey('whatsapp', externalId)`, so a repeated message makes no second lead. The port answers the
+ * customer the intake recorded, or null when it made no lead; `whatsapp-deps.ts` wires it to
+ * `crm.lead.ingest`.
  */
 export interface WhatsAppIngestCall {
   input: {
@@ -48,7 +49,8 @@ export interface WhatsAppIngestCall {
     channel: 'whatsapp';
     pipelineKey: string;
     externalId: string;
-    contact: { name: string; phone: string };
+    // No name when the sender has no profile name: the intake names the customer plainly.
+    contact: { name?: string; phone: string };
     attribution?: {
       ctwaClid?: string;
       referralSourceId?: string;
@@ -95,10 +97,10 @@ export function ingestCallFor(
       channel: 'whatsapp',
       pipelineKey: WORKSHOP_DEFAULTS_PIPELINE,
       externalId,
-      contact: { name: name === '' ? `+${message.from}` : name, phone: `+${message.from}` },
+      contact: name === '' ? { phone: `+${message.from}` } : { name, phone: `+${message.from}` },
       ...(Object.keys(attribution).length === 0 ? {} : { attribution }),
     },
-    idempotencyKey: `whatsapp:${externalId}`,
+    idempotencyKey: ingestIdempotencyKey('whatsapp', externalId),
   };
 }
 
@@ -123,7 +125,9 @@ const NEW_THREADS = AGENT_DEFAULTS.concierge.handlesNewThreads ? 'assistant' : '
 const MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 
 /** Meta's template events, as a template's status reads them; others change nothing. */
-const TEMPLATE_EVENTS: Readonly<Record<string, 'pending' | 'approved' | 'rejected' | 'paused' | 'disabled'>> = {
+const TEMPLATE_EVENTS: Readonly<
+  Record<string, 'pending' | 'approved' | 'rejected' | 'paused' | 'disabled'>
+> = {
   PENDING: 'pending',
   APPROVED: 'approved',
   REINSTATED: 'approved',
@@ -151,7 +155,13 @@ function readMessage(message: WhatsAppInboundMessage): {
     case 'text':
       return message.text === undefined
         ? null
-        : { kind: 'text', body: text(message.text.body), buttonPayload: null, mediaId: undefined, mediaType: undefined };
+        : {
+            kind: 'text',
+            body: text(message.text.body),
+            buttonPayload: null,
+            mediaId: undefined,
+            mediaType: undefined,
+          };
     case 'button':
       return {
         kind: 'button',
@@ -163,7 +173,13 @@ function readMessage(message: WhatsAppInboundMessage): {
     case 'interactive':
       return reply === undefined
         ? null
-        : { kind: 'button', body: text(reply.title), buttonPayload: reply.id.slice(0, 256), mediaId: undefined, mediaType: undefined };
+        : {
+            kind: 'button',
+            body: text(reply.title),
+            buttonPayload: reply.id.slice(0, 256),
+            mediaId: undefined,
+            mediaType: undefined,
+          };
     case 'reaction':
       // A reaction to a message is no message of its own.
       return null;
@@ -181,7 +197,13 @@ function readMessage(message: WhatsAppInboundMessage): {
     default:
       // A voice note, video, sticker, place or contact card: recorded as something sent, with no
       // file kept; the chat says the customer sent something it cannot show.
-      return { kind: 'media', body: null, buttonPayload: null, mediaId: undefined, mediaType: undefined };
+      return {
+        kind: 'media',
+        body: null,
+        buttonPayload: null,
+        mediaId: undefined,
+        mediaType: undefined,
+      };
   }
 }
 
@@ -209,7 +231,10 @@ const instant = (seconds: string): string => new Date(Number(seconds) * 1000).to
  */
 export function whatsappHandler(deps: WhatsAppHandlerDeps) {
   const log = deps.logger ?? appLogger;
-  return async (payload: WhatsAppWebhook, context: WebhookHandlerContext): Promise<WebhookHandled> => {
+  return async (
+    payload: WhatsAppWebhook,
+    context: WebhookHandlerContext,
+  ): Promise<WebhookHandled> => {
     const companies = new Set<number>();
     let unknown = false;
     const findCompany = (ref: { phoneNumberId?: string; numberE164?: string }) =>
@@ -247,9 +272,15 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
             await handleStatus(status, run);
           }
         } else if (change.field === 'message_template_status_update') {
-          const value = change.value as { event: string; message_template_name: string; message_template_language: string };
+          const value = change.value as {
+            event: string;
+            message_template_name: string;
+            message_template_language: string;
+          };
           const status = TEMPLATE_EVENTS[value.event.toUpperCase()];
-          const language = value.message_template_language.toLowerCase().startsWith('en') ? 'en' : null;
+          const language = value.message_template_language.toLowerCase().startsWith('en')
+            ? 'en'
+            : null;
           if (status === undefined || language === null) continue;
           const name = value.message_template_name;
           const owners = await executeQuery(
@@ -268,7 +299,11 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
             );
           }
         } else if (change.field === 'phone_number_quality_update') {
-          const value = change.value as { display_phone_number: string; event: string; current_limit?: string };
+          const value = change.value as {
+            display_phone_number: string;
+            event: string;
+            current_limit?: string;
+          };
           const digits = value.display_phone_number.replace(/\D/g, '');
           const entityId = await findCompany({ numberE164: `+${digits}` });
           if (entityId === null) {
@@ -276,7 +311,13 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
             continue;
           }
           companies.add(entityId);
-          await recordQuality(deps.keyValue, entityId, value.event, value.current_limit, deps.now());
+          await recordQuality(
+            deps.keyValue,
+            entityId,
+            value.event,
+            value.current_limit,
+            deps.now(),
+          );
         }
       }
     }
@@ -378,14 +419,18 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
     if (type === undefined || !MEDIA_TYPES.has(type)) return;
     if (deps.downloadMedia === undefined || deps.store === undefined) {
       // Retried until WhatsApp and a file store are set up: the file is the customer's, not lost.
-      throw new DomainError('integration_unavailable', 'no WhatsApp media download or file store here');
+      throw new DomainError(
+        'integration_unavailable',
+        'no WhatsApp media download or file store here',
+      );
     }
     const media = await deps.downloadMedia(mediaId);
     if (!MEDIA_TYPES.has(media.contentType)) {
       log.log('warn', 'messaging.media_refused', { messageId, contentType: media.contentType });
       return;
     }
-    const contentType = media.contentType as 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf';
+    const contentType = media.contentType as
+      'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf';
     // A file id, and so a key, of this try's own: a delivery of the same message running at the
     // same time stores under another key, so neither can write an original over a copy the
     // checks already masked. Whichever attaches first keeps its file; the other's attach is

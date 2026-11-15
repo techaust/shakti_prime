@@ -189,13 +189,31 @@ export function cutPoints(
   return cuts;
 }
 
+/** How a whole recording is transcribed, beyond its type and language. */
+export interface TranscribeRecordingOptions {
+  mimeType: string;
+  languageCode: string;
+  maxPieceMs?: number;
+  /**
+   * Pieces sent at once (1 when left out); the transcript keeps the recording's order whatever
+   * order the answers come in. A long vault recording (K3) sends a few at once to finish within
+   * its route's time.
+   */
+  concurrency?: number;
+  /** Once aborted, no further piece is sent and the transcription throws the signal's reason. */
+  signal?: AbortSignal;
+  /** Told each piece's length just before it is sent, so the caller can count what it pays for. */
+  onPiece?: (pieceMs: number) => void;
+}
+
 /**
- * Transcribes a whole WAV recording piece by piece with a batch adapter, one call at a time, and
- * joins the pieces' text with spaces. `ms` is the calls' time together.
+ * Transcribes a whole WAV recording piece by piece with a batch adapter, `concurrency` pieces at a
+ * time, and joins the pieces' text with spaces in the recording's order. `ms` is the calls' time
+ * together. A piece that fails stops the rest: none is sent after it, and the failure is thrown.
  */
 export async function transcribeRecording(
   audio: Uint8Array,
-  options: { mimeType: string; languageCode: string; maxPieceMs?: number },
+  options: TranscribeRecordingOptions,
   stt: SpeechToText,
 ): Promise<Transcript> {
   if (!WAV_MIME_TYPES.includes(options.mimeType.toLowerCase())) {
@@ -203,21 +221,42 @@ export async function transcribeRecording(
   }
   const pcm = readWav(audio);
   const cuts = [...cutPoints(pcm, options.maxPieceMs ?? MAX_PIECE_MS), pcm.samples.length];
-  const texts: string[] = [];
-  let languageCode: string | undefined;
-  let ms = 0;
+  const pieces: { start: number; end: number }[] = [];
   let start = 0;
   for (const end of cuts) {
     if (end <= start) continue;
-    const piece = writeWav({ ...pcm, samples: pcm.samples.subarray(start, end) });
-    const transcript = await stt.transcribe(piece, {
-      mimeType: 'audio/wav',
-      languageCode: options.languageCode,
-    });
-    if (transcript.text.trim() !== '') texts.push(transcript.text.trim());
-    languageCode ??= transcript.languageCode;
-    ms += transcript.ms;
+    pieces.push({ start, end });
     start = end;
   }
-  return { text: texts.join(' '), languageCode, ms };
+  const answers: Transcript[] = [];
+  let next = 0;
+  let stopped = false;
+  const sendPieces = async () => {
+    while (!stopped && next < pieces.length) {
+      const index = next;
+      next += 1;
+      const piece = pieces[index];
+      if (piece === undefined) break;
+      try {
+        options.signal?.throwIfAborted();
+        const samples = pcm.samples.subarray(piece.start, piece.end);
+        options.onPiece?.(durationMs({ ...pcm, samples }));
+        answers[index] = await stt.transcribe(writeWav({ ...pcm, samples }), {
+          mimeType: 'audio/wav',
+          languageCode: options.languageCode,
+        });
+      } catch (error) {
+        stopped = true;
+        throw error;
+      }
+    }
+  };
+  const lanes = Math.max(1, Math.min(Math.floor(options.concurrency ?? 1), pieces.length));
+  await Promise.all(Array.from({ length: lanes }, sendPieces));
+  const texts = answers.map((answer) => answer.text.trim()).filter((text) => text !== '');
+  return {
+    text: texts.join(' '),
+    languageCode: answers.find((answer) => answer.languageCode !== undefined)?.languageCode,
+    ms: answers.reduce((sum, answer) => sum + answer.ms, 0),
+  };
 }

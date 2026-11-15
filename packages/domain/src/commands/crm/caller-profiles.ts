@@ -1,16 +1,19 @@
 import {
   CallerProfileDto,
   CustomerLanguageSchema,
+  DialPhoneDto,
   DomainError,
   newId,
   SegmentSchema,
   SetCallerProfileInput,
+  SetDialPhoneInput,
   SetPresenceInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { dialPhoneTaken } from '../../queries/calls/provider-calls';
 import { requireEntity } from './opportunity-shared';
 
 type ProfileRow = typeof schema.callerProfiles.$inferSelect;
@@ -153,5 +156,58 @@ export const setPresence = defineCommand({
       });
     }
     return toDto(row);
+  },
+});
+
+/**
+ * `crm.caller_profile.set_dial_phone` (docs/03-roadmap-appendix/phase2.md §6.3): the caller's own
+ * phone in one company, which click-to-dial rings first before the customer's; null clears it.
+ * Only the caller's own row, never another person's (the insert policy and the guard trigger); a
+ * person with no profile yet gets one that is not a Lead Converter until a manager says so. For a
+ * person who dials (`calls.dial`), people only.
+ */
+export const setDialPhone = defineCommand({
+  name: 'crm.caller_profile.set_dial_phone',
+  permission: 'calls.dial',
+  minScope: 'own',
+  peopleOnly: true,
+  input: SetDialPhoneInput,
+  output: DialPhoneDto,
+  auditFields: ['dialPhone'],
+  async handler(ctx, input) {
+    requireEntity(ctx, input.entityId);
+    // The caller's own phone: never a customer's number nor a company's (checked again at each dial).
+    if (input.phone !== null && (await dialPhoneTaken(ctx, input.phone))) {
+      throw new DomainError('validation_failed', "the dial phone is not the caller's own", {
+        reason: 'dial_phone_not_own',
+        issues: [{ path: 'phone', message: 'dial_phone_not_own' }],
+      });
+    }
+    const before = await ownProfile(ctx, ctx.principal.id, input.entityId);
+    const cp = schema.callerProfiles;
+    const [row] = await ctx.tx
+      .insert(cp)
+      .values({
+        id: newId(),
+        userId: ctx.principal.id,
+        entityId: input.entityId,
+        dialPhoneE164: input.phone,
+        updatedBy: ctx.principal.id,
+      })
+      .onConflictDoUpdate({
+        target: [cp.userId, cp.entityId],
+        set: { dialPhoneE164: input.phone, updatedBy: ctx.principal.id },
+      })
+      .returning();
+    if (!row) throw new DomainError('internal', 'caller profile upsert returned no row');
+    // Every save of the phone is on the trail, its digits masked to the last four.
+    ctx.audit({
+      aggregateType: 'caller_profile',
+      aggregateId: row.id,
+      entityId: input.entityId,
+      before: { dialPhone: before?.dialPhoneE164 ?? null },
+      after: { dialPhone: row.dialPhoneE164 },
+    });
+    return { entityId: row.entityId, dialPhone: row.dialPhoneE164 };
   },
 });

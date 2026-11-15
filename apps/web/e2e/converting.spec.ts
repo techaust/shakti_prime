@@ -57,6 +57,8 @@ test.describe('converting as a Lead Converter', () => {
   }) => {
     test.setTimeout(240_000);
     await signInThroughScreens(page, emailFor(converterKey(projectName())));
+    // Inside the calling hours, so the call plan in the picture never depends on the wall clock.
+    await setServerClock(context, insideCallingHours());
     await page.goto('/converting');
     await expect(page.getByRole('heading', { name: 'Converting', level: 1 })).toBeVisible();
 

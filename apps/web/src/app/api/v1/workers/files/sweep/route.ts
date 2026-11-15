@@ -2,6 +2,7 @@ import { fileStore } from '../../../../../../files/store';
 import { logger } from '../../../../../../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
+import { sweepCalls } from '../../../../../../workers/calls/sweep-calls';
 import { purgeImports } from '../../../../../../workers/files/purge-imports';
 import { sweepAbandonedUploads } from '../../../../../../workers/files/sweep-uploads';
 import { recordJobOutcome } from '../../../../../../workers/job-streak';
@@ -23,6 +24,9 @@ export const maxDuration = 60;
  * clears at most twenty jobs, and the next hour's run takes the rest.
  */
 const IMPORT_PURGE_BUDGET_MS = 30_000;
+
+/** How long the calls' upkeep keeps starting companies after the purge (`sweepCalls`). */
+const CALLS_SWEEP_BUDGET_MS = 10_000;
 
 /**
  * The sweep of abandoned uploads (docs/03-roadmap-appendix/phase1.md §6.3, docs/06-api.md §3.6),
@@ -60,8 +64,10 @@ export async function POST(request: Request): Promise<Response> {
     const store = fileStore();
     const swept = await sweepAbandonedUploads({ store, requestId });
     const imports = await purgeImports({ store, requestId, budgetMs: IMPORT_PURGE_BUDGET_MS });
+    // T3: unplaced dials closed and call recordings past retention removed (phase 2 design §6.3).
+    const calls = await sweepCalls({ store, requestId, budgetMs: CALLS_SWEEP_BUDGET_MS });
     await recordJobOutcome('files-sweep', 'ok', { requestId, scheduled });
-    return Response.json({ ...swept, imports }, { headers });
+    return Response.json({ ...swept, imports, calls }, { headers });
   } catch (error) {
     logger.log('error', 'files.sweep_failed', { requestId, error });
     await recordJobOutcome('files-sweep', 'failed', { requestId, scheduled });

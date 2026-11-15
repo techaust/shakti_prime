@@ -278,6 +278,7 @@ describe('the handover definers', () => {
         'webhooks.process',
         'knowledge.playbook.check',
         'messaging.process',
+        'calls.process',
       ]),
     );
     expect(list?.keys).toHaveLength(PLATFORM_ONLY_PERMISSIONS.length);

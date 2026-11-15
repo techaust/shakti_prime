@@ -62,5 +62,13 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // and record the platform's sends through definers, and read no thread by a customer grant
     // (docs/03-roadmap-appendix/phase2.md §6.1).
     { key: 'messaging.process', scope: 'all' },
+    // A lead from Lead Ads, a Google lead form, a website or WhatsApp (`crm.lead.ingest`): it makes
+    // or attaches the lead, with its customer, attribution, consent and owner, through definers,
+    // and reads no lead or customer by a person's rule (docs/03-roadmap-appendix/phase2.md §6.2).
+    { key: 'crm.ingest.run', scope: 'all' },
+    // A provider call's status, its recording's copy and removal (`calls.provider_call.record`,
+    // `calls.recording.attach`, `calls.recording.delete`): it writes `provider_calls` and the
+    // recording's file through definers, and reads no customer row.
+    { key: 'calls.process', scope: 'all' },
   ],
 };

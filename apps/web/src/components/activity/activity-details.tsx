@@ -45,6 +45,12 @@ import {
   PLAYBOOK_TYPE_VALUES,
   CONSENT_CHANNELS,
   ENTITY_CHANNEL_KINDS,
+  INGEST_ASSIGNEES,
+  INGEST_CHANNELS,
+  INGEST_OUTCOMES,
+  INGEST_SOURCE_PROVIDERS,
+  CALL_PURPOSE_VALUES,
+  PROVIDER_CALL_STATUS_VALUES,
   WHATSAPP_HANDOFF_REASONS,
   WHATSAPP_MESSAGE_KINDS,
   WHATSAPP_TEMPLATE_CATEGORIES,
@@ -519,6 +525,26 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'whatsappTemplatePurpose':
         return oneOf(WHATSAPP_TEMPLATE_PURPOSES, value)
           ? t(`values.whatsappTemplatePurpose.${value}`)
+          : wordsOf(value);
+      case 'leadChannel':
+        return oneOf(INGEST_CHANNELS, value) ? t(`values.leadChannel.${value}`) : wordsOf(value);
+      case 'ingestOutcome':
+        return oneOf(INGEST_OUTCOMES, value) ? t(`values.ingestOutcome.${value}`) : wordsOf(value);
+      case 'ingestAssignee':
+        return oneOf(INGEST_ASSIGNEES, value)
+          ? t(`values.ingestAssignee.${value}`)
+          : wordsOf(value);
+      case 'sourceProvider':
+        return oneOf(INGEST_SOURCE_PROVIDERS, value)
+          ? t(`values.sourceProvider.${value}`)
+          : wordsOf(value);
+      case 'callPurpose':
+        return oneOf(CALL_PURPOSE_VALUES, value)
+          ? t(`values.callPurpose.${value}`)
+          : wordsOf(value);
+      case 'callStatus':
+        return oneOf(PROVIDER_CALL_STATUS_VALUES, value)
+          ? t(`values.callStatus.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)

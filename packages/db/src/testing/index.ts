@@ -347,6 +347,14 @@ export const ENTITY_TABLES = [
   'whatsapp_threads',
   'whatsapp_messages',
   'whatsapp_templates',
+  // a company's connected forms and sites, and its website keys: read and written by an Executive
+  // (crm.sources.write); a lead's qualification facts, read with the lead
+  // (docs/03-roadmap-appendix/phase2.md §6.2)
+  'ingest_sources',
+  'ingest_keys',
+  'lead_qualifications',
+  // a provider's call, a child of the lead, read with it (docs/03-roadmap-appendix/phase2.md §6.3)
+  'provider_calls',
 ] as const;
 
 /**

@@ -1,6 +1,6 @@
 -- W1 fix round (docs/03-roadmap-appendix/phase2.md §6.1; review of 15-11-2026). Every function
--- below is redefined whole; anonymise_stale_leads() from 0142 keeps every line and adds the
--- customer's WhatsApp chats.
+-- below is redefined whole; anonymise_stale_leads() from 0173 (T3's, on 0142) keeps every line and
+-- adds the customer's WhatsApp chats.
 
 -- 1. Whether a number has opted out of WhatsApp (CRM-10, LAW-2: one consent for the group): by the
 --    number, in every company. Its latest STOP on any company's thread (or the caller's own,
@@ -464,7 +464,7 @@ grant execute on function app.whatsapp_claim_send(uuid) to app_user;
 grant update (category, label, params, buttons, purpose, updated_at, updated_by) on whatsapp_templates to app_user;
 --> statement-breakpoint
 
--- 9. The stale-lead anonymisation, as 0142 wrote it, also removing the customer's WhatsApp
+-- 9. The stale-lead anonymisation, as 0173 wrote it (0142 with T3's provider calls), also removing the customer's WhatsApp
 --    chats' number and the customer's own words (the owner's rule of 13-10-2026 that the numbers
 --    go): the chats stay, as facts without the person. A customer who wrote on WhatsApp within the
 --    period is passed by, as one with any other recent activity.
@@ -565,6 +565,7 @@ begin
         || array(select x.id from public.account_entities x where x.account_id = v_account)
         || array(select x.id from public.tasks x where x.opportunity_id = any (v_leads))
         || array(select x.id from public.calls x where x.opportunity_id = any (v_leads))
+        || array(select x.id from public.provider_calls x where x.opportunity_id = any (v_leads))
         || array(select x.id from public.sizings x where x.opportunity_id = any (v_leads))
         || array(select x.id from public.consents x where x.contact_id = any (v_contacts))
         || array(select x.id from public.inbox_items x
@@ -594,6 +595,13 @@ begin
        where x.opportunity_id = any (v_leads) and x.title is not null;
 
       delete from public.contact_phones x where x.contact_id = any (v_contacts);
+
+      -- T3: the leads' provider calls keep no phone (the delete above cleared it) and no provider
+      -- id, by which the provider could find the numbers; their recordings are due for removal at
+      -- once (app.call_recordings_due() names the recordings of an anonymised lead).
+      update public.provider_calls x
+         set provider_call_sid = null
+       where x.opportunity_id = any (v_leads) and x.provider_call_sid is not null;
 
       -- The customer's WhatsApp chats lose the number and wait for no one; the customer's own
       -- words and button replies are cleared (the guard's one exception), so nothing in a chat

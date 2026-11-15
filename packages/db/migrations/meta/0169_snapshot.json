@@ -1,6 +1,6 @@
 {
-  "id": "1a406392-a40a-4aa8-8129-df83344f8807",
-  "prevId": "d29f3921-0e3d-4fa6-a515-7558d25567c3",
+  "id": "da972a19-fdc8-4690-9385-053e4f98a03b",
+  "prevId": "c135f1e9-1432-40e9-832d-301ee41fa0f8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2459,6 +2459,12 @@
           "notNull": true,
           "default": "'{}'::text[]"
         },
+        "dial_phone_e164": {
+          "name": "dial_phone_e164",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_by": {
           "name": "updated_by",
           "type": "uuid",
@@ -2567,6 +2573,10 @@
         "caller_profiles_segments_check": {
           "name": "caller_profiles_segments_check",
           "value": "\"caller_profiles\".\"segments\" <@ array['farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale']::text[]"
+        },
+        "caller_profiles_dial_phone_check": {
+          "name": "caller_profiles_dial_phone_check",
+          "value": "\"caller_profiles\".\"dial_phone_e164\" is null or \"caller_profiles\".\"dial_phone_e164\" ~ '^\\+[1-9]\\d{6,14}$'"
         }
       },
       "isRLSEnabled": false
@@ -5808,6 +5818,22 @@
           "method": "btree",
           "where": "\"files\".\"purpose\" = 'import' and \"files\".\"deleted_at\" is null",
           "concurrently": false
+        },
+        "files_call_recording_kept_idx": {
+          "name": "files_call_recording_kept_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"files\".\"purpose\" = 'call_recording' and \"files\".\"deleted_at\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -5874,7 +5900,7 @@
       "checkConstraints": {
         "files_purpose_check": {
           "name": "files_purpose_check",
-          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence')"
+          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence', 'call_recording')"
         },
         "files_status_check": {
           "name": "files_status_check",
@@ -11346,6 +11372,389 @@
       },
       "isRLSEnabled": false
     },
+    "public.provider_calls": {
+      "name": "provider_calls",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opportunity_id": {
+          "name": "opportunity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_phone_id": {
+          "name": "contact_phone_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caller_id": {
+          "name": "caller_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direction": {
+          "name": "direction",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "series": {
+          "name": "series",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_call_sid": {
+          "name": "provider_call_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'dialling'"
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "answered_at": {
+          "name": "answered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_s": {
+          "name": "duration_s",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recording_file_id": {
+          "name": "recording_file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transcript_file_id": {
+          "name": "transcript_file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "call_id": {
+          "name": "call_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "provider_calls_sid_unique": {
+          "name": "provider_calls_sid_unique",
+          "columns": [
+            {
+              "expression": "provider_call_sid",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "provider_calls_call_unique": {
+          "name": "provider_calls_call_unique",
+          "columns": [
+            {
+              "expression": "call_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "provider_calls_opportunity_started_idx": {
+          "name": "provider_calls_opportunity_started_idx",
+          "columns": [
+            {
+              "expression": "opportunity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "provider_calls_caller_started_idx": {
+          "name": "provider_calls_caller_started_idx",
+          "columns": [
+            {
+              "expression": "caller_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "provider_calls_contact_phone_idx": {
+          "name": "provider_calls_contact_phone_idx",
+          "columns": [
+            {
+              "expression": "contact_phone_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "provider_calls_recording_idx": {
+          "name": "provider_calls_recording_idx",
+          "columns": [
+            {
+              "expression": "recording_file_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"provider_calls\".\"recording_file_id\" is not null",
+          "concurrently": false
+        },
+        "provider_calls_transcript_idx": {
+          "name": "provider_calls_transcript_idx",
+          "columns": [
+            {
+              "expression": "transcript_file_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"provider_calls\".\"transcript_file_id\" is not null",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "provider_calls_entity_id_entities_id_fk": {
+          "name": "provider_calls_entity_id_entities_id_fk",
+          "tableFrom": "provider_calls",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "tableTo": "entities",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "provider_calls_contact_phone_id_contact_phones_id_fk": {
+          "name": "provider_calls_contact_phone_id_contact_phones_id_fk",
+          "tableFrom": "provider_calls",
+          "columnsFrom": [
+            "contact_phone_id"
+          ],
+          "tableTo": "contact_phones",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "provider_calls_caller_id_principals_id_fk": {
+          "name": "provider_calls_caller_id_principals_id_fk",
+          "tableFrom": "provider_calls",
+          "columnsFrom": [
+            "caller_id"
+          ],
+          "tableTo": "principals",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "provider_calls_call_id_calls_id_fk": {
+          "name": "provider_calls_call_id_calls_id_fk",
+          "tableFrom": "provider_calls",
+          "columnsFrom": [
+            "call_id"
+          ],
+          "tableTo": "calls",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "provider_calls_opportunity_entity_fk": {
+          "name": "provider_calls_opportunity_entity_fk",
+          "tableFrom": "provider_calls",
+          "columnsFrom": [
+            "opportunity_id",
+            "entity_id"
+          ],
+          "tableTo": "opportunities",
+          "columnsTo": [
+            "id",
+            "entity_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "provider_calls_recording_entity_fk": {
+          "name": "provider_calls_recording_entity_fk",
+          "tableFrom": "provider_calls",
+          "columnsFrom": [
+            "recording_file_id",
+            "entity_id"
+          ],
+          "tableTo": "files",
+          "columnsTo": [
+            "id",
+            "entity_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "provider_calls_transcript_entity_fk": {
+          "name": "provider_calls_transcript_entity_fk",
+          "tableFrom": "provider_calls",
+          "columnsFrom": [
+            "transcript_file_id",
+            "entity_id"
+          ],
+          "tableTo": "files",
+          "columnsTo": [
+            "id",
+            "entity_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "provider_calls_direction_check": {
+          "name": "provider_calls_direction_check",
+          "value": "\"provider_calls\".\"direction\" in ('outbound', 'inbound')"
+        },
+        "provider_calls_series_check": {
+          "name": "provider_calls_series_check",
+          "value": "\"provider_calls\".\"series\" in ('140', '160', 'ivr', 'missed_call')"
+        },
+        "provider_calls_purpose_check": {
+          "name": "provider_calls_purpose_check",
+          "value": "\"provider_calls\".\"purpose\" is null or \"provider_calls\".\"purpose\" in ('promotional', 'service')"
+        },
+        "provider_calls_status_check": {
+          "name": "provider_calls_status_check",
+          "value": "\"provider_calls\".\"status\" in ('dialling', 'ringing', 'in_progress', 'completed', 'no_answer', 'busy', 'failed', 'canceled')"
+        },
+        "provider_calls_outbound_check": {
+          "name": "provider_calls_outbound_check",
+          "value": "\"provider_calls\".\"direction\" <> 'outbound' or (\"provider_calls\".\"caller_id\" is not null and \"provider_calls\".\"contact_phone_id\" is not null and \"provider_calls\".\"purpose\" is not null and \"provider_calls\".\"series\" in ('140', '160'))"
+        },
+        "provider_calls_sid_check": {
+          "name": "provider_calls_sid_check",
+          "value": "\"provider_calls\".\"provider_call_sid\" is null or \"provider_calls\".\"provider_call_sid\" ~ '^[A-Za-z0-9_.:-]{1,80}$'"
+        },
+        "provider_calls_duration_check": {
+          "name": "provider_calls_duration_check",
+          "value": "\"provider_calls\".\"duration_s\" is null or \"provider_calls\".\"duration_s\" between 0 and 14400"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.pump_curves": {
       "name": "pump_curves",
       "schema": "",
@@ -16199,1035 +16608,6 @@
         "webhook_inbox_purge_check": {
           "name": "webhook_inbox_purge_check",
           "value": "(\"webhook_inbox\".\"payload_json\" is null) = (\"webhook_inbox\".\"payload_purged_at\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.whatsapp_message_keys": {
-      "name": "whatsapp_message_keys",
-      "schema": "",
-      "columns": {
-        "provider_message_id": {
-          "name": "provider_message_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message_id": {
-          "name": "message_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message_created_at": {
-          "name": "message_created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "thread_id": {
-          "name": "thread_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "whatsapp_message_keys_message_idx": {
-          "name": "whatsapp_message_keys_message_idx",
-          "columns": [
-            {
-              "expression": "message_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "whatsapp_message_keys_thread_idx": {
-          "name": "whatsapp_message_keys_thread_idx",
-          "columns": [
-            {
-              "expression": "thread_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "whatsapp_message_keys_entity_id_entities_id_fk": {
-          "name": "whatsapp_message_keys_entity_id_entities_id_fk",
-          "tableFrom": "whatsapp_message_keys",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_message_keys_message_fk": {
-          "name": "whatsapp_message_keys_message_fk",
-          "tableFrom": "whatsapp_message_keys",
-          "columnsFrom": [
-            "message_id",
-            "message_created_at"
-          ],
-          "tableTo": "whatsapp_messages",
-          "columnsTo": [
-            "id",
-            "created_at"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_message_keys_thread_fk": {
-          "name": "whatsapp_message_keys_thread_fk",
-          "tableFrom": "whatsapp_message_keys",
-          "columnsFrom": [
-            "thread_id",
-            "entity_id"
-          ],
-          "tableTo": "whatsapp_threads",
-          "columnsTo": [
-            "id",
-            "entity_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "whatsapp_message_keys_id_check": {
-          "name": "whatsapp_message_keys_id_check",
-          "value": "char_length(\"whatsapp_message_keys\".\"provider_message_id\") between 1 and 256"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.whatsapp_messages": {
-      "name": "whatsapp_messages",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "thread_id": {
-          "name": "thread_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "direction": {
-          "name": "direction",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "provider_message_id": {
-          "name": "provider_message_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "template_name": {
-          "name": "template_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "template_params": {
-          "name": "template_params",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "body_masked": {
-          "name": "body_masked",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "button_payload": {
-          "name": "button_payload",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "file_id": {
-          "name": "file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status_at": {
-          "name": "status_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "refusal": {
-          "name": "refusal",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "error_code": {
-          "name": "error_code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sent_by": {
-          "name": "sent_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "drafted_by_agent_action_id": {
-          "name": "drafted_by_agent_action_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "send_attempted_at": {
-          "name": "send_attempted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "whatsapp_messages_thread_created_idx": {
-          "name": "whatsapp_messages_thread_created_idx",
-          "columns": [
-            {
-              "expression": "thread_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "whatsapp_messages_queued_idx": {
-          "name": "whatsapp_messages_queued_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"whatsapp_messages\".\"status\" = 'queued'",
-          "concurrently": false
-        },
-        "whatsapp_messages_file_idx": {
-          "name": "whatsapp_messages_file_idx",
-          "columns": [
-            {
-              "expression": "file_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"whatsapp_messages\".\"file_id\" is not null",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "whatsapp_messages_entity_id_entities_id_fk": {
-          "name": "whatsapp_messages_entity_id_entities_id_fk",
-          "tableFrom": "whatsapp_messages",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_messages_sent_by_principals_id_fk": {
-          "name": "whatsapp_messages_sent_by_principals_id_fk",
-          "tableFrom": "whatsapp_messages",
-          "columnsFrom": [
-            "sent_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_messages_thread_fk": {
-          "name": "whatsapp_messages_thread_fk",
-          "tableFrom": "whatsapp_messages",
-          "columnsFrom": [
-            "thread_id",
-            "entity_id"
-          ],
-          "tableTo": "whatsapp_threads",
-          "columnsTo": [
-            "id",
-            "entity_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_messages_file_fk": {
-          "name": "whatsapp_messages_file_fk",
-          "tableFrom": "whatsapp_messages",
-          "columnsFrom": [
-            "file_id",
-            "entity_id"
-          ],
-          "tableTo": "files",
-          "columnsTo": [
-            "id",
-            "entity_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "whatsapp_messages_pkey": {
-          "name": "whatsapp_messages_pkey",
-          "columns": [
-            "id",
-            "created_at"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "whatsapp_messages_direction_check": {
-          "name": "whatsapp_messages_direction_check",
-          "value": "\"whatsapp_messages\".\"direction\" in ('inbound', 'outbound')"
-        },
-        "whatsapp_messages_kind_check": {
-          "name": "whatsapp_messages_kind_check",
-          "value": "\"whatsapp_messages\".\"kind\" in ('text', 'template', 'media', 'button', 'system')"
-        },
-        "whatsapp_messages_status_check": {
-          "name": "whatsapp_messages_status_check",
-          "value": "\"whatsapp_messages\".\"status\" is null or \"whatsapp_messages\".\"status\" in ('queued', 'sent', 'delivered', 'read', 'failed', 'refused')"
-        },
-        "whatsapp_messages_refusal_check": {
-          "name": "whatsapp_messages_refusal_check",
-          "value": "\"whatsapp_messages\".\"refusal\" is null or \"whatsapp_messages\".\"refusal\" in ('opted_out', 'window_closed', 'template_not_approved', 'tier_budget_reached', 'output_filter')"
-        },
-        "whatsapp_messages_direction_shape_check": {
-          "name": "whatsapp_messages_direction_shape_check",
-          "value": "case when \"whatsapp_messages\".\"direction\" = 'inbound'\n               then \"whatsapp_messages\".\"provider_message_id\" is not null and \"whatsapp_messages\".\"status\" is null and \"whatsapp_messages\".\"sent_by\" is null\n                    and \"whatsapp_messages\".\"send_attempted_at\" is null\n               else \"whatsapp_messages\".\"status\" is not null and \"whatsapp_messages\".\"sent_by\" is not null end"
-        },
-        "whatsapp_messages_refused_check": {
-          "name": "whatsapp_messages_refused_check",
-          "value": "(\"whatsapp_messages\".\"status\" = 'refused') = (\"whatsapp_messages\".\"refusal\" is not null)"
-        },
-        "whatsapp_messages_template_check": {
-          "name": "whatsapp_messages_template_check",
-          "value": "(\"whatsapp_messages\".\"kind\" in ('template', 'system')) = (\"whatsapp_messages\".\"template_name\" is not null)"
-        },
-        "whatsapp_messages_template_name_check": {
-          "name": "whatsapp_messages_template_name_check",
-          "value": "\"whatsapp_messages\".\"template_name\" is null\n          or (\"whatsapp_messages\".\"template_name\" ~ '^[a-z0-9_]+$' and char_length(\"whatsapp_messages\".\"template_name\") <= 512)"
-        },
-        "whatsapp_messages_template_params_check": {
-          "name": "whatsapp_messages_template_params_check",
-          "value": "\"whatsapp_messages\".\"template_params\" is null\n          or (jsonb_typeof(\"whatsapp_messages\".\"template_params\") = 'array'\n              and jsonb_array_length(\"whatsapp_messages\".\"template_params\") <= 20\n              and octet_length(\"whatsapp_messages\".\"template_params\"::text) <= 8000)"
-        },
-        "whatsapp_messages_body_check": {
-          "name": "whatsapp_messages_body_check",
-          "value": "\"whatsapp_messages\".\"body_masked\" is null or char_length(\"whatsapp_messages\".\"body_masked\") between 1 and 4096"
-        },
-        "whatsapp_messages_provider_id_check": {
-          "name": "whatsapp_messages_provider_id_check",
-          "value": "\"whatsapp_messages\".\"provider_message_id\" is null or char_length(\"whatsapp_messages\".\"provider_message_id\") between 1 and 256"
-        },
-        "whatsapp_messages_button_check": {
-          "name": "whatsapp_messages_button_check",
-          "value": "\"whatsapp_messages\".\"button_payload\" is null or char_length(\"whatsapp_messages\".\"button_payload\") between 1 and 256"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.whatsapp_templates": {
-      "name": "whatsapp_templates",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "language": {
-          "name": "language",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'en'"
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "status_at": {
-          "name": "status_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "params": {
-          "name": "params",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "buttons": {
-          "name": "buttons",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "whatsapp_templates_purpose_unique": {
-          "name": "whatsapp_templates_purpose_unique",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "purpose",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "where": "\"whatsapp_templates\".\"purpose\" is not null",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "whatsapp_templates_entity_id_entities_id_fk": {
-          "name": "whatsapp_templates_entity_id_entities_id_fk",
-          "tableFrom": "whatsapp_templates",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_templates_created_by_principals_id_fk": {
-          "name": "whatsapp_templates_created_by_principals_id_fk",
-          "tableFrom": "whatsapp_templates",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_templates_updated_by_principals_id_fk": {
-          "name": "whatsapp_templates_updated_by_principals_id_fk",
-          "tableFrom": "whatsapp_templates",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "whatsapp_templates_entity_name_unique": {
-          "name": "whatsapp_templates_entity_name_unique",
-          "columns": [
-            "entity_id",
-            "name",
-            "language"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "whatsapp_templates_name_check": {
-          "name": "whatsapp_templates_name_check",
-          "value": "\"whatsapp_templates\".\"name\" ~ '^[a-z0-9_]+$' and char_length(\"whatsapp_templates\".\"name\") <= 512"
-        },
-        "whatsapp_templates_language_check": {
-          "name": "whatsapp_templates_language_check",
-          "value": "\"whatsapp_templates\".\"language\" in ('en')"
-        },
-        "whatsapp_templates_category_check": {
-          "name": "whatsapp_templates_category_check",
-          "value": "\"whatsapp_templates\".\"category\" in ('utility', 'marketing', 'authentication')"
-        },
-        "whatsapp_templates_status_check": {
-          "name": "whatsapp_templates_status_check",
-          "value": "\"whatsapp_templates\".\"status\" in ('pending', 'approved', 'rejected', 'paused', 'disabled')"
-        },
-        "whatsapp_templates_purpose_check": {
-          "name": "whatsapp_templates_purpose_check",
-          "value": "\"whatsapp_templates\".\"purpose\" is null or \"whatsapp_templates\".\"purpose\" in ('welcome', 'opt_out_confirmation')"
-        },
-        "whatsapp_templates_params_check": {
-          "name": "whatsapp_templates_params_check",
-          "value": "jsonb_typeof(\"whatsapp_templates\".\"params\") = 'array' and jsonb_array_length(\"whatsapp_templates\".\"params\") <= 20\n          and octet_length(\"whatsapp_templates\".\"params\"::text) <= 4000"
-        },
-        "whatsapp_templates_buttons_check": {
-          "name": "whatsapp_templates_buttons_check",
-          "value": "jsonb_typeof(\"whatsapp_templates\".\"buttons\") = 'array' and jsonb_array_length(\"whatsapp_templates\".\"buttons\") <= 10\n          and octet_length(\"whatsapp_templates\".\"buttons\"::text) <= 4000"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.whatsapp_threads": {
-      "name": "whatsapp_threads",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "channel_id": {
-          "name": "channel_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "wa_id": {
-          "name": "wa_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_phone_id": {
-          "name": "contact_phone_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "opportunity_id": {
-          "name": "opportunity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assignee_id": {
-          "name": "assignee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "window_open_until": {
-          "name": "window_open_until",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "opted_out_at": {
-          "name": "opted_out_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "handled_by": {
-          "name": "handled_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'assistant'"
-        },
-        "handoff_reason": {
-          "name": "handoff_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "handed_off_at": {
-          "name": "handed_off_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_inbound_at": {
-          "name": "last_inbound_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "needs_reply": {
-          "name": "needs_reply",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "whatsapp_threads_account_idx": {
-          "name": "whatsapp_threads_account_idx",
-          "columns": [
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "whatsapp_threads_opportunity_idx": {
-          "name": "whatsapp_threads_opportunity_idx",
-          "columns": [
-            {
-              "expression": "opportunity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "whatsapp_threads_waiting_idx": {
-          "name": "whatsapp_threads_waiting_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "last_inbound_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"whatsapp_threads\".\"needs_reply\"",
-          "concurrently": false
-        },
-        "whatsapp_threads_assignee_idx": {
-          "name": "whatsapp_threads_assignee_idx",
-          "columns": [
-            {
-              "expression": "assignee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "last_inbound_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"whatsapp_threads\".\"needs_reply\"",
-          "concurrently": false
-        },
-        "whatsapp_threads_contact_phone_idx": {
-          "name": "whatsapp_threads_contact_phone_idx",
-          "columns": [
-            {
-              "expression": "contact_phone_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "whatsapp_threads_entity_id_entities_id_fk": {
-          "name": "whatsapp_threads_entity_id_entities_id_fk",
-          "tableFrom": "whatsapp_threads",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_threads_channel_id_entity_channels_id_fk": {
-          "name": "whatsapp_threads_channel_id_entity_channels_id_fk",
-          "tableFrom": "whatsapp_threads",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "tableTo": "entity_channels",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_threads_account_id_accounts_id_fk": {
-          "name": "whatsapp_threads_account_id_accounts_id_fk",
-          "tableFrom": "whatsapp_threads",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_threads_contact_phone_id_contact_phones_id_fk": {
-          "name": "whatsapp_threads_contact_phone_id_contact_phones_id_fk",
-          "tableFrom": "whatsapp_threads",
-          "columnsFrom": [
-            "contact_phone_id"
-          ],
-          "tableTo": "contact_phones",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_threads_assignee_id_principals_id_fk": {
-          "name": "whatsapp_threads_assignee_id_principals_id_fk",
-          "tableFrom": "whatsapp_threads",
-          "columnsFrom": [
-            "assignee_id"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_threads_created_by_principals_id_fk": {
-          "name": "whatsapp_threads_created_by_principals_id_fk",
-          "tableFrom": "whatsapp_threads",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_threads_updated_by_principals_id_fk": {
-          "name": "whatsapp_threads_updated_by_principals_id_fk",
-          "tableFrom": "whatsapp_threads",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_threads_opportunity_fk": {
-          "name": "whatsapp_threads_opportunity_fk",
-          "tableFrom": "whatsapp_threads",
-          "columnsFrom": [
-            "opportunity_id",
-            "entity_id",
-            "account_id"
-          ],
-          "tableTo": "opportunities",
-          "columnsTo": [
-            "id",
-            "entity_id",
-            "account_id"
-          ],
-          "onUpdate": "cascade",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "whatsapp_threads_channel_wa_unique": {
-          "name": "whatsapp_threads_channel_wa_unique",
-          "columns": [
-            "channel_id",
-            "wa_id"
-          ],
-          "nullsNotDistinct": false
-        },
-        "whatsapp_threads_id_entity_unique": {
-          "name": "whatsapp_threads_id_entity_unique",
-          "columns": [
-            "id",
-            "entity_id"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "whatsapp_threads_wa_id_check": {
-          "name": "whatsapp_threads_wa_id_check",
-          "value": "\"whatsapp_threads\".\"wa_id\" ~ '^[1-9][0-9]{6,14}$'"
-        },
-        "whatsapp_threads_handled_by_check": {
-          "name": "whatsapp_threads_handled_by_check",
-          "value": "\"whatsapp_threads\".\"handled_by\" in ('assistant', 'people')"
-        },
-        "whatsapp_threads_handoff_reason_check": {
-          "name": "whatsapp_threads_handoff_reason_check",
-          "value": "\"whatsapp_threads\".\"handoff_reason\" is null or \"whatsapp_threads\".\"handoff_reason\" in ('keyword', 'request', 'filter_refusals', 'complaint')"
-        },
-        "whatsapp_threads_handoff_check": {
-          "name": "whatsapp_threads_handoff_check",
-          "value": "(\"whatsapp_threads\".\"handled_by\" = 'people') = (\"whatsapp_threads\".\"handoff_reason\" is not null)\n          and (\"whatsapp_threads\".\"handled_by\" = 'people') = (\"whatsapp_threads\".\"handed_off_at\" is not null)"
-        },
-        "whatsapp_threads_customer_check": {
-          "name": "whatsapp_threads_customer_check",
-          "value": "(\"whatsapp_threads\".\"contact_phone_id\" is null or \"whatsapp_threads\".\"account_id\" is not null)\n          and (\"whatsapp_threads\".\"opportunity_id\" is null or \"whatsapp_threads\".\"account_id\" is not null)"
         }
       },
       "isRLSEnabled": false
