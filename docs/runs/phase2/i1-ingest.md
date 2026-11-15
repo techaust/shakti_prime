@@ -6,9 +6,9 @@
 | Worktree | `i1-ingest`, slot 1 (Postgres 54331, app 3031), in the lead's cloud VM |
 | Runs on | the lead's cloud session (owner, 14-11-2026, a cloud day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
-| Usage | build Opus 5.5 high; 5-hour window 0 % at 07:00 UTC (the owner's reading); VM 14,778 MB available, load 1.66 of 4 at the start |
-| State | built, for review |
-| Next step | review (slice-reviewer) |
+| Usage | build Opus 5.5 high; 5-hour window 0 % at 07:00 UTC (the owner's reading); VM 14,778 MB available, load 1.66 of 4 at the start; share of the session's requests (agent-usage.py, 14 and 15-11-2026): build 19.5 %, review 1.4 %, all on Opus 5.5 at high |
+| State | merged (#249) on 15-11-2026; dev and staging migrated |
+| Next step | none |
 
 ## Brief
 Read first:
@@ -133,7 +133,7 @@ Diff `origin/main...feat/i1-ingest` (88 files). Not findings, as the lead accept
 | L5 | low | `packages/contracts/src/commands/crm/ingest-sources.ts:59-62`; `routes.ts:224-232` | A website's external id is stored as typed, but the route compares it with the lower-cased host of `Origin`. | An Executive enters `ShaktiSupreme.com`, or `www.` when the site has none: no enquiry ever matches the site. | Lower-case (and trim a leading `www.`, or say so in the helper text) for `provider = website` in the contract or the command. | confirmed |
 | L6 | low | `apps/web/tests/lead-ingest.test.ts:350-356, 475-491` | The 60-a-minute test uses the real clock (`now: () => new Date()`) across 61 requests. | A run that starts at second 58 crosses into the next minute: the 61st request is counted afresh, answers 400, and the test fails. | Fix `deps.now` to one instant in the test. | confirmed (code read) |
 | L7 | low | tests | The round-robin's race is not tested: `goes round the present callers` runs two intakes one after the other. The design is sound: an advisory lock per company, then a fresh read under READ COMMITTED, taken after the number lock in one order, so it cannot deadlock. | A later change that moves the lock after the read would pass every test. | Run two `crm.lead.ingest` calls at once (`Promise.all`, two connections) for two level callers and expect one lead each. | confirmed (gap) |
-| L8 | low | `docs/03-roadmap-appendix/phase2.md:266`; `docs/06-api.md` §3.3; `packages/contracts/src/api/endpoints.ts` | Three documents disagree with the code: "eight definers" (there are nine); API §3.3 says an `Idempotency-Key` makes a retry act once, while the endpoint catalogue says `idempotencyKey: false` for `ingest.leads`; and `ingest.health` lists `rate_limited`, which the route never answers. | Readers and the contract catalogue disagree with the route. | Correct the count; set `idempotencyKey: true` (optional) for `ingest.leads`; drop `rate_limited` from health, or count it. | confirmed |
+| L8 | low | `docs/03-roadmap-appendix/phase2.md` (line 266); `docs/06-api.md` §3.3; `packages/contracts/src/api/endpoints.ts` | Three documents disagree with the code: "eight definers" (there are nine); API §3.3 says an `Idempotency-Key` makes a retry act once, while the endpoint catalogue says `idempotencyKey: false` for `ingest.leads`; and `ingest.health` lists `rate_limited`, which the route never answers. | Readers and the contract catalogue disagree with the route. | Correct the count; set `idempotencyKey: true` (optional) for `ingest.leads`; drop `rate_limited` from health, or count it. | confirmed |
 
 **Checked and sound:**
 - **Isolation:** the three tables are in `ENTITY_TABLES`, each with a fixture row per company, a matrix rule, `COLUMN_SELECT` and four `enum-sync` pairs. RLS is forced, policies read the settings in subselects and fail closed, and `app_reader` is on every select policy. `lead_qualifications` is scoped through its lead (a composite foreign key, `EXISTS` under the lead's policy, writes through `app.scope_ok('crm.lead.write', …)`). No write path goes around RLS except the platform's definers.
