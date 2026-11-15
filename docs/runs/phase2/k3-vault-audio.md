@@ -342,3 +342,39 @@ The 3 journey failures are the existing `knowledge` screenshot in each project, 
 **Decisions:**
 - The switch's value is exactly `on`; anything else is off.
 - The page signs the player's address again only on an error, or once it is 10 minutes old, so a re-read never restarts playback needlessly.
+
+### Re-check, 15-11-2026, slice-reviewer, on 6c0cc8ac
+I read `git diff ab87c77d..HEAD` (8120b07f, 6be39360, e4bf721a, 6c0cc8ac) against the twelve findings. All twelve are fixed. The fixes add two low findings, N1 and N2.
+
+| # | Result | Evidence |
+|---|---|---|
+| 1 | fixed | `docs/data/data-dictionary.md` is regenerated. `data-docs.test.ts` and `events-docs.test.ts` pass (23). |
+| 2 | fixed | `knowledgeListQuery()` selects `KNOWLEDGE_FILE_COLUMNS`, which names every column but `transcript`. `knowledgeFileDto()` takes `KnowledgeFileFields`, so the compiler refuses a list that needs the transcript. Only `getKnowledgeFile()` and the correction's answer read it. |
+| 3 | fixed | `apps/web/src/workers/knowledge/transcriber.test.ts` (7 tests) runs `recordingTranscriber()` over `transcribeRecording()` and the real Sarvam adapter, with `fetch` stubbed. It covers: 400, 413 and 422, and a Devanagari answer, to `knowledge_unreadable`; 401, 403, 429, 500, 503 and an unreachable host to `integration_unavailable`; an aborted signal to `knowledge_timed_out`, with nothing sent; `sent` adding up to 60,000 ms in pieces of at most 25 s; and, under `metered()`, the `transcribe` part counted at 50 paise and refused at its cap (scope `part`) before any piece goes. The test key is a low-entropy phrase. |
+| 4 | fixed | `knowledge.fileHint` gives 25 MB and "about 13 minutes of a standard recording". "Built (K3)" says no WAV the vault reads can reach 30 minutes under 25 MB, and that a phone's 44.1 kHz stereo WAV holds about 2.5 minutes. The journey asserts the new hint. |
+| 5 | fixed | `correctKnowledgeTranscript` checks the masked length and refuses with `knowledge_too_long` before the update (`transcript.ts`). The test with 14,000 addresses (97,999 characters typed, about 112,000 masked) is refused, and the transcript is unchanged. The sentence it shows is N1. |
+| 6 | fixed | The command answers `KnowledgeFileDetailDto` with the transcript as kept, masked (the domain test asserts no `6789`), and the panel shows that answer (`onSaved(updated)`). The typed text is never shown back. |
+| 7 | fixed | The player signs again through the same `openFile()` server action, on its `error` event (at most once every 5 s) and on a poll once the address is 10 minutes old, and resumes at `currentTime`. **No wider access:** `openFile()` runs under the caller's own `files` row security (`files_knowledge_read`, through `app.vault_upload_readable()`, by the vault file's sensitivity), as the first signing does. The client can only pass a `fileId`, and that action was already callable from the browser before this slice. |
+| 8 | fixed (accepted, documented) | "Built (K3)" says a transcription failing part way pays again for the pieces already sent, bounded by the ₹300 part cap. |
+| 9 | fixed | **No path sends audio without the switch.** `vaultTranscriber()` returns undefined unless `KNOWLEDGE_TRANSCRIBE` is exactly `on` (trimmed) and `SARVAM_API_KEY` is set. It is the only place a `RecordingTranscriber` over Sarvam is built (grep of `apps/web/src`, `apps/web/scripts` and `packages/domain/src`). Its only caller is `indexDeps()`, at run time, not at import. Without it the job records `unavailable` (`knowledge_service_missing`) and never calls out. The e2e seed's stand-in is a test double. The switch is tested (off when unset, `off`, `yes`, or with no key; on only with both). SECURITY §5, `voice.md` §2 item 3, "Built (K3)", `knowledge.md`, API, the machine's note and `.env.example` state the same rule. |
+| 10 | fixed | Both tests build Devanagari with `String.fromCodePoint`. No non-run file in the diff holds a character of the Devanagari blocks (grep `\x{0900}-\x{097F}`, `\x{A8E0}-\x{A8FF}`, `\x{1CD0}-\x{1CFF}`). |
+| 11 | fixed | The journey asserts the not-found heading and its "Go to the home screen" link before the absence checks. |
+| 12 | fixed | The `docs/02-prd.md` §8 row AI-01 reads "P2, K1, K2, K3" and lists the K3 tests. |
+
+**New in the fix round:**
+
+| # | Severity | Finding | State |
+|---|---|---|---|
+| N1 | low | **The masked-length refusal shows a sentence about adding files (confirmed).** `knowledge_too_long` reads "This file is too long to read in one go. Split it into smaller files and add each one." A person saving a transcript correction is not adding a file, so the sentence does not tell them what to do (shorten the transcript). Fix: give the correction a reason of its own (for example `knowledge_transcript_too_long`) with a sentence such as "This transcript is too long to save. Shorten it, then save it again.", or word the shared sentence so it fits both. | open |
+| N2 | low | **The player may keep signing again (plausible).** `signAgain` runs on every `error` event that comes 5 s or more after the last signing. Take a recording the browser cannot play, whose load takes longer than 5 s to fail: each failure signs a new address, which loads and fails again. That is one `openFile()` call every few seconds for as long as the page is open, with "cannot be played" never shown. Fix: re-sign once per lapse (for example, only when the address is older than its 15 minutes, or at most once until playback has started), then show `file.cannotPlay`. | open |
+
+**Run (through `heavy.sh`, on 54334):**
+- db: `src/docs/data-docs.test.ts` and `events-docs.test.ts` passed (23). `tests/security/knowledge-audio.test.ts`, `knowledge.test.ts` and `enum-sync.test.ts` passed (47).
+- domain: `tests/commands/knowledge-audio.test.ts`, `knowledge.test.ts`, `tests/security/agent-refusals.test.ts` and `tests/queries/reader-parity.test.ts` passed (93). `render.test.ts`, `event-emitters.test.ts` and `provider.test.ts` passed (48).
+- web: `workers/knowledge` (with `transcriber.test.ts`), `integrations/voice`, `audio-check.test.ts`, `csp.test.ts` and `screens` passed (304).
+- Typecheck of domain and web: clean. ESLint of the changed folders: clean. `pnpm copy-lint`: clean.
+- No `knowledge-recording.png` is tracked, so the stray baselines of e4bf721a are gone.
+
+**Not run:** the whole security suite, the journeys and the whole-repository lint (the builder reports them passing in the fix round); the screenshots, which the lead makes in the image.
+
+**Result:** findings 1 to 12 are fixed, and no high or medium finding is open. N1 and N2 are low follow-ups.
