@@ -7,6 +7,8 @@ describe('matchKeyword (docs/03-roadmap-appendix/phase2.md §6.1)', () => {
     expect(matchKeyword('  Stop! ')).toBe('stop');
     expect(matchKeyword('Band karo')).toBe('stop');
     expect(matchKeyword('mat bhejo 🙏')).toBe('stop');
+    // Meta's own opt-out button on a marketing template.
+    expect(matchKeyword('Stop promotions')).toBe('stop');
     expect(matchKeyword('human.')).toBe('human');
     expect(matchKeyword('Insaan se baat')).toBe('human');
     expect(matchKeyword('status?')).toBe('status');
