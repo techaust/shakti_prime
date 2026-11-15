@@ -125,19 +125,18 @@ describe('the webhook routes on real Postgres', () => {
       expect(rows, d.provider).toHaveLength(1);
       const row = await settled(rows[0]?.id ?? '');
       // A provider with no handler yet has its row processed with that code; the lead forms'
-      // handlers (I1) set a delivery for a form no company has connected aside, never guessed.
+      // handlers (I1) set a delivery for a form no company has connected aside, never guessed;
+      // Exotel's status has T3's, which finds no call of ours for the fixture's reference and
+      // records nothing.
       expect(row).toMatchObject(
         d.provider === 'meta_leadgen' || d.provider === 'google_leadform'
           ? { failed: true, attempts: 1, error_code: 'form_unmapped' }
-          : { processed: true, attempts: 1, error_code: 'no_handler' },
+          : {
+              processed: true,
+              attempts: 1,
+              error_code: d.provider === 'exotel_status' ? null : 'no_handler',
+            },
       );
-      // A provider with no handler yet is processed with its code; Exotel's status has T3's,
-      // which finds no call of ours for the fixture's reference and records nothing.
-      expect(row).toMatchObject({
-        processed: true,
-        attempts: 1,
-        error_code: d.provider === 'exotel_status' ? null : 'no_handler',
-      });
       // Processing it again changes nothing.
       expect(await processWebhook(row.id, { requestId: newId() })).toEqual({
         inboxId: row.id,
