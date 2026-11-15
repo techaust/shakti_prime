@@ -164,4 +164,4 @@ Steps 6 to 9 on `feat/b1-ask`, after the lead accepted the early check with its 
 - This database needs recreating for `demo-data.test.ts`, as above.
 - `0170_ask_companies_check` may be folded into `0168` at the renumbering.
 - The live model has not been run on the eval questions (by hand only, never in CI; it needs a key).
-- `js-budget.json` and `copy-lint.config.json` changed, so the pull request needs the owner's `checks-ok`.
+- `js-budget.json` changed, so the pull request needs the owner's `checks-ok`.
