@@ -137,7 +137,13 @@ describe('click-to-dial', () => {
     expect(exotelConfig({})).toBeUndefined();
     expect(
       exotelConfig({ EXOTEL_ACCOUNT_SID: 'a', EXOTEL_API_KEY: 'b', EXOTEL_API_TOKEN: 'c' }),
-    ).toEqual({ accountSid: 'a', apiKey: 'b', apiToken: 'c', subdomain: 'api.in.exotel.com' });
+    ).toEqual({
+      accountSid: 'a',
+      apiKey: 'b',
+      apiToken: 'c',
+      subdomain: 'api.in.exotel.com',
+      recordingHosts: ['recordings.exotel.com'],
+    });
   });
 });
 
