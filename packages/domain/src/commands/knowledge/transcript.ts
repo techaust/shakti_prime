@@ -91,7 +91,7 @@ export const recordKnowledgeTranscript = defineCommand({
  * so its passages are cut and embedded from the correction and replace the old ones. Refused for a
  * file that is not a recording, while the file is being read, for an archived file, while its
  * upload has not passed its checks, and when masking makes it longer than a transcript may be
- * (`knowledge_too_long`). It answers the file with the transcript as kept, masked, so the screen
+ * (`knowledge_transcript_too_long`). It answers the file with the transcript as kept, masked, so the screen
  * shows at once what was stored.
  */
 export const correctKnowledgeTranscript = defineCommand({
@@ -143,7 +143,7 @@ export const correctKnowledgeTranscript = defineCommand({
     // Masking can lengthen a text (an address becomes `[email]`); checked as it will be stored.
     if (transcript.length > KNOWLEDGE_TRANSCRIPT_MAX_CHARS) {
       throw new DomainError('validation_failed', 'the masked transcript is too long', {
-        reason: 'knowledge_too_long',
+        reason: 'knowledge_transcript_too_long',
       });
     }
     const [updated] = await ctx.tx

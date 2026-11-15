@@ -462,7 +462,7 @@ describe('knowledge.transcript.correct', () => {
       }),
     ).rejects.toMatchObject({
       code: 'validation_failed',
-      details: { reason: 'knowledge_too_long' },
+      details: { reason: 'knowledge_transcript_too_long' },
     });
     expect((await fileRow(vault.id))?.transcript).toBe('Tank ki safai');
   });

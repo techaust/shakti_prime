@@ -29,6 +29,7 @@
     "knowledge_person_search_cap_reached": "You have used your share of today's searches. It works again tomorrow.",
     "knowledge_transcript_not_roman": "Write the transcript in English letters only, as you would type Hindi words in a phone message, then save it again.",
     "knowledge_transcript_not_audio": "Only a recording has a transcript to correct. Refresh the page to see this file as it is.",
+    "knowledge_transcript_too_long": "This transcript is too long to save. Shorten it, then save it again.",
     "validation_failed": "Some details are missing or incorrect. Please check and try again.",
     "unauthorized": "Please sign in to continue.",
     "forbidden": "You don't have access to this. Ask your manager if you need it.",
