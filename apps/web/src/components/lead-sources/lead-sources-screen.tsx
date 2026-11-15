@@ -299,7 +299,12 @@ function KeysSection({
       )}
       <form onSubmit={submit} noValidate className="flex flex-col gap-2">
         <Field id={`${id}-site`} label={t('keySite')} helper={t('keySiteHelper')}>
-          <Select name="sourceId" defaultValue={sites[0]?.id ?? ''}>
+          {/* Keyed on the sites, so a website connected meanwhile becomes the choice. */}
+          <Select
+            key={sites.map((s) => s.id).join(',')}
+            name="sourceId"
+            defaultValue={sites[0]?.id ?? ''}
+          >
             <option value="">{t('noSite')}</option>
             {sites.map((s) => (
               <option key={s.id} value={s.id}>

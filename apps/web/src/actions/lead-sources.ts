@@ -115,6 +115,7 @@ export async function createIngestKey(
         label: input.label,
         keyHash: made.keyHash,
         keyHint: made.keyHint,
+        sourceId: input.sourceId,
       },
       commandOptions(meta, idempotencyKey),
     );

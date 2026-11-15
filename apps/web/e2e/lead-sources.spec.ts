@@ -69,6 +69,8 @@ test.describe('lead sources as an Executive', () => {
 
     // A key, shown once, then listed by its last four characters, and turned off.
     const label = `Website key ${run}`;
+    // The key is for the website just connected.
+    await page.getByLabel('Website the key is for').selectOption({ label: name });
     await page.getByLabel('Name of the new key').fill(label);
     await page.getByRole('button', { name: 'Make a key' }).click();
     const shown = page.getByRole('status').filter({ hasText: `The key for ${label}` });
@@ -83,6 +85,7 @@ test.describe('lead sources as an Executive', () => {
       .getByRole('listitem')
       .filter({ hasText: label });
     await expect(key.getByText(`Ends with ${secret.slice(-4)}`)).toBeVisible();
+    await expect(key.getByText(`For ${name}`)).toBeVisible();
     await key.getByRole('button', { name: `Turn off ${label}` }).click();
     await expect(key.getByText(/^Turned off on /)).toBeVisible();
 
