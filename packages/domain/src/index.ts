@@ -675,9 +675,9 @@ export {
   type SendFacts,
 } from './messaging/send-checks';
 export {
-  countConversation,
-  readBudget,
-  readMessagingHealth,
+  noteConversation,
+  budgetFor,
+  messagingHealth,
   recordQuality,
   tierLimit,
 } from './messaging/budget';

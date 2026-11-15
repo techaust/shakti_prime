@@ -6,12 +6,12 @@ import {
 } from '@shakti/contracts';
 import {
   claimWhatsAppMessage,
-  countConversation,
+  noteConversation,
   decideSend,
   DEFAULT_SEND_RULES,
   executeCommand,
   executeQuery,
-  readBudget,
+  budgetFor,
   readSendFacts,
   recordWhatsAppSend,
   type KeyValue,
@@ -65,7 +65,7 @@ export async function sendQueuedMessage(
   );
   if (facts === null) return done('skipped');
   const now = deps.now();
-  const budget = await readBudget(deps.keyValue, facts.waId, now);
+  const budget = await budgetFor(deps.keyValue, facts.waId, now);
   const decision = decideSend(facts, budget, now, {
     ...DEFAULT_SEND_RULES,
     companyNumbers: facts.companyNumbers,
@@ -117,7 +117,7 @@ export async function sendQueuedMessage(
             bodyParameters: facts.templateParams,
           });
     await record({ status: 'sent', providerMessageId: sent.messageId });
-    if (decision.businessInitiated) await countConversation(deps.keyValue, facts.waId, now);
+    if (decision.businessInitiated) await noteConversation(deps.keyValue, facts.waId, now);
     return {
       eventId: job.eventId,
       outcome: 'done',

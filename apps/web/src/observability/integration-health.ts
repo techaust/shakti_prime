@@ -10,7 +10,7 @@ import {
   executeCommand,
   executeQuery,
   readAgentSpend,
-  readMessagingHealth,
+  messagingHealth,
   readWhatsAppCounts,
   readOutboxHealth,
   readScheduledJobs,
@@ -89,7 +89,7 @@ export async function readIntegrationHealth(
     name: 'readWhatsAppCounts',
   });
   const messaging = await fromStore(requestId, () =>
-    readMessagingHealth(
+    messagingHealth(
       keyValue,
       whatsapp.numbers.map((n) => n.entityId),
       now,

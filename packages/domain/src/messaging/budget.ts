@@ -27,7 +27,7 @@ export function tierLimit(tier: string | undefined): number | null {
 }
 
 /** The budget as the send checks read it (`SendBudget`). */
-export async function readBudget(
+export async function budgetFor(
   kv: KeyValue,
   waId: string,
   now: Date,
@@ -43,7 +43,7 @@ export async function readBudget(
 }
 
 /** A business-initiated message was sent: its customer counts for the next 24 hours, once. */
-export async function countConversation(kv: KeyValue, waId: string, now: Date): Promise<void> {
+export async function noteConversation(kv: KeyValue, waId: string, now: Date): Promise<void> {
   if (await kv.setIfAbsent(customerKey(waId), '1', DAY_SECONDS)) {
     await kv.incr(hourKey(Math.floor(now.getTime() / HOUR_MS)), DAY_SECONDS + 3600);
   }
@@ -70,7 +70,7 @@ export async function recordQuality(
 }
 
 /** Integration Health's view: each company's last quality event, the limit and the budget used. */
-export async function readMessagingHealth(
+export async function messagingHealth(
   kv: KeyValue,
   entityIds: readonly number[],
   now: Date,
@@ -81,7 +81,7 @@ export async function readMessagingHealth(
   quality: { entityId: number; event: string | null; at: string | null }[];
 }> {
   const stored = await kv.get(LIMIT_KEY);
-  const { used } = await readBudget(kv, '', now);
+  const { used } = await budgetFor(kv, '', now);
   const quality = await Promise.all(
     entityIds.map(async (entityId) => {
       const raw = await kv.get(qualityKey(entityId));

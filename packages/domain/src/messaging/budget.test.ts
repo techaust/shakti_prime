@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { memoryKeyValue } from '../ports/key-value';
-import { countConversation, readBudget, readMessagingHealth, recordQuality, tierLimit } from './budget';
+import { noteConversation, budgetFor, messagingHealth, recordQuality, tierLimit } from './budget';
 
 const NOW = new Date('2026-11-14T06:30:00.000Z');
 
@@ -17,26 +17,26 @@ describe('the WhatsApp portfolio budget (BLUEPRINT §13, design phase2 §6.1)', 
   it('counts each customer once in a rolling day, from the starting limit until Meta reports one', async () => {
     let now = NOW.getTime();
     const kv = memoryKeyValue(() => now);
-    expect(await readBudget(kv, '919800000001', NOW)).toEqual({
+    expect(await budgetFor(kv, '919800000001', NOW)).toEqual({
       used: 0,
       limit: 250,
       alreadyCounted: false,
     });
-    await countConversation(kv, '919800000001', NOW);
-    await countConversation(kv, '919800000001', NOW);
-    await countConversation(kv, '919800000002', new Date(NOW.getTime() + 3_600_000));
+    await noteConversation(kv, '919800000001', NOW);
+    await noteConversation(kv, '919800000001', NOW);
+    await noteConversation(kv, '919800000002', new Date(NOW.getTime() + 3_600_000));
     const later = new Date(NOW.getTime() + 3_600_000);
-    expect(await readBudget(kv, '919800000001', later)).toEqual({
+    expect(await budgetFor(kv, '919800000001', later)).toEqual({
       used: 2,
       limit: 250,
       alreadyCounted: true,
     });
     await recordQuality(kv, 1, 'UPGRADE', 'TIER_1K', NOW);
-    expect((await readBudget(kv, '919800000003', later)).limit).toBe(1000);
+    expect((await budgetFor(kv, '919800000003', later)).limit).toBe(1000);
     // A day later the first customer's chat no longer counts.
     now = NOW.getTime() + 24.25 * 3_600_000;
     const dayLater = new Date(now);
-    expect(await readBudget(kv, '919800000001', dayLater)).toEqual({
+    expect(await budgetFor(kv, '919800000001', dayLater)).toEqual({
       used: 1,
       limit: 1000,
       alreadyCounted: false,
@@ -46,7 +46,7 @@ describe('the WhatsApp portfolio budget (BLUEPRINT §13, design phase2 §6.1)', 
   it('keeps each company’s last quality event for Integration Health', async () => {
     const kv = memoryKeyValue(() => NOW.getTime());
     await recordQuality(kv, 2, 'FLAGGED', undefined, NOW);
-    expect(await readMessagingHealth(kv, [1, 2], NOW)).toEqual({
+    expect(await messagingHealth(kv, [1, 2], NOW)).toEqual({
       limit: 250,
       limitReported: false,
       used: 0,
