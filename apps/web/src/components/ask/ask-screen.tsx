@@ -382,7 +382,7 @@ function Turn({
                 const words = source?.label ?? t('answer.sourceGone');
                 return (
                   <li key={id} className="flex flex-wrap items-baseline gap-2 text-sm">
-                    <span className="text-text-muted tabular-nums">{numbers.get(id)}.</span>
+                    <span className="text-text-muted tabular-nums">{`${String(numbers.get(id))}.`}</span>
                     {source === undefined ? null : (
                       <span className="text-text-muted">{t(`kind.${source.kind}`)}</span>
                     )}
@@ -426,7 +426,7 @@ function Part({
   const label = t('answer.sourceNumber', { number });
   const mark = (
     <>
-      <span aria-hidden="true">[{number}]</span>
+      <span aria-hidden="true">{`[${String(number)}]`}</span>
       <span className="sr-only">{label}</span>
     </>
   );

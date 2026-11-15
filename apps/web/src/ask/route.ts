@@ -175,10 +175,8 @@ export async function askRoute(request: Request, deps: AskRouteDeps): Promise<Re
     return apiFailure('integration_unavailable', requestId);
   }
 
-  // The key goes to the question itself, which answers a repeat from its record.
-  const { idempotencyKey: _unused, ...options } = deps.options({
-    client: clientMeta(request.headers),
-  });
+  // No key here: it goes to the question itself, which answers a repeat from its record.
+  const options = deps.options({ client: clientMeta(request.headers) });
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
