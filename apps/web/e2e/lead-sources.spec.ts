@@ -98,8 +98,32 @@ test.describe('lead sources as an Executive', () => {
   test('shows the screen', async ({ page }) => {
     await openLeadSources(page);
     await expect(page.getByRole('heading', { name: 'Website keys' })).toBeVisible();
+    // A key of its own, so the picture always shows a list of keys (masked), never the empty
+    // state the first run on a fresh database would otherwise show.
+    const label = `Snapshot key ${String(Date.now()).slice(-6)}`;
+    await page.getByLabel('Name of the new key').fill(label);
+    await page.getByRole('button', { name: 'Make a key' }).click();
+    const shown = page.getByRole('status').filter({ hasText: `The key for ${label}` });
+    await shown.getByRole('button', { name: 'I have copied it' }).click();
+    await expect(
+      page
+        .getByRole('list', { name: 'Website keys' })
+        .getByRole('listitem')
+        .filter({ hasText: label }),
+    ).toBeVisible();
     await expectNoAxeViolations(page);
+    // The lists are masked, and the other journeys add forms and keys to this company in the same
+    // run, so each list is held at one height and the picture keeps one size.
+    for (const name of ['Forms and websites', 'Website keys']) {
+      await page.getByRole('list', { name }).evaluateAll((lists) => {
+        for (const list of lists) {
+          Object.assign((list as HTMLElement).style, { height: '120px', overflow: 'hidden' });
+        }
+      });
+    }
     await snap(page, 'lead-sources', {
+      // The viewport only: an empty list and a list of keys differ in height below the fold.
+      fullPage: false,
       mask: [
         page.getByRole('list', { name: 'Forms and websites' }),
         page.getByRole('list', { name: 'Website keys' }),
