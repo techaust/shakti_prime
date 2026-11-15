@@ -55,6 +55,11 @@ test.describe('as a tele-caller', () => {
   test('reads the chat on the customer’s page', async ({ page }) => {
     const customer = WHATSAPP.customers[projectName()];
     await page.goto('/customers');
+    // Found by the phone's last digits, so the customer is listed however many the run has added.
+    const search = page.getByRole('searchbox', { name: 'Find a customer' });
+    await hydrated(search);
+    await search.fill(customer.phone.replace(/\D/g, '').slice(-4));
+    await search.press('Enter');
     await page.getByRole('link', { name: customer.name }).first().click();
     const section = page.getByRole('region', { name: 'WhatsApp' });
     await expect(section.getByText(WHATSAPP.customerMessage).first()).toBeVisible();
