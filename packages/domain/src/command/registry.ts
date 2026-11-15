@@ -84,6 +84,10 @@ import {
 } from '../commands/knowledge/files';
 import { recordKnowledgeIndex } from '../commands/knowledge/record-index';
 import {
+  correctKnowledgeTranscript,
+  recordKnowledgeTranscript,
+} from '../commands/knowledge/transcript';
+import {
   approvePlaybookDirective,
   draftPlaybookDirective,
   editPlaybookDirective,
@@ -282,6 +286,8 @@ export const commands = Object.freeze({
   [reindexKnowledgeFile.name]: reindexKnowledgeFile,
   [archiveKnowledgeFile.name]: archiveKnowledgeFile,
   [recordKnowledgeIndex.name]: recordKnowledgeIndex,
+  [recordKnowledgeTranscript.name]: recordKnowledgeTranscript,
+  [correctKnowledgeTranscript.name]: correctKnowledgeTranscript,
   [draftPlaybookDirective.name]: draftPlaybookDirective,
   [editPlaybookDirective.name]: editPlaybookDirective,
   [approvePlaybookDirective.name]: approvePlaybookDirective,

@@ -25,7 +25,8 @@ export function sentryIngestOrigin(dsn: string | undefined): string | undefined 
  * allowed: pages set colours and sizes through `style`, which a nonce cannot cover. The browser
  * may send error reports to Sentry's ingest host only when a DSN names one (`sentryOrigin`).
  * `fileOrigins` adds the origins a page uploads to directly (the environment's file bucket), and
- * plays a call recording from (T3: Play recording reads the bucket's signed address).
+ * plays a recording from (K3's vault recordings and T3's call recordings: each player reads the
+ * bucket's signed address).
  */
 export function contentSecurityPolicy(
   nonce: string,

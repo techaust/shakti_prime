@@ -82,6 +82,12 @@ interface CallBase {
    */
   person?: { id: string; capPaise: number };
   /**
+   * A part of the spender's work with a daily cap of its own for the whole group (transcribing
+   * vault recordings within the index's spend), counted beside the caps: the call is refused, with
+   * `details.scope` `part`, if the part's total for the day would pass `capPaise`.
+   */
+  part?: { name: string; capPaise: number };
+  /**
    * Milliseconds the whole call may take, every attempt and pause between them included; past
    * it the call stops with `integration_unavailable` and `details.reason` `ai_deadline_exceeded`,
    * its reservation settled. Left out, only each attempt's own timeout applies.
@@ -140,6 +146,17 @@ export interface EmbedResult {
   costPaise: number;
 }
 
+/**
+ * Paid work of a vendor other than Claude and Voyage (a speech service transcribing a recording),
+ * held against the same caps as a model call.
+ */
+export interface MeteredCall extends CallBase {
+  /** Who does the work, for the log (`sarvam`). */
+  vendor: string;
+  /** The most the work can cost, in paise, reserved before it starts. */
+  maxPaise: number;
+}
+
 export interface AiProviderDeps {
   /** Claude, or undefined when `ANTHROPIC_API_KEY` is not set. */
   claude: ModelTransport | undefined;
@@ -158,6 +175,13 @@ export interface AiProvider {
   readonly embeddingsAvailable: boolean;
   complete(call: CompleteCall): Promise<CompleteResult>;
   embed(call: EmbedCall): Promise<EmbedResult>;
+  /**
+   * Runs paid work outside the model vendors under the caller's caps: `maxPaise` is reserved before
+   * `work` starts (refused, as a model call is, when a cap would be passed), and settled at what the
+   * work reports through `spend` once it ends, whether it answered or failed, since a vendor bills
+   * what it was sent. The work keeps its own timeouts and retries.
+   */
+  metered<T>(call: MeteredCall, work: (spend: (paise: number) => void) => Promise<T>): Promise<T>;
 }
 
 /** The key holding one agent's spend today, in a company or (null) the group. */
@@ -198,7 +222,7 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
     }
   }
 
-  function capReached(call: CallBase, scope?: 'person'): DomainError {
+  function capReached(call: CallBase, scope?: 'person' | 'part'): DomainError {
     return new DomainError('rate_limited', `${call.agent} reached its daily spend cap`, {
       reason: 'agent_spend_cap_reached',
       ...(scope === undefined ? {} : { scope }),
@@ -228,11 +252,23 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       call.entityId === null
         ? [spendKey(call.agent, null, day)]
         : [spendKey(call.agent, call.entityId, day), spendKey(call.agent, null, day)];
-    const personKey =
-      call.person === undefined
-        ? undefined
-        : `ai:spend:${call.agent}:person:${call.person.id}:${day}`;
-    const held: readonly string[] = personKey === undefined ? keys : [...keys, personKey];
+    // The person's and the part's own totals, each beside the caps with its own limit.
+    const shares: { key: string; capPaise: number; scope: 'person' | 'part' }[] = [];
+    if (call.person !== undefined) {
+      shares.push({
+        key: `ai:spend:${call.agent}:person:${call.person.id}:${day}`,
+        capPaise: call.person.capPaise,
+        scope: 'person',
+      });
+    }
+    if (call.part !== undefined) {
+      shares.push({
+        key: `ai:spend:${call.agent}:part:${call.part.name}:${day}`,
+        capPaise: call.part.capPaise,
+        scope: 'part',
+      });
+    }
+    const held: readonly string[] = [...keys, ...shares.map((share) => share.key)];
     const totals: number[] = [];
     for (const key of held) {
       try {
@@ -253,9 +289,11 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       await move(call, reservation, -paise);
       throw capReached(call);
     }
-    if (call.person !== undefined && (totals[keys.length] ?? 0) > call.person.capPaise) {
-      await move(call, reservation, -paise);
-      throw capReached(call, 'person');
+    for (const [i, share] of shares.entries()) {
+      if ((totals[keys.length + i] ?? 0) > share.capPaise) {
+        await move(call, reservation, -paise);
+        throw capReached(call, share.scope);
+      }
     }
     return reservation;
   }
@@ -433,6 +471,33 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         costPaise,
       });
       return { vectors: reply.vectors, model, tokens: reply.tokens, costPaise };
+    },
+
+    async metered(call, work) {
+      const maxPaise = Math.ceil(Math.max(0, call.maxPaise));
+      const held = await reserve(call, maxPaise);
+      const started = now().getTime();
+      let spent = 0;
+      const spend = (paise: number) => {
+        if (Number.isFinite(paise) && paise > 0) spent += paise;
+      };
+      let outcome: 'answered' | 'failed' = 'failed';
+      try {
+        const answer = await work(spend);
+        outcome = 'answered';
+        return answer;
+      } finally {
+        const costPaise = Math.ceil(spent);
+        await settle(call, held, costPaise);
+        logger.log('info', 'ai.metered', {
+          agent: call.agent,
+          purpose: call.purpose,
+          vendor: call.vendor,
+          costPaise,
+          outcome,
+          durationMs: now().getTime() - started,
+        });
+      }
     },
   };
 }

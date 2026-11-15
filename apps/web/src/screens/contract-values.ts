@@ -298,6 +298,7 @@ export const KNOWLEDGE_SOURCE_VALUES = [
   'photo',
   'word',
   'excel',
+  'audio',
 ] as const satisfies readonly KnowledgeSourceType[];
 
 /** An agent's role key without its `agent:` prefix: the key of its name under `agents.names`. */
@@ -747,6 +748,7 @@ export const UPLOAD_CONTENT_TYPES = [
   'text/csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'audio/wav',
 ] as const satisfies readonly UploadContentType[];
 
 /** Why the checks refused a file; each has a sentence under `errors`. */
@@ -763,6 +765,7 @@ export const FILE_REJECT_REASONS = [
   'file_masking_unavailable',
   'file_upload_abandoned',
   'file_replaced',
+  'file_audio_too_long',
 ] as const satisfies readonly FileRejectReason[];
 
 /** What the malware scan said, and what the checks did to the bytes. */
@@ -785,6 +788,7 @@ export const FILE_SANITISING = [
   'masked',
   'sheet_checked',
   'document_checked',
+  'audio_checked',
 ] as const satisfies readonly FileSanitising[];
 
 /** `PLAYBOOK_DIRECTIVE_TYPES` (`@shakti/contracts`). */

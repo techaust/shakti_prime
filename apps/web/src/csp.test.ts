@@ -49,7 +49,7 @@ describe('the file bucket in the page policy', () => {
     expect(contentSecurityPolicy('n', false, undefined, origins)).toContain(
       "connect-src 'self' https://challenges.cloudflare.com https://shakti-prime-dev-files.s3.ap-south-1.amazonaws.com",
     );
-    // A call recording plays from the bucket's signed address (T3); nowhere else.
+    // A vault or call recording plays from the bucket's signed address (K3, T3); nowhere else.
     expect(contentSecurityPolicy('n', false, undefined, origins)).toContain(
       "media-src 'self' https://shakti-prime-dev-files.s3.ap-south-1.amazonaws.com;",
     );

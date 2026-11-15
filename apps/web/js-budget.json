@@ -185,6 +185,10 @@
       "maxKb": 208,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the vault's files, the upload and the staff search. Measured 197.4 kB on 13-10-2026, plus 5 %."
     },
+    "/knowledge/files/[knowledgeFileId]": {
+      "maxKb": 202,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and one vault file's page: its status, and for a recording the browser's own player beside the transcript and its correction. Measured 192.4 kB on 14-11-2026, plus 5 %."
+    },
     "/knowledge/playbook": {
       "maxKb": 208,
       "reason": "Executive and GM screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and the Playbook's list, filters and review; its dialogs load when opened. Measured 197.9 kB on 13-11-2026, plus 5 %."

@@ -16,7 +16,11 @@ import {
   listPlaybookSources,
   loadPlaybookReview,
 } from '../../src/queries/knowledge/playbook';
-import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
+import {
+  getKnowledgeFile,
+  listKnowledgeFiles,
+  searchKnowledge,
+} from '../../src/queries/knowledge/vault';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
 import { listCallerProfiles, loadOwnPresence } from '../../src/queries/crm/caller-profiles';
 import {
@@ -219,6 +223,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
       new Date(NOW),
     ),
   listKnowledgeFiles: (ctx) => listKnowledgeFiles(ctx, {}),
+  getKnowledgeFile: (ctx) => getKnowledgeFile(ctx, newId()),
   searchKnowledge: (ctx) => searchKnowledge(ctx, fakeEmbedding('solar pump care')),
   listPlaybook: (ctx) => listPlaybook(ctx, {}),
   listPlaybookSources: (ctx) => listPlaybookSources(ctx, {}),
