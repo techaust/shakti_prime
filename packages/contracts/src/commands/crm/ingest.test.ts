@@ -67,4 +67,29 @@ describe('LeadIngestInput', () => {
     );
     expect(LeadIngestInput.safeParse({ ...base, ownerId: base.sourceId }).success).toBe(false);
   });
+
+  it('takes only a web address as the ad link', () => {
+    for (const sourceUrl of ['javascript:alert(1)', 'data:text/html,hi', 'ftp://x.example/a']) {
+      expect(LeadIngestInput.safeParse({ ...base, attribution: { sourceUrl } }).success).toBe(
+        false,
+      );
+    }
+    expect(
+      LeadIngestInput.safeParse({ ...base, attribution: { sourceUrl: 'https://fb.me/abc' } })
+        .success,
+    ).toBe(true);
+  });
+
+  it('needs a name from a form but not from WhatsApp or a call, and cuts a long message', () => {
+    const phone = '+919829012345';
+    expect(LeadIngestInput.safeParse({ ...base, contact: { phone } }).success).toBe(false);
+    for (const channel of ['whatsapp', 'ivr', 'missed_call']) {
+      expect(LeadIngestInput.safeParse({ ...base, channel, contact: { phone } }).success).toBe(
+        true,
+      );
+    }
+    const long = LeadIngestInput.parse({ ...base, message: `  ${'a'.repeat(3000)} ` });
+    expect(long.message).toHaveLength(1000);
+    expect(LeadIngestInput.parse({ ...base, message: '   ' }).message).toBeUndefined();
+  });
 });

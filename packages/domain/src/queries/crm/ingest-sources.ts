@@ -132,17 +132,59 @@ export async function ingestSourceToken(
   return parsed.success ? parsed.data : undefined;
 }
 
-/** The website route's key by its hash: its id and company, or undefined (unknown or revoked). */
+/** A live website key: its company, and its connected website with that site's consent setting. */
+export interface FoundIngestKey {
+  keyId: string;
+  entityId: number;
+  entityCode: string;
+  /** The key's website while it is connected; null for a key with none. */
+  site: {
+    sourceId: string;
+    consent: {
+      channels: IngestSourceConsent['channels'];
+      purpose: IngestSourceConsent['purpose'];
+      textVersion: string;
+    } | null;
+  } | null;
+}
+
+interface KeyRow {
+  key_id: string;
+  entity_id: number;
+  entity_code: string;
+  source_id: string | null;
+  consent_channels: string[] | null;
+  consent_purpose: string | null;
+  consent_text_version: string | null;
+}
+
+/** The website route's key by its hash, or undefined (unknown or revoked). */
 export async function findIngestKey(
   ctx: Ctx,
   keyHash: string,
-): Promise<{ keyId: string; entityId: number; entityCode: string } | undefined> {
+): Promise<FoundIngestKey | undefined> {
   const [row] = (await ctx.tx.execute(
-    sql`select key_id, entity_id, entity_code from app.ingest_key_find(${keyHash}::text)`,
-  )) as unknown as { key_id: string; entity_id: number; entity_code: string }[];
-  return row === undefined
-    ? undefined
-    : { keyId: row.key_id, entityId: row.entity_id, entityCode: row.entity_code };
+    sql`select key_id, entity_id, entity_code, source_id, consent_channels, consent_purpose,
+               consent_text_version
+          from app.ingest_key_find(${keyHash}::text)`,
+  )) as unknown as KeyRow[];
+  if (row === undefined) return undefined;
+  const consent =
+    row.consent_channels === null ||
+    row.consent_purpose === null ||
+    row.consent_text_version === null
+      ? null
+      : {
+          channels: IngestSourceConsentSchema.shape.channels.parse(row.consent_channels),
+          purpose: IngestSourceConsentSchema.shape.purpose.parse(row.consent_purpose),
+          textVersion: row.consent_text_version,
+        };
+  return {
+    keyId: row.key_id,
+    entityId: row.entity_id,
+    entityCode: row.entity_code,
+    site: row.source_id === null ? null : { sourceId: row.source_id, consent },
+  };
 }
 
 /**

@@ -4,6 +4,7 @@ CREATE TABLE "ingest_keys" (
 	"label" text NOT NULL,
 	"key_hash" text NOT NULL,
 	"key_hint" text NOT NULL,
+	"source_id" uuid,
 	"last_used_at" timestamp with time zone,
 	"revoked_at" timestamp with time zone,
 	"revoked_by" uuid,
@@ -73,6 +74,7 @@ CREATE TABLE "lead_qualifications" (
 );
 --> statement-breakpoint
 ALTER TABLE "ingest_keys" ADD CONSTRAINT "ingest_keys_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ingest_keys" ADD CONSTRAINT "ingest_keys_source_id_ingest_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."ingest_sources"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ingest_keys" ADD CONSTRAINT "ingest_keys_revoked_by_principals_id_fk" FOREIGN KEY ("revoked_by") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ingest_keys" ADD CONSTRAINT "ingest_keys_created_by_principals_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ingest_sources" ADD CONSTRAINT "ingest_sources_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -84,6 +86,7 @@ ALTER TABLE "lead_qualifications" ADD CONSTRAINT "lead_qualifications_updated_by
 ALTER TABLE "lead_qualifications" ADD CONSTRAINT "lead_qualifications_opportunity_fk" FOREIGN KEY ("opportunity_id","entity_id") REFERENCES "public"."opportunities"("id","entity_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "ingest_keys_key_hash_unique" ON "ingest_keys" USING btree ("key_hash");--> statement-breakpoint
 CREATE INDEX "ingest_keys_entity_idx" ON "ingest_keys" USING btree ("entity_id","created_at" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "ingest_keys_source_idx" ON "ingest_keys" USING btree ("source_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "ingest_sources_external_unique" ON "ingest_sources" USING btree ("provider","external_id") WHERE "ingest_sources"."archived_at" is null;--> statement-breakpoint
 CREATE INDEX "ingest_sources_entity_idx" ON "ingest_sources" USING btree ("entity_id","provider","name");--> statement-breakpoint
 CREATE INDEX "ingest_sources_pipeline_idx" ON "ingest_sources" USING btree ("pipeline_id");--> statement-breakpoint

@@ -17,10 +17,11 @@ import {
   revokeIngestKey,
   setIngestSource,
 } from '@shakti/domain';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { fieldCipher, resetFieldCipher } from '../src/crypto/kms-cipher';
 import leadFixture from '../src/integrations/meta-leadgen/fixtures/lead.json';
+import { logger } from '../src/log';
 
 // I1 on real Postgres (docs/03-roadmap-appendix/phase2.md §6.2 and §14): each provider's recorded
 // lead, delivered through its signed route with no queue configured (as locally and in CI), is a
@@ -29,7 +30,11 @@ import leadFixture from '../src/integrations/meta-leadgen/fixtures/lead.json';
 // Google's test lead makes none; and the website route refuses a revoked key, another company's
 // key and a failed Turnstile check before it writes anything.
 
-const fetched = vi.hoisted(() => ({ calls: [] as { leadgenId: string; token: string }[] }));
+const fetched = vi.hoisted(() => ({
+  calls: [] as { leadgenId: string; token: string }[],
+  // The phone each lead id answers with, when a test gives one.
+  phones: new Map<string, string>(),
+}));
 vi.mock('../src/integrations/meta-leadgen/client', async (original) => {
   const real = await original<Record<string, unknown>>();
   const lead = (await import('../src/integrations/meta-leadgen/fixtures/lead.json')).default;
@@ -39,7 +44,14 @@ vi.mock('../src/integrations/meta-leadgen/client', async (original) => {
     metaLeadClient: () => ({
       fetchLead: (leadgenId: string, token: string) => {
         fetched.calls.push({ leadgenId, token });
-        return Promise.resolve({ ...lead, id: leadgenId });
+        const phone = fetched.phones.get(leadgenId);
+        return Promise.resolve({
+          ...lead,
+          id: leadgenId,
+          field_data: lead.field_data.map((f) =>
+            phone !== undefined && f.name === 'phone_number' ? { ...f, values: [phone] } : f,
+          ),
+        });
       },
     }),
   };
@@ -286,9 +298,17 @@ describe('Lead Ads', () => {
     const leadgenId = metaId();
     const phone = `+91${testPhone()}`;
     leadFixture.field_data[1] = { name: 'phone_number', values: [phone] };
+    const logged = vi.spyOn(logger, 'log');
     await LEADGEN(leadgenRequest(formId, leadgenId));
     const row = await settledRow(leadgenId);
     expect(row).toMatchObject({ failed: true, error_code: 'form_unmapped' });
+    // Set aside for good, as an error line, so Sentry tells the owner.
+    expect(logged).toHaveBeenCalledWith(
+      'error',
+      'webhooks.set_aside',
+      expect.objectContaining({ inboxId: row.id, errorCode: 'form_unmapped' }),
+    );
+    logged.mockRestore();
     expect(await leadsOf(phone)).toEqual([]);
 
     await connect(
@@ -302,6 +322,77 @@ describe('Lead Ads', () => {
     await processAgain(groupExec, newId(), { inboxId: row.id }, {});
     expect(await settledRow(leadgenId)).toMatchObject({ processed: true });
     expect(await leadsOf(phone)).toHaveLength(1);
+  });
+});
+
+describe('a delivery of several leads', () => {
+  it('makes the leads still missing when processed again, and skips one already made', async () => {
+    const formA = metaId();
+    const formB = metaId();
+    const [leadA, leadB] = [metaId(), metaId()];
+    const [phoneA, phoneB] = [`+91${testPhone()}`, `+91${testPhone()}`];
+    fetched.phones.set(leadA, phoneA);
+    fetched.phones.set(leadB, phoneB);
+    const token = `EAAG${newId().replaceAll('-', '')}`;
+    const source = await connect(
+      'meta_leadgen',
+      formA,
+      { full_name: 'fullName', phone_number: 'phone' },
+      { pageToken: token },
+    );
+    const body = JSON.stringify({
+      object: 'page',
+      entry: [
+        {
+          id: '104000000000001',
+          time: 1790500000,
+          changes: [formA, formB].map((formId, i) => ({
+            field: 'leadgen',
+            value: {
+              leadgen_id: i === 0 ? leadA : leadB,
+              form_id: formId,
+              page_id: '104000000000001',
+              created_time: 1790499990,
+            },
+          })),
+        },
+      ],
+    });
+    const signature = `sha256=${createHmac('sha256', TEST_WEBHOOK_ENV.META_LEADGEN_APP_SECRET)
+      .update(body)
+      .digest('hex')}`;
+    await LEADGEN(
+      new Request(`${TEST_ORIGIN}/api/v1/webhooks/meta/leadgen`, {
+        method: 'POST',
+        body,
+        headers: { 'content-type': 'application/json', 'x-hub-signature-256': signature },
+      }),
+    );
+    // Several changes: the delivery is keyed on its body's SHA-256.
+    const eventId = createHash('sha256').update(body).digest('hex');
+    const row = await settledRow(eventId);
+    expect(row).toMatchObject({ failed: true, error_code: 'form_unmapped' });
+    expect(await leadsOf(phoneA)).toHaveLength(1);
+    expect(await leadsOf(phoneB)).toEqual([]);
+
+    // Form A's map changes (lead A would now read differently), form B is connected.
+    await connect(
+      'meta_leadgen',
+      formA,
+      { full_name: 'fullName', phone_number: 'phone', zip_code: 'pin' },
+      { sourceId: source.id },
+    );
+    await connect(
+      'meta_leadgen',
+      formB,
+      { full_name: 'fullName', phone_number: 'phone' },
+      { pageToken: token },
+    );
+    const groupExec = await createTestPrincipal('executive');
+    await processAgain(groupExec, newId(), { inboxId: row.id }, {});
+    expect(await settledRow(eventId)).toMatchObject({ processed: true });
+    expect(await leadsOf(phoneA)).toHaveLength(1);
+    expect(await leadsOf(phoneB)).toHaveLength(1);
   });
 });
 
@@ -362,21 +453,24 @@ describe('the website route', () => {
       (m) => m<{ code: string }[]>`select code from entities where id = ${ENTITY}`,
     );
     CODE = entity?.code ?? '';
-    const made = newIngestKey();
-    const dto = await executeCommand(exec, { entityIds: [ENTITY] }, createIngestKey, {
-      entityId: ENTITY,
-      label: 'Website',
-      keyHash: made.keyHash,
-      keyHint: made.keyHint,
-    });
-    key = { secret: made.key, dto };
     // An earlier run's connection of the site is archived, so this run connects it afresh.
     await asMigrator(
       (m) => m`update ingest_sources set archived_at = now()
                 where provider = 'website' and external_id = 'shakti-website.example'
                   and archived_at is null`,
     );
-    await connect('website', 'shakti-website.example', {}, {});
+    // The Executive's setting: a tick agrees to calls and WhatsApp, for service.
+    const site = await connect('website', 'Shakti-Website.example', {}, {});
+    expect(site.externalId).toBe('shakti-website.example');
+    const made = newIngestKey();
+    const dto = await executeCommand(exec, { entityIds: [ENTITY] }, createIngestKey, {
+      entityId: ENTITY,
+      label: 'Website',
+      keyHash: made.keyHash,
+      keyHint: made.keyHint,
+      sourceId: site.id,
+    });
+    key = { secret: made.key, dto };
   });
 
   function post(body: Record<string, unknown>, headers: Record<string, string> = {}): Request {
@@ -385,7 +479,6 @@ describe('the website route', () => {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
-        origin: 'https://shakti-website.example',
         'x-ingest-key': key.secret,
         ...headers,
       },
@@ -400,11 +493,84 @@ describe('the website route', () => {
     message: 'Please call about a solar pump',
     utm: { source: 'google', campaign: 'rabi' },
     consent: {
-      purpose: 'service',
+      ticked: true,
       text: 'I agree to be called about my enquiry.',
       givenAt: new Date().toISOString(),
     },
     turnstileToken: 'answer',
+  });
+
+  /** The purposes of the consents recorded for a number. */
+  const purposesOf = (phone: string) =>
+    asMigrator(
+      (m) => m<{ purpose: string; channel: string }[]>`
+        select c.purpose, c.channel from consents c
+          join contact_phones cp on cp.contact_id = c.contact_id
+         where cp.e164 = ${phone} order by c.channel`,
+    );
+
+  it('records a consent only for a ticked box, with the purpose and channels of the key’s site', async () => {
+    const unticked = `+91${testPhone()}`;
+    const base = enquiry(unticked);
+    expect(
+      (await ingestLeadRoute(post({ ...base, consent: { ...base.consent, ticked: false } }), deps))
+        .status,
+    ).toBe(200);
+    const absent = `+91${testPhone()}`;
+    const { consent: _left, ...noConsent } = enquiry(absent);
+    void _left;
+    expect((await ingestLeadRoute(post(noConsent), deps)).status).toBe(200);
+    expect(await purposesOf(unticked)).toEqual([]);
+    expect(await purposesOf(absent)).toEqual([]);
+    expect(await leadsOf(absent)).toHaveLength(1);
+
+    // A body naming another purpose: the site's is recorded.
+    const promo = `+91${testPhone()}`;
+    const named = enquiry(promo);
+    await ingestLeadRoute(
+      post({ ...named, consent: { ...named.consent, purpose: 'promotional' } }),
+      deps,
+    );
+    expect(await purposesOf(promo)).toEqual([
+      { purpose: 'service', channel: 'call' },
+      { purpose: 'service', channel: 'whatsapp' },
+    ]);
+  });
+
+  it('takes an empty message as none', async () => {
+    const phone = `+91${testPhone()}`;
+    const answer = await ingestLeadRoute(post({ ...enquiry(phone), message: '   ' }), deps);
+    expect(answer.status).toBe(200);
+    const [notes] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from activities a
+          join account_contacts ac on ac.account_id = a.account_id
+          join contact_phones cp on cp.contact_id = ac.contact_id
+         where cp.e164 = ${phone} and a.type = 'note'`,
+    );
+    expect(notes?.n).toBe(0);
+  });
+
+  it('needs the line of business from a key with no website, and records no consent for it', async () => {
+    const made = newIngestKey();
+    await executeCommand(exec, { entityIds: [ENTITY] }, createIngestKey, {
+      entityId: ENTITY,
+      label: 'Key with no site',
+      keyHash: made.keyHash,
+      keyHint: made.keyHint,
+      sourceId: null,
+    });
+    const phone = `+91${testPhone()}`;
+    const refused = await ingestLeadRoute(post(enquiry(phone), { 'x-ingest-key': made.key }), deps);
+    expect(await refused.json()).toMatchObject({
+      error: { code: 'validation_failed', details: { reason: 'lead_source_missing' } },
+    });
+    const ok = await ingestLeadRoute(
+      post({ ...enquiry(phone), segment: 'farmer_pumps' }, { 'x-ingest-key': made.key }),
+      deps,
+    );
+    expect(ok.status).toBe(200);
+    expect(await purposesOf(phone)).toEqual([]);
   });
 
   it('makes the lead with its consent and stamps the key as used', async () => {
@@ -459,6 +625,7 @@ describe('the website route', () => {
       label: 'Old website',
       keyHash: made.keyHash,
       keyHint: made.keyHint,
+      sourceId: null,
     });
     await executeCommand(exec, { entityIds: [ENTITY] }, revokeIngestKey, {
       entityId: ENTITY,
@@ -479,11 +646,15 @@ describe('the website route', () => {
       label: 'Busy website',
       keyHash: made.keyHash,
       keyHint: made.keyHint,
+      sourceId: null,
     });
+    // One instant for every request, so the run never crosses into the next minute.
+    const fixed = new Date('2026-11-15T06:30:10Z');
+    const steady = { ...deps, now: () => fixed };
     const statuses: number[] = [];
     for (let i = 0; i <= INGEST_PER_MINUTE; i += 1) {
       // A body the contract refuses: counted, but no lead, so the run stays quick.
-      const answer = await ingestLeadRoute(post({}, { 'x-ingest-key': made.key }), deps);
+      const answer = await ingestLeadRoute(post({}, { 'x-ingest-key': made.key }), steady);
       statuses.push(answer.status);
     }
     expect(statuses.slice(0, INGEST_PER_MINUTE).every((s) => s === 400)).toBe(true);

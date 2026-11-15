@@ -5,6 +5,7 @@ import {
   LeadIngestResultDto,
   REPEAT_ENQUIRY_DAYS,
   SegmentSchema,
+  UNNAMED_CUSTOMER_NAMES,
   type AccountType,
   type CallerPresence,
   type CustomerLanguage,
@@ -26,6 +27,15 @@ import { lockNewNumber } from './create-lead';
 import { requireEntity } from './opportunity-shared';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The plain name of a customer who came with none (a WhatsApp message or a call), staff edit it. */
+function nameless(channel: LeadIngestInput['channel']): string {
+  if (channel === 'whatsapp' || channel === 'ivr' || channel === 'missed_call') {
+    return UNNAMED_CUSTOMER_NAMES[channel];
+  }
+  // The contract refuses a form's lead with no name, so this is never reached.
+  throw new DomainError('validation_failed', 'a name is needed from a form');
+}
 
 /**
  * What a new customer from an integration is, by the business line of the lead: a farm for
@@ -360,7 +370,11 @@ export const ingestLead = defineCommand({
       ownerId: owner.ownerId,
       routeWork: owner.assignedTo === 'team_lead' || owner.assignedTo === 'customer_owner',
       accountType: ACCOUNT_TYPE[pipeline.segment],
-      contact: { name: input.contact.name, phone, preferredLanguage: language },
+      contact: {
+        name: input.contact.name ?? nameless(input.channel),
+        phone,
+        preferredLanguage: language,
+      },
       site,
       consent: input.consent ?? null,
       attribution: input.attribution ?? null,

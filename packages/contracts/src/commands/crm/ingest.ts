@@ -6,6 +6,7 @@ import {
 } from '../../crm/enums';
 import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
+import customerNames from '../../templates/customer-names.json';
 
 /**
  * `crm.lead.ingest` (docs/03-roadmap-appendix/phase2.md §6.2): a lead that arrives from an
@@ -27,6 +28,19 @@ export const INGEST_CHANNELS = [
 ] as const;
 export const IngestChannelSchema = z.enum(INGEST_CHANNELS);
 export type IngestChannel = z.infer<typeof IngestChannelSchema>;
+
+/** The longest message a lead from an integration keeps; a longer one is cut. */
+export const MESSAGE_MAX = 1000;
+
+/** The channels a lead may come by with no name: a WhatsApp message and the calls. */
+const NAMELESS_CHANNELS: ReadonlySet<string> = new Set(['whatsapp', 'ivr', 'missed_call']);
+
+/**
+ * The plain name a customer who came with none is given until staff change it, from the templates'
+ * catalogue (`packages/contracts/src/templates`, checked by the copy lint).
+ */
+export const UNNAMED_CUSTOMER_NAMES: Readonly<Record<'whatsapp' | 'ivr' | 'missed_call', string>> =
+  customerNames;
 
 /** A provider's id (a campaign, ad, form, lead or click id): kept whole, never shown to a customer. */
 const ProviderRef = z
@@ -60,7 +74,11 @@ export const LeadAttributionSchema = z
     ctwaClid: ProviderRef.optional(),
     referralSourceId: ProviderRef.optional(),
     referralSourceType: z.string().trim().min(1).max(40).optional(),
-    sourceUrl: z.url().max(500).optional(),
+    // A web address only: a `javascript:` or `data:` address never reaches a screen that links it.
+    sourceUrl: z
+      .url({ protocol: /^https?$/ })
+      .max(500)
+      .optional(),
     utm: UtmSchema.optional(),
   })
   .strict();
@@ -133,9 +151,13 @@ export const LeadIngestInput = z
      * nothing.
      */
     externalId: ProviderRef.optional(),
+    /**
+     * The person. A name is needed from a form; a WhatsApp message or a call may come with none,
+     * and the customer is then named by `UNNAMED_CUSTOMER_NAMES` until staff change it.
+     */
     contact: z
       .object({
-        name: z.string().trim().min(1).max(120),
+        name: z.string().trim().min(1).max(120).optional(),
         phone: PhoneInputSchema,
         preferredLanguage: CustomerLanguageSchema.optional(),
       })
@@ -156,13 +178,27 @@ export const LeadIngestInput = z
     qualification: LeadQualificationFactsSchema.optional(),
     /** The website key the lead came with (`POST /ingest/leads`), stamped as used. */
     ingestKeyId: IdSchema.optional(),
-    /** What the person wrote on the form, kept on the lead's timeline with numbers masked. */
-    message: z.string().trim().min(1).max(1000).optional(),
+    /**
+     * What the person wrote, kept on the lead's timeline with identity numbers masked: cut to
+     * 1,000 characters, and nothing when it is empty.
+     */
+    message: z
+      .string()
+      .max(20_000)
+      .optional()
+      .transform((m) => {
+        const text = m?.trim() ?? '';
+        return text === '' ? undefined : text.slice(0, MESSAGE_MAX);
+      }),
   })
   .strict()
   .refine((v) => v.sourceId !== undefined || v.pipelineKey !== undefined, {
     message: 'a source or a pipeline is required',
     path: ['pipelineKey'],
+  })
+  .refine((v) => v.contact.name !== undefined || NAMELESS_CHANNELS.has(v.channel), {
+    message: 'a name is needed from a form',
+    path: ['contact', 'name'],
   })
   .refine((v) => v.channel !== 'whatsapp' || v.consent === undefined, {
     message: 'a WhatsApp message carries no form consent',

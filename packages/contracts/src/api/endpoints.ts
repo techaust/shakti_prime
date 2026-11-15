@@ -249,7 +249,7 @@ export const API_ENDPOINTS = {
     method: 'POST',
     path: '/ingest/leads',
     auth: 'ingest_key',
-    idempotencyKey: false,
+    idempotencyKey: true,
     request: IngestLeadRequest,
     response: IngestLeadResponse,
     errors: [
@@ -266,7 +266,7 @@ export const API_ENDPOINTS = {
     auth: 'ingest_key',
     idempotencyKey: false,
     response: IngestHealthResponse,
-    errors: ['unauthorized', 'rate_limited', 'integration_unavailable'],
+    errors: ['unauthorized', 'integration_unavailable'],
   },
   'webhooks.whatsapp.verify': {
     method: 'GET',

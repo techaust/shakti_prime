@@ -72,6 +72,7 @@ export const SetIngestSourceInput = z
     entityId: EntityIdSchema,
     sourceId: IdSchema.optional(),
     provider: IngestSourceProviderSchema,
+    // A website's address is kept in lower case.
     externalId: SourceExternalIdSchema,
     name: z.string().trim().min(1).max(80),
     pipelineId: IdSchema,
@@ -87,7 +88,10 @@ export const SetIngestSourceInput = z
   .refine((v) => v.pageToken === undefined || v.provider === 'meta_leadgen', {
     message: 'only a Lead Ads form has a Page token',
     path: ['pageToken'],
-  });
+  })
+  .transform((v) =>
+    v.provider === 'website' ? { ...v, externalId: v.externalId.toLowerCase() } : v,
+  );
 export type SetIngestSourceInput = z.infer<typeof SetIngestSourceInput>;
 
 export const ArchiveIngestSourceInput = z
@@ -132,6 +136,8 @@ export const CreateIngestKeyInput = z
   .object({
     entityId: EntityIdSchema,
     label: z.string().trim().min(1).max(80),
+    /** The company's website the key is for: its line of business and consent setting. */
+    sourceId: IdSchema.nullable(),
     keyHash: IngestKeyHashSchema,
     keyHint: IngestKeyHintSchema,
   })
@@ -140,7 +146,11 @@ export type CreateIngestKeyInput = z.infer<typeof CreateIngestKeyInput>;
 
 /** What the screen sends to make a key: the action makes the key itself (`createIngestKey`). */
 export const CreateIngestKeyRequest = z
-  .object({ entityId: EntityIdSchema, label: z.string().trim().min(1).max(80) })
+  .object({
+    entityId: EntityIdSchema,
+    label: z.string().trim().min(1).max(80),
+    sourceId: IdSchema.nullable(),
+  })
   .strict();
 export type CreateIngestKeyRequest = z.infer<typeof CreateIngestKeyRequest>;
 
@@ -155,6 +165,7 @@ export const IngestKeyDto = z
     entityId: EntityIdSchema,
     label: z.string(),
     keyHint: IngestKeyHintSchema,
+    sourceId: IdSchema.nullable(),
     lastUsedAt: z.iso.datetime().nullable(),
     revokedAt: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),

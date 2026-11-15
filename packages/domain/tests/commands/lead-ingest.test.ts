@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import {
+  MESSAGE_MAX,
   newId,
+  UNNAMED_CUSTOMER_NAMES,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   type IngestKeyDto,
   type IngestSourceDto,
@@ -433,6 +435,51 @@ describe('crm.lead.ingest', () => {
     }
   });
 
+  it('names a WhatsApp customer who came with no name plainly, and cuts a long message', async () => {
+    await onlyPresent(callerA.id);
+    const out = await run<LeadIngestResultDto>(
+      workers(),
+      ingestLead,
+      lead({
+        channel: 'whatsapp',
+        contact: { phone: testPhone() },
+        message: `  ${'Pump chahiye. '.repeat(200)}  `,
+      }),
+    );
+    const [contact] = await asMigrator(
+      (m) => m<{ name: string }[]>`select name from contacts where id = ${out.contactId}`,
+    );
+    expect(contact?.name).toBe(UNNAMED_CUSTOMER_NAMES.whatsapp);
+    const [note] = await asMigrator(
+      (m) => m<{ body: string }[]>`
+        select body from activities where account_id = ${out.accountId} and type = 'note'`,
+    );
+    expect(note?.body).toHaveLength(MESSAGE_MAX);
+    // A form's lead still needs a name, and an empty message is none.
+    expect(
+      await refusal(run(workers(), ingestLead, lead({ contact: { phone: testPhone() } }))),
+    ).toMatchObject({ code: 'validation_failed' });
+    const blank = await run<LeadIngestResultDto>(workers(), ingestLead, lead({ message: '   ' }));
+    const [notes] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from activities where account_id = ${blank.accountId} and type = 'note'`,
+    );
+    expect(notes?.n).toBe(0);
+  });
+
+  it('gives two leads arriving at the same moment to two level callers, one each', async () => {
+    await onlyPresent(callerA.id, callerB.id);
+    await asMigrator(
+      (m) => m`update opportunities set state = 'lost'
+                where owner_id in (${callerA.id}, ${callerB.id}) and state = 'open'`,
+    );
+    const both = await Promise.all([
+      run<LeadIngestResultDto>(workers(), ingestLead, lead()),
+      run<LeadIngestResultDto>(workers(), ingestLead, lead()),
+    ]);
+    expect(new Set(both.map((b) => b.ownerId))).toEqual(new Set([callerA.id, callerB.id]));
+  });
+
   it('lands a lead on its connected source, and refuses a source of another company', async () => {
     await onlyPresent(callerA.id);
     const source = await run<IngestSourceDto>(exec, setIngestSource, {
@@ -726,6 +773,7 @@ describe('crm.ingest_key.create and crm.ingest_key.revoke', () => {
       label: 'Website',
       keyHash: made.keyHash,
       keyHint: made.keyHint,
+      sourceId: null,
     };
     expect(await refusal(run(gm, createIngestKey, input))).toMatchObject({ code: 'forbidden' });
     expect(await refusal(run(execElsewhere, createIngestKey, input))).toMatchObject({
@@ -736,6 +784,59 @@ describe('crm.ingest_key.create and crm.ingest_key.revoke', () => {
     ).toMatchObject({ code: 'forbidden' });
   });
 
+  it("ties a key to the company's own live website only", async () => {
+    const site = await run<IngestSourceDto>(exec, setIngestSource, {
+      entityId: ENTITY,
+      provider: 'website',
+      externalId: `Site-${newId().slice(-8)}.Example`,
+      name: 'Company site',
+      pipelineId: PUMPS.id,
+      fieldMap: {},
+      consent: { questionKey: 'agree', textVersion: 'v1', channels: ['call'], purpose: 'service' },
+    });
+    // A website's address is kept in small letters.
+    expect(site.externalId).toBe(site.externalId.toLowerCase());
+    const made = newIngestKey();
+    const key = await run<IngestKeyDto>(exec, createIngestKey, {
+      entityId: ENTITY,
+      label: 'Site key',
+      keyHash: made.keyHash,
+      keyHint: made.keyHint,
+      sourceId: site.id,
+    });
+    expect(key.sourceId).toBe(site.id);
+    const [found] = (await asPrincipal(workers([]), (ctx) =>
+      ctx.tx.execute(
+        sql`select source_id, consent_purpose from app.ingest_key_find(${made.keyHash})`,
+      ),
+    )) as unknown as { source_id: string; consent_purpose: string }[];
+    expect(found).toEqual({ source_id: site.id, consent_purpose: 'service' });
+    // A Google form, or another company's site, is no key's website.
+    const form = await run<IngestSourceDto>(exec, setIngestSource, {
+      entityId: ENTITY,
+      provider: 'google_leadform',
+      externalId: `form-${newId()}`,
+      name: 'A form',
+      pipelineId: PUMPS.id,
+      fieldMap: {},
+      consent: null,
+    });
+    for (const sourceId of [form.id, newId()]) {
+      const other = newIngestKey();
+      expect(
+        await refusal(
+          run(exec, createIngestKey, {
+            entityId: ENTITY,
+            label: 'Wrong site',
+            keyHash: other.keyHash,
+            keyHint: other.keyHint,
+            sourceId,
+          }),
+        ),
+      ).toMatchObject({ code: 'validation_failed', reason: 'lead_source_missing' });
+    }
+  });
+
   it('stores only the hash, lets the platform find the key, and refuses it once revoked', async () => {
     const made = newIngestKey();
     const key = await run<IngestKeyDto>(exec, createIngestKey, {
@@ -743,6 +844,7 @@ describe('crm.ingest_key.create and crm.ingest_key.revoke', () => {
       label: 'Company website',
       keyHash: made.keyHash,
       keyHint: made.keyHint,
+      sourceId: null,
     });
     expect(key).toMatchObject({ label: 'Company website', keyHint: made.keyHint, revokedAt: null });
     const use = () =>

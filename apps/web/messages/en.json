@@ -2928,6 +2928,8 @@
         "form_map_incomplete": "The form's name or phone question is not matched",
         "page_token_missing": "The Facebook Page is not connected",
         "page_token_refused": "Facebook turned down the Page connection",
+        "lead_unreadable": "Facebook sent a lead we could not read",
+        "lead_fetch_refused": "Facebook did not give the lead",
         "other": "Something else went wrong"
       }
     },
@@ -5098,7 +5100,7 @@
     "formId": "Form ID",
     "formIdHelper": "Copy it from the form's page in Facebook or Google Ads.",
     "siteHost": "Website address",
-    "siteHostHelper": "The address the site is on, such as shaktisupreme.com, without https.",
+    "siteHostHelper": "The address the site is on, such as shaktisupreme.com, without https. It is kept in small letters.",
     "fixed": "A connected form cannot be swapped. Disconnect it and connect the new one instead.",
     "name": "Name shown here",
     "pipeline": "Line of business",
@@ -5166,7 +5168,12 @@
     "turnOff": "Turn off",
     "turnOffLabel": "Turn off {label}",
     "keyTurnedOff": "{label} is turned off.",
-    "off": "Off"
+    "off": "Off",
+    "keySite": "Website the key is for",
+    "keySiteHelper": "Its leads go to that website's line of business, and its consent box is recorded as set there.",
+    "noSite": "No website: the form must name the line of business",
+    "forSite": "For {name}",
+    "siteGone": "a website no longer connected"
   },
   "qualification": {
     "heading": "Lead details",

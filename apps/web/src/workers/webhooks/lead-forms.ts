@@ -1,3 +1,4 @@
+import { isDomainError } from '@shakti/contracts';
 import type {
   IngestChannel,
   IngestSourceProvider,
@@ -110,14 +111,37 @@ async function ingestAnswers(
     ...(mapped.qualification === undefined ? {} : { qualification: mapped.qualification }),
     ...(mapped.message === undefined ? {} : { message: mapped.message }),
   };
-  await executeCommand(
-    systemWorkersPrincipal(source.entityId),
-    { entityIds: [source.entityId], requestId },
-    ingestLead,
-    input,
-    { idempotencyKey: ingestIdempotencyKey(args.channel, args.externalId) },
-  );
+  try {
+    await executeCommand(
+      systemWorkersPrincipal(source.entityId),
+      { entityIds: [source.entityId], requestId },
+      ingestLead,
+      input,
+      { idempotencyKey: ingestIdempotencyKey(args.channel, args.externalId) },
+    );
+  } catch (error) {
+    // The lead of this provider id was made before, from answers the field map has read
+    // differently since (a delivery processed again after the map changed): it is done, and the
+    // delivery's other leads are made.
+    if (isDomainError(error) && error.details?.reason === 'idempotency_mismatch') return undefined;
+    throw error;
+  }
   return undefined;
+}
+
+/**
+ * Why Meta did not give a lead: the Page token refused (an expired or invalid token, Graph's
+ * OAuth error 190 or 102, or a 401), a lead Meta answered in a shape we cannot read, or another
+ * refusal (a deleted lead, a missing permission).
+ */
+export function fetchRefusal(
+  error: ProviderError,
+): 'page_token_refused' | 'lead_unreadable' | 'lead_fetch_refused' {
+  if (error.failure === 'invalid_response') return 'lead_unreadable';
+  if (error.vendorCode === '190' || error.vendorCode === '102' || error.status === 401) {
+    return 'page_token_refused';
+  }
+  return 'lead_fetch_refused';
 }
 
 /** A provider id kept as attribution only when it reads as one. */
@@ -210,7 +234,7 @@ export function metaLeadgenHandler(deps: () => LeadFormDeps = defaultDeps) {
               status: error.status,
               vendorCode: error.vendorCode,
             });
-            setAside ??= 'page_token_refused';
+            setAside ??= fetchRefusal(error);
             continue;
           }
           throw error;

@@ -1,6 +1,6 @@
 {
-  "id": "dbe8b7e2-3a0b-42c9-a771-e9aa9f116985",
-  "prevId": "bd579f33-3168-42b6-9e09-3c9762f472c0",
+  "id": "aaea7ae5-a050-4dc1-9012-fc4464d521ee",
+  "prevId": "69f9e1f4-4f60-422d-99f2-d3b802c98f38",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7158,6 +7158,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "source_id": {
+          "name": "source_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "last_used_at": {
           "name": "last_used_at",
           "type": "timestamp with time zone",
@@ -7226,6 +7232,21 @@
           "with": {},
           "method": "btree",
           "concurrently": false
+        },
+        "ingest_keys_source_idx": {
+          "name": "ingest_keys_source_idx",
+          "columns": [
+            {
+              "expression": "source_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -7236,6 +7257,19 @@
             "entity_id"
           ],
           "tableTo": "entities",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "ingest_keys_source_id_ingest_sources_id_fk": {
+          "name": "ingest_keys_source_id_ingest_sources_id_fk",
+          "tableFrom": "ingest_keys",
+          "columnsFrom": [
+            "source_id"
+          ],
+          "tableTo": "ingest_sources",
           "columnsTo": [
             "id"
           ],

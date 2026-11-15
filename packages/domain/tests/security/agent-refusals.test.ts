@@ -213,6 +213,7 @@ const INPUTS: Record<string, unknown> = {
     label: 'Refused key',
     keyHash: 'b'.repeat(64),
     keyHint: 'abcd',
+    sourceId: null,
   },
   'crm.ingest_key.revoke': { entityId: 1, keyId: newId() },
   'print.proof.request': { entityId: 1 },

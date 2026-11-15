@@ -10,11 +10,9 @@ import {
   executeCommand,
   executeQuery,
   findIngestKey,
-  findIngestSource,
   hashIngestKey,
   ingestLead,
   type ExecuteOptions,
-  type FoundIngestSource,
   type KeyValue,
 } from '@shakti/domain';
 import { createHash } from 'node:crypto';
@@ -32,7 +30,8 @@ import { systemWorkersPrincipal } from '../workers/events/system-principal';
  * lead is made in the request as the platform (`crm.lead.ingest`), not queued: it is no webhook.
  * In order, before anything is written: the key found by its hash (unknown or revoked: 401), 60 a
  * minute per key (429), a body of at most 16 KiB that reads as the contract (400), the company the
- * key belongs to (403), Turnstile (403, or 503 when Cloudflare cannot be asked). The key never
+ * key belongs to (403), Turnstile (403, or 503 when Cloudflare cannot be asked). The key's own
+ * website gives the pipeline and the consent setting, never the request. The key never
  * reaches a log, an audit row or the database: only its SHA-256 is looked up.
  */
 
@@ -124,45 +123,38 @@ export async function ingestLeadRoute(request: Request, deps: IngestRouteDeps): 
   if (verdict === 'unavailable') return fail('integration_unavailable', requestId);
   if (verdict !== 'human') return fail('forbidden', requestId, 'turnstile_failed');
 
-  // The company's connected site this enquiry came from (by its address), for its pipeline and
-  // what its consent box consents to.
-  const host = siteHost(request.headers.get('origin'));
-  let source: FoundIngestSource | undefined;
-  if (host !== undefined) {
-    const found = await executeQuery(
-      systemWorkersPrincipal(null),
-      { entityIds: [], requestId },
-      (ctx) => findIngestSource(ctx, 'website', host),
-      { name: 'findIngestSource' },
-    );
-    if (found?.entityId === key.entityId) source = found;
-  }
-  if (source === undefined && body.segment === undefined) {
+  // The key's website (`ingest_keys.source_id`), never one the request names: its line of
+  // business, and what its consent box agrees to.
+  const site = key.site;
+  if (site === null && body.segment === undefined) {
     return fail('validation_failed', requestId, 'lead_source_missing');
   }
-
+  // A consent only when the person ticked the box, with the channels and purpose the Executive set
+  // for the site; a purpose the request sends is ignored.
   const consent =
-    source?.consent === null || source === undefined
-      ? undefined
-      : {
-          channels: source.consent.channels,
-          purpose: body.consent.purpose,
+    body.consent?.ticked === true && site?.consent != null
+      ? {
+          channels: site.consent.channels,
+          purpose: site.consent.purpose,
           // The version is the wording the form showed, so the record proves what was agreed.
           textVersion: `web-${createHash('sha256').update(body.consent.text).digest('hex').slice(0, 16)}`,
           givenAt: body.consent.givenAt,
-        };
+        }
+      : undefined;
+  const message = body.message?.trim() ?? '';
   const input = {
     entityId: key.entityId,
     channel: 'website' as const,
     // A segment the form names chooses the pipeline of that business line.
-    ...(body.segment === undefined && source !== undefined
-      ? { sourceId: source.sourceId }
+    ...(body.segment === undefined && site !== null
+      ? { sourceId: site.sourceId }
       : { pipelineKey: body.segment }),
     contact: { name: body.name, phone: body.phone },
     ...(body.pin === undefined ? {} : { site: { pin: body.pin } }),
     ...(body.utm === undefined ? {} : { attribution: { utm: body.utm } }),
     ...(consent === undefined ? {} : { consent }),
-    ...(body.message === undefined ? {} : { message: body.message }),
+    // An empty box is no message.
+    ...(message === '' ? {} : { message }),
     ingestKeyId: key.keyId,
   };
   try {
@@ -218,15 +210,4 @@ export async function ingestHealthRoute(
     }),
     { headers: { 'cache-control': 'no-store', 'x-request-id': requestId } },
   );
-}
-
-/** The host name of an `Origin` header, as a connected website's external id holds it. */
-export function siteHost(origin: string | null): string | undefined {
-  if (origin === null) return undefined;
-  try {
-    const host = new URL(origin).hostname.toLowerCase();
-    return /^[A-Za-z0-9_.:-]{1,200}$/.test(host) ? host : undefined;
-  } catch {
-    return undefined;
-  }
 }

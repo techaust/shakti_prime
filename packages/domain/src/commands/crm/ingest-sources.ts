@@ -280,6 +280,7 @@ export const KEY_COLUMNS = {
   entityId: k.entityId,
   label: k.label,
   keyHint: k.keyHint,
+  sourceId: k.sourceId,
   lastUsedAt: k.lastUsedAt,
   revokedAt: k.revokedAt,
   createdAt: k.createdAt,
@@ -294,6 +295,7 @@ export function toIngestKeyDto(row: KeyRow): IngestKeyDto {
     entityId: row.entityId,
     label: row.label,
     keyHint: row.keyHint,
+    sourceId: row.sourceId,
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
     revokedAt: row.revokedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -317,9 +319,35 @@ export const createIngestKey = defineCommand({
     'keyHash',
   ],
   // The hash is matched against what a website sends; the audit row needs only the label and hint.
-  auditInput: (input) => ({ entityId: input.entityId, label: input.label, keyHint: input.keyHint }),
+  auditInput: (input) => ({
+    entityId: input.entityId,
+    label: input.label,
+    keyHint: input.keyHint,
+    sourceId: input.sourceId,
+  }),
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    // The key's website: a live website connected to the key's own company.
+    if (input.sourceId !== null) {
+      const [site] = await ctx.tx
+        .select({ id: s.id })
+        .from(s)
+        .where(
+          and(
+            eq(s.id, input.sourceId),
+            eq(s.entityId, input.entityId),
+            eq(s.provider, 'website'),
+            isNull(s.archivedAt),
+          ),
+        )
+        .limit(1);
+      if (!site) {
+        throw new DomainError('validation_failed', 'the website is not connected to the company', {
+          reason: 'lead_source_missing',
+          issues: [{ path: 'sourceId', message: 'lead_source_missing' }],
+        });
+      }
+    }
     const [row] = await ctx.tx
       .insert(k)
       .values({
@@ -328,6 +356,7 @@ export const createIngestKey = defineCommand({
         label: input.label,
         keyHash: input.keyHash,
         keyHint: input.keyHint,
+        sourceId: input.sourceId,
         createdBy: ctx.principal.id,
       })
       .returning(KEY_COLUMNS);
@@ -337,7 +366,7 @@ export const createIngestKey = defineCommand({
       aggregateId: row.id,
       entityId: row.entityId,
       before: null,
-      after: { label: row.label, keyHint: row.keyHint },
+      after: { label: row.label, keyHint: row.keyHint, sourceId: row.sourceId },
     });
     return toIngestKeyDto(row);
   },

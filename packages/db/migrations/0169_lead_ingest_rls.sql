@@ -110,7 +110,14 @@ create policy ingest_keys_insert on ingest_keys for insert to app_user
   with check ((select app.has_perm('crm.sources.write:all'))
               and entity_id = any ((select app.entity_ids())::int[])
               and created_by = (select app.user_id())
-              and revoked_at is null and revoked_by is null and last_used_at is null);
+              and revoked_at is null and revoked_by is null and last_used_at is null
+              -- A key's website is a live website of the key's own company.
+              and (source_id is null
+                   or exists (select 1 from ingest_sources s
+                               where s.id = ingest_keys.source_id
+                                 and s.entity_id = ingest_keys.entity_id
+                                 and s.provider = 'website'
+                                 and s.archived_at is null)));
 --> statement-breakpoint
 create policy ingest_keys_update on ingest_keys for update to app_user
   using ((select app.has_perm('crm.sources.write:all'))
@@ -121,8 +128,8 @@ create policy ingest_keys_update on ingest_keys for update to app_user
 --> statement-breakpoint
 revoke all on ingest_keys from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
 --> statement-breakpoint
-grant select (id, entity_id, label, key_hint, last_used_at, revoked_at, revoked_by, created_at,
-              created_by)
+grant select (id, entity_id, label, key_hint, source_id, last_used_at, revoked_at, revoked_by,
+              created_at, created_by)
   on ingest_keys to app_user, app_reader;
 --> statement-breakpoint
 grant insert on ingest_keys to app_user;
@@ -250,19 +257,25 @@ grant execute on function app.ingest_source_token(uuid) to app_user, app_reader;
 --> statement-breakpoint
 
 -- 8. The website route's key: the live key with this SHA-256 and its company, or no row for an
---    unknown or revoked key, with the company's code the request must name. Read only, so the route asks it before any write; the lead the key
+--    unknown or revoked key, with the company's code the request must name and the key's
+--    website while it is connected (its consent setting; the route takes the site from the key,
+--    never from the request). Read only, so the route asks it before any write; the lead the key
 --    sends stamps it as used (app.ingest_lead_write()). A request names no company until this
 --    answers.
 create or replace function app.ingest_key_find(p_hash text)
-  returns table (key_id uuid, entity_id smallint, entity_code text)
+  returns table (key_id uuid, entity_id smallint, entity_code text, source_id uuid,
+                 consent_channels text[], consent_purpose text, consent_text_version text)
   language plpgsql stable security definer set search_path = '' as $$
 #variable_conflict use_column
 begin
   perform app.require_ingest(null);
   return query
-    select k.id, k.entity_id, e.code
+    select k.id, k.entity_id, e.code, s.id, s.consent_channels, s.consent_purpose,
+           s.consent_text_version
       from public.ingest_keys k
       join public.entities e on e.id = k.entity_id
+      left join public.ingest_sources s on s.id = k.source_id and s.entity_id = k.entity_id
+                                       and s.provider = 'website' and s.archived_at is null
      where k.key_hash = p_hash
        and k.revoked_at is null;
 end
@@ -514,6 +527,12 @@ begin
   perform app.require_ingest(p_entity);
   if v_mode is null or v_mode not in ('attach', 'create') then
     raise exception 'an ingest write is an attach or a create' using errcode = 'check_violation';
+  end if;
+  -- Only the channels a lead comes by from an integration; a walk-in, a referral, an import or
+  -- manual entry is a person's, through crm.lead.create.
+  if v_channel is null
+     or v_channel not in ('meta_ads', 'google_ads', 'website', 'whatsapp', 'ivr', 'missed_call') then
+    raise exception 'channel % is not an integration''s', v_channel using errcode = 'check_violation';
   end if;
   select ls.id, ls.code into v_source, v_source_code
     from public.lead_sources ls

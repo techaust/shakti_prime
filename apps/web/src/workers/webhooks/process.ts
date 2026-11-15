@@ -106,11 +106,12 @@ export async function processWebhook(
   }
   const { entityId } = handled;
   if (handled.failed === true) {
-    // Set aside for good by the handler (a form nobody has connected), never retried: Process
-    // again sends it once more after the cause is fixed.
+    // Set aside for good by the handler (a form nobody has connected, a refused Page token), never
+    // retried: Process again sends it once more after the cause is fixed. An `error` line, as a
+    // row failed after ten tries is, so Sentry tells the owner.
     const errorCode = handled.code ?? 'handler_failed';
     await mark('failed', errorCode, entityId);
-    logger.log('info', 'webhooks.set_aside', {
+    logger.log('error', 'webhooks.set_aside', {
       requestId,
       inboxId,
       provider: claimed.provider,

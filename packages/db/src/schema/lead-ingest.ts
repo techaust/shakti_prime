@@ -130,6 +130,8 @@ export const ingestKeys = pgTable(
     label: text('label').notNull(),
     keyHash: text('key_hash').notNull(),
     keyHint: text('key_hint').notNull(),
+    /** The company's website the key is for (its line of business and consent setting), if any. */
+    sourceId: uuid('source_id').references(() => ingestSources.id),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     revokedBy: uuid('revoked_by').references(() => principals.id),
@@ -145,6 +147,7 @@ export const ingestKeys = pgTable(
     check('ingest_keys_revoked_check', sql`(${t.revokedAt} is null) = (${t.revokedBy} is null)`),
     uniqueIndex('ingest_keys_key_hash_unique').on(t.keyHash),
     index('ingest_keys_entity_idx').on(t.entityId, t.createdAt.desc()),
+    index('ingest_keys_source_idx').on(t.sourceId),
   ],
 );
 

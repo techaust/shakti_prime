@@ -121,7 +121,12 @@ export function LeadSourcesScreen({
               onArchived={reload}
             />
           </section>
-          <KeysSection entityId={entityId} keys={data.keys} onChanged={reload} />
+          <KeysSection
+            entityId={entityId}
+            keys={data.keys}
+            sites={data.sources.filter((s) => s.provider === 'website' && s.archivedAt === null)}
+            onChanged={reload}
+          />
         </>
       )}
 
@@ -234,10 +239,13 @@ function SourceList({
 function KeysSection({
   entityId,
   keys,
+  sites,
   onChanged,
 }: {
   entityId: number;
   keys: readonly IngestKeyDto[];
+  /** The company's connected websites, one of which a new key may be for. */
+  sites: readonly IngestSourceDto[];
   onChanged: () => void;
 }) {
   const t = useTranslations('leadSources');
@@ -250,8 +258,10 @@ function KeysSection({
     e.preventDefault();
     if (make.pending) return;
     const form = e.currentTarget;
-    const label = formText(new FormData(form), 'label');
-    make.run({ entityId, label }, (made) => {
+    const data = new FormData(form);
+    const label = formText(data, 'label');
+    const site = formText(data, 'sourceId');
+    make.run({ entityId, label, sourceId: site === '' ? null : site }, (made) => {
       setShown({ label: made.key.label, secret: made.secret });
       form.reset();
       onChanged();
@@ -288,6 +298,16 @@ function KeysSection({
         </div>
       )}
       <form onSubmit={submit} noValidate className="flex flex-col gap-2">
+        <Field id={`${id}-site`} label={t('keySite')} helper={t('keySiteHelper')}>
+          <Select name="sourceId" defaultValue={sites[0]?.id ?? ''}>
+            <option value="">{t('noSite')}</option>
+            {sites.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field
           id={`${id}-label`}
           label={t('keyLabel')}
@@ -312,6 +332,13 @@ function KeysSection({
                 <span className="font-semibold">{k.label}</span>
                 <span className="text-text-muted text-sm">
                   {t('endsWith', { hint: k.keyHint })}
+                </span>
+                <span className="text-text-muted text-sm">
+                  {k.sourceId === null
+                    ? t('noSite')
+                    : t('forSite', {
+                        name: sites.find((s) => s.id === k.sourceId)?.name ?? t('siteGone'),
+                      })}
                 </span>
                 <span className="text-text-muted text-sm">
                   {k.revokedAt !== null

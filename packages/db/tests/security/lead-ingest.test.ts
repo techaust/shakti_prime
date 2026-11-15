@@ -292,7 +292,15 @@ describe('the ingest definers', () => {
       (m) => m<{ code: string }[]>`select code from entities where id = 1`,
     );
     expect(await rows(workers([1]), sql`select * from app.ingest_key_find(${key.hash})`)).toEqual([
-      { key_id: key.id, entity_id: 1, entity_code: entity?.code },
+      {
+        key_id: key.id,
+        entity_id: 1,
+        entity_code: entity?.code,
+        source_id: null,
+        consent_channels: null,
+        consent_purpose: null,
+        consent_text_version: null,
+      },
     ]);
     expect(
       await rows(
@@ -333,6 +341,89 @@ describe('the ingest definers', () => {
         sql`select * from app.ingest_customer(1::smallint, ${`+91${testPhone()}`}, 'farmer_pumps', now())`,
       ),
     ).toEqual([]);
+  });
+
+  it("refuse in app.ingest_lead_write() another company's customer or lead, a contact outside the lead's customer, an owner who does not work on leads in the company, and a channel no integration has", async () => {
+    const phoneOf = async (contact: string) => {
+      const [row] = await asMigrator(
+        (m) =>
+          m<{ id: string }[]>`select id from contact_phones where contact_id = ${contact} limit 1`,
+      );
+      return row?.id ?? '';
+    };
+    const write = (args: Record<string, unknown>) =>
+      failure(
+        rows(
+          workers([1]),
+          sql`select * from app.ingest_lead_write(1::smallint, ${JSON.stringify({
+            channel: 'website',
+            pipelineKey: PUMPS.key,
+            accountType: 'farm',
+            contact: { name: 'Refused', phone: '+919800000001', preferredLanguage: 'hinglish' },
+            ...args,
+          })}::jsonb)`,
+        ),
+      );
+    const contactD = fx.contacts.d[0] ?? '';
+    const contactA = fx.contacts.a[0] ?? '';
+    const contactB = fx.contacts.b[0] ?? '';
+    // Another company's customer, made a lead of company 1.
+    expect(
+      await write({
+        mode: 'create',
+        accountId: fx.accounts.d[0],
+        contactId: contactD,
+        contactPhoneId: await phoneOf(contactD),
+        ownerId: fx.principals.a.id,
+      }),
+    ).toMatch(/not the company's/);
+    // Another company's lead, attached to.
+    expect(
+      await write({
+        mode: 'attach',
+        leadId: fx.leads.d[0],
+        accountId: fx.accounts.d[0],
+        contactId: contactD,
+        contactPhoneId: await phoneOf(contactD),
+      }),
+    ).toMatch(/not open in the company/);
+    // A contact of another customer, on company 1's lead.
+    expect(
+      await write({
+        mode: 'attach',
+        leadId: fx.leads.a[0],
+        contactId: contactB,
+        contactPhoneId: await phoneOf(contactB),
+      }),
+    ).toMatch(/not the lead's customer's/);
+    // A lead closed meanwhile is not attached to.
+    await asMigrator(
+      (m) => m`update opportunities set state = 'lost' where id = ${fx.leads.a[0] ?? ''}`,
+    );
+    try {
+      expect(
+        await write({
+          mode: 'attach',
+          leadId: fx.leads.a[0],
+          contactId: contactA,
+          contactPhoneId: await phoneOf(contactA),
+        }),
+      ).toMatch(/not open in the company/);
+    } finally {
+      await asMigrator(
+        (m) => m`update opportunities set state = 'open' where id = ${fx.leads.a[0] ?? ''}`,
+      );
+    }
+    // An owner who works on leads only in company 2.
+    expect(await write({ mode: 'create', ownerId: fx.principals.d.id })).toMatch(
+      /does not work on leads in the company/,
+    );
+    // A person's channels are refused.
+    for (const channel of ['walk_in', 'referral', 'import', 'manual']) {
+      expect(await write({ mode: 'create', channel, ownerId: fx.principals.a.id })).toMatch(
+        /not an integration's/,
+      );
+    }
   });
 
   it('keep crm.ingest.run off every role but the platform, and in the database list', async () => {

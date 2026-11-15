@@ -64,6 +64,8 @@ const WEBHOOK_REASONS = [
   'form_map_incomplete',
   'page_token_missing',
   'page_token_refused',
+  'lead_unreadable',
+  'lead_fetch_refused',
 ] as const;
 export type WebhookReasonKey = (typeof WEBHOOK_REASONS)[number] | 'other';
 
