@@ -161,3 +161,33 @@ Found sound:
 - Documents: DATABASE §4.1 rows for all eight definers, SECURITY §3.1 to §3.3, API, the incidents runbook §12, the design's Built (T3) match the code, apart from rows 1 and 2.
 
 Not checked: a live Exotel call (whether `answered` fires on the customer's answer or the caller's, the real recording hosts); the Linux baselines; the JavaScript budget and the `EXPLAIN` figures (the builder's); the Play button in a browser.
+
+### Fix round, 15-11-2026 (the lead's cloud VM, worktree `t3-dial`, Postgres 54333)
+Every finding of the review is fixed. No applied migration was edited: the changes are the new `0172_provider_calls_phone_set_null` (generated) and `0173_t3_fix_round` (custom).
+
+| # | Fix | Where | Test |
+|---|---|---|---|
+| 1 | `provider_calls.contact_phone_id` is `on delete set null`; `provider_calls_outbound_check` no longer needs the phone (re-added `NOT VALID`); `app.provider_calls_guard()` lets the phone and the provider id change only to null. `app.anonymise_stale_leads()` is redefined from 0142 (its only version on `main`), every line kept, and names the leads' provider calls in its scope and clears their provider ids; their phones clear with the customer's. `app.call_recordings_due()` also names every recording of a call on an anonymised lead, whatever its age, so the next hourly sweep deletes it. | 0172, 0173 | `customer-edits.test.ts` "takes off a number a call from the screen dialled": the number comes off and the call keeps no phone. `lead-anonymise-complete.test.ts`: a dialled customer with a recording and the marker in the CallSid is anonymised; no column holds the marker or the number, the call keeps no phone and no provider id, and its recording is due. |
+| 2 | `refuseRepeat()` first takes `pg_advisory_xact_lock(hashtextextended('calls.dial:<caller>', 0))`, so two dials of one caller wait for each other. | `dial-call.ts` | `click-to-dial.test.ts` "places one call for two presses at the same moment": `Promise.allSettled` of two dials gives one placed, one `dial_in_progress`, one row and one provider placement. |
+| 3 | `app.dial_phone_taken()` (a person holding `calls.dial`; yes or no): a dial phone that is any customer's phone or any company's channel number is refused when it is set (`dial_phone_not_own`, on the field) and again at every dial, before the provider, as is a dial whose two numbers are the same; every save of the phone writes an audit row, the same number saved again included. No one-time code (the lead's decision). | 0173, `caller-profiles.ts`, `dial-call.ts`, `dial-phone-form.tsx` | A customer's and a company's number refused when set; a phone that became a customer's refused at the dial with the provider never reached; a repeated save audited. |
+| 4 | `media-src 'self' <file bucket origins>` in `contentSecurityPolicy()`, as K3's branch has it. The simulated provider now records every call (half a second of silence as a WAV, `simulatedRecordings()`), so the journeys play one. | `csp.ts`, `click-to-dial.ts`, `exotel-status.ts` | `csp.test.ts`; the journey's Executive opens the customer, presses Play recording, and the audio loads (`readyState > 0`, no media error) with axe. |
+| 5 | Each workspace clears its dialled call on a successful save and mounts the call bar afresh (`key` counting saves). | `calling-screen.tsx`, `use-call-logging.ts`, `lead-workspace.tsx` | The journey saves the dialled call, sees the bar reset, then shows the number with `D` and saves a manual call on the same lead (no "saved already"). |
+| 6 | `app.unended_provider_calls()` replaces `app.unplaced_provider_calls()`: the sweep also records as failed a call ringing or on the line three hours after the press (`OPEN_CALL_HOURS`); Exotel's time limit is now two and a half hours so a real call always ends first; the bar stops reading a call three hours after the press, whatever its status; `provider_calls_open_idx` replaces the unplaced index. | 0172, 0173, `sweep-calls.ts`, `click-to-dial.ts`, `call-bar.tsx` | `apps/web/tests/click-to-dial.test.ts`: a ringing call kept at 2 h 55 min and failed at 3 h 05 min. |
+| 7 | The recording download reads the stream with a running count and cancels it past the limit. | `client.ts` (`readWithin`) | An endless stream with no length is cancelled after three chunks. |
+| 8 | Recordings come only from an exact list of hosts (`EXOTEL_RECORDING_HOSTS`, comma-separated; `recordings.exotel.com` when unset), which alone receive the key, at most one redirect to another listed host; the handler skips a link off the list without retrying (`calls.recording_host_refused`). The variable is in `.env.example`. | `client.ts`, `exotel-status.ts` | Hosts read from the configuration; `my.exotel.com`, `api.in.exotel.com`, a look-alike, the bucket unlisted, credentials, a port all refused and never fetched; a redirect off the list refused. |
+| 9 | `errors.dial_refused`: "This call cannot be placed now. The reasons are listed under Call from the screen." | `en.json` | copy-lint |
+
+Documents: DATABASE §4.1 (`app.unended_provider_calls()`, `app.dial_phone_taken()`, the recordings due and the anonymisation rows), §6.2, §7; SECURITY's click-to-dial paragraph and the `calls.process` line; API §3.6; the design's Built (T3); `pnpm db:docs`.
+
+**Checks**, all through the lock:
+- `pnpm test:security`: db 49 files, 1,333 passed; domain 84 files, 1,145 passed; web 29 files, 364 passed; `Tasks: 4 successful, 4 total`.
+- Unit tests: domain `src` 2,402 passed; db `src` 151; web `src` 1,023 passed, 1 skipped.
+- Journeys after `pnpm build` (click-to-dial, calling, converting; three projects): 41 passed, 6 failed, all picture comparisons, the same as in the final report: `calling` (company 3) and `converting-board` (company 2), which show the calling numbers the suites leave in those companies on this aged database. Every click-to-dial journey passed, the reset and the playback included. No baseline is committed.
+- `pnpm --filter web js-budget`: every page within its budget (47 pages).
+- The whole-repository `pnpm lint`: passed. `pnpm copy-lint`: clean.
+
+**Decisions in this round**
+1. Exotel's time limit drops from four hours to two and a half, so a call still open at the three-hour sweep is one whose end was lost, never a long call.
+2. The simulated provider records every call, unlike the real calls, which stay unrecorded; it is how the copy, the timeline's Play and the removal run without Exotel.
+3. A recording host off the list is skipped without a retry (logged by id), since asking again cannot change the list.
+4. `app.dial_phone_taken()` counts a company's number whether in use or not, and any customer's phone in the group.
