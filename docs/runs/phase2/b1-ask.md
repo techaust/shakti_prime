@@ -73,3 +73,95 @@ Steps 1 to 5 of the brief, committed and pushed on `feat/b1-ask` (last commit `t
 - `0170_ask_companies_check` only rewrites `0168`'s companies check without an array literal (the enum-sync test read `ARRAY[` as a value list); the lead may fold it into `0168` at the renumbering on a fresh database.
 - Earlier runs of `ask.test.ts` left six test principals of kind `agent` in this worktree's database, which broke the `fail-closed` count; the test now uses principals without rows, and the six rows were turned into `user` rows locally. A fresh database does not have them.
 - The route, the screen, the eval set, the GM-and-Executive cost test, the lists' plans and the documents of step 9 (SECURITY §3.4 and §7, API §6, the design's "Built (B1)") remain for steps 6 to 9. The service has no idempotency key yet; the route will decide it.
+
+### Final, 14 and 15-11-2026 (the lead's cloud VM, worktree `b1-ask`, Postgres 54335)
+Steps 6 to 9 on `feat/b1-ask`, after the lead accepted the early check with its decisions. Skills loaded: `add-table`, `add-command`, `claude-api`. Two usage-limit stops; the lead committed what was on disk each time (135f56d5, b288075a), and I checked both before going on.
+
+**Built:**
+- **Route** `POST /api/v1/ask` (`apps/web/src/ask/route.ts`, `route-deps.ts`, `app/api/v1/ask/route.ts`; contract `AskInput`, `AskStreamEvent` in `packages/contracts/src/ask.ts`; `API_ENDPOINTS.ask` with its fixture; API §3.1 row).
+  - Checked before the stream starts:
+    - the caller: a session from the BOS's own origin, or a bearer token through the typed seam `AskRouteDeps.bearer`, which V2 fills (refused until then);
+    - `knowledge.ask`;
+    - a body of at most 4 KiB;
+    - a well-formed `Idempotency-Key`;
+    - six questions a minute per person;
+    - a model key (`ask_unavailable`);
+    - the day's spend caps (`askCapReached()`: `429` with `Retry-After` until midnight in India, `ask_person_cap_reached`, `ask_cap_reached`).
+  - The stream is NDJSON: a `lookup` line as each lookup starts, then the `answer` line only once the grounding filter has passed the whole answer (nothing is streamed before the filter runs), with the cited records' words read as the person; or an `error` line.
+  - A repeated key is answered from its record with no model call (`recordedTurn`, and a race on the key falls back to the record).
+- **Screen** `/ask` (menu Ask the Business, `knowledge.ask:team`; `components/ask/ask-screen.tsx`, `screens/ask.ts`, `actions/ask.ts`):
+  - the person's conversations, last used first, with Show older;
+  - the open conversation: each answer's citations as numbered links to their records, rupee amounts and percentages as figure cards, and the sources by kind and name as the person may read them now;
+  - the `[unsourced]` mark is rendered as the catalogue's "a figure not found in the records", with a note under the answer, and never as raw text on screen or in the stream's display;
+  - the running lookup is announced, follow-ups go to the open conversation, Delete asks for a confirmation, and the day's limit is shown as the catalogue's sentence;
+  - copy is in `en.json` (`ask.*`, `nav.ask`, five error sentences, the button keys in `copy-lint.config.json`), with the client message scope `/ask` and `/ask` in `BOS_PREFIXES`.
+- **Domain additions:**
+  - a tenth lookup, `find_items`, which adds an item's cost side (moving average cost and last purchase rate) only with `finance.cost.read`, read through my narrow `itemCostsFor()` under `cost_gate`;
+  - amounts are given to the model after ₹, because the masking turns a bare run of nine digits or more (`31250.5000`, any total of ₹10 lakh and up) into `[number]`;
+  - the Playbook lookup now reads every approved rule (up to 2,000, through `approvedPlaybook()`) and gives the 50 sharing most words with the model's topic, saying when more were left out (`AGENT_DEFAULTS.ask.directivesScanned`, `directivesRead`);
+  - the reads `listAskConversations`, `readAskConversation` and `askSourceLabels` (in reader parity);
+  - the recorded-answer transport `recordedAskTransport`, with `STAND_IN_ASK` for `AI_TRANSPORT=fake` (`integrations/ai.ts`), so the journeys run the real lookups, filter and records.
+- **Documents:**
+  - SECURITY §3.2 (Ask's rules), §3.4 (the voice seam), §6 (eval and injection sets), §11 item 11;
+  - API §3.1;
+  - DATABASE (§4.4, §6.9, §7, the definer exceptions);
+  - the design's "Built (B1)";
+  - workshop pack FIN-2 (`askDays`, the caps);
+  - JS budget `/ask` 204 kB (measured 194.2);
+  - `pnpm db:docs` and `machines:docs` regenerated, no change.
+
+**Tests added since the early check:**
+- **The acceptance test** (`packages/domain/tests/security/ask-cost.test.ts`, 2 tests):
+  - Seeded data (`tests/fixtures/ask-data.ts`): an item's cost and last purchase rate, and an Executive-only vault file stating a supplier rate, a job cost and a margin.
+  - The model is the worst case: it asks for every lookup that could touch those figures and writes back every figure it read.
+  - The Executive gets `₹31250.50`, `₹29875.00`, `₹27,640` and `23.5 percent`.
+  - The General Manager's lookups, answers, stored messages and log lines hold none of them, nor the passage or dealer credit, while showing the item and the management rule the GM may read.
+- `tests/commands/ask-evals.test.ts` (9): the eval set on recorded answers (prompt `ask-1`), seven business questions, two of which are a model that adds a figure of its own or sums figures itself and loses the figure. Two injection cases:
+  - a staff vault passage that gives orders, closes its label early, names a record and a figure of its own: it reaches the model only inside its data label, and nothing it ordered survives the filter;
+  - a lookup the GM lacks: it is never offered and answers as an error.
+- `apps/web/tests/ask-route.test.ts` (7): refusals before the stream, caps before any model call (the transport sees no call), no key, stream lines, a repeat answered from its record, an error line, and the per-minute cap.
+- `screens/ask.test.ts` (6): the mark never reaches text, citations and paragraphs, links per kind, figure cards.
+- `e2e/ask.spec.ts` (3 journeys × 3 projects): the GM asks, sees the answer and its sources with no raw marks, follows up and deletes, with axe; a tele-caller has no screen; the snapshot company's Executive gives the snapshot `ask` with the conversation list masked.
+- `ask.test.ts` grew to 16 tests: the item lookup and the Playbook topic.
+
+**Checks:**
+- **Journeys** `pnpm --filter web e2e:seed && pnpm --filter web exec playwright test e2e/ask.spec.ts` after `pnpm build`, through the lock: `23 passed (33.2s)`.
+  - The first run failed axe colour contrast on the selected conversation's time; that is fixed.
+  - The `ask` screenshots the host run wrote under `e2e/__screenshots__` were deleted, not committed: the Linux baselines are yours to make on a fresh database (`e2e:snap`).
+- **`pnpm test:security`** (last full run, after the Playbook topic change):
+  - db: 49 files, 1338 passed;
+  - domain: 86 files, 1145 passed;
+  - web: 29 files, 363 passed and 1 failed (`demo-data.test.ts`: `PUMP-3HP` price not found). It failed again when run alone. It passed in the runs of the 14th before the many suite and seed runs since. It reads the live retail list's first 200 prices (`listPrices` with `limit: 200`), and this database now holds 294 items, so the demo items fall past that page. I read the counts and changed no rows. The fix is a fresh database (your step); the test's reliance on 200 rows is not mine to change in this slice.
+- **Unit tests:**
+  - contracts 186 passed;
+  - db 151 passed;
+  - domain 2411 passed;
+  - web 1067 passed, 1 skipped;
+  - `pnpm copy-lint` clean.
+- **`pnpm --filter web js-budget`**: `/ask 194.2 kB, budget 204, ok`.
+- **The whole-repository `pnpm lint`** (the final check, through the lock): exit 0. It first found three JSX literals and an unused variable, which are fixed. Typecheck of web, db, contracts and domain is clean.
+
+**`EXPLAIN (ANALYZE, BUFFERS)`** (`pnpm --filter @shakti/domain exec tsx tests/spike/ask-explain.ts`, local Postgres, under the policies as the person). The data: 200 people with 100 conversations each, one with 2,000, four messages each (820,000 messages). Everything is removed at the end.
+- **Conversation list, first page:** Bitmap Index Scan on `ask_conversations_user_updated_idx` (`user_id = …`, 2,000 rows, 16 buffers) → Bitmap Heap Scan (filter `entity_ids <@ app.entity_ids()`) → top-N heapsort of 31; execution 2.19 ms, 100 buffers.
+- **Second page:** the same index with the keyset row comparison in the index condition, 1,970 rows; execution 1.49 ms, 47 buffers.
+  - The list is bounded by one person's conversations of the last 90 days, so the top-N sort stays small. An index-ordered scan would need the policy's `user_id` from a subselect, which the planner does not fold.
+- **One conversation's messages:** Index Scan Backward on `ask_messages_conversation_idx`, 4 rows, 0.057 ms.
+- **The sweep** (as the owner, rolled back): Index Scan on `ask_messages_created_idx` and on `ask_conversations_updated_idx`, under 0.1 ms each.
+
+**Decisions the brief did not settle:**
+1. The answer is not streamed token by token. The transport calls the model whole, and the filter must see the complete answer before any figure is shown, so the stream carries the lookups as they run and then the filtered answer. V2 reads the same lines.
+2. The item lookup was added so the acceptance test is meaningful: without it no lookup ever returns a cost.
+   - Job costs and margins have no table yet (Phase 3), so they are seeded as an Executive-only vault file, the way such a document would arrive today.
+   - The last purchase rate is a supplier rate held under `finance.cost.read` (`item_costs`).
+3. The source kinds include `item`, and the stored answer keeps the typed marks `[ref:<id>]` and `[unsourced]`; the screen turns both into words or links.
+4. The route allows six questions a minute per person.
+5. `maxDuration` is 300 seconds.
+6. The key is optional on the route, as on the files routes. The screen sends a new key per question.
+7. The brief's "API §6" is documented in API §3.1, where the endpoint catalogue and its test live; §6 is the outbound messaging contract. SECURITY §7 is telecom compliance, which Ask does not touch; the Ask rules went to §3.2, §3.4, §6 and §11.
+
+**Uncertain or unfinished:**
+- The `ask` screenshot baselines (your `e2e:snap` on a fresh database).
+- This database needs recreating for `demo-data.test.ts`, as above.
+- `0170_ask_companies_check` may be folded into `0168` at the renumbering.
+- The live model has not been run on the eval questions (by hand only, never in CI; it needs a key).
+- `js-budget.json` and `copy-lint.config.json` changed, so the pull request needs the owner's `checks-ok`.
