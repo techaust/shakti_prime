@@ -188,4 +188,14 @@ export const AGENT_DEFAULTS = {
     thinking: 'between_tools',
     maxTokens: 400,
   },
+
+  /**
+   * The WhatsApp Concierge (A3, wave 3). Until it exists, no assistant answers a chat (the lead's
+   * decision of 15-11-2026): a new chat starts with people (reason `no_assistant`), the screens
+   * offer no "give back to the assistant", and a chat waiting for a reply sends its notice. A3
+   * turns this on when the Concierge answers.
+   */
+  concierge: {
+    handlesNewThreads: false as boolean,
+  },
 } as const;

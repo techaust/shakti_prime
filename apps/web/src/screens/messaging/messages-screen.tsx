@@ -96,7 +96,10 @@ export function MessagesScreen({
                     }}
                   >
                     <span className="font-medium">
-                      {item.customerName ?? formatPhone(item.number)}
+                      {item.customerName ??
+                        (item.number === null
+                          ? threadT('numberRemoved')
+                          : formatPhone(item.number))}
                     </span>
                     <span className="text-text-muted text-xs">
                       {companies[item.entityId] ?? ''}

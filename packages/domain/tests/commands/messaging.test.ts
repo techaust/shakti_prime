@@ -135,9 +135,9 @@ beforeAll(async () => {
   accounts = await createTestPrincipal('accounts', [1]);
   // The company's templates, registered again on every run under the same names.
   for (const input of [
-    { name: WELCOME, category: 'utility', purpose: 'welcome' },
-    { name: STOP_NOTE, category: 'utility', purpose: 'opt_out_confirmation' },
-    { name: UPDATE, category: 'utility', params: ['Visit date'] },
+    { name: WELCOME, label: 'Visit update', category: 'utility', purpose: 'welcome' },
+    { name: STOP_NOTE, label: 'Visit update', category: 'utility', purpose: 'opt_out_confirmation' },
+    { name: UPDATE, label: 'Visit update', category: 'utility', params: ['Visit date'] },
   ]) {
     await run(exec, registerWhatsAppTemplate, { entityId: 1, ...input });
   }
@@ -256,7 +256,7 @@ describe('messaging.message.send', () => {
     const sent = await template(UPDATE, ['28-11-2026']);
     expect(sent).toMatchObject({ kind: 'template', templateName: UPDATE, templateParams: ['28-11-2026'] });
     const pending = `w1_suite_pending_${newId().slice(-6).replaceAll('-', '')}`;
-    await run(exec, registerWhatsAppTemplate, { entityId: 1, name: pending, category: 'marketing' });
+    await run(exec, registerWhatsAppTemplate, { entityId: 1, name: pending, label: 'Visit update', category: 'marketing' });
     expect(await refusal(template(pending, []))).toMatchObject({
       reason: 'whatsapp_template_not_approved',
     });
@@ -349,7 +349,7 @@ describe('messaging.template.register', () => {
     for (const who of [gm, principalFor('agent:concierge', [1])]) {
       expect(
         await refusal(
-          run(who, registerWhatsAppTemplate, { entityId: 1, name: name(), category: 'utility' }),
+          run(who, registerWhatsAppTemplate, { entityId: 1, name: name(), label: 'Visit update', category: 'utility' }),
         ),
       ).toMatchObject({ code: 'forbidden' });
     }
@@ -361,7 +361,7 @@ describe('messaging.template.register', () => {
         run(execElsewhere, registerWhatsAppTemplate, {
           entityId: 1,
           name: name(),
-          category: 'utility',
+          label: 'Visit update', category: 'utility',
         }),
       ),
     ).toMatchObject({ code: 'forbidden' });
@@ -372,7 +372,7 @@ describe('messaging.template.register', () => {
     const first = await run<WhatsAppTemplateDto>(exec, registerWhatsAppTemplate, {
       entityId: 1,
       name: n,
-      category: 'utility',
+      label: 'Visit update', category: 'utility',
       params: ['Customer name'],
       buttons: [{ kind: 'quick_reply', text: 'Call me' }],
     });
@@ -385,7 +385,7 @@ describe('messaging.template.register', () => {
     const again = await run<WhatsAppTemplateDto>(exec, registerWhatsAppTemplate, {
       entityId: 1,
       name: n,
-      category: 'marketing',
+      label: 'Visit update', category: 'marketing',
       params: [],
     });
     expect(again).toMatchObject({ id: first.id, category: 'marketing', status: 'approved' });
@@ -402,7 +402,7 @@ describe('messaging.template.register', () => {
         run(exec, registerWhatsAppTemplate, {
           entityId: 1,
           name: name(),
-          category: 'utility',
+          label: 'Visit update', category: 'utility',
           purpose: 'welcome',
           params: ['Customer name'],
         }),
@@ -413,7 +413,7 @@ describe('messaging.template.register', () => {
         run(exec, registerWhatsAppTemplate, {
           entityId: 1,
           name: name(),
-          category: 'utility',
+          label: 'Visit update', category: 'utility',
           purpose: 'welcome',
         }),
       ),
@@ -590,7 +590,7 @@ describe('messaging.template.record_status', () => {
 
   it('records the status of the company’s template, once', async () => {
     const n = `w1_suite_${newId().slice(-12).replaceAll('-', '')}`;
-    await run(exec, registerWhatsAppTemplate, { entityId: 1, name: n, category: 'utility' });
+    await run(exec, registerWhatsAppTemplate, { entityId: 1, name: n, label: 'Visit update', category: 'utility' });
     const input = { name: n, language: 'en', status: 'rejected' };
     expect(await run(workers([1]), recordWhatsAppTemplateStatus, input)).toEqual({ changed: 1 });
     expect(await run(workers([1]), recordWhatsAppTemplateStatus, input)).toEqual({ changed: 0 });

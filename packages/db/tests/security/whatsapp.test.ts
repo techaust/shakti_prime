@@ -8,8 +8,10 @@ import {
   closeDb,
   createTestPrincipal,
   createTestUser,
+  PIPELINE_SEED,
   PLATFORM_TABLES,
   principalFor,
+  stageId,
   whatsappChannel,
   whatsappCustomer,
   withoutContext,
@@ -62,6 +64,7 @@ interface Inbound {
   holders: number;
   opted_out: boolean;
   handled_by: string;
+  file_id: string | null;
 }
 
 let channel1: WhatsAppChannelFixture;
@@ -72,14 +75,20 @@ let otherCaller: Principal;
 /** An inbound text from `waId` to company 1's number, as the platform records it. */
 function inbound(
   waId: string,
-  options: { id?: string; at?: string; who?: Principal; phoneNumberId?: string } = {},
+  options: {
+    id?: string;
+    at?: string;
+    who?: Principal;
+    phoneNumberId?: string;
+    handledBy?: 'assistant' | 'people';
+  } = {},
 ) {
   return rows<Inbound>(
     options.who ?? workers([1]),
     sql`select * from app.whatsapp_record_inbound(
           ${options.phoneNumberId ?? channel1.phoneNumberId}, ${waId},
           ${options.id ?? `wamid.${newId()}`}, 'text', 'hello', null,
-          ${options.at ?? new Date().toISOString()}::timestamptz)`,
+          ${options.at ?? new Date().toISOString()}::timestamptz, ${options.handledBy ?? 'assistant'})`,
   );
 }
 
@@ -219,11 +228,15 @@ describe('an inbound message (app.whatsapp_record_inbound)', () => {
     const id = `wamid.${newId()}`;
     const [first] = await inbound(customer.waId, { id });
     const [again] = await inbound(customer.waId, { id });
+    // A repeat answers what the first delivery did, so the handler can finish a step it missed.
     expect(again).toMatchObject({
       duplicate: true,
-      first_message: false,
+      first_message: true,
       thread_id: first?.thread_id,
       message_id: first?.message_id,
+      account_id: first?.account_id,
+      holders: first?.holders,
+      file_id: null,
     });
     const [next] = await inbound(customer.waId);
     expect(next).toMatchObject({ duplicate: false, first_message: false, thread_id: first?.thread_id });
@@ -510,9 +523,11 @@ describe('a number that opted out (app.whatsapp_record_opt_out)', () => {
       ),
     ).toMatch(/opted out/);
     // The confirmation of the STOP goes once.
+    // The confirmation of the STOP goes once; asking again queues nothing.
     const confirm = sql`select * from app.whatsapp_queue_message(${threadId}::uuid, 'system', 'stop_note', '[]'::jsonb)`;
-    expect(await rows(workers([1]), confirm)).toHaveLength(1);
-    expect(await failure(rows(workers([1]), confirm))).toMatch(/one confirmation/);
+    const [once] = await rows<{ message_id: string | null }>(workers([1]), confirm);
+    expect(once?.message_id).toEqual(expect.any(String));
+    expect(await rows(workers([1]), confirm)).toEqual([{ message_id: null, created_at: null }]);
     // A WhatsApp consent given since lifts it.
     await asMigrator(
       (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
@@ -541,13 +556,62 @@ describe('a number that opted out (app.whatsapp_record_opt_out)', () => {
   it('a confirmation goes only to a number that opted out', async () => {
     const thread = await openThread(await whatsappCustomer(1));
     expect(
+      await rows(
+        workers([1]),
+        sql`select * from app.whatsapp_queue_message(${thread.thread_id}::uuid, 'system', 'stop_note', '[]'::jsonb)`,
+      ),
+    ).toEqual([{ message_id: null, created_at: null }]);
+  });
+
+  it('a STOP opts the number out in every company, with or without a consent, and a later chat too', async () => {
+    const channel2 = await whatsappChannel(2);
+    const customer = await whatsappCustomer(1);
+    const inOne = await openThread(customer);
+    const [inTwo] = await inbound(customer.waId, {
+      who: workers([2]),
+      phoneNumberId: channel2.phoneNumberId,
+    });
+    const [stop] = await rows<{ newly: boolean; consents_withdrawn: number }>(
+      workers([1]),
+      sql`select * from app.whatsapp_record_opt_out(${inOne.thread_id}::uuid, now())`,
+    );
+    // No WhatsApp consent was recorded for the number: it opts out all the same.
+    expect(stop).toMatchObject({ newly: true, consents_withdrawn: 0 });
+    const stamped = await asMigrator(
+      (m) => m<{ entity_id: number; stopped: boolean }[]>`
+        select entity_id, opted_out_at is not null as stopped from whatsapp_threads
+         where wa_id = ${customer.waId} order by entity_id`,
+    );
+    expect(stamped).toEqual([
+      { entity_id: 1, stopped: true },
+      { entity_id: 2, stopped: true },
+    ]);
+    // Company 2's platform can send it nothing.
+    expect(
       await failure(
         rows(
-          workers([1]),
-          sql`select * from app.whatsapp_queue_message(${thread.thread_id}::uuid, 'system', 'stop_note', '[]'::jsonb)`,
+          workers([2]),
+          sql`select * from app.whatsapp_queue_message(${inTwo?.thread_id ?? ''}::uuid, 'template', 'welcome_note', '[]'::jsonb)`,
         ),
       ),
-    ).toMatch(/one confirmation/);
+    ).toMatch(/opted out/);
+    // A chat the number opens later, in a company with no chat before, starts opted out.
+    const channel3 = await whatsappChannel(3);
+    const [inThree] = await inbound(customer.waId, {
+      who: workers([3]),
+      phoneNumberId: channel3.phoneNumberId,
+    });
+    expect(inThree?.opted_out).toBe(true);
+    // A STOP older than a consent given since changes nothing.
+    await asMigrator(
+      (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+        values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'verbal', 'v1', now() + interval '1 second', ${customer.owner.id})`,
+    );
+    const [old] = await rows<{ newly: boolean; consents_withdrawn: number }>(
+      workers([1]),
+      sql`select * from app.whatsapp_record_opt_out(${inOne.thread_id}::uuid, now() - interval '1 hour')`,
+    );
+    expect(old).toMatchObject({ newly: false, consents_withdrawn: 0 });
   });
 });
 
@@ -614,6 +678,43 @@ describe('the messaging worker’s definers', () => {
     expect(await rows(workers([2]), sql`select * from app.whatsapp_send_facts(${id}::uuid)`)).toEqual([]);
   });
 
+  it('queue the welcome once per thread, however often it is asked for', async () => {
+    const thread = await openThread(await whatsappCustomer(1));
+    const welcome = sql`select * from app.whatsapp_queue_message(${thread.thread_id}::uuid, 'template', 'welcome_note', '[]'::jsonb)`;
+    const [first] = await rows<{ message_id: string | null }>(workers([1]), welcome);
+    expect(first?.message_id).toEqual(expect.any(String));
+    expect(await rows(workers([1]), welcome)).toEqual([{ message_id: null, created_at: null }]);
+  });
+
+  it('do not take a message whose number opted out after it was queued, but the STOP confirmation', async () => {
+    const thread = await openThread(await whatsappCustomer(1));
+    const [queued] = await rows<{ message_id: string }>(
+      workers([1]),
+      sql`select * from app.whatsapp_queue_message(${thread.thread_id}::uuid, 'template', 'welcome_note', '[]'::jsonb)`,
+    );
+    await rows(workers([1]), sql`select * from app.whatsapp_record_opt_out(${thread.thread_id}::uuid, now())`);
+    const claim = (id: string) =>
+      rows<{ claimed: boolean }>(workers([1]), sql`select app.whatsapp_claim_send(${id}::uuid) as claimed`);
+    expect((await claim(queued?.message_id ?? ''))[0]?.claimed).toBe(false);
+    const [confirmation] = await rows<{ message_id: string }>(
+      workers([1]),
+      sql`select * from app.whatsapp_queue_message(${thread.thread_id}::uuid, 'system', 'stop_note', '[]'::jsonb)`,
+    );
+    expect((await claim(confirmation?.message_id ?? ''))[0]?.claimed).toBe(true);
+  });
+
+  it('start a chat with people while no assistant answers, with that as the reason', async () => {
+    const customer = await whatsappCustomer(1);
+    const [row] = await inbound(customer.waId, { handledBy: 'people' });
+    expect(row?.handled_by).toBe('people');
+    const [thread] = await asMigrator(
+      (m) => m<{ handoff_reason: string; handed: boolean }[]>`
+        select handoff_reason, handed_off_at is not null as handed from whatsapp_threads
+         where id = ${row?.thread_id ?? ''}`,
+    );
+    expect(thread).toEqual({ handoff_reason: 'no_assistant', handed: true });
+  });
+
   it('hand a thread to people once, keeping the first reason', async () => {
     const thread = await openThread(await whatsappCustomer(1));
     const handOff = (reason: string) =>
@@ -641,8 +742,8 @@ describe('whatsapp_templates', () => {
     const insert = (who: Principal, status: string) =>
       rows(
         who,
-        sql`insert into whatsapp_templates (id, entity_id, name, category, status, created_by)
-            values (${status === 'pending' ? id : newId()}, 1, ${name}, 'utility', ${status}, ${who.id})`,
+        sql`insert into whatsapp_templates (id, entity_id, name, label, category, status, created_by)
+            values (${status === 'pending' ? id : newId()}, 1, ${name}, 'Visit update', 'utility', ${status}, ${who.id})`,
       );
     expect(await failure(insert(gm1, 'pending'))).toMatch(/row-level security/);
     expect(await failure(insert(exec1, 'approved'))).toMatch(/row-level security/);
@@ -696,7 +797,7 @@ describe('a customer’s file on WhatsApp (app.whatsapp_attach_media, files_what
     const [row] = await rows<Inbound>(
       workers([1]),
       sql`select * from app.whatsapp_record_inbound(${channel1.phoneNumberId}, ${customer.waId},
-            ${`wamid.${newId()}`}, 'media', null, null, now())`,
+            ${`wamid.${newId()}`}, 'media', null, null, now(), 'assistant')`,
     );
     if (!row) throw new Error('no message');
     return row;
@@ -813,5 +914,109 @@ describe('the notice of a chat waiting for a reply (app.notice_whatsapp_waiting)
       (await waiting(notifier, twentyMinutesAgo)).filter((r) => r.thread_id === thread.thread_id),
     ).toEqual([]);
     expect(await failure(waiting(exec1, tenMinutesAgo))).toMatch(/notifications.send is required/);
+  });
+});
+
+describe('a customer’s number removed (whatsapp_threads.contact_phone_id on delete set null)', () => {
+  it('leaves the chat with the customer and no phone, rather than refusing the removal', async () => {
+    const customer = await whatsappCustomer(1);
+    const thread = await openThread(customer);
+    const [phone] = await asMigrator(
+      (m) => m<{ id: string }[]>`select contact_phone_id as id from whatsapp_threads
+                                  where id = ${thread.thread_id}`,
+    );
+    expect(phone?.id).toEqual(expect.any(String));
+    await asMigrator((m) => m`delete from contact_phones where id = ${phone?.id ?? ''}`);
+    const [after] = await asMigrator(
+      (m) => m<{ account_id: string; contact_phone_id: string | null }[]>`
+        select account_id, contact_phone_id from whatsapp_threads where id = ${thread.thread_id}`,
+    );
+    expect(after).toEqual({ account_id: customer.accountId, contact_phone_id: null });
+  });
+});
+
+describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', () => {
+  /** A customer idle since 2001 with one lead and a chat in company 1, last written at `wrote`. */
+  async function staleCustomer(wrote: string) {
+    const ids = { account: newId(), contact: newId(), phone: newId(), lead: newId(), thread: newId() };
+    const digits = `9196${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+    const pipeline = PIPELINE_SEED[0]?.id ?? '';
+    const at = '2001-01-01';
+    await asMigrator(async (m) => {
+      await m`insert into contacts (id, name, created_by, created_at, updated_at)
+              values (${ids.contact}, 'WhatsApp stale person', ${exec1.id}, ${at}, ${at})`;
+      await m`insert into contact_phones (id, contact_id, e164, is_primary, created_by, created_at, updated_at)
+              values (${ids.phone}, ${ids.contact}, ${`+${digits}`}, true, ${exec1.id}, ${at}, ${at})`;
+      await m`insert into accounts (id, type, name, created_by, created_at, updated_at)
+              values (${ids.account}, 'farm', 'WhatsApp stale customer', ${exec1.id}, ${at}, ${at})`;
+      await m`insert into account_entities (id, account_id, entity_id, created_by, created_at, updated_at)
+              values (${newId()}, ${ids.account}, 1, ${exec1.id}, ${at}, ${at})`;
+      await m`insert into account_contacts (account_id, contact_id, role, created_by, created_at, updated_at)
+              values (${ids.account}, ${ids.contact}, 'owner', ${exec1.id}, ${at}, ${at})`;
+      await m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, created_by,
+                                         created_at, updated_at, state_changed_at)
+              values (${ids.lead}, 1, ${ids.account}, ${pipeline}, ${stageId(1, 1)}, ${exec1.id},
+                      ${at}, ${at}, ${at})`;
+      await m`insert into whatsapp_threads (id, entity_id, channel_id, wa_id, account_id, contact_phone_id,
+                                            last_inbound_at, needs_reply, created_by)
+              values (${ids.thread}, 1, ${channel1.channelId}, ${digits}, ${ids.account}, ${ids.phone},
+                      ${wrote}, true, ${exec1.id})`;
+      await m`insert into whatsapp_messages (id, entity_id, thread_id, direction, kind, provider_message_id,
+                                             body_masked, button_payload, created_at)
+              values (${newId()}, 1, ${ids.thread}, 'inbound', 'button', ${`wamid.${newId()}`},
+                      'My village is Rampur', 'visit_yes', ${wrote})`;
+    });
+    return { ...ids, digits };
+  }
+  const anonymise = (lead: string) =>
+    rows<{ result: { leads: { id: string }[]; failed: number } }>(
+      workers([1]),
+      sql`select app.anonymise_stale_leads(1::smallint, 24, array[${lead}]::uuid[], array[]::uuid[]) as result`,
+    );
+
+  it('removes the number and the customer’s words from the chat, and keeps the chat as a fact', async () => {
+    const stale = await staleCustomer('2001-01-01');
+    const [run] = await anonymise(stale.lead);
+    expect(run?.result).toMatchObject({ leads: [{ id: stale.lead }], failed: 0 });
+    const [thread] = await asMigrator(
+      (m) => m<{ wa_id: string | null; contact_phone_id: string | null; needs_reply: boolean; account_id: string }[]>`
+        select wa_id, contact_phone_id, needs_reply, account_id from whatsapp_threads where id = ${stale.thread}`,
+    );
+    expect(thread).toEqual({
+      wa_id: null,
+      contact_phone_id: null,
+      needs_reply: false,
+      account_id: stale.account,
+    });
+    const messages = await asMigrator(
+      (m) => m<{ body_masked: string | null; button_payload: string | null }[]>`
+        select body_masked, button_payload from whatsapp_messages where thread_id = ${stale.thread}`,
+    );
+    expect(messages).toEqual([{ body_masked: null, button_payload: null }]);
+    // Nothing can be sent on the chat now, not even a confirmation.
+    expect(
+      await rows(
+        workers([1]),
+        sql`select * from app.whatsapp_queue_message(${stale.thread}::uuid, 'system', 'stop_note', '[]'::jsonb)`,
+      ),
+    ).toEqual([{ message_id: null, created_at: null }]);
+  });
+
+  it('passes by a customer who wrote on WhatsApp within the retention period', async () => {
+    const recent = await staleCustomer(new Date().toISOString());
+    const [run] = await anonymise(recent.lead);
+    expect(run?.result).toMatchObject({ leads: [], failed: 0 });
+  });
+
+  it('is the only way a customer’s words leave a message', async () => {
+    const stale = await staleCustomer('2001-01-01');
+    expect(
+      await failure(
+        asMigrator(
+          (m) => m`update whatsapp_messages set body_masked = null, button_payload = null
+                    where thread_id = ${stale.thread}`,
+        ),
+      ),
+    ).toMatch(/keeps what it was written with/);
   });
 });

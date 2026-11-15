@@ -33,6 +33,7 @@ export async function ensureWhatsAppJourneys(executiveId: string): Promise<void>
     await executeCommand(executive, { entityIds: [entityId] }, registerWhatsAppTemplate, {
       entityId,
       name: WHATSAPP.template.name,
+      label: 'Visit update',
       category: 'utility',
       params: [WHATSAPP.template.meaning],
     });

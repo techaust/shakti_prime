@@ -5,6 +5,7 @@ import {
   type WhatsAppWebhook,
 } from '@shakti/contracts';
 import {
+  AGENT_DEFAULTS,
   attachWhatsAppMedia,
   executeCommand,
   executeQuery,
@@ -114,6 +115,9 @@ export interface WhatsAppHandlerDeps {
 /** Why a chat goes to people when the customer writes HUMAN. */
 const KEYWORD_HANDOFF = 'keyword';
 
+/** Who answers a chat a message opens: people until the Concierge answers (A3). */
+const NEW_THREADS = AGENT_DEFAULTS.concierge.handlesNewThreads ? 'assistant' : 'people';
+
 /** The file types a customer's message brings in: photos and PDFs, as the file checks read them. */
 const MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 
@@ -189,11 +193,16 @@ const instant = (seconds: string): string => new Date(Number(seconds) * 1000).to
  * as `system:workers` with no company), and every command then runs in a request scoped to that
  * one company, so a message for one company never writes in another; a change naming no active
  * number of any company records nothing and the row is processed with `whatsapp_number_unknown`.
- * For each message, in order: it is recorded once (a repeat changes nothing); a number no
- * customer holds goes to the lead intake, and the chat is matched to the customer it made; STOP
- * opts the number out and sends the one confirmation, HUMAN hands the chat to people; a chat's
- * first message sends the welcome; a photo or PDF is downloaded with the system key, stored and
- * attached to the message for its checks. Statuses move a message forward; template events record
+ * For each message, in order: it is recorded once (a repeat changes nothing, and answers what the
+ * first delivery recorded); a photo or PDF is downloaded with the system key, stored and attached
+ * to the message for its checks, unless the message already has its file; a number no customer
+ * holds goes to the lead intake, and the chat is matched to the customer it made; STOP (or Meta's
+ * "Stop promotions" reply) opts the number out and sends the one confirmation, HUMAN hands the
+ * chat to people; a chat's first message sends the welcome. Each step after the record runs again
+ * on a repeated delivery and is safe to run twice (the intake by its idempotency key, the opt-out
+ * and the hand-off by their definers, the welcome once per thread and the confirmation once after
+ * each STOP by `app.whatsapp_queue_message()`), so a delivery that failed after the record
+ * finishes on its next try. Statuses move a message forward; template events record
  * a template's status in each company that registered it; a quality update is kept for Integration
  * Health. Customer text is untrusted and never logged.
  */
@@ -294,6 +303,7 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       accountId: string | null;
       holders: number;
       optedOut: boolean;
+      fileId: string | null;
     }>(recordInboundWhatsApp, {
       phoneNumberId,
       waId: message.from,
@@ -302,15 +312,16 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       body: read.body,
       buttonPayload: read.buttonPayload,
       sentAt: instant(message.timestamp),
+      handledBy: NEW_THREADS,
     });
     const thread = { entityId, threadId: recorded.threadId };
 
-    // A file is kept even when the message was recorded before, since an earlier try may have
-    // stopped before it; the file's id is the message's, so it is stored and attached once.
-    if (read.kind === 'media' && read.mediaId !== undefined) {
+    // A file is kept when the message has none yet: an earlier try may have stopped before it.
+    // Once kept, it is never downloaded or stored again, since its checks may have replaced the
+    // original with a masked copy.
+    if (read.kind === 'media' && read.mediaId !== undefined && recorded.fileId === null) {
       await keepMedia(entityId, recorded.messageId, read.mediaId, read.mediaType, run);
     }
-    if (recorded.duplicate) return;
 
     if (recorded.accountId === null && recorded.holders === 0) {
       const call = ingestCallFor(entityId, message, profiles.get(message.from));
@@ -320,13 +331,14 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       }
     }
 
-    const keyword = read.kind === 'media' ? null : matchKeyword(read.body);
+    const keyword =
+      read.kind === 'media'
+        ? null
+        : (matchKeyword(read.body) ??
+          (read.buttonPayload === null ? null : matchKeyword(read.buttonPayload)));
     if (keyword === 'stop') {
-      const stop = await run<{ newly: boolean }>(recordWhatsAppOptOut, {
-        ...thread,
-        at: instant(message.timestamp),
-      });
-      if (stop.newly) await run(queueWhatsAppMessage, { ...thread, purpose: 'opt_out_confirmation' });
+      await run(recordWhatsAppOptOut, { ...thread, at: instant(message.timestamp) });
+      await run(queueWhatsAppMessage, { ...thread, purpose: 'opt_out_confirmation' });
       return;
     }
     if (keyword === 'human') {

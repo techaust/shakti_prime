@@ -1212,6 +1212,20 @@
       "when": 1794663497891,
       "tag": "0172_whatsapp_waiting_index",
       "breakpoints": true
+    },
+    {
+      "idx": 173,
+      "version": "7",
+      "when": 1794728334903,
+      "tag": "0173_whatsapp_fix_round",
+      "breakpoints": true
+    },
+    {
+      "idx": 174,
+      "version": "7",
+      "when": 1794728347417,
+      "tag": "0174_whatsapp_fix_round_rls",
+      "breakpoints": true
     }
   ]
 }

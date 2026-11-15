@@ -20,6 +20,24 @@ export interface WhatsAppAccess {
   accessToken: string;
   apiVersion: string;
   graphBaseUrl: string;
+  /** The only hosts a media address may name: the system key is sent to no other. */
+  mediaHosts: readonly string[];
+}
+
+/**
+ * The hosts Meta serves a customer's WhatsApp file from (the Cloud API's media addresses), exactly;
+ * an address on any other host is refused before the key is sent.
+ */
+export const WHATSAPP_MEDIA_HOSTS: readonly string[] = ['lookaside.fbsbx.com'];
+
+/** Whether a media address is https on one of the allowed hosts, exactly. */
+export function mediaAddressAllowed(url: string, hosts: readonly string[]): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.port === '' && hosts.includes(parsed.hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function whatsappAccess(
@@ -32,6 +50,7 @@ export function whatsappAccess(
     accessToken,
     apiVersion: version === '' ? DEFAULT_GRAPH_VERSION : version,
     graphBaseUrl: 'https://graph.facebook.com',
+    mediaHosts: WHATSAPP_MEDIA_HOSTS,
   };
 }
 
@@ -52,7 +71,8 @@ const MEDIA_TIMEOUT_MS = 20_000;
 
 /**
  * A customer's file by its media id: Meta answers its address, type and size, then the bytes, with
- * the system key. A file over `MEDIA_MAX_BYTES`, or whose bytes are not the size Meta said, is
+ * the system key, which goes only to an address on `access.mediaHosts`. A file over
+ * `MEDIA_MAX_BYTES`, an address on any other host, or bytes that are not the size Meta said, are
  * refused as `invalid_response`. Reads may be retried; nothing is sent.
  */
 export async function downloadMedia(
@@ -73,7 +93,7 @@ export async function downloadMedia(
   const url = asString(at(body, 'url'));
   const contentType = asString(at(body, 'mime_type'));
   const size = asNumber(at(body, 'file_size'));
-  if (url === undefined || contentType === undefined || !url.startsWith('https://')) {
+  if (url === undefined || contentType === undefined || !mediaAddressAllowed(url, access.mediaHosts)) {
     throw new ProviderError('whatsapp', 'invalid_response', { status: info.status });
   }
   if (size !== undefined && size > MEDIA_MAX_BYTES) {

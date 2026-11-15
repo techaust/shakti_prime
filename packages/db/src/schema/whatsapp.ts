@@ -37,8 +37,12 @@ import { principals } from './principals';
  * company) and `assignee_id` (that lead's owner) are refreshed by the platform on each inbound
  * message; the lead's key carries the customer, so a customer merge that moves the lead moves the
  * thread with it. `window_open_until` is the 24-hour service window the customer's last message
- * opened. `opted_out_at` is when the customer sent STOP. `handled_by` says whether the assistant
- * or people answer it; `needs_reply` that a customer message waits for a person's answer.
+ * opened. `opted_out_at` is when the customer sent STOP (a STOP opts the number out on every
+ * company's thread). `handled_by` says whether the assistant or people answer it (people from the
+ * start while `AGENT_DEFAULTS.concierge.handlesNewThreads` is off); `needs_reply` that a customer
+ * message waits for a person's answer; `welcomed_at` when the platform queued the welcome, once
+ * per thread. `wa_id` is cleared when the stale-lead anonymisation removes the customer, and
+ * `contact_phone_id` when the number is removed from the customer.
  */
 export const whatsappThreads = pgTable(
   'whatsapp_threads',
@@ -50,10 +54,15 @@ export const whatsappThreads = pgTable(
     channelId: uuid('channel_id')
       .notNull()
       .references(() => entityChannels.id),
-    /** The customer's number as WhatsApp names it: E.164 digits without the plus. */
-    waId: text('wa_id').notNull(),
+    /**
+     * The customer's number as WhatsApp names it: E.164 digits without the plus; null once the
+     * stale-lead anonymisation removed the customer, and nothing can then be sent on the thread.
+     */
+    waId: text('wa_id'),
     accountId: uuid('account_id').references(() => accounts.id),
-    contactPhoneId: uuid('contact_phone_id').references(() => contactPhones.id),
+    contactPhoneId: uuid('contact_phone_id').references(() => contactPhones.id, {
+      onDelete: 'set null',
+    }),
     opportunityId: uuid('opportunity_id'),
     assigneeId: uuid('assignee_id').references(() => principals.id),
     windowOpenUntil: timestamp('window_open_until', { withTimezone: true }),
@@ -63,6 +72,7 @@ export const whatsappThreads = pgTable(
     handedOffAt: timestamp('handed_off_at', { withTimezone: true }),
     lastInboundAt: timestamp('last_inbound_at', { withTimezone: true }),
     needsReply: boolean('needs_reply').notNull().default(false),
+    welcomedAt: timestamp('welcomed_at', { withTimezone: true }),
     ...timestamps,
     ...actorsRequired,
   },
@@ -75,11 +85,11 @@ export const whatsappThreads = pgTable(
       columns: [t.opportunityId, t.entityId, t.accountId],
       foreignColumns: [opportunities.id, opportunities.entityId, opportunities.accountId],
     }).onUpdate('cascade'),
-    check('whatsapp_threads_wa_id_check', sql`${t.waId} ~ '^[1-9][0-9]{6,14}$'`),
+    check('whatsapp_threads_wa_id_check', sql`${t.waId} is null or ${t.waId} ~ '^[1-9][0-9]{6,14}$'`),
     check('whatsapp_threads_handled_by_check', sql`${t.handledBy} in ('assistant', 'people')`),
     check(
       'whatsapp_threads_handoff_reason_check',
-      sql`${t.handoffReason} is null or ${t.handoffReason} in ('keyword', 'request', 'filter_refusals', 'complaint')`,
+      sql`${t.handoffReason} is null or ${t.handoffReason} in ('keyword', 'request', 'filter_refusals', 'complaint', 'no_assistant')`,
     ),
     // Handed to people with a reason and a time; back with the assistant, neither.
     check(
@@ -105,6 +115,8 @@ export const whatsappThreads = pgTable(
       .on(t.assigneeId, t.lastInboundAt.desc(), t.id.desc())
       .where(sql`${t.needsReply}`),
     index('whatsapp_threads_contact_phone_idx').on(t.contactPhoneId),
+    // A STOP opts the number out in every company: its threads by the number alone.
+    index('whatsapp_threads_wa_idx').on(t.waId),
   ],
 );
 
@@ -277,7 +289,7 @@ export const whatsappMessageKeys = pgTable(
  * §6.1): written by an Executive through `messaging.template.register`
  * (`messaging.templates.write`), its `status` only by the platform from Meta's template events.
  * `params` names each body value in order (its count is the template's), `buttons` the buttons it
- * carries; `purpose` marks a template the platform itself sends (the welcome, the confirmation of a
+ * carries; `label` is what staff read for it; `purpose` marks a template the platform itself sends (the welcome, the confirmation of a
  * STOP), one per company and purpose; such a template takes no body values.
  * Read by every principal acting in the company, since the composer offers the approved ones.
  */
@@ -289,6 +301,8 @@ export const whatsappTemplates = pgTable(
       .notNull()
       .references(() => entities.id),
     name: text('name').notNull(),
+    /** What staff read for the template in the composer and the chat, as the Executive named it. */
+    label: text('label').notNull(),
     language: text('language').notNull().default('en'),
     category: text('category').notNull(),
     status: text('status').notNull().default('pending'),
@@ -303,6 +317,7 @@ export const whatsappTemplates = pgTable(
     unique('whatsapp_templates_entity_name_unique').on(t.entityId, t.name, t.language),
     check('whatsapp_templates_name_check', sql`${t.name} ~ '^[a-z0-9_]+$' and char_length(${t.name}) <= 512`),
     check('whatsapp_templates_language_check', sql`${t.language} in ('en')`),
+    check('whatsapp_templates_label_check', sql`char_length(btrim(${t.label})) between 1 and 60`),
     check(
       'whatsapp_templates_category_check',
       sql`${t.category} in ('utility', 'marketing', 'authentication')`,

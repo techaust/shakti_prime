@@ -16,6 +16,7 @@ import type { RequestContext } from '@shakti/db';
 import { sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
+import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 
 // The WhatsApp reads (docs/03-roadmap-appendix/phase2.md §6.1): the chats waiting for a reply on
 // `/messages`, a customer's chats on Account 360 and the Converting workspace, one chat with a page
@@ -42,7 +43,7 @@ const entityList = (ids: readonly number[]): string => `{${ids.join(',')}}`;
 interface ThreadRow extends Record<string, unknown> {
   id: string;
   entity_id: number;
-  wa_id: string;
+  wa_id: string | null;
   account_id: string | null;
   opportunity_id: string | null;
   assignee_id: string | null;
@@ -70,7 +71,7 @@ function toThread(row: ThreadRow): WaitingThreadDto {
   return WaitingThreadDto.parse({
     id: row.id,
     entityId: row.entity_id,
-    number: `+${row.wa_id}`,
+    number: row.wa_id === null ? null : `+${row.wa_id}`,
     accountId: row.account_id,
     opportunityId: row.opportunity_id,
     assigneeId: row.assignee_id,
@@ -165,6 +166,7 @@ interface MessageRow extends Record<string, unknown> {
   direction: string;
   kind: string;
   template_name: string | null;
+  template_label: string | null;
   template_params: unknown;
   body_masked: string | null;
   file_id: string | null;
@@ -176,6 +178,12 @@ interface MessageRow extends Record<string, unknown> {
   created_text: string;
   status_at: Date | string | null;
 }
+
+/**
+ * Seconds after the worker took a message with no answer recorded (its route stops at 30) when the
+ * chat shows it as not delivered rather than waiting to send: it will not be sent again.
+ */
+const SEND_ANSWER_SECONDS = 120;
 
 /**
  * A page of a chat's messages as SQL, newest first, keyset on `(created_at, id)`, exported so its
@@ -194,9 +202,17 @@ export function threadMessagesSql(
       ? sql`true`
       : sql`(m.created_at, m.id) < (${after.t}::text::timestamptz, ${after.id}::uuid)`;
   return sql`
-    select m.id, m.thread_id, m.direction, m.kind, m.template_name, m.template_params,
-           m.body_masked, m.file_id, m.status, m.refusal, m.sent_by,
-           (select p.display_name from principals p where p.id = m.sent_by) as sent_by_name,
+    select m.id, m.thread_id, m.direction, m.kind, m.template_name,
+           (select wt.label from whatsapp_templates wt
+             where wt.entity_id = m.entity_id and wt.name = m.template_name
+               and wt.language = 'en') as template_label,
+           m.template_params, m.body_masked, m.file_id,
+           case when m.status = 'queued'
+                 and m.send_attempted_at < now() - ${SEND_ANSWER_SECONDS} * interval '1 second'
+                then 'failed' else m.status end as status,
+           m.refusal, m.sent_by,
+           (select p.display_name from principals p
+             where p.id = m.sent_by and p.kind = 'user') as sent_by_name,
            m.created_at, m.created_at::text as created_text, m.status_at
       from whatsapp_messages m
      where m.thread_id = ${threadId}::uuid and m.entity_id = ${entityId}
@@ -215,6 +231,7 @@ function toMessage(row: MessageRow): WhatsAppMessageDto {
     direction: row.direction,
     kind: row.kind,
     templateName: row.template_name,
+    templateLabel: row.template_label,
     templateParams: params,
     body: row.body_masked,
     fileId: row.file_id,
@@ -255,7 +272,7 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   const holders =
-    row.account_id === null
+    row.account_id === null && row.wa_id !== null
       ? ((await ctx.tx.execute(sql`
           select distinct a.id as account_id, a.name
             from contact_phones cp
@@ -267,14 +284,15 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
            limit 20`)) as unknown as { account_id: string; name: string }[])
       : [];
   const templates = (await ctx.tx.execute(sql`
-    select id, entity_id, name, language, category, status, params, buttons, purpose
+    select id, entity_id, name, label, language, category, status, params, buttons, purpose
       from whatsapp_templates
      where entity_id = ${row.entity_id} and status = 'approved' and purpose is null
-     order by name
+     order by label, name
      limit 100`)) as unknown as {
     id: string;
     entity_id: number;
     name: string;
+    label: string;
     language: string;
     category: string;
     status: string;
@@ -296,6 +314,7 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
         id: t.id,
         entityId: t.entity_id,
         name: t.name,
+        label: t.label,
         language: t.language,
         category: t.category,
         status: t.status,
@@ -305,6 +324,7 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
       }),
     ),
     canSend: holds && row.can_send,
+    assistantOn: AGENT_DEFAULTS.concierge.handlesNewThreads,
   });
 }
 
@@ -368,6 +388,7 @@ export interface SendFactsRow {
   templateParams: string[];
   body: string | null;
   fileId: string | null;
+  /** The customer's number; empty once it was removed, when the facts say opted out. */
   waId: string;
   phoneNumberId: string | null;
   windowOpenUntil: Date | null;
@@ -406,11 +427,11 @@ export async function readSendFacts(ctx: Ctx, messageId: string): Promise<SendFa
     templateParams: params,
     body: (r.body_masked as string | null) ?? null,
     fileId: (r.file_id as string | null) ?? null,
-    waId: String(r.wa_id),
+    waId: (r.wa_id as string | null) ?? '',
     phoneNumberId: (r.phone_number_id as string | null) ?? null,
     windowOpenUntil:
       r.window_open_until === null ? null : new Date(r.window_open_until as string | Date),
-    optedOut: r.opted_out === true,
+    optedOut: r.opted_out === true || r.wa_id === null,
     confirmation: r.confirmation === true,
     templateCategory: (r.template_category as string | null) ?? null,
     templateStatus: (r.template_status as string | null) ?? null,

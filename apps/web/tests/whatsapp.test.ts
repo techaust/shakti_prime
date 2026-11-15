@@ -52,8 +52,8 @@ beforeAll(async () => {
       ['w1_web_welcome', 'welcome'],
       ['w1_web_stop_note', 'opt_out_confirmation'],
     ] as const) {
-      await m`insert into whatsapp_templates (id, entity_id, name, category, status, purpose, created_by)
-        values (${newId()}, 1, ${name}, 'utility', 'approved', ${purpose}, ${exec.id})
+      await m`insert into whatsapp_templates (id, entity_id, name, label, category, status, purpose, created_by)
+        values (${newId()}, 1, ${name}, ${name}, 'utility', 'approved', ${purpose}, ${exec.id})
         on conflict do nothing`;
     }
     await m`update whatsapp_templates set status = 'approved' where entity_id = 1 and purpose is not null`;
@@ -331,8 +331,9 @@ describe('the meta_whatsapp handler', () => {
     const exec = await createTestPrincipal('executive', [1, 2]);
     const name = `w1_web_${newId().slice(-12).replaceAll('-', '')}`;
     await asMigrator(
-      (m) => m`insert into whatsapp_templates (id, entity_id, name, category, created_by) values
-        (${newId()}, 1, ${name}, 'utility', ${exec.id}), (${newId()}, 2, ${name}, 'utility', ${exec.id})`,
+      (m) => m`insert into whatsapp_templates (id, entity_id, name, label, category, created_by) values
+        (${newId()}, 1, ${name}, 'Visit update', 'utility', ${exec.id}),
+        (${newId()}, 2, ${name}, 'Visit update', 'utility', ${exec.id})`,
     );
     const kv: KeyValue = memoryKeyValue();
     const handle = whatsappHandler(deps({ keyValue: kv }));

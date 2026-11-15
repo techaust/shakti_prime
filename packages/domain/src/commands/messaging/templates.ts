@@ -23,6 +23,7 @@ export function toTemplateDto(row: TemplateRow): WhatsAppTemplateDto {
     id: row.id,
     entityId: row.entityId,
     name: row.name,
+    label: row.label,
     language: row.language,
     category: WhatsAppTemplateCategorySchema.parse(row.category),
     status: WhatsAppTemplateStatusSchema.parse(row.status),
@@ -79,6 +80,7 @@ export const registerWhatsAppTemplate = defineCommand({
       const [row] = await ctx.tx
         .update(w)
         .set({
+          label: input.label,
           category: input.category,
           params: input.params,
           buttons: input.buttons,
@@ -104,6 +106,7 @@ export const registerWhatsAppTemplate = defineCommand({
         id: newId(),
         entityId: input.entityId,
         name: input.name,
+        label: input.label,
         language: input.language,
         category: input.category,
         params: input.params,

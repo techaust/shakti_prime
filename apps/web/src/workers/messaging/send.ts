@@ -43,7 +43,8 @@ type Outcome = Exclude<MessagingSendResult, { outcome: 'duplicate' }>;
  * throws `rate_limited`, so the queue delivers the message again later; a marketing template over
  * the hold share stays queued (`held`). A message that may go is taken once
  * (`messaging.message.claim`) and handed to Meta once: a timeout or an error from Meta records it
- * `failed` and it is never sent again, since a timeout does not prove Meta did not deliver it.
+ * `failed` and it is never sent again, since a timeout does not prove Meta did not deliver it. The
+ * claim checks the opt-out again, so a STOP recorded meanwhile is still a refusal.
  * Logs carry ids and codes, never the text or the number.
  */
 export async function sendQueuedMessage(
@@ -105,9 +106,30 @@ export async function sendQueuedMessage(
     entityId: job.entityId,
     messageId: job.messageId,
   });
-  if (!claimed.claimed) return done('skipped');
+  if (!claimed.claimed) {
+    // Not taken: another delivery took it, or the number opted out after the facts were read
+    // (the claim checks the opt-out again), which is recorded as the refusal it is.
+    const again = await executeQuery(
+      deps.principal,
+      scope,
+      (ctx) => readSendFacts(ctx, job.messageId),
+      { name: 'messaging.send.facts' },
+    );
+    if (
+      again !== null &&
+      again.status === 'queued' &&
+      !again.sendAttempted &&
+      again.optedOut &&
+      !again.confirmation
+    ) {
+      await record({ status: 'refused', refusal: 'opted_out' });
+      return { eventId: job.eventId, outcome: 'done', status: 'refused', refusal: 'opted_out' };
+    }
+    return done('skipped');
+  }
+  let sent: { messageId: string };
   try {
-    const sent =
+    sent =
       facts.kind === 'text'
         ? await client.sendText({ to: facts.waId, body: facts.body ?? '' })
         : await client.sendTemplate({
@@ -116,14 +138,6 @@ export async function sendQueuedMessage(
             languageCode: 'en',
             bodyParameters: facts.templateParams,
           });
-    await record({ status: 'sent', providerMessageId: sent.messageId });
-    if (decision.businessInitiated) await noteConversation(deps.keyValue, facts.waId, now);
-    return {
-      eventId: job.eventId,
-      outcome: 'done',
-      status: 'sent',
-      providerMessageId: sent.messageId,
-    };
   } catch (error) {
     const vendor = error instanceof ProviderError ? error.vendorCode : undefined;
     const code = vendor === undefined ? Number.NaN : Number(vendor.split('/')[0]);
@@ -135,4 +149,15 @@ export async function sendQueuedMessage(
     });
     return done('failed');
   }
+  // Recorded outside the send's catch: Meta accepted the message, so a failure here is never
+  // recorded as not delivered. If it throws, the message keeps its claim and is never sent again;
+  // the chat shows it as not delivered once the worker's time is past (`threadMessagesSql`).
+  await record({ status: 'sent', providerMessageId: sent.messageId });
+  if (decision.businessInitiated) await noteConversation(deps.keyValue, facts.waId, now);
+  return {
+    eventId: job.eventId,
+    outcome: 'done',
+    status: 'sent',
+    providerMessageId: sent.messageId,
+  };
 }

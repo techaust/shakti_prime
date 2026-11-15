@@ -66,9 +66,14 @@ export const WhatsAppThread = forwardRef<
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-1">
           <p className="font-medium">
-            {thread.customerName ?? t('chatWith', { number: formatPhone(thread.number) })}
+            {thread.customerName ??
+              (thread.number === null
+                ? t('numberRemoved')
+                : t('chatWith', { number: formatPhone(thread.number) }))}
           </p>
-          <p className="text-text-muted text-sm">{formatPhone(thread.number)}</p>
+          {thread.number === null ? null : (
+            <p className="text-text-muted text-sm">{formatPhone(thread.number)}</p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {thread.optedOut ? <StatusBadge tone="danger">{t('optedOut')}</StatusBadge> : null}
@@ -80,8 +85,9 @@ export const WhatsAppThread = forwardRef<
           ) : null}
         </div>
       </div>
+      {view.assistantOn ? null : <p className="text-text-muted text-sm">{t('peopleOnly')}</p>}
       <FailureMessage failure={read.failure ?? more.failure} />
-      {thread.accountId === null ? <Holders view={view} entityId={entityId} /> : null}
+      {thread.accountId === null && thread.number !== null ? <Holders view={view} entityId={entityId} /> : null}
       {cursor === null ? null : (
         <Button
           size="sm"
@@ -135,7 +141,10 @@ export const WhatsAppThread = forwardRef<
 /** Why a person takes a chat over from this screen: someone asked for a person. */
 const PERSON_HANDOFF = 'request';
 
-/** Take the chat over from the assistant, or give it back. */
+/**
+ * Take the chat over from the assistant, or give it back; while no assistant answers chats
+ * (`assistantOn` false), a chat with people stays with them and nothing is offered.
+ */
 function Handover({
   entityId,
   view,
@@ -165,7 +174,7 @@ function Handover({
         >
           {t('takeOver')}
         </Button>
-      ) : (
+      ) : view.assistantOn ? (
         <Button
           size="sm"
           variant="secondary"
@@ -179,7 +188,7 @@ function Handover({
         >
           {t('giveBack')}
         </Button>
-      )}
+      ) : null}
       <FailureMessage failure={take.failure ?? give.failure} />
     </>
   );
@@ -229,7 +238,9 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
         <time dateTime={message.createdAt}>{formatDateTime(message.createdAt)}</time>
       </p>
       {message.templateName === null ? null : (
-        <p className="text-sm font-medium">{t('template', { name: message.templateName })}</p>
+        <p className="text-sm font-medium">
+          {t('template', { name: message.templateLabel ?? t('templateUnnamed') })}
+        </p>
       )}
       {message.templateParams === null || message.templateParams.length === 0 ? null : (
         <p className="text-sm">{t('templateValues', { values: message.templateParams.join(', ') })}</p>
@@ -346,7 +357,7 @@ const Composer = forwardRef<
           <option value="">{t('templateChoose')}</option>
           {view.templates.map((tpl) => (
             <option key={tpl.id} value={tpl.name}>
-              {tpl.name}
+              {tpl.label}
             </option>
           ))}
         </Select>

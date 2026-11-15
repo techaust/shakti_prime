@@ -53,7 +53,7 @@ export function WhatsAppChats({ entityId, accountId }: { entityId: number; accou
                     setChosen(thread.id);
                   }}
                 >
-                  {formatPhone(thread.number)}
+                  {thread.number === null ? t('numberRemoved') : formatPhone(thread.number)}
                 </button>
               ))}
             </div>

@@ -62,6 +62,7 @@ interface InboundRow {
   holders: number;
   opted_out: boolean;
   handled_by: string;
+  file_id: string | null;
 }
 
 /**
@@ -88,10 +89,11 @@ export const recordInboundWhatsApp = defineCommand({
     const body = input.body === null ? null : maskMessageText(input.body);
     const rows = (await ctx.tx.execute(sql`
       select entity_id, thread_id, message_id, duplicate, first_message, account_id,
-             opportunity_id, holders, opted_out, handled_by
+             opportunity_id, holders, opted_out, handled_by, file_id
         from app.whatsapp_record_inbound(${input.phoneNumberId}, ${input.waId},
                                          ${input.providerMessageId}, ${input.kind}, ${body},
-                                         ${input.buttonPayload}, ${input.sentAt}::timestamptz)`)) as unknown as InboundRow[];
+                                         ${input.buttonPayload}, ${input.sentAt}::timestamptz,
+                                         ${input.handledBy})`)) as unknown as InboundRow[];
     const row = rows[0];
     if (row === undefined) {
       throw new DomainError('not_found', 'no company has this WhatsApp number', {
@@ -130,6 +132,7 @@ export const recordInboundWhatsApp = defineCommand({
       holders: row.holders,
       optedOut: row.opted_out,
       handledBy: WhatsAppThreadHandlerSchema.parse(row.handled_by),
+      fileId: row.file_id,
     };
   },
 });
@@ -363,8 +366,11 @@ export const recordWhatsAppHandOff = defineCommand({
  * through `app.whatsapp_queue_message()`: the welcome on a customer's first message (the owner's
  * decision of 13-11-2026, question 2 (a): a template sent by the messaging worker, not by an
  * agent), or the confirmation of a STOP, the one message a number that opted out still gets, once
- * after each STOP. Nothing is queued when the company registered no template for the purpose, or
- * for the welcome when the number has opted out. Emits `messaging.message.requested`.
+ * after each STOP. Safe to ask for twice (a delivery handled again asks again): the welcome is
+ * queued once per thread and the confirmation once after each STOP, both held by the definer.
+ * Nothing is queued when the company registered no template for the purpose, for the welcome when
+ * the number has opted out, or when the thread's number was removed. Emits
+ * `messaging.message.requested` for a message queued.
  */
 export const queueWhatsAppMessage = defineCommand({
   name: 'messaging.message.queue',
@@ -389,13 +395,14 @@ export const queueWhatsAppMessage = defineCommand({
     const rows = (await ctx.tx.execute(sql`
       select message_id
         from app.whatsapp_queue_message(${input.threadId}::uuid, ${kind}, ${template.name},
-                                        '[]'::jsonb)`)) as unknown as { message_id: string }[];
+                                        '[]'::jsonb)`)) as unknown as { message_id: string | null }[];
     const row = rows[0];
     if (row === undefined) {
       throw new DomainError('not_found', `thread ${input.threadId} is not visible`, {
         reason: 'whatsapp_thread_missing',
       });
     }
+    if (row.message_id === null) return none;
     const payload: MessageRequested = {
       messageId: row.message_id,
       threadId: input.threadId,

@@ -1,8 +1,9 @@
 import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { bodyOf, stubFetch, urlOf } from '../test-fetch';
 import { whatsappClient, whatsappConfig } from './client';
+import { downloadMedia, mediaAddressAllowed, WHATSAPP_MEDIA_HOSTS } from './media';
 import { parseWhatsAppWebhook, verifyHandshake, verifyHubSignature } from './webhook';
 
 // Low-entropy phrases, so the secret scan never mistakes them for keys (CLAUDE.md).
@@ -104,6 +105,50 @@ describe('sending', () => {
     expect(
       whatsappConfig({ WHATSAPP_PHONE_NUMBER_ID: '2', WHATSAPP_ACCESS_TOKEN: 't' }),
     ).toMatchObject({ apiVersion: 'v23.0' });
+  });
+});
+
+describe('a customer’s file', () => {
+  const access = {
+    accessToken: 'whatsapp-test-access',
+    apiVersion: 'v23.0',
+    graphBaseUrl: 'https://graph.facebook.test',
+    mediaHosts: WHATSAPP_MEDIA_HOSTS,
+  };
+  const bytes = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]);
+  const answers = (url: string) => {
+    let call = 0;
+    return vi.fn<typeof fetch>(() => {
+      call += 1;
+      return Promise.resolve(
+        call === 1
+          ? Response.json({ url, mime_type: 'image/png', file_size: bytes.length })
+          : new Response(bytes),
+      );
+    });
+  };
+
+  it('fetches the bytes from Meta’s media host with the key', async () => {
+    const fetchImpl = answers('https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=1');
+    const file = await downloadMedia(access, 'media-1', { fetch: fetchImpl, timeoutMs: 1_000 });
+    expect(file).toEqual({ bytes, contentType: 'image/png' });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('refuses an address on any other host before the key is sent there', async () => {
+    for (const url of [
+      'https://lookaside.fbsbx.com.example.test/file',
+      'https://example.test/lookaside.fbsbx.com',
+      'http://lookaside.fbsbx.com/file',
+      'https://lookaside.fbsbx.com:8443/file',
+    ]) {
+      const fetchImpl = answers(url);
+      await expect(
+        downloadMedia(access, 'media-1', { fetch: fetchImpl, timeoutMs: 1_000 }),
+      ).rejects.toMatchObject({ failure: 'invalid_response' });
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    }
+    expect(mediaAddressAllowed('not an address', WHATSAPP_MEDIA_HOSTS)).toBe(false);
   });
 });
 

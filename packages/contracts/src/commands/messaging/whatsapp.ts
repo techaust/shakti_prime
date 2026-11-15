@@ -13,6 +13,7 @@ import {
   WhatsAppProviderMessageIdSchema,
   WhatsAppTemplateButtonSchema,
   WhatsAppTemplateCategorySchema,
+  WhatsAppTemplateLabelSchema,
   WhatsAppTemplateLanguageSchema,
   WhatsAppTemplateParamSchema,
   WhatsAppTemplatePurposeSchema,
@@ -86,6 +87,7 @@ export const RegisterWhatsAppTemplateInput = z
   .object({
     entityId: EntityIdSchema,
     name: WhatsAppTemplateNameSchema,
+    label: WhatsAppTemplateLabelSchema,
     language: WhatsAppTemplateLanguageSchema.default('en'),
     category: WhatsAppTemplateCategorySchema,
     params: z.array(WhatsAppTemplateParamSchema).max(20).default([]),
@@ -111,15 +113,18 @@ export const RecordInboundWhatsAppInput = z
     body: WhatsAppBodySchema.nullable(),
     buttonPayload: WhatsAppButtonPayloadSchema.nullable(),
     sentAt: z.iso.datetime(),
+    /** Who answers a thread this message opens: people while no assistant answers chats. */
+    handledBy: WhatsAppThreadHandlerSchema,
   })
   .strict();
 export type RecordInboundWhatsAppInput = z.input<typeof RecordInboundWhatsAppInput>;
 
 /**
  * What the inbound record did: the thread and message, whether the message was a repeat (nothing
- * changed), whether it opened the thread (the welcome is due), the customer when one was matched
- * and how many of the company's customers hold the number, whether the number has opted out and
- * who answers the thread.
+ * changed; the rest answers what the first delivery did, so a step it did not finish can run
+ * again), whether it opened the thread (the welcome is due), the customer when one was matched
+ * and how many of the company's customers hold the number, whether the number has opted out, who
+ * answers the thread, and the file already kept for the message.
  */
 export const InboundWhatsAppRecorded = z
   .object({
@@ -133,6 +138,7 @@ export const InboundWhatsAppRecorded = z
     holders: z.number().int().min(0),
     optedOut: z.boolean(),
     handledBy: WhatsAppThreadHandlerSchema,
+    fileId: IdSchema.nullable(),
   })
   .strict();
 export type InboundWhatsAppRecorded = z.infer<typeof InboundWhatsAppRecorded>;

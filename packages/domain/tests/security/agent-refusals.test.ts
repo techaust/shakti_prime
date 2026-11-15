@@ -200,7 +200,12 @@ const INPUTS: Record<string, unknown> = {
   'org.channel.archive': { entityId: 1, channelId: newId() },
   // The WhatsApp template registry decides what the platform may send in a company's name
   // (docs/03-roadmap-appendix/phase2.md §4): an Executive's, never an agent's.
-  'messaging.template.register': { entityId: 1, name: 'refused_template', category: 'utility' },
+  'messaging.template.register': {
+    entityId: 1,
+    name: 'refused_template',
+    label: 'Refused template',
+    category: 'utility',
+  },
   'print.proof.request': { entityId: 1 },
   'pricing.list.approve': { priceListId: newId() },
   'pricing.list.archive': { priceListId: newId() },

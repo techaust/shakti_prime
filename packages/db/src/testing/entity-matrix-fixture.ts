@@ -592,8 +592,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into whatsapp_messages (id, entity_id, thread_id, direction, kind, provider_message_id, body_masked) values
           (${message}, ${e}, ${thread}, 'inbound', 'text', ${`wamid.matrix.${message}`}, 'matrix message'),
           (${unmatchedMessage}, ${e}, ${unmatchedThread}, 'inbound', 'text', ${`wamid.matrix.${unmatchedMessage}`}, 'matrix message')`;
-        await tx`insert into whatsapp_templates (id, entity_id, name, category, created_by)
-          values (${waTemplate}, ${e}, 'matrix_template', 'utility', ${ownerId})`;
+        await tx`insert into whatsapp_templates (id, entity_id, name, label, category, created_by)
+          values (${waTemplate}, ${e}, 'matrix_template', 'Matrix template', 'utility', ${ownerId})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)

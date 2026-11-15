@@ -45,6 +45,7 @@ export const sendWhatsAppMessage = defineCommand({
     }
 
     let templateName: string | null = null;
+    let templateLabel: string | null = null;
     let templateParams: string[] | null = null;
     let body: string | null = null;
     if (input.kind === 'text') {
@@ -57,7 +58,7 @@ export const sendWhatsAppMessage = defineCommand({
     } else {
       const w = schema.whatsappTemplates;
       const [template] = await ctx.tx
-        .select({ status: w.status, params: w.params, purpose: w.purpose })
+        .select({ status: w.status, params: w.params, purpose: w.purpose, label: w.label })
         .from(w)
         .where(
           and(
@@ -85,6 +86,7 @@ export const sendWhatsAppMessage = defineCommand({
         });
       }
       templateName = input.templateName;
+      templateLabel = template.label;
       templateParams = input.params.map(maskMessageText);
     }
 
@@ -131,6 +133,7 @@ export const sendWhatsAppMessage = defineCommand({
       direction: 'outbound' as const,
       kind,
       templateName,
+      templateLabel,
       templateParams,
       body,
       fileId: null,

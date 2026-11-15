@@ -15,13 +15,16 @@ export type WhatsAppThreadHandler = z.infer<typeof WhatsAppThreadHandlerSchema>;
 
 /**
  * Why a thread went to people: the customer's HUMAN (`keyword`), a person's or the customer's
- * request, the output filter refusing the assistant's replies, complaint words.
+ * request, the output filter refusing the assistant's replies, complaint words, or no assistant
+ * answering chats yet (`no_assistant`: a new chat starts with people while
+ * `AGENT_DEFAULTS.concierge.handlesNewThreads` is off).
  */
 export const WHATSAPP_HANDOFF_REASONS = [
   'keyword',
   'request',
   'filter_refusals',
   'complaint',
+  'no_assistant',
 ] as const;
 export const WhatsAppHandoffReasonSchema = z.enum(WHATSAPP_HANDOFF_REASONS);
 export type WhatsAppHandoffReason = z.infer<typeof WhatsAppHandoffReasonSchema>;
@@ -103,6 +106,9 @@ export const WhatsAppTemplateButtonSchema = z
   .strict();
 export type WhatsAppTemplateButton = z.infer<typeof WhatsAppTemplateButtonSchema>;
 
+/** What staff read for a template in the composer and the chat (`whatsapp_templates_label_check`). */
+export const WhatsAppTemplateLabelSchema = z.string().trim().min(1).max(60);
+
 /** What one body value of a template stands for, for the people choosing it. */
 export const WhatsAppTemplateParamSchema = z.string().trim().min(1).max(60);
 
@@ -136,7 +142,8 @@ export const WhatsAppThreadDto = z
   .object({
     id: IdSchema,
     entityId: EntityIdSchema,
-    number: E164Schema,
+    /** Null once the stale-lead anonymisation removed the customer's number. */
+    number: E164Schema.nullable(),
     accountId: IdSchema.nullable(),
     opportunityId: IdSchema.nullable(),
     assigneeId: IdSchema.nullable(),
@@ -162,6 +169,8 @@ export const WhatsAppMessageDto = z
     direction: WhatsAppMessageDirectionSchema,
     kind: WhatsAppMessageKindSchema,
     templateName: WhatsAppTemplateNameSchema.nullable(),
+    /** The template's name for staff, as the Executive registered it. */
+    templateLabel: WhatsAppTemplateLabelSchema.nullable(),
     templateParams: z.array(z.string()).max(20).nullable(),
     body: z.string().max(WHATSAPP_BODY_MAX).nullable(),
     fileId: IdSchema.nullable(),
@@ -182,6 +191,7 @@ export const WhatsAppTemplateDto = z
     id: IdSchema,
     entityId: EntityIdSchema,
     name: WhatsAppTemplateNameSchema,
+    label: WhatsAppTemplateLabelSchema,
     language: WhatsAppTemplateLanguageSchema,
     category: WhatsAppTemplateCategorySchema,
     status: WhatsAppTemplateStatusSchema,
@@ -256,6 +266,8 @@ export const ThreadViewDto = z
     templates: z.array(WhatsAppTemplateDto),
     /** Whether the caller may send on this chat (`messaging.send` over it). */
     canSend: z.boolean(),
+    /** Whether an assistant answers chats yet (`AGENT_DEFAULTS.concierge.handlesNewThreads`). */
+    assistantOn: z.boolean(),
   })
   .strict();
 export type ThreadViewDto = z.infer<typeof ThreadViewDto>;

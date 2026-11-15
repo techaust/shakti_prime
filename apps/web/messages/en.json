@@ -2117,7 +2117,8 @@
         "keyword": "The customer asked for a person",
         "request": "Someone asked for a person",
         "filter_refusals": "The assistant's replies were held back",
-        "complaint": "A complaint"
+        "complaint": "A complaint",
+        "no_assistant": "The team answers every chat for now"
       },
       "whatsappTemplateCategory": {
         "utility": "Updates",
@@ -4518,8 +4519,10 @@
       "sectionTitle": "WhatsApp",
       "none": "No WhatsApp chat with this customer yet.",
       "chatWith": "Chat with {number}",
+      "numberRemoved": "Customer details removed",
       "assistant": "The assistant answers",
       "people": "The team answers",
+      "peopleOnly": "Your team answers every WhatsApp chat. No assistant replies to customers yet.",
       "optedOut": "Stopped WhatsApp messages",
       "windowOpen": "Replies can be typed freely until <time>{when}</time>.",
       "windowClosed": "The customer last wrote more than 24 hours ago. Send an approved template.",
@@ -4532,6 +4535,7 @@
       "fromCustomer": "Customer",
       "fromSystem": "Sent automatically",
       "template": "Template: {name}",
+      "templateUnnamed": "a template no longer listed",
       "templateValues": "Filled in: {values}",
       "mediaNotKept": "The customer sent something this chat cannot show.",
       "file": "File from the customer",
