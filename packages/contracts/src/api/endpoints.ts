@@ -435,7 +435,8 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MessagingSendJob,
     response: MessagingSendResult,
-    errors: WORKER_ERRORS,
+    // `rate_limited` for a chat over its hourly limit, delivered again later.
+    errors: [...WORKER_ERRORS, 'rate_limited'],
   },
   'workers.pdf.render': {
     method: 'POST',

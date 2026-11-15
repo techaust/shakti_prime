@@ -59,6 +59,7 @@ describe('workshop defaults', () => {
             'stop',
             'unsubscribe',
             'stop all',
+            'stop promotions',
             'band karo',
             'band kar do',
             'mat bhejo',

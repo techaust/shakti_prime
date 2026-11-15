@@ -58,7 +58,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `calling.nurtureCallDays` | 7, 30, 90 |
 | `calling.logGraceMinutes` | 15 |
 | `calling.dndFreshDays` | 7 |
-| `whatsapp.keywords.stop` | stop, unsubscribe, stop all, band karo, band kar do, mat bhejo, message mat bhejo |
+| `whatsapp.keywords.stop` | stop, unsubscribe, stop all, stop promotions, band karo, band kar do, mat bhejo, message mat bhejo |
 | `whatsapp.keywords.human` | human, agent, person, talk to a person, insaan, insaan se baat, kisi se baat karni hai |
 | `whatsapp.keywords.status` | status, order status, mera order |
 | `whatsapp.marketingHoldShare` | 0.8 |

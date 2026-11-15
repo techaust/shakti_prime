@@ -623,11 +623,14 @@ describe('the messaging worker', () => {
       { name: 'messaging.thread' },
     );
     expect(view.assistantOn).toBe(false);
-    expect(view.messages.find((m) => m.id === queued?.id)).toMatchObject({
-      status: 'failed',
-      sentByName: null,
-      templateLabel: expect.any(String),
-    });
+    const shown = view.messages.find((m) => m.id === queued?.id);
+    expect(shown).toMatchObject({ status: 'failed', sentByName: null });
+    expect(shown?.templateLabel).toEqual(
+      (await asMigrator(
+        (m) => m<{ label: string }[]>`select label from whatsapp_templates
+                                       where entity_id = 1 and name = ${welcome}`,
+      ))[0]?.label,
+    );
   });
 
   it('records a timeout as failed and never sends the message again', async () => {
