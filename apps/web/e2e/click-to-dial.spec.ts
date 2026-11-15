@@ -105,7 +105,17 @@ test.describe('click-to-dial as a tele-caller', () => {
     await expect(status).toContainText('0:03');
     await expect(bar.getByText('The call has ended. Choose its outcome to save it.')).toBeVisible();
     await expectNoAxeViolations(page);
+    // The viewport only: the timeline below grows with every call the journeys log on this database,
+    // and the queue (masked) grows with every lead they add, so its box is held at one height.
+    await page.getByRole('region', { name: 'Queue' }).evaluate((el) => {
+      Object.assign((el as HTMLElement).style, { height: '320px', overflow: 'hidden' });
+    });
+    // The call bar in the middle of the viewport, so each run pictures the same part of the page.
+    await bar.evaluate((el) => {
+      el.scrollIntoView({ block: 'center' });
+    });
     await snap(page, 'call-bar-ended', {
+      fullPage: false,
       mask: [
         page.getByRole('region', { name: 'Queue' }),
         page.getByRole('searchbox', { name: /Find a lead/ }),
