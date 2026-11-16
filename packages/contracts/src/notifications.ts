@@ -27,7 +27,9 @@ const Count = z.number().int().min(0);
  *   (to the company's General Manager, criterion 2);
  * - `enquiry_routed`: an enquiry for a customer you look after was passed to you;
  * - `order_credit_held`: a dealer's order was held by the credit check, for the Executive who may
- *   release it and the person who made the order (SAL-07).
+ *   release it and the person who made the order (SAL-07);
+ * - `whatsapp_reply_waiting`: a WhatsApp chat handed to people has waited 10 minutes in calling
+ *   hours for a reply, for the person who looks after the customer (docs/03-roadmap-appendix/phase2.md §6.1).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -37,6 +39,7 @@ export const NOTICE_TYPES = [
   'first_call_late',
   'enquiry_routed',
   'order_credit_held',
+  'whatsapp_reply_waiting',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -49,6 +52,7 @@ export const NOTICE_SUBJECT_TYPES = [
   'quote',
   'inbox_item',
   'sales_order',
+  'whatsapp_thread',
 ] as const;
 export const NoticeSubjectTypeSchema = z.enum(NOTICE_SUBJECT_TYPES);
 export type NoticeSubjectType = z.infer<typeof NoticeSubjectTypeSchema>;

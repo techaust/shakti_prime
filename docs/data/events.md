@@ -20,6 +20,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [Files](#files)
   - [print](#print)
   - [knowledge](#knowledge)
+  - [messaging](#messaging)
   - [calls](#calls)
   - [sales](#sales)
 - [Payloads](#payloads)
@@ -47,7 +48,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-51 types, 11 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+54 types, 12 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -127,7 +128,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck`, `files.file.continue_check` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
+| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck`, `files.file.continue_check`, `messaging.media.attach` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
 
 ### print
 
@@ -141,6 +142,14 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 |---|---|---|---|
 | [`knowledge.file.index_requested`](#knowledgefileindex_requested) | A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, when indexed again, or when a recording’s transcript is corrected. | `knowledge.file.add`, `knowledge.file.reindex`, `knowledge.transcript.correct`, `files.file.mark_ready` | `POST /api/v1/workers/outbox/knowledge.file.index_requested` (QStash URL group `evt-knowledge.file.index_requested`) |
 | [`knowledge.playbook.changed`](#knowledgeplaybookchanged) | A Playbook directive was drafted, edited, approved or retired, or a conflict on it was resolved; `recheck` says its wording is new and the conflict check is due. | `knowledge.playbook.draft`, `knowledge.playbook.draft_from_file`, `knowledge.playbook.edit`, `knowledge.playbook.approve`, `knowledge.playbook.retire`, `knowledge.playbook.resolve_conflict` | `POST /api/v1/workers/outbox/knowledge.playbook.changed` (QStash URL group `evt-knowledge.playbook.changed`) |
+
+### messaging
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
+| [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread. | `messaging.inbound.record` | none |
+| [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. | `messaging.inbound.record` | none |
 
 ### calls
 
@@ -410,7 +419,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
@@ -436,6 +445,31 @@ No fields apart from `v`.
 | `change` | one of `drafted`, `edited`, `approved`, `retired`, `conflict_resolved` |
 | `state` | one of `draft`, `approved`, `retired` |
 | `recheck` | true or false |
+
+### messaging.message.requested
+
+| Field | Type |
+|---|---|
+| `messageId` | id |
+| `threadId` | id |
+| `kind` | one of `text`, `template`, `system` |
+
+### messaging.message.received
+
+| Field | Type |
+|---|---|
+| `messageId` | id |
+| `kind` | one of `text`, `media` |
+| `accountId` | id or null |
+| `firstMessage` | true or false |
+
+### messaging.button.pressed
+
+| Field | Type |
+|---|---|
+| `messageId` | id |
+| `accountId` | id or null |
+| `firstMessage` | true or false |
 
 ### calls.dial.completed
 

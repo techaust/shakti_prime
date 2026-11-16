@@ -51,6 +51,12 @@ import {
   INGEST_SOURCE_PROVIDERS,
   CALL_PURPOSE_VALUES,
   PROVIDER_CALL_STATUS_VALUES,
+  WHATSAPP_HANDOFF_REASONS,
+  WHATSAPP_MESSAGE_KINDS,
+  WHATSAPP_TEMPLATE_CATEGORIES,
+  WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_TEMPLATE_STATUSES,
+  WHATSAPP_THREAD_HANDLERS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CONTRASTS,
@@ -495,6 +501,30 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'channelKind':
         return oneOf(ENTITY_CHANNEL_KINDS, value)
           ? t(`values.channelKind.${value}`)
+          : wordsOf(value);
+      case 'whatsappMessageKind':
+        return oneOf(WHATSAPP_MESSAGE_KINDS, value)
+          ? t(`values.whatsappMessageKind.${value}`)
+          : wordsOf(value);
+      case 'whatsappHandler':
+        return oneOf(WHATSAPP_THREAD_HANDLERS, value)
+          ? t(`values.whatsappHandler.${value}`)
+          : wordsOf(value);
+      case 'whatsappHandoffReason':
+        return oneOf(WHATSAPP_HANDOFF_REASONS, value)
+          ? t(`values.whatsappHandoffReason.${value}`)
+          : wordsOf(value);
+      case 'whatsappTemplateCategory':
+        return oneOf(WHATSAPP_TEMPLATE_CATEGORIES, value)
+          ? t(`values.whatsappTemplateCategory.${value}`)
+          : wordsOf(value);
+      case 'whatsappTemplateStatus':
+        return oneOf(WHATSAPP_TEMPLATE_STATUSES, value)
+          ? t(`values.whatsappTemplateStatus.${value}`)
+          : wordsOf(value);
+      case 'whatsappTemplatePurpose':
+        return oneOf(WHATSAPP_TEMPLATE_PURPOSES, value)
+          ? t(`values.whatsappTemplatePurpose.${value}`)
           : wordsOf(value);
       case 'leadChannel':
         return oneOf(INGEST_CHANNELS, value) ? t(`values.leadChannel.${value}`) : wordsOf(value);

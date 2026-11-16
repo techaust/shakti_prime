@@ -372,10 +372,10 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 | CRM-07 | 1 | C2 | `packages/domain/tests/queries/customers.test.ts`, `packages/domain/tests/commands/timeline.test.ts`, `apps/web/e2e/customers.spec.ts`; timing `pnpm --filter @shakti/domain spike:account360` (`docs/04-architecture-appendix/account360.md`) |
 | CRM-08 | 4 | — | State machine: `packages/domain/src/state-machines/machines.test.ts` |
 | CRM-09 | 1, 5 | C3, S2 | The accrual by its rule, its rule bases and its cancel: `packages/domain/src/sales/commission.test.ts`, `packages/domain/tests/commands/orders.test.ts` |
-| CRM-10 | 1, 2 | C2 | `packages/domain/tests/commands/consent.test.ts`, `apps/web/e2e/customers.spec.ts` |
+| CRM-10 | 1, 2 | C2, W1 | `packages/domain/tests/commands/consent.test.ts`, `apps/web/e2e/customers.spec.ts`; WhatsApp opt-out on every path: the WhatsApp suites `packages/db/tests/security/whatsapp.test.ts`, `packages/domain/tests/commands/messaging.test.ts`, `apps/web/tests/whatsapp.test.ts`, `packages/domain/src/messaging/send-checks.test.ts` and `apps/web/e2e/messages.spec.ts` |
 | TEL-01 | 1 | T1 | `packages/domain/tests/commands/calls.test.ts`, `packages/domain/tests/queries/call-queue.test.ts`, `packages/db/tests/security/calls.test.ts`, `apps/web/e2e/calling.spec.ts` |
 | TEL-02 | 1 | T2 | `packages/domain/src/crm/handover.test.ts`, `packages/domain/tests/commands/handover.test.ts`, `packages/db/tests/security/caller-profiles.test.ts`, `apps/web/tests/handover.test.ts` (within 10 seconds of the event), the lock cases of `crm.opportunity.assign`: `packages/domain/tests/commands/opportunity.test.ts`, `packages/domain/src/state-machines/machines.test.ts`, `apps/web/e2e/handover.spec.ts` |
-| TEL-03 | 1, 2 | L1 | The rules: `packages/domain/src/crm/next-best-action.test.ts`; the board's reads: `packages/domain/tests/queries/converting-board.test.ts`, `packages/domain/tests/queries/reader-parity.test.ts`; the keys: `apps/web/src/screens/converting.test.ts`; journey `apps/web/e2e/converting.spec.ts` |
+| TEL-03 | 1, 2 | L1, W1 | The rules: `packages/domain/src/crm/next-best-action.test.ts`; the board's reads: `packages/domain/tests/queries/converting-board.test.ts`, `packages/domain/tests/queries/reader-parity.test.ts`; the keys: `apps/web/src/screens/converting.test.ts`; journey `apps/web/e2e/converting.spec.ts`; the WhatsApp thread beside the lead: `packages/domain/tests/commands/messaging.test.ts`, `apps/web/e2e/messages.spec.ts` |
 | TEL-04 | 2 | — | `packages/domain/src/telecom/dial-policy.test.ts`, `apps/web/src/integrations/exotel/exotel.test.ts` |
 | TEL-05 | 2 | — | — |
 | TEL-06 | 1 | R1 | `packages/domain/src/sales/targets.test.ts`, `packages/domain/tests/commands/targets.test.ts`, `packages/db/tests/security/targets.test.ts`, `apps/web/e2e/targets.spec.ts` |
@@ -393,7 +393,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 | INV-08 | 3 | — | Warranty-claim machine: `packages/domain/src/state-machines/machines.test.ts` |
 | PRJ-01, PRJ-02, PRJ-03 | 4 | — | Project and subsidy-gate machines: `packages/domain/src/state-machines/machines.test.ts` |
 | PRJ-04 to PRJ-07 | 4 | — | — |
-| WA-01, WA-03, WA-04 | 2 | — | `apps/web/src/integrations/whatsapp/whatsapp.test.ts`, `packages/contracts/src/api/webhooks.test.ts` |
+| WA-01, WA-03, WA-04 | 2 | W1 | `apps/web/src/integrations/whatsapp/whatsapp.test.ts`, `packages/contracts/src/api/webhooks.test.ts`; the WhatsApp suites `packages/db/tests/security/whatsapp.test.ts`, `packages/domain/tests/commands/messaging.test.ts`, `apps/web/tests/whatsapp.test.ts`, `packages/domain/src/messaging/send-checks.test.ts` and `apps/web/e2e/messages.spec.ts` |
 | WA-02 | 4 | — | Masking: `apps/web/src/workers/ocr/plan-masks.test.ts`, `apps/web/src/workers/ocr/qr-cover.test.ts`, `packages/domain/src/privacy/identity-numbers.test.ts` |
 | FLD-01 to FLD-03 | 4 | — | Contracts: `packages/contracts/src/api/sync.test.ts`, `packages/contracts/src/api/field.test.ts`, `packages/contracts/src/api/mobile-auth.test.ts` |
 | FIN-01 | 5 | — | Numbering: `packages/domain/tests/numbering/next-document-no.test.ts` |

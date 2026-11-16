@@ -27,6 +27,21 @@ export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
+export { sendWhatsAppMessage } from './commands/messaging/send-message';
+export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
+export { registerWhatsAppTemplate } from './commands/messaging/templates';
+export {
+  attachWhatsAppMedia,
+  claimWhatsAppMessage,
+  matchWhatsAppThread,
+  queueWhatsAppMessage,
+  recordInboundWhatsApp,
+  recordWhatsAppHandOff,
+  recordWhatsAppOptOut,
+  recordWhatsAppSend,
+  recordWhatsAppStatus,
+  recordWhatsAppTemplateStatus,
+} from './commands/messaging/platform';
 export { ingestLead } from './commands/crm/ingest-lead';
 export { setLeadQualification } from './commands/crm/lead-qualification';
 export {
@@ -720,3 +735,31 @@ export {
   readAskConversation,
 } from './queries/knowledge/ask';
 export { checkZipArchive } from './imports/zip-guard';
+export {
+  listAccountThreads,
+  listWaitingThreads,
+  readSendFacts,
+  readWhatsAppCounts,
+  readWhatsAppThread,
+  threadMessagesSql,
+  waitingThreadsSql,
+  whatsappChannelEntity,
+  whatsappTemplateEntities,
+  type SendFactsRow,
+} from './queries/messaging/whatsapp';
+export { matchKeyword, type WhatsAppKeyword } from './messaging/keywords';
+export { filterOutbound, type OutputFilterReason } from './messaging/output-filter';
+export {
+  decideSend,
+  DEFAULT_SEND_RULES,
+  type SendBudget,
+  type SendDecision,
+  type SendFacts,
+} from './messaging/send-checks';
+export {
+  noteConversation,
+  budgetFor,
+  messagingHealth,
+  recordQuality,
+  tierLimit,
+} from './messaging/budget';

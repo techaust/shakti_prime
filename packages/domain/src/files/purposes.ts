@@ -12,11 +12,13 @@ import type { PermissionByInput, Requirement } from '../command/define-command';
  * `company` lets every principal of the company read it (a logo and a letterhead print on every
  * document); `vault` reads it with its Knowledge Vault file, by that file's sensitivity, and its
  * uploader while they hold `knowledge.vault.write` (the policy `files_knowledge_read`), so the
- * general rule of `app.file_purpose_grant()` names nothing for it; null hides it from every request.
+ * general rule of `app.file_purpose_grant()` names nothing for it; `thread` reads it with the
+ * WhatsApp message it came on, under its thread's rule (`files_whatsapp_read`); null hides it from
+ * every request.
  */
 export interface FilePurposeRule {
   write: Requirement | null;
-  read: PermissionKey | 'company' | 'vault' | null;
+  read: PermissionKey | 'company' | 'vault' | 'thread' | null;
 }
 
 const needs = (permission: PermissionKey, minScope: Scope): Requirement => ({
@@ -47,12 +49,14 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   // through `calls.recording.play`, which checks `calls.recording.listen` and audits each listen;
   // no request uploads or opens it as a file.
   call_recording: { write: null, read: null },
+  // A file a customer sent on WhatsApp: stored by the platform alone, read with its thread.
+  whatsapp_media: { write: null, read: 'thread' },
 };
 
 /** The answer `app.file_purpose_grant(purpose, access)` gives, in its own shape. */
 export function filePurposeGrant(purpose: FilePurpose, access: 'write' | 'read'): string | null {
   const rule = FILE_PURPOSE_RULES[purpose];
-  if (access === 'read') return rule.read === 'vault' ? null : rule.read;
+  if (access === 'read') return rule.read === 'vault' || rule.read === 'thread' ? null : rule.read;
   return rule.write === null ? null : `${rule.write.permission}:${rule.write.minScope}`;
 }
 

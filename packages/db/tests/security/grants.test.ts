@@ -157,6 +157,13 @@ describe('app_user role (docs/05-database.md §3)', () => {
     ask_messages: { i: true, u: false },
     // A profile changes only its settings and presence (column grants, 0125); never deleted.
     caller_profiles: { i: true, u: false },
+    // A thread is written by the platform's definers; a person changes only who answers it and
+    // whether it waits for a reply (column grants, docs/03-roadmap-appendix/phase2.md §6.1). A
+    // message is queued by a person and moved on only by the definers; a template changes only
+    // what it says and carries, never its status (column grants; whatsapp.test.ts).
+    whatsapp_threads: { i: false, u: false },
+    whatsapp_messages: { i: true, u: false },
+    whatsapp_templates: { i: true, u: false },
     // A lead source is written column by column, its sealed Page token never read back; a key
     // keeps its hash and changes only by its revoke (column grants, I1); a lead's facts change
     // only their values.
@@ -509,6 +516,14 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.vault_upload_readable(uuid)',
       // Integration Health's webhook counts and failed rows (P5).
       'app.webhook_health(integer)',
+      // The company of a WhatsApp delivery, and the companies of a template, found before the
+      // handler acts in one company's request (W1).
+      'app.whatsapp_channel_entity(text,text)',
+      // What the messaging worker checks before a send, read before it takes the message (W1).
+      'app.whatsapp_send_facts(uuid)',
+      'app.whatsapp_template_entities(text,text)',
+      // Whether a thread's number opted out, for the thread and the composer (W1).
+      'app.whatsapp_thread_opted_out(uuid)',
     ]);
   });
 

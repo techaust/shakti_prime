@@ -9,6 +9,7 @@ import { PdfDocumentTypeSchema } from '../api/print-documents';
 import { ImportKindSchema } from '../imports/enums';
 import { KNOWLEDGE_PDF_MAX_PAGES, KnowledgeSensitivitySchema } from '../knowledge';
 import { PlaybookDirectiveStateSchema } from '../playbook';
+import { MessageRequested } from '../api/messaging';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 
 /**
@@ -394,7 +395,12 @@ const eventCatalogue = {
   'files.file.uploaded': {
     meaning:
       'An upload landed and waits for its checks; sent again for a file whose checks stalled.',
-    emittedBy: ['files.upload.complete', 'files.file.recheck', 'files.file.continue_check'],
+    emittedBy: [
+      'files.upload.complete',
+      'files.file.recheck',
+      'files.file.continue_check',
+      'messaging.media.attach',
+    ],
     subscribed: true,
     payload: z
       .object({
@@ -467,6 +473,50 @@ const eventCatalogue = {
         change: z.enum(['drafted', 'edited', 'approved', 'retired', 'conflict_resolved']),
         state: PlaybookDirectiveStateSchema,
         recheck: z.boolean(),
+      })
+      .strict(),
+  },
+  /**
+   * A WhatsApp message was queued (docs/03-roadmap-appendix/phase2.md §6.1): delivered as a
+   * `MessagingSendJob` to `/api/v1/workers/messaging/send`, which checks and sends it once. The
+   * aggregate is the thread; the payload is `MessageRequested` (ids and the kind only).
+   */
+  'messaging.message.requested': {
+    meaning:
+      'A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it.',
+    emittedBy: ['messaging.message.send', 'messaging.message.queue'],
+    subscribed: true,
+    payload: MessageRequested,
+  },
+  /**
+   * A customer's WhatsApp message was stored on its thread, once (a repeat emits nothing). The
+   * aggregate is the thread; the Concierge and the notices read the message from the thread.
+   */
+  'messaging.message.received': {
+    meaning:
+      "A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread.",
+    emittedBy: ['messaging.inbound.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        messageId: IdSchema,
+        kind: z.enum(['text', 'media']),
+        accountId: IdSchema.nullable(),
+        firstMessage: z.boolean(),
+      })
+      .strict(),
+  },
+  /** A customer pressed a button of a WhatsApp message; the reply's id is in the stored message. */
+  'messaging.button.pressed': {
+    meaning:
+      "A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message.",
+    emittedBy: ['messaging.inbound.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        messageId: IdSchema,
+        accountId: IdSchema.nullable(),
+        firstMessage: z.boolean(),
       })
       .strict(),
   },
