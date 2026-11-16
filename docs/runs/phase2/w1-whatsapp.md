@@ -159,7 +159,7 @@ Three high findings block the merge; the rest are follow-ups unless the fix is o
 | L5 | low | `apps/web/src/integrations/whatsapp/media.ts:82` | The system access key is sent to whatever `https` address Meta's media answer names. | A changed or wrong answer sends the key elsewhere. | Accept only Meta's media hosts before sending the key. | plausible |
 | L6 | low | `packages/domain/src/workshop-defaults.ts` (`whatsapp.keywords.stop`) | Meta's marketing opt-out quick reply arrives as a button reply reading "Stop promotions", which is not a STOP keyword. | A customer who taps it on a marketing template is not opted out. | Add it to the defaults (and the workshop pack). | plausible |
 | L7 | low | `docs/02-prd.md` §8 | The traceability rows of WA-04, CRM-10 and TEL-03 do not name W1's tests (K2 updated AI-01's). | The PRD trace does not show where W1's acceptance is proved. | Add `apps/web/tests/whatsapp.test.ts`, the db and domain WhatsApp suites, `send-checks.test.ts` and `messages.spec.ts`. | confirmed |
-| L8 | low | `docs/05-database.md:170` | "Since 0171 both carry ..." is change-log wording. | Rule for approved documents. | State what the functions do, with 0171 in the migrations column. | confirmed |
+| L8 | low | `docs/05-database.md` (line 170) | "Since 0171 both carry ..." is change-log wording. | Rule for approved documents. | State what the functions do, with 0171 in the migrations column. | confirmed |
 
 **Checked and sound**
 - `pnpm test:security` through the lock on the slot's Postgres after this head: db 49 files, 1360 passed; domain 84 files, 1152 passed; web 29 files, 369 passed; 4 of 4 tasks.
