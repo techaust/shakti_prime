@@ -6,9 +6,9 @@
 | Worktree | `t3-dial`, slot 3 (Postgres 54333, app 3033), in the lead's cloud VM |
 | Runs on | the lead's cloud session (owner, 14-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
-| Usage | build Opus 5.5 high; 5-hour window 0 % at 07:00 UTC (the owner's reading) |
-| State | building |
-| Next step | the builder's early check |
+| Usage | build Opus 5.5 high; 5-hour window 0 % at 07:00 UTC (the owner's reading); share of the session's requests (agent-usage.py, 14 and 15-11-2026): build 14.5 %, review 1.1 %, all on Opus 5.5 at high |
+| State | merged (#248) on 15-11-2026; dev and staging migrated |
+| Next step | none |
 
 ## Brief
 Read first:
@@ -211,7 +211,7 @@ New in the fix round:
 
 | # | Severity | Finding | State |
 |---|---|---|---|
-| 10 | Low | **The design's Built (T3) record is partly stale.** Its first bullet (`docs/03-roadmap-appendix/phase2.md:273`) still says "0168 to 0171", names the dropped `app.unplaced_provider_calls()` and says the guard "keeps who, whom, line and start", while the phone may now be cleared. The added after-review bullet (line 280) does not correct those words. Confirmed. Fix: in that bullet write "0168 to 0173" and `app.unended_provider_calls()`, and say the phone and CallSid may only be cleared. | open |
+| 10 | Low | **The design's Built (T3) record is partly stale.** Its first bullet (`docs/03-roadmap-appendix/phase2.md` (line 273)) still says "0168 to 0171", names the dropped `app.unplaced_provider_calls()` and says the guard "keeps who, whom, line and start", while the phone may now be cleared. The added after-review bullet (line 280) does not correct those words. Confirmed. Fix: in that bullet write "0168 to 0173" and `app.unended_provider_calls()`, and say the phone and CallSid may only be cleared. | open |
 | 11 | Low | **Exotel's S3 bucket can no longer be served safely.** The old code sent no key to the bucket. Now every listed host gets the account's Basic key, and the check is by host only. If the spike finds recordings on Exotel's S3 bucket (path-style, `s3-ap-southeast-1.amazonaws.com/exotelrecordings/...`, the form the earlier code allowed), adding that shared S3 host to the list would send the key to any bucket on it. S3 also refuses a request with a Basic `Authorization` header, so the copy would fail anyway. Recordings are off today (`Record=false`), so nothing is reached. Plausible (S3's refusal not tried). Fix: keep two lists, hosts that get the key and hosts fetched without it (the bucket, with its path prefix); a redirect never carries the key. | open |
 | 12 | Low | **A save on one lead drops another lead's unsaved dialled call.** `setDialled(undefined)` and the key bump run on any successful save (`calling-screen.tsx:281-284`, `use-call-logging.ts:76-77`). If a caller dials lead B, moves to lead A without saving and saves A, then returning to B the bar is empty and B's log no longer names its provider call. The call stays unlinked, with the screen's start instead of the press time. Confirmed by reading; an unusual sequence. Fix: clear `dialled` and bump the key only when the saved log is the dialled call's lead. | open |
 
