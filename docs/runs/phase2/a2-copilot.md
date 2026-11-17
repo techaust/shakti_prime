@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an AI agent principal, call recordings and transcripts |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | early check |
-| Next step | the lead reads the early check's diff |
+| State | early check passed (lead, 17-11) |
+| Next step | a builder resumes steps 5 to 9 on a fresh slot database |
 
 ## Brief
 Read first:
@@ -91,3 +91,5 @@ Steps 1 to 4 are built and committed with their tests; steps 5 to 9 wait for the
 ## Review
 
 ## Integration
+### Lead's read of the early check, 17-11-2026
+Passed. `app.anonymise_stale_leads()` keeps every line of 0188 and adds the `copilot_notes` delete; `files_purpose_check` keeps every earlier purpose. The `provider_calls_inbound_check` seen once on 54333 is T4's constraint, from outside this worktree; slot 3's database is recreated before steps 5 to 9. The inbox card may show a template's label through one additive summary field; making `agents.note.write` agent-only in `roleMayHold()` is a follow-up, since the insert policy already refuses every writer but the Co-pilot. After T4 merges, `provider_calls.opportunity_id` is nullable: the panel and workers read only dial calls with a lead.
