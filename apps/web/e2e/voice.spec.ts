@@ -30,8 +30,12 @@ declare global {
   }
 }
 
-/** Installs the fake room before the page loads. */
-async function fakeRoom(page: Page): Promise<void> {
+/**
+ * Installs the fake room before the page loads. The session route answers a talk, or, once
+ * `refuseNext()` is called, the day's limit for the next start.
+ */
+async function fakeRoom(page: Page): Promise<{ refuseNext: () => void }> {
+  let refuse = false;
   await page.addInitScript(() => {
     window.voiceSent = [];
     window.voiceMicrophone = [];
@@ -68,8 +72,22 @@ async function fakeRoom(page: Page): Promise<void> {
       });
   });
   const session = '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0e';
-  await page.route('**/api/v1/voice/session', (route) =>
-    route.fulfill({
+  await page.route('**/api/v1/voice/session', (route) => {
+    if (refuse) {
+      refuse = false;
+      return route.fulfill({
+        status: 403,
+        json: {
+          error: {
+            code: 'forbidden',
+            message: 'refused',
+            requestId: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0f',
+            details: { reason: 'voice_cap_reached' },
+          },
+        },
+      });
+    }
+    return route.fulfill({
       json: {
         sessionId: session,
         livekit: {
@@ -79,10 +97,16 @@ async function fakeRoom(page: Page): Promise<void> {
           expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
         },
         bosToken: { token: 'journeys.voice.token', expiresAt: new Date().toISOString() },
-        limits: { minutesRemainingToday: 30, maxSessionMinutes: 15 },
+        // Fewer than the server's own count, so the journey sees the day's minutes read again.
+        limits: { minutesRemainingToday: 20, maxSessionMinutes: 15 },
       },
-    }),
-  );
+    });
+  });
+  return {
+    refuseNext: () => {
+      refuse = true;
+    },
+  };
 }
 
 /** The worker says something in the room. */
@@ -101,7 +125,7 @@ test.describe('as an Executive', () => {
     page,
   }) => {
     test.setTimeout(90_000);
-    await fakeRoom(page);
+    const session = await fakeRoom(page);
     await page.goto('/voice');
     await expect(page.getByRole('heading', { name: 'Talk to Shakti', level: 1 })).toBeVisible();
     await expect(page.getByText('Answer the recording question to start.')).toBeVisible();
@@ -140,7 +164,9 @@ test.describe('as an Executive', () => {
     await expect(page.getByRole('status', { name: 'What Shakti is doing' })).toHaveText('Speaking');
     const captions = page.getByRole('region', { name: 'What was said' });
     await expect(captions.getByRole('listitem')).toHaveCount(2);
-    await expect(live.getByText('12 minutes left today')).toBeVisible();
+    // The talk's own minutes, apart from the day's: 3 of the 20 left today used.
+    await expect(live.getByText('12 minutes left in this talk')).toBeVisible();
+    await expect(page.getByText('17 minutes left today')).toBeVisible();
 
     // An Ask answer's records, each a link to its screen.
     await worker(page, {
@@ -219,19 +245,38 @@ test.describe('as an Executive', () => {
     await expect(draft.getByText('Saved to the Playbook as a draft.')).toBeVisible();
 
     // The worker ends the talk at its time: the form is back, saying why.
+    await worker(page, { type: 'minutes', minutesLeft: 0 });
+    await expect(live.getByText('No time left in this talk')).toBeVisible();
     await worker(page, { type: 'ended', reason: 'time_up' });
     await expect(page.getByText('This talk reached its time.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Start another talk' })).toBeVisible();
     expect(await page.evaluate(() => window.voiceLeft)).toBe(1);
+    // The day's minutes come from the server again (this journey's talks write nothing there),
+    // and the recording question is asked again before the next talk.
+    await expect(page.getByText('30 minutes left today')).toBeVisible();
+    await expect(page.getByLabel('No recording')).not.toBeChecked();
+    await expect(page.getByLabel('Yes, keep a recording')).not.toBeChecked();
+    await expect(start).toBeDisabled();
+    await page.getByLabel('No recording').check();
+    await expect(start).toBeEnabled();
 
     // Another talk, whose connection is lost for good: the page leaves the room and says so.
-    await page.getByRole('button', { name: 'Start talking' }).click();
+    await start.click();
     await expect(live).toBeVisible();
     await page.evaluate(() => {
       window.voiceConnection?.('lost');
     });
     await expect(page.getByText('The connection was lost', { exact: false })).toBeVisible();
     expect(await page.evaluate(() => window.voiceLeft)).toBe(2);
+    await expect(start).toBeDisabled();
+
+    // A start the BOS refuses: the reason, and the recording question asked again.
+    session.refuseNext();
+    await page.getByLabel('Yes, keep a recording').check();
+    await start.click();
+    await expect(page.getByText("You have used today's time for talking to Shakti.")).toBeVisible();
+    await expect(page.getByLabel('Yes, keep a recording')).not.toBeChecked();
+    await expect(start).toBeDisabled();
     await page.goto('/knowledge/playbook');
     await expect(page.getByText(title).first()).toBeVisible();
   });

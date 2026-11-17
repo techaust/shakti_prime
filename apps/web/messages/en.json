@@ -5609,7 +5609,8 @@
       "cards": "Where this comes from",
       "reconnecting": "The connection dropped. Joining the talk again…",
       "soundBlocked": "Your browser has paused Shakti's voice. Turn on sound to hear the answers.",
-      "turnOnSound": "Turn on sound"
+      "turnOnSound": "Turn on sound",
+      "talkMinutesLeft": "{minutes, plural, =0 {No time left in this talk} one {# minute left in this talk} other {# minutes left in this talk}}"
     },
     "drafts": {
       "heading": "Drafts to check",

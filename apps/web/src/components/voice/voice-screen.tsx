@@ -11,6 +11,7 @@ import { Button, cn, Field, Select, Textarea } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { draftDirective } from '../../actions/playbook';
+import { readVoiceToday } from '../../actions/voice';
 import { sourceHref } from '../../screens/ask';
 import { FailureMessage } from '../screens/failure';
 import { signInAfter, useCommand, type CommandFailure } from '../screens/use-command';
@@ -34,7 +35,11 @@ interface Live {
   reconnecting: boolean;
   /** The browser holds Shakti's voice until the person turns sound on. */
   soundBlocked: boolean;
+  /** The minutes left in this talk, as the worker reports them. */
   minutesLeft: number;
+  /** The day's minutes left when the talk started, and the talk's own longest length. */
+  dayMinutesAtStart: number;
+  talkMinutes: number;
   captions: Caption[];
   cards: AskSourceLabelDto[];
   drafts: VoiceDraft[];
@@ -43,10 +48,20 @@ interface Live {
 /** The longest typed question (`VoicePageMessage.text`). */
 const TEXT_MAX = 2000;
 
+/** The day's minutes left during a talk: those at its start, less the talk's minutes so far. */
+export function dayMinutesLeft(
+  live: Pick<Live, 'dayMinutesAtStart' | 'talkMinutes' | 'minutesLeft'>,
+) {
+  return Math.max(0, live.dayMinutesAtStart - (live.talkMinutes - live.minutesLeft));
+}
+
 /**
  * `/voice` (docs/03-roadmap-appendix/phase2.md §7.5): the recording question before each talk,
  * then the listening light, the captions, the cited records of an answer, Teach's drafts with a
- * Save on each, push-to-talk and a text box when the connection is weak, and the minutes left.
+ * Save on each, push-to-talk and a text box when the connection is weak. The minutes left today
+ * and the minutes left in the talk are kept apart: the worker reports the talk's, and the day's
+ * come from the server again after every talk. The recording answer is cleared after every talk
+ * and every failed start, so it is asked before each one.
  */
 export function VoiceScreen({
   setUp,
@@ -67,6 +82,7 @@ export function VoiceScreen({
   const [live, setLive] = useState<Live | undefined>();
   const [ended, setEnded] = useState<EndReason | undefined>();
   const [left, setLeft] = useState(minutesLeft);
+  const [talkLength, setTalkLength] = useState(sessionMaxMinutes);
   const captionId = useRef(0);
   // The room of the talk under way, left when the talk ends or the page closes.
   const roomRef = useRef<VoiceRoom | undefined>(undefined);
@@ -85,6 +101,20 @@ export function VoiceScreen({
     setFailure((previous) => ({ error, attempt: (previous?.attempt ?? 0) + 1 }));
   }
 
+  /** The day's minutes from the server again; the screen keeps what it had if that fails. */
+  async function refreshToday() {
+    const today = await readVoiceToday().catch(() => undefined);
+    if (today?.ok !== true) return;
+    setLeft(today.data.minutesLeft);
+    setTalkLength(today.data.sessionMaxMinutes);
+  }
+
+  /** A start that did not become a talk: the recording question is asked again. */
+  function failStart(error: string) {
+    setRecord(undefined);
+    fail(error);
+  }
+
   /** Leaves the room, if this talk still holds it, and shows the start form with the reason. */
   function finish(room: VoiceRoom, reason: EndReason) {
     if (roomRef.current !== room) return;
@@ -92,6 +122,9 @@ export function VoiceScreen({
     void room.leave();
     setLive(undefined);
     setEnded(reason);
+    // Asked again before the next talk; the day's minutes as the server now counts them.
+    setRecord(undefined);
+    void refreshToday();
   }
 
   function onMessage(room: VoiceRoom, message: VoiceRoomMessage) {
@@ -104,7 +137,6 @@ export function VoiceScreen({
     if (message.type === 'state' && message.state === 'push_to_talk') {
       void room.setMicrophone(false);
     }
-    if (message.type === 'minutes') setLeft(message.minutesLeft);
     setLive((current) => {
       if (current === undefined) return current;
       switch (message.type) {
@@ -152,7 +184,7 @@ export function VoiceScreen({
     setEnded(undefined);
     // A browser that cannot hold a talk: nothing is started on the BOS either.
     if (!voiceSupported()) {
-      fail('voice_browser');
+      failStart('voice_browser');
       return;
     }
     const connector = voiceRoomConnector();
@@ -166,7 +198,8 @@ export function VoiceScreen({
       if (!response.ok) {
         const envelope = (await response.json().catch(() => undefined)) as
           { error?: { code?: string; details?: { reason?: string } } } | undefined;
-        fail(envelope?.error?.details?.reason ?? envelope?.error?.code ?? 'internal');
+        failStart(envelope?.error?.details?.reason ?? envelope?.error?.code ?? 'internal');
+        void refreshToday();
         return;
       }
       const session = (await response.json()) as VoiceSessionResponse;
@@ -174,7 +207,8 @@ export function VoiceScreen({
       try {
         room = await connector(session.livekit);
       } catch {
-        fail('voice_connection');
+        failStart('voice_connection');
+        void refreshToday();
         return;
       }
       roomRef.current = room;
@@ -186,6 +220,8 @@ export function VoiceScreen({
         reconnecting: false,
         soundBlocked: false,
         minutesLeft: session.limits.maxSessionMinutes,
+        dayMinutesAtStart: session.limits.minutesRemainingToday,
+        talkMinutes: session.limits.maxSessionMinutes,
         captions: [],
         cards: [],
         drafts: [],
@@ -208,11 +244,12 @@ export function VoiceScreen({
           roomRef.current = undefined;
           void room.leave();
           setLive(undefined);
-          fail('voice_microphone');
+          failStart('voice_microphone');
+          void refreshToday();
         }
       }
     } catch {
-      fail('voice_connection');
+      failStart('voice_connection');
     } finally {
       setStarting(false);
     }
@@ -226,7 +263,7 @@ export function VoiceScreen({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <p className="text-text-muted text-sm" role="status">
-        {t('minutesLeft', { minutes: left })}
+        {t('minutesLeft', { minutes: live === undefined ? left : dayMinutesLeft(live) })}
       </p>
       {live === undefined ? (
         <StartForm
@@ -234,7 +271,7 @@ export function VoiceScreen({
           mode={mode}
           record={record}
           starting={starting}
-          sessionMaxMinutes={sessionMaxMinutes}
+          sessionMaxMinutes={talkLength}
           noMinutes={left === 0}
           ended={ended}
           failure={failure}
@@ -383,7 +420,7 @@ function LiveTalk({
         </h2>
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-text-muted text-sm">
-            {t('minutesLeft', { minutes: live.minutesLeft })}
+            {t('live.talkMinutesLeft', { minutes: live.minutesLeft })}
           </p>
           <Button variant="secondary" onClick={onEnd}>
             {t('live.end')}
