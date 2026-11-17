@@ -1,5 +1,5 @@
 {
-  "id": "e0f30dca-2ac6-4e1d-8f6e-95c7fbf8c7a2",
+  "id": "fb5cae05-d22f-4db3-a321-f8e9422ed30b",
   "prevId": "3522f6b0-8ee4-44d5-a377-cbe5574b51a2",
   "version": "7",
   "dialect": "postgresql",
@@ -9524,7 +9524,7 @@
       "checkConstraints": {
         "notification_preferences_type_check": {
           "name": "notification_preferences_type_check",
-          "value": "\"notification_preferences\".\"type\" is null or \"notification_preferences\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'missed_call')"
+          "value": "\"notification_preferences\".\"type\" is null or \"notification_preferences\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting')"
         },
         "notification_preferences_quiet_check": {
           "name": "notification_preferences_quiet_check",
@@ -9723,7 +9723,7 @@
       "checkConstraints": {
         "notifications_type_check": {
           "name": "notifications_type_check",
-          "value": "\"notifications\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'missed_call')"
+          "value": "\"notifications\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting')"
         },
         "notifications_subject_type_check": {
           "name": "notifications_subject_type_check",
@@ -12458,7 +12458,7 @@
           "name": "opportunity_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "contact_phone_id": {
           "name": "contact_phone_id",
@@ -12825,14 +12825,6 @@
         "provider_calls_outbound_check": {
           "name": "provider_calls_outbound_check",
           "value": "\"provider_calls\".\"direction\" <> 'outbound' or (\"provider_calls\".\"caller_id\" is not null and \"provider_calls\".\"purpose\" is not null and \"provider_calls\".\"series\" in ('140', '160'))"
-        },
-        "provider_calls_outbound_lead_check": {
-          "name": "provider_calls_outbound_lead_check",
-          "value": "\"provider_calls\".\"direction\" <> 'outbound' or \"provider_calls\".\"opportunity_id\" is not null"
-        },
-        "provider_calls_inbound_check": {
-          "name": "provider_calls_inbound_check",
-          "value": "\"provider_calls\".\"direction\" <> 'inbound' or (\"provider_calls\".\"series\" in ('ivr', 'missed_call') and \"provider_calls\".\"purpose\" is null and (\"provider_calls\".\"series\" <> 'missed_call' or \"provider_calls\".\"opportunity_id\" is not null))"
         },
         "provider_calls_sid_check": {
           "name": "provider_calls_sid_check",
