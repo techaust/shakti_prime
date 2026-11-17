@@ -67,6 +67,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `whatsapp.messagesPerThreadHour` | 20 |
 | `whatsapp.replyWaitMinutes` | 10 |
 | `whatsapp.linkHosts` | none |
+| `whatsapp.promiseWords` | discount, guarantee, gaurantee, free, free of cost, cashback, cash back, lowest price, best price, cheapest, promise, assured, waiver, muft, chhoot, chhut, pakka |
 | `whatsapp.leadPipelineKey` | farmer_pumps |
 | `sizing.hazenWilliamsC.hdpe` | 140 |
 | `sizing.hazenWilliamsC.gi` | 120 |

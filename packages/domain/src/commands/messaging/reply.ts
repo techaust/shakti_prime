@@ -1,9 +1,4 @@
-import {
-  CONCIERGE_ACTION_TYPES,
-  DomainError,
-  SendWhatsAppReplyInput,
-  WhatsAppMessageDto,
-} from '@shakti/contracts';
+import { DomainError, SendWhatsAppReplyInput, WhatsAppMessageDto } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
@@ -22,7 +17,7 @@ import { queueWhatsAppMessage } from './send-message';
  * scope writes no message.
  */
 export const sendWhatsAppReply = defineCommand({
-  name: CONCIERGE_ACTION_TYPES.reply,
+  name: 'messaging.reply.send',
   permission: 'messaging.send',
   minScope: 'own',
   input: SendWhatsAppReplyInput,
@@ -45,7 +40,7 @@ export const sendWhatsAppReply = defineCommand({
           eq(a.id, input.draftedByAgentActionId),
           eq(a.entityId, input.entityId),
           eq(a.agent, 'agent:concierge'),
-          eq(a.actionType, CONCIERGE_ACTION_TYPES.reply),
+          eq(a.actionType, 'messaging.reply.send'),
           eq(a.state, 'proposed'),
         ),
       )

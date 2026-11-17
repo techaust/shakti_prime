@@ -95,6 +95,7 @@ const ACTIONS = {
   'org.channel.archive': 'channelArchive',
   'crm.phone.dnd_record': 'phoneDndRecord',
   'messaging.message.send': 'whatsappSend',
+  'messaging.reply.send': 'whatsappReply',
   'messaging.thread.hand_off': 'whatsappHandOff',
   'messaging.thread.return_to_assistant': 'whatsappReturn',
   'messaging.template.register': 'whatsappTemplateRegister',

@@ -1757,6 +1757,7 @@
       "webhookSweep": "Old messages from other systems cleared out",
       "webhookReplay": "A failed message from another system handled again",
       "whatsappSend": "WhatsApp message sent to a customer",
+      "whatsappReply": "Assistant's WhatsApp reply sent to a customer",
       "whatsappHandOff": "WhatsApp chat taken over by a person",
       "whatsappReturn": "WhatsApp chat given back to the assistant",
       "whatsappTemplateRegister": "WhatsApp message template saved",
@@ -4344,11 +4345,14 @@
       "leadAssign": "Choose who takes a new lead",
       "duplicateSuggest": "Link a repeat enquiry to its open lead",
       "pipelineChoose": "Choose the pipeline of a new lead",
-      "scoreAdjust": "Adjust the score of a new lead"
+      "scoreAdjust": "Adjust the score of a new lead",
+      "whatsappReply": "Reply to a customer on WhatsApp",
+      "qualificationSet": "Record what a lead told us about their needs"
     },
     "fields": {
       "dueAt": "Due",
-      "title": "Note on the task"
+      "title": "Note on the task",
+      "body": "Reply"
     },
     "autonomy": {
       "shadow": "Shadow",

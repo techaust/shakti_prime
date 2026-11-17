@@ -19,6 +19,8 @@ export const ACTION_TYPE_NAMES: Readonly<Record<string, ActionTypeNameKey>> = {
   'crm.duplicate.suggest': 'duplicateSuggest',
   'triage.pipeline.choose': 'pipelineChoose',
   'triage.score.adjust': 'scoreAdjust',
+  'messaging.reply.send': 'whatsappReply',
+  'crm.lead.qualification.set': 'qualificationSet',
 };
 
 /** The name key of an action type, or undefined for one this screen does not know yet. */
@@ -31,7 +33,7 @@ export function actionTypeName(type: string | null): ActionTypeNameKey | undefin
 /** A read-only input's name under `agents.inbox.summary`. */
 export type AgentSummaryNameKey = keyof (typeof en)['agents']['inbox']['summary'];
 
-const FIELD_NAMES: readonly AgentFieldNameKey[] = ['dueAt', 'title'];
+const FIELD_NAMES: readonly AgentFieldNameKey[] = ['dueAt', 'title', 'body'];
 const SUMMARY_NAMES: readonly AgentSummaryNameKey[] = ['assigneeId', 'kind', 'ownerId'];
 
 /** The name key of a read-only input, or undefined for one this screen does not know yet. */

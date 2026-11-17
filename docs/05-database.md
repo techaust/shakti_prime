@@ -90,7 +90,8 @@ flowchart LR
 - `app.role`: role key;
 - `app.permissions`: comma-separated permission keys with scope suffixes, e.g. `crm.lead.read:entity,sales.quote.create:own`; a grant is written with every narrower scope as well, so `finance.cost.read:all` also yields `:entity`, `:team` and `:own` and a policy can check the scope it needs;
 - `app.team_id`: for team-scoped permissions;
-- `app.request_id`.
+- `app.request_id`;
+- `app.agent_thread_id`: the one WhatsApp thread an agent principal's run is bound to (the Concierge, A3), set only for an agent principal and refused for anyone else; empty otherwise. For an agent, the `own` branches of `account_entities_read`, `opportunities_read` and `tasks_read` match the bound thread's customer in its company and its lead (`app.agent_thread_binding()`), and never a row the agent owns; `whatsapp_threads_read` keeps a bound run to its one thread, and `playbook_directives_read` gives it the approved directives for customers; unset, they match nothing.
 
 How the settings behave:
 - `withRequestContext(principal, scope, fn, { readOnly, reader })` sets them all in its first statement.
@@ -237,6 +238,7 @@ The documented exceptions, which check no permission:
 | Function | Why it checks none, and what it answers | Search path | Migration |
 |---|---|---|---|
 | `app.user_grants(user_id)` | Runs before a request context exists (it builds the principal); returns the user's own grants and no secret column | `''` | 0014 (0018, 0021, 0046) |
+| `app.agent_thread_binding()` | Answers only an agent principal (its role key and its principals row) whose run is bound to a thread of a company of the request: that thread's company, customer and lead, read past the thread's own policy, which reads the customer's policy that calls it; nothing otherwise, so the policies fail closed. Granted to `app_user` and `app_reader` | `''` | A3 |
 | `app.webhook_receive(provider, event_id, payload, sha256)` | The webhook routes' only call, as `webhook_receiver`, the one role it is granted to, before any person or company is known: stores a delivery that passed its provider's check once (`on conflict do nothing` on the provider and its event id) and answers the row's id and whether it was a repeat; reads nothing else | `''` | 0161 |
 | `app.request_covers_group()` | Answers only whether the request acts for every active company, which the policies of shared price lists, `tax_rates`, `composite_supply_rules`, the catalogue tables, roles and group tags need and which RLS hides from `app_user` (ADR 0016); executable by `app_user` and `app_reader` (0072) | `''` | 0019 |
 | `app.tag_name_free()` (trigger) | Holds a lock on a tag's name and refuses a name a group tag and a company tag would share, reading every company's tags; no role calls it directly | `''` | 0088 |
