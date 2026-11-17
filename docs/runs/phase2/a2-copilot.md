@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an AI agent principal, call recordings and transcripts |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | building |
-| Next step | the builder's early check |
+| State | early check |
+| Next step | the lead reads the early check's diff |
 
 ## Brief
 Read first:
@@ -43,6 +43,50 @@ Done when: AGENTS §10 holds on the branch; the acceptance lines of §7.3 pass; 
 Not in A2: live recordings (wait for the owner's Exotel notice); the live model's shadow run (final phase).
 
 ## Report
+
+### Early check, 17-11-2026 (the lead's cloud VM, worktree `a2-copilot`, Postgres 54333)
+Steps 1 to 4 are built and committed with their tests; steps 5 to 9 wait for the lead's read of this diff. Skills loaded: `add-table`, `add-command`.
+
+**Built**
+- Table `copilot_notes` (`packages/db/src/schema/copilot-notes.ts`; migrations `0189_copilot_notes` generated, with the widened `agent_runs_filter_reason_check` and `files_purpose_check` added `NOT VALID`, and `0190_copilot_notes_rls` custom): RLS enabled and forced; read with the lead (`copilot_notes_read`, `app_user` and `app_reader`); inserted only when `app.role` is `agent:copilot`, `created_by` is the caller, it holds `agents.note.write:entity`, the lead is in the note's company, the call is of that lead and the outcome is one in use of the group or the company; grants select and insert to `app_user`, select to `app_reader` and `readonly_reporter`; `app.copilot_notes_append_only()` refuses every update and delete except a delete by the stale-lead anonymisation for a lead in its scope. One summary per call (`copilot_notes_call_unique`), indexes on the lead, the action, the outcome and the company's summaries.
+- File purpose `call_transcript` (contracts, `FILE_PURPOSE_RULES` with a new read kind `call`, the schema check, `contract-values.ts`, `en.json`): no request uploads one; read with its provider call through `files_call_transcript_read`, so with the lead; every earlier purpose kept.
+- `app.anonymise_stale_leads()` redefined from 0188 with one added statement: it deletes the leads' Co-pilot notes. Every other line is 0188's.
+- Permission `agents.note.write` (catalogue, `PERMISSION_SCOPES` `entity`, `AGENT_MATRIX` for `agent:copilot`, seed label and empty staff row, SECURITY §3.2 row of dashes so the oracle passes, SECURITY §3.3's Co-pilot row, the role editor's label).
+- Contracts `packages/contracts/src/copilot.ts`: note kinds, `RecordCopilotNoteInput` and `CopilotNoteDto`, `CopilotFactsSchema` (the five measures, no DISCOM number), template occasions, `RequestTemplateInput`, `COPILOT_ACTION_TYPES`; five filter reasons in `AGENT_FILTER_REASONS` with their sentences.
+- Commands: `agents.note.record` (`packages/domain/src/commands/agents/notes.ts`; `agents.note.write` at `entity`, only `agent:copilot`, the filter's text check again, the body masked, a brief at most once an hour per lead under the lead's lock, the call of the same lead, the outcome in use; audit holds the lead, call and kind, never the text) and `messaging.template.request` (`packages/domain/src/commands/messaging/template-request.ts`; `crm.lead.write`, refused to every agent with `people_only`; checks the occasion, the customer's newest chat, the template approved with no blanks, a WhatsApp consent in force, then runs `messaging.message.send` as the person). Both registered and exported; the event catalogue names the second as an emitter of `messaging.message.requested`.
+- Action types (`AGENT_ACTION_TYPES`, between Co-pilot comments): `crm.lead.qualification.set` and `messaging.template.request` beside the existing `crm.task.create`; names on the agents screen, the inbox summary labels, the occasion shown in words, audit names and value labels.
+- `AGENT_DEFAULTS.copilot` (`briefIntervalMinutes: 60`, `quoteNudgeDaysBefore: 2`, each flagged for the owner).
+- Filter `filterCopilotOutput()` (`packages/domain/src/ai/copilot/filter.ts`): one JSON object or nothing; note at most 600 characters with no identity number, contact detail, instruction or link; facts within the fields' bounds and only those that change; an outcome from the offered list; a follow-up with its offset, later than now, inside calling hours, for the lead's owner; a template approved, utility or marketing, not the platform's own, no blanks, on its occasion's day (a nurture day of `WORKSHOP_DEFAULTS.calling.nurtureCallDays`, or two days before a sent quote expires), only with a chat and a consent in force (promotional for marketing).
+- DATABASE §6.9 line, `pnpm db:docs` regenerated.
+
+**Tests added**
+- `packages/domain/src/ai/copilot/filter.test.ts`: 20 unit tests, every rule.
+- `packages/domain/tests/commands/copilot.test.ts`: 13 on real Postgres (denied, wrong company, happy path for both commands; the hour limit; one summary per call; outcome never logged; text kept off the audit row; an Aadhaar number stored with its last four digits; append-only; consent, template, nurture, chat and quote refusals; a suggestion queues nothing until approved, and nothing when rejected).
+- `packages/db/tests/security/copilot-notes.test.ts`: 8 (writers refused, even holding the grant; other company, lead and call refused; read with the lead role by role; no update or delete; the anonymisation's one exception; transcripts read with their call and unattached ones by nobody).
+- `agent-refusals.test.ts`: 9 (every agent and the workers refused both commands; `agents.note.write` the Co-pilot's alone; none of its grants restricted, platform-only, `sales.*`, pricing, `calls.dial` or `calls.recording.listen`).
+- Matrix rules for `copilot_notes` and `call_transcript`, fixture rows per company, `NARROWER`, the enum pair, contract-value pairs, the CRM fixture's clean-up, the anonymisation completeness test now carries a Co-pilot summary with the marker, and the agents screen's settings test lists the three action types.
+
+**Checks**
+- `pnpm test:security` on Postgres 54333: db `54 passed (54)`, `1440 passed (1440)`; domain `91 passed (91)`, `1264 passed (1264)`; web `32 passed (32)`, `402 passed (402)`; `Tasks: 4 successful, 4 total`.
+- Unit: domain `99 passed (99)`, `2564 passed (2564)`; db `158 passed (158)`, web `1095 passed | 1 skipped`, the filter `20 passed (20)`.
+- Typecheck: contracts, db, domain, web clean. ESLint with `--max-warnings 0` on `packages/contracts`, `packages/db`, `packages/domain`, `apps/web/src/screens`, `apps/web/src/components/agents`, `apps/web/src/components/activity`: clean. `pnpm copy-lint`: clean. The whole-repository lint waits for the final check.
+- `EXPLAIN (ANALYZE)`: no list or search yet; the panel's reads come with step 7.
+
+**Open or uncertain**
+- On the third suite run, `enum-sync` once saw a `provider_calls_inbound_check` constraint on my database that no migration of this branch makes (none after it, and none now); the same file and the whole suite passed on the next runs. Something outside this worktree touched port 54333 for a while; the lead may want to check T4's environment.
+- The inbox card shows a template by its registered name (a code), not its label; the summary DTO carries labels only for people. The Co-pilot panel (step 7) shows the label; the inbox card needs the lead's call (a template label in `summaryFields`, a shared file).
+- The qualification proposal's inbox card shows no values (`summary: []`, the facts are nested); the panel will show them. A summary kind for a facts object would change A0's inbox DTO.
+- `agents.note.write` can still be offered by the role editor to a staff role (it is neither platform-only nor Executive-only); the insert policy refuses any writer but `agent:copilot`, so a person given it writes nothing. Making it agent-only needs a change to `roleMayHold()` and `app.role_may_hold()`, which the lead may want as its own decision.
+- Merge points with siblings: `app.anonymise_stale_leads()` is redefined (anyone else redefining it must keep the `copilot_notes` delete); `agent_runs_filter_reason_check` and `files_purpose_check` are widened (A3 and others may widen them too); fixture ids `0x7a`, `0x7b`.
+
+**Decisions the brief did not settle**
+- `messaging.template.request` takes `crm.lead.write` (the Co-pilot's own grant, so the action type passes the holding check) and refuses every agent in its handler; only the approving person sends, under their own `messaging.send`.
+- The Co-pilot proposes only templates with no blanks, so the person approves exactly the words sent; the model never fills template values.
+- A utility template needs a WhatsApp consent in force (service or promotional), a marketing template a promotional one, on the chat's person.
+- The Co-pilot never proposes the DISCOM consumer number (a long number the transcript's masking hides).
+- An answer whose outcome is not offered, or whose facts are out of bounds, loses its note too (`unknown_outcome`, `fact_out_of_bounds`): the filter fails closed.
+- A follow-up title is held to 80 characters and the note's checks.
+- The "instruction" rule for notes is narrower than the Triage agent's (a summary may say the customer will send or pay), and adds links in any form.
 
 ## Review
 
