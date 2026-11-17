@@ -206,6 +206,8 @@ export {
 export {
   liveVoiceSession,
   liveVoiceSessionFacts,
+  voiceToday,
+  type VoiceToday,
   voiceSessionLive,
   voiceSessionNotAfter,
   type VoiceSessionFacts,

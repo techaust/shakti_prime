@@ -43,6 +43,7 @@ export const CLIENT_SCOPES = {
     'users',
   ],
   '/ask': ['ask'],
+  '/voice': ['ask', 'playbook', 'voice'],
   '/calling': ['activity', 'calling', 'common', 'customers', 'leads', 'pipelineSettings', 'sizing'],
   '/catalogue': ['catalogue', 'common'],
   '/converters': ['common', 'converters', 'roles', 'users'],

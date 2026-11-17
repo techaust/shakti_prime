@@ -523,7 +523,8 @@
     "converting": "Converting",
     "messages": "Messages",
     "settingsLeadSources": "Lead sources",
-    "ask": "Ask the Business"
+    "ask": "Ask the Business",
+    "voice": "Talk to Shakti"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -601,7 +602,8 @@
       "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen.",
       "messages": "Answer the WhatsApp chats waiting for a reply from you or your team.",
       "settingsLeadSources": "Connect Facebook, Google and website lead forms, and make website keys.",
-      "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from."
+      "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from.",
+      "voice": "Ask about the business or teach Shakti how you work, by speaking."
     },
     "progress": {
       "period": {
@@ -5564,6 +5566,60 @@
     }
   },
   "voice": {
+    "title": "Talk to Shakti",
+    "intro": "Ask about the business, or teach Shakti how you work, by speaking. Shakti answers aloud and shows what it hears.",
+    "notSetUp": "Talking to Shakti is not set up yet. You can type your questions in Ask the Business for now.",
+    "minutesLeft": "{minutes, plural, =0 {No minutes left today} one {# minute left today} other {# minutes left today}}",
+    "sessionLength": "A talk lasts at most {minutes, plural, one {# minute} other {# minutes}}.",
+    "start": {
+      "heading": "Start a talk",
+      "mode": "What would you like to do?",
+      "ask": "Ask about the business",
+      "askHint": "Shakti answers from the records you can see, and shows where each answer comes from.",
+      "teach": "Teach Shakti how we work",
+      "teachHint": "Shakti asks you questions, then drafts Playbook rules for you to check and save.",
+      "recording": "May Shakti keep a recording of this talk?",
+      "recordingHint": "A recording is kept only for a Teach talk, in the Knowledge Vault, for the Executive only.",
+      "recordYes": "Yes, keep a recording",
+      "recordNo": "No recording",
+      "answerFirst": "Answer the recording question to start.",
+      "startButton": "Start talking",
+      "starting": "Starting the talk…"
+    },
+    "live": {
+      "heading": "Your talk",
+      "light": "What Shakti is doing",
+      "listening": "Listening",
+      "thinking": "Thinking",
+      "speaking": "Speaking",
+      "push_to_talk": "Hold the button to speak",
+      "captions": "What was said",
+      "you": "You",
+      "shakti": "Shakti",
+      "noCaptions": "Start speaking. Your words and Shakti's answers appear here.",
+      "holdToTalk": "Hold to talk",
+      "weakConnection": "The connection is weak. Hold the button to speak, or type below.",
+      "typeLabel": "Type instead",
+      "send": "Send",
+      "makeDrafts": "Make drafts",
+      "end": "End talk",
+      "cards": "Where this comes from"
+    },
+    "drafts": {
+      "heading": "Drafts to check",
+      "intro": "Check each draft. Saving adds it to the Playbook as a draft for the Executive to approve.",
+      "company": "Company",
+      "save": "Save draft",
+      "saved": "Saved to the Playbook as a draft.",
+      "kind": "{type} for {audience}"
+    },
+    "ended": {
+      "time_up": "This talk reached its time.",
+      "day_limit": "Today's time for talking is used up. You can talk again tomorrow.",
+      "ended": "This talk has ended.",
+      "failed": "This talk stopped because something went wrong. Please start again.",
+      "again": "Start another talk"
+    },
     "recording": {
       "fileName": "Teach session {date}.wav",
       "title": "Teach session of {date}"
