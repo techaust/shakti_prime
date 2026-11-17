@@ -891,6 +891,13 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       knowledgeFileId: newId(),
       transcript: 'Refused transcript',
     },
+    // A customer's call to a company's IVR or missed-call number (T4): the platform's record.
+    'calls.inbound_call.record': {
+      entityId: 1,
+      series: 'missed_call',
+      callSid: 'refused-call-sid',
+      from: '+919812345678',
+    },
   };
 
   it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {
