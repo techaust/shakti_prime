@@ -1,4 +1,4 @@
-import { writeWav } from '../src/integrations/voice/recording';
+import { writeWav } from '@shakti/voice';
 import {
   expect,
   expectNoAxeViolations,

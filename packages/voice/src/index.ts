@@ -10,3 +10,4 @@ export * from './sarvam';
 export * from './claude-stream';
 export * from './latency';
 export * from './recorded';
+export * from './recording';

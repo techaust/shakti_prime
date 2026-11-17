@@ -111,6 +111,8 @@ export const VoiceModelDispatch = z
     effort: z.enum(['low', 'medium', 'high']),
     thinking: z.literal('between_tools').nullable(),
     maxTokens: z.number().int().positive().max(64_000),
+    /** Teach's drafting call, which writes directives rather than a spoken sentence. */
+    draftMaxTokens: z.number().int().positive().max(64_000),
     prices: z
       .object({
         input: UsdPerMillion,
@@ -248,11 +250,12 @@ export const VoiceRoomMessage = z.discriminatedUnion('type', [
 export type VoiceRoomMessage = z.infer<typeof VoiceRoomMessage>;
 
 /**
- * What the page sends the worker: a typed question when the network is too weak for speech, and
- * push-to-talk, held while the person speaks.
+ * What the page sends the worker: a typed question when the network is too weak for speech,
+ * push-to-talk, held while the person speaks, and, in Teach, the person's ask for the drafts.
  */
 export const VoicePageMessage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string().trim().min(1).max(2_000) }).strict(),
   z.object({ type: z.literal('push_to_talk'), held: z.boolean() }).strict(),
+  z.object({ type: z.literal('make_drafts') }).strict(),
 ]);
 export type VoicePageMessage = z.infer<typeof VoicePageMessage>;

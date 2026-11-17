@@ -38,7 +38,7 @@ import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
 import { renderMaskedPages } from '../../src/workers/files/pdf-pages';
-import { writeWav } from '../../src/integrations/voice/recording';
+import { writeWav } from '@shakti/voice';
 import { readWordText } from '../../src/workers/knowledge/read-word';
 import { converterKey, CONVERTER_NAME } from '../converting-fixtures';
 import { wordDocument } from '../support/docx';

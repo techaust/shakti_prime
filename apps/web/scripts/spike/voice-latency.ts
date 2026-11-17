@@ -33,7 +33,9 @@ import { SARVAM_PRICE } from '../../src/integrations/voice/benchmark/stand-in-se
 import {
   CLAUDE_TIMEOUT_MS,
   claudeReplyModel,
+  durationMs,
   FIRST_AUDIO_P50_TARGET_MS,
+  readWav,
   recordingFetch,
   recordingSockets,
   runTurn,
@@ -42,12 +44,12 @@ import {
   sarvamSpeech,
   sarvamStreamingStt,
   sarvamStreamingTts,
+  speechEndMs,
   summarize,
   systemClock,
   type TurnTiming,
   webSocketOpener,
 } from '@shakti/voice';
-import { durationMs, readWav, speechEndMs } from '../../src/integrations/voice/recording';
 import { liveKitConfig, liveKitRooms } from '../../src/integrations/voice/livekit';
 import { PRONUNCIATION_CHECKLIST } from '../../src/integrations/voice/pronunciation-checklist';
 import { voiceClaudeConfig } from '../../src/integrations/voice/voice-model';

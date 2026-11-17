@@ -2,12 +2,12 @@ import { costInPaise } from '@shakti/domain';
 import { ProviderError } from '../../http';
 import type {
   Clock,
+  PcmAudio,
   ReplyModel,
   ReplyUsage,
   StreamingSpeechToText,
   StreamingTextToSpeech,
 } from '@shakti/voice';
-import type { PcmAudio } from '../recording';
 import {
   ACCURACY_TARGET,
   characterErrorRate,

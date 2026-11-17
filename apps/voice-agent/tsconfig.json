@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // Node's `fetch`, `WebSocket` and their events are the web platform's types.
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
     "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["src", "vitest.config.ts"]
 }

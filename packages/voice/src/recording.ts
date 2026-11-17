@@ -1,4 +1,4 @@
-import type { SpeechToText, Transcript } from '@shakti/voice';
+import type { SpeechToText, Transcript } from './ports';
 
 /**
  * Whole recordings: a call recording (A2) or a voice note in the vault (K3) is minutes long, and a

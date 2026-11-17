@@ -3,13 +3,15 @@ import { KnowledgeExtractError, type RecordingTranscriber } from '@shakti/domain
 import { ProviderError } from '../../integrations/http';
 import { SARVAM_PRICE } from '../../integrations/voice/benchmark/stand-in-set';
 import type { SpeechPrice } from '../../integrations/voice/benchmark/measures';
-import { sarvamConfig, sarvamSpeech, type SpeechToText } from '@shakti/voice';
 import {
   durationMs,
   readWav,
+  sarvamConfig,
+  sarvamSpeech,
+  type SpeechToText,
   transcribeRecording,
   WAV_MIME_TYPES,
-} from '../../integrations/voice/recording';
+} from '@shakti/voice';
 
 /**
  * The language a vault recording is transcribed in: Hindi, which Sarvam's `translit` mode answers

@@ -42,6 +42,8 @@ export function voiceDispatchModel(): VoiceModelDispatch {
     effort: VOICE_MODEL_SETTINGS.effort,
     thinking: VOICE_MODEL_SETTINGS.thinking ?? null,
     maxTokens: VOICE_MODEL_SETTINGS.maxTokens,
+    // Teach's drafts are written as the Playbook drafts a file's directives (K2).
+    draftMaxTokens: AGENT_DEFAULTS.playbook.draftMaxTokens,
     prices: {
       input: price.input,
       output: price.output,
