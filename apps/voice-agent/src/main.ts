@@ -8,7 +8,7 @@ import {
   systemClock,
 } from '@shakti/voice';
 import { BosClient } from './bos-client';
-import { workerConfig } from './config';
+import { agentCredentials, workerConfig } from './config';
 import { liveKitRoom } from './livekit-room';
 import { askResponder, teachResponder } from './responders';
 import { VoiceSession } from './session';
@@ -78,7 +78,13 @@ export default defineAgent({
 });
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  // The worker's own LiveKit key, never the BOS's (SECURITY §3.4).
+  const credentials = agentCredentials();
   cli.runApp(
-    new ServerOptions({ agent: fileURLToPath(import.meta.url), agentName: VOICE_AGENT_NAME }),
+    new ServerOptions({
+      agent: fileURLToPath(import.meta.url),
+      agentName: VOICE_AGENT_NAME,
+      ...credentials,
+    }),
   );
 }
