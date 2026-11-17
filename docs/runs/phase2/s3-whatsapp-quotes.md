@@ -6,7 +6,7 @@
 | Worktree | `s3-whatsapp-quotes`, slot 1 (Postgres 54331, app 3031), in the lead's cloud VM |
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): money (a quote accepted into an order) and a platform-only grant |
-| Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
+| Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 15 points of it (early check) |
 | State | early check passed (lead, 17-11) |
 | Next step | a builder resumes steps 5 to 9 on a fresh slot database |
 
