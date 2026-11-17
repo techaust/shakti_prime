@@ -1,4 +1,5 @@
 import { newId, VoiceDraft, type AskSourceLabelDto } from '@shakti/contracts';
+import { maskForModel } from '@shakti/contracts/masking';
 import { completeSentences, type ReplyModel, type ReplyTurn } from '@shakti/voice';
 import type { SpokenAnswer } from './bos-client';
 import { DRAFT_SYSTEM, TEACH_SYSTEM } from './prompts';
@@ -68,25 +69,28 @@ export function parseDrafts(text: string): VoiceDraft[] {
 /**
  * Teach: an interview by the model, one short question at a time, keeping the conversation; on
  * the person's tap, the interview drafted as directives the person saves on the screen through
- * `knowledge.playbook.draft` under their own sign-in (never by the worker).
+ * `knowledge.playbook.draft` under their own sign-in (never by the worker). The person's speech is
+ * masked before every model call (SECURITY §3.4, `maskForModel()`, as the BOS masks its own): each
+ * turn as it is sent and kept, and the drafting transcript again as a whole.
  */
 export function teachResponder(model: ReplyModel, drafter: ReplyModel = model): Responder {
   const history: ReplyTurn[] = [];
   return {
     async respond(text, turn) {
-      const reply = await model.reply(TEACH_SYSTEM, text, {
+      const masked = maskForModel(text);
+      const reply = await model.reply(TEACH_SYSTEM, masked, {
         history: history.slice(-TEACH_HISTORY_TURNS),
         onSentence: turn.onSentence,
         signal: turn.signal,
       });
-      history.push({ role: 'user', text }, { role: 'assistant', text: reply.text });
+      history.push({ role: 'user', text: masked }, { role: 'assistant', text: reply.text });
       return { usage: reply.usage };
     },
     async makeDrafts(signal) {
       if (history.length === 0) return { drafts: [] };
-      const transcript = history
-        .map((t) => `${t.role === 'user' ? 'Person' : 'Shakti'}: ${t.text}`)
-        .join('\n');
+      const transcript = maskForModel(
+        history.map((t) => `${t.role === 'user' ? 'Person' : 'Shakti'}: ${t.text}`).join('\n'),
+      );
       const reply = await drafter.reply(DRAFT_SYSTEM, transcript, { signal });
       return { drafts: parseDrafts(reply.text), usage: reply.usage };
     },

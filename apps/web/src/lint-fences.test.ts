@@ -355,4 +355,19 @@ describe('the import fences', { timeout: 60_000 }, () => {
       ),
     ).toEqual([]);
   });
+
+  it('keep the model masking out of pages and components, and open to the server and the worker', async () => {
+    const masking =
+      "import { maskForModel } from '@shakti/contracts/masking';\nexport const x = maskForModel;\n";
+    for (const file of [
+      'apps/web/src/app/(bos)/voice/fence-probe.tsx',
+      'apps/web/src/components/voice/fence-probe.tsx',
+      'apps/web/src/screens/fence-probe.ts',
+    ]) {
+      expect(await fences(file, masking), file).toContain('no-restricted-imports');
+    }
+    expect(await fences(WEB, masking)).toEqual([]);
+    expect(await fences('apps/voice-agent/src/fence-probe.ts', masking)).toEqual([]);
+    expect(await fences('packages/domain/src/privacy/fence-probe.ts', masking)).toEqual([]);
+  });
 });

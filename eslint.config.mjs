@@ -563,7 +563,8 @@ export default tseslint.config(
   },
   {
     // The pages and the components run in the browser, or beside code that does: the vendor
-    // adapters of @shakti/voice (and the vendor keys they read) stay on the server.
+    // adapters of @shakti/voice (and the vendor keys they read) and the model masking of
+    // @shakti/contracts/masking stay on the server.
     files: [
       'apps/web/src/app/**/*.{ts,tsx}',
       'apps/web/src/components/**/*.{ts,tsx}',
@@ -581,6 +582,10 @@ export default tseslint.config(
               name: '@shakti/voice',
               message:
                 'The voice adapters stay on the server; pages and components never load them.',
+            },
+            {
+              name: '@shakti/contracts/masking',
+              message: 'The model masking stays on the server; pages and components never load it.',
             },
           ],
           patterns: webPatternsOutsideAuth,
