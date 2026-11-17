@@ -112,7 +112,15 @@ export default defineConfig({
           command: `next start -p ${port}`,
           url: `${baseURL}/api/v1/health`,
           // The stand-in AI transport, so the Knowledge Vault indexes and searches without a key.
-          env: { BOS_ENVIRONMENT: 'local', AI_TRANSPORT: 'fake' },
+          // LiveKit named with phrases no service accepts, so /voice offers a talk; its journey
+          // answers the session route itself and puts a fake room in the browser (voice.spec.ts).
+          env: {
+            BOS_ENVIRONMENT: 'local',
+            AI_TRANSPORT: 'fake',
+            LIVEKIT_URL: 'wss://livekit.journeys.invalid',
+            LIVEKIT_API_KEY: 'journeys livekit key',
+            LIVEKIT_API_SECRET: 'journeys livekit secret, accepted by no livekit project',
+          },
           reuseExistingServer: process.env.CI === undefined,
           timeout: 120_000,
           stdout: 'pipe',
