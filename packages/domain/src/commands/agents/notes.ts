@@ -121,9 +121,13 @@ export const recordCopilotNote = defineCommand({
         )
         .limit(1);
       if (outcome === undefined) {
-        throw new DomainError('not_found', `outcome ${input.suggestedDispositionId} is not in use`, {
-          reason: 'disposition_missing',
-        });
+        throw new DomainError(
+          'not_found',
+          `outcome ${input.suggestedDispositionId} is not in use`,
+          {
+            reason: 'disposition_missing',
+          },
+        );
       }
     }
 

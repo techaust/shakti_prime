@@ -88,9 +88,7 @@ export const requestTemplate = defineCommand({
     const [thread] = await ctx.tx
       .select({ id: t.id, contactPhoneId: t.contactPhoneId })
       .from(t)
-      .where(
-        and(eq(t.entityId, lead.entityId), eq(t.accountId, lead.accountId), isNotNull(t.waId)),
-      )
+      .where(and(eq(t.entityId, lead.entityId), eq(t.accountId, lead.accountId), isNotNull(t.waId)))
       .orderBy(sql`${t.lastInboundAt} desc nulls last`, desc(t.id))
       .limit(1);
     if (thread === undefined) {
@@ -104,11 +102,7 @@ export const requestTemplate = defineCommand({
       .select({ category: w.category, status: w.status, purpose: w.purpose, params: w.params })
       .from(w)
       .where(
-        and(
-          eq(w.entityId, lead.entityId),
-          eq(w.name, input.templateName),
-          eq(w.language, 'en'),
-        ),
+        and(eq(w.entityId, lead.entityId), eq(w.name, input.templateName), eq(w.language, 'en')),
       )
       .limit(1);
     if (template === undefined) {

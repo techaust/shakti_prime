@@ -933,3 +933,77 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     });
   }
 });
+
+/**
+ * The Caller Co-pilot's commands (A2, docs/03-roadmap-appendix/phase2.md §4, §7.3): only the
+ * Co-pilot records briefs and call summaries (`agents.note.write`, its alone), and no agent queues
+ * the WhatsApp template it proposes; every other agent and the workers are refused. The Co-pilot
+ * holds no cost, price, `sales.*`, `calls.dial`, `calls.recording.listen` or platform-only grant.
+ */
+describe('the Caller Co-pilot’s commands', () => {
+  const byName = commands as Record<string, AnyCommand>;
+  const lead = newId();
+  const COPILOT_INPUTS: Record<string, unknown> = {
+    'agents.note.record': {
+      entityId: 1,
+      opportunityId: lead,
+      kind: 'brief',
+      body: 'Wants a 5 HP pump before sowing.',
+    },
+    'messaging.template.request': {
+      entityId: 1,
+      opportunityId: lead,
+      occasion: 'nurture',
+      templateName: 'refused_template',
+    },
+  };
+
+  it('has a valid input for each, and each is registered', () => {
+    for (const [name, input] of Object.entries(COPILOT_INPUTS)) {
+      expect({ name, valid: byName[name]?.input.safeParse(input).success }).toEqual({
+        name,
+        valid: true,
+      });
+    }
+  });
+
+  for (const role of SERVICES) {
+    it(`${role} is refused both, but the Co-pilot reaches the lead for its note`, async () => {
+      const principal = principalFor(role, [1]);
+      for (const [name, input] of Object.entries(COPILOT_INPUTS)) {
+        const command = byName[name];
+        if (command === undefined) throw new Error(`${name} is not registered`);
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, input),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        // The Co-pilot passes the guard and the checks of its note, then finds no such lead.
+        const expected =
+          role === 'agent:copilot' && name === 'agents.note.record'
+            ? { code: 'not_found', details: { reason: 'lead_missing' } }
+            : { code: 'forbidden' };
+        expect({ role, name, error }).toMatchObject({ role, name, error: expected });
+      }
+    });
+  }
+
+  it('gives agents.note.write to the Co-pilot alone, and the Co-pilot none of the forbidden grants', () => {
+    for (const role of SERVICES) {
+      const holds = grantsOf(role).some((g) => g.key === 'agents.note.write');
+      expect({ role, holds }).toEqual({ role, holds: role === 'agent:copilot' });
+    }
+    const held = AGENT_MATRIX['agent:copilot'].map((g) => g.key);
+    for (const key of held) {
+      expect({ key, forbidden: isRestricted(key) }).toEqual({ key, forbidden: false });
+      expect({ key, platform: PLATFORM_ONLY_PERMISSIONS.includes(key) }).toEqual({
+        key,
+        platform: false,
+      });
+      expect(key.startsWith('sales.') || key === 'pricing.read').toBe(false);
+    }
+    expect(held).not.toContain('calls.dial');
+    expect(held).not.toContain('calls.recording.listen');
+  });
+});

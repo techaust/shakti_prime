@@ -40,11 +40,23 @@ function context(over: Partial<CopilotContext> = {}): CopilotContext {
     ],
     templates: [
       { name: 'checking_in', category: 'utility', approved: true, values: 0, forPlatform: false },
-      { name: 'season_offer', category: 'marketing', approved: true, values: 0, forPlatform: false },
+      {
+        name: 'season_offer',
+        category: 'marketing',
+        approved: true,
+        values: 0,
+        forPlatform: false,
+      },
       { name: 'pending_one', category: 'utility', approved: false, values: 0, forPlatform: false },
       { name: 'with_blanks', category: 'utility', approved: true, values: 1, forPlatform: false },
       { name: 'welcome', category: 'utility', approved: true, values: 0, forPlatform: true },
-      { name: 'login_code', category: 'authentication', approved: true, values: 0, forPlatform: false },
+      {
+        name: 'login_code',
+        category: 'authentication',
+        approved: true,
+        values: 0,
+        forPlatform: false,
+      },
     ],
     whatsapp: { chat: true, consents: { service: true, promotional: false } },
     ...over,
@@ -110,7 +122,8 @@ describe('the note', () => {
   });
 
   it('lets a summary say what the customer will send or pay', () => {
-    const note = 'Customer will send the bill photo and pay the booking amount of Rs 5,000 on Monday.';
+    const note =
+      'Customer will send the bill photo and pay the booking amount of Rs 5,000 on Monday.';
     expect(filterCopilotOutput(answer({ note }), context()).note).toMatchObject({ body: note });
   });
 
@@ -149,8 +162,9 @@ describe('the facts heard', () => {
   });
 
   it('proposes nothing when no fact is new', () => {
-    expect(filterCopilotOutput(answer({ facts: { pumpDepthFt: 200 } }), context()).qualification)
-      .toBeNull();
+    expect(
+      filterCopilotOutput(answer({ facts: { pumpDepthFt: 200 } }), context()).qualification,
+    ).toBeNull();
     expect(filterCopilotOutput(answer({}), context()).qualification).toBeNull();
   });
 
@@ -269,7 +283,9 @@ describe('the WhatsApp template', () => {
     expect(pick({ name: 'checking_in', occasion: 'quote_expiry', quote: 'Q1' })).toMatchObject({
       input: { occasion: 'quote_expiry', quoteId: QUOTE, templateName: 'checking_in' },
     });
-    const tooEarly = [{ label: 'Q1', quoteId: QUOTE, validUntil: new Date(NOW.getTime() + 3 * DAY) }];
+    const tooEarly = [
+      { label: 'Q1', quoteId: QUOTE, validUntil: new Date(NOW.getTime() + 3 * DAY) },
+    ];
     expect(
       pick({ name: 'checking_in', occasion: 'quote_expiry', quote: 'Q1' }, { quotes: tooEarly }),
     ).toEqual({ filtered: 'template_not_allowed' });

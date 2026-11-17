@@ -28,6 +28,7 @@ export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
 export { sendWhatsAppMessage } from './commands/messaging/send-message';
+export { requestTemplate } from './commands/messaging/template-request';
 export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
 export {
@@ -627,6 +628,7 @@ export type { TriageFacts } from './ai/triage/facts';
 export { readTriageFacts } from './ai/triage/read-facts';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
+export { recordCopilotNote } from './commands/agents/notes';
 export {
   approveInboxItem,
   completeInboxItem,

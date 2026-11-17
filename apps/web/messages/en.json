@@ -1710,6 +1710,7 @@
       "quoteExpire": "Quotes past their validity marked as expired",
       "quotePdfAttach": "Quote document attached",
       "agentRunRecord": "Agent run recorded",
+      "copilotNoteRecord": "Co-pilot note added to a lead",
       "inboxApprove": "Suggestion approved",
       "inboxEdit": "Suggestion changed and approved",
       "inboxReject": "Suggestion rejected",
@@ -1763,6 +1764,7 @@
       "webhookSweep": "Old messages from other systems cleared out",
       "webhookReplay": "A failed message from another system handled again",
       "whatsappSend": "WhatsApp message sent to a customer",
+      "whatsappTemplateRequest": "Suggested WhatsApp follow-up sent",
       "whatsappHandOff": "WhatsApp chat taken over by a person",
       "whatsappReturn": "WhatsApp chat given back to the assistant",
       "whatsappTemplateRegister": "WhatsApp message template saved",
@@ -4361,7 +4363,9 @@
       "leadAssign": "Choose who takes a new lead",
       "duplicateSuggest": "Link a repeat enquiry to its open lead",
       "pipelineChoose": "Choose the pipeline of a new lead",
-      "scoreAdjust": "Adjust the score of a new lead"
+      "scoreAdjust": "Adjust the score of a new lead",
+      "qualificationSet": "Record what was heard on a call",
+      "templateRequest": "Send a WhatsApp follow-up"
     },
     "fields": {
       "dueAt": "Due",
@@ -4402,7 +4406,13 @@
       "summary": {
         "assigneeId": "Task for",
         "kind": "Kind of task",
-        "ownerId": "Lead for"
+        "ownerId": "Lead for",
+        "templateName": "WhatsApp message",
+        "occasion": "Sent for"
+      },
+      "occasion": {
+        "nurture": "Follow-up message",
+        "quote_expiry": "Reminder before the quote expires"
       },
       "someone": "Someone you cannot see",
       "dismiss": "Dismiss",

@@ -28,7 +28,10 @@ import { runCommand } from '../../src/command/run-command';
 import { approveInboxItem, rejectInboxItem } from '../../src/commands/agents/inbox';
 import { recordCopilotNote } from '../../src/commands/agents/notes';
 import { recordAgentRun } from '../../src/commands/agents/record-run';
-import { recordInboundWhatsApp, recordWhatsAppTemplateStatus } from '../../src/commands/messaging/platform';
+import {
+  recordInboundWhatsApp,
+  recordWhatsAppTemplateStatus,
+} from '../../src/commands/messaging/platform';
 import { requestTemplate } from '../../src/commands/messaging/template-request';
 import { registerWhatsAppTemplate } from '../../src/commands/messaging/templates';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
@@ -129,7 +132,9 @@ async function chat(lead: CopilotLead): Promise<string> {
 
 async function consent(lead: CopilotLead, purpose: 'service' | 'promotional', withdrawn = false) {
   await asMigrator(
-    (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, withdrawn_at, created_by)
+    (
+      m,
+    ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, withdrawn_at, created_by)
       values (${newId()}, ${lead.contactId}, 'whatsapp', ${purpose}, 'whatsapp_opt_in', 'v1', now() - interval '1 day',
               ${withdrawn ? new Date() : null}, ${lead.owner.id})`,
   );
@@ -139,7 +144,9 @@ async function consent(lead: CopilotLead, purpose: 'service' | 'promotional', wi
 async function providerCall(lead: CopilotLead): Promise<string> {
   const id = newId();
   await asMigrator(
-    (m) => m`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, status, started_at, ended_at, duration_s)
+    (
+      m,
+    ) => m`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, status, started_at, ended_at, duration_s)
       values (${id}, 1, ${lead.opportunityId}, ${lead.phoneId}, ${lead.owner.id}, 'outbound', '140', 'promotional', 'completed', now() - interval '5 minutes', now(), 240)`,
   );
   return id;
@@ -206,9 +213,9 @@ describe('agents.note.record', () => {
       agentPrincipal('agent:concierge', 1),
       workers([1]),
     ]) {
-      expect(await refusal(run(who, recordCopilotNote, brief(lead.opportunityId)))).toMatchObject(
-        { code: 'forbidden' },
-      );
+      expect(await refusal(run(who, recordCopilotNote, brief(lead.opportunityId)))).toMatchObject({
+        code: 'forbidden',
+      });
     }
   });
 
@@ -334,9 +341,7 @@ describe('agents.note.record', () => {
       `update copilot_notes set body = 'changed' where id = '${note.id}'`,
       `delete from copilot_notes where id = '${note.id}'`,
     ]) {
-      await expect(
-        asMigrator((m) => m.unsafe(statement)),
-      ).rejects.toThrow(/append-only/);
+      await expect(asMigrator((m) => m.unsafe(statement))).rejects.toThrow(/append-only/);
     }
   });
 });
@@ -403,9 +408,9 @@ describe('messaging.template.request', () => {
     const withdrawn = await copilotLead('nurture');
     await chat(withdrawn);
     await consent(withdrawn, 'service', true);
-    expect(
-      await refusal(run(withdrawn.owner, requestTemplate, nurture(withdrawn))),
-    ).toMatchObject({ reason: 'whatsapp_consent_missing' });
+    expect(await refusal(run(withdrawn.owner, requestTemplate, nurture(withdrawn)))).toMatchObject({
+      reason: 'whatsapp_consent_missing',
+    });
     await consent(lead, 'service');
     expect(await refusal(run(lead.owner, requestTemplate, nurture(lead, OFFER)))).toMatchObject({
       reason: 'whatsapp_consent_missing',

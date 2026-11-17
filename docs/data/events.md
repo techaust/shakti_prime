@@ -147,7 +147,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
+| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue`, `messaging.template.request` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
 | [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread. | `messaging.inbound.record` | none |
 | [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. | `messaging.inbound.record` | none |
 
@@ -419,7 +419,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested

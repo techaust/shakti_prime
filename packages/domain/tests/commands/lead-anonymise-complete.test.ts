@@ -8,12 +8,14 @@ import { asMigrator, asPrincipal, closeDb, createTestUser, principalFor } from '
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAiProvider } from '../../src/ai/provider';
+import { agentPrincipal } from '../../src/ai/runtime';
 import { runTriage } from '../../src/ai/triage/run-triage';
 import { fakeModelTransport, fakeReply } from '../../src/ai/transport';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { executeCommand } from '../../src/command/execute';
 import { runCommand } from '../../src/command/run-command';
+import { recordCopilotNote } from '../../src/commands/agents/notes';
 import { anonymiseStaleLeads } from '../../src/commands/crm/anonymise-stale-leads';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { addNote, updateContact, upsertSite } from '../../src/commands/crm/customer';
@@ -179,6 +181,14 @@ beforeAll(async () => {
             values (${dialled.call}, ${E}, ${lead.id}, ${phoneRow?.id ?? ''}, ${person.id},
                     'outbound', '160', 'service', ${`exo${MARK}`}, 'completed',
                     now(), now(), 30, ${dialled.recording})`;
+  });
+  // The Caller Co-pilot's summary of that call, the marker in its text (A2).
+  await run(agentPrincipal('agent:copilot', E), recordCopilotNote, {
+    entityId: E,
+    opportunityId: lead.id,
+    kind: 'call_summary',
+    providerCallId: dialled.call,
+    body: `${MARK} wants a 5 HP pump before sowing.`,
   });
 
   // Thirty months on: every moment of the customer and its lead moved back, the triggers that

@@ -166,7 +166,7 @@ function changedFacts(facts: CopilotFacts, context: CopilotContext): CopilotFact
     COPILOT_FACTS.filter((f) => facts[f] !== undefined && facts[f] !== context.current[f]).map(
       (f) => [f, facts[f]],
     ),
-  ) as CopilotFacts;
+  );
 }
 
 function note(answer: Answer, context: CopilotContext): CopilotVerdicts['note'] {
@@ -240,9 +240,7 @@ const DAY_MS = 86_400_000;
 
 /** Whole IST calendar days from `from` to `to`. */
 function istDaysBetween(from: Date, to: Date): number {
-  return Math.round(
-    (Date.parse(istCalendarDate(to)) - Date.parse(istCalendarDate(from))) / DAY_MS,
-  );
+  return Math.round((Date.parse(istCalendarDate(to)) - Date.parse(istCalendarDate(from))) / DAY_MS);
 }
 
 /** Whether the occasion falls today; the quote it is about, for a quote-expiry nudge. */
@@ -283,7 +281,10 @@ function template(answer: Answer, context: CopilotContext): CopilotDecision {
     return refused;
   }
   const { chat, consents } = context.whatsapp;
-  const consented = offered.category === 'marketing' ? consents.promotional : consents.service || consents.promotional;
+  const consented =
+    offered.category === 'marketing'
+      ? consents.promotional
+      : consents.service || consents.promotional;
   if (!chat || !consented) return refused;
   const today = occasionToday(occasion, t.quote, context);
   if (!today.ok) return refused;
