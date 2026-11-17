@@ -276,7 +276,8 @@ describe('who may bind a request to a thread', () => {
   });
 
   it('narrows another agent bound to a thread to that thread alone', async () => {
-    const chief = await createTestPrincipal('agent:chief', [1]);
+    // The seeded Chief of Staff, which reads customers at company scope.
+    const chief = principalFor('agent:chief', [1], { id: AGENT_PRINCIPAL_IDS['agent:chief'] });
     const unbound = await read<{ id: string }>(
       chief,
       undefined,
