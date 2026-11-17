@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): money (a quote accepted into an order) and a platform-only grant |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | building |
-| Next step | the builder's early check |
+| State | early check reported |
+| Next step | the lead reads the early check diff |
 
 ## Brief
 Read first:
@@ -80,7 +80,11 @@ Steps 1 to 4 of the brief, committed and pushed on `feat/s3-whatsapp-quotes`. Sk
 - Changed: `quotes.test.ts` expects the `sales.quote.sent` payload's two new fields (`channel: 'recorded'`, `threadId: null`).
 
 **Checks** (through the lock)
-- CHECKS
+- `pnpm test:security` on Postgres 54331 (it migrates and seeds itself): db 54 files, 1443 passed; domain 91 files, 1258 passed; web 32 files, 402 passed; `Tasks: 4 successful, 4 total` (10 min 23 s). The first whole run found `reader-parity.test.ts` missing the two new reads; fixed in 538e3ff9 and the whole suite run again.
+- Unit tests: contracts 194 passed; db 158 passed (after the DATABASE rows; `data-docs.test.ts` asked for them); domain 2543 passed; web 1097 passed, 1 skipped.
+- Typecheck of `@shakti/contracts`, `@shakti/db`, `@shakti/domain` and `web`: clean.
+- ESLint (`--max-warnings 0`), folder by folder: `packages/contracts/src`, `packages/db/src` and `seeds`, the touched db security tests, `packages/domain/src`, the touched domain tests, `apps/web/src/screens` and `components/activity`: clean. Prettier on every changed file: clean. `pnpm copy-lint`: clean. The whole-repository `pnpm lint` is left for the final check, as the agent file says.
+- `EXPLAIN (ANALYZE)` of STATUS's two reads and the chat lookup, as the definers run them (on the slot's data: 117 quotes, 53 orders): the orders by `sales_orders_account_idx` (Index Scan Backward, Incremental Sort on `created_at`); the chat by `whatsapp_threads_account_idx`; the quotes take a Seq Scan at this size and `quotes_account_idx` (Index Scan Backward, Incremental Sort) once sequential scans are off. Each answers at most five rows.
 
 **Decisions the brief did not settle**
 1. The permission is spelled `sales.quote.accept.remote`, not `sales.quote.accept_remote`: the catalogue's rule (`permissions.test.ts`, `^[a-z]+(\.[a-z]+){1,3}$`) refuses an underscore, and a four-part key has its precedent in `knowledge.vault.read.staff`. The command keeps the name `sales.quote.accept_remote` (command names take underscores). The design's §4 and §7.1 now name the key as built. If the lead prefers the brief's spelling, the catalogue test's rule has to change instead, which I did not do.
@@ -93,7 +97,7 @@ Steps 1 to 4 of the brief, committed and pushed on `feat/s3-whatsapp-quotes`. Sk
 8. The quote's second button is "Talk to us" (`t`), which step 5 answers by handing the chat to people; the brief names two buttons but not the second. The messaging worker will compute the tokens when it sends, so no token is stored.
 9. STATUS lists the five newest quotes (sent, accepted, expired) and the five newest orders of the chat's customer in the company.
 10. Settings maps only the two milestones that have an event in Phase 2 (`WHATSAPP_LIVE_MILESTONES`); the other six are in the table's check and the contracts for later phases.
-11. FRESH
+11. My slot's database: after its first apply I changed 0190 (two columns of `app.remote_quote_facts()`, then the key's spelling), applied the changed functions by hand and set the migration's recorded hash to the file's, so the suites run against what the files say. 0189 and 0190 have not been applied together to an empty database: the lead may want to recreate slot 1's database before steps 5 to 9 to see them apply clean.
 
 **Left for steps 5 to 9**: the `sales.quote.sent`, `sales.quote.accepted`, `sales.order.confirmed` and `messaging.button.pressed` subscribers; the send worker's document header and button payloads; the code held by its hash in Redis; STATUS and the code in the inbound handler with `isHandledByPlatform()`; the `quote_accepted` notice; the screens and journeys; `EXPLAIN (ANALYZE)`; API and the design's "Built (S3)".
 
