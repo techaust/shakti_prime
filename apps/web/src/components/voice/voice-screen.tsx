@@ -9,15 +9,16 @@ import type {
 } from '@shakti/contracts';
 import { Button, cn, Field, Select, Textarea } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { draftDirective } from '../../actions/playbook';
 import { sourceHref } from '../../screens/ask';
 import { FailureMessage } from '../screens/failure';
 import { signInAfter, useCommand, type CommandFailure } from '../screens/use-command';
-import { voiceRoomConnector, type VoiceRoom } from './room';
+import { voiceRoomConnector, voiceSupported, type VoiceConnection, type VoiceRoom } from './room';
 
 type Mode = 'ask' | 'teach';
-type EndReason = Extract<VoiceRoomMessage, { type: 'ended' }>['reason'];
+/** Why a talk ended: the worker's reasons, or the connection lost. */
+type EndReason = Extract<VoiceRoomMessage, { type: 'ended' }>['reason'] | 'lost';
 
 interface Caption {
   id: number;
@@ -29,6 +30,10 @@ interface Live {
   room: VoiceRoom;
   mode: Mode;
   state: VoiceState;
+  /** The room is finding its way back after the network dropped. */
+  reconnecting: boolean;
+  /** The browser holds Shakti's voice until the person turns sound on. */
+  soundBlocked: boolean;
   minutesLeft: number;
   captions: Caption[];
   cards: AskSourceLabelDto[];
@@ -63,6 +68,16 @@ export function VoiceScreen({
   const [ended, setEnded] = useState<EndReason | undefined>();
   const [left, setLeft] = useState(minutesLeft);
   const captionId = useRef(0);
+  // The room of the talk under way, left when the talk ends or the page closes.
+  const roomRef = useRef<VoiceRoom | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      void roomRef.current?.leave();
+      roomRef.current = undefined;
+    },
+    [],
+  );
 
   function fail(error: string) {
     const to = signInAfter(error, window.location.pathname);
@@ -70,19 +85,32 @@ export function VoiceScreen({
     setFailure((previous) => ({ error, attempt: (previous?.attempt ?? 0) + 1 }));
   }
 
-  function onMessage(message: VoiceRoomMessage) {
+  /** Leaves the room, if this talk still holds it, and shows the start form with the reason. */
+  function finish(room: VoiceRoom, reason: EndReason) {
+    if (roomRef.current !== room) return;
+    roomRef.current = undefined;
+    void room.leave();
+    setLive(undefined);
+    setEnded(reason);
+  }
+
+  function onMessage(room: VoiceRoom, message: VoiceRoomMessage) {
+    if (roomRef.current !== room) return;
     if (message.type === 'ended') {
-      setEnded(message.reason);
-      setLive(undefined);
+      finish(room, message.reason);
       return;
     }
+    // A weak connection: the microphone is on only while the hold button is held.
+    if (message.type === 'state' && message.state === 'push_to_talk') {
+      void room.setMicrophone(false);
+    }
+    if (message.type === 'minutes') setLeft(message.minutesLeft);
     setLive((current) => {
       if (current === undefined) return current;
       switch (message.type) {
         case 'state':
           return { ...current, state: message.state };
         case 'minutes':
-          setLeft(message.minutesLeft);
           return { ...current, minutesLeft: message.minutesLeft };
         case 'caption':
           captionId.current += 1;
@@ -101,19 +129,35 @@ export function VoiceScreen({
     });
   }
 
+  function onConnection(room: VoiceRoom, connection: VoiceConnection) {
+    if (roomRef.current !== room) return;
+    if (connection === 'lost') {
+      finish(room, 'lost');
+      return;
+    }
+    setLive((current) =>
+      current === undefined ? current : { ...current, reconnecting: connection === 'reconnecting' },
+    );
+  }
+
+  function onSoundBlocked(room: VoiceRoom, soundBlocked: boolean) {
+    if (roomRef.current !== room) return;
+    setLive((current) => (current === undefined ? current : { ...current, soundBlocked }));
+  }
+
   async function start(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (record === undefined || starting) return;
     setFailure(undefined);
     setEnded(undefined);
+    // A browser that cannot hold a talk: nothing is started on the BOS either.
+    if (!voiceSupported()) {
+      fail('voice_browser');
+      return;
+    }
     const connector = voiceRoomConnector();
     setStarting(true);
     try {
-      // No room in this browser yet: nothing is started on the BOS either.
-      if (window.shaktiVoiceRoom === undefined) {
-        fail('voice_unavailable');
-        return;
-      }
       const response = await fetch('/api/v1/voice/session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -126,31 +170,57 @@ export function VoiceScreen({
         return;
       }
       const session = (await response.json()) as VoiceSessionResponse;
-      const room = await connector(session.livekit);
-      room.onMessage(onMessage);
+      let room: VoiceRoom;
+      try {
+        room = await connector(session.livekit);
+      } catch {
+        fail('voice_connection');
+        return;
+      }
+      roomRef.current = room;
       setLeft(session.limits.minutesRemainingToday);
       setLive({
         room,
         mode,
         state: 'listening',
+        reconnecting: false,
+        soundBlocked: false,
         minutesLeft: session.limits.maxSessionMinutes,
         captions: [],
         cards: [],
         drafts: [],
       });
-      await room.setMicrophone(true);
+      // After the talk is shown: the room hands each handler what came before it.
+      room.onMessage((message) => {
+        onMessage(room, message);
+      });
+      room.onConnection((connection) => {
+        onConnection(room, connection);
+      });
+      room.onSoundBlocked((blocked) => {
+        onSoundBlocked(room, blocked);
+      });
+      try {
+        await room.setMicrophone(true);
+      } catch {
+        // The person said no to the microphone, or the browser has none.
+        if (roomRef.current === room) {
+          roomRef.current = undefined;
+          void room.leave();
+          setLive(undefined);
+          fail('voice_microphone');
+        }
+      }
     } catch {
-      fail('voice_unavailable');
+      fail('voice_connection');
     } finally {
       setStarting(false);
     }
   }
 
-  async function end() {
-    if (live === undefined) return;
-    await live.room.leave();
-    setLive(undefined);
-    setEnded('ended');
+  function end() {
+    const room = roomRef.current;
+    if (room !== undefined) finish(room, 'ended');
   }
 
   return (
@@ -173,7 +243,7 @@ export function VoiceScreen({
           onStart={(e) => void start(e)}
         />
       ) : (
-        <LiveTalk live={live} companies={companies} onEnd={() => void end()} />
+        <LiveTalk live={live} companies={companies} onEnd={end} />
       )}
     </div>
   );
@@ -333,6 +403,22 @@ function LiveTalk({
         />
         <span className="font-medium">{t(`live.${live.state}`)}</span>
       </p>
+      <p role="status" className="text-sm empty:hidden">
+        {live.reconnecting ? t('live.reconnecting') : ''}
+      </p>
+      {live.soundBlocked ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm">{t('live.soundBlocked')}</p>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void live.room.startSound();
+            }}
+          >
+            {t('live.turnOnSound')}
+          </Button>
+        </div>
+      ) : null}
 
       <section aria-label={t('live.captions')} className="flex flex-col gap-2">
         {live.captions.length === 0 ? (

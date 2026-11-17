@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { VoicePageMessage, VoiceRoomMessage } from '@shakti/contracts';
+import type { VoiceConnection } from '../src/components/voice/room';
 import {
   expect,
   expectNoAxeViolations,
@@ -10,10 +11,10 @@ import {
   test,
 } from './support/fixtures';
 
-// Talk to Shakti (docs/03-roadmap-appendix/phase2.md §7.5, PRD AI-03) on a fake room: the
-// browser's LiveKit client waits for the owner's go-ahead, so the page reaches its room through
-// `window.shaktiVoiceRoom`, where this journey puts a room that records what the page sends and
-// lets the test speak as the worker. The session route is answered here too, since no LiveKit
+// Talk to Shakti (docs/03-roadmap-appendix/phase2.md §7.5, PRD AI-03) on a fake room: the page
+// reaches its room through a port, and takes the room installed at `window.shaktiVoiceRoom` in
+// place of LiveKit's. This journey puts a room there that records what the page sends and lets
+// the test speak as the worker and as the network (the LiveKit adapter has its own unit tests). The session route is answered here too, since no LiveKit
 // project serves the journeys; the route and the worker are tested on their own (src/voice,
 // tests/voice-*.test.ts, apps/voice-agent). The Playbook draft is saved for real.
 
@@ -22,6 +23,10 @@ declare global {
     voiceSent?: VoicePageMessage[];
     voiceEmit?: (message: VoiceRoomMessage) => void;
     voiceMicrophone?: boolean[];
+    voiceConnection?: (connection: VoiceConnection) => void;
+    voiceSoundBlocked?: (blocked: boolean) => void;
+    voiceSoundStarted?: number;
+    voiceLeft?: number;
   }
 }
 
@@ -30,10 +35,23 @@ async function fakeRoom(page: Page): Promise<void> {
   await page.addInitScript(() => {
     window.voiceSent = [];
     window.voiceMicrophone = [];
+    window.voiceSoundStarted = 0;
+    window.voiceLeft = 0;
     window.shaktiVoiceRoom = () =>
       Promise.resolve({
         onMessage: (handler: (message: VoiceRoomMessage) => void) => {
           window.voiceEmit = handler;
+        },
+        onConnection: (handler: (connection: VoiceConnection) => void) => {
+          window.voiceConnection = handler;
+        },
+        onSoundBlocked: (handler: (blocked: boolean) => void) => {
+          window.voiceSoundBlocked = handler;
+        },
+        startSound: () => {
+          window.voiceSoundStarted = (window.voiceSoundStarted ?? 0) + 1;
+          window.voiceSoundBlocked?.(false);
+          return Promise.resolve();
         },
         send: (message: VoicePageMessage) => {
           window.voiceSent?.push(message);
@@ -43,7 +61,10 @@ async function fakeRoom(page: Page): Promise<void> {
           window.voiceMicrophone?.push(on);
           return Promise.resolve();
         },
-        leave: () => Promise.resolve(),
+        leave: () => {
+          window.voiceLeft = (window.voiceLeft ?? 0) + 1;
+          return Promise.resolve();
+        },
       });
   });
   const session = '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0e';
@@ -142,9 +163,27 @@ test.describe('as an Executive', () => {
     await expectNoAxeViolations(page);
     await snap(page, 'voice-live');
 
+    // The network drops and comes back; the browser holds Shakti's voice until sound is turned on.
+    await page.evaluate(() => {
+      window.voiceConnection?.('reconnecting');
+    });
+    await expect(page.getByText('The connection dropped.', { exact: false })).toBeVisible();
+    await page.evaluate(() => {
+      window.voiceConnection?.('connected');
+    });
+    await expect(page.getByText('The connection dropped.', { exact: false })).toHaveCount(0);
+    await page.evaluate(() => {
+      window.voiceSoundBlocked?.(true);
+    });
+    await page.getByRole('button', { name: 'Turn on sound' }).click();
+    await expect(page.getByRole('button', { name: 'Turn on sound' })).toHaveCount(0);
+    expect(await page.evaluate(() => window.voiceSoundStarted)).toBe(1);
+
     // A weak connection: push-to-talk and the text box.
     await worker(page, { type: 'state', state: 'push_to_talk' });
     await expect(page.getByText('The connection is weak.', { exact: false })).toBeVisible();
+    // The microphone is off until the hold button is held.
+    await expect.poll(() => page.evaluate(() => window.voiceMicrophone?.at(-1))).toBe(false);
     const hold = page.getByRole('button', { name: 'Hold to talk' });
     await hold.focus();
     await page.keyboard.down('Space');
@@ -183,6 +222,16 @@ test.describe('as an Executive', () => {
     await worker(page, { type: 'ended', reason: 'time_up' });
     await expect(page.getByText('This talk reached its time.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Start another talk' })).toBeVisible();
+    expect(await page.evaluate(() => window.voiceLeft)).toBe(1);
+
+    // Another talk, whose connection is lost for good: the page leaves the room and says so.
+    await page.getByRole('button', { name: 'Start talking' }).click();
+    await expect(live).toBeVisible();
+    await page.evaluate(() => {
+      window.voiceConnection?.('lost');
+    });
+    await expect(page.getByText('The connection was lost', { exact: false })).toBeVisible();
+    expect(await page.evaluate(() => window.voiceLeft)).toBe(2);
     await page.goto('/knowledge/playbook');
     await expect(page.getByText(title).first()).toBeVisible();
   });

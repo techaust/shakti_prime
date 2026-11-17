@@ -422,7 +422,10 @@
     "voice_unavailable": "Talking to Shakti is not set up yet. Type your question in Ask the Business for now.",
     "voice_cap_reached": "You have used today's time for talking to Shakti. You can talk again tomorrow.",
     "voice_session_ended": "This talk with Shakti has ended. Start a new one to go on.",
-    "voice_recording_refused": "This talk with Shakti cannot keep a recording. Only a Teach session you agreed to record keeps one, once."
+    "voice_recording_refused": "This talk with Shakti cannot keep a recording. Only a Teach session you agreed to record keeps one, once.",
+    "voice_browser": "This browser cannot talk to Shakti. Open this page in a recent Chrome, Edge, Firefox or Safari.",
+    "voice_microphone": "Shakti could not use your microphone. Allow the microphone for this site in your browser, then start again.",
+    "voice_connection": "Shakti could not join the talk. Check your network, then start again."
   },
   "auth": {
     "signIn": {
@@ -5603,7 +5606,10 @@
       "send": "Send",
       "makeDrafts": "Make drafts",
       "end": "End talk",
-      "cards": "Where this comes from"
+      "cards": "Where this comes from",
+      "reconnecting": "The connection dropped. Joining the talk again…",
+      "soundBlocked": "Your browser has paused Shakti's voice. Turn on sound to hear the answers.",
+      "turnOnSound": "Turn on sound"
     },
     "drafts": {
       "heading": "Drafts to check",
@@ -5618,6 +5624,7 @@
       "day_limit": "Today's time for talking is used up. You can talk again tomorrow.",
       "ended": "This talk has ended.",
       "failed": "This talk stopped because something went wrong. Please start again.",
+      "lost": "The connection was lost, so this talk ended. Start again when your network is back.",
       "again": "Start another talk"
     },
     "recording": {

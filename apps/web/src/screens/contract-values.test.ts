@@ -51,6 +51,10 @@ import {
   CALL_PURPOSES,
   PROVIDER_CALL_STATUSES,
   VOICE_SESSION_MODES,
+  VOICE_DATA_TOPIC,
+  VOICE_STATES,
+  VOICE_END_REASONS,
+  ASK_SOURCE_KINDS,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
@@ -147,6 +151,10 @@ import {
   CALL_PURPOSE_VALUES,
   PROVIDER_CALL_STATUS_VALUES,
   VOICE_SESSION_MODE_VALUES,
+  VOICE_TOPIC,
+  VOICE_STATE_VALUES,
+  VOICE_END_REASON_VALUES,
+  ASK_SOURCE_KIND_VALUES,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -307,6 +315,10 @@ describe('the contract values copied for the browser', () => {
     expect(CALL_PURPOSE_VALUES).toEqual(CALL_PURPOSES);
     expect(PROVIDER_CALL_STATUS_VALUES).toEqual(PROVIDER_CALL_STATUSES);
     expect(VOICE_SESSION_MODE_VALUES).toEqual(VOICE_SESSION_MODES);
+    expect(VOICE_TOPIC).toBe(VOICE_DATA_TOPIC);
+    expect(VOICE_STATE_VALUES).toEqual(VOICE_STATES);
+    expect(VOICE_END_REASON_VALUES).toEqual(VOICE_END_REASONS);
+    expect(ASK_SOURCE_KIND_VALUES).toEqual(ASK_SOURCE_KINDS);
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);
