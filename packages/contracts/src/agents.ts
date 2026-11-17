@@ -65,7 +65,10 @@ export type AgentActionState = z.infer<typeof AgentActionStateSchema>;
  * Why the deterministic output filter refused what the model proposed (`agent_runs.filter_reason`):
  * an answer that could not be read, a pipeline, candidate or person the run did not offer, a score
  * change outside its bounds, or a text field carrying a phone number, an identity number or an
- * instruction.
+ * instruction. The Concierge's filter (A3) adds a reply that is too long, links outside the
+ * companies' sites, names an amount, share, rating or date nothing it read gives, makes a promise,
+ * cites a rule it was not given, or cites none and is not one of the fixed forms; a callback
+ * outside calling hours; and a qualification fact outside its bounds.
  */
 export const AGENT_FILTER_REASONS = [
   'unreadable_answer',
@@ -76,6 +79,15 @@ export const AGENT_FILTER_REASONS = [
   'text_has_phone',
   'text_has_identity_number',
   'text_has_instruction',
+  // The Concierge (A3).
+  'reply_too_long',
+  'link_not_allowed',
+  'fact_not_grounded',
+  'text_has_promise',
+  'unknown_directive',
+  'reply_not_fixed_form',
+  'callback_outside_hours',
+  'fact_out_of_bounds',
 ] as const;
 export const AgentFilterReasonSchema = z.enum(AGENT_FILTER_REASONS);
 export type AgentFilterReason = z.infer<typeof AgentFilterReasonSchema>;

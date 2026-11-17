@@ -4490,7 +4490,15 @@
       "unknown_person": "It named a person who was not offered",
       "text_has_phone": "Its note had a phone number or contact detail",
       "text_has_identity_number": "Its note had an identity number",
-      "text_has_instruction": "Its note had an instruction or a link"
+      "text_has_instruction": "Its note had an instruction or a link",
+      "reply_too_long": "Its reply was too long",
+      "link_not_allowed": "Its reply linked to a site other than the companies' own",
+      "fact_not_grounded": "Its reply gave an amount, figure or date that nothing it read gave",
+      "text_has_promise": "Its reply made a promise or offer",
+      "unknown_directive": "It named a Playbook rule it was not given",
+      "reply_not_fixed_form": "Its reply named no Playbook rule and was not one of the set replies",
+      "callback_outside_hours": "It asked for a callback outside calling hours",
+      "fact_out_of_bounds": "It gave a qualification fact outside its limits"
     },
     "shadow": {
       "title": "What the Triage agent proposed",

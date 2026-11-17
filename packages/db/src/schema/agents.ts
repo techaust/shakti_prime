@@ -101,7 +101,7 @@ export const agentRuns = pgTable(
     ),
     check(
       'agent_runs_filter_reason_check',
-      sql`${t.filterReason} in ('unreadable_answer', 'unknown_pipeline', 'score_out_of_bounds', 'unknown_candidate', 'unknown_person', 'text_has_phone', 'text_has_identity_number', 'text_has_instruction')`,
+      sql`${t.filterReason} in ('unreadable_answer', 'unknown_pipeline', 'score_out_of_bounds', 'unknown_candidate', 'unknown_person', 'text_has_phone', 'text_has_identity_number', 'text_has_instruction', 'reply_too_long', 'link_not_allowed', 'fact_not_grounded', 'text_has_promise', 'unknown_directive', 'reply_not_fixed_form', 'callback_outside_hours', 'fact_out_of_bounds')`,
     ),
     // A run the output filter stopped names its reason, and only such a run names one. Not-equal
     // tests only, so the enum pairing does not read them as value lists.

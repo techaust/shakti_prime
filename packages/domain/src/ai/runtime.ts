@@ -55,6 +55,12 @@ export interface AgentStep {
   /** The action type the run may propose or take (`AGENT_ACTION_TYPES`). */
   actionType: string;
   /**
+   * The WhatsApp thread the run is bound to (the Concierge, docs/03-roadmap-appendix/phase2.md
+   * §7.2): every transaction of the step carries it, so the agent's `own` scope reads that
+   * thread's customer and lead and nothing else.
+   */
+  threadId?: string;
+  /**
    * The agent's own work: the action it proposes, null for nothing to do, or the reason its own
    * output filter refused what the model proposed (`{ filtered }`), which is recorded as such.
    */
@@ -129,7 +135,11 @@ export async function runAgentStep(step: AgentStep, deps: AgentStepDeps): Promis
   if (earlier !== undefined) return earlier;
 
   const requestId = newId();
-  const scope = { entityIds: [step.entityId], requestId };
+  const scope = {
+    entityIds: [step.entityId],
+    requestId,
+    ...(step.threadId === undefined ? {} : { agentThreadId: step.threadId }),
+  };
   const started = now().getTime();
 
   const config = await executeQuery(

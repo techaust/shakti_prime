@@ -9,6 +9,14 @@ export interface RequestScope {
   /** Entities active for this request. Defaults to every entity the principal may see. */
   entityIds?: readonly number[];
   requestId?: string;
+  /**
+   * The one WhatsApp thread an agent principal's run is bound to (`app.agent_thread_id`,
+   * docs/03-roadmap-appendix/phase2.md §7.2): for an agent, the `own` scope of the lead, customer,
+   * thread and message policies then matches that thread's customer and lead only, and nothing
+   * when it is unset. Set only by the agent runtime for an agent principal; refused for anyone
+   * else, and never taken from a request.
+   */
+  agentThreadId?: string;
 }
 
 export interface RequestContext {
@@ -39,6 +47,9 @@ export interface RequestOptions {
 const READ_ONLY_SETTING = sql`,
         set_config('transaction_read_only', 'on', true)`;
 
+/** A thread id as the binding takes it; anything else is refused before the transaction opens. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 /** Postgres int[] literal for `app.entity_ids`, e.g. `{1,2}`. Empty scope yields `{}`, which denies. */
 export function entityIdsLiteral(entityIds: readonly number[]): string {
   return `{${entityIds.join(',')}}`;
@@ -68,6 +79,10 @@ export async function withRequestContext<T>(
     });
   }
   const requestId = scope.requestId ?? newId();
+  const agentThreadId = scope.agentThreadId ?? '';
+  if (agentThreadId !== '' && (principal.kind !== 'agent' || !UUID.test(agentThreadId))) {
+    throw new DomainError('forbidden', 'only an agent run is bound to a thread');
+  }
   // A request narrowed to one entity acts with the caller's team there, even when the principal
   // was resolved in All-companies mode, where no single team applies (AUDIT M24).
   const only = requested.length === 1 ? requested[0] : undefined;
@@ -87,6 +102,7 @@ export async function withRequestContext<T>(
         set_config('app.permissions', ${serializeGrants(principal.permissions)}, true),
         set_config('app.team_id', ${acting.teamId ?? ''}, true),
         set_config('app.request_id', ${requestId}, true),
+        set_config('app.agent_thread_id', ${agentThreadId}, true),
         set_config('DateStyle', 'ISO, YMD', true)${readOnly ? READ_ONLY_SETTING : sql``}
     `);
     return fn({ principal: acting, entityIds: requested, requestId, tx });
