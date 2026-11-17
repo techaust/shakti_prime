@@ -198,6 +198,14 @@ export { setContrast } from './commands/profile/set-contrast';
 export { deleteView, saveView } from './commands/profile/saved-views';
 export { listSavedViews, toSavedViewDto } from './queries/profile/saved-views';
 export { issueRealtimeToken } from './commands/realtime/issue-token';
+export {
+  recordVoiceSession,
+  refreshVoiceToken,
+  startVoiceSession,
+  voiceSessionLive,
+  voiceSessionNotAfter,
+} from './commands/voice/sessions';
+export { voiceSessionPrincipal } from './auth/voice-principal';
 export { createImportJob } from './commands/imports/create-job';
 export { mapImportJob } from './commands/imports/map-job';
 export { previewImportJob } from './commands/imports/preview-job';

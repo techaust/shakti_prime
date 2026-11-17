@@ -41,7 +41,12 @@ import {
 import { AskInput, AskStreamEvent } from '../ask';
 import { RealtimeTokenRequest, RealtimeTokenResponse } from './realtime';
 import { SyncPullQuery, SyncPullResponse, SyncPushRequest, SyncPushResponse } from './sync';
-import { VoiceSessionRequest, VoiceSessionResponse } from './voice';
+import {
+  VoiceSessionRequest,
+  VoiceSessionResponse,
+  VoiceTokenRequest,
+  VoiceTokenResponse,
+} from './voice';
 import {
   ExotelCallStatusWebhook,
   ExotelIncomingParams,
@@ -200,6 +205,16 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: VoiceSessionRequest,
     response: VoiceSessionResponse,
+    errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // The voice worker's token for its live session, refreshed before it expires.
+  'voice.token': {
+    method: 'POST',
+    path: '/voice/token',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceTokenRequest,
+    response: VoiceTokenResponse,
     errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
   },
   'sync.pull': {

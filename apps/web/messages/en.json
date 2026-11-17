@@ -1782,6 +1782,9 @@
       "callRecordingAttach": "Call recording kept",
       "callRecordingDelete": "Old call recording removed",
       "callRecordingPlay": "Call recording played",
+      "voiceSessionStart": "Talk to Shakti started",
+      "voiceSessionToken": "Talk to Shakti kept going",
+      "voiceSessionRecord": "Talk to Shakti length and spend recorded",
       "callerProfileSetDialPhone": "Own calling phone changed",
       "askRecord": "Question asked in Ask the Business",
       "askDelete": "Ask the Business conversation deleted"
@@ -2136,6 +2139,11 @@
       "endedAt": "Ended",
       "listenedAt": "Played",
       "dialPhone": "Own calling phone",
+      "mode": "Talk to Shakti mode",
+      "consentRecording": "Recording allowed",
+      "minutes": "Minutes",
+      "costPaise": "Spend (paise)",
+      "turns": "Turns spoken",
       "askAnswered": "Answered",
       "citedSources": "Records it points to",
       "unsourcedFigures": "Figures left out because no record shows them",
@@ -2263,6 +2271,10 @@
         "busy": "Line busy",
         "failed": "Did not go through",
         "canceled": "Stopped before answered"
+      },
+      "voiceMode": {
+        "teach": "Teach",
+        "ask": "Ask"
       }
     }
   },
@@ -3663,6 +3675,7 @@
       "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
       "calls_process": "Record how a placed call went and keep its recording",
+      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
       "knowledge_ask": "Ask the Business questions"
     },
     "empty": "There are no roles to show.",

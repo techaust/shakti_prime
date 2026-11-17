@@ -1324,6 +1324,20 @@
       "when": 1794728347417,
       "tag": "0188_whatsapp_fix_round_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 189,
+      "version": "7",
+      "when": 1794919752369,
+      "tag": "0189_voice_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 190,
+      "version": "7",
+      "when": 1794919758476,
+      "tag": "0190_voice_sessions_rls",
+      "breakpoints": true
     }
   ]
 }

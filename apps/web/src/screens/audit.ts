@@ -232,6 +232,9 @@ const ACTIONS = {
   'calls.recording.delete': 'callRecordingDelete',
   'calls.recording.play': 'callRecordingPlay',
   'crm.caller_profile.set_dial_phone': 'callerProfileSetDialPhone',
+  'voice.session.start': 'voiceSessionStart',
+  'voice.session.token': 'voiceSessionToken',
+  'voice.session.record': 'voiceSessionRecord',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -449,6 +452,7 @@ const CODE_GROUPS = [
   'sourceProvider',
   'callPurpose',
   'callStatus',
+  'voiceMode',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -782,6 +786,12 @@ const FIELD_KINDS = [
   ['roofAreaSqFt', 'number'],
   ['sanctionedLoadKw', 'number'],
   ['discomConsumerNo', 'text'],
+  // Talk to Shakti sessions (V2)
+  ['mode', 'voiceMode'],
+  ['consentRecording', 'yesNo'],
+  ['minutes', 'number'],
+  ['costPaise', 'number'],
+  ['turns', 'number'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

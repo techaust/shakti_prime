@@ -72,3 +72,19 @@ export const VoiceTokenClaims = BaseClaims.extend({
   .strict()
   .refine(...expiresWithin(TOKEN_LIFETIMES.voice));
 export type VoiceTokenClaims = z.infer<typeof VoiceTokenClaims>;
+
+/**
+ * `POST /voice/token` (docs/06-api.md §3.1): the voice worker sends its current BOS token as
+ * `Authorization: Bearer` before it expires and gets a new one for the same session, while the
+ * session is live and its person may still use voice. The call carries no fields.
+ */
+export const VoiceTokenRequest = z.object({}).strict();
+export type VoiceTokenRequest = z.infer<typeof VoiceTokenRequest>;
+
+export const VoiceTokenResponse = z
+  .object({
+    token: BosJwtSchema,
+    expiresAt: z.iso.datetime(),
+  })
+  .strict();
+export type VoiceTokenResponse = z.infer<typeof VoiceTokenResponse>;

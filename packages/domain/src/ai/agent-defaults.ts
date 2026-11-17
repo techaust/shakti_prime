@@ -226,6 +226,15 @@ export const AGENT_DEFAULTS = {
     effort: 'low',
     thinking: 'between_tools',
     maxTokens: 400,
+    /**
+     * Each person's limits (question 12 (a), flagged for the owner to confirm): 30 minutes and
+     * ₹200 a day, the day starting at midnight in India, and sessions of at most 15 minutes.
+     * `voice.session.start` refuses a session once either day's limit is reached
+     * (`voice_cap_reached`), and the worker ends one that reaches a limit while it runs.
+     */
+    personDailyMinutes: 30,
+    personDailyCapPaise: 20_000,
+    sessionMaxMinutes: 15,
   },
 
   /**

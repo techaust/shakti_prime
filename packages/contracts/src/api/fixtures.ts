@@ -271,11 +271,18 @@ export const API_FIXTURES: Record<
       livekit: {
         url: 'wss://shakti-prime.livekit.cloud',
         roomName: IDS.voiceSession,
-        participantToken: fixtureJwt('HS256', { sub: `user:${IDS.user}`, exp: ISSUED_AT + 3600 }),
-        expiresAt: '2026-09-27T06:06:40.000Z',
+        participantToken: fixtureJwt('HS256', { sub: `user:${IDS.user}`, exp: ISSUED_AT + 900 }),
+        expiresAt: '2026-09-27T05:21:40.000Z',
       },
       bosToken: { token: fixtureJwt('ES256', VOICE_CLAIMS), expiresAt: '2026-09-27T05:11:40.000Z' },
-      limits: { minutesRemainingToday: 42, maxSessionMinutes: 20 },
+      limits: { minutesRemainingToday: 30, maxSessionMinutes: 15 },
+    },
+  },
+  'voice.token': {
+    request: {},
+    response: {
+      token: fixtureJwt('ES256', VOICE_CLAIMS),
+      expiresAt: '2026-09-27T05:11:40.000Z',
     },
   },
   'sync.pull': {

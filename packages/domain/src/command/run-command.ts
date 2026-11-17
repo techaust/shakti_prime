@@ -100,11 +100,14 @@ export function auditBase(
   AuditRecord,
   'command' | 'actorPrincipalId' | 'actorKind' | 'onBehalfOfUserId' | 'requestId' | 'client'
 > {
+  // A voice session's row names the session as its actor and the speaking person beside it
+  // (docs/07-security.md §3.4); the `audit_logs` insert policy holds a voice request to exactly that.
+  const voice = principal.kind === 'voice_session' ? principal.voiceSessionId : undefined;
   return {
     command,
-    actorPrincipalId: principal.id,
+    actorPrincipalId: voice ?? principal.id,
     actorKind: principal.kind,
-    onBehalfOfUserId: null,
+    onBehalfOfUserId: voice === undefined ? null : principal.id,
     requestId,
     client,
   };
