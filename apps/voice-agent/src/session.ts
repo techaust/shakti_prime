@@ -509,7 +509,8 @@ export class VoiceSession {
     this.stt?.close();
     this.ttsStream?.close();
     const { room, bos, recorder } = this.deps;
-    await room.send({ type: 'ended', reason });
+    // A room already closed (deleted by the BOS) refuses what is sent: the end still runs through.
+    await this.quietly('voice.end_send_failed', () => room.send({ type: 'ended', reason }));
     if (recorder !== undefined && !recorder.empty) {
       try {
         const kept = await bos.uploadRecording(recorder.wav());
@@ -518,9 +519,18 @@ export class VoiceSession {
         this.deps.log?.('voice.recording_failed', { error: String(error) });
       }
     }
-    await room.report(this.report());
+    await this.quietly('voice.end_report_failed', () => room.report(this.report()));
     bos.stop();
-    await room.leave();
+    await this.quietly('voice.end_leave_failed', () => room.leave());
     this.finish();
+  }
+
+  /** Runs a step of the end, logging (never throwing) when the room refuses it. */
+  private async quietly(event: string, step: () => Promise<void>): Promise<void> {
+    try {
+      await step();
+    } catch (error) {
+      this.deps.log?.(event, { error: String(error) });
+    }
   }
 }

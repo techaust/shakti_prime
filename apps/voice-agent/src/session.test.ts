@@ -399,6 +399,27 @@ describe('the end of a session', () => {
     expect(room.left).toBe(false);
   });
 
+  it('runs through when the room has closed under it (deleted by a later start)', async () => {
+    const recorder = new WavRecorder();
+    const { room, session, done, uploads, stopped } = start({
+      meta: { mode: 'teach', consentRecording: true },
+      recorder,
+    });
+    await settle();
+    room.speak(new Int16Array(160).fill(100));
+    await settle();
+    const closed = () => Promise.reject(new Error('the room is closed'));
+    room.send = closed;
+    room.report = closed;
+    room.leave = closed;
+    // The room closing reaches the session as the person leaving.
+    room.personLeaves();
+    await done;
+    expect(session.endReason).toBe('ended');
+    expect(uploads).toHaveLength(1);
+    expect(stopped()).toBe(1);
+  });
+
   it("files a recorded Teach session's audio and reports its file", async () => {
     const recorder = new WavRecorder();
     const { room, session, done, uploads } = start({

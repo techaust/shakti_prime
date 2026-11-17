@@ -83,7 +83,12 @@ export function liveKitRoom(room: Room): RoomPort {
   const leftHandlers: (() => void)[] = [];
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
     if (!isPerson(participant)) return;
-    for (const handler of leftHandlers) handler();
+    for (const handler of leftHandlers.splice(0)) handler();
+  });
+  // The room closed under the worker: the BOS deleted it (a later start ended its session) or
+  // LiveKit closed it. The session ends as when the person leaves.
+  room.on(RoomEvent.Disconnected, () => {
+    for (const handler of leftHandlers.splice(0)) handler();
   });
 
   return {

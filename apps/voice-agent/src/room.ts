@@ -14,7 +14,7 @@ export interface RoomPort {
   onPageMessage(handler: (message: VoicePageMessage) => void): void;
   /** Called once when the person is in the room: at once when they already are. */
   onPersonJoined(handler: () => void): void;
-  /** Called once when the person leaves the room. */
+  /** Called once when the person leaves the room, or the room closes under the worker. */
   onPersonLeft(handler: () => void): void;
   /** Plays one piece of Shakti's speech; resolves once it is queued. */
   play(chunk: SpeechChunk): Promise<void>;
