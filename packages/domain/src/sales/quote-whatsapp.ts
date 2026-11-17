@@ -16,8 +16,7 @@ export type QuoteWhatsAppRefusal =
   | 'whatsapp_quote_template_missing';
 
 export type QuoteWhatsAppReadiness =
-  | { ready: true; threadId: string }
-  | { ready: false; reason: QuoteWhatsAppRefusal };
+  { ready: true; threadId: string } | { ready: false; reason: QuoteWhatsAppRefusal };
 
 /**
  * Whether a quote of the customer `accountId` in company `entityId` can go by WhatsApp, read as the

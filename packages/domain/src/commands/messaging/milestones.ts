@@ -55,7 +55,13 @@ export const setWhatsAppMilestone = defineCommand({
     requireEntity(ctx, input.entityId);
     const w = schema.whatsappTemplates;
     const [template] = await ctx.tx
-      .select({ id: w.id, name: w.name, category: w.category, params: w.params, purpose: w.purpose })
+      .select({
+        id: w.id,
+        name: w.name,
+        category: w.category,
+        params: w.params,
+        purpose: w.purpose,
+      })
       .from(w)
       .where(and(eq(w.id, input.templateId), eq(w.entityId, input.entityId)))
       .limit(1);
@@ -121,7 +127,12 @@ export const setWhatsAppMilestone = defineCommand({
       })
       .returning();
     if (!row) throw new DomainError('internal', 'milestone insert returned no row');
-    ctx.audit({ aggregateType: 'whatsapp_milestone', aggregateId: row.id, entityId: row.entityId, after });
+    ctx.audit({
+      aggregateType: 'whatsapp_milestone',
+      aggregateId: row.id,
+      entityId: row.entityId,
+      after,
+    });
     return toMilestoneDto(row);
   },
 });

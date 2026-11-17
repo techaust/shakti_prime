@@ -761,6 +761,14 @@ export {
   type QuoteWhatsAppRefusal,
 } from './sales/quote-whatsapp';
 export { matchKeyword, type WhatsAppKeyword } from './messaging/keywords';
+export {
+  QUOTE_BUTTON_ACTIONS,
+  quoteButtonToken,
+  quoteButtonTokens,
+  verifyQuoteButtonToken,
+  type QuoteButtonAction,
+  type QuoteButtonAudience,
+} from './messaging/quote-button';
 export { filterOutbound, type OutputFilterReason } from './messaging/output-filter';
 export {
   decideSend,

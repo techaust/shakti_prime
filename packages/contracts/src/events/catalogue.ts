@@ -549,7 +549,7 @@ const eventCatalogue = {
   },
   'sales.quote.sent': {
     meaning:
-      'A quote with its PDF was marked as sent to the customer: recorded as handed over, or to go by the company\'s WhatsApp number on the chat `threadId`.',
+      "A quote with its PDF was marked as sent to the customer: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`.",
     emittedBy: ['sales.quote.send'],
     subscribed: false,
     payload: z

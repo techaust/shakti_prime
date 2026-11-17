@@ -29,7 +29,10 @@ import { failureOf, runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { recordSizing } from '../../src/commands/crm/record-sizing';
 import { setAccountTier } from '../../src/commands/crm/set-account-tier';
-import { sendWhatsAppMilestone, setWhatsAppMilestone } from '../../src/commands/messaging/milestones';
+import {
+  sendWhatsAppMilestone,
+  setWhatsAppMilestone,
+} from '../../src/commands/messaging/milestones';
 import {
   recordInboundWhatsApp,
   recordWhatsAppOptOut,
@@ -182,7 +185,9 @@ async function chatOf(customer: Customer): Promise<string> {
 /** The customer's WhatsApp consent, as a recorded opt-in. */
 async function consentOf(customer: Customer): Promise<void> {
   await asMigrator(
-    (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+    (
+      m,
+    ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
              values (${newId()}, ${customer.contactId}, 'whatsapp', 'service', 'whatsapp_opt_in',
                      's3-test', now(), ${lc.id})`,
   );
@@ -197,7 +202,9 @@ async function draftQuote(customer: Customer, modules = 5): Promise<QuoteDto> {
   });
   const pdf = newId();
   await asMigrator(
-    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
              values (${pdf}, ${E}, 'quote_pdf', 'local', ${`${String(E)}/quote_pdf/${pdf}`}, 'file',
                      'application/pdf', 10, ${'c'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
   );
@@ -230,7 +237,8 @@ function acceptRemote(quoteId: string, threadId: string, who: Principal = worker
 
 async function ordersOf(quoteId: string): Promise<number> {
   const [row] = await asMigrator(
-    (m) => m<{ n: number }[]>`select count(*)::int as n from sales_orders where quote_id = ${quoteId}`,
+    (m) =>
+      m<{ n: number }[]>`select count(*)::int as n from sales_orders where quote_id = ${quoteId}`,
   );
   return row?.n ?? 0;
 }
@@ -377,7 +385,11 @@ describe('messaging.milestone.set (WA-01)', () => {
       isActive: true,
     });
     expect(again).toEqual({ ...first, isActive: true });
-    expect(first).toMatchObject({ entityId: E, milestone: 'order_confirmed', templateId: orderTemplate.id });
+    expect(first).toMatchObject({
+      entityId: E,
+      milestone: 'order_confirmed',
+      templateId: orderTemplate.id,
+    });
   });
 
   it('refuses a template that does not fit the milestone', async () => {
@@ -439,7 +451,9 @@ describe('messaging.milestone.send (WA-01)', () => {
     const sent = await run<WhatsAppMilestoneSent>(workers(), sendWhatsAppMilestone, input);
     expect(sent).toMatchObject({ outcome: 'queued', threadId });
     const [message] = await asMigrator(
-      (m) => m<{ template_name: string; template_params: string[]; file_id: string; status: string }[]>`
+      (m) => m<
+        { template_name: string; template_params: string[]; file_id: string; status: string }[]
+      >`
         select template_name, template_params, file_id, status from whatsapp_messages
          where id = ${sent.messageId ?? ''}`,
     );
@@ -594,7 +608,9 @@ describe('sales.quote.accept_remote (SAL-05)', () => {
     const person = await whatsappQuote();
     const signed = newId();
     await asMigrator(
-      (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+      (
+        m,
+      ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
                values (${signed}, ${E}, 'signed_quote', 'local', ${`${String(E)}/signed_quote/${signed}`},
                        'file', 'image/jpeg', 10, ${'c'.repeat(64)}, 'ready', ${lc.id})`,
     );
@@ -642,7 +658,8 @@ describe('sales.quote.accept_remote (SAL-05)', () => {
   it('accepts nothing for a lapsed quote or a chat of another customer', async () => {
     const lapsed = await whatsappQuote();
     await asMigrator(
-      (m) => m`update quotes set valid_until = now() - interval '1 minute' where id = ${lapsed.quote.id}`,
+      (m) =>
+        m`update quotes set valid_until = now() - interval '1 minute' where id = ${lapsed.quote.id}`,
     );
     expect(
       await failure(workers(), acceptQuoteRemote, {

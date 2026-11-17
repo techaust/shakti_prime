@@ -168,7 +168,9 @@ describe('the milestone tables', () => {
     expect(await failure(insert(concierge, template))).toMatch(/row-level security|permission/);
     expect(await failure(insert(workers([1]), template))).toMatch(/row-level security/);
     // The template of another company is refused by the key, whoever asks.
-    expect(await failure(insert(exec1, other, 'installed'))).toMatch(/whatsapp_milestones_template_fk/);
+    expect(await failure(insert(exec1, other, 'installed'))).toMatch(
+      /whatsapp_milestones_template_fk/,
+    );
   });
 });
 
@@ -267,7 +269,9 @@ describe('app.accept_quote_remote()', () => {
     const [done] = await accept(workers([1]), 1, quote, thread);
     expect(done?.result).toEqual({ lineCount: 1, withdrawn: [{ id: other, state: 'draft' }] });
     const [row] = await asMigrator(
-      (m) => m<{ state: string; accepted_via: string; orders: number; lines: number; other: string }[]>`
+      (m) => m<
+        { state: string; accepted_via: string; orders: number; lines: number; other: string }[]
+      >`
         select q.state, q.accepted_via,
                (select count(*)::int from sales_orders so where so.quote_id = q.id) as orders,
                (select count(*)::int from sales_order_lines l
