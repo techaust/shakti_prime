@@ -11,6 +11,7 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 ## Phase 2
 
 ### Phase 2 wave 3
+
 - **#253** (17-11-2026) Production libraries: the AWS SDK clients 3.1168.0, `@sentry/nextjs` 11.12.0, `@upstash/qstash` 2.12.2, `better-auth` 1.7.22, `jose` 6.2.17, `lucide-react` 1.72.0, `next` 16.4.6, `next-intl` 4.15.1, `dotenv` 18.0.10, `postgres` 4.1.1, `@anthropic-ai/sdk` 1.8.0 and `papaparse` 5.7.1 (Dependabot); its first runs had tested a base from before W1, whose screenshot baseline had since changed, and passed once `main` was taken in.
 
 ### Phase 2 wave 2
