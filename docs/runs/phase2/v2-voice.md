@@ -8,7 +8,7 @@
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an agent principal acting as a person, a platform-only grant, spend caps |
 | Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 37 points of it (the whole build) |
 | State | built, for review |
-| Next step | the lead adds `livekit-client` 2.23.0 behind the room port (owner, 17-11), then the slice-reviewer |
+| Next step | the slice-reviewer |
 
 ## Brief
 Read first:
@@ -229,6 +229,92 @@ Built on the lead's answers to the step 6 stop. Skills loaded this round: `verce
 - **Recording format.** A GM's Teach session keeps no recording: they read no Executive-only file. The audio is 8 kHz WAV of the person's speech only, not Shakti's.
 - **Doc link check.** `check-doc-links.py` reports this run file as an orphan (not linked from `docs/runs/phase2/readme.md`, which is the lead's to edit), beside 8 existing `.claude/settings.local.json` paths.
 - **Workshop pack.** It does not yet name the voice limits; question 12 was the owner's, not the client's.
+
+### livekit-client and the real room, 17-11-2026 (the lead's cloud VM, worktree `v2-voice`, Postgres 54335)
+Skills loaded this round: none (the brief's skills were loaded in the earlier rounds; this round adds no table or command).
+
+**Package.** `pnpm --filter web add livekit-client@2.23.0 --save-exact` ran as given, with no refusal. `apps/web/package.json` gains `"livekit-client": "2.23.0"`. The `pnpm-lock.yaml` diff holds only livekit-client and its own tree: `@livekit/protocol` 1.52.1, `@types/dom-mediacapture-record` 1.0.22 (its peer), `loglevel`, `machina`, `sdp`, `sdp-transform`, `typed-emitter` (with `rxjs` as its optional dependency) and `webrtc-adapter`. `pnpm-workspace.yaml` is unchanged.
+
+**Built**
+- **The port** (`components/voice/room.ts`). `VoiceRoom` gains `onConnection` (`connected`, `reconnecting`, `lost`), `onSoundBlocked` and `startSound`. `voiceRoomConnector()` gives the room installed at `window.shaktiVoiceRoom` when a test put one there, else the LiveKit connector. That connector loads the adapter and `livekit-client` by `import('./livekit-room')` and `import('livekit-client')`, both plain string literals, only when Start is pressed. `voiceSupported()` checks for a microphone and real-time audio before anything is written on the BOS.
+- **The adapter** (`components/voice/livekit-room.ts`). It is written against a narrow `LiveKitClient` interface; `room.ts` passes the real module in, so the compiler holds `livekit-client`'s `Room` to it.
+  - It joins with the session's `url` and `participantToken`, with echo cancellation, noise suppression and gain control on.
+  - The microphone is published on the first `setMicrophone(true)` and muted or unmuted after that.
+  - The worker's audio track (LiveKit's agent kind only) is attached and mounted on the page, and taken off when unsubscribed or on leave.
+  - Data comes in on `VOICE_DATA_TOPIC` from the agent only. Each message is checked by hand against the shape the page reads (`VoiceRoomMessage`), keeping only known fields. The repository's `shakti/browser-contract-types` rule bars Zod from browser code, so the lists it checks against are in a new `screens/voice-values.ts`, kept equal to the contracts by `contract-values.test.ts`. Messages that arrive before the page listens are kept for it.
+  - The page's messages go out reliable on the same topic.
+  - `reconnecting` and `reconnected` map to the page's reconnecting and connected. A `disconnected` the page did not ask for maps to lost. Leaving disconnects once (which stops the microphone), and nothing reaches the page or the room after it. A failed join disconnects before it rethrows.
+  - The browser's held audio (`canPlaybackAudio`, `audioPlaybackChanged`) becomes `onSoundBlocked`; `startSound` calls `startAudio()` from the person's tap.
+- **The page** (`voice-screen.tsx`).
+  - It holds the talk's room in a ref and leaves it when the worker says the talk ended, when the person ends it, when the connection is lost, and on unmount. Before this round, an `ended` from the worker left the room open.
+  - It shows "The connection dropped. Joining the talk again…" while reconnecting, and a "Turn on sound" button while the browser holds Shakti's voice.
+  - It turns the microphone off when the worker switches to push-to-talk, so the microphone is on only while the hold button is held.
+  - It names three failures in plain words: a browser that cannot talk (`voice_browser`, before anything is written), a failed join (`voice_connection`), and a refused microphone (`voice_microphone`, which leaves the room).
+- **Copy** (`en.json`): `errors.voice_browser`, `errors.voice_microphone`, `errors.voice_connection`, `voice.live.reconnecting`, `voice.live.soundBlocked`, `voice.live.turnOnSound` (added to `copy-lint.config.json`'s button keys) and `voice.ended.lost`.
+- **Documents.** The design's "Built (V2)" line on `/voice` (phase2.md §7.5) and the `/voice` budget's reason in `js-budget.json` now describe the room. `js-budget.json` is one of the check files, but it was already changed in this slice, so the owner's `checks-ok` was already needed.
+- **A test made robust** (`packages/db/tests/security/voice-sessions.test.ts`, V2's own). The earlier-session case moved a session back 40 minutes and expected today's use to be 15 minutes. In the first 40 minutes after midnight in India (18:30 to 19:10 UTC), that start falls on the day before, and the count is 0. The first suite run here, at 18:57 UTC, failed on it. The case now reads which day the moved start falls on and expects 15 or 0.
+
+**Tests added**
+- `components/voice/livekit-room.test.ts`: 15 tests, against a fake of the `livekit-client` surface (no network, no room, no browser):
+  - joining with the join phrase, and nothing published before the microphone is on;
+  - a failed join leaves nothing behind;
+  - the microphone published, muted and unmuted, and its refusal passed on;
+  - the worker's messages taken from the agent on the voice topic only, with every malformed shape dropped;
+  - only the fields the page reads kept;
+  - early messages kept;
+  - sending reliable on the topic;
+  - the worker's voice mounted and taken off;
+  - the browser's held sound and `startSound`;
+  - the reconnect states mapped, and a lost room not used again;
+  - leaving once, with nothing after it;
+  - the connector taking a test's room, loading LiveKit (through `vi.mock('livekit-client')`) and mounting the voice;
+  - `voiceSupported()`.
+- `contract-values.test.ts`: four more equalities (the topic, the states, the end reasons, the cited record kinds).
+- `e2e/voice.spec.ts`: the fake room gains the new port methods. The Executive journey now also checks:
+  - reconnecting shown and cleared;
+  - Turn on sound;
+  - the microphone off in push-to-talk;
+  - the room left when the worker ends the talk;
+  - a second talk whose connection is lost, ending with the lost sentence and the room left.
+
+**JavaScript budget** (`pnpm --filter web build`, then `js-budget`, through the lock). I ran it twice: first on this round's starting sources (`bb60c4fb`'s `apps/web/src`, `messages` and the voice journey), then on the branch.
+
+| Page | Before | After |
+|---|---|---|
+| `/voice` | 193.7 kB gzip (628.1 raw) | 194.2 kB gzip (629.6 raw), budget 204 |
+| `/` (public) | 158.8 kB | 158.8 kB |
+| `/ask` | 194.6 kB | 194.6 kB |
+| Every other page (52 in all) | | unchanged, row for row |
+
+- The shell has no row of its own. The staff pages that carry it (for example `/ask`, `/admin/roles/[roleKey]` at 195.0 kB) are unchanged.
+- `livekit-client` is one lazy chunk of 586.7 kB raw, 151.0 kB gzip. No route's first load names it in `route-bundle-stats.json`.
+- A first build put the new lists in `contract-values.ts`, which most pages share. That grew 28 other pages by 0.1 to 0.2 kB gzip, so the lists moved to `voice-values.ts`, which only the room loads.
+- "Every page is within its budget (52 pages)."
+
+**Checks** (each through `bash tools/integration/heavy.sh`)
+
+| Check | Result |
+|---|---|
+| `pnpm typecheck` | 10 of 10 tasks; web and copy-lint ran, the rest replayed from the cache with unchanged inputs |
+| ESLint `--max-warnings 0` on `apps/web/src/components/voice`, `apps/web/src/screens`, `apps/web/e2e/voice.spec.ts`, `packages/db/tests/security` | clean |
+| `pnpm copy-lint` | catalogues and templates are clean |
+| Web unit tests (`pnpm --filter web exec vitest run`) | 146 files, 1090 passed, 1 skipped (1075 before) |
+| `pnpm test:security` on 54335 | First run: db 1441 passed, 1 failed (the midnight case above), and Turbo stopped. After the fix, the whole suite ran (`turbo run test:security --concurrency=1 --continue`): db 1442 passed (54 files), domain 1253 passed (92 files), web 410 passed (34 files), 4 of 4 tasks |
+| `pnpm --filter web build` and `js-budget` | passed, as above |
+| Journeys `e2e/voice.spec.ts` (after `e2e:seed`, on the branch build) | 20 passed: both voice journeys in desktop light, desktop dark and phone, axe included, with the setup projects. The screenshots this VM wrote were deleted; the baselines are made in the Linux image at integration. |
+| `pnpm lint` (whole repository, last) | exit 0 |
+
+**Decisions the message did not settle**
+1. The adapter takes the `livekit-client` module as a parameter, typed by a narrow interface that the real module must satisfy. This is the seam for the unit tests' fake. Both the adapter and the package load only on Start.
+2. Messages from the room are checked by hand, not with Zod: the repository's lint rule bars Zod from browser code. The page's own outgoing messages are typed and sent as they are.
+3. The port gained three members (`onConnection`, `onSoundBlocked`, `startSound`), since reconnects and the browser's autoplay hold need the page. The journey's fake implements them.
+4. A refused microphone ends the talk with a plain sentence rather than falling back to typing. The worker records the minutes when the person leaves.
+5. The page turns the microphone off when the worker switches to push-to-talk.
+6. The answer to the recording question still stays chosen after a talk ends (as built in the earlier round). A second talk in the same visit starts with the same answer unless the person changes it. The reviewer may want it cleared after each talk, since the brief says "before each session".
+
+**Not verified**
+- No real LiveKit room was joined; no test reaches the network. A join against the owner's LiveKit Cloud project, with real audio, autoplay on iOS Safari and a real reconnect, is unverified and waits for that project, with G2's measurement.
+- The new copy's screens have no screenshot baselines (the reconnecting line and Turn on sound are checked by the journey, not by a snapshot).
 
 ## Review
 
