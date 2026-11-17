@@ -128,7 +128,8 @@ describe('the webhook routes on real Postgres', () => {
       // handlers (I1) set a delivery for a form no company has connected aside, never guessed;
       // Exotel's status has T3's, which finds no call of ours for the fixture's reference and
       // records nothing; the WhatsApp handler (W1) finds no company for the signed fixture's
-      // number and records nothing, with its code.
+      // number and records nothing, with its code; Exotel's inbound handler (T4) finds no company
+      // line with the fixture's number and records nothing, with its code.
       expect(row).toMatchObject(
         d.provider === 'meta_leadgen' || d.provider === 'google_leadform'
           ? { failed: true, attempts: 1, error_code: 'form_unmapped' }
@@ -140,7 +141,9 @@ describe('the webhook routes on real Postgres', () => {
                   ? null
                   : d.provider === 'meta_whatsapp'
                     ? 'whatsapp_number_unknown'
-                    : 'no_handler',
+                    : d.provider === 'exotel_incoming'
+                      ? 'call_number_unknown'
+                      : 'no_handler',
             },
       );
       // Processing it again changes nothing.

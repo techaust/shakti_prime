@@ -48,7 +48,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-54 types, 12 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+56 types, 13 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -156,6 +156,8 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`calls.dial.completed`](#callsdialcompleted) | A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line. | `calls.provider_call.record` | none |
+| [`calls.inbound.ringing`](#callsinboundringing) | A customer's call to a company's IVR number is ringing a person (the one whose own dial phone the IVR rings); `accountIds` are the company's customers holding the caller's number, none when no customer does. The screen-pop is waiting for that person. | `calls.inbound_call.record` | none |
+| [`calls.missed.recorded`](#callsmissedrecorded) | A customer's call to a company's missed-call number was recorded on the lead it made or joined, with a callback for the lead's owner in calling hours (`taskId`, none when the lead has no owner or one is due already); the notify worker tells the owner. | `calls.inbound_call.record` | `POST /api/v1/workers/outbox/calls.missed.recorded` (QStash URL group `evt-calls.missed.recorded`) |
 
 ### sales
 
@@ -479,6 +481,21 @@ No fields apart from `v`.
 | `callerId` | id or null |
 | `status` | one of `completed`, `no_answer`, `busy`, `failed`, `canceled` |
 | `durationSeconds` | whole number from 0 or null |
+
+### calls.inbound.ringing
+
+| Field | Type |
+|---|---|
+| `userId` | id |
+| `accountIds` | list of ids |
+
+### calls.missed.recorded
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `ownerId` | id or null |
+| `taskId` | id or null |
 
 ### sales.quote.created
 
