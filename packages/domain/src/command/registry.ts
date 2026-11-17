@@ -16,7 +16,7 @@ import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
 import { dialCall } from '../commands/calls/dial-call';
-import { recordInboundCall } from '../commands/calls/inbound-calls';
+import { recordInboundCall, signalRinging } from '../commands/calls/inbound-calls';
 import { logCall } from '../commands/calls/log-call';
 import { playCallRecording } from '../commands/calls/play-recording';
 import {
@@ -250,6 +250,7 @@ export const commands = Object.freeze({
   [dialCall.name]: dialCall,
   [recordProviderCall.name]: recordProviderCall,
   [recordInboundCall.name]: recordInboundCall,
+  [signalRinging.name]: signalRinging,
   [attachCallRecording.name]: attachCallRecording,
   [deleteCallRecording.name]: deleteCallRecording,
   [playCallRecording.name]: playCallRecording,

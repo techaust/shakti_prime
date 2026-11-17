@@ -10,14 +10,18 @@ import {
 } from '@shakti/db/testing';
 import { closeWebhookDb } from '@shakti/db/webhooks';
 import { executeQuery, memoryKeyValue, readScreenPop } from '@shakti/domain';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GET as INCOMING } from '../src/app/api/v1/webhooks/exotel/incoming/[secret]/route';
 import { defaultAuthDeps } from '../src/auth/deps';
 import { ringingKey, takeRinging } from '../src/calls/ringing';
 import { ringingRoute } from '../src/calls/ringing-route';
 import { simulatedIncoming } from '../src/calls/simulated-incoming';
 import { mintRingingTicket, RINGING_TICKET_HEADER } from '../src/calls/ticket';
-import { exotelIncomingHandler } from '../src/workers/webhooks/exotel-incoming';
+import { logger } from '../src/log';
+import {
+  defaultExotelIncomingDeps,
+  exotelIncomingHandler,
+} from '../src/workers/webhooks/exotel-incoming';
 import { TEST_ORIGIN, TEST_WEBHOOK_ENV } from '../src/webhooks/signed-deliveries';
 
 // T4 Inbound calls on real Postgres (docs/03-roadmap-appendix/phase2.md §7.4): Exotel's Passthru
@@ -150,10 +154,11 @@ describe('an IVR call through the Passthru applet', () => {
       pop = await takeRinging(keyValue, caller.id);
     }
     const elapsed = performance.now() - started;
+    // A matched customer's call waits with the number's last four digits only.
     expect(pop).toMatchObject({
       entityId: ENTITY,
       accountIds: [customer.accountId],
-      phone: customer.e164,
+      phone: customer.e164.slice(-4),
     });
     // TEL-05: the pop is waiting within 2 seconds of the Passthru call (the local stack).
     expect(elapsed).toBeLessThan(2_000);
@@ -328,9 +333,9 @@ describe('the screen-pop on the local stack', () => {
       keyValue: () => keyValue,
       now: () => new Date(),
       realtime: () => true,
-      signal: async (entityId, userId) => {
+      signal: async (_entityId, userId) => {
         woken.push({ userId, held: (await keyValue.get(ringingKey(userId))) !== null });
-        return entityId === ENTITY;
+        return 'sent';
       },
     });
     const callSid = sid();
@@ -355,5 +360,59 @@ describe('the screen-pop on the local stack', () => {
       signal: () => Promise.reject(new Error('not woken under the poll')),
     });
     await quiet({ ...payload, CallSid: sid() }, { requestId: newId() });
+  });
+
+  it('wakes through the platform’s command, and logs a wake-up Realtime did not take', async () => {
+    const log = vi.spyOn(logger, 'log');
+    try {
+      const keyValue = memoryKeyValue();
+      const payload = () => ({
+        Direction: 'incoming' as const,
+        CallSid: sid(),
+        CallFrom: national(`+91${testPhone()}`),
+        CallTo: national(IVR),
+        DialWhomNumber: national(callerPhone),
+      });
+      const failures = () =>
+        log.mock.calls.filter(([, event]) => event === 'screen_pop.signal_failed');
+      // The handler's own path: `calls.ringing.signal` by executeCommand (a read-write
+      // transaction), which on this database without Realtime sends nothing and says so.
+      const real = exotelIncomingHandler({
+        ...defaultExotelIncomingDeps,
+        keyValue: () => keyValue,
+        realtime: () => true,
+      });
+      expect(await real(payload(), { requestId: newId() })).toEqual({ entityId: ENTITY });
+      expect(await takeRinging(keyValue, caller.id)).toMatchObject({ entityId: ENTITY });
+      expect(failures()).toEqual([
+        ['warn', 'screen_pop.signal_failed', expect.objectContaining({ outcome: 'unavailable' })],
+      ]);
+      // Realtime refusing the message (its realtime.send() only warns), or the command failing.
+      for (const signal of [
+        () => Promise.resolve('failed' as const),
+        () => Promise.reject(new Error('the database is away')),
+      ]) {
+        const handle = exotelIncomingHandler({
+          ...defaultExotelIncomingDeps,
+          keyValue: () => keyValue,
+          realtime: () => true,
+          signal,
+        });
+        expect(await handle(payload(), { requestId: newId() })).toEqual({ entityId: ENTITY });
+      }
+      expect(failures()).toHaveLength(3);
+      expect(failures()[1]?.[2]).toMatchObject({ entityId: ENTITY, outcome: 'failed' });
+      // A wake-up that went through logs nothing.
+      const sent = exotelIncomingHandler({
+        ...defaultExotelIncomingDeps,
+        keyValue: () => keyValue,
+        realtime: () => true,
+        signal: () => Promise.resolve('sent' as const),
+      });
+      await sent(payload(), { requestId: newId() });
+      expect(failures()).toHaveLength(3);
+    } finally {
+      log.mockRestore();
+    }
   });
 });

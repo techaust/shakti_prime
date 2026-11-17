@@ -4,8 +4,9 @@ import type { KeyValue } from '@shakti/domain';
 /**
  * The ringing call waiting for its person (docs/03-roadmap-appendix/phase2.md §7.4): the
  * incoming-call handler holds it in the shared key-value store after the call is recorded, and the
- * person's own ringing route takes it once, so the screen-pop reads no database while it waits and
- * nobody reads another person's call. A later call to the same person replaces it.
+ * person's own ringing route reads it, checks the session is the person's, and only then takes it
+ * once, so the screen-pop reads no database while it waits and nobody reads another person's
+ * call. A later call to the same person replaces it.
  */
 
 /** Seconds a ringing call waits to be taken: a call not picked up by then has stopped ringing. */
@@ -29,15 +30,21 @@ export async function holdRinging(
   );
 }
 
+/** A ringing call as read from the store, with the exact value read, for its claim. */
+export interface HeldRinging {
+  pop: PendingScreenPop;
+  raw: string;
+}
+
 /**
- * The person's ringing call, taken once: of two screens of the person asking at the same moment
- * only the first gets it (a claim on the call in the store), and it is cleared as it is read.
- * Anything that does not read as a ringing call is cleared and answered as none.
+ * The person's ringing call, read without taking it, so a screen whose session turns out not to be
+ * the person's leaves it for the right one. Anything that does not read as a ringing call is
+ * cleared (only while it is still the value read) and answered as none.
  */
-export async function takeRinging(
+export async function peekRinging(
   keyValue: KeyValue,
   userId: string,
-): Promise<PendingScreenPop | undefined> {
+): Promise<HeldRinging | undefined> {
   const key = ringingKey(userId);
   const raw = await keyValue.get(key);
   if (raw === null) return undefined;
@@ -49,15 +56,31 @@ export async function takeRinging(
     pop = undefined;
   }
   if (pop === undefined) {
-    await keyValue.del(key);
+    await keyValue.delIfValue(key, raw);
     return undefined;
   }
-  const first = await keyValue.setIfAbsent(
-    `${key}:taken:${pop.providerCallId}`,
-    '1',
-    RINGING_TTL_SECONDS,
-  );
-  if (!first) return undefined;
-  await keyValue.del(key);
-  return pop;
+  return { pop, raw };
+}
+
+/**
+ * Takes the call read by `peekRinging`, in one step: it is cleared only while the store still
+ * holds that very call, so of two screens of the person only the first gets it, and a newer call
+ * held in between is never cleared (the next ask finds it). True for the screen that took it.
+ */
+export async function claimRinging(
+  keyValue: KeyValue,
+  userId: string,
+  held: HeldRinging,
+): Promise<boolean> {
+  return keyValue.delIfValue(ringingKey(userId), held.raw);
+}
+
+/** The person's ringing call, read and taken at once (the suites' way to take a held call). */
+export async function takeRinging(
+  keyValue: KeyValue,
+  userId: string,
+): Promise<PendingScreenPop | undefined> {
+  const held = await peekRinging(keyValue, userId);
+  if (held === undefined) return undefined;
+  return (await claimRinging(keyValue, userId, held)) ? held.pop : undefined;
 }

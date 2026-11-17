@@ -4,6 +4,7 @@ import {
   ProviderCallSidSchema,
   type ExotelIncomingWebhook,
   type PendingScreenPop,
+  type RingingSignalDto,
 } from '@shakti/contracts';
 import {
   executeCommand,
@@ -28,21 +29,32 @@ export interface ExotelIncomingDeps {
   now: () => Date;
   /** Whether the screen-pop listens on Realtime (`SCREEN_POP_TRANSPORT`), so the person is woken. */
   realtime: () => boolean;
-  /** Wakes the person's screens on their own Realtime channel; false when nothing was sent. */
-  signal: (entityId: number, userId: string, requestId: string) => Promise<boolean>;
+  /**
+   * Wakes the person's screens on their own Realtime channel (`calls.ringing.signal`, a command:
+   * the message is a write): `sent`, `failed` or `unavailable`.
+   */
+  signal: (
+    entityId: number,
+    userId: string,
+    providerCallId: string,
+    requestId: string,
+  ) => Promise<RingingSignalDto['outcome']>;
 }
 
-const defaultDeps: ExotelIncomingDeps = {
+/** The handler's own deps: the shared store, the clock, the transport setting, the command. */
+export const defaultExotelIncomingDeps: ExotelIncomingDeps = {
   keyValue: () => defaultAuthDeps().keyValue,
   now: () => new Date(),
   realtime: () => screenPopTransport().kind === 'realtime',
-  signal: (entityId, userId, requestId) =>
-    executeQuery(
-      systemWorkersPrincipal(entityId),
-      { entityIds: [entityId], requestId },
-      (ctx) => signalRinging(ctx, entityId, userId),
-      { name: 'calls.ringing.signal', pool: 'app_user' },
-    ),
+  signal: async (entityId, userId, providerCallId, requestId) =>
+    (
+      await executeCommand(
+        systemWorkersPrincipal(entityId),
+        { entityIds: [entityId], requestId },
+        signalRinging,
+        { entityId, userId, providerCallId },
+      )
+    ).outcome,
 };
 
 /**
@@ -57,12 +69,16 @@ const defaultDeps: ExotelIncomingDeps = {
  *    `DialWhomNumber`, with the company's customers holding the caller's number; on the
  *    missed-call line as a lead made or joined with a callback for its owner;
  * 3. an IVR call that rings a person is held for them a minute in the shared store
- *    (`ringing:<user id>`), which their screen-pop takes; when the screen-pop listens on Realtime,
- *    their channel `user:{id}` is then woken (`app.signal_ringing()`).
+ *    (`ringing:<user id>`), which their screen-pop takes: the caller's whole number only when no
+ *    customer of the company holds it (the new-lead form's), else its last four digits; when the
+ *    screen-pop listens on Realtime, their channel `user:{id}` is then woken
+ *    (`calls.ringing.signal`), and a wake-up Realtime did not take is logged
+ *    (`screen_pop.signal_failed`). A dial phone several people hold rings nobody and is logged
+ *    (`calls.inbound_answerer_ambiguous`).
  * A delivery that cannot land a lead (the company offers no pipeline for it) is set aside with the
  * reason as its code. Logs carry ids and codes only, never a number.
  */
-export function exotelIncomingHandler(deps: ExotelIncomingDeps = defaultDeps) {
+export function exotelIncomingHandler(deps: ExotelIncomingDeps = defaultExotelIncomingDeps) {
   return async (
     payload: ExotelIncomingWebhook,
     context: Pick<WebhookHandlerContext, 'requestId'>,
@@ -123,6 +139,15 @@ export function exotelIncomingHandler(deps: ExotelIncomingDeps = defaultDeps) {
       logger.log('warn', 'calls.inbound_other_company', { requestId, entityId });
       return { entityId, code: 'call_of_other_company' };
     }
+    if (recorded.dialPhoneHolders > 1) {
+      // The unique index keeps one holder per company; two found means it was bypassed.
+      logger.log('warn', 'calls.inbound_answerer_ambiguous', {
+        requestId,
+        entityId,
+        providerCallId: recorded.providerCallId,
+        holders: recorded.dialPhoneHolders,
+      });
+    }
     if (
       recorded.outcome === 'recorded' &&
       recorded.answererId !== null &&
@@ -132,17 +157,26 @@ export function exotelIncomingHandler(deps: ExotelIncomingDeps = defaultDeps) {
         providerCallId: recorded.providerCallId,
         entityId,
         accountIds: recorded.accountIds,
-        phone: from,
+        // The whole number only for the new-lead form; a matched call shows the last four digits.
+        phone: recorded.accountIds.length === 0 ? from : from.slice(-4),
         ringingAt: deps.now().toISOString(),
       };
       await holdRinging(deps.keyValue(), recorded.answererId, pop);
       // After the call is held, so a woken screen finds it; the screen's own slow poll covers a
       // wake-up that does not arrive.
       if (deps.realtime()) {
+        const failed = { requestId, entityId, providerCallId: recorded.providerCallId };
         try {
-          await deps.signal(entityId, recorded.answererId, requestId);
+          const outcome = await deps.signal(
+            entityId,
+            recorded.answererId,
+            recorded.providerCallId,
+            requestId,
+          );
+          if (outcome !== 'sent')
+            logger.log('warn', 'screen_pop.signal_failed', { ...failed, outcome });
         } catch (error) {
-          logger.log('warn', 'calls.ringing_signal_failed', { requestId, entityId, error });
+          logger.log('warn', 'screen_pop.signal_failed', { ...failed, error });
         }
       }
     }

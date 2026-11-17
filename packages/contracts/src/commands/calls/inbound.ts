@@ -55,6 +55,11 @@ export const InboundCallRecordDto = z
     series: InboundCallSeriesSchema,
     outcome: InboundCallOutcomeSchema,
     answererId: IdSchema.nullable(),
+    /**
+     * How many active people of the company hold the IVR's dial phone (`dialWhom`): one is rung,
+     * and two or more ring nobody, which the handler logs. Zero on a missed call or a repeat.
+     */
+    dialPhoneHolders: z.number().int().min(0),
     accountIds: z.array(IdSchema).max(INBOUND_MATCH_LIMIT),
     leadId: IdSchema.nullable(),
     ownerId: IdSchema.nullable(),
@@ -64,21 +69,29 @@ export const InboundCallRecordDto = z
   .strict();
 export type InboundCallRecordDto = z.infer<typeof InboundCallRecordDto>;
 
+const E164 = /^\+[1-9]\d{6,14}$/;
+const LAST_FOUR = /^\d{4}$/;
+
 /**
  * A ringing call waiting for its person (the key-value store's `ringing:<user id>`, held a minute
  * and read once): written by the incoming-call handler after the call is recorded, read and cleared
- * by `GET /api/v1/calls/ringing`. It holds the caller's number only for the new-lead form when no
- * customer of the company has it; it never leaves the server as more than `ScreenPopDto` says.
+ * by `GET /api/v1/calls/ringing`. `phone` is the caller's whole number only when no customer of
+ * the company holds it (for the new-lead form), and otherwise its last four digits, the most the
+ * pop shows; it never leaves the server as more than `ScreenPopDto` says.
  */
 export const PendingScreenPop = z
   .object({
     providerCallId: IdSchema,
     entityId: EntityIdSchema,
     accountIds: z.array(IdSchema).max(INBOUND_MATCH_LIMIT),
-    phone: z.string().regex(/^\+[1-9]\d{6,14}$/),
+    phone: z.string(),
     ringingAt: z.iso.datetime(),
   })
-  .strict();
+  .strict()
+  .refine((pop) => (pop.accountIds.length === 0 ? E164 : LAST_FOUR).test(pop.phone), {
+    path: ['phone'],
+    message: 'the whole number only when no customer holds it, else its last four digits',
+  });
 export type PendingScreenPop = z.infer<typeof PendingScreenPop>;
 
 /** One customer on the pop: one the person may read in the call's company, by name. */
@@ -107,3 +120,20 @@ export const ScreenPopDto = z
   })
   .strict();
 export type ScreenPopDto = z.infer<typeof ScreenPopDto>;
+
+/**
+ * `calls.ringing.signal` (the platform, `calls.process`): wakes the screens of the person a ringing
+ * IVR call waits for, on their own Realtime channel, once the call is held for them.
+ */
+export const SignalRingingInput = z
+  .object({ entityId: EntityIdSchema, userId: IdSchema, providerCallId: IdSchema })
+  .strict();
+export type SignalRingingInput = z.input<typeof SignalRingingInput>;
+
+/**
+ * `sent` the message is in Realtime's table; `failed` it is not (Realtime refused it, which its
+ * own function only warns of); `unavailable` the database has no Realtime (the local stack, CI).
+ */
+export const RINGING_SIGNAL_OUTCOMES = ['sent', 'failed', 'unavailable'] as const;
+export const RingingSignalDto = z.object({ outcome: z.enum(RINGING_SIGNAL_OUTCOMES) }).strict();
+export type RingingSignalDto = z.infer<typeof RingingSignalDto>;

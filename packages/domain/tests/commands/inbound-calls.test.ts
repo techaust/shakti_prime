@@ -17,10 +17,11 @@ import {
   testPhone,
   whatsappCustomer,
 } from '@shakti/db/testing';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
-import { executeQuery } from '../../src/command/execute';
+import { executeCommand, executeQuery } from '../../src/command/execute';
 import { runCommand } from '../../src/command/run-command';
 import {
   inboundCallLines,
@@ -208,6 +209,7 @@ describe('calls.inbound_call.record on the IVR line', () => {
       outcome: 'recorded',
       series: 'ivr',
       answererId: caller.id,
+      dialPhoneHolders: 1,
       accountIds: [],
       leadId: null,
       taskId: null,
@@ -271,29 +273,23 @@ describe('calls.inbound_call.record on the IVR line', () => {
     expect(await eventsOf(theirs.providerCallId ?? '')).toEqual([]);
   });
 
-  it('rings nobody for a dial phone of no one in the company, or of two people', async () => {
+  it('rings nobody for a dial phone of no one in the company', async () => {
     const nobody = await run<InboundCallRecordDto>(
       workers(),
       recordInboundCall,
       call({ dialWhom: `+91${testPhone()}` }),
     );
-    expect(nobody.answererId).toBeNull();
-
-    const shared = `+91${testPhone()}`;
-    for (let i = 0; i < 2; i += 1) {
-      const u = await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_cc' }]);
-      await asMigrator(
+    expect(nobody).toMatchObject({ answererId: null, dialPhoneHolders: 0 });
+    expect(await eventsOf(nobody.providerCallId ?? '')).toEqual([]);
+    // Two people of the company never hold one phone (the unique index, and the database's own
+    // suite for the count when they would): a second is refused.
+    const second = await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_cc' }]);
+    await expect(
+      asMigrator(
         (m) => m`insert into caller_profiles (id, user_id, entity_id, presence, dial_phone_e164)
-                   values (${newId()}, ${u.id}, ${ENTITY}, 'away', ${shared})`,
-      );
-    }
-    const two = await run<InboundCallRecordDto>(
-      workers(),
-      recordInboundCall,
-      call({ dialWhom: shared }),
-    );
-    expect(two.answererId).toBeNull();
-    expect(await eventsOf(two.providerCallId ?? '')).toEqual([]);
+                   values (${newId()}, ${second.id}, ${ENTITY}, 'away', ${callerPhone})`,
+      ),
+    ).rejects.toThrow(/caller_profiles_entity_dial_phone_unique/);
   });
 
   it('changes nothing for a repeated CallSid, and records nothing for one another company holds', async () => {
@@ -457,7 +453,8 @@ describe('the screen-pop: what the person rung is shown', () => {
   it('names only the customers the person reads, in the platform’s order, with the last four digits', async () => {
     const own = await whatsappCustomer(ENTITY);
     const colleague = await whatsappCustomer(ENTITY, { e164: own.e164 });
-    const pop = pending([colleague.accountId, own.accountId], own.e164);
+    // A matched call is held with the number's last four digits only.
+    const pop = pending([colleague.accountId, own.accountId], own.e164.slice(-4));
     const shown = await read(own.owner, pop);
     expect(shown).toEqual({
       providerCallId: pop.providerCallId,
@@ -468,7 +465,7 @@ describe('the screen-pop: what the person rung is shown', () => {
       newLeadPhone: null,
     });
     // A customer of the company held by a colleague alone: nobody named, and no number either.
-    const theirs = await read(own.owner, pending([colleague.accountId], colleague.e164));
+    const theirs = await read(own.owner, pending([colleague.accountId], colleague.e164.slice(-4)));
     expect(theirs.customers).toEqual([]);
     expect(theirs.newLeadPhone).toBeNull();
   });
@@ -485,7 +482,7 @@ describe('the screen-pop: what the person rung is shown', () => {
 
   it('never names another company’s customer, even one with the same id in the list', async () => {
     const elsewhere = await whatsappCustomer(OTHER);
-    const shown = await read(caller, pending([elsewhere.accountId], elsewhere.e164));
+    const shown = await read(caller, pending([elsewhere.accountId], elsewhere.e164.slice(-4)));
     expect(shown.customers).toEqual([]);
   });
 
@@ -501,22 +498,67 @@ describe('the screen-pop: what the person rung is shown', () => {
   });
 });
 
-describe('the Realtime wake-up of a ringing call', () => {
-  it('is the platform’s alone, for a person of the company, and sends nothing without Realtime', async () => {
-    const signal = (principal: Principal, userId: string, entityIds = [ENTITY]) =>
-      executeQuery(
-        principal,
-        { entityIds, requestId: newId() },
-        (ctx) => signalRinging(ctx, ENTITY, userId),
-        { name: 'calls.ringing.signal', pool: 'app_user' },
-      );
-    // The local database has no realtime.send(): nothing is sent.
-    expect(await signal(workers(), caller.id)).toBe(false);
-    await expect(signal(caller, caller.id)).rejects.toMatchObject({ cause: { code: '42501' } });
-    await expect(signal(exec, caller.id)).rejects.toMatchObject({ cause: { code: '42501' } });
-    const outsider = await createTestUser([{ entityId: OTHER, roleKey: 'tele_caller_cc' }]);
-    await expect(signal(workers(), outsider.id)).rejects.toMatchObject({
-      cause: { code: '23514' },
+describe('calls.ringing.signal: the Realtime wake-up of a ringing call', () => {
+  /** An IVR call recorded ringing the caller. */
+  async function ringing(): Promise<string> {
+    const out = await run<InboundCallRecordDto>(
+      workers(),
+      recordInboundCall,
+      call({ dialWhom: callerPhone }),
+    );
+    return out.providerCallId ?? '';
+  }
+  const signal = (
+    principal: Principal,
+    input: Record<string, unknown>,
+    entityIds = [ENTITY],
+    requestId = newId(),
+  ) => executeCommand(principal, { entityIds, requestId }, signalRinging, input, { hosted: false });
+
+  it('is a command the platform runs for the person a call rings; nothing is sent without Realtime', async () => {
+    const providerCallId = await ringing();
+    const input = { entityId: ENTITY, userId: caller.id, providerCallId };
+    // The local database has no realtime.send(): the database's own suite sends to a stand-in.
+    const requestId = newId();
+    expect(await signal(workers(), input, [ENTITY], requestId)).toEqual({
+      outcome: 'unavailable',
     });
+    // Not audited: it changes no record of the business.
+    const audited = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from audit_logs where request_id = ${requestId}`,
+    );
+    expect(audited[0]?.n).toBe(0);
+  });
+
+  it('refuses a person, an Executive, an agent, a company outside the request, and a call not theirs', async () => {
+    const providerCallId = await ringing();
+    const input = { entityId: ENTITY, userId: caller.id, providerCallId };
+    for (const who of [caller, exec, principalFor('agent:copilot', [ENTITY])]) {
+      expect(await refusal(signal(who, input))).toBe('forbidden');
+    }
+    expect(await refusal(signal(workers(), { ...input, entityId: OTHER }))).toBe('forbidden');
+    const outsider = await createTestUser([{ entityId: OTHER, roleKey: 'tele_caller_cc' }]);
+    expect(await refusal(signal(workers(), { ...input, userId: outsider.id }))).toBe(
+      'validation_failed',
+    );
+    expect(await refusal(signal(workers(), { ...input, providerCallId: newId() }))).toBe(
+      'validation_failed',
+    );
+  });
+
+  it('is a write, refused on a read’s read-only transaction (where the message could not be written)', async () => {
+    const providerCallId = await ringing();
+    await expect(
+      executeQuery(
+        workers(),
+        { entityIds: [ENTITY], requestId: newId() },
+        (ctx) =>
+          ctx.tx.execute(
+            sql`select app.signal_ringing(${ENTITY}::smallint, ${caller.id}::uuid, ${providerCallId}::uuid)`,
+          ),
+        { name: 'calls.ringing.signal', pool: 'app_user' },
+      ),
+    ).rejects.toMatchObject({ cause: { code: '25006' } });
   });
 });

@@ -1,5 +1,11 @@
-import { newId, SYSTEM_WORKERS_PRINCIPAL_ID, type Principal } from '@shakti/contracts';
+import {
+  newId,
+  serializeGrants,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type Principal,
+} from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
+import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   asMigrator,
@@ -63,11 +69,11 @@ function definers(): Record<Definer, SQL> {
     lines: sql`select * from app.inbound_call_lines('+918047119499')`,
     bySid: sql`select * from app.inbound_call_by_sid(${sid()})`,
     customers: sql`select * from app.inbound_call_customers(1::smallint, ${phoneA.e164})`,
-    answerer: sql`select app.inbound_call_answerer(1::smallint, '+919800000999')`,
+    answerer: sql`select * from app.inbound_call_answerer(1::smallint, '+919800000999')`,
     ivr: sql`select * from app.record_inbound_call(1::smallint, ${newId()}::uuid, ${sid()}, null, now())`,
     missed: sql`select * from app.record_missed_call(1::smallint, ${newId()}::uuid, ${sid()},
                   ${leadOf('a')}::uuid, null, now(), ${IN_HOURS})`,
-    signal: sql`select app.signal_ringing(1::smallint, ${fx.principals.a.id}::uuid)`,
+    signal: sql`select app.signal_ringing(1::smallint, ${fx.principals.a.id}::uuid, ${newId()}::uuid)`,
   };
 }
 
@@ -123,6 +129,16 @@ describe('the inbound call definers', () => {
     );
     expect(new Set(granted.map((g) => g.role))).toEqual(new Set(['app_user']));
     expect(granted).toHaveLength(7);
+    // The wake-up's sender is the owner's alone: app_user reaches it only through the definer.
+    const sender = await asMigrator(
+      (m) => m<{ role: string }[]>`
+        select r.rolname as role from pg_roles r
+         where r.rolname in ('app_user', 'app_reader', 'readonly_reporter', 'auth_service',
+                             'outbox_publisher', 'webhook_receiver', 'public')
+           and has_function_privilege(r.oid,
+                 'app.ringing_wake(regprocedure,regclass,smallint,uuid,uuid)', 'execute')`,
+    );
+    expect(sender).toEqual([]);
   });
 });
 
@@ -260,22 +276,203 @@ describe('provider_calls for inbound calls', () => {
   });
 });
 
+describe("one person per dial phone in a company (the IVR's answerer)", () => {
+  it('refuses a second holder of a phone in the company, and lets another company use it', async () => {
+    const phone = `+9198${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+    const [first, second] = [
+      await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]),
+      await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]),
+    ];
+    const profile = (userId: string, entityId: number) =>
+      asMigrator(
+        (m) => m`insert into caller_profiles (id, user_id, entity_id, dial_phone_e164)
+                   values (${newId()}, ${userId}, ${entityId}, ${phone})`,
+      );
+    await profile(first.id, 1);
+    await expect(profile(second.id, 1)).rejects.toThrow(/caller_profiles_entity_dial_phone_unique/);
+    await profile(second.id, 2);
+    expect(
+      await rows(workers(1), sql`select * from app.inbound_call_answerer(1::smallint, ${phone})`),
+    ).toEqual([{ user_id: first.id, holders: 1 }]);
+  });
+
+  it('answers how many hold a phone when two do, and rings neither', async () => {
+    // Only a bypass of the unique index makes two holders, so it is dropped in a rolled-back
+    // transaction, where the platform's request is set as withRequestContext() sets it.
+    const phone = `+9197${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+    const people = [
+      await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]),
+      await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]),
+    ];
+    const platform = workers(1);
+    const ROLLBACK = new Error('rolled back');
+    let answer: unknown;
+    await expect(
+      asMigrator((m) =>
+        m.begin(async (tx: postgres.TransactionSql) => {
+          await tx`drop index caller_profiles_entity_dial_phone_unique`;
+          for (const person of people) {
+            await tx`insert into caller_profiles (id, user_id, entity_id, dial_phone_e164)
+                       values (${newId()}, ${person.id}, 1, ${phone})`;
+          }
+          await tx`select set_config('app.user_id', ${platform.id}, true),
+                          set_config('app.entity_ids', '{1}', true),
+                          set_config('app.role', ${platform.roleKey}, true),
+                          set_config('app.permissions', ${serializeGrants(platform.permissions)}, true)`;
+          answer = await tx`select * from app.inbound_call_answerer(1::smallint, ${phone})`;
+          throw ROLLBACK;
+        }),
+      ),
+    ).rejects.toBe(ROLLBACK);
+    expect(answer).toEqual([{ user_id: null, holders: 2 }]);
+  });
+});
+
+/** The stand-in of Supabase's Realtime: its messages table and realtime.send(), as Supabase has them. */
+const STAND_IN = 't4_realtime_stand_in';
+const SEND = `${STAND_IN}.send(jsonb,text,text,boolean)`;
+const MESSAGES = `${STAND_IN}.messages`;
+
+async function standInRealtime(): Promise<void> {
+  await asMigrator(async (m) => {
+    await m.unsafe(`drop schema if exists ${STAND_IN} cascade`);
+    await m.unsafe(`create schema ${STAND_IN}`);
+    await m.unsafe(`create table ${MESSAGES} (
+      topic text not null, extension text not null, payload jsonb, event text,
+      private boolean default false, updated_at timestamp default now() not null,
+      inserted_at timestamp default now() not null, id uuid default gen_random_uuid() not null)`);
+    // Supabase's body: the failure is swallowed into a warning, and nothing tells the caller.
+    await m.unsafe(`create function ${STAND_IN}.send(payload jsonb, event text, topic text,
+                                                     private boolean default true)
+      returns void language plpgsql as $$
+      declare generated_id uuid; final_payload jsonb;
+      begin
+        begin
+          generated_id := gen_random_uuid();
+          if payload ? 'id' then final_payload := payload;
+          else final_payload := jsonb_set(payload, '{id}', to_jsonb(generated_id));
+          end if;
+          execute format('SET LOCAL realtime.topic TO %L', topic);
+          insert into ${MESSAGES} (id, payload, event, topic, private, extension)
+            values (generated_id, final_payload, event, topic, private, 'broadcast');
+        exception when others then
+          raise warning 'ErrorSendingBroadcastMessage: %', sqlerrm;
+        end;
+      end $$`);
+  });
+}
+
 describe('the Realtime wake-up of a ringing call (app.signal_ringing)', () => {
-  // The local image has the realtime schema but not Supabase's realtime.send(), and the migrator
-  // may not create one there, so the send itself is checked on a hosted project (the spike).
-  it('sends nothing where the database has no Realtime, and refuses a person of no company', async () => {
-    const person = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
-    expect(
-      await rows(
-        workers(1),
-        sql`select app.signal_ringing(1::smallint, ${person.id}::uuid) as sent`,
-      ),
-    ).toEqual([{ sent: false }]);
+  let person: { id: string };
+  let call: string;
+
+  beforeAll(async () => {
+    person = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    call = newId();
+    await rows(
+      workers(1),
+      sql`select * from app.record_inbound_call(1::smallint, ${call}::uuid, ${sid()}, ${person.id}::uuid, now())`,
+    );
+    await standInRealtime();
+  });
+
+  afterAll(async () => {
+    await asMigrator((m) => m.unsafe(`drop schema if exists ${STAND_IN} cascade`));
+  });
+
+  const signal = (userId: string, callId: string) =>
+    sql`select app.signal_ringing(1::smallint, ${userId}::uuid, ${callId}::uuid) as outcome`;
+
+  it('sends nothing where the database has no Realtime; refuses a person of no company and a call not theirs', async () => {
+    // The local image has the realtime schema but not Supabase's realtime.send().
+    expect(await rows(workers(1), signal(person.id, call))).toEqual([{ outcome: 'unavailable' }]);
     const outsider = await createTestUser([{ entityId: 2, roleKey: 'tele_caller_cc' }]);
-    expect(
-      await failure(
-        rows(workers(1), sql`select app.signal_ringing(1::smallint, ${outsider.id}::uuid)`),
+    expect(await failure(rows(workers(1), signal(outsider.id, call)))).toBe(
+      'the person rung works in the company',
+    );
+    const colleague = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    expect(await failure(rows(workers(1), signal(colleague.id, call)))).toBe(
+      'the call rings the person',
+    );
+    expect(await failure(rows(workers(1), signal(person.id, newId())))).toBe(
+      'the call rings the person',
+    );
+  });
+
+  it('is a write: refused inside a read-only transaction, where the message could not be written', async () => {
+    const refused = await failure(
+      asPrincipal(workers(1), async ({ tx }) => {
+        await tx.execute(sql`select set_config('transaction_read_only', 'on', true)`);
+        return tx.execute(signal(person.id, call));
+      }),
+    );
+    expect(refused).toBe('the wake-up is written by a command, never a read');
+  });
+
+  async function wake(m: postgres.Sql | postgres.TransactionSql, userId: string, callId: string) {
+    const [row] = await m<{ outcome: string }[]>`
+      select app.ringing_wake(${SEND}::regprocedure, ${MESSAGES}::regclass, 1::smallint,
+                              ${userId}::uuid, ${callId}::uuid) as outcome`;
+    return row?.outcome;
+  }
+
+  async function messages(userId: string) {
+    return asMigrator(
+      (m) => m<
+        { topic: string; event: string; private: boolean; payload: Record<string, unknown> }[]
+      >`
+        select topic, event, private, payload from ${m(STAND_IN)}.messages
+         where topic = ${`user:${userId}`}`,
+    );
+  }
+
+  it('writes one private message on the person’s own channel, with the call’s ids only', async () => {
+    await asMigrator(async (m) => {
+      expect(await wake(m, person.id, call)).toBe('sent');
+    });
+    const written = await messages(person.id);
+    expect(written).toHaveLength(1);
+    const [message] = written;
+    expect(message).toMatchObject({ topic: `user:${person.id}`, event: 'ringing', private: true });
+    // realtime.send() adds the message's own id; nothing else rides with the call's ids.
+    expect(Object.keys(message?.payload ?? {}).sort()).toEqual([
+      'entityId',
+      'id',
+      'providerCallId',
+    ]);
+    expect(message?.payload).toMatchObject({ providerCallId: call, entityId: 1 });
+    expect(typeof message?.payload.id).toBe('string');
+  });
+
+  it('answers failed when realtime.send() swallows its failure, as it does in a read-only transaction', async () => {
+    const other = newId();
+    const ROLLBACK = new Error('rolled back');
+    let outcome: string | undefined;
+    await expect(
+      asMigrator((m) =>
+        m.begin(async (tx: postgres.TransactionSql) => {
+          await tx`select set_config('transaction_read_only', 'on', true)`;
+          outcome = await wake(tx, person.id, other);
+          throw ROLLBACK;
+        }),
       ),
-    ).toBe('the person rung works in the company');
+    ).rejects.toBe(ROLLBACK);
+    expect(outcome).toBe('failed');
+    // And when Realtime refuses the message itself.
+    await asMigrator((m) =>
+      m.unsafe(
+        `alter table ${MESSAGES} add constraint refused check (event <> 'ringing') not valid`,
+      ),
+    );
+    try {
+      await asMigrator(async (m) => {
+        expect(await wake(m, person.id, other)).toBe('failed');
+      });
+    } finally {
+      await asMigrator((m) => m.unsafe(`alter table ${MESSAGES} drop constraint refused`));
+    }
+    expect((await messages(person.id)).filter((m) => m.payload.providerCallId === other)).toEqual(
+      [],
+    );
   });
 });

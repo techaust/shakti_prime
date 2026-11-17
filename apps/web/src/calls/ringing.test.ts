@@ -6,7 +6,7 @@ const POP = {
   providerCallId: '01a1e99a-ac5e-7726-bde8-2fb433596282',
   entityId: 2,
   accountIds: ['01a1e99a-af91-76d1-83ca-7bab32272e3b'],
-  phone: '+919812345678',
+  phone: '5678',
   ringingAt: '2026-11-17T06:30:00.000Z',
 };
 const PERSON = '01a1e99a-b000-7000-8000-000000000001';
@@ -43,6 +43,18 @@ describe('the ringing call store', () => {
     expect(await takeRinging(kv, PERSON)).toBeUndefined();
     expect(await kv.get(ringingKey(PERSON))).toBeNull();
     await expect(holdRinging(kv, PERSON, { ...POP, phone: '98123' })).rejects.toThrow();
+  });
+
+  it('holds the whole number only when no customer matched, else its last four digits', async () => {
+    const kv = memoryKeyValue();
+    const unmatched = { ...POP, accountIds: [], phone: '+919812345678' };
+    await holdRinging(kv, PERSON, unmatched);
+    expect(await kv.get(ringingKey(PERSON))).toContain('+919812345678');
+    await holdRinging(kv, PERSON, POP);
+    expect(await kv.get(ringingKey(PERSON))).not.toContain('98123');
+    // The whole number of a matched call, or four digits with nothing to fill, is never held.
+    await expect(holdRinging(kv, PERSON, { ...POP, phone: '+919812345678' })).rejects.toThrow();
+    await expect(holdRinging(kv, PERSON, { ...unmatched, phone: '5678' })).rejects.toThrow();
   });
 
   it('gives a call to one of two screens asking at the same moment', async () => {

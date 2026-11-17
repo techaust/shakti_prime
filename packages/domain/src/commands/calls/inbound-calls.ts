@@ -4,6 +4,8 @@ import {
   InboundCallSeriesSchema,
   newId,
   RecordInboundCallInput,
+  RingingSignalDto,
+  SignalRingingInput,
   type InboundCallSeries,
   type LeadIngestResultDto,
 } from '@shakti/contracts';
@@ -46,23 +48,6 @@ export async function inboundCallLines(
   }));
 }
 
-/**
- * Wakes the screens of the person a ringing call waits for on their own Realtime channel
- * (`app.signal_ringing()`, the platform's `calls.process`), when the screen-pop's transport is
- * Realtime: the message carries nothing, and the screen takes the call from the ringing route.
- * False where the database has no Realtime (the local stack, CI), which sends nothing.
- */
-export async function signalRinging(
-  ctx: Pick<RequestContext, 'tx'>,
-  entityId: number,
-  userId: string,
-): Promise<boolean> {
-  const rows = (await ctx.tx.execute(
-    sql`select app.signal_ringing(${entityId}::smallint, ${userId}::uuid) as sent`,
-  )) as unknown as { sent: boolean }[];
-  return rows[0]?.sent === true;
-}
-
 /** The company's customers holding the number, ids only, oldest relationship first. */
 async function matchCustomers(
   ctx: CommandContext,
@@ -75,17 +60,20 @@ async function matchCustomers(
   return rows.map((r) => r.account_id);
 }
 
-/** The one person of the company whose own dial phone the IVR rings, or null. */
+/**
+ * The one person of the company whose own dial phone the IVR rings (null when nobody's, or two
+ * people's: then `holders` says how many).
+ */
 async function answerer(
   ctx: CommandContext,
   entityId: number,
   dialWhom: string | undefined,
-): Promise<string | null> {
-  if (dialWhom === undefined) return null;
+): Promise<{ userId: string | null; holders: number }> {
+  if (dialWhom === undefined) return { userId: null, holders: 0 };
   const [row] = (await ctx.tx.execute(
-    sql`select app.inbound_call_answerer(${entityId}::smallint, ${dialWhom}::text) as user_id`,
-  )) as unknown as { user_id: string | null }[];
-  return row?.user_id ?? null;
+    sql`select user_id, holders from app.inbound_call_answerer(${entityId}::smallint, ${dialWhom}::text)`,
+  )) as unknown as { user_id: string | null; holders: number }[];
+  return { userId: row?.user_id ?? null, holders: row?.holders ?? 0 };
 }
 
 /**
@@ -145,6 +133,7 @@ export const recordInboundCall = defineCommand({
       entityId,
       series: input.series,
       answererId: null,
+      dialPhoneHolders: 0,
       accountIds: [],
       leadId: null,
       ownerId: null,
@@ -165,7 +154,8 @@ export const recordInboundCall = defineCommand({
 
     if (input.series === 'ivr') {
       const accountIds = await matchCustomers(ctx, entityId, input.from);
-      const answererId = await answerer(ctx, entityId, input.dialWhom);
+      const rung = await answerer(ctx, entityId, input.dialWhom);
+      const answererId = rung.userId;
       const [row] = (await ctx.tx.execute(
         sql`select outcome, provider_call_id
               from app.record_inbound_call(${entityId}::smallint, ${id}::uuid,
@@ -200,6 +190,7 @@ export const recordInboundCall = defineCommand({
         providerCallId: row.provider_call_id,
         outcome: 'recorded' as const,
         answererId,
+        dialPhoneHolders: rung.holders,
         accountIds,
       };
     }
@@ -264,5 +255,33 @@ export const recordInboundCall = defineCommand({
       taskId: row.task_id,
       taskDueAt,
     };
+  },
+});
+
+/**
+ * `calls.ringing.signal` (`calls.process`): wakes the screens of the person a ringing IVR call
+ * waits for, on their own private Realtime channel `user:{id}`, once the handler has held the call
+ * for them (`app.signal_ringing()`), when the screen-pop's transport is Realtime. The message
+ * carries the call's ids only; the screen takes the call from the ringing route. It is a write (a
+ * row in Realtime's messages), so a command's, never a read's. `failed` when Realtime did not take
+ * the message (its own `realtime.send()` only warns), `unavailable` where the database has no
+ * Realtime (the local stack, CI). Not audited: it changes no record of the business.
+ */
+export const signalRinging = defineCommand({
+  name: 'calls.ringing.signal',
+  permission: 'calls.process',
+  minScope: 'entity',
+  input: SignalRingingInput,
+  output: RingingSignalDto,
+  auditFields: [],
+  auditWhen: 'changed',
+  async handler(ctx, input) {
+    assertEntityInScope(ctx.entityIds, input.entityId);
+    const [row] = (await ctx.tx.execute(
+      sql`select app.signal_ringing(${input.entityId}::smallint, ${input.userId}::uuid,
+                                    ${input.providerCallId}::uuid) as outcome`,
+    )) as unknown as { outcome: RingingSignalDto['outcome'] }[];
+    if (row === undefined) throw new DomainError('internal', 'the wake-up answered no row');
+    return { outcome: row.outcome };
   },
 });

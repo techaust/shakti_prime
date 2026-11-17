@@ -229,6 +229,7 @@ const ACTIONS = {
   'calls.call.dial': 'callDial',
   'calls.provider_call.record': 'providerCallRecord',
   'calls.inbound_call.record': 'inboundCallRecord',
+  'calls.ringing.signal': 'ringingSignal',
   'calls.recording.attach': 'callRecordingAttach',
   'calls.recording.delete': 'callRecordingDelete',
   'calls.recording.play': 'callRecordingPlay',

@@ -49,6 +49,7 @@ export async function readScreenPop(ctx: Ctx, rawPending: unknown): Promise<Scre
     providerCallId: pending.providerCallId,
     entityId: pending.entityId,
     ringingAt: pending.ringingAt,
+    // The store holds the whole number only when no customer matched, else its last four digits.
     phoneLast4: pending.phone.slice(-4),
     customers,
     newLeadPhone: pending.accountIds.length === 0 ? pending.phone : null,

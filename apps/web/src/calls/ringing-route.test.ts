@@ -13,7 +13,8 @@ const POP = {
   providerCallId: '01a1e99a-ac5e-7726-bde8-2fb433596282',
   entityId: 1,
   accountIds: ['01a1e99a-af91-76d1-83ca-7bab32272e3b'],
-  phone: '+919812345678',
+  // A matched customer's call is held with the number's last four digits only.
+  phone: '5678',
   ringingAt: NOW.toISOString(),
 };
 const SHOWN: ScreenPopDto = {
@@ -82,6 +83,55 @@ describe('GET /api/v1/calls/ringing', () => {
     const answer = await ringingRoute(ask(ticketOf(PERSON)), d);
     expect(answer.status).toBe(401);
     expect(d.read).not.toHaveBeenCalled();
+  });
+
+  it('leaves the call for the person’s own screen when a screen’s session is not theirs', async () => {
+    const kv = memoryKeyValue();
+    await holdRinging(kv, PERSON, POP);
+    // A tab whose session lapsed, then a tab another person signed in on, both with her ticket.
+    for (const session of [undefined, person(OTHER)]) {
+      const stale = deps(kv, { personIn: vi.fn(() => Promise.resolve(session)) });
+      expect((await ringingRoute(ask(ticketOf(PERSON)), stale)).status).toBe(401);
+    }
+    // Her own screen still gets it, once.
+    const own = deps(kv);
+    const answer = await ringingRoute(ask(ticketOf(PERSON)), own);
+    expect(answer.status).toBe(200);
+    expect(await answer.json()).toEqual(SHOWN);
+    expect((await ringingRoute(ask(ticketOf(PERSON)), own)).status).toBe(204);
+  });
+
+  it('never clears a newer call held while the session was being read', async () => {
+    const kv = memoryKeyValue();
+    await holdRinging(kv, PERSON, POP);
+    const newer = { ...POP, providerCallId: '01a1e99a-ac5e-7726-bde8-2fb433596284' };
+    const d = deps(kv, {
+      personIn: vi.fn(async () => {
+        // The next call rings her between the read and the take.
+        await holdRinging(kv, PERSON, newer);
+        return person(PERSON);
+      }),
+    });
+    // The call read is gone (replaced), so nothing is shown now and nothing is cleared.
+    const first = await ringingRoute(ask(ticketOf(PERSON)), d);
+    expect(first.status).toBe(204);
+    expect(d.read).not.toHaveBeenCalled();
+    // The next ask takes the newer call.
+    const next = deps(kv);
+    expect((await ringingRoute(ask(ticketOf(PERSON)), next)).status).toBe(200);
+    expect(next.read).toHaveBeenCalledWith(person(PERSON), newer, expect.any(String));
+  });
+
+  it('serves a call to only one of two screens of the person asking at once', async () => {
+    const kv = memoryKeyValue();
+    await holdRinging(kv, PERSON, POP);
+    const d = deps(kv);
+    const answers = await Promise.all([
+      ringingRoute(ask(ticketOf(PERSON)), d),
+      ringingRoute(ask(ticketOf(PERSON)), d),
+    ]);
+    expect(answers.map((a) => a.status).sort()).toEqual([200, 204]);
+    expect(d.read).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a missing, forged or ended ticket before the store is read', async () => {

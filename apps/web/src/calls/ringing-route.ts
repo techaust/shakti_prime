@@ -3,7 +3,7 @@ import type { KeyValue } from '@shakti/domain';
 import { apiFailure } from '../api-failure';
 import { logger } from '../log';
 import { incomingRequestId } from '../request-id';
-import { takeRinging } from './ringing';
+import { claimRinging, peekRinging } from './ringing';
 import { readRingingTicket, RINGING_TICKET_HEADER } from './ticket';
 
 /** What the ringing route reaches beyond the request; tests pass their own. */
@@ -28,10 +28,12 @@ const NO_STORE = { 'cache-control': 'no-store' };
  * screen-pop's poll, every 3 seconds while a caller's page is in view, or once when Realtime wakes
  * the page. The person is named by the ticket in `x-ringing-ticket` (`ticket.ts`), so a poll with
  * nothing ringing reads the key-value store once and no database: `204` with no body. A ringing
- * call is taken once (`takeRinging`) and only then is the person's session read: the call is shown
- * under their own policies (`readScreenPop`), and to nobody when the session is gone or names
- * someone else. A ticket that is missing, forged or past its end is `401`, and the screen asks
- * for a new one.
+ * call is read without taking it (`peekRinging`), then the person's session is read: when it is
+ * gone or names someone else the call stays for the person's right screen and nothing is shown;
+ * when it is theirs the call is taken in one step (`claimRinging`: only while the store still
+ * holds that call, so a second screen or a newer call is never served twice or cleared) and shown
+ * under their own policies (`readScreenPop`). A ticket that is missing, forged or past its end is
+ * `401`, and the screen asks for a new one.
  */
 export async function ringingRoute(request: Request, deps: RingingRouteDeps): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
@@ -43,14 +45,16 @@ export async function ringingRoute(request: Request, deps: RingingRouteDeps): Pr
   );
   if (userId === undefined) return apiFailure('unauthorized', requestId);
 
-  let pending;
+  const keyValue = deps.keyValue();
+  let held;
   try {
-    pending = await takeRinging(deps.keyValue(), userId);
+    held = await peekRinging(keyValue, userId);
   } catch (error) {
     logger.log('error', 'calls.ringing_store_failed', { requestId, error });
     return apiFailure('integration_unavailable', requestId);
   }
-  if (pending === undefined) return new Response(null, { status: 204, headers });
+  if (held === undefined) return new Response(null, { status: 204, headers });
+  const pending = held.pop;
 
   let principal: Principal | undefined;
   try {
@@ -62,7 +66,8 @@ export async function ringingRoute(request: Request, deps: RingingRouteDeps): Pr
     logger.log('error', 'calls.ringing_principal_failed', { requestId, error });
     return apiFailure('internal', requestId);
   }
-  // The ticket's person must be the session's: a call is never shown to anyone else.
+  // The ticket's person must be the session's: a call is never shown to anyone else, and it waits
+  // for the person's own screen.
   if (principal?.id !== userId) {
     logger.log('warn', 'calls.ringing_not_shown', {
       requestId,
@@ -70,6 +75,15 @@ export async function ringingRoute(request: Request, deps: RingingRouteDeps): Pr
     });
     return apiFailure('unauthorized', requestId);
   }
+  let taken: boolean;
+  try {
+    taken = await claimRinging(keyValue, userId, held);
+  } catch (error) {
+    logger.log('error', 'calls.ringing_store_failed', { requestId, error });
+    return apiFailure('integration_unavailable', requestId);
+  }
+  // Another screen of the person took it first, or a newer call replaced it (the next ask has it).
+  if (!taken) return new Response(null, { status: 204, headers });
   try {
     const pop = await deps.read(principal, pending, requestId);
     logger.log('info', 'calls.ringing_shown', {

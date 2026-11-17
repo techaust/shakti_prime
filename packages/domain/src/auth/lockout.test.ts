@@ -91,6 +91,10 @@ describe('createLockout', () => {
         await tick();
         return memory.raiseTo(key, value, ttl);
       },
+      delIfValue: async (key, value) => {
+        await tick();
+        return memory.delIfValue(key, value);
+      },
     };
     const lockout = createLockout(store, () => clock);
     const keys = ['acct:asha@shakti.test', 'ip:10.0.0.1'];

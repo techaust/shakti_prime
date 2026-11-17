@@ -898,6 +898,8 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       callSid: 'refused-call-sid',
       from: '+919812345678',
     },
+    // The Realtime wake-up of the person a ringing call waits for (T4).
+    'calls.ringing.signal': { entityId: 1, userId: newId(), providerCallId: newId() },
   };
 
   it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {
