@@ -183,21 +183,21 @@ export class VoiceSession {
   /** Whether the person joined within `PERSON_JOIN_WAIT_MS`; false when they did not. */
   private personJoined(): Promise<boolean> {
     return new Promise((resolve) => {
-      let settled = false;
+      // The room may call back at once (the person is already there), before the wait is set.
+      const wait = { settled: false };
       const settle = (joined: boolean) => {
-        if (settled) return;
-        settled = true;
+        if (wait.settled) return;
+        wait.settled = true;
         this.clearJoinWait();
         resolve(joined);
       };
       this.deps.room.onPersonJoined(() => {
         settle(true);
       });
-      if (!settled) {
-        this.joinWait = this.deps.timers.set(() => {
-          settle(false);
-        }, PERSON_JOIN_WAIT_MS);
-      }
+      if (wait.settled) return;
+      this.joinWait = this.deps.timers.set(() => {
+        settle(false);
+      }, PERSON_JOIN_WAIT_MS);
     });
   }
 
