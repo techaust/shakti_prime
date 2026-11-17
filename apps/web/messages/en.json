@@ -3663,7 +3663,8 @@
       "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
       "calls_process": "Record how a placed call went and keep its recording",
-      "knowledge_ask": "Ask the Business questions"
+      "knowledge_ask": "Ask the Business questions",
+      "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp"
     },
     "empty": "There are no roles to show.",
     "locked": {

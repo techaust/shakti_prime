@@ -21,6 +21,9 @@ import {
   WhatsAppTemplateValueSchema,
   WhatsAppThreadHandlerSchema,
   WhatsAppWaIdSchema,
+  WhatsAppMilestoneOutcomeSchema,
+  WhatsAppMilestoneSubjectSchema,
+  WHATSAPP_LIVE_MILESTONES,
 } from '../../whatsapp';
 
 /**
@@ -81,7 +84,7 @@ export type ReturnWhatsAppThreadInput = z.input<typeof ReturnWhatsAppThreadInput
  * the company: its name and language, category, what each body value stands for and its buttons.
  * Registering the same name and language again updates it; its status stays as Meta last
  * reported it, and a new template waits as `pending` until Meta's event. A template the platform
- * sends (`purpose`) takes no body values, since the platform has none to give it.
+ * sends (`purpose`) takes the body values its purpose gives (`WHATSAPP_PURPOSE_VALUES`).
  */
 export const RegisterWhatsAppTemplateInput = z
   .object({
@@ -248,7 +251,7 @@ export const QueueWhatsAppMessageInput = z
   .object({
     entityId: EntityIdSchema,
     threadId: IdSchema,
-    purpose: WhatsAppTemplatePurposeSchema,
+    purpose: z.enum(['welcome', 'opt_out_confirmation']),
   })
   .strict();
 export type QueueWhatsAppMessageInput = z.input<typeof QueueWhatsAppMessageInput>;
@@ -334,3 +337,45 @@ export const WhatsAppMediaAttached = z
   .object({ messageId: IdSchema, fileId: IdSchema, attached: z.boolean() })
   .strict();
 export type WhatsAppMediaAttached = z.infer<typeof WhatsAppMediaAttached>;
+
+// --- Milestones (docs/03-roadmap-appendix/phase2.md §7.1, PRD WA-01) --------------------------------
+
+/**
+ * `messaging.milestone.set`: an Executive maps a milestone of the company to one of its registered
+ * templates (`templateId`), or stops it (`isActive` false), in Settings › WhatsApp templates.
+ */
+export const SetWhatsAppMilestoneInput = z
+  .object({
+    entityId: EntityIdSchema,
+    milestone: z.enum(WHATSAPP_LIVE_MILESTONES),
+    templateId: IdSchema,
+    isActive: z.boolean().default(true),
+  })
+  .strict();
+export type SetWhatsAppMilestoneInput = z.input<typeof SetWhatsAppMilestoneInput>;
+
+/**
+ * `messaging.milestone.send`: the platform sends a milestone of a quote or an order once, on the
+ * customer's chat in the company (`threadId` when one is named, as a quote sent on WhatsApp names
+ * it), with the template's body values in order, made from the subject by the worker.
+ */
+export const SendWhatsAppMilestoneInput = z
+  .object({
+    entityId: EntityIdSchema,
+    milestone: z.enum(WHATSAPP_LIVE_MILESTONES),
+    subjectKind: WhatsAppMilestoneSubjectSchema,
+    subjectId: IdSchema,
+    threadId: IdSchema.nullable().default(null),
+    values: z.array(WhatsAppTemplateValueSchema).max(20),
+  })
+  .strict();
+export type SendWhatsAppMilestoneInput = z.input<typeof SendWhatsAppMilestoneInput>;
+
+export const WhatsAppMilestoneSent = z
+  .object({
+    outcome: WhatsAppMilestoneOutcomeSchema,
+    messageId: IdSchema.nullable(),
+    threadId: IdSchema.nullable(),
+  })
+  .strict();
+export type WhatsAppMilestoneSent = z.infer<typeof WhatsAppMilestoneSent>;

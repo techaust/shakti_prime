@@ -2,6 +2,7 @@ import {
   DomainError,
   newId,
   RegisterWhatsAppTemplateInput,
+  WHATSAPP_PURPOSE_VALUES,
   WhatsAppTemplateButtonSchema,
   WhatsAppTemplateCategorySchema,
   WhatsAppTemplateDto,
@@ -42,7 +43,8 @@ function audited(row: Pick<TemplateRow, 'name' | 'category' | 'purpose'>) {
  * `messaging.template.register` (docs/03-roadmap-appendix/phase2.md §6.1): an Executive records a
  * template of the company as it was submitted to Meta: its name and language, its category, what
  * each body value stands for and its buttons, and whether the platform sends it itself (the
- * welcome, the confirmation of a STOP; one of each per company, taking no body values). The same
+ * welcome, the confirmation of a STOP, the acceptance code, the answer on an expired quote; one of
+ * each per company, taking the values its purpose gives, `WHATSAPP_PURPOSE_VALUES`). The same
  * name and language again updates it in place. Its status is never written here: a new template
  * waits as `pending` until Meta's template event, which only the platform records. People only;
  * `messaging.templates.write` for the whole group, which the policies check.
@@ -61,8 +63,11 @@ export const registerWhatsAppTemplate = defineCommand({
   },
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
-    if (input.purpose !== null && input.params.length > 0) {
-      throw new DomainError('validation_failed', 'a template the platform sends takes no values', {
+    if (
+      input.purpose !== null &&
+      input.params.length !== WHATSAPP_PURPOSE_VALUES[input.purpose].length
+    ) {
+      throw new DomainError('validation_failed', 'a platform template takes its purpose’s values', {
         reason: 'whatsapp_template_purpose_values',
       });
     }

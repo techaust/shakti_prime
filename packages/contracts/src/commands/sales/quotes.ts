@@ -51,6 +51,25 @@ export type CreateQuoteInput = z.input<typeof CreateQuoteInput>;
 export const QuoteRefInput = z.object({ entityId: EntityIdSchema, quoteId: IdSchema }).strict();
 export type QuoteRefInput = z.input<typeof QuoteRefInput>;
 
+/**
+ * How a quote is sent (docs/03-roadmap-appendix/phase2.md §7.1): `recorded`, handed over by the
+ * person and recorded as sent (Phase 1's way, the default), or `whatsapp`, sent by the company's
+ * WhatsApp number with its PDF and an Accept button.
+ */
+export const QUOTE_SEND_CHANNELS = ['recorded', 'whatsapp'] as const;
+export const QuoteSendChannelSchema = z.enum(QUOTE_SEND_CHANNELS);
+export type QuoteSendChannel = z.infer<typeof QuoteSendChannelSchema>;
+
+/** `sales.quote.send`: a draft quote marked as sent, by the channel the person chose. */
+export const SendQuoteInput = z
+  .object({
+    entityId: EntityIdSchema,
+    quoteId: IdSchema,
+    channel: QuoteSendChannelSchema.default('recorded'),
+  })
+  .strict();
+export type SendQuoteInput = z.input<typeof SendQuoteInput>;
+
 /** `sales.quote.requote`: a new quote at today's prices in place of a sent or lapsed one. */
 export const RequoteInput = QuoteRefInput;
 export type RequoteInput = QuoteRefInput;

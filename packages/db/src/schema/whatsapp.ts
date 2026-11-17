@@ -293,7 +293,9 @@ export const whatsappMessageKeys = pgTable(
  * (`messaging.templates.write`), its `status` only by the platform from Meta's template events.
  * `params` names each body value in order (its count is the template's), `buttons` the buttons it
  * carries; `label` is what staff read for it; `purpose` marks a template the platform itself sends (the welcome, the confirmation of a
- * STOP), one per company and purpose; such a template takes no body values.
+ * STOP, the code that confirms a WhatsApp acceptance, the answer to a press on an expired quote),
+ * one per company and purpose; such a template takes the values its purpose names
+ * (`WHATSAPP_PURPOSE_VALUES`).
  * Read by every principal acting in the company, since the composer offers the approved ones.
  */
 export const whatsappTemplates = pgTable(
@@ -318,6 +320,8 @@ export const whatsappTemplates = pgTable(
   },
   (t) => [
     unique('whatsapp_templates_entity_name_unique').on(t.entityId, t.name, t.language),
+    // The key a milestone points at, so a milestone sends only its own company's template.
+    unique('whatsapp_templates_id_entity_unique').on(t.id, t.entityId),
     check(
       'whatsapp_templates_name_check',
       sql`${t.name} ~ '^[a-z0-9_]+$' and char_length(${t.name}) <= 512`,
@@ -334,7 +338,7 @@ export const whatsappTemplates = pgTable(
     ),
     check(
       'whatsapp_templates_purpose_check',
-      sql`${t.purpose} is null or ${t.purpose} in ('welcome', 'opt_out_confirmation')`,
+      sql`${t.purpose} is null or ${t.purpose} in ('welcome', 'opt_out_confirmation', 'acceptance_code', 'quote_expired')`,
     ),
     // One template a company's platform sends for each purpose.
     uniqueIndex('whatsapp_templates_purpose_unique')

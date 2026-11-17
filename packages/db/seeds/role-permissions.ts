@@ -335,6 +335,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // The platform's record of a provider call and its recording; no person's role holds it
   // (SECURITY §3.3).
   'calls.process': {},
+  // The platform's acceptance of a quote from WhatsApp; no person's role holds it (SECURITY §3.3).
+  'sales.quote.accept_remote': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

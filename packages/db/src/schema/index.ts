@@ -62,6 +62,7 @@ export {
   whatsappMessageKeys,
   whatsappTemplates,
 } from './whatsapp';
+export { whatsappMilestones, whatsappMilestoneSends } from './whatsapp-milestones';
 export { askConversations, askMessages } from './ask';
 export { ingestSources, ingestKeys, leadQualifications } from './lead-ingest';
 export { providerCalls } from './provider-calls';

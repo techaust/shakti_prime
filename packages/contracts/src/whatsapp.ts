@@ -93,11 +93,103 @@ export const WhatsAppTemplateLanguageSchema = z.enum(WHATSAPP_TEMPLATE_LANGUAGES
 
 /**
  * A template the platform itself sends: the welcome on a customer's first message (the owner's
- * decision of 13-11-2026, question 2 (a)) and the confirmation of a STOP. One per company each.
+ * decision of 13-11-2026, question 2 (a)), the confirmation of a STOP, the one-time code that
+ * confirms a WhatsApp acceptance of a large quote (an authentication template, question 5 (a)),
+ * and the answer to a press on a quote whose validity has passed (docs/03-roadmap-appendix/
+ * phase2.md §7.1). One per company each.
  */
-export const WHATSAPP_TEMPLATE_PURPOSES = ['welcome', 'opt_out_confirmation'] as const;
+export const WHATSAPP_TEMPLATE_PURPOSES = [
+  'welcome',
+  'opt_out_confirmation',
+  'acceptance_code',
+  'quote_expired',
+] as const;
 export const WhatsAppTemplatePurposeSchema = z.enum(WHATSAPP_TEMPLATE_PURPOSES);
 export type WhatsAppTemplatePurpose = z.infer<typeof WhatsAppTemplatePurposeSchema>;
+
+/**
+ * The body values the platform gives a template of each purpose, in order: none to the welcome
+ * and the STOP's confirmation, the six-digit code to the acceptance code (Meta's authentication
+ * templates take the code alone), and the quote's number to the answer on an expired quote.
+ */
+export const WHATSAPP_PURPOSE_VALUES: Record<WhatsAppTemplatePurpose, readonly string[]> = {
+  welcome: [],
+  opt_out_confirmation: [],
+  acceptance_code: ['code'],
+  quote_expired: ['quote_no'],
+};
+
+/**
+ * The customer milestones a company's WhatsApp number tells (PRD WA-01, docs/03-roadmap-appendix/
+ * phase2.md §7.1), each through the approved template the company maps to it: a quote sent and an
+ * order confirmed in Phase 2; the dispatch, the visit booked and its reminder, the installation,
+ * a payment due and the handover kit join with the phases that make their events.
+ */
+export const WHATSAPP_MILESTONES = [
+  'quote_sent',
+  'order_confirmed',
+  'dispatched',
+  'visit_booked',
+  'visit_reminder',
+  'installed',
+  'payment_due',
+  'handover_kit',
+] as const;
+export const WhatsAppMilestoneSchema = z.enum(WHATSAPP_MILESTONES);
+export type WhatsAppMilestone = z.infer<typeof WhatsAppMilestoneSchema>;
+
+/** What a milestone is about: a quote or an order (later phases add theirs). */
+export const WHATSAPP_MILESTONE_SUBJECTS = ['quote', 'sales_order'] as const;
+export const WhatsAppMilestoneSubjectSchema = z.enum(WHATSAPP_MILESTONE_SUBJECTS);
+export type WhatsAppMilestoneSubject = z.infer<typeof WhatsAppMilestoneSubjectSchema>;
+
+/**
+ * The body values each milestone gives its template, in order; a template mapped to a milestone
+ * takes exactly these. A milestone with no event yet has none listed and cannot be mapped.
+ */
+export const WHATSAPP_MILESTONE_VALUES: Record<WhatsAppMilestone, readonly string[]> = {
+  quote_sent: ['quote_no', 'grand_total', 'valid_until'],
+  order_confirmed: ['order_no', 'grand_total'],
+  dispatched: [],
+  visit_booked: [],
+  visit_reminder: [],
+  installed: [],
+  payment_due: [],
+  handover_kit: [],
+};
+
+/** The milestones that have an event to send them in this phase, so Settings maps only these. */
+export const WHATSAPP_LIVE_MILESTONES = [
+  'quote_sent',
+  'order_confirmed',
+] as const satisfies readonly WhatsAppMilestone[];
+
+/** What one milestone of one subject is about (`whatsapp_milestone_sends.subject_kind`). */
+export const WHATSAPP_MILESTONE_SUBJECT_OF: Record<
+  (typeof WHATSAPP_LIVE_MILESTONES)[number],
+  WhatsAppMilestoneSubject
+> = { quote_sent: 'quote', order_confirmed: 'sales_order' };
+
+/** A milestone recorded for a subject: queued on the chat, or held while its template waits. */
+export const WHATSAPP_MILESTONE_RECORDS = ['queued', 'held'] as const;
+
+/**
+ * What came of asking for a milestone: queued, held (its template not approved, WA-01), already
+ * sent or held for the subject, not mapped by the company, not due (the subject is not at the
+ * milestone), or not sendable to the customer: no chat with a number, the number opted out, or no
+ * WhatsApp consent.
+ */
+export const WHATSAPP_MILESTONE_OUTCOMES = [
+  ...WHATSAPP_MILESTONE_RECORDS,
+  'already',
+  'not_mapped',
+  'not_due',
+  'no_chat',
+  'opted_out',
+  'no_consent',
+] as const;
+export const WhatsAppMilestoneOutcomeSchema = z.enum(WHATSAPP_MILESTONE_OUTCOMES);
+export type WhatsAppMilestoneOutcome = z.infer<typeof WhatsAppMilestoneOutcomeSchema>;
 
 export const WHATSAPP_BUTTON_KINDS = ['quick_reply', 'url'] as const;
 
@@ -205,6 +297,18 @@ export const WhatsAppTemplateDto = z
   })
   .strict();
 export type WhatsAppTemplateDto = z.infer<typeof WhatsAppTemplateDto>;
+
+/** A company's map of one milestone to its template, as Settings › WhatsApp templates shows it. */
+export const WhatsAppMilestoneDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    milestone: WhatsAppMilestoneSchema,
+    templateId: IdSchema,
+    isActive: z.boolean(),
+  })
+  .strict();
+export type WhatsAppMilestoneDto = z.infer<typeof WhatsAppMilestoneDto>;
 
 // --- Reads ----------------------------------------------------------------------------------------
 

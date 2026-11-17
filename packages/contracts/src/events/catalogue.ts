@@ -548,10 +548,18 @@ const eventCatalogue = {
       .strict(),
   },
   'sales.quote.sent': {
-    meaning: 'A quote with its PDF was marked as sent to the customer.',
+    meaning:
+      'A quote with its PDF was marked as sent to the customer: recorded as handed over, or to go by the company\'s WhatsApp number on the chat `threadId`.',
     emittedBy: ['sales.quote.send'],
     subscribed: false,
-    payload: z.object({ opportunityId: IdSchema, pdfFileId: IdSchema }).strict(),
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        pdfFileId: IdSchema,
+        channel: z.enum(['recorded', 'whatsapp']),
+        threadId: IdSchema.nullable(),
+      })
+      .strict(),
   },
   'sales.quote.superseded': {
     meaning: 'A quote was replaced by a re-quote at current prices (`supersededById`).',
@@ -562,7 +570,12 @@ const eventCatalogue = {
   'sales.quote.withdrawn': {
     meaning:
       'A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose order was cancelled.',
-    emittedBy: ['sales.order.cancel', 'sales.quote.accept', 'sales.quote.withdraw'],
+    emittedBy: [
+      'sales.order.cancel',
+      'sales.quote.accept',
+      'sales.quote.accept_remote',
+      'sales.quote.withdraw',
+    ],
     subscribed: false,
     payload: z.object({ opportunityId: IdSchema }).strict(),
   },
@@ -574,8 +587,8 @@ const eventCatalogue = {
   },
   'sales.quote.accepted': {
     meaning:
-      'A sent quote was accepted (by a signed copy staff uploaded, in Phase 1) and became the order `orderId`.',
-    emittedBy: ['sales.quote.accept'],
+      'A sent quote was accepted (by a signed copy staff uploaded, or on WhatsApp by its Accept button and, for a large quote, a code) and became the order `orderId`.',
+    emittedBy: ['sales.quote.accept', 'sales.quote.accept_remote'],
     subscribed: false,
     payload: z
       .object({
@@ -588,7 +601,7 @@ const eventCatalogue = {
   'sales.order.created': {
     meaning:
       'A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one.',
-    emittedBy: ['sales.quote.accept', 'sales.order.create'],
+    emittedBy: ['sales.quote.accept', 'sales.quote.accept_remote', 'sales.order.create'],
     subscribed: false,
     payload: z
       .object({

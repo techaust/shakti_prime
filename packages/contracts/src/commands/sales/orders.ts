@@ -13,6 +13,41 @@ export const AcceptQuoteInput = z
   .strict();
 export type AcceptQuoteInput = z.input<typeof AcceptQuoteInput>;
 
+/** How a customer accepts a quote on WhatsApp: the Accept button, or the button and a code. */
+export const REMOTE_ACCEPTANCES = ['whatsapp_reply', 'whatsapp_otp'] as const;
+
+/**
+ * `sales.quote.accept_remote` (docs/03-roadmap-appendix/phase2.md §7.1, PRD SAL-05): the platform
+ * accepts a sent quote for the customer who pressed its Accept button on the company's chat
+ * (`threadId`), after the button's token and the sender's number were checked, and, from the
+ * value of question 5, the one-time code (`whatsapp_otp`).
+ */
+export const AcceptQuoteRemoteInput = z
+  .object({
+    entityId: EntityIdSchema,
+    quoteId: IdSchema,
+    threadId: IdSchema,
+    acceptedVia: z.enum(REMOTE_ACCEPTANCES),
+  })
+  .strict();
+export type AcceptQuoteRemoteInput = z.input<typeof AcceptQuoteRemoteInput>;
+
+/**
+ * What a WhatsApp acceptance did: the order made (`accepted`), or the order an earlier acceptance
+ * made (`accepted` false: a second press answers the same order). `ownerId` is the lead's owner,
+ * whom the answer and the notice reach.
+ */
+export const QuoteAcceptedRemotely = z
+  .object({
+    quoteId: IdSchema,
+    orderId: IdSchema,
+    soNo: z.string().min(1).max(40),
+    accepted: z.boolean(),
+    ownerId: IdSchema,
+  })
+  .strict();
+export type QuoteAcceptedRemotely = z.infer<typeof QuoteAcceptedRemotely>;
+
 /**
  * One line of a dealer's order: an item or a kit and how many. Never a price, a rate or an
  * amount: the object is strict, so a line that carries one is refused (SAL-03), and every amount
