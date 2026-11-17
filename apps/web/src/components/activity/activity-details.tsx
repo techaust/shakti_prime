@@ -55,6 +55,8 @@ import {
   WHATSAPP_MESSAGE_KINDS,
   WHATSAPP_TEMPLATE_CATEGORIES,
   WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_MILESTONES,
+  QUOTE_SEND_CHANNELS,
   WHATSAPP_TEMPLATE_STATUSES,
   WHATSAPP_THREAD_HANDLERS,
   CONSENT_PURPOSES,
@@ -525,6 +527,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'whatsappTemplatePurpose':
         return oneOf(WHATSAPP_TEMPLATE_PURPOSES, value)
           ? t(`values.whatsappTemplatePurpose.${value}`)
+          : wordsOf(value);
+      case 'whatsappMilestone':
+        return oneOf(WHATSAPP_MILESTONES, value)
+          ? t(`values.whatsappMilestone.${value}`)
+          : wordsOf(value);
+      case 'quoteSendChannel':
+        return oneOf(QUOTE_SEND_CHANNELS, value)
+          ? t(`values.quoteSendChannel.${value}`)
           : wordsOf(value);
       case 'leadChannel':
         return oneOf(INGEST_CHANNELS, value) ? t(`values.leadChannel.${value}`) : wordsOf(value);

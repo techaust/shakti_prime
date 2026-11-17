@@ -301,6 +301,7 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   // A company's templates: every principal acting in the company reads them (the composer).
   whatsapp_templates: { read: CONTEXT, leak: otherCompany },
+  whatsapp_milestones: { read: CONTEXT, leak: otherCompany },
   // A company's connected forms and sites and its website keys: an Executive's (design phase2 §6.2).
   ingest_sources: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
   ingest_keys: { read: grant('crm.sources.write', 'all'), leak: otherCompany },

@@ -47,7 +47,7 @@ export const setWhatsAppMilestone = defineCommand({
   peopleOnly: true,
   input: SetWhatsAppMilestoneInput,
   output: WhatsAppMilestoneDto,
-  auditFields: ['milestone', 'templateName', 'isActive'],
+  auditFields: ['milestone', 'templateName', 'milestoneActive'],
   constraintReasons: {
     whatsapp_milestones_entity_milestone_unique: 'whatsapp_template_changed_meanwhile',
   },
@@ -87,7 +87,7 @@ export const setWhatsAppMilestone = defineCommand({
     const after = {
       milestone: input.milestone,
       templateName: template.name,
-      isActive: input.isActive,
+      milestoneActive: input.isActive,
     };
     if (current) {
       const [row] = await ctx.tx
@@ -103,7 +103,7 @@ export const setWhatsAppMilestone = defineCommand({
         before: {
           milestone: input.milestone,
           templateName: current.templateName,
-          isActive: current.row.isActive,
+          milestoneActive: current.row.isActive,
         },
         after,
       });
