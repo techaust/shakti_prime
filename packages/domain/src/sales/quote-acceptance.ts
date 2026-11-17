@@ -174,7 +174,8 @@ export function acceptedOrder(
 
 /**
  * Records an acceptance after its order: the quote's audit row with how it was accepted, each
- * withdrawn quote's audit row and `sales.quote.withdrawn`, then `sales.quote.accepted`.
+ * withdrawn quote's audit row and `sales.quote.withdrawn`, then `sales.quote.accepted`, naming who
+ * recorded it (a person, or the platform for WhatsApp) so the notice skips an owner who did.
  */
 export function recordAcceptance(
   ctx: CommandContext,
@@ -219,6 +220,11 @@ export function recordAcceptance(
     entityId: quote.entityId,
     aggregateType: 'quote',
     aggregateId: quote.id,
-    payload: { opportunityId: quote.opportunityId, orderId: order.id, acceptedVia },
+    payload: {
+      opportunityId: quote.opportunityId,
+      orderId: order.id,
+      acceptedVia,
+      acceptedBy: ctx.principal.id,
+    },
   });
 }

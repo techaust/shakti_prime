@@ -128,6 +128,16 @@ export interface WhatsAppDefaults {
    * one, since WhatsApp has no ingest source); the Triage agent and the callers move it on.
    */
   readonly leadPipelineKey: string;
+  /**
+   * The grand total, in rupees, from which accepting a quote on WhatsApp also needs a one-time
+   * code sent on the chat (question 5 (a), docs/03-roadmap-appendix/phase2.md §2); below it the
+   * Accept button alone accepts.
+   */
+  readonly otpFromRupees: number;
+  /** Minutes a one-time code for a WhatsApp acceptance holds. */
+  readonly otpMinutes: number;
+  /** Tries a customer has at one code; a code missed this many times is cleared. */
+  readonly otpTries: number;
 }
 
 /** The cold calling rules (docs/03-roadmap-appendix/phase1.md §7.2, §11; workshop CALL-3 and CALL-5). */
@@ -316,7 +326,15 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
         'insaan se baat',
         'kisi se baat karni hai',
       ],
-      status: ['status', 'order status', 'mera order'],
+      status: [
+        'status',
+        'order status',
+        'quote status',
+        'mera order',
+        'mera quote',
+        'order kahan hai',
+        'status batao',
+      ],
     },
     marketingHoldShare: 0.8,
     startingLimit: 250,
@@ -326,6 +344,10 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     // For the sales head to confirm (phase 2 design §13, question 8): the farm pump line, the
     // group's largest by enquiries, until a WhatsApp number per business line is known.
     leadPipelineKey: 'farmer_pumps',
+    // Question 5 (a), approved 13-11-2026: a code from ₹2,00,000; 5 minutes and 3 tries (§7.1).
+    otpFromRupees: 200_000,
+    otpMinutes: 5,
+    otpTries: 3,
   },
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is

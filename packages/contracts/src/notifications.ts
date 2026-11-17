@@ -29,7 +29,11 @@ const Count = z.number().int().min(0);
  * - `order_credit_held`: a dealer's order was held by the credit check, for the Executive who may
  *   release it and the person who made the order (SAL-07);
  * - `whatsapp_reply_waiting`: a WhatsApp chat handed to people has waited 10 minutes in calling
- *   hours for a reply, for the person who looks after the customer (docs/03-roadmap-appendix/phase2.md §6.1).
+ *   hours for a reply, for the person who looks after the customer (docs/03-roadmap-appendix/phase2.md §6.1);
+ * - `quote_accepted`: a quote on your lead was accepted (on WhatsApp, or by a signed copy someone
+ *   else recorded) and became an order (docs/03-roadmap-appendix/phase2.md §7.1);
+ * - `whatsapp_quote_expired`: a customer pressed Accept on WhatsApp on a quote of your lead that is
+ *   no longer open, and was told a new quote will follow (§7.1).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -40,6 +44,8 @@ export const NOTICE_TYPES = [
   'enquiry_routed',
   'order_credit_held',
   'whatsapp_reply_waiting',
+  'quote_accepted',
+  'whatsapp_quote_expired',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -254,6 +260,7 @@ export const NOTICE_EVENT_TYPES = [
   'crm.duplicate.found',
   'crm.enquiry.routed',
   'sales.order.credit_held',
+  'sales.quote.accepted',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -265,7 +272,9 @@ export function isNoticeEvent(type: string): type is NoticeEventType {
  * `notifications.event.notify`: the notice one event stands for, its people found from the
  * records when the worker runs (the owner may have changed since): the lead's new owner unless
  * they took it themselves, the owners of a duplicate card's leads in its company, or the colleague
- * an enquiry was passed to, or the Executives who may release a held order and its maker.
+ * an enquiry was passed to, the Executives who may release a held order and its maker, or the
+ * owner of a quote's lead when it was accepted or when Accept was pressed on WhatsApp after it
+ * lapsed (the WhatsApp handler asks for that one itself, naming the press's event).
  * `eventId` makes a repeated delivery one notice per person.
  */
 export const NotifyEventInput = z.discriminatedUnion('event', [
@@ -303,6 +312,25 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       entityId: EntityIdSchema,
       eventId: IdSchema,
       orderId: IdSchema,
+    })
+    .strict(),
+  // A quote accepted: its lead's owner is told, unless they recorded the acceptance themselves.
+  z
+    .object({
+      event: z.literal('sales.quote.accepted'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      quoteId: IdSchema,
+      acceptedBy: IdSchema,
+    })
+    .strict(),
+  // Accept pressed on WhatsApp on a quote no longer open: its lead's owner is told, once a quote.
+  z
+    .object({
+      event: z.literal('messaging.button.pressed'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      quoteId: IdSchema,
     })
     .strict(),
 ]);

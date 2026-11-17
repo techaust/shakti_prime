@@ -1338,6 +1338,20 @@
       "when": 1794919832007,
       "tag": "0190_whatsapp_milestones_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 191,
+      "version": "7",
+      "when": 1794957368927,
+      "tag": "0191_quote_notices",
+      "breakpoints": true
+    },
+    {
+      "idx": 192,
+      "version": "7",
+      "when": 1794957405003,
+      "tag": "0192_quote_answers_rls",
+      "breakpoints": true
     }
   ]
 }

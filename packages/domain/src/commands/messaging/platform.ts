@@ -72,8 +72,9 @@ interface InboundRow {
  * company's customers holds the number, the window opened for 24 hours, and the message stored
  * once by Meta's id. The customer's text is untrusted: masked before it is stored, never logged,
  * never in the audit row. A message stored for the first time emits `messaging.message.received`
- * (or `messaging.button.pressed` for a button reply) with ids only; a repeat changes and emits
- * nothing. A number of no company of the request is not found.
+ * (or `messaging.button.pressed` for a button reply) with ids only, marked `platform` when the
+ * platform answers it itself (STATUS, a one-time code); a repeat changes and emits nothing. A
+ * number of no company of the request is not found.
  */
 export const recordInboundWhatsApp = defineCommand({
   name: 'messaging.inbound.record',
@@ -117,7 +118,12 @@ export const recordInboundWhatsApp = defineCommand({
           entityId,
           aggregateType: 'whatsapp_thread',
           aggregateId: row.thread_id,
-          payload: { ...facts, kind: input.kind, firstMessage: row.first_message },
+          payload: {
+            ...facts,
+            kind: input.kind,
+            firstMessage: row.first_message,
+            platform: input.platform,
+          },
         });
       }
     }

@@ -105,13 +105,82 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         dedupeKey: `order_credit_held:${input.eventId}`,
       }));
     }
+    case 'sales.quote.accepted': {
+      // The lead's owner, unless they recorded the acceptance themselves; once a quote.
+      const lead = await quoteLead(ctx, input.entityId, input.quoteId);
+      if (lead?.ownerId == null || lead.ownerId === input.acceptedBy) return [];
+      return [
+        {
+          userId: lead.ownerId,
+          type: 'quote_accepted',
+          subjectType: 'quote',
+          subjectId: input.quoteId,
+          payload: {
+            accountId: lead.accountId,
+            opportunityId: lead.opportunityId,
+            quoteId: input.quoteId,
+          },
+          dedupeKey: `quote_accepted:${input.quoteId}`,
+        },
+      ];
+    }
+    case 'messaging.button.pressed': {
+      // Accept pressed on a quote no longer open: the lead's owner, once a quote, however often
+      // the customer presses it; nothing when the quote is open after all.
+      const lead = await quoteLead(ctx, input.entityId, input.quoteId);
+      if (lead?.ownerId == null || lead.open) return [];
+      return [
+        {
+          userId: lead.ownerId,
+          type: 'whatsapp_quote_expired',
+          subjectType: 'quote',
+          subjectId: input.quoteId,
+          payload: {
+            accountId: lead.accountId,
+            opportunityId: lead.opportunityId,
+            quoteId: input.quoteId,
+          },
+          dedupeKey: `whatsapp_quote_expired:${input.quoteId}`,
+        },
+      ];
+    }
   }
+}
+
+/** A quote's lead and its owner now, and whether the quote is open (`app.notice_quote_lead()`). */
+async function quoteLead(
+  ctx: CommandContext,
+  entityId: number,
+  quoteId: string,
+): Promise<
+  | { accountId: string; opportunityId: string; ownerId: string | null; open: boolean }
+  | undefined
+> {
+  const rows = (await ctx.tx.execute(
+    sql`select account_id, opportunity_id, owner_id, quote_open
+          from app.notice_quote_lead(${entityId}::smallint, ${quoteId}::uuid)`,
+  )) as unknown as {
+    account_id: string;
+    opportunity_id: string;
+    owner_id: string | null;
+    quote_open: boolean;
+  }[];
+  const row = rows[0];
+  return row === undefined
+    ? undefined
+    : {
+        accountId: row.account_id,
+        opportunityId: row.opportunity_id,
+        ownerId: row.owner_id,
+        open: row.quote_open,
+      };
 }
 
 /**
  * `notifications.event.notify`: the notices one event stands for (`crm.opportunity.assigned`,
- * `crm.duplicate.found`, `crm.enquiry.routed`, `sales.order.credit_held`), each for the person who acts on it in the event's
- * company and once per person however often the event is delivered.
+ * `crm.duplicate.found`, `crm.enquiry.routed`, `sales.order.credit_held`, `sales.quote.accepted`,
+ * and an Accept pressed on WhatsApp on a lapsed quote), each for the person who acts on it in the
+ * event's company and once per person however often the event is delivered.
  */
 export const notifyEvent = defineCommand({
   name: 'notifications.event.notify',

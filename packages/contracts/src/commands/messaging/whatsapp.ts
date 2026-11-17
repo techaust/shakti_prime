@@ -118,6 +118,11 @@ export const RecordInboundWhatsAppInput = z
     sentAt: z.iso.datetime(),
     /** Who answers a thread this message opens: people while no assistant answers chats. */
     handledBy: WhatsAppThreadHandlerSchema,
+    /**
+     * The platform answers this message itself (STATUS, or a one-time code while one is waiting
+     * on the chat), so `messaging.message.received` marks it and no agent drafts a reply.
+     */
+    platform: z.boolean().default(false),
   })
   .strict();
 export type RecordInboundWhatsAppInput = z.input<typeof RecordInboundWhatsAppInput>;
@@ -379,3 +384,41 @@ export const WhatsAppMilestoneSent = z
   })
   .strict();
 export type WhatsAppMilestoneSent = z.infer<typeof WhatsAppMilestoneSent>;
+
+/**
+ * `messaging.answer.queue` (docs/03-roadmap-appendix/phase2.md §7.1): the platform's own answer
+ * on a customer's chat: a text in the customer's window (STATUS, an acceptance, a code that does
+ * not match), or the company's template of an answering purpose: the one-time code
+ * (`acceptance_code`, with no value: the code is made from `messageId` as the message is sent and
+ * never stored) or the answer on a quote no longer open (`quote_expired`, with the quote's
+ * number). `messageId` is the caller's new id.
+ */
+export const QueueWhatsAppAnswerInput = z
+  .object({
+    entityId: EntityIdSchema,
+    threadId: IdSchema,
+    messageId: IdSchema,
+    answer: z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('text'), body: WhatsAppBodySchema }).strict(),
+      z.object({ kind: z.literal('acceptance_code') }).strict(),
+      z
+        .object({ kind: z.literal('quote_expired'), quoteNo: WhatsAppTemplateValueSchema })
+        .strict(),
+    ]),
+  })
+  .strict();
+export type QueueWhatsAppAnswerInput = z.input<typeof QueueWhatsAppAnswerInput>;
+
+/**
+ * What came of an answer: queued, or not: the company registered no template of the purpose, the
+ * chat's number was removed, or it opted out.
+ */
+export const WHATSAPP_ANSWER_OUTCOMES = ['queued', 'no_template', 'no_number', 'opted_out'] as const;
+
+export const WhatsAppAnswerQueued = z
+  .object({
+    outcome: z.enum(WHATSAPP_ANSWER_OUTCOMES),
+    messageId: IdSchema.nullable(),
+  })
+  .strict();
+export type WhatsAppAnswerQueued = z.infer<typeof WhatsAppAnswerQueued>;

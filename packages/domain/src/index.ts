@@ -31,6 +31,7 @@ export { sendWhatsAppMessage } from './commands/messaging/send-message';
 export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
 export { sendWhatsAppMilestone, setWhatsAppMilestone } from './commands/messaging/milestones';
+export { queueWhatsAppAnswer } from './commands/messaging/answers';
 export {
   attachWhatsAppMedia,
   claimWhatsAppMessage,
@@ -755,6 +756,21 @@ export {
   type MilestoneSubject,
   type StatusLine,
 } from './queries/messaging/milestones';
+export {
+  readInboundFacts,
+  readSendExtras,
+  type InboundFacts,
+  type SendExtras,
+} from './queries/messaging/answers';
+export {
+  acceptanceCode,
+  checkAcceptanceCode,
+  codeOf,
+  holdAcceptanceCode,
+  pendingAcceptanceCode,
+  type CodeChat,
+  type CodeCheck,
+} from './messaging/acceptance-code';
 export {
   quoteWhatsAppReadiness,
   type QuoteWhatsAppReadiness,

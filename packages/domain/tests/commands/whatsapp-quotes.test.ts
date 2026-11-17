@@ -596,6 +596,7 @@ describe('sales.quote.accept_remote (SAL-05)', () => {
         opportunityId: customer.leadId,
         orderId: accepted.orderId,
         acceptedVia: 'whatsapp_reply',
+        acceptedBy: SYSTEM_WORKERS_PRINCIPAL_ID,
       },
     });
     expect((await eventsOf(other.id)).map((e) => e.type)).toContain('sales.quote.withdrawn');

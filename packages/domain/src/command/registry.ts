@@ -113,6 +113,7 @@ import { sendWhatsAppMessage } from '../commands/messaging/send-message';
 import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messaging/threads';
 import { registerWhatsAppTemplate } from '../commands/messaging/templates';
 import { sendWhatsAppMilestone, setWhatsAppMilestone } from '../commands/messaging/milestones';
+import { queueWhatsAppAnswer } from '../commands/messaging/answers';
 import {
   attachWhatsAppMedia,
   claimWhatsAppMessage,
@@ -197,6 +198,7 @@ export const commands = Object.freeze({
   [attachWhatsAppMedia.name]: attachWhatsAppMedia,
   [setWhatsAppMilestone.name]: setWhatsAppMilestone,
   [sendWhatsAppMilestone.name]: sendWhatsAppMilestone,
+  [queueWhatsAppAnswer.name]: queueWhatsAppAnswer,
   [ingestLead.name]: ingestLead,
   [setLeadQualification.name]: setLeadQualification,
   [setIngestSource.name]: setIngestSource,
