@@ -80,7 +80,7 @@ beforeAll(async () => {
     ] as const) {
       await m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
               values (${file}, ${entity}, 'call_transcript', 'local', ${`${String(entity)}/call_transcript/${file}.txt`},
-                      'transcript.txt', 'text/plain', 10, ${'e'.repeat(64)}, 'ready', ${a.id})`;
+                      'transcript.txt', 'text/plain', 10, ${'e'.repeat(64)}, 'ready', ${COPILOT})`;
     }
     for (const [call, lead, owner, transcript] of [
       [callA, leadA, a.id, transcriptA],

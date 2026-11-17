@@ -72,6 +72,11 @@ export async function crmFixture(): Promise<CrmFixture> {
       await tx`alter table sizings disable trigger sizings_append_only`;
       await tx`delete from sizings where opportunity_id::text like ${`${P}%`}`;
       await tx`alter table sizings enable trigger sizings_append_only`;
+      // Co-pilot notes are children of the leads and name their provider calls
+      // (copilot-notes.test.ts writes them); no role removes one, so the trigger is set aside here.
+      await tx`alter table copilot_notes disable trigger copilot_notes_append_only`;
+      await tx`delete from copilot_notes where opportunity_id::text like ${`${P}%`}`;
+      await tx`alter table copilot_notes enable trigger copilot_notes_append_only`;
       // Provider calls are children of the leads and name their logs (provider-calls.test.ts
       // writes them); no role deletes one, so the trigger is set aside here.
       await tx`alter table provider_calls disable trigger provider_calls_no_delete`;
