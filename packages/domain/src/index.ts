@@ -751,6 +751,7 @@ export {
   type SendFactsRow,
 } from './queries/messaging/whatsapp';
 export {
+  listWhatsAppTemplateSettings,
   readMilestoneSubject,
   readStatusSummary,
   type MilestoneSubject,
@@ -766,13 +767,16 @@ export {
   acceptanceCode,
   checkAcceptanceCode,
   codeOf,
+  dropAcceptanceCode,
   holdAcceptanceCode,
+  needsAcceptanceCode,
   pendingAcceptanceCode,
   type CodeChat,
   type CodeCheck,
 } from './messaging/acceptance-code';
 export {
   quoteWhatsAppReadiness,
+  readQuoteWhatsAppReadiness,
   type QuoteWhatsAppReadiness,
   type QuoteWhatsAppRefusal,
 } from './sales/quote-whatsapp';

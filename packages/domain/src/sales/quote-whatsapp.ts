@@ -78,3 +78,23 @@ export async function quoteWhatsAppReadiness(
   if (!template) return { ready: false, reason: 'whatsapp_quote_template_missing' };
   return { ready: true, threadId: thread.id };
 }
+
+/**
+ * Whether the caller's quote could go by WhatsApp now, for the quote page's send dialog: the
+ * quote as the caller reads it, then `quoteWhatsAppReadiness()` for its customer. Null when the
+ * caller cannot read the quote. The send itself checks it all again.
+ */
+export async function readQuoteWhatsAppReadiness(
+  ctx: Pick<CommandContext, 'tx'>,
+  input: { entityId: number; quoteId: string },
+): Promise<{ ready: boolean; reason: QuoteWhatsAppRefusal | null } | null> {
+  const q = schema.quotes;
+  const [quote] = await ctx.tx
+    .select({ accountId: q.accountId })
+    .from(q)
+    .where(and(eq(q.id, input.quoteId), eq(q.entityId, input.entityId)))
+    .limit(1);
+  if (!quote) return null;
+  const readiness = await quoteWhatsAppReadiness(ctx, input.entityId, quote.accountId);
+  return readiness.ready ? { ready: true, reason: null } : { ready: false, reason: readiness.reason };
+}

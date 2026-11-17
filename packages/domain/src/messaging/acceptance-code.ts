@@ -16,9 +16,12 @@ const RULES = WORKSHOP_DEFAULTS.whatsapp;
 const REMEMBER_SECONDS = RULES.otpMinutes * 60 * 3;
 const PREFIX = 'whatsapp:acceptance-code';
 
-/** The chat a code was sent on: the company's number and the customer's, then its own id. */
+/**
+ * Where a code waits: the company and the customer's number, known before a message is recorded
+ * (so the WhatsApp handler can mark a code as the platform's), then the chat's own id.
+ */
 export interface CodeChat {
-  phoneNumberId: string;
+  entityId: number;
   waId: string;
 }
 
@@ -48,7 +51,7 @@ export function codeOf(text: string | null): string | null {
   return /^\d{6}$/.test(digits) ? digits : null;
 }
 
-const chatKey = (chat: CodeChat) => `${PREFIX}:chat:${chat.phoneNumberId}:${chat.waId}`;
+const chatKey = (chat: CodeChat) => `${PREFIX}:chat:${String(chat.entityId)}:${chat.waId}`;
 const codeKey = (threadId: string, quoteId: string) => `${PREFIX}:${threadId}:${quoteId}`;
 const triesKey = (threadId: string, quoteId: string) => `${codeKey(threadId, quoteId)}:tries`;
 
@@ -106,6 +109,12 @@ export type CodeCheck =
   | { outcome: 'expired'; quoteId: string }
   | { outcome: 'none' };
 
+/** Clears the code waiting on the chat, when one cannot be sent after all. */
+export async function dropAcceptanceCode(kv: KeyValue, chat: CodeChat): Promise<void> {
+  const pending = await pendingAcceptanceCode(kv, chat);
+  if (pending !== null) await clear(kv, chat, pending);
+}
+
 async function clear(kv: KeyValue, chat: CodeChat, pending: Pending): Promise<void> {
   await kv.del(chatKey(chat));
   await kv.del(codeKey(pending.threadId, pending.quoteId));
@@ -147,4 +156,19 @@ export async function checkAcceptanceCode(
     return { outcome: 'locked', quoteId: pending.quoteId };
   }
   return { outcome: 'wrong', quoteId: pending.quoteId, triesLeft: RULES.otpTries - tries };
+}
+
+/**
+ * Whether accepting a quote of this grand total (`numeric(14,2)` as stored) on WhatsApp also needs
+ * the one-time code: at or above `WORKSHOP_DEFAULTS.whatsapp.otpFromRupees` (question 5 (a)).
+ * Compared on the stored digits, so no rounding can move a quote across the line.
+ */
+export function needsAcceptanceCode(
+  grandTotal: string,
+  fromRupees: number = RULES.otpFromRupees,
+): boolean {
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(grandTotal.trim());
+  if (match === null) throw new RangeError('the grand total is not a money string');
+  const paise = BigInt(match[1] ?? '0') * 100n + BigInt((match[2] ?? '').padEnd(2, '0'));
+  return paise >= BigInt(fromRupees) * 100n;
 }

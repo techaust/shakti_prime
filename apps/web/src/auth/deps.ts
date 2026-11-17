@@ -157,6 +157,15 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
       problems.push(`${name} must be at least ${String(MIN_SECRET_LENGTH)} characters when set`);
     }
   }
+  // The secret of a WhatsApp quote's Accept button (phase 2 design §7.1): a short one could be
+  // guessed and would let anyone make a button that accepts a quote. Unset, no quote goes by
+  // WhatsApp.
+  const buttonSecret = env.WHATSAPP_BUTTON_SECRET ?? '';
+  if (buttonSecret !== '' && buttonSecret.length < MIN_SECRET_LENGTH) {
+    problems.push(
+      `WHATSAPP_BUTTON_SECRET must be at least ${String(MIN_SECRET_LENGTH)} characters when set`,
+    );
+  }
   // The fake AI transport stands in for the vendors on a developer's machine and in the journeys.
   if ((env.AI_TRANSPORT ?? '') !== '') {
     problems.push('AI_TRANSPORT is for development; a hosted environment calls the AI services');

@@ -19,7 +19,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode, type SyntheticEvent } from 'react';
-import { getQuote, requoteQuote, sendQuote, withdrawQuote } from '../../actions/quotes';
+import { getQuote, requoteQuote, withdrawQuote } from '../../actions/quotes';
 import { customerHref } from '../../screens/customers';
 import { formatDate, formatDateTime } from '../../screens/format';
 import { orderHref } from '../../screens/orders';
@@ -35,6 +35,8 @@ import { QuoteLinesTable, QuoteTotals } from './quote-tables';
 
 // The signed copy's uploader is loaded only when someone records an acceptance.
 const AcceptDialog = dynamic(() => import('./accept-dialog').then((m) => m.AcceptDialog));
+// The send dialog, with its WhatsApp check, is loaded only when someone sends the quote.
+const SendDialog = dynamic(() => import('./send-dialog').then((m) => m.SendDialog));
 
 /** How often the page asks whether the document is ready, and how many times before it says so. */
 const PDF_POLL_MS = 3_000;
@@ -52,7 +54,8 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 /**
  * The quote page (docs/03-roadmap-appendix/phase1.md §7.3): the quote as it was made, its document once the
  * render worker has printed it (the page asks again every few seconds until then), and the moves
- * the caller may make: mark it as sent, re-quote it at today's prices, or withdraw it.
+ * the caller may make: send it (by WhatsApp or handed over and recorded, phase2.md §7.1), re-quote
+ * it at today's prices, or withdraw it; an accepted quote shows how it was accepted.
  */
 export function QuoteScreen({
   initial,
@@ -73,9 +76,9 @@ export function QuoteScreen({
   const [tries, setTries] = useState(0);
   const [withdrawing, setWithdrawing] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [sending, setSending] = useState(false);
   const orders = useTranslations('orders');
   const common = useTranslations('common');
-  const send = useCommand(sendQuote);
   const requote = useCommand(requoteQuote);
   const pdf = useOpenFile();
 
@@ -99,7 +102,7 @@ export function QuoteScreen({
     };
   }, [waiting, tries, quote.entityId, quote.id]);
 
-  const failure = send.failure ?? requote.failure ?? pdf.failure;
+  const failure = requote.failure ?? pdf.failure;
   return (
     <Page
       width="detail"
@@ -157,12 +160,8 @@ export function QuoteScreen({
           ) : null}
           {quote.canSend ? (
             <Button
-              pending={send.pending}
               onClick={() => {
-                send.run({ entityId: quote.entityId, quoteId: quote.id }, (sent) => {
-                  setQuote(sent);
-                  toast.success(t('page.sent'));
-                });
+                setSending(true);
               }}
             >
               {t('page.send')}
@@ -222,6 +221,9 @@ export function QuoteScreen({
             </Link>
           </Detail>
         )}
+        {quote.acceptedVia === null ? null : (
+          <Detail label={t('page.acceptedVia')}>{t(`page.acceptedHow.${quote.acceptedVia}`)}</Detail>
+        )}
         {quote.orderId === null ? null : (
           <Detail label={orders('accept.order')}>
             <Link
@@ -280,6 +282,20 @@ export function QuoteScreen({
             setAccepting(false);
             setQuote(accepted);
             toast.success(orders('accept.done', { number: accepted.orderNo ?? '' }));
+          }}
+        />
+      ) : null}
+      {sending ? (
+        <SendDialog
+          quote={quote}
+          closeLabel={common('close')}
+          onCancel={() => {
+            setSending(false);
+          }}
+          onDone={(sent, channel) => {
+            setSending(false);
+            setQuote(sent);
+            toast.success(channel === 'whatsapp' ? t('page.sentWhatsApp') : t('page.sent'));
           }}
         />
       ) : null}

@@ -310,6 +310,21 @@ export const WhatsAppMilestoneDto = z
   .strict();
 export type WhatsAppMilestoneDto = z.infer<typeof WhatsAppMilestoneDto>;
 
+/** The most templates Settings › WhatsApp templates lists for the companies it shows. */
+export const WHATSAPP_TEMPLATE_LIST_MAX = 500;
+
+/**
+ * Settings › WhatsApp templates (docs/03-roadmap-appendix/phase2.md §7.1): the templates each
+ * company of the request registered, by company and name, and each company's milestone map.
+ */
+export const WhatsAppTemplateSettingsDto = z
+  .object({
+    templates: z.array(WhatsAppTemplateDto).max(WHATSAPP_TEMPLATE_LIST_MAX),
+    milestones: z.array(WhatsAppMilestoneDto),
+  })
+  .strict();
+export type WhatsAppTemplateSettingsDto = z.infer<typeof WhatsAppTemplateSettingsDto>;
+
 // --- Reads ----------------------------------------------------------------------------------------
 
 const ListLimit = z.number().int().min(1).max(50);

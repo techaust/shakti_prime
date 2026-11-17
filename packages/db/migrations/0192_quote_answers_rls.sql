@@ -42,8 +42,9 @@ grant execute on function app.whatsapp_inbound_facts(uuid) to app_user, app_read
 --    template of an answering purpose: the one-time code (`acceptance_code`, stored with no value:
 --    the code is never kept, the messaging worker makes it as it sends) or the answer on a lapsed
 --    quote (`quote_expired`, with the quote's number). The message's id is the caller's, so the
---    code can be made from it. Nothing is queued for a chat whose number was removed or opted out.
---    No row when the chat is not of the request's companies.
+--    code can be made from it. A queued answer answers the customer, so the chat no longer waits
+--    for a reply. Nothing is queued for a chat whose number was removed or opted out. No row when
+--    the chat is not of the request's companies.
 create or replace function app.whatsapp_queue_answer(
   p_thread uuid,
   p_message uuid,
@@ -110,6 +111,10 @@ begin
           case when p_kind = 'template' then p_params end,
           case when p_kind = 'text' then p_body end,
           'queued', v_actor, pg_catalog.now());
+  if v_thread.needs_reply then
+    update public.whatsapp_threads t set needs_reply = false, updated_by = v_actor
+     where t.id = v_thread.id;
+  end if;
   return query select 'queued'::text, p_message;
 end
 $$;

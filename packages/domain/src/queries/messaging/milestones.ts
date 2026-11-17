@@ -1,6 +1,14 @@
-import type { WhatsAppMilestone, WhatsAppMilestoneSubject } from '@shakti/contracts';
-import type { RequestContext } from '@shakti/db';
-import { sql } from 'drizzle-orm';
+import {
+  WHATSAPP_TEMPLATE_LIST_MAX,
+  WhatsAppMilestoneDto,
+  WhatsAppMilestoneSchema,
+  WhatsAppTemplateSettingsDto,
+  type WhatsAppMilestone,
+  type WhatsAppMilestoneSubject,
+} from '@shakti/contracts';
+import { schema, type RequestContext } from '@shakti/db';
+import { asc, inArray, sql } from 'drizzle-orm';
+import { toTemplateDto } from '../../commands/messaging/templates';
 
 type Ctx = Pick<RequestContext, 'tx'>;
 
@@ -95,4 +103,42 @@ export async function readStatusSummary(ctx: Ctx, threadId: string): Promise<Sta
     validUntil: r.valid_until === null ? null : new Date(r.valid_until),
     createdAt: new Date(r.created_at),
   }));
+}
+
+/**
+ * Settings › WhatsApp templates (docs/03-roadmap-appendix/phase2.md §7.1), read as the caller:
+ * the templates of the request's companies, by company and name (at most
+ * `WHATSAPP_TEMPLATE_LIST_MAX`), and each company's milestone map. The policies read both for every
+ * principal acting in the company; the screen offers changes only to whoever may make them.
+ */
+export async function listWhatsAppTemplateSettings(
+  ctx: Pick<RequestContext, 'tx' | 'entityIds'>,
+): Promise<WhatsAppTemplateSettingsDto> {
+  const entityIds = [...ctx.entityIds];
+  if (entityIds.length === 0) return { templates: [], milestones: [] };
+  const w = schema.whatsappTemplates;
+  const m = schema.whatsappMilestones;
+  const templates = await ctx.tx
+    .select()
+    .from(w)
+    .where(inArray(w.entityId, entityIds))
+    .orderBy(asc(w.entityId), asc(w.name), asc(w.language))
+    .limit(WHATSAPP_TEMPLATE_LIST_MAX);
+  const milestones = await ctx.tx
+    .select()
+    .from(m)
+    .where(inArray(m.entityId, entityIds))
+    .orderBy(asc(m.entityId), asc(m.milestone));
+  return WhatsAppTemplateSettingsDto.parse({
+    templates: templates.map(toTemplateDto),
+    milestones: milestones.map((row) =>
+      WhatsAppMilestoneDto.parse({
+        id: row.id,
+        entityId: row.entityId,
+        milestone: WhatsAppMilestoneSchema.parse(row.milestone),
+        templateId: row.templateId,
+        isActive: row.isActive,
+      }),
+    ),
+  });
 }

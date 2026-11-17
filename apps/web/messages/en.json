@@ -509,6 +509,7 @@
     "adminIntegrations": "Integration health",
     "catalogue": "Catalogue",
     "settingsTax": "Tax rates",
+    "settingsWhatsAppTemplates": "WhatsApp templates",
     "adminRoles": "Roles",
     "settingsPipelines": "Pipelines",
     "walkIn": "Walk-in customer",
@@ -4306,6 +4307,12 @@
       "replacedBy": "Replaced by",
       "withdrawnBecause": "Withdrawn because",
       "withdrawnFor": "Withdrawn when the customer accepted",
+      "acceptedVia": "How it was accepted",
+      "acceptedHow": {
+        "signed_upload": "By a signed copy",
+        "whatsapp_reply": "On WhatsApp, with the Accept button",
+        "whatsapp_otp": "On WhatsApp, with the Accept button and a one-time code"
+      },
       "linesCaption": "Items on this quote",
       "lineColumns": {
         "position": "No.",
@@ -4331,9 +4338,10 @@
       "pdfWaiting": "The quote document is being prepared. This takes a few seconds.",
       "pdfLate": "The quote document has not been made. If it is still missing in a few minutes, ask an Executive to send it again from Integration health, then open this quote again.",
       "open": "Open the document",
-      "send": "Mark as sent",
-      "sendIntro": "Mark this quote as sent once you have given the customer its document.",
+      "send": "Send the quote",
+      "sendIntro": "Send this quote to the customer on WhatsApp, or record that you gave them its document.",
       "sent": "Quote marked as sent.",
+      "sentWhatsApp": "Quote sent. It goes to the customer on WhatsApp in a moment.",
       "requote": "Re-quote",
       "requoteIntro": "Make a new quote of the same items at today's prices. This quote is kept as replaced.",
       "requoted": "New quote {number} made at today's prices.",
@@ -4354,6 +4362,26 @@
       "loading": "Loading the price tiers.",
       "submit": "Save the tier",
       "saved": "Price tier saved."
+    },
+    "send": {
+      "title": "Send this quote",
+      "intro": "Choose how the customer gets quote {number}.",
+      "how": "How it goes",
+      "whatsapp": "On WhatsApp, from the company's number",
+      "whatsappHelper": "The customer gets the quote document with an Accept button. A large quote also asks them for a one-time code.",
+      "recorded": "I gave the customer the document",
+      "recordedHelper": "Record that the customer has the quote, by hand or by email.",
+      "checking": "Checking whether this customer can get it on WhatsApp.",
+      "reasons": {
+        "whatsapp_quote_no_chat": "Not on WhatsApp: the customer has no WhatsApp chat with this company yet.",
+        "whatsapp_opted_out": "Not on WhatsApp: the customer asked not to get WhatsApp messages.",
+        "whatsapp_quote_no_consent": "Not on WhatsApp: the customer has not agreed to get WhatsApp messages.",
+        "whatsapp_quote_template_missing": "Not on WhatsApp: this company has no approved WhatsApp template for quotes yet.",
+        "whatsapp_unavailable": "Not on WhatsApp: WhatsApp is not set up for quotes yet.",
+        "not_checked": "Not on WhatsApp: it could not be checked just now. Close this and try again."
+      },
+      "submitWhatsApp": "Send on WhatsApp",
+      "submitRecord": "Record as sent"
     }
   },
   "agents": {
@@ -4705,7 +4733,9 @@
       "first_call_late": "A new lead was not called in time",
       "enquiry_routed": "An enquiry from your customer was passed to you",
       "order_credit_held": "A dealer order is held for credit",
-      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply"
+      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply",
+      "quote_accepted": "A quote on your lead was accepted",
+      "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid"
     },
     "settings": {
       "title": "Notification settings",
@@ -4833,6 +4863,14 @@
     "whatsapp_reply_waiting": {
       "title": "A customer is waiting on WhatsApp",
       "body": "A customer has waited 10 minutes for a reply. Tap to open the chat."
+    },
+    "quote_accepted": {
+      "title": "A quote was accepted",
+      "body": "A customer accepted a quote on your lead, and its order is made. Tap to open the quote."
+    },
+    "whatsapp_quote_expired": {
+      "title": "A customer wants a new quote",
+      "body": "A customer pressed Accept on WhatsApp on a quote that is no longer valid. They were told a new quote will follow. Tap to open it."
     }
   },
   "orders": {
@@ -5573,6 +5611,61 @@
       "keepIt": "Keep it",
       "question": "Delete this conversation and all its answers?",
       "done": "Conversation deleted."
+    }
+  },
+  "whatsappTemplates": {
+    "title": "WhatsApp templates",
+    "intro": "The WhatsApp templates each company has registered, and which template tells customers each update about their quote or order.",
+    "updatesHeading": "Customer updates",
+    "updatesIntro": "Choose the template each update is sent with. An update whose template is not approved yet is held, not sent.",
+    "helper": {
+      "quote_sent": "Sent with the quote document, its Accept button and its Talk to us button. Its blanks: the quote number, the total and the date it is valid until.",
+      "order_confirmed": "Sent when the order is confirmed. Its blanks: the order number and the total."
+    },
+    "noFit": "No template of this company has the blanks this update fills in. An Executive registers one first.",
+    "choose": "Choose a template",
+    "notApprovedOption": "{template} ({status})",
+    "active": "Send this update to customers",
+    "save": "Save",
+    "saved": "{update} saved.",
+    "notSet": "No template chosen",
+    "offWith": "Switched off ({template})",
+    "templatesHeading": "Registered templates",
+    "templatesCaption": "WhatsApp templates of {company}",
+    "noTemplates": "No WhatsApp templates are registered for this company yet.",
+    "columns": {
+      "label": "Template",
+      "kind": "Kind",
+      "use": "Used for",
+      "status": "Review"
+    },
+    "sentByPeople": "Sent by people and updates"
+  },
+  "whatsappAnswers": {
+    "accepted": "Thank you. Quote {quoteNo} is accepted and your order number is {soNo}. We will confirm the order here.",
+    "alreadyAccepted": "Quote {quoteNo} is already accepted. Your order number is {soNo}.",
+    "codeWrong": "That code does not match. You can try {left, plural, one {once more} other {# more times}}.",
+    "codeLocked": "That code did not match {tries} times. Press Accept on the quote again for a new code.",
+    "codeExpired": "That code is no longer valid. Press Accept on the quote again for a new code.",
+    "statusHeading": "Your quotes and orders with us:",
+    "statusNone": "We found no quotes or orders for this number. Write your question here and our team will help.",
+    "statusQuoteOpen": "Quote {ref}: {state}, {total}, valid until {date}",
+    "statusQuote": "Quote {ref}: {state}, {total}",
+    "statusOrder": "Order {ref}: {state}, {total}",
+    "unknownState": "in progress",
+    "quoteStates": {
+      "sent": "waiting for your answer",
+      "accepted": "accepted",
+      "expired": "no longer valid"
+    },
+    "orderStates": {
+      "draft": "being prepared",
+      "confirmed": "confirmed",
+      "partially_dispatched": "partly dispatched",
+      "dispatched": "dispatched",
+      "invoiced": "invoiced",
+      "closed": "complete",
+      "cancelled": "cancelled"
     }
   }
 }

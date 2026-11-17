@@ -43,6 +43,13 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
       };
     case 'sales.order.credit_held':
       return { ...base, event: 'sales.order.credit_held', orderId: event.aggregateId };
+    case 'sales.quote.accepted':
+      return {
+        ...base,
+        event: 'sales.quote.accepted',
+        quoteId: event.aggregateId,
+        acceptedBy: String(p.acceptedBy),
+      };
     default:
       throw new DomainError('validation_failed', `${event.type} does not notify`, {
         type: event.type,
