@@ -81,6 +81,36 @@ export async function liveVoiceSessionFacts(
   return session !== undefined && voiceSessionLive(session, now) ? session : undefined;
 }
 
+/**
+ * The file of the recording upload begun for the voice principal's session: `files.upload.begin`
+ * run under the session's id as its idempotency key (one per session), read from the person's own
+ * keys. Undefined for any other principal, or before the upload is begun. The recording's
+ * completion takes this file only, never another of the person's uploads.
+ */
+export async function voiceRecordingUpload(context: RequestContext): Promise<string | undefined> {
+  const { principal } = context;
+  const sessionId = principal.voiceSessionId;
+  if (principal.kind !== 'voice_session' || sessionId === undefined) return undefined;
+  const k = schema.idempotencyKeys;
+  const [row] = await context.tx
+    .select({ response: k.responseJson })
+    .from(k)
+    .where(
+      and(
+        eq(k.principalId, principal.id),
+        eq(k.key, sessionId),
+        eq(k.command, 'files.upload.begin'),
+      ),
+    )
+    .limit(1);
+  const response: unknown = row?.response;
+  const fileId =
+    typeof response === 'object' && response !== null && 'fileId' in response
+      ? response.fileId
+      : undefined;
+  return typeof fileId === 'string' ? fileId : undefined;
+}
+
 /** The start of the day in India for an instant, when a person's minutes and spend start again. */
 export function voiceDayStart(now: Date): Date {
   const ist = 330 * 60_000;

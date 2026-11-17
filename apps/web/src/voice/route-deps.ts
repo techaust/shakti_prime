@@ -6,6 +6,7 @@ import {
   recordVoiceSession,
   refreshVoiceToken,
   startVoiceSession,
+  voiceRecordingUpload,
 } from '@shakti/domain';
 import { commandOptions } from '../actions/support';
 import { currentPrincipal } from '../auth/current-principal';
@@ -71,6 +72,13 @@ export function recordingRouteDeps(): RecordingRouteDeps {
         { entityIds: principal.entityIds, requestId },
         (context) => liveVoiceSessionFacts(context, new Date()),
         { name: 'liveVoiceSessionFacts' },
+      ),
+    begun: (principal, requestId) =>
+      executeQuery(
+        principal,
+        { entityIds: principal.entityIds, requestId },
+        (context) => voiceRecordingUpload(context),
+        { name: 'voiceRecordingUpload' },
       ),
     presign: (principal, input, call) => presignUpload(principal, input, call),
     complete: (principal, fileId, call) => completeUploadFor(principal, fileId, 'knowledge', call),

@@ -143,6 +143,60 @@ describe('a recorded Teach session', () => {
     });
   });
 
+  it('completes only the file begun for the session, never another upload of the person', async () => {
+    const exec = await createTestPrincipal('executive', [1]);
+    const { grant, voice } = await sessionOf(exec, true);
+    const bytes = wav();
+    // Another knowledge upload of the person's own, begun on their own sign-in.
+    const own = await presignUpload(
+      exec,
+      {
+        entityId: 1,
+        purpose: 'knowledge',
+        name: 'price list.wav',
+        contentType: 'audio/wav',
+        size: bytes.length,
+        sha256: sha256Hex(bytes),
+      },
+      { requestId: crypto.randomUUID(), options: {} },
+      store,
+    );
+    const refusal = { status: 403, error: { details: { reason: 'voice_recording_refused' } } };
+    // Before the session's own upload is begun, and after it, the other file is refused.
+    expect(
+      await failure(
+        await voiceRecordingCompleteRoute(
+          post('recording/complete', { fileId: own.fileId }),
+          deps(voice),
+        ),
+      ),
+    ).toMatchObject(refusal);
+    const body = { size: bytes.length, sha256: sha256Hex(bytes) };
+    const slot = (await (
+      await voiceRecordingRoute(post('recording', body), deps(voice))
+    ).json()) as { fileId: string };
+    expect(slot.fileId).not.toBe(own.fileId);
+    expect(
+      await failure(
+        await voiceRecordingCompleteRoute(
+          post('recording/complete', { fileId: own.fileId }),
+          deps(voice),
+        ),
+      ),
+    ).toMatchObject(refusal);
+    // Nothing was filed or linked.
+    const [filed] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from knowledge_files where file_id = ${own.fileId}`,
+    );
+    expect(filed?.n).toBe(0);
+    const [linked] = await asMigrator(
+      (m) => m<{ audio_file_id: string | null }[]>`
+        select audio_file_id from voice_sessions where id = ${grant.sessionId}`,
+    );
+    expect(linked?.audio_file_id).toBeNull();
+  });
+
   it('is refused without the recording answer, in Ask, to a GM, and without a live session', async () => {
     const bytes = wav();
     const body = { size: bytes.length, sha256: sha256Hex(bytes) };

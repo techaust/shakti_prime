@@ -210,6 +210,7 @@ export {
   type VoiceToday,
   voiceSessionLive,
   voiceSessionNotAfter,
+  voiceRecordingUpload,
   type VoiceSessionFacts,
 } from './queries/voice/sessions';
 export { voiceSessionPrincipal } from './auth/voice-principal';

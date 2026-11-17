@@ -46,6 +46,8 @@ export interface RecordingRouteDeps {
   voicePrincipal: (token: string) => Promise<{ principal: Principal } | undefined>;
   /** The voice principal's live session, read as its person. */
   session: (principal: Principal, requestId: string) => Promise<VoiceSessionFacts | undefined>;
+  /** The file of the upload begun for the session (`voiceRecordingUpload`), if any. */
+  begun: (principal: Principal, requestId: string) => Promise<string | undefined>;
   presign: (
     principal: Principal,
     input: FilePresignRequest,
@@ -197,6 +199,16 @@ export async function voiceRecordingCompleteRoute(
   if (!input.success) return apiFailure('validation_failed', requestId);
   if (session.audioFileId !== null) {
     return apiFailure('conflict', requestId, { reason: 'voice_recording_refused' });
+  }
+  // Only the file of the upload begun for this session, never another of the person's uploads.
+  let begun: string | undefined;
+  try {
+    begun = await deps.begun(principal, requestId);
+  } catch (error) {
+    return refused(error, requestId, 'voice.recording_begun_failed');
+  }
+  if (begun !== input.data.fileId) {
+    return apiFailure('forbidden', requestId, { reason: 'voice_recording_refused' });
   }
   const call: UploadCall = {
     requestId,
