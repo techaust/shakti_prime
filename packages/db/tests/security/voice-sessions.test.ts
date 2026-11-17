@@ -180,9 +180,16 @@ describe('app.voice_session_open', () => {
       (m) =>
         m`update voice_sessions set started_at = now() - interval '40 minutes' where id = ${first}`,
     );
+    // Today's use counts it only when its start is still today in India: in the first 40 minutes
+    // after midnight there, its start fell on the day before.
+    const [{ sameDay } = { sameDay: true }] = await asMigrator(
+      (m) => m<{ sameDay: boolean }[]>`
+        select (now() - interval '40 minutes') at time zone 'Asia/Kolkata' >=
+               date_trunc('day', now() at time zone 'Asia/Kolkata') as "sameDay"`,
+    );
     const second = newId();
     expect(await open(exec, second)).toEqual([
-      { outcome: 'started', minutes_used: 15, paise_used: 0 },
+      { outcome: 'started', minutes_used: sameDay ? 15 : 0, paise_used: 0 },
     ]);
     expect(await session(first)).toMatchObject({ minutes: 15 });
     expect((await session(second))?.ended_at).toBeNull();
