@@ -99,9 +99,11 @@ export const AGENT_DEFAULTS = {
    * Where an agent starts when no setting names its autonomy (PRD AI-04: shadow, then approval,
    * then automatic). The Triage agent starts in Shadow (A1): it records what it would propose and
    * never acts or fills an inbox; raising an action type to Suggest or Needs approval is an
-   * Executive's choice on Admin › Agents. Every other agent starts at Suggest.
+   * Executive's choice on Admin › Agents. The WhatsApp Concierge (A3) starts in Shadow too: its
+   * drafts are recorded and nothing is sent, until the Executive has read its shadow report and
+   * raises it to Needs approval. Every other agent starts at Suggest.
    */
-  startingAutonomy: { 'agent:triage': 'shadow' },
+  startingAutonomy: { 'agent:triage': 'shadow', 'agent:concierge': 'shadow' },
 
   /**
    * The Triage agent (A1). Each value is flagged for the owner to confirm; a change moves only how
@@ -236,5 +238,10 @@ export const AGENT_DEFAULTS = {
    */
   concierge: {
     handlesNewThreads: false as boolean,
+    /**
+     * The furthest ahead a callback it proposes may be due, in days (A3's output filter); a later
+     * one is refused with the callbacks outside calling hours. Flagged for the sales head.
+     */
+    callbackDaysAhead: 14,
   },
 } as const;

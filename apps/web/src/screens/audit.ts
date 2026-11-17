@@ -563,6 +563,7 @@ const FIELD_KINDS = [
   // WhatsApp (docs/03-roadmap-appendix/phase2.md §6.1)
   ['messageKind', 'whatsappMessageKind'],
   ['templateName', 'text'],
+  ['draftedByAssistant', 'yesNo'],
   ['handledBy', 'whatsappHandler'],
   ['handoffReason', 'whatsappHandoffReason'],
   ['templateCategory', 'whatsappTemplateCategory'],

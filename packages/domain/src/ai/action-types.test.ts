@@ -1,6 +1,7 @@
 import {
   AGENT_MATRIX,
   AGENT_PRINCIPAL_IDS,
+  CONCIERGE_ACTION_TYPES,
   hasGrant,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   TRIAGE_ACTION_TYPES,
@@ -31,7 +32,9 @@ describe('AGENT_ACTION_TYPES', () => {
         expect(type.command.name).toBe(name);
         expect(type.command.peopleOnly).not.toBe(true);
         expect(type.command.permission).toBe(type.requirements[0].permission);
-        expect(type.input).toBe(type.command.input);
+        if (type.actionIdKey === undefined) expect(type.input).toBe(type.command.input);
+        // The proposal never names the draft, which the approval adds (the Concierge's reply).
+        else expect(type.input).not.toBe(type.command.input);
       }
       expect(type.agents.length).toBeGreaterThan(0);
       for (const agent of type.agents) {
@@ -61,8 +64,44 @@ describe('AGENT_ACTION_TYPES', () => {
     expect(isShadowOnly('no.such.type')).toBe(false);
   });
 
-  it('starts the Triage agent in Shadow and every other agent at Suggest', () => {
+  it('gives the Concierge its reply, qualification and callback, each running a command', () => {
+    const concierge = Object.values(AGENT_ACTION_TYPES).filter((t) =>
+      t.agents.includes('agent:concierge'),
+    );
+    expect(concierge.map((t) => t.name).sort()).toEqual(
+      Object.values(CONCIERGE_ACTION_TYPES).sort(),
+    );
+    for (const t of concierge) expect(isShadowOnly(t.name)).toBe(false);
+  });
+
+  it('takes the Concierge reply as proposed, never naming its draft, which the approval adds', () => {
+    const reply = AGENT_ACTION_TYPES[CONCIERGE_ACTION_TYPES.reply];
+    if (reply?.command === undefined) throw new Error('the reply runs a command');
+    const proposal = {
+      entityId: 1,
+      threadId: '01990000-0000-7000-8000-0000000000a1',
+      accountId: '01990000-0000-7000-8000-0000000000a2',
+      body: 'Thank you for writing to us.',
+    };
+    const draft = '01990000-0000-7000-8000-0000000000a3';
+    expect(reply.input.safeParse(proposal).success).toBe(true);
+    expect(reply.input.safeParse({ ...proposal, draftedByAgentActionId: draft }).success).toBe(
+      false,
+    );
+    expect(reply.actionIdKey).toBe('draftedByAgentActionId');
+    expect(
+      reply.command.input.safeParse({ ...proposal, draftedByAgentActionId: draft }).success,
+    ).toBe(true);
+    expect(reply.input.safeParse({ ...proposal, body: 'x'.repeat(601) }).success).toBe(false);
+    // A person may change only the words.
+    expect(applyEdits(reply, proposal, { body: ' Thank you. ' }).body).toBe('Thank you.');
+    expect(() => applyEdits(reply, proposal, { threadId: draft })).toThrow();
+    expect(() => applyEdits(reply, proposal, { draftedByAgentActionId: draft })).toThrow();
+  });
+
+  it('starts the Triage agent and the Concierge in Shadow and every other agent at Suggest', () => {
     expect(startingAutonomy('agent:triage')).toBe('shadow');
+    expect(startingAutonomy('agent:concierge')).toBe('shadow');
     expect(startingAutonomy('agent:copilot')).toBe('suggest');
   });
 });

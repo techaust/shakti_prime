@@ -124,6 +124,13 @@ export interface WhatsAppDefaults {
    */
   readonly linkHosts: readonly string[];
   /**
+   * Words that make a promise or an offer, which no reply the WhatsApp Concierge drafts may hold
+   * (docs/03-roadmap-appendix/phase2.md §7.2, its output filter), in English and Roman Hindi, each
+   * matched as a whole word in any case, with its plural and past forms. Flagged for the sales
+   * head to confirm (§13, question 11).
+   */
+  readonly promiseWords: readonly string[];
+  /**
    * The pipeline a lead from a WhatsApp number no customer holds starts in (`crm.lead.ingest` needs
    * one, since WhatsApp has no ingest source); the Triage agent and the callers move it on.
    */
@@ -323,6 +330,25 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     messagesPerThreadHour: 20,
     replyWaitMinutes: 10,
     linkHosts: [],
+    promiseWords: [
+      'discount',
+      'guarantee',
+      'gaurantee',
+      'free',
+      'free of cost',
+      'cashback',
+      'cash back',
+      'lowest price',
+      'best price',
+      'cheapest',
+      'promise',
+      'assured',
+      'waiver',
+      'muft',
+      'chhoot',
+      'chhut',
+      'pakka',
+    ],
     // For the sales head to confirm (phase 2 design §13, question 8): the farm pump line, the
     // group's largest by enquiries, until a WhatsApp number per business line is known.
     leadPipelineKey: 'farmer_pumps',

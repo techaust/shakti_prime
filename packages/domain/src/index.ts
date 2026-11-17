@@ -28,6 +28,7 @@ export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
 export { sendWhatsAppMessage } from './commands/messaging/send-message';
+export { sendWhatsAppReply } from './commands/messaging/reply';
 export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
 export {

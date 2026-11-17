@@ -205,7 +205,9 @@ describe('a Concierge run bound to one thread', () => {
   it("reads only the thread's lead, not the customer's other leads", async () => {
     const other = newId();
     await asMigrator(
-      (m) => m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id,
+      (
+        m,
+      ) => m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id,
                                           team_id, created_by)
         select ${other}, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, created_by
           from opportunities where id = ${a.opportunityId}`,

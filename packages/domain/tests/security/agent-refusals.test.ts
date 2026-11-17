@@ -893,6 +893,31 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     },
   };
 
+  it('the Concierge holds exactly its own-scope grants: no cost, price, sales or platform-only grant', () => {
+    // A3 (docs/03-roadmap-appendix/phase2.md §4): `own` is the one thread its run is bound to.
+    const held = AGENT_MATRIX['agent:concierge'];
+    expect(held.map((g) => `${g.key}:${g.scope}`).sort()).toEqual([
+      'crm.account.read:own',
+      'crm.lead.read:own',
+      'crm.lead.write:own',
+      'documents.write:own',
+      'messaging.send:own',
+    ]);
+    for (const g of held) {
+      expect({
+        key: g.key,
+        refused:
+          isRestricted(g.key) ||
+          PLATFORM_ONLY_PERMISSIONS.includes(g.key) ||
+          g.key.startsWith('sales.') ||
+          g.key.startsWith('pricing.') ||
+          g.key.startsWith('procurement.') ||
+          g.key.startsWith('finance.') ||
+          g.key.startsWith('knowledge.'),
+      }).toEqual({ key: g.key, refused: false });
+    }
+  });
+
   it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {
     for (const agent of AGENTS) {
       expect(AGENT_MATRIX[agent].filter((g) => PLATFORM_ONLY_PERMISSIONS.includes(g.key))).toEqual(

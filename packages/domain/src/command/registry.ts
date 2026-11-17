@@ -109,6 +109,7 @@ import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
 import { archiveEntityChannel, setEntityChannel } from '../commands/org/channels';
 import { recordPhoneDnd } from '../commands/crm/record-phone-dnd';
+import { sendWhatsAppReply } from '../commands/messaging/reply';
 import { sendWhatsAppMessage } from '../commands/messaging/send-message';
 import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messaging/threads';
 import { registerWhatsAppTemplate } from '../commands/messaging/templates';
@@ -180,6 +181,7 @@ export const commands = Object.freeze({
   [archiveEntityChannel.name]: archiveEntityChannel,
   [recordPhoneDnd.name]: recordPhoneDnd,
   [sendWhatsAppMessage.name]: sendWhatsAppMessage,
+  [sendWhatsAppReply.name]: sendWhatsAppReply,
   [handOffWhatsAppThread.name]: handOffWhatsAppThread,
   [returnWhatsAppThread.name]: returnWhatsAppThread,
   [registerWhatsAppTemplate.name]: registerWhatsAppTemplate,

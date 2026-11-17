@@ -150,7 +150,7 @@ export const EditInboxItemInput = z
     entityId: EntityIdSchema,
     itemId: IdSchema,
     changes: z
-      .record(InboxFieldNameSchema, z.string().max(200))
+      .record(InboxFieldNameSchema, z.string().max(600))
       .refine((c) => Object.keys(c).length <= 10),
   })
   .strict();
@@ -306,7 +306,7 @@ export const InboxFieldDto = z
     kind: z.enum(['date_time', 'text']),
     value: z.string().nullable(),
     /** For text: the longest value the command accepts. */
-    maxLength: z.number().int().min(1).max(200).nullable(),
+    maxLength: z.number().int().min(1).max(600).nullable(),
   })
   .strict();
 export type InboxFieldDto = z.infer<typeof InboxFieldDto>;

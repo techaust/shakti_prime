@@ -1,5 +1,7 @@
 import {
   AGENT_PRINCIPAL_IDS,
+  CONCIERGE_REPLY_MAX,
+  ConciergeReplyProposalInput,
   DomainError,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   TRIAGE_ACTION_TYPES,
@@ -15,7 +17,9 @@ import type { z } from 'zod';
 import type { AnyCommand, Requirement } from '../command/define-command';
 import { suggestDuplicate } from '../commands/crm/duplicates';
 import { assignOpportunity } from '../commands/crm/assign-opportunity';
+import { setLeadQualification } from '../commands/crm/lead-qualification';
 import { createTask } from '../commands/crm/tasks';
+import { sendWhatsAppReply } from '../commands/messaging/reply';
 import { AGENT_DEFAULTS } from './agent-defaults';
 
 // The actions an agent may propose or take (docs/03-roadmap-appendix/phase1.md §7.1, §9). An action
@@ -62,6 +66,12 @@ export interface AgentActionType {
   /** Every other input that changes the outcome, shown read-only on the inbox card. */
   summary: readonly SummaryField[];
   editable: readonly EditableField[];
+  /**
+   * The command input that takes the action's own id when a person approves it, so what it makes
+   * is marked as the agent's draft (`messaging.reply.send`'s `draftedByAgentActionId`). The
+   * proposal itself never names it: the approval fills it in.
+   */
+  actionIdKey?: string;
 }
 
 type Details = Omit<AgentActionType, 'name' | 'command' | 'input' | 'requirements'>;
@@ -99,9 +109,10 @@ const ABOUT_A_LEAD = { subjectType: 'opportunity', subjectKey: 'opportunityId' }
 
 export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Object.fromEntries(
   [
-    // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3).
+    // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3), and the
+    // Concierge's callback for the lead's owner (A3).
     commanded(createTask, {
-      agents: ['agent:copilot'],
+      agents: ['agent:copilot', 'agent:concierge'],
       subjectType: 'opportunity',
       subjectKey: 'opportunityId',
       assigneeKey: 'assigneeId',
@@ -127,6 +138,27 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
     // would link as one enquiry.
     commanded(suggestDuplicate, {
       agents: ['agent:triage'],
+      ...ABOUT_A_LEAD,
+      summary: [],
+      editable: [],
+    }),
+    // The WhatsApp Concierge (A3, docs/03-roadmap-appendix/phase2.md §7.2): an in-window reply on
+    // the thread its run is bound to, sent by the person who approves it and marked as the
+    // assistant's draft, about the thread's customer; the lead's qualification facts. Its callback
+    // is `crm.task.create` above. A person may change the reply's words before sending it.
+    {
+      ...commanded(sendWhatsAppReply, {
+        agents: ['agent:concierge'],
+        subjectType: 'account',
+        subjectKey: 'accountId',
+        summary: [],
+        editable: [{ name: 'body', kind: 'text', maxLength: CONCIERGE_REPLY_MAX }],
+        actionIdKey: 'draftedByAgentActionId',
+      }),
+      input: ConciergeReplyProposalInput,
+    },
+    commanded(setLeadQualification, {
+      agents: ['agent:concierge'],
       ...ABOUT_A_LEAD,
       summary: [],
       editable: [],
