@@ -65,10 +65,7 @@ export const voiceSessions = pgTable(
       sql`${t.minutes} is null or (${t.minutes} between 0 and 1440 and ${t.endedAt} is not null)`,
     ),
     check('voice_sessions_cost_check', sql`${t.costPaise} >= 0`),
-    check(
-      'voice_sessions_turn_stats_check',
-      sql`jsonb_typeof(${t.turnStatsJson}) = 'object'`,
-    ),
+    check('voice_sessions_turn_stats_check', sql`jsonb_typeof(${t.turnStatsJson}) = 'object'`),
     // A recording is kept only with the person's yes to the recording question.
     check(
       'voice_sessions_recording_check',

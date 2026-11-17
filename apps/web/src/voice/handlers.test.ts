@@ -97,7 +97,9 @@ function sessionDeps(vars: Env, over: Partial<SessionRouteDeps> = {}) {
     principal: () => Promise.resolve(person),
     start: (principal, input) => {
       started.push(input);
-      return Promise.resolve(grantFor(principal, { mode: input.mode === 'teach' ? 'teach' : 'ask' }));
+      return Promise.resolve(
+        grantFor(principal, { mode: input.mode === 'teach' ? 'teach' : 'ask' }),
+      );
     },
     keyValue: memoryKeyValue(),
     rooms,
@@ -178,15 +180,15 @@ describe('POST /api/v1/voice/session', () => {
         .status,
     ).toBe(403);
     const nobody = sessionDeps(vars, { principal: () => Promise.resolve(undefined) });
-    expect(
-      (await startVoiceSessionRoute(startRequest({ mode: 'ask' }), nobody.deps)).status,
-    ).toBe(401);
+    expect((await startVoiceSessionRoute(startRequest({ mode: 'ask' }), nobody.deps)).status).toBe(
+      401,
+    );
     const agent = sessionDeps(vars, {
       principal: () => Promise.resolve({ ...person, kind: 'agent', roleKey: 'agent:chief' }),
     });
-    expect(
-      (await startVoiceSessionRoute(startRequest({ mode: 'ask' }), agent.deps)).status,
-    ).toBe(403);
+    expect((await startVoiceSessionRoute(startRequest({ mode: 'ask' }), agent.deps)).status).toBe(
+      403,
+    );
     const { deps, started } = sessionDeps(vars);
     const response = await startVoiceSessionRoute(startRequest({ mode: 'ask' }), deps);
     expect(await envelope(response)).toMatchObject({ code: 'validation_failed' });
@@ -197,9 +199,7 @@ describe('POST /api/v1/voice/session', () => {
     const vars = await env();
     const { deps, made } = sessionDeps(vars, {
       start: () =>
-        Promise.reject(
-          new DomainError('forbidden', 'limit', { reason: 'voice_cap_reached' }),
-        ),
+        Promise.reject(new DomainError('forbidden', 'limit', { reason: 'voice_cap_reached' })),
     });
     const response = await startVoiceSessionRoute(
       startRequest({ mode: 'ask', consentRecording: true }),
@@ -276,7 +276,13 @@ describe('POST /api/v1/voice/token', () => {
   it('gives a new token for the live session, never past the session', async () => {
     const vars = await env();
     const current = await signVoiceGrant(
-      { jti: newId(), sub: person.id, sid: voice.voiceSessionId ?? '', bos_role: 'general_manager', entity_ids: [1, 2] },
+      {
+        jti: newId(),
+        sub: person.id,
+        sid: voice.voiceSessionId ?? '',
+        bos_role: 'general_manager',
+        entity_ids: [1, 2],
+      },
       new Date(NOW.getTime() + 600_000),
       await keysOf(vars),
       { issuer: ISSUER, now: NOW },
@@ -296,13 +302,14 @@ describe('POST /api/v1/voice/token', () => {
     expect((await refreshVoiceTokenRoute(refresh(), tokenDeps(vars).deps)).status).toBe(401);
     const none = tokenDeps(vars, { voicePrincipal: () => Promise.resolve(undefined) });
     expect((await refreshVoiceTokenRoute(refresh('a.b.c'), none.deps)).status).toBe(401);
-    const fields = await refreshVoiceTokenRoute(refresh('a.b.c', '{"sid":"x"}'), tokenDeps(vars).deps);
+    const fields = await refreshVoiceTokenRoute(
+      refresh('a.b.c', '{"sid":"x"}'),
+      tokenDeps(vars).deps,
+    );
     expect(await envelope(fields)).toMatchObject({ code: 'validation_failed' });
     const ended = tokenDeps(vars, {
       refresh: () =>
-        Promise.reject(
-          new DomainError('forbidden', 'ended', { reason: 'voice_session_ended' }),
-        ),
+        Promise.reject(new DomainError('forbidden', 'ended', { reason: 'voice_session_ended' })),
     });
     const response = await refreshVoiceTokenRoute(refresh('a.b.c'), ended.deps);
     expect(await envelope(response)).toMatchObject({

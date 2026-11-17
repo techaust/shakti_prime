@@ -53,7 +53,7 @@ export async function voicePrincipalFromToken(
   const claims = await verifyVoiceToken(token, keys, issuer, now);
   if (claims === undefined) return undefined;
   const person = await deps.person(claims.sub);
-  if (person === undefined || person.id !== claims.sub) return undefined;
+  if (person?.id !== claims.sub) return undefined;
   const principal = voiceSessionPrincipal(person, claims.sid, claims.entity_ids);
   if (principal === undefined) return undefined;
   if (!(await deps.live(principal, now))) return undefined;

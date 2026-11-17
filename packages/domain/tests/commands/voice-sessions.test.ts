@@ -154,7 +154,8 @@ describe('voice.session.start', () => {
     const grant = await start(exec);
     expect(grant.limits).toMatchObject({ minutesRemainingToday: 6, maxSessionMinutes: 6 });
     await asMigrator(
-      (m) => m`update voice_sessions set ended_at = now(), minutes = 6 where id = ${grant.sessionId}`,
+      (m) =>
+        m`update voice_sessions set ended_at = now(), minutes = 6 where id = ${grant.sessionId}`,
     );
     const requestId = newId();
     await expect(
@@ -218,7 +219,8 @@ describe('voice.session.token', () => {
     // Past its longest length.
     const old = await start(exec);
     await asMigrator(
-      (m) => m`update voice_sessions set started_at = now() - interval '16 minutes' where id = ${old.sessionId}`,
+      (m) =>
+        m`update voice_sessions set started_at = now() - interval '16 minutes' where id = ${old.sessionId}`,
     );
     await expect(
       executeCommand(voiceOf(exec, old), { entityIds: [1] }, refreshVoiceToken, {}),

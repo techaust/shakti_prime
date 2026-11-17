@@ -241,7 +241,9 @@ export async function startVoiceSessionRoute(
         url: config.url,
         roomName: grant.sessionId,
         participantToken,
-        expiresAt: new Date(Math.floor(now.getTime() / 1000) * 1000 + joinSeconds * 1000).toISOString(),
+        expiresAt: new Date(
+          Math.floor(now.getTime() / 1000) * 1000 + joinSeconds * 1000,
+        ).toISOString(),
       },
       bosToken: { token: bos.token, expiresAt: bos.expiresAt.toISOString() },
       limits: {

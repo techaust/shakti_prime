@@ -64,13 +64,16 @@ describe('the caller a voice token speaks for', () => {
 
   it('is nobody when the person may not act, the session is not live, or a company is no longer theirs', async () => {
     const { token, deps } = await setUp();
-    expect(await voicePrincipalFromToken(token, deps({ person: () => Promise.resolve(undefined) })))
-      .toBeUndefined();
-    expect(await voicePrincipalFromToken(token, deps({ live: () => Promise.resolve(false) })))
-      .toBeUndefined();
+    expect(
+      await voicePrincipalFromToken(token, deps({ person: () => Promise.resolve(undefined) })),
+    ).toBeUndefined();
+    expect(
+      await voicePrincipalFromToken(token, deps({ live: () => Promise.resolve(false) })),
+    ).toBeUndefined();
     const narrowed = { ...executive, entityIds: [1] };
-    expect(await voicePrincipalFromToken(token, deps({ person: () => Promise.resolve(narrowed) })))
-      .toBeUndefined();
+    expect(
+      await voicePrincipalFromToken(token, deps({ person: () => Promise.resolve(narrowed) })),
+    ).toBeUndefined();
   });
 
   it('is nobody for a token that does not check out, and when voice is not set up', async () => {

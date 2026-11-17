@@ -177,7 +177,8 @@ describe('app.voice_session_open', () => {
     expect((await session(first))?.ended_at).toBeNull();
     // Moved back 40 minutes: it ends at its 15-minute limit, with 15 minutes.
     await asMigrator(
-      (m) => m`update voice_sessions set started_at = now() - interval '40 minutes' where id = ${first}`,
+      (m) =>
+        m`update voice_sessions set started_at = now() - interval '40 minutes' where id = ${first}`,
     );
     const second = newId();
     expect(await open(exec, second)).toEqual([
