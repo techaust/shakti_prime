@@ -8,7 +8,7 @@
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an agent principal acting as a person, a platform-only grant, spend caps |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
 | State | built, for review |
-| Next step | the lead's review and integration (baselines in the Linux image; `checks-ok` for eslint, playwright, copy-lint and scripts) |
+| Next step | the lead adds `livekit-client` 2.23.0 behind the room port (owner, 17-11), then the slice-reviewer |
 
 ## Brief
 Read first:
@@ -233,3 +233,8 @@ Built on the lead's answers to the step 6 stop. Skills loaded this round: `verce
 ## Review
 
 ## Integration
+### Lead's notes, 17-11-2026
+- Early check passed (13:50 UTC): 0190's audit insert policy keeps 0033's clauses, `app.request_is_person()` keeps 0113's body, `app.platform_only_permissions()` keeps 0183's sixteen keys, 0191's two definers match 0095 and 0131 apart from the `request_is_person()` call. The four policies that read only `principals.kind` stay as they are; the sweep and the route allowlist cover them.
+- Step 6 decisions (lead, 17-11): (1) `packages/voice` for the shared adapters, the worker's model settings in its dispatch; (2) the worker holds vendor keys only, no BOS credential; (3) Teach drafts saved by the person from `/voice`; (4) the recording filed as the person through the upload flow and two voice-token routes.
+- The owner approved `livekit-client` 2.23.0 (17-11-2026, the newest release over two weeks old), pinned exactly in `apps/web` and loaded only on `/voice`; the lead adds it behind `window.shaktiVoiceRoom`'s port before the review.
+- `ask-cost.test.ts` (B1's, on `main`) fails when its random tag is nine digits, which the masking turns into `[number]`; a follow-up on `main` gives the tag letters.
