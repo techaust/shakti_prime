@@ -10,10 +10,14 @@ import {
   VoiceSessionRecordDto,
   VoiceTokenGrant,
 } from '@shakti/contracts';
-import { schema } from '@shakti/db';
-import { and, eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { defineCommand } from '../../command/define-command';
+import {
+  voiceSessionLive,
+  voiceSessionNotAfter,
+  voiceSessionOf,
+} from '../../queries/voice/sessions';
 
 // Live voice Teach and Ask (docs/03-roadmap-appendix/phase2.md §7.5, BLUEPRINT §9.2, ADR 0010).
 // A session is opened by its person through `app.voice_session_open()`, which checks the day's
@@ -114,30 +118,6 @@ export const startVoiceSession = defineCommand({
 });
 
 /**
- * Whether a session is live at `now`: not ended, and inside its longest length from its start.
- * A session whose room never closed (the room failed to open, the event was lost) stops being
- * live by itself, so its token can no longer be refreshed.
- */
-export function voiceSessionLive(
-  session: { startedAt: Date; endedAt: Date | null },
-  now: Date,
-  sessionMinutes: number = LIMITS.sessionMinutes,
-): boolean {
-  return (
-    session.endedAt === null &&
-    now.getTime() < session.startedAt.getTime() + sessionMinutes * 60_000 &&
-    now.getTime() >= session.startedAt.getTime() - 60_000
-  );
-}
-
-/**
- * The moment a live session's token may live to at the latest: its longest length from its start.
- */
-export function voiceSessionNotAfter(startedAt: Date): Date {
-  return new Date(startedAt.getTime() + LIMITS.sessionMinutes * 60_000);
-}
-
-/**
  * `voice.session.token` (`voice.use`, run as the session's voice principal): the claims of a new
  * BOS token for the session the caller acts through, while it is live and is the caller's own.
  * A person's own session, an agent or the system has no session to refresh; an ended session or
@@ -159,17 +139,7 @@ export const refreshVoiceToken = defineCommand({
     if (!isStaffRole(principal.roleKey)) {
       throw new DomainError('forbidden', 'only a person of the staff may talk to Shakti');
     }
-    const vs = schema.voiceSessions;
-    const [session] = await ctx.tx
-      .select({
-        entityId: vs.entityId,
-        entityIds: vs.entityIds,
-        startedAt: vs.startedAt,
-        endedAt: vs.endedAt,
-      })
-      .from(vs)
-      .where(and(eq(vs.id, sessionId), eq(vs.userId, principal.id)))
-      .limit(1);
+    const session = await voiceSessionOf(ctx.tx, principal);
     if (session === undefined || !voiceSessionLive(session, ctx.now)) {
       throw new DomainError('forbidden', 'the voice session has ended', {
         reason: 'voice_session_ended',

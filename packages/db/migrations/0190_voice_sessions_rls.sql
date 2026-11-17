@@ -32,7 +32,8 @@ grant execute on function app.voice_session_id() to app_user, app_reader, readon
 
 -- 3. The audit trail names a voice session as its actor and the speaking person beside it
 --    (SECURITY §3.4): a request acting through a session writes rows of kind voice_session for
---    that session and its person only; every other request writes rows as itself, as before.
+--    that session and its person only, and only a session the person opened; every other request
+--    writes rows as itself, as before.
 drop policy audit_logs_insert on audit_logs;
 --> statement-breakpoint
 create policy audit_logs_insert on audit_logs for insert to app_user
@@ -44,6 +45,10 @@ create policy audit_logs_insert on audit_logs for insert to app_user
              else actor_kind = 'voice_session'
                   and actor_principal_id = (select app.voice_session_id())
                   and on_behalf_of_user_id = (select app.user_id())
+                  and exists (select 1 from principals p
+                               where p.id = (select app.voice_session_id())
+                                 and p.kind = 'voice_session'
+                                 and p.created_by = (select app.user_id()))
         end
   );
 --> statement-breakpoint
@@ -205,7 +210,9 @@ begin
                         null::integer, null::integer;
     return;
   end if;
-  v_end := coalesce(v.ended_at, greatest(p_ended_at, v.started_at));
+  -- greatest() passes over a null, so an event without an end keeps the session open.
+  v_end := coalesce(v.ended_at,
+                    case when p_ended_at is not null then greatest(p_ended_at, v.started_at) end);
   v_minutes := case
     when v_end is null then null
     when p_minutes is not null then greatest(coalesce(v.minutes, 0), least(p_minutes, 1440))

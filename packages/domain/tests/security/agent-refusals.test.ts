@@ -376,6 +376,8 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) },
   },
   'notifications.push.unsubscribe': { endpoint: 'https://fcm.googleapis.com/fcm/send/refused' },
+  // Talk to Shakti is started by the person who speaks (docs/03-roadmap-appendix/phase2.md §7.5).
+  'voice.session.start': { mode: 'ask', consentRecording: true },
   // Merges and decisions on duplicates (SECURITY §3.3: an agent only suggests a candidate).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
   'crm.customer.unmerge': { entityId: 1, mergeId: newId() },

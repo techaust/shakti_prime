@@ -418,7 +418,10 @@
     "ask_unavailable": "Ask the Business is not set up yet. Try again later.",
     "ask_person_cap_reached": "You have reached today's limit for Ask the Business. You can ask again tomorrow.",
     "ask_cap_reached": "Ask the Business has reached today's limit for everyone. You can ask again tomorrow.",
-    "ask_interrupted": "The answer did not arrive. Check your connection and ask again."
+    "ask_interrupted": "The answer did not arrive. Check your connection and ask again.",
+    "voice_unavailable": "Talking to Shakti is not set up yet. Type your question in Ask the Business for now.",
+    "voice_cap_reached": "You have used today's time for talking to Shakti. You can talk again tomorrow.",
+    "voice_session_ended": "This talk with Shakti has ended. Start a new one to go on."
   },
   "auth": {
     "signIn": {

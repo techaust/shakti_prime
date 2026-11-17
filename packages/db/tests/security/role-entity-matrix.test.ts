@@ -269,6 +269,14 @@ const RULES: Record<MatrixTable, TableRule> = {
     group: NEVER,
     leak: otherCompany,
   },
+  // A person's own voice sessions; another person's only to the Executive (audit.read for the
+  // group). A session over every company is read only in a request covering them all.
+  voice_sessions: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? grant('audit.read', 'all') : CONTEXT),
+    group: NEVER,
+    leak: otherCompany,
+  },
   // A caller's own target and their team's, whatever their role; another caller's only to a
   // holder of sales.targets.write over the team (a team lead), the company or the group.
   targets: {

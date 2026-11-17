@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { VoiceSessionModeSchema } from '../commands/voice/sessions';
 import { StaffRoleKeySchema } from '../roles';
 import {
   BaseClaims,
@@ -88,3 +89,30 @@ export const VoiceTokenResponse = z
   })
   .strict();
 export type VoiceTokenResponse = z.infer<typeof VoiceTokenResponse>;
+
+/** The name the voice worker registers with LiveKit; each session's room asks for it by name. */
+export const VOICE_AGENT_NAME = 'shakti-voice';
+
+/**
+ * What the BOS hands the voice worker when it makes a session's room (the room's agent dispatch
+ * metadata, docs/03-roadmap-appendix/phase2.md §7.5): where to call `/api/v1`, the session's first
+ * 5-minute BOS token, its mode and recording answer, and its limits. It holds no other credential;
+ * the worker refreshes the token through `POST /voice/token` before it expires.
+ */
+export const VoiceDispatchMetadata = z
+  .object({
+    sessionId: IdSchema,
+    apiBase: z.url({ protocol: /^https?$/ }),
+    bosToken: z.object({ token: BosJwtSchema, expiresAt: z.iso.datetime() }).strict(),
+    mode: VoiceSessionModeSchema,
+    consentRecording: z.boolean(),
+    limits: z
+      .object({
+        minutesRemainingToday: z.number().int().min(0),
+        paiseRemainingToday: z.number().int().min(0),
+        maxSessionMinutes: z.number().int().positive(),
+      })
+      .strict(),
+  })
+  .strict();
+export type VoiceDispatchMetadata = z.infer<typeof VoiceDispatchMetadata>;

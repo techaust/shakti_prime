@@ -50,6 +50,7 @@ import {
   WhatsAppThreadHandlerSchema,
   CALL_PURPOSES,
   PROVIDER_CALL_STATUSES,
+  VOICE_SESSION_MODES,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
@@ -145,6 +146,7 @@ import {
   LEAD_QUALIFICATION_FACTS,
   CALL_PURPOSE_VALUES,
   PROVIDER_CALL_STATUS_VALUES,
+  VOICE_SESSION_MODE_VALUES,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -304,6 +306,7 @@ describe('the contract values copied for the browser', () => {
     expect(LEAD_QUALIFICATION_FACTS).toEqual(CONTRACT_LEAD_QUALIFICATION_FACTS);
     expect(CALL_PURPOSE_VALUES).toEqual(CALL_PURPOSES);
     expect(PROVIDER_CALL_STATUS_VALUES).toEqual(PROVIDER_CALL_STATUSES);
+    expect(VOICE_SESSION_MODE_VALUES).toEqual(VOICE_SESSION_MODES);
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);

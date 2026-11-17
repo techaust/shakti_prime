@@ -202,9 +202,13 @@ export {
   recordVoiceSession,
   refreshVoiceToken,
   startVoiceSession,
+} from './commands/voice/sessions';
+export {
+  liveVoiceSession,
   voiceSessionLive,
   voiceSessionNotAfter,
-} from './commands/voice/sessions';
+  type VoiceSessionFacts,
+} from './queries/voice/sessions';
 export { voiceSessionPrincipal } from './auth/voice-principal';
 export { createImportJob } from './commands/imports/create-job';
 export { mapImportJob } from './commands/imports/map-job';

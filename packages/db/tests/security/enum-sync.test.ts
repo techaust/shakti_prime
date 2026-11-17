@@ -1,4 +1,5 @@
 import {
+  VOICE_SESSION_MODES,
   AGENT_ACTION_STATES,
   AGENT_AUTONOMY,
   AGENT_FILTER_REASONS,
@@ -252,6 +253,7 @@ const PAIRS: Record<string, readonly string[]> = {
   provider_calls_status_check: PROVIDER_CALL_STATUSES,
   // An outbound call is a person's dial, on one of the lines a person dials out on.
   provider_calls_outbound_check: ['outbound', ...DIALLED_SERIES],
+  voice_sessions_mode_check: VOICE_SESSION_MODES,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {
