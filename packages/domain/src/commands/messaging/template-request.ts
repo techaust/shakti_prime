@@ -23,8 +23,10 @@ const CONSENT_FOR: Readonly<Record<'utility' | 'marketing', readonly ConsentPurp
  * nurture, or a nudge about a sent quote of the lead that has not expired. The Caller Co-pilot
  * proposes it (`crm.lead.write`, its own grant), and nothing is sent until a person approves it:
  * approving runs this command as the person, who then queues the template through
- * `messaging.message.send` under their own `messaging.send`. The Co-pilot running it itself is
- * refused there, since it holds no messaging grant; any other agent is refused here.
+ * `messaging.message.send` under their own `messaging.send`. An agent running it itself, the
+ * Co-pilot included, is refused (`people_only`): it is not marked for people only, since the
+ * action type must name a command the Co-pilot may propose, but its handler queues nothing for an
+ * agent.
  *
  * Checked in the transaction, whatever the proposal said: the lead is the caller's to write; the
  * customer has a WhatsApp chat with the company; the template is the company's, approved, a
@@ -42,9 +44,10 @@ export const requestTemplate = defineCommand({
   auditFields: ['occasion', 'templateName'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
-    if (isAgent(ctx.principal) && ctx.principal.roleKey !== 'agent:copilot') {
-      throw new DomainError('forbidden', `${ctx.principal.roleKey} does not request templates`, {
-        reason: 'agent_action_not_open',
+    // Only a person queues a WhatsApp message: the Co-pilot proposes this, never runs it.
+    if (isAgent(ctx.principal)) {
+      throw new DomainError('forbidden', `${ctx.principal.roleKey} does not queue messages`, {
+        reason: 'people_only',
       });
     }
     // The lead, under the caller's write scope (the lock takes the update policy).
@@ -88,7 +91,7 @@ export const requestTemplate = defineCommand({
       .where(
         and(eq(t.entityId, lead.entityId), eq(t.accountId, lead.accountId), isNotNull(t.waId)),
       )
-      .orderBy(desc(sql`${t.lastInboundAt} nulls last`), desc(t.id))
+      .orderBy(sql`${t.lastInboundAt} desc nulls last`, desc(t.id))
       .limit(1);
     if (thread === undefined) {
       throw new DomainError('not_found', `lead ${lead.id} has no WhatsApp chat`, {
