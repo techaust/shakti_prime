@@ -255,6 +255,38 @@ const frameworkImports = {
   ],
 };
 
+// packages/voice holds the vendor adapters the web app and the voice worker share: no database, no
+// domain and no framework, so the worker, which may import it, never reaches either (AGENTS.md §3).
+const voicePackageImports = {
+  ...frameworkImports,
+  patterns: [
+    ...frameworkImports.patterns,
+    {
+      group: ['@shakti/db', '@shakti/db/*', '@shakti/domain', '@shakti/domain/*'],
+      message: 'packages/voice imports no database or domain module (AGENTS.md §3).',
+    },
+  ],
+};
+
+// apps/voice-agent is the LiveKit worker: it holds no database credential and reaches the BOS only
+// through /api/v1 with the session's token, so it imports the contracts, the voice adapters, its
+// own listed packages and Node's modules, and nothing else (AGENTS.md §3).
+const voiceAgentImports = {
+  patterns: [
+    {
+      regex:
+        '^(?!(@shakti/(contracts|voice)|@livekit/(agents|rtc-node)|zod|node:[a-z_/]+|\\.{1,2})(/|$)).+',
+      message:
+        'apps/voice-agent imports only @shakti/contracts, @shakti/voice, its listed packages and Node modules (AGENTS.md §3).',
+    },
+    {
+      // Nor another app's or package's files by a relative path out of its own folder.
+      regex: '^\\.{1,2}/(.*/)?(apps|packages|web|db|domain)(/|$)',
+      message: 'apps/voice-agent reaches the BOS only through /api/v1 (AGENTS.md §3).',
+    },
+  ],
+};
+
 // Every module of @shakti/contracts loads Zod, about 90 kB (gzip) a phone would download on every
 // screen (BLUEPRINT §11.4, the per-page JavaScript budget in apps/web/js-budget.json). Code that
 // runs in the browser takes only types from the contracts (`import type`, which the build erases);
@@ -464,6 +496,20 @@ export default tseslint.config(
     rules: { 'no-restricted-imports': ['error', frameworkImports] },
   },
   {
+    files: ['packages/voice/**/*.ts'],
+    ignores: [
+      '**/*.test.ts',
+      'packages/voice/src/test-fetch.ts',
+      'packages/voice/vitest.config.ts',
+    ],
+    rules: { 'no-restricted-imports': ['error', voicePackageImports] },
+  },
+  {
+    files: ['apps/voice-agent/**/*.ts'],
+    ignores: ['**/*.test.ts', 'apps/voice-agent/vitest.config.ts'],
+    rules: { 'no-restricted-imports': ['error', voiceAgentImports] },
+  },
+  {
     // Inside the domain, only the batch command reads the import batch settings and only the
     // testing module hands them to tests.
     files: ['packages/domain/src/**/*.ts'],
@@ -510,6 +556,33 @@ export default tseslint.config(
         'error',
         {
           paths: [...rawClientImport.paths, ...webDatabasePaths],
+          patterns: webPatternsOutsideAuth,
+        },
+      ],
+    },
+  },
+  {
+    // The pages and the components run in the browser, or beside code that does: the vendor
+    // adapters of @shakti/voice (and the vendor keys they read) stay on the server.
+    files: [
+      'apps/web/src/app/**/*.{ts,tsx}',
+      'apps/web/src/components/**/*.{ts,tsx}',
+      'apps/web/src/screens/**/*.ts',
+    ],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...rawClientImport.paths,
+            ...webDatabasePaths,
+            {
+              name: '@shakti/voice',
+              message:
+                'The voice adapters stay on the server; pages and components never load them.',
+            },
+          ],
           patterns: webPatternsOutsideAuth,
         },
       ],

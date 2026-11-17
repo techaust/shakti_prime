@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SpeechToText } from './ports';
+import type { SpeechToText } from '@shakti/voice';
 import {
   cutPoints,
   durationMs,

@@ -12,6 +12,7 @@
     "@livekit/agents": "1.9.5",
     "@livekit/rtc-node": "1.2.1",
     "@shakti/contracts": "workspace:*",
+    "@shakti/voice": "workspace:*",
     "zod": "^4.6.7"
   },
   "devDependencies": {

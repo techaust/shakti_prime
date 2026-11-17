@@ -1,9 +1,17 @@
 import { AGENT_DEFAULTS } from '@shakti/domain';
 import { asArray, asObject, asString } from '../../http';
-import { claudeReplyModel, type ClaudeConfig } from '../claude-stream';
-import { isRomanScript } from '../roman-script';
-import { replayFetch, replaySockets, ReplayClock, type RecordedSession } from '../recorded';
-import { sarvamConfig, sarvamStreamingStt, sarvamStreamingTts } from '../sarvam';
+import {
+  type ClaudeConfig,
+  claudeReplyModel,
+  isRomanScript,
+  type RecordedSession,
+  ReplayClock,
+  replayFetch,
+  replaySockets,
+  sarvamConfig,
+  sarvamStreamingStt,
+  sarvamStreamingTts,
+} from '@shakti/voice';
 import type { ListenerMark, SpeechPrice } from './measures';
 import { observeTurn, scoreBenchmark, type BenchmarkReport, type TurnObservation } from './run';
 import type { StandInSet } from './stand-in-set';

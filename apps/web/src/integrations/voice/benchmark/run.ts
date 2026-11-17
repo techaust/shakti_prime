@@ -6,7 +6,7 @@ import type {
   ReplyUsage,
   StreamingSpeechToText,
   StreamingTextToSpeech,
-} from '../ports';
+} from '@shakti/voice';
 import type { PcmAudio } from '../recording';
 import {
   ACCURACY_TARGET,

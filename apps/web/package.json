@@ -43,6 +43,7 @@
     "@shakti/domain": "workspace:*",
     "@shakti/tokens": "workspace:*",
     "@shakti/ui": "workspace:*",
+    "@shakti/voice": "workspace:*",
     "@sparticuz/chromium": "^153.0.0",
     "@upstash/qstash": "^2.12.1",
     "@upstash/redis": "^1.41.0",
