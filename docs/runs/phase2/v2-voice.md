@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an agent principal acting as a person, a platform-only grant, spend caps |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | stopped at step 6 for decisions |
-| Next step | the lead's and the owner's answers to the five points of the step 6 stop |
+| State | built, for review |
+| Next step | the lead's review and integration (baselines in the Linux image; `checks-ok` for eslint, playwright, copy-lint and scripts) |
 
 ## Brief
 Read first:
@@ -130,6 +130,105 @@ Steps 6 to 9 wait for these answers. Steps 7 and 8's page journeys depend on the
 **Open**
 - The 24-month retention of `voice_sessions` (§11, for the CA to confirm) has no job. It was not to be built in V2, by the lead's message.
 - Migrations 0189 to 0191 are as the lead read them; 0192 is new in this round.
+
+### Steps 6 to 9, 17-11-2026 (the lead's cloud VM, worktree `v2-voice`, Postgres 54335)
+Built on the lead's answers to the step 6 stop. Skills loaded this round: `vercel-react-best-practices`.
+
+**Built**
+- **`packages/voice` (`@shakti/voice`), decision 1 (b).** V1's streaming adapters moved here, with their tests: the ports, sockets, Sarvam, the Claude stream, latency, Roman script, vendor JSON, the recorded replays, the WAV and recording helpers, and the vendor HTTP plumbing. `apps/web/src/integrations/http.ts` re-exports the plumbing beside its signature helpers. The `apps/web` copies are deleted.
+  - `claudeConfig()` takes its model settings as a parameter. The web app passes `AGENT_DEFAULTS.voice` (`integrations/voice/voice-model.ts`); the worker passes `VoiceDispatchMetadata.model`, which the session route fills from `AGENT_DEFAULTS`: model, effort, thinking, answer length, Teach's drafting length (`playbook.draftMaxTokens`), the model's prices, `paisePerUsd` and the new `voice.speechPaisePerMinute` (50, Sarvam's published ₹30 an hour).
+  - The reply step now takes the conversation so far, hands over each sentence as it ends, and stops on a signal (barge-in).
+  - `pnpm install` ran once. `pnpm-lock.yaml` gained only importer entries: the new `packages/voice` importer and the two `link:` lines; no package was added or changed. `@shakti/voice` is in Next's `transpilePackages`.
+  - The journeys import `@shakti/voice/recording` directly, because the package index loads the contracts' JSON, which Playwright cannot import.
+- **Fences.** In `eslint.config.mjs`, with cases in `lint-fences.test.ts`:
+  - `apps/voice-agent` imports only `@shakti/contracts`, `@shakti/voice`, `@livekit/agents`, `@livekit/rtc-node`, `zod` and `node:` modules, and no other app's or package's file by a relative path.
+  - `packages/voice` imports no `@shakti/db` or `@shakti/domain` module.
+  - No page, component or screen helper imports `@shakti/voice`.
+  - AGENTS §3 records the package and the three fences.
+- **The `livekit` handler** (step 5, in the earlier round) is unchanged. The worker's report carries the recording's file id.
+- **Teach recording, decision 4.**
+  - `POST /api/v1/voice/recording` takes the voice token. It works only for a live Teach session with the recording yes, and only for a person who may file an Executive-only file (`knowledge.vault.write` and `knowledge.vault.read.exec`, so a GM is refused). It runs `files.upload.begin` with the session id as the idempotency key, so there is one file per session.
+  - `POST /api/v1/voice/recording/complete` runs `files.upload.complete` (the checks run as for any upload), then `knowledge.file.add` as the voice principal with `exec_only`, then the platform's link through `voice.session.record` (0192).
+  - `knowledge.file.add` opts in with `voiceSession: true`. Test (a)'s opt-in list now has it, with its reason, and test (b)'s allowlist has the two routes.
+  - Deviation from the message: no transcript is uploaded. K3's index job transcribes the vault recording, masks the transcript and keeps it as the vault file's own text, so `transcript_file_id` stays empty.
+  - The worker records only the person's speech, at 8 kHz, so 15 minutes fit the 25 MB vault upload.
+- **`apps/voice-agent`, the worker.**
+  - `main.ts`: `defineAgent` and `ServerOptions` with `agentName` `shakti-voice`. It refuses a room not named after its session.
+  - `livekit-room.ts`: the `RoomPort` over `@livekit/rtc-node`. The person's audio comes in at 16 kHz, messages go on the reliable data channel (topic `shakti`), and the report goes out as the worker's participant metadata.
+  - `session.ts`, the turn engine:
+    - Sarvam streaming speech-to-text, with each sentence spoken as it ends.
+    - Barge-in on the person's `speech_start`.
+    - Captions, the light and the minutes go to the page.
+    - When speech-to-text fails or is not set up, it falls back to push-to-talk and typed questions.
+    - Each turn is timed by step (`final_transcript`, `first_sentence`, `first_speech`, `first_audio`). `end_of_speech` is not measured: Sarvam reports no voice-activity latency.
+    - Spend is counted from the dispatch's prices, and the session ends itself at the day's spend.
+    - It also ends itself at its longest length, 30 seconds before `notAfter` (decision 2), so the recording is still filed while the session is live.
+  - `responders.ts`:
+    - Ask goes through `/api/v1/ask` as the person. It speaks two sentences and shows the cited cards.
+    - Teach is a Sonnet 5.5 interview with the conversation kept. On the page's Make drafts tap, it drafts directives as JSON, read through `VoiceDraft` (at most five).
+  - `bos-client.ts`:
+    - It refreshes the token a minute before expiry. A refusal ends the session; a network failure is retried while the token lasts.
+    - It also covers Ask and the recording upload.
+  - `config.ts` reads only vendor keys. `Dockerfile` (built from the repository root and run with the root's `tsx`) and `.env.example` name them. There is no CI change.
+- **Contracts.**
+  - `VoiceDispatchMetadata` gains `notAfter` and `model`.
+  - New: `VoiceRecordingRequest`, `VoiceRecordingCompleteRequest`, `VoiceRecordingCompleteResponse`, `VoiceWorkerReport` (earlier), and the data-channel messages `VoiceRoomMessage` and `VoicePageMessage` (`text`, `push_to_talk`, `make_drafts`, plus `VoiceDraft`).
+  - Eight Talk to Shakti voice prompts (`TALK_PROMPTS`) in Hinglish and English, which the copy lint reads.
+  - The `voice.recording` and `voice.recording.complete` endpoints with their fixtures, the `voice_recording_refused` reason, and two rows in API §3.1.
+- **`/voice` (step 7)**: the page, its layout, its `/voice` client scope, the menu line "Talk to Shakti" (`voice.use`) in `nav.ts`, the session gate, a home hint, and `readVoiceToday` (`voiceToday()`: minutes left, read under the person's policy in the companies viewed).
+  - The screen asks the recording question before each talk, with no default; Start stays disabled until it is answered. It offers Ask or Teach and shows the minutes left.
+  - During a talk it shows the light, the captions, the cited records as links, push-to-talk and a text box when the state says so, and Make drafts in Teach. Each draft card is saved by the person through K2's `draftDirective` action on their cookie session (decision 3).
+  - The page reaches its room only through `window.shaktiVoiceRoom`. Without one installed, Start says "not set up" before anything is written, so `livekit-client` is still not installed (question 5).
+  - `setUp` means LiveKit and the issuer are set; the start route still checks the signing keys.
+  - The journeys' `next start` gets LiveKit stand-in phrases in `playwright.config.ts`, so the page offers a talk.
+  - Copy is in `en.json`. The new button keys are in `copy-lint.config.json`, and `/voice` has a JavaScript budget (204 kB: 193.7 kB measured plus 5 %).
+- **Documents (step 9).** SECURITY §3.4 has three new rows: the worker's environment and its own end; the routes that take the token and the two opted-in commands; the recording. The design's "Built (V2)" is under §7.5. DATABASE covers the file link, `pnpm db:docs` was rerun, AGENTS §3 is updated, and `apps/voice-agent/.env.example` is new. Neither `turbo.json` nor the root `.env.example` changed: the BOS reads no new variable.
+
+**Tests added this round**
+- `apps/voice-agent`: 15 tests.
+  - `session.test.ts` (9): turn timing by step, barge-in, the fall back to push-to-talk and text, starting with no speech service, the end at its longest length and at the session's own limit, the end by the BOS or by the person leaving, the recording filed, Teach drafts.
+  - `bos-client.test.ts` (6): refresh, refusal and retry; Ask's answer and its error line; drafts, spend, the recording buffer.
+- `@shakti/voice`: 2 new tests (sentences streamed with history; the stop). The package's 49 tests include the moved ones.
+- `apps/web`:
+  - `integrations/voice/voice.test.ts`: 1 new, plus the LiveKit and checklist tests that stayed here.
+  - `voice-token-routes.test.ts`: 3 tests, now listing 5 routes.
+  - `voice-screen.test.tsx`: 3 tests.
+  - `lint-fences.test.ts`: 3 new cases.
+  - `tests/voice-recording.test.ts`: 2 tests on Postgres.
+  - `e2e/voice.spec.ts`: 2 journeys in each of the 3 projects, the first with axe at three points.
+- Domain: the sweep's opt-in list covers `knowledge.file.add`.
+
+**Checks**
+
+| Check | Result |
+|---|---|
+| `pnpm test:security` on 54335, through `heavy.sh` | db 1442 passed (54 files). domain 1251 passed, 2 failed in `ask-cost.test.ts` (B1's): its random tag held nine digits, so the masking turned it into `[number]` and the lookup found nothing. That file rerun alone: 2 passed. Turbo then stopped before web, so web ran on its own: 410 passed (34 files). |
+| `pnpm lint` (whole repository, through the lock) | exit 0 |
+| `turbo run typecheck test` | 19 of 19 tasks; unit tests: domain 2545, web 1075 (1 skipped), contracts 197, db 158, ui 107, tokens 146, voice 49, voice-agent 15, copy-lint 17 |
+| `pnpm copy-lint` | clean |
+| `pnpm --filter web build` | passed |
+| `js-budget` | passes with `/voice` at 193.7 kB |
+| Journeys `voice`, `ask`, `knowledge-audio` in desktop light, desktop dark and phone | 35 passed, 6 failed. Both voice journeys passed in all three projects, axe included. The 6 failures are the existing screenshots of `ask` (snapshot Executive) and `knowledge-audio`, failing on font rendering: every glyph differs between this VM's Chromium and the Playwright image's baselines. I deleted the `voice-start` and `voice-live` pictures this run wrote. The menu line changes the Executive's and GM's shell, so the baselines need remaking in the Linux image at integration. |
+
+**Decisions the messages did not settle**
+1. The Ask route takes a `voice_session` principal only from a bearer token and a person only from the cookie.
+2. `voiceSession: true` is the opt-in: a people-only command with it is open to a person's own voice session.
+3. `/voice` reaches its room through the `window.shaktiVoiceRoom` seam until `livekit-client` is approved.
+4. The worker leaves 30 seconds before `notAfter`, so the recording is filed while the session is live.
+5. The worker's identity is LiveKit's own (`agent-…`). The handler recognises it by LiveKit's `AGENT` kind, not by an identity prefix.
+6. Teach's drafting is a separate model call with the Playbook's draft length, triggered by the person's tap rather than by the model.
+7. Spend counts only the model and Sarvam's speech-to-text price. Text to speech and LiveKit minutes wait for the vendors' quotes.
+8. An Ask answer is spoken as its first two sentences; the cards show the rest.
+
+**Open**
+- **Masking before the model (SECURITY §3.4).** Teach's interview text goes from the worker to the model without the identity masking of `packages/domain/src/privacy`, which the worker may not import. This is a lead's decision: move `model-text.ts`, `number-shapes.ts`, `identity-numbers.ts` and `verhoeff.ts` into `packages/voice` (or contracts), or accept that an Executive teaching rules speaks no identity numbers.
+- **24-month retention of `voice_sessions`.** §11 names it, for the CA to confirm. No job is built (the lead's instruction).
+- **The browser's LiveKit client** (question 5, the owner's). Until it is approved, `/voice` cannot join a real room.
+- **Screenshot baselines.** The voice baselines, and those the menu line changes, are made in the Linux image at integration.
+- **Live verification.** The worker has not run against LiveKit Cloud, Sarvam or Anthropic, as no test calls a vendor. The p50 over 100 turns is G2's, on the owner's project.
+- **Recording format.** A GM's Teach session keeps no recording: they read no Executive-only file. The audio is 8 kHz WAV of the person's speech only, not Shakti's.
+- **Doc link check.** `check-doc-links.py` reports this run file as an orphan (not linked from `docs/runs/phase2/readme.md`, which is the lead's to edit), beside 8 existing `.claude/settings.local.json` paths.
+- **Workshop pack.** It does not yet name the voice limits; question 12 was the owner's, not the client's.
 
 ## Review
 
