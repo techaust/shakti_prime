@@ -2,22 +2,21 @@
  * The caller's number from the screen-pop to the New lead form (PRD TEL-05: an unknown number
  * opens the form with the number filled in). It goes through this tab's session storage, never the
  * address, so a customer's number reaches no address bar, history or log. It is taken once, and
- * only within two minutes of the call. An event tells a form that is already open.
+ * only within two minutes of the call, by a form as it opens: never into a form already open,
+ * which may hold what the person is typing.
  */
 
 const KEY = 'bos.screen-pop.new-lead-phone';
-export const NEW_LEAD_PHONE_EVENT = 'bos:new-lead-phone';
 const KEPT_MS = 120_000;
 const E164 = /^\+[1-9]\d{6,14}$/;
 
-/** Leaves the number for the form, and tells a form already open. */
+/** Leaves the number for the form about to open. */
 export function handOverPhone(phone: string, now: number = Date.now()): void {
   try {
     window.sessionStorage.setItem(KEY, JSON.stringify({ phone, at: now }));
   } catch {
     // A browser that keeps nothing in session storage opens the form empty.
   }
-  window.dispatchEvent(new Event(NEW_LEAD_PHONE_EVENT));
 }
 
 /** The number left for the form, taken once; undefined when none is waiting or it is stale. */

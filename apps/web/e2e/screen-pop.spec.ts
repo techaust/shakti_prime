@@ -37,9 +37,9 @@ function freshMobile(): string {
 }
 
 /** The caller's page, polling: the shell's screen-pop has asked the ringing route once. */
-async function waiting(page: Page): Promise<void> {
+async function waiting(page: Page, path = '/home'): Promise<void> {
   const asked = page.waitForResponse((r) => r.url().includes('/api/v1/calls/ringing'));
-  await page.goto('/home');
+  await page.goto(path);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   expect((await asked).status()).toBe(204);
   // A customer calls at any moment of the 3-second poll, so the wait the report notes is a fair
@@ -124,13 +124,39 @@ test.describe('the screen-pop as a tele-caller', () => {
     await expect(card.getByRole('alert')).toHaveText(
       `A new number ending ${number.slice(-4)} is calling. The new lead form is open with the number filled in.`,
     );
-    await expect(page).toHaveURL(/\/leads\/new\?company=1$/);
+    await expect(page).toHaveURL(/\/leads\/new\?company=1&call=[0-9a-f-]+$/);
     await expect(page.getByLabel('Mobile number')).toHaveValue(number);
     // The whole number shows only in the form's own box, never on the card.
     await expect(card).not.toContainText(number.replace(' ', ''));
     await expectNoAxeViolations(page);
     // The number's last four digits change with every run.
     await snap(page, 'screen-pop-new-lead', { element: card, mask: [card.getByRole('alert')] });
+  });
+
+  test('a call never leaves, nor fills into, a form the person is typing in', async ({
+    page,
+    request,
+  }) => {
+    const number = freshMobile();
+    await waiting(page, '/leads/new');
+    const name = page.getByLabel('Customer name');
+    const phone = page.getByLabel('Mobile number');
+    await name.fill('Bhanwar Lal Choudhary');
+    const card = await callAndPop(page, request, number);
+    await expect(card.getByRole('alert')).toHaveText(
+      `A new number ending ${number.slice(-4)} is calling.`,
+    );
+    await expect(card).toContainText('Your page stays open, so nothing you were entering is lost.');
+    // The form is as the person left it: the same page, the name typed, the number box untouched.
+    await expect(page).toHaveURL(/\/leads\/new$/);
+    await expect(name).toHaveValue('Bhanwar Lal Choudhary');
+    await expect(phone).toHaveValue('');
+    await expectNoAxeViolations(page);
+    // Asked for, the call gets a fresh form of its own with the number filled in.
+    await (await hydrated(card.getByRole('button', { name: 'Add as new lead' }))).click();
+    await expect(page).toHaveURL(/\/leads\/new\?company=1&call=[0-9a-f-]+$/);
+    await expect(phone).toHaveValue(number);
+    await expect(name).toHaveValue('');
   });
 });
 

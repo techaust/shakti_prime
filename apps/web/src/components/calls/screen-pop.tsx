@@ -5,9 +5,10 @@ import { Button } from '@shakti/ui';
 import { PhoneIncoming, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useEffectEvent, useId, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { ringingTicket } from '../../actions/screen-pop';
+import { isTyping, opensOnArrival } from '../../calls/auto-open';
 import { handOverPhone } from '../../calls/new-lead-phone';
 import { askRinging, startScreenPop, type PopHost, type Ticket } from '../../calls/pop-transport';
 
@@ -45,16 +46,26 @@ async function renewTicket(): Promise<Ticket | undefined> {
 const customerHref = (accountId: string, entityId: number) =>
   `/customers/${accountId}?company=${String(entityId)}`;
 
-/** What the pop did on arrival: the customer's page or the new-lead form opened, or nothing. */
-type Opened = 'customer' | 'newLead' | null;
+/** The New lead form for this call: its own fresh form (`call`), never one being typed in. */
+const newLeadHref = (pop: ScreenPopDto) =>
+  `/leads/new?company=${String(pop.entityId)}&call=${pop.providerCallId}`;
+
+/**
+ * What the pop did on arrival: the customer's page or the new-lead form opened; `kept` it would
+ * have opened one but the person is on a form or typing (the card offers it instead); or nothing.
+ */
+type Opened = 'customer' | 'newLead' | 'kept' | null;
 
 /**
  * The screen-pop (docs/03-roadmap-appendix/phase2.md §7.4, PRD TEL-05) for a person who places
  * calls: while their page is in view it learns of a call the IVR rings for them
  * (`startScreenPop`, by the poll or Realtime) and opens the matched customer's page, lists the
  * customers when several share the number, or opens the New lead form with the number filled in.
- * The card says which, with the number's last four digits only, until the person closes it or the
- * next call replaces it. Nothing opens for a call of a company the switcher does not show.
+ * It opens a page by itself only from a page that is no form and where nothing has been typed
+ * (`opensOnArrival`); otherwise the card offers Open customer or Add as new lead, so a call never
+ * moves away from, or fills into, what the person is entering. The card says which, with the
+ * number's last four digits only, until the person closes it or the next call replaces it. Nothing
+ * opens for a call of a company the switcher does not show.
  */
 export function ScreenPop({
   settings,
@@ -65,19 +76,40 @@ export function ScreenPop({
 }) {
   const t = useTranslations('shell.incomingCall');
   const router = useRouter();
+  const pathname = usePathname();
   const heading = useId();
+  const card = useRef<HTMLElement>(null);
   const [shown, setShown] = useState<{ pop: ScreenPopDto; opened: Opened } | null>(null);
+
+  // Whether the person has typed into a field of this page since it opened: then a call never
+  // takes them away from it. A new page starts clean.
+  const typed = useRef(false);
+  useEffect(() => {
+    typed.current = false;
+    const onInput = (event: Event) => {
+      if (isTyping(event.target, card.current)) typed.current = true;
+    };
+    document.addEventListener('input', onInput, true);
+    return () => {
+      document.removeEventListener('input', onInput, true);
+    };
+  }, [pathname]);
 
   const arrive = useEffectEvent((pop: ScreenPopDto) => {
     const inView = settings.viewCompanies.includes(pop.entityId);
     const [only] = pop.customers;
+    const opensCustomer =
+      inView && pop.customers.length === 1 && only !== undefined && settings.mayOpenCustomers;
+    const opensForm = inView && pop.newLeadPhone !== null && settings.mayAddLead;
     let opened: Opened = null;
-    if (inView && pop.customers.length === 1 && only !== undefined && settings.mayOpenCustomers) {
+    if ((opensCustomer || opensForm) && !opensOnArrival(pathname, typed.current)) {
+      opened = 'kept';
+    } else if (opensCustomer) {
       router.push(customerHref(only.accountId, pop.entityId));
       opened = 'customer';
-    } else if (inView && pop.newLeadPhone !== null && settings.mayAddLead) {
+    } else if (opensForm && pop.newLeadPhone !== null) {
       handOverPhone(pop.newLeadPhone);
-      router.push(`/leads/new?company=${String(pop.entityId)}`);
+      router.push(newLeadHref(pop));
       opened = 'newLead';
     }
     setShown({ pop, opened });
@@ -133,6 +165,7 @@ export function ScreenPop({
 
   return (
     <section
+      ref={card}
       aria-labelledby={heading}
       // Under the top bar on the right on a wide screen, where nothing of the shell sits and the
       // toasts (bottom right) never cover it; at the foot on a phone, where the toasts are on top.
@@ -173,6 +206,7 @@ export function ScreenPop({
       {!inView && company !== undefined ? (
         <p className="text-text-muted text-sm">{t('otherCompany', { company })}</p>
       ) : null}
+      {opened === 'kept' ? <p className="text-text-muted text-sm">{t('kept')}</p> : null}
       {pop.customers.length > 1 ? (
         <ul aria-label={t('severalList')} className="flex flex-col gap-1">
           {pop.customers.map((c) => (
@@ -192,7 +226,7 @@ export function ScreenPop({
         </ul>
       ) : null}
       {inView &&
-      opened === null &&
+      (opened === null || opened === 'kept') &&
       only !== undefined &&
       pop.customers.length === 1 &&
       settings.mayOpenCustomers ? (
@@ -200,14 +234,17 @@ export function ScreenPop({
           <Link href={customerHref(only.accountId, pop.entityId)}>{t('openCustomer')}</Link>
         </Button>
       ) : null}
-      {inView && opened === null && pop.newLeadPhone !== null && settings.mayAddLead ? (
+      {inView &&
+      (opened === null || opened === 'kept') &&
+      pop.newLeadPhone !== null &&
+      settings.mayAddLead ? (
         <Button
           variant="secondary"
           size="sm"
           className="self-start"
           onClick={() => {
             if (pop.newLeadPhone !== null) handOverPhone(pop.newLeadPhone);
-            router.push(`/leads/new?company=${String(pop.entityId)}`);
+            router.push(newLeadHref(pop));
             setShown({ pop, opened: 'newLead' });
           }}
         >

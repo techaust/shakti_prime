@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { takeEnquiry } from '../../actions/crm';
-import { NEW_LEAD_PHONE_EVENT, takeHandedPhone, typedPhone } from '../../calls/new-lead-phone';
+import { takeHandedPhone, typedPhone } from '../../calls/new-lead-phone';
 import {
   ACCOUNT_TYPES,
   buildLeadInput,
@@ -38,8 +38,8 @@ const FIELDS = [
 /**
  * The New lead form: a new customer with their mobile number, the line of business and, when the
  * caller knows it, the site and where the lead came from. One idempotency key per rendered form,
- * so a double press saves one lead. Opened by the screen-pop for a new number calling in, the
- * number is filled in (TEL-05) and the call's company chosen.
+ * so a double press saves one lead. Opened by the screen-pop for a new number calling in, a fresh
+ * form has the number filled in (TEL-05) and the call's company chosen.
  */
 export function NewLeadForm({
   companies,
@@ -62,19 +62,14 @@ export function NewLeadForm({
     companies.length === 1 ? companies[0]?.id : companies.find((c) => c.id === initialEntityId)?.id,
   );
   const phoneRef = useRef<HTMLInputElement>(null);
-  // The number of a call the screen-pop opened this form for, now or while it is open.
+  // The number of a call the screen-pop opened this form for, taken as the form opens: never
+  // written into a form already open, which may hold what the person is typing (the page gives
+  // each call's form its own key, so a call opens a fresh one).
   useEffect(() => {
-    const fill = () => {
-      const phone = takeHandedPhone();
-      if (phone !== undefined && phoneRef.current !== null) {
-        phoneRef.current.value = typedPhone(phone);
-      }
-    };
-    fill();
-    window.addEventListener(NEW_LEAD_PHONE_EVENT, fill);
-    return () => {
-      window.removeEventListener(NEW_LEAD_PHONE_EVENT, fill);
-    };
+    const phone = takeHandedPhone();
+    if (phone !== undefined && phoneRef.current !== null) {
+      phoneRef.current.value = typedPhone(phone);
+    }
   }, []);
   const offered = entityId === undefined ? [] : pipelinesFor(pipelines, entityId);
   // Dealer is offered only where the person may make one; anyone else enters a dealer's enquiry

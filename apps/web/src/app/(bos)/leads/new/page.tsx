@@ -20,7 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * New lead (CRM-01): a new customer's lead in one of the companies being viewed. In All companies
  * mode the person chooses the company; only companies where their role may add leads are offered.
- * `?company=` starts with that company chosen (the screen-pop opens the form for its call's).
+ * `?company=` starts with that company chosen (the screen-pop opens the form for its call's), and
+ * `?call=` (the call's id) gives the call its own fresh form, never one the person was typing in.
  */
 export default async function NewLeadPage({
   searchParams,
@@ -51,6 +52,7 @@ export default async function NewLeadPage({
         <EmptyState message={t('noCompany')} />
       ) : (
         <NewLeadForm
+          key={typeof query.call === 'string' ? query.call : 'new'}
           companies={companies}
           pipelines={options.data.pipelines}
           sources={options.data.sources}

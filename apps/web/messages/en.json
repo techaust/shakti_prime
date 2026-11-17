@@ -573,6 +573,7 @@
       "newOpened": "A new number ending {last4} is calling. The new lead form is open with the number filled in.",
       "colleague": "A customer a colleague looks after is calling, from the number ending {last4}.",
       "otherCompany": "Switch to {company} to open this call's customer.",
+      "kept": "Your page stays open, so nothing you were entering is lost.",
       "openCustomer": "Open customer",
       "addAsNewLead": "Add as new lead",
       "closeLabel": "Close the incoming call"
