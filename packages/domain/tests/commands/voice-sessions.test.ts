@@ -225,6 +225,12 @@ describe('voice.session.token', () => {
     await expect(
       executeCommand(voiceOf(exec, old), { entityIds: [1] }, refreshVoiceToken, {}),
     ).rejects.toMatchObject({ code: 'forbidden', details: ended });
+    // A request narrowed to one company of a session over two does not read the session.
+    const gm = await createTestPrincipal('general_manager', [1, 2]);
+    const both = voiceOf(gm, await start(gm, [1, 2]));
+    await expect(
+      executeCommand(both, { entityIds: [2] }, refreshVoiceToken, {}),
+    ).rejects.toMatchObject({ code: 'forbidden', details: ended });
     // Ended: a new session ends the person's earlier one.
     const first = await start(exec);
     await start(exec);

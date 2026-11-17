@@ -1,9 +1,9 @@
 -- V2 Live voice (SECURITY §3.4): a voice session acts as its person, so the person's own
 -- principal row no longer tells a definer for people only that the request is not a session's.
--- app.open_sizing_review() (0095), the one such definer a session could reach through a command,
--- now asks app.request_is_person(), which refuses an agent, the system and a voice session alike;
--- the rest of its body is 0095's, unchanged. Every command it serves is for people only, so the
--- command guard refuses a session first.
+-- app.open_sizing_review() (0095) and app.claim_push_subscription() (0131), the definers for
+-- people only that read that row, now ask app.request_is_person(), which refuses an agent, the
+-- system and a voice session alike; the rest of each body is its migration's, unchanged. Every
+-- command they serve is for people only, so the command guard refuses a session first.
 create or replace function app.open_sizing_review(p_sizing uuid, p_task uuid, p_due timestamptz)
   returns table (task_id uuid, assignee_id uuid, team_id uuid, opened boolean)
   language plpgsql volatile security definer set search_path = '' as $$
@@ -84,3 +84,35 @@ $$;
 revoke execute on function app.open_sizing_review(uuid, uuid, timestamptz) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.open_sizing_review(uuid, uuid, timestamptz) to app_user;
+--> statement-breakpoint
+create or replace function app.claim_push_subscription(
+  p_endpoint text, p_p256dh text, p_auth text, p_user_agent text
+)
+  returns uuid
+  language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_user uuid := app.user_id();
+  v_id uuid;
+begin
+  if v_user is null or not app.has_perm('profile.write:own') or not app.request_is_person() then
+    raise exception 'a person with profile.write is required' using errcode = '42501';
+  end if;
+  -- The conflicting row is locked and changed only when it is the caller's; another person's
+  -- row is left as it is and nothing is answered.
+  insert into public.push_subscriptions as s (id, user_id, endpoint, p256dh, auth, user_agent)
+  values (app.uuid_v7(), v_user, p_endpoint, p_p256dh, p_auth, p_user_agent)
+  on conflict on constraint push_subscriptions_endpoint_unique
+  do update set p256dh = excluded.p256dh, auth = excluded.auth, user_agent = excluded.user_agent
+     where s.user_id = v_user
+  returning s.id into v_id;
+  if v_id is null then
+    raise exception 'another person receives alerts on this browser'
+      using errcode = '23505', constraint = 'push_subscriptions_endpoint_unique';
+  end if;
+  return v_id;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.claim_push_subscription(text, text, text, text) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.claim_push_subscription(text, text, text, text) to app_user;
