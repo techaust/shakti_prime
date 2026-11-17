@@ -9,10 +9,15 @@ import {
   whatsappCustomer,
 } from '@shakti/db/testing';
 import { closeWebhookDb } from '@shakti/db/webhooks';
+import { executeQuery, memoryKeyValue, readScreenPop } from '@shakti/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GET as INCOMING } from '../src/app/api/v1/webhooks/exotel/incoming/[secret]/route';
 import { defaultAuthDeps } from '../src/auth/deps';
-import { takeRinging } from '../src/calls/ringing';
+import { ringingKey, takeRinging } from '../src/calls/ringing';
+import { ringingRoute } from '../src/calls/ringing-route';
+import { simulatedIncoming } from '../src/calls/simulated-incoming';
+import { mintRingingTicket, RINGING_TICKET_HEADER } from '../src/calls/ticket';
+import { exotelIncomingHandler } from '../src/workers/webhooks/exotel-incoming';
 import { TEST_ORIGIN, TEST_WEBHOOK_ENV } from '../src/webhooks/signed-deliveries';
 
 // T4 Inbound calls on real Postgres (docs/03-roadmap-appendix/phase2.md §7.4): Exotel's Passthru
@@ -234,5 +239,121 @@ describe('a missed call through the Passthru applet', () => {
         select count(*)::int as n from tasks where opportunity_id = ${recorded?.opportunity_id ?? ''}`,
     );
     expect(again[0]?.n).toBe(1);
+  });
+});
+
+describe('the screen-pop on the local stack', () => {
+  const LOCAL = {
+    ...process.env,
+    BOS_ENVIRONMENT: 'local',
+    BETTER_AUTH_URL: 'http://localhost:3034',
+  };
+  const simulated = (env: NodeJS.ProcessEnv, fields: Record<string, string>) =>
+    simulatedIncoming(env)(
+      new Request(
+        `${TEST_ORIGIN}/api/v1/calls/simulated-incoming?${new URLSearchParams({ Direction: 'incoming', ...fields }).toString()}`,
+      ),
+    );
+  const ask = () =>
+    ringingRoute(
+      new Request(`${TEST_ORIGIN}/api/v1/calls/ringing`, {
+        headers: { [RINGING_TICKET_HEADER]: mintRingingTicket(caller.id).ticket },
+      }),
+      {
+        keyValue: () => defaultAuthDeps().keyValue,
+        personIn: () => Promise.resolve(caller),
+        read: (principal, pending, requestId) =>
+          executeQuery(principal, { entityIds: [ENTITY], requestId }, (ctx) =>
+            readScreenPop(ctx, pending),
+          ),
+        now: () => new Date(),
+      },
+    );
+
+  it('answers the journeys’ simulated call only on a runtime with the local marker', async () => {
+    const fields = {
+      CallSid: sid(),
+      CallFrom: national(`+91${testPhone()}`),
+      CallTo: national(IVR),
+    };
+    expect((await simulated({ ...process.env, BOS_ENVIRONMENT: '' }, fields)).status).toBe(404);
+    const hosted = { ...LOCAL, NODE_ENV: 'production', VERCEL: '1' } as NodeJS.ProcessEnv;
+    expect((await simulated(hosted, fields)).status).toBe(404);
+    const stored = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from webhook_inbox where provider_event_id = ${fields.CallSid}`,
+    );
+    expect(stored[0]?.n).toBe(0);
+  });
+
+  it('shows the matched customer on the person’s ringing route within 2 seconds of the call', async () => {
+    const customer = await whatsappCustomer(ENTITY);
+    // The caller reads the customer: give her the customer's relationship in the company.
+    await asMigrator(
+      (m) => m`update account_entities set owner_id = ${caller.id}
+                where account_id = ${customer.accountId} and entity_id = ${ENTITY}`,
+    );
+    expect((await ask()).status).toBe(204);
+    const started = performance.now();
+    const answer = await simulated(LOCAL, {
+      CallSid: sid(),
+      CallFrom: national(customer.e164),
+      CallTo: national(IVR),
+      DialWhomNumber: national(callerPhone),
+    });
+    expect(answer.status).toBe(200);
+    let shown = await ask();
+    while (shown.status === 204 && performance.now() - started < 5_000) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      shown = await ask();
+    }
+    const elapsed = performance.now() - started;
+    expect(shown.status).toBe(200);
+    expect(await shown.json()).toMatchObject({
+      entityId: ENTITY,
+      phoneLast4: customer.e164.slice(-4),
+      customers: [{ accountId: customer.accountId, name: 'whatsapp account' }],
+      newLeadPhone: null,
+    });
+    // TEL-05 on the local stack: from the Passthru call to the pop's answer, the poll's own wait
+    // (up to 3 seconds) aside.
+    expect(elapsed).toBeLessThan(2_000);
+    expect((await ask()).status).toBe(204);
+  });
+
+  it('wakes the person’s Realtime channel once the call is held, when Realtime is the transport', async () => {
+    const keyValue = memoryKeyValue();
+    const woken: { userId: string; held: boolean }[] = [];
+    const handle = exotelIncomingHandler({
+      keyValue: () => keyValue,
+      now: () => new Date(),
+      realtime: () => true,
+      signal: async (entityId, userId) => {
+        woken.push({ userId, held: (await keyValue.get(ringingKey(userId))) !== null });
+        return entityId === ENTITY;
+      },
+    });
+    const callSid = sid();
+    const payload = {
+      Direction: 'incoming' as const,
+      CallSid: callSid,
+      CallFrom: national(`+91${testPhone()}`),
+      CallTo: national(IVR),
+      DialWhomNumber: national(callerPhone),
+    };
+    expect(await handle(payload, { requestId: newId() })).toEqual({ entityId: ENTITY });
+    expect(woken).toEqual([{ userId: caller.id, held: true }]);
+    // A repeat holds and wakes nothing.
+    await handle(payload, { requestId: newId() });
+    expect(woken).toHaveLength(1);
+
+    // With the poll as the transport, nobody is woken.
+    const quiet = exotelIncomingHandler({
+      keyValue: () => keyValue,
+      now: () => new Date(),
+      realtime: () => false,
+      signal: () => Promise.reject(new Error('not woken under the poll')),
+    });
+    await quiet({ ...payload, CallSid: sid() }, { requestId: newId() });
   });
 });
