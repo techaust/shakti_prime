@@ -10,7 +10,13 @@ import {
 import { describe, expect, it } from 'vitest';
 import { said } from './prompts';
 import { fakeRoom } from './room';
-import { END_MARGIN_MS, VoiceSession, type Responder, type Timers } from './session';
+import {
+  END_MARGIN_MS,
+  PERSON_JOIN_WAIT_MS,
+  VoiceSession,
+  type Responder,
+  type Timers,
+} from './session';
 import { WavRecorder } from './wav-recorder';
 
 // The worker on a fake room (docs/03-roadmap-appendix/phase2.md §14, V2): turn timing by step,
@@ -25,8 +31,12 @@ function manualClock() {
   return { now: () => ms, advance: (by: number) => (ms += by) };
 }
 
-/** Timers a test fires by hand. */
-function manualTimers(): Timers & { fire: () => void; pending: () => number[] } {
+/** Timers a test fires by hand: every one, or those of one length. */
+function manualTimers(): Timers & {
+  fire: () => void;
+  fireAt: (ms: number) => void;
+  pending: () => number[];
+} {
   const timers: { fn: () => void; ms: number }[] = [];
   return {
     set: (fn, ms) => {
@@ -40,6 +50,11 @@ function manualTimers(): Timers & { fire: () => void; pending: () => number[] } 
     },
     fire: () => {
       for (const t of timers.splice(0)) t.fn();
+    },
+    fireAt: (ms) => {
+      const due = timers.filter((t) => t.ms === ms);
+      for (const t of due) timers.splice(timers.indexOf(t), 1);
+      for (const t of due) t.fn();
     },
     pending: () => timers.map((t) => t.ms),
   };
@@ -140,8 +155,9 @@ function start(over: {
   recorder?: WavRecorder;
   wallNow?: number;
   clock?: ReturnType<typeof manualClock>;
+  personPresent?: boolean;
 }) {
-  const room = fakeRoom();
+  const room = fakeRoom({ personPresent: over.personPresent ?? true });
   const clock = over.clock ?? manualClock();
   const timers = manualTimers();
   const uploads: Uint8Array[] = [];
@@ -347,6 +363,40 @@ describe('the end of a session', () => {
     second.room.personLeaves();
     await second.done;
     expect(second.room.left).toBe(true);
+  });
+
+  it('comes when the person has not joined within a minute, before a word is said or heard', async () => {
+    const stt = fakeStt();
+    const { tts, spoken } = fakeTts(manualClock());
+    const { room, timers, session, done, stopped } = start({
+      personPresent: false,
+      stt: stt.stt,
+      tts,
+    });
+    await settle();
+    expect(PERSON_JOIN_WAIT_MS).toBe(60_000);
+    expect(timers.pending()).toContain(PERSON_JOIN_WAIT_MS);
+    expect(spoken).toEqual([]);
+    expect(stt.streams).toHaveLength(0);
+    timers.fireAt(PERSON_JOIN_WAIT_MS);
+    await done;
+    expect(session.endReason).toBe('ended');
+    expect(room.left).toBe(true);
+    expect(stopped()).toBe(1);
+    expect(room.reports.length).toBeGreaterThan(0);
+    expect(timers.pending()).toEqual([]);
+    expect(spoken).toEqual([]);
+  });
+
+  it('starts once the person joins within the minute', async () => {
+    const { tts, spoken } = fakeTts(manualClock());
+    const { room, timers } = start({ personPresent: false, tts });
+    await settle();
+    room.personJoins();
+    await settle();
+    expect(timers.pending()).not.toContain(PERSON_JOIN_WAIT_MS);
+    expect(spoken).toEqual([said('voice_greeting_ask')]);
+    expect(room.left).toBe(false);
   });
 
   it("files a recorded Teach session's audio and reports its file", async () => {

@@ -78,6 +78,12 @@ export type EndReason = 'time_up' | 'day_limit' | 'ended' | 'failed';
 /** The session ends this long before the BOS stops its token, to file what it holds. */
 export const END_MARGIN_MS = 30_000;
 
+/**
+ * How long the worker waits for the person to join its room: past it (a blocked connection, a
+ * closed tab), it leaves, so an empty room spends no more of the person's day.
+ */
+export const PERSON_JOIN_WAIT_MS = 60_000;
+
 /** One turn's step times, each from the person's end of speech (§9.3). */
 interface TurnTimes {
   speechEndAt?: number;
@@ -101,6 +107,8 @@ export class VoiceSession {
   private finish: () => void = () => undefined;
   private startedAt = 0;
   private hardEnd: unknown;
+  /** The wait for the person to join, while it runs. */
+  private joinWait: unknown;
   private stt: SttStream | undefined;
   /** True once speech-to-text has failed: push-to-talk and typed questions from then on. */
   private fallback = false;
@@ -157,6 +165,12 @@ export class VoiceSession {
     room.onPersonLeft(() => {
       void this.end('ended');
     });
+    // Nothing is said or heard until the person is in the room.
+    const joined = await Promise.race([this.personJoined(), this.finished.then(() => false)]);
+    if (!joined || this.ended) {
+      await this.end('ended');
+      return;
+    }
     void this.pumpAudio();
     await this.setState('listening');
     await this.sendMinutes();
@@ -164,6 +178,33 @@ export class VoiceSession {
     if (this.deps.stt === undefined) await this.fallBack();
     else void this.listen();
     await this.finished;
+  }
+
+  /** Whether the person joined within `PERSON_JOIN_WAIT_MS`; false when they did not. */
+  private personJoined(): Promise<boolean> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const settle = (joined: boolean) => {
+        if (settled) return;
+        settled = true;
+        this.clearJoinWait();
+        resolve(joined);
+      };
+      this.deps.room.onPersonJoined(() => {
+        settle(true);
+      });
+      if (!settled) {
+        this.joinWait = this.deps.timers.set(() => {
+          settle(false);
+        }, PERSON_JOIN_WAIT_MS);
+      }
+    });
+  }
+
+  private clearJoinWait(): void {
+    if (this.joinWait === undefined) return;
+    this.deps.timers.clear(this.joinWait);
+    this.joinWait = undefined;
   }
 
   private async setState(state: VoiceState): Promise<void> {
@@ -463,6 +504,7 @@ export class VoiceSession {
     this.ended = true;
     this.endedWith = reason;
     this.deps.timers.clear(this.hardEnd);
+    this.clearJoinWait();
     this.turn?.abort();
     this.stt?.close();
     this.ttsStream?.close();

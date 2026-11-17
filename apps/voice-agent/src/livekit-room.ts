@@ -75,6 +75,11 @@ export function liveKitRoom(room: Room): RoomPort {
       for (const handler of pageHandlers) handler(parsed.data);
     },
   );
+  const joinedHandlers: (() => void)[] = [];
+  room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+    if (!isPerson(participant)) return;
+    for (const handler of joinedHandlers.splice(0)) handler();
+  });
   const leftHandlers: (() => void)[] = [];
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
     if (!isPerson(participant)) return;
@@ -85,6 +90,10 @@ export function liveKitRoom(room: Room): RoomPort {
     audioIn: frames,
     onPageMessage: (handler) => {
       pageHandlers.push(handler);
+    },
+    onPersonJoined: (handler) => {
+      if ([...room.remoteParticipants.values()].some(isPerson)) handler();
+      else joinedHandlers.push(handler);
     },
     onPersonLeft: (handler) => {
       leftHandlers.push(handler);

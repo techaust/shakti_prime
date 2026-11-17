@@ -12,6 +12,8 @@ export interface RoomPort {
   readonly audioIn: AsyncIterable<Int16Array>;
   /** Messages from the `/voice` page, each read by the contract before it reaches here. */
   onPageMessage(handler: (message: VoicePageMessage) => void): void;
+  /** Called once when the person is in the room: at once when they already are. */
+  onPersonJoined(handler: () => void): void;
   /** Called once when the person leaves the room. */
   onPersonLeft(handler: () => void): void;
   /** Plays one piece of Shakti's speech; resolves once it is queued. */
@@ -56,11 +58,16 @@ class Feed<T> implements AsyncIterable<T> {
   }
 }
 
-/** A room for the tests: records what the session sends and plays, and lets a test speak. */
-export function fakeRoom() {
+/**
+ * A room for the tests: records what the session sends and plays, and lets a test speak. The
+ * person is in it from the start unless `personPresent` is false; then `personJoins()` brings them.
+ */
+export function fakeRoom(options: { personPresent?: boolean } = {}) {
   const audio = new Feed<Int16Array>();
   const pageHandlers: ((m: VoicePageMessage) => void)[] = [];
+  const joinedHandlers: (() => void)[] = [];
   const leftHandlers: (() => void)[] = [];
+  let present = options.personPresent ?? true;
   const room = {
     sent: [] as VoiceRoomMessage[],
     played: [] as SpeechChunk[],
@@ -70,6 +77,10 @@ export function fakeRoom() {
     audioIn: audio as AsyncIterable<Int16Array>,
     onPageMessage: (handler: (m: VoicePageMessage) => void) => {
       pageHandlers.push(handler);
+    },
+    onPersonJoined: (handler: () => void) => {
+      if (present) handler();
+      else joinedHandlers.push(handler);
     },
     onPersonLeft: (handler: () => void) => {
       leftHandlers.push(handler);
@@ -104,6 +115,10 @@ export function fakeRoom() {
     /** The page sends a message. */
     page(message: VoicePageMessage) {
       for (const handler of pageHandlers) handler(message);
+    },
+    personJoins() {
+      present = true;
+      for (const handler of joinedHandlers.splice(0)) handler();
     },
     personLeaves() {
       for (const handler of leftHandlers) handler();
