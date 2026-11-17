@@ -8,12 +8,13 @@ import {
 import { sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import {
+  acceptedOrder,
   acceptQuoteMoves,
   drawOrderNumber,
   recordAcceptance,
   withdrawOthersMoves,
 } from '../../sales/quote-acceptance';
-import { ORDER_AUDIT_FIELDS } from '../../sales/save-order';
+import { ORDER_AUDIT_FIELDS, recordOrderMade } from '../../sales/save-order';
 import type { Actor } from '../../state-machines/define-machine';
 import { requireEntity } from '../crm/opportunity-shared';
 
@@ -49,7 +50,7 @@ const PLATFORM: Actor = { kind: 'system', job: 'whatsapp-acceptance' };
  * accepts a quote the customer accepted on WhatsApp, after the WhatsApp handler checked the
  * Accept button's token, that the sender's number is the chat's, and, from the value of question
  * 5, the one-time code. Run as `system:workers`, which holds the platform-only
- * `sales.quote.accept_remote` and no `sales.*` grant a person may hold (ADR 0020): it reads the
+ * `sales.quote.accept.remote` and no `sales.*` grant a person may hold (ADR 0020): it reads the
  * quote through `app.remote_quote_facts()`, which queues the lead's acceptances on the lead's lock
  * and locks the quote, and writes through `app.accept_quote_remote()`, which checks every fact
  * again. Between them run what a person's acceptance runs (`sales/quote-acceptance.ts`): the
@@ -63,7 +64,7 @@ const PLATFORM: Actor = { kind: 'system', job: 'whatsapp-acceptance' };
  */
 export const acceptQuoteRemote = defineCommand({
   name: 'sales.quote.accept_remote',
-  permission: 'sales.quote.accept_remote',
+  permission: 'sales.quote.accept.remote',
   minScope: 'entity',
   input: AcceptQuoteRemoteInput,
   output: QuoteAcceptedRemotely,
@@ -138,27 +139,27 @@ export const acceptQuoteRemote = defineCommand({
     if (accepted === undefined) {
       throw new DomainError('internal', 'the acceptance answered nothing');
     }
+    const quote = {
+      id: facts.quote_id,
+      entityId: input.entityId,
+      opportunityId: facts.opportunity_id,
+      accountId: facts.account_id,
+      quoteNo: facts.quote_no,
+      state,
+      tierId: facts.tier_id,
+      priceListId: facts.price_list_id,
+      grandTotal: facts.grand_total,
+    };
+    recordOrderMade(ctx, acceptedOrder(quote, accountType, order, accepted.result.lineCount));
     recordAcceptance(ctx, {
-      quote: {
-        id: facts.quote_id,
-        entityId: input.entityId,
-        opportunityId: facts.opportunity_id,
-        accountId: facts.account_id,
-        quoteNo: facts.quote_no,
-        state,
-        tierId: facts.tier_id,
-        priceListId: facts.price_list_id,
-        grandTotal: facts.grand_total,
-      },
+      quote,
       acceptedVia: input.acceptedVia,
       signedFileId: null,
-      accountType,
       withdrawn: accepted.result.withdrawn.map((o) => ({
         id: o.id,
         state: QuoteStateSchema.parse(o.state),
       })),
       order,
-      lineCount: accepted.result.lineCount,
     });
     return {
       quoteId: facts.quote_id,

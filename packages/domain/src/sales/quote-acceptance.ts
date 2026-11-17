@@ -10,7 +10,7 @@ import {
   type QuoteRecord,
 } from '../state-machines/machines/quote';
 import { salesOrderMachine } from '../state-machines/machines/sales-order';
-import { recordOrderMade } from './save-order';
+import type { OrderMade } from './save-order';
 
 // What every acceptance of a quote shares (docs/03-roadmap-appendix/phase1.md §8.3 and phase2.md
 // §7.1): a person's by the signed copy (`sales.quote.accept`) and the platform's from WhatsApp
@@ -148,9 +148,33 @@ export async function orderFromQuote(
 }
 
 /**
- * Records an acceptance: the quote's audit row with how it was accepted, each withdrawn quote's
- * audit row and `sales.quote.withdrawn`, the order's audit row and `sales.order.created`, then
- * `sales.quote.accepted`.
+ * The order an acceptance made, as `recordOrderMade()` audits it and sends `sales.order.created`
+ * (each command calls it itself, before `recordAcceptance()`).
+ */
+export function acceptedOrder(
+  quote: QuoteToAccept,
+  accountType: AccountType,
+  order: OrderNumber,
+  lineCount: number,
+): OrderMade {
+  return {
+    id: order.id,
+    soNo: order.soNo,
+    entityId: quote.entityId,
+    quoteId: quote.id,
+    opportunityId: quote.opportunityId,
+    accountId: quote.accountId,
+    accountType,
+    tierId: quote.tierId,
+    priceListId: quote.priceListId,
+    lineCount,
+    grandTotal: quote.grandTotal,
+  };
+}
+
+/**
+ * Records an acceptance after its order: the quote's audit row with how it was accepted, each
+ * withdrawn quote's audit row and `sales.quote.withdrawn`, then `sales.quote.accepted`.
  */
 export function recordAcceptance(
   ctx: CommandContext,
@@ -158,10 +182,8 @@ export function recordAcceptance(
     quote: QuoteToAccept;
     acceptedVia: QuoteAcceptedVia;
     signedFileId: string | null;
-    accountType: AccountType;
     withdrawn: readonly { id: string; state: QuoteMachineState }[];
     order: OrderNumber;
-    lineCount: number;
   },
 ): void {
   const { quote, acceptedVia, order } = accepted;
@@ -192,19 +214,6 @@ export function recordAcceptance(
       payload: { opportunityId: quote.opportunityId },
     });
   }
-  recordOrderMade(ctx, {
-    id: order.id,
-    soNo: order.soNo,
-    entityId: quote.entityId,
-    quoteId: quote.id,
-    opportunityId: quote.opportunityId,
-    accountId: quote.accountId,
-    accountType: accepted.accountType,
-    tierId: quote.tierId,
-    priceListId: quote.priceListId,
-    lineCount: accepted.lineCount,
-    grandTotal: quote.grandTotal,
-  });
   ctx.emit({
     type: 'sales.quote.accepted',
     entityId: quote.entityId,

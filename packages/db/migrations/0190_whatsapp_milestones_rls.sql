@@ -1,11 +1,11 @@
 -- S3 WhatsApp quotes, milestones and STATUS (docs/03-roadmap-appendix/phase2.md §7.1, PRD SAL-05,
 -- WA-01 and WA-03): the milestone registry and its once-per-subject record, the platform-only
--- sales.quote.accept_remote and the definers through which the platform accepts a quote from a
+-- sales.quote.accept.remote and the definers through which the platform accepts a quote from a
 -- verified WhatsApp reply, answers STATUS and sends a milestone. The order of an accepted quote is
 -- made by one function, app.order_from_quote(), which a person's acceptance runs under its own row
 -- security and the platform's runs inside its definer.
 
--- 1. sales.quote.accept_remote is platform-only, like the other workers' grants: the sixteen keys
+-- 1. sales.quote.accept.remote is platform-only, like the other workers' grants: the sixteen keys
 --    of 0183 (with W1's messaging.process), kept, and this one.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
@@ -14,12 +14,12 @@ create or replace function app.platform_only_permissions() returns text[]
                'crm.handover.run', 'platform.jobs.check', 'crm.retention.run',
                'webhooks.process', 'crm.dnd.record', 'knowledge.playbook.check',
                'calls.process', 'crm.ingest.run', 'messaging.process',
-               'sales.quote.accept_remote']::text[]
+               'sales.quote.accept.remote']::text[]
 $$;
 --> statement-breakpoint
 
 -- 2. The next number of a series, as 0012 drew it, now also for the order of a quote the platform
---    accepts from WhatsApp (sales.quote.accept_remote numbers a sales order, nothing else).
+--    accepts from WhatsApp (sales.quote.accept.remote numbers a sales order, nothing else).
 create or replace function app.next_document_no(
   p_entity smallint, p_doc_type text, p_fy text, p_prefix text
 ) returns int
@@ -41,7 +41,7 @@ begin
     else null end;
   if v_perm is null
      or not (app.has_perm(v_perm)
-             or (p_doc_type = 'sales_order' and app.has_perm('sales.quote.accept_remote:entity'))) then
+             or (p_doc_type = 'sales_order' and app.has_perm('sales.quote.accept.remote:entity'))) then
     raise exception 'permission % required to number a %', v_perm, p_doc_type
       using errcode = 'insufficient_privilege';
   end if;
@@ -157,7 +157,7 @@ revoke execute on function app.order_from_quote(uuid, uuid, text, text) from pub
 grant execute on function app.order_from_quote(uuid, uuid, text, text) to app_user;
 --> statement-breakpoint
 
--- 6. What the platform checks before it accepts a quote from WhatsApp (sales.quote.accept_remote):
+-- 6. What the platform checks before it accepts a quote from WhatsApp (sales.quote.accept.remote):
 --    the acceptances of the quote's lead queue on the lead's lock, as a person's do (the lead-sale
 --    lock of sales.quote.accept), and the quote's row is locked for the rest of the transaction;
 --    then the quote as the quote machine reads it, whether the chat is the quote's customer's in
@@ -187,8 +187,8 @@ create or replace function app.remote_quote_facts(p_entity smallint, p_quote uui
 declare
   v_opportunity uuid;
 begin
-  if app.user_id() is null or not app.has_perm('sales.quote.accept_remote:entity') then
-    raise exception 'sales.quote.accept_remote is required' using errcode = '42501';
+  if app.user_id() is null or not app.has_perm('sales.quote.accept.remote:entity') then
+    raise exception 'sales.quote.accept.remote is required' using errcode = '42501';
   end if;
   if not (p_entity = any (coalesce(app.entity_ids(), '{}'::int[]))) then
     raise exception 'the company is outside the request' using errcode = '42501';
@@ -229,7 +229,7 @@ grant execute on function app.remote_quote_facts(smallint, uuid, uuid) to app_us
 --> statement-breakpoint
 
 -- 7. The platform accepts a quote from a verified WhatsApp reply or code
---    (sales.quote.accept_remote), after app.remote_quote_facts() and the quote machine: only a
+--    (sales.quote.accept.remote), after app.remote_quote_facts() and the quote machine: only a
 --    sent quote whose validity has not passed, whose customer is the chat's, of a lead with no
 --    other accepted quote. The quote is accepted with how (whatsapp_reply or whatsapp_otp), the
 --    lead's other draft and sent quotes are withdrawn naming it (DOM-4), and its draft order is
@@ -251,8 +251,8 @@ declare
   v_withdrawn jsonb;
   v_lines integer;
 begin
-  if v_actor is null or not app.has_perm('sales.quote.accept_remote:entity') then
-    raise exception 'sales.quote.accept_remote is required' using errcode = '42501';
+  if v_actor is null or not app.has_perm('sales.quote.accept.remote:entity') then
+    raise exception 'sales.quote.accept.remote is required' using errcode = '42501';
   end if;
   if not (p_entity = any (coalesce(app.entity_ids(), '{}'::int[]))) then
     raise exception 'the company is outside the request' using errcode = '42501';

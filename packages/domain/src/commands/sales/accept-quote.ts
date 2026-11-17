@@ -11,13 +11,14 @@ import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { readQuote } from '../../queries/sales/quote-dto';
 import {
+  acceptedOrder,
   acceptQuoteMoves,
   drawOrderNumber,
   orderFromQuote,
   recordAcceptance,
   withdrawOthersMoves,
 } from '../../sales/quote-acceptance';
-import { ORDER_AUDIT_FIELDS } from '../../sales/save-order';
+import { ORDER_AUDIT_FIELDS, recordOrderMade } from '../../sales/save-order';
 import type { QuoteMachineState } from '../../state-machines/machines/quote';
 import { lockQuote, quoteRecordOf } from './quote-shared';
 
@@ -207,14 +208,14 @@ export const acceptQuote = defineCommand({
     const withdrawn = await withdrawOtherQuotes(ctx, quote);
     const order = await drawOrderNumber(ctx, quote.entityId, entity.code);
     const lineCount = await orderFromQuote(ctx, quote.id, order);
+    const accepted = { ...quote, state: QuoteStateSchema.parse(quote.state) };
+    recordOrderMade(ctx, acceptedOrder(accepted, accountType, order, lineCount));
     recordAcceptance(ctx, {
-      quote: { ...quote, state: QuoteStateSchema.parse(quote.state) },
+      quote: accepted,
       acceptedVia: 'signed_upload',
       signedFileId: fileId,
-      accountType,
       withdrawn,
       order,
-      lineCount,
     });
     return readQuote(ctx, quote.entityId, quote.id);
   },

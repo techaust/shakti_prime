@@ -144,7 +144,7 @@ export const PERMISSION_KEYS = [
   // Accepting a quote from a verified WhatsApp reply or code (docs/03-roadmap-appendix/phase2.md
   // §7.1): held only by the platform's worker principal, which reads the quote's facts and accepts
   // it into its order through two narrow definers, nothing more.
-  'sales.quote.accept_remote',
+  'sales.quote.accept.remote',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -227,7 +227,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'messaging.process',
   'crm.ingest.run',
   'calls.process',
-  'sales.quote.accept_remote',
+  'sales.quote.accept.remote',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -380,7 +380,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'messaging.process': ['all'],
   'crm.ingest.run': ['all'],
   'calls.process': ['all'],
-  'sales.quote.accept_remote': ['all'],
+  'sales.quote.accept.remote': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

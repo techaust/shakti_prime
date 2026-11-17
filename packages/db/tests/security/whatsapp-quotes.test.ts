@@ -20,7 +20,7 @@ import {
 // S3 WhatsApp quotes, milestones and STATUS (docs/03-roadmap-appendix/phase2.md §7.1, migrations
 // 0189 and 0190): the milestone map is read in its company and set only by the Executive's
 // messaging.templates.write; the once-per-subject record is the platform's alone; only the
-// platform's sales.quote.accept_remote reaches the acceptance definers, which accept only a sent,
+// platform's sales.quote.accept.remote reaches the acceptance definers, which accept only a sent,
 // unexpired quote of the chat's own customer; STATUS lists only the chat's customer's records.
 // The role × company read of the map is in role-entity-matrix.test.ts. The suites never clean
 // these tables, so every row here is found by this run's own ids.
@@ -172,17 +172,17 @@ describe('the milestone tables', () => {
   });
 });
 
-describe('sales.quote.accept_remote is the platform’s alone', () => {
+describe('sales.quote.accept.remote is the platform’s alone', () => {
   it('is platform-only, held by the worker principal and no other role', async () => {
     const [list] = await withoutContext<{ keys: string[] }>(
       sql`select app.platform_only_permissions() as keys`,
     );
-    expect(list?.keys).toContain('sales.quote.accept_remote');
+    expect(list?.keys).toContain('sales.quote.accept.remote');
     expect(list?.keys).toContain('messaging.process');
     const holders = await asMigrator(
       (m) => m<{ key: string }[]>`
         select r.key from role_permissions rp join roles r on r.id = rp.role_id
-         where rp.permission_key = 'sales.quote.accept_remote'`,
+         where rp.permission_key = 'sales.quote.accept.remote'`,
     );
     expect(holders.map((h) => h.key)).toEqual(['system:workers']);
   });
@@ -199,9 +199,9 @@ describe('sales.quote.accept_remote is the platform’s alone', () => {
             sql`select * from app.remote_quote_facts(1::smallint, ${quote}::uuid, ${thread}::uuid)`,
           ),
         ),
-      ).toMatch(/sales.quote.accept_remote is required/);
+      ).toMatch(/sales.quote.accept.remote is required/);
       expect(await failure(accept(who, 1, quote, thread))).toMatch(
-        /sales.quote.accept_remote is required/,
+        /sales.quote.accept.remote is required/,
       );
     }
     expect(await failure(accept(workers([2]), 1, quote, thread))).toMatch(

@@ -147,7 +147,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
+| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue`, `messaging.milestone.send` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
 | [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread. | `messaging.inbound.record` | none |
 | [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. | `messaging.inbound.record` | none |
 
@@ -162,12 +162,12 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`sales.quote.created`](#salesquotecreated) | A quote was made for a lead, priced from the Price Master and taxed by the tax engine; `supersedesId` names the quote a re-quote replaced. | `sales.quote.create`, `sales.quote.requote` | none |
-| [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer. | `sales.quote.send` | none |
+| [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`. | `sales.quote.send` | none |
 | [`sales.quote.superseded`](#salesquotesuperseded) | A quote was replaced by a re-quote at current prices (`supersededById`). | `sales.quote.requote` | none |
-| [`sales.quote.withdrawn`](#salesquotewithdrawn) | A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose order was cancelled. | `sales.order.cancel`, `sales.quote.accept`, `sales.quote.withdraw` | none |
+| [`sales.quote.withdrawn`](#salesquotewithdrawn) | A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose order was cancelled. | `sales.order.cancel`, `sales.quote.accept`, `sales.quote.accept_remote`, `sales.quote.withdraw` | none |
 | [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
-| [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, in Phase 1) and became the order `orderId`. | `sales.quote.accept` | none |
-| [`sales.order.created`](#salesordercreated) | A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one. | `sales.quote.accept`, `sales.order.create` | none |
+| [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, or on WhatsApp by its Accept button and, for a large quote, a code) and became the order `orderId`. | `sales.quote.accept`, `sales.quote.accept_remote` | none |
+| [`sales.order.created`](#salesordercreated) | A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one. | `sales.quote.accept`, `sales.quote.accept_remote`, `sales.order.create` | none |
 | [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. | `sales.order.confirm` | none |
 | [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.credit_held` (QStash URL group `evt-sales.order.credit_held`) |
 | [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
@@ -494,6 +494,8 @@ No fields apart from `v`.
 |---|---|
 | `opportunityId` | id |
 | `pdfFileId` | id |
+| `channel` | one of `recorded`, `whatsapp` |
+| `threadId` | id or null |
 
 ### sales.quote.superseded
 
