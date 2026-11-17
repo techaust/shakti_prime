@@ -125,7 +125,12 @@ async function previousLeadSearchQuery(ctx: SearchContext, rawInput: unknown) {
     .limit(input.limit);
 }
 
-const newTag = () => `e${newId().slice(-12)}${newId().slice(-11)}`;
+// Letters only: twelve digits in a row would be masked as an identity number.
+const newTag = () =>
+  `e${newId().slice(-12)}${newId().slice(-11)}`.replace(
+    /[0-9]/g,
+    (d) => 'ghijklmnop'[Number(d)] ?? 'g',
+  );
 const tag = newTag();
 /** The tag with one character dropped: close in spelling, no longer contained. */
 const misspelt = (text: string) => `${text.slice(0, 10)}${text.slice(11)}`;
