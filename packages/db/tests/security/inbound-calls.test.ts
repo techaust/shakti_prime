@@ -55,8 +55,10 @@ function leadOf(owner: keyof CrmFixture['leads']): string {
   return id;
 }
 
+type Definer = 'lines' | 'bySid' | 'customers' | 'answerer' | 'ivr' | 'missed';
+
 /** Every definer of the slice, called with valid arguments for company 1. */
-function definers(): Record<string, SQL> {
+function definers(): Record<Definer, SQL> {
   return {
     lines: sql`select * from app.inbound_call_lines('+918047119499')`,
     bySid: sql`select * from app.inbound_call_by_sid(${sid()})`,

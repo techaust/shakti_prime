@@ -36,7 +36,7 @@ let callerPhone: string;
 /** Exotel's GET for one call, under the secret path segment. */
 function passthru(
   fields: Record<string, string>,
-  secret = TEST_WEBHOOK_ENV.EXOTEL_INCOMING_SECRET,
+  secret: string = TEST_WEBHOOK_ENV.EXOTEL_INCOMING_SECRET,
 ) {
   const query = new URLSearchParams({ Direction: 'incoming', ...fields }).toString();
   return INCOMING(
