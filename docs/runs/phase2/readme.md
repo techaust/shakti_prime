@@ -3,7 +3,12 @@
 One file per slice, `docs/runs/phase2/<slug>.md`, kept as [the Phase 1 run files](../phase1/readme.md) are: the brief, the builder's report, the review and the integration notes, on the slice's branch while it runs and on `main` once it merges. The design is [`docs/03-roadmap-appendix/phase2.md`](../../03-roadmap-appendix/phase2.md); where each slice stands is in [STATUS](../../10-status.md); the steps from a brief to `main` are in [slice-integration](../../runbooks/slice-integration.md).
 
 ## Slices in flight
-- None.
+Each run file is on its slice's branch until the slice merges.
+- S3 WhatsApp quotes, milestones and STATUS: `s3-whatsapp-quotes.md` on `feat/s3-whatsapp-quotes`
+- A3 WhatsApp Concierge: `a3-concierge.md` on `feat/a3-concierge`
+- A2 Caller Co-pilot: `a2-copilot.md` on `feat/a2-copilot`
+- T4 Inbound calls and screen-pop: `t4-inbound.md` on `feat/t4-inbound`
+- V2 Live voice, Teach and Ask: `v2-voice.md` on `feat/v2-voice`
 
 ## Merged on 15 and 16 November, run files on `main`
 - [W1 WhatsApp threads and messaging](w1-whatsapp.md) (#251)
