@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an agent principal acting as a person, a platform-only grant, spend caps |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | early check |
-| Next step | the lead reads the early check's diff |
+| State | stopped at step 6 for decisions |
+| Next step | the lead's and the owner's answers to the five points of the step 6 stop |
 
 ## Brief
 Read first:
@@ -78,6 +78,58 @@ Steps 1 to 4 are built and committed; steps 5 to 9 wait for the lead's read of t
 - Linking `audio_file_id` and `transcript_file_id` after a Teach session with consent: the recording is filed by the worker as the person (K3), and nothing records the link yet; it comes with step 6, likely as a person-side command.
 - Voice sessions have no retention job yet (§11 names 24 months for the CA); not in the brief.
 - The migrations here were edited after they were applied to my database (two definer and policy fixes); I applied the same text by hand and updated their hashes, so a fresh database applies them as they are. A fresh-database run by the lead would confirm.
+
+### Step 5, the two sweeps, and a stop at step 6, 17-11-2026 (the lead's cloud VM, worktree `v2-voice`, Postgres 54335)
+**Built**
+- The `livekit` handler (`apps/web/src/workers/webhooks/livekit.ts`, one line in the registry). It runs as `system:workers` with `voice.session.record` and no company:
+  - `room_finished` ends the session named by the room, at the event's time; minutes come from the session's own times.
+  - The voice worker leaving the room (`participant_left` of LiveKit's `AGENT` kind) gives its last report, `VoiceWorkerReport` read from its participant metadata: spend, turn timings and, for a Teach session, its vault files.
+  - Every other event, a room of no session and an unreadable report record nothing. The inbox is one row per LiveKit event id, and the record only moves forward.
+  - The person's join token neither makes them an agent nor lets them set their own metadata.
+- Teach files: migration 0192 replaces `app.record_voice_session()` with a seven-argument version. It links `audio_file_id` and `transcript_file_id` once, never replaces them, only with the person's yes to the recording question, and only a `knowledge` file that person uploaded. `RecordVoiceSessionInput` and the DTO (`filesLinked`) carry them, and DATABASE describes it.
+- Ask through the voice token:
+  - `askRouteDeps().bearer` is `voicePrincipalFromToken`. The Ask route now takes a `voice_session` principal only from a bearer token, and a person only from the cookie.
+  - `knowledge.ask.record` is people-only, so I added an opt-in to the command guard: `defineCommand({ voiceSession: true })` lets a person's own voice session run a people-only command. Agents and the system are still refused. `knowledge.ask.record` is the one command that opts in; this is a one-line change in B1's file.
+- The lead's two tests:
+  - (a) `agent-refusals.test.ts`, new describe: a voice session holding every needed grant is refused at the guard by every people-only command except the opt-in list, which the test pins to `knowledge.ask.record`.
+  - (b) `apps/web/src/voice/voice-token-routes.test.ts`: the modules that read the voice token are exactly four, and the routes reaching them are exactly `ask`, `voice/session` and `voice/token`. Any new reader or route fails the test.
+- P5's webhook tests now expect LiveKit's handler. The fixture's `room_started` delivery is processed and handled with no code, where it used to be `no_handler`.
+
+**Tests added**
+- `apps/web/tests/voice-webhook.test.ts`: 5 tests.
+- `voice-sessions.test.ts` (db): 1 test for the file link.
+- `ask-route.test.ts`: 1 test. A voice token's question is answered, with `knowledge.ask.record` audited as the session. A voice principal arriving through the cookie, or a person arriving through the token, is refused.
+- `run-command.test.ts`: 1 test for the opt-in.
+- The voice sweep in `agent-refusals.test.ts`.
+- `voice-token-routes.test.ts`: 3 tests.
+
+**Checks**
+- Typecheck of contracts, domain and web passed.
+- Postgres runs:
+  - db `voice-sessions` 10 passed.
+  - domain `voice-sessions` and `agent-refusals` 59 passed, then `agent-refusals` and `ask*` 75 passed after the opt-in.
+  - web `voice-webhook`, `webhooks` and `ask-route`: 27 passed.
+- Unit runs: domain `src/command` 157 passed; web `src/voice` 14 passed; db `src/docs` 23 passed after `pnpm db:docs`.
+- ESLint on every touched folder is clean, after one fix. The whole security suite was not rerun after this round; the full run above was before it.
+
+**Stopped at step 6: the brief and the governing documents conflict.** Each point needs the lead's or the owner's decision before the worker and the page are built.
+1. **Import fence (AGENTS §3).** `apps/voice-agent` may import `@shakti/contracts` only. V1's streaming adapters (`apps/web/src/integrations/voice`: the ports, Sarvam's sockets, `claude-stream.ts`, `roman-script.ts`, the `http.ts` wrapper) live in `apps/web`, and `claude-stream.ts` reads `AGENT_DEFAULTS` from `@shakti/domain`. The worker can reuse none of them without breaking the fence or copying them, and copying breaks "never duplicate a helper". A new shared workspace package would need a `pnpm-lock.yaml` change, which I may not make. Options:
+   - (a) Move the framework-free adapters, which need only Node's `fetch` and `WebSocket`, into a subpath of `@shakti/contracts` such as `@shakti/contracts/voice`, not re-exported from its index so browser code never loads them, and have `apps/web` import them from there. This changes what contracts holds.
+   - (b) The lead adds a `packages/voice` workspace with its lockfile entry.
+   - (c) The model's turn runs on the BOS behind a voice-token route, and only speech stays in the worker. That route would still need the speech adapters in the worker.
+2. **"No long-lived secret".** The 1.5-second budget needs the worker to call Sarvam (speech) and, under (a) or (b), Anthropic directly, so it would hold those vendor keys as LiveKit Cloud secrets, beside LiveKit's own credentials. I read the checklist line as "no BOS credential": no database URL, no signing key, no service role, only the 5-minute token. Please confirm. Under (c) the Anthropic key stays on the BOS.
+3. **Teach drafts are for people only.** `knowledge.playbook.draft` (K2) is people-only, and test (a) holds a voice session to that. My proposal: the worker sends each drafted directive to the `/voice` page over the room's data channel, and the person saves it with one tap through K2's own command under their session. This is the same rule as SECURITY §3.4's "confirms with a tap". With that, no playbook route takes the voice token, and the allowlist in test (b) stays at three routes.
+4. **Teach recording.** Filing the audio and transcript in the vault is `files.upload.*` plus `knowledge.file.add`, and `knowledge.file.add` is people-only, so the worker cannot file them as the person. The link on the session (0192) is built; who files the files is open. Options:
+   - The page files them with one tap, which needs the audio in the browser.
+   - A platform command records them as `exec_only` for the person. That needs its own grant, `voice.session.record` widened or a new one.
+   - LiveKit Egress writes to our bucket. That is a new vendor feature.
+5. **Browser LiveKit package (step 7).** `/voice` must join the room from the browser. The browser counterpart is `livekit-client`, which is not installed, so as the brief says I stop rather than install it. The page can be built against a small room port with a fake room, but it can only talk to a real room once the owner approves the package.
+
+Steps 6 to 9 wait for these answers. Steps 7 and 8's page journeys depend on the data-channel messages that 3 and 4 decide.
+
+**Open**
+- The 24-month retention of `voice_sessions` (§11, for the CA to confirm) has no job. It was not to be built in V2, by the lead's message.
+- Migrations 0189 to 0191 are as the lead read them; 0192 is new in this round.
 
 ## Review
 
