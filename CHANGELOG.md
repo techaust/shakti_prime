@@ -4,11 +4,16 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ## Contents
 
-- [Phase 2](#phase-2): [wave 2](#phase-2-wave-2) · [wave 1](#phase-2-wave-1)
+- [Phase 2](#phase-2): [wave 3](#phase-2-wave-3) · [wave 2](#phase-2-wave-2) · [wave 1](#phase-2-wave-1)
 - [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 6 and the Phase 0–1 audit](#phase-1-wave-6-and-the-phase-01-audit) · [wave 5](#phase-1-wave-5) · [wave 4](#phase-1-wave-4) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
 - [Phase 0](#phase-0): [hosted environments and the close](#phase-0-hosted-environments-and-the-close) · [gap-closing waves](#phase-0-gap-closing-waves) · [completeness pass and tooling](#phase-0-completeness-pass-and-tooling) · [weeks 4 to 8](#phase-0-weeks-4-to-8) · [weeks 1 to 3](#phase-0-weeks-1-to-3) · [production-readiness audit](#phase-0-production-readiness-audit) · [before pull requests](#phase-0-before-pull-requests)
 
 ## Phase 2
+
+### Phase 2 wave 3
+
+- **#258** (17-11-2026) The picomatch advisory GHSA-fc5q-39xc-vjpf (ReDoS, no patched release) accepted in `pnpm-workspace.yaml`: it reaches only build and development tools, and no app code calls a glob matcher.
+- **#253** (17-11-2026) Production libraries: the AWS SDK clients 3.1168.0, `@sentry/nextjs` 11.12.0, `@upstash/qstash` 2.12.2, `better-auth` 1.7.22, `jose` 6.2.17, `lucide-react` 1.72.0, `next` 16.4.6, `next-intl` 4.15.1, `dotenv` 18.0.10, `postgres` 4.1.1, `@anthropic-ai/sdk` 1.8.0 and `papaparse` 5.7.1 (Dependabot); its first runs had tested a base from before W1, whose screenshot baseline had since changed, and passed once `main` was taken in.
 
 ### Phase 2 wave 2
 
