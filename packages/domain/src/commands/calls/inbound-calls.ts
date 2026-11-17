@@ -46,6 +46,23 @@ export async function inboundCallLines(
   }));
 }
 
+/**
+ * Wakes the screens of the person a ringing call waits for on their own Realtime channel
+ * (`app.signal_ringing()`, the platform's `calls.process`), when the screen-pop's transport is
+ * Realtime: the message carries nothing, and the screen takes the call from the ringing route.
+ * False where the database has no Realtime (the local stack, CI), which sends nothing.
+ */
+export async function signalRinging(
+  ctx: Pick<RequestContext, 'tx'>,
+  entityId: number,
+  userId: string,
+): Promise<boolean> {
+  const rows = (await ctx.tx.execute(
+    sql`select app.signal_ringing(${entityId}::smallint, ${userId}::uuid) as sent`,
+  )) as unknown as { sent: boolean }[];
+  return rows[0]?.sent === true;
+}
+
 /** The company's customers holding the number, ids only, oldest relationship first. */
 async function matchCustomers(
   ctx: CommandContext,

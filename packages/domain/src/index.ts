@@ -76,7 +76,9 @@ export {
   inboundCallLines,
   missedCallCallbackDue,
   recordInboundCall,
+  signalRinging,
 } from './commands/calls/inbound-calls';
+export { readScreenPop } from './queries/calls/screen-pop';
 export type { InboundCallLine } from './commands/calls/inbound-calls';
 export { placeDial } from './calls/place-dial';
 export {

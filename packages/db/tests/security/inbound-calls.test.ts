@@ -55,7 +55,7 @@ function leadOf(owner: keyof CrmFixture['leads']): string {
   return id;
 }
 
-type Definer = 'lines' | 'bySid' | 'customers' | 'answerer' | 'ivr' | 'missed';
+type Definer = 'lines' | 'bySid' | 'customers' | 'answerer' | 'ivr' | 'missed' | 'signal';
 
 /** Every definer of the slice, called with valid arguments for company 1. */
 function definers(): Record<Definer, SQL> {
@@ -67,6 +67,7 @@ function definers(): Record<Definer, SQL> {
     ivr: sql`select * from app.record_inbound_call(1::smallint, ${newId()}::uuid, ${sid()}, null, now())`,
     missed: sql`select * from app.record_missed_call(1::smallint, ${newId()}::uuid, ${sid()},
                   ${leadOf('a')}::uuid, null, now(), ${IN_HOURS})`,
+    signal: sql`select app.signal_ringing(1::smallint, ${fx.principals.a.id}::uuid)`,
   };
 }
 
@@ -98,7 +99,7 @@ describe('the inbound call definers', () => {
   });
 
   it('refuse the platform a company outside its request', async () => {
-    for (const name of ['customers', 'answerer', 'ivr', 'missed'] as const) {
+    for (const name of ['customers', 'answerer', 'ivr', 'missed', 'signal'] as const) {
       expect(await failure(rows(workers(2), definers()[name]))).toBe(
         'the company is outside the request',
       );
@@ -113,14 +114,15 @@ describe('the inbound call definers', () => {
           join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'app'
           cross join pg_roles r
          where p.proname in ('inbound_call_lines', 'inbound_call_by_sid', 'inbound_call_customers',
-                             'inbound_call_answerer', 'record_inbound_call', 'record_missed_call')
+                             'inbound_call_answerer', 'record_inbound_call', 'record_missed_call',
+                             'signal_ringing')
            and r.rolname in ('app_user', 'app_reader', 'readonly_reporter', 'auth_service',
                              'outbox_publisher', 'webhook_receiver', 'public')
            and has_function_privilege(r.oid, p.oid, 'execute')
          order by 1, 2`,
     );
     expect(new Set(granted.map((g) => g.role))).toEqual(new Set(['app_user']));
-    expect(granted).toHaveLength(6);
+    expect(granted).toHaveLength(7);
   });
 });
 
@@ -255,5 +257,25 @@ describe('provider_calls for inbound calls', () => {
     await expect(insert('inbound', 'missed_call', null, null)).rejects.toThrow(
       /provider_calls_inbound_check/,
     );
+  });
+});
+
+describe('the Realtime wake-up of a ringing call (app.signal_ringing)', () => {
+  // The local image has the realtime schema but not Supabase's realtime.send(), and the migrator
+  // may not create one there, so the send itself is checked on a hosted project (the spike).
+  it('sends nothing where the database has no Realtime, and refuses a person of no company', async () => {
+    const person = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    expect(
+      await rows(
+        workers(1),
+        sql`select app.signal_ringing(1::smallint, ${person.id}::uuid) as sent`,
+      ),
+    ).toEqual([{ sent: false }]);
+    const outsider = await createTestUser([{ entityId: 2, roleKey: 'tele_caller_cc' }]);
+    expect(
+      await failure(
+        rows(workers(1), sql`select app.signal_ringing(1::smallint, ${outsider.id}::uuid)`),
+      ),
+    ).toBe('the person rung works in the company');
   });
 });

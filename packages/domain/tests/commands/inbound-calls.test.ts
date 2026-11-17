@@ -22,9 +22,14 @@ import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { executeQuery } from '../../src/command/execute';
 import { runCommand } from '../../src/command/run-command';
-import { inboundCallLines, recordInboundCall } from '../../src/commands/calls/inbound-calls';
+import {
+  inboundCallLines,
+  recordInboundCall,
+  signalRinging,
+} from '../../src/commands/calls/inbound-calls';
 import { notifyEvent } from '../../src/commands/notifications/notify';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { readScreenPop } from '../../src/queries/calls/screen-pop';
 
 // T4 Inbound calls (docs/03-roadmap-appendix/phase2.md §7.4, PRD TEL-05 and CRM-01): the platform
 // records a customer's call to a company's IVR or missed-call number through the calls.process
@@ -435,5 +440,83 @@ describe('calls.inbound_call.record on the missed-call line', () => {
     expect(again.notices).toEqual([]);
     // A person is refused the notify command.
     expect(await refusal(run(exec, notifyEvent, input))).toBe('forbidden');
+  });
+});
+
+describe('the screen-pop: what the person rung is shown', () => {
+  const pending = (accountIds: string[], phone: string, entityId: number = ENTITY) => ({
+    providerCallId: newId(),
+    entityId,
+    accountIds,
+    phone,
+    ringingAt: new Date().toISOString(),
+  });
+  const read = (principal: Principal, pop: unknown, entityIds: number[] = [ENTITY]) =>
+    executeQuery(principal, { entityIds, requestId: newId() }, (ctx) => readScreenPop(ctx, pop));
+
+  it('names only the customers the person reads, in the platform’s order, with the last four digits', async () => {
+    const own = await whatsappCustomer(ENTITY);
+    const colleague = await whatsappCustomer(ENTITY, { e164: own.e164 });
+    const pop = pending([colleague.accountId, own.accountId], own.e164);
+    const shown = await read(own.owner, pop);
+    expect(shown).toEqual({
+      providerCallId: pop.providerCallId,
+      entityId: ENTITY,
+      ringingAt: pop.ringingAt,
+      phoneLast4: own.e164.slice(-4),
+      customers: [{ accountId: own.accountId, name: 'whatsapp account' }],
+      newLeadPhone: null,
+    });
+    // A customer of the company held by a colleague alone: nobody named, and no number either.
+    const theirs = await read(own.owner, pending([colleague.accountId], colleague.e164));
+    expect(theirs.customers).toEqual([]);
+    expect(theirs.newLeadPhone).toBeNull();
+  });
+
+  it('gives the whole number only for the new-lead form, when no customer of the company holds it', async () => {
+    const phone = `+91${testPhone()}`;
+    const shown = await read(caller, pending([], phone));
+    expect(shown).toMatchObject({
+      customers: [],
+      newLeadPhone: phone,
+      phoneLast4: phone.slice(-4),
+    });
+  });
+
+  it('never names another company’s customer, even one with the same id in the list', async () => {
+    const elsewhere = await whatsappCustomer(OTHER);
+    const shown = await read(caller, pending([elsewhere.accountId], elsewhere.e164));
+    expect(shown.customers).toEqual([]);
+  });
+
+  it('refuses a company outside the request, an agent and a person who places no calls', async () => {
+    const phone = `+91${testPhone()}`;
+    expect(await refusal(read(caller, pending([], phone, OTHER)))).toBe('forbidden');
+    expect(await refusal(read(principalFor('agent:copilot', [ENTITY]), pending([], phone)))).toBe(
+      'forbidden',
+    );
+    expect(await refusal(read(principalFor('accounts', [ENTITY]), pending([], phone)))).toBe(
+      'forbidden',
+    );
+  });
+});
+
+describe('the Realtime wake-up of a ringing call', () => {
+  it('is the platform’s alone, for a person of the company, and sends nothing without Realtime', async () => {
+    const signal = (principal: Principal, userId: string, entityIds = [ENTITY]) =>
+      executeQuery(
+        principal,
+        { entityIds, requestId: newId() },
+        (ctx) => signalRinging(ctx, ENTITY, userId),
+        { name: 'calls.ringing.signal', pool: 'app_user' },
+      );
+    // The local database has no realtime.send(): nothing is sent.
+    expect(await signal(workers(), caller.id)).toBe(false);
+    await expect(signal(caller, caller.id)).rejects.toMatchObject({ cause: { code: '42501' } });
+    await expect(signal(exec, caller.id)).rejects.toMatchObject({ cause: { code: '42501' } });
+    const outsider = await createTestUser([{ entityId: OTHER, roleKey: 'tele_caller_cc' }]);
+    await expect(signal(workers(), outsider.id)).rejects.toMatchObject({
+      cause: { code: '23514' },
+    });
   });
 });
