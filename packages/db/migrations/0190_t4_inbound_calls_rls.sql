@@ -157,8 +157,7 @@ grant execute on function app.record_inbound_call(smallint, uuid, text, uuid, ti
 -- 6. calls.inbound_call.record on the missed-call line: the call, unanswered, on the lead
 --    crm.lead.ingest made or joined for the number in this transaction (with the phone it holds),
 --    and a callback for the lead's owner at p_due, which must fall in calling hours (09:00 to 21:00
---    IST) and not before now, unless an open callback of theirs on the lead is due by then
---    already. No owner (the lead waits for whoever reads the company's leads), or an owner who no
+--    IST), unless an open callback of theirs on the lead is due by then already. No owner (the lead waits for whoever reads the company's leads), or an owner who no
 --    longer works on leads in the company, means no callback. Keyed on the provider's id: a repeat
 --    answers 'repeat' and writes nothing.
 create or replace function app.record_missed_call(p_entity smallint, p_call uuid, p_sid text,
@@ -184,9 +183,8 @@ begin
   end if;
   v_minute := (extract(hour from p_due at time zone 'Asia/Kolkata') * 60
                + extract(minute from p_due at time zone 'Asia/Kolkata'))::integer;
-  if v_minute < 9 * 60 or v_minute >= 21 * 60
-     or p_due < pg_catalog.now() - interval '5 minutes' then
-    raise exception 'a callback falls in calling hours, from now on' using errcode = 'check_violation';
+  if v_minute < 9 * 60 or v_minute >= 21 * 60 then
+    raise exception 'a callback falls in calling hours' using errcode = 'check_violation';
   end if;
   select o.account_id, o.owner_id into v_account, v_owner
     from public.opportunities o
