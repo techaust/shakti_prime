@@ -6,7 +6,7 @@
 | Worktree | `t4-inbound`, slot 4 (Postgres 54334, app 3034), in the lead's cloud VM |
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): a webhook worker, notifications, a platform write path |
-| Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
+| Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 12 points of it (early check) |
 | State | early check passed (lead, 17-11) |
 | Next step | a builder resumes steps 5 to 8 on a fresh slot database |
 
