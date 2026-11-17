@@ -29,7 +29,9 @@ const Count = z.number().int().min(0);
  * - `order_credit_held`: a dealer's order was held by the credit check, for the Executive who may
  *   release it and the person who made the order (SAL-07);
  * - `whatsapp_reply_waiting`: a WhatsApp chat handed to people has waited 10 minutes in calling
- *   hours for a reply, for the person who looks after the customer (docs/03-roadmap-appendix/phase2.md §6.1).
+ *   hours for a reply, for the person who looks after the customer (docs/03-roadmap-appendix/phase2.md §6.1);
+ * - `missed_call`: a customer gave your lead a missed call, and a callback is due for you
+ *   (docs/03-roadmap-appendix/phase2.md §7.4).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -40,6 +42,7 @@ export const NOTICE_TYPES = [
   'enquiry_routed',
   'order_credit_held',
   'whatsapp_reply_waiting',
+  'missed_call',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -254,6 +257,7 @@ export const NOTICE_EVENT_TYPES = [
   'crm.duplicate.found',
   'crm.enquiry.routed',
   'sales.order.credit_held',
+  'calls.missed.recorded',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -303,6 +307,16 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       entityId: EntityIdSchema,
       eventId: IdSchema,
       orderId: IdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      event: z.literal('calls.missed.recorded'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      providerCallId: IdSchema,
+      opportunityId: IdSchema,
+      ownerId: IdSchema.nullable(),
     })
     .strict(),
 ]);

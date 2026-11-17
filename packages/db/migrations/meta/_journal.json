@@ -1324,6 +1324,20 @@
       "when": 1794728347417,
       "tag": "0188_whatsapp_fix_round_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 189,
+      "version": "7",
+      "when": 1794919694908,
+      "tag": "0189_inbound_calls",
+      "breakpoints": true
+    },
+    {
+      "idx": 190,
+      "version": "7",
+      "when": 1794919712900,
+      "tag": "0190_t4_inbound_calls_rls",
+      "breakpoints": true
     }
   ]
 }

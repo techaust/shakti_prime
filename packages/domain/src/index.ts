@@ -72,6 +72,12 @@ export {
   recordProviderCall,
   toProviderCallDto,
 } from './commands/calls/provider-calls';
+export {
+  inboundCallLines,
+  missedCallCallbackDue,
+  recordInboundCall,
+} from './commands/calls/inbound-calls';
+export type { InboundCallLine } from './commands/calls/inbound-calls';
 export { placeDial } from './calls/place-dial';
 export {
   dialReadiness,

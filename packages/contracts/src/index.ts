@@ -46,6 +46,7 @@ export * from './dto/customer';
 export * from './commands/org/update-entity';
 export * from './commands/org/channels';
 export * from './commands/calls/dial';
+export * from './commands/calls/inbound';
 export * from './commands/messaging/whatsapp';
 export * from './commands/calls/provider-calls';
 export * from './commands/crm/create-lead';

@@ -1779,6 +1779,7 @@
       "knowledgeTranscriptCorrect": "Recording's transcript corrected",
       "callDial": "Call placed from the screen",
       "providerCallRecord": "Call progress recorded",
+      "inboundCallRecord": "Customer's call to the company recorded",
       "callRecordingAttach": "Call recording kept",
       "callRecordingDelete": "Old call recording removed",
       "callRecordingPlay": "Call recording played",
@@ -1840,7 +1841,9 @@
       "whatsappRequested": "WhatsApp message waiting to be sent",
       "whatsappReceived": "WhatsApp message received",
       "whatsappButtonPressed": "WhatsApp button pressed",
-      "dialCompleted": "Call from the screen ended"
+      "dialCompleted": "Call from the screen ended",
+      "inboundRinging": "Customer's call ringing a team member",
+      "missedCallRecorded": "Missed call recorded"
     },
     "sheet": {
       "title": "{action}",
@@ -2136,6 +2139,9 @@
       "endedAt": "Ended",
       "listenedAt": "Played",
       "dialPhone": "Own calling phone",
+      "inboundLine": "Number the customer called",
+      "customersMatched": "Customers with this number",
+      "personRung": "Rang a team member",
       "askAnswered": "Answered",
       "citedSources": "Records it points to",
       "unsourcedFigures": "Figures left out because no record shows them",
@@ -2263,6 +2269,10 @@
         "busy": "Line busy",
         "failed": "Did not go through",
         "canceled": "Stopped before answered"
+      },
+      "inboundLine": {
+        "ivr": "Company's calling number",
+        "missed_call": "Missed-call number"
       }
     }
   },
@@ -4676,7 +4686,8 @@
       "first_call_late": "A new lead was not called in time",
       "enquiry_routed": "An enquiry from your customer was passed to you",
       "order_credit_held": "A dealer order is held for credit",
-      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply"
+      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply",
+      "missed_call": "A customer gave you a missed call"
     },
     "settings": {
       "title": "Notification settings",
@@ -4804,6 +4815,10 @@
     "whatsapp_reply_waiting": {
       "title": "A customer is waiting on WhatsApp",
       "body": "A customer has waited 10 minutes for a reply. Tap to open the chat."
+    },
+    "missed_call": {
+      "title": "A customer gave you a missed call",
+      "body": "Call them back. The callback is in your calling list."
     }
   },
   "orders": {

@@ -228,6 +228,7 @@ const ACTIONS = {
   'calls.call.log': 'callLog',
   'calls.call.dial': 'callDial',
   'calls.provider_call.record': 'providerCallRecord',
+  'calls.inbound_call.record': 'inboundCallRecord',
   'calls.recording.attach': 'callRecordingAttach',
   'calls.recording.delete': 'callRecordingDelete',
   'calls.recording.play': 'callRecordingPlay',
@@ -304,6 +305,8 @@ const EVENT_NAMES = {
   'messaging.message.received': 'whatsappReceived',
   'messaging.button.pressed': 'whatsappButtonPressed',
   'calls.dial.completed': 'dialCompleted',
+  'calls.inbound.ringing': 'inboundRinging',
+  'calls.missed.recorded': 'missedCallRecorded',
   'sales.quote.accepted': 'quoteAccepted',
   'sales.order.created': 'orderCreated',
   'sales.order.confirmed': 'orderConfirmed',
@@ -449,6 +452,7 @@ const CODE_GROUPS = [
   'sourceProvider',
   'callPurpose',
   'callStatus',
+  'inboundLine',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -660,6 +664,10 @@ const FIELD_KINDS = [
   ['endedAt', 'time'],
   ['listenedAt', 'time'],
   ['dialPhone', 'text'],
+  // Calls customers made to the companies' lines (T4)
+  ['inboundLine', 'inboundLine'],
+  ['customersMatched', 'number'],
+  ['personRung', 'yesNo'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],
   ['purpose', 'filePurpose'],
