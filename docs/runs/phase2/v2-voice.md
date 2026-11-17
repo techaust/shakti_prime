@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an agent principal acting as a person, a platform-only grant, spend caps |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | building |
-| Next step | the builder's early check |
+| State | early check |
+| Next step | the lead reads the early check's diff |
 
 ## Brief
 Read first:
@@ -44,6 +44,40 @@ Done when: AGENTS §10 holds on the branch; the acceptance lines of §7.5 pass o
 Not in V2: the p50 measured over 100 turns from Mumbai on the dev deployment (needs the owner's LiveKit Cloud project; G2 records it); the image's deployment.
 
 ## Report
+
+### Early check, 17-11-2026 (the lead's cloud VM, worktree `v2-voice`, Postgres 54335)
+Steps 1 to 4 are built and committed; steps 5 to 9 wait for the lead's read of this diff. Skills loaded: `add-table`, `add-command` (`vercel-react-best-practices` waits for the screens).
+
+**Built**
+- Table `voice_sessions` (`packages/db/src/schema/voice-sessions.ts`, migrations 0189 and 0190 on this branch): the columns of §7.5 plus `entity_id` (the one company, as `ask_conversations`) and `updated_at`; its `id` is also the session's own `principals` row (kind `voice_session`) and its LiveKit room's name. Read by its person, and by the Executive (`audit.read:all`), in a request covering all its companies; no request role writes it. In `ENTITY_TABLES`, fixture rows per company (own and another person's) and a group row, a matrix rule, `NARROWER` (select only), `enum-sync` (`voice_sessions_mode_check`), `app_reader` on the select policy and grant.
+- Permission `voice.session.record`, platform-only, of `system:workers`: catalogue, `PERMISSION_SCOPES`, `PLATFORM_ONLY_PERMISSIONS`, `SYSTEM_MATRIX`, seed, `en.json`, SECURITY §3.1, §3.2 (the oracle row) and §3.3; `app.platform_only_permissions()` keeps 0183's sixteen keys and adds it.
+- Definers (0190): `app.voice_session_open()` (a person with `voice.use:all`; one start per person at a time; ends the person's open sessions; reads the day's minutes and spend across every company, the day in India; `cap_reached` writes nothing) and `app.record_voice_session()` (`voice.session.record:all`, no company, every value only forward).
+- The voice principal (`packages/domain/src/auth/voice-principal.ts`, `apps/web/src/auth/voice-principal.ts`): the person's principal as it resolves on each call, kind `voice_session`, `voiceSessionId` set, narrowed to the session's companies, with `finance.cost.read` and `procurement.rate.read` removed; resolved only from a valid voice token of this deployment for a live session of the token's own person. `withRequestContext()` sets `app.voice_session_id`; `auditBase()` writes the session as the actor, `actor_kind` `voice_session` and the person in `on_behalf_of_user_id`; the `audit_logs` insert policy (redefined in 0190) holds a voice request to exactly that, and only for a session the person opened; `app.request_is_person()` answers no for it. SECURITY §3.4 is settled in those words.
+- Commands (`packages/domain/src/commands/voice/sessions.ts`, registered, labelled in the Activity log): `voice.session.start` (`voice.use`, people only), `voice.session.token` (`voice.use`, run as the voice principal; live session of its own person only, `voice_session_ended` otherwise) and `voice.session.record` (the platform). Caps in `AGENT_DEFAULTS.voice` (`personDailyMinutes` 30, `personDailyCapPaise` 20,000, `sessionMaxMinutes` 15).
+- Routes: `POST /api/v1/voice/session` and `POST /api/v1/voice/token` (`apps/web/src/voice/handlers.ts`, `token.ts`, `route-deps.ts`): without LiveKit or the signing keys a start answers `integration_unavailable` (`voice_unavailable`) before anything is written; the room is made through `livekit.ts` (new `createAgentRoom`, LiveKit's `CreateRoom` with the worker dispatched and `VoiceDispatchMetadata`); BOS tokens are ES256, audience `shakti-voice`, 5 minutes, never past the session's 15 minutes. Contracts: `packages/contracts/src/commands/voice/sessions.ts`, `VoiceTokenRequest`/`Response`, `VoiceDispatchMetadata`, `VOICE_AGENT_NAME`, the `voice.token` endpoint and fixture, reasons `voice_unavailable` and `voice_session_ended`; API §3.1 rows; DATABASE §4.1, the definer table and §6.9; `pnpm db:docs`.
+
+**Tests added (42):** `packages/db/tests/security/voice-sessions.test.ts` 9; `packages/domain/tests/commands/voice-sessions.test.ts` 9 (denied, wrong company, happy path for each command; the cap; no recording answer; command mode); `packages/domain/tests/security/voice-cost.test.ts` 2 (an Executive's voice principal reads no `item_costs` row the same Executive reads); `apps/web/src/voice/token.test.ts` 3, `handlers.test.ts` 8 (fake room, no LiveKit call), `apps/web/src/auth/voice-principal.test.ts` 3. Changed: the people-only sweep input, the refusal-coverage review entry for `voice.session.record` (no company by design), the matrix, grants, enum-sync and platform-only lists, and the two older tests that made a `voice_session` principal now use `createTestVoicePrincipal()`.
+
+**Checks**
+- `pnpm test:security` on Postgres 54335: db 1441 passed (54 files), domain 1252 passed (92), web 402 passed (32); Tasks 4 successful.
+- Unit: contracts 195 passed (21 files); db 158 (the data-docs test failed until DATABASE named the migrations, then its file 18 passed); domain 2543 of 2544 (the refusal-coverage test, fixed, then its file 4 passed); web 1111 passed, 1 skipped (147 files).
+- Typecheck of contracts, db, domain and web; ESLint `--max-warnings 0` on every touched folder (in batches, one hit fixed); Prettier check of every touched file; `pnpm copy-lint` clean. The whole-repository `pnpm lint` waits for the final check.
+- `EXPLAIN (ANALYZE)`: the token's session read as `app_user` under RLS uses `voice_sessions_user_started_idx` (Bitmap Index Scan, `user_id`; a seq scan over 30 rows when the planner may choose); the day's usage inside `app.voice_session_open()` is a Bitmap Index Scan on `voice_sessions_user_started_idx` (`user_id` and `started_at >= app.voice_day_start(now())`).
+
+**Decisions the brief did not settle (for the lead)**
+1. The voice principal keeps the person's id (so own and team scopes, idempotency keys and `created_by` are the person's) and names its session in a new `Principal.voiceSessionId`; each session gets its own `principals` row, which the audit rows name as the actor (the contract's `sid` already said so). A `voice_session` principal without its session is refused by `withRequestContext()`.
+2. Because the voice principal is the person to the database, DB checks that read the person's `principals.kind` see a person. I made `app.request_is_person()` refuse a voice request and moved the two definers for people only that read the kind, `app.open_sizing_review()` and `app.claim_push_subscription()`, onto it (0191, bodies otherwise unchanged). Four insert or update policies still read the kind only: `sizings_insert`, `calls_insert`, `targets_insert`, `duplicate_candidates_update`; their commands are for people only, so the command guard refuses a voice session first, and no voice route reaches them. Redefining those policies too (`and (select app.voice_session_id()) is null`) is a lead's call: it adds four more redefinitions to watch at merge.
+3. The Executive reads everyone's sessions through `audit.read:all` (only the Executive holds it by default); a session over several companies is read in a request covering them all, as Ask's.
+4. One live session per person: a new start ends the earlier one (minutes from its times, at most 15). A session whose room failed to open stays unended but stops being live after 15 minutes; the person's next start closes it.
+5. `minutes` are whole minutes rounded up; spend before the end is kept; `voice.session.record` audits with no company, since a session may cover several.
+6. `voice.session.token` is a command (one audit row per refresh, as Realtime tokens) rather than a query; the session route answers `bosToken` as the built contract requires (the worker gets the same token in the dispatch metadata).
+7. Rate caps: 10 starts per person and 10 refreshes per session in 5 minutes.
+
+**Open**
+- Steps 5 to 9 (the LiveKit handler, the worker, `/voice`, the worker and caps tests of §14, the design's "Built (V2)" record).
+- Linking `audio_file_id` and `transcript_file_id` after a Teach session with consent: the recording is filed by the worker as the person (K3), and nothing records the link yet; it comes with step 6, likely as a person-side command.
+- Voice sessions have no retention job yet (§11 names 24 months for the CA); not in the brief.
+- The migrations here were edited after they were applied to my database (two definer and policy fixes); I applied the same text by hand and updated their hashes, so a fresh database applies them as they are. A fresh-database run by the lead would confirm.
 
 ## Review
 
