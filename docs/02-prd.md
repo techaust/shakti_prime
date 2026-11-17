@@ -394,7 +394,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 | PRJ-01, PRJ-02, PRJ-03 | 4 | — | Project and subsidy-gate machines: `packages/domain/src/state-machines/machines.test.ts` |
 | PRJ-04 to PRJ-07 | 4 | — | — |
 | WA-01, WA-03, WA-04 | 2 | W1 | `apps/web/src/integrations/whatsapp/whatsapp.test.ts`, `packages/contracts/src/api/webhooks.test.ts`; the WhatsApp suites `packages/db/tests/security/whatsapp.test.ts`, `packages/domain/tests/commands/messaging.test.ts`, `apps/web/tests/whatsapp.test.ts`, `packages/domain/src/messaging/send-checks.test.ts` and `apps/web/e2e/messages.spec.ts` |
-| WA-02 | 4 | — | Masking: `apps/web/src/workers/ocr/plan-masks.test.ts`, `apps/web/src/workers/ocr/qr-cover.test.ts`, `packages/domain/src/privacy/identity-numbers.test.ts` |
+| WA-02 | 4 | — | Masking: `apps/web/src/workers/ocr/plan-masks.test.ts`, `apps/web/src/workers/ocr/qr-cover.test.ts`, `packages/contracts/src/masking/identity-numbers.test.ts` |
 | FLD-01 to FLD-03 | 4 | — | Contracts: `packages/contracts/src/api/sync.test.ts`, `packages/contracts/src/api/field.test.ts`, `packages/contracts/src/api/mobile-auth.test.ts` |
 | FIN-01 | 5 | — | Numbering: `packages/domain/tests/numbering/next-document-no.test.ts` |
 | FIN-02, FIN-03 | 5 | — | `apps/web/src/integrations/tally/tally.test.ts`, `packages/contracts/src/api/connector.test.ts` |
@@ -412,13 +412,13 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 | AI-02 | 2 | B1 | `packages/domain/tests/security/ask-cost.test.ts` (no cost, margin or supplier rate in a General Manager's answer), `packages/domain/tests/commands/ask-evals.test.ts` (the eval and injection sets on recorded answers), `packages/domain/tests/commands/ask.test.ts`, `packages/domain/src/ai/ask/grounding.test.ts` (citations and figures only from the lookups), `packages/db/tests/security/ask.test.ts`, `apps/web/tests/ask-route.test.ts`, `apps/web/src/screens/ask.test.ts`, `apps/web/e2e/ask.spec.ts`; plans `packages/domain/tests/spike/ask-explain.ts` |
 | AI-03 | 2, 6 | — | — (harness only: `apps/web/src/integrations/voice/voice.test.ts`) |
 | AI-04 | 1, 2, 6 | AI0, A1 | `packages/domain/tests/commands/agents.test.ts`, `packages/domain/tests/commands/agent-runtime.test.ts`, `packages/db/tests/security/agents.test.ts`, `packages/domain/src/ai/provider.test.ts`, `apps/web/e2e/agents.spec.ts`; the Triage agent in shadow: `packages/domain/tests/commands/triage.test.ts`, `packages/domain/tests/queries/shadow-report.test.ts`, `apps/web/tests/triage.test.ts`, `apps/web/e2e/triage.spec.ts` |
-| AI-05 | 1, 2 | A1 | `packages/domain/tests/security/agent-refusals.test.ts`, `packages/domain/src/privacy/identity-numbers.test.ts`, the Triage agent's filter, prompt and eval and injection sets: `packages/domain/src/ai/triage/filter.test.ts`, `prompt.test.ts`, `triage-sets.test.ts` |
+| AI-05 | 1, 2 | A1 | `packages/domain/tests/security/agent-refusals.test.ts`, `packages/contracts/src/masking/identity-numbers.test.ts`, the Triage agent's filter, prompt and eval and injection sets: `packages/domain/src/ai/triage/filter.test.ts`, `prompt.test.ts`, `triage-sets.test.ts` |
 | AI-06 | 2 | — | — |
 | NFR-01 | 0, 1 | P3, P1, P2b | `apps/web/scripts/js-budget.test.ts` with `pnpm --filter web js-budget`; `packages/domain/tests/commands/run-probe.test.ts` (the delivery check); timings `pnpm spike:lists`, `pnpm --filter @shakti/domain spike:account360`, `pnpm spike:import` |
 | NFR-02 | 7 | — | — |
 | NFR-03 | 0, 7 | G1 | `apps/web/tests/ready.test.ts` |
 | NFR-04 | 0, 1 | X1 | `packages/db/tests/security/role-entity-matrix.test.ts` and the rest of `packages/db/tests/security/`; `packages/db/tests/security/role-editor.test.ts`, `packages/domain/tests/commands/admin-roles.test.ts`, `apps/web/e2e/roles.spec.ts` |
-| NFR-05 | 0, 1 | P1 | `packages/domain/src/privacy/identity-numbers.test.ts`, `apps/web/src/observability/sentry-scrub.test.ts` |
+| NFR-05 | 0, 1 | P1 | `packages/contracts/src/masking/identity-numbers.test.ts`, `apps/web/src/observability/sentry-scrub.test.ts` |
 | NFR-06 | 2 | — | As TEL-04 and WA-04 |
 | NFR-07 | 0, 1, 3 | C1 | As SAL-02 and INV-05 |
 | NFR-08, NFR-09 | 0 | — | `tools/copy-lint/src/rules.test.ts` with `pnpm copy-lint` |

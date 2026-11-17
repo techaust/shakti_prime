@@ -60,7 +60,7 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 - Outside tests, a dynamic `import()` names its module as a plain string literal, since a built specifier would pass around the fences; `require` under any name (called or copied), `createRequire` and the `module` package are errors, since each builds a `require()` that passes around them.
 - Relative imports have no `.js` extension (Turbopack does not resolve them).
 - `packages/domain` and `packages/contracts` import no framework.
-- `packages/voice` imports no `@shakti/db` or `@shakti/domain` module; `apps/voice-agent` imports only `@shakti/contracts`, `@shakti/voice`, its listed packages (`@livekit/agents`, `@livekit/rtc-node`, `zod`) and Node's `node:` modules, and no other app's or package's file by a relative path; no page, component or screen helper of `apps/web` imports `@shakti/voice`, whose adapters stay on the server.
+- `packages/voice` imports no `@shakti/db` or `@shakti/domain` module; `apps/voice-agent` imports only `@shakti/contracts`, `@shakti/voice`, its listed packages (`@livekit/agents`, `@livekit/rtc-node`, `zod`) and Node's `node:` modules, and no other app's or package's file by a relative path; no page, component or screen helper of `apps/web` imports `@shakti/voice`, whose adapters stay on the server, or `@shakti/contracts/masking` (the pure masking the domain and the voice worker share, which the contracts' index does not re-export).
 - **Browser code** takes only types from `@shakti/contracts` (rule `shakti/browser-contract-types`), because every module of it, subpaths included, loads Zod. Browser code is every `'use client'` file and every file of `apps/web/src/components`, `apps/web/src/screens` (except `access.ts` and `menu-access.ts`), `apps/web/src/nav.ts`, `apps/web/src/theme.ts` and `packages/ui/src`. The values it needs live in `apps/web/src/screens/contract-values.ts`, which `contract-values.test.ts` keeps equal to the contracts.
 
 ## 4. Language and style
@@ -226,7 +226,7 @@ Tests live next to the code (`*.test.ts`, `*.test.tsx` for components) except th
 
 ## 9. Security habits
 - Never use the Supabase service role in application code.
-- Never call an LLM with unmasked PII; use the masking helpers from `packages/domain/src/privacy`.
+- Never call an LLM with unmasked PII; use the masking helpers from `packages/domain/src/privacy` (in `apps/voice-agent`, `@shakti/contracts/masking`, where they live).
 - Never log phone numbers, Aadhaar digits, bank details or message bodies. Log IDs and request IDs.
 - Every command and query writes one timing line, `command.completed` or `query.completed` (`name`, `outcome`, `errorCode` when it failed, `durationMs`, `requestId`; `warn` above 300 ms). Every `executeQuery()` call in the web app passes `{ name: '<action name>' }` as its options, which `apps/web/src/query-names.test.ts` checks.
 - Treat WhatsApp messages, uploaded files, call transcripts and webhook payloads as untrusted data.
