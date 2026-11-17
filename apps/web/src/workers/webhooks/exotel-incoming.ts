@@ -10,10 +10,12 @@ import {
   executeQuery,
   inboundCallLines,
   recordInboundCall,
+  signalRinging,
   type KeyValue,
 } from '@shakti/domain';
 import { defaultAuthDeps } from '../../auth/deps';
 import { holdRinging } from '../../calls/ringing';
+import { screenPopTransport } from '../../calls/transport';
 import { logger } from '../../log';
 import { systemWorkersPrincipal } from '../events/system-principal';
 import { exotelInstant } from './exotel-status';
@@ -24,11 +26,23 @@ export interface ExotelIncomingDeps {
   /** The shared store the ringing call waits in for its person. */
   keyValue: () => KeyValue;
   now: () => Date;
+  /** Whether the screen-pop listens on Realtime (`SCREEN_POP_TRANSPORT`), so the person is woken. */
+  realtime: () => boolean;
+  /** Wakes the person's screens on their own Realtime channel; false when nothing was sent. */
+  signal: (entityId: number, userId: string, requestId: string) => Promise<boolean>;
 }
 
 const defaultDeps: ExotelIncomingDeps = {
   keyValue: () => defaultAuthDeps().keyValue,
   now: () => new Date(),
+  realtime: () => screenPopTransport().kind === 'realtime',
+  signal: (entityId, userId, requestId) =>
+    executeQuery(
+      systemWorkersPrincipal(entityId),
+      { entityIds: [entityId], requestId },
+      (ctx) => signalRinging(ctx, entityId, userId),
+      { name: 'calls.ringing.signal', pool: 'app_user' },
+    ),
 };
 
 /**
@@ -43,7 +57,8 @@ const defaultDeps: ExotelIncomingDeps = {
  *    `DialWhomNumber`, with the company's customers holding the caller's number; on the
  *    missed-call line as a lead made or joined with a callback for its owner;
  * 3. an IVR call that rings a person is held for them a minute in the shared store
- *    (`ringing:<user id>`), which their screen-pop takes.
+ *    (`ringing:<user id>`), which their screen-pop takes; when the screen-pop listens on Realtime,
+ *    their channel `user:{id}` is then woken (`app.signal_ringing()`).
  * A delivery that cannot land a lead (the company offers no pipeline for it) is set aside with the
  * reason as its code. Logs carry ids and codes only, never a number.
  */
@@ -121,6 +136,15 @@ export function exotelIncomingHandler(deps: ExotelIncomingDeps = defaultDeps) {
         ringingAt: deps.now().toISOString(),
       };
       await holdRinging(deps.keyValue(), recorded.answererId, pop);
+      // After the call is held, so a woken screen finds it; the screen's own slow poll covers a
+      // wake-up that does not arrive.
+      if (deps.realtime()) {
+        try {
+          await deps.signal(entityId, recorded.answererId, requestId);
+        } catch (error) {
+          logger.log('warn', 'calls.ringing_signal_failed', { requestId, entityId, error });
+        }
+      }
     }
     logger.log('info', 'calls.inbound_recorded', {
       requestId,

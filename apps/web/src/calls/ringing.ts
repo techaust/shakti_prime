@@ -30,8 +30,9 @@ export async function holdRinging(
 }
 
 /**
- * The person's ringing call, taken once: it is cleared as it is read. Anything that does not read
- * as a ringing call is cleared and answered as none.
+ * The person's ringing call, taken once: of two screens of the person asking at the same moment
+ * only the first gets it (a claim on the call in the store), and it is cleared as it is read.
+ * Anything that does not read as a ringing call is cleared and answered as none.
  */
 export async function takeRinging(
   keyValue: KeyValue,
@@ -40,11 +41,23 @@ export async function takeRinging(
   const key = ringingKey(userId);
   const raw = await keyValue.get(key);
   if (raw === null) return undefined;
-  await keyValue.del(key);
+  let pop: PendingScreenPop | undefined;
   try {
     const parsed = PendingScreenPop.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : undefined;
+    pop = parsed.success ? parsed.data : undefined;
   } catch {
+    pop = undefined;
+  }
+  if (pop === undefined) {
+    await keyValue.del(key);
     return undefined;
   }
+  const first = await keyValue.setIfAbsent(
+    `${key}:taken:${pop.providerCallId}`,
+    '1',
+    RINGING_TTL_SECONDS,
+  );
+  if (!first) return undefined;
+  await keyValue.del(key);
+  return pop;
 }

@@ -560,7 +560,22 @@
     "inboxMore": "99+",
     "inboxMoreLabel": "Agent Inbox, more than 99 waiting",
     "notificationSettings": "Notification settings",
-    "paletteOrder": "Order for {name}"
+    "paletteOrder": "Order for {name}",
+    "incomingCall": {
+      "title": "Incoming call",
+      "company": "For {company}",
+      "one": "{name} is calling.",
+      "oneOpened": "{name} is calling. Their page is open.",
+      "several": "{count} customers share this number. Open the one who is calling.",
+      "severalList": "Customers with this number",
+      "newNumber": "A new number ending {last4} is calling.",
+      "newOpened": "A new number ending {last4} is calling. The new lead form is open with the number filled in.",
+      "colleague": "A customer a colleague looks after is calling, from the number ending {last4}.",
+      "otherCompany": "Switch to {company} to open this call's customer.",
+      "openCustomer": "Open customer",
+      "addAsNewLead": "Add as new lead",
+      "closeLabel": "Close the incoming call"
+    }
   },
   "home": {
     "greeting": "Welcome, {name}",

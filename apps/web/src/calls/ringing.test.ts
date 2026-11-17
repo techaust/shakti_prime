@@ -44,4 +44,11 @@ describe('the ringing call store', () => {
     expect(await kv.get(ringingKey(PERSON))).toBeNull();
     await expect(holdRinging(kv, PERSON, { ...POP, phone: '98123' })).rejects.toThrow();
   });
+
+  it('gives a call to one of two screens asking at the same moment', async () => {
+    const kv = memoryKeyValue();
+    await holdRinging(kv, PERSON, POP);
+    const [a, b] = await Promise.all([takeRinging(kv, PERSON), takeRinging(kv, PERSON)]);
+    expect([a, b].filter((p) => p !== undefined)).toEqual([POP]);
+  });
 });
