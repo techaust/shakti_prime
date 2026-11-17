@@ -6,6 +6,7 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { JOURNEY_SERVER_ENV } from './server-env';
 
 const IMAGE =
   'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf';
@@ -28,10 +29,10 @@ let app: ChildProcess | undefined;
 if (!(await answering())) {
   // One command line through the shell, so Windows finds `next`'s launcher on the script's PATH.
   // Elsewhere the server leads its own process group, so the stop below reaches the shell's child.
-  // The same stand-in AI transport as playwright.config.ts's own server, so the journeys match.
+  // The same settings as playwright.config.ts's own server (server-env.ts), so the journeys match.
   app = spawn(`next start -p ${port}`, {
     cwd: webDir,
-    env: { ...process.env, BOS_ENVIRONMENT: 'local', AI_TRANSPORT: 'fake' },
+    env: { ...process.env, ...JOURNEY_SERVER_ENV },
     stdio: 'ignore',
     shell: true,
     detached: process.platform !== 'win32',
