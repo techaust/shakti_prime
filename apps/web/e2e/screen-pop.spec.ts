@@ -42,10 +42,22 @@ async function waiting(page: Page): Promise<void> {
   await page.goto('/home');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   expect((await asked).status()).toBe(204);
+  // A customer calls at any moment of the 3-second poll, so the wait the report notes is a fair
+  // one rather than always the longest.
+  await page.waitForTimeout(Math.floor(Math.random() * 3_000));
 }
 
-/** A customer's call to company 1's incoming calls number, ringing the project's caller. */
-async function ring(request: APIRequestContext, from: string): Promise<number> {
+/**
+ * A customer's call from `from` to company 1's incoming calls number, ringing the project's caller,
+ * and her page's card once it shows. The wait from the call to the poll's answer carrying it is
+ * noted in the report (`pop-ms`), timed by the answer itself rather than by a check that polls.
+ */
+async function callAndPop(page: Page, request: APIRequestContext, from: string) {
+  const arrived = page.waitForResponse(
+    (r) => r.url().includes('/api/v1/calls/ringing') && r.status() === 200,
+    { timeout: POP_WITHIN_MS },
+  );
+  const rangAt = Date.now();
   const answer = await request.get('/api/v1/calls/simulated-incoming', {
     params: {
       Direction: 'incoming',
@@ -56,18 +68,17 @@ async function ring(request: APIRequestContext, from: string): Promise<number> {
     },
   });
   expect(answer.status()).toBe(200);
-  return Date.now();
-}
-
-/** The pop's card, once it shows; the wait from the call is noted in the report. */
-async function popped(page: Page, rangAt: number) {
-  const card = page.getByRole('region', { name: 'Incoming call' });
-  await expect(card).toBeVisible({ timeout: POP_WITHIN_MS });
+  await arrived;
   test.info().annotations.push({ type: 'pop-ms', description: String(Date.now() - rangAt) });
+  const card = page.getByRole('region', { name: 'Incoming call' });
+  await expect(card).toBeVisible();
   return card;
 }
 
 test.describe('the screen-pop as a tele-caller', () => {
+  // One caller per project, rung at one phone: her calls come one after another, never two at once.
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     await signInThroughScreens(page, emailFor(popCallerKey(projectName())));
   });
@@ -75,7 +86,7 @@ test.describe('the screen-pop as a tele-caller', () => {
   test('a known number opens the customer’s page while it rings', async ({ page, request }) => {
     const { one } = POP_CUSTOMERS[projectName()];
     await waiting(page);
-    const card = await popped(page, await ring(request, one.phone));
+    const card = await callAndPop(page, request, one.phone);
     await expect(card.getByRole('alert')).toHaveText(`${one.name} is calling. Their page is open.`);
     await expect(page).toHaveURL(/\/customers\/[0-9a-f-]+\?company=1$/);
     await expect(page.getByRole('heading', { name: one.name, level: 1 })).toBeVisible();
@@ -92,7 +103,7 @@ test.describe('the screen-pop as a tele-caller', () => {
   test('a number several customers share lists them, and one opens', async ({ page, request }) => {
     const { shared } = POP_CUSTOMERS[projectName()];
     await waiting(page);
-    const card = await popped(page, await ring(request, shared.phone));
+    const card = await callAndPop(page, request, shared.phone);
     await expect(card.getByRole('alert')).toHaveText(
       '2 customers share this number. Open the one who is calling.',
     );
@@ -115,7 +126,7 @@ test.describe('the screen-pop as a tele-caller', () => {
   }) => {
     const number = freshMobile();
     await waiting(page);
-    const card = await popped(page, await ring(request, number));
+    const card = await callAndPop(page, request, number);
     await expect(card.getByRole('alert')).toHaveText(
       `A new number ending ${number.slice(-4)} is calling. The new lead form is open with the number filled in.`,
     );
