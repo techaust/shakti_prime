@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an agent principal acting as a person, a platform-only grant, spend caps |
 | Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 37 points of it (the whole build) |
-| State | built, for review |
-| Next step | the slice-reviewer |
+| State | integrated, pull request open |
+| Next step | the owner's `checks-ok` (eslint config, Playwright config, js-budget, package scripts, pnpm-workspace); then migrate dev and staging (0189 to 0194) |
 
 ## Brief
 Read first:
@@ -412,6 +412,11 @@ Verdict: **one high finding blocks the merge** (H1, or the lead's and owner's wr
 - How LiveKit Cloud closes a room that holds only an agent (M5).
 
 ## Integration
+### Integration, 17-11-2026 (the lead, cloud VM)
+- Review (6f139174): H1 high (Teach turns unmasked before the model), M1 to M5, L1 to L5. Fix round (861e470c): all fixed but L3 (the BOS token reaches the browser; a follow-up). The lead re-read H1: each Teach turn and the drafting transcript pass `maskForModel()` from `@shakti/contracts/masking` before the model.
+- `main` taken in by a merge commit (43f49f11): `apps/web/package.json` resolved to main's versions plus `livekit-client` 2.23.0, the lockfile regenerated from main's; migrations 0189 to 0194 stay after main's 0188; `pnpm db:generate` no changes; `db:docs` rerun. main brought no migration, so every function and policy V2 redefines still matches main's latest.
+- `integrate.sh` in parts: install, lint, format (one test file of V2's refactor reformatted), copy, generated, typecheck, unit; security on a fresh database (db 1,444, domain 1,255, web 411) and dbverify; audit, build, js-budget, gitleaks: all passed. The host journeys (voice, access) passed except access's not-found screenshot, a host-renderer difference that the Linux image does not show.
+- Baselines on a fresh slot-5 database in the Linux image: `e2e:snap` first read /voice as not set up, because snap-in-linux.ts started the build without the stand-in LiveKit values playwright.config.ts gives its own server; both now take them from `e2e/setup/server-env.ts`. Then 41 passed with the six new voice baselines (light, dark, phone: start and live), each looked at, and the verification run without updating matched (41 passed).
 ### Lead's notes, 17-11-2026
 - Early check passed (13:50 UTC): 0190's audit insert policy keeps 0033's clauses, `app.request_is_person()` keeps 0113's body, `app.platform_only_permissions()` keeps 0183's sixteen keys, 0191's two definers match 0095 and 0131 apart from the `request_is_person()` call. The four policies that read only `principals.kind` stay as they are; the sweep and the route allowlist cover them.
 - Step 6 decisions (lead, 17-11): (1) `packages/voice` for the shared adapters, the worker's model settings in its dispatch; (2) the worker holds vendor keys only, no BOS credential; (3) Teach drafts saved by the person from `/voice`; (4) the recording filed as the person through the upload flow and two voice-token routes.
