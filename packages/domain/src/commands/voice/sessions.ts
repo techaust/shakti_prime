@@ -170,6 +170,7 @@ interface RecordedRow {
   ended_at: Date | string | null;
   minutes: number | null;
   cost_paise: number | null;
+  files_linked: boolean;
 }
 
 /**
@@ -189,12 +190,14 @@ export const recordVoiceSession = defineCommand({
   auditWhen: 'changed',
   async handler(ctx, input) {
     const rows = (await ctx.tx.execute(sql`
-      select outcome, entity_id, user_id, ended_at, minutes, cost_paise
+      select outcome, entity_id, user_id, ended_at, minutes, cost_paise, files_linked
         from app.record_voice_session(${input.sessionId}::uuid,
                                       ${input.endedAt ?? null}::timestamptz,
                                       ${input.minutes ?? null}::integer,
                                       ${input.costPaise ?? null}::integer,
-                                      ${input.turnStats === undefined ? null : JSON.stringify(input.turnStats)}::jsonb)`)) as unknown as RecordedRow[];
+                                      ${input.turnStats === undefined ? null : JSON.stringify(input.turnStats)}::jsonb,
+                                      ${input.audioFileId ?? null}::uuid,
+                                      ${input.transcriptFileId ?? null}::uuid)`)) as unknown as RecordedRow[];
     const [row] = rows;
     if (!row) throw new DomainError('internal', 'the voice session record answered no row');
     const outcome = VOICE_SESSION_RECORD_OUTCOMES.find((o) => o === row.outcome);
@@ -212,6 +215,13 @@ export const recordVoiceSession = defineCommand({
           minutes: row.minutes,
           costPaise: row.cost_paise,
           ...(input.turnStats === undefined ? {} : { turns: input.turnStats.turns }),
+          // The files only when they were linked, as the row now holds them.
+          ...(row.files_linked && input.audioFileId !== undefined
+            ? { audioFileId: input.audioFileId }
+            : {}),
+          ...(row.files_linked && input.transcriptFileId !== undefined
+            ? { transcriptFileId: input.transcriptFileId }
+            : {}),
         },
       });
     }
@@ -221,6 +231,7 @@ export const recordVoiceSession = defineCommand({
       endedAt,
       minutes: row.minutes,
       costPaise: row.cost_paise ?? 0,
+      filesLinked: row.files_linked,
     };
   },
 });

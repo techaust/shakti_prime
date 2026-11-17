@@ -232,7 +232,10 @@ describe('app.record_voice_session', () => {
     for (const who of [exec, principalFor('general_manager', [1])]) {
       expect(
         await failure(
-          rows(who, sql`select * from app.record_voice_session(${id}::uuid, now(), 3, 100, null)`),
+          rows(
+            who,
+            sql`select * from app.record_voice_session(${id}::uuid, now(), 3, 100, null, null, null)`,
+          ),
         ),
       ).toMatch(/voice.session.record is required/);
     }
@@ -245,7 +248,8 @@ describe('app.record_voice_session', () => {
     const record = (args: SQL) =>
       rows<{ outcome: string; minutes: number | null; cost_paise: number | null }>(
         workers,
-        sql`select outcome, minutes, cost_paise from app.record_voice_session(${id}::uuid, ${args})`,
+        sql`select outcome, minutes, cost_paise
+              from app.record_voice_session(${id}::uuid, ${args}, null, null)`,
       );
     // Spend before the end: no minutes yet.
     expect(await record(sql`null, null, 120, null`)).toEqual([
@@ -269,9 +273,66 @@ describe('app.record_voice_session', () => {
     expect(
       await rows(
         workers,
-        sql`select outcome from app.record_voice_session(${newId()}::uuid, now(), 1, 1, null)`,
+        sql`select outcome from app.record_voice_session(${newId()}::uuid, now(), 1, 1, null, null, null)`,
       ),
     ).toEqual([{ outcome: 'missing' }]);
+  });
+});
+
+describe('the files of a Teach session', () => {
+  /** A vault upload of `owner`'s, as the voice worker files it for the person. */
+  async function vaultFile(owner: string): Promise<string> {
+    const id = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+               values (${id}, 1, 'knowledge', 'test', ${`1/knowledge/${id}.wav`}, 'teach.wav', 'audio/wav', 1,
+                       ${'e'.repeat(64)}, 'ready', ${owner})`,
+    );
+    return id;
+  }
+
+  const link = (session: string, audio: string, transcript: string) =>
+    rows<{ outcome: string; files_linked: boolean }>(
+      workers,
+      sql`select outcome, files_linked from app.record_voice_session(${session}::uuid, null, null,
+                                                                      null, null, ${audio}::uuid,
+                                                                      ${transcript}::uuid)`,
+    );
+
+  it("links the person's own vault files once, and only with the recording answer", async () => {
+    const exec = await createTestPrincipal('executive', [1]);
+    const recorded = newId();
+    await open(exec, recorded);
+    const [audio, transcript] = [await vaultFile(exec.id), await vaultFile(exec.id)];
+    // Another person's file is never linked.
+    const other = await createTestPrincipal('executive', [1]);
+    expect(await link(recorded, await vaultFile(other.id), transcript)).toEqual([
+      { outcome: 'recorded', files_linked: false },
+    ]);
+    const before = await asMigrator(
+      (m) => m<{ audio_file_id: string | null; transcript_file_id: string | null }[]>`
+        select audio_file_id, transcript_file_id from voice_sessions where id = ${recorded}`,
+    );
+    expect(before).toEqual([{ audio_file_id: null, transcript_file_id: transcript }]);
+    expect(await link(recorded, audio, await vaultFile(exec.id))).toEqual([
+      { outcome: 'recorded', files_linked: true },
+    ]);
+    // Never replaced.
+    expect(await link(recorded, await vaultFile(exec.id), await vaultFile(exec.id))).toEqual([
+      { outcome: 'unchanged', files_linked: true },
+    ]);
+    // A session without the recording answer keeps no file.
+    const unrecorded = newId();
+    await rows(
+      exec,
+      sql`select * from app.voice_session_open(${unrecorded}::uuid, '{1}'::smallint[], 'teach',
+                                               false, 30, 20000, 15)`,
+    );
+    expect(await link(unrecorded, await vaultFile(exec.id), await vaultFile(exec.id))).toEqual([
+      { outcome: 'unchanged', files_linked: false },
+    ]);
   });
 });
 

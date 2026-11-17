@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from '../ids';
-import { VoiceSessionModeSchema } from '../commands/voice/sessions';
+import { VoiceSessionModeSchema, VoiceTurnStatsSchema } from '../commands/voice/sessions';
 import { StaffRoleKeySchema } from '../roles';
 import {
   BaseClaims,
@@ -116,3 +116,20 @@ export const VoiceDispatchMetadata = z
   })
   .strict();
 export type VoiceDispatchMetadata = z.infer<typeof VoiceDispatchMetadata>;
+
+/**
+ * What the voice worker reports of its session as its own participant's metadata in the room,
+ * which LiveKit's signed `participant_left` event carries to the BOS (`POST /webhooks/livekit`):
+ * the spend so far, the turn timings and, for a Teach session the person let be recorded, the
+ * vault files of its audio and transcript. The platform records it with `voice.session.record`,
+ * where every value only moves forward.
+ */
+export const VoiceWorkerReport = z
+  .object({
+    costPaise: z.number().int().min(0).max(100_000_000),
+    turnStats: VoiceTurnStatsSchema,
+    audioFileId: IdSchema.optional(),
+    transcriptFileId: IdSchema.optional(),
+  })
+  .strict();
+export type VoiceWorkerReport = z.infer<typeof VoiceWorkerReport>;

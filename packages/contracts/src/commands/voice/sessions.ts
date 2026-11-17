@@ -122,6 +122,12 @@ export const RecordVoiceSessionInput = z
     minutes: z.number().int().min(0).max(VOICE_SESSION_MAX_RECORDED_MINUTES).optional(),
     costPaise: z.number().int().min(0).max(100_000_000).optional(),
     turnStats: VoiceTurnStatsSchema.optional(),
+    /**
+     * A Teach session's recording and transcript, filed in the vault by the worker as the person:
+     * linked once, and only when the person answered yes to the recording question.
+     */
+    audioFileId: IdSchema.optional(),
+    transcriptFileId: IdSchema.optional(),
   })
   .strict();
 export type RecordVoiceSessionInput = z.infer<typeof RecordVoiceSessionInput>;
@@ -135,6 +141,8 @@ export const VoiceSessionRecordDto = z
     endedAt: z.iso.datetime().nullable(),
     minutes: z.number().int().min(0).nullable(),
     costPaise: z.number().int().min(0),
+    /** False when a file named was not linked (no recording answer, or not the person's file). */
+    filesLinked: z.boolean(),
   })
   .strict();
 export type VoiceSessionRecordDto = z.infer<typeof VoiceSessionRecordDto>;

@@ -324,7 +324,14 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
   const data = maskInputIdentity(parsed.data, command.unmaskedFields).value;
 
   try {
-    if (command.peopleOnly === true) checkPerson(context.principal, command.name);
+    // A person's own voice session runs a command for people only that opts in (Ask's record).
+    const voiceAllowed =
+      command.voiceSession === true &&
+      context.principal.kind === 'voice_session' &&
+      context.principal.voiceSessionId !== undefined;
+    if (command.peopleOnly === true && !voiceAllowed) {
+      checkPerson(context.principal, command.name);
+    }
     guardPermission(context.principal, command, data);
     for (const also of command.alsoRequires ?? []) {
       checkPermission(context.principal, also.permission, also.minScope);

@@ -56,8 +56,9 @@ export interface AskRouteDeps {
   /** The signed-in person from the session cookie; undefined without one. May throw `unauthorized`. */
   principal: () => Promise<Principal | undefined>;
   /**
-   * The person a bearer token speaks for: V2's voice token (`aud: shakti-voice`), a typed seam
-   * live voice fills. Left out, a bearer token is refused.
+   * The voice session a bearer token speaks for: V2's voice token (`aud: shakti-voice`), for a
+   * live session of its own person, as a `voice_session` principal without the cost permissions
+   * (`auth/voice-principal.ts`). Left out, a bearer token is refused.
    */
   bearer?: (token: string) => Promise<Principal | undefined>;
   keyValue: KeyValue;
@@ -115,8 +116,9 @@ async function caller(request: Request, deps: AskRouteDeps, requestId: string): 
     return fail('internal');
   }
   if (principal === undefined) return fail('unauthorized');
+  // A bearer token speaks only for a voice session (V2), the cookie only for the person.
   if (
-    principal.kind !== 'user' ||
+    principal.kind !== (authorization === null ? 'user' : 'voice_session') ||
     principal.entityIds.length === 0 ||
     !hasGrant(principal.permissions, 'knowledge.ask', 'team')
   ) {

@@ -14,6 +14,7 @@ import {
   asMigrator,
   asPrincipal,
   closeDb,
+  createTestVoicePrincipal,
   principalFor,
   SYSTEM_MATRIX,
 } from '@shakti/db/testing';
@@ -934,4 +935,42 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       }
     });
   }
+});
+
+describe('a voice session (SECURITY §3.4)', () => {
+  it('is refused at the guard by every command for people only, even with its grants', async () => {
+    // A voice session acts as its person but is not the person at a keyboard: an Executive's own
+    // session, given every grant each command needs, is refused by the people rule alone.
+    const voice = await createTestVoicePrincipal('executive', [1]);
+    // The commands a person's voice session may run as the person, each with its reason.
+    const forVoice = PEOPLE_ONLY.filter((command) => command.voiceSession === true);
+    expect(forVoice.map((command) => command.name)).toEqual([
+      // Ask's spoken answers record the person's question (phase 2 design §7.5).
+      'knowledge.ask.record',
+    ]);
+    for (const command of PEOPLE_ONLY.filter((c) => c.voiceSession !== true)) {
+      const principal = {
+        ...voice,
+        permissions: [
+          ...voice.permissions,
+          ...needs(command).map((key) => ({ key, scope: 'all' as const })),
+        ],
+      };
+      const error: unknown = await asPrincipal(principal, (context) =>
+        runCommand(command, { context, audit, outbox }, PEOPLE_ONLY_INPUTS[command.name]),
+      ).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect({ command: command.name, error }).toMatchObject({
+        command: command.name,
+        error: { code: 'forbidden', details: { reason: 'people_only' } },
+      });
+      expect({ command: command.name, stage: failureOf(error)?.stage }).toEqual({
+        command: command.name,
+        stage: 'guard',
+      });
+    }
+    expect(PEOPLE_ONLY.length).toBeGreaterThan(20);
+  });
 });

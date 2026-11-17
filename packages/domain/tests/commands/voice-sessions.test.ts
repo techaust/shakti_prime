@@ -269,6 +269,7 @@ describe('voice.session.record', () => {
       endedAt,
       minutes: 3,
       costPaise: 840,
+      filesLinked: true,
     });
     expect(await auditRows(requestId)).toEqual([
       expect.objectContaining({
