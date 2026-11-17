@@ -137,6 +137,13 @@ import {
   homeSales,
 } from '../../src/queries/home/home';
 import { myProgress, targetsScreen, teamProgress } from '../../src/queries/sales/targets';
+import {
+  listAccountThreads,
+  listWaitingThreads,
+  readSendFacts,
+  readWhatsAppCounts,
+  readWhatsAppThread,
+} from '../../src/queries/messaging/whatsapp';
 
 /** Ask's seeded records (an item with its cost side, a vault file, two rules), for its reads. */
 let askData: AskData;
@@ -281,6 +288,13 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getSalesOrder: (ctx) => getSalesOrder(ctx, { entityId: 1, orderId: newId() }, QUOTES_AT),
   loadSalesOrderBuilder: (ctx) =>
     loadSalesOrderBuilder(ctx, { entityId: 1, accountId: newId() }, QUOTES_AT),
+  // WhatsApp (W1): /messages, a customer's chats, one chat, Integration Health's counts and the
+  // messaging worker's facts (the platform's definer).
+  listWaitingThreads: (ctx) => listWaitingThreads(ctx, { limit: 25 }),
+  listAccountThreads: (ctx) => listAccountThreads(ctx, { entityId: 1, accountId: newId() }),
+  readWhatsAppThread: (ctx) => readWhatsAppThread(ctx, { entityId: 1, threadId: newId() }),
+  readWhatsAppCounts: (ctx) => readWhatsAppCounts(ctx),
+  readSendFacts: (ctx) => readSendFacts(ctx, newId()),
   listDealerCredit: (ctx) => listDealerCredit(ctx, { entityId: 1, limit: 20 }),
 };
 

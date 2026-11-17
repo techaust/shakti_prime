@@ -39,6 +39,15 @@ import {
   ActivityTypeSchema,
   ConsentChannelSchema,
   EntityChannelKindSchema,
+  MessagingRefusalSchema,
+  WhatsAppHandoffReasonSchema,
+  WhatsAppMessageDirectionSchema,
+  WhatsAppMessageKindSchema,
+  WhatsAppMessageStatusSchema,
+  WhatsAppTemplateCategorySchema,
+  WhatsAppTemplatePurposeSchema,
+  WhatsAppTemplateStatusSchema,
+  WhatsAppThreadHandlerSchema,
   CALL_PURPOSES,
   PROVIDER_CALL_STATUSES,
   ConsentPurposeSchema,
@@ -119,6 +128,15 @@ import {
   ACTIVITY_TYPES,
   CONSENT_CHANNELS,
   ENTITY_CHANNEL_KINDS,
+  MESSAGING_REFUSALS,
+  WHATSAPP_HANDOFF_REASONS,
+  WHATSAPP_MESSAGE_DIRECTIONS,
+  WHATSAPP_MESSAGE_KINDS,
+  WHATSAPP_MESSAGE_STATUSES,
+  WHATSAPP_TEMPLATE_CATEGORIES,
+  WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_TEMPLATE_STATUSES,
+  WHATSAPP_THREAD_HANDLERS,
   INGEST_ASSIGNEES,
   INGEST_CHANNELS,
   INGEST_FIELD_TARGETS,
@@ -269,6 +287,15 @@ describe('the contract values copied for the browser', () => {
     expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);
     expect(CONSENT_CHANNELS).toEqual(ConsentChannelSchema.options);
     expect(ENTITY_CHANNEL_KINDS).toEqual(EntityChannelKindSchema.options);
+    expect(MESSAGING_REFUSALS).toEqual(MessagingRefusalSchema.options);
+    expect(WHATSAPP_THREAD_HANDLERS).toEqual(WhatsAppThreadHandlerSchema.options);
+    expect(WHATSAPP_HANDOFF_REASONS).toEqual(WhatsAppHandoffReasonSchema.options);
+    expect(WHATSAPP_MESSAGE_DIRECTIONS).toEqual(WhatsAppMessageDirectionSchema.options);
+    expect(WHATSAPP_MESSAGE_KINDS).toEqual(WhatsAppMessageKindSchema.options);
+    expect(WHATSAPP_MESSAGE_STATUSES).toEqual(WhatsAppMessageStatusSchema.options);
+    expect(WHATSAPP_TEMPLATE_CATEGORIES).toEqual(WhatsAppTemplateCategorySchema.options);
+    expect(WHATSAPP_TEMPLATE_STATUSES).toEqual(WhatsAppTemplateStatusSchema.options);
+    expect(WHATSAPP_TEMPLATE_PURPOSES).toEqual(WhatsAppTemplatePurposeSchema.options);
     expect(INGEST_CHANNELS).toEqual(CONTRACT_INGEST_CHANNELS);
     expect(INGEST_OUTCOMES).toEqual(CONTRACT_INGEST_OUTCOMES);
     expect(INGEST_ASSIGNEES).toEqual(CONTRACT_INGEST_ASSIGNEES);

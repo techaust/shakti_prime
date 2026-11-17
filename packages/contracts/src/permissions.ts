@@ -63,6 +63,10 @@ export const PERMISSION_KEYS = [
   'knowledge.vault.write',
   'knowledge.playbook.draft',
   'knowledge.playbook.approve',
+  // WhatsApp (docs/03-roadmap-appendix/phase2.md §4): session messages and templates on a thread
+  // the person may message, and the template registry.
+  'messaging.send',
+  'messaging.templates.write',
   'knowledge.ask',
   'agents.inbox.act',
   'agents.autonomy.write',
@@ -124,6 +128,11 @@ export const PERMISSION_KEYS = [
   // platform's worker principal, which claims, marks and purges `webhook_inbox` rows through narrow
   // definers, nothing more.
   'webhooks.process',
+  // The WhatsApp handler and the messaging worker (docs/03-roadmap-appendix/phase2.md §6.1): held
+  // only by the platform's worker principal, which records inbound messages and statuses, opens
+  // threads, sends checked messages and records an opt-out or a hand-off through narrow definers,
+  // nothing more.
+  'messaging.process',
   // A lead from an integration (`crm.lead.ingest`, docs/03-roadmap-appendix/phase2.md §6.2): held
   // only by the platform's worker principal, which makes or attaches the lead, its customer,
   // attribution, consent and owner through narrow definers, nothing more.
@@ -172,6 +181,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   // Drafting and approving Playbook directives are people's (docs/03-roadmap-appendix/phase2.md §4).
   'knowledge.playbook.draft',
   'knowledge.playbook.approve',
+  // The template registry decides what the platform may send in the companies' names (§4).
+  'messaging.templates.write',
   // Ask the Business answers people from their own grants (docs/03-roadmap-appendix/phase2.md §4).
   'knowledge.ask',
   'sales.credit.release',
@@ -209,6 +220,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'knowledge.playbook.check',
   'crm.dnd.record',
   'webhooks.process',
+  'messaging.process',
   'crm.ingest.run',
   'calls.process',
 ];
@@ -329,6 +341,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'knowledge.vault.write': ['all'],
   'knowledge.playbook.draft': ['all'],
   'knowledge.playbook.approve': ['all'],
+  'messaging.send': ['own', 'team', 'entity', 'all'],
+  'messaging.templates.write': ['all'],
   'knowledge.ask': ['team', 'entity', 'all'],
   'agents.inbox.act': ['own', 'team', 'entity', 'all'],
   'agents.autonomy.write': ['all'],
@@ -358,6 +372,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'knowledge.playbook.check': ['all'],
   'crm.dnd.record': ['all'],
   'webhooks.process': ['all'],
+  'messaging.process': ['all'],
   'crm.ingest.run': ['all'],
   'calls.process': ['all'],
 };

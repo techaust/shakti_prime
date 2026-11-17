@@ -748,13 +748,7 @@ export const API_FIXTURES: Record<
     request: {
       eventId: IDS.eventB,
       entityId: 1,
-      message: {
-        threadId: IDS.thread,
-        kind: 'template',
-        templateName: 'quote_sent',
-        params: ['SS/QT/2026-27/0231', '15-10-2026'],
-        fileId: IDS.pdf,
-      },
+      messageId: IDS.event,
     },
     response: {
       eventId: IDS.eventB,
@@ -924,6 +918,13 @@ export const API_FIXTURES: Record<
           updatedAt: '2026-09-26T11:40:00.000Z',
         },
       ],
+      whatsappBudget: {
+        limit: 1000,
+        limitReported: true,
+        used: 312,
+        refusals: [{ refusal: 'window_closed', count: 3 }],
+        failed: 1,
+      },
       jobs: [
         {
           job: 'activities-partitions',

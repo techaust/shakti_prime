@@ -22,7 +22,8 @@ export interface WebhookHandled {
   /**
    * A code the row keeps: with `failed`, why the handler set the delivery aside for good (a lead
    * form nobody has connected yet), shown on Integration health's failed list with Process again;
-   * without it, a note on a processed row (a provider's test lead, which makes nothing).
+   * without it, a note on a processed row (a provider's test lead, which makes nothing; a WhatsApp
+   * number of no company, `whatsapp_number_unknown`).
    */
   code?: WebhookErrorCode;
   failed?: boolean;
@@ -47,6 +48,13 @@ export type WebhookHandlers = { readonly [P in WebhookProvider]?: WebhookHandler
  * here. I1 handles the Lead Ads and Google lead forms (`./lead-forms.ts`).
  */
 export const WEBHOOK_HANDLERS: WebhookHandlers = {
+  // WhatsApp (W1, docs/03-roadmap-appendix/phase2.md §6.1): messages, statuses, template events
+  // and quality updates. Its dependencies are read when a delivery comes, never at import time.
+  meta_whatsapp: async (payload, context) => {
+    const { whatsappHandler } = await import('./whatsapp');
+    const { whatsappHandlerDeps } = await import('./whatsapp-deps');
+    return whatsappHandler(whatsappHandlerDeps())(payload, context);
+  },
   meta_leadgen: handleMetaLeadgen,
   google_leadform: handleGoogleLeadform,
   // T3: a click-to-dial call's status and recording (docs/03-roadmap-appendix/phase2.md §6.3).

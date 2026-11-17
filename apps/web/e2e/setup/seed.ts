@@ -51,6 +51,7 @@ import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
+import { ensureWhatsAppJourneys } from './whatsapp';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
@@ -68,6 +69,7 @@ import {
   SNAPSHOT_HELD_BACK_ID,
   SNAPSHOT_IMPORT_FILE,
   SNAPSHOT_LEADS,
+  WHATSAPP,
   SNAPSHOT_SUGGESTIONS,
   SNAPSHOT_TEAM,
   SNAPSHOT_PLAYBOOK,
@@ -868,6 +870,19 @@ const recordings = {
 };
 progress('the snapshot company’s Playbook');
 await ensureSnapshotPlaybook(ids.executive ?? '');
+
+progress('the WhatsApp chats');
+// The tele-caller's customers who write on WhatsApp, one per project (messages.spec.ts).
+for (const project of PROJECTS) {
+  const customer = WHATSAPP.customers[project];
+  await ensureLead(
+    { id: ids.teleCaller ?? '', roleKey: 'tele_caller_cc', entityIds: [1] },
+    1,
+    customer.name,
+    customer.phone,
+  );
+}
+await ensureWhatsAppJourneys(ids.executive ?? '');
 
 progress('the quotes');
 const quotes = await ensureQuoteJourneys(ids.executive ?? '');
