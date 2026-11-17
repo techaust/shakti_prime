@@ -228,6 +228,19 @@ export const AGENT_DEFAULTS = {
     maxTokens: 400,
   },
 
+  // --- The Caller Co-pilot (A2, docs/03-roadmap-appendix/phase2.md §7.3) -------------------------
+  /**
+   * The Caller Co-pilot. Each value is flagged for the owner to confirm:
+   * - `briefIntervalMinutes`: a lead gets at most one brief an hour, on assignment or on demand;
+   * - `quoteNudgeDaysBefore`: the quote-expiry nudge is proposed two days before a sent quote
+   *   expires (CALL-5's WhatsApp follow-up); the nurture message falls on the nurture days of
+   *   `WORKSHOP_DEFAULTS.calling.nurtureCallDays`.
+   */
+  copilot: {
+    briefIntervalMinutes: 60,
+    quoteNudgeDaysBefore: 2,
+  },
+
   /**
    * The WhatsApp Concierge (A3, wave 3). Until it exists, no assistant answers a chat (the lead's
    * decision of 15-11-2026): a new chat starts with people (reason `no_assistant`), the screens

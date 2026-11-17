@@ -248,6 +248,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     project_manager: 'entity',
     accounts: 'entity',
   },
+  // The Caller Co-pilot's briefs and call summaries: its own (AGENT_MATRIX), no person's role
+  // (design phase2 §4).
+  'agents.note.write': {},
   'agents.inbox.act': {
     ...EXEC,
     general_manager: 'entity',

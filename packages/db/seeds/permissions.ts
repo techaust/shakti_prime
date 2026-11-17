@@ -63,6 +63,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'messaging.send': 'Send WhatsApp messages to customers',
   'messaging.templates.write': 'Keep the list of WhatsApp message templates',
   'knowledge.ask': 'Ask the Business',
+  'agents.note.write': 'Write call briefs and call summaries',
   'agents.inbox.act': 'Act on Agent Inbox items',
   'agents.autonomy.write': 'Change agent autonomy',
   'agents.killswitch': 'Pause agents',

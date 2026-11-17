@@ -1324,6 +1324,20 @@
       "when": 1794728347417,
       "tag": "0188_whatsapp_fix_round_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 189,
+      "version": "7",
+      "when": 1794919799072,
+      "tag": "0189_copilot_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 190,
+      "version": "7",
+      "when": 1794919808413,
+      "tag": "0190_copilot_notes_rls",
+      "breakpoints": true
     }
   ]
 }

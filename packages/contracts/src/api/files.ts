@@ -35,6 +35,9 @@ export const FILE_PURPOSES = [
   'call_recording',
   // A photo or PDF a customer sent on WhatsApp, read with its thread (docs/03-roadmap-appendix/phase2.md §6.1).
   'whatsapp_media',
+  // A recorded call's transcript, masked before it is stored by the Caller Co-pilot's worker and
+  // read with its call's lead (docs/03-roadmap-appendix/phase2.md §7.3).
+  'call_transcript',
 ] as const;
 export const FilePurposeSchema = z.enum(FILE_PURPOSES);
 export type FilePurpose = z.infer<typeof FilePurposeSchema>;

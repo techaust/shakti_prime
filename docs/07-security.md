@@ -166,6 +166,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `messaging.send` | all | entity | team | own | own | own | – | – | – | – | – |
 | `messaging.templates.write` | all | – | – | – | – | – | – | – | – | – | – |
 | `knowledge.ask` | all | all | team | – | – | – | entity | entity | – | entity | – |
+| `agents.note.write` | – | – | – | – | – | – | – | – | – | – | – |
 | `agents.inbox.act` | all | entity | team | own | own | own | entity | entity | – | entity | – |
 | `agents.autonomy.write` | all | – | – | – | – | – | – | – | – | – | – |
 | `agents.killswitch` | all | all | – | – | – | – | – | – | – | – | – |

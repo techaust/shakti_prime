@@ -76,6 +76,14 @@ export const AGENT_FILTER_REASONS = [
   'text_has_phone',
   'text_has_identity_number',
   'text_has_instruction',
+  // The Caller Co-pilot's filter (docs/03-roadmap-appendix/phase2.md §7.3): a brief or summary
+  // over its length, a fact outside its field's bounds, a follow-up outside calling hours, a
+  // template the customer may not be sent, an outcome that was not offered.
+  'text_too_long',
+  'fact_out_of_bounds',
+  'task_outside_hours',
+  'template_not_allowed',
+  'unknown_outcome',
 ] as const;
 export const AgentFilterReasonSchema = z.enum(AGENT_FILTER_REASONS);
 export type AgentFilterReason = z.infer<typeof AgentFilterReasonSchema>;

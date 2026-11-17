@@ -51,6 +51,8 @@ import {
   INGEST_SOURCE_PROVIDERS,
   CALL_PURPOSE_VALUES,
   PROVIDER_CALL_STATUS_VALUES,
+  COPILOT_NOTE_KIND_VALUES,
+  TEMPLATE_OCCASION_VALUES,
   WHATSAPP_HANDOFF_REASONS,
   WHATSAPP_MESSAGE_KINDS,
   WHATSAPP_TEMPLATE_CATEGORIES,
@@ -545,6 +547,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'callStatus':
         return oneOf(PROVIDER_CALL_STATUS_VALUES, value)
           ? t(`values.callStatus.${value}`)
+          : wordsOf(value);
+      case 'copilotNoteKind':
+        return oneOf(COPILOT_NOTE_KIND_VALUES, value)
+          ? t(`values.copilotNoteKind.${value}`)
+          : wordsOf(value);
+      case 'templateOccasion':
+        return oneOf(TEMPLATE_OCCASION_VALUES, value)
+          ? t(`values.templateOccasion.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)

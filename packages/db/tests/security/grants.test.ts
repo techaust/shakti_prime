@@ -174,6 +174,8 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // only the link to their log (a column grant), and the platform's definers write the rest
     // (0169, provider-calls.test.ts).
     provider_calls: { i: true, u: false },
+    // A Co-pilot note is written once by the Co-pilot and never changed (copilot-notes.test.ts).
+    copilot_notes: { i: true, u: false },
   };
 
   /**

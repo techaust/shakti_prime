@@ -105,6 +105,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   print_proof: grant('admin.entities.write', 'own'),
   // A call's recording is heard only through calls.recording.play, never read as a file.
   call_recording: NEVER,
+  // A call's transcript is read with its call, so with the lead (0190).
+  call_transcript: LEAD_READ,
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({
@@ -308,6 +310,8 @@ const RULES: Record<MatrixTable, TableRule> = {
   lead_qualifications: { read: LEAD_READ, leak: otherCompany },
   // A provider's call is a child of the lead: read with it, as the call log is.
   provider_calls: { read: LEAD_READ, leak: otherCompany },
+  // The Co-pilot's briefs and summaries are a child of the lead: read with it (design phase2 §7.3).
+  copilot_notes: { read: LEAD_READ, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {

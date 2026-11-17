@@ -389,6 +389,14 @@
     "whatsapp_number_unknown": "This WhatsApp number is not set up for any company.",
     "whatsapp_message_missing": "We couldn't find this WhatsApp message. Refresh the page.",
     "whatsapp_unavailable": "WhatsApp is not set up yet, so the message waits and is sent once it is.",
+    "whatsapp_consent_missing": "This customer has not agreed to get WhatsApp messages, so nothing was sent.",
+    "copilot_lead_not_in_nurture": "This lead is no longer waiting for a follow-up, so the message was not sent.",
+    "copilot_quote_not_open": "This quote is no longer open, so the reminder was not sent.",
+    "copilot_template_not_allowed": "This template cannot be suggested. Choose an approved template with no blanks to fill in.",
+    "copilot_note_refused": "The Co-pilot's note was not kept, because it held something a note may not hold.",
+    "copilot_brief_recent": "This lead already has a brief from the last hour. Use that one, or ask again later.",
+    "copilot_summary_recorded": "This call already has its summary.",
+    "disposition_missing": "This call outcome is no longer in use. Refresh the page and choose another.",
     "lead_source_missing": "This lead source is no longer connected. Refresh the page to see the sources as they are now.",
     "lead_source_fixed": "A connected form cannot be swapped for another. Disconnect this one and connect the new form.",
     "lead_source_taken": "This form is already connected to a company. Disconnect it there first.",
@@ -2136,6 +2144,8 @@
       "endedAt": "Ended",
       "listenedAt": "Played",
       "dialPhone": "Own calling phone",
+      "noteKind": "Kind of note",
+      "occasion": "Sent for",
       "askAnswered": "Answered",
       "citedSources": "Records it points to",
       "unsourcedFigures": "Figures left out because no record shows them",
@@ -2263,6 +2273,14 @@
         "busy": "Line busy",
         "failed": "Did not go through",
         "canceled": "Stopped before answered"
+      },
+      "copilotNoteKind": {
+        "brief": "Brief before the call",
+        "call_summary": "Call summary"
+      },
+      "templateOccasion": {
+        "nurture": "Follow-up message",
+        "quote_expiry": "Reminder before the quote expires"
       }
     }
   },
@@ -3146,7 +3164,8 @@
       "consent_evidence": "Proof of consent",
       "print_proof": "Proof page",
       "whatsapp_media": "File sent on WhatsApp",
-      "call_recording": "Call recording"
+      "call_recording": "Call recording",
+      "call_transcript": "Call transcript"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -3629,6 +3648,7 @@
       "knowledge_playbook_approve": "Approve Playbook guidance",
       "messaging_send": "Send WhatsApp messages to customers",
       "messaging_templates_write": "Keep the list of WhatsApp message templates",
+      "agents_note_write": "Write call briefs and call summaries",
       "agents_inbox_act": "Act on Agent Inbox items",
       "agents_autonomy_write": "Choose how freely agents act",
       "agents_killswitch": "Pause agents",
@@ -4490,7 +4510,12 @@
       "unknown_person": "It named a person who was not offered",
       "text_has_phone": "Its note had a phone number or contact detail",
       "text_has_identity_number": "Its note had an identity number",
-      "text_has_instruction": "Its note had an instruction or a link"
+      "text_has_instruction": "Its note had an instruction or a link",
+      "text_too_long": "Its note was longer than allowed",
+      "fact_out_of_bounds": "It gave a lead detail outside the allowed range",
+      "task_outside_hours": "It set a follow-up outside calling hours",
+      "template_not_allowed": "It chose a WhatsApp message this customer may not be sent",
+      "unknown_outcome": "It named a call outcome that was not offered"
     },
     "shadow": {
       "title": "What the Triage agent proposed",

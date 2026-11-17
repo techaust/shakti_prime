@@ -16,6 +16,8 @@ import type { AnyCommand, Requirement } from '../command/define-command';
 import { suggestDuplicate } from '../commands/crm/duplicates';
 import { assignOpportunity } from '../commands/crm/assign-opportunity';
 import { createTask } from '../commands/crm/tasks';
+import { setLeadQualification } from '../commands/crm/lead-qualification';
+import { requestTemplate } from '../commands/messaging/template-request';
 import { AGENT_DEFAULTS } from './agent-defaults';
 
 // The actions an agent may propose or take (docs/03-roadmap-appendix/phase1.md §7.1, §9). An action
@@ -99,7 +101,9 @@ const ABOUT_A_LEAD = { subjectType: 'opportunity', subjectKey: 'opportunityId' }
 
 export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Object.fromEntries(
   [
-    // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3).
+    // --- The Caller Co-pilot (A2, docs/03-roadmap-appendix/phase2.md §7.3) ---------------------
+    // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3), for the lead's
+    // owner, inside calling hours (`filterCopilotOutput()`).
     commanded(createTask, {
       agents: ['agent:copilot'],
       subjectType: 'opportunity',
@@ -114,6 +118,29 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
         { name: 'title', kind: 'text', maxLength: 80 },
       ],
     }),
+    // The qualification facts heard in a recorded call, each within its field's bounds; for no
+    // one in particular, so whoever acts on the lead's company inbox decides.
+    commanded(setLeadQualification, {
+      agents: ['agent:copilot'],
+      subjectType: 'opportunity',
+      subjectKey: 'opportunityId',
+      summary: [],
+      editable: [],
+    }),
+    // A WhatsApp nurture message or quote-expiry nudge from an approved template with no blanks,
+    // for the customer of a lead in nurture or with a quote about to expire; approved, the person
+    // queues it under their own messaging grant.
+    commanded(requestTemplate, {
+      agents: ['agent:copilot'],
+      subjectType: 'opportunity',
+      subjectKey: 'opportunityId',
+      summary: [
+        { name: 'templateName', kind: 'code' },
+        { name: 'occasion', kind: 'code' },
+      ],
+      editable: [],
+    }),
+    // --- End of the Caller Co-pilot ------------------------------------------------------------
     // The Triage agent (A1, SECURITY §3.3): who should take a new lead, among the people of the
     // company who work on leads. The item, under Suggest or Needs approval, is for whoever acts
     // on the company's inbox, never the person proposed.

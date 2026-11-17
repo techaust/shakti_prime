@@ -8,6 +8,8 @@ import type {
   AgentRunOutcome,
   AgentSettingSource,
   CommissionAccrualState,
+  CopilotNoteKind,
+  CopilotTemplateOccasion,
   CommissionBasis,
   ConsentChannel,
   DialPurpose,
@@ -165,6 +167,18 @@ export const CALL_PURPOSE_VALUES = [
   'promotional',
   'service',
 ] as const satisfies readonly DialPurpose[];
+
+/** What a Caller Co-pilot note is (`COPILOT_NOTE_KINDS`): a brief, or a call's summary. */
+export const COPILOT_NOTE_KIND_VALUES = [
+  'brief',
+  'call_summary',
+] as const satisfies readonly CopilotNoteKind[];
+
+/** Why the Caller Co-pilot proposes a WhatsApp template (`COPILOT_TEMPLATE_OCCASIONS`). */
+export const TEMPLATE_OCCASION_VALUES = [
+  'nurture',
+  'quote_expiry',
+] as const satisfies readonly CopilotTemplateOccasion[];
 
 /** Where a click-to-dial call stands (`PROVIDER_CALL_STATUSES`), first to last. */
 export const PROVIDER_CALL_STATUS_VALUES = [
@@ -397,6 +411,11 @@ export const AGENT_FILTER_REASON_VALUES = [
   'text_has_phone',
   'text_has_identity_number',
   'text_has_instruction',
+  'text_too_long',
+  'fact_out_of_bounds',
+  'task_outside_hours',
+  'template_not_allowed',
+  'unknown_outcome',
 ] as const satisfies readonly AgentFilterReason[];
 
 /** The kinds of proposal the Triage agent makes, each named under `agents.shadow.kinds`. */
@@ -877,6 +896,7 @@ export const FILE_PURPOSES = [
   'consent_evidence',
   'call_recording',
   'whatsapp_media',
+  'call_transcript',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */

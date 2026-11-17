@@ -7,6 +7,7 @@ export * from './system-principal';
 export * from './agent-principals';
 export * from './agents';
 export * from './triage';
+export * from './copilot';
 export * from './knowledge';
 export * from './roman-script';
 export * from './playbook';

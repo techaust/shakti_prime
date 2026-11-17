@@ -36,6 +36,8 @@ export const AGENT_MATRIX: Record<AgentRoleKey, readonly PermissionGrant[]> = {
     { key: 'crm.lead.read', scope: 'entity' },
     { key: 'crm.lead.write', scope: 'entity' },
     { key: 'knowledge.vault.read.staff', scope: 'all' },
+    // Its briefs and call summaries (docs/03-roadmap-appendix/phase2.md §4, §7.3).
+    { key: 'agents.note.write', scope: 'entity' },
   ],
   'agent:sizing': [
     { key: 'pricing.read', scope: 'entity' },

@@ -9,6 +9,7 @@ import {
   rejectInboxItem,
 } from '../commands/agents/inbox';
 import { recordAgentRun } from '../commands/agents/record-run';
+import { recordCopilotNote } from '../commands/agents/notes';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
 import { setRolePermissions } from '../commands/admin/set-role-permissions';
@@ -110,6 +111,7 @@ import { updateEntity } from '../commands/org/update-entity';
 import { archiveEntityChannel, setEntityChannel } from '../commands/org/channels';
 import { recordPhoneDnd } from '../commands/crm/record-phone-dnd';
 import { sendWhatsAppMessage } from '../commands/messaging/send-message';
+import { requestTemplate } from '../commands/messaging/template-request';
 import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messaging/threads';
 import { registerWhatsAppTemplate } from '../commands/messaging/templates';
 import {
@@ -180,6 +182,7 @@ export const commands = Object.freeze({
   [archiveEntityChannel.name]: archiveEntityChannel,
   [recordPhoneDnd.name]: recordPhoneDnd,
   [sendWhatsAppMessage.name]: sendWhatsAppMessage,
+  [requestTemplate.name]: requestTemplate,
   [handOffWhatsAppThread.name]: handOffWhatsAppThread,
   [returnWhatsAppThread.name]: returnWhatsAppThread,
   [registerWhatsAppTemplate.name]: registerWhatsAppTemplate,
@@ -322,6 +325,7 @@ export const commands = Object.freeze({
   [recordDealerOutstanding.name]: recordDealerOutstanding,
   [setTarget.name]: setTarget,
   [recordAgentRun.name]: recordAgentRun,
+  [recordCopilotNote.name]: recordCopilotNote,
   [approveInboxItem.name]: approveInboxItem,
   [editInboxItem.name]: editInboxItem,
   [rejectInboxItem.name]: rejectInboxItem,

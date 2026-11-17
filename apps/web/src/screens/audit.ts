@@ -449,6 +449,8 @@ const CODE_GROUPS = [
   'sourceProvider',
   'callPurpose',
   'callStatus',
+  'copilotNoteKind',
+  'templateOccasion',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -660,6 +662,9 @@ const FIELD_KINDS = [
   ['endedAt', 'time'],
   ['listenedAt', 'time'],
   ['dialPhone', 'text'],
+  // The Caller Co-pilot's notes and the WhatsApp follow-ups it proposes
+  ['noteKind', 'copilotNoteKind'],
+  ['occasion', 'templateOccasion'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],
   ['purpose', 'filePurpose'],
