@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an AI agent principal answering customers, row-level security bound to one thread |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | early check |
-| Next step | the builder's early check |
+| State | early check passed (lead, 17-11) |
+| Next step | a builder resumes steps 5 to 9 on a fresh slot database |
 
 ## Brief
 Read first:
@@ -86,3 +86,5 @@ Steps 1 to 4 of the brief, committed and pushed on `feat/a3-concierge`. Skills l
 ## Review
 
 ## Integration
+### Lead's read of the early check, 17-11-2026
+Passed. The five policies match `main`'s newest definitions (0064, 0028, 0078 with 0089's roles kept by `alter policy`, 0183, 0166) with only the agent clause added. Decision 2: a bound run reads its own customer's quotes and orders because quote access follows the lead; these are the customer's own prices, not cost data, and no further clause is added. The worker's fact reader reads only the brief's list, which the review checks. The `is_agent_request()` prefix may go into 0190 now, since slot 2's database is recreated before steps 5 to 9. `crm.task.create`'s shared entry in `AGENT_ACTION_TYPES` is settled with A2 at merge.
