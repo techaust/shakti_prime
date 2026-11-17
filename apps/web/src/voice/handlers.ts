@@ -24,6 +24,7 @@ import {
   type LiveKitConfig,
   type LiveKitRooms,
 } from '../integrations/voice/livekit';
+import { voiceDispatchModel } from '../integrations/voice/voice-model';
 import { logger } from '../log';
 import { signingKeys, SigningKeyError, type Env, type SigningKeys } from '../realtime/keys';
 import { bosIssuer } from '../realtime/token';
@@ -213,7 +214,9 @@ export async function startVoiceSessionRoute(
       bosToken: { token: bos.token, expiresAt: bos.expiresAt.toISOString() },
       mode: grant.mode,
       consentRecording: grant.consentRecording,
+      notAfter: voiceSessionNotAfter(new Date(grant.startedAt)).toISOString(),
       limits: grant.limits,
+      model: voiceDispatchModel(),
     });
     const rooms = (deps.rooms ?? liveKitRooms)(config);
     await rooms.createAgentRoom(grant.sessionId, {

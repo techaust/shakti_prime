@@ -1,4 +1,5 @@
-import { AGENT_DEFAULTS } from '@shakti/domain';
+import type { VoiceModelDispatch } from '@shakti/contracts';
+import { AGENT_DEFAULTS, MODEL_PRICES } from '@shakti/domain';
 import { claudeConfig, type ClaudeConfig, type VoiceModelSettings } from '@shakti/voice';
 
 /**
@@ -26,4 +27,28 @@ export function voiceClaudeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): ClaudeConfig | undefined {
   return claudeConfig(VOICE_MODEL_SETTINGS, isPricedModel, env);
+}
+
+/**
+ * The reply step as the voice worker runs it, handed over when the BOS dispatches the worker
+ * (`VoiceDispatchMetadata.model`): the settings above, the model's prices and the speech price, so
+ * the worker counts a session's spend as the domain prices it.
+ */
+export function voiceDispatchModel(): VoiceModelDispatch {
+  const price = MODEL_PRICES[VOICE_MODEL_SETTINGS.model];
+  if (price === undefined) throw new Error('the voice model has no price');
+  return {
+    model: VOICE_MODEL_SETTINGS.model,
+    effort: VOICE_MODEL_SETTINGS.effort,
+    thinking: VOICE_MODEL_SETTINGS.thinking ?? null,
+    maxTokens: VOICE_MODEL_SETTINGS.maxTokens,
+    prices: {
+      input: price.input,
+      output: price.output,
+      cacheRead: price.cacheRead,
+      cacheWrite: price.cacheWrite,
+    },
+    paisePerUsd: AGENT_DEFAULTS.paisePerUsd,
+    speechPaisePerMinute: AGENT_DEFAULTS.voice.speechPaisePerMinute,
+  };
 }

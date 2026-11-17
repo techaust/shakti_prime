@@ -205,6 +205,7 @@ export {
 } from './commands/voice/sessions';
 export {
   liveVoiceSession,
+  liveVoiceSessionFacts,
   voiceSessionLive,
   voiceSessionNotAfter,
   type VoiceSessionFacts,
@@ -619,7 +620,13 @@ export type {
   ModelTransport,
 } from './ai/transport';
 export { vendorTransports } from './ai/env';
-export { costInPaise, DEFAULT_CLAUDE_MODEL, DEFAULT_EMBEDDING_MODEL } from './ai/models';
+export {
+  costInPaise,
+  DEFAULT_CLAUDE_MODEL,
+  DEFAULT_EMBEDDING_MODEL,
+  MODEL_PRICES,
+  type ModelPrice,
+} from './ai/models';
 export {
   AGENT_ACTION_TYPES,
   AUTOMATIC_AVAILABLE,

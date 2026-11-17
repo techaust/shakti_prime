@@ -944,10 +944,14 @@ describe('a voice session (SECURITY §3.4)', () => {
     const voice = await createTestVoicePrincipal('executive', [1]);
     // The commands a person's voice session may run as the person, each with its reason.
     const forVoice = PEOPLE_ONLY.filter((command) => command.voiceSession === true);
-    expect(forVoice.map((command) => command.name)).toEqual([
-      // Ask's spoken answers record the person's question (phase 2 design §7.5).
-      'knowledge.ask.record',
-    ]);
+    expect(forVoice.map((command) => command.name).sort()).toEqual(
+      [
+        // Ask's spoken answers record the person's question (phase 2 design §7.5).
+        'knowledge.ask.record',
+        // A Teach session the person let be recorded files its audio in the vault (§7.5).
+        'knowledge.file.add',
+      ].sort(),
+    );
     for (const command of PEOPLE_ONLY.filter((c) => c.voiceSession !== true)) {
       const principal = {
         ...voice,

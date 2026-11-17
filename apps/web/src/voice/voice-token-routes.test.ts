@@ -13,15 +13,22 @@ const src = fileURLToPath(new URL('../', import.meta.url));
 const READERS: Readonly<Record<string, string>> = {
   'voice/token.ts': 'signs and checks the token',
   'auth/voice-principal.ts': 'the voice principal from a checked token, for a live session',
-  'voice/route-deps.ts': 'the voice routes: a session start and the worker token refresh',
+  'voice/route-deps.ts':
+    "the voice routes: a session start, the worker token refresh and a Teach session's recording",
   'ask/route-deps.ts': "Ask's bearer seam: the worker's spoken answers",
 };
 
 /** The routes that may take the voice token, through the readers above. */
 const ROUTES = [
+  // Ask's spoken answers, as the person.
   'app/api/v1/ask/route.ts',
+  // Starts a session (the cookie); its module also builds the worker routes below.
   'app/api/v1/voice/session/route.ts',
+  // The worker's own token, while its session is live.
   'app/api/v1/voice/token/route.ts',
+  // A recorded Teach session's audio, uploaded and filed as the person, once per session.
+  'app/api/v1/voice/recording/route.ts',
+  'app/api/v1/voice/recording/complete/route.ts',
 ];
 
 const TOKEN_READ = /\b(verifyVoiceToken|voicePrincipalFromToken)\b/;

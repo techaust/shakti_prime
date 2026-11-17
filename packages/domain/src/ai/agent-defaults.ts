@@ -235,6 +235,13 @@ export const AGENT_DEFAULTS = {
     personDailyMinutes: 30,
     personDailyCapPaise: 20_000,
     sessionMaxMinutes: 15,
+    /**
+     * Speech counted against the day's spend, per minute of a session: Sarvam's published
+     * speech-to-text price, ₹30 an hour (as `knowledge.transcribeDailyCapPaise` counts it). Its
+     * text to speech and LiveKit's minutes are not counted until the vendors' quotes give them
+     * (flagged for the owner, docs/03-roadmap-appendix/phase2.md §10).
+     */
+    speechPaisePerMinute: 50,
   },
 
   /**

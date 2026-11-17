@@ -421,7 +421,8 @@
     "ask_interrupted": "The answer did not arrive. Check your connection and ask again.",
     "voice_unavailable": "Talking to Shakti is not set up yet. Type your question in Ask the Business for now.",
     "voice_cap_reached": "You have used today's time for talking to Shakti. You can talk again tomorrow.",
-    "voice_session_ended": "This talk with Shakti has ended. Start a new one to go on."
+    "voice_session_ended": "This talk with Shakti has ended. Start a new one to go on.",
+    "voice_recording_refused": "This talk with Shakti cannot keep a recording. Only a Teach session you agreed to record keeps one, once."
   },
   "auth": {
     "signIn": {
@@ -5560,6 +5561,12 @@
       "keepIt": "Keep it",
       "question": "Delete this conversation and all its answers?",
       "done": "Conversation deleted."
+    }
+  },
+  "voice": {
+    "recording": {
+      "fileName": "Teach session {date}.wav",
+      "title": "Teach session of {date}"
     }
   }
 }

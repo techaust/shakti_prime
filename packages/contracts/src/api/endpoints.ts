@@ -42,6 +42,9 @@ import { AskInput, AskStreamEvent } from '../ask';
 import { RealtimeTokenRequest, RealtimeTokenResponse } from './realtime';
 import { SyncPullQuery, SyncPullResponse, SyncPushRequest, SyncPushResponse } from './sync';
 import {
+  VoiceRecordingCompleteRequest,
+  VoiceRecordingCompleteResponse,
+  VoiceRecordingRequest,
   VoiceSessionRequest,
   VoiceSessionResponse,
   VoiceTokenRequest,
@@ -216,6 +219,25 @@ export const API_ENDPOINTS = {
     request: VoiceTokenRequest,
     response: VoiceTokenResponse,
     errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // A Teach session's recording, uploaded by the worker straight to the file store, then filed.
+  'voice.recording': {
+    method: 'POST',
+    path: '/voice/recording',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceRecordingRequest,
+    response: FilePresignResponse,
+    errors: ['validation_failed', ...AUTHED, 'conflict', 'integration_unavailable'],
+  },
+  'voice.recording.complete': {
+    method: 'POST',
+    path: '/voice/recording/complete',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceRecordingCompleteRequest,
+    response: VoiceRecordingCompleteResponse,
+    errors: ['validation_failed', ...AUTHED, 'not_found', 'conflict', 'integration_unavailable'],
   },
   'sync.pull': {
     method: 'GET',

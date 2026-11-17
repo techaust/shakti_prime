@@ -7,6 +7,9 @@ import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 export interface VoiceSessionFacts {
   entityId: number | null;
   entityIds: number[];
+  mode: string;
+  consentRecording: boolean;
+  audioFileId: string | null;
   startedAt: Date;
   endedAt: Date | null;
 }
@@ -49,6 +52,9 @@ export async function voiceSessionOf(
     .select({
       entityId: vs.entityId,
       entityIds: vs.entityIds,
+      mode: vs.mode,
+      consentRecording: vs.consentRecording,
+      audioFileId: vs.audioFileId,
       startedAt: vs.startedAt,
       endedAt: vs.endedAt,
     })
@@ -62,4 +68,13 @@ export async function voiceSessionOf(
 export async function liveVoiceSession(context: RequestContext, now: Date): Promise<boolean> {
   const session = await voiceSessionOf(context.tx, context.principal);
   return session !== undefined && voiceSessionLive(session, now);
+}
+
+/** The voice principal's session while it is its person's own and live; undefined otherwise. */
+export async function liveVoiceSessionFacts(
+  context: RequestContext,
+  now: Date,
+): Promise<VoiceSessionFacts | undefined> {
+  const session = await voiceSessionOf(context.tx, context.principal);
+  return session !== undefined && voiceSessionLive(session, now) ? session : undefined;
 }

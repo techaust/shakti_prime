@@ -285,6 +285,26 @@ export const API_FIXTURES: Record<
       expiresAt: '2026-09-27T05:11:40.000Z',
     },
   },
+  'voice.recording': {
+    request: {
+      size: 9_600_044,
+      sha256: 'b4e2c3d4e5b6a7980112233445566778899aabbccddeeff00112233445566779',
+    },
+    response: {
+      fileId: IDS.audio,
+      method: 'PUT',
+      uploadUrl: `https://shakti-prime-staging-files.s3.ap-south-1.amazonaws.com/1/knowledge/${IDS.audio}.wav?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900`,
+      headers: {
+        'content-type': 'audio/wav',
+        'x-amz-checksum-sha256': 'tOLD1OW2p5gBEiM0RVZneImaq7zN7v8AESIzRFVmd3k=',
+      },
+      expiresAt: '2026-09-27T05:21:40.000Z',
+    },
+  },
+  'voice.recording.complete': {
+    request: { fileId: IDS.audio },
+    response: { fileId: IDS.audio, knowledgeFileId: IDS.knowledgeFile, linked: true },
+  },
   'sync.pull': {
     query: { since: 'c_2026-09-26T18:30:00.000000Z_0199a0c4', limit: '500' },
     response: {
