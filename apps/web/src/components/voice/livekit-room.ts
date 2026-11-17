@@ -4,14 +4,13 @@ import type {
   VoiceRoomMessage,
   VoiceSessionResponse,
 } from '@shakti/contracts';
+import { PLAYBOOK_AUDIENCE_VALUES, PLAYBOOK_TYPE_VALUES } from '../../screens/contract-values';
 import {
   ASK_SOURCE_KIND_VALUES,
-  PLAYBOOK_AUDIENCE_VALUES,
-  PLAYBOOK_TYPE_VALUES,
   VOICE_END_REASON_VALUES,
   VOICE_STATE_VALUES,
   VOICE_TOPIC,
-} from '../../screens/contract-values';
+} from '../../screens/voice-values';
 import type { VoiceConnection, VoiceRoom } from './room';
 
 /** A participant as the adapter reads it: only the voice worker (LiveKit's agent kind) speaks. */

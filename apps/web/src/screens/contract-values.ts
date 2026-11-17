@@ -1,5 +1,4 @@
 import type {
-  AskSourceKind,
   AccountType,
   ActivityType,
   AgentActionState,
@@ -90,10 +89,7 @@ import type {
   UploadContentType,
   UserSort,
   UserStatus,
-  VOICE_DATA_TOPIC,
-  VoiceRoomMessage,
   VoiceSessionMode,
-  VoiceState,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -188,37 +184,6 @@ export const VOICE_SESSION_MODE_VALUES = [
   'teach',
   'ask',
 ] as const satisfies readonly VoiceSessionMode[];
-
-/** The room's data channel topic the voice worker and `/voice` speak on (`VOICE_DATA_TOPIC`). */
-export const VOICE_TOPIC = 'shakti' satisfies typeof VOICE_DATA_TOPIC;
-
-/** What the voice worker is doing, as the listening light shows it (`VOICE_STATES`). */
-export const VOICE_STATE_VALUES = [
-  'listening',
-  'thinking',
-  'speaking',
-  'push_to_talk',
-] as const satisfies readonly VoiceState[];
-
-/** Why the voice worker ended a talk (`VOICE_END_REASONS`). */
-export const VOICE_END_REASON_VALUES = [
-  'time_up',
-  'day_limit',
-  'ended',
-  'failed',
-] as const satisfies readonly Extract<VoiceRoomMessage, { type: 'ended' }>['reason'][];
-
-/** The records an answer cites (`ASK_SOURCE_KINDS`). */
-export const ASK_SOURCE_KIND_VALUES = [
-  'knowledge_file',
-  'playbook_directive',
-  'pipeline_stage',
-  'opportunity',
-  'quote',
-  'sales_order',
-  'account',
-  'item',
-] as const satisfies readonly AskSourceKind[];
 
 /** A company's channels (`ENTITY_CHANNEL_KINDS`), in the order Settings › Companies lists them. */
 export const ENTITY_CHANNEL_KINDS = [

@@ -151,10 +151,6 @@ import {
   CALL_PURPOSE_VALUES,
   PROVIDER_CALL_STATUS_VALUES,
   VOICE_SESSION_MODE_VALUES,
-  VOICE_TOPIC,
-  VOICE_STATE_VALUES,
-  VOICE_END_REASON_VALUES,
-  ASK_SOURCE_KIND_VALUES,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -236,6 +232,12 @@ import {
   USER_SORT_COLUMNS,
   USER_STATUSES,
 } from './contract-values';
+import {
+  ASK_SOURCE_KIND_VALUES,
+  VOICE_END_REASON_VALUES,
+  VOICE_STATE_VALUES,
+  VOICE_TOPIC,
+} from './voice-values';
 
 describe('the contract values copied for the browser', () => {
   it('list every code of their schema, in the same order', () => {
