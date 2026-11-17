@@ -239,25 +239,18 @@ describe('loadAgentSettings', () => {
       expect(copilot?.spentTodayPaise).toBeGreaterThanOrEqual(40);
       // Each of the Co-pilot's action types (its follow-ups, and with A2 the facts it heard and
       // its WhatsApp follow-ups) takes the company's setting.
-      expect(copilot?.actionTypes).toEqual(
-        ['crm.task.create', 'crm.lead.qualification.set', 'messaging.template.request'].map(
-          (actionType) =>
-            expect.objectContaining({
-              actionType,
-              autonomy: null,
-              effective: {
-                autonomy: 'needs_approval',
-                source: 'agent_company',
-                automaticHeld: false,
-              },
-              inherited: {
-                autonomy: 'needs_approval',
-                source: 'agent_company',
-                automaticHeld: false,
-              },
-            }),
-        ),
-      );
+      expect(copilot?.actionTypes.map((t) => t.actionType)).toEqual([
+        'crm.task.create',
+        'crm.lead.qualification.set',
+        'messaging.template.request',
+      ]);
+      for (const type of copilot?.actionTypes ?? []) {
+        expect(type).toMatchObject({
+          autonomy: null,
+          effective: { autonomy: 'needs_approval', source: 'agent_company', automaticHeld: false },
+          inherited: { autonomy: 'needs_approval', source: 'agent_company', automaticHeld: false },
+        });
+      }
       expect(settings.agents.find((a) => a.agent === 'agent:chief')).toMatchObject({
         enabled: true,
         stopped: false,
