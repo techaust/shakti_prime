@@ -126,6 +126,9 @@ export interface WhatsAppHandlerDeps {
 /** A message the platform answers itself: STATUS, or a code while one waits on the chat. */
 type PlatformAnswer = { kind: 'status' } | { kind: 'code'; code: string };
 
+/** What the chat keeps of a one-time code the customer sent back: never the digits. */
+const CODE_SHOWN = '••••••';
+
 /** How long the note that a message was answered is kept, so a repeat never answers it twice. */
 const ANSWERED_SECONDS = 24 * 60 * 60;
 
@@ -378,7 +381,8 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       waId: message.from,
       providerMessageId: message.id,
       kind: read.kind,
-      body: read.body,
+      // A one-time code is never kept: the chat shows that one was sent, not which.
+      body: platform?.kind === 'code' ? CODE_SHOWN : read.body,
       buttonPayload: read.buttonPayload,
       sentAt: instant(message.timestamp),
       handledBy: NEW_THREADS,

@@ -48,7 +48,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-54 types, 12 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+54 types, 16 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -147,9 +147,9 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue`, `messaging.milestone.send` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
-| [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread. | `messaging.inbound.record` | none |
-| [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. | `messaging.inbound.record` | none |
+| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP, a milestone, an answer to a quote button, a code or STATUS); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue`, `messaging.milestone.send`, `messaging.answer.queue` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
+| [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread, `platform` that the platform answers it itself (STATUS or a one-time code). | `messaging.inbound.record` | none |
+| [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. The platform answers a quote's Accept and Talk to us buttons. | `messaging.inbound.record` | `POST /api/v1/workers/outbox/messaging.button.pressed` (QStash URL group `evt-messaging.button.pressed`) |
 
 ### calls
 
@@ -162,13 +162,13 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`sales.quote.created`](#salesquotecreated) | A quote was made for a lead, priced from the Price Master and taxed by the tax engine; `supersedesId` names the quote a re-quote replaced. | `sales.quote.create`, `sales.quote.requote` | none |
-| [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`. | `sales.quote.send` | none |
+| [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`, which the platform sends as the `quote_sent` milestone. | `sales.quote.send` | `POST /api/v1/workers/outbox/sales.quote.sent` (QStash URL group `evt-sales.quote.sent`) |
 | [`sales.quote.superseded`](#salesquotesuperseded) | A quote was replaced by a re-quote at current prices (`supersededById`). | `sales.quote.requote` | none |
 | [`sales.quote.withdrawn`](#salesquotewithdrawn) | A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose order was cancelled. | `sales.order.cancel`, `sales.quote.accept`, `sales.quote.accept_remote`, `sales.quote.withdraw` | none |
 | [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
-| [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, or on WhatsApp by its Accept button and, for a large quote, a code) and became the order `orderId`. | `sales.quote.accept`, `sales.quote.accept_remote` | none |
+| [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, or on WhatsApp by its Accept button and, for a large quote, a code) and became the order `orderId`; `acceptedBy` is the person who recorded it or the platform. The notify worker tells the lead's owner. | `sales.quote.accept`, `sales.quote.accept_remote` | `POST /api/v1/workers/outbox/sales.quote.accepted` (QStash URL group `evt-sales.quote.accepted`) |
 | [`sales.order.created`](#salesordercreated) | A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one. | `sales.quote.accept`, `sales.quote.accept_remote`, `sales.order.create` | none |
-| [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. | `sales.order.confirm` | none |
+| [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.confirmed` (QStash URL group `evt-sales.order.confirmed`) |
 | [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.credit_held` (QStash URL group `evt-sales.order.credit_held`) |
 | [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
 | [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. | `sales.order.cancel` | none |
@@ -462,6 +462,7 @@ No fields apart from `v`.
 | `kind` | one of `text`, `media` |
 | `accountId` | id or null |
 | `firstMessage` | true or false |
+| `platform` | true or false |
 
 ### messaging.button.pressed
 
@@ -523,6 +524,7 @@ No fields apart from `v`.
 | `opportunityId` | id |
 | `orderId` | id |
 | `acceptedVia` | one of `whatsapp_reply`, `whatsapp_otp`, `signed_upload` |
+| `acceptedBy` | id |
 
 ### sales.order.created
 

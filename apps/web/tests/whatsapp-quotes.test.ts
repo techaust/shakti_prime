@@ -13,6 +13,8 @@ import {
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  createTestUser,
+  principalFor,
   testPhone,
   whatsappChannel,
   type WhatsAppChannelFixture,
@@ -110,7 +112,9 @@ async function purposeTemplate(purpose: 'acceptance_code' | 'quote_expired'): Pr
 
 beforeAll(async () => {
   const teamId = await createTestTeam(E, 's3 web team');
-  lc = await createTestPrincipal('tele_caller_lc', [E], { teamId });
+  // A person with a user row, so the notices of their leads reach them.
+  const user = await createTestUser([{ entityId: E, roleKey: 'tele_caller_lc', teamId }]);
+  lc = principalFor('tele_caller_lc', [E], { id: user.id, teamId });
   exec = await createTestPrincipal('executive');
   channel = await whatsappChannel(E);
   await asMigrator((m) =>
@@ -197,8 +201,11 @@ function handlerOf(kv: KeyValue, now: () => Date = () => new Date()) {
   });
 }
 
-/** A sized rooftop lead of the LC on the test tier, with a WhatsApp chat and consent. */
-async function customerOnWhatsApp(): Promise<Customer> {
+/**
+ * A sized rooftop lead of the LC on the test tier, with a WhatsApp chat and consent; a `large` one
+ * is sized for 20 modules, so its quote passes the code's value.
+ */
+async function customerOnWhatsApp(large = false): Promise<Customer> {
   const phone = testPhone();
   const lead = await run<{ id: string; account: { id: string }; contact: { id: string } | null }>(
     lc,
@@ -217,7 +224,9 @@ async function customerOnWhatsApp(): Promise<Customer> {
     opportunityId: lead.id,
     sizing: {
       kind: 'rooftop',
-      inputs: { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
+      inputs: large
+        ? { monthlyUnitsKwh: 1500, roofAreaSqm: 160, sanctionedLoadKw: 15 }
+        : { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
     },
   });
   const waId = `91${phone.replace(/^\+?91/, '')}`;
@@ -516,7 +525,7 @@ describe('Accept pressed on WhatsApp (SAL-05)', () => {
 describe('the one-time code from ₹2,00,000 (question 5)', () => {
   /** A large quote pressed, its code sent; the code as the worker sends it. */
   async function codeSent(kv: KeyValue) {
-    const customer = await customerOnWhatsApp();
+    const customer = await customerOnWhatsApp(true);
     // 20 test modules at the test price and rate: over the code's value.
     const { quote, accept } = await quoteOnChat(customer, 20);
     expect(await press(kv, customer.waId, accept)).toBe('code_sent');
@@ -539,6 +548,12 @@ describe('the one-time code from ₹2,00,000 (question 5)', () => {
     expect(await write(kv, customer, code)).toMatchObject({ platform: true });
     expect(await quoteRow(quote.id)).toEqual({ state: 'accepted', accepted_via: 'whatsapp_otp' });
     expect(await ordersOf(quote.id)).toBe(1);
+    // The code is kept nowhere: not with the code's message, nor with the customer's reply.
+    const kept = await asMigrator(
+      (m) => m`select id from whatsapp_messages where thread_id = ${customer.threadId}
+                 and (body_masked like ${`%${code}%`} or template_params::text like ${`%${code}%`})`,
+    );
+    expect(kept).toEqual([]);
   });
 
   it('accepts nothing after a wrong code three times, the right one included', async () => {

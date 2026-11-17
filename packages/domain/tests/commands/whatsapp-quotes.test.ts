@@ -19,6 +19,7 @@ import {
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  createTestUser,
   principalFor,
   testPhone,
   whatsappChannel,
@@ -250,7 +251,9 @@ async function ordersOf(quoteId: string): Promise<number> {
 
 beforeAll(async () => {
   const teamId = await createTestTeam(E, 's3 team');
-  lc = await createTestPrincipal('tele_caller_lc', [E], { teamId });
+  // A person with a user row, so the notices of their leads reach them.
+  const user = await createTestUser([{ entityId: E, roleKey: 'tele_caller_lc', teamId }]);
+  lc = principalFor('tele_caller_lc', [E], { id: user.id, teamId });
   exec = await createTestPrincipal('executive');
   execOther = await createTestPrincipal('executive', [1]);
   gm = await createTestPrincipal('general_manager', [E]);
