@@ -30,7 +30,7 @@ function isPerson(participant: RemoteParticipant | undefined): boolean {
  * LiveKit's `participant_left` event carries to the BOS. Not loaded by the tests, which use
  * `fakeRoom()`: this module needs the native LiveKit binding.
  */
-export async function liveKitRoom(room: Room): Promise<RoomPort> {
+export function liveKitRoom(room: Room): RoomPort {
   const local = room.localParticipant;
   if (local === undefined) throw new Error('the worker is not connected to the room');
   const sources = new Map<number, AudioSource>();

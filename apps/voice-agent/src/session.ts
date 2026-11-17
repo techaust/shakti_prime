@@ -304,6 +304,11 @@ export class VoiceSession {
     return this.ttsStream;
   }
 
+  /** Whether a turn was stopped or the session ended, read afresh after every wait. */
+  private stopped(signal: AbortSignal): boolean {
+    return signal.aborted || this.ended;
+  }
+
   /** Captions a sentence and speaks it, unless the turn was stopped first. */
   private async speak(sentence: string, signal: AbortSignal, times?: TurnTimes): Promise<void> {
     if (signal.aborted || this.ended) return;
@@ -312,7 +317,7 @@ export class VoiceSession {
     if (stream === undefined) return;
     try {
       for await (const chunk of stream.speak(sentence)) {
-        if (signal.aborted || this.ended) return;
+        if (this.stopped(signal)) return;
         if (times !== undefined) times.firstChunkAt ??= chunk.atMs;
         if (!this.speaking) {
           this.speaking = true;

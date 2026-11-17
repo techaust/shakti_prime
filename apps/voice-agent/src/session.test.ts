@@ -84,7 +84,9 @@ function fakeStt(options: { failOpen?: boolean } = {}) {
         end: () => {
           ended += 1;
         },
-        close: () => events.close(),
+        close: () => {
+          events.close();
+        },
         events,
       });
     },
@@ -175,12 +177,12 @@ describe('a spoken turn', () => {
     const stt = fakeStt();
     const { tts, spoken } = fakeTts(clock, 120, (ms) => clock.advance(ms));
     const responder: Responder = {
-      respond: async (_text, turn) => {
+      respond: (_text, turn) => {
         clock.advance(400);
         turn.onSentence('Ji, 5 HP pump stock mein hai.');
         clock.advance(300);
         turn.onSentence('Kal dispatch ho jayega.');
-        return { usage: { ...NO_USAGE, inputTokens: 1_000_000 } };
+        return Promise.resolve({ usage: { ...NO_USAGE, inputTokens: 1_000_000 } });
       },
     };
     const { room, session } = start({ responder, stt: stt.stt, tts, clock });

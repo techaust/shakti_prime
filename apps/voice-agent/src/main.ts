@@ -31,14 +31,15 @@ export default defineAgent({
       await ctx.room.disconnect();
       return;
     }
-    const room = await liveKitRoom(ctx.room);
+    const room = liveKitRoom(ctx.room);
     const config = workerConfig(metadata.model);
     const log = (event: string, fields: Record<string, unknown>) => {
       console.warn(JSON.stringify({ event, sessionId: metadata.sessionId, ...fields }));
     };
-    let session: VoiceSession | undefined;
+    // The BOS refusing the token ends the session, which is made just below.
+    const ending: { session?: VoiceSession } = {};
     const bos = new BosClient(metadata.apiBase, metadata.bosToken, () => {
-      void session?.end('ended');
+      void ending.session?.end('ended');
     });
     const responder =
       metadata.mode === 'ask'
@@ -49,7 +50,7 @@ export default defineAgent({
               claudeReplyModel(config.claude),
               config.drafting === undefined ? undefined : claudeReplyModel(config.drafting),
             );
-    session = new VoiceSession({
+    const session = new VoiceSession({
       room,
       metadata,
       bos,
@@ -70,6 +71,7 @@ export default defineAgent({
         : {}),
       log,
     });
+    ending.session = session;
     bos.start();
     await session.run();
   },
