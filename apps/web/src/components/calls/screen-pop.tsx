@@ -134,7 +134,9 @@ export function ScreenPop({
   return (
     <section
       aria-labelledby={heading}
-      className="bg-surface border-border-strong shadow-2 fixed bottom-4 left-4 z-40 flex w-96 max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-lg border p-4"
+      // Under the top bar on the right on a wide screen, where nothing of the shell sits and the
+      // toasts (bottom right) never cover it; at the foot on a phone, where the toasts are on top.
+      className="bg-surface border-border-strong shadow-2 fixed inset-x-4 bottom-4 z-40 flex flex-col gap-3 rounded-lg border p-4 md:inset-x-auto md:top-16 md:right-6 md:bottom-auto md:w-96"
     >
       <div className="flex items-start gap-3">
         <span
@@ -178,7 +180,7 @@ export function ScreenPop({
               {inView && settings.mayOpenCustomers ? (
                 <Link
                   href={customerHref(c.accountId, pop.entityId)}
-                  className="text-accent-text underline-offset-2 hover:underline"
+                  className="text-accent-text inline-flex min-h-8 items-center underline-offset-2 hover:underline"
                 >
                   {c.name}
                 </Link>

@@ -91,11 +91,8 @@ test.describe('the screen-pop as a tele-caller', () => {
     await expect(page).toHaveURL(/\/customers\/[0-9a-f-]+\?company=1$/);
     await expect(page.getByRole('heading', { name: one.name, level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);
-    // The page behind grows with the journeys' runs; the card and the shell are pictured.
-    await snap(page, 'screen-pop-customer', {
-      fullPage: false,
-      mask: [page.locator('#main-content')],
-    });
+    // The card alone: the page behind it grows with the journeys' runs.
+    await snap(page, 'screen-pop-customer', { element: card });
     await (await hydrated(card.getByRole('button', { name: 'Close the incoming call' }))).click();
     await expect(card).toHaveCount(0);
   });
@@ -112,10 +109,7 @@ test.describe('the screen-pop as a tele-caller', () => {
     // Nothing opens by itself: the page is still the caller's own.
     await expect(page).toHaveURL(/\/home$/);
     await expectNoAxeViolations(page);
-    await snap(page, 'screen-pop-several', {
-      fullPage: false,
-      mask: [page.locator('#main-content')],
-    });
+    await snap(page, 'screen-pop-several', { element: card });
     await list.getByRole('link', { name: shared.names[1] }).click();
     await expect(page.getByRole('heading', { name: shared.names[1], level: 1 })).toBeVisible();
   });
@@ -135,10 +129,8 @@ test.describe('the screen-pop as a tele-caller', () => {
     // The whole number shows only in the form's own box, never on the card.
     await expect(card).not.toContainText(number.replace(' ', ''));
     await expectNoAxeViolations(page);
-    await snap(page, 'screen-pop-new-lead', {
-      fullPage: false,
-      mask: [page.locator('#main-content'), card.getByRole('alert')],
-    });
+    // The number's last four digits change with every run.
+    await snap(page, 'screen-pop-new-lead', { element: card, mask: [card.getByRole('alert')] });
   });
 });
 
