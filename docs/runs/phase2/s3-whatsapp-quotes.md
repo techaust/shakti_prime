@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): money (a quote accepted into an order) and a platform-only grant |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | early check reported |
-| Next step | the lead reads the early check diff |
+| State | early check passed (lead, 17-11) |
+| Next step | a builder resumes steps 5 to 9 on a fresh slot database |
 
 ## Brief
 Read first:
@@ -104,3 +104,5 @@ Steps 1 to 4 of the brief, committed and pushed on `feat/s3-whatsapp-quotes`. Sk
 ## Review
 
 ## Integration
+### Lead's read of the early check, 17-11-2026
+Passed. `app.next_document_no()` keeps 0006's body (with 0024's hardening as `search_path = ''` and qualified names) and adds only the platform's sales-order case; the definers check their grants in their bodies. Decisions 1 to 11 accepted as built: the key `sales.quote.accept.remote`, the quote sent through the milestone registry, held milestones never sent later. Slot 1's database is recreated before steps 5 to 9 (decision 11), so 0189 and 0190 are applied clean then.
