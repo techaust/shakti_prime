@@ -895,8 +895,8 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       knowledgeFileId: newId(),
       transcript: 'Refused transcript',
     },
-    // A quote accepted on WhatsApp and a customer update sent (docs/03-roadmap-appendix/phase2.md
-    // §7.1): the platform's alone, never an agent's.
+    // A quote accepted on WhatsApp, a customer update sent and the platform's own answers on a chat
+    // (docs/03-roadmap-appendix/phase2.md §7.1): the platform's alone, never an agent's.
     'sales.quote.accept_remote': {
       entityId: 1,
       quoteId: newId(),
@@ -909,6 +909,12 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       subjectKind: 'sales_order',
       subjectId: newId(),
       values: ['SO-1', 'Rs 1'],
+    },
+    'messaging.answer.queue': {
+      entityId: 1,
+      threadId: newId(),
+      messageId: newId(),
+      answer: { kind: 'text', body: 'Refused answer' },
     },
   };
 

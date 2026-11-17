@@ -8,6 +8,8 @@ import {
   type SalesOrderDto,
   type WhatsAppMilestoneDto,
   type WhatsAppMilestoneSent,
+  type NoticeBatchDto,
+  type WhatsAppAnswerQueued,
   type WhatsAppTemplateDto,
 } from '@shakti/contracts';
 import {
@@ -29,10 +31,12 @@ import { failureOf, runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { recordSizing } from '../../src/commands/crm/record-sizing';
 import { setAccountTier } from '../../src/commands/crm/set-account-tier';
+import { queueWhatsAppAnswer } from '../../src/commands/messaging/answers';
 import {
   sendWhatsAppMilestone,
   setWhatsAppMilestone,
 } from '../../src/commands/messaging/milestones';
+import { notifyEvent } from '../../src/commands/notifications/notify';
 import {
   recordInboundWhatsApp,
   recordWhatsAppOptOut,
@@ -46,6 +50,7 @@ import { confirmSalesOrder } from '../../src/commands/sales/confirm-order';
 import { createQuote } from '../../src/commands/sales/create-quote';
 import { sendQuote } from '../../src/commands/sales/send-quote';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { readInboundFacts, readSendExtras } from '../../src/queries/messaging/answers';
 import { readMilestoneSubject, readStatusSummary } from '../../src/queries/messaging/milestones';
 import { getSalesOrder } from '../../src/queries/sales/list-orders';
 
@@ -710,5 +715,266 @@ describe('STATUS (WA-03)', () => {
       `order:${accepted.soNo}:draft`,
     ]);
     expect(lines.some((l) => l.ref === theirs.quote.quoteNo)).toBe(false);
+  });
+});
+
+/** The company's template of a platform purpose, registered and approved once for the suites. */
+async function purposeTemplate(
+  entityId: number,
+  purpose: 'acceptance_code' | 'quote_expired',
+): Promise<string> {
+  const [category, params] =
+    purpose === 'acceptance_code' ? ['authentication', ['Code']] : ['utility', ['Quote']];
+  await asMigrator(async (m) => {
+    await m`insert into whatsapp_templates (id, entity_id, name, label, category, status, params, purpose, created_by)
+      values (${newId()}, ${entityId}, ${`s3_${purpose}_${String(entityId)}`}, 'S3 test answer',
+              ${category}, 'approved', ${m.json(params)}, ${purpose}, ${exec.id})
+      on conflict do nothing`;
+    await m`update whatsapp_templates set status = 'approved'
+             where entity_id = ${entityId} and purpose = ${purpose}`;
+  });
+  const [row] = await asMigrator(
+    (m) => m<{ name: string }[]>`select name from whatsapp_templates
+                                   where entity_id = ${entityId} and purpose = ${purpose}`,
+  );
+  return row?.name ?? '';
+}
+
+async function messageRow(id: string) {
+  const [row] = await asMigrator(
+    (m) => m<
+      {
+        kind: string;
+        template_name: string | null;
+        template_params: unknown;
+        body_masked: string | null;
+        status: string;
+      }[]
+    >`select kind, template_name, template_params, body_masked, status
+        from whatsapp_messages where id = ${id}`,
+  );
+  return row;
+}
+
+describe('messaging.answer.queue (docs/03-roadmap-appendix/phase2.md §7.1)', () => {
+  it('queues a text, the code with no value kept, and the lapsed-quote answer, each with its event', async () => {
+    const { threadId, quote } = await whatsappQuote();
+    const codeTemplate = await purposeTemplate(E, 'acceptance_code');
+    const expiredTemplate = await purposeTemplate(E, 'quote_expired');
+    const answer = (body: object, messageId = newId()) =>
+      run<WhatsAppAnswerQueued>(workers(), queueWhatsAppAnswer, {
+        entityId: E,
+        threadId,
+        messageId,
+        answer: body,
+      });
+
+    const text = await answer({ kind: 'text', body: 'Your quotes and orders with us:' });
+    expect(text.outcome).toBe('queued');
+    expect(await messageRow(text.messageId ?? '')).toEqual({
+      kind: 'text',
+      template_name: null,
+      template_params: null,
+      body_masked: 'Your quotes and orders with us:',
+      status: 'queued',
+    });
+    const codeId = newId();
+    expect(await answer({ kind: 'acceptance_code' }, codeId)).toEqual({
+      outcome: 'queued',
+      messageId: codeId,
+    });
+    // The code is never kept: its message holds no value, and the worker makes it as it sends.
+    expect(await messageRow(codeId)).toMatchObject({
+      kind: 'template',
+      template_name: codeTemplate,
+      template_params: [],
+    });
+    const extras = await asPrincipal(workers(), (context) => readSendExtras(context, codeId));
+    expect(extras).toEqual({ milestone: null, templatePurpose: 'acceptance_code', file: null });
+    const expired = await answer({ kind: 'quote_expired', quoteNo: quote.quoteNo });
+    expect(await messageRow(expired.messageId ?? '')).toMatchObject({
+      template_name: expiredTemplate,
+      template_params: [quote.quoteNo],
+    });
+    const requested = (await eventsOf(threadId)).filter(
+      (e) => e.type === 'messaging.message.requested',
+    );
+    expect(requested.map((e) => (e.payload as { messageId: string }).messageId)).toEqual(
+      expect.arrayContaining([text.messageId, codeId, expired.messageId]),
+    );
+
+    await run(workers(), recordWhatsAppOptOut, {
+      entityId: E,
+      threadId,
+      at: new Date().toISOString(),
+    });
+    expect(await answer({ kind: 'text', body: 'Anything' })).toEqual({
+      outcome: 'opted_out',
+      messageId: null,
+    });
+  });
+
+  it('answers that a company without the code template has none to send', async () => {
+    const four = await whatsappChannel(4);
+    const recorded = await run<InboundWhatsAppRecorded>(workers([4]), recordInboundWhatsApp, {
+      phoneNumberId: four.phoneNumberId,
+      waId: `91${testPhone().replace(/^\+?91/, '')}`,
+      providerMessageId: `wamid.${newId()}`,
+      kind: 'text',
+      body: 'Hello',
+      buttonPayload: null,
+      sentAt: new Date().toISOString(),
+      handledBy: 'people',
+    });
+    // No suite registers a code template for company 4.
+    expect(
+      await run(workers([4]), queueWhatsAppAnswer, {
+        entityId: 4,
+        threadId: recorded.threadId,
+        messageId: newId(),
+        answer: { kind: 'acceptance_code' },
+      }),
+    ).toEqual({ outcome: 'no_template', messageId: null });
+  });
+
+  it('is the platform’s alone, and refused for a company outside the request', async () => {
+    const { threadId } = await whatsappQuote();
+    const input = {
+      entityId: E,
+      threadId,
+      messageId: newId(),
+      answer: { kind: 'text', body: 'Hello' },
+    };
+    for (const who of [lc, exec, gm]) {
+      expect(await failure(who, queueWhatsAppAnswer, input)).toMatchObject({ code: 'forbidden' });
+    }
+    expect(await failure(workers([1]), queueWhatsAppAnswer, input)).toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await messageRow(input.messageId)).toBeUndefined();
+  });
+});
+
+describe('the platform’s reads of a press and a send (§7.1)', () => {
+  it('reads an inbound message’s chat, number and button, never another company’s', async () => {
+    const customer = await sizedLead();
+    const recorded = await run<InboundWhatsAppRecorded>(workers(), recordInboundWhatsApp, {
+      phoneNumberId: channel.phoneNumberId,
+      waId: customer.waId,
+      providerMessageId: `wamid.${newId()}`,
+      kind: 'button',
+      body: 'Accept',
+      buttonPayload: 'q1.a.button',
+      sentAt: new Date().toISOString(),
+      handledBy: 'people',
+    });
+    expect(
+      await asPrincipal(workers(), (context) => readInboundFacts(context, recorded.messageId)),
+    ).toEqual({
+      messageId: recorded.messageId,
+      entityId: E,
+      threadId: recorded.threadId,
+      kind: 'button',
+      buttonPayload: 'q1.a.button',
+      waId: customer.waId,
+      accountId: customer.accountId,
+    });
+    expect(
+      await asPrincipal(workers([1]), (context) => readInboundFacts(context, recorded.messageId)),
+    ).toBeNull();
+    expect(await eventsOf(recorded.threadId)).toContainEqual({
+      type: 'messaging.button.pressed',
+      payload: {
+        v: 1,
+        messageId: recorded.messageId,
+        accountId: customer.accountId,
+        firstMessage: true,
+      },
+    });
+  });
+
+  it('marks a message the platform answers, so no agent drafts a reply to it', async () => {
+    const customer = await sizedLead();
+    const recorded = await run<InboundWhatsAppRecorded>(workers(), recordInboundWhatsApp, {
+      phoneNumberId: channel.phoneNumberId,
+      waId: customer.waId,
+      providerMessageId: `wamid.${newId()}`,
+      kind: 'text',
+      body: 'STATUS',
+      buttonPayload: null,
+      sentAt: new Date().toISOString(),
+      handledBy: 'people',
+      platform: true,
+    });
+    expect(await eventsOf(recorded.threadId)).toContainEqual({
+      type: 'messaging.message.received',
+      payload: {
+        v: 1,
+        messageId: recorded.messageId,
+        kind: 'text',
+        accountId: customer.accountId,
+        firstMessage: true,
+        platform: true,
+      },
+    });
+  });
+
+  it('reads a milestone message’s quote and PDF for the worker', async () => {
+    const { threadId, quote } = await whatsappQuote();
+    const sent = await run<WhatsAppMilestoneSent>(workers(), sendWhatsAppMilestone, {
+      entityId: E,
+      milestone: 'quote_sent',
+      subjectKind: 'quote',
+      subjectId: quote.id,
+      threadId,
+      values: [quote.quoteNo, 'Rs 67,200.00', '01-12-2026'],
+    });
+    expect(
+      await asPrincipal(workers(), (context) => readSendExtras(context, sent.messageId ?? '')),
+    ).toEqual({
+      milestone: { name: 'quote_sent', subjectKind: 'quote', subjectId: quote.id },
+      templatePurpose: null,
+      file: {
+        bucket: 'local',
+        key: `${String(E)}/quote_pdf/${quote.pdfFileId ?? ''}`,
+        name: 'file',
+        status: 'ready',
+      },
+    });
+  });
+});
+
+describe('the notices of a quote (§7.1)', () => {
+  const notify = (input: object) =>
+    run<NoticeBatchDto>(workers(), notifyEvent, { entityId: E, eventId: newId(), ...input });
+
+  it('tells the lead’s owner once when a quote is accepted, unless they recorded it', async () => {
+    const { quote, threadId } = await whatsappQuote();
+    await acceptRemote(quote.id, threadId);
+    const accepted = { event: 'sales.quote.accepted', quoteId: quote.id };
+    expect(
+      await notify({ ...accepted, acceptedBy: lc.id }).then((b) => b.notices),
+    ).toEqual([]);
+    const batch = await notify({ ...accepted, acceptedBy: SYSTEM_WORKERS_PRINCIPAL_ID });
+    expect(batch.notices).toMatchObject([
+      { userId: lc.id, type: 'quote_accepted', subjectId: quote.id, payload: { quoteId: quote.id } },
+    ]);
+    expect(
+      (await notify({ ...accepted, acceptedBy: SYSTEM_WORKERS_PRINCIPAL_ID })).notices,
+    ).toEqual([]);
+  });
+
+  it('tells the owner once when Accept is pressed on a lapsed quote, never on an open one', async () => {
+    const open = await whatsappQuote();
+    const pressed = { event: 'messaging.button.pressed' };
+    expect((await notify({ ...pressed, quoteId: open.quote.id })).notices).toEqual([]);
+    await asMigrator(
+      (m) =>
+        m`update quotes set valid_until = now() - interval '1 minute' where id = ${open.quote.id}`,
+    );
+    expect((await notify({ ...pressed, quoteId: open.quote.id })).notices).toMatchObject([
+      { userId: lc.id, type: 'whatsapp_quote_expired', subjectId: open.quote.id },
+    ]);
+    expect((await notify({ ...pressed, quoteId: open.quote.id })).notices).toEqual([]);
   });
 });

@@ -52,6 +52,7 @@ import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
 import { ensureWhatsAppJourneys } from './whatsapp';
+import { ensureWhatsAppQuoteJourneys } from './whatsapp-quotes';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
@@ -887,6 +888,9 @@ await ensureWhatsAppJourneys(ids.executive ?? '');
 progress('the quotes');
 const quotes = await ensureQuoteJourneys(ids.executive ?? '');
 
+progress('the WhatsApp quotes');
+const whatsappQuotes = await ensureWhatsAppQuoteJourneys(ids.executive ?? '');
+
 progress('the orders and dealers');
 const orders = await ensureOrderJourneys(ids.executive ?? '');
 
@@ -1087,6 +1091,7 @@ const seeded: SeededUsers = {
   profileUsers,
   secondCompanyLead,
   quotes,
+  whatsappQuotes,
   orders,
   uat,
   recordings,

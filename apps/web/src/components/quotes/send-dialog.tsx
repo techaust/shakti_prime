@@ -97,7 +97,7 @@ export function SendDialog({
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           <DialogHeader>
             <DialogTitle>{t('title')}</DialogTitle>
-            <DialogDescription>{t('intro', { number: quote.quoteNo })}</DialogDescription>
+            <DialogDescription>{t('intro')}</DialogDescription>
           </DialogHeader>
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-1 font-medium">{t('how')}</legend>

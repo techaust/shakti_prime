@@ -144,7 +144,13 @@ import {
   readWhatsAppCounts,
   readWhatsAppThread,
 } from '../../src/queries/messaging/whatsapp';
-import { readMilestoneSubject, readStatusSummary } from '../../src/queries/messaging/milestones';
+import { readInboundFacts, readSendExtras } from '../../src/queries/messaging/answers';
+import {
+  listWhatsAppTemplateSettings,
+  readMilestoneSubject,
+  readStatusSummary,
+} from '../../src/queries/messaging/milestones';
+import { readQuoteWhatsAppReadiness } from '../../src/sales/quote-whatsapp';
 
 /** Ask's seeded records (an item with its cost side, a vault file, two rules), for its reads. */
 let askData: AskData;
@@ -306,6 +312,11 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
       threadId: null,
     }),
   readStatusSummary: (ctx) => readStatusSummary(ctx, newId()),
+  readInboundFacts: (ctx) => readInboundFacts(ctx, newId()),
+  readSendExtras: (ctx) => readSendExtras(ctx, newId()),
+  readQuoteWhatsAppReadiness: (ctx) =>
+    readQuoteWhatsAppReadiness(ctx, { entityId: 1, quoteId: newId() }),
+  listWhatsAppTemplateSettings: (ctx) => listWhatsAppTemplateSettings(ctx),
   listDealerCredit: (ctx) => listDealerCredit(ctx, { entityId: 1, limit: 20 }),
 };
 

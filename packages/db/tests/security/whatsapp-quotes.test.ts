@@ -18,7 +18,7 @@ import {
 } from '../../src/testing/index';
 
 // S3 WhatsApp quotes, milestones and STATUS (docs/03-roadmap-appendix/phase2.md §7.1, migrations
-// 0189 and 0190): the milestone map is read in its company and set only by the Executive's
+// 0189, 0190 and 0192): the milestone map is read in its company and set only by the Executive's
 // messaging.templates.write; the once-per-subject record is the platform's alone; only the
 // platform's sales.quote.accept.remote reaches the acceptance definers, which accept only a sent,
 // unexpired quote of the chat's own customer; STATUS lists only the chat's customer's records.
@@ -343,5 +343,111 @@ describe('app.status_summary() (STATUS, WA-03)', () => {
         ),
       ).toMatch(/messaging.process is required/);
     }
+  });
+});
+
+describe('the platform’s answers on a chat (migration 0192)', () => {
+  /** A template of company 1 with a purpose, or none, registered once for these tests. */
+  async function templateOf(purpose: string | null, params: string[]): Promise<string> {
+    const name = `s3t_${purpose ?? 'plain'}_${String(params.length)}`;
+    await asMigrator(
+      (m) => m`insert into whatsapp_templates (id, entity_id, name, label, category, status, params,
+                                               purpose, created_by)
+               values (${newId()}, 1, ${name}, 's3 test answer',
+                       ${purpose === 'acceptance_code' ? 'authentication' : 'utility'}, 'approved',
+                       ${m.json(params)}, ${purpose}, ${exec1.id})
+               on conflict do nothing`,
+    );
+    const [row] = await asMigrator(
+      (m) => m<{ name: string }[]>`select name from whatsapp_templates where entity_id = 1
+                                     and (name = ${name} or (${purpose}::text is not null and purpose = ${purpose}))
+                                   order by (name = ${name}) desc limit 1`,
+    );
+    return row?.name ?? name;
+  }
+
+  const answer = (
+    who: Principal,
+    thread: string,
+    kind: string,
+    template: string | null,
+    params: string | null,
+    body: string | null,
+  ) =>
+    rows<{ outcome: string; message_id: string | null }>(
+      who,
+      sql`select * from app.whatsapp_queue_answer(${thread}::uuid, ${newId()}::uuid, ${kind},
+                                                  ${template}, ${params}::jsonb, ${body})`,
+    );
+
+  it('queues a text or an answering template, never another template, and never the code', async () => {
+    const customer = await whatsappCustomer(1);
+    const thread = await openThread(customer);
+    const code = await templateOf('acceptance_code', ['Code']);
+    const plain = await templateOf(null, []);
+    const [text] = await answer(workers([1]), thread, 'text', null, null, 'Your quotes');
+    expect(text?.outcome).toBe('queued');
+    const [queued] = await answer(workers([1]), thread, 'template', code, '[]', null);
+    expect(queued?.outcome).toBe('queued');
+    // The code is never stored with its message.
+    expect(await failure(answer(workers([1]), thread, 'template', code, '["123456"]', null))).toMatch(
+      /the values of its purpose/,
+    );
+    // The platform's answers never send a template people or the milestones send.
+    expect(await failure(answer(workers([1]), thread, 'template', plain, '[]', null))).toMatch(
+      /not one the platform answers with/,
+    );
+    // Another company's request finds no chat of company 1.
+    expect(await answer(workers([2]), thread, 'text', null, null, 'Your quotes')).toEqual([]);
+  });
+
+  it('reads an inbound message and a queued message only for the platform, in their company', async () => {
+    const customer = await whatsappCustomer(1);
+    const thread = await openThread(customer);
+    const [inbound] = await asMigrator(
+      (m) => m<{ id: string }[]>`select id from whatsapp_messages
+                                   where thread_id = ${thread} and direction = 'inbound' limit 1`,
+    );
+    const id = inbound?.id ?? '';
+    expect(
+      await rows<{ wa_id: string }>(
+        workers([1]),
+        sql`select wa_id from app.whatsapp_inbound_facts(${id}::uuid)`,
+      ),
+    ).toEqual([{ wa_id: customer.waId }]);
+    expect(
+      await rows(workers([2]), sql`select * from app.whatsapp_inbound_facts(${id}::uuid)`),
+    ).toEqual([]);
+    // An inbound message has no send extras: only an outbound one does.
+    expect(
+      await rows(workers([1]), sql`select * from app.whatsapp_send_extras(${id}::uuid)`),
+    ).toEqual([]);
+  });
+
+  it('refuses people and agents every answering definer, and the quote notice to all but the notifier', async () => {
+    const customer = await whatsappCustomer(1);
+    const thread = await openThread(customer);
+    const quote = await quoteOf(customer);
+    for (const who of [exec1, gm1, customer.owner, concierge]) {
+      for (const query of [
+        sql`select * from app.whatsapp_inbound_facts(${newId()}::uuid)`,
+        sql`select * from app.whatsapp_send_extras(${newId()}::uuid)`,
+        sql`select * from app.whatsapp_queue_answer(${thread}::uuid, ${newId()}::uuid, 'text',
+                                                    null, null, 'Hello')`,
+      ]) {
+        expect(await failure(rows(who, query))).toMatch(/messaging.process is required/);
+      }
+      expect(
+        await failure(
+          rows(who, sql`select * from app.notice_quote_lead(1::smallint, ${quote}::uuid)`),
+        ),
+      ).toMatch(/notifications.send is required/);
+    }
+    expect(
+      await rows<{ owner_id: string; quote_open: boolean }>(
+        workers([1]),
+        sql`select owner_id, quote_open from app.notice_quote_lead(1::smallint, ${quote}::uuid)`,
+      ),
+    ).toEqual([{ owner_id: customer.owner.id, quote_open: true }]);
   });
 });

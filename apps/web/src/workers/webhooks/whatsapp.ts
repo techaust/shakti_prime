@@ -416,7 +416,7 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       await run(recordWhatsAppHandOff, handOff);
     }
     if (platform !== null && !recorded.optedOut) {
-      await answerOnPlatform(platform, recorded, message.from, principal, requestId);
+      await answerOnPlatform(platform, thread, recorded, message.from, principal, requestId);
     }
     // The welcome on a chat's first message (question 2 (a)); a customer who asked for a person
     // with their first word has people answering instead.
@@ -451,14 +451,14 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
    */
   async function answerOnPlatform(
     platform: PlatformAnswer,
-    recorded: { entityId: number; threadId: string; messageId: string; accountId: string | null },
+    chat: { entityId: number; threadId: string },
+    recorded: { messageId: string; accountId: string | null },
     waId: string,
     principal: Principal,
     requestId: string,
   ): Promise<void> {
     const claim = `whatsapp:platform-answer:${recorded.messageId}`;
     if (!(await deps.keyValue.setIfAbsent(claim, '1', ANSWERED_SECONDS))) return;
-    const chat = { entityId: recorded.entityId, threadId: recorded.threadId };
     try {
       if (platform.kind === 'status') {
         const lines = await executeQuery(

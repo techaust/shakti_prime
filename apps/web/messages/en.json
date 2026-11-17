@@ -587,6 +587,7 @@
       "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
       "catalogue": "See every item and kit the group sells, with their specifications.",
       "settingsTax": "Keep the GST rates and composite supply splits up to date.",
+      "settingsWhatsAppTemplates": "Choose the WhatsApp template each customer update about a quote or an order is sent with.",
       "adminRoles": "Choose what each role can see and do.",
       "walkIn": "Add a customer who comes to the counter as a new lead.",
       "settingsPipelines": "Set the stages, call outcomes and lead scores for each pipeline.",
@@ -4365,7 +4366,7 @@
     },
     "send": {
       "title": "Send this quote",
-      "intro": "Choose how the customer gets quote {number}.",
+      "intro": "Choose how the customer gets this quote.",
       "how": "How it goes",
       "whatsapp": "On WhatsApp, from the company's number",
       "whatsappHelper": "The customer gets the quote document with an Accept button. A large quote also asks them for a one-time code.",
