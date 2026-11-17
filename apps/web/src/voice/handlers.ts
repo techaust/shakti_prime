@@ -13,7 +13,7 @@ import {
   type VoiceSessionGrant,
   type VoiceTokenGrant,
 } from '@shakti/contracts';
-import { voiceSessionNotAfter, type ClientMeta, type KeyValue } from '@shakti/domain';
+import type { ClientMeta, KeyValue } from '@shakti/domain';
 import { apiFailure } from '../api-failure';
 import { clientMeta } from '../auth/client-address';
 import { countRequest, type CapRule } from '../auth/request-cap';
@@ -118,11 +118,38 @@ export interface SessionRouteDeps {
     input: VoiceSessionRequest,
     meta: { requestId: string; client: ClientMeta },
   ) => Promise<VoiceSessionGrant>;
+  /**
+   * Runs `voice.session.record` for the platform: a session whose room could not be made ends at
+   * once, with the minutes it used.
+   */
+  endUnopened: (sessionId: string, endedAt: Date, requestId: string) => Promise<void>;
   keyValue: KeyValue;
   /** LiveKit's room service for the project; the real one over HTTP unless a test passes one. */
   rooms?: (config: LiveKitConfig) => LiveKitRooms;
   env?: Env;
   now?: () => Date;
+}
+
+/**
+ * Deletes the rooms of the person's earlier sessions the start ended, so their workers leave
+ * (each worker ends when its room closes). Best effort: a room already gone, or LiveKit not
+ * answering, is logged and never holds up the start.
+ */
+async function deleteEndedRooms(
+  rooms: LiveKitRooms,
+  sessionIds: readonly string[],
+  requestId: string,
+): Promise<void> {
+  const deleted = await Promise.allSettled(sessionIds.map((id) => rooms.deleteRoom(id)));
+  deleted.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      logger.log('warn', 'voice.room_delete_failed', {
+        requestId,
+        sessionId: sessionIds[i],
+        error: result.reason,
+      });
+    }
+  });
 }
 
 /** `POST /api/v1/voice/session`: a "Talk to Shakti" session for the signed-in person. */
@@ -194,8 +221,12 @@ export async function startVoiceSessionRoute(
     return refusal(error, requestId, 'voice.start_failed');
   }
 
+  const now = (deps.now ?? (() => new Date()))();
+  const rooms = (deps.rooms ?? liveKitRooms)(config);
+  // After the start's transaction: the earlier sessions' rooms go while this one is made.
+  const deleting = deleteEndedRooms(rooms, grant.endedSessionIds, requestId);
   try {
-    const now = (deps.now ?? (() => new Date()))();
+    const notAfter = new Date(grant.notAfter);
     const bos = await signVoiceGrant(
       {
         jti: newId(),
@@ -204,7 +235,7 @@ export async function startVoiceSessionRoute(
         bos_role: grant.bos_role,
         entity_ids: grant.entity_ids,
       },
-      voiceSessionNotAfter(new Date(grant.startedAt)),
+      notAfter,
       keys,
       { issuer, now },
     );
@@ -214,11 +245,10 @@ export async function startVoiceSessionRoute(
       bosToken: { token: bos.token, expiresAt: bos.expiresAt.toISOString() },
       mode: grant.mode,
       consentRecording: grant.consentRecording,
-      notAfter: voiceSessionNotAfter(new Date(grant.startedAt)).toISOString(),
+      notAfter: notAfter.toISOString(),
       limits: grant.limits,
       model: voiceDispatchModel(),
     });
-    const rooms = (deps.rooms ?? liveKitRooms)(config);
     await rooms.createAgentRoom(grant.sessionId, {
       ...VOICE_ROOM,
       agentName: VOICE_AGENT_NAME,
@@ -254,11 +284,22 @@ export async function startVoiceSessionRoute(
         maxSessionMinutes: grant.limits.maxSessionMinutes,
       },
     });
+    await deleting;
     return Response.json(body, { headers: { ...NO_STORE, 'x-request-id': requestId } });
   } catch (error) {
-    // The session is written but has no room: it is no longer live once its longest length has
-    // passed, and the person's next start ends it.
+    // The session is written but has no room: it ends now, with the minutes it used, so it
+    // counts no more of the person's day.
     logger.log('error', 'voice.room_failed', { requestId, sessionId: grant.sessionId, error });
+    await deleting;
+    try {
+      await deps.endUnopened(grant.sessionId, (deps.now ?? (() => new Date()))(), requestId);
+    } catch (ending) {
+      logger.log('error', 'voice.end_unopened_failed', {
+        requestId,
+        sessionId: grant.sessionId,
+        error: ending,
+      });
+    }
     return failure('integration_unavailable', requestId, { reason: 'voice_unavailable' });
   }
 }

@@ -459,8 +459,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       await tx`insert into ask_messages (id, conversation_id, user_id, entity_id, entity_ids, question, answer, outcome)
         values (${groupAskMessage}, ${groupConversation}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'matrix question', 'matrix answer', 'answered')`;
       await tx`insert into principals (id, kind, display_name) values (${groupVoiceSession}, 'voice_session', 'matrix voice')`;
-      await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording)
-        values (${groupVoiceSession}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'ask', false)`;
+      await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, max_minutes)
+        values (${groupVoiceSession}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'ask', false, 15)`;
 
       for (const e of ALL_ENTITY_IDS) {
         const team = per(e, 0x01);
@@ -627,9 +627,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into principals (id, kind, display_name) values
           (${ownVoiceSession}, 'voice_session', 'matrix voice'),
           (${othersVoiceSession}, 'voice_session', 'matrix voice')`;
-        await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, ended_at, minutes) values
-          (${ownVoiceSession}, ${ownerId}, ${e}, ${[e]}::smallint[], 'teach', true, now(), 3),
-          (${othersVoiceSession}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'ask', false, null, null)`;
+        await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, ended_at, minutes, max_minutes) values
+          (${ownVoiceSession}, ${ownerId}, ${e}, ${[e]}::smallint[], 'teach', true, now(), 3, 15),
+          (${othersVoiceSession}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'ask', false, null, null, 15)`;
         await tx`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by) values
           (${ownTarget}, ${e}, 'caller', ${ownerId}, ${team}, 'calls', 'day', '2026-01-01', 10, ${ownerId}),
           (${othersTarget}, ${e}, 'caller', ${otherUserId}, ${team}, 'calls', 'day', '2026-01-01', 12, ${ownerId}),

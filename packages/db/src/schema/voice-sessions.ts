@@ -23,7 +23,7 @@ import { principals } from './principals';
  * request covering all its companies; written only through `app.voice_session_open()` (the
  * person's `voice.session.start`) and `app.record_voice_session()` (the platform's
  * `voice.session.record`). `minutes` is whole minutes, rounded up, and stays null until the
- * session ends.
+ * session ends; `max_minutes` is the session's own longest length.
  */
 export const voiceSessions = pgTable(
   'voice_sessions',
@@ -43,6 +43,12 @@ export const voiceSessions = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp('ended_at', { withTimezone: true }),
     minutes: integer('minutes'),
+    /**
+     * The session's own longest length, set when it opens: the smaller of a session's longest
+     * (`AGENT_DEFAULTS.voice`) and the person's minutes left that day. Its live check, its tokens'
+     * `notAfter` and the worker's dispatch all read it.
+     */
+    maxMinutes: integer('max_minutes').notNull(),
     costPaise: integer('cost_paise').notNull().default(0),
     turnStatsJson: jsonb('turn_stats_json').notNull().default({}),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -64,6 +70,7 @@ export const voiceSessions = pgTable(
       'voice_sessions_minutes_check',
       sql`${t.minutes} is null or (${t.minutes} between 0 and 1440 and ${t.endedAt} is not null)`,
     ),
+    check('voice_sessions_max_minutes_check', sql`${t.maxMinutes} between 1 and 1440`),
     check('voice_sessions_cost_check', sql`${t.costPaise} >= 0`),
     check('voice_sessions_turn_stats_check', sql`jsonb_typeof(${t.turnStatsJson}) = 'object'`),
     // A recording is kept only with the person's yes to the recording question.

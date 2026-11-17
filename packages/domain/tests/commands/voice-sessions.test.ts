@@ -119,11 +119,15 @@ describe('voice.session.start', () => {
       mode: 'teach',
       consentRecording: false,
       startedAt: grant.startedAt,
+      notAfter: new Date(
+        new Date(grant.startedAt).getTime() + AGENT_DEFAULTS.voice.sessionMaxMinutes * 60_000,
+      ).toISOString(),
       limits: {
         minutesRemainingToday: AGENT_DEFAULTS.voice.personDailyMinutes,
         paiseRemainingToday: AGENT_DEFAULTS.voice.personDailyCapPaise,
         maxSessionMinutes: AGENT_DEFAULTS.voice.sessionMaxMinutes,
       },
+      endedSessionIds: [],
     });
     expect(await auditRows(requestId)).toEqual([
       {
@@ -148,8 +152,8 @@ describe('voice.session.start', () => {
     const earlier = newId();
     await asMigrator(async (m) => {
       await m`insert into principals (id, kind, display_name) values (${earlier}, 'voice_session', 'test voice')`;
-      await m`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, started_at, ended_at, minutes)
-              values (${earlier}, ${exec.id}, 1, '{1}', 'ask', false, now(), now(), 24)`;
+      await m`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, started_at, ended_at, minutes, max_minutes)
+              values (${earlier}, ${exec.id}, 1, '{1}', 'ask', false, now(), now(), 24, 15)`;
     });
     const grant = await start(exec);
     expect(grant.limits).toMatchObject({ minutesRemainingToday: 6, maxSessionMinutes: 6 });
@@ -167,6 +171,46 @@ describe('voice.session.start', () => {
     expect((await auditRows(requestId)).map((r) => [r.outcome, r.error_code])).toEqual([
       ['denied', 'forbidden'],
     ]);
+  });
+});
+
+describe("a session's own longest length", () => {
+  it('holds its tokens, its live check and its refresh to the minutes left when fewer', async () => {
+    const exec = await createTestPrincipal('executive', [1]);
+    const earlier = newId();
+    // 28 of the day's 30 minutes and ₹165 of the day's ₹200 used.
+    await asMigrator(async (m) => {
+      await m`insert into principals (id, kind, display_name) values (${earlier}, 'voice_session', 'test voice')`;
+      await m`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, started_at, ended_at, minutes, cost_paise, max_minutes)
+              values (${earlier}, ${exec.id}, 1, '{1}', 'ask', false, now(), now(), 28, 16500, 15)`;
+    });
+    const grant = await start(exec);
+    const startedAt = new Date(grant.startedAt).getTime();
+    expect(grant.limits).toEqual({
+      minutesRemainingToday: 2,
+      paiseRemainingToday: 3_500,
+      maxSessionMinutes: 2,
+    });
+    expect(grant.notAfter).toBe(new Date(startedAt + 2 * 60_000).toISOString());
+    const voice = voiceOf(exec, grant);
+    const token = await executeCommand(voice, { entityIds: [1] }, refreshVoiceToken, {});
+    expect(token.notAfter).toBe(grant.notAfter);
+    // Three minutes on, the 2-minute session is no longer live, though a session's longest is 15.
+    await asMigrator(
+      (m) =>
+        m`update voice_sessions set started_at = now() - interval '3 minutes' where id = ${grant.sessionId}`,
+    );
+    await expect(
+      executeCommand(voice, { entityIds: [1] }, refreshVoiceToken, {}),
+    ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'voice_session_ended' } });
+  });
+
+  it('answers the earlier session it ended, whose room the route deletes', async () => {
+    const exec = await createTestPrincipal('executive', [1]);
+    const first = await start(exec);
+    expect(first.endedSessionIds).toEqual([]);
+    const second = await start(exec);
+    expect(second.endedSessionIds).toEqual([first.sessionId]);
   });
 });
 

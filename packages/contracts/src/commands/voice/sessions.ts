@@ -66,7 +66,8 @@ export type StartVoiceSessionInput = z.infer<typeof StartVoiceSessionInput>;
 /**
  * What `voice.session.start` settled: the session (whose id names its LiveKit room and its
  * `voice_session` principal), the person, their role and companies for the BOS token's claims,
- * and today's limits. The route makes the room and signs both tokens from it.
+ * today's limits and the session's own longest length. The route makes the room and signs both
+ * tokens from it, and deletes the rooms of the earlier sessions it ended.
  */
 export const VoiceSessionGrant = z
   .object({
@@ -77,13 +78,19 @@ export const VoiceSessionGrant = z
     mode: VoiceSessionModeSchema,
     consentRecording: z.boolean(),
     startedAt: z.iso.datetime(),
+    /** The session's own longest length from its start: no token of it lives past this. */
+    notAfter: z.iso.datetime(),
     limits: z
       .object({
         minutesRemainingToday: z.number().int().min(0),
+        /** The day's spend left, after every session of the day recorded so far. */
         paiseRemainingToday: z.number().int().min(0),
+        /** The session's own longest length: a session's longest, or the minutes left today. */
         maxSessionMinutes: z.number().int().positive(),
       })
       .strict(),
+    /** The person's earlier sessions this start ended, whose LiveKit rooms the route deletes. */
+    endedSessionIds: z.array(IdSchema),
   })
   .strict();
 export type VoiceSessionGrant = z.infer<typeof VoiceSessionGrant>;

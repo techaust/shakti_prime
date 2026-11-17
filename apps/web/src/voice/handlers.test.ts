@@ -70,29 +70,37 @@ function grantFor(principal: Principal, over: Partial<VoiceSessionGrant> = {}): 
     mode: 'ask',
     consentRecording: true,
     startedAt: NOW.toISOString(),
+    notAfter: new Date(NOW.getTime() + 15 * 60_000).toISOString(),
     limits: { minutesRemainingToday: 30, paiseRemainingToday: 20_000, maxSessionMinutes: 15 },
+    endedSessionIds: [],
     ...over,
   };
 }
 
-function recordingRooms(fail = false) {
+function recordingRooms(options: { fail?: boolean; failDelete?: boolean } = {}) {
   const made: { name: string; options: AgentRoomOptions }[] = [];
+  const deleted: string[] = [];
   const rooms = (): LiveKitRooms => ({
     createRoom: () => Promise.reject(new Error('not used')),
-    deleteRoom: () => Promise.reject(new Error('not used')),
+    deleteRoom(name) {
+      if (options.failDelete === true) return Promise.reject(new Error('room service down'));
+      deleted.push(name);
+      return Promise.resolve({ ms: 1 });
+    },
     listRooms: () => Promise.reject(new Error('not used')),
-    createAgentRoom(name, options) {
-      if (fail) return Promise.reject(new Error('room service down'));
-      made.push({ name, options });
+    createAgentRoom(name, roomOptions) {
+      if (options.fail === true) return Promise.reject(new Error('room service down'));
+      made.push({ name, options: roomOptions });
       return Promise.resolve({ ms: 1 });
     },
   });
-  return { made, rooms };
+  return { made, deleted, rooms };
 }
 
 function sessionDeps(vars: Env, over: Partial<SessionRouteDeps> = {}) {
   const started: unknown[] = [];
-  const { made, rooms } = recordingRooms();
+  const ended: { sessionId: string; endedAt: Date }[] = [];
+  const { made, deleted, rooms } = recordingRooms();
   const deps: SessionRouteDeps = {
     principal: () => Promise.resolve(person),
     start: (principal, input) => {
@@ -101,13 +109,17 @@ function sessionDeps(vars: Env, over: Partial<SessionRouteDeps> = {}) {
         grantFor(principal, { mode: input.mode === 'teach' ? 'teach' : 'ask' }),
       );
     },
+    endUnopened: (sessionId, endedAt) => {
+      ended.push({ sessionId, endedAt });
+      return Promise.resolve();
+    },
     keyValue: memoryKeyValue(),
     rooms,
     env: vars,
     now: () => NOW,
     ...over,
   };
-  return { deps, started, made };
+  return { deps, started, made, deleted, ended };
 }
 
 function startRequest(body: unknown, headers: Record<string, string> = { origin: ISSUER }) {
@@ -224,10 +236,10 @@ describe('POST /api/v1/voice/session', () => {
     expect(last).toBe(429);
   });
 
-  it('says voice is not set up when the room cannot be made', async () => {
+  it('says voice is not set up when the room cannot be made, and ends that session at once', async () => {
     const vars = await env();
-    const { rooms } = recordingRooms(true);
-    const { deps } = sessionDeps(vars, { rooms });
+    const { rooms } = recordingRooms({ fail: true });
+    const { deps, ended } = sessionDeps(vars, { rooms });
     const response = await startVoiceSessionRoute(
       startRequest({ mode: 'ask', consentRecording: true }),
       deps,
@@ -236,6 +248,61 @@ describe('POST /api/v1/voice/session', () => {
       code: 'integration_unavailable',
       details: { reason: 'voice_unavailable' },
     });
+    expect(ended).toHaveLength(1);
+    expect(ended[0]?.endedAt).toEqual(NOW);
+  });
+
+  it("deletes the rooms of the person's earlier sessions the start ended, best effort", async () => {
+    const vars = await env();
+    const earlier = [newId(), newId()];
+    const start: SessionRouteDeps['start'] = (principal) =>
+      Promise.resolve(grantFor(principal, { endedSessionIds: earlier }));
+    const { deps, deleted, made } = sessionDeps(vars, { start });
+    const response = await startVoiceSessionRoute(
+      startRequest({ mode: 'ask', consentRecording: true }),
+      deps,
+    );
+    expect(response.status).toBe(200);
+    expect(deleted.sort()).toEqual([...earlier].sort());
+    expect(made).toHaveLength(1);
+    // LiveKit refusing the deletes never holds up the start.
+    const { rooms, made: madeAnyway } = recordingRooms({ failDelete: true });
+    const failing = sessionDeps(vars, { start, rooms });
+    const still = await startVoiceSessionRoute(
+      startRequest({ mode: 'ask', consentRecording: true }),
+      failing.deps,
+    );
+    expect(still.status).toBe(200);
+    expect(madeAnyway).toHaveLength(1);
+  });
+
+  it("gives the session's own length to its tokens, its room and its worker, with the day's spend left", async () => {
+    const vars = await env();
+    // Two minutes left today, and ₹35 of the day's spend.
+    const start: SessionRouteDeps['start'] = (principal) =>
+      Promise.resolve(
+        grantFor(principal, {
+          notAfter: new Date(NOW.getTime() + 2 * 60_000).toISOString(),
+          limits: { minutesRemainingToday: 2, paiseRemainingToday: 3_500, maxSessionMinutes: 2 },
+        }),
+      );
+    const { deps, made } = sessionDeps(vars, { start });
+    const response = await startVoiceSessionRoute(
+      startRequest({ mode: 'ask', consentRecording: false }),
+      deps,
+    );
+    const body = VoiceSessionResponse.parse(await response.json());
+    const metadata = VoiceDispatchMetadata.parse(JSON.parse(made[0]?.options.agentMetadata ?? ''));
+    expect(metadata.notAfter).toBe(new Date(NOW.getTime() + 2 * 60_000).toISOString());
+    expect(metadata.limits).toEqual({
+      minutesRemainingToday: 2,
+      paiseRemainingToday: 3_500,
+      maxSessionMinutes: 2,
+    });
+    // The worker's token lives no longer than the session: its 5 minutes cut to 2.
+    expect(new Date(body.bosToken.expiresAt).getTime()).toBe(NOW.getTime() + 2 * 60_000);
+    const join = decodeJwt(body.livekit.participantToken);
+    expect((join.exp ?? 0) - (join.iat ?? 0)).toBe(2 * 60);
   });
 });
 

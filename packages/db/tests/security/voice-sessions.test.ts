@@ -69,11 +69,11 @@ async function pastSession(
   await asMigrator(async (m) => {
     await m`insert into principals (id, kind, display_name) values (${id}, 'voice_session', 'test voice')`;
     await m`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording,
-                                        started_at, ended_at, minutes, cost_paise)
+                                        started_at, ended_at, minutes, cost_paise, max_minutes)
             values (${id}, ${userId}, ${entityId}, ${entityIds}::smallint[], 'ask', false,
                     ${values.startedAt}::timestamptz,
                     ${values.startedAt}::timestamptz + interval '1 minute' * ${values.minutes},
-                    ${values.minutes}, ${values.costPaise ?? 0})`;
+                    ${values.minutes}, ${values.costPaise ?? 0}, 15)`;
   });
   return id;
 }
@@ -195,6 +195,76 @@ describe('app.voice_session_open', () => {
     expect((await session(second))?.ended_at).toBeNull();
   });
 
+  it('keeps the session its own longest length: a session at most, the minutes left at most', async () => {
+    const exec = await createTestPrincipal('executive', [1]);
+    const opened = (id: string) =>
+      rows<{ outcome: string; max_minutes: number | null }>(
+        exec,
+        sql`select outcome, max_minutes
+              from app.voice_session_open(${id}::uuid, '{1}'::smallint[], 'ask', true, 30, 20000, 15)`,
+      );
+    const full = newId();
+    expect(await opened(full)).toEqual([{ outcome: 'started', max_minutes: 15 }]);
+    await asMigrator(
+      (m) => m`update voice_sessions set ended_at = now(), minutes = 13 where id = ${full}`,
+    );
+    await pastSession(exec.id, { startedAt: new Date().toISOString(), minutes: 15 });
+    // 28 of the day's 30 minutes used: this session is 2 minutes long, and keeps it.
+    const short = newId();
+    expect(await opened(short)).toEqual([{ outcome: 'started', max_minutes: 2 }]);
+    const [kept] = await asMigrator(
+      (m) =>
+        m<{ max_minutes: number }[]>`select max_minutes from voice_sessions where id = ${short}`,
+    );
+    expect(kept?.max_minutes).toBe(2);
+    // Ended by a later start an hour on, it counts at most its own 2 minutes.
+    await asMigrator(
+      (m) =>
+        m`update voice_sessions set started_at = now() - interval '1 hour' where id = ${short}`,
+    );
+    await opened(newId());
+    expect(await session(short)).toMatchObject({ minutes: 2 });
+  });
+
+  it("answers the earlier sessions it ended, whose rooms' later end still raises their minutes", async () => {
+    const exec = await createTestPrincipal('executive', [1]);
+    const first = newId();
+    const opened = (id: string) =>
+      rows<{ outcome: string; ended_sessions: string[] }>(
+        exec,
+        sql`select outcome, ended_sessions
+              from app.voice_session_open(${id}::uuid, '{1}'::smallint[], 'ask', true, 30, 20000, 15)`,
+      );
+    expect(await opened(first)).toEqual([{ outcome: 'started', ended_sessions: [] }]);
+    const second = newId();
+    expect(await opened(second)).toEqual([{ outcome: 'started', ended_sessions: [first] }]);
+    // Ended at once: the minutes it had run, a minute at most, rounded up.
+    const ended = await session(first);
+    expect(ended?.minutes).toBeLessThanOrEqual(1);
+    const [{ started_at: startedAt } = { started_at: new Date() }] = await asMigrator(
+      (m) => m<{ started_at: Date }[]>`select started_at from voice_sessions where id = ${first}`,
+    );
+    // Its room ran on for four minutes before LiveKit closed it: those minutes count.
+    const finished = await rows<{ outcome: string; minutes: number }>(
+      workers,
+      sql`select outcome, minutes
+            from app.record_voice_session(${first}::uuid,
+                                          ${startedAt.toISOString()}::timestamptz + interval '4 minutes',
+                                          null, null, null, null, null)`,
+    );
+    expect(finished).toEqual([{ outcome: 'recorded', minutes: 4 }]);
+    // Its end stays when the later start ended it.
+    expect((await session(first))?.ended_at).toEqual(ended?.ended_at);
+    // An earlier report lowers nothing.
+    expect(
+      await rows(
+        workers,
+        sql`select outcome, minutes from app.record_voice_session(${first}::uuid, now(), 1, null,
+                                                                  null, null, null)`,
+      ),
+    ).toEqual([{ outcome: 'unchanged', minutes: 4 }]);
+  });
+
   it("refuses at the day's minutes or spend across every company, and writes nothing", async () => {
     const exec = await createTestPrincipal('executive', [1, 2]);
     // An earlier day's session in India does not count.
@@ -266,8 +336,8 @@ describe('app.record_voice_session', () => {
     expect(await record(sql`now() + interval '61 seconds', null, null, null`)).toEqual([
       { outcome: 'recorded', minutes: 2, cost_paise: 120 },
     ]);
-    // A late or repeated event lowers nothing.
-    expect(await record(sql`now() + interval '1 hour', 1, 50, null`)).toEqual([
+    // A repeated event lowers nothing.
+    expect(await record(sql`now(), 1, 50, null`)).toEqual([
       { outcome: 'unchanged', minutes: 2, cost_paise: 120 },
     ]);
     expect(await record(sql`null, 4, 300, '{"turns": 3, "steps": {}}'::jsonb`)).toEqual([
@@ -276,6 +346,13 @@ describe('app.record_voice_session', () => {
     expect(await record(sql`null, null, null, '{"turns": 2, "steps": {}}'::jsonb`)).toEqual([
       { outcome: 'unchanged', minutes: 4, cost_paise: 300 },
     ]);
+    // A later end raises the minutes, never past the session's own longest length (15), and
+    // keeps the end first recorded.
+    const before = await session(id);
+    expect(await record(sql`now() + interval '1 hour', 1, 50, null`)).toEqual([
+      { outcome: 'recorded', minutes: 15, cost_paise: 300 },
+    ]);
+    expect((await session(id))?.ended_at).toEqual(before?.ended_at);
     expect(await session(id)).toMatchObject({ turn_stats_json: { turns: 3, steps: {} } });
     expect(
       await rows(

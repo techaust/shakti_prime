@@ -24,6 +24,14 @@ export function sessionRouteDeps(): SessionRouteDeps {
   return {
     principal: currentPrincipal,
     keyValue: defaultAuthDeps().keyValue,
+    endUnopened: async (sessionId, endedAt, requestId) => {
+      await executeCommand(
+        systemWorkersPrincipal(null),
+        { entityIds: [], requestId },
+        recordVoiceSession,
+        { sessionId, endedAt: endedAt.toISOString() },
+      );
+    },
     start: (principal, input, meta) =>
       executeCommand(
         principal,

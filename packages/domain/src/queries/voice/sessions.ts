@@ -12,28 +12,29 @@ export interface VoiceSessionFacts {
   audioFileId: string | null;
   startedAt: Date;
   endedAt: Date | null;
+  /** The session's own longest length, set when it opened. */
+  maxMinutes: number;
 }
 
 /**
- * Whether a session is live at `now`: not ended, and inside its longest length
- * (`AGENT_DEFAULTS.voice.sessionMaxMinutes`) from its start. A session whose room never closed (it
- * failed to open, or its event was lost) stops being live by itself, so its token cannot be
- * refreshed and no route takes it.
+ * Whether a session is live at `now`: not ended, and inside its own longest length from its start
+ * (`max_minutes`: a session's longest, `AGENT_DEFAULTS.voice.sessionMaxMinutes`, or the minutes
+ * the person had left that day). A session whose room never closed (it failed to open, or its
+ * event was lost) stops being live by itself, so its token cannot be refreshed and no route takes
+ * it.
  */
 export function voiceSessionLive(
-  session: Pick<VoiceSessionFacts, 'startedAt' | 'endedAt'>,
+  session: Pick<VoiceSessionFacts, 'startedAt' | 'endedAt' | 'maxMinutes'>,
   now: Date,
-  sessionMinutes: number = AGENT_DEFAULTS.voice.sessionMaxMinutes,
 ): boolean {
-  return (
-    session.endedAt === null &&
-    now.getTime() < session.startedAt.getTime() + sessionMinutes * 60_000
-  );
+  return session.endedAt === null && now.getTime() < voiceSessionNotAfter(session).getTime();
 }
 
-/** The latest moment a session's token may live to: its longest length from its start. */
-export function voiceSessionNotAfter(startedAt: Date): Date {
-  return new Date(startedAt.getTime() + AGENT_DEFAULTS.voice.sessionMaxMinutes * 60_000);
+/** The latest moment a session's token may live to: its own longest length from its start. */
+export function voiceSessionNotAfter(
+  session: Pick<VoiceSessionFacts, 'startedAt' | 'maxMinutes'>,
+): Date {
+  return new Date(session.startedAt.getTime() + session.maxMinutes * 60_000);
 }
 
 /**
@@ -57,6 +58,7 @@ export async function voiceSessionOf(
       audioFileId: vs.audioFileId,
       startedAt: vs.startedAt,
       endedAt: vs.endedAt,
+      maxMinutes: vs.maxMinutes,
     })
     .from(vs)
     .where(and(eq(vs.id, sessionId), eq(vs.userId, principal.id)))
@@ -101,19 +103,19 @@ export interface VoiceToday {
 export async function voiceToday(context: RequestContext, now: Date): Promise<VoiceToday> {
   const vs = schema.voiceSessions;
   const rows = await context.tx
-    .select({ minutes: vs.minutes, startedAt: vs.startedAt, endedAt: vs.endedAt })
+    .select({
+      minutes: vs.minutes,
+      startedAt: vs.startedAt,
+      maxMinutes: vs.maxMinutes,
+    })
     .from(vs)
     .where(and(eq(vs.userId, context.principal.id), gte(vs.startedAt, voiceDayStart(now))));
+  // A session still open counts the minutes it has run, at most its own longest length.
   const used = rows.reduce(
     (sum, r) =>
       sum +
       (r.minutes ??
-        Math.ceil(
-          Math.min(
-            now.getTime() - r.startedAt.getTime(),
-            AGENT_DEFAULTS.voice.sessionMaxMinutes * 60_000,
-          ) / 60_000,
-        )),
+        Math.ceil(Math.min(now.getTime() - r.startedAt.getTime(), r.maxMinutes * 60_000) / 60_000)),
     0,
   );
   const minutesLeft = Math.max(0, AGENT_DEFAULTS.voice.personDailyMinutes - used);

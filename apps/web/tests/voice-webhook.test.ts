@@ -88,12 +88,20 @@ describe('the livekit handler', () => {
     expect(row?.ended_at?.toISOString()).toBe(
       new Date(Number(seconds(endedAt)) * 1000).toISOString(),
     );
-    // A later finish of the same room changes nothing.
+    // An earlier finish lowers nothing.
+    await handleLiveKit(event(grant.sessionId, 'room_finished', seconds(grant.startedAt)), {
+      requestId: newId(),
+    });
+    expect((await sessionRow(grant.sessionId))?.minutes).toBe(3);
+    // A later one (a room that ran on after another start ended its session) raises the minutes,
+    // at most to the session's own longest length, and keeps the end first recorded.
     const later = new Date(new Date(endedAt).getTime() + 3_600_000).toISOString();
     await handleLiveKit(event(grant.sessionId, 'room_finished', seconds(later)), {
       requestId: newId(),
     });
-    expect((await sessionRow(grant.sessionId))?.minutes).toBe(3);
+    const raised = await sessionRow(grant.sessionId);
+    expect(raised?.minutes).toBe(grant.limits.maxSessionMinutes);
+    expect(raised?.ended_at?.toISOString()).toBe(row?.ended_at?.toISOString());
   });
 
   it("records the worker's report and a recorded Teach session's files, never a person's", async () => {

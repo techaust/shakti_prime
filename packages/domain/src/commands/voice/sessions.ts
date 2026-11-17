@@ -39,14 +39,18 @@ interface OpenedRow {
   minutes_used: number;
   paise_used: number;
   started_at: Date | string | null;
+  max_minutes: number | null;
+  ended_sessions: string[] | null;
 }
 
 /**
  * `voice.session.start` (`voice.use`, for people only): opens a "Talk to Shakti" session for the
  * person themselves, in one company or every company of the request, after their answer to the
  * recording question (the input requires it, so no session starts without one). The person's
- * earlier session still open ends, then their minutes and spend of the day in India are read
- * across every company; at either limit nothing is written and the answer is `voice_cap_reached`.
+ * earlier session still open ends (the route then deletes its room), then their minutes and spend
+ * of the day in India are read across every company; at either limit nothing is written and the
+ * answer is `voice_cap_reached`. The session keeps its own longest length: a session's longest,
+ * or the minutes the person has left today when fewer.
  * Command mode is not offered until Phase 6, so the input names Teach or Ask only.
  */
 export const startVoiceSession = defineCommand({
@@ -76,7 +80,7 @@ export const startVoiceSession = defineCommand({
     }
     const sessionId = newId();
     const rows = (await ctx.tx.execute(sql`
-      select outcome, minutes_used, paise_used, started_at
+      select outcome, minutes_used, paise_used, started_at, max_minutes, ended_sessions
         from app.voice_session_open(${sessionId}::uuid,
                                     ${`{${entityIds.join(',')}}`}::smallint[],
                                     ${input.mode}::text, ${input.consentRecording}::boolean,
@@ -89,9 +93,11 @@ export const startVoiceSession = defineCommand({
         reason: 'voice_cap_reached',
       });
     }
-    if (row.outcome !== 'started' || row.started_at === null) {
+    if (row.outcome !== 'started' || row.started_at === null || row.max_minutes === null) {
       throw new DomainError('internal', `unknown voice session outcome ${row.outcome}`);
     }
+    const startedAt = new Date(row.started_at);
+    const maxMinutes = row.max_minutes;
     const minutesRemainingToday = Math.max(0, LIMITS.dayMinutes - row.minutes_used);
     const entityId = entityIds.length === 1 ? (entityIds[0] ?? null) : null;
     ctx.audit({
@@ -107,12 +113,14 @@ export const startVoiceSession = defineCommand({
       entity_ids: entityIds,
       mode: input.mode,
       consentRecording: input.consentRecording,
-      startedAt: toIso(row.started_at),
+      startedAt: startedAt.toISOString(),
+      notAfter: voiceSessionNotAfter({ startedAt, maxMinutes }).toISOString(),
       limits: {
         minutesRemainingToday,
         paiseRemainingToday: Math.max(0, LIMITS.dayPaise - row.paise_used),
-        maxSessionMinutes: Math.max(1, Math.min(LIMITS.sessionMinutes, minutesRemainingToday)),
+        maxSessionMinutes: maxMinutes,
       },
+      endedSessionIds: row.ended_sessions ?? [],
     };
   },
 });
@@ -158,7 +166,7 @@ export const refreshVoiceToken = defineCommand({
       sid: sessionId,
       bos_role: principal.roleKey,
       entity_ids: [...session.entityIds].sort((a, b) => a - b),
-      notAfter: voiceSessionNotAfter(session.startedAt).toISOString(),
+      notAfter: voiceSessionNotAfter(session).toISOString(),
     };
   },
 });
