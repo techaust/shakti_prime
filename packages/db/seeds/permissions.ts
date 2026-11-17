@@ -60,6 +60,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.vault.write': 'Add and archive Knowledge Vault files',
   'knowledge.playbook.draft': 'Draft and edit Playbook directives',
   'knowledge.playbook.approve': 'Approve Playbook directives',
+  'messaging.send': 'Send WhatsApp messages to customers',
+  'messaging.templates.write': 'Keep the list of WhatsApp message templates',
   'knowledge.ask': 'Ask the Business',
   'agents.inbox.act': 'Act on Agent Inbox items',
   'agents.autonomy.write': 'Change agent autonomy',
@@ -88,6 +90,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.playbook.check': 'Check new Playbook guidance against the approved guidance',
   'crm.dnd.record': 'Record whether a customer number is on the do-not-disturb list',
   'webhooks.process': 'Handle the messages other systems send in',
+  'messaging.process': 'Receive and send WhatsApp messages for the companies',
   'crm.ingest.run': 'Add leads that arrive from ads, lead forms, websites and WhatsApp',
   'calls.process': 'Record how a placed call went and keep its recording',
 };

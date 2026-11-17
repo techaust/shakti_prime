@@ -127,14 +127,20 @@ describe('the webhook routes on real Postgres', () => {
       // A provider with no handler yet has its row processed with that code; the lead forms'
       // handlers (I1) set a delivery for a form no company has connected aside, never guessed;
       // Exotel's status has T3's, which finds no call of ours for the fixture's reference and
-      // records nothing.
+      // records nothing; the WhatsApp handler (W1) finds no company for the signed fixture's
+      // number and records nothing, with its code.
       expect(row).toMatchObject(
         d.provider === 'meta_leadgen' || d.provider === 'google_leadform'
           ? { failed: true, attempts: 1, error_code: 'form_unmapped' }
           : {
               processed: true,
               attempts: 1,
-              error_code: d.provider === 'exotel_status' ? null : 'no_handler',
+              error_code:
+                d.provider === 'exotel_status'
+                  ? null
+                  : d.provider === 'meta_whatsapp'
+                    ? 'whatsapp_number_unknown'
+                    : 'no_handler',
             },
       );
       // Processing it again changes nothing.

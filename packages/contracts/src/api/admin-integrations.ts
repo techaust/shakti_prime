@@ -3,6 +3,7 @@ import { MoneySchema } from '../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { CursorSchema, PageLimitSchema, SemverSchema } from './common';
 import { TallyCompanySchema } from './connector';
+import { MessagingRefusalSchema } from './messaging';
 import { AgentNameSchema } from './worker-jobs';
 
 /**
@@ -148,6 +149,23 @@ export const WhatsAppNumberHealth = z
 export type WhatsAppNumberHealth = z.infer<typeof WhatsAppNumberHealth>;
 
 /**
+ * The portfolio's WhatsApp messaging (docs/03-roadmap-appendix/phase2.md §6.1): the limit Meta
+ * reports (or the starting tier until it does), the business-initiated conversations to distinct
+ * customers in the rolling 24 hours, and the last day's messages refused, by the check that refused
+ * them, and failed.
+ */
+export const WhatsAppBudgetHealth = z
+  .object({
+    limit: Count,
+    limitReported: z.boolean(),
+    used: Count,
+    refusals: z.array(z.object({ refusal: MessagingRefusalSchema, count: Count }).strict()),
+    failed: Count,
+  })
+  .strict();
+export type WhatsAppBudgetHealth = z.infer<typeof WhatsAppBudgetHealth>;
+
+/**
  * One agent's model spend in one company, in rupees, from its runs (`agent_runs`): today's and the
  * month's so far (IST), with the runs, beside the caps that apply there (`agent_configs`): the
  * company's and the group's, null for none. `stoppedByCap` when a run was stopped by a cap today.
@@ -178,6 +196,7 @@ export const DATABASE_JOBS = [
   'audit-logs-partitions',
   'idempotency-keys-purge',
   'outbox-events-purge',
+  'whatsapp-messages-partitions',
 ] as const;
 export const DatabaseJobSchema = z.enum(DATABASE_JOBS);
 export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
@@ -185,7 +204,8 @@ export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
 /**
  * How often each job is meant to run, in hours, shown for a job the database no longer schedules
  * (a scheduled job's period is read from its own schedule): the partition makers and the purges
- * daily, the audit archive monthly (31 days), and the activity partitions on the 25th.
+ * daily, the audit archive monthly (31 days), and the activity and WhatsApp message partitions on
+ * the 25th.
  */
 export const DATABASE_JOB_EVERY_HOURS: Readonly<Record<DatabaseJob, number>> = {
   'activities-partitions': 31 * 24,
@@ -194,6 +214,7 @@ export const DATABASE_JOB_EVERY_HOURS: Readonly<Record<DatabaseJob, number>> = {
   'audit-logs-partitions': 24,
   'idempotency-keys-purge': 24,
   'outbox-events-purge': 24,
+  'whatsapp-messages-partitions': 31 * 24,
 };
 
 /**
@@ -309,6 +330,7 @@ export const IntegrationHealthResponse = z
       .strict(),
     connectors: z.array(ConnectorHealth),
     whatsapp: z.array(WhatsAppNumberHealth),
+    whatsappBudget: WhatsAppBudgetHealth,
     /** The database's scheduled jobs, each with its state and last run (audit 2026-10, DATA-3). */
     jobs: z.array(ScheduledJobHealth),
     aiSpend: z

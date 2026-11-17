@@ -262,6 +262,16 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'agents.autonomy.write': { ...EXEC },
   'agents.killswitch': { ...EXEC, general_manager: 'all' },
   'voice.use': { ...EXEC, general_manager: 'all' },
+  // WhatsApp (design phase2 §4): a person messages the customers they look after.
+  'messaging.send': {
+    ...EXEC,
+    general_manager: 'entity',
+    sales_team_lead: 'team',
+    tele_caller_cc: 'own',
+    tele_caller_lc: 'own',
+    store_manager: 'own',
+  },
+  'messaging.templates.write': { ...EXEC },
   'reports.export': {
     ...EXEC,
     general_manager: 'entity',
@@ -318,6 +328,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'crm.dnd.record': {},
   // The platform's webhook worker and sweep; no person's role holds it (SECURITY §3.3).
   'webhooks.process': {},
+  // The platform's WhatsApp handler and messaging worker; no person's role holds it (SECURITY §3.3).
+  'messaging.process': {},
   // The platform's lead from an integration; no person's role holds it (SECURITY §3.3).
   'crm.ingest.run': {},
   // The platform's record of a provider call and its recording; no person's role holds it

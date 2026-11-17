@@ -33,6 +33,8 @@ export const FILE_PURPOSES = [
   // A provider call's recording, copied from the provider by the platform (T3); played only through
   // `calls.recording.play`, never opened as a file.
   'call_recording',
+  // A photo or PDF a customer sent on WhatsApp, read with its thread (docs/03-roadmap-appendix/phase2.md §6.1).
+  'whatsapp_media',
 ] as const;
 export const FilePurposeSchema = z.enum(FILE_PURPOSES);
 export type FilePurpose = z.infer<typeof FilePurposeSchema>;

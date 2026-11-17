@@ -277,6 +277,7 @@ describe('the handover definers', () => {
         'crm.dnd.record',
         'webhooks.process',
         'knowledge.playbook.check',
+        'messaging.process',
         'calls.process',
       ]),
     );

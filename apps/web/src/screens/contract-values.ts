@@ -17,6 +17,15 @@ import type {
   CustomerLanguage,
   CustomerSort,
   EntityChannelKind,
+  MessagingRefusal,
+  WhatsAppHandoffReason,
+  WhatsAppMessageDirection,
+  WhatsAppMessageKind,
+  WhatsAppMessageStatus,
+  WhatsAppTemplateCategory,
+  WhatsAppTemplatePurpose,
+  WhatsAppTemplateStatus,
+  WhatsAppThreadHandler,
   IngestAssignee,
   IngestFieldTarget,
   IngestChannel,
@@ -178,6 +187,70 @@ export const ENTITY_CHANNEL_KINDS = [
   'missed_call',
 ] as const satisfies readonly EntityChannelKind[];
 
+/** Why the messaging worker did not send a WhatsApp message (`MESSAGING_REFUSALS`). */
+export const MESSAGING_REFUSALS = [
+  'opted_out',
+  'window_closed',
+  'template_not_approved',
+  'tier_budget_reached',
+  'output_filter',
+] as const satisfies readonly MessagingRefusal[];
+
+/** WhatsApp (docs/03-roadmap-appendix/phase2.md §6.1): who answers a thread. */
+export const WHATSAPP_THREAD_HANDLERS = [
+  'assistant',
+  'people',
+] as const satisfies readonly WhatsAppThreadHandler[];
+
+/** Why a WhatsApp thread went to people. */
+export const WHATSAPP_HANDOFF_REASONS = [
+  'keyword',
+  'request',
+  'filter_refusals',
+  'complaint',
+  'no_assistant',
+] as const satisfies readonly WhatsAppHandoffReason[];
+
+export const WHATSAPP_MESSAGE_DIRECTIONS = [
+  'inbound',
+  'outbound',
+] as const satisfies readonly WhatsAppMessageDirection[];
+
+export const WHATSAPP_MESSAGE_KINDS = [
+  'text',
+  'template',
+  'media',
+  'button',
+  'system',
+] as const satisfies readonly WhatsAppMessageKind[];
+
+export const WHATSAPP_MESSAGE_STATUSES = [
+  'queued',
+  'sent',
+  'delivered',
+  'read',
+  'failed',
+  'refused',
+] as const satisfies readonly WhatsAppMessageStatus[];
+
+export const WHATSAPP_TEMPLATE_CATEGORIES = [
+  'utility',
+  'marketing',
+  'authentication',
+] as const satisfies readonly WhatsAppTemplateCategory[];
+
+export const WHATSAPP_TEMPLATE_STATUSES = [
+  'pending',
+  'approved',
+  'rejected',
+  'paused',
+  'disabled',
+] as const satisfies readonly WhatsAppTemplateStatus[];
+
+export const WHATSAPP_TEMPLATE_PURPOSES = [
+  'welcome',
+  'opt_out_confirmation',
+] as const satisfies readonly WhatsAppTemplatePurpose[];
 /** The channels a lead may arrive by from an integration (`INGEST_CHANNELS`). */
 export const INGEST_CHANNELS = [
   'meta_ads',
@@ -803,6 +876,7 @@ export const FILE_PURPOSES = [
   'knowledge',
   'consent_evidence',
   'call_recording',
+  'whatsapp_media',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */

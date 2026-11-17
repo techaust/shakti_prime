@@ -285,6 +285,22 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   // A company's numbers: every principal acting in the company reads them (design phase2 §5.2).
   entity_channels: { read: CONTEXT, leak: otherCompany },
+  // A WhatsApp thread and its messages are read under the customer's read rule, as Account 360;
+  // one matched to no customer yet only with messaging.send for the company (design phase2 §6.1).
+  whatsapp_threads: {
+    read: ACCOUNT_READ,
+    readRow: (row) => (row.unmatched === true ? grant('messaging.send', 'entity') : ACCOUNT_READ),
+    throughLead: LEAD_READ,
+    leak: otherCompany,
+  },
+  whatsapp_messages: {
+    read: ACCOUNT_READ,
+    readRow: (row) => (row.unmatched === true ? grant('messaging.send', 'entity') : ACCOUNT_READ),
+    throughLead: LEAD_READ,
+    leak: otherCompany,
+  },
+  // A company's templates: every principal acting in the company reads them (the composer).
+  whatsapp_templates: { read: CONTEXT, leak: otherCompany },
   // A company's connected forms and sites and its website keys: an Executive's (design phase2 §6.2).
   ingest_sources: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
   ingest_keys: { read: grant('crm.sources.write', 'all'), leak: otherCompany },

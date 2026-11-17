@@ -54,6 +54,7 @@ export interface WorkshopDefaults {
     readonly firstContactSlaMinutes: number | null;
   };
   readonly calling: CallingDefaults;
+  readonly whatsapp: WhatsAppDefaults;
   readonly sizing: SizingDefaults;
   readonly retention: {
     /**
@@ -80,6 +81,11 @@ export interface WorkshopDefaults {
     /** Days a `webhook_inbox` row is kept after it arrived; then the sweep removes it. At least 1. */
     readonly webhookRowDays: number;
     /**
+     * Years a file a customer sent on WhatsApp is kept, after which only the text of its thread
+     * stays (BLUEPRINT §7.9). The removal job comes with the retention jobs of Phase 2's close.
+     */
+    readonly whatsappMediaYears: number;
+    /**
      * Days an Ask the Business conversation is kept after it was last used, and a question and
      * its answer after it was asked; then the database's daily sweep removes them
      * (`ask-conversations-purge`, whose days a security test keeps equal to this). At least 1.
@@ -91,6 +97,37 @@ export interface WorkshopDefaults {
      */
     readonly callRecordingMonths: number;
   };
+}
+
+/** WhatsApp messaging (docs/03-roadmap-appendix/phase2.md §6.1, §11). */
+export interface WhatsAppDefaults {
+  /**
+   * What a customer writes, the whole message and in any case, to opt out (`stop`), to ask for a
+   * person (`human`) or for the state of their order (`status`, S3), in English and Roman Hindi.
+   */
+  readonly keywords: Readonly<Record<'stop' | 'human' | 'status', readonly string[]>>;
+  /**
+   * The share of the portfolio's messaging limit (business-initiated conversations to distinct
+   * customers in a rolling 24 hours) past which a marketing template waits, so service messages
+   * always have room.
+   */
+  readonly marketingHoldShare: number;
+  /** The messaging limit until Meta reports one: the first tier of a new portfolio. */
+  readonly startingLimit: number;
+  /** Messages sent on one thread in an hour, at most. */
+  readonly messagesPerThreadHour: number;
+  /** Minutes a chat handed to people waits for a reply, in calling hours, before its notice. */
+  readonly replyWaitMinutes: number;
+  /**
+   * The hosts a message may link to: the companies' own sites. Empty until the client gives them,
+   * so until then a message with a link is held back by the output filter.
+   */
+  readonly linkHosts: readonly string[];
+  /**
+   * The pipeline a lead from a WhatsApp number no customer holds starts in (`crm.lead.ingest` needs
+   * one, since WhatsApp has no ingest source); the Triage agent and the callers move it on.
+   */
+  readonly leadPipelineKey: string;
 }
 
 /** The cold calling rules (docs/03-roadmap-appendix/phase1.md §7.2, §11; workshop CALL-3 and CALL-5). */
@@ -253,6 +290,44 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     recordingNotice: 'call_recording_notice',
   },
   /**
+   * Phase 2 design §11, each for the client to confirm in the final phase (§13): the keywords in
+   * English and Roman Hindi; the marketing hold at 80% of the budget; 250 conversations until Meta
+   * reports a tier (BLUEPRINT §13); 20 messages an hour per thread; 10 minutes before a waiting
+   * chat's notice; no link host until the companies' sites are given.
+   */
+  whatsapp: {
+    keywords: {
+      stop: [
+        'stop',
+        'unsubscribe',
+        'stop all',
+        'stop promotions',
+        'band karo',
+        'band kar do',
+        'mat bhejo',
+        'message mat bhejo',
+      ],
+      human: [
+        'human',
+        'agent',
+        'person',
+        'talk to a person',
+        'insaan',
+        'insaan se baat',
+        'kisi se baat karni hai',
+      ],
+      status: ['status', 'order status', 'mera order'],
+    },
+    marketingHoldShare: 0.8,
+    startingLimit: 250,
+    messagesPerThreadHour: 20,
+    replyWaitMinutes: 10,
+    linkHosts: [],
+    // For the sales head to confirm (phase 2 design §13, question 8): the farm pump line, the
+    // group's largest by enquiries, until a WhatsApp number per business line is known.
+    leadPipelineKey: 'farmer_pumps',
+  },
+  /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is
    * a common textbook or trade value, not a client fact, until the engineering head confirms it
    * (docs/13-client-packs/exit-gate-actions.md). A sizing stores the constants it used with its result.
@@ -339,6 +414,8 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      */
     webhookPayloadDays: 30,
     webhookRowDays: 90,
+    /** BLUEPRINT §7.9: WhatsApp media three years, then the text alone. For the CA to confirm. */
+    whatsappMediaYears: 3,
     /**
      * The owner's decision of 13-11-2026 (phase 2 design §11): 90 days. For the CA to confirm
      * (phase 2 design §13, question 10).
