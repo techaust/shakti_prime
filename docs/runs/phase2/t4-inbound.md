@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): a webhook worker, notifications, a platform write path |
 | Usage | build Opus 5.5 high; 5-hour window 1 % at 12:40 UTC (the owner's reading) |
-| State | building |
-| Next step | the builder's early check |
+| State | early check passed (lead, 17-11) |
+| Next step | a builder resumes steps 5 to 8 on a fresh slot database |
 
 ## Brief
 Read first:
@@ -78,3 +78,5 @@ Steps 1 to 4 are built and tested; steps 5 to 8 (the ringing route, the screen-p
 ## Review
 
 ## Integration
+### Lead's read of the early check, 17-11-2026
+Passed. No policy and no T3 definer is redefined; the six new definers check `calls.process` and the request's company. Calling hours 09:00 to 21:00 IST are the domain's `CALLING_WINDOW_IST`. `provider_calls.opportunity_id` made nullable is accepted (A2 reads only dial calls with a lead). A constraint of this branch's was seen once on A2's database (54333): every command of steps 5 to 8 uses this slot's own `DATABASE_URL` (54334) only.
