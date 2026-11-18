@@ -24,6 +24,11 @@ import { emailFor } from './support/users';
 
 const panel = (page: Page) => page.getByRole('region', { name: 'Co-pilot' });
 
+// In order, one test after the other: the report counts what the callers did with the
+// suggestions, and the tele-caller's journey approves one and rejects another, so the report's
+// picture is the same only when it always comes after that journey.
+test.describe.configure({ mode: 'serial' });
+
 /** Opens a lead in the Cold Caller workspace through its search; the workspace has the keyboard. */
 async function openInWorkspace(page: Page, name: string): Promise<void> {
   await page.goto('/calling');
@@ -78,7 +83,12 @@ test.describe('the Caller Co-pilot as a tele-caller', () => {
     await expect(copilot.getByText(COPILOT_JOURNEY.followUp)).toBeVisible();
     await expect(copilot.getByText('Record what was heard on a call')).toBeVisible();
     await expectNoAxeViolations(page);
-    await snap(page, 'copilot-panel', { mask: [page.getByText(/^Phone ending /)] });
+    // The panel alone: the queue beside it lists other journeys' leads, whose names end in random
+    // digits, and the lead's history shows today's times.
+    await snap(page, 'copilot-panel', {
+      element: copilot,
+      mask: [copilot.getByText(/^Phone ending /)],
+    });
 
     // A approves the first suggestion (the follow-up), R rejects the next (the facts).
     await page.locator('body').press('a');
@@ -146,13 +156,9 @@ test.describe('the Co-pilot report as an Executive', () => {
     await expect(row).toContainText('Not saved yet');
     await expect(row).toContainText('Not known yet');
     await expectNoAxeViolations(page);
-    // The period runs to today and the summaries are days old, so the dates are masked.
-    await snap(page, 'copilot-report', {
-      mask: [
-        page.getByLabel('From', { exact: true }),
-        page.getByLabel('To', { exact: true }),
-        page.locator('main time'),
-      ],
-    });
+    // The summaries alone, which only the seed writes: the counts of refused briefs and waiting
+    // suggestions above them grow while other journeys assign leads in the company, so they are
+    // read as text, never pictured. The summaries are days old, so their dates are masked.
+    await snap(page, 'copilot-report', { element: grid, mask: [grid.locator('time')] });
   });
 });
