@@ -285,7 +285,7 @@ export const AGENT_DEFAULTS = {
     maxCallMinutes: 15,
     recordingWaitMinutes: 5,
     answerTtlSeconds: 60 * 60,
-    promptVersion: 'copilot-1',
+    promptVersion: 'copilot-2',
   },
 
   /**

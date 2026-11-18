@@ -23,6 +23,7 @@ import {
   type CopilotDeps,
   type CopilotRunResult,
 } from './run-copilot';
+import { spokenDigitsAsFigures } from './spoken-digits';
 
 // The summary of a recorded call (docs/03-roadmap-appendix/phase2.md §7.3): on
 // `calls.dial.completed`, a dial of a lead that was answered and recorded, within the company's
@@ -264,7 +265,8 @@ export async function summariseCall(
     }
     // The adapter answers Roman script only; a transcript that is not is never kept (ADR 0014).
     if (!isRomanScript(heard)) return { outcome: 'skipped', why: 'unreadable' };
-    const masked = maskWholeText(heard).trim();
+    // A number said digit by digit is written in figures first, so it is masked whole.
+    const masked = maskWholeText(spokenDigitsAsFigures(heard)).trim();
     if (masked === '') return { outcome: 'skipped', why: 'unreadable' };
     // A transcript over the limit keeps its end, where a call's agreements are.
     transcript =

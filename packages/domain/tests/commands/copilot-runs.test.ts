@@ -54,6 +54,8 @@ import { effectiveDispositions } from '../../src/queries/crm/pipeline-settings';
 const ENTITY = 3;
 /** A valid Aadhaar number (its Verhoeff check digit is 4). */
 const AADHAAR = '234567890124';
+/** The same number said digit by digit in Hindi, as the speech service writes it. */
+const SPOKEN_AADHAAR = 'do teen char paanch, chhe saat aath nau, shunya ek do char';
 const madeConfigs: string[] = [];
 let channel: WhatsAppChannelFixture;
 let exec: Principal;
@@ -552,6 +554,7 @@ describe('the summary of a recorded call', () => {
     'Namaste ji, haan pump ke liye call kiya tha.',
     'Bore 120 feet gehra hai, 5 HP chahiye.',
     `Mera number 98123 45678 hai aur Aadhaar ${AADHAAR}.`,
+    `Bhai ka Aadhaar ${SPOKEN_AADHAAR} hai.`,
     'Kal subah 11 baje call kariye.',
   ].join(' ');
   const answer = () =>
@@ -621,6 +624,9 @@ describe('the summary of a recorded call', () => {
     expect(kept).toContain('120 feet');
     expect(kept).not.toContain(AADHAAR);
     expect(kept).not.toContain('98123 45678');
+    // A number said digit by digit is masked whole too.
+    expect(kept).not.toContain(SPOKEN_AADHAAR);
+    expect(kept).not.toContain('chhe saat aath nau');
 
     // The model read it masked and labelled, on the summary's model.
     const [request] = transport.requests;

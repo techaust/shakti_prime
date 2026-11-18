@@ -10,6 +10,7 @@ import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { approvedPlaybook } from '../../queries/knowledge/playbook';
 import { effectiveDispositions } from '../../queries/crm/pipeline-settings';
 import { AGENT_DEFAULTS } from '../agent-defaults';
+import { maskAmounts } from './amounts';
 import type {
   CopilotCallLine,
   CopilotMessageLine,
@@ -27,6 +28,40 @@ export interface CopilotJob {
   now: Date;
   /** A summary's masked transcript. */
   transcript?: string;
+}
+
+/** One chat message as the Co-pilot's definer gives it. */
+export interface ChatRow {
+  direction: string;
+  kind: string;
+  body_masked: string | null;
+  template_name: string | null;
+  created_at: Date | string;
+}
+
+/**
+ * The chat's messages, oldest first, as a brief reads them: a template by its label, a picture or
+ * file by a word, a text as stored (masked). The business's own texts have their amounts masked
+ * too, since a person may have quoted a price in a reply, and no price reaches a model.
+ */
+export function chatLines(
+  rows: readonly ChatRow[],
+  templates: readonly Pick<CopilotTemplate, 'name' | 'label'>[],
+  now: Date,
+): CopilotMessageLine[] {
+  const labels = new Map(templates.map((t) => [t.name, t.label]));
+  return rows.flatMap((r): CopilotMessageLine[] => {
+    const direction = r.direction === 'inbound' ? 'inbound' : 'outbound';
+    const daysAgo = Math.max(0, istDaysBetween(new Date(r.created_at), now));
+    if (r.kind === 'template') {
+      const label = r.template_name === null ? undefined : labels.get(r.template_name);
+      return [{ direction, daysAgo, text: `(template) ${label ?? 'a WhatsApp template'}` }];
+    }
+    if (r.kind === 'media') return [{ direction, daysAgo, text: '(a picture or file)' }];
+    if (r.body_masked === null || r.body_masked.trim() === '') return [];
+    const text = direction === 'outbound' ? maskAmounts(r.body_masked) : r.body_masked;
+    return [{ direction, daysAgo, text }];
+  });
 }
 
 const CATEGORIES: readonly WhatsAppTemplateCategory[] = ['utility', 'marketing', 'authentication'];
@@ -160,25 +195,8 @@ export async function readCopilotFacts(
     const rows = (await tx.execute(sql`
       select direction, kind, body_masked, template_name, created_at
         from app.copilot_chat_messages(${lead.entityId}::smallint, ${lead.id}::uuid,
-                                       ${thread.thread_id}::uuid, ${d.messagesRead}::integer)`)) as unknown as {
-      direction: string;
-      kind: string;
-      body_masked: string | null;
-      template_name: string | null;
-      created_at: Date | string;
-    }[];
-    const labels = new Map(templates.map((t) => [t.name, t.label]));
-    messages = rows.reverse().flatMap((r): CopilotMessageLine[] => {
-      const direction = r.direction === 'inbound' ? 'inbound' : 'outbound';
-      const daysAgo = Math.max(0, istDaysBetween(new Date(r.created_at), job.now));
-      if (r.kind === 'template') {
-        const label = r.template_name === null ? undefined : labels.get(r.template_name);
-        return [{ direction, daysAgo, text: `(template) ${label ?? 'a WhatsApp template'}` }];
-      }
-      if (r.kind === 'media') return [{ direction, daysAgo, text: '(a picture or file)' }];
-      if (r.body_masked === null || r.body_masked.trim() === '') return [];
-      return [{ direction, daysAgo, text: r.body_masked }];
-    });
+                                       ${thread.thread_id}::uuid, ${d.messagesRead}::integer)`)) as unknown as ChatRow[];
+    messages = chatLines(rows.reverse(), templates, job.now);
   }
   const consents = {
     service: thread?.consent_service === true,

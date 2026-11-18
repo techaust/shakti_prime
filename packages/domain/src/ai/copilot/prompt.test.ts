@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { baseFacts, NOW, QUOTE_ID } from '../../../tests/fixtures/copilot-sets';
 import { AGENT_DEFAULTS } from '../agent-defaults';
-import { buildBriefPrompt, buildSummaryPrompt, dueTemplates } from './prompt';
+import { copilotTextProblem } from './filter';
+import {
+  buildBriefPrompt,
+  buildSummaryPrompt,
+  COPILOT_BRIEF_SYSTEM,
+  COPILOT_NEXT_STEP_EXAMPLES,
+  COPILOT_SUMMARY_SYSTEM,
+  dueTemplates,
+} from './prompt';
 
 const DAY_MS = 86_400_000;
 
@@ -50,5 +58,23 @@ describe('the Caller Co-pilot’s prompts', () => {
       ],
     });
     expect(dueTemplates(later)).toEqual([]);
+  });
+
+  it('asks for next steps in words the output filter keeps', () => {
+    // Its examples are notes the filter keeps, and both prompts name the phrasing it refuses.
+    expect(COPILOT_NEXT_STEP_EXAMPLES.length).toBeGreaterThan(0);
+    for (const example of COPILOT_NEXT_STEP_EXAMPLES) {
+      expect({ example, problem: copilotTextProblem(example) }).toEqual({
+        example,
+        problem: undefined,
+      });
+      expect(COPILOT_BRIEF_SYSTEM).toContain(example);
+    }
+    for (const system of [COPILOT_BRIEF_SYSTEM, COPILOT_SUMMARY_SYSTEM]) {
+      expect(system).not.toMatch(/what the caller should do/i);
+      for (const refused of ['"you should"', '"you must"', '"you are"']) {
+        expect(system).toContain(refused);
+      }
+    }
   });
 });
