@@ -31,7 +31,11 @@ import { PROJECTS, SNAPSHOT_COMPANY, SNAPSHOT_LEADS, WHATSAPP } from '../support
 const ENTITY = 1;
 const CONCIERGE = AGENT_PRINCIPAL_IDS['agent:concierge'];
 const REPLY = CONCIERGE_ACTION_TYPES.reply;
-/** The settings that let the drafts be filed, set while they are. */
+/**
+ * The settings that let the drafts be filed: the Concierge switched on with a spending limit in
+ * company 1, kept, so its chats stay with the assistant and a chat with the team may be given back
+ * (A3's fix round, M2); and its replies under Needs approval, set while the drafts are filed.
+ */
 const SETTINGS = ['01a3c0de-0000-7000-8000-000000000011', '01a3c0de-0000-7000-8000-000000000012'];
 /** The snapshot company's shadow draft: its run and its action. */
 const SHADOW_RUN = '01a3c0de-0000-7000-8000-000000000001';
@@ -121,7 +125,7 @@ export async function ensureConciergeJourneys(callerId: string): Promise<void> {
       }
     }
   } finally {
-    await asMigrator((m) => m`delete from agent_configs where id = any(${SETTINGS})`);
+    await asMigrator((m) => m`delete from agent_configs where id = ${replyRow ?? ''}`);
   }
 
   // The snapshot company's chat: one draft in Shadow, after its customer's message, written once.

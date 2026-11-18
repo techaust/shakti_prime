@@ -33,14 +33,19 @@ export type ConciergeSkip =
   /** A newer message from the customer came since: its own run answers both. */
   | 'superseded';
 
+/** The chat as the run first reads it: who answers it, and the customer's words it answers. */
+export interface ConciergeChat {
+  accountId: string;
+  opportunityId: string | null;
+  /** The customer's words the run answers, as stored (a file's caption), or null. */
+  answering: string | null;
+}
+
+export type ConciergeChatRead =
+  { kind: 'skip'; skip: ConciergeSkip } | { kind: 'chat'; chat: ConciergeChat };
+
 export type ConciergeRead =
-  | { kind: 'skip'; skip: ConciergeSkip }
-  | {
-      kind: 'facts';
-      facts: ConciergeRunFacts;
-      /** The customer's words the run answers, as stored (a file's caption), or null. */
-      answering: string | null;
-    };
+  { kind: 'skip'; skip: ConciergeSkip } | { kind: 'facts'; facts: ConciergeRunFacts };
 
 /** One chat message as the run reads it. */
 interface MessageRow {
@@ -79,17 +84,15 @@ export function messageLines(rows: readonly MessageRow[], now: Date): ConciergeM
 }
 
 /**
- * What one run of the WhatsApp Concierge reads, as the agent itself in a run bound to the chat
- * (`app.agent_thread_id`), under its own grants and row security (docs/03-roadmap-appendix/
- * phase2.md §7.2): the chat (who answers it, its window, its opt-out), its last messages, its
- * customer's name, the lead's segment, stage and recorded facts, the lead's open callbacks, the
- * company's own numbers and the approved `customer` directives. Nothing else: no other customer,
- * no note, no price list, no cost. A chat with nothing to draft now (people answer it, it has no
- * customer, a person already replied, a newer message came) is a skip, read no further.
+ * The run's first read, as the agent itself in a run bound to the chat (`app.agent_thread_id`):
+ * who answers the chat, its window and opt-out, and the customer's newest message. A chat with
+ * nothing to draft now (people answer it, it has no customer, a person already replied, a newer
+ * message came) is a skip, read no further and recorded nowhere. Nothing of the chat's history,
+ * the lead or the rules is read here: the run's switches and caps are checked between this and
+ * `readConciergeFacts()`.
  */
-export async function readConciergeFacts(ctx: Ctx, job: ConciergeJob): Promise<ConciergeRead> {
+export async function readConciergeChat(ctx: Ctx, job: ConciergeJob): Promise<ConciergeChatRead> {
   const { tx } = ctx;
-  const d = AGENT_DEFAULTS.concierge;
   const t = schema.whatsappThreads;
   const [thread] = await tx
     .select({
@@ -113,6 +116,42 @@ export async function readConciergeFacts(ctx: Ctx, job: ConciergeJob): Promise<C
   }
   if (!thread.needsReply) return { kind: 'skip', skip: 'answered' };
 
+  const m = schema.whatsappMessages;
+  const [newest] = await tx
+    .select({ id: m.id, body: m.bodyMasked })
+    .from(m)
+    .where(
+      and(eq(m.threadId, job.threadId), eq(m.entityId, job.entityId), eq(m.direction, 'inbound')),
+    )
+    .orderBy(desc(m.createdAt), desc(m.id))
+    .limit(1);
+  if (newest?.id !== job.messageId) return { kind: 'skip', skip: 'superseded' };
+  return {
+    kind: 'chat',
+    chat: {
+      accountId: thread.accountId,
+      opportunityId: thread.opportunityId,
+      answering: newest.body,
+    },
+  };
+}
+
+/**
+ * What one run of the WhatsApp Concierge reads once its switches and caps let it run, as the agent
+ * itself in a run bound to the chat (`app.agent_thread_id`), under its own grants and row security
+ * (docs/03-roadmap-appendix/phase2.md §7.2): the chat's last messages, its customer's name, the
+ * lead's segment, stage and recorded facts, the lead's open callbacks, the company's own numbers
+ * and the approved `customer` directives. Nothing else: no other customer, no note, no price
+ * list, no cost. A newer customer message since the first read is a skip.
+ */
+export async function readConciergeFacts(
+  ctx: Ctx,
+  job: ConciergeJob,
+  chat: ConciergeChat,
+): Promise<ConciergeRead> {
+  const { tx } = ctx;
+  const d = AGENT_DEFAULTS.concierge;
+  const thread = chat;
   const m = schema.whatsappMessages;
   const rows = (
     await tx
@@ -219,7 +258,6 @@ export async function readConciergeFacts(ctx: Ctx, job: ConciergeJob): Promise<C
 
   return {
     kind: 'facts',
-    answering: newestInbound.body,
     facts: {
       entityId: job.entityId,
       threadId: job.threadId,

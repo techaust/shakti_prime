@@ -23,6 +23,8 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AGENT_DEFAULTS } from '../../src/ai/agent-defaults';
 import {
+  CONCIERGE_PURPOSE,
+  conciergeCeilings,
   conciergeModelEstimatePaise,
   conciergeRefusalsKey,
   conciergeRunsKey,
@@ -30,6 +32,7 @@ import {
   type ConciergeDeps,
 } from '../../src/ai/concierge/run-concierge';
 import { createAiProvider } from '../../src/ai/provider';
+import { runAgentStep } from '../../src/ai/runtime';
 import { fakeModelTransport, fakeReply, type FakeModelTransport } from '../../src/ai/transport';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -351,32 +354,128 @@ describe('a Concierge run on a customer message', () => {
     expect(await kv.get(conciergeRefusalsKey(ENTITY, c.threadId))).toBeNull();
   });
 
-  it('stops before reading when switched off, past the spend or past the chat’s runs today', async () => {
+  it('stops before reading when switched off, without a limit or past the spend, and hands the chat to people', async () => {
+    const stops: { outcome: string; run: string | undefined; facts: boolean }[] = [];
+    const stopOn = async (prepare: () => Promise<void>) => {
+      const c = await chat();
+      const msg = await say(c, 'Hello there');
+      await prepare();
+      const d = deps(c, []);
+      const logger = memoryLogger();
+      const result = await runOn(c, msg, { ...d, logger });
+      expect(d.transport.requests).toHaveLength(0);
+      expect(d.handedOff).toEqual(['no_assistant']);
+      expect(await threadOf(c.threadId)).toEqual({
+        handled_by: 'people',
+        handoff_reason: 'no_assistant',
+      });
+      stops.push({
+        outcome: result.outcome,
+        run: result.runs.reply?.outcome,
+        // Nothing of the chat's messages, lead or rules was read.
+        facts: logger.entries.some((e) => e.fields.name === 'agents.concierge.facts'),
+      });
+    };
+    // Switched off for the company.
+    await stopOn(() => setting({ cap: 10_000, enabled: false }));
+    // No spending limit set yet.
+    await stopOn(() => setting({ cap: null }));
+    // A cap below one run's estimate.
+    await stopOn(() => setting({ cap: Math.max(1, conciergeModelEstimatePaise() - 1) }));
+    expect(stops).toEqual([
+      { outcome: 'stopped', run: 'switched_off', facts: false },
+      { outcome: 'stopped', run: 'cap_reached', facts: false },
+      { outcome: 'stopped', run: 'cap_reached', facts: false },
+    ]);
+    await setting({ cap: 10_000 });
+  });
+
+  it('stops before reading past the chat’s runs today, and hands the chat to people', async () => {
+    await setting({ cap: 10_000 });
     const c = await chat();
     const msg = await say(c, 'Hello there');
-    // Switched off for the company.
-    await setting({ cap: 10_000, enabled: false });
-    const off = deps(c, []);
-    const stopped = await runOn(c, msg, off);
-    expect({ outcome: stopped.outcome, run: stopped.runs.reply?.outcome }).toEqual({
-      outcome: 'stopped',
-      run: 'switched_off',
-    });
-    // A cap below one run's estimate.
-    await setting({ cap: Math.max(1, conciergeModelEstimatePaise() - 1) });
-    const poor = deps(c, []);
-    expect((await runOn(c, msg, poor)).runs.reply?.outcome).toBe('cap_reached');
-    // The chat's runs for the day used up.
-    await setting({ cap: 10_000 });
     const kv = memoryKeyValue();
     await kv.set(
       conciergeRunsKey(ENTITY, c.threadId, istCalendarDate(new Date())),
       String(AGENT_DEFAULTS.concierge.runsPerThreadDay),
       600,
     );
-    const busy = deps(c, [], kv);
-    expect((await runOn(c, msg, busy)).runs.reply?.outcome).toBe('cap_reached');
-    for (const d of [off, poor, busy]) expect(d.transport.requests).toHaveLength(0);
+    const d = deps(c, [], kv);
+    const logger = memoryLogger();
+    const result = await runOn(c, msg, { ...d, logger });
+    expect({ outcome: result.outcome, run: result.runs.reply?.outcome }).toEqual({
+      outcome: 'stopped',
+      run: 'cap_reached',
+    });
+    expect(d.transport.requests).toHaveLength(0);
+    expect(logger.entries.some((e) => e.fields.name === 'agents.concierge.facts')).toBe(false);
+    expect(await threadOf(c.threadId)).toEqual({
+      handled_by: 'people',
+      handoff_reason: 'no_assistant',
+    });
+  });
+
+  it('hands off on the hand-off words before any stop, and records nothing on a chat people answer', async () => {
+    await setting({ cap: 10_000, enabled: false });
+    try {
+      const c = await chat();
+      const msg = await say(c, 'consumer forum me complaint karunga');
+      const d = deps(c, []);
+      const result = await runOn(c, msg, d);
+      expect({ outcome: result.outcome, handoff: result.handoff, runs: result.runs }).toEqual({
+        outcome: 'handed_off',
+        handoff: 'legal',
+        runs: {},
+      });
+      expect(await threadOf(c.threadId)).toEqual({
+        handled_by: 'people',
+        handoff_reason: 'complaint',
+      });
+
+      const people = await chat('people');
+      const later = await say(people, 'Hello again', 'people');
+      const skipped = await runOn(people, later, deps(people, []));
+      expect({ outcome: skipped.outcome, skip: skipped.skip, runs: skipped.runs }).toEqual({
+        outcome: 'skipped',
+        skip: 'with_people',
+        runs: {},
+      });
+    } finally {
+      await setting({ cap: 10_000 });
+    }
+  });
+
+  it('counts a refused answer once when a redelivery completes a partial run', async () => {
+    const c = await chat();
+    const msg = await say(c, 'Hello');
+    const kv = memoryKeyValue();
+    const eventId = newId();
+    const refusals = conciergeRefusalsKey(ENTITY, c.threadId);
+    const refused = reply('Your pump is free.', {
+      reply: { text: 'Your pump is free.', form: 'greeting', directives: [] },
+    });
+    // The first delivery recorded the refused reply and counted it, then stopped before its next
+    // step.
+    await runAgentStep(
+      {
+        agent: 'agent:concierge',
+        entityId: ENTITY,
+        eventId,
+        purpose: CONCIERGE_PURPOSE,
+        actionType: REPLY,
+        threadId: c.threadId,
+        decide: () => Promise.resolve({ filtered: 'text_has_promise' }),
+        ceilings: conciergeCeilings(ENTITY),
+      },
+      deps(c, [], kv),
+    );
+    await kv.incr(refusals, 600);
+    // The redelivery records the other steps from the same answer and counts nothing again.
+    const again = deps(c, [refused], kv);
+    const result = await runOn(c, msg, again, eventId);
+    expect(result.runs.reply?.outcome).toBe('filtered');
+    expect(result.runs.qualification?.outcome).toBe('nothing_to_do');
+    expect(await kv.get(refusals)).toBe('1');
   });
 });
 

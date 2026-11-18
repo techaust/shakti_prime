@@ -17,8 +17,9 @@ import type { SpendCap } from '../provider';
 import { agentPrincipal, runAgentStep, type AgentStepDeps, type RunModel } from '../runtime';
 import { conciergeFilterFacts } from './facts';
 import { filterConciergeAnswer, type ConciergeVerdicts } from './filter';
+import { conciergeMayRun } from './availability';
 import { buildConciergePrompt, type ConciergePrompt } from './prompt';
-import { readConciergeFacts, type ConciergeSkip } from './read-facts';
+import { readConciergeChat, readConciergeFacts, type ConciergeSkip } from './read-facts';
 import { handoffReasonOf, handoffRuleOf, type ConciergeHandoff } from './rules';
 
 // The WhatsApp Concierge's run on one customer message (docs/03-roadmap-appendix/phase2.md §7.2,
@@ -64,7 +65,8 @@ export interface ConciergeRunInput {
 export type ConciergeRunOutcome =
   /**
    * Switched off, without a spending limit, with too little of the day's spend left, or past the
-   * chat's runs for the day: one stopped run is recorded, nothing asked.
+   * chat's runs for the day: one stopped run is recorded, nothing asked, and the chat goes to
+   * people (`no_assistant`).
    */
   | 'stopped'
   /** Nothing to draft on the chat now (`skip` says why): nothing recorded. */
@@ -85,11 +87,6 @@ export interface ConciergeRunResult {
 /** The Concierge's own cap for a company (`AGENT_DEFAULTS.concierge.companyDailyCapPaise`). */
 export function conciergeCeilings(entityId: number): SpendCap[] {
   return [{ paise: AGENT_DEFAULTS.concierge.companyDailyCapPaise, entityId }];
-}
-
-/** Whether settings let the agent call the model at all: switched on with every cap above zero. */
-export function conciergeMayRun(config: ResolvedAgentConfig): boolean {
-  return config.enabled && config.caps.length > 0 && config.caps.every((c) => c.paise > 0);
 }
 
 /** The most a run's model call is reckoned to cost before anything is read. */
@@ -206,11 +203,13 @@ function conciergeSettings(entityId: number): Promise<ResolvedAgentConfig> {
 }
 
 /**
- * Runs the WhatsApp Concierge once for one customer message. Switched off, without a spending
- * limit, or with too little of the day's spend left, one stopped run is recorded before anything is
- * read. A chat with nothing to draft is left alone; a rule (HUMAN, a complaint or legal matter, a
- * price or subsidy question) hands it to people before the model is asked; a chat past its runs
- * for the day records one stopped run. Otherwise the model is asked once, each proposal recorded,
+ * Runs the WhatsApp Concierge once for one customer message. It first reads, bound to the chat,
+ * who answers it and the customer's newest words: a chat with nothing to draft (people answer it,
+ * a person replied, a newer message came) is left alone and nothing is recorded; a rule (HUMAN, a
+ * complaint or legal matter, a price or subsidy question) hands it to people before anything else.
+ * Then, before the chat's history, lead or rules are read: switched off, without a spending limit,
+ * with too little of the day's spend left, or past the chat's runs for the day, one stopped run is
+ * recorded and the chat goes to people. Otherwise the model is asked once, each proposal recorded,
  * and the chat handed to people when the answer asks to, is unsure, or is the third in a row the
  * filter refused.
  */
@@ -220,48 +219,61 @@ export async function runConcierge(
 ): Promise<ConciergeRunResult> {
   const now = deps.now ?? (() => new Date());
   const d = AGENT_DEFAULTS.concierge;
-  const config = await conciergeSettings(input.entityId);
-  if (!conciergeMayRun(config)) {
-    return { outcome: 'stopped', runs: { reply: await recordStop(input, deps, false) } };
-  }
-  // Before anything is read: the day's spend must have room for the run.
-  const caps = [...config.caps, ...conciergeCeilings(input.entityId)];
-  const fits = await deps.provider.fits(
-    { agent: 'agent:concierge', entityId: input.entityId, caps },
-    conciergeModelEstimatePaise(),
-  );
-  if (!fits) return { outcome: 'stopped', runs: { reply: await recordStop(input, deps, true) } };
-
   const principal = agentPrincipal('agent:concierge', input.entityId);
-  const read = await executeQuery(
-    principal,
-    { entityIds: [input.entityId], agentThreadId: input.threadId },
-    (ctx) =>
-      readConciergeFacts(ctx, {
-        entityId: input.entityId,
-        threadId: input.threadId,
-        messageId: input.messageId,
-        now: now(),
-      }),
-    { name: 'agents.concierge.facts' },
-  );
-  if (read.kind === 'skip') return { outcome: 'skipped', runs: {}, skip: read.skip };
+  const bound = { entityIds: [input.entityId], agentThreadId: input.threadId };
+  const job = {
+    entityId: input.entityId,
+    threadId: input.threadId,
+    messageId: input.messageId,
+    now: now(),
+  };
+  const first = await executeQuery(principal, bound, (ctx) => readConciergeChat(ctx, job), {
+    name: 'agents.concierge.chat',
+    ...(deps.logger === undefined ? {} : { logger: deps.logger }),
+  });
+  if (first.kind === 'skip') return { outcome: 'skipped', runs: {}, skip: first.skip };
 
   const refusals = conciergeRefusalsKey(input.entityId, input.threadId);
   const handOff = async (cause: ConciergeHandoff): Promise<void> => {
     await deps.handOff(handoffReasonOf(cause));
     await deps.keyValue.del(refusals);
   };
-  const rule = handoffRuleOf(read.answering);
+  const rule = handoffRuleOf(first.chat.answering);
   if (rule !== null) {
     await handOff(rule);
     return { outcome: 'handed_off', runs: {}, handoff: rule };
   }
-  if (!(await withinRuns(input, now(), deps.keyValue))) {
-    return { outcome: 'stopped', runs: { reply: await recordStop(input, deps, true) } };
-  }
+
+  // The assistant cannot answer the chat now: recorded once, and people answer it.
+  const stop = async (capReached: boolean): Promise<ConciergeRunResult> => {
+    const reply = await recordStop(input, deps, capReached);
+    await handOff('unavailable');
+    return { outcome: 'stopped', runs: { reply }, handoff: 'unavailable' };
+  };
+  const config = await conciergeSettings(input.entityId);
+  if (!conciergeMayRun(config)) return stop(false);
+  // The day's spend must have room for the run.
+  const caps = [...config.caps, ...conciergeCeilings(input.entityId)];
+  const fits = await deps.provider.fits(
+    { agent: 'agent:concierge', entityId: input.entityId, caps },
+    conciergeModelEstimatePaise(),
+  );
+  if (!fits) return stop(true);
+  if (!(await withinRuns(input, now(), deps.keyValue))) return stop(true);
+
   const timeLeft = deps.timeLeft ?? (() => Number.POSITIVE_INFINITY);
   if (timeLeft() < d.minModelMs) throw conciergeOutOfTime();
+
+  const read = await executeQuery(
+    principal,
+    bound,
+    (ctx) => readConciergeFacts(ctx, job, first.chat),
+    {
+      name: 'agents.concierge.facts',
+      ...(deps.logger === undefined ? {} : { logger: deps.logger }),
+    },
+  );
+  if (read.kind === 'skip') return { outcome: 'skipped', runs: {}, skip: read.skip };
 
   const prompt = buildConciergePrompt(read.facts);
   const promptHash = hashPrompt(prompt);
@@ -293,6 +305,8 @@ export async function runConcierge(
   };
 
   const runs: ConciergeRunResult['runs'] = {};
+  // The steps this delivery decided: a step an earlier delivery recorded is not decided again.
+  const decided = new Set<ConciergeProposalKind>();
   for (const kind of CONCIERGE_PROPOSAL_KINDS) {
     runs[kind] = await runAgentStep(
       {
@@ -302,22 +316,26 @@ export async function runConcierge(
         purpose: CONCIERGE_PURPOSE,
         actionType: CONCIERGE_ACTION_TYPES[kind],
         threadId: input.threadId,
-        decide: async (model) => (await verdictsOf(model))[kind],
+        decide: async (model) => {
+          decided.add(kind);
+          return (await verdictsOf(model))[kind];
+        },
         ceilings: conciergeCeilings(input.entityId),
       },
       deps,
     );
   }
 
-  // The answers in a row the filter refused, counted only by the delivery that asked the model.
+  // The answers in a row the filter refused, counted only by the delivery that recorded the reply,
+  // so a redelivery that completes a partial run counts it once.
   let refusedInARow = 0;
-  if (verdicts !== undefined) {
+  if (verdicts !== undefined && decided.has('reply')) {
     if (verdicts.reply !== null && 'filtered' in verdicts.reply) {
       refusedInARow = await deps.keyValue.incr(refusals, DAY_SECONDS);
     } else {
       await deps.keyValue.del(refusals);
     }
-  } else {
+  } else if (verdicts === undefined) {
     // Every step already recorded by an earlier delivery: the answer it kept, if any, says
     // whether the chat goes to people.
     const kept = await keptAnswer(input.eventId, promptHash, deps);

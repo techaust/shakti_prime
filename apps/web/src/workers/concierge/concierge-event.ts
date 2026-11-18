@@ -20,8 +20,10 @@ import { isHandledByPlatform } from '../messaging/handled-by-platform';
  * principal, never as `system:workers`, whose principal hands a chat to people when a rule or the
  * answer says so (`messaging.thread.record_hand_off`). The event's id keys every step and the
  * model's answer, so a repeat records nothing twice and asks the model nothing again. Switched
- * off, without a spending limit or without `ANTHROPIC_API_KEY`, the run is recorded as stopped or
- * unavailable and no model is called. Bounded by the event route's minute, as the Co-pilot's is.
+ * off, without a spending limit, out of the day's spend or past the chat's runs, the run is
+ * recorded as stopped and the chat goes to people (`no_assistant`); without `ANTHROPIC_API_KEY` it
+ * is recorded as unavailable. No model is called either way. Bounded by the event route's minute,
+ * as the Co-pilot's is.
  */
 export async function handleConciergeEvent(
   event: DeliveredEvent,

@@ -2293,7 +2293,7 @@
         "request": "Someone asked for a person",
         "filter_refusals": "The assistant's replies were held back",
         "complaint": "A complaint",
-        "no_assistant": "The team answers every chat for now",
+        "no_assistant": "The assistant was not available",
         "question": "A question only the team can answer"
       },
       "whatsappTemplateCategory": {

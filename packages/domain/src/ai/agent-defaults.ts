@@ -338,7 +338,7 @@ export const AGENT_DEFAULTS = {
    * - `companyDailyCapPaise`: the most the Concierge spends a day in one company, beside the caps an
    *   Executive sets on Admin › Agents (₹500 on dev and staging, design §7.2 and §10);
    * - `runsPerThreadDay`: the most runs one chat gets in a day in India; past it the run stops
-   *   before anything is read, and people answer;
+   *   before the chat's messages, lead or rules are read, and the chat goes to people;
    * - `refusalsInARow`: this many answers in a row the output filter refused, or that could not be
    *   read, hand the chat to people;
    * - `callbackDaysAhead`: the furthest ahead a callback it proposes may be due, in days; a later

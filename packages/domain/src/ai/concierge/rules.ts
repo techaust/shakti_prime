@@ -51,14 +51,19 @@ export function handoffRuleOf(
   return null;
 }
 
-/** Every cause the worker hands a chat over for. */
-export type ConciergeHandoff = ConciergeRuleCause | ConciergeHandoffCause | 'refusals';
+/**
+ * Every cause the worker hands a chat over for: a rule, the model's answer, refused answers, or
+ * the assistant unable to run (`unavailable`: switched off, without a limit, out of spend, past
+ * the chat's runs for the day).
+ */
+export type ConciergeHandoff =
+  ConciergeRuleCause | ConciergeHandoffCause | 'refusals' | 'unavailable';
 
 /**
  * The thread's hand-off reason for a cause: the customer's HUMAN is the keyword's, a person asked
  * for is a request, a complaint or legal matter a complaint, refused answers the filter's, and a
  * question only a person answers (a price, a subsidy, anything outside the rules, the model unsure)
- * a question.
+ * a question, and the assistant unable to run `no_assistant`.
  */
 export function handoffReasonOf(cause: ConciergeHandoff): WhatsAppHandoffReason {
   switch (cause) {
@@ -71,6 +76,8 @@ export function handoffReasonOf(cause: ConciergeHandoff): WhatsAppHandoffReason 
       return 'complaint';
     case 'refusals':
       return 'filter_refusals';
+    case 'unavailable':
+      return 'no_assistant';
     case 'price':
     case 'subsidy':
     case 'out_of_scope':

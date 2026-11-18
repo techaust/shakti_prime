@@ -687,12 +687,8 @@ export {
 } from './ai/copilot/prompt';
 export { filterCopilotOutput } from './ai/copilot/filter';
 export type { CopilotRunFacts } from './ai/copilot/facts';
-export {
-  CONCIERGE_PURPOSE,
-  conciergeCeilings,
-  conciergeMayRun,
-  runConcierge,
-} from './ai/concierge/run-concierge';
+export { CONCIERGE_PURPOSE, conciergeCeilings, runConcierge } from './ai/concierge/run-concierge';
+export { conciergeAnswersChats, conciergeMayRun } from './ai/concierge/availability';
 export type {
   ConciergeDeps,
   ConciergeRunInput,

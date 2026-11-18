@@ -437,7 +437,10 @@ export const ThreadViewDto = z
     templates: z.array(WhatsAppTemplateDto),
     /** Whether the caller may send on this chat (`messaging.send` over it). */
     canSend: z.boolean(),
-    /** Whether an assistant answers chats yet (`AGENT_DEFAULTS.concierge.handlesNewThreads`). */
+    /**
+     * Whether the assistant answers the company's chats now (`handlesNewThreads`, and the
+     * Concierge switched on with a spending limit there).
+     */
     assistantOn: z.boolean(),
   })
   .strict();
