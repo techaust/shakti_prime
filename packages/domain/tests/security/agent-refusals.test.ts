@@ -342,6 +342,8 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       'agents.killswitch.set',
     ].map((name) => [name, INPUTS[name]]),
   ),
+  // The Caller Co-pilot's brief on demand: a person asks for it, never an agent (A2).
+  'agents.brief.request': { entityId: 1, opportunityId: newId() },
   // The handover: a profile, a person's own presence and moving a leaving person's leads.
   'crm.caller_profile.set': {
     entityId: 1,

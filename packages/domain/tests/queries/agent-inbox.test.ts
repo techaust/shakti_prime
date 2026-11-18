@@ -121,8 +121,9 @@ beforeAll(async () => {
     account: { type: 'farm', name: 'Inbox list farm' },
   })) as { id: string };
   lead = made.id;
-  // The Caller Co-pilot's own row here says nothing, whatever the journeys' seed left: Suggest.
-  await setting({ entityId: ENTITY });
+  // The Caller Co-pilot's own row here names Suggest, whatever the journeys' seed left: it starts
+  // in Shadow (A2), and these cases list what Suggest files.
+  await setting({ entityId: ENTITY, autonomy: 'suggest' });
   await setting({ entityId: ENTITY, actionType: 'crm.task.create' });
 });
 

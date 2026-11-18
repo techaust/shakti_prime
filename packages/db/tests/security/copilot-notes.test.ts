@@ -210,3 +210,68 @@ describe('call_transcript files', () => {
     }
   });
 });
+
+describe('the Co-pilot workers’ definers', () => {
+  const workers = (entityIds: number[] = [1]) => principalFor('system:workers', entityIds);
+  const facts = (who: Principal, entity = 1, call = callA) =>
+    rows<{ opportunity_id: string; transcript_file_id: string | null }>(
+      who,
+      sql`select opportunity_id, transcript_file_id from app.copilot_call_facts(${entity}::smallint, ${call}::uuid)`,
+    );
+  const chat = (who: Principal, entity = 1, lead = leadA) =>
+    rows(who, sql`select * from app.copilot_lead_chat(${entity}::smallint, ${lead}::uuid)`);
+  const messages = (who: Principal, entity = 1, lead = leadA) =>
+    rows(
+      who,
+      sql`select * from app.copilot_chat_messages(${entity}::smallint, ${lead}::uuid, ${newId()}::uuid, 10)`,
+    );
+
+  it('give a call’s facts to the platform alone, in a company of the request', async () => {
+    expect(await facts(workers())).toEqual([
+      { opportunity_id: leadA, transcript_file_id: transcriptA },
+    ]);
+    for (const who of [
+      fx.principals.a,
+      fx.principals.gm,
+      copilot(),
+      principalFor('executive', [1]),
+    ]) {
+      expect(await failure(facts(who))).toMatch(/calls.process is required/);
+    }
+    expect(await failure(facts(workers([2])))).toMatch(/outside the request/);
+  });
+
+  it('record a transcript for the platform alone', async () => {
+    const file = newId();
+    for (const who of [fx.principals.a, copilot(), principalFor('executive', [1])]) {
+      expect(
+        await failure(
+          rows(
+            who,
+            sql`select * from app.attach_call_transcript(1::smallint, ${callB}::uuid, ${file}::uuid,
+                  'local', ${`1/call_transcript/${file}.txt`}, 10, ${'f'.repeat(64)})`,
+          ),
+        ),
+      ).toMatch(/calls.process is required/);
+    }
+  });
+
+  it('show a lead’s chat to the Co-pilot alone, for a lead of a company of the request', async () => {
+    expect(await chat(copilot())).toEqual([]);
+    expect(await messages(copilot())).toEqual([]);
+    for (const who of [
+      fx.principals.a,
+      fx.principals.gm,
+      principalFor('executive', [1]),
+      principalFor('agent:triage', [1], { id: AGENT_PRINCIPAL_IDS['agent:triage'] }),
+      principalFor('agent:concierge', [1], { id: AGENT_PRINCIPAL_IDS['agent:concierge'] }),
+      workers(),
+    ]) {
+      expect(await failure(chat(who))).toMatch(/Caller Co-pilot holding crm.lead.read/);
+      expect(await failure(messages(who))).toMatch(/Caller Co-pilot holding crm.lead.read/);
+    }
+    expect(await failure(chat(copilot([2])))).toMatch(/outside the request/);
+    // A lead of another company is no lead at all for this one.
+    expect(await chat(copilot([1]), 1, leadD)).toEqual([]);
+  });
+});
