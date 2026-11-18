@@ -1,4 +1,5 @@
 import {
+  CONCIERGE_FIXED_FORM_MAX,
   CONCIERGE_REPLY_MAX,
   LeadQualificationFactsSchema,
   type AgentFilterReason,
@@ -6,24 +7,34 @@ import {
 } from '@shakti/contracts';
 import { z } from 'zod';
 import { filterOutbound } from '../../messaging/output-filter';
-import { IST_OFFSET_MS } from '../../numbering/financial-year';
 import { asciiDigits } from '../../privacy/model-text';
 import { withinCallingHours } from '../../telecom/dial-policy';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { AGENT_DEFAULTS } from '../agent-defaults';
+import {
+  FIGURE_CLAIMS,
+  hasOtherScript,
+  sentencesOf,
+  SPELLED_OUT,
+  ungroundedClaims,
+  withoutOwnNumbers,
+} from './claims';
 
 // The WhatsApp Concierge's deterministic output filter (docs/03-roadmap-appendix/phase2.md §7.2,
-// SECURITY §7, PRD AI-05). The model's answer is untrusted: it must be one JSON object of a fixed
-// shape, and each part is then held to what the run read. A reply is at most 600 characters; links
-// only to the companies' own sites; no phone number but the company's; no identity or bank number;
-// no rupee amount, percentage, kW, HP or date that neither a cited `customer` directive nor the
-// thread's own facts give; no promise word (`WORKSHOP_DEFAULTS.whatsapp.promiseWords`); no
-// instruction, code or bracket; and a reply that cites no directive is one of the fixed forms (a
-// greeting, a qualification question, a booking confirmation, a handoff). Qualification facts keep
-// to their bounds and to numbers the customer wrote; a callback is for the lead's owner, inside
-// calling hours. What passes becomes the input of the action type's command; what fails is recorded
-// with its reason and nothing else. A handoff is not filtered: any wish of the model to hand the
-// thread over is honoured, since stopping the agent needs no approval.
+// SECURITY §6, PRD AI-05). The model's answer is untrusted: it must be one JSON object of a fixed
+// shape, and each part is then held to what the run read. A reply is at most 600 characters, in
+// Latin letters; links only to the companies' own sites; no phone number but the company's; no
+// identity or bank number; no instruction, code, bracket or word spelled out letter by letter; no
+// promise word (`WORKSHOP_DEFAULTS.whatsapp.promiseWords`). A sentence that states an amount, a
+// number, a price, a date, a day or a time, an offer, a subsidy, a warranty or a commitment, in
+// digits or in words, in English or Roman Hindi (`claims.ts`), passes only when one directive the
+// reply cites states the same; so a reply that cites none states none of them, and a callback's
+// time is given only by the callback proposal. A reply that cites no directive is one of the fixed
+// forms, short. Qualification facts keep to their bounds and to numbers the customer wrote; a
+// callback is for the lead's owner, inside calling hours. What passes becomes the input of the
+// action type's command; what fails is recorded with its reason and nothing else. A handoff is not
+// filtered: any wish of the model to hand the thread over is honoured, since stopping the agent
+// needs no approval. Kept wide on purpose: a refused draft hands the chat to people, which is safe.
 
 /** What one kind of proposal comes to: a proposal, nothing, or the filter's reason. */
 export type ConciergeDecision = AgentProposal | null | { filtered: AgentFilterReason };
@@ -56,6 +67,7 @@ export const CONCIERGE_REPLY_FORMS = [
   'booking_confirmation',
   'handoff',
 ] as const;
+export type ConciergeReplyForm = (typeof CONCIERGE_REPLY_FORMS)[number];
 
 /** What the filter holds an answer to: the run's own facts, never anything the model wrote. */
 export interface ConciergeFilterFacts {
@@ -68,7 +80,10 @@ export interface ConciergeFilterFacts {
   ownerId: string | null;
   /** The approved `customer` directives the run offered, by the label the prompt gave each. */
   directives: readonly { label: string; text: string }[];
-  /** The thread's own facts as the run read them: the customer's messages and the lead's facts. */
+  /**
+   * The thread's own facts as the run read them (the customer's messages and the lead's facts),
+   * which qualification facts are held to; a reply quotes only the directives it cites.
+   */
   groundTexts: readonly string[];
   /** The company's own numbers, in E.164: the only phone numbers a reply may name. */
   companyNumbers: readonly string[];
@@ -275,16 +290,13 @@ function promisePattern(words: readonly string[]): RegExp | undefined {
   return new RegExp(String.raw`\b(?:${escaped.join('|')})(?:s|es|d|ed)?\b`, 'i');
 }
 
-/** The callback's day in India, as a date in a reply would give it. */
-function istDayMonth(at: Date): string {
-  const ist = new Date(at.getTime() + IST_OFFSET_MS);
-  return `${String(ist.getUTCDate())}/${String(ist.getUTCMonth() + 1)}`;
-}
-
-/** Why a reply's words may not be sent, if they may not. */
+/**
+ * Why a reply's words may not be sent, if they may not. `cited` are the texts of the directives
+ * the reply cites, the only source a figure or a promise may be quoted from.
+ */
 export function replyProblem(
   text: string,
-  allowedFigures: ReadonlySet<string>,
+  cited: readonly string[],
   facts: Pick<ConciergeFilterFacts, 'companyNumbers'>,
   rules: Pick<ConciergeFilterRules, 'linkHosts' | 'promiseWords'>,
 ): AgentFilterReason | undefined {
@@ -302,10 +314,23 @@ export function replyProblem(
   const read = readable(text);
   if (IFSC.test(read)) return 'text_has_identity_number';
   if (ADDRESS_AT.test(read)) return 'text_has_phone';
-  if (INSTRUCTION.test(read)) return 'text_has_instruction';
+  // Words hidden from the checks below (another script's letters, letters spaced out) are read
+  // as an attempt to pass them.
+  if (INSTRUCTION.test(read) || hasOtherScript(text) || SPELLED_OUT.test(read)) {
+    return 'text_has_instruction';
+  }
   const promise = promisePattern(rules.promiseWords);
   if (promise?.test(read) === true) return 'text_has_promise';
-  if (figuresIn(text).some((f) => !allowedFigures.has(f))) return 'fact_not_grounded';
+  const spoken = withoutOwnNumbers(text, facts.companyNumbers);
+  for (const sentence of sentencesOf(spoken)) {
+    const missing = ungroundedClaims(sentence, cited);
+    if (missing.length === 0) continue;
+    return missing.some((c) => FIGURE_CLAIMS.has(c.kind))
+      ? 'fact_not_grounded'
+      : 'text_has_promise';
+  }
+  const allowed = new Set(cited.flatMap(figuresIn));
+  if (figuresIn(spoken).some((f) => !allowed.has(f))) return 'fact_not_grounded';
   return undefined;
 }
 
@@ -378,6 +403,29 @@ function qualification(answer: Answer, facts: ConciergeFilterFacts): ConciergeDe
   };
 }
 
+/** Whether an uncited reply is the fixed form it names: short, in a sentence or two. */
+function fixedForm(
+  text: string,
+  form: ConciergeReplyForm | null,
+  answer: Answer,
+  passedCallback: Date | null,
+): boolean {
+  if (text.length > CONCIERGE_FIXED_FORM_MAX || sentencesOf(text).length > 2) return false;
+  const questions = (text.match(/\?/g) ?? []).length;
+  switch (form) {
+    case 'greeting':
+      return questions === 0;
+    case 'qualification_question':
+      return questions === 1 && text.endsWith('?');
+    case 'booking_confirmation':
+      return questions === 0 && passedCallback !== null;
+    case 'handoff':
+      return questions === 0 && answer.handoff !== null;
+    case null:
+      return false;
+  }
+}
+
 function reply(
   answer: Answer,
   facts: ConciergeFilterFacts,
@@ -392,21 +440,15 @@ function reply(
   const offered = new Map(facts.directives.map((d) => [d.label, d.text]));
   if (cited.some((label) => !offered.has(label))) return { filtered: 'unknown_directive' };
 
-  const allowed = new Set([
-    ...facts.groundTexts.flatMap(figuresIn),
-    ...cited.flatMap((label) => figuresIn(offered.get(label) ?? '')),
-    ...(passedCallback === null ? [] : [`date:${istDayMonth(passedCallback)}`]),
-  ]);
-  const problem = replyProblem(text, allowed, facts, rules);
+  const problem = replyProblem(
+    text,
+    cited.map((label) => offered.get(label) ?? ''),
+    facts,
+    rules,
+  );
   if (problem !== undefined) return { filtered: problem };
-
-  if (cited.length === 0) {
-    const fits =
-      (r.form === 'greeting' && !text.includes('?')) ||
-      (r.form === 'qualification_question' && text.includes('?')) ||
-      (r.form === 'booking_confirmation' && passedCallback !== null) ||
-      (r.form === 'handoff' && answer.handoff !== null);
-    if (!fits) return { filtered: 'reply_not_fixed_form' };
+  if (cited.length === 0 && !fixedForm(text, r.form, answer, passedCallback)) {
+    return { filtered: 'reply_not_fixed_form' };
   }
   return {
     input: {

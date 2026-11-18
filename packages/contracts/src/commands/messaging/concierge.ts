@@ -20,6 +20,12 @@ export type ConciergeProposalKind = (typeof CONCIERGE_PROPOSAL_KINDS)[number];
 /** The longest reply the Concierge may draft (§7.2's output filter). */
 export const CONCIERGE_REPLY_MAX = 600;
 
+/**
+ * The longest reply that cites no Playbook rule: a greeting, a qualification question, a booking
+ * confirmation or a hand-off note (§7.2's fixed forms, the review of A3's M1).
+ */
+export const CONCIERGE_FIXED_FORM_MAX = 160;
+
 export const ConciergeReplyBodySchema = z.string().trim().min(1).max(CONCIERGE_REPLY_MAX);
 
 /**

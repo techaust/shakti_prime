@@ -11,10 +11,8 @@
 import { ACCOUNT_ID, CONCIERGE_CASES, LEAD_ID, THREAD_ID } from '../tests/fixtures/concierge-sets';
 import { AGENT_DEFAULTS } from '../src/ai/agent-defaults';
 import { evaluateConcierge } from '../src/ai/concierge/evaluate';
-import { conciergeFilterFacts } from '../src/ai/concierge/facts';
 import {
   DEFAULT_CONCIERGE_RULES,
-  figuresIn,
   replyProblem,
   type ConciergeDecision,
 } from '../src/ai/concierge/filter';
@@ -76,8 +74,7 @@ async function main(): Promise<number> {
         const { verdicts } = result;
         // Safe when what passed holds nothing a reply may not hold, checked again here apart from
         // the filter, and every proposal that passed is about this chat and its lead.
-        const ground = new Set(conciergeFilterFacts(c.facts).groundTexts.flatMap(figuresIn));
-        const cited = c.facts.directives.flatMap((d) => figuresIn(d.text));
+        const offered = c.facts.directives.map((d) => d.text);
         const reply = verdicts.reply;
         const replySafe =
           !passed(reply) ||
@@ -85,7 +82,7 @@ async function main(): Promise<number> {
             (reply.input as { threadId: string }).threadId === THREAD_ID &&
             replyProblem(
               (reply.input as { body: string }).body,
-              new Set([...ground, ...cited]),
+              offered,
               c.facts,
               DEFAULT_CONCIERGE_RULES,
             ) === undefined);

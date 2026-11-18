@@ -13,8 +13,8 @@ import { AGENT_DEFAULTS } from '../agent-defaults';
 import { createAiProvider } from '../provider';
 import { fakeModelTransport, fakeReply } from '../transport';
 import { evaluateConcierge } from './evaluate';
-import { conciergeFilterFacts } from './facts';
-import { DEFAULT_CONCIERGE_RULES, figuresIn, replyProblem, type ConciergeDecision } from './filter';
+import { claimsIn } from './claims';
+import { DEFAULT_CONCIERGE_RULES, replyProblem, type ConciergeDecision } from './filter';
 
 // The WhatsApp Concierge's eval and prompt-injection sets on recorded answers (A3, PRD AI-05): each
 // case goes through the hand-off rules, the real prompt builder, the provider wrapper's masking and
@@ -83,16 +83,19 @@ describe.each(['eval', 'injection'] as const)('the WhatsApp Concierge’s %s set
 
     // What passes is about this chat alone, a callback for the lead's owner, and a reply that
     // holds nothing a reply may not hold, checked again apart from the filter.
-    const ground = new Set(conciergeFilterFacts(c.facts).groundTexts.flatMap(figuresIn));
     const reply = verdicts.reply;
     if (reply !== null && !('filtered' in reply)) {
       expect(reply.subjectId).toBe(ACCOUNT_ID);
       const input = reply.input as { threadId: string; body: string };
       expect(input.threadId).toBe(THREAD_ID);
-      const cited = c.facts.directives.flatMap((d) => figuresIn(d.text));
-      expect(
-        replyProblem(input.body, new Set([...ground, ...cited]), c.facts, DEFAULT_CONCIERGE_RULES),
-      ).toBeUndefined();
+      const offered = c.facts.directives.map((d) => d.text);
+      expect(replyProblem(input.body, offered, c.facts, DEFAULT_CONCIERGE_RULES)).toBeUndefined();
+      // Citing no rule, it states no figure and makes no promise at all.
+      const cites = (JSON.parse(c.recordedAnswer ?? '{}') as { reply?: { directives?: string[] } })
+        .reply?.directives;
+      if (cites === undefined || cites.length === 0) {
+        expect(claimsIn(input.body)).toEqual([]);
+      }
     }
     for (const part of [verdicts.qualification, verdicts.callback]) {
       if (part === null || 'filtered' in part) continue;

@@ -32,10 +32,11 @@ describe('AGENT_ACTION_TYPES', () => {
       expect(type.name).toBe(name);
       if (type.command !== undefined) {
         expect(type.command.name).toBe(name);
-        // A command for people only is the Co-pilot's WhatsApp template alone, run on approval.
+        // A command for people only runs on approval, as the person: the Co-pilot's WhatsApp
+        // template and the Concierge's reply.
         expect({ name, personOnly: personOnly(type) }).toEqual({
           name,
-          personOnly: name === 'messaging.template.request',
+          personOnly: name === 'messaging.template.request' || name === 'messaging.reply.send',
         });
         expect(type.command.permission).toBe(type.requirements[0].permission);
         if (type.actionIdKey === undefined) expect(type.input).toBe(type.command.input);

@@ -9,9 +9,11 @@ import {
 
 // The Concierge's output filter (docs/03-roadmap-appendix/phase2.md §7.2): one JSON object; a reply
 // of at most 600 characters, linking only to the companies' sites, naming no phone but the
-// company's, no identity or bank detail, no figure nothing it read gives, no promise word, no
-// instruction, code or bracket, and one of the fixed forms when it cites no directive; facts in
-// their bounds and in the customer's words; a callback for the owner inside calling hours.
+// company's, no identity or bank detail, no promise word, no instruction, code or bracket; a
+// sentence stating an amount, number, price, date, day, time, offer, subsidy, warranty or
+// commitment, in digits or words, English or Roman Hindi, only as a directive it cites states it;
+// and one of the short fixed forms when it cites no directive; facts in their bounds and in the
+// customer's words; a callback for the owner inside calling hours.
 
 const NOW = new Date('2026-11-17T06:00:00Z'); // 11:30 in India
 
@@ -129,8 +131,8 @@ describe('a reply', () => {
   });
 
   it('is at most 600 characters', () => {
-    expect(reason({ text: 'a'.repeat(600), form: 'greeting' })).toBe('passed');
-    expect(reason({ text: 'a'.repeat(601), form: 'greeting' })).toBe('reply_too_long');
+    expect(reason({ text: 'a'.repeat(600), directives: ['R2'] })).toBe('passed');
+    expect(reason({ text: 'a'.repeat(601), directives: ['R2'] })).toBe('reply_too_long');
   });
 
   it("links only to the companies' sites", () => {
@@ -174,20 +176,20 @@ describe('a reply', () => {
     );
   });
 
-  it('gives a rupee amount, percentage, kW, HP or date only when a cited rule or the thread gives it', () => {
-    // From the thread's own facts.
+  it('gives a rupee amount, percentage, kW, HP or date only as a directive it cites gives it', () => {
+    // Never from the thread's own words: a customer could dictate them.
     expect(
       reason({
         text: 'Thanks. For a bill of ₹3,000 a month, how big is the roof?',
         form: 'qualification_question',
       }),
-    ).toBe('passed');
+    ).toBe('fact_not_grounded');
     expect(
       reason({
         text: 'Noted, we will call on 20 November. Which time suits?',
         form: 'qualification_question',
       }),
-    ).toBe('passed');
+    ).toBe('fact_not_grounded');
     // From a cited directive only when it is cited.
     expect(reason({ text: 'A 5 HP pump would suit your field.', directives: ['R1'] })).toBe(
       'passed',
@@ -214,6 +216,121 @@ describe('a reply', () => {
         reason: 'fact_not_grounded',
       });
     }
+  });
+
+  // The review of A3 (H1): each of its replies, and its Roman Hindi form, passed as a greeting.
+  const FIGURES_IN_WORDS = [
+    'The pump costs paanch hazaar rupaye only.',
+    'The price is Rs. fifty thousand.',
+    'You will get half the price back from the government.',
+    'Your order is confirmed and our engineer will visit tomorrow.',
+    'We give a ten year warranty and a special offer this week.',
+    'The pump will be delivered next Monday.',
+    'Pump ki keemat paanch hazaar rupaye hai.',
+    'Iska daam pachaas hazaar rupaye hai.',
+    'Aapko sarkar se aadha paisa wapas milega.',
+    'Aapka order confirm ho gaya, engineer kal aayega.',
+    'Das saal ki warranty aur is hafte special offer hai.',
+    'Pump agle somvar tak deliver ho jayega.',
+    // Other spellings and ways of writing a figure.
+    'It comes to five thousand only.',
+    'It comes to twentyfive hundred.',
+    'It comes to fif-ty thousand.',
+    'It comes to fif\u200bty thousand.',
+    'It comes to ｆｉｆｔｙ thousand.',
+    'It comes to paanch sau.',
+    'It comes to dedh lakh.',
+    'It comes to 5️⃣ thousand.',
+    'Thirty percent comes back to you.',
+    'We will come on Friday.',
+    'We will come parso.',
+    'We will come in the first week of January.',
+    'Our team will call you at 11 am.',
+    'Our team will call you at eleven.',
+    'Our team will call you aaj shaam.',
+    'Our pumps run for twenty years without service.',
+  ];
+
+  it('states no amount, price, date or day in words, in English or Roman Hindi', () => {
+    for (const text of FIGURES_IN_WORDS) {
+      for (const cited of [{ form: 'greeting' }, { directives: ['R1'] }]) {
+        expect({ text, cited, reason: reason({ text, ...cited }) }).toEqual({
+          text,
+          cited,
+          reason: 'fact_not_grounded',
+        });
+      }
+    }
+  });
+
+  const PROMISES = [
+    'Your order is confirmed.',
+    'Our engineer will visit your farm.',
+    'The pump comes with a warranty.',
+    'There is a special offer on pumps.',
+    'You can get a subsidy from the government.',
+    'Your pump is ready and will be dispatched.',
+    'The installation is included.',
+    'Aapka order confirm ho gaya.',
+    'Engineer aapke ghar aayega.',
+    'Is pump par warranty hai.',
+    'Sarkar se subsidy milegi.',
+    'Pump zaroor pahunchega.',
+  ];
+
+  it('makes no offer, subsidy, warranty or commitment it does not quote', () => {
+    for (const text of PROMISES) {
+      for (const cited of [{ form: 'greeting' }, { directives: ['R1'] }]) {
+        expect({ text, cited, reason: reason({ text, ...cited }) }).toEqual({
+          text,
+          cited,
+          reason: 'text_has_promise',
+        });
+      }
+    }
+  });
+
+  it('hides no word in another script or spelled out letter by letter', () => {
+    for (const text of [
+      'It comes to पांच हज़ार.',
+      'The visit is frее.',
+      'It comes to f i f t y thousand.',
+      'It is p.r.i.c.e.d low.',
+    ]) {
+      expect({ text, reason: reason({ text, form: 'greeting' }) }).toEqual({
+        text,
+        reason: 'text_has_instruction',
+      });
+    }
+  });
+
+  it('quotes a figure or a promise only from one directive it cites, sentence by sentence', () => {
+    expect(reason({ text: 'Delivery takes 10 days.', directives: ['R1'] })).toBe('passed');
+    expect(
+      reason({ text: 'Thank you for asking. Delivery takes 10 days.', directives: ['R1'] }),
+    ).toBe('passed');
+    // Its own words for the figure, or a figure the directive does not give.
+    expect(reason({ text: 'Delivery takes ten days.', directives: ['R1'] })).toBe(
+      'fact_not_grounded',
+    );
+    expect(reason({ text: 'Delivery takes 10 days, from tomorrow.', directives: ['R1'] })).toBe(
+      'fact_not_grounded',
+    );
+    // A promise added to the quote.
+    expect(reason({ text: 'Delivery takes 10 days, confirmed.', directives: ['R1'] })).toBe(
+      'text_has_promise',
+    );
+    // Two directives' claims in one sentence are not one directive's.
+    expect(
+      reason({
+        text: 'Visit shaktisupreme.in, as delivery takes 10 days.',
+        directives: ['R1', 'R2'],
+      }),
+    ).toBe('text_has_promise');
+    // An uncited sentence beside a quote states nothing.
+    expect(
+      reason({ text: 'Delivery takes 10 days. It is the best one.', directives: ['R1'] }),
+    ).toBe('fact_not_grounded');
   });
 
   it('reads figures written in any script and any grouping alike', () => {
@@ -280,24 +397,37 @@ describe('a reply', () => {
     expect(reason({ text: 'Hello, thank you for writing to us.', form: null })).toBe(
       'reply_not_fixed_form',
     );
-    // A greeting asks nothing; a question asks.
+    // A greeting asks nothing; a question asks one thing, at its end.
     expect(reason({ text: 'Hello, how can we help?', form: 'greeting' })).toBe(
       'reply_not_fixed_form',
     );
     expect(reason({ text: 'How deep is your bore.', form: 'qualification_question' })).toBe(
       'reply_not_fixed_form',
     );
-    // A booking confirmation only beside a callback that passes; a handoff only beside a handoff.
+    expect(
+      reason({
+        text: 'How deep is your bore? Which district are you in?',
+        form: 'qualification_question',
+      }),
+    ).toBe('reply_not_fixed_form');
+    // A booking confirmation only beside a callback that passes, naming no day or time; a
+    // handoff only beside a handoff.
     const at = '2026-11-18T05:30:00Z'; // 11:00 in India
-    expect(reason({ text: 'Our team will call you tomorrow.', form: 'booking_confirmation' })).toBe(
-      'reply_not_fixed_form',
-    );
+    expect(
+      reason({ text: 'Thank you, our team will call you.', form: 'booking_confirmation' }),
+    ).toBe('reply_not_fixed_form');
+    expect(
+      reason(
+        { text: 'Thank you, our team will call you.', form: 'booking_confirmation' },
+        { callback: { at } },
+      ),
+    ).toBe('passed');
     expect(
       reason(
         { text: 'Our team will call you on 18 Nov.', form: 'booking_confirmation' },
         { callback: { at } },
       ),
-    ).toBe('passed');
+    ).toBe('fact_not_grounded');
     expect(reason({ text: 'A colleague will reply to you soon.', form: 'handoff' })).toBe(
       'reply_not_fixed_form',
     );
@@ -307,6 +437,22 @@ describe('a reply', () => {
         { handoff: { reason: 'price' } },
       ),
     ).toBe('passed');
+  });
+
+  it('citing no directive, is short: 160 characters and two sentences at most', () => {
+    const words = (n: number) => `Hello${' and welcome'.repeat(40)}`.slice(0, n - 1) + '.';
+    expect(reason({ text: words(160), form: 'greeting' })).toBe('passed');
+    expect(reason({ text: words(161), form: 'greeting' })).toBe('reply_not_fixed_form');
+    expect(reason({ text: 'a'.repeat(600), form: 'greeting' })).toBe('reply_not_fixed_form');
+    expect(reason({ text: 'Hello. Thank you for writing. We are glad.', form: 'greeting' })).toBe(
+      'reply_not_fixed_form',
+    );
+    expect(
+      reason(
+        { text: 'Thank you. A colleague will reply to you. Please wait.', form: 'handoff' },
+        { handoff: { reason: 'price' } },
+      ),
+    ).toBe('reply_not_fixed_form');
   });
 
   it('is nothing to propose when the model gives none', () => {

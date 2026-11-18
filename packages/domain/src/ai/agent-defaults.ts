@@ -370,6 +370,6 @@ export const AGENT_DEFAULTS = {
     messagesRead: 20,
     directivesRead: 30,
     answerTtlSeconds: 60 * 60,
-    promptVersion: 'concierge-1',
+    promptVersion: 'concierge-2',
   },
 } as const;
