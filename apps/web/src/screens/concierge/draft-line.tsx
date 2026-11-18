@@ -1,6 +1,6 @@
 'use client';
 
-import type { ConciergeDraftDto, InboxDecisionDto } from '@shakti/contracts';
+import type { ConciergeDraftDto } from '@shakti/contracts';
 import { Button, Field, Textarea, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
@@ -65,8 +65,8 @@ export function ConciergeDraftLine({
   if (draft === null) return <FailureMessage failure={read.failure} />;
   const ref = { entityId, itemId: draft.itemId };
 
-  function decided(message: string) {
-    return (_: InboxDecisionDto) => {
+  function decided(message: string): () => void {
+    return () => {
       setDraft(null);
       toast.success(message);
       onDecided();

@@ -444,9 +444,7 @@ describe('under Needs approval', () => {
       expect(edited?.asked).toBe('Need a pump, decision edit');
       expect(report.items.find((i) => i.state === 'discarded')?.sent).toBeNull();
       expect(report.drafts.total).toBe(report.items.length);
-      expect(report.filtered).toEqual(
-        expect.arrayContaining([{ reason: 'text_has_promise', runs: expect.any(Number) }]),
-      );
+      expect(report.filtered.map((f) => f.reason)).toContain('text_has_promise');
     } finally {
       await asMigrator(
         (m) => m`delete from agent_configs where agent = 'agent:concierge'

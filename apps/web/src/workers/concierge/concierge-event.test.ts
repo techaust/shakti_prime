@@ -26,7 +26,7 @@ function event(payload: Record<string, unknown>): DeliveredEvent {
     aggregateType: 'whatsapp_thread',
     aggregateId: THREAD,
     payload: { v: 1, ...payload },
-  } as DeliveredEvent;
+  };
 }
 
 const ctx = {

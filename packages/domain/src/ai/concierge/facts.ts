@@ -1,4 +1,4 @@
-import type { CopilotFact } from '@shakti/contracts';
+import { COPILOT_FACTS, type CopilotFact } from '@shakti/contracts';
 import { istCalendarDate } from '../../numbering/financial-year';
 import { istMinuteOfDay } from '../../telecom/dial-policy';
 import type { ConciergeFilterFacts } from './filter';
@@ -71,11 +71,10 @@ export const FACT_NAMES: Readonly<Record<CopilotFact, string>> = {
 
 /** The lead's recorded facts and open callbacks, as lines of the thread's own facts. */
 export function leadFactLines(facts: ConciergeRunFacts): string[] {
-  const recorded = Object.entries(facts.current).flatMap(([fact, value]) =>
-    value === null || value === undefined
-      ? []
-      : [`${FACT_NAMES[fact as CopilotFact]} ${String(value)}`],
-  );
+  const recorded = COPILOT_FACTS.flatMap((fact) => {
+    const value = facts.current[fact];
+    return value === null || value === undefined ? [] : [`${FACT_NAMES[fact]} ${String(value)}`];
+  });
   return [
     ...recorded,
     ...facts.callbacks.map((c) => `callback on ${istDateTime(c.dueAt)} in India`),
