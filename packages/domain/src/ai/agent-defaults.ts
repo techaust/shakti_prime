@@ -328,18 +328,48 @@ export const AGENT_DEFAULTS = {
     promptVersion: 'copilot-2',
   },
 
+  // --- The WhatsApp Concierge (A3, docs/03-roadmap-appendix/phase2.md §7.2) ----------------------
   /**
-   * The WhatsApp Concierge (A3, wave 3). Until it exists, no assistant answers a chat (the lead's
-   * decision of 15-11-2026): a new chat starts with people (reason `no_assistant`), the screens
-   * offer no "give back to the assistant", and a chat waiting for a reply sends its notice. A3
-   * turns this on when the Concierge answers.
+   * The WhatsApp Concierge. Each value is flagged for the owner to confirm:
+   * - `handlesNewThreads`: a chat a customer opens starts with the assistant, which drafts its
+   *   replies (in Shadow, recorded only; under Needs approval, for the owner to send); people still
+   *   see every chat waiting for a reply and are told of it after `replyWaitMinutes`, since nothing
+   *   reaches a customer without a person;
+   * - `companyDailyCapPaise`: the most the Concierge spends a day in one company, beside the caps an
+   *   Executive sets on Admin › Agents (₹500 on dev and staging, design §7.2 and §10);
+   * - `runsPerThreadDay`: the most runs one chat gets in a day in India; past it the run stops
+   *   before anything is read, and people answer;
+   * - `refusalsInARow`: this many answers in a row the output filter refused, or that could not be
+   *   read, hand the chat to people;
+   * - `callbackDaysAhead`: the furthest ahead a callback it proposes may be due, in days; a later
+   *   one is refused with the callbacks outside calling hours;
+   * - `model` (Sonnet 5.5, question 1 (a)) at `effort` low, thinking left adaptive (§9.1), with
+   *   `maxTokens` for the answer, thinking included, and `totalTimeoutMs` for the call, inside the
+   *   event route's minute;
+   * - `promptBytesEstimate`: the prompt size a run is checked with against the day's spend before it
+   *   reads anything (with the answer's length); the call's own reservation stays the final guard;
+   * - `minModelMs`: a run starts the model only with at least 10 seconds left of its delivery, and
+   *   a run short of time stops before it spends and is delivered again;
+   * - `messagesRead` and `directivesRead`: the chat's last messages and the most approved
+   *   `customer` directives one run reads;
+   * - `answerTtlSeconds`: how long the model's answer for a message is kept for a redelivery;
+   * - `promptVersion`: named with every change of the prompt.
    */
   concierge: {
-    handlesNewThreads: false as boolean,
-    /**
-     * The furthest ahead a callback it proposes may be due, in days (A3's output filter); a later
-     * one is refused with the callbacks outside calling hours. Flagged for the sales head.
-     */
+    handlesNewThreads: true as boolean,
+    companyDailyCapPaise: 50_000,
+    runsPerThreadDay: 30,
+    refusalsInARow: 3,
     callbackDaysAhead: 14,
+    model: 'claude-sonnet-5-5',
+    effort: 'low',
+    maxTokens: 1_500,
+    totalTimeoutMs: 40_000,
+    promptBytesEstimate: 16_000,
+    minModelMs: 10_000,
+    messagesRead: 20,
+    directivesRead: 30,
+    answerTtlSeconds: 60 * 60,
+    promptVersion: 'concierge-1',
   },
 } as const;

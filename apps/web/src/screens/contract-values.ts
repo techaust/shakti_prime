@@ -258,6 +258,7 @@ export const WHATSAPP_HANDOFF_REASONS = [
   'filter_refusals',
   'complaint',
   'no_assistant',
+  'question',
 ] as const satisfies readonly WhatsAppHandoffReason[];
 
 export const WHATSAPP_MESSAGE_DIRECTIONS = [

@@ -687,6 +687,22 @@ export {
 } from './ai/copilot/prompt';
 export { filterCopilotOutput } from './ai/copilot/filter';
 export type { CopilotRunFacts } from './ai/copilot/facts';
+export {
+  CONCIERGE_PURPOSE,
+  conciergeCeilings,
+  conciergeMayRun,
+  runConcierge,
+} from './ai/concierge/run-concierge';
+export type {
+  ConciergeDeps,
+  ConciergeRunInput,
+  ConciergeRunOutcome,
+  ConciergeRunResult,
+} from './ai/concierge/run-concierge';
+export { buildConciergePrompt, CONCIERGE_SYSTEM } from './ai/concierge/prompt';
+export { filterConciergeAnswer } from './ai/concierge/filter';
+export type { ConciergeRunFacts } from './ai/concierge/facts';
+export type { ConciergeSkip } from './ai/concierge/read-facts';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
 export { recordCopilotNote } from './commands/agents/notes';

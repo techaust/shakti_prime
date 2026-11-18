@@ -1,0 +1,2 @@
+ALTER TABLE "whatsapp_threads" DROP CONSTRAINT "whatsapp_threads_handoff_reason_check";--> statement-breakpoint
+ALTER TABLE "whatsapp_threads" ADD CONSTRAINT "whatsapp_threads_handoff_reason_check" CHECK ("whatsapp_threads"."handoff_reason" is null or "whatsapp_threads"."handoff_reason" in ('keyword', 'request', 'filter_refusals', 'complaint', 'no_assistant', 'question')) NOT VALID;
