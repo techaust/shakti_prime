@@ -476,6 +476,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // page lists the people of a manager's scope (0125).
       'app.caller_profile_manages(uuid,smallint)',
       'app.caller_profile_people(smallint)',
+      // When a lead's Co-pilot brief was last asked for or started, for its panel (A2, 0194).
+      'app.copilot_brief_started_at(smallint,uuid,timestamp with time zone,interval)',
       'app.customer_search_ids(text,text,integer)',
       // The dealer credit screen's figures, the one place the exposure is worked out (0117).
       'app.dealer_credit_position(smallint,uuid,uuid)',

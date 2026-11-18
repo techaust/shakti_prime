@@ -386,6 +386,58 @@ describe('calls.transcript.attach', () => {
     ).toMatchObject({ code: 'validation_failed', reason: 'file_upload_mismatch' });
   });
 
+  it('reserves the transcript’s file pending first, for the platform alone', async () => {
+    const l = await lead({ converter: true });
+    const call = await dial(l);
+    const input = stored(call);
+    for (const who of [l.owner, exec, copilot(), agentPrincipal('agent:triage', ENTITY)]) {
+      expect(await refusal(run(who, reserveCallTranscript, input))).toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    expect(await refusal(run(workers([2]), reserveCallTranscript, input))).toMatchObject({
+      code: 'forbidden',
+    });
+    expect(
+      await refusal(run(workers([ENTITY]), reserveCallTranscript, { ...input, key: 'x/y.txt' })),
+    ).toMatchObject({ code: 'validation_failed', reason: 'file_upload_mismatch' });
+    expect(
+      await run<{ outcome: string }>(workers([ENTITY]), reserveCallTranscript, input),
+    ).toMatchObject({ outcome: 'not_recorded', fileId: null });
+    await recording(memoryFileStore(), call);
+    expect(
+      await run<{ outcome: string }>(workers([ENTITY]), reserveCallTranscript, input),
+    ).toMatchObject({ outcome: 'reserved', fileId: input.fileId });
+    const status = async () => {
+      const [row] = await asMigrator(
+        (m) => m<{ status: string }[]>`select status from files where id = ${input.fileId}`,
+      );
+      return row?.status;
+    };
+    expect(await status()).toBe('pending');
+    // Pending and named by no call: nobody reads it yet. Attached, it is ready and the call's.
+    const visible = await asPrincipal(l.owner, async (ctx) => {
+      const rows = (await ctx.tx.execute(
+        sql`select id from files where id = ${input.fileId}`,
+      )) as unknown as { id: string }[];
+      return rows.length;
+    });
+    expect(visible).toBe(0);
+    // A transcript not the one reserved is refused.
+    expect(
+      await refusal(
+        run(workers([ENTITY]), attachCallTranscript, { ...input, sha256: 'b'.repeat(64) }),
+      ),
+    ).toMatchObject({ code: 'validation_failed' });
+    expect(
+      await run<AttachCallTranscriptDto>(workers([ENTITY]), attachCallTranscript, input),
+    ).toMatchObject({ outcome: 'attached', fileId: input.fileId });
+    expect(await status()).toBe('ready');
+    expect(
+      await run<{ outcome: string }>(workers([ENTITY]), reserveCallTranscript, stored(call)),
+    ).toMatchObject({ outcome: 'other_file', fileId: input.fileId });
+  });
+
   it('records the transcript of a recorded call once, read with the lead', async () => {
     const l = await lead({ converter: true });
     const call = await dial(l);
