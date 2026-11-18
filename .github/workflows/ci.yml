@@ -295,6 +295,9 @@ jobs:
       AUTH_SERVICE_PASSWORD: auth_service_ci
       DATABASE_URL_OUTBOX: postgres://outbox_publisher:outbox_publisher_ci@localhost:5432/postgres
       OUTBOX_PUBLISHER_PASSWORD: outbox_publisher_ci
+      # The journeys send a customer's call through the webhook receiver (T4's screen-pop).
+      DATABASE_URL_WEBHOOKS: postgres://webhook_receiver:webhook_receiver_ci@localhost:5432/postgres
+      WEBHOOK_RECEIVER_PASSWORD: webhook_receiver_ci
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
       E2E_BASE_URL: http://localhost:3000
