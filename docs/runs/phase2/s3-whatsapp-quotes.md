@@ -252,5 +252,11 @@ Every finding is fixed in one fix round on this branch, each with a test that fa
 - 9: both strings say what is true now (no promise of a confirmation; no screen that does not exist). The missing template registration screen goes to the follow-ups for W1.
 
 ## Integration
+### Lead's read of the fix round, 18-11-2026
+Accepted (head 745b0da1). 0193 and 0194 checked: the definers keep `search_path = ''` and their grants; the header column is additive with a default; the notice checks widen `NOT VALID`.
+- Finding 1 as built: a platform answer leaves `needs_reply` alone, so a STATUS or a code alone on a chat handled by people brings the reply-waiting notice after 10 minutes. This errs towards a person looking; a precise rule needs an answer linked to the inbound message it answers, which no table records. Follow-up.
+- Finding 8 covers a milestone never queued, not a message the messaging worker refuses later. Follow-up.
+- Follow-up for W1: no screen registers a WhatsApp template.
+- At integration: V2 and T4 merge first, so 0189 to 0194 move after theirs, and `notifications_type_check` and `notification_preferences_type_check` must also hold T4's missed-call kind (T4 widens the same two checks). The Linux baselines (`whatsapp-templates`, `quote-send-dialog`, `quote-page`, `notification-settings`) are made after V2's menu change is on `main`.
 ### Lead's read of the early check, 17-11-2026
 Passed. `app.next_document_no()` keeps 0006's body (with 0024's hardening as `search_path = ''` and qualified names) and adds only the platform's sales-order case; the definers check their grants in their bodies. Decisions 1 to 11 accepted as built: the key `sales.quote.accept.remote`, the quote sent through the milestone registry, held milestones never sent later. Slot 1's database is recreated before steps 5 to 9 (decision 11), so 0189 and 0190 are applied clean then.
