@@ -122,22 +122,24 @@ export function conciergeDraftsSql(
     page === undefined ? sql`` : sql`order by a.created_at desc, a.id desc limit ${page.limit}`;
   return sql`
     select a.created_at::text as t, a.id, a.created_at, a.state, a.edited,
-           (a.input_json ->> 'accountId')::uuid as account_id, acc.name as customer_name,
+           a.account_id, acc.name as customer_name,
            a.input_json ->> 'body' as draft,
            asked.body_masked as asked, asked.kind as asked_kind,
            sent.body_masked as sent_body, sent.template_label as sent_template,
            sent.created_at as sent_at, sent.drafted_by_agent_action_id = a.id as from_draft
       from (
-        select a.* from agent_actions a
+        select a.*, (a.input_json ->> 'accountId')::uuid as account_id,
+               (a.input_json ->> 'threadId')::uuid as thread_id
+          from agent_actions a
          where a.entity_id = ${entityId} and a.agent = 'agent:concierge'
            and a.action_type = ${REPLY}
            and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz
            ${keyset}
          ${paged}) a
-      left join accounts acc on acc.id = (a.input_json ->> 'accountId')::uuid
+      left join accounts acc on acc.id = a.account_id
       left join lateral (
         select m.body_masked, m.kind from whatsapp_messages m
-         where m.thread_id = (a.input_json ->> 'threadId')::uuid and m.entity_id = a.entity_id
+         where m.thread_id = a.thread_id and m.entity_id = a.entity_id
            and m.direction = 'inbound' and m.created_at <= a.created_at
          order by m.created_at desc, m.id desc limit 1) asked on true
       left join lateral (
@@ -147,7 +149,7 @@ export function conciergeDraftsSql(
           join principals p on p.id = m.sent_by and p.kind = 'user'
           left join whatsapp_templates w
             on w.entity_id = m.entity_id and w.name = m.template_name and w.language = 'en'
-         where m.thread_id = (a.input_json ->> 'threadId')::uuid and m.entity_id = a.entity_id
+         where m.thread_id = a.thread_id and m.entity_id = a.entity_id
            and m.direction = 'outbound' and m.kind in ('text', 'template')
            and m.created_at >= a.created_at
            and not exists (select 1 from whatsapp_messages n
