@@ -396,6 +396,7 @@
     "copilot_note_refused": "The Co-pilot's note was not kept, because it held something a note may not hold.",
     "copilot_brief_recent": "This lead already has a brief from the last hour. Use that one, or ask again later.",
     "copilot_summary_recorded": "This call already has its summary.",
+    "copilot_lead_closed": "This lead is closed, so the Co-pilot does not write a brief for it.",
     "disposition_missing": "This call outcome is no longer in use. Refresh the page and choose another.",
     "lead_source_missing": "This lead source is no longer connected. Refresh the page to see the sources as they are now.",
     "lead_source_fixed": "A connected form cannot be swapped for another. Disconnect this one and connect the new form.",
@@ -1711,6 +1712,7 @@
       "quotePdfAttach": "Quote document attached",
       "agentRunRecord": "Agent run recorded",
       "copilotNoteRecord": "Co-pilot note added to a lead",
+      "copilotBriefRequest": "Co-pilot brief asked for",
       "inboxApprove": "Suggestion approved",
       "inboxEdit": "Suggestion changed and approved",
       "inboxReject": "Suggestion rejected",
@@ -1790,6 +1792,7 @@
       "callDial": "Call placed from the screen",
       "providerCallRecord": "Call progress recorded",
       "callRecordingAttach": "Call recording kept",
+      "callTranscriptAttach": "Call transcript kept",
       "callRecordingDelete": "Old call recording removed",
       "callRecordingPlay": "Call recording played",
       "callerProfileSetDialPhone": "Own calling phone changed",
@@ -1850,7 +1853,8 @@
       "whatsappRequested": "WhatsApp message waiting to be sent",
       "whatsappReceived": "WhatsApp message received",
       "whatsappButtonPressed": "WhatsApp button pressed",
-      "dialCompleted": "Call from the screen ended"
+      "dialCompleted": "Call from the screen ended",
+      "copilotBriefRequested": "Co-pilot brief asked for"
     },
     "sheet": {
       "title": "{action}",
@@ -2147,6 +2151,7 @@
       "listenedAt": "Played",
       "dialPhone": "Own calling phone",
       "noteKind": "Kind of note",
+      "copilotBriefRequested": "Brief asked for",
       "occasion": "Sent for",
       "askAnswered": "Answered",
       "citedSources": "Records it points to",
@@ -4034,7 +4039,8 @@
       "title": "How did the call go?",
       "hint": "Press the number of the outcome, or choose it here.",
       "none": "No call outcomes are set up. Ask an Executive to add them on the pipelines settings page.",
-      "keyed": "{key}. {label}"
+      "keyed": "{key}. {label}",
+      "suggested": "The highlighted outcome is the one the Co-pilot suggests. You choose."
     },
     "script": {
       "title": "Call script",
@@ -4526,6 +4532,65 @@
       "task_outside_hours": "It set a follow-up outside calling hours",
       "template_not_allowed": "It chose a WhatsApp message this customer may not be sent",
       "unknown_outcome": "It named a call outcome that was not offered"
+    },
+    "copilot": {
+      "title": "Co-pilot",
+      "intro": "Notes and suggestions from the Co-pilot. Nothing changes until you act on one.",
+      "askBrief": "Ask for a brief",
+      "briefAsked": "The Co-pilot is writing a brief.",
+      "briefComing": "The Co-pilot is writing a brief. It shows here in a minute.",
+      "brief": "Before you call",
+      "noBrief": "No brief for this lead yet.",
+      "nextBrief": "You can ask for a new brief from <time>{when}</time>.",
+      "summary": "Last call",
+      "noSummary": "No summary of a recorded call yet.",
+      "written": "Written <time>{when}</time>",
+      "suggestedOutcome": "Suggested outcome: {outcome}. It is marked in the outcomes, and you choose.",
+      "suggestions": "Suggestions",
+      "noSuggestions": "No suggestions are waiting.",
+      "suggestion": "Suggestion",
+      "keys": "A approves and R rejects the first suggestion that needs approval.",
+      "approveKey": "A",
+      "rejectKey": "R",
+      "dueAt": "Call back"
+    },
+    "copilotReport": {
+      "title": "What the Co-pilot suggested",
+      "intro": "Each call summary the Co-pilot wrote, beside the outcome the caller saved and the details the lead now holds.",
+      "open": "Co-pilot report",
+      "summaryHeading": "How often callers agreed",
+      "summaries": "{count, plural, =0 {No call summaries} one {# call summary} other {# call summaries}}",
+      "outcomes": "Outcomes",
+      "facts": "Details heard",
+      "agreed": "{agreed} of {decided} agreed",
+      "noneDecided": "Nothing decided yet",
+      "waiting": "{count, plural, =0 {None waiting for the caller} one {# waiting for the caller} other {# waiting for the caller}}",
+      "noOutcome": "{count, plural, =0 {Every summary suggested an outcome} one {# summary suggested no outcome} other {# summaries suggested no outcome}}",
+      "refusedHeading": "Refused by the checks",
+      "noneRefused": "Nothing was refused in this period.",
+      "proposalsHeading": "Suggestions by kind",
+      "proposalLine": "{shadowed, number} recorded in shadow, {waiting, number} waiting, {approved, number} approved, {rejected, number} rejected",
+      "caption": "Call summaries, newest first",
+      "empty": "No call summaries in this period. The Co-pilot writes one for each recorded call it covers once it has a daily spending limit.",
+      "columns": {
+        "when": "When",
+        "customer": "Customer",
+        "suggested": "Suggested outcome",
+        "logged": "Outcome saved",
+        "facts": "Details heard",
+        "agreement": "Agreed"
+      },
+      "noSuggestion": "None suggested",
+      "notLogged": "Not saved yet",
+      "fact": "{fact}: {heard}",
+      "factRecorded": "{fact}: {heard}, the lead holds {recorded}",
+      "noFacts": "None heard",
+      "agreement": {
+        "agree": "Agreed",
+        "disagree": "Differed",
+        "pending": "Not known yet",
+        "none": "No outcome suggested"
+      }
     },
     "shadow": {
       "title": "What the Triage agent proposed",

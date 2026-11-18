@@ -17,6 +17,7 @@ import { CallPlan } from '../calling/call-plan';
 import { DialNumber, Outcomes, Panel } from '../calling/calling-parts';
 import { TimelineRow } from '../customers/timeline-row';
 import { DateTime, momentValues } from '../date-time';
+import { CopilotPanel, useCopilot } from '../../screens/copilot/copilot-panel';
 import { FailureMessage } from '../screens/failure';
 import type { useCallLogging } from './use-call-logging';
 
@@ -113,6 +114,7 @@ function CallsPanel({
 }) {
   const t = useTranslations('calling');
   const { dial, save, picked } = calling;
+  const copilot = useCopilot(lead);
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <DialNumber
@@ -124,8 +126,14 @@ function CallsPanel({
       />
       <CallPlan entityId={lead.entityId} opportunityId={lead.opportunityId} />
       <CallBar key={calling.barKey} lead={lead} onCall={calling.onDialled} />
-      <Outcomes lead={lead} pending={save.pending} onPick={calling.pick} />
+      <Outcomes
+        lead={lead}
+        pending={save.pending}
+        onPick={calling.pick}
+        suggestedId={copilot.preselectId}
+      />
       <FailureMessage failure={picked === undefined ? save.failure : undefined} />
+      <CopilotPanel copilot={copilot} />
       <Panel id="converting-activity" title={t('activity.title')}>
         {lead.recentActivity.length === 0 ? (
           <p className="text-text-muted">{t('activity.empty')}</p>

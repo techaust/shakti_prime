@@ -168,6 +168,7 @@ const ACTIONS = {
   'profile.contrast.set': 'contrastSet',
   'agents.run.record': 'agentRunRecord',
   'agents.note.record': 'copilotNoteRecord',
+  'agents.brief.request': 'copilotBriefRequest',
   'agents.inbox.approve': 'inboxApprove',
   'agents.inbox.edit': 'inboxEdit',
   'agents.inbox.reject': 'inboxReject',
@@ -231,6 +232,7 @@ const ACTIONS = {
   'calls.call.dial': 'callDial',
   'calls.provider_call.record': 'providerCallRecord',
   'calls.recording.attach': 'callRecordingAttach',
+  'calls.transcript.attach': 'callTranscriptAttach',
   'calls.recording.delete': 'callRecordingDelete',
   'calls.recording.play': 'callRecordingPlay',
   'crm.caller_profile.set_dial_phone': 'callerProfileSetDialPhone',
@@ -306,6 +308,7 @@ const EVENT_NAMES = {
   'messaging.message.received': 'whatsappReceived',
   'messaging.button.pressed': 'whatsappButtonPressed',
   'calls.dial.completed': 'dialCompleted',
+  'agents.brief.requested': 'copilotBriefRequested',
   'sales.quote.accepted': 'quoteAccepted',
   'sales.order.created': 'orderCreated',
   'sales.order.confirmed': 'orderConfirmed',
@@ -666,6 +669,7 @@ const FIELD_KINDS = [
   ['dialPhone', 'text'],
   // The Caller Co-pilot's notes and the WhatsApp follow-ups it proposes
   ['noteKind', 'copilotNoteKind'],
+  ['copilotBriefRequested', 'yesNo'],
   ['occasion', 'templateOccasion'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],

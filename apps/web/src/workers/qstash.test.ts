@@ -152,11 +152,7 @@ describe('qstashEventPublisher', () => {
   });
 
   it('sends each notifying event to the notify route as itself, with no queue group', async () => {
-    const types = [
-      'crm.duplicate.found',
-      'crm.enquiry.routed',
-      'sales.order.credit_held',
-    ] as const;
+    const types = ['crm.duplicate.found', 'crm.enquiry.routed', 'sales.order.credit_held'] as const;
     const events = types.map((type) => event(type));
     queue.batchJSON.mockResolvedValue(events.map(() => ({ messageId: 'm', url: 'u' })));
     await qstashEventPublisher(config).publish(events);
@@ -185,7 +181,7 @@ describe('qstashEventPublisher', () => {
     ]);
   });
 
-    it('fails an event the queue refused or did not answer for', async () => {
+  it('fails an event the queue refused or did not answer for', async () => {
     const events = [event(), event(), event()];
     queue.batchJSON.mockResolvedValue([{ error: 'url group not found' }, []]);
     const results = await qstashEventPublisher(config).publish(events);

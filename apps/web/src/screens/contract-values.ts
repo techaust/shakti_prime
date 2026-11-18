@@ -8,7 +8,9 @@ import type {
   AgentRunOutcome,
   AgentSettingSource,
   CommissionAccrualState,
+  CopilotFact,
   CopilotNoteKind,
+  CopilotOutcomeAgreement,
   CopilotTemplateOccasion,
   CommissionBasis,
   ConsentChannel,
@@ -173,6 +175,23 @@ export const COPILOT_NOTE_KIND_VALUES = [
   'brief',
   'call_summary',
 ] as const satisfies readonly CopilotNoteKind[];
+
+/** The qualification facts the Caller Co-pilot hears in a call (`COPILOT_FACTS`), in order. */
+export const COPILOT_FACT_VALUES = [
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+] as const satisfies readonly CopilotFact[];
+
+/** How a call summary's outcome compares with the logged call (`COPILOT_OUTCOME_AGREEMENTS`). */
+export const COPILOT_OUTCOME_AGREEMENT_VALUES = [
+  'agree',
+  'disagree',
+  'pending',
+  'none',
+] as const satisfies readonly CopilotOutcomeAgreement[];
 
 /** Why the Caller Co-pilot proposes a WhatsApp template (`COPILOT_TEMPLATE_OCCASIONS`). */
 export const TEMPLATE_OCCASION_VALUES = [

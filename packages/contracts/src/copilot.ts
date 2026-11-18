@@ -230,6 +230,8 @@ export const CopilotPanelDto = z
     nextBriefAt: z.iso.datetime().nullable(),
     /** The Co-pilot's open suggestions on the lead that the caller may act on. */
     suggestions: z.array(InboxItemDto),
+    /** The facts a suggestion to record what was heard would record, by its inbox item. */
+    suggestedFacts: z.record(IdSchema, CopilotFactsSchema),
   })
   .strict();
 export type CopilotPanelDto = z.infer<typeof CopilotPanelDto>;

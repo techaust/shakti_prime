@@ -257,7 +257,7 @@ export async function readCopilotFacts(
     templates,
     quotes,
     whatsapp: {
-      chat: thread !== undefined && thread.optedOutAt === null,
+      chat: thread?.optedOutAt === null,
       consents,
     },
     ...(job.transcript === undefined ? {} : { transcript: job.transcript }),

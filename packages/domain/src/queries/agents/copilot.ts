@@ -17,7 +17,7 @@ import {
   type ShadowAgreement,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { checkPermission, isAgent } from '../../command/run-command';
@@ -81,9 +81,7 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
   const [lead] = await ctx.tx
     .select({ id: o.id })
     .from(o)
-    .where(
-      and(eq(o.id, input.opportunityId), eq(o.entityId, input.entityId), isNull(o.archivedAt)),
-    )
+    .where(and(eq(o.id, input.opportunityId), eq(o.entityId, input.entityId), isNull(o.archivedAt)))
     .limit(1);
   if (lead === undefined) {
     throw new DomainError('not_found', `opportunity ${input.opportunityId} is not visible`, {
@@ -116,7 +114,11 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
     .from(n)
     .innerJoin(
       pc,
-      and(eq(pc.id, n.providerCallId), eq(pc.opportunityId, n.opportunityId), eq(pc.direction, 'outbound')),
+      and(
+        eq(pc.id, n.providerCallId),
+        eq(pc.opportunityId, n.opportunityId),
+        eq(pc.direction, 'outbound'),
+      ),
     )
     .leftJoin(d, eq(d.id, n.suggestedDispositionId))
     .where(and(eq(n.opportunityId, lead.id), eq(n.kind, 'call_summary')))
@@ -137,6 +139,25 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
       ).items
     : [];
 
+  // What each suggestion to record the heard facts would record (its card shows no values).
+  const factItems = suggestions
+    .filter((item) => item.actionType === COPILOT_ACTION_TYPES.qualification)
+    .map((item) => item.id);
+  const suggestedFacts: Record<string, unknown> = {};
+  if (factItems.length > 0) {
+    const i = schema.inboxItems;
+    const a = schema.agentActions;
+    const rows = await ctx.tx
+      .select({ itemId: i.id, facts: sql<unknown>`${a.inputJson} -> 'facts'` })
+      .from(i)
+      .innerJoin(a, and(eq(a.id, i.agentActionId), eq(a.entityId, i.entityId)))
+      .where(inArray(i.id, factItems));
+    for (const row of rows) {
+      const facts = CopilotFactsSchema.safeParse(row.facts);
+      if (facts.success) suggestedFacts[row.itemId] = facts.data;
+    }
+  }
+
   return CopilotPanelDto.parse({
     entityId: input.entityId,
     opportunityId: lead.id,
@@ -147,6 +168,7 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
     nextBriefAt:
       nextBrief === undefined || nextBrief <= now ? null : new Date(nextBrief).toISOString(),
     suggestions,
+    suggestedFacts,
   });
 }
 
