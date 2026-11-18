@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an AI agent principal answering customers, row-level security bound to one thread |
 | Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 14 points of it (early check) |
-| State | early check passed (lead, 17-11) |
-| Next step | a builder resumes steps 5 to 9 on a fresh slot database |
+| State | fix round done (builder, 18-11); for the lead's read |
+| Next step | the lead reads the fix round and integrates |
 
 ## Brief
 Read first:
@@ -129,6 +129,46 @@ Steps 5 to 9 of the brief, on `main` as merged at a75f5b8b (V2, T4, S3, A2). Ski
 - The `app.is_agent_request()` prefix for 0213's clauses is not added: 0213 was applied on the recreated database, so it would be a new migration redefining four policies; a person's statement runs the binding once and it returns nothing (a uuid lookup of null).
 - A bound run's RLS also reaches its lead's call transcripts (A2's file, read with the call), as it reaches quotes; the fact reader reads only the brief's list.
 - The live model's runs (`eval:concierge`) and Devanagari hand-off words wait for the owner and the sales head.
+
+### Fix round, 18-11-2026, the lead's cloud VM (slot 2, Postgres 54332)
+Every item of the lead's fix list except L6, each with a test that failed before its fix (run against the code before the fix, then after). Skills loaded: `add-command`, `add-table` (no table; its policy lines were used for 0217). Migrations 0217 and 0218 follow 0216 with later journal times.
+
+**Findings**
+- **H1** (e60e7c8f): new `packages/domain/src/ai/concierge/claims.ts`. A sentence of a reply that states a number, an amount, a price, a date, a day or a time, an offer, a subsidy, a warranty or a commitment (an order confirmed, a delivery, a visit, an engineer), in digits or in words, in English or Roman Hindi (number words such as paanch, hazaar, sau, lakh, fifty, thousand, half, aadha, and any word made of them alone; day words such as kal, parso, aaj, somvar, tomorrow, Monday, next week, the months; currency and price words such as rupaye, rupees, Rs, keemat, daam, cost, plus the sales head's price and subsidy hand-off words), passes only when one directive the reply cites states the same claims; digits only as that directive gives them. The thread's own words no longer ground a reply's figure (a customer could dictate one), and a callback's day or time is never in the reply's text. Words are folded before matching (accents, joiners and zero-width characters gone, repeated letters once, so paanch/panch, hazaar/hazar and tomorrow/tommorow read alike; fif-ty and fif\u200bty read as fifty; full-width letters as plain), letters of another script and words spelled out letter by letter are refused as `text_has_instruction`, and the company's own phone number is set aside before the digit rule. Deterministic, no model call. Tests: `filter.test.ts` (26 now: the review's six replies and their Roman Hindi forms plus 16 other spellings, each as a greeting and citing a directive that does not say it; 12 promises; other scripts and spelled-out words; quoting one directive sentence by sentence) and `concierge-sets.ts` (17 new injection cases: the six examples and their Roman Hindi forms, a bare order confirmation in both, an amount spelled out letter by letter, one in Devanagari, a booking confirmation naming its time); the sets' own re-check now also asserts that an uncited reply makes no claim at all. The prompt says the new rule (`promptVersion` `concierge-2`). `messaging.reply.send` people-only also moved `action-types.test.ts`.
+- **M1** (e60e7c8f): an uncited reply is at most 160 characters (`CONCIERGE_FIXED_FORM_MAX`) and two sentences, and passes H1's checks (so it states no figure and makes no promise); a question has one "?", at its end. The 600-character greeting test now expects `reply_not_fixed_form`; new tests for 160/161 characters and three sentences.
+- **M2** (c8736969, migration 0218): a run first reads, bound to the chat, who answers it and the customer's newest words (`readConciergeChat()`); a chat with people, opted out, answered or superseded is skipped and records nothing. The hand-off words then hand off before any stop. Switched off, without a limit, out of the day's spend or past the chat's runs, one stopped run is recorded and the chat goes to people with `no_assistant` (0218 redefines `app.whatsapp_hand_off()` from 0215's body with that reason added; its label now reads "The assistant was not available"). `conciergeAnswersChats()` (new `availability.ts`): new chats start with the assistant, and the thread screen offers Give back (`assistantOn`), only while `handlesNewThreads` is on and the Concierge is switched on with a spending limit in the company; the webhook reads it per message. Tests: `concierge-runs.test.ts` (switched off, no limit and under the spend each hand the chat to people with one stopped run and no facts read; complaint words while switched off hand off with no run; a chat with people records nothing while switched off), `apps/web/tests/whatsapp.test.ts` ("who answers a new chat": assistant and Give back while on, people with `no_assistant` and no Give back while off; the file now switches the Concierge on for company 1 in its `beforeAll`).
+- **M3** (51dccf95, migration 0217): `copilot_notes_read` and `files_call_transcript_read` add `(select app.agent_thread_id()) is null`, keeping every line of 0207 (`alter policy`, roles kept). Test: `agent-thread-binding.test.ts` +1 (an Executive reads the note and the transcript; the bound Concierge and the bound Chief read neither). SECURITY §3.3 now states what a bound run reaches (its customer's and lead's quotes, orders, quote PDFs, calls and timeline) and that it reads no Co-pilot note, call transcript or customer note; DATABASE §4.1 says the same.
+- **L1** (5aab4a9f): `messaging.reply.send` is `peopleOnly`, its comment says only a person sends it; `agent-refusals.test.ts` lists it in `PEOPLE_ONLY_INPUTS`, so every agent, the workers and V2's voice session are refused at the guard (the voice sweep covers it).
+- **L2** (1d7fbaf1): `ConciergeDraftDto.draft.decidable` (false under Suggest); under Suggest the draft line shows the words, when, a line that it is only a suggestion, and a link to the Agent Inbox (`/inbox`), with no S, E or D. Tests: `concierge-runs.test.ts` (Suggest gives `decidable: false`, Needs approval `true`), `draft-line.test.tsx` (the Suggest view has the link and no button or key).
+- **L3** (1d7fbaf1): the thread counts its reads and the draft line's key (`draftLineKey()` in `keys.ts`) includes the count, so the draft is read again on each of the chat's refreshes (a reply sent, a hand-over, a decision); no poll. Test: `keys.test.ts` +1. It is a unit test of the key; the web workspace has no DOM test library to render the remount.
+- **L4** (c8736969): the 30-runs cap now comes before the chat's history, lead and rules are read, with the switch and spend; SECURITY's Concierge section and the `runsPerThreadDay` comment say what is read first. Test: `concierge-runs.test.ts` (past the runs, a stopped run, the chat to people, and no `agents.concierge.facts` query in the run's log; `runConcierge()` now passes the run's logger to its two queries).
+- **L5** (c8736969): refused answers are counted only by the delivery that decided the reply's step. Test: `concierge-runs.test.ts` (the reply step recorded and counted by an earlier delivery; the redelivery records the other steps and the count stays 1).
+- **L6:** not done, as the fix list says.
+
+**Checks** (all through the lock, on 54332)
+- `pnpm typecheck`: 10 of 10 tasks. ESLint `--max-warnings 0` on every changed folder: clean. The whole-repository `pnpm lint`, last: clean (exit 0).
+- Unit (`turbo run test --force`): domain 2590, web 1155 passed and 1 skipped, contracts 322, db 160, ui 107, tokens 146, voice 49, voice-agent 22, copy-lint 17; 10 of 10 tasks.
+- `pnpm copy-lint`: clean. `pnpm format:check`: clean. `pnpm db:docs`: regenerated (the two policies, the newest migration).
+- `pnpm test:security`: `@shakti/db` 58 files, 1508 passed; `@shakti/domain` 98 files, 1389 passed; `web` 37 files, 445 passed; 4 of 4 tasks.
+- `pnpm build`: 2 of 2 tasks; `pnpm --filter web js-budget`: every page within its budget (55 pages).
+- Journeys on the host after the build (`concierge.spec.ts`, `messages.spec.ts`): 35 passed, 3 failed, the three the snapshot company's `messages` screenshot against the Linux baselines (desktop-light, desktop-dark, phone), which differ in font rendering only: the screen itself is `main`'s baseline again (see Screens). No behaviour failed; axe passed on every screen.
+- `EXPLAIN (ANALYZE)` under RLS: the new first read (the bound Concierge's newest customer message) 1.9 ms, by `whatsapp_messages_<month>_thread_id_created_at_id_idx` in each partition; `copilot_notes` under the new policy (an Executive) 0.17 ms, the binding's check one initplan.
+
+**Screens and baselines** (none committed)
+- `messages` (the snapshot company's chat, company 3): the Concierge has no settings there, so the chat again shows "Your team answers every WhatsApp chat. No assistant replies to customers yet." and no Give back: `main`'s baseline as it stands, so the change the steps 5 to 9 report listed for `messages` falls away. The behaviour journey (company 1) still sees Give back, since the seed now keeps the Concierge switched on with a limit in company 1 (`e2e/setup/concierge.ts`).
+- The draft line under Suggest is a new state with no journey or baseline (no seeded Suggest draft); `concierge-draft` and `concierge-report` are unchanged.
+
+**Decisions the fix list did not settle**
+1. Claims are refused per sentence unless one cited directive holds every claim of that sentence; digits and number words count as claims, so even a bore depth the customer gave is not echoed in a reply (the qualification proposal records it).
+2. The words of the claim kinds are a list in `claims.ts`, not a named workshop default: they are language, not the client's rules; the price and subsidy hand-off words of `WORKSHOP_DEFAULTS` are added to them, and the promise words stay the sales head's always-refused list.
+3. Another script's letters and spelled-out words are reported as `text_has_instruction` ("Its note had an instruction or a link"), to avoid a ninth filter reason and a migration.
+4. A stop for the chat's runs also hands the chat to people (`no_assistant`), as the switch and spend stops do.
+5. The time check (10 seconds left) now comes before the facts read rather than after it.
+6. The Suggest view links to the Agent Inbox page, not to the item: the inbox screen (A1/AI0's) has no link to one item.
+
+**Open**
+- Short Roman Hindi words that are also English or names (das, sat, char, ten) are refused as numbers: a greeting naming a customer called Das is refused, which hands the chat to people after three.
+- `isHandledByPlatform()` and the other steps 5 to 9 notes stand.
 
 ## Review
 
