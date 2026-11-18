@@ -1,6 +1,7 @@
 import type { WebhookErrorCode, WebhookProvider } from '@shakti/contracts';
 import type { WebhookPayload } from './contracts';
 import { handleGoogleLeadform, handleMetaLeadgen } from './lead-forms';
+import { handleExotelIncoming } from './exotel-incoming';
 import { handleExotelStatus } from './exotel-status';
 import { handleLiveKit } from './livekit';
 
@@ -60,6 +61,9 @@ export const WEBHOOK_HANDLERS: WebhookHandlers = {
   google_leadform: handleGoogleLeadform,
   // T3: a click-to-dial call's status and recording (docs/03-roadmap-appendix/phase2.md §6.3).
   exotel_status: handleExotelStatus,
+  // T4: a customer's call to a company's IVR or missed-call number, passed through by Exotel's
+  // Passthru applet (docs/03-roadmap-appendix/phase2.md §7.4).
+  exotel_incoming: handleExotelIncoming,
   // V2: a voice session's end, spend, turn timings and Teach files (docs/03-roadmap-appendix/phase2.md §7.5).
   livekit: handleLiveKit,
 };

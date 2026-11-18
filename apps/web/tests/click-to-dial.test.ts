@@ -98,6 +98,11 @@ beforeAll(async () => {
       verified: true,
     });
   }
+  // One person per phone in a company: an earlier run's caller lets this run's take it.
+  await asMigrator(
+    (m) => m`update caller_profiles set dial_phone_e164 = null
+              where entity_id = ${ENTITY} and dial_phone_e164 = '+919800000201'`,
+  );
   await executeCommand(caller, { entityIds: [ENTITY] }, setDialPhone, {
     entityId: ENTITY,
     phone: '+919800000201',

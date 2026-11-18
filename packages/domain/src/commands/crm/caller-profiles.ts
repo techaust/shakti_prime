@@ -163,8 +163,10 @@ export const setPresence = defineCommand({
  * `crm.caller_profile.set_dial_phone` (docs/03-roadmap-appendix/phase2.md §6.3): the caller's own
  * phone in one company, which click-to-dial rings first before the customer's; null clears it.
  * Only the caller's own row, never another person's (the insert policy and the guard trigger); a
- * person with no profile yet gets one that is not a Lead Converter until a manager says so. For a
- * person who dials (`calls.dial`), people only.
+ * person with no profile yet gets one that is not a Lead Converter until a manager says so. A
+ * phone another person of the company holds is refused (`dial_phone_in_use`), since an incoming
+ * call to the IVR rings, and pops on the screen of, its holder. For a person who dials
+ * (`calls.dial`), people only.
  */
 export const setDialPhone = defineCommand({
   name: 'crm.caller_profile.set_dial_phone',
@@ -174,6 +176,8 @@ export const setDialPhone = defineCommand({
   input: SetDialPhoneInput,
   output: DialPhoneDto,
   auditFields: ['dialPhone'],
+  // One person's phone in a company: the IVR's incoming call rings whoever holds it (T4).
+  constraintReasons: { caller_profiles_entity_dial_phone_unique: 'dial_phone_in_use' },
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     // The caller's own phone: never a customer's number nor a company's (checked again at each dial).

@@ -158,6 +158,8 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'crm.duplicate.found': { ordering: 'every', handle: notify },
   'crm.enquiry.routed': { ordering: 'every', handle: notify },
   'sales.order.credit_held': { ordering: 'every', handle: notify },
+  // A missed call's callback, told to the lead's owner (docs/03-roadmap-appendix/phase2.md §7.4).
+  'calls.missed.recorded': { ordering: 'every', handle: notify },
 };
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */

@@ -92,7 +92,14 @@ function fakeUpstash(now: () => number) {
         return { reply: next };
       }
       case 'EVAL': {
-        // Only the one script the adapter sends: raise a stored whole number (`raiseTo`).
+        // The two scripts the adapter sends: delete only while the key holds the value
+        // (`delIfValue`), else raise a stored whole number (`raiseTo`).
+        if (key.includes("redis.call('DEL'")) {
+          const [target = '', value = ''] = args.slice(1);
+          if (live(target)?.value !== value) return { reply: 0 };
+          cells.delete(target);
+          return { reply: 1 };
+        }
         const [target = '', value = '', ttl = '0'] = args.slice(1);
         const cell = live(target);
         const current = cell?.value;
@@ -250,6 +257,20 @@ describe.each(stores)('KeyValue contract: %s', (_name, make) => {
     expect(await kv.get('seq')).toBe('12345678901234567890');
   });
 
+  it('deletes a key only while it holds the value read, once for two callers', async () => {
+    const kv = make();
+    await kv.set('ringing', 'first', 60);
+    expect(await kv.delIfValue('ringing', 'other')).toBe(false);
+    expect(await kv.get('ringing')).toBe('first');
+    const [a, b] = await Promise.all([
+      kv.delIfValue('ringing', 'first'),
+      kv.delIfValue('ringing', 'first'),
+    ]);
+    expect([a, b].filter(Boolean)).toHaveLength(1);
+    expect(await kv.get('ringing')).toBeNull();
+    expect(await kv.delIfValue('ringing', 'first')).toBe(false);
+  });
+
   it('round-trips a cached principal', async () => {
     const cache = principalCache(make());
     const key = await cache.keyFor(principal.id, 'session-1', undefined);
@@ -284,6 +305,7 @@ describe('principal cache failures are misses, not errors', () => {
     incrBy: () => Promise.reject(new Error('store unreachable')),
     setIfAbsent: () => Promise.reject(new Error('store unreachable')),
     raiseTo: () => Promise.reject(new Error('store unreachable')),
+    delIfValue: () => Promise.reject(new Error('store unreachable')),
   };
 
   it('answers a miss when the store is unreachable, and invalidation still reports failure', async () => {
