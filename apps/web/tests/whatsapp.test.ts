@@ -525,8 +525,8 @@ describe('the meta_whatsapp handler', () => {
     ).rejects.toThrow();
     let [thread] = await threadsOf(waId);
     expect(thread?.opted_out_at).toBeNull();
-    // A new chat starts with the team while no assistant answers.
-    expect(thread?.handled_by).toBe('people');
+    // A new chat starts with the assistant, which drafts replies a person sends (A3).
+    expect(thread?.handled_by).toBe('assistant');
     failing = false;
     await handle(delivery(one.phoneNumberId, { messages: [stop] }), context());
     await handle(delivery(one.phoneNumberId, { messages: [stop] }), context());
@@ -827,7 +827,8 @@ describe('the messaging worker', () => {
       (ctx) => readWhatsAppThread(ctx, { entityId: 1, threadId: thread?.id }),
       { name: 'messaging.thread' },
     );
-    expect(view.assistantOn).toBe(false);
+    // The assistant drafts replies (A3), so a chat with people may be given back to it.
+    expect(view.assistantOn).toBe(true);
     const shown = view.messages.find((m) => m.id === queued?.id);
     expect(shown).toMatchObject({ status: 'failed', sentByName: null });
     expect(shown?.templateLabel).toEqual(
