@@ -119,7 +119,7 @@ export async function ensureCopilotJourneys(callerId: string): Promise<void> {
       await m`insert into copilot_notes (id, entity_id, opportunity_id, provider_call_id, kind, body,
                                          fields_json, suggested_disposition_id, created_by)
                values (${newId()}, ${ENTITY}, ${lead.id}, ${call}, 'call_summary', ${COPILOT_JOURNEY.summary},
-                       ${JSON.stringify(COPILOT_JOURNEY.facts)}::jsonb, ${outcome.id}, ${COPILOT})`;
+                       ${m.json({ ...COPILOT_JOURNEY.facts })}, ${outcome.id}, ${COPILOT})`;
     });
     await suggest(
       'crm.lead.qualification.set',
