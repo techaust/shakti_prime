@@ -198,9 +198,17 @@ async function main() {
        and n.created_at >= ${from}::timestamptz and n.created_at < ${until}::timestamptz`;
 
   await explain('the panel: the newest brief of a lead, its tele-caller', caller, brief);
-  await explain('the panel: the caller’s own latest dial of a lead, its tele-caller', caller, ownDial);
+  await explain(
+    'the panel: the caller’s own latest dial of a lead, its tele-caller',
+    caller,
+    ownDial,
+  );
   await explainAsOwner('when a brief was last started (the definer, as its owner)', started);
-  await explain('the Co-pilot report, summaries callers saw over 30 days, the Executive', exec, shown);
+  await explain(
+    'the Co-pilot report, summaries callers saw over 30 days, the Executive',
+    exec,
+    shown,
+  );
   await explain('the panel: the newest summary of a lead, its tele-caller', caller, summary);
   await explain('the Co-pilot report, first page of 30 days, the Executive', exec, page);
   await explain('the Co-pilot report, outcomes agreed over 30 days, the Executive', exec, outcomes);

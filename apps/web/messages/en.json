@@ -4563,7 +4563,7 @@
       "open": "Co-pilot report",
       "summaryHeading": "How often callers agreed",
       "summaries": "{count, plural, =0 {No call summaries} one {# call summary} other {# call summaries}}",
-    "shownLeftOut": "{count, plural, one {# summary whose suggestions the caller saw is not counted here} other {# summaries whose suggestions callers saw are not counted here}}",
+      "shownLeftOut": "{count, plural, one {# summary whose suggestions the caller saw is not counted here} other {# summaries whose suggestions callers saw are not counted here}}",
       "outcomes": "Outcomes",
       "facts": "Details heard",
       "agreed": "{agreed} of {decided} agreed",

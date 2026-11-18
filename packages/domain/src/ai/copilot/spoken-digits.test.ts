@@ -14,7 +14,9 @@ const masked = (text: string) => maskWholeText(spokenDigitsAsFigures(text));
 
 describe('spokenDigitsAsFigures', () => {
   it('writes a number said in Hindi or English digit words as figures', () => {
-    expect(spokenDigitsAsFigures(`Mera Aadhaar ${HINDI} hai.`)).toBe(`Mera Aadhaar ${AADHAAR} hai.`);
+    expect(spokenDigitsAsFigures(`Mera Aadhaar ${HINDI} hai.`)).toBe(
+      `Mera Aadhaar ${AADHAAR} hai.`,
+    );
     expect(spokenDigitsAsFigures(`It is ${ENGLISH}.`)).toBe(`It is ${AADHAAR}.`);
   });
 

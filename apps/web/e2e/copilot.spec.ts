@@ -130,15 +130,21 @@ test.describe('the Co-pilot report as an Executive', () => {
     await expect(page.getByRole('heading', { name: 'How often callers agreed' })).toBeVisible();
     // The seed's summaries written under Needs approval were seen by the callers: left out.
     await expect(
-      page.getByText(/summar(y|ies) whose suggestions (the caller|callers) saw (is|are) not counted/),
+      page.getByText(
+        /summar(y|ies) whose suggestions (the caller|callers) saw (is|are) not counted/,
+      ),
     ).toBeVisible();
     const grid = dataGrid(page, 'Call summaries, newest first');
+    // The seed's summary in Shadow of this project's lead (the newest, should a database hold an
+    // earlier run's too).
     const row = grid
       .getByRole('row')
       .or(grid.getByRole('listitem'))
-      .filter({ hasText: COPILOT_LEADS[projectName()] });
+      .filter({ hasText: COPILOT_LEADS[projectName()] })
+      .filter({ hasText: 'Pump depth (feet): 150' })
+      .first();
     await expect(row).toContainText('Not saved yet');
-    await expect(row).toContainText('150');
+    await expect(row).toContainText('Not known yet');
     await expectNoAxeViolations(page);
     // The period runs to today and the summaries are days old, so the dates are masked.
     await snap(page, 'copilot-report', {
@@ -150,4 +156,3 @@ test.describe('the Co-pilot report as an Executive', () => {
     });
   });
 });
-

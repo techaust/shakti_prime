@@ -501,4 +501,3 @@ describe('fits', () => {
     expect(await keyValue.get(spendKey('agent:copilot', 1, day))).toBe('600');
   });
 });
-

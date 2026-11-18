@@ -48,7 +48,11 @@ describe('chatLines', () => {
       NOW,
     );
     expect(lines).toEqual([
-      { direction: 'outbound', daysAgo: 0, text: 'Your quote is [amount]. It is valid for 15 days.' },
+      {
+        direction: 'outbound',
+        daysAgo: 0,
+        text: 'Your quote is [amount]. It is valid for 15 days.',
+      },
       { direction: 'inbound', daysAgo: 0, text: 'Mera bill 3200 aata hai.' },
     ]);
   });

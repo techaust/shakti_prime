@@ -552,10 +552,16 @@ describe('the Co-pilot’s brief', () => {
     const { provider } = model(BRIEF, keyValue);
     const job = { kind: 'brief' as const, entityId: ENTITY, opportunityId: l.opportunityId };
     expect((await runCopilot({ ...job, eventId: newId() }, { provider })).outcome).toBe('ran');
-    const counted = Number(await keyValue.get(partSpendKey('agent:copilot', `brief:${String(ENTITY)}`, day)));
+    const counted = Number(
+      await keyValue.get(partSpendKey('agent:copilot', `brief:${String(ENTITY)}`, day)),
+    );
     expect(counted).toBeGreaterThan(0);
     // With the briefs' half used, a brief stops though the company's cap has room.
-    await keyValue.incrBy(partSpendKey('agent:copilot', `brief:${String(ENTITY)}`, day), half, 3_600);
+    await keyValue.incrBy(
+      partSpendKey('agent:copilot', `brief:${String(ENTITY)}`, day),
+      half,
+      3_600,
+    );
     const other = await lead();
     const stopped = await runCopilot(
       { ...job, opportunityId: other.opportunityId, eventId: newId() },
@@ -571,7 +577,9 @@ describe('the Co-pilot’s brief', () => {
     const cap = await setting({ cap: 50_000 });
     // A brief two hours old (notes are append-only, so it is written with its time).
     await asMigrator(
-      (m) => m`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_at, created_by)
+      (
+        m,
+      ) => m`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_at, created_by)
                 values (${newId()}, ${ENTITY}, ${l.opportunityId}, 'brief', 'Wants a 5 HP pump.',
                         now() - interval '2 hours', ${copilot().id})`,
     );
@@ -862,7 +870,10 @@ describe('the summary of a recorded call', () => {
       await refusal(
         summariseCall(
           { eventId: newId(), entityId: ENTITY, providerCallId: call },
-          { ...deps(store, speech, provider), timeLeft: () => d.minTranscribeMs + d.storeMarginMs - 1 },
+          {
+            ...deps(store, speech, provider),
+            timeLeft: () => d.minTranscribeMs + d.storeMarginMs - 1,
+          },
         ),
       ),
     ).toMatchObject({ code: 'integration_unavailable', reason: 'copilot_out_of_time' });
@@ -873,7 +884,9 @@ describe('the summary of a recorded call', () => {
       transcribe: (_bytes, options) =>
         new Promise((_resolve, reject) => {
           options.signal.addEventListener('abort', () => {
-            reject(new KnowledgeExtractError('knowledge_timed_out', 'transcribing ran out of time'));
+            reject(
+              new KnowledgeExtractError('knowledge_timed_out', 'transcribing ran out of time'),
+            );
           });
         }),
     };
@@ -881,7 +894,10 @@ describe('the summary of a recorded call', () => {
     expect(
       await summariseCall(
         { eventId: newId(), entityId: ENTITY, providerCallId: call },
-        { ...deps(store, slow, provider), timeLeft: () => d.minTranscribeMs + d.storeMarginMs + 50 },
+        {
+          ...deps(store, slow, provider),
+          timeLeft: () => d.minTranscribeMs + d.storeMarginMs + 50,
+        },
       ),
     ).toEqual({ outcome: 'skipped', why: 'timed_out' });
     expect(Date.now() - started).toBeLessThan(d.minTranscribeMs + 5_000);
@@ -959,7 +975,8 @@ describe('the summary of a recorded call', () => {
     expect(store.objects.has(file?.key ?? '')).toBe(true);
     // A day later the sweep refuses it and names its key, whose bytes the worker deletes.
     await asMigrator(
-      (m) => m`update files set created_at = now() - interval '2 days' where id = ${file?.id ?? ''}`,
+      (m) =>
+        m`update files set created_at = now() - interval '2 days' where id = ${file?.id ?? ''}`,
     );
     const swept = await run<SweepUploadsDto>(workers([ENTITY]), sweepUploads, {
       olderThanMinutes: 1_440,
@@ -996,7 +1013,8 @@ describe('the summary of a recorded call', () => {
     const anonymised = await lead({ converter: true });
     const fresh = await kept(anonymised);
     await asMigrator(
-      (m) => m`update opportunities set anonymised_at = now() where id = ${anonymised.opportunityId}`,
+      (m) =>
+        m`update opportunities set anonymised_at = now() where id = ${anonymised.opportunityId}`,
     );
     const recent = await kept(await lead({ converter: true }));
     const before = new Date(Date.now() - 365 * 86_400_000);
@@ -1013,7 +1031,9 @@ describe('the summary of a recorded call', () => {
         }),
       ).toEqual({ fileId, deleted: true });
     }
-    const after = await asPrincipal(workers([ENTITY]), (ctx) => dueCallRecordings(ctx, before, 500));
+    const after = await asPrincipal(workers([ENTITY]), (ctx) =>
+      dueCallRecordings(ctx, before, 500),
+    );
     expect(after.map((d) => d.fileId)).not.toContain(old);
     expect(after.map((d) => d.fileId)).not.toContain(fresh);
   });
@@ -1083,7 +1103,9 @@ describe('the Co-pilot panel and report', () => {
   async function dialBy(l: Lead, callerId: string, minutesAgo: number): Promise<string> {
     const id = newId();
     await asMigrator(
-      (m) => m`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, status, started_at, ended_at, duration_s)
+      (
+        m,
+      ) => m`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, status, started_at, ended_at, duration_s)
         values (${id}, ${ENTITY}, ${l.opportunityId}, ${l.phoneId}, ${callerId}, 'outbound', '160', 'service', 'completed',
                 now() - make_interval(mins => ${minutesAgo}), now() - make_interval(mins => ${minutesAgo - 1}), 60)`,
     );
@@ -1176,7 +1198,9 @@ describe('the Co-pilot panel and report', () => {
   it('counts an assignment that started a brief, but not one of a lead briefed that day', async () => {
     const assigned = async (l: Lead) =>
       asMigrator(
-        (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id, payload_json)
+        (
+          m,
+        ) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id, payload_json)
           values (${newId()}, ${ENTITY}, 'crm.opportunity.assigned', 'opportunity', ${l.opportunityId},
                   ${m.json({ v: 1, ownerId: l.owner.id, teamId: null, lockHours: 24, assignedById: exec.id })})`,
       );
@@ -1184,13 +1208,18 @@ describe('the Co-pilot panel and report', () => {
     await assigned(fresh);
     expect(
       await refusal(
-        run(fresh.owner, requestCopilotBrief, { entityId: ENTITY, opportunityId: fresh.opportunityId }),
+        run(fresh.owner, requestCopilotBrief, {
+          entityId: ENTITY,
+          opportunityId: fresh.opportunityId,
+        }),
       ),
     ).toMatchObject({ code: 'conflict', reason: 'copilot_brief_recent' });
     // A lead with a brief two hours old: its assignment started none, so a person may ask.
     const briefed = await lead();
     await asMigrator(
-      (m) => m`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_at, created_by)
+      (
+        m,
+      ) => m`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_at, created_by)
                 values (${newId()}, ${ENTITY}, ${briefed.opportunityId}, 'brief', 'Wants a 5 HP pump.',
                         now() - interval '2 hours', ${copilot().id})`,
     );
@@ -1203,4 +1232,3 @@ describe('the Co-pilot panel and report', () => {
     ).resolves.toMatchObject({ opportunityId: briefed.opportunityId });
   });
 });
-

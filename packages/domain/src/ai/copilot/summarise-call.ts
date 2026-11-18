@@ -9,10 +9,7 @@ import {
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { executeCommand, executeQuery } from '../../command/execute';
-import {
-  attachCallTranscript,
-  reserveCallTranscript,
-} from '../../commands/calls/call-transcript';
+import { attachCallTranscript, reserveCallTranscript } from '../../commands/calls/call-transcript';
 import { deleteCallRecording } from '../../commands/calls/provider-calls';
 import type { RecordingTranscriber } from '../../knowledge/index-file';
 import { KnowledgeExtractError } from '../../knowledge/extract';
