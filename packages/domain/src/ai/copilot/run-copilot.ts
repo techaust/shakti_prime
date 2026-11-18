@@ -339,7 +339,7 @@ export async function runCopilot(
   // Reading took some of the time: the model is asked only with enough of it left.
   if (timeLeft() < d.minModelMs) throw copilotOutOfTime('ask the model');
   const caps = copilotRunCaps(config, input.entityId);
-  const part = input.kind === 'brief' ? { part: briefPart(input.entityId, caps) } : {};
+  const briefShare = input.kind === 'brief' ? { part: briefPart(input.entityId, caps) } : {};
   const prompt = buildCopilotPrompt(facts);
   const promptHash = hashPrompt(prompt);
   const context = copilotContext(facts);
@@ -358,7 +358,7 @@ export async function runCopilot(
             untrusted: prompt.untrusted,
             maxTokens: prompt.maxTokens,
             totalTimeoutMs: Math.min(d.totalTimeoutMs, timeLeft()),
-            ...part,
+            ...briefShare,
           })
           .then(async (reply) => {
             await keepAnswer(input.eventId, { prompt: promptHash, text: reply.text }, deps);

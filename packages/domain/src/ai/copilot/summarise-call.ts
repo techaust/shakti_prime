@@ -198,9 +198,11 @@ async function storedBytes(store: FileStore, key: string, sha256: string): Promi
 
 /**
  * Summarises one ended dial for the Co-pilot. A call outside the coverage, unanswered, unrecorded
- * or of an anonymised lead is skipped and nothing is recorded. With the Co-pilot switched off or
- * without a spending limit, one stopped run is recorded and the recording is not sent anywhere. A
- * transcript a delivery already made is read back, never paid for twice.
+ * or of an anonymised lead is skipped and nothing is recorded. With the Co-pilot switched off,
+ * without a spending limit or with too little of the day's spend left for the run, one stopped run
+ * is recorded and the recording is not downloaded or sent anywhere. The transcription is bounded
+ * by what is left of the delivery's time (`deps.timeLeft`). A transcript a delivery already made is
+ * read back, never paid for twice.
  */
 export async function summariseCall(
   job: SummariseJob,
@@ -314,7 +316,7 @@ export async function summariseCall(
         error.code === 'rate_limited' &&
         error.details?.reason === 'agent_spend_cap_reached'
       ) {
-        const stopped = await recordCopilotStop(base, deps);
+        const stopped = await recordCopilotStop(base, deps, true);
         return { outcome: 'stopped', runs: { qualification: stopped }, transcribed: false };
       }
       throw error;

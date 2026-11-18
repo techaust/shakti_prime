@@ -1,9 +1,11 @@
 // The Caller Co-pilot's plans (docs/03-roadmap-appendix/phase2.md §7.3, A2):
 // `pnpm --filter @shakti/domain spike:copilot`. Fills the local database with made-up rows in
 // company 2 (3,000 leads, each with a brief, an ended dial and its summary, half of them logged,
-// over 60 days) and prints `EXPLAIN (ANALYZE, BUFFERS)` for the panel's reads (the newest brief
-// and summary of a lead, as its tele-caller) and the shadow report's (its page, its two summaries
-// and the refused runs, as an Executive). Everything it made is removed at the end. Local database
+// over 60 days, with an assignment event each, a brief request for a third and as many events of
+// another type) and prints `EXPLAIN (ANALYZE, BUFFERS)` for the panel's reads (the newest brief
+// and summary of a lead and the caller's own latest dial, as its tele-caller; when a brief was last
+// started, as `app.copilot_brief_started_at()` reads it) and the shadow report's (its page, its two
+// summaries, the summaries callers saw and the refused runs, as an Executive). Everything it made is removed at the end. Local database
 // only (prepareDatabase refuses any other host). Not part of CI.
 import { AGENT_PRINCIPAL_IDS, type Principal } from '@shakti/contracts';
 import {
@@ -45,11 +47,30 @@ async function explain(label: string, principal: Principal, query: ReturnType<ty
   process.stdout.write(`\n=== ${label} ===\n${plan}\n`);
 }
 
+/** A definer's query, explained as the definer's owner runs it. */
+async function explainAsOwner(label: string, query: ReturnType<typeof sql>) {
+  const text = new PgDialect().sqlToQuery(query);
+  let q = text.sql;
+  for (let i = text.params.length; i >= 1; i -= 1) {
+    const v = text.params[i - 1];
+    q = q.replaceAll(`$${String(i)}`, typeof v === 'number' ? String(v) : `'${String(v)}'`);
+  }
+  const rows = await asMigrator((m) => m.unsafe(`explain (analyze, buffers, costs off) ${q}`));
+  const plan = (rows as unknown as Record<string, string>[])
+    .map((r) => Object.values(r)[0])
+    .join('\n');
+  process.stdout.write(`\n=== ${label} ===\n${plan}\n`);
+}
+
 async function clean() {
   await asMigrator((m) =>
     m.begin(async (tx) => {
       const leads = tx`select o.id from opportunities o join accounts a on a.id = o.account_id
                         where a.name like ${`${MARK} %`}`;
+      // The spike's events carry its mark; the outbox keeps every other row as it is.
+      await tx`alter table outbox_events disable trigger outbox_events_delivery_only`;
+      await tx`delete from outbox_events where payload_json ->> 'mark' = ${MARK}`;
+      await tx`alter table outbox_events enable trigger outbox_events_delivery_only`;
       await tx`alter table copilot_notes disable trigger copilot_notes_append_only`;
       await tx`alter table provider_calls disable trigger provider_calls_no_delete`;
       await tx`delete from copilot_notes where opportunity_id in (${leads})`;
@@ -107,6 +128,21 @@ async function main() {
     await m`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_at, created_by)
       select gen_random_uuid(), ${E}, o.id, 'brief', 'Ask the bore depth first.', o.created_at, ${COPILOT}
         from opportunities o join accounts a on a.id = o.account_id where a.name like ${`${MARK} %`}`;
+    // Each lead's assignment, a brief asked for on a third, and as many events of another type,
+    // all published (the spike's own mark in the payload, so its clean-up finds them).
+    for (const [type, every] of [
+      ['crm.opportunity.assigned', 1],
+      ['agents.brief.requested', 3],
+      ['crm.lead.created', 1],
+    ] as const) {
+      await m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id, payload_json,
+                                         created_at, published_at)
+        select gen_random_uuid(), ${E}, ${type}, 'opportunity', o.id::text,
+               jsonb_build_object('v', 1, 'mark', ${MARK}::text), o.created_at, o.created_at
+          from opportunities o join accounts a on a.id = o.account_id
+         where a.name like ${`${MARK} %`} and (substr(a.name, ${MARK.length + 2})::int % ${every}) = 0`;
+    }
+    await m`analyze outbox_events`;
     await m`analyze copilot_notes`;
     await m`analyze provider_calls`;
   });
@@ -144,7 +180,27 @@ async function main() {
        and r.created_at >= ${from}::timestamptz and r.created_at < ${until}::timestamptz
      group by r.filter_reason`;
 
+  const ownDial = sql`select pc.id, pc.call_id is not null as logged from provider_calls pc
+                       where pc.opportunity_id = ${lead.id} and pc.entity_id = ${E}
+                         and pc.direction = 'outbound' and pc.caller_id = ${caller.id}
+                       order by pc.started_at desc, pc.id desc limit 1`;
+  const hourAgo = new Date(Date.now() - 60 * 60_000).toISOString();
+  const started = sql`select max(e.created_at) from outbox_events e
+     where e.aggregate_id = ${lead.id} and e.type in ('agents.brief.requested', 'crm.opportunity.assigned')
+       and e.created_at > ${hourAgo}::timestamptz and e.entity_id = ${E} and e.aggregate_type = 'opportunity'
+       and (e.type = 'agents.brief.requested'
+            or not exists (select 1 from copilot_notes n
+                            where n.opportunity_id = ${lead.id} and n.entity_id = ${E} and n.kind = 'brief'
+                              and n.created_at <= e.created_at
+                              and n.created_at > e.created_at - interval '24 hours'))`;
+  const shown = sql`select count(*)::int from copilot_notes n
+     where n.entity_id = ${E} and n.kind = 'call_summary' and n.suggestions_shown
+       and n.created_at >= ${from}::timestamptz and n.created_at < ${until}::timestamptz`;
+
   await explain('the panel: the newest brief of a lead, its tele-caller', caller, brief);
+  await explain('the panel: the caller’s own latest dial of a lead, its tele-caller', caller, ownDial);
+  await explainAsOwner('when a brief was last started (the definer, as its owner)', started);
+  await explain('the Co-pilot report, summaries callers saw over 30 days, the Executive', exec, shown);
   await explain('the panel: the newest summary of a lead, its tele-caller', caller, summary);
   await explain('the Co-pilot report, first page of 30 days, the Executive', exec, page);
   await explain('the Co-pilot report, outcomes agreed over 30 days, the Executive', exec, outcomes);
