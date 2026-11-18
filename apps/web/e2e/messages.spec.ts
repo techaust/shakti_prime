@@ -12,7 +12,8 @@ import {
 // WhatsApp chats (docs/03-roadmap-appendix/phase2.md §6.1, PRD WA-04). The seed records a new
 // message from each project's customer of the tele-caller in company 1 on every run, so each
 // project's chat waits for a reply with its window open. The journeys' app has no WhatsApp key, so a
-// reply is queued and waits to be sent. No assistant answers chats yet, so the team answers each.
+// reply is queued and waits to be sent. The seed hands each chat to the team, which may give it
+// back to the assistant (the Concierge's own journey is concierge.spec.ts).
 
 test.describe('as a tele-caller', () => {
   test.use(signedInAs('teleCaller'));
@@ -41,14 +42,14 @@ test.describe('as a tele-caller', () => {
     await expect(page.getByText('Your message is on its way.')).toBeVisible();
     await expect(chat.getByText(reply)).toBeVisible();
 
-    // No assistant answers chats yet: the team does, and nothing offers to give it back.
+    // The team answers this chat, and may give it back to the assistant.
     await expect(chat.getByText('The team answers', { exact: true })).toBeVisible();
     await expect(
       chat.getByText(
         'Your team answers every WhatsApp chat. No assistant replies to customers yet.',
       ),
-    ).toBeVisible();
-    await expect(chat.getByRole('button', { name: 'Give back to assistant' })).toHaveCount(0);
+    ).toHaveCount(0);
+    await expect(chat.getByRole('button', { name: 'Give back to assistant' })).toBeVisible();
     await expectNoAxeViolations(page);
   });
 

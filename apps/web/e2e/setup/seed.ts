@@ -46,6 +46,7 @@ import { POP_CALLER_NAME, popCallerKey } from '../screen-pop-fixtures';
 import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
 import { ensureConvertingJourneys } from './converting';
+import { ensureConciergeJourneys } from './concierge';
 import { ensureCopilotJourneys } from './copilot';
 import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureOrderJourneys } from './orders';
@@ -1082,6 +1083,9 @@ await suggestFollowUp({
 
 progress('the Caller Co-pilot journey');
 await ensureCopilotJourneys(ids.teleCaller ?? '');
+
+progress('the WhatsApp Concierge journey');
+await ensureConciergeJourneys(ids.teleCaller ?? '');
 
 progress('the Triage agent in shadow');
 await ensureTriageJourney(ids.executive ?? '', ids.snapshotCaller ?? '');
