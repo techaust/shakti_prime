@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
+import { DeferredScreenPop } from '../calls/deferred-screen-pop';
 import type { ScreenPopSettings } from '../calls/screen-pop';
 import { DeferredCompanySwitcher, DeferredProfileMenu } from './deferred-menus';
 import type { CompanyOption } from './menu-triggers';
@@ -43,14 +44,6 @@ const NotificationBell = dynamic(
     loading: () => <span aria-hidden className="size-control max-md:size-control-phone shrink-0" />,
   },
 );
-
-/**
- * The screen-pop of a person who places calls (T4): its asking and its card load beside the page,
- * never in its first load, and draw nothing until a call rings.
- */
-const ScreenPop = dynamic(() => import('../calls/screen-pop').then((m) => m.ScreenPop), {
-  ssr: false,
-});
 
 /** ⌘K on a Mac, Ctrl K elsewhere; the server draws Ctrl K and the browser corrects it. */
 function useIsMac(): boolean {
@@ -300,7 +293,10 @@ export function AppShell({
           searchable={searchable}
         />
       ) : null}
-      {screenPop === undefined ? null : <ScreenPop settings={screenPop} companies={companies} />}
+      {/* The screen-pop of a person who places calls (T4), loaded once the page has come to life. */}
+      {screenPop === undefined ? null : (
+        <DeferredScreenPop settings={screenPop} companies={companies} />
+      )}
       <Toaster
         label={t('notifications')}
         theme={resolvedTheme === 'dark' ? 'dark' : resolvedTheme === 'light' ? 'light' : 'system'}
