@@ -298,6 +298,8 @@ jobs:
       # The journeys send a customer's call through the webhook receiver (T4's screen-pop).
       DATABASE_URL_WEBHOOKS: postgres://webhook_receiver:webhook_receiver_ci@localhost:5432/postgres
       WEBHOOK_RECEIVER_PASSWORD: webhook_receiver_ci
+      # A WhatsApp quote's Accept button is signed with it (S3); unset, no quote goes by WhatsApp.
+      WHATSAPP_BUTTON_SECRET: journeys whatsapp button phrase, accepted nowhere else
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
       E2E_BASE_URL: http://localhost:3000

@@ -8,7 +8,12 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { SNAPSHOT_COMPANY, WHATSAPP_QUOTES, seededUsers } from './support/users';
+import {
+  QUOTE_JOURNEY_COMPANY,
+  SNAPSHOT_COMPANY,
+  WHATSAPP_QUOTES,
+  seededUsers,
+} from './support/users';
 
 // WhatsApp quotes (docs/03-roadmap-appendix/phase2.md §7.1). The seed gives the snapshot company,
 // which has a WhatsApp number, its quote and order templates mapped to the two customer updates,
@@ -58,7 +63,11 @@ test.describe('as an Executive, a quote sent on WhatsApp', () => {
     // The quote is printed by Chromium in the app before it can be sent.
     test.setTimeout(240_000);
     const lead = seededUsers().whatsappQuotes.leads[projectName()];
-    await page.goto(`/customers/${lead.accountId}?company=${String(SNAPSHOT_COMPANY.entityId)}`);
+    // The quote journeys' company, so the quote this journey makes never shows in the snapshot
+    // company's lists.
+    await page.goto(
+      `/customers/${lead.accountId}?company=${String(QUOTE_JOURNEY_COMPANY.entityId)}`,
+    );
     await expect(page.getByRole('heading', { name: lead.name, level: 1 })).toBeVisible();
     await section(page, 'Leads').getByRole('link', { name: 'Make a quote' }).click();
     await page
@@ -77,7 +86,9 @@ test.describe('as an Executive, a quote sent on WhatsApp', () => {
     await expect(dialog.getByText(/gets the quote document with an Accept button/)).toBeVisible();
     await whatsapp.check();
     await expectNoAxeViolations(page);
-    await snap(page, 'quote-send-dialog');
+    // The dialog alone: the page behind it shows the new quote's number, which depends on how many
+    // quotes the other journeys made first.
+    await snap(page, 'quote-send-dialog', { element: dialog });
     await dialog.getByRole('button', { name: 'Send on WhatsApp' }).click();
     await expect(
       page.getByText('Quote sent. It goes to the customer on WhatsApp in a moment.'),

@@ -438,6 +438,8 @@ export function seededUsers(): SeededUsers {
 export const WHATSAPP = {
   numbers: {
     1: { e164: '+919900000101', phoneNumberId: 'e2e-whatsapp-1' },
+    // The quote journeys' company: the WhatsApp quote journeys send from it (setup/whatsapp-quotes.ts).
+    2: { e164: '+919900000102', phoneNumberId: 'e2e-whatsapp-2' },
     3: { e164: '+919900000103', phoneNumberId: 'e2e-whatsapp-3' },
   },
   customers: {
