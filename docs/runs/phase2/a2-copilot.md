@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an AI agent principal, call recordings and transcripts |
 | Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 12 points of it (early check) |
-| State | early check passed (lead, 17-11) |
-| Next step | a builder resumes steps 5 to 9 on a fresh slot database |
+| State | steps 5 to 9 built, report written (18-11) |
+| Next step | review |
 
 ## Brief
 Read first:
@@ -87,6 +87,112 @@ Steps 1 to 4 are built and committed with their tests; steps 5 to 9 wait for the
 - An answer whose outcome is not offered, or whose facts are out of bounds, loses its note too (`unknown_outcome`, `fact_out_of_bounds`): the filter fails closed.
 - A follow-up title is held to 80 characters and the note's checks.
 - The "instruction" rule for notes is narrower than the Triage agent's (a summary may say the customer will send or pay), and adds links in any form.
+
+### Steps 5 to 9, 18-11-2026 (the lead's cloud VM, worktree `a2-copilot`, Postgres 54333)
+Steps 5 to 9 are built, tested and committed. Skills: `add-table` and `add-command` were loaded in the early check; this run added no table and followed `add-command` for its two commands.
+
+**Built**
+- **Workers** (`packages/domain/src/ai/copilot/`: `facts.ts`, `read-facts.ts`, `prompt.ts`, `run-copilot.ts`, `summarise-call.ts`, `evaluate.ts`; `apps/web/src/workers/copilot/`):
+  - Briefs on `crm.opportunity.assigned`, after its notices, and on `agents.brief.requested`, by Sonnet 5.5. They read the lead, its last ten calls, the outcomes, the chat's last ten messages (masked and labelled), the approved `staff` directives, the templates and the dates of the lead's sent quotes, never an amount. A lead briefed within the hour is skipped before anything is read.
+  - Summaries on `calls.dial.completed`. The platform reads the call through `app.copilot_call_facts()` and checks: a dial of a lead, answered, recorded, not anonymised, inside the coverage (`AGENT_DEFAULTS.copilot.transcribe`, Lead Converter calls), a WAV of at most 15 minutes. It then transcribes through V1's `transcribeRecording()`, metered against the Co-pilot's caps, checks the transcript is Roman script, masks it whole (`maskWholeText()`), stores it and records it (`calls.transcript.attach`). After that, Haiku 5.5 writes the summary, the facts heard and the outcome.
+  - Each run is one runtime step per action type, keyed by the event. The model's answer is kept for an hour under `copilot:answer:{eventId}`. The note is recorded with `agents.note.record`, with the facts' suggestion as its `agentActionId`.
+  - Kill switches, a missing cap and the Co-pilot's own cap (`companyDailyCapPaise`, ₹100 a day per company, beside the Executive's) each stop a run before anything is read.
+- **Migrations** `0191_copilot_workers` (custom) and `0192_copilot_chat` (custom):
+  - `app.copilot_call_facts()` and `app.attach_call_transcript()`, both `calls.process`.
+  - `app.call_recordings_due()` and `app.drop_call_recording()` redefined so they also cover `call_transcript`. Every other line of 0173's and 0169's definitions is kept.
+  - `app.copilot_lead_chat()` and `app.copilot_chat_messages()` serve `agent:copilot` only (`app.role`, `crm.lead.read:entity`). A chat is read under the customer's rule, which the Co-pilot does not hold; I chose not to give it `crm.account.read`.
+- **Commands:**
+  - `agents.brief.request`: people only, `crm.lead.read:own`, the lead open, no brief within the hour. It emits `agents.brief.requested`.
+  - `calls.transcript.attach`: the platform's, `calls.process`, audited on a change. Both are registered, labelled in `audit.ts`, in the agent refusal sweep, and the event is in the catalogue.
+- **Autonomy:** `AGENT_DEFAULTS.startingAutonomy` now starts `agent:copilot` in Shadow. Raising an action type to Needs approval is done on Admin › Agents.
+- **Screens:**
+  - `apps/web/src/screens/copilot/copilot-panel.tsx` holds `useCopilot` and `CopilotPanel`. It is mounted in `calling-screen.tsx` and in Converting's calls panel (`lead-workspace.tsx`), three lines each: the hook, the panel and `suggestedId` on `Outcomes`.
+  - The panel shows the brief (Ask for a brief, once an hour), the last call's summary with the facts heard and the suggested outcome, and the suggestions in the caller's inbox scope. A approves and R rejects the first suggestion that needs approval; a suggestion to act on herself is dismissed.
+  - `Outcomes` (`calling-parts.tsx`) highlights the suggested outcome with a note. Nothing is saved until the caller chooses.
+  - Admin › Agents › Co-pilot report (`/admin/agents/copilot`, `apps/web/src/screens/copilot/copilot-report.tsx`, a link on Admin › Agents). It shows agreement on outcomes and on facts, the filter's refusals by reason, the suggestions by action type and how they ended, and each call summary beside the outcome saved and the facts the lead holds.
+  - The inbox card shows a template by its label: new summary kind `template` and `templateLabelKey()`, as the lead's read allowed.
+  - Copy is in `en.json` under `agents.copilot`, `agents.copilotReport`, `calling.outcomes.suggested` and the errors.
+- **Sets:**
+  - `packages/domain/tests/fixtures/copilot-sets.ts`: 7 eval cases (made-up Hinglish calls and briefs, with the facts and outcome a person takes) and 10 injection cases (instructions spoken in a call or written in a customer's message). They run on recorded answers in CI (`src/ai/copilot/copilot-sets.test.ts`).
+  - `scripts/eval-copilot.ts` and the `eval:copilot` script run them on the live model. I did not run it live (no key, by instruction). Without a key it refuses and runs nothing; this was checked.
+- **Documents:**
+  - DATABASE: the definers in §4.1, the `files` purpose, transcript retention, and the `copilot_notes` reads.
+  - SECURITY: the `calls.process` row, the starting autonomy, a new "The Caller Co-pilot" part of §3.3, the §6 injection and eval lines, and a §7 line on call transcription.
+  - ARCHITECTURE §11, the design's "Built (A2)" under §7.3, `.env.example` (`CALL_TRANSCRIBE`), and `pnpm db:docs` regenerated.
+
+**Decisions the brief did not settle**
+- **The assigned-lead event's route.** `crm.opportunity.assigned` no longer goes to the notify route, whose 30 seconds would not hold a model call. It now uses its own event route (60 seconds), whose registry worker sends the notices first and then writes the brief (`qstash.ts`, test updated). This changes hosted delivery of a Phase 1 notice, so the lead should know.
+- **Notes in Shadow.** Notes (the brief, the summary, the outcome highlight) show whatever the autonomy while the Co-pilot is switched on; Shadow applies to the action types only. A run needs at least one of its kind's action types switched on, because a stopped step never calls the model.
+- **The transcription switch.** Call transcription needs its own switch, `CALL_TRANSCRIBE=on`, beside `KNOWLEDGE_TRANSCRIBE`. A call recording holds a customer's voice, so the owner turns it on with the data terms and the recording notice. It reuses K3's `recordingTranscriber()`.
+- **Recordings that arrive late.** The status is recorded before the recording is copied in. A covered, completed call with no recording yet is delivered again for `recordingWaitMinutes` (5), with reason `call_recording_pending`, and is left alone after that. This only happens with the Co-pilot on and a speech service set.
+- **Limits on what is transcribed and read.** Only WAV recordings are transcribed, at most 15 minutes (`maxCallMinutes`), so that one call fits the event route's minute. Exotel's MP3 waits for a decoder, as K3's did. The stored transcript keeps its last 100,000 characters, and the model reads its last 18,000 (the masker's limit is 20,000).
+- **Transcript retention.** Transcripts are kept and removed with their recordings (12 months, and at once for an anonymised lead).
+- **Which prompts get the directives.** The directives (at most 30) go into the brief's prompt only.
+- **Templates in the prompt.** Templates are offered in the prompt only on a day one is due (a nurture day, or two days before a sent quote expires), with a consent in force and a chat.
+- **The panel's reads.** The panel shows a summary only for a dial of the lead (`direction = 'outbound'`, inner join to `provider_calls`), and pre-selects only while that call is not logged. It reads the suggested facts from `agent_actions.input_json`, which a caller may read for an inbox item of hers. `ListInboxInput` gained optional `subjectId` and `agent` (additive).
+- **Test settings.** The runtime and inbox suites now name Suggest for their Co-pilot stand-in, since its default is Shadow.
+
+**Tests added**
+- `packages/domain/tests/commands/copilot-runs.test.ts`, 16 tests:
+  - the brief request: denied, wrong company, happy path with the event, the hour, a closed lead;
+  - the transcript attach: denied, wrong company, happy path, once only, read with the lead;
+  - briefs: stopped with no cap and when switched off, the company cap, masked and labelled in Shadow, a repeat or the hour asking nothing, Needs approval for the owner, a refused note;
+  - summaries: outside coverage, transcribed and masked before storage, never logged and asked once, the recording wait, switched off, no speech service, MP3.
+- `packages/db/tests/security/copilot-notes.test.ts`: 3 more tests (the definers' grants and companies).
+- `apps/web/tests/copilot-workers.test.ts`, 6 tests: the registry, the brief through its event and a repeat, unavailable without a key, the switch, a non-dial, and the speech switch.
+- Unit tests:
+  - `copilot-sets.test.ts`: 19 (7 eval, 10 injection, 2 counts);
+  - `prompt.test.ts`: 4;
+  - `config.test.ts`: 1;
+  - `qstash.test.ts`: 1.
+- Updated: reader parity (the panel and report queries), the people-only sweep, the unmasked-field example, the catalogue's subscribed list, the client namespaces, the contract values.
+- Journey `apps/web/e2e/copilot.spec.ts`, with axe, and its seed `e2e/setup/copilot.ts` plus `e2e/copilot-fixtures.ts`. There is one fresh lead per project for Neha Saini, with a brief two hours old, an unlogged dial, its summary and two Needs approval suggestions. It covers the brief, the summary, the highlighted outcome, A and R, Ask for a brief, and the panel on Converting.
+
+**Checks** (all through the lock, on Postgres 54333)
+- `pnpm test:security`:
+  - db: `54 passed (54)`, `1443 passed (1443)`;
+  - domain: `92 passed (92)`, `1280 passed (1280)`;
+  - web: `33 passed (33)`, `408 passed (408)`;
+  - `Tasks: 4 successful, 4 total`.
+- `turbo run test --force`:
+  - domain: `101 passed (101)`, `2590 passed (2590)`;
+  - web: `144 passed (144)`, `1098 passed | 1 skipped`;
+  - db: `158 passed`; contracts: `194 passed`; ui: `107`; tokens: `146`; copy-lint: `17`.
+- `turbo run typecheck --force`: `8 successful`. `pnpm lint` (whole repository): exit 0. `pnpm copy-lint`: clean. `pnpm db:docs` regenerated; `machines:docs` had no change.
+- `pnpm build`: compiled. `pnpm --filter web js-budget`: `Every page is within its budget (52 pages)`.
+  - `/admin/agents/copilot` is new, at 230.1 kB with a budget of 242.
+  - `/calling` is at 204.9 of 206 kB; `/converting` at 208.2 of 213 kB.
+- Journeys, seeded on the host:
+  - `copilot.spec.ts` passed in all three projects.
+  - `calling`, `converting`, `agents` and `click-to-dial` failed only at `toHaveScreenshot`: 27 picture differences from the host renderer, and the panel now on `/calling` and `/converting`.
+  - Run again on desktop-light with pictures refreshed, the five specs gave `35 passed`, so every step after the pictures holds.
+  - The refreshed and new pictures were thrown away; no baseline is committed.
+- `EXPLAIN (ANALYZE)` (`pnpm --filter @shakti/domain spike:copilot`, 3,000 leads with briefs, dials and summaries in company 2, under RLS):
+
+| Query | Reader | Plan | Time |
+|---|---|---|---|
+| Panel: newest brief | tele-caller | `copilot_notes_opportunity_idx` | 0.29 ms |
+| Panel: newest summary | tele-caller | `copilot_notes_opportunity_idx` + `provider_calls_opportunity_started_idx` | 0.40 ms |
+| Report: first page of 30 days | Executive | `copilot_notes_entity_created_idx` | 5.6 ms |
+| Report: outcome agreement over 1,467 summaries | Executive | `copilot_notes_entity_created_idx` | 8.0 ms |
+| Report: refused runs | Executive | — | 0.10 ms |
+
+**Screens and baselines for the lead**
+- New: `copilot-panel` (desktop-light, desktop-dark, phone) from `copilot.spec.ts`.
+- Changed by the panel on `/calling` and `/converting`: `calling`, `converting-board`, `converting-quote` and `call-bar-ended`.
+- Changed because the Co-pilot now starts in Shadow and the seed adds Co-pilot items: `agent-inbox` and `admin-agents`.
+- The new report page `/admin/agents/copilot` has no picture.
+
+**Not done, or open**
+- No live model, Sarvam or Exotel call was made. `eval:copilot` was not run live.
+- Live recordings wait for the owner's Exotel notice. MP3 recordings wait for a decoder (the owner's yes).
+- `agents.note.write` can still be offered by the role editor. This is the `roleMayHold()` follow-up the lead noted.
+- The pull request will need the owner's `checks-ok`: the `eval:copilot` and `spike:copilot` scripts, and `js-budget.json`. The copy-lint config gained the button key `askBrief`.
+- Merge points:
+  - the redefined `app.call_recordings_due()` and `app.drop_call_recording()`;
+  - the removed `crm.opportunity.assigned` line in `EVENT_JOB_ROUTES`;
+  - `startingAutonomy`;
+  - the copilot rows the e2e seed sets for companies 1 to 3.
 
 ## Review
 
