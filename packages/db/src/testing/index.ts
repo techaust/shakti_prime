@@ -16,6 +16,8 @@ import { assertLocalDatabase } from './local-database';
 
 export { closeDb } from '../client';
 export { testPhone } from './phone';
+export { whatsappChannel, whatsappCustomer } from './whatsapp-fixture';
+export type { WhatsAppChannelFixture, WhatsAppCustomerFixture } from './whatsapp-fixture';
 /** The seed, so a test can prove a re-run keeps what an Executive changed (docs/05-database.md §9). */
 export { runSeeds };
 export { ALL_ENTITY_IDS } from '../../seeds/entities';
@@ -61,6 +63,7 @@ export async function prepareDatabase(): Promise<void> {
     'DATABASE_URL_AUTH',
     'DATABASE_URL_OUTBOX',
     'DATABASE_URL_READER',
+    'DATABASE_URL_WEBHOOKS',
   ]) {
     const url = process.env[name];
     if (url !== undefined && url !== '') assertLocalDatabase(url);
@@ -84,6 +87,18 @@ export async function asOutboxPublisher<T>(fn: (sql: postgres.Sql) => Promise<T>
     return await fn(publisher);
   } finally {
     await publisher.end();
+  }
+}
+
+/** Runs `fn` as `webhook_receiver`, the webhook routes' role, which may only store deliveries. */
+export async function asWebhookReceiver<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
+  const url = requireEnv('DATABASE_URL_WEBHOOKS');
+  assertLocalDatabase(url);
+  const receiver = postgres(url, { max: 1, prepare: false });
+  try {
+    return await fn(receiver);
+  } finally {
+    await receiver.end();
   }
 }
 
@@ -147,6 +162,28 @@ export async function createTestPrincipal(
     `,
   );
   return principal;
+}
+
+/**
+ * A voice session's principal (docs/07-security.md §3.4) for a person of the given role: the
+ * person's own `principals` row and the session's (kind `voice_session`), with no
+ * `voice_sessions` row, for the guard and audit tests of commands a session may not run. A test
+ * of a live session opens one through `voice.session.start` instead.
+ */
+export async function createTestVoicePrincipal(
+  roleKey: RoleKey,
+  entityIds: readonly number[] = ALL_ENTITY_IDS,
+  overrides: Partial<Principal> = {},
+): Promise<Principal> {
+  const person = await createTestPrincipal(roleKey, entityIds, overrides);
+  const voiceSessionId = newId();
+  await asMigrator(
+    (m) => m`
+      insert into principals (id, kind, display_name, created_by)
+      values (${voiceSessionId}, 'voice_session', ${`test voice ${roleKey}`}, ${person.id})
+    `,
+  );
+  return { ...person, kind: 'voice_session', voiceSessionId };
 }
 
 /** A staff user for identity tests: principal, `users` row and one role per entity. */
@@ -313,13 +350,40 @@ export const ENTITY_TABLES = [
   // sensitivity as well (docs/03-roadmap-appendix/phase1.md §8.4)
   'knowledge_files',
   'knowledge_chunks',
+  // Playbook directives allow entity_id null for the whole group and are read by audience, and
+  // a draft only by the playbook grants; the conflict check's pairs are read with their draft
+  // (docs/03-roadmap-appendix/phase2.md §5.4)
+  'playbook_directives',
+  'playbook_conflict_checks',
   // a person's own notices in the request's companies (docs/03-roadmap-appendix/phase1.md §8.1)
   'notifications',
+  // a person's own Ask the Business conversations and their messages, read in a request covering
+  // every company the conversation covers (docs/03-roadmap-appendix/phase2.md §6.5)
+  'ask_conversations',
+  'ask_messages',
   // a caller's or a team's targets: the subject, their team lead, the GM and the Executive read
   // them (docs/03-roadmap-appendix/phase1.md §9)
   'targets',
   // a person's own profile, and others' to whoever manages them (docs/03-roadmap-appendix/phase1.md §8.2)
   'caller_profiles',
+  // a company's numbers, read by every principal acting in it (docs/03-roadmap-appendix/phase2.md §5.2)
+  'entity_channels',
+  // WhatsApp threads and their messages, read under the customer's read rule; a company's
+  // templates, read by every principal acting in it (docs/03-roadmap-appendix/phase2.md §6.1)
+  'whatsapp_threads',
+  'whatsapp_messages',
+  'whatsapp_templates',
+  // a company's connected forms and sites, and its website keys: read and written by an Executive
+  // (crm.sources.write); a lead's qualification facts, read with the lead
+  // (docs/03-roadmap-appendix/phase2.md §6.2)
+  'ingest_sources',
+  'ingest_keys',
+  'lead_qualifications',
+  // a provider's call, a child of the lead, read with it (docs/03-roadmap-appendix/phase2.md §6.3)
+  'provider_calls',
+  // a person's own Talk to Shakti sessions, and everyone's to the Executive, read in a request
+  // covering every company the session covers (docs/03-roadmap-appendix/phase2.md §7.5)
+  'voice_sessions',
 ] as const;
 
 /**
@@ -357,9 +421,16 @@ export const PRINCIPAL_TABLES = [
  * Platform tables of no company that only a database job writes and only a permission at scope
  * `all` reads (docs/05-database.md §7): no request role inserts, updates or deletes them, and most
  * callers with a context read nothing, so neither the shared loops (readable by any caller) nor
- * the entity loops (scoped by company) apply. Asserted in retention.test.ts and agents.test.ts.
+ * the entity loops (scoped by company) apply. Asserted in retention.test.ts, agents.test.ts and
+ * webhooks.test.ts (`webhook_inbox`, which no request role reads at all) and whatsapp.test.ts
+ * (`whatsapp_message_keys`, Meta's message ids, read and written only by the WhatsApp definers).
  */
-export const PLATFORM_TABLES = ['retention_runs', 'agent_evals'] as const;
+export const PLATFORM_TABLES = [
+  'retention_runs',
+  'agent_evals',
+  'webhook_inbox',
+  'whatsapp_message_keys',
+] as const;
 
 /**
  * CRM set-up tables that start empty until the workshop answers (docs/03-roadmap-appendix/phase1.md §11), so

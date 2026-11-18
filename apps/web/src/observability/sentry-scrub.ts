@@ -16,10 +16,20 @@ type Loose = Record<string, unknown>;
 const isObject = (value: unknown): value is Loose =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** A URL without its query string or fragment, which may carry a reset link or a search. */
+/**
+ * Exotel's inbound applet signs nothing, so its address carries `EXOTEL_INCOMING_SECRET` as a path
+ * segment (docs/03-roadmap-appendix/phase2.md §5.1); the segment is replaced wherever a path is.
+ */
+const SECRET_SEGMENT = /(\/webhooks\/exotel\/incoming\/)[^/?#\s"']+/g;
+
+/**
+ * A URL without its query string or fragment, which may carry a reset link or a search, and with
+ * any secret path segment replaced by `[secret]`.
+ */
 export function withoutQuery(url: string): string {
   const cut = url.search(/[?#]/);
-  return cut === -1 ? url : url.slice(0, cut);
+  const path = cut === -1 ? url : url.slice(0, cut);
+  return path.replace(SECRET_SEGMENT, '$1[secret]');
 }
 
 /** Text as the logs keep it, a URL without its query string. */

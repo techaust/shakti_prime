@@ -29,18 +29,18 @@
     "eval:triage": "tsx scripts/eval-triage.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.4.0",
+    "@anthropic-ai/sdk": "^1.8.0",
     "@shakti/contracts": "workspace:*",
     "@shakti/db": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "exceljs": "^4.4.0",
-    "papaparse": "^5.7.0",
+    "papaparse": "^5.7.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
     "@types/papaparse": "^5.5.2",
     "typescript": "~5.9.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   }
 }

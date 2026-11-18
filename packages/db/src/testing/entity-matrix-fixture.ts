@@ -86,7 +86,12 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   inbox_items: 'x.id::text',
   knowledge_files: 'x.id::text',
   knowledge_chunks: 'x.id::text',
+  playbook_directives: 'x.id::text',
+  playbook_conflict_checks: 'x.id::text',
   notifications: 'x.id::text',
+  ask_conversations: 'x.id::text',
+  ask_messages: 'x.id::text',
+  voice_sessions: 'x.id::text',
   targets: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
@@ -97,6 +102,14 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   duplicate_candidates: 'x.id::text',
   customer_merges: 'x.id::text',
   caller_profiles: 'x.id::text',
+  entity_channels: 'x.id::text',
+  whatsapp_threads: 'x.id::text',
+  whatsapp_messages: 'x.id::text',
+  whatsapp_templates: 'x.id::text',
+  ingest_sources: 'x.id::text',
+  ingest_keys: 'x.id::text',
+  lead_qualifications: 'x.opportunity_id::text',
+  provider_calls: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -128,6 +141,11 @@ export interface MatrixRow {
    * than with a lead (the table's `readRow`).
    */
   withCustomer?: true;
+  /**
+   * A WhatsApp thread matched to no customer yet, or a message on one: read only with
+   * `messaging.send` for the whole company (the table's `readRow`).
+   */
+  unmatched?: true;
 }
 
 export interface EntityMatrixFixture {
@@ -179,16 +197,35 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       // inbox items naming them are removed, so no screen shows a fixture's suggestion.
       await tx`delete from inbox_items where id::text like ${like}`;
       await tx`delete from notifications where id::text like ${like}`;
+      // A conversation's messages go with it.
+      await tx`delete from ask_conversations where id::text like ${like}`;
+      // A voice session and its own principal row.
+      await tx`delete from voice_sessions where id::text like ${like}`;
+      await tx`delete from principals where kind = 'voice_session' and id::text like ${like}`;
       await tx`alter table targets disable trigger targets_append_only`;
       await tx`delete from targets where id::text like ${like}`;
       await tx`alter table targets enable trigger targets_append_only`;
+      await tx`alter table provider_calls disable trigger provider_calls_no_delete`;
+      await tx`delete from provider_calls where id::text like ${like}`;
+      await tx`alter table provider_calls enable trigger provider_calls_no_delete`;
       await tx`delete from caller_profiles where id::text like ${like}`;
+      await tx`alter table whatsapp_messages disable trigger whatsapp_messages_guard`;
+      await tx`delete from whatsapp_messages where id::text like ${like}`;
+      await tx`alter table whatsapp_messages enable trigger whatsapp_messages_guard`;
+      await tx`delete from whatsapp_threads where id::text like ${like}`;
+      await tx`delete from whatsapp_templates where id::text like ${like}`;
+      await tx`delete from entity_channels where id::text like ${like}`;
+      await tx`delete from ingest_sources where id::text like ${like}`;
+      await tx`delete from ingest_keys where id::text like ${like}`;
+      await tx`delete from lead_qualifications where opportunity_id::text like ${like}`;
       await tx`delete from agent_configs where id::text like ${like}`;
       await tx`delete from user_entity_roles where id::text like ${like}`;
       await tx`delete from users where id::text like ${like}`;
       await tx`delete from import_rows where job_id::text like ${like}`;
       await tx`delete from import_jobs where id::text like ${like}`;
       await tx`delete from import_mapping_templates where id::text like ${like}`;
+      await tx`delete from playbook_conflict_checks where id::text like ${like}`;
+      await tx`delete from playbook_directives where id::text like ${like}`;
       await tx`delete from knowledge_chunks where id::text like ${like}`;
       await tx`delete from knowledge_files where id::text like ${like}`;
       await tx`delete from files where id::text like ${like}`;
@@ -307,7 +344,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     inbox_items: [],
     knowledge_files: [],
     knowledge_chunks: [],
+    playbook_directives: [],
+    playbook_conflict_checks: [],
     notifications: [],
+    ask_conversations: [],
+    ask_messages: [],
+    voice_sessions: [],
     targets: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
@@ -318,6 +360,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     duplicate_candidates: [],
     customer_merges: [],
     caller_profiles: [],
+    entity_channels: [],
+    whatsapp_threads: [],
+    whatsapp_messages: [],
+    whatsapp_templates: [],
+    ingest_sources: [],
+    ingest_keys: [],
+    lead_qualifications: [],
+    provider_calls: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -332,6 +382,27 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   rows.knowledge_files.push({ key: groupVaultFile, entities: null });
   rows.knowledge_chunks.push({ key: groupVaultChunk, entities: null });
   rows.files.push({ key: groupVaultUpload, entities: [1], purpose: 'knowledge' });
+  // Two approved staff directives of the whole group and the pair the conflict check compared:
+  // a reader of staff knowledge sees the directives acting in any company, a holder of a playbook
+  // grant the pair too.
+  const groupDirective = id(0x000f);
+  const groupOtherDirective = id(0x0010);
+  const groupConflictCheck = id(0x0011);
+  rows.playbook_directives.push(
+    { key: groupDirective, entities: null },
+    { key: groupOtherDirective, entities: null },
+  );
+  rows.playbook_conflict_checks.push({ key: groupConflictCheck, entities: null });
+  // An Ask conversation of the owner over every company, with one message: read only in a request
+  // covering every company, so nobody acting in one company reads it.
+  const groupConversation = id(0x0012);
+  const groupAskMessage = id(0x0013);
+  rows.ask_conversations.push({ key: groupConversation, entities: null });
+  rows.ask_messages.push({ key: groupAskMessage, entities: null });
+  // A voice session of the owner over every company: read only in a request covering every
+  // company, so nobody acting in one company reads it.
+  const groupVoiceSession = id(0x0014);
+  rows.voice_sessions.push({ key: groupVoiceSession, entities: null });
   // The fixture's agent rows name an agent no other suite sets, so its settings change nothing.
   const MATRIX_AGENT = 'agent:orchestrator';
   const agentId = AGENT_PRINCIPAL_IDS[MATRIX_AGENT];
@@ -378,6 +449,18 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         values (${groupVaultFile}, null, ${groupVaultUpload}, 'matrix group vault file', 'staff_ai_ok', 'pdf', 'indexed', ${ownerId})`;
       await tx`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
         values (${groupVaultChunk}, ${groupVaultFile}, null, 'staff_ai_ok', 0, 'matrix group passage', array_fill(0.1::real, array[1024])::vector)`;
+      await tx`insert into playbook_directives (id, entity_id, type, audience, title, text, state, approved_by, approved_at, checked_at, created_by) values
+        (${groupDirective}, null, 'faq', 'staff', 'matrix group rule', 'matrix group rule text', 'approved', ${ownerId}, now(), now(), ${ownerId}),
+        (${groupOtherDirective}, null, 'faq', 'staff', 'matrix group rule two', 'matrix group rule text two', 'approved', ${ownerId}, now(), now(), ${ownerId})`;
+      await tx`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
+        values (${groupConflictCheck}, null, ${groupDirective}, ${groupOtherDirective}, 0.1, 'none', 'matrix reason')`;
+      await tx`insert into ask_conversations (id, user_id, entity_id, entity_ids, title)
+        values (${groupConversation}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'matrix question')`;
+      await tx`insert into ask_messages (id, conversation_id, user_id, entity_id, entity_ids, question, answer, outcome)
+        values (${groupAskMessage}, ${groupConversation}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'matrix question', 'matrix answer', 'answered')`;
+      await tx`insert into principals (id, kind, display_name) values (${groupVoiceSession}, 'voice_session', 'matrix voice')`;
+      await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, max_minutes)
+        values (${groupVoiceSession}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'ask', false, 15)`;
 
       for (const e of ALL_ENTITY_IDS) {
         const team = per(e, 0x01);
@@ -406,6 +489,13 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const inboxItem = per(e, 0x1d);
         // The owner's notice and another person's, about the company's lead.
         const ownNotice = per(e, 0x40);
+        const ownConversation = per(e, 0x53);
+        const othersConversation = per(e, 0x54);
+        const ownAskMessage = per(e, 0x55);
+        const othersAskMessage = per(e, 0x56);
+        // The owner's voice session in the company and another person's.
+        const ownVoiceSession = per(e, 0x70);
+        const othersVoiceSession = per(e, 0x71);
         const othersNotice = per(e, 0x41);
         const agentRun = newId();
         const agentAction = newId();
@@ -422,11 +512,19 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         // The company's vault file (staff knowledge) on its vault upload, with one chunk.
         const vaultFile = per(e, 0x42);
         const vaultChunk = per(e, 0x43);
+        // Two approved staff directives of the company and the pair the conflict check compared.
+        const directive = per(e, 0x50);
+        const otherDirective = per(e, 0x51);
+        const conflictCheck = per(e, 0x52);
         // The owner's caller profile and another person's.
         const ownProfile = per(e, 0x44);
         const othersProfile = per(e, 0x45);
         const sizing = per(e, 0x1b);
         const call = per(e, 0x30);
+        // A provider call of the owner on the company's lead, ended, with its recording, which
+        // only the file checks read as a file (calls.recording.play hears it).
+        const providerCall = per(e, 0x53);
+        const recording = per(e, 0x54);
         const quote = per(e, 0x1c);
         const quoteLine = per(e, 0x1d);
         const quoteVersion = per(e, 0x1e);
@@ -442,6 +540,19 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const ownTarget = per(e, 0x46);
         const othersTarget = per(e, 0x47);
         const teamTarget = per(e, 0x48);
+        // A number the company took out of use, so it never stands in for a real one.
+        const channel = per(e, 0x49);
+        // A WhatsApp thread of the company's customer (read with the customer) and one matched to
+        // no customer yet (read with messaging.send for the company), a message on each, and a
+        // template of the company. The threads name the company's number out of use above.
+        const thread = per(e, 0x60);
+        const unmatchedThread = per(e, 0x61);
+        const message = per(e, 0x62);
+        const unmatchedMessage = per(e, 0x63);
+        const waTemplate = per(e, 0x64);
+        // A connected website and a revoked key of the company (I1).
+        const ingestSource = per(e, 0x53);
+        const ingestKey = per(e, 0x54);
         const commissionRule = per(e, 0x37);
         const commission = per(e, 0x38);
         // A second customer of the company with the first one's name, put forward as its
@@ -507,6 +618,18 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id, dedupe_key) values
           (${ownNotice}, ${ownerId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${ownNotice}`}),
           (${othersNotice}, ${otherUserId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${othersNotice}`})`;
+        await tx`insert into ask_conversations (id, user_id, entity_id, entity_ids, title) values
+          (${ownConversation}, ${ownerId}, ${e}, ${[e]}::smallint[], 'matrix question'),
+          (${othersConversation}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'matrix question')`;
+        await tx`insert into ask_messages (id, conversation_id, user_id, entity_id, entity_ids, question, answer, outcome) values
+          (${ownAskMessage}, ${ownConversation}, ${ownerId}, ${e}, ${[e]}::smallint[], 'matrix question', 'matrix answer', 'answered'),
+          (${othersAskMessage}, ${othersConversation}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'matrix question', 'matrix answer', 'answered')`;
+        await tx`insert into principals (id, kind, display_name) values
+          (${ownVoiceSession}, 'voice_session', 'matrix voice'),
+          (${othersVoiceSession}, 'voice_session', 'matrix voice')`;
+        await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, ended_at, minutes, max_minutes) values
+          (${ownVoiceSession}, ${ownerId}, ${e}, ${[e]}::smallint[], 'teach', true, now(), 3, 15),
+          (${othersVoiceSession}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'ask', false, null, null, 15)`;
         await tx`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by) values
           (${ownTarget}, ${e}, 'caller', ${ownerId}, ${team}, 'calls', 'day', '2026-01-01', 10, ${ownerId}),
           (${othersTarget}, ${e}, 'caller', ${otherUserId}, ${team}, 'calls', 'day', '2026-01-01', 12, ${ownerId}),
@@ -521,9 +644,34 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${vaultFile}, ${e}, ${per(e, 0x17)}, ${`matrix vault file ${e.toString()}`}, 'staff_ai_ok', 'pdf', 'indexed', ${ownerId})`;
         await tx`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
           values (${vaultChunk}, ${vaultFile}, ${e}, 'staff_ai_ok', 0, 'matrix passage', array_fill(0.1::real, array[1024])::vector)`;
+        await tx`insert into playbook_directives (id, entity_id, type, audience, title, text, state, approved_by, approved_at, checked_at, created_by) values
+          (${directive}, ${e}, 'faq', 'staff', 'matrix rule', 'matrix rule text', 'approved', ${ownerId}, now(), now(), ${ownerId}),
+          (${otherDirective}, ${e}, 'faq', 'staff', 'matrix rule two', 'matrix rule text two', 'approved', ${ownerId}, now(), now(), ${ownerId})`;
+        await tx`insert into playbook_conflict_checks (id, entity_id, directive_id, other_id, distance, label, reason)
+          values (${conflictCheck}, ${e}, ${directive}, ${otherDirective}, 0.1, 'none', 'matrix reason')`;
         await tx`insert into caller_profiles (id, user_id, entity_id, is_converter, presence) values
           (${ownProfile}, ${ownerId}, ${e}, true, 'present'),
           (${othersProfile}, ${otherUserId}, ${e}, false, 'away')`;
+        await tx`insert into entity_channels (id, entity_id, channel, number_e164, is_active, created_by)
+          values (${channel}, ${e}, 'missed_call', ${`+91800000000${e.toString()}`}, false, ${ownerId})`;
+        await tx`insert into whatsapp_threads (id, entity_id, channel_id, wa_id, account_id, contact_phone_id, opportunity_id, assignee_id, created_by) values
+          (${thread}, ${e}, ${channel}, ${`9197000${(10000 + e).toString()}`}, ${account}, ${phone}, ${opportunity}, ${ownerId}, ${ownerId}),
+          (${unmatchedThread}, ${e}, ${channel}, ${`9197100${(10000 + e).toString()}`}, null, null, null, null, ${ownerId})`;
+        await tx`insert into whatsapp_messages (id, entity_id, thread_id, direction, kind, provider_message_id, body_masked) values
+          (${message}, ${e}, ${thread}, 'inbound', 'text', ${`wamid.matrix.${message}`}, 'matrix message'),
+          (${unmatchedMessage}, ${e}, ${unmatchedThread}, 'inbound', 'text', ${`wamid.matrix.${unmatchedMessage}`}, 'matrix message')`;
+        await tx`insert into whatsapp_templates (id, entity_id, name, label, category, created_by)
+          values (${waTemplate}, ${e}, 'matrix_template', 'Matrix template', 'utility', ${ownerId})`;
+        await tx`insert into ingest_sources (id, entity_id, provider, external_id, name, pipeline_id, created_by)
+          values (${ingestSource}, ${e}, 'website', ${`matrix-${e.toString()}.invalid`}, 'matrix site', ${pipeline.id}, ${ownerId})`;
+        await tx`insert into ingest_keys (id, entity_id, label, key_hash, key_hint, revoked_at, revoked_by, created_by)
+          values (${ingestKey}, ${e}, 'matrix key', ${`${'0'.repeat(60)}${(0xb000 + e).toString(16)}`}, 'mtrx', now(), ${ownerId}, ${ownerId})`;
+        await tx`insert into lead_qualifications (opportunity_id, entity_id, pump_depth_ft, updated_by)
+          values (${opportunity}, ${e}, 120, ${ownerId})`;
+        await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+          values (${recording}, ${e}, 'call_recording', 'matrix', ${`matrix/${recording}`}, 'matrix file', 'audio/mpeg', 1, ${sha}, 'ready', ${ownerId})`;
+        await tx`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, provider_call_sid, status, started_at, ended_at, duration_s, recording_file_id, call_id)
+          values (${providerCall}, ${e}, ${opportunity}, ${phone}, ${ownerId}, 'outbound', '140', 'promotional', ${`matrix-${providerCall}`}, 'completed', now(), now(), 30, ${recording}, ${call})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -662,8 +810,28 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: ownProfile, entities: only },
           { key: othersProfile, entities: only, othersOwn: true },
         );
+        rows.entity_channels.push({ key: channel, entities: only });
+        rows.whatsapp_threads.push(
+          { key: thread, entities: only, leadIn: only },
+          { key: unmatchedThread, entities: only, unmatched: true },
+        );
+        rows.whatsapp_messages.push(
+          { key: message, entities: only, leadIn: only },
+          { key: unmatchedMessage, entities: only, unmatched: true },
+        );
+        rows.whatsapp_templates.push({ key: waTemplate, entities: only });
+        rows.ingest_sources.push({ key: ingestSource, entities: only });
+        rows.ingest_keys.push({ key: ingestKey, entities: only });
+        rows.lead_qualifications.push({ key: opportunity, entities: only });
+        rows.provider_calls.push({ key: providerCall, entities: only });
+        rows.files.push({ key: recording, entities: only, purpose: 'call_recording' });
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
+        rows.playbook_directives.push(
+          { key: directive, entities: only },
+          { key: otherDirective, entities: only },
+        );
+        rows.playbook_conflict_checks.push({ key: conflictCheck, entities: only });
         rows.targets.push(
           { key: ownTarget, entities: only },
           { key: othersTarget, entities: only, othersOwn: true },
@@ -672,6 +840,18 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.notifications.push(
           { key: ownNotice, entities: only },
           { key: othersNotice, entities: only, othersOwn: true },
+        );
+        rows.ask_conversations.push(
+          { key: ownConversation, entities: only },
+          { key: othersConversation, entities: only, othersOwn: true },
+        );
+        rows.ask_messages.push(
+          { key: ownAskMessage, entities: only },
+          { key: othersAskMessage, entities: only, othersOwn: true },
+        );
+        rows.voice_sessions.push(
+          { key: ownVoiceSession, entities: only },
+          { key: othersVoiceSession, entities: only, othersOwn: true },
         );
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },

@@ -106,6 +106,10 @@ export const markFileReady = defineCommand({
   input: MarkFileReadyInput,
   output: FileDto,
   auditFields: ['fileStatus', 'sanitising', 'contentType', 'size', 'regionsMasked'],
+  unmaskedFields: [
+    // The stored file's SHA-256 in hexadecimal, checked against the upload's.
+    'stored.sha256',
+  ],
   async handler(ctx, input) {
     const row = await lockInCompany(ctx, input);
     const { to } = fireUpload(ctx, record(row), 'ready');

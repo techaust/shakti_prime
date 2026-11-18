@@ -47,5 +47,32 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The check of the database's scheduled jobs (`jobs-check`): it reads each job's last run and
     // error through one definer, and nothing of any company.
     { key: 'platform.jobs.check', scope: 'all' },
+    // The Playbook's conflict check (`knowledge.playbook.record_check`): it reads a draft and the
+    // approved directives near it and records the labelled pairs through three definers, and
+    // reads no directive by audience.
+    { key: 'knowledge.playbook.check', scope: 'all' },
+    // The DND record of a customer's phone (`crm.phone.dnd_record`), taken when a dial's check is
+    // stale: it writes what the register answered through one definer, nothing more.
+    { key: 'crm.dnd.record', scope: 'all' },
+    // The webhook worker and its sweep: it claims, marks and purges `webhook_inbox` rows through
+    // definers, and reads no row of any company (docs/03-roadmap-appendix/phase2.md §5.1).
+    { key: 'webhooks.process', scope: 'all' },
+    // The WhatsApp handler and the messaging worker: they record inbound messages, statuses and
+    // template states, open and match threads, record an opt-out or a hand-off, and queue, take
+    // and record the platform's sends through definers, and read no thread by a customer grant
+    // (docs/03-roadmap-appendix/phase2.md §6.1).
+    { key: 'messaging.process', scope: 'all' },
+    // A lead from Lead Ads, a Google lead form, a website or WhatsApp (`crm.lead.ingest`): it makes
+    // or attaches the lead, with its customer, attribution, consent and owner, through definers,
+    // and reads no lead or customer by a person's rule (docs/03-roadmap-appendix/phase2.md §6.2).
+    { key: 'crm.ingest.run', scope: 'all' },
+    // A provider call's status, its recording's copy and removal (`calls.provider_call.record`,
+    // `calls.recording.attach`, `calls.recording.delete`): it writes `provider_calls` and the
+    // recording's file through definers, and reads no customer row.
+    { key: 'calls.process', scope: 'all' },
+    // A voice session's end, minutes, spend and turn timings from LiveKit's events
+    // (`voice.session.record`): it writes them through one definer, and reads no session by a
+    // person's rule.
+    { key: 'voice.session.record', scope: 'all' },
   ],
 };

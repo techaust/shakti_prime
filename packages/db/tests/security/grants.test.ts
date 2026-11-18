@@ -118,6 +118,9 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // A lead changes only what the commands change (its stage, owner, team, state, lock, score,
     // referral partner and stamps; column grants, SEC-4), never its customer or company.
     opportunities: { i: true, u: false },
+    // A number keeps its company, channel and digits: only its references, verification and the
+    // active mark change after the insert (column grants, 0161).
+    entity_channels: { i: true, u: false },
     // A quote changes only its state and withdrawal (column grants, 0110 and DOM-4); its lines and
     // versions are append-only.
     quotes: { i: true, u: false },
@@ -141,18 +144,45 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // chunks are written only by the index job's definer (knowledge.test.ts).
     knowledge_files: { i: true, u: false },
     knowledge_chunks: { i: false, u: false },
+    // A directive changes only through its column grants and guard (0161); a conflict check's
+    // pair is written by the check's definer, and a person changes only its resolution.
+    playbook_directives: { i: true, u: false },
+    playbook_conflict_checks: { i: false, u: false },
     // A notice is written only by the notify worker's definer; a person changes its read time
     // alone (notifications.test.ts).
     notifications: { i: false, u: false },
+    // An Ask conversation changes only its last-used time and is removed by its person with its
+    // messages; a message is written once (ask.test.ts).
+    ask_conversations: { i: true, u: false, d: true },
+    ask_messages: { i: true, u: false },
     // A profile changes only its settings and presence (column grants, 0125); never deleted.
     caller_profiles: { i: true, u: false },
+    // A thread is written by the platform's definers; a person changes only who answers it and
+    // whether it waits for a reply (column grants, docs/03-roadmap-appendix/phase2.md §6.1). A
+    // message is queued by a person and moved on only by the definers; a template changes only
+    // what it says and carries, never its status (column grants; whatsapp.test.ts).
+    whatsapp_threads: { i: false, u: false },
+    whatsapp_messages: { i: true, u: false },
+    whatsapp_templates: { i: true, u: false },
+    // A lead source is written column by column, its sealed Page token never read back; a key
+    // keeps its hash and changes only by its revoke (column grants, I1); a lead's facts change
+    // only their values.
+    ingest_sources: { i: true, u: false },
+    ingest_keys: { i: true, u: false },
+    lead_qualifications: { i: true, u: false },
+    // A provider call is inserted as dialling by the person who dials; after that a person sets
+    // only the link to their log (a column grant), and the platform's definers write the rest
+    // (0169, provider-calls.test.ts).
+    provider_calls: { i: true, u: false },
+    // Written only through the voice definers (0190): app_user reads it and nothing more.
+    voice_sessions: { i: false, u: false },
   };
 
   /**
    * Tables selected column by column: `entities`, whose sealed bank account no request role may
    * select (the test below).
    */
-  const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities']);
+  const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities', 'ingest_sources', 'ingest_keys']);
 
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; u: boolean; d: boolean }>(sql`
@@ -440,6 +470,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
        order by 1
     `);
     expect(rows.map((r) => r.fn)).toEqual([
+      // A customer's opt-out by the dial rules, for the queue, the leads list and Show number (E1).
+      'app.call_opt_out(uuid)',
       // A caller profile is read by its person and by whoever manages them, and the converters
       // page lists the people of a manager's scope (0125).
       'app.caller_profile_manages(uuid,smallint)',
@@ -447,12 +479,21 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.customer_search_ids(text,text,integer)',
       // The dealer credit screen's figures, the one place the exposure is worked out (0117).
       'app.dealer_credit_position(smallint,uuid,uuid)',
+      // What a dial is checked against, for the workspaces' plan of a call (0161).
+      'app.dial_facts(uuid,uuid)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
+      // The ingest lookups of a form, its sealed Page token and a website key, which the lead
+      // handlers and the website route ask as queries (I1).
+      'app.ingest_key_find(text)',
+      'app.ingest_source_token(uuid)',
+      'app.ingest_source(text,text)',
       'app.lead_search_ids(text,boolean,text,integer)',
       // The ⌘K and /orders search's candidate orders (RPT-03).
       'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
+      // Which recordings on a timeline page its reader may play (T3, 0171).
+      'app.playable_recordings(uuid[])',
       // The quote print loader of the render worker (0110).
       'app.quote_for_print(uuid)',
       // The ⌘K search's candidate quotes (0110).
@@ -475,6 +516,16 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.user_is_active(uuid)',
       // A vault upload is read with a vault file the reader may read (files_knowledge_read, 0123).
       'app.vault_upload_readable(uuid)',
+      // Integration Health's webhook counts and failed rows (P5).
+      'app.webhook_health(integer)',
+      // The company of a WhatsApp delivery, and the companies of a template, found before the
+      // handler acts in one company's request (W1).
+      'app.whatsapp_channel_entity(text,text)',
+      // What the messaging worker checks before a send, read before it takes the message (W1).
+      'app.whatsapp_send_facts(uuid)',
+      'app.whatsapp_template_entities(text,text)',
+      // Whether a thread's number opted out, for the thread and the composer (W1).
+      'app.whatsapp_thread_opted_out(uuid)',
     ]);
   });
 

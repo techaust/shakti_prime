@@ -1,8 +1,15 @@
 import { newId, type Principal, type RoleKey } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
-import { closeDb, PIPELINE_SEED, principalFor, STAGE_SEED } from '@shakti/db/testing';
+import {
+  closeDb,
+  createTestPrincipal,
+  PIPELINE_SEED,
+  principalFor,
+  STAGE_SEED,
+} from '@shakti/db/testing';
 import { randomBytes } from 'node:crypto';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { removeAskData, seedAskData, type AskData } from '../fixtures/ask-data';
 import { executeQuery } from '../../src/command/execute';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
@@ -10,7 +17,24 @@ import { loadShadowReport } from '../../src/queries/agents/shadow-report';
 import { readAgentSpend } from '../../src/queries/agents/spend';
 import { readTriageFacts } from '../../src/ai/triage/read-facts';
 import { fakeEmbedding } from '../../src/ai/transport';
-import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
+import {
+  approvedPlaybook,
+  listPlaybook,
+  listPlaybookSources,
+  loadPlaybookReview,
+} from '../../src/queries/knowledge/playbook';
+import {
+  askSourceLabels,
+  itemCostsFor,
+  listAskConversations,
+  loadAskConversation,
+  readAskConversation,
+} from '../../src/queries/knowledge/ask';
+import {
+  getKnowledgeFile,
+  listKnowledgeFiles,
+  searchKnowledge,
+} from '../../src/queries/knowledge/vault';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
 import { listCallerProfiles, loadOwnPresence } from '../../src/queries/crm/caller-profiles';
 import {
@@ -74,8 +98,16 @@ import {
 import { readEntityBankDetails, readSealedBankDetails } from '../../src/queries/org/bank-details';
 import { loadCompanyForPrint } from '../../src/queries/org/company-print';
 import { listEntities } from '../../src/queries/org/list-entities';
+import { listEntityChannels } from '../../src/queries/org/list-channels';
+import { dialFacts } from '../../src/queries/calls/dial-plan';
+import {
+  listIngestSources,
+  listUnownedIngestLeads,
+  readLeadQualification,
+} from '../../src/queries/crm/ingest-sources';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { readScheduledJobs } from '../../src/queries/platform/scheduled-jobs';
+import { readWebhookHealth } from '../../src/queries/platform/webhook-health';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
 import { listKitPrices, listPriceChanges } from '../../src/queries/pricing/price-history';
 import { listPriceTierOptions } from '../../src/queries/pricing/price-tiers';
@@ -105,8 +137,25 @@ import {
   homeSales,
 } from '../../src/queries/home/home';
 import { myProgress, targetsScreen, teamProgress } from '../../src/queries/sales/targets';
+import {
+  listAccountThreads,
+  listWaitingThreads,
+  readSendFacts,
+  readWhatsAppCounts,
+  readWhatsAppThread,
+} from '../../src/queries/messaging/whatsapp';
 
-afterAll(closeDb);
+/** Ask's seeded records (an item with its cost side, a vault file, two rules), for its reads. */
+let askData: AskData;
+
+beforeAll(async () => {
+  askData = await seedAskData((await createTestPrincipal('executive')).id);
+});
+
+afterAll(async () => {
+  await removeAskData();
+  await closeDb();
+});
 
 /** A dealer no row names. */
 const NO_DEALER = newId();
@@ -173,11 +222,18 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listImportRows: (ctx) => listImportRows(ctx, { entityId: 1, jobId: newId(), limit: 20 }),
   listImportTemplates: (ctx) => listImportTemplates(ctx, { entityId: 1, kind: 'leads' }),
   listEntities: (ctx) => listEntities(ctx),
+  listEntityChannels: (ctx) => listEntityChannels(ctx, { entityId: 1 }),
+  // Settings › Lead sources, Integration health's leads with no owner and the qualification card (I1).
+  listIngestSources: (ctx) => listIngestSources(ctx, { entityId: 1 }),
+  listUnownedIngestLeads: (ctx) => listUnownedIngestLeads(ctx),
+  readLeadQualification: (ctx) =>
+    readLeadQualification(ctx, { entityId: 1, opportunityId: newId() }),
   readSealedBankDetails: (ctx) => readSealedBankDetails(ctx, 1),
   readEntityBankDetails: (ctx) => readEntityBankDetails(ctx, CIPHER, 1),
   loadCompanyForPrint: (ctx) => loadCompanyForPrint(ctx, 1),
   readOutboxHealth: (ctx) => readOutboxHealth(ctx, { limit: 20 }),
   readScheduledJobs: (ctx) => readScheduledJobs(ctx, new Date('2026-09-29T00:00:00Z')),
+  readWebhookHealth: (ctx) => readWebhookHealth(ctx),
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
   listKitPrices: (ctx) => listKitPrices(ctx, { priceListId: newId(), limit: 20 }),
@@ -208,7 +264,14 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
       new Date(NOW),
     ),
   listKnowledgeFiles: (ctx) => listKnowledgeFiles(ctx, {}),
+  getKnowledgeFile: (ctx) => getKnowledgeFile(ctx, newId()),
   searchKnowledge: (ctx) => searchKnowledge(ctx, fakeEmbedding('solar pump care')),
+  listPlaybook: (ctx) => listPlaybook(ctx, {}),
+  listPlaybookSources: (ctx) => listPlaybookSources(ctx, {}),
+  loadPlaybookReview: (ctx) => loadPlaybookReview(ctx, { directiveId: newId() }),
+  loadAskConversation: (ctx) => loadAskConversation(ctx, newId(), 4),
+  listAskConversations: (ctx) => listAskConversations(ctx, {}),
+  readAskConversation: (ctx) => readAskConversation(ctx, { conversationId: newId() }),
   listSizingPumps: (ctx) => listSizingPumps(ctx),
   listCallQueue: (ctx) => listCallQueue(ctx, { limit: 20 }, new Date(NOW)),
   loadCallLead: (ctx) => loadCallLead(ctx, { entityId: 1, opportunityId: newId() }),
@@ -225,6 +288,13 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getSalesOrder: (ctx) => getSalesOrder(ctx, { entityId: 1, orderId: newId() }, QUOTES_AT),
   loadSalesOrderBuilder: (ctx) =>
     loadSalesOrderBuilder(ctx, { entityId: 1, accountId: newId() }, QUOTES_AT),
+  // WhatsApp (W1): /messages, a customer's chats, one chat, Integration Health's counts and the
+  // messaging worker's facts (the platform's definer).
+  listWaitingThreads: (ctx) => listWaitingThreads(ctx, { limit: 25 }),
+  listAccountThreads: (ctx) => listAccountThreads(ctx, { entityId: 1, accountId: newId() }),
+  readWhatsAppThread: (ctx) => readWhatsAppThread(ctx, { entityId: 1, threadId: newId() }),
+  readWhatsAppCounts: (ctx) => readWhatsAppCounts(ctx),
+  readSendFacts: (ctx) => readSendFacts(ctx, newId()),
   listDealerCredit: (ctx) => listDealerCredit(ctx, { entityId: 1, limit: 20 }),
 };
 
@@ -233,9 +303,24 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
  * pools for every caller.
  */
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
+  // The approved Playbook, the agents' and Ask's one read of it (K2).
+  approvedPlaybook: (ctx) => approvedPlaybook(ctx, {}),
+  // Ask's cited records' words and an item's cost side (B1), on real records.
+  askSourceLabels: (ctx) =>
+    askSourceLabels(ctx, [
+      { kind: 'item', id: askData.itemId },
+      { kind: 'knowledge_file', id: askData.vaultFileId },
+      { kind: 'playbook_directive', id: askData.staffRuleId },
+      { kind: 'playbook_directive', id: askData.managementRuleId },
+      { kind: 'pipeline_stage', id: STAGE },
+    ]),
+  itemCostsFor: (ctx) => itemCostsFor(ctx, [askData.itemId]),
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
   dialNumber: (ctx) =>
     dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),
+  // The facts a dial is checked against (app.dial_facts(), design phase2 §5.2).
+  dialFacts: (ctx) =>
+    dialFacts(ctx, { entityId: 1, opportunityId: newId(), contactPhoneId: newId() }),
   // The home pages and the targets (docs/03-roadmap-appendix/phase1.md §9).
   myProgress: (ctx) => myProgress(ctx, {}, new Date(NOW)),
   teamProgress: (ctx) => teamProgress(ctx, { entityId: 1, period: 'week' }, new Date(NOW)),

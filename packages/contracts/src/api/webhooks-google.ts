@@ -44,3 +44,10 @@ export const GoogleLeadFormWebhook = z.looseObject({
   user_column_data: z.array(GoogleLeadColumn).min(1),
 });
 export type GoogleLeadFormWebhook = z.infer<typeof GoogleLeadFormWebhook>;
+
+/**
+ * A Google lead as `webhook_inbox` keeps it: the route drops `google_key` before storing, since the
+ * key would let anyone who reads the table send leads (docs/03-roadmap-appendix/phase2.md §5.1).
+ */
+export const StoredGoogleLead = GoogleLeadFormWebhook.omit({ google_key: true });
+export type StoredGoogleLead = z.infer<typeof StoredGoogleLead>;

@@ -33,6 +33,9 @@ export const IDS = {
   claimLine: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0c',
   lead: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0d',
   voiceSession: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0e',
+  askConversation: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a2a',
+  askMessage: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a2b',
+  askAccount: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a2c',
   qc: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0f',
   event: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a10',
   eventB: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a11',
@@ -226,6 +229,41 @@ export const API_FIXTURES: Record<
       channels: [`user:${IDS.user}`, 'entity:1:queue', 'entity:3:queue'],
     },
   },
+  ask: {
+    request: { question: 'How many open leads are in each stage?' },
+    response: {
+      type: 'answer',
+      turn: {
+        conversation: {
+          id: IDS.askConversation,
+          entityId: 1,
+          entityIds: [1],
+          title: 'How many open leads are in each stage?',
+          createdAt: '2026-09-27T05:06:40.000Z',
+          updatedAt: '2026-09-27T05:06:40.000Z',
+        },
+        message: {
+          id: IDS.askMessage,
+          conversationId: IDS.askConversation,
+          question: 'How many open leads are in each stage?',
+          answer: `Qualified has 12 open leads [ref:${IDS.lead}].`,
+          outcome: 'answered',
+          unsourced: 0,
+          cited: [{ kind: 'opportunity', id: IDS.lead }],
+          createdAt: '2026-09-27T05:06:40.000Z',
+        },
+      },
+      sources: [
+        {
+          kind: 'opportunity',
+          id: IDS.lead,
+          label: 'Synthetic customer',
+          entityId: 1,
+          accountId: IDS.askAccount,
+        },
+      ],
+    },
+  },
   'voice.session': {
     request: { mode: 'ask', consentRecording: true },
     response: {
@@ -233,12 +271,39 @@ export const API_FIXTURES: Record<
       livekit: {
         url: 'wss://shakti-prime.livekit.cloud',
         roomName: IDS.voiceSession,
-        participantToken: fixtureJwt('HS256', { sub: `user:${IDS.user}`, exp: ISSUED_AT + 3600 }),
-        expiresAt: '2026-09-27T06:06:40.000Z',
+        participantToken: fixtureJwt('HS256', { sub: `user:${IDS.user}`, exp: ISSUED_AT + 900 }),
+        expiresAt: '2026-09-27T05:21:40.000Z',
       },
       bosToken: { token: fixtureJwt('ES256', VOICE_CLAIMS), expiresAt: '2026-09-27T05:11:40.000Z' },
-      limits: { minutesRemainingToday: 42, maxSessionMinutes: 20 },
+      limits: { minutesRemainingToday: 30, maxSessionMinutes: 15 },
     },
+  },
+  'voice.token': {
+    request: {},
+    response: {
+      token: fixtureJwt('ES256', VOICE_CLAIMS),
+      expiresAt: '2026-09-27T05:11:40.000Z',
+    },
+  },
+  'voice.recording': {
+    request: {
+      size: 9_600_044,
+      sha256: 'b4e2c3d4e5b6a7980112233445566778899aabbccddeeff00112233445566779',
+    },
+    response: {
+      fileId: IDS.audio,
+      method: 'PUT',
+      uploadUrl: `https://shakti-prime-staging-files.s3.ap-south-1.amazonaws.com/1/knowledge/${IDS.audio}.wav?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900`,
+      headers: {
+        'content-type': 'audio/wav',
+        'x-amz-checksum-sha256': 'tOLD1OW2p5gBEiM0RVZneImaq7zN7v8AESIzRFVmd3k=',
+      },
+      expiresAt: '2026-09-27T05:21:40.000Z',
+    },
+  },
+  'voice.recording.complete': {
+    request: { fileId: IDS.audio },
+    response: { fileId: IDS.audio, knowledgeFileId: IDS.knowledgeFile, linked: true },
   },
   'sync.pull': {
     query: { since: 'c_2026-09-26T18:30:00.000000Z_0199a0c4', limit: '500' },
@@ -396,7 +461,7 @@ export const API_FIXTURES: Record<
       message: 'Need a 7.5 HP solar pump for a 250 foot borewell',
       utm: { source: 'facebook', medium: 'cpc', campaign: 'kusum-rabi-2026' },
       consent: {
-        purpose: 'service',
+        ticked: true,
         text: 'I agree that Agro Solar Hub may call me and message me on WhatsApp about my enquiry.',
         givenAt: '2026-09-27T04:12:09.000Z',
       },
@@ -481,6 +546,13 @@ export const API_FIXTURES: Record<
     },
     response: { received: true },
   },
+  'webhooks.leadgen.verify': {
+    query: {
+      'hub.mode': 'subscribe',
+      'hub.verify_token': 'w'.repeat(24),
+      'hub.challenge': '1158201445',
+    },
+  },
   'webhooks.leadgen': {
     request: {
       object: 'page',
@@ -548,7 +620,25 @@ export const API_FIXTURES: Record<
     response: { received: true },
   },
   'webhooks.exotel.incoming': {
+    params: { secret: 's'.repeat(32) },
     request: {
+      CallSid: 'b6cfaf0e-exotel-call-0002',
+      CallFrom: '09000000023',
+      CallTo: '08000000160',
+      Direction: 'incoming',
+      CallType: 'call-attempt',
+      Created: 'Sun, 27 Sep 2026 10:40:12',
+      StartTime: '2026-09-27 10:40:12',
+      DialWhomNumber: '',
+      CurrentTime: '2026-09-27 10:40:13',
+      digits: '"1"',
+      flow_id: '281122',
+    },
+    response: { received: true },
+  },
+  'webhooks.exotel.incoming.get': {
+    params: { secret: 's'.repeat(32) },
+    query: {
       CallSid: 'b6cfaf0e-exotel-call-0002',
       CallFrom: '09000000023',
       CallTo: '08000000160',
@@ -578,6 +668,10 @@ export const API_FIXTURES: Record<
       },
     },
     response: { received: true },
+  },
+  'workers.webhooks.process': {
+    request: { inboxId: IDS.event },
+    response: { inboxId: IDS.event, outcome: 'processed', handled: false },
   },
   'connector.heartbeat': {
     request: {
@@ -681,13 +775,7 @@ export const API_FIXTURES: Record<
     request: {
       eventId: IDS.eventB,
       entityId: 1,
-      message: {
-        threadId: IDS.thread,
-        kind: 'template',
-        templateName: 'quote_sent',
-        params: ['SS/QT/2026-27/0231', '15-10-2026'],
-        fileId: IDS.pdf,
-      },
+      messageId: IDS.event,
     },
     response: {
       eventId: IDS.eventB,
@@ -790,17 +878,32 @@ export const API_FIXTURES: Record<
         arrivedAt: '2026-09-27T05:05:12.842Z',
         milliseconds: 842,
       },
-      webhooks: [
-        {
-          provider: 'meta_whatsapp',
-          received24h: 1412,
-          failedSignature24h: 0,
-          unprocessed: 3,
-          failed: 0,
-          lastReceivedAt: '2026-09-27T05:06:31.000Z',
-          oldestUnprocessedAt: '2026-09-27T05:06:29.000Z',
+      webhooks: {
+        providers: [
+          {
+            provider: 'meta_whatsapp',
+            received24h: 1412,
+            processed24h: 1409,
+            failed24h: 1,
+            refused24h: 0,
+            waiting: 2,
+            oldestWaitingAt: '2026-09-27T05:06:29.000Z',
+          },
+        ],
+        failed: {
+          total: 1,
+          items: [
+            {
+              inboxId: IDS.eventB,
+              provider: 'meta_whatsapp',
+              errorCode: 'payload_unreadable',
+              attempts: 1,
+              receivedAt: '2026-09-27T04:58:10.000Z',
+              failedAt: '2026-09-27T04:58:11.000Z',
+            },
+          ],
         },
-      ],
+      },
       deadLetters: {
         total: 1,
         items: [
@@ -842,6 +945,13 @@ export const API_FIXTURES: Record<
           updatedAt: '2026-09-26T11:40:00.000Z',
         },
       ],
+      whatsappBudget: {
+        limit: 1000,
+        limitReported: true,
+        used: 312,
+        refusals: [{ refusal: 'window_closed', count: 3 }],
+        failed: 1,
+      },
       jobs: [
         {
           job: 'activities-partitions',

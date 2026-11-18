@@ -20,6 +20,8 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [Files](#files)
   - [print](#print)
   - [knowledge](#knowledge)
+  - [messaging](#messaging)
+  - [calls](#calls)
   - [sales](#sales)
 - [Payloads](#payloads)
 
@@ -46,7 +48,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-49 types, 10 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+54 types, 12 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -58,12 +60,12 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.enquiry.take`, `crm.lead.create`, `imports.job.commit_batch` | `POST /api/v1/workers/outbox/crm.lead.created` (QStash URL group `evt-crm.lead.created`) |
-| [`crm.lead.attached`](#crmleadattached) | A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates. | `crm.enquiry.take`, `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.enquiry.take`, `crm.lead.create`, `crm.lead.ingest`, `imports.job.commit_batch` | `POST /api/v1/workers/outbox/crm.lead.created` (QStash URL group `evt-crm.lead.created`) |
+| [`crm.lead.attached`](#crmleadattached) | A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates. | `crm.enquiry.take`, `crm.lead.create`, `crm.lead.ingest`, `imports.job.commit_batch` | none |
 | [`crm.duplicate.found`](#crmduplicatefound) | Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates. | `crm.duplicate.scan`, `crm.duplicate.suggest`, `crm.enquiry.take`, `crm.lead.create`, `imports.job.commit_batch` | `POST /api/v1/workers/outbox/crm.duplicate.found` (QStash URL group `evt-crm.duplicate.found`) |
 | [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `calls.call.log`, `crm.opportunity.stage.move` | `POST /api/v1/workers/outbox/crm.opportunity.stage_moved` (QStash URL group `evt-crm.opportunity.stage_moved`) |
 | [`crm.opportunity.assigned`](#crmopportunityassigned) | A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves. | `crm.lead.reassign_all`, `crm.opportunity.assign`, `crm.opportunity.hand_over` | `POST /api/v1/workers/outbox/crm.opportunity.assigned` (QStash URL group `evt-crm.opportunity.assigned`) |
-| [`crm.enquiry.routed`](#crmenquiryrouted) | An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04); the notify worker tells them. | `crm.enquiry.route`, `crm.enquiry.take` | `POST /api/v1/workers/outbox/crm.enquiry.routed` (QStash URL group `evt-crm.enquiry.routed`) |
+| [`crm.enquiry.routed`](#crmenquiryrouted) | An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04), or a lead from an integration went to the Sales Team Lead as routed work with no caller present; the notify worker tells them. | `crm.enquiry.route`, `crm.enquiry.take`, `crm.lead.ingest` | `POST /api/v1/workers/outbox/crm.enquiry.routed` (QStash URL group `evt-crm.enquiry.routed`) |
 | [`crm.opportunity.nurtured`](#crmopportunitynurtured) | An open lead was parked in nurture with a reason code. | `calls.call.log`, `crm.opportunity.nurture` | none |
 | [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, by a call on a nurtured lead that ends in a callback or a qualified outcome (`calls.call.log` runs `crm.opportunity.reopen`), or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead. | `calls.call.log`, `crm.enquiry.take`, `crm.lead.create`, `crm.opportunity.reopen`, `imports.job.commit_batch` | none |
 | [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
@@ -126,7 +128,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck`, `files.file.continue_check` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
+| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck`, `files.file.continue_check`, `messaging.media.attach` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
 
 ### print
 
@@ -138,7 +140,22 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`knowledge.file.index_requested`](#knowledgefileindex_requested) | A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, or when indexed again. | `knowledge.file.add`, `knowledge.file.reindex`, `files.file.mark_ready` | `POST /api/v1/workers/outbox/knowledge.file.index_requested` (QStash URL group `evt-knowledge.file.index_requested`) |
+| [`knowledge.file.index_requested`](#knowledgefileindex_requested) | A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, when indexed again, or when a recording’s transcript is corrected. | `knowledge.file.add`, `knowledge.file.reindex`, `knowledge.transcript.correct`, `files.file.mark_ready` | `POST /api/v1/workers/outbox/knowledge.file.index_requested` (QStash URL group `evt-knowledge.file.index_requested`) |
+| [`knowledge.playbook.changed`](#knowledgeplaybookchanged) | A Playbook directive was drafted, edited, approved or retired, or a conflict on it was resolved; `recheck` says its wording is new and the conflict check is due. | `knowledge.playbook.draft`, `knowledge.playbook.draft_from_file`, `knowledge.playbook.edit`, `knowledge.playbook.approve`, `knowledge.playbook.retire`, `knowledge.playbook.resolve_conflict` | `POST /api/v1/workers/outbox/knowledge.playbook.changed` (QStash URL group `evt-knowledge.playbook.changed`) |
+
+### messaging
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
+| [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread. | `messaging.inbound.record` | none |
+| [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. | `messaging.inbound.record` | none |
+
+### calls
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`calls.dial.completed`](#callsdialcompleted) | A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line. | `calls.provider_call.record` | none |
 
 ### sales
 
@@ -402,7 +419,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
@@ -419,6 +436,49 @@ No fields apart from `v`.
 |---|---|
 | `knowledgeEntityId` | whole number from 1 to 32767 or null |
 | `sensitivity` | one of `staff_ai_ok`, `management`, `exec_only` |
+
+### knowledge.playbook.changed
+
+| Field | Type |
+|---|---|
+| `directiveEntityId` | whole number from 1 to 32767 or null |
+| `change` | one of `drafted`, `edited`, `approved`, `retired`, `conflict_resolved` |
+| `state` | one of `draft`, `approved`, `retired` |
+| `recheck` | true or false |
+
+### messaging.message.requested
+
+| Field | Type |
+|---|---|
+| `messageId` | id |
+| `threadId` | id |
+| `kind` | one of `text`, `template`, `system` |
+
+### messaging.message.received
+
+| Field | Type |
+|---|---|
+| `messageId` | id |
+| `kind` | one of `text`, `media` |
+| `accountId` | id or null |
+| `firstMessage` | true or false |
+
+### messaging.button.pressed
+
+| Field | Type |
+|---|---|
+| `messageId` | id |
+| `accountId` | id or null |
+| `firstMessage` | true or false |
+
+### calls.dial.completed
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `callerId` | id or null |
+| `status` | one of `completed`, `no_answer`, `busy`, `failed`, `canceled` |
+| `durationSeconds` | whole number from 0 or null |
 
 ### sales.quote.created
 

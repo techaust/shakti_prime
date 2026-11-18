@@ -32,6 +32,10 @@ export const takeEnquiry = defineCommand({
   output: TakenEnquiryDto,
   // The inner commands record the change; this one adds nothing of its own.
   auditFields: [],
+  unmaskedFields: [
+    // A referral partner's code, matched whole; an Executive may set one of twelve digits.
+    'referralCode',
+  ],
   async handler(ctx, input) {
     try {
       return await ctx.savepoint((sp) => ctx.run(createLead, input, { tx: sp }));

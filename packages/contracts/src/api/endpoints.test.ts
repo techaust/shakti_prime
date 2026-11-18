@@ -104,16 +104,20 @@ describe('the /api/v1 endpoint catalogue', () => {
     }
   });
 
-  it('asks the field app and the connector for an idempotency key on their mutating calls', () => {
+  it('asks the field app, the connector and the websites for an idempotency key on their mutating calls', () => {
     const keyed = entries.filter(([, e]) => e.idempotencyKey).map(([id]) => id);
     expect(keyed.sort()).toEqual(
       [
+        // A repeated question is answered from its record, with no second model call.
+        'ask',
         'attendance.checkIn',
         'connector.batches',
         'connector.snapshot',
         'expenses.create',
         'files.complete',
         'files.presign',
+        // A website's retry of the same enquiry acts once (I1).
+        'ingest.leads',
         'sync.push',
       ].sort(),
     );

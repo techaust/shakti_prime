@@ -22,4 +22,6 @@ A spike is a short, measured experiment that answers one technical question befo
 
 **Quote plans.** `pnpm --filter @shakti/domain spike:quotes` (`packages/domain/tests/spike/quotes-explain.ts`) fills the local database with 20,000 quotes on 2,000 leads and prints the plans of the quote list, its ⌘K search, Account 360's quotes and the board cards, for slice S1 (`docs/03-roadmap-appendix/phase1.md` §7.3); the plans it printed are recorded in [the run file of S1](../runs/phase1/s1-quotes.md). It has no note of its own.
 
+**Playbook plans.** The plans of the Playbook list as a General Manager under row-level security and of the conflict candidates, at 6,000 synthetic directives, are recorded in [the run file of K2](../runs/phase2/k2-playbook.md), for slice K2 (`docs/03-roadmap-appendix/phase2.md` §5.4). It has no note of its own.
+
 No spike runs in CI. The database spikes refuse any database but the local Docker Postgres; the vendor spikes run against the vendors' sandboxes; the Realtime spike is the one that runs against a hosted project, the one behind the production site.

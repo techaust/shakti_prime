@@ -32,6 +32,11 @@ const rawClientImport = {
         'The outbox_publisher connection belongs to the outbox workers (apps/web/src/workers) and its tests.',
     },
     {
+      name: '@shakti/db/webhooks',
+      message:
+        'The webhook_receiver connection belongs to the webhook routes (apps/web/src/webhooks) and its tests.',
+    },
+    {
       name: '@shakti/db/bootstrap',
       message: 'The bootstrap writes as the table owner. Scripts only.',
     },
@@ -70,6 +75,8 @@ const rawClientImport = {
         '**/db/src/auth-client.ts',
         '**/db/src/outbox-client',
         '**/db/src/outbox-client.ts',
+        '**/db/src/webhook-client',
+        '**/db/src/webhook-client.ts',
         '**/db/src/bootstrap',
         '**/db/src/bootstrap.ts',
         '**/db/src/auth/user-grants',
@@ -147,10 +154,10 @@ const webPatternsOutsideAuth = [...webDatabasePatterns, webQueryBuilderPattern];
 
 // The restricted modules may not be reached by a dynamic import or require either (AUDIT M12).
 const restrictedModule =
-  '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap|grants)|@shakti\\/domain\\/testing|postgres|drizzle-orm\\/postgres-js)$/';
+  '/^(@shakti\\/db\\/(client|testing|auth|outbox|webhooks|bootstrap|grants)|@shakti\\/domain\\/testing|postgres|drizzle-orm\\/postgres-js)$/';
 // The same files named by a relative path into packages/db/src rather than by the package name.
 const restrictedFile =
-  '/(^|\\/)db\\/src\\/(client|auth-client|outbox-client|bootstrap|testing|auth\\/user-grants)(\\.[cm]?[jt]s)?(\\/|$)/';
+  '/(^|\\/)db\\/src\\/(client|auth-client|outbox-client|webhook-client|bootstrap|testing|auth\\/user-grants)(\\.[cm]?[jt]s)?(\\/|$)/';
 
 // The domain's testing settings, named by a relative path through packages/domain/src, which a
 // dynamic import could reach without the package name.
@@ -244,6 +251,38 @@ const frameworkImports = {
     {
       group: ['next', 'next/*', 'react', 'react/*', 'react-dom', 'react-dom/*', 'expo', 'expo-*'],
       message: 'packages/domain and packages/contracts have no framework imports (AGENTS.md §3).',
+    },
+  ],
+};
+
+// packages/voice holds the vendor adapters the web app and the voice worker share: no database, no
+// domain and no framework, so the worker, which may import it, never reaches either (AGENTS.md §3).
+const voicePackageImports = {
+  ...frameworkImports,
+  patterns: [
+    ...frameworkImports.patterns,
+    {
+      group: ['@shakti/db', '@shakti/db/*', '@shakti/domain', '@shakti/domain/*'],
+      message: 'packages/voice imports no database or domain module (AGENTS.md §3).',
+    },
+  ],
+};
+
+// apps/voice-agent is the LiveKit worker: it holds no database credential and reaches the BOS only
+// through /api/v1 with the session's token, so it imports the contracts, the voice adapters, its
+// own listed packages and Node's modules, and nothing else (AGENTS.md §3).
+const voiceAgentImports = {
+  patterns: [
+    {
+      regex:
+        '^(?!(@shakti/(contracts|voice)|@livekit/(agents|rtc-node)|zod|node:[a-z_/]+|\\.{1,2})(/|$)).+',
+      message:
+        'apps/voice-agent imports only @shakti/contracts, @shakti/voice, its listed packages and Node modules (AGENTS.md §3).',
+    },
+    {
+      // Nor another app's or package's files by a relative path out of its own folder.
+      regex: '^\\.{1,2}/(.*/)?(apps|packages|web|db|domain)(/|$)',
+      message: 'apps/voice-agent reaches the BOS only through /api/v1 (AGENTS.md §3).',
     },
   ],
 };
@@ -457,6 +496,20 @@ export default tseslint.config(
     rules: { 'no-restricted-imports': ['error', frameworkImports] },
   },
   {
+    files: ['packages/voice/**/*.ts'],
+    ignores: [
+      '**/*.test.ts',
+      'packages/voice/src/test-fetch.ts',
+      'packages/voice/vitest.config.ts',
+    ],
+    rules: { 'no-restricted-imports': ['error', voicePackageImports] },
+  },
+  {
+    files: ['apps/voice-agent/**/*.ts'],
+    ignores: ['**/*.test.ts', 'apps/voice-agent/vitest.config.ts'],
+    rules: { 'no-restricted-imports': ['error', voiceAgentImports] },
+  },
+  {
     // Inside the domain, only the batch command reads the import batch settings and only the
     // testing module hands them to tests.
     files: ['packages/domain/src/**/*.ts'],
@@ -509,6 +562,38 @@ export default tseslint.config(
     },
   },
   {
+    // The pages and the components run in the browser, or beside code that does: the vendor
+    // adapters of @shakti/voice (and the vendor keys they read) and the model masking of
+    // @shakti/contracts/masking stay on the server.
+    files: [
+      'apps/web/src/app/**/*.{ts,tsx}',
+      'apps/web/src/components/**/*.{ts,tsx}',
+      'apps/web/src/screens/**/*.ts',
+    ],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...rawClientImport.paths,
+            ...webDatabasePaths,
+            {
+              name: '@shakti/voice',
+              message:
+                'The voice adapters stay on the server; pages and components never load them.',
+            },
+            {
+              name: '@shakti/contracts/masking',
+              message: 'The model masking stays on the server; pages and components never load it.',
+            },
+          ],
+          patterns: webPatternsOutsideAuth,
+        },
+      ],
+    },
+  },
+  {
     // The auth module is the one caller of the auth_service connection (docs/05-database.md §3),
     // and resolves the principal from the user's grants.
     files: ['apps/web/src/auth/**/*.ts'],
@@ -538,6 +623,24 @@ export default tseslint.config(
         {
           paths: [
             ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/outbox'),
+            ...webDatabasePaths,
+          ],
+          patterns: webPatternsOutsideAuth,
+        },
+      ],
+    },
+  },
+  {
+    // The webhook routes' helper is the one caller of the webhook_receiver connection, which may
+    // only store a delivery that passed its check (docs/03-roadmap-appendix/phase2.md §5.1).
+    files: ['apps/web/src/webhooks/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/webhooks'),
             ...webDatabasePaths,
           ],
           patterns: webPatternsOutsideAuth,

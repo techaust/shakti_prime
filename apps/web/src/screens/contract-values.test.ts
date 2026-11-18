@@ -1,4 +1,10 @@
 import {
+  INGEST_ASSIGNEES as CONTRACT_INGEST_ASSIGNEES,
+  INGEST_FIELD_TARGETS as CONTRACT_INGEST_FIELD_TARGETS,
+  INGEST_CHANNELS as CONTRACT_INGEST_CHANNELS,
+  INGEST_OUTCOMES as CONTRACT_INGEST_OUTCOMES,
+  INGEST_SOURCE_PROVIDERS as CONTRACT_INGEST_SOURCE_PROVIDERS,
+  LEAD_QUALIFICATION_FACTS as CONTRACT_LEAD_QUALIFICATION_FACTS,
   AGENT_ACTION_STATES,
   AGENT_AUTONOMY,
   AGENT_ROLE_KEYS,
@@ -8,6 +14,10 @@ import {
   TRIAGE_PROPOSAL_KINDS,
   AGENT_SETTING_SOURCES,
   KNOWLEDGE_FILE_STATES,
+  PLAYBOOK_AUDIENCES,
+  PLAYBOOK_DIRECTIVE_STATES,
+  PLAYBOOK_DIRECTIVE_TYPES,
+  PLAYBOOK_RESOLUTIONS,
   KNOWLEDGE_SENSITIVITIES,
   KNOWLEDGE_SOURCE_TYPES,
   CommissionBasisSchema,
@@ -28,6 +38,23 @@ import {
   AccountTypeSchema,
   ActivityTypeSchema,
   ConsentChannelSchema,
+  EntityChannelKindSchema,
+  MessagingRefusalSchema,
+  WhatsAppHandoffReasonSchema,
+  WhatsAppMessageDirectionSchema,
+  WhatsAppMessageKindSchema,
+  WhatsAppMessageStatusSchema,
+  WhatsAppTemplateCategorySchema,
+  WhatsAppTemplatePurposeSchema,
+  WhatsAppTemplateStatusSchema,
+  WhatsAppThreadHandlerSchema,
+  CALL_PURPOSES,
+  PROVIDER_CALL_STATUSES,
+  VOICE_SESSION_MODES,
+  VOICE_DATA_TOPIC,
+  VOICE_STATES,
+  VOICE_END_REASONS,
+  ASK_SOURCE_KINDS,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
@@ -76,6 +103,7 @@ import {
   TargetMetricSchema,
   TargetPeriodSchema,
   TargetScopeSchema,
+  WebhookProviderSchema,
   CommissionAccrualStateSchema,
   SubsidySchemeSchema,
   SizingReasonSchema,
@@ -104,6 +132,25 @@ import {
   ACCOUNT_TYPES,
   ACTIVITY_TYPES,
   CONSENT_CHANNELS,
+  ENTITY_CHANNEL_KINDS,
+  MESSAGING_REFUSALS,
+  WHATSAPP_HANDOFF_REASONS,
+  WHATSAPP_MESSAGE_DIRECTIONS,
+  WHATSAPP_MESSAGE_KINDS,
+  WHATSAPP_MESSAGE_STATUSES,
+  WHATSAPP_TEMPLATE_CATEGORIES,
+  WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_TEMPLATE_STATUSES,
+  WHATSAPP_THREAD_HANDLERS,
+  INGEST_ASSIGNEES,
+  INGEST_CHANNELS,
+  INGEST_FIELD_TARGETS,
+  INGEST_OUTCOMES,
+  INGEST_SOURCE_PROVIDERS,
+  LEAD_QUALIFICATION_FACTS,
+  CALL_PURPOSE_VALUES,
+  PROVIDER_CALL_STATUS_VALUES,
+  VOICE_SESSION_MODE_VALUES,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -154,6 +201,7 @@ import {
   TARGET_METRICS,
   TARGET_PERIODS,
   TARGET_SCOPES,
+  WEBHOOK_PROVIDERS,
   QUOTE_ACCEPTED_VIA,
   COMMISSION_ACCRUAL_STATES,
   SUBSIDY_SCHEMES,
@@ -174,12 +222,22 @@ import {
   AGENT_RUN_OUTCOME_VALUES,
   AGENT_SETTING_SOURCE_VALUES,
   KNOWLEDGE_FILE_STATE_VALUES,
+  PLAYBOOK_AUDIENCE_VALUES,
+  PLAYBOOK_RESOLUTION_VALUES,
+  PLAYBOOK_STATE_VALUES,
+  PLAYBOOK_TYPE_VALUES,
   KNOWLEDGE_SENSITIVITY_VALUES,
   KNOWLEDGE_SOURCE_VALUES,
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
 } from './contract-values';
+import {
+  ASK_SOURCE_KIND_VALUES,
+  VOICE_END_REASON_VALUES,
+  VOICE_STATE_VALUES,
+  VOICE_TOPIC,
+} from './voice-values';
 
 describe('the contract values copied for the browser', () => {
   it('list every code of their schema, in the same order', () => {
@@ -202,6 +260,7 @@ describe('the contract values copied for the browser', () => {
     expect(QUOTE_STATES).toEqual(QuoteStateSchema.options);
     expect(SALES_ORDER_STATES).toEqual(SalesOrderStateSchema.options);
     expect(TARGET_SCOPES).toEqual(TargetScopeSchema.options);
+    expect(WEBHOOK_PROVIDERS).toEqual(WebhookProviderSchema.options);
     expect(TARGET_METRICS).toEqual(TargetMetricSchema.options);
     expect(TARGET_PERIODS).toEqual(TargetPeriodSchema.options);
     expect(QUOTE_ACCEPTED_VIA).toEqual(QuoteAcceptedViaSchema.options);
@@ -225,6 +284,10 @@ describe('the contract values copied for the browser', () => {
     expect(KNOWLEDGE_FILE_STATE_VALUES).toEqual(KNOWLEDGE_FILE_STATES);
     expect(KNOWLEDGE_SENSITIVITY_VALUES).toEqual(KNOWLEDGE_SENSITIVITIES);
     expect(KNOWLEDGE_SOURCE_VALUES).toEqual(KNOWLEDGE_SOURCE_TYPES);
+    expect(PLAYBOOK_TYPE_VALUES).toEqual(PLAYBOOK_DIRECTIVE_TYPES);
+    expect(PLAYBOOK_AUDIENCE_VALUES).toEqual(PLAYBOOK_AUDIENCES);
+    expect(PLAYBOOK_STATE_VALUES).toEqual(PLAYBOOK_DIRECTIVE_STATES);
+    expect(PLAYBOOK_RESOLUTION_VALUES).toEqual(PLAYBOOK_RESOLUTIONS);
     expect(AGENT_SETTING_SOURCE_VALUES).toEqual(AGENT_SETTING_SOURCES);
     expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
     expect(DUPLICATE_KINDS).toEqual(DuplicateKindSchema.options);
@@ -235,6 +298,29 @@ describe('the contract values copied for the browser', () => {
     expect(SITE_TYPES).toEqual(SiteTypeSchema.options);
     expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);
     expect(CONSENT_CHANNELS).toEqual(ConsentChannelSchema.options);
+    expect(ENTITY_CHANNEL_KINDS).toEqual(EntityChannelKindSchema.options);
+    expect(MESSAGING_REFUSALS).toEqual(MessagingRefusalSchema.options);
+    expect(WHATSAPP_THREAD_HANDLERS).toEqual(WhatsAppThreadHandlerSchema.options);
+    expect(WHATSAPP_HANDOFF_REASONS).toEqual(WhatsAppHandoffReasonSchema.options);
+    expect(WHATSAPP_MESSAGE_DIRECTIONS).toEqual(WhatsAppMessageDirectionSchema.options);
+    expect(WHATSAPP_MESSAGE_KINDS).toEqual(WhatsAppMessageKindSchema.options);
+    expect(WHATSAPP_MESSAGE_STATUSES).toEqual(WhatsAppMessageStatusSchema.options);
+    expect(WHATSAPP_TEMPLATE_CATEGORIES).toEqual(WhatsAppTemplateCategorySchema.options);
+    expect(WHATSAPP_TEMPLATE_STATUSES).toEqual(WhatsAppTemplateStatusSchema.options);
+    expect(WHATSAPP_TEMPLATE_PURPOSES).toEqual(WhatsAppTemplatePurposeSchema.options);
+    expect(INGEST_CHANNELS).toEqual(CONTRACT_INGEST_CHANNELS);
+    expect(INGEST_OUTCOMES).toEqual(CONTRACT_INGEST_OUTCOMES);
+    expect(INGEST_ASSIGNEES).toEqual(CONTRACT_INGEST_ASSIGNEES);
+    expect(INGEST_FIELD_TARGETS).toEqual(CONTRACT_INGEST_FIELD_TARGETS);
+    expect(INGEST_SOURCE_PROVIDERS).toEqual(CONTRACT_INGEST_SOURCE_PROVIDERS);
+    expect(LEAD_QUALIFICATION_FACTS).toEqual(CONTRACT_LEAD_QUALIFICATION_FACTS);
+    expect(CALL_PURPOSE_VALUES).toEqual(CALL_PURPOSES);
+    expect(PROVIDER_CALL_STATUS_VALUES).toEqual(PROVIDER_CALL_STATUSES);
+    expect(VOICE_SESSION_MODE_VALUES).toEqual(VOICE_SESSION_MODES);
+    expect(VOICE_TOPIC).toBe(VOICE_DATA_TOPIC);
+    expect(VOICE_STATE_VALUES).toEqual(VOICE_STATES);
+    expect(VOICE_END_REASON_VALUES).toEqual(VOICE_END_REASONS);
+    expect(ASK_SOURCE_KIND_VALUES).toEqual(ASK_SOURCE_KINDS);
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);

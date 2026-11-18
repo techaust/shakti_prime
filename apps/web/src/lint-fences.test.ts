@@ -225,6 +225,7 @@ describe('the import fences', { timeout: 60_000 }, () => {
       'client',
       'auth-client',
       'outbox-client',
+      'webhook-client',
       'bootstrap',
       'testing/index',
       'auth/user-grants',
@@ -239,6 +240,19 @@ describe('the import fences', { timeout: 60_000 }, () => {
     expect(
       await fences(WEB, "export const c = () => import('../../../../packages/db/src/client');\n"),
     ).toContain('no-restricted-syntax');
+  });
+
+  it('keep the webhook_receiver connection to the webhook routes\u2019 helper', async () => {
+    const store =
+      "import { storeWebhookDelivery } from '@shakti/db/webhooks';\nexport const s = storeWebhookDelivery;\n";
+    expect(await fences('apps/web/src/webhooks/fence-probe.ts', store)).toEqual([]);
+    for (const file of [WEB, 'apps/web/src/workers/fence-probe.ts', DOMAIN]) {
+      expect(await fences(file, store), file).toEqual(['no-restricted-imports']);
+      expect(
+        await fences(file, "export const s = () => import('@shakti/db/webhooks');\n"),
+        file,
+      ).toEqual(['no-restricted-syntax']);
+    }
   });
 
   it('let packages/db reach its own files', async () => {
@@ -272,5 +286,88 @@ describe('the import fences', { timeout: 60_000 }, () => {
     expect(await fences(WEB, "export const load = () => import('node:module');\n")).toEqual([
       'no-restricted-syntax',
     ]);
+  });
+
+  it('keep the voice worker to the contracts, the voice adapters and its own packages', async () => {
+    const AGENT = 'apps/voice-agent/src/fence-probe.ts';
+    for (const ok of [
+      "import { VoiceDispatchMetadata } from '@shakti/contracts';",
+      "import { sarvamConfig } from '@shakti/voice';",
+      "import { voice } from '@livekit/agents';",
+      "import { AudioFrame } from '@livekit/rtc-node';",
+      "import { z } from 'zod';",
+      "import { setTimeout } from 'node:timers/promises';",
+      "import { a } from './turn';",
+      "import { b } from '../ports';",
+    ]) {
+      expect(await fences(AGENT, `${ok}\nexport const x = 1;\n`), ok).toEqual([]);
+    }
+    for (const refused of [
+      "import { schema } from '@shakti/db';",
+      "import { executeCommand } from '@shakti/domain';",
+      "import { auth } from 'better-auth';",
+      "import postgres from 'postgres';",
+      "import { x } from '../../web/src/voice/token';",
+    ]) {
+      const found = await fences(AGENT, `${refused}\nexport const x = 1;\n`);
+      expect(found, refused).toContain('no-restricted-imports');
+    }
+  });
+
+  it('keep the database and the domain out of packages/voice', async () => {
+    const VOICE = 'packages/voice/src/fence-probe.ts';
+    expect(
+      await fences(VOICE, "import { newId } from '@shakti/contracts';\nexport const x = newId;\n"),
+    ).toEqual([]);
+    for (const refused of [
+      "import { schema } from '@shakti/db';",
+      "import { AGENT_DEFAULTS } from '@shakti/domain';",
+    ]) {
+      expect(await fences(VOICE, `${refused}\nexport const x = 1;\n`), refused).toContain(
+        'no-restricted-imports',
+      );
+    }
+  });
+
+  it('keep the voice adapters out of pages and components', async () => {
+    for (const file of [
+      'apps/web/src/app/(bos)/voice/fence-probe.tsx',
+      'apps/web/src/components/voice/fence-probe.tsx',
+    ]) {
+      expect(
+        await fences(
+          file,
+          "import { sarvamConfig } from '@shakti/voice';\nexport const x = sarvamConfig;\n",
+        ),
+        file,
+      ).toEqual(['no-restricted-imports']);
+      // The other fences still hold there.
+      expect(
+        await fences(file, "import { schema } from '@shakti/db';\nexport const x = schema;\n"),
+        file,
+      ).toEqual(['no-restricted-imports']);
+    }
+    // The web app's server side shares them.
+    expect(
+      await fences(
+        WEB,
+        "import { sarvamConfig } from '@shakti/voice';\nexport const x = sarvamConfig;\n",
+      ),
+    ).toEqual([]);
+  });
+
+  it('keep the model masking out of pages and components, and open to the server and the worker', async () => {
+    const masking =
+      "import { maskForModel } from '@shakti/contracts/masking';\nexport const x = maskForModel;\n";
+    for (const file of [
+      'apps/web/src/app/(bos)/voice/fence-probe.tsx',
+      'apps/web/src/components/voice/fence-probe.tsx',
+      'apps/web/src/screens/fence-probe.ts',
+    ]) {
+      expect(await fences(file, masking), file).toContain('no-restricted-imports');
+    }
+    expect(await fences(WEB, masking)).toEqual([]);
+    expect(await fences('apps/voice-agent/src/fence-probe.ts', masking)).toEqual([]);
+    expect(await fences('packages/domain/src/privacy/fence-probe.ts', masking)).toEqual([]);
   });
 });

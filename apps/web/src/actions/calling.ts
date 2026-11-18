@@ -2,6 +2,8 @@
 
 import {
   DialNumberInput,
+  DialPlanInput,
+  type DialPlanDto,
   ListCallQueueInput,
   ListTeamQueuesInput,
   LoadCallLeadInput,
@@ -15,7 +17,12 @@ import {
   type TeamQueueDto,
 } from '@shakti/contracts';
 import {
+  dialFacts,
   dialNumber as dialNumberQuery,
+  dndRecordInput,
+  prepareDial,
+  recordPhoneDnd,
+  toDialPlanDto,
   executeCommand,
   executeQuery,
   listCallQueue as listCallQueueQuery,
@@ -24,6 +31,8 @@ import {
   logCall as logCallCommand,
   searchLeads,
 } from '@shakti/domain';
+import { dndRegistry } from '../integrations/dnd/registry';
+import { systemWorkersPrincipal } from '../workers/events/system-principal';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn, signedInIn, testNow } from './support';
 
@@ -79,6 +88,40 @@ export async function dialNumber(rawInput: unknown): Promise<ActionResult<DialNu
       (context) => dialNumberQuery(context, input, now),
       { name: 'dialNumber' },
     );
+  });
+}
+
+/**
+ * How a call to the lead's main number would go out (docs/03-roadmap-appendix/phase2.md §5.2): its
+ * purpose, the company's number for it and every rule it would break, for the Cold Caller and
+ * Converting workspaces before the Dial key exists. The facts are read as the caller; a DND check
+ * gone stale is looked up again and recorded by the platform (`crm.phone.dnd_record` as
+ * `system:workers`, in a request of its own for the lead's company), as the dial will do.
+ */
+export async function planCall(rawInput: unknown): Promise<ActionResult<DialPlanDto>> {
+  return toResult('planCall', async () => {
+    const principal = await signedIn();
+    const input = parseInput(DialPlanInput, rawInput);
+    const { requestId } = await requestMeta();
+    const now = (await testNow()) ?? new Date();
+    const facts = await executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (context) => dialFacts(context, input),
+      { name: 'planCall' },
+    );
+    const plan = await prepareDial(facts, now, {
+      registry: dndRegistry(),
+      record: async (answer) => {
+        await executeCommand(
+          systemWorkersPrincipal(facts.entityId),
+          { entityIds: [facts.entityId], requestId },
+          recordPhoneDnd,
+          dndRecordInput(facts, facts.contactPhoneId, answer),
+        );
+      },
+    });
+    return toDialPlanDto(facts.contactPhoneId, plan);
   });
 }
 

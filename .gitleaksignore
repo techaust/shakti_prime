@@ -5,3 +5,6 @@
 # base64 of the words "local key only", a value the deployment guard refuses on every hosted runtime.
 b38fe6335b5d4b818e1f491854367e3a63510cbd:apps/web/src/auth/deps.test.ts:generic-api-key:86
 013071a67ec962d61d9eb18a48b139d914983855:apps/web/src/auth/deps.test.ts:generic-api-key:86
+# A sample UUID in the input masker's tests (identity-in-text), labelled as an idempotency key to
+# prove the masker leaves ids whole; a made-up value, no secret.
+ef0a4bedfbed9308434c9eb3c3c78553c332ecc1:packages/domain/src/privacy/input-masking.test.ts:generic-api-key:63

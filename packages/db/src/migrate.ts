@@ -24,7 +24,13 @@ async function assertOwnerBypassesRls(sql: postgres.Sql): Promise<void> {
   }
 }
 
-const LOGIN_ROLES = ['app_user', 'auth_service', 'outbox_publisher', 'app_reader'] as const;
+const LOGIN_ROLES = [
+  'app_user',
+  'auth_service',
+  'outbox_publisher',
+  'app_reader',
+  'webhook_receiver',
+] as const;
 type LoginRole = (typeof LOGIN_ROLES)[number];
 
 /**
@@ -37,6 +43,12 @@ type LoginRole = (typeof LOGIN_ROLES)[number];
  * every run. `app_reader` is created whether or not its password is set, so the migrations can
  * grant to it; without `APP_READER_PASSWORD` it has no password and no one can sign in as it, and
  * `executeQuery()` keeps to `app_user`.
+ *
+ * `webhook_receiver` is the webhook routes' own pool (docs/03-roadmap-appendix/phase2.md §5.1): it
+ * may execute `app.webhook_receive()` and nothing else, and reads nothing. It too is created
+ * whether or not `WEBHOOK_RECEIVER_PASSWORD` is set, so the migrations can grant to it; without the
+ * password no one can sign in as it, and the routes, which then have no `DATABASE_URL_WEBHOOKS`,
+ * answer `integration_unavailable`.
  *
  * `app_backup` is the 6-hourly backup's login (docs/05-database.md §3, §10): it reads every row of
  * every table, past the policies, so `pg_dump` copies the whole database, with `select` only and
@@ -52,13 +64,14 @@ async function ensureRoles(
     authService: string;
     outboxPublisher: string;
     appReader: string | undefined;
+    webhookReceiver: string | undefined;
   },
   rotatePasswords: boolean,
 ): Promise<void> {
   const before = await sql<{ rolname: string }[]>`
     select rolname from pg_roles
      where rolname in ('app_user', 'auth_service', 'outbox_publisher', 'app_reader', 'app_backup',
-                       'readonly_reporter')`;
+                       'readonly_reporter', 'webhook_receiver')`;
   const existing = new Set(before.map((r) => r.rolname));
   await sql.unsafe(`
     do $$
@@ -74,6 +87,9 @@ async function ensureRoles(
       end if;
       if not exists (select 1 from pg_roles where rolname = 'app_reader') then
         create role app_reader login nosuperuser nocreatedb nocreaterole nobypassrls;
+      end if;
+      if not exists (select 1 from pg_roles where rolname = 'webhook_receiver') then
+        create role webhook_receiver login nosuperuser nocreatedb nocreaterole nobypassrls;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'app_backup') then
         create role app_backup login nosuperuser nocreatedb nocreaterole bypassrls;
@@ -92,6 +108,9 @@ async function ensureRoles(
   await setPassword('auth_service', passwords.authService);
   await setPassword('outbox_publisher', passwords.outboxPublisher);
   if (passwords.appReader !== undefined) await setPassword('app_reader', passwords.appReader);
+  if (passwords.webhookReceiver !== undefined) {
+    await setPassword('webhook_receiver', passwords.webhookReceiver);
+  }
   for (const role of LOGIN_ROLES) {
     await sql.unsafe(`alter role ${role} nobypassrls`);
     // A stuck request must not hold a transaction, and with it a document-sequence row lock, open.
@@ -99,6 +118,10 @@ async function ensureRoles(
     await sql.unsafe(`alter role ${role} set lock_timeout = '10s'`);
     await sql.unsafe(`alter role ${role} set idle_in_transaction_session_timeout = '30s'`);
   }
+  // The webhook routes answer within 2 seconds (docs/03-roadmap-appendix/phase2.md §5.1): an insert
+  // that waits longer gives up, the route answers 503 and the provider delivers again.
+  await sql.unsafe(`alter role webhook_receiver set statement_timeout = '2s'`);
+  await sql.unsafe(`alter role webhook_receiver set lock_timeout = '1s'`);
   // The reader's every transaction is read-only, whatever a caller asks for.
   await sql.unsafe(`alter role app_reader set default_transaction_read_only = on`);
   // The backup reads past the policies (as created above; Supabase refuses a statement that names
@@ -222,6 +245,7 @@ export async function runMigrations(
           authService: requireEnv('AUTH_SERVICE_PASSWORD'),
           outboxPublisher: requireEnv('OUTBOX_PUBLISHER_PASSWORD'),
           appReader: optionalEnv('APP_READER_PASSWORD'),
+          webhookReceiver: optionalEnv('WEBHOOK_RECEIVER_PASSWORD'),
         },
         options.rotatePasswords ?? false,
       );

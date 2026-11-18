@@ -1,0 +1,6 @@
+ALTER TABLE "knowledge_files" DROP CONSTRAINT "knowledge_files_source_type_check";--> statement-breakpoint
+ALTER TABLE "knowledge_files" ADD COLUMN "transcript" text;--> statement-breakpoint
+ALTER TABLE "knowledge_files" ADD COLUMN "transcript_corrected_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "knowledge_files" ADD CONSTRAINT "knowledge_files_transcript_check" CHECK ("knowledge_files"."transcript" is null or ("knowledge_files"."source_type" = 'audio' and char_length("knowledge_files"."transcript") between 1 and 100000 and "knowledge_files"."transcript" !~ '[\u0900-\u097F\uA8E0-\uA8FF\u1CD0-\u1CFF]'));--> statement-breakpoint
+ALTER TABLE "knowledge_files" ADD CONSTRAINT "knowledge_files_transcript_corrected_check" CHECK ("knowledge_files"."transcript_corrected_at" is null or "knowledge_files"."transcript" is not null);--> statement-breakpoint
+ALTER TABLE "knowledge_files" ADD CONSTRAINT "knowledge_files_source_type_check" CHECK ("knowledge_files"."source_type" in ('pdf', 'photo', 'word', 'excel', 'audio')) NOT VALID;

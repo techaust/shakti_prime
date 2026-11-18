@@ -1,5 +1,7 @@
 import type { PermissionGrant } from '@shakti/contracts';
 import {
+  AudioLines,
+  BookCheck,
   Bot,
   Building2,
   Cable,
@@ -12,11 +14,14 @@ import {
   Inbox,
   IndianRupee,
   Library,
+  MessageCircle,
   ListTodo,
+  MessageCircleQuestion,
   Package,
   PhoneCall,
   Palette,
   Percent,
+  Plug,
   ScrollText,
   Shuffle,
   Store,
@@ -101,6 +106,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
       { key: 'calls.log', scope: 'own' },
       { key: 'sales.quote.create', scope: 'own' },
     ],
+  },
+  {
+    id: 'messages',
+    href: '/messages',
+    label: 'messages',
+    icon: MessageCircle,
+    group: 'work',
+    // The WhatsApp chats waiting for a reply that the caller may answer (messaging.send, design
+    // phase2 §6.1); listWaitingThreads keeps to the chats the caller's scope covers.
+    requires: [{ key: 'messaging.send', scope: 'own' }],
   },
   {
     id: 'customers',
@@ -206,6 +221,36 @@ export const NAV_ITEMS: readonly NavItem[] = [
     requires: [{ key: 'knowledge.vault.read.staff', scope: 'all' }],
   },
   {
+    id: 'knowledge-playbook',
+    href: '/knowledge/playbook',
+    label: 'knowledgePlaybook',
+    icon: BookCheck,
+    group: 'work',
+    // listPlaybook: drafts and their review are the drafters' (Executive and GM, every company);
+    // approving and settling a clash also need knowledge.playbook.approve, which the commands check.
+    requires: [{ key: 'knowledge.playbook.draft', scope: 'all' }],
+  },
+  {
+    id: 'ask',
+    href: '/ask',
+    label: 'ask',
+    icon: MessageCircleQuestion,
+    group: 'work',
+    // Ask the Business: the scope only opens the screen; what an answer reads comes from the
+    // person's own grants and row security (docs/03-roadmap-appendix/phase2.md §4).
+    requires: [{ key: 'knowledge.ask', scope: 'team' }],
+  },
+  {
+    id: 'voice',
+    href: '/voice',
+    label: 'voice',
+    icon: AudioLines,
+    group: 'work',
+    // Talk to Shakti (docs/03-roadmap-appendix/phase2.md §7.5): Executives and GMs; a spoken
+    // answer reads what the person reads, never a cost or a supplier's rate.
+    requires: [{ key: 'voice.use', scope: 'all' }],
+  },
+  {
     id: 'price-master',
     href: '/price-master',
     label: 'priceMaster',
@@ -291,6 +336,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // crm.pipeline.update, crm.stage.*, crm.disposition.set and crm.score_rule.set
     requires: [{ key: 'crm.config.write', scope: 'all' }],
+  },
+  {
+    id: 'settings-lead-sources',
+    href: '/settings/lead-sources',
+    label: 'settingsLeadSources',
+    icon: Plug,
+    group: 'admin',
+    // crm.source.set, crm.source.archive and the website keys (design phase2 §6.2)
+    requires: [{ key: 'crm.sources.write', scope: 'all' }],
   },
   {
     id: 'settings-tax',

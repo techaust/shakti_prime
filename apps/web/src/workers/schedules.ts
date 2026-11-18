@@ -19,6 +19,8 @@ export const JOB_SCHEDULES = {
   'notification-scan': '*/5 * * * *',
   // Away from the top of the hour and from the sweep.
   'jobs-check': '41 * * * *',
+  // Every minute: a delivery whose publish failed waits at most a minute or two (phase 2 §5.1).
+  'webhook-sweep': '* * * * *',
 } as const;
 
 export type ScheduledRoute = keyof typeof JOB_SCHEDULES;

@@ -7,7 +7,7 @@ import {
   type CreditHomeDto,
   type PipelineStagesDto,
   type ResponseTimeDto,
-  type SalesHomeDto,
+  type SalesOverviewDto,
 } from '@shakti/contracts';
 import {
   executeQuery,
@@ -16,6 +16,7 @@ import {
   homePipeline as homePipelineQuery,
   homeResponseTimes as homeResponseTimesQuery,
   homeSales as homeSalesQuery,
+  salesGroupTotal,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
 import type { HomeSection } from '../screens/home';
@@ -87,15 +88,16 @@ export async function homeResponseTimes(): Promise<ActionResult<ResponseTimeDto[
   );
 }
 
-/** Quotes and orders this month, per company of the Executive. */
-export async function homeSales(): Promise<ActionResult<SalesHomeDto[]>> {
-  return toResult('homeSales', () =>
-    inEach('executive', (principal, scope) =>
+/** Quotes and orders this month, per company of the Executive, and the group's total. */
+export async function homeSales(): Promise<ActionResult<SalesOverviewDto>> {
+  return toResult('homeSales', async () => {
+    const companies = await inEach('executive', (principal, scope) =>
       executeQuery(principal, scope, (context) => homeSalesQuery(context), {
         name: 'homeSales',
       }),
-    ),
-  );
+    );
+    return { companies, total: salesGroupTotal(companies) };
+  });
 }
 
 /** Dealer credit, per company of Accounts. */

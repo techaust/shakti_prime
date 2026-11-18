@@ -7,7 +7,27 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { ADDED_PARTNERS, REFERRAL_PARTNER } from './support/users';
+import { ADDED_PARTNERS, REFERRAL_PARTNER, type ProjectName } from './support/users';
+
+/**
+ * The pipeline whose stages each project's journeys add, move, rename and archive. Run locally,
+ * the projects share one database, and a new stage order names every open stage of the pipeline,
+ * so a stage another project added to the same pipeline meanwhile would make the move refused.
+ * Farmer Pumps is left alone: the leads board's picture shows its stages (leads.spec.ts).
+ */
+const STAGE_PIPELINE: Record<ProjectName, string> = {
+  'desktop-light': 'Commercial EPC',
+  'desktop-dark': 'Residential Rooftop',
+  phone: 'Dealer and Wholesale',
+};
+
+/** Every stage these journeys make starts so, and the seed archives any a stopped run left. */
+const JOURNEY_STAGE = 'Site survey';
+
+/** A stage name of this attempt alone, so a retry never meets the first attempt's. */
+function journeyStageName(): string {
+  return `${JOURNEY_STAGE} ${String(Date.now()).slice(-6)}`;
+}
 
 test.describe('Settings › Pipelines as an Executive', () => {
   test.use(signedInAs('executive'));
@@ -48,6 +68,14 @@ test.describe('Settings › Pipelines as an Executive', () => {
       .getByRole('list', { name: 'Referral partners' })
       .getByRole('listitem')
       .filter({ hasText: new RegExp(added.join('|')) })
+      .evaluateAll((rows) => {
+        for (const row of rows) row.remove();
+      });
+    // So do the stages the other projects' stage journeys have made and not yet archived.
+    await page
+      .getByRole('list', { name: /^Stages of / })
+      .getByRole('listitem')
+      .filter({ hasText: JOURNEY_STAGE })
       .evaluateAll((rows) => {
         for (const row of rows) row.remove();
       });
@@ -139,22 +167,38 @@ test.describe('Settings › Pipelines as an Executive', () => {
   });
 
   test('adds a stage, moves it up and archives it', async ({ page }) => {
+    const pipeline = STAGE_PIPELINE[projectName()];
     await page.goto('/settings/pipelines');
-    const card = page.getByRole('article', { name: 'Commercial EPC' });
-    const name = `Site survey ${String(Date.now()).slice(-5)}`;
-    await card.getByLabel('New stage name').fill(name);
+    const card = page.getByRole('article', { name: pipeline });
+    const name = journeyStageName();
+    await (await hydrated(card.getByLabel('New stage name'))).fill(name);
     await card.getByRole('button', { name: 'Add stage' }).click();
     await expect(page.getByText(`${name} is added as the last open stage.`)).toBeVisible();
 
-    const stages = card.getByRole('list', { name: 'Stages of Commercial EPC' });
+    const stages = card.getByRole('list', { name: `Stages of ${pipeline}` });
     const added = stages.getByRole('listitem').filter({ hasText: name });
     await expect(added).toBeVisible();
+    // The stages in the order the card lists them, by the names their Edit buttons carry.
+    const order = (): Promise<string[]> =>
+      stages
+        .getByRole('button', { name: /^Edit / })
+        .evaluateAll((buttons) =>
+          buttons.map((b) => (b.getAttribute('aria-label') ?? '').replace(/^Edit /, '')),
+        );
+    const before = await order();
+    const at = before.indexOf(name);
+    // Added as the last open stage, so an open stage sits above it.
+    expect(at).toBeGreaterThan(0);
+    const above = before[at - 1] ?? '';
     // The move buttons keep their visible words as their name and say which stage they move.
     const up = added.getByRole('button', { name: 'Move up' });
     await expect(up).toHaveAccessibleDescription(name);
     await up.click();
     await expect(page.getByText('The new order of stages is saved.')).toBeVisible();
-    await expect(stages.getByRole('listitem').nth(3)).toContainText(name);
+    // The stage and the one above it change places, and every other stage keeps its place.
+    await expect
+      .poll(order)
+      .toEqual([...before.slice(0, at - 1), name, above, ...before.slice(at + 1)]);
 
     await added.getByRole('button', { name: `Archive ${name}` }).click();
     const dialog = page.getByRole('dialog', { name: 'Archive this stage?' });
@@ -166,21 +210,33 @@ test.describe('Settings › Pipelines as an Executive', () => {
   });
 
   test('a changed stage name is kept after the page is opened again', async ({ page }) => {
+    // A stage of the journey's own, so another project's picture never shows a seeded stage
+    // under a changed name.
+    const pipeline = STAGE_PIPELINE[projectName()];
+    const name = journeyStageName();
+    const renamed = `${name} booked`;
     await page.goto('/settings/pipelines');
-    const card = page.getByRole('article', { name: 'Dealer and Wholesale' });
-    await card.getByRole('button', { name: 'Edit Contacted' }).click();
+    const card = page.getByRole('article', { name: pipeline });
+    await (await hydrated(card.getByLabel('New stage name'))).fill(name);
+    await card.getByRole('button', { name: 'Add stage' }).click();
+    await expect(page.getByText(`${name} is added as the last open stage.`)).toBeVisible();
+
+    await card.getByRole('button', { name: `Edit ${name}`, exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Edit a stage' });
-    await dialog.getByLabel('Stage name').fill('Called once');
+    await dialog.getByLabel('Stage name').fill(renamed);
     await dialog.getByRole('button', { name: 'Save stage' }).click();
-    await expect(page.getByText('Called once is saved.')).toBeVisible();
+    await expect(page.getByText(`${renamed} is saved.`)).toBeVisible();
 
     await page.reload();
-    const again = page.getByRole('article', { name: 'Dealer and Wholesale' });
-    await again.getByRole('button', { name: 'Edit Called once' }).click();
-    const back = page.getByRole('dialog', { name: 'Edit a stage' });
-    await back.getByLabel('Stage name').fill('Contacted');
-    await back.getByRole('button', { name: 'Save stage' }).click();
-    await expect(page.getByText('Contacted is saved.')).toBeVisible();
+    const again = page.getByRole('article', { name: pipeline });
+    await expect(again.getByRole('button', { name: `Edit ${renamed}` })).toBeVisible();
+    await expect(again.getByRole('button', { name: `Edit ${name}`, exact: true })).toHaveCount(0);
+
+    // The journey leaves the pipeline as it found it.
+    await (await hydrated(again.getByRole('button', { name: `Archive ${renamed}` }))).click();
+    const archive = page.getByRole('dialog', { name: 'Archive this stage?' });
+    await archive.getByRole('button', { name: 'Archive stage' }).click();
+    await expect(page.getByText(`${renamed} is archived.`)).toBeVisible();
   });
 });
 

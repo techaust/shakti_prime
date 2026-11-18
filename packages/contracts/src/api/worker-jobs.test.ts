@@ -4,6 +4,7 @@ import { API_FIXTURES, IDS } from './fixtures';
 import { MessageRequested } from './messaging';
 import {
   AGENT_NAMES,
+  MessagingSendJob,
   MessagingSendResult,
   NotifyJob,
   OutboxEventParams,
@@ -80,46 +81,42 @@ describe('the worker contracts (docs/06-api.md §3.6)', () => {
   });
 });
 
-describe('message.requested (docs/06-api.md §6)', () => {
-  it('sends a template by its approved name with its parameters', () => {
-    const parsed = MessageRequested.parse({
-      threadId: IDS.thread,
-      kind: 'template',
-      templateName: 'payment_due',
-    });
-    expect(parsed).toEqual({
-      threadId: IDS.thread,
-      kind: 'template',
-      templateName: 'payment_due',
-      params: [],
-    });
+describe('messaging.message.requested (docs/06-api.md §6)', () => {
+  it('carries the queued message by its ids and kind, never its text', () => {
+    const event = { messageId: IDS.event, threadId: IDS.thread, kind: 'template' };
+    expect(MessageRequested.safeParse(event).success).toBe(true);
+    expect(MessageRequested.safeParse({ ...event, kind: 'session' }).success).toBe(false);
     expect(
-      MessageRequested.safeParse({
-        threadId: IDS.thread,
-        kind: 'template',
-        templateName: 'Pay Now',
+      MessageRequested.safeParse({ ...event, bodyMasked: 'Your engineer visits tomorrow.' })
+        .success,
+    ).toBe(false);
+    expect(
+      MessagingSendJob.safeParse({ eventId: IDS.eventB, entityId: 1, messageId: IDS.event })
+        .success,
+    ).toBe(true);
+    expect(
+      MessagingSendJob.safeParse({
+        eventId: IDS.eventB,
+        entityId: 1,
+        messageId: IDS.event,
+        templateName: 'quote_sent',
       }).success,
     ).toBe(false);
   });
 
-  it('sends a session message only as a masked body', () => {
-    expect(
-      MessageRequested.safeParse({
-        threadId: IDS.thread,
-        kind: 'session',
-        bodyMasked: 'Your engineer visits on 28-09-2026.',
-      }).success,
-    ).toBe(true);
-    expect(MessageRequested.safeParse({ threadId: IDS.thread, kind: 'session' }).success).toBe(
-      false,
-    );
-    expect(
-      MessageRequested.safeParse({
-        threadId: IDS.thread,
-        kind: 'session',
-        bodyMasked: 'Your engineer visits tomorrow.',
-        templateName: 'visit_booked',
-      }).success,
-    ).toBe(false);
+  it('answers a held, failed or skipped message with no provider id or reason', () => {
+    for (const status of ['held', 'failed', 'skipped']) {
+      expect(
+        MessagingSendResult.safeParse({ eventId: IDS.eventB, outcome: 'done', status }).success,
+      ).toBe(true);
+      expect(
+        MessagingSendResult.safeParse({
+          eventId: IDS.eventB,
+          outcome: 'done',
+          status,
+          refusal: 'opted_out',
+        }).success,
+      ).toBe(false);
+    }
   });
 });

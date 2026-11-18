@@ -545,11 +545,12 @@
       }
     },
     "ReadOnlyBackupPolicy": {
-      "Type": "AWS::IAM::Policy",
+      "Type": "AWS::IAM::ManagedPolicy",
       "Properties": {
-        "PolicyName": {
+        "ManagedPolicyName": {
           "Fn::Sub": "shakti-prime-${EnvironmentName}-backups-read-only"
         },
+        "Description": "Lets the read-only user list the copies and see the backup's runs and log, never a copy or the secret's value. A managed policy, because the user's inline policies (one per files stack) would pass IAM's 2,048-character limit for a user's inline policies.",
         "Users": [
           {
             "Ref": "ReadOnlyUserName"

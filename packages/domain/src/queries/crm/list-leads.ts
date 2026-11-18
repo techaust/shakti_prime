@@ -9,7 +9,7 @@ import {
   sortText,
   type SortKeys,
 } from '../keyset-sort';
-import { callConsentWithdrawnSql } from '../calls/consent';
+import { callOptOutSql } from '../calls/consent';
 import { toLeadDto } from './lead-dto';
 
 export interface ListLeadsOptions {
@@ -175,7 +175,7 @@ async function customersOf(ctx: LeadContext, accountIds: readonly string[]) {
       contactName: c.name,
       phone: p.e164,
       phoneIsDnd: p.isDnd,
-      callConsentWithdrawn: callConsentWithdrawnSql(sql`${a.id}`),
+      callConsentWithdrawn: callOptOutSql(sql`${a.id}`),
     })
     .from(a)
     // One owner per customer and one main phone per contact (unique indexes), so these joins

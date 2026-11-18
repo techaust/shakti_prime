@@ -14,6 +14,7 @@ import {
   asMigrator,
   asPrincipal,
   closeDb,
+  createTestVoicePrincipal,
   principalFor,
   SYSTEM_MATRIX,
 } from '@shakti/db/testing';
@@ -188,8 +189,42 @@ const INPUTS: Record<string, unknown> = {
   },
   'files.file.recheck': { olderThanMinutes: 10 },
   'integrations.dlq.replay': { eventId: newId() },
+  'webhooks.event.replay': { inboxId: newId() },
   'platform.probe.run': {},
   'org.entity.update': { entityId: 1, brandName: 'Refused brand' },
+  'org.channel.set': {
+    entityId: 1,
+    channel: 'call_promo_140',
+    number: '+911400000999',
+    verified: false,
+  },
+  'org.channel.archive': { entityId: 1, channelId: newId() },
+  // The WhatsApp template registry decides what the platform may send in a company's name
+  // (docs/03-roadmap-appendix/phase2.md §4): an Executive's, never an agent's.
+  'messaging.template.register': {
+    entityId: 1,
+    name: 'refused_template',
+    label: 'Refused template',
+    category: 'utility',
+  },
+  'crm.source.set': {
+    entityId: 1,
+    provider: 'website',
+    externalId: 'refused.example',
+    name: 'Refused site',
+    pipelineId: newId(),
+    fieldMap: {},
+    consent: null,
+  },
+  'crm.source.archive': { entityId: 1, sourceId: newId() },
+  'crm.ingest_key.create': {
+    entityId: 1,
+    label: 'Refused key',
+    keyHash: 'b'.repeat(64),
+    keyHint: 'abcd',
+    sourceId: null,
+  },
+  'crm.ingest_key.revoke': { entityId: 1, keyId: newId() },
   'print.proof.request': { entityId: 1 },
   'pricing.list.approve': { priceListId: newId() },
   'pricing.list.archive': { priceListId: newId() },
@@ -225,6 +260,57 @@ const INPUTS: Record<string, unknown> = {
     oldestUnpaidInvoiceDate: null,
     oldestUnpaidInvoiceNo: null,
     asOf: '2026-04-01',
+  },
+  // The Playbook (docs/03-roadmap-appendix/phase2.md §5.4): drafting and approving directives are
+  // people's; no agent holds either grant.
+  'knowledge.playbook.draft': {
+    entityId: 1,
+    type: 'faq',
+    audience: 'staff',
+    title: 'Refused rule',
+    text: 'Refused rule text',
+  },
+  'knowledge.playbook.edit': {
+    entityId: 1,
+    directiveId: newId(),
+    type: 'faq',
+    audience: 'staff',
+    title: 'Refused rule',
+    text: 'Refused rule text',
+  },
+  // Ask the Business (docs/03-roadmap-appendix/phase2.md §4): a person's own conversation.
+  'knowledge.ask.record': {
+    conversationId: newId(),
+    question: 'Refused question',
+    answer: 'Refused answer',
+    outcome: 'answered',
+    unsourced: 0,
+    cited: [],
+    returned: [],
+    model: null,
+    costPaise: 0,
+  },
+  'knowledge.ask.delete': { conversationId: newId() },
+  'knowledge.playbook.approve': { entityId: 1, directiveId: newId() },
+  'knowledge.playbook.retire': { entityId: 1, directiveId: newId(), reason: 'Refused retire' },
+  'knowledge.playbook.resolve_conflict': {
+    entityId: 1,
+    checkId: newId(),
+    resolution: 'not_a_conflict',
+    note: 'Refused note',
+  },
+  'knowledge.playbook.draft_from_file': {
+    entityId: 1,
+    knowledgeFileId: newId(),
+    drafts: [
+      {
+        type: 'faq',
+        audience: 'staff',
+        title: 'Refused rule',
+        text: 'Refused text',
+        sourcePosition: 0,
+      },
+    ],
   },
   // Targets are what people are held to: a person sets them, never an agent.
   'sales.target.set': {
@@ -291,6 +377,8 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) },
   },
   'notifications.push.unsubscribe': { endpoint: 'https://fcm.googleapis.com/fcm/send/refused' },
+  // Talk to Shakti is started by the person who speaks (docs/03-roadmap-appendix/phase2.md §7.5).
+  'voice.session.start': { mode: 'ask', consentRecording: true },
   // Merges and decisions on duplicates (SECURITY §3.3: an agent only suggests a candidate).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
   'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
@@ -308,6 +396,11 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     },
   },
   'calls.call.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
+  // Click-to-dial, a caller's own dial phone and listening to a recording (phase 2 design §6.3):
+  // no agent holds calls.dial or calls.recording.listen, and only people may use them.
+  'calls.call.dial': { entityId: 1, opportunityId: newId() },
+  'calls.recording.play': { entityId: 1, providerCallId: newId() },
+  'crm.caller_profile.set_dial_phone': { entityId: 1, phone: '+919800000000' },
   // The Knowledge Vault's files are added, read again and archived by people (docs/03-roadmap-appendix/phase1.md §8.4).
   'knowledge.file.add': {
     entityId: 1,
@@ -317,6 +410,12 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   },
   'knowledge.file.reindex': { entityId: 1, knowledgeFileId: newId() },
   'knowledge.file.archive': { entityId: 1, knowledgeFileId: newId() },
+  // A recording's transcript is corrected by a person (K3).
+  'knowledge.transcript.correct': {
+    entityId: 1,
+    knowledgeFileId: newId(),
+    transcript: 'Refused correction',
+  },
   // Orders, acceptance and dealer credit (docs/03-roadmap-appendix/phase1.md §8.3): a person's decisions.
   'sales.quote.accept': { entityId: 1, quoteId: newId(), signedFileId: newId() },
   'sales.order.create': {
@@ -328,12 +427,35 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'sales.order.cancel': { entityId: 1, orderId: newId(), reason: 'Refused cancel' },
   ...Object.fromEntries(
     [
+      'knowledge.playbook.draft',
+      'knowledge.playbook.edit',
+      'knowledge.playbook.approve',
+      'knowledge.playbook.retire',
+      'knowledge.playbook.resolve_conflict',
+      'knowledge.playbook.draft_from_file',
+      'knowledge.ask.record',
+      'knowledge.ask.delete',
+    ].map((name) => [name, INPUTS[name]]),
+  ),
+  ...Object.fromEntries(
+    [
       'sales.credit.release',
       'sales.dealer_terms.set',
       'sales.dealer_outstanding.record',
       'sales.target.set',
+      // Process again of a failed webhook delivery (P5): a person's decision.
+      'webhooks.event.replay',
+      'messaging.template.register',
+      // Where leads come in from, and the website keys (I1): an Executive's.
+      'crm.source.set',
+      'crm.source.archive',
+      'crm.ingest_key.create',
+      'crm.ingest_key.revoke',
     ].map((name) => [name, INPUTS[name]]),
   ),
+  // Taking a WhatsApp chat over from the assistant, and giving it back, is a person's decision.
+  'messaging.thread.hand_off': { entityId: 1, threadId: newId(), reason: 'request' },
+  'messaging.thread.return_to_assistant': { entityId: 1, threadId: newId() },
 };
 
 describe('commands for people only', () => {
@@ -716,6 +838,20 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },
     'crm.lead.anonymise': { entityId: 1, after: null },
+    'crm.source.record_questions': { entityId: 1, sourceId: newId(), questions: [] },
+    'crm.lead.ingest': {
+      entityId: 1,
+      channel: 'meta_ads',
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Refused lead', phone: '+919812345678' },
+    },
+    'crm.phone.dnd_record': {
+      entityId: 1,
+      contactPhoneId: newId(),
+      e164: '+919812345678',
+      onDnd: false,
+      checkedAt: '2026-11-13T05:30:00.000Z',
+    },
     'notifications.event.notify': {
       event: 'crm.duplicate.found',
       entityId: 1,
@@ -752,6 +888,11 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       knowledgeFileId: newId(),
       outcome: 'failed',
       reason: 'knowledge_unreadable',
+    },
+    'knowledge.file.record_transcript': {
+      entityId: 1,
+      knowledgeFileId: newId(),
+      transcript: 'Refused transcript',
     },
   };
 
@@ -794,4 +935,46 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       }
     });
   }
+});
+
+describe('a voice session (SECURITY §3.4)', () => {
+  it('is refused at the guard by every command for people only, even with its grants', async () => {
+    // A voice session acts as its person but is not the person at a keyboard: an Executive's own
+    // session, given every grant each command needs, is refused by the people rule alone.
+    const voice = await createTestVoicePrincipal('executive', [1]);
+    // The commands a person's voice session may run as the person, each with its reason.
+    const forVoice = PEOPLE_ONLY.filter((command) => command.voiceSession === true);
+    expect(forVoice.map((command) => command.name).sort()).toEqual(
+      [
+        // Ask's spoken answers record the person's question (phase 2 design §7.5).
+        'knowledge.ask.record',
+        // A Teach session the person let be recorded files its audio in the vault (§7.5).
+        'knowledge.file.add',
+      ].sort(),
+    );
+    for (const command of PEOPLE_ONLY.filter((c) => c.voiceSession !== true)) {
+      const principal = {
+        ...voice,
+        permissions: [
+          ...voice.permissions,
+          ...needs(command).map((key) => ({ key, scope: 'all' as const })),
+        ],
+      };
+      const error: unknown = await asPrincipal(principal, (context) =>
+        runCommand(command, { context, audit, outbox }, PEOPLE_ONLY_INPUTS[command.name]),
+      ).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect({ command: command.name, error }).toMatchObject({
+        command: command.name,
+        error: { code: 'forbidden', details: { reason: 'people_only' } },
+      });
+      expect({ command: command.name, stage: failureOf(error)?.stage }).toEqual({
+        command: command.name,
+        stage: 'guard',
+      });
+    }
+    expect(PEOPLE_ONLY.length).toBeGreaterThan(20);
+  });
 });

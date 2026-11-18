@@ -23,6 +23,7 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, desc, eq, exists, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission, isAgent } from '../../command/run-command';
+import { playableRecordings } from '../calls/provider-calls';
 import {
   afterCursor,
   keysetOrder,
@@ -31,7 +32,7 @@ import {
   sortText,
   type SortKeys,
 } from '../keyset-sort';
-import { callConsentWithdrawn } from '../calls/consent';
+import { callConsentWithdrawn, callOptOut } from '../calls/consent';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 import { accountSalesOrders } from '../sales/list-orders';
 import { accountQuotes } from '../sales/list-quotes';
@@ -339,15 +340,31 @@ export async function listTimeline(ctx: Ctx, rawInput: unknown): Promise<Timelin
               .where(inArray(schema.callDispositions.id, outcomeIds))
           ).map((d) => [d.id, d.label]),
         );
+  // A call placed from the screen names its provider call: whether its reader may play the
+  // recording is asked now, under the reader's own grants (`app.playable_recordings()`).
+  const dialledCalls = [
+    ...new Set(
+      page.flatMap((r) => {
+        const id = (r.payload as Record<string, unknown>).providerCallId;
+        return r.type === 'call_logged' && typeof id === 'string' && IdSchema.safeParse(id).success
+          ? [id]
+          : [];
+      }),
+    ),
+  ];
+  const playable = await playableRecordings(ctx, dialledCalls);
   const withNames = (payload: unknown): Record<string, unknown> => {
     const p = payload as Record<string, unknown>;
     const name = typeof p.tagId === 'string' ? tagNames.get(p.tagId) : undefined;
     const outcome =
       typeof p.dispositionId === 'string' ? outcomeNames.get(p.dispositionId) : undefined;
+    const recordingCompany =
+      typeof p.providerCallId === 'string' ? playable.get(p.providerCallId) : undefined;
     return {
       ...p,
       ...(name === undefined ? {} : { tagName: name }),
       ...(outcome === undefined ? {} : { outcomeName: outcome }),
+      ...(recordingCompany === undefined ? {} : { recordingCompany }),
     };
   };
   return {
@@ -465,6 +482,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     timeline,
     owner,
     callsWithdrawn,
+    optedOut,
   ] = await Promise.all([
     ctx.tx
       .select({
@@ -541,6 +559,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
       ? []
       : ctx.tx.select({ name: p.displayName }).from(p).where(eq(p.id, here.ownerId)).limit(1),
     callConsentWithdrawn(ctx.tx, accountId),
+    callOptOut(ctx.tx, accountId),
   ]);
 
   const perms = ctx.principal.permissions;
@@ -592,6 +611,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
         })),
     })),
     callConsentWithdrawn: callsWithdrawn,
+    callOptOut: optedOut,
     sites: sites.map((s) => ({
       id: s.id,
       type: s.type,

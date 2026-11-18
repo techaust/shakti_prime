@@ -1,0 +1,94 @@
+{
+  "name": "fixture set: written sessions, not recordings",
+  "languageCode": "hi-IN",
+  "items": [
+    {
+      "id": "q01",
+      "file": "q01.wav",
+      "language": "hinglish",
+      "speaker": "team-1",
+      "reference": "Paanch HP ka submersible pump stock mein hai kya?",
+      "keyTerms": [
+        {
+          "term": "5 HP",
+          "kind": "unit"
+        },
+        {
+          "term": "submersible",
+          "kind": "product"
+        }
+      ],
+      "speechEndMs": 2700,
+      "durationMs": 3200
+    },
+    {
+      "id": "q02",
+      "file": "q02.wav",
+      "language": "hindi",
+      "speaker": "team-2",
+      "accent": "rajasthani",
+      "reference": "Jodhpur mein teen kilowatt ka solar system kitne ka padega?",
+      "keyTerms": [
+        {
+          "term": "Jodhpur",
+          "kind": "place"
+        },
+        {
+          "term": "3 kW",
+          "kind": "unit"
+        }
+      ],
+      "speechEndMs": 3300,
+      "durationMs": 3800
+    },
+    {
+      "id": "q03",
+      "file": "q03.wav",
+      "language": "english",
+      "speaker": "team-1",
+      "reference": "When will order number 42 be dispatched to Bikaner?",
+      "keyTerms": [
+        {
+          "term": "42",
+          "kind": "number"
+        },
+        {
+          "term": "Bikaner",
+          "kind": "place"
+        }
+      ],
+      "speechEndMs": 2600,
+      "durationMs": 3000
+    },
+    {
+      "id": "q04",
+      "file": "q04.wav",
+      "language": "hinglish",
+      "speaker": "owner",
+      "reference": "Dhaai lakh rupaye ka order aaya hai, GST mila kar kitna hoga?",
+      "keyTerms": [
+        {
+          "term": "2,50,000",
+          "kind": "amount"
+        }
+      ],
+      "speechEndMs": 3900,
+      "durationMs": 4200
+    },
+    {
+      "id": "q05",
+      "file": "q05.wav",
+      "language": "hinglish",
+      "speaker": "team-3",
+      "reference": "Saadhe saat HP ka pump chahiye.",
+      "keyTerms": [
+        {
+          "term": "7.5 HP",
+          "kind": "unit"
+        }
+      ],
+      "speechEndMs": 2100,
+      "durationMs": 2500
+    }
+  ]
+}

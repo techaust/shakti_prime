@@ -1,0 +1,102 @@
+{
+  "speechToText": {
+    "source": "written",
+    "note": "written from Sarvam's streaming speech-to-text reference (voice.md section 6), 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 20,
+        "data": {
+          "type": "events",
+          "data": {
+            "signal_type": "START_SPEECH"
+          }
+        }
+      },
+      {
+        "atMs": 4080,
+        "data": {
+          "type": "events",
+          "data": {
+            "signal_type": "END_SPEECH"
+          }
+        }
+      },
+      {
+        "atMs": 4300,
+        "data": {
+          "type": "data",
+          "data": {
+            "request_id": "fixture",
+            "transcript": "dhai lac rupaye ka order aaya he gst mila kar kitna hoga",
+            "language_code": "hi-IN"
+          }
+        }
+      }
+    ]
+  },
+  "reply": {
+    "source": "written",
+    "note": "written from the Messages API streaming reference, 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 300,
+        "text": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_fixture\",\"role\":\"assistant\",\"usage\":{\"input_tokens\":125,\"output_tokens\":1}}}\n\n"
+      },
+      {
+        "atMs": 470,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"GST mila kar \"}}\n\n"
+      },
+      {
+        "atMs": 640,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"lagbhag 2,95,000 rupaye hoga. \"}}\n\n"
+      },
+      {
+        "atMs": 850,
+        "text": "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Main exact quote bhej deti hoon.\"}}\n\n"
+      },
+      {
+        "atMs": 890,
+        "text": "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":26}}\n\n"
+      },
+      {
+        "atMs": 895,
+        "text": "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+      }
+    ]
+  },
+  "speech": {
+    "source": "written",
+    "note": "written from Sarvam's streaming text-to-speech reference (voice.md section 6), 13-11-2026; a recorded session replaces it in part 2",
+    "frames": [
+      {
+        "atMs": 260,
+        "data": {
+          "type": "audio",
+          "data": {
+            "content_type": "audio/L16;rate=16000",
+            "audio": "AAAAAAAAAAA="
+          }
+        }
+      },
+      {
+        "atMs": 300,
+        "data": {
+          "type": "audio",
+          "data": {
+            "content_type": "audio/L16;rate=16000",
+            "audio": "AAAAAAAAAAA="
+          }
+        }
+      },
+      {
+        "atMs": 320,
+        "data": {
+          "type": "event",
+          "data": {
+            "event_type": "final"
+          }
+        }
+      }
+    ]
+  }
+}

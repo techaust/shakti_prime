@@ -84,7 +84,7 @@ export interface CallStatusEvent {
  * Exotel documents every value as a string, but a JSON callback may carry durations as numbers;
  * numbers become strings and the status is lower-cased before the contract reads the body.
  */
-function asExotelStrings(value: unknown): unknown {
+export function asExotelStrings(value: unknown): unknown {
   if (typeof value === 'number') return String(value);
   if (Array.isArray(value)) return value.map(asExotelStrings);
   const object = asObject(value);

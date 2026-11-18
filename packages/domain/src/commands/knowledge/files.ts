@@ -50,6 +50,8 @@ export const addKnowledgeFile = defineCommand({
   permission: 'knowledge.vault.write',
   minScope: 'all',
   peopleOnly: true,
+  // A recorded Teach session's audio, filed by the person's own live voice session (V2).
+  voiceSession: true,
   input: AddKnowledgeFileInput,
   output: KnowledgeFileDto,
   auditFields: ['title', 'sensitivity', 'sourceType', 'wholeGroup', 'knowledgeState'],

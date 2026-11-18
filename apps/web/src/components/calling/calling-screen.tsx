@@ -11,6 +11,8 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CallBar, type DialledCall } from './call-bar';
+import { CallPlan } from './call-plan';
 import { dialNumber, listCallQueue, loadCallLead, logCall } from '../../actions/calling';
 import {
   isTypingTarget,
@@ -205,6 +207,11 @@ export function CallingScreen({
   const [shown, setShown] = useState<string | undefined>();
   // When Dial showed the number: the call's start, which calling hours are checked on (DOM-6).
   const [dialledAt, setDialledAt] = useState<string | undefined>();
+  // A call placed from the screen (T3): its log takes the provider call's start and length.
+  const [dialled, setDialled] = useState<DialledCall | undefined>();
+  // Calls saved on this screen: the call bar is mounted afresh after each, so a saved dialled call
+  // is never sent again with the next log.
+  const [saves, setSaves] = useState(0);
   const [picked, setPicked] = useState<{ outcome: DispositionDto; need: OutcomeNeed }>();
   const searchRef = useRef<HTMLInputElement>(null);
   const workspaceRef = useRef<HTMLHeadingElement>(null);
@@ -259,18 +266,29 @@ export function CallingScreen({
           entityId: lead.entityId,
           opportunityId: lead.opportunityId,
           dispositionId: outcome.id,
-          ...(dialledAt === undefined ? {} : { startedAt: dialledAt }),
+          ...(dialled?.opportunityId === lead.opportunityId
+            ? {
+                providerCallId: dialled.providerCallId,
+                ...(dialled.durationSeconds === undefined
+                  ? {}
+                  : { durationSeconds: dialled.durationSeconds }),
+              }
+            : dialledAt === undefined
+              ? {}
+              : { startedAt: dialledAt }),
           ...detail,
         },
         (result) => {
           setPicked(undefined);
+          setDialled(undefined);
+          setSaves((n) => n + 1);
           toast.success(savedMessage(t, result));
           open(lead);
           refreshQueue();
         },
       );
     },
-    [lead, save, t, open, refreshQueue, dialledAt],
+    [lead, save, t, open, refreshQueue, dialledAt, dialled],
   );
 
   const pick = useCallback(
@@ -397,6 +415,8 @@ export function CallingScreen({
                 pending={dial.pending}
                 onShow={showNumber}
               />
+              <CallPlan entityId={lead.entityId} opportunityId={lead.opportunityId} />
+              <CallBar key={saves} lead={lead} dialKey onCall={setDialled} />
               <p className="text-sm">
                 {lead.nextCall === null ? (
                   t('lead.noNextCall')

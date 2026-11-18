@@ -41,18 +41,21 @@ step dbverify pnpm db:verify
 step audit pnpm audit --audit-level=moderate
 
 # The build must pass with no .env and no database settings.
-unset DATABASE_URL DATABASE_URL_MIGRATOR DATABASE_URL_AUTH DATABASE_URL_OUTBOX DATABASE_URL_READER
+unset DATABASE_URL DATABASE_URL_MIGRATOR DATABASE_URL_AUTH DATABASE_URL_OUTBOX DATABASE_URL_READER DATABASE_URL_WEBHOOKS
 mv .env "$LOG.env-aside"
 step build pnpm exec turbo run build --force
 mv "$LOG.env-aside" .env
 step jsbudget pnpm --filter web js-budget
 
 # A worktree's .git points outside its folder, so the scan mounts the main checkout and reads only
-# this branch's own commits.
+# this branch's own commits. The main checkout's files are main's, so the branch's own folder is
+# mounted read-only beside it and its .gitleaksignore named: a fingerprint the branch adds counts
+# before it is on main (gitleaks reads /repo/.gitleaksignore as well; the two lists add up).
 BR=$(git branch --show-current)
 MAIN="$(main_checkout)"
 step gitleaks env MSYS_NO_PATHCONV=1 docker run --rm -v "$(docker_path "$MAIN"):/repo" \
-  "$GITLEAKS_IMAGE" git /repo --redact --exit-code 1 "--log-opts=origin/main..$BR"
+  -v "$(docker_path "$PWD"):/branch:ro" "$GITLEAKS_IMAGE" git /repo --redact --exit-code 1 \
+  --gitleaks-ignore-path=/branch/.gitleaksignore "--log-opts=origin/main..$BR"
 
 # The journeys get the fresh database back.
 export_db_urls 54340

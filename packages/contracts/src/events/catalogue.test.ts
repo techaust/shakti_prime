@@ -59,6 +59,8 @@ describe('the event catalogue', () => {
         'crm.opportunity.stage_moved',
         'files.file.uploaded',
         'knowledge.file.index_requested',
+        'knowledge.playbook.changed',
+        'messaging.message.requested',
         'platform.probe.requested',
         'print.document.requested',
         'sales.order.credit_held',

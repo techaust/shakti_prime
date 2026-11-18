@@ -1,8 +1,12 @@
 'use server';
 
 import {
+  ArchiveEntityChannelInput,
   DomainError,
+  ListEntityChannelsInput,
   ReadBankDetailsInput,
+  SetEntityChannelInput,
+  type EntityChannelDto,
   RequestPrintProofInput,
   UpdateEntityInput,
   type EntityBankDetailsDto,
@@ -10,8 +14,11 @@ import {
   type PrintProofDto,
 } from '@shakti/contracts';
 import {
+  archiveEntityChannel as archiveEntityChannelCommand,
   executeCommand,
   executeQuery,
+  listEntityChannels as listEntityChannelsQuery,
+  setEntityChannel as setEntityChannelCommand,
   listEntities as listEntitiesQuery,
   readEntityBankDetails,
   requestPrintProof as requestPrintProofCommand,
@@ -94,6 +101,61 @@ export async function requestPrintProof(
       principal,
       { entityIds: [input.entityId], requestId: meta.requestId },
       requestPrintProofCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/** Settings › Companies › Channels: a company's numbers in use, for the Executive setting them. */
+export async function listEntityChannels(
+  rawInput: unknown,
+): Promise<ActionResult<EntityChannelDto[]>> {
+  return toResult('listEntityChannels', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListEntityChannelsInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (ctx) => listEntityChannelsQuery(ctx, input),
+      { name: 'listEntityChannels' },
+    );
+  });
+}
+
+/** Settings › Companies › Channels: an Executive sets a company's number on one channel. */
+export async function setEntityChannel(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<EntityChannelDto>> {
+  return toResult('setEntityChannel', async () => {
+    const principal = await signedIn();
+    const input = parseInput(SetEntityChannelInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { entityIds: [input.entityId], requestId: meta.requestId },
+      setEntityChannelCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/** Settings › Companies › Channels: an Executive takes a company's number out of use. */
+export async function archiveEntityChannel(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<EntityChannelDto>> {
+  return toResult('archiveEntityChannel', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ArchiveEntityChannelInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { entityIds: [input.entityId], requestId: meta.requestId },
+      archiveEntityChannelCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );

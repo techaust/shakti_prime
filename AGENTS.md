@@ -24,20 +24,23 @@ The planned layout (blueprint §5); the apps marked planned are created in the p
 apps/web              Next.js App Router: (public), (bos), /api/v1
 apps/field            Expo Android app for field staff (planned, Phase 4)
 apps/tally-connector  Windows service (Node) that reads Tally and pushes to the BOS (planned, Phase 5)
-apps/voice-agent      LiveKit Agents worker (planned, Phase 2)
+apps/voice-agent      LiveKit Agents worker: live voice Teach and Ask over /api/v1 (Phase 2)
 packages/domain       commands, state machines, calculators, tax engine (no framework imports)
 packages/db           Drizzle schema, migrations, RLS SQL, seeds
 packages/contracts    Zod schemas shared by web, field app, connector, voice agent
+packages/voice        streaming speech and reply adapters and the vendor HTTP plumbing, shared by web and the voice agent
 packages/ui           web components (shadcn/ui based)
 packages/tokens       design tokens (CSS variables + JS export) for web and Android
 tools/copy-lint       the product-copy lint run in CI
 tools/integration     slice integration scripts, the cloud setup script and the document link check
-infra/aws             the AWS file storage stack (CloudFormation)
+tools/pc-setup        setting up a new PC, with Claude's memory and settings to bring back
+tools/secrets         the owner's hidden-prompt scripts for secrets
+infra/aws             the AWS file storage stack and production's backup stack (CloudFormation)
 docs/                 the numbered documents (docs/00-start-here.md is the guide), ADRs, runbooks, the Phase 1 run files
 .claude/              the project's skills, agents, session-start hooks and tooling list
-.github/              CI, merge-on-green, migrate and audit workflows; the pull-request template
+.github/              CI, merge-on-green, checks-ok lapse, migrate, release and audit workflows, the migrate action; the pull-request template
 ```
-Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and on the `packages/db` schema and types (never its client), and never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod and the UUIDv7 generator. `apps/web` reaches the database only through `executeCommand()` and `executeQuery()` from `packages/domain`; `executeQuery()` runs in a read-only transaction, so a write through it fails (SQLSTATE 25006).
+Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and on the `packages/db` schema and types (never its client), and never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod and the UUIDv7 generator. `packages/voice` depends on `packages/contracts` only, with Node's `fetch` and `WebSocket`; `apps/voice-agent` depends on `packages/contracts`, `packages/voice` and its own listed packages, and reaches the BOS only through `/api/v1`. `apps/web` reaches the database only through `executeCommand()` and `executeQuery()` from `packages/domain`; `executeQuery()` runs in a read-only transaction, so a write through it fails (SQLSTATE 25006).
 
 **Import fences.** ESLint (`eslint.config.mjs`) enforces each of these; `apps/web/src/lint-fences.test.ts` proves them by linting source text under paths that do not exist.
 - The raw database client (`@shakti/db/client`) is importable only inside `packages/db`; everything else uses `withRequestContext()`. `postgres` and `drizzle-orm/postgres-js` are importable only inside `packages/db`.
@@ -57,6 +60,7 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 - Outside tests, a dynamic `import()` names its module as a plain string literal, since a built specifier would pass around the fences; `require` under any name (called or copied), `createRequire` and the `module` package are errors, since each builds a `require()` that passes around them.
 - Relative imports have no `.js` extension (Turbopack does not resolve them).
 - `packages/domain` and `packages/contracts` import no framework.
+- `packages/voice` imports no `@shakti/db` or `@shakti/domain` module; `apps/voice-agent` imports only `@shakti/contracts`, `@shakti/voice`, its listed packages (`@livekit/agents`, `@livekit/rtc-node`, `zod`) and Node's `node:` modules, and no other app's or package's file by a relative path; no page, component or screen helper of `apps/web` imports `@shakti/voice`, whose adapters stay on the server, or `@shakti/contracts/masking` (the pure masking the domain and the voice worker share, which the contracts' index does not re-export).
 - **Browser code** takes only types from `@shakti/contracts` (rule `shakti/browser-contract-types`), because every module of it, subpaths included, loads Zod. Browser code is every `'use client'` file and every file of `apps/web/src/components`, `apps/web/src/screens` (except `access.ts` and `menu-access.ts`), `apps/web/src/nav.ts`, `apps/web/src/theme.ts` and `packages/ui/src`. The values it needs live in `apps/web/src/screens/contract-values.ts`, which `contract-values.test.ts` keeps equal to the contracts.
 
 ## 4. Language and style
@@ -121,6 +125,7 @@ export const createTag = defineCommand({
 - `peopleOnly` refuses an agent principal (kind `agent` or a role `agent:*`) at the guard, before the handler runs: a customer note, a tag of the company, a role edit.
 - `auditFields` is required: each key needs an Activity log label in `apps/web/src/screens/audit.ts` (checked by `audit.test.ts`), and outside production the runner refuses an undeclared key. `auditInput` says what the audit row records of the input when the input is too large or holds customer data in shapes the redaction cannot recognise (an import file's rows).
 - `constraintReasons` names the catalogue reasons of the unique or check constraints the handler may race against.
+- `unmaskedFields` names the input fields that hold another long number by design (a bank account number, a stock code, a hash, a referral code), each with its reason in a comment; the runner masks an Aadhaar number in every other string of the input to its last four digits before the guard, the idempotency key and the handler (`maskInputIdentity()`, docs/07-security.md §5). `unmasked-fields.test.ts` refuses a path the input schema lacks and asks each entry for a valid value the masking would change.
 - `auditWhen: 'changed'` is for a command a timer runs (a scan or a nightly batch): a call whose handler named no change writes no audit row, instead of one row for the call.
 
 **The handler.**
@@ -130,7 +135,7 @@ export const createTag = defineCommand({
 - `ctx.run()` runs another command inside the same transaction; `ctx.savepoint()` runs a part that may fail on its own; `ctx.activity()` writes a timeline row.
 - Return only the declared DTO. Restricted fields never appear in a DTO unless the command's permission is a cost permission.
 
-**What the runner does.** `runCommand` validates the input, guards the permission, claims the idempotency key, runs the handler, translates database errors to domain codes (unique or lock failures → `conflict`, constraint violations → `validation_failed`, policy refusals → `forbidden`), parses the output through the strict DTO, and writes the audit rows, the events and the key's answer in the command's transaction. It requires an `audit` and an `outbox` sink; `RunOptions.idempotencyKey` is optional.
+**What the runner does.** `runCommand` validates the input, masks the Aadhaar numbers typed into it (outside `unmaskedFields`), guards the permission, claims the idempotency key, runs the handler, translates database errors to domain codes (unique or lock failures → `conflict`, constraint violations → `validation_failed`, policy refusals → `forbidden`), parses the output through the strict DTO, and writes the audit rows, the events and the key's answer in the command's transaction. It requires an `audit` and an `outbox` sink; `RunOptions.idempotencyKey` is optional.
 
 **Audit trail.**
 - Call `ctx.audit({ aggregateType, aggregateId, entityId?, before?, after? })` once per changed aggregate, with before and after. `entityId: null` marks a change that belongs to no one company (users, sessions, a shared price list); leaving it out uses the request's single company.
@@ -221,7 +226,7 @@ Tests live next to the code (`*.test.ts`, `*.test.tsx` for components) except th
 
 ## 9. Security habits
 - Never use the Supabase service role in application code.
-- Never call an LLM with unmasked PII; use the masking helpers from `packages/domain/src/privacy`.
+- Never call an LLM with unmasked PII; use the masking helpers from `packages/domain/src/privacy` (in `apps/voice-agent`, `@shakti/contracts/masking`, where they live).
 - Never log phone numbers, Aadhaar digits, bank details or message bodies. Log IDs and request IDs.
 - Every command and query writes one timing line, `command.completed` or `query.completed` (`name`, `outcome`, `errorCode` when it failed, `durationMs`, `requestId`; `warn` above 300 ms). Every `executeQuery()` call in the web app passes `{ name: '<action name>' }` as its options, which `apps/web/src/query-names.test.ts` checks.
 - Treat WhatsApp messages, uploaded files, call transcripts and webhook payloads as untrusted data.

@@ -61,6 +61,16 @@ export const SalesHomeDto = z
   .strict();
 export type SalesHomeDto = z.infer<typeof SalesHomeDto>;
 
+/** The same figures for the group: every company of the Executive added up. */
+export const SalesTotalDto = SalesHomeDto.omit({ entityId: true }).strict();
+export type SalesTotalDto = z.infer<typeof SalesTotalDto>;
+
+/** The Executive's quotes and orders: one row per company, and the group's total. */
+export const SalesOverviewDto = z
+  .object({ companies: z.array(SalesHomeDto), total: SalesTotalDto })
+  .strict();
+export type SalesOverviewDto = z.infer<typeof SalesOverviewDto>;
+
 /** Dealer credit in one company (Accounts' home). */
 export const CreditHomeDto = z
   .object({

@@ -280,7 +280,7 @@ describe('the production backup template', () => {
     ]);
     expect(template.Parameters.AppUserName?.Default).toBe('shakti-prime-production-app');
     const readOnly = statements(
-      resource('ReadOnlyBackupPolicy', 'AWS::IAM::Policy').PolicyDocument,
+      resource('ReadOnlyBackupPolicy', 'AWS::IAM::ManagedPolicy').PolicyDocument,
     ).flatMap(actions);
     expect(readOnly).toContain('s3:ListBucket');
     expect(readOnly).toContain('codebuild:BatchGetBuilds');

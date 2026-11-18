@@ -2,6 +2,7 @@
 // §3.4). Pure functions, so the screen and its tests share them.
 
 import type { EventType } from '@shakti/contracts';
+import { moneyFromPaise } from './agents';
 import { istDay } from './ist';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -91,6 +92,30 @@ const ACTIONS = {
   'crm.consent.record': 'consentRecord',
   'crm.consent.withdraw': 'consentWithdraw',
   'org.entity.update': 'entityUpdate',
+  'org.channel.set': 'channelSet',
+  'org.channel.archive': 'channelArchive',
+  'crm.phone.dnd_record': 'phoneDndRecord',
+  'messaging.message.send': 'whatsappSend',
+  'messaging.thread.hand_off': 'whatsappHandOff',
+  'messaging.thread.return_to_assistant': 'whatsappReturn',
+  'messaging.template.register': 'whatsappTemplateRegister',
+  'messaging.inbound.record': 'whatsappInbound',
+  'messaging.thread.match': 'whatsappMatch',
+  'messaging.status.record': 'whatsappStatus',
+  'messaging.template.record_status': 'whatsappTemplateStatus',
+  'messaging.opt_out.record': 'whatsappOptOut',
+  'messaging.thread.record_hand_off': 'whatsappPlatformHandOff',
+  'messaging.message.queue': 'whatsappQueue',
+  'messaging.message.claim': 'whatsappClaim',
+  'messaging.message.record_send': 'whatsappSendRecorded',
+  'messaging.media.attach': 'whatsappMediaAttach',
+  'crm.lead.ingest': 'leadIngest',
+  'crm.lead.qualification.set': 'leadQualificationSet',
+  'crm.source.set': 'sourceSet',
+  'crm.source.archive': 'sourceArchive',
+  'crm.source.record_questions': 'sourceQuestionsRecord',
+  'crm.ingest_key.create': 'ingestKeyCreate',
+  'crm.ingest_key.revoke': 'ingestKeyRevoke',
   'pricing.price.set': 'priceSet',
   'pricing.list.create': 'priceListCreate',
   'pricing.list.approve': 'priceListApprove',
@@ -152,6 +177,17 @@ const ACTIONS = {
   'knowledge.file.reindex': 'knowledgeFileReindex',
   'knowledge.file.archive': 'knowledgeFileArchive',
   'knowledge.file.record_index': 'knowledgeFileIndexed',
+  'knowledge.file.record_transcript': 'knowledgeTranscriptKept',
+  'knowledge.transcript.correct': 'knowledgeTranscriptCorrect',
+  'knowledge.playbook.draft': 'playbookDraft',
+  'knowledge.playbook.edit': 'playbookEdit',
+  'knowledge.playbook.approve': 'playbookApprove',
+  'knowledge.playbook.retire': 'playbookRetire',
+  'knowledge.playbook.resolve_conflict': 'playbookResolveConflict',
+  'knowledge.playbook.record_check': 'playbookCheckRecorded',
+  'knowledge.playbook.draft_from_file': 'playbookDraftFromFile',
+  'knowledge.ask.record': 'askRecord',
+  'knowledge.ask.delete': 'askDelete',
   'agents.inbox.complete': 'inboxComplete',
   'crm.enquiry.route': 'enquiryRoute',
   'crm.enquiry.take': 'enquiryTake',
@@ -173,6 +209,10 @@ const ACTIONS = {
   'crm.lead.rescore': 'leadRescore',
   'crm.lead.score_refresh': 'leadScoreRefresh',
   'crm.lead.anonymise': 'leadAnonymise',
+  'webhooks.event.claim': 'webhookClaim',
+  'webhooks.event.mark': 'webhookMark',
+  'webhooks.inbox.sweep': 'webhookSweep',
+  'webhooks.event.replay': 'webhookReplay',
   'crm.duplicate.scan': 'duplicateScan',
   'crm.duplicate.dismiss': 'duplicateDismiss',
   'crm.duplicate.suggest': 'duplicateSuggest',
@@ -187,6 +227,15 @@ const ACTIONS = {
   'crm.referral_partner.create': 'referralPartnerCreate',
   'crm.commission_rule.set': 'commissionRuleSet',
   'calls.call.log': 'callLog',
+  'calls.call.dial': 'callDial',
+  'calls.provider_call.record': 'providerCallRecord',
+  'calls.recording.attach': 'callRecordingAttach',
+  'calls.recording.delete': 'callRecordingDelete',
+  'calls.recording.play': 'callRecordingPlay',
+  'crm.caller_profile.set_dial_phone': 'callerProfileSetDialPhone',
+  'voice.session.start': 'voiceSessionStart',
+  'voice.session.token': 'voiceSessionToken',
+  'voice.session.record': 'voiceSessionRecord',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -254,6 +303,11 @@ const EVENT_NAMES = {
   'sales.quote.withdrawn': 'quoteWithdrawn',
   'sales.quote.expired': 'quoteExpired',
   'knowledge.file.index_requested': 'knowledgeIndexRequested',
+  'knowledge.playbook.changed': 'playbookChanged',
+  'messaging.message.requested': 'whatsappRequested',
+  'messaging.message.received': 'whatsappReceived',
+  'messaging.button.pressed': 'whatsappButtonPressed',
+  'calls.dial.completed': 'dialCompleted',
   'sales.quote.accepted': 'quoteAccepted',
   'sales.order.created': 'orderCreated',
   'sales.order.confirmed': 'orderConfirmed',
@@ -356,6 +410,7 @@ const CODE_GROUPS = [
   'consentChannel',
   'consentPurpose',
   'consentSource',
+  'webhookProvider',
   'itemCategory',
   'itemUnit',
   'priceTier',
@@ -378,9 +433,27 @@ const CODE_GROUPS = [
   'knowledgeState',
   'knowledgeSensitivity',
   'knowledgeSource',
+  'playbookType',
+  'playbookAudience',
+  'playbookState',
+  'playbookResolution',
   'targetScope',
   'targetMetric',
   'targetPeriod',
+  'channelKind',
+  'whatsappMessageKind',
+  'whatsappHandler',
+  'whatsappHandoffReason',
+  'whatsappTemplateCategory',
+  'whatsappTemplateStatus',
+  'whatsappTemplatePurpose',
+  'leadChannel',
+  'ingestOutcome',
+  'ingestAssignee',
+  'sourceProvider',
+  'callPurpose',
+  'callStatus',
+  'voiceMode',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -484,6 +557,25 @@ const FIELD_KINDS = [
   ['givenAt', 'time'],
   ['withdrawnAt', 'time'],
   ['evidence', 'yesNo'],
+  // A company's numbers (org.channel.set) and a phone's do-not-disturb check
+  ['channelKind', 'channelKind'],
+  ['channelNumber', 'text'],
+  ['providerRef', 'text'],
+  ['dltHeader', 'text'],
+  ['verified', 'yesNo'],
+  ['isDnd', 'yesNo'],
+  ['dndCheckedAt', 'time'],
+  // WhatsApp (docs/03-roadmap-appendix/phase2.md §6.1)
+  ['messageKind', 'whatsappMessageKind'],
+  ['templateName', 'text'],
+  ['handledBy', 'whatsappHandler'],
+  ['handoffReason', 'whatsappHandoffReason'],
+  ['templateCategory', 'whatsappTemplateCategory'],
+  ['templateStatus', 'whatsappTemplateStatus'],
+  ['templatePurpose', 'whatsappTemplatePurpose'],
+  ['matched', 'yesNo'],
+  ['optedOutAt', 'time'],
+  ['consentsWithdrawn', 'number'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],
@@ -544,6 +636,9 @@ const FIELD_KINDS = [
   ['attempts', 'number'],
   ['deadLetteredAt', 'time'],
   ['requestedAt', 'time'],
+  // Messages other systems send in (P5)
+  ['provider', 'webhookProvider'],
+  ['failed', 'yesNo'],
   // Pipelines, call outcomes, scoring and referrals
   ['lockHours', 'number'],
   ['firstContactSlaMinutes', 'number'],
@@ -563,6 +658,13 @@ const FIELD_KINDS = [
   ['callOutcome', 'text'],
   ['attemptNo', 'number'],
   ['durationSeconds', 'number'],
+  // Click-to-dial calls and their recordings
+  ['callPurpose', 'callPurpose'],
+  ['numberSeries', 'text'],
+  ['callStatus', 'callStatus'],
+  ['endedAt', 'time'],
+  ['listenedAt', 'time'],
+  ['dialPhone', 'text'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],
   ['purpose', 'filePurpose'],
@@ -639,6 +741,25 @@ const FIELD_KINDS = [
   ['chunks', 'number'],
   ['replaced', 'number'],
   ['errorReason', 'errorCode'],
+  ['transcriptChars', 'number'],
+  // The Playbook
+  ['directiveType', 'playbookType'],
+  ['audience', 'playbookAudience'],
+  ['directiveState', 'playbookState'],
+  ['fromVaultFile', 'yesNo'],
+  ['textChanged', 'yesNo'],
+  ['retiredReason', 'text'],
+  ['conflictsSettled', 'number'],
+  ['resolution', 'playbookResolution'],
+  ['resolutionNote', 'text'],
+  ['pairs', 'number'],
+  ['openConflicts', 'number'],
+  ['drafts', 'number'],
+  // Ask the Business: what happened, never the question or the answer
+  ['askAnswered', 'yesNo'],
+  ['citedSources', 'number'],
+  ['unsourcedFigures', 'number'],
+  ['askMessages', 'number'],
   // Notifications and routed enquiries
   ['note', 'text'],
   ['notices', 'number'],
@@ -649,6 +770,30 @@ const FIELD_KINDS = [
   ['pushOff', 'number'],
   ['quietFrom', 'text'],
   ['quietTo', 'text'],
+  // Leads from integrations, lead sources, website keys and qualification facts (I1)
+  ['leadChannel', 'leadChannel'],
+  ['ingestOutcome', 'ingestOutcome'],
+  ['assignedTo', 'ingestAssignee'],
+  ['attribution', 'recorded'],
+  ['qualification', 'recorded'],
+  ['sourceProvider', 'sourceProvider'],
+  ['externalId', 'text'],
+  ['fieldMap', 'recorded'],
+  ['pageTokenSet', 'yesNo'],
+  ['keyHint', 'text'],
+  ['pumpDepthFt', 'number'],
+  ['requiredHp', 'number'],
+  ['monthlyBillRupees', 'number'],
+  ['roofAreaSqFt', 'number'],
+  ['sanctionedLoadKw', 'number'],
+  ['discomConsumerNo', 'text'],
+  // Talk to Shakti sessions (V2)
+  ['mode', 'voiceMode'],
+  ['consentRecording', 'yesNo'],
+  ['minutes', 'number'],
+  // Whole paise, shown as rupees through the money formatter.
+  ['costPaise', 'paise'],
+  ['turns', 'number'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
@@ -780,6 +925,11 @@ function known(field: FieldKey, value: unknown, aggregateType: string | null): C
   if (value === undefined) return EMPTY;
   if (kind === 'recorded') return { kind: 'yesNo', value: value !== null };
   if (value === null) return EMPTY;
+  if (kind === 'paise') {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+      ? { kind: 'money', amount: moneyFromPaise(value) }
+      : EMPTY;
+  }
   if (typeof value === 'string') {
     if (kind === 'money') return { kind: 'money', amount: value };
     if (kind === 'userStatus') return { kind: 'userStatus', value };

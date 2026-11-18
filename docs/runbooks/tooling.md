@@ -18,7 +18,7 @@ What a cloud session has of this list: the skills committed in `.claude/skills/`
 | github | plugin | 0 | A personal access token (see GitHub below) |
 | vercel | MCP (`.mcp.json`) | 0 | Vercel sign-in on first use |
 | shadcn | MCP (`.mcp.json`) | 0 | None |
-| vercel-agent-skills | skills (`.claude/skills`) | 0 | None |
+| vercel-agent-skills | skills (`.claude/skills`), without `vercel-optimize`, which the install adds and this project does not use | 0 | None |
 | playwright | plugin | 1 | None |
 | sentry | plugin | 1 | Sentry sign-in (organisation `shakti-supreme`) |
 | aws-mcp | MCP (user scope); it serves the AWS skills on demand through its `retrieve_skill` tool | 1 | The read-only IAM user `claude-shakti` |

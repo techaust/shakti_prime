@@ -225,6 +225,12 @@ export const Account360Dto = z
      * (CRM-10): their numbers stay readable but are not offered for a call.
      */
     callConsentWithdrawn: z.boolean(),
+    /**
+     * Whether the customer's numbers may not be called by the dial rules (`app.call_opt_out()`,
+     * design phase2 §5.2): `callConsentWithdrawn`, or anyone holding one of the numbers on another
+     * customer withdrew consent to calls. The numbers are then never offered as a call link.
+     */
+    callOptOut: z.boolean(),
     sites: z.array(CustomerSiteDto),
     leads: z.array(CustomerLeadDto),
     tasks: z.array(CustomerTaskDto),

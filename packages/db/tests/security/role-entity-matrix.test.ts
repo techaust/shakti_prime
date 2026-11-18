@@ -81,6 +81,12 @@ const INBOX = grant('agents.inbox.act', 'own');
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
+/** The conflict check's pairs, read by either playbook grant with their directive (0161). */
+const PLAYBOOK_GRANTS: Rule = {
+  kind: 'any',
+  rules: [grant('knowledge.playbook.draft', 'all'), grant('knowledge.playbook.approve', 'all')],
+};
+
 /**
  * A file is read by its purpose (0062, `app.file_purpose_grant()`); the matrix acts as the file's
  * uploader, so `own` is the narrowest scope that reads one. A logo and a letterhead are read by
@@ -97,6 +103,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   consent_evidence: grant('crm.account.write', 'own'),
   // A company's proof page prints its bank account: an Executive's alone.
   print_proof: grant('admin.entities.write', 'own'),
+  // A call's recording is heard only through calls.recording.play, never read as a file.
+  call_recording: NEVER,
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({
@@ -238,10 +246,35 @@ const RULES: Record<MatrixTable, TableRule> = {
   inbox_items: { read: INBOX, leak: otherCompany },
   knowledge_files: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
   knowledge_chunks: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
+  // Every fixture directive is an approved one for staff, which every staff role reads.
+  playbook_directives: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
+  playbook_conflict_checks: { read: PLAYBOOK_GRANTS, group: PLAYBOOK_GRANTS, leak: otherCompany },
   // A person's own notices in the company they act in, whatever their role; never another's.
   notifications: {
     read: CONTEXT,
     readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
+    leak: otherCompany,
+  },
+  // A person's own Ask conversations and messages in the company they act in, whatever their
+  // role; never another's, and never one covering several companies to someone acting in one.
+  ask_conversations: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
+    group: NEVER,
+    leak: otherCompany,
+  },
+  ask_messages: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
+    group: NEVER,
+    leak: otherCompany,
+  },
+  // A person's own voice sessions; another person's only to the Executive (audit.read for the
+  // group). A session over every company is read only in a request covering them all.
+  voice_sessions: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? grant('audit.read', 'all') : CONTEXT),
+    group: NEVER,
     leak: otherCompany,
   },
   // A caller's own target and their team's, whatever their role; another caller's only to a
@@ -258,6 +291,31 @@ const RULES: Record<MatrixTable, TableRule> = {
     readRow: (row) => (row.othersOwn === true ? grant('crm.lead.assign', 'team') : CONTEXT),
     leak: otherCompany,
   },
+  // A company's numbers: every principal acting in the company reads them (design phase2 §5.2).
+  entity_channels: { read: CONTEXT, leak: otherCompany },
+  // A WhatsApp thread and its messages are read under the customer's read rule, as Account 360;
+  // one matched to no customer yet only with messaging.send for the company (design phase2 §6.1).
+  whatsapp_threads: {
+    read: ACCOUNT_READ,
+    readRow: (row) => (row.unmatched === true ? grant('messaging.send', 'entity') : ACCOUNT_READ),
+    throughLead: LEAD_READ,
+    leak: otherCompany,
+  },
+  whatsapp_messages: {
+    read: ACCOUNT_READ,
+    readRow: (row) => (row.unmatched === true ? grant('messaging.send', 'entity') : ACCOUNT_READ),
+    throughLead: LEAD_READ,
+    leak: otherCompany,
+  },
+  // A company's templates: every principal acting in the company reads them (the composer).
+  whatsapp_templates: { read: CONTEXT, leak: otherCompany },
+  // A company's connected forms and sites and its website keys: an Executive's (design phase2 §6.2).
+  ingest_sources: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
+  ingest_keys: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
+  // A lead's qualification facts, read with the lead.
+  lead_qualifications: { read: LEAD_READ, leak: otherCompany },
+  // A provider's call is a child of the lead: read with it, as the call log is.
+  provider_calls: { read: LEAD_READ, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {

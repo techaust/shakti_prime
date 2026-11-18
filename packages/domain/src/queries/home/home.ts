@@ -5,10 +5,12 @@ import {
   PipelineStagesDto,
   ResponseTimeDto,
   SalesHomeDto,
+  SalesTotalDto,
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { sql } from 'drizzle-orm';
 import { checkPermission, isAgent } from '../../command/run-command';
+import { moneyFromPaise, toPaise } from '../../money/paise';
 import { creditStanding } from '../../sales/credit-check';
 import { periodBounds, periodStartOn } from '../../sales/targets';
 import { teamQueueCountsSql } from '../calls/call-queue';
@@ -205,6 +207,29 @@ export async function homeSales(ctx: Ctx, now: Date = new Date()): Promise<Sales
       ordersValue: r.orders_value,
     }),
   );
+}
+
+/**
+ * The group's total of the companies' sales figures (the Executive's home), which are read one
+ * company at a time. The order values are added in paise, so the total is exact.
+ */
+export function salesGroupTotal(companies: readonly SalesHomeDto[]): SalesTotalDto {
+  let quotesSent = 0;
+  let quotesAccepted = 0;
+  let ordersConfirmed = 0;
+  let ordersValue = 0n;
+  for (const c of companies) {
+    quotesSent += c.quotesSent;
+    quotesAccepted += c.quotesAccepted;
+    ordersConfirmed += c.ordersConfirmed;
+    ordersValue += toPaise(c.ordersValue);
+  }
+  return SalesTotalDto.parse({
+    quotesSent,
+    quotesAccepted,
+    ordersConfirmed,
+    ordersValue: moneyFromPaise(ordersValue),
+  });
 }
 
 /**

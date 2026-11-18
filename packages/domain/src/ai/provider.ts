@@ -15,8 +15,11 @@ import {
 } from './models';
 import {
   ModelCallError,
+  type ModelToolCall,
+  type ModelTool,
   type ModelDocument,
   type EmbeddingTransport,
+  type ModelEffort,
   type ModelReply,
   type ModelTransport,
 } from './transport';
@@ -58,7 +61,9 @@ export interface SpendCap {
 export type AiSpender =
   | AgentRoleKey
   | (typeof AGENT_DEFAULTS.knowledge)['indexName']
-  | (typeof AGENT_DEFAULTS.knowledge)['searchName'];
+  | (typeof AGENT_DEFAULTS.knowledge)['searchName']
+  | (typeof AGENT_DEFAULTS.playbook)['spendName']
+  | (typeof AGENT_DEFAULTS.ask)['spendName'];
 
 interface CallBase {
   agent: AiSpender;
@@ -79,6 +84,12 @@ interface CallBase {
    * `details.scope` `person`, if the person's total for the day would pass `capPaise`.
    */
   person?: { id: string; capPaise: number };
+  /**
+   * A part of the spender's work with a daily cap of its own for the whole group (transcribing
+   * vault recordings within the index's spend), counted beside the caps: the call is refused, with
+   * `details.scope` `part`, if the part's total for the day would pass `capPaise`.
+   */
+  part?: { name: string; capPaise: number };
   /**
    * Milliseconds the whole call may take, every attempt and pause between them included; past
    * it the call stops with `integration_unavailable` and `details.reason` `ai_deadline_exceeded`,
@@ -108,11 +119,24 @@ export interface CompleteCall extends CallBase {
    */
   documents?: readonly ModelDocument[];
   maxTokens?: number;
+  /** How much the model thinks before answering (`AGENT_DEFAULTS`); the model's default if left out. */
+  effort?: ModelEffort;
   /**
    * Milliseconds per attempt, for a call that writes a long answer (copying out a vault file's
    * text); `AI_CALL_TIMEOUT_MS` when left out.
    */
   timeoutMs?: number;
+  /** Read-only lookups the model may ask for (Ask the Business); none when left out. */
+  tools?: readonly ModelTool[];
+  /**
+   * The rounds of lookups so far: the model's turn as the last call returned it (`assistant`),
+   * and each call's answer, which is data from the business (records people and customers
+   * wrote), so the wrapper masks it and labels it as data under `source`, as it does `untrusted`.
+   */
+  rounds?: readonly {
+    assistant: unknown;
+    results: readonly { callId: string; source: string; content: string; isError?: boolean }[];
+  }[];
 }
 
 export interface CompleteResult {
@@ -121,6 +145,9 @@ export interface CompleteResult {
   usage: TokenUsage;
   costPaise: number;
   stopped: ModelReply['stopped'];
+  /** The lookups the model asks for, and its turn to send back with their answers. */
+  toolCalls?: readonly ModelToolCall[];
+  assistant?: unknown;
 }
 
 export interface EmbedCall extends CallBase {
@@ -134,6 +161,17 @@ export interface EmbedResult {
   model: string;
   tokens: number;
   costPaise: number;
+}
+
+/**
+ * Paid work of a vendor other than Claude and Voyage (a speech service transcribing a recording),
+ * held against the same caps as a model call.
+ */
+export interface MeteredCall extends CallBase {
+  /** Who does the work, for the log (`sarvam`). */
+  vendor: string;
+  /** The most the work can cost, in paise, reserved before it starts. */
+  maxPaise: number;
 }
 
 export interface AiProviderDeps {
@@ -154,6 +192,13 @@ export interface AiProvider {
   readonly embeddingsAvailable: boolean;
   complete(call: CompleteCall): Promise<CompleteResult>;
   embed(call: EmbedCall): Promise<EmbedResult>;
+  /**
+   * Runs paid work outside the model vendors under the caller's caps: `maxPaise` is reserved before
+   * `work` starts (refused, as a model call is, when a cap would be passed), and settled at what the
+   * work reports through `spend` once it ends, whether it answered or failed, since a vendor bills
+   * what it was sent. The work keeps its own timeouts and retries.
+   */
+  metered<T>(call: MeteredCall, work: (spend: (paise: number) => void) => Promise<T>): Promise<T>;
 }
 
 /** The key holding one agent's spend today, in a company or (null) the group. */
@@ -194,7 +239,7 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
     }
   }
 
-  function capReached(call: CallBase, scope?: 'person'): DomainError {
+  function capReached(call: CallBase, scope?: 'person' | 'part'): DomainError {
     return new DomainError('rate_limited', `${call.agent} reached its daily spend cap`, {
       reason: 'agent_spend_cap_reached',
       ...(scope === undefined ? {} : { scope }),
@@ -224,11 +269,23 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       call.entityId === null
         ? [spendKey(call.agent, null, day)]
         : [spendKey(call.agent, call.entityId, day), spendKey(call.agent, null, day)];
-    const personKey =
-      call.person === undefined
-        ? undefined
-        : `ai:spend:${call.agent}:person:${call.person.id}:${day}`;
-    const held: readonly string[] = personKey === undefined ? keys : [...keys, personKey];
+    // The person's and the part's own totals, each beside the caps with its own limit.
+    const shares: { key: string; capPaise: number; scope: 'person' | 'part' }[] = [];
+    if (call.person !== undefined) {
+      shares.push({
+        key: `ai:spend:${call.agent}:person:${call.person.id}:${day}`,
+        capPaise: call.person.capPaise,
+        scope: 'person',
+      });
+    }
+    if (call.part !== undefined) {
+      shares.push({
+        key: `ai:spend:${call.agent}:part:${call.part.name}:${day}`,
+        capPaise: call.part.capPaise,
+        scope: 'part',
+      });
+    }
+    const held: readonly string[] = [...keys, ...shares.map((share) => share.key)];
     const totals: number[] = [];
     for (const key of held) {
       try {
@@ -249,9 +306,11 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       await move(call, reservation, -paise);
       throw capReached(call);
     }
-    if (call.person !== undefined && (totals[keys.length] ?? 0) > call.person.capPaise) {
-      await move(call, reservation, -paise);
-      throw capReached(call, 'person');
+    for (const [i, share] of shares.entries()) {
+      if ((totals[keys.length + i] ?? 0) > share.capPaise) {
+        await move(call, reservation, -paise);
+        throw capReached(call, share.scope);
+      }
     }
     return reservation;
   }
@@ -340,11 +399,24 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       ].join('\n\n');
       const maxTokens = call.maxTokens ?? 1024;
       const documents = call.documents ?? [];
+      const tools = call.tools ?? [];
+      const rounds = (call.rounds ?? []).map((r) => ({
+        assistant: r.assistant,
+        results: r.results.map((x) => ({
+          callId: x.callId,
+          content: labelUntrusted(x.source, x.content),
+          ...(x.isError === true ? { isError: true } : {}),
+        })),
+      }));
       // A document's tokens cannot be counted from its bytes; the context window bounds them all.
+      // Tools and earlier rounds are sent as JSON, which their own JSON's bytes bound.
       const inputBound =
         documents.length > 0
           ? (MODEL_CONTEXT_TOKENS[model] ?? Number.MAX_SAFE_INTEGER)
-          : bytes(system) + bytes(user);
+          : bytes(system) +
+            bytes(user) +
+            (tools.length === 0 ? 0 : bytes(JSON.stringify(tools))) +
+            (rounds.length === 0 ? 0 : bytes(JSON.stringify(rounds)));
       const held = await reserve(call, maxCostInPaise(model, inputBound, maxTokens));
       const started = now().getTime();
       let reply: ModelReply;
@@ -353,7 +425,16 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
           'anthropic',
           (signal) =>
             claude.complete(
-              { model, system, user, maxTokens, ...(documents.length > 0 ? { documents } : {}) },
+              {
+                model,
+                system,
+                user,
+                maxTokens,
+                ...(documents.length > 0 ? { documents } : {}),
+                ...(tools.length > 0 ? { tools } : {}),
+                ...(rounds.length > 0 ? { rounds } : {}),
+                ...(call.effort === undefined ? {} : { effort: call.effort }),
+              },
               signal,
             ),
           call.timeoutMs ?? timeoutMs,
@@ -373,11 +454,21 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
           reply.usage.inputTokens + reply.usage.cacheReadTokens + reply.usage.cacheWriteTokens,
         tokensOut: reply.usage.outputTokens,
         documents: documents.length,
+        toolCalls: reply.toolCalls?.length ?? 0,
         costPaise,
         stopped: reply.stopped,
         durationMs: now().getTime() - started,
       });
-      return { text: reply.text, model, usage: reply.usage, costPaise, stopped: reply.stopped };
+      return {
+        text: reply.text,
+        model,
+        usage: reply.usage,
+        costPaise,
+        stopped: reply.stopped,
+        ...(reply.toolCalls === undefined || reply.toolCalls.length === 0
+          ? {}
+          : { toolCalls: reply.toolCalls, assistant: reply.assistant }),
+      };
     },
 
     async embed(call) {
@@ -422,6 +513,33 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         costPaise,
       });
       return { vectors: reply.vectors, model, tokens: reply.tokens, costPaise };
+    },
+
+    async metered(call, work) {
+      const maxPaise = Math.ceil(Math.max(0, call.maxPaise));
+      const held = await reserve(call, maxPaise);
+      const started = now().getTime();
+      let spent = 0;
+      const spend = (paise: number) => {
+        if (Number.isFinite(paise) && paise > 0) spent += paise;
+      };
+      let outcome: 'answered' | 'failed' = 'failed';
+      try {
+        const answer = await work(spend);
+        outcome = 'answered';
+        return answer;
+      } finally {
+        const costPaise = Math.ceil(spent);
+        await settle(call, held, costPaise);
+        logger.log('info', 'ai.metered', {
+          agent: call.agent,
+          purpose: call.purpose,
+          vendor: call.vendor,
+          costPaise,
+          outcome,
+          durationMs: now().getTime() - started,
+        });
+      }
     },
   };
 }

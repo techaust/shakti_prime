@@ -13,17 +13,22 @@ import {
 } from '@shakti/db/testing';
 import {
   addKnowledgeFile,
+  approvePlaybookDirective,
+  checkPlaybook,
   createAiProvider,
+  draftPlaybookDirective,
   createImportJob,
   createLead,
   executeCommand,
   fakeModelTransport,
+  fakeReply,
   indexKnowledgeFile,
   memoryKeyValue,
   memoryLogger,
   memoryMailer,
   notifyEvent,
   parseImportFile,
+  setEntityChannel,
   setReferralPartner,
   setTarget,
 } from '@shakti/domain';
@@ -33,6 +38,8 @@ import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
 import { renderMaskedPages } from '../../src/workers/files/pdf-pages';
+// The WAV writer alone: the package's index loads the contracts, whose JSON a journey cannot import.
+import { writeWav } from '@shakti/voice/recording';
 import { readWordText } from '../../src/workers/knowledge/read-word';
 import { converterKey, CONVERTER_NAME } from '../converting-fixtures';
 import { wordDocument } from '../support/docx';
@@ -45,9 +52,11 @@ import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
+import { ensureWhatsAppJourneys } from './whatsapp';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
+  CALLING_NUMBERS,
   E2E_PASSWORD,
   emailFor,
   INBOX_SUGGESTIONS,
@@ -61,8 +70,12 @@ import {
   SNAPSHOT_HELD_BACK_ID,
   SNAPSHOT_IMPORT_FILE,
   SNAPSHOT_LEADS,
+  WHATSAPP,
   SNAPSHOT_SUGGESTIONS,
   SNAPSHOT_TEAM,
+  SNAPSHOT_PLAYBOOK,
+  READER_RECORDING,
+  SNAPSHOT_RECORDING,
   SNAPSHOT_VAULT,
   type ProjectName,
   type SeededUsers,
@@ -311,6 +324,29 @@ async function holdBackUpdate(id: string, entityId: number, heldAt: string): Pro
 }
 
 /**
+ * A message from another system that failed after its retries (Integration health › Messages from
+ * other systems), as the failure callback leaves one. Written as the table owner: no request role
+ * writes `webhook_inbox`. Its payload is one the Lead Ads contract refuses, so Process again
+ * handles it and it fails once more (`payload_unreadable`): the list keeps one row per project
+ * whichever journeys ran, and the page's screenshot the same rows.
+ */
+async function failedWebhook(id: string): Promise<void> {
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      // A fixed id per project, written afresh each run (a delete is the purge's alone, so this
+      // transaction says it is one), so a database the journeys ran on before still lists the
+      // same rows and the screenshot stays the same.
+      await tx`select set_config('app.webhook_retention', 'purge', true)`;
+      await tx`delete from webhook_inbox where id = ${id}`;
+      await tx`insert into webhook_inbox (id, provider, provider_event_id, payload_json,
+                                          payload_sha256, attempts, failed_at, error_code)
+               values (${id}, 'meta_leadgen', ${id}, '{"object": "page", "entry": []}'::jsonb,
+                       ${createHash('sha256').update(id).digest('hex')}, 4, now(), 'handler_failed')`;
+    }),
+  );
+}
+
+/**
  * The referral partner of `users.ts`, made once in company 1 by the seed's Executive as a customer
  * of the kind Referral partner, with its code accepted on new leads. Found again by its code.
  */
@@ -332,6 +368,26 @@ async function ensureReferralPartner(executiveId: string): Promise<void> {
     code: REFERRAL_PARTNER.code,
     isActive: true,
   });
+}
+
+/**
+ * Company 1's sales and service calling numbers (`CALLING_NUMBERS`), synthetic 140-series and
+ * 160-series ones, set as an Executive sets them, so the workspaces' call plan names a number
+ * (channels.spec.ts). Setting the same number again changes nothing.
+ */
+async function ensureCallingNumbers(executiveId: string): Promise<void> {
+  const executive = principalFor('executive', [1, 2, 3, 4], { id: executiveId });
+  for (const [channel, number] of [
+    ['call_promo_140', CALLING_NUMBERS.promo],
+    ['call_service_160', CALLING_NUMBERS.service],
+  ] as const) {
+    await executeCommand(executive, { entityIds: [1] }, setEntityChannel, {
+      entityId: 1,
+      channel,
+      number,
+      verified: true,
+    });
+  }
 }
 
 /**
@@ -460,6 +516,134 @@ async function ensureSnapshotVault(executiveId: string): Promise<void> {
       logger: memoryLogger(),
     },
   );
+}
+
+/**
+ * A vault recording made once (K3): a checked WAV upload added by the Executive and read at once by
+ * the index job, its speech service a stand-in that answers the recording's synthetic transcript,
+ * since no speech service runs in the journeys.
+ */
+async function ensureRecording(
+  executiveId: string,
+  recording: { title: string; transcript: string },
+  entityId: number,
+  sensitivity: 'staff_ai_ok' | 'management',
+): Promise<string> {
+  const [found] = await asMigrator(
+    (m) => m<{ id: string }[]>`select id from knowledge_files
+                              where entity_id = ${entityId} and title = ${recording.title}
+                              order by created_at limit 1`,
+  );
+  if (found !== undefined) return found.id;
+  const store = fileStore();
+  if (store === undefined) throw new Error('no local file store for the vault recordings');
+  // One second of a quiet tone: enough for the player, never sent anywhere.
+  const samples = new Int16Array(16_000);
+  for (let i = 0; i < samples.length; i += 1) {
+    samples[i] = Math.round(800 * Math.sin((2 * Math.PI * 220 * i) / 16_000));
+  }
+  const bytes = writeWav({ sampleRate: 16_000, channels: 1, samples });
+  const fileId = newId();
+  const key = `${String(entityId)}/knowledge/${fileId}.wav`;
+  await store.put(key, bytes, 'audio/wav');
+  await asMigrator(
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by, scan_result)
+      values (${fileId}, ${entityId}, 'knowledge', ${store.bucket}, ${key}, ${`${recording.title}.wav`},
+              'audio/wav', ${bytes.length}, ${createHash('sha256').update(bytes).digest('hex')}, 'ready',
+              ${executiveId}, ${JSON.stringify({ sanitising: 'audio_checked' })}::jsonb)`,
+  );
+  const added = await executeCommand(
+    principalFor('executive', [1, 2, 3, 4], { id: executiveId }),
+    { entityIds: [entityId] },
+    addKnowledgeFile,
+    { entityId, fileId, title: recording.title, sensitivity },
+  );
+  const fake = fakeModelTransport();
+  await indexKnowledgeFile(
+    {
+      eventId: newId(),
+      knowledgeFileId: added.id,
+      entityId,
+      fileEntityId: entityId,
+      sensitivity,
+    },
+    {
+      principal: principalFor('system:workers', [entityId], { id: SYSTEM_WORKERS_PRINCIPAL_ID }),
+      store,
+      provider: createAiProvider({
+        claude: fake,
+        voyage: fake,
+        keyValue: memoryKeyValue(),
+        logger: memoryLogger(),
+      }),
+      readWord: readWordText,
+      pdfPages: renderMaskedPages,
+      transcriber: {
+        vendor: 'stand-in',
+        paisePerHour: 0,
+        durationMs: () => 1_000,
+        transcribe: () => Promise.resolve(recording.transcript),
+      },
+      requestId: newId(),
+      hosted: false,
+      logger: memoryLogger(),
+    },
+  );
+  return added.id;
+}
+
+/**
+ * The snapshot company's Playbook, made once (SNAPSHOT_PLAYBOOK): an approved rule, and a draft the
+ * conflict check compared with it through the stand-in model, which labels the pair an overlap.
+ */
+async function ensureSnapshotPlaybook(executiveId: string): Promise<void> {
+  const company = SNAPSHOT_COMPANY.entityId;
+  const [found] = await asMigrator(
+    (m) => m<{ n: number }[]>`select count(*)::int as n from playbook_directives
+                              where entity_id = ${company} and created_by = ${executiveId}`,
+  );
+  if ((found?.n ?? 0) > 0) return;
+  const executive = principalFor('executive', [1, 2, 3, 4], { id: executiveId });
+  const workers = principalFor('system:workers', [company], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
+  const check = (directiveId: string, reply: string) => {
+    const fake = fakeModelTransport([fakeReply(reply)]);
+    return checkPlaybook(
+      {
+        entityId: company,
+        aggregateId: directiveId,
+        payload: { v: 1, change: 'drafted', recheck: true },
+      },
+      {
+        principal: workers,
+        provider: createAiProvider({
+          claude: fake,
+          voyage: fake,
+          keyValue: memoryKeyValue(),
+          logger: memoryLogger(),
+        }),
+        requestId: newId(),
+        hosted: false,
+        logger: memoryLogger(),
+      },
+    );
+  };
+  const draft = (rule: { title: string; text: string }) =>
+    executeCommand(executive, { entityIds: [company] }, draftPlaybookDirective, {
+      entityId: company,
+      type: 'policy',
+      audience: 'customer',
+      ...rule,
+    });
+  const first = await draft(SNAPSHOT_PLAYBOOK.approved);
+  await check(first.id, JSON.stringify({ label: 'none', reason: 'Nothing to compare.' }));
+  await executeCommand(executive, { entityIds: [company] }, approvePlaybookDirective, {
+    entityId: company,
+    directiveId: first.id,
+  });
+  const second = await draft(SNAPSHOT_PLAYBOOK.draft);
+  await check(second.id, JSON.stringify({ label: 'overlap', reason: SNAPSHOT_PLAYBOOK.reason }));
 }
 
 progress('migrating and seeding the database');
@@ -656,6 +840,7 @@ await archiveAddedPartners();
 progress('the referral partner');
 await ensureReferralPartner(ids.executive ?? '');
 await ensureWalkInPin(ids.executive ?? '');
+await ensureCallingNumbers(ids.executive ?? '');
 
 progress('the snapshot company');
 // The snapshot company (users.ts): its leads, all the snapshot caller's, and one import.
@@ -674,6 +859,31 @@ for (const lead of SNAPSHOT_LEADS) {
 await ensureSnapshotImport(ids.executive ?? '');
 progress('the snapshot company’s Knowledge Vault file');
 await ensureSnapshotVault(ids.executive ?? '');
+progress('the vault recordings');
+const recordings = {
+  snapshot: await ensureRecording(
+    ids.executive ?? '',
+    SNAPSHOT_RECORDING,
+    SNAPSHOT_COMPANY.entityId,
+    'management',
+  ),
+  reader: await ensureRecording(ids.executive ?? '', READER_RECORDING, 1, 'staff_ai_ok'),
+};
+progress('the snapshot company’s Playbook');
+await ensureSnapshotPlaybook(ids.executive ?? '');
+
+progress('the WhatsApp chats');
+// The tele-caller's customers who write on WhatsApp, one per project (messages.spec.ts).
+for (const project of PROJECTS) {
+  const customer = WHATSAPP.customers[project];
+  await ensureLead(
+    { id: ids.teleCaller ?? '', roleKey: 'tele_caller_cc', entityIds: [1] },
+    1,
+    customer.name,
+    customer.phone,
+  );
+}
+await ensureWhatsAppJourneys(ids.executive ?? '');
 
 progress('the quotes');
 const quotes = await ensureQuoteJourneys(ids.executive ?? '');
@@ -761,6 +971,14 @@ await holdBackUpdate(SNAPSHOT_HELD_BACK_ID, SNAPSHOT_COMPANY.entityId, '2026-09-
 for (const project of PROJECTS) {
   await holdBackUpdate(newId(), SEND_AGAIN_COMPANY.entityId, new Date().toISOString());
   progress(`a held-back update for ${project}`);
+}
+
+progress('the failed messages from other systems');
+// Integration health: one failed message per project for the Process again journey, which
+// handles one each run; fixed ids, so each run resets them.
+for (const [n, project] of PROJECTS.entries()) {
+  await failedWebhook(`01a1a7e2-0000-7000-8000-00000000000${String(n + 1)}`);
+  progress(`a failed message for ${project}`);
 }
 
 progress('the suggestions of the stand-in agent');
@@ -872,6 +1090,7 @@ const seeded: SeededUsers = {
   quotes,
   orders,
   uat,
+  recordings,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

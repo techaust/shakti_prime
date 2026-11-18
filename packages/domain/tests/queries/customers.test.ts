@@ -228,11 +228,13 @@ describe('loadAccount360 and listTimeline', () => {
 
   it('says when the customer withdrew consent to calls and gave none since (CRM-10)', async () => {
     const k = await customer(caller, `${TAG} Calls`, 'Churu');
-    // Account 360 and the leads list read it by the same rule (#168 review, hardening review 6).
+    // Account 360 and the leads list read it by the same rule (#168 review, hardening review 6);
+    // with no one else holding the number, the customer's own rule and the dial rules' agree (E1).
     const withdrawn = async () => {
       const view = await read(caller, loadAccount360, { accountId: k.accountId });
       const row = await listedLead(caller, k.leadId);
-      expect(row.callConsentWithdrawn).toBe(view.callConsentWithdrawn);
+      expect(row.callConsentWithdrawn).toBe(view.callOptOut);
+      expect(view.callOptOut).toBe(view.callConsentWithdrawn);
       return view.callConsentWithdrawn;
     };
     expect(await withdrawn()).toBe(false);

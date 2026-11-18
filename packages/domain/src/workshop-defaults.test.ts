@@ -43,9 +43,47 @@ describe('workshop defaults', () => {
         scoreRules: [],
         firstContactSlaMinutes: null,
       },
-      // The owner's defaults of 05-10-2026 for CALL-3 and CALL-5, and the 15-minute log grace of
-      // 13-10-2026 for CALL-8, for the sales head to confirm.
-      calling: { attemptDays: [0, 1, 2], nurtureCallDays: [7, 30, 90], logGraceMinutes: 15 },
+      // The owner's defaults of 05-10-2026 for CALL-3 and CALL-5, the 15-minute log grace of
+      // 13-10-2026 for CALL-8, for the sales head to confirm, and the 7-day DND check of the
+      // Phase 2 design (§11, LAW-4), approved 13-11-2026.
+      calling: {
+        attemptDays: [0, 1, 2],
+        nurtureCallDays: [7, 30, 90],
+        logGraceMinutes: 15,
+        dndFreshDays: 7,
+        recordingNotice: 'call_recording_notice',
+      },
+      // The Phase 2 design §11 (W1), each for the client to confirm in the final phase.
+      whatsapp: {
+        keywords: {
+          stop: [
+            'stop',
+            'unsubscribe',
+            'stop all',
+            'stop promotions',
+            'band karo',
+            'band kar do',
+            'mat bhejo',
+            'message mat bhejo',
+          ],
+          human: [
+            'human',
+            'agent',
+            'person',
+            'talk to a person',
+            'insaan',
+            'insaan se baat',
+            'kisi se baat karni hai',
+          ],
+          status: ['status', 'order status', 'mera order'],
+        },
+        marketingHoldShare: 0.8,
+        startingLimit: 250,
+        messagesPerThreadHour: 20,
+        replyWaitMinutes: 10,
+        linkHosts: [],
+        leadPipelineKey: 'farmer_pumps',
+      },
       sizing: {
         hazenWilliamsC: { hdpe: 140, gi: 120 },
         fittingsLossFraction: 0.1,
@@ -68,7 +106,16 @@ describe('workshop defaults', () => {
         dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
       },
       // BLUEPRINT §7.9, for the CA to confirm.
-      retention: { unqualifiedLeadMonths: 24, importReconciliationDays: 30, importFileOpenDays: 7 },
+      retention: {
+        unqualifiedLeadMonths: 24,
+        importReconciliationDays: 30,
+        importFileOpenDays: 7,
+        webhookPayloadDays: 30,
+        webhookRowDays: 90,
+        whatsappMediaYears: 3,
+        askDays: 90,
+        callRecordingMonths: 12,
+      },
     });
   });
 

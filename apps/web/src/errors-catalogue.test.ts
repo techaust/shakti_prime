@@ -8,11 +8,16 @@ import {
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import en from '../messages/en.json';
 import { REASONS } from './auth/errors';
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+// The first case is the first to touch the command registry and the scan reads every source file
+// of four packages: on a freshly installed machine, with a cold disk and transform cache, that ran
+// past the 5-second default.
+vi.setConfig({ testTimeout: 60_000 });
 
 /**
  * Files whose `reason: '…'` is not a reason a person meets. The recorded API examples carry a

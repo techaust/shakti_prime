@@ -3,6 +3,7 @@ import {
   IntegrationHealthResponse,
   IntegrationReplayResponse,
   newId,
+  WEBHOOK_PROVIDERS,
   type Principal,
 } from '@shakti/contracts';
 import { closeOutboxDb } from '@shakti/db/outbox';
@@ -93,14 +94,18 @@ describe('GET /api/v1/admin/integrations (docs/06-api.md §3.7)', () => {
     expect(
       body.outbox.byType.find((t) => t.type === 'admin.user.reactivated')?.deadLettered,
     ).toBeGreaterThanOrEqual(1);
-    expect(body.webhooks).toEqual([]);
+    // Every provider, with no payload: the rows of webhooks.test.ts may be counted here.
+    expect(body.webhooks.providers.map((p) => p.provider)).toEqual([...WEBHOOK_PROVIDERS]);
+    expect(JSON.stringify(body.webhooks)).not.toMatch(/"payload(_json)?"\s*:/);
     // Every scheduled job of the database, by its state, never with an error's text (DATA-3).
     expect(body.jobs.map((j) => j.job)).toEqual([
       'activities-partitions',
+      'ask-conversations-purge',
       'audit-logs-detach',
       'audit-logs-partitions',
       'idempotency-keys-purge',
       'outbox-events-purge',
+      'whatsapp-messages-partitions',
     ]);
     // The agents' spend, from their runs; the suites' own runs may be in it.
     expect(body.aiSpend.today).toMatch(/^\d+\.\d{2}$/);

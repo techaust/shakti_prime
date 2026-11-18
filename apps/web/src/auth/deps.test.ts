@@ -130,6 +130,25 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
     ]);
   });
 
+  it('refuses a short Google form key or Exotel inbound secret, and starts with neither (P5)', () => {
+    const short = 'a'.repeat(31);
+    const long = 'a long webhook secret of at least thirty-two characters';
+    expect(productionConfigProblems({ ...GOOD, GOOGLE_LEADFORM_KEY: short })).toEqual([
+      'GOOGLE_LEADFORM_KEY must be at least 32 characters when set',
+    ]);
+    expect(productionConfigProblems({ ...GOOD, EXOTEL_INCOMING_SECRET: short })).toEqual([
+      'EXOTEL_INCOMING_SECRET must be at least 32 characters when set',
+    ]);
+    expect(
+      productionConfigProblems({
+        ...GOOD,
+        GOOGLE_LEADFORM_KEY: long,
+        EXOTEL_INCOMING_SECRET: long,
+      }),
+    ).toEqual([]);
+    expect(productionConfigProblems({ ...GOOD, GOOGLE_LEADFORM_KEY: '' })).toEqual([]);
+  });
+
   it('starts without any file storage or key settings', () => {
     const none = { FILES_BUCKET: '', FILES_KMS_KEY_ID: '', AWS_ACCESS_KEY_ID: '' };
     expect(productionConfigProblems({ ...GOOD, ...none })).toEqual([]);

@@ -1,0 +1,62 @@
+[
+  {
+    "item": "q01",
+    "listener": "tele-caller",
+    "onTopic": true
+  },
+  {
+    "item": "q01",
+    "listener": "executive",
+    "onTopic": true
+  },
+  {
+    "item": "q01",
+    "listener": "field engineer",
+    "onTopic": true
+  },
+  {
+    "item": "q02",
+    "listener": "tele-caller",
+    "onTopic": true
+  },
+  {
+    "item": "q02",
+    "listener": "executive",
+    "onTopic": true
+  },
+  {
+    "item": "q02",
+    "listener": "field engineer",
+    "onTopic": false
+  },
+  {
+    "item": "q03",
+    "listener": "tele-caller",
+    "onTopic": true
+  },
+  {
+    "item": "q03",
+    "listener": "executive",
+    "onTopic": false
+  },
+  {
+    "item": "q03",
+    "listener": "field engineer",
+    "onTopic": false
+  },
+  {
+    "item": "q04",
+    "listener": "tele-caller",
+    "onTopic": true
+  },
+  {
+    "item": "q04",
+    "listener": "executive",
+    "onTopic": true
+  },
+  {
+    "item": "q04",
+    "listener": "field engineer",
+    "onTopic": true
+  }
+]

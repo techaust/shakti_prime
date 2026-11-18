@@ -1,0 +1,18 @@
+{
+  "id": "444444444444",
+  "created_time": "2026-09-27T10:39:50+0000",
+  "form_id": "555555555555",
+  "ad_id": "666666666666",
+  "adset_id": "777777777777",
+  "campaign_id": "888888888888",
+  "is_organic": false,
+  "field_data": [
+    { "name": "full_name", "values": ["Suresh Jakhar"] },
+    { "name": "phone_number", "values": ["+919000000023"] },
+    { "name": "zip_code", "values": ["331001"] },
+    { "name": "city", "values": ["Churu"] },
+    { "name": "borewell_depth_in_feet", "values": ["350 feet"] },
+    { "name": "monthly_electricity_bill", "values": ["2,400"] }
+  ],
+  "custom_disclaimer_responses": [{ "checkbox_key": "call_consent", "is_checked": "1" }]
+}

@@ -31,9 +31,10 @@ beforeAll(async () => {
 const drawn = new Set<string>();
 
 /**
- * A fixture PIN with no office left by an earlier run (the suites never clean the master), so a
- * test counts only its own offices: one of 999910 to 999949, never one this file drew before.
- * 999901 is the CRM fixture's; the domain suite draws from 999950 up.
+ * A fixture PIN with no office and no site left by an earlier run (the suites never clean the
+ * master or the sites), so a test counts only its own: one of 999910 to 999949, never one this
+ * file drew before. The range is this file's alone (999901 is the CRM fixture's; the domain suite
+ * draws from 999950 up), so a site of an earlier run that still holds the PIN gives it up.
  */
 async function pin(): Promise<string> {
   const free = Array.from({ length: 40 }, (_, i) => `9999${String(10 + i)}`).filter(
@@ -42,7 +43,10 @@ async function pin(): Promise<string> {
   const code = free[Math.floor(Math.random() * free.length)];
   if (code === undefined) throw new Error('the fixture PINs of this file are used up');
   drawn.add(code);
-  await asMigrator((m) => m`delete from pin_codes where pin = ${code}`);
+  await asMigrator(async (m) => {
+    await m`delete from pin_codes where pin = ${code}`;
+    await m`update customer_sites set pin = null where pin = ${code}`;
+  });
   return code;
 }
 

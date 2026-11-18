@@ -36,6 +36,9 @@ const BrandingDialog = dynamic(() => import('./branding-dialog').then((m) => m.B
 const BankDialog = dynamic(() => import('./bank-dialog').then((m) => m.BankDialog));
 const ProofDialog = dynamic(() => import('./proof-dialog').then((m) => m.ProofDialog));
 
+/** The company's numbers per channel, fetched the same way. */
+const ChannelsDialog = dynamic(() => import('./channels-dialog').then((m) => m.ChannelsDialog));
+
 /**
  * Settings › Companies: the companies as a grid, and for an Executive the edit dialog, the logo and
  * letterhead uploads, the bank account and the proof page that prints them all.
@@ -60,12 +63,14 @@ export function CompaniesScreen({
   const [branded, setBranded] = useState<EntityDto | undefined>();
   const [banked, setBanked] = useState<EntityDto | undefined>();
   const [proofed, setProofed] = useState<EntityDto | undefined>();
+  const [numbered, setNumbered] = useState<EntityDto | undefined>();
   const router = useRouter();
   // Focus goes back to the row's Edit button, in the table or the phone card that shows.
   const editButtons = useFocusTargets<number>();
   const brandingButtons = useFocusTargets<number>();
   const bankButtons = useFocusTargets<number>();
   const proofButtons = useFocusTargets<number>();
+  const channelButtons = useFocusTargets<number>();
 
   const columns: DataGridColumn<EntityDto>[] = [
     { id: 'name', header: t('columns.name'), cell: (c) => c.legalName, primary: true },
@@ -143,6 +148,17 @@ export function CompaniesScreen({
           >
             {t('proof')}
           </Button>
+          <Button
+            ref={channelButtons.ref(c.id)}
+            variant="secondary"
+            size="sm"
+            aria-label={t('channels.openLabel', { name: c.legalName })}
+            onClick={() => {
+              setNumbered(c);
+            }}
+          >
+            {t('channels.open')}
+          </Button>
         </div>
       ),
     });
@@ -202,6 +218,16 @@ export function CompaniesScreen({
           }}
           onClose={() => {
             setBanked(undefined);
+          }}
+        />
+      )}
+      {numbered === undefined ? null : (
+        <ChannelsDialog
+          company={numbered}
+          closeLabel={common('close')}
+          returnFocusTo={() => [channelButtons.get(numbered.id)]}
+          onClose={() => {
+            setNumbered(undefined);
           }}
         />
       )}

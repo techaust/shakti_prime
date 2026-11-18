@@ -44,6 +44,9 @@ Each slice on the PC takes a slot, and the slot gives its Postgres and app ports
 ## Slices in flight
 - None.
 
+## Merged on 9 November, run files on `main`
+- [Aadhaar numbers in typed text](identity-in-text.md) (#230)
+
 ## Merged on 20 October, run files on `main`
 - [Demo data for the screen review](demo-data.md) (#199)
 

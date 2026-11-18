@@ -7,6 +7,7 @@ import {
   NOTIFICATION_SCAN_PATH,
   OUTBOX_PUBLISH_PATH,
   QUOTE_EXPIRE_PATH,
+  WEBHOOK_SWEEP_PATH,
 } from './qstash';
 import { JOB_SCHEDULES, type ScheduledRoute } from './schedules';
 
@@ -16,6 +17,18 @@ export type HostedEnvironment = (typeof HOSTED_ENVIRONMENTS)[number];
 
 export function hostedEnvironment(value: string | undefined): HostedEnvironment | undefined {
   return HOSTED_ENVIRONMENTS.find((name) => name === value);
+}
+
+/**
+ * Removes a blank `QSTASH_URL` from `env`, as if it were unset (a `.env` line `QSTASH_URL=`). Given
+ * no address, the QStash client reads `QSTASH_URL` from the environment itself and takes an empty
+ * value as its address, so every call fails with "Invalid URL"; unset, it uses its own default
+ * address. Returns whether it removed one.
+ */
+export function unsetBlankQStashUrl(env: NodeJS.ProcessEnv): boolean {
+  if (env.QSTASH_URL?.trim() !== '') return false;
+  delete env.QSTASH_URL;
+  return true;
 }
 
 /** One QStash schedule, as `apps/web/scripts/qstash-schedule.ts` creates or updates it. */
@@ -43,6 +56,7 @@ const ROUTES: Record<ScheduledRoute, { path: string; retries: number; timeout: n
   'quote-expire': { path: QUOTE_EXPIRE_PATH, retries: 3, timeout: 60 },
   'notification-scan': { path: NOTIFICATION_SCAN_PATH, retries: 0, timeout: 60 },
   'jobs-check': { path: JOBS_CHECK_PATH, retries: 0, timeout: 30 },
+  'webhook-sweep': { path: WEBHOOK_SWEEP_PATH, retries: 0, timeout: 30 },
 };
 
 /**

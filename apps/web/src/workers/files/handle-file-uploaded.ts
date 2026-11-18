@@ -25,6 +25,7 @@ import {
 } from '@shakti/domain';
 import { logger as appLogger } from '../../log';
 import type { DocumentMasker } from '../ocr/mask-document';
+import { checkRecording } from './audio-check';
 import { checkOfficeFile, isOfficeType } from './office-check';
 import { checkPdf } from './pdf-check';
 import {
@@ -41,11 +42,18 @@ import { maskInTime } from './timed-mask';
 /** The tag GuardDuty Malware Protection for S3 writes on each object it scans. */
 export const SCAN_TAG = 'GuardDutyMalwareScanStatus';
 
-/** The purposes whose photos and PDF pages may reach a model, so they are masked before they are kept. */
 /** Longer than a delivery may run (the route stops at 60 seconds), so a live claim is never taken over. */
 const CLAIM_SECONDS = 90;
 
-const MASKED_PURPOSES: ReadonlySet<string> = new Set(['knowledge']);
+/**
+ * The purposes whose photos and PDF pages are masked before they are kept: vault files may reach a
+ * model, and a customer's WhatsApp files are often identity documents (BLUEPRINT §7.5).
+ */
+const MASKED_PURPOSES: ReadonlySet<string> = new Set(['knowledge', 'whatsapp_media']);
+
+/** A PDF masked page by page, whose masked pages are kept beside it until it is done. */
+const pagedPdf = (file: Pick<StoredFile, 'purpose' | 'contentType'>): boolean =>
+  MASKED_PURPOSES.has(file.purpose) && file.contentType === 'application/pdf';
 
 export interface FileCheckDeps {
   store: FileStore;
@@ -76,7 +84,7 @@ export type FileCheckOutcome =
   | { status: 'ready' | 'rejected' }
   /** A vault PDF with pages still to mask: one page was kept and the next delivery was sent. */
   | { status: 'masking'; maskedPages: number; pages: number }
-  /** The event names a file the worker cannot see, or one outside the checks (a WhatsApp file). */
+  /** The event names a file the worker cannot see. */
   | { status: 'skipped' };
 
 type Checked =
@@ -104,7 +112,8 @@ type Checked =
  *    as the CSV or workbook it says it is (a vault PDF is drawn page by page, each page masked, and
  *    kept as a PDF of the masked pictures; a delivery masks one page and sends the next, since a
  *    page takes about half a minute and a delivery lives for a minute), a vault Word document or workbook checked as the ZIP
- *    archive of its type. A changed copy is stored under its own key and the
+ *    archive of its type, a vault recording read as a WAV no longer than 30 minutes and written
+ *    afresh from its samples. A changed copy is stored under its own key and the
  *    upload's bytes are deleted, every version of them.
  * 3. `ready` with the checked copy's key, type, size and checksum, or `rejected` with the reason
  *    the uploader is shown; a rejected file's bytes are deleted.
@@ -137,7 +146,7 @@ export async function handleFileUploaded(
       ...(scanStatus === undefined ? {} : { scanStatus }),
     });
     await deps.store.delete(file.key);
-    if (file.purpose === 'knowledge' && file.contentType === 'application/pdf') {
+    if (pagedPdf(file)) {
       await deleteMaskedPages(deps.store, file.key);
     }
     log.log('info', 'files.check_rejected', { requestId: deps.requestId, fileId, reason });
@@ -214,7 +223,7 @@ export async function handleFileUploaded(
     regionsMasked: checked.regionsMasked,
   });
   if (replaced) await deps.store.delete(file.key);
-  if (file.purpose === 'knowledge' && file.contentType === 'application/pdf') {
+  if (pagedPdf(file)) {
     await deleteMaskedPages(deps.store, file.key);
   }
   log.log('info', 'files.check_ready', {
@@ -234,7 +243,7 @@ async function deleteOriginal(file: StoredFile, store: FileStore): Promise<void>
   if (original === undefined) return;
   if (file.status === 'ready' && original === file.key) return;
   await store.delete(original);
-  if (file.purpose === 'knowledge' && file.contentType === 'application/pdf') {
+  if (pagedPdf(file)) {
     await deleteMaskedPages(store, original);
   }
 }
@@ -381,6 +390,19 @@ async function check(
           regionsMasked: 0,
         }
       : pdf;
+  }
+  if (file.purpose === 'knowledge' && file.contentType === 'audio/wav') {
+    // A vault recording: read as a WAV, its length checked, kept without its other chunks.
+    const recording = checkRecording(bytes);
+    return recording.ok
+      ? {
+          ok: true,
+          sanitising: recording.sanitising,
+          bytes: recording.bytes,
+          contentType: 'audio/wav',
+          regionsMasked: 0,
+        }
+      : recording;
   }
   if (!isImageType(file.contentType)) return { ok: false, reason: 'file_unreadable' };
   if (MASKED_PURPOSES.has(file.purpose)) {

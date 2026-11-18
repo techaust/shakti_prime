@@ -12,6 +12,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  createTestVoicePrincipal,
   createTestTeam,
   createTestUser,
   principalFor,
@@ -710,7 +711,7 @@ describe('crm.sizing.record on the timeline and for review', () => {
       principalFor('agent:sizing', [1], { ...write, id: sizingAgent.id }),
       await createTestPrincipal('agent:copilot', [1], { ...write, kind: 'user' }),
       // A voice session, under a person's role key.
-      await createTestPrincipal('tele_caller_cc', [1], { ...write, kind: 'voice_session' }),
+      await createTestVoicePrincipal('tele_caller_cc', [1], write),
       // A user principal acting as the event workers.
       await createTestPrincipal('system:workers', [1], { ...write, kind: 'user' }),
     ]) {

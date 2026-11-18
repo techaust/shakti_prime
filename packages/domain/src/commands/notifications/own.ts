@@ -155,6 +155,11 @@ export const subscribePush = defineCommand({
   input: PushSubscribeInput,
   output: PushSubscriptionDto,
   auditFields: [],
+  unmaskedFields: [
+    // The browser's push address and keys, made by the browser and used whole to send.
+    'endpoint',
+    'keys',
+  ],
   constraintReasons: { push_subscriptions_endpoint_unique: 'push_browser_taken' },
   // The browser's address works as a key to its pushes: the audit row records none of it.
   auditInput: () => ({}),
@@ -178,6 +183,10 @@ export const unsubscribePush = defineCommand({
   input: PushUnsubscribeInput,
   output: PushSubscriptionDto,
   auditFields: [],
+  unmaskedFields: [
+    // The browser's push address, matched whole.
+    'endpoint',
+  ],
   auditInput: () => ({}),
   async handler(ctx, input) {
     const s = schema.pushSubscriptions;

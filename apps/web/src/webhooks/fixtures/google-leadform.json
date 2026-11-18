@@ -1,0 +1,16 @@
+{
+  "lead_id": "lead-form-0001",
+  "api_version": "1.0",
+  "form_id": 40000000001,
+  "campaign_id": 20000000001,
+  "adgroup_id": 30000000001,
+  "creative_id": 50000000001,
+  "gcl_id": "gclid-0001",
+  "google_key": "",
+  "is_test": true,
+  "user_column_data": [
+    { "column_id": "FULL_NAME", "column_name": "Full Name", "string_value": "Suresh Jakhar" },
+    { "column_id": "PHONE_NUMBER", "column_name": "User Phone", "string_value": "+919000000023" },
+    { "column_id": "POSTAL_CODE", "column_name": "Postal Code", "string_value": "331001" }
+  ]
+}

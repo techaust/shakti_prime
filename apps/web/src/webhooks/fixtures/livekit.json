@@ -1,0 +1,17 @@
+{
+  "event": "participant_left",
+  "id": "EV_participant-left-0001",
+  "createdAt": "1790500900",
+  "room": {
+    "sid": "RM_room-0001",
+    "name": "0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0e",
+    "numParticipants": 1
+  },
+  "participant": {
+    "sid": "PA_person-0001",
+    "identity": "user:0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a01",
+    "state": "DISCONNECTED",
+    "kind": "STANDARD",
+    "joinedAt": "1790500020"
+  }
+}

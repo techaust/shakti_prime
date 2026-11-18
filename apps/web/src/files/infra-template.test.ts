@@ -205,9 +205,14 @@ describe('the file storage template', () => {
   });
 
   it('lets the read-only user list the bucket and read its settings, never an object', () => {
-    const policy = resource('ReadOnlyBucketPolicy', 'AWS::IAM::Policy');
+    const policy = resource('ReadOnlyFilesPolicy', 'AWS::IAM::ManagedPolicy');
     expect(policy.Users).toEqual([{ Ref: 'ReadOnlyUserName' }]);
     expect(template.Parameters.ReadOnlyUserName?.Default).toBe('claude-shakti');
+    // Never an inline policy on that user: its inline policies share IAM's 2,048 characters.
+    const inline = Object.values(template.Resources).filter((r) => r.Type === 'AWS::IAM::Policy');
+    expect(inline.flatMap((r) => r.Properties.Users ?? [])).not.toContainEqual({
+      Ref: 'ReadOnlyUserName',
+    });
     for (const s of statements(policy.PolicyDocument)) {
       expect(s.Resource).toEqual([BUCKET]);
       for (const action of actionsOf(s)) {

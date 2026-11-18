@@ -15,6 +15,10 @@ export const completeUpload = defineCommand({
   input: CompleteUploadInput,
   output: FileDto,
   auditFields: ['fileStatus'],
+  unmaskedFields: [
+    // The stored file's SHA-256 in hexadecimal, checked against the upload's.
+    'stored.sha256',
+  ],
   async handler(ctx, input) {
     const row = await lockFile(ctx, input.fileId, input.purpose);
     const storedMatches = input.stored.size === row.size && input.stored.sha256 === row.sha256;

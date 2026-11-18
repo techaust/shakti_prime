@@ -34,7 +34,9 @@ import { listTimeline } from '../crm/customers';
 import { teamIn } from '../crm/list-lead-assignees';
 import { effectiveDispositions } from '../crm/pipeline-settings';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
-import { callConsentWithdrawnSql } from './consent';
+import { callOptOutSql } from './consent';
+import { dialFacts } from './dial-plan';
+import { callPurpose } from '../../telecom/call-purpose';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
@@ -284,7 +286,7 @@ async function customersOf(ctx: Ctx, opportunityIds: readonly string[]) {
   if (opportunityIds.length === 0) return out;
   const rows = (await ctx.tx.execute(sql`
     select o.id, a.name, s.village, right(p.e164, 4) as last4,
-           ${callConsentWithdrawnSql(sql`a.id`)} as withdrawn
+           ${callOptOutSql(sql`a.id`)} as withdrawn
       from opportunities o
       join accounts a on a.id = o.account_id
       left join customer_sites s on s.id = o.site_id
@@ -345,7 +347,7 @@ export async function loadCallLead(ctx: Ctx, rawInput: unknown): Promise<CallLea
 
   const [customer] = (await ctx.tx.execute(sql`
     select a.name, c.name as contact_name, c.preferred_language, s.village, s.district,
-           right(p.e164, 4) as last4, ${callConsentWithdrawnSql(sql`a.id`)} as withdrawn
+           right(p.e164, 4) as last4, ${callOptOutSql(sql`a.id`)} as withdrawn
       from accounts a
       left join account_contacts ac on ac.account_id = a.id and ac.role = 'owner'
       left join contacts c on c.id = ac.contact_id
@@ -446,9 +448,13 @@ export async function loadCallLead(ctx: Ctx, rawInput: unknown): Promise<CallLea
 }
 
 /**
- * The full number to dial for a lead (the workspace's `D`), shown only inside calling hours
- * (`outside_calling_hours`, TRAI 9 AM to 9 PM) and to a customer who has not withdrawn consent to
- * calls (`call_consent_withdrawn`); the main phone of the customer's owner contact.
+ * The full number to dial for a lead (the workspace's `D`): the main phone of the customer's owner
+ * contact, shown only inside calling hours (`outside_calling_hours`, TRAI 9 AM to 9 PM), never for a
+ * number the dial rules refuse on what is recorded (`app.dial_facts()`, design phase2 §5.2): a
+ * customer who withdrew consent to calls, or anyone holding the number who did
+ * (`call_consent_withdrawn`), and a sales call to a number the platform recorded on the DND list
+ * (`recipient_on_dnd`). Only a recorded answer refuses, so calling by hand on production, which has
+ * no DND register, is not stopped by a check that cannot be made.
  */
 export async function dialNumber(
   ctx: Ctx,
@@ -465,19 +471,29 @@ export async function dialNumber(
     });
   }
   const [row] = (await ctx.tx.execute(sql`
-    select p.e164, ${callConsentWithdrawnSql(sql`${lead.accountId}::uuid`)} as withdrawn
+    select p.id, p.e164
       from account_contacts ac
       join contact_phones p on p.contact_id = ac.contact_id and p.is_primary
      where ac.account_id = ${lead.accountId}::uuid and ac.role = 'owner'
-     limit 1`)) as unknown as { e164: string; withdrawn: boolean }[];
-  if (row?.withdrawn === true) {
+     limit 1`)) as unknown as { id: string; e164: string }[];
+  if (!row) {
+    throw new DomainError('not_found', 'the customer has no main number', {
+      reason: 'dial_number_missing',
+    });
+  }
+  const facts = await dialFacts(ctx, {
+    entityId: input.entityId,
+    opportunityId: input.opportunityId,
+    contactPhoneId: row.id,
+  });
+  if (facts.callConsentWithdrawn) {
     throw new DomainError('conflict', 'the customer withdrew consent to calls', {
       reason: 'call_consent_withdrawn',
     });
   }
-  if (!row) {
-    throw new DomainError('not_found', 'the customer has no main number', {
-      reason: 'dial_number_missing',
+  if (callPurpose(facts).purpose === 'promotional' && facts.phoneIsDnd) {
+    throw new DomainError('conflict', 'a sales call to a number on the DND list', {
+      reason: 'recipient_on_dnd',
     });
   }
   return DialNumberDto.parse({ e164: row.e164, dialledAt: now.toISOString() });

@@ -29,6 +29,8 @@ import { DateTime } from '../date-time';
 import { FailureMessage } from '../screens/failure';
 import { settle } from '../screens/settle';
 import { useCommand, useQuery } from '../screens/use-command';
+import { WebhooksHealth } from './webhooks-health';
+import { WhatsAppHealth } from './whatsapp-health';
 
 const PAGE_SIZE = 50;
 
@@ -44,7 +46,8 @@ function useUpdateName() {
 
 /**
  * Admin › Integration health: the updates waiting by kind, the last sending round, the delivery
- * check and the held-back updates with Send again.
+ * check, the held-back updates with Send again, and the messages other systems send in with
+ * Process again.
  */
 export function IntegrationsScreen({
   initial,
@@ -107,6 +110,12 @@ export function IntegrationsScreen({
       </section>
       <DeliverySpeed initial={initial.deliveryCheck} />
       <HeldUpdates initial={initial.deadLetters} companies={companies} />
+      <WebhooksHealth initial={initial.webhooks} />
+      <WhatsAppHealth
+        numbers={initial.whatsapp}
+        budget={initial.whatsappBudget}
+        companies={companies}
+      />
       <ScheduledUpkeep jobs={initial.jobs} />
       <AiSpend spend={initial.aiSpend} companies={companies} />
     </div>

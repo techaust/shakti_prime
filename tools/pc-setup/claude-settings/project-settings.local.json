@@ -1,11 +1,6 @@
 {
   "permissions": {
-    "allow": [
-      "PowerShell(Test-Path \"$env:USERPROFILE\\\\.codex\\\\config.toml\"; Test-Path \"$env:USERPROFILE\\\\.gemini\\\\settings.json\")",
-      "Bash(python -)",
-      "Bash(bash /d/shakti-wt/heavy.sh:*)",
-      "Bash(bash tools/integration/heavy.sh:*)"
-    ]
+    "allow": ["Bash(python -)", "Bash(bash tools/integration/heavy.sh:*)"]
   },
   "enabledMcpjsonServers": ["shadcn", "vercel"],
   "disableClaudeAiConnectors": true,

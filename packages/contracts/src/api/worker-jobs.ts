@@ -5,7 +5,7 @@ import { PdfDocumentTypeSchema } from './print-documents';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { KnowledgeSensitivitySchema } from '../knowledge';
 import { SCRIPT_LANGUAGES } from '../templates/index';
-import { MessageRequested, MessagingRefusalSchema } from './messaging';
+import { MessagingRefusalSchema } from './messaging';
 
 /**
  * Bodies and answers of the QStash workers under `/api/v1/workers/*` (docs/06-api.md §3.6,
@@ -90,16 +90,27 @@ export type OutboxFailureResult = z.infer<typeof OutboxFailureResult>;
 
 // --- /workers/messaging/send -----------------------------------------------------------------
 
-/** `POST /workers/messaging/send`: one `message.requested` (docs/06-api.md §6) to check and send. */
+/**
+ * `POST /workers/messaging/send`: one `messaging.message.requested` (docs/06-api.md §6) to check and
+ * send. `eventId` is the event's id; `messageId` the queued message, which the worker reads with
+ * its masked body or template values as the platform.
+ */
 export const MessagingSendJob = z
   .object({
     eventId: IdSchema,
     entityId: EntityIdSchema,
-    message: MessageRequested,
+    messageId: IdSchema,
   })
   .strict();
 export type MessagingSendJob = z.infer<typeof MessagingSendJob>;
 
+/**
+ * What the worker did: `sent` with Meta's id; `refused` with the check that refused it; `failed`
+ * when Meta refused it or did not answer in time (it is never sent again); `held` for a marketing
+ * template over the hold share of the budget, which stays queued; `skipped` for a message no
+ * longer queued (already taken, sent or refused). A thread over its rate limit answers a 5xx
+ * (`rate_limited`) instead, so the queue delivers the message again later.
+ */
 export const MessagingSendResult = z.union([
   Duplicate,
   z
@@ -117,6 +128,13 @@ export const MessagingSendResult = z.union([
       outcome: z.literal('done'),
       status: z.literal('refused'),
       refusal: MessagingRefusalSchema,
+    })
+    .strict(),
+  z
+    .object({
+      eventId: IdSchema,
+      outcome: z.literal('done'),
+      status: z.enum(['failed', 'held', 'skipped']),
     })
     .strict(),
 ]);
@@ -297,3 +315,62 @@ export const NotifyResult = workerResult({
   heldForQuietHours: Count,
 });
 export type NotifyResult = z.infer<typeof NotifyResult>;
+
+// --- /workers/webhooks/process ---------------------------------------------------------------
+
+/**
+ * `POST /workers/webhooks/process` (docs/03-roadmap-appendix/phase2.md §5.1): one stored delivery
+ * of `webhook_inbox`, by its row id, published by the webhook route (deduplicated by that id), by
+ * the sweep for a row left waiting, or by Process again. The worker reads the payload itself.
+ */
+export const WebhookProcessJob = z.object({ inboxId: IdSchema }).strict();
+export type WebhookProcessJob = z.infer<typeof WebhookProcessJob>;
+
+/**
+ * - `processed`: the row is processed now; `handled` is false when no handler is registered for
+ *   its provider yet (the row keeps the code `no_handler`).
+ * - `duplicate`: the row was already processed or failed, or another call holds its lease;
+ *   nothing ran.
+ * - `retrying`: the handler failed; the row waits a backoff that grows with its tries, and the
+ *   sweep sends it again (QStash does not retry it);
+ * - `failed`: the row failed for good with its code (`payload_unreadable`, or `too_many_attempts`
+ *   after ten tries); it is not retried.
+ */
+export const WebhookProcessResult = z.discriminatedUnion('outcome', [
+  z.object({ inboxId: IdSchema, outcome: z.literal('processed'), handled: z.boolean() }).strict(),
+  z.object({ inboxId: IdSchema, outcome: z.literal('duplicate') }).strict(),
+  z.object({ inboxId: IdSchema, outcome: z.literal('retrying') }).strict(),
+  z
+    .object({
+      inboxId: IdSchema,
+      outcome: z.literal('failed'),
+      errorCode: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+    })
+    .strict(),
+]);
+export type WebhookProcessResult = z.infer<typeof WebhookProcessResult>;
+
+/**
+ * `POST /workers/webhooks/failed`: QStash's failure callback for a webhook job it gave up on
+ * (`OutboxFailureCallback`'s shape). The row is failed with `handler_failed` (`failed`), or was
+ * already processed or failed, or is held by a live lease, and the sweep takes it up (`unchanged`).
+ */
+export const WebhookFailureResult = z
+  .object({ inboxId: IdSchema, outcome: z.enum(['failed', 'unchanged']) })
+  .strict();
+export type WebhookFailureResult = z.infer<typeof WebhookFailureResult>;
+
+/** `POST /workers/webhooks/sweep`: the minute schedule `webhook-sweep-<environment>`, with `{}`. */
+export const WebhookSweepWorkerBody = z.object({}).strict();
+export type WebhookSweepWorkerBody = z.infer<typeof WebhookSweepWorkerBody>;
+
+/** One sweep: what the retention removed, and the waiting rows published again or not. */
+export const WebhookSweepWorkerResponse = z
+  .object({
+    payloadsRemoved: Count,
+    rowsRemoved: Count,
+    republished: Count,
+    notRepublished: Count,
+  })
+  .strict();
+export type WebhookSweepWorkerResponse = z.infer<typeof WebhookSweepWorkerResponse>;

@@ -17,6 +17,7 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import {
   listKnowledgeFiles,
@@ -43,10 +44,13 @@ const STATE_TONE: Readonly<Record<KnowledgeFileDto['state'], StatusTone>> = {
   archived: 'neutral',
 };
 
-/** What an Executive or GM may do here: the sensitivities they may give and the upload's limits. */
+/**
+ * What an Executive or GM may do here: the sensitivities they may give and the upload's limits, a
+ * recording's (a WAV) larger than any other file's.
+ */
 export interface KnowledgeWriter {
   sensitivities: readonly KnowledgeSensitivity[];
-  limit: { contentTypes: readonly string[]; maxBytes: number };
+  limit: { contentTypes: readonly string[]; maxBytes: number; recordingMaxBytes: number };
 }
 
 export interface KnowledgeCompany {
@@ -161,7 +165,14 @@ export function KnowledgeScreen({
                 className="border-border bg-surface flex flex-col gap-2 rounded-md border p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="min-w-0 font-medium break-words">{file.title}</h3>
+                  <h3 className="min-w-0 font-medium break-words">
+                    <Link
+                      href={`/knowledge/files/${file.id}`}
+                      className="text-accent-text underline-offset-4 hover:underline"
+                    >
+                      {file.title}
+                    </Link>
+                  </h3>
                   <StatusBadge tone={STATE_TONE[file.state]}>
                     {t(`state.${file.state}`)}
                   </StatusBadge>

@@ -2,10 +2,13 @@
 
 import {
   AddKnowledgeFileInput,
+  CorrectKnowledgeTranscriptInput,
   DomainError,
+  IdSchema,
   KnowledgeFileRefInput,
   ListKnowledgeFilesInput,
   SearchKnowledgeInput,
+  type KnowledgeFileDetailDto,
   type KnowledgeFileDto,
   type KnowledgeFilePageDto,
   type KnowledgeSearchDto,
@@ -15,8 +18,10 @@ import {
   addKnowledgeFile as addKnowledgeFileCommand,
   archiveKnowledgeFile as archiveKnowledgeFileCommand,
   checkPermission,
+  correctKnowledgeTranscript as correctKnowledgeTranscriptCommand,
   executeCommand,
   executeQuery,
+  getKnowledgeFile as getKnowledgeFileQuery,
   knowledgeQueryVector,
   listKnowledgeFiles as listKnowledgeFilesQuery,
   reindexKnowledgeFile as reindexKnowledgeFileCommand,
@@ -64,6 +69,40 @@ async function listFiles(principal: Principal, rawInput: unknown): Promise<Knowl
     (context) => listKnowledgeFilesQuery(context, input),
     { name: 'listKnowledgeFiles' },
   );
+}
+
+/** One vault file the caller may read, with a recording's transcript, for its page (K3). */
+export async function getKnowledgeFile(
+  rawId: unknown,
+): Promise<ActionResult<KnowledgeFileDetailDto>> {
+  return toResult('getKnowledgeFile', async () => readFile(await signedIn(), rawId));
+}
+
+/**
+ * The file again, read while a recording is being transcribed and read: not the person's doing,
+ * so it never extends their session (WEB-8).
+ */
+export async function recheckKnowledgeFile(
+  rawId: unknown,
+): Promise<ActionResult<KnowledgeFileDetailDto>> {
+  return toResult('recheckKnowledgeFile', async () => readFile(await signedInQuietly(), rawId));
+}
+
+async function readFile(principal: Principal, rawId: unknown): Promise<KnowledgeFileDetailDto> {
+  const id = parseInput(IdSchema, rawId);
+  const { requestId } = await requestMeta();
+  const file = await executeQuery(
+    principal,
+    { requestId },
+    (context) => getKnowledgeFileQuery(context, id),
+    { name: 'getKnowledgeFile' },
+  );
+  if (file === undefined) {
+    throw new DomainError('not_found', 'vault file not visible', {
+      reason: 'knowledge_file_missing',
+    });
+  }
+  return file;
 }
 
 /**
@@ -153,6 +192,28 @@ export async function archiveKnowledgeFile(
       principal,
       { requestId: meta.requestId },
       archiveKnowledgeFileCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/**
+ * Replaces a recording's transcript with a person's correction (K3); the file is read again from
+ * it, and its passages replaced once it is. Answers the file with the transcript as kept, masked.
+ */
+export async function correctKnowledgeTranscript(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<KnowledgeFileDetailDto>> {
+  return toResult('correctKnowledgeTranscript', async () => {
+    const principal = await signedIn();
+    const input = parseInput(CorrectKnowledgeTranscriptInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      correctKnowledgeTranscriptCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );

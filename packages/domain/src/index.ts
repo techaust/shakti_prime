@@ -25,15 +25,85 @@ export { commands, getCommand } from './command/registry';
 export { executeCommand, executeQuery } from './command/execute';
 export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
+export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
+export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
+export { sendWhatsAppMessage } from './commands/messaging/send-message';
+export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
+export { registerWhatsAppTemplate } from './commands/messaging/templates';
+export {
+  attachWhatsAppMedia,
+  claimWhatsAppMessage,
+  matchWhatsAppThread,
+  queueWhatsAppMessage,
+  recordInboundWhatsApp,
+  recordWhatsAppHandOff,
+  recordWhatsAppOptOut,
+  recordWhatsAppSend,
+  recordWhatsAppStatus,
+  recordWhatsAppTemplateStatus,
+} from './commands/messaging/platform';
+export { ingestLead } from './commands/crm/ingest-lead';
+export { setLeadQualification } from './commands/crm/lead-qualification';
+export {
+  archiveIngestSource,
+  createIngestKey,
+  recordSourceQuestions,
+  revokeIngestKey,
+  setIngestSource,
+} from './commands/crm/ingest-sources';
+export { hashIngestKey, newIngestKey } from './crm/ingest-key';
+export { formQuestions, ingestIdempotencyKey, isTicked, mapFormAnswers } from './crm/ingest-map';
+export type { FormAnswer, MappedLead, SourceMapping } from './crm/ingest-map';
+export {
+  findIngestKey,
+  findIngestSource,
+  ingestSourceToken,
+  listIngestSources,
+  listUnownedIngestLeads,
+  readLeadQualification,
+} from './queries/crm/ingest-sources';
+export type { FoundIngestSource } from './queries/crm/ingest-sources';
+export { dialCall, recordedDndState } from './commands/calls/dial-call';
+export { playCallRecording } from './commands/calls/play-recording';
+export {
+  attachCallRecording,
+  callRecordingKey,
+  deleteCallRecording,
+  recordProviderCall,
+  toProviderCallDto,
+} from './commands/calls/provider-calls';
+export { placeDial } from './calls/place-dial';
+export {
+  dialReadiness,
+  dueCallRecordings,
+  ownDialPhone,
+  ownProviderCall,
+  playableRecordings,
+  providerCallForReport,
+  toDialReadiness,
+  unendedProviderCalls,
+  dialPhoneTaken,
+} from './queries/calls/provider-calls';
+export type { PlaceDialDeps } from './calls/place-dial';
+export {
+  ClickToDialNotSetUp,
+  ClickToDialRefused,
+  ClickToDialUncertain,
+  fakeClickToDial,
+  unreachableClickToDial,
+} from './ports/click-to-dial';
+export type { ClickToDial, ClickToDialRequest, PlacedProviderCall } from './ports/click-to-dial';
+export { listEntityChannels } from './queries/org/list-channels';
+export { dialFacts, dndRecordInput, toDialPlanDto } from './queries/calls/dial-plan';
 export { createLead } from './commands/crm/create-lead';
 export { moveOpportunityStage } from './commands/crm/move-opportunity-stage';
 export { assignOpportunity } from './commands/crm/assign-opportunity';
-export { setCallerProfile, setPresence } from './commands/crm/caller-profiles';
+export { setCallerProfile, setDialPhone, setPresence } from './commands/crm/caller-profiles';
 export { handOverLead } from './commands/crm/hand-over-lead';
 export { reassignAllLeads, REASSIGN_ALL_LIMIT } from './commands/crm/reassign-all';
 export { listCallerProfiles, loadOwnPresence } from './queries/crm/caller-profiles';
-export { pickConverter, qualifiesAsConverter } from './crm/handover';
-export type { ConverterCandidate, HandoverLead } from './crm/handover';
+export { pickCaller, pickConverter, qualifiesAsConverter } from './crm/handover';
+export type { CallerCandidate, ConverterCandidate, HandoverLead } from './crm/handover';
 export { nurtureOpportunity } from './commands/crm/nurture-opportunity';
 export { recordSizing } from './commands/crm/record-sizing';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';
@@ -54,6 +124,7 @@ export { requoteQuote } from './commands/sales/requote';
 export { withdrawQuote } from './commands/sales/withdraw-quote';
 export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
 export { anonymiseStaleLeads, LEAD_RETENTION_BATCH } from './commands/crm/anonymise-stale-leads';
+export { claimWebhook, markWebhook, replayWebhook, sweepWebhooks } from './commands/webhooks/inbox';
 export { countStaleLeads } from './queries/crm/stale-leads';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { acceptQuote } from './commands/sales/accept-quote';
@@ -70,6 +141,7 @@ export {
   homePipeline,
   homeResponseTimes,
   homeSales,
+  salesGroupTotal,
 } from './queries/home/home';
 export {
   isPeriodStart,
@@ -126,6 +198,22 @@ export { setContrast } from './commands/profile/set-contrast';
 export { deleteView, saveView } from './commands/profile/saved-views';
 export { listSavedViews, toSavedViewDto } from './queries/profile/saved-views';
 export { issueRealtimeToken } from './commands/realtime/issue-token';
+export {
+  recordVoiceSession,
+  refreshVoiceToken,
+  startVoiceSession,
+} from './commands/voice/sessions';
+export {
+  liveVoiceSession,
+  liveVoiceSessionFacts,
+  voiceToday,
+  type VoiceToday,
+  voiceSessionLive,
+  voiceSessionNotAfter,
+  voiceRecordingUpload,
+  type VoiceSessionFacts,
+} from './queries/voice/sessions';
+export { voiceSessionPrincipal } from './auth/voice-principal';
 export { createImportJob } from './commands/imports/create-job';
 export { mapImportJob } from './commands/imports/map-job';
 export { previewImportJob } from './commands/imports/preview-job';
@@ -215,6 +303,7 @@ export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
+export { readWebhookHealth, type StoredWebhookHealth } from './queries/platform/webhook-health';
 export {
   JOB_RUN_LIMIT_MINUTES,
   readScheduledJobs,
@@ -432,6 +521,19 @@ export type {
   DialRequest,
   NumberSeries,
 } from './telecom/dial-policy';
+export { DIAL_REFUSALS } from './telecom/dial-policy';
+export { CUSTOMER_REQUEST_CHANNELS, callPurpose } from './telecom/call-purpose';
+export type { PurposeDecision, PurposeFacts, PurposeReason } from './telecom/call-purpose';
+export { DND_LOOKUP_TIMEOUT_MS, dndIsFresh, planDial, prepareDial } from './telecom/dial-plan';
+export type { DialFacts, DialPlan, DndState, PrepareDialDeps } from './telecom/dial-plan';
+export {
+  DndRegistryNotSetUp,
+  DndRegistryUnavailable,
+  FIXTURE_DND_NUMBERS,
+  fixtureDndRegistry,
+  unavailableDndRegistry,
+} from './ports/dnd';
+export type { DndAnswer, DndRegistry } from './ports/dnd';
 export {
   checkBatch,
   connectorHealth,
@@ -478,7 +580,13 @@ export {
   uploadPermission,
 } from './files/purposes';
 export type { FilePurposeRule } from './files/purposes';
-export { EXTENSIONS, UPLOAD_LIMITS, uploadKey, uploadLimitProblem } from './files/limits';
+export {
+  EXTENSIONS,
+  UPLOAD_LIMITS,
+  uploadKey,
+  uploadLimitProblem,
+  uploadMaxBytes,
+} from './files/limits';
 export type { UploadLimit, UploadLimitProblem } from './files/limits';
 export { fileUploadMachine } from './state-machines/machines/file-upload';
 export {
@@ -515,7 +623,13 @@ export type {
   ModelTransport,
 } from './ai/transport';
 export { vendorTransports } from './ai/env';
-export { costInPaise, DEFAULT_CLAUDE_MODEL, DEFAULT_EMBEDDING_MODEL } from './ai/models';
+export {
+  costInPaise,
+  DEFAULT_CLAUDE_MODEL,
+  DEFAULT_EMBEDDING_MODEL,
+  MODEL_PRICES,
+  type ModelPrice,
+} from './ai/models';
 export {
   AGENT_ACTION_TYPES,
   AUTOMATIC_AVAILABLE,
@@ -573,8 +687,20 @@ export {
   reindexKnowledgeFile,
 } from './commands/knowledge/files';
 export { recordKnowledgeIndex } from './commands/knowledge/record-index';
-export { knowledgeFileForIndex } from './commands/knowledge/shared';
 export {
+  correctKnowledgeTranscript,
+  recordKnowledgeTranscript,
+} from './commands/knowledge/transcript';
+export { knowledgeFileForIndex, knowledgeFileTranscript } from './commands/knowledge/shared';
+export {
+  approvePlaybookDirective,
+  draftPlaybookDirective,
+  editPlaybookDirective,
+  resolvePlaybookConflict,
+  retirePlaybookDirective,
+} from './commands/knowledge/playbook';
+export {
+  getKnowledgeFile,
   KNOWLEDGE_PAGE_SIZE,
   listKnowledgeFiles,
   searchKnowledge,
@@ -586,6 +712,76 @@ export {
   knowledgeSourceType,
 } from './knowledge/extract';
 export { EMBED_BATCH, indexKnowledgeFile, knowledgeReadKey } from './knowledge/index-file';
-export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
+export { KnowledgeExtractError } from './knowledge/extract';
+export type {
+  IndexKnowledgeDeps,
+  IndexKnowledgeOutcome,
+  RecordingTranscriber,
+} from './knowledge/index-file';
 export { knowledgeQueryVector } from './knowledge/search';
+export {
+  bumpPlaybookVersion,
+  PLAYBOOK_VERSION_KEY,
+  playbookVersion,
+} from './knowledge/playbook-version';
+export { checkPlaybook, parseLabel, playbookCheckWait } from './knowledge/playbook-check';
+export type { PlaybookCheckDeps, PlaybookCheckOutcome } from './knowledge/playbook-check';
+export { recordPlaybookCheck } from './commands/knowledge/playbook-check';
+export {
+  audiencesFromSource,
+  draftPlaybookFromFile,
+} from './commands/knowledge/playbook-from-file';
+export { DRAFT_SYSTEM, filterDrafts, proposeDirectives } from './knowledge/playbook-draft';
+export {
+  approvedPlaybook,
+  listPlaybook,
+  listPlaybookSources,
+  loadPlaybookReview,
+  playbookListQuery,
+  playbookSourcePassages,
+} from './queries/knowledge/playbook';
+export type { PlaybookSource } from './queries/knowledge/playbook';
+export { askCapReached, askTheBusiness, personSpendKey } from './ai/ask/ask';
+export { firstRecord, recordedAskTransport, STAND_IN_ASK } from './ai/ask/recorded';
+export type { AskRecording, LookupResults } from './ai/ask/recorded';
+export type { AskDeps, AskOptions } from './ai/ask/ask';
+export { ASK_SYSTEM } from './ai/ask/prompt';
+export { citationMarker, collectFigures, groundAnswer, UNSOURCED } from './ai/ask/grounding';
+export { ASK_TOOLS, toolsFor } from './ai/ask/tools';
+export { deleteAskConversation, recordAsk } from './commands/knowledge/ask';
+export {
+  askConversationListQuery,
+  askSourceLabels,
+  listAskConversations,
+  loadAskConversation,
+  readAskConversation,
+} from './queries/knowledge/ask';
 export { checkZipArchive } from './imports/zip-guard';
+export {
+  listAccountThreads,
+  listWaitingThreads,
+  readSendFacts,
+  readWhatsAppCounts,
+  readWhatsAppThread,
+  threadMessagesSql,
+  waitingThreadsSql,
+  whatsappChannelEntity,
+  whatsappTemplateEntities,
+  type SendFactsRow,
+} from './queries/messaging/whatsapp';
+export { matchKeyword, type WhatsAppKeyword } from './messaging/keywords';
+export { filterOutbound, type OutputFilterReason } from './messaging/output-filter';
+export {
+  decideSend,
+  DEFAULT_SEND_RULES,
+  type SendBudget,
+  type SendDecision,
+  type SendFacts,
+} from './messaging/send-checks';
+export {
+  noteConversation,
+  budgetFor,
+  messagingHealth,
+  recordQuality,
+  tierLimit,
+} from './messaging/budget';

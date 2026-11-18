@@ -38,10 +38,23 @@ import {
   MobileTokenRequest,
   MobileTokenResponse,
 } from './mobile-auth';
+import { AskInput, AskStreamEvent } from '../ask';
 import { RealtimeTokenRequest, RealtimeTokenResponse } from './realtime';
 import { SyncPullQuery, SyncPullResponse, SyncPushRequest, SyncPushResponse } from './sync';
-import { VoiceSessionRequest, VoiceSessionResponse } from './voice';
-import { ExotelCallStatusWebhook, ExotelIncomingWebhook } from './webhooks-exotel';
+import {
+  VoiceRecordingCompleteRequest,
+  VoiceRecordingCompleteResponse,
+  VoiceRecordingRequest,
+  VoiceSessionRequest,
+  VoiceSessionResponse,
+  VoiceTokenRequest,
+  VoiceTokenResponse,
+} from './voice';
+import {
+  ExotelCallStatusWebhook,
+  ExotelIncomingParams,
+  ExotelIncomingWebhook,
+} from './webhooks-exotel';
 import { GoogleLeadFormWebhook } from './webhooks-google';
 import { LiveKitWebhook } from './webhooks-livekit';
 import { MetaLeadgenWebhook, MetaVerifyQuery, WhatsAppWebhook } from './webhooks-meta';
@@ -64,6 +77,8 @@ import {
   PdfRenderResult,
   SttTranscribeJob,
   SttTranscribeResult,
+  WebhookProcessJob,
+  WebhookProcessResult,
 } from './worker-jobs';
 import {
   ImportCommitWorkerBody,
@@ -101,6 +116,18 @@ export interface ApiEndpoint {
 }
 
 const AUTHED: readonly ErrorCode[] = ['unauthorized', 'forbidden', 'rate_limited'];
+
+/**
+ * A provider webhook (docs/06-api.md §3.4): `validation_failed` for a body over the route's cap,
+ * `unauthorized` for a failed check, `integration_unavailable` while the provider's secret or the
+ * receiver's connection is not set (docs/03-roadmap-appendix/phase2.md §2, question 13) or the
+ * database does not answer.
+ */
+const WEBHOOK_ERRORS: readonly ErrorCode[] = [
+  'validation_failed',
+  'unauthorized',
+  'integration_unavailable',
+];
 
 /**
  * A worker answers `unauthorized` for a bad QStash signature, `validation_failed` for a body that
@@ -162,6 +189,18 @@ export const API_ENDPOINTS = {
     // A body with any field; signing keys or the issuer not configured (realtime/handlers.ts).
     errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
   },
+  // One question to Ask the Business (docs/03-roadmap-appendix/phase2.md §6.5): the response is a
+  // stream of `AskStreamEvent` lines; the example is its last line. The key answers a repeated
+  // question from its record. A failure once the stream has begun is its last line instead.
+  ask: {
+    method: 'POST',
+    path: '/ask',
+    auth: 'session_or_bearer',
+    idempotencyKey: true,
+    request: AskInput,
+    response: AskStreamEvent,
+    errors: ['validation_failed', ...AUTHED, 'not_found', 'integration_unavailable'],
+  },
   'voice.session': {
     method: 'POST',
     path: '/voice/session',
@@ -170,6 +209,35 @@ export const API_ENDPOINTS = {
     request: VoiceSessionRequest,
     response: VoiceSessionResponse,
     errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // The voice worker's token for its live session, refreshed before it expires.
+  'voice.token': {
+    method: 'POST',
+    path: '/voice/token',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceTokenRequest,
+    response: VoiceTokenResponse,
+    errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // A Teach session's recording, uploaded by the worker straight to the file store, then filed.
+  'voice.recording': {
+    method: 'POST',
+    path: '/voice/recording',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceRecordingRequest,
+    response: FilePresignResponse,
+    errors: ['validation_failed', ...AUTHED, 'conflict', 'integration_unavailable'],
+  },
+  'voice.recording.complete': {
+    method: 'POST',
+    path: '/voice/recording/complete',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceRecordingCompleteRequest,
+    response: VoiceRecordingCompleteResponse,
+    errors: ['validation_failed', ...AUTHED, 'not_found', 'conflict', 'integration_unavailable'],
   },
   'sync.pull': {
     method: 'GET',
@@ -231,10 +299,16 @@ export const API_ENDPOINTS = {
     method: 'POST',
     path: '/ingest/leads',
     auth: 'ingest_key',
-    idempotencyKey: false,
+    idempotencyKey: true,
     request: IngestLeadRequest,
     response: IngestLeadResponse,
-    errors: ['validation_failed', 'unauthorized', 'forbidden', 'rate_limited'],
+    errors: [
+      'validation_failed',
+      'unauthorized',
+      'forbidden',
+      'rate_limited',
+      'integration_unavailable',
+    ],
   },
   'ingest.health': {
     method: 'GET',
@@ -242,7 +316,7 @@ export const API_ENDPOINTS = {
     auth: 'ingest_key',
     idempotencyKey: false,
     response: IngestHealthResponse,
-    errors: ['unauthorized', 'rate_limited'],
+    errors: ['unauthorized', 'integration_unavailable'],
   },
   'webhooks.whatsapp.verify': {
     method: 'GET',
@@ -251,7 +325,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     query: MetaVerifyQuery,
     response: 'text',
-    errors: ['forbidden'],
+    errors: ['forbidden', 'integration_unavailable'],
   },
   'webhooks.whatsapp': {
     method: 'POST',
@@ -260,7 +334,16 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: WhatsAppWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
+  },
+  'webhooks.leadgen.verify': {
+    method: 'GET',
+    path: '/webhooks/meta/leadgen',
+    auth: 'provider_signature',
+    idempotencyKey: false,
+    query: MetaVerifyQuery,
+    response: 'text',
+    errors: ['forbidden', 'integration_unavailable'],
   },
   'webhooks.leadgen': {
     method: 'POST',
@@ -269,7 +352,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MetaLeadgenWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.google': {
     method: 'POST',
@@ -278,7 +361,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: GoogleLeadFormWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.exotel.status': {
     method: 'POST',
@@ -287,16 +370,27 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: ExotelCallStatusWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
+  },
+  'webhooks.exotel.incoming.get': {
+    method: 'GET',
+    path: '/webhooks/exotel/incoming/:secret',
+    auth: 'provider_signature',
+    idempotencyKey: false,
+    params: ExotelIncomingParams,
+    query: ExotelIncomingWebhook,
+    response: WebhookAck,
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.exotel.incoming': {
     method: 'POST',
-    path: '/webhooks/exotel/incoming',
+    path: '/webhooks/exotel/incoming/:secret',
     auth: 'provider_signature',
     idempotencyKey: false,
+    params: ExotelIncomingParams,
     request: ExotelIncomingWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'webhooks.livekit': {
     method: 'POST',
@@ -305,7 +399,7 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: LiveKitWebhook,
     response: WebhookAck,
-    errors: ['unauthorized'],
+    errors: WEBHOOK_ERRORS,
   },
   'connector.heartbeat': {
     method: 'POST',
@@ -397,7 +491,8 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MessagingSendJob,
     response: MessagingSendResult,
-    errors: WORKER_ERRORS,
+    // `rate_limited` for a chat over its hourly limit, delivered again later.
+    errors: [...WORKER_ERRORS, 'rate_limited'],
   },
   'workers.pdf.render': {
     method: 'POST',
@@ -443,6 +538,15 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: NotifyJob,
     response: NotifyResult,
+    errors: WORKER_ERRORS,
+  },
+  'workers.webhooks.process': {
+    method: 'POST',
+    path: '/workers/webhooks/process',
+    auth: 'qstash_signature',
+    idempotencyKey: false,
+    request: WebhookProcessJob,
+    response: WebhookProcessResult,
     errors: WORKER_ERRORS,
   },
   'admin.integrations': {

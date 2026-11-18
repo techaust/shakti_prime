@@ -174,6 +174,36 @@ describe('scrubEvent (docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   });
 });
 
+describe("Exotel's inbound secret path segment (P5 review 4)", () => {
+  const secret = 'inbound-path-segment-for-the-scrub-test';
+  const path = `/api/v1/webhooks/exotel/incoming/${secret}`;
+
+  it('is replaced in the request, the transaction, its spans and breadcrumbs', () => {
+    const event = scrubEvent({
+      type: 'transaction',
+      request: { method: 'GET', url: `https://bos.test${path}?CallSid=1` },
+      transaction: `GET ${path}`,
+      spans: [
+        {
+          description: `GET ${path}`,
+          data: { 'http.target': path, 'url.full': `https://bos.test${path}` },
+        },
+      ],
+    });
+    expect(JSON.stringify(event)).not.toContain(secret);
+    expect(event.request.url).toBe('https://bos.test/api/v1/webhooks/exotel/incoming/[secret]');
+    expect(event.transaction).toBe('GET /api/v1/webhooks/exotel/incoming/[secret]');
+    const crumb = scrubBreadcrumb({ message: `fetch ${path}`, data: { url: path } });
+    expect(JSON.stringify(crumb)).not.toContain(secret);
+  });
+
+  it('leaves every other path as it was', () => {
+    expect(withoutQuery('/api/v1/webhooks/exotel/call-status?sig=x')).toBe(
+      '/api/v1/webhooks/exotel/call-status',
+    );
+  });
+});
+
 describe('query strings in context, span and breadcrumb fields', () => {
   const search = '/leads?q=Ramesh%20Kumar';
 

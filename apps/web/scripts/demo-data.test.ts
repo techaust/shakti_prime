@@ -8,6 +8,9 @@ import { PRODUCTION_PROJECT_REF } from './demo-data-target';
 // production project on hosts under `.invalid`, which never resolve, so even a script that tried
 // to connect could reach nothing; it must stop at the guard, before it looks for the Executive.
 const webRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+// On a freshly installed machine the child's first `tsx` start compiles the script and its imports
+// with a cold cache, which took longer than a minute; the test waits a little longer than the child.
+const CHILD_TIMEOUT_MS = 180_000;
 
 function run(env: Record<string, string>) {
   const clean = Object.fromEntries(
@@ -17,26 +20,30 @@ function run(env: Record<string, string>) {
     cwd: webRoot,
     env: { ...clean, ...env } as NodeJS.ProcessEnv,
     encoding: 'utf8',
-    timeout: 60_000,
+    timeout: CHILD_TIMEOUT_MS,
   });
 }
 
 describe('scripts/demo-data.ts', () => {
-  it('refuses a production address before it opens any connection', () => {
-    const address = (role: string) =>
-      `postgresql://${role}:pw@db.${PRODUCTION_PROJECT_REF}.invalid:5432/postgres`;
-    const result = run({
-      DATABASE_URL: address('app_user'),
-      DATABASE_URL_AUTH: address('auth_service'),
-      DATABASE_URL_MIGRATOR: address('postgres'),
-      DATABASE_URL_OUTBOX: address('outbox_publisher'),
-      DATABASE_URL_READER: address('app_reader'),
-      BOS_ENVIRONMENT: 'staging',
-    });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toMatch(/refused: DATABASE_URL names the production project/);
-    expect(result.stdout).not.toMatch(/acting as/);
-    // A connection attempt would have failed on the address instead.
-    expect(result.stderr).not.toMatch(/ENOTFOUND|getaddrinfo|ECONNREFUSED/);
-  }, 60_000);
+  it(
+    'refuses a production address before it opens any connection',
+    () => {
+      const address = (role: string) =>
+        `postgresql://${role}:pw@db.${PRODUCTION_PROJECT_REF}.invalid:5432/postgres`;
+      const result = run({
+        DATABASE_URL: address('app_user'),
+        DATABASE_URL_AUTH: address('auth_service'),
+        DATABASE_URL_MIGRATOR: address('postgres'),
+        DATABASE_URL_OUTBOX: address('outbox_publisher'),
+        DATABASE_URL_READER: address('app_reader'),
+        BOS_ENVIRONMENT: 'staging',
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(/refused: DATABASE_URL names the production project/);
+      expect(result.stdout).not.toMatch(/acting as/);
+      // A connection attempt would have failed on the address instead.
+      expect(result.stderr).not.toMatch(/ENOTFOUND|getaddrinfo|ECONNREFUSED/);
+    },
+    CHILD_TIMEOUT_MS + 30_000,
+  );
 });

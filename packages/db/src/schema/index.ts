@@ -39,7 +39,12 @@ export {
   userEntityRoles,
 } from './identity';
 export { quotes, quoteLines, quoteVersions } from './quotes';
-export { knowledgeFiles, knowledgeChunks } from './knowledge';
+export {
+  knowledgeFiles,
+  knowledgeChunks,
+  playbookDirectives,
+  playbookConflictChecks,
+} from './knowledge';
 export { notifications, notificationPreferences, pushSubscriptions } from './notifications';
 export { callerProfiles } from './caller-profiles';
 export {
@@ -49,3 +54,15 @@ export {
   dealerOutstanding,
   commissionAccruals,
 } from './sales-orders';
+export { entityChannels } from './entity-channels';
+export { webhookInbox } from './webhook-inbox';
+export {
+  whatsappThreads,
+  whatsappMessages,
+  whatsappMessageKeys,
+  whatsappTemplates,
+} from './whatsapp';
+export { askConversations, askMessages } from './ask';
+export { ingestSources, ingestKeys, leadQualifications } from './lead-ingest';
+export { providerCalls } from './provider-calls';
+export { voiceSessions } from './voice-sessions';

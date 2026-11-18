@@ -15,9 +15,16 @@ import { setRolePermissions } from '../commands/admin/set-role-permissions';
 import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
+import { dialCall } from '../commands/calls/dial-call';
 import { logCall } from '../commands/calls/log-call';
+import { playCallRecording } from '../commands/calls/play-recording';
+import {
+  attachCallRecording,
+  deleteCallRecording,
+  recordProviderCall,
+} from '../commands/calls/provider-calls';
 import { assignOpportunity } from '../commands/crm/assign-opportunity';
-import { setCallerProfile, setPresence } from '../commands/crm/caller-profiles';
+import { setCallerProfile, setDialPhone, setPresence } from '../commands/crm/caller-profiles';
 import { handOverLead } from '../commands/crm/hand-over-lead';
 import { reassignAllLeads } from '../commands/crm/reassign-all';
 import { createLead } from '../commands/crm/create-lead';
@@ -76,6 +83,20 @@ import {
   reindexKnowledgeFile,
 } from '../commands/knowledge/files';
 import { recordKnowledgeIndex } from '../commands/knowledge/record-index';
+import {
+  correctKnowledgeTranscript,
+  recordKnowledgeTranscript,
+} from '../commands/knowledge/transcript';
+import {
+  approvePlaybookDirective,
+  draftPlaybookDirective,
+  editPlaybookDirective,
+  resolvePlaybookConflict,
+  retirePlaybookDirective,
+} from '../commands/knowledge/playbook';
+import { recordPlaybookCheck } from '../commands/knowledge/playbook-check';
+import { draftPlaybookFromFile } from '../commands/knowledge/playbook-from-file';
+import { deleteAskConversation, recordAsk } from '../commands/knowledge/ask';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
 import { failImportJob } from '../commands/imports/fail-job';
@@ -86,6 +107,32 @@ import { purgeImportRows, recordImportFilesDeleted } from '../commands/imports/p
 import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
+import { archiveEntityChannel, setEntityChannel } from '../commands/org/channels';
+import { recordPhoneDnd } from '../commands/crm/record-phone-dnd';
+import { sendWhatsAppMessage } from '../commands/messaging/send-message';
+import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messaging/threads';
+import { registerWhatsAppTemplate } from '../commands/messaging/templates';
+import {
+  attachWhatsAppMedia,
+  claimWhatsAppMessage,
+  matchWhatsAppThread,
+  queueWhatsAppMessage,
+  recordInboundWhatsApp,
+  recordWhatsAppHandOff,
+  recordWhatsAppOptOut,
+  recordWhatsAppSend,
+  recordWhatsAppStatus,
+  recordWhatsAppTemplateStatus,
+} from '../commands/messaging/platform';
+import { ingestLead } from '../commands/crm/ingest-lead';
+import { setLeadQualification } from '../commands/crm/lead-qualification';
+import {
+  archiveIngestSource,
+  createIngestKey,
+  recordSourceQuestions,
+  revokeIngestKey,
+  setIngestSource,
+} from '../commands/crm/ingest-sources';
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
@@ -107,6 +154,12 @@ import { setTarget } from '../commands/sales/set-target';
 import { createQuote } from '../commands/sales/create-quote';
 import { expireQuotes } from '../commands/sales/expire-quotes';
 import { anonymiseStaleLeads } from '../commands/crm/anonymise-stale-leads';
+import {
+  claimWebhook,
+  markWebhook,
+  replayWebhook,
+  sweepWebhooks,
+} from '../commands/webhooks/inbox';
 import { releaseCredit } from '../commands/sales/release-credit';
 import { requoteQuote } from '../commands/sales/requote';
 import { sendQuote } from '../commands/sales/send-quote';
@@ -114,6 +167,11 @@ import { withdrawQuote } from '../commands/sales/withdraw-quote';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { issueRealtimeToken } from '../commands/realtime/issue-token';
+import {
+  recordVoiceSession,
+  refreshVoiceToken,
+  startVoiceSession,
+} from '../commands/voice/sessions';
 import { setContrast } from '../commands/profile/set-contrast';
 import { setCompositeRule } from '../commands/tax/set-composite-rule';
 import { setTaxRate } from '../commands/tax/set-tax-rate';
@@ -123,11 +181,36 @@ import type { AnyCommand } from './define-command';
 /** Frozen: no command can be added, replaced or removed at run time (audit ARCH-1). */
 export const commands = Object.freeze({
   [updateEntity.name]: updateEntity,
+  [setEntityChannel.name]: setEntityChannel,
+  [archiveEntityChannel.name]: archiveEntityChannel,
+  [recordPhoneDnd.name]: recordPhoneDnd,
+  [sendWhatsAppMessage.name]: sendWhatsAppMessage,
+  [handOffWhatsAppThread.name]: handOffWhatsAppThread,
+  [returnWhatsAppThread.name]: returnWhatsAppThread,
+  [registerWhatsAppTemplate.name]: registerWhatsAppTemplate,
+  [recordInboundWhatsApp.name]: recordInboundWhatsApp,
+  [matchWhatsAppThread.name]: matchWhatsAppThread,
+  [recordWhatsAppStatus.name]: recordWhatsAppStatus,
+  [recordWhatsAppTemplateStatus.name]: recordWhatsAppTemplateStatus,
+  [recordWhatsAppOptOut.name]: recordWhatsAppOptOut,
+  [recordWhatsAppHandOff.name]: recordWhatsAppHandOff,
+  [queueWhatsAppMessage.name]: queueWhatsAppMessage,
+  [claimWhatsAppMessage.name]: claimWhatsAppMessage,
+  [recordWhatsAppSend.name]: recordWhatsAppSend,
+  [attachWhatsAppMedia.name]: attachWhatsAppMedia,
+  [ingestLead.name]: ingestLead,
+  [setLeadQualification.name]: setLeadQualification,
+  [setIngestSource.name]: setIngestSource,
+  [archiveIngestSource.name]: archiveIngestSource,
+  [createIngestKey.name]: createIngestKey,
+  [revokeIngestKey.name]: revokeIngestKey,
+  [recordSourceQuestions.name]: recordSourceQuestions,
   [createLead.name]: createLead,
   [moveOpportunityStage.name]: moveOpportunityStage,
   [assignOpportunity.name]: assignOpportunity,
   [setCallerProfile.name]: setCallerProfile,
   [setPresence.name]: setPresence,
+  [setDialPhone.name]: setDialPhone,
   [handOverLead.name]: handOverLead,
   [reassignAllLeads.name]: reassignAllLeads,
   [nurtureOpportunity.name]: nurtureOpportunity,
@@ -168,6 +251,14 @@ export const commands = Object.freeze({
   [recordConsent.name]: recordConsent,
   [withdrawConsent.name]: withdrawConsent,
   [logCall.name]: logCall,
+  [dialCall.name]: dialCall,
+  [recordProviderCall.name]: recordProviderCall,
+  [attachCallRecording.name]: attachCallRecording,
+  [deleteCallRecording.name]: deleteCallRecording,
+  [playCallRecording.name]: playCallRecording,
+  [startVoiceSession.name]: startVoiceSession,
+  [refreshVoiceToken.name]: refreshVoiceToken,
+  [recordVoiceSession.name]: recordVoiceSession,
   [setPrice.name]: setPrice,
   [createPriceList.name]: createPriceList,
   [approvePriceList.name]: approvePriceList,
@@ -225,6 +316,10 @@ export const commands = Object.freeze({
   [withdrawQuote.name]: withdrawQuote,
   [expireQuotes.name]: expireQuotes,
   [anonymiseStaleLeads.name]: anonymiseStaleLeads,
+  [claimWebhook.name]: claimWebhook,
+  [markWebhook.name]: markWebhook,
+  [sweepWebhooks.name]: sweepWebhooks,
+  [replayWebhook.name]: replayWebhook,
   [attachQuotePdf.name]: attachQuotePdf,
   [acceptQuote.name]: acceptQuote,
   [createSalesOrder.name]: createSalesOrder,
@@ -245,6 +340,17 @@ export const commands = Object.freeze({
   [reindexKnowledgeFile.name]: reindexKnowledgeFile,
   [archiveKnowledgeFile.name]: archiveKnowledgeFile,
   [recordKnowledgeIndex.name]: recordKnowledgeIndex,
+  [recordKnowledgeTranscript.name]: recordKnowledgeTranscript,
+  [correctKnowledgeTranscript.name]: correctKnowledgeTranscript,
+  [draftPlaybookDirective.name]: draftPlaybookDirective,
+  [editPlaybookDirective.name]: editPlaybookDirective,
+  [approvePlaybookDirective.name]: approvePlaybookDirective,
+  [retirePlaybookDirective.name]: retirePlaybookDirective,
+  [resolvePlaybookConflict.name]: resolvePlaybookConflict,
+  [recordPlaybookCheck.name]: recordPlaybookCheck,
+  [draftPlaybookFromFile.name]: draftPlaybookFromFile,
+  [recordAsk.name]: recordAsk,
+  [deleteAskConversation.name]: deleteAskConversation,
   [completeInboxItem.name]: completeInboxItem,
   [routeEnquiry.name]: routeEnquiry,
   [takeEnquiry.name]: takeEnquiry,

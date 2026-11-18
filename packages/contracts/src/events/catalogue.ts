@@ -8,6 +8,9 @@ import { FilePurposeSchema } from '../api/files';
 import { PdfDocumentTypeSchema } from '../api/print-documents';
 import { ImportKindSchema } from '../imports/enums';
 import { KNOWLEDGE_PDF_MAX_PAGES, KnowledgeSensitivitySchema } from '../knowledge';
+import { PlaybookDirectiveStateSchema } from '../playbook';
+import { MessageRequested } from '../api/messaging';
+import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -71,7 +74,12 @@ const eventCatalogue = {
   'crm.lead.created': {
     meaning:
       'A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer.',
-    emittedBy: ['crm.enquiry.take', 'crm.lead.create', 'imports.job.commit_batch'],
+    emittedBy: [
+      'crm.enquiry.take',
+      'crm.lead.create',
+      'crm.lead.ingest',
+      'imports.job.commit_batch',
+    ],
     subscribed: true,
     undeliveredWhen: 'imported',
     payload: z
@@ -87,7 +95,12 @@ const eventCatalogue = {
   'crm.lead.attached': {
     meaning:
       "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates.",
-    emittedBy: ['crm.enquiry.take', 'crm.lead.create', 'imports.job.commit_batch'],
+    emittedBy: [
+      'crm.enquiry.take',
+      'crm.lead.create',
+      'crm.lead.ingest',
+      'imports.job.commit_batch',
+    ],
     subscribed: false,
     payload: z.object({ pipelineKey: Code, sourceCode: Code.nullable() }).strict(),
   },
@@ -144,8 +157,8 @@ const eventCatalogue = {
   },
   'crm.enquiry.routed': {
     meaning:
-      'An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04); the notify worker tells them.',
-    emittedBy: ['crm.enquiry.route', 'crm.enquiry.take'],
+      'An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04), or a lead from an integration went to the Sales Team Lead as routed work with no caller present; the notify worker tells them.',
+    emittedBy: ['crm.enquiry.route', 'crm.enquiry.take', 'crm.lead.ingest'],
     subscribed: true,
     payload: z.object({ assigneeId: IdSchema, accountId: IdSchema }).strict(),
   },
@@ -382,7 +395,12 @@ const eventCatalogue = {
   'files.file.uploaded': {
     meaning:
       'An upload landed and waits for its checks; sent again for a file whose checks stalled.',
-    emittedBy: ['files.upload.complete', 'files.file.recheck', 'files.file.continue_check'],
+    emittedBy: [
+      'files.upload.complete',
+      'files.file.recheck',
+      'files.file.continue_check',
+      'messaging.media.attach',
+    ],
     subscribed: true,
     payload: z
       .object({
@@ -416,13 +434,103 @@ const eventCatalogue = {
    */
   'knowledge.file.index_requested': {
     meaning:
-      'A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, or when indexed again.',
-    emittedBy: ['knowledge.file.add', 'knowledge.file.reindex', 'files.file.mark_ready'],
+      'A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, when indexed again, or when a recording’s transcript is corrected.',
+    emittedBy: [
+      'knowledge.file.add',
+      'knowledge.file.reindex',
+      'knowledge.transcript.correct',
+      'files.file.mark_ready',
+    ],
     subscribed: true,
     payload: z
       .object({
         knowledgeEntityId: EntityIdSchema.nullable(),
         sensitivity: KnowledgeSensitivitySchema,
+      })
+      .strict(),
+  },
+  /**
+   * A Playbook directive changed (docs/03-roadmap-appendix/phase2.md §5.4). The event's company is
+   * the one the request acted for; `directiveEntityId` is the directive's (null for the whole
+   * group). `recheck` says its wording is new, so the conflict check is due; any change bumps the
+   * Playbook's version, so the agents and Ask read the approved set again.
+   */
+  'knowledge.playbook.changed': {
+    meaning:
+      'A Playbook directive was drafted, edited, approved or retired, or a conflict on it was resolved; `recheck` says its wording is new and the conflict check is due.',
+    emittedBy: [
+      'knowledge.playbook.draft',
+      'knowledge.playbook.draft_from_file',
+      'knowledge.playbook.edit',
+      'knowledge.playbook.approve',
+      'knowledge.playbook.retire',
+      'knowledge.playbook.resolve_conflict',
+    ],
+    subscribed: true,
+    payload: z
+      .object({
+        directiveEntityId: EntityIdSchema.nullable(),
+        change: z.enum(['drafted', 'edited', 'approved', 'retired', 'conflict_resolved']),
+        state: PlaybookDirectiveStateSchema,
+        recheck: z.boolean(),
+      })
+      .strict(),
+  },
+  /**
+   * A WhatsApp message was queued (docs/03-roadmap-appendix/phase2.md §6.1): delivered as a
+   * `MessagingSendJob` to `/api/v1/workers/messaging/send`, which checks and sends it once. The
+   * aggregate is the thread; the payload is `MessageRequested` (ids and the kind only).
+   */
+  'messaging.message.requested': {
+    meaning:
+      'A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it.',
+    emittedBy: ['messaging.message.send', 'messaging.message.queue'],
+    subscribed: true,
+    payload: MessageRequested,
+  },
+  /**
+   * A customer's WhatsApp message was stored on its thread, once (a repeat emits nothing). The
+   * aggregate is the thread; the Concierge and the notices read the message from the thread.
+   */
+  'messaging.message.received': {
+    meaning:
+      "A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread.",
+    emittedBy: ['messaging.inbound.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        messageId: IdSchema,
+        kind: z.enum(['text', 'media']),
+        accountId: IdSchema.nullable(),
+        firstMessage: z.boolean(),
+      })
+      .strict(),
+  },
+  /** A customer pressed a button of a WhatsApp message; the reply's id is in the stored message. */
+  'messaging.button.pressed': {
+    meaning:
+      "A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message.",
+    emittedBy: ['messaging.inbound.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        messageId: IdSchema,
+        accountId: IdSchema.nullable(),
+        firstMessage: z.boolean(),
+      })
+      .strict(),
+  },
+  'calls.dial.completed': {
+    meaning:
+      'A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line.',
+    emittedBy: ['calls.provider_call.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        callerId: IdSchema.nullable(),
+        status: z.enum(PROVIDER_CALL_ENDS),
+        durationSeconds: z.number().int().min(0).nullable(),
       })
       .strict(),
   },

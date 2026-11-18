@@ -12,6 +12,8 @@ import { SEND_AGAIN_COMPANY, SNAPSHOT_COMPANY } from './support/users';
 const WAITING = 'Updates waiting to go out, by kind';
 const HELD = 'Updates held back after ten tries, newest first';
 const UPKEEP = 'Scheduled upkeep tasks and their last run';
+const MESSAGES = 'Messages from other systems in the last 24 hours, by system';
+const FAILED_MESSAGES = 'Messages from other systems that failed, newest first';
 
 test.describe('as an Executive', () => {
   test.use(signedInAs('executive'));
@@ -36,6 +38,12 @@ test.describe('as an Executive', () => {
     await expect(upkeep.getByText('Clear out updates sent more than 30 days ago')).toBeVisible();
     await expect(upkeep.getByText('Make room for next months’ customer history')).toBeVisible();
 
+    // Every system that sends messages in has a row, with zeros when nothing came (phase 2 §5.1).
+    const messages = dataGrid(page, MESSAGES);
+    for (const source of ['WhatsApp messages', 'Google lead forms', 'Incoming calls']) {
+      await expect(messages.getByText(source, { exact: true })).toBeVisible();
+    }
+
     // Locally and in CI no queue is configured, so the check's worker runs in the app itself.
     await page.getByRole('button', { name: 'Check delivery speed' }).click();
     await expect(page.getByRole('status').filter({ hasText: /^Arrived in / })).toBeVisible();
@@ -56,6 +64,26 @@ test.describe('as an Executive', () => {
     await sendAgain.first().click();
     await expect(page.getByText('The update goes out again within a minute.')).toBeVisible();
     await expect(sendAgain).toHaveCount(before - 1);
+  });
+});
+
+test.describe('messages from other systems, as an Executive', () => {
+  test.use(signedInAs('executive'));
+
+  test('Process again handles a failed message once more', async ({ page }) => {
+    await page.goto('/admin/integrations');
+    const failed = dataGrid(page, FAILED_MESSAGES);
+    const again = failed.getByRole('button', { name: 'Process again' });
+    await expect(again.first()).toBeVisible();
+    // The button keeps its visible words as its name and says which message it handles.
+    await expect(again.first()).toHaveAccessibleDescription(
+      /^Facebook and Instagram lead forms, received at \d/,
+    );
+    const before = await again.count();
+    await again.first().click();
+    await expect(page.getByText('The message is handled again within a minute.')).toBeVisible();
+    await expect(again).toHaveCount(before - 1);
+    await expectNoAxeViolations(page);
   });
 });
 

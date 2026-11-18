@@ -8,8 +8,19 @@ export interface ModelPrice {
   output: number;
   /** Input read from the prompt cache. */
   cacheRead: number;
-  /** Input written to the prompt cache. */
+  /** Input written to the prompt cache (the five-minute write). */
   cacheWrite: number;
+  /**
+   * Dearer prices for a call whose prompt (input, cache reads and cache writes together) is over
+   * `overPromptTokens`, where the vendor prices by prompt length (Haiku 5.5 over 100,000 tokens).
+   */
+  longPrompt?: {
+    overPromptTokens: number;
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+  };
 }
 
 /** The record an action type needs before an agent may take it on its own (BLUEPRINT §9.3). */
@@ -33,13 +44,35 @@ export const AGENT_DEFAULTS = {
   paisePerUsd: 10_400,
 
   /**
-   * The models an agent may call and their prices, as published on `pricesCheckedOn`; only the
-   * models the design names (Haiku 4.5 and the Voyage embeddings). Flagged for the owner to check
-   * against the vendors' price pages; a call naming any other model is refused.
+   * The models an agent may call and their prices, each as published on its date in
+   * `pricesCheckedOn`: Haiku 4.5 and the Voyage embeddings (Phase 1), Sonnet 5.5 and Haiku 5.5
+   * (Phase 2, question 1 (a) of docs/03-roadmap-appendix/phase2.md). The Claude prices are from
+   * Anthropic's pricing page (platform.claude.com/docs/en/about-claude/pricing), the five-minute
+   * cache write as `cacheWrite`. Flagged for the owner to check against the vendors' price pages;
+   * a call naming any other model is refused.
    */
-  pricesCheckedOn: '2026-10-05',
+  pricesCheckedOn: {
+    'claude-haiku-4-5-20251001': '2026-11-13',
+    'claude-sonnet-5-5': '2026-11-13',
+    'claude-haiku-5-5': '2026-11-13',
+    'voyage-3.5': '2026-10-05',
+  },
   modelPrices: {
     'claude-haiku-4-5-20251001': { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+    'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
+    'claude-haiku-5-5': {
+      input: 0.1,
+      output: 0.5,
+      cacheRead: 0.01,
+      cacheWrite: 0.125,
+      longPrompt: {
+        overPromptTokens: 100_000,
+        input: 0.5,
+        output: 2.5,
+        cacheRead: 0.05,
+        cacheWrite: 0.625,
+      },
+    },
     'voyage-3.5': { input: 0.06, output: 0, cacheRead: 0, cacheWrite: 0 },
   } satisfies Record<string, ModelPrice>,
 
@@ -97,15 +130,127 @@ export const AGENT_DEFAULTS = {
    * staff search embeds each question. Each is counted under its own name in the spend totals and
    * held against its own daily cap for the whole group, in paise: ₹500 a day for reading and
    * embedding files (reading a PDF or a photo reserves about ₹25 before it is sent, and costs a few rupees), and
-   * ₹100 a day for search questions (each costs a paisa). Both caps are flagged for the owner to
+   * ₹100 a day for search questions (each costs a paisa). Transcribing vault recordings (K3) is
+   * counted under the index's name, inside its ₹500, and held as well to a cap of its own,
+   * `transcribeDailyCapPaise`: ₹300 a day, ten hours of audio at Sarvam's published ₹30 an hour,
+   * so recordings never take the whole day's reading. Each cap is flagged for the owner to
    * confirm; a change moves only how much the vault may read or answer in a day.
    */
   knowledge: {
     indexName: 'knowledge:index',
     searchName: 'knowledge:search',
     indexDailyCapPaise: 50_000,
+    /** The part of the index's spend that transcribing recordings may take in a day. */
+    transcribePart: 'transcribe',
+    transcribeDailyCapPaise: 30_000,
     searchDailyCapPaise: 10_000,
     /** One person's daily share of the search cap: a fifth, so one person cannot use it all up. */
     searchPersonDailyCapPaise: 2_000,
+  },
+
+  /**
+   * The Playbook's model work (docs/03-roadmap-appendix/phase2.md §5.4), which no agent principal
+   * does, counted under its own spend name for the whole group. Each value is flagged for the
+   * owner to confirm:
+   * - `conflictDistance`: approved directives of the same type whose embedding lies within this
+   *   cosine distance of a draft's are its conflict candidates (0.20, workshop default);
+   * - `candidatesPerCheck`: the most candidates one check labels, nearest first;
+   * - `labelModel` (Haiku 5.5) labels each candidate pair, `draftModel` (Sonnet 5.5) drafts from a
+   *   vault file (question 1 (a)); each at its own effort and answer length;
+   * - `draftsPerFile`: the most drafts one vault file yields; `passagesPerDraft`: the most
+   *   passages of the file the model reads, in order, so a call stays well inside the prompt
+   *   size Haiku's and Sonnet's prices hold for;
+   * - `dailyCapPaise`: ₹300 a day for the group; `personDailyCapPaise`: one person's share of it
+   *   for drafting, a third;
+   * - `promptVersion`: named with every change of the two prompts.
+   */
+  playbook: {
+    spendName: 'knowledge:playbook',
+    conflictDistance: 0.2,
+    candidatesPerCheck: 5,
+    labelModel: 'claude-haiku-5-5',
+    labelEffort: 'low',
+    labelMaxTokens: 2_000,
+    draftModel: 'claude-sonnet-5-5',
+    draftEffort: 'medium',
+    draftMaxTokens: 16_000,
+    draftsPerFile: 10,
+    passagesPerDraft: 60,
+    dailyCapPaise: 30_000,
+    personDailyCapPaise: 10_000,
+    promptVersion: 'playbook-1',
+  },
+
+  /**
+   * Ask the Business (docs/03-roadmap-appendix/phase2.md §6.5, §11, questions 1 and 9): Sonnet 5.5
+   * with read-only lookups, counted under its own spend name for the whole group. Each value is
+   * flagged for the owner to confirm:
+   * - `dailyCapPaise`: ₹1,000 a day for the group; `personDailyCapPaise`: ₹50 a day a person;
+   * - `effort` medium, thinking left adaptive (§9.1), `maxTokens` per call, thinking included;
+   * - `maxModelCalls`: the most model calls one question makes, lookups included; the last one
+   *   offers no more lookups, so the model answers with what it read;
+   * - `totalTimeoutMs`: one call's time, every attempt included;
+   * - `rowsPerLookup`: the most records one lookup returns; `passagesPerSearch`: the most vault
+   *   passages one search returns; `directivesScanned`: the most approved Playbook directives the
+   *   Playbook lookup reads, and `directivesRead` the most it gives the model, those of its topic
+   *   first, saying when more were left out;
+   * - `earlierTurns`: the most earlier questions and answers of the conversation the model reads;
+   * - `promptVersion`: named with every change of the prompt or the lookups.
+   */
+  ask: {
+    spendName: 'knowledge:ask',
+    model: 'claude-sonnet-5-5',
+    effort: 'medium',
+    maxTokens: 6_000,
+    maxModelCalls: 5,
+    totalTimeoutMs: 45_000,
+    dailyCapPaise: 100_000,
+    personDailyCapPaise: 5_000,
+    rowsPerLookup: 25,
+    passagesPerSearch: 8,
+    directivesScanned: 2_000,
+    directivesRead: 50,
+    earlierTurns: 4,
+    promptVersion: 'ask-1',
+  },
+
+  /**
+   * Live voice's reply step (docs/03-roadmap-appendix/phase2.md §9.1, question 1 (a)): Sonnet 5.5,
+   * with thinking off (`between_tools`, which Sonnet 5.5 accepts at effort `high` or below) at
+   * effort `low`, so the first sentence comes quickly; a spoken reply is one or two sentences, so
+   * `maxTokens` stays small. The voice spike's `claude-stream.ts` and the benchmark read these; V2's
+   * worker takes them over, and the eval sets measure any change first.
+   */
+  voice: {
+    model: 'claude-sonnet-5-5',
+    effort: 'low',
+    thinking: 'between_tools',
+    maxTokens: 400,
+    /**
+     * Each person's limits (question 12 (a), flagged for the owner to confirm): 30 minutes and
+     * ₹200 a day, the day starting at midnight in India, and sessions of at most 15 minutes.
+     * `voice.session.start` refuses a session once either day's limit is reached
+     * (`voice_cap_reached`), and the worker ends one that reaches a limit while it runs.
+     */
+    personDailyMinutes: 30,
+    personDailyCapPaise: 20_000,
+    sessionMaxMinutes: 15,
+    /**
+     * Speech counted against the day's spend, per minute of a session: Sarvam's published
+     * speech-to-text price, ₹30 an hour (as `knowledge.transcribeDailyCapPaise` counts it). Its
+     * text to speech and LiveKit's minutes are not counted until the vendors' quotes give them
+     * (flagged for the owner, docs/03-roadmap-appendix/phase2.md §10).
+     */
+    speechPaisePerMinute: 50,
+  },
+
+  /**
+   * The WhatsApp Concierge (A3, wave 3). Until it exists, no assistant answers a chat (the lead's
+   * decision of 15-11-2026): a new chat starts with people (reason `no_assistant`), the screens
+   * offer no "give back to the assistant", and a chat waiting for a reply sends its notice. A3
+   * turns this on when the Concierge answers.
+   */
+  concierge: {
+    handlesNewThreads: false as boolean,
   },
 } as const;

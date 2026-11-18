@@ -99,6 +99,10 @@ export const setRolePermissions = defineCommand({
   input: SetRolePermissionsInput,
   output: RolePermissionsSetDto,
   auditFields: ['grants', 'customisedAt', 'holders', 'revokedSessions'],
+  unmaskedFields: [
+    // The grants' version as the form read it, a SHA-256 in hexadecimal compared whole.
+    'expectedVersion',
+  ],
   auditInput: (input) => ({ roleKey: input.roleKey, grants: input.grants }),
   constraintReasons: {
     role_permissions_platform_only: 'permission_platform_only',

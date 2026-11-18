@@ -10,6 +10,9 @@ export const PERMISSION_KEYS = [
   'crm.account.read',
   'crm.account.write',
   'crm.config.write',
+  // The companies' lead sources: connected Lead Ads and Google forms, their field maps and the
+  // website ingest keys (docs/03-roadmap-appendix/phase2.md §4).
+  'crm.sources.write',
   'calls.dial',
   'calls.log',
   'calls.recording.listen',
@@ -58,7 +61,13 @@ export const PERMISSION_KEYS = [
   'knowledge.vault.read.management',
   'knowledge.vault.read.exec',
   'knowledge.vault.write',
+  'knowledge.playbook.draft',
   'knowledge.playbook.approve',
+  // WhatsApp (docs/03-roadmap-appendix/phase2.md §4): session messages and templates on a thread
+  // the person may message, and the template registry.
+  'messaging.send',
+  'messaging.templates.write',
+  'knowledge.ask',
   'agents.inbox.act',
   'agents.autonomy.write',
   'agents.killswitch',
@@ -107,6 +116,35 @@ export const PERMISSION_KEYS = [
   // The hourly check of the database's scheduled jobs (audit 2026-10, DATA-3): held only by the
   // platform's worker principal, which reads each job's last run through one definer, nothing more.
   'platform.jobs.check',
+  // The Playbook's conflict check (docs/03-roadmap-appendix/phase2.md §5.4): held only by the
+  // platform's worker principal, which reads a draft and its candidates and records the labelled
+  // pairs through three narrow definers, nothing more.
+  'knowledge.playbook.check',
+  // Recording what the DND register answered for a customer's phone (BLUEPRINT §7.7, design
+  // phase2 §5.2): held only by the platform's worker principal, which writes the phone's DND state
+  // through one narrow definer, nothing more; no person may mark or clear a number.
+  'crm.dnd.record',
+  // The webhook worker and its sweep (docs/03-roadmap-appendix/phase2.md §5.1): held only by the
+  // platform's worker principal, which claims, marks and purges `webhook_inbox` rows through narrow
+  // definers, nothing more.
+  'webhooks.process',
+  // The WhatsApp handler and the messaging worker (docs/03-roadmap-appendix/phase2.md §6.1): held
+  // only by the platform's worker principal, which records inbound messages and statuses, opens
+  // threads, sends checked messages and records an opt-out or a hand-off through narrow definers,
+  // nothing more.
+  'messaging.process',
+  // A lead from an integration (`crm.lead.ingest`, docs/03-roadmap-appendix/phase2.md §6.2): held
+  // only by the platform's worker principal, which makes or attaches the lead, its customer,
+  // attribution, consent and owner through narrow definers, nothing more.
+  'crm.ingest.run',
+  // The provider's call status, recording copy and recording removal (docs/03-roadmap-appendix/
+  // phase2.md §6.3): held only by the platform's worker principal, which writes `provider_calls`
+  // and their recordings through narrow definers, nothing more.
+  'calls.process',
+  // A voice session's end, minutes, spend and turn timings from LiveKit's events
+  // (docs/03-roadmap-appendix/phase2.md §7.5): held only by the platform's worker principal, which
+  // records them through one narrow definer, nothing more.
+  'voice.session.record',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -144,7 +182,13 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'agents.inbox.act',
   'agents.autonomy.write',
   'agents.killswitch',
+  // Drafting and approving Playbook directives are people's (docs/03-roadmap-appendix/phase2.md §4).
+  'knowledge.playbook.draft',
   'knowledge.playbook.approve',
+  // The template registry decides what the platform may send in the companies' names (§4).
+  'messaging.templates.write',
+  // Ask the Business answers people from their own grants (docs/03-roadmap-appendix/phase2.md §4).
+  'knowledge.ask',
   'sales.credit.release',
   // Dealer credit limits, credit days and outstanding decide which orders are held (SAL-07).
   'sales.credit.write',
@@ -156,6 +200,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'integrations.dlq.replay',
   // Pipelines, stages, dispositions and score rules shape every caller's work (design §4).
   'crm.config.write',
+  // Where leads come in from, and the keys that let a website send them (design phase2 §4).
+  'crm.sources.write',
 ] as const satisfies readonly PermissionKey[];
 
 /**
@@ -175,6 +221,13 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'crm.handover.run',
   'crm.retention.run',
   'platform.jobs.check',
+  'knowledge.playbook.check',
+  'crm.dnd.record',
+  'webhooks.process',
+  'messaging.process',
+  'crm.ingest.run',
+  'calls.process',
+  'voice.session.record',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -242,6 +295,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.account.read': ['own', 'team', 'entity', 'all'],
   'crm.account.write': ['own', 'team', 'entity', 'all'],
   'crm.config.write': ['all'],
+  'crm.sources.write': ['all'],
   'calls.dial': ['own', 'team', 'entity', 'all'],
   'calls.log': ['own', 'team', 'entity', 'all'],
   'calls.recording.listen': ['team', 'entity', 'all'],
@@ -290,7 +344,11 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'knowledge.vault.read.management': ['all'],
   'knowledge.vault.read.exec': ['all'],
   'knowledge.vault.write': ['all'],
+  'knowledge.playbook.draft': ['all'],
   'knowledge.playbook.approve': ['all'],
+  'messaging.send': ['own', 'team', 'entity', 'all'],
+  'messaging.templates.write': ['all'],
+  'knowledge.ask': ['team', 'entity', 'all'],
   'agents.inbox.act': ['own', 'team', 'entity', 'all'],
   'agents.autonomy.write': ['all'],
   'agents.killswitch': ['all'],
@@ -316,6 +374,13 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.handover.run': ['all'],
   'crm.retention.run': ['all'],
   'platform.jobs.check': ['all'],
+  'knowledge.playbook.check': ['all'],
+  'crm.dnd.record': ['all'],
+  'webhooks.process': ['all'],
+  'messaging.process': ['all'],
+  'crm.ingest.run': ['all'],
+  'calls.process': ['all'],
+  'voice.session.record': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

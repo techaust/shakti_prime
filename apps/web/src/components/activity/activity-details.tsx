@@ -39,7 +39,25 @@ import {
   KNOWLEDGE_FILE_STATE_VALUES,
   KNOWLEDGE_SENSITIVITY_VALUES,
   KNOWLEDGE_SOURCE_VALUES,
+  PLAYBOOK_AUDIENCE_VALUES,
+  PLAYBOOK_RESOLUTION_VALUES,
+  PLAYBOOK_STATE_VALUES,
+  PLAYBOOK_TYPE_VALUES,
   CONSENT_CHANNELS,
+  ENTITY_CHANNEL_KINDS,
+  INGEST_ASSIGNEES,
+  INGEST_CHANNELS,
+  INGEST_OUTCOMES,
+  INGEST_SOURCE_PROVIDERS,
+  CALL_PURPOSE_VALUES,
+  PROVIDER_CALL_STATUS_VALUES,
+  VOICE_SESSION_MODE_VALUES,
+  WHATSAPP_HANDOFF_REASONS,
+  WHATSAPP_MESSAGE_KINDS,
+  WHATSAPP_TEMPLATE_CATEGORIES,
+  WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_TEMPLATE_STATUSES,
+  WHATSAPP_THREAD_HANDLERS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CONTRASTS,
@@ -57,6 +75,7 @@ import {
   TARGET_METRICS,
   TARGET_PERIODS,
   TARGET_SCOPES,
+  WEBHOOK_PROVIDERS,
   QUOTE_ACCEPTED_VIA,
   COMMISSION_ACCRUAL_STATES,
   OPPORTUNITY_LOST_REASONS,
@@ -398,7 +417,9 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const orders = useTranslations('orders');
   const agents = useTranslations('agents');
   const knowledge = useTranslations('knowledge');
+  const playbook = useTranslations('playbook');
   const targets = useTranslations('targets');
+  const integrations = useTranslations('integrations');
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -427,6 +448,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(SALES_ORDER_STATES, value) ? orders(`state.${value}`) : wordsOf(value);
       case 'acceptedVia':
         return oneOf(QUOTE_ACCEPTED_VIA, value) ? orders(`acceptedVia.${value}`) : wordsOf(value);
+      case 'webhookProvider':
+        return oneOf(WEBHOOK_PROVIDERS, value)
+          ? integrations(`webhooks.providers.${value}`)
+          : wordsOf(value);
       case 'targetScope':
         return oneOf(TARGET_SCOPES, value) ? targets(`scope.${value}`) : wordsOf(value);
       case 'targetMetric':
@@ -473,6 +498,58 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'consentChannel':
         return oneOf(CONSENT_CHANNELS, value)
           ? customers(`consent.channel.${value}`)
+          : wordsOf(value);
+      case 'channelKind':
+        return oneOf(ENTITY_CHANNEL_KINDS, value)
+          ? t(`values.channelKind.${value}`)
+          : wordsOf(value);
+      case 'whatsappMessageKind':
+        return oneOf(WHATSAPP_MESSAGE_KINDS, value)
+          ? t(`values.whatsappMessageKind.${value}`)
+          : wordsOf(value);
+      case 'whatsappHandler':
+        return oneOf(WHATSAPP_THREAD_HANDLERS, value)
+          ? t(`values.whatsappHandler.${value}`)
+          : wordsOf(value);
+      case 'whatsappHandoffReason':
+        return oneOf(WHATSAPP_HANDOFF_REASONS, value)
+          ? t(`values.whatsappHandoffReason.${value}`)
+          : wordsOf(value);
+      case 'whatsappTemplateCategory':
+        return oneOf(WHATSAPP_TEMPLATE_CATEGORIES, value)
+          ? t(`values.whatsappTemplateCategory.${value}`)
+          : wordsOf(value);
+      case 'whatsappTemplateStatus':
+        return oneOf(WHATSAPP_TEMPLATE_STATUSES, value)
+          ? t(`values.whatsappTemplateStatus.${value}`)
+          : wordsOf(value);
+      case 'whatsappTemplatePurpose':
+        return oneOf(WHATSAPP_TEMPLATE_PURPOSES, value)
+          ? t(`values.whatsappTemplatePurpose.${value}`)
+          : wordsOf(value);
+      case 'leadChannel':
+        return oneOf(INGEST_CHANNELS, value) ? t(`values.leadChannel.${value}`) : wordsOf(value);
+      case 'ingestOutcome':
+        return oneOf(INGEST_OUTCOMES, value) ? t(`values.ingestOutcome.${value}`) : wordsOf(value);
+      case 'ingestAssignee':
+        return oneOf(INGEST_ASSIGNEES, value)
+          ? t(`values.ingestAssignee.${value}`)
+          : wordsOf(value);
+      case 'sourceProvider':
+        return oneOf(INGEST_SOURCE_PROVIDERS, value)
+          ? t(`values.sourceProvider.${value}`)
+          : wordsOf(value);
+      case 'callPurpose':
+        return oneOf(CALL_PURPOSE_VALUES, value)
+          ? t(`values.callPurpose.${value}`)
+          : wordsOf(value);
+      case 'callStatus':
+        return oneOf(PROVIDER_CALL_STATUS_VALUES, value)
+          ? t(`values.callStatus.${value}`)
+          : wordsOf(value);
+      case 'voiceMode':
+        return oneOf(VOICE_SESSION_MODE_VALUES, value)
+          ? t(`values.voiceMode.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)
@@ -553,6 +630,18 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'knowledgeSource':
         return oneOf(KNOWLEDGE_SOURCE_VALUES, value)
           ? knowledge(`source.${value}`)
+          : wordsOf(value);
+      case 'playbookType':
+        return oneOf(PLAYBOOK_TYPE_VALUES, value) ? playbook(`type.${value}`) : wordsOf(value);
+      case 'playbookAudience':
+        return oneOf(PLAYBOOK_AUDIENCE_VALUES, value)
+          ? playbook(`audience.${value}`)
+          : wordsOf(value);
+      case 'playbookState':
+        return oneOf(PLAYBOOK_STATE_VALUES, value) ? playbook(`state.${value}`) : wordsOf(value);
+      case 'playbookResolution':
+        return oneOf(PLAYBOOK_RESOLUTION_VALUES, value)
+          ? playbook(`resolution.${value}`)
           : wordsOf(value);
     }
   };

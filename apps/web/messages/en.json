@@ -144,7 +144,18 @@
     "expense_receipts_missing": "Add a receipt photo for every line before you submit the claim.",
     "expense_self_approval": "You can't approve your own expense claim. Ask your manager.",
     "expense_accounts_step": "This step is for Accounts, and for someone other than the manager who approved the claim.",
-    "directive_conflict": "This rule clashes with a rule already approved. Resolve the clash first.",
+    "playbook_conflict_open": "This rule clashes with a rule already approved. Resolve the clash first.",
+    "playbook_check_pending": "We are still checking this rule against the approved ones. Try again in a minute.",
+    "playbook_directive_missing": "We couldn't find this rule. It may have been removed, or you may not have access to it.",
+    "playbook_conflict_missing": "We couldn't find this clash. Refresh the page to see the rule as it stands.",
+    "playbook_conflict_resolved": "Someone has already settled this clash. Refresh the page to see the rule as it stands.",
+    "playbook_needs_all_companies": "Choose All companies at the top to change a rule for every company.",
+    "playbook_audience_not_held": "You can only write a rule for people whose rules you can read. Choose who it is for again.",
+    "playbook_source_missing": "We couldn't find the Knowledge Vault file this rule comes from. It may have been archived.",
+    "playbook_source_exec_only": "Rules can't be drafted from a file only Executives can find. Choose another file.",
+    "playbook_audience_above_source": "This rule comes from a file for managers, so it can only be for management. Choose Management.",
+    "playbook_passage_missing": "A drafted rule points to a part of the file that is no longer there. Draft from the file again.",
+    "playbook_drafting_unavailable": "Drafting rules from files is not set up yet. Type the rule in yourself for now.",
     "voucher_no_match": "No matching order was found for this Tally entry. It has gone to the review list.",
     "voucher_has_match": "This Tally entry already matches an order.",
     "voucher_link_target_missing": "Choose the order or proforma to link this Tally entry to.",
@@ -205,6 +216,7 @@
     "file_type_not_allowed": "This kind of file cannot be used here. Choose one of the kinds listed.",
     "file_too_large": "This file is too large. Choose a smaller file.",
     "file_upload_mismatch": "The file did not arrive whole. Upload it again.",
+    "whatsapp_media_taken": "This WhatsApp message already has its file. Nothing more is needed.",
     "files_unavailable": "Files cannot be uploaded here yet. Ask your administrator to finish setting up file storage.",
     "file_upload_transition_not_allowed": "This file has already moved on. Refresh the page to see where it stands.",
     "file_infected": "This file was refused because it carries something harmful. Check your computer for viruses and use another copy.",
@@ -354,7 +366,66 @@
     "session_ended": "You were signed out. Sign in again to carry on where you left off.",
     "push_browser_taken": "Someone else had alerts on this browser, so theirs are now off here. Choose Turn on alerts again to get yours.",
     "import_only_identity_numbers": "Every column of this file holds Aadhaar numbers, which are never kept. Add the names and phone numbers to import, and upload it again.",
-    "import_job_purged": "This import was left unfinished and the details in its rows have been cleared, so it cannot go on. Upload the file again to start a new import."
+    "import_job_purged": "This import was left unfinished and the details in its rows have been cleared, so it cannot go on. Upload the file again to start a new import.",
+    "channel_changed_meanwhile": "Someone else changed this number at the same moment. Refresh the page to see it, then try again.",
+    "channel_provider_ref_taken": "Another number already uses this reference from the calling or WhatsApp service. Check the reference and try again.",
+    "channel_missing": "We couldn't find this number. It may have been replaced. Refresh the page.",
+    "channel_already_archived": "This number is already out of use.",
+    "recipient_on_dnd": "This number is on the do-not-disturb list, so a sales call to it is not allowed.",
+    "webhook_not_failed": "This message is not on the failed list, so there is nothing to process again. Refresh the page to see where it stands.",
+    "payload_unreadable": "The message from the other system could not be read, so it was set aside.",
+    "handler_failed": "The message from the other system could not be handled after several tries.",
+    "no_handler": "The message from the other system was kept. Nothing handles this kind of message yet.",
+    "too_many_attempts": "The message from the other system failed ten times, so it was set aside.",
+    "whatsapp_thread_missing": "We couldn't find this WhatsApp chat. Refresh the page and try again.",
+    "whatsapp_opted_out": "This customer asked not to get WhatsApp messages, so nothing was sent.",
+    "whatsapp_window_closed": "The customer last wrote more than 24 hours ago. Choose an approved template to send instead.",
+    "whatsapp_template_missing": "We couldn't find this template. Refresh the page and choose another one.",
+    "whatsapp_template_not_approved": "This template is not approved by WhatsApp yet. Choose an approved template.",
+    "whatsapp_template_values": "Fill in every blank of the template, then send it again.",
+    "whatsapp_template_purpose_values": "A template the system sends by itself cannot have blanks to fill in. Remove them, or clear what it is sent as.",
+    "whatsapp_template_purpose_taken": "This company already has a template sent for this. Clear it on the other template first.",
+    "whatsapp_template_changed_meanwhile": "Someone else saved this template at the same moment. Refresh the page to see it, then try again.",
+    "whatsapp_number_unknown": "This WhatsApp number is not set up for any company.",
+    "whatsapp_message_missing": "We couldn't find this WhatsApp message. Refresh the page.",
+    "whatsapp_unavailable": "WhatsApp is not set up yet, so the message waits and is sent once it is.",
+    "lead_source_missing": "This lead source is no longer connected. Refresh the page to see the sources as they are now.",
+    "lead_source_fixed": "A connected form cannot be swapped for another. Disconnect this one and connect the new form.",
+    "lead_source_taken": "This form is already connected to a company. Disconnect it there first.",
+    "ingest_key_missing": "This website key has already been turned off. Refresh the page to see the keys as they are now.",
+    "ingest_key_refused": "This website key is not recognised or has been turned off. Ask an Executive for a new key.",
+    "ingest_key_other_company": "This website key belongs to another company. Use the key made for this company.",
+    "turnstile_failed": "We could not confirm the form was sent by a person. Please try again.",
+    "form_unmapped": "This lead form is not connected to a company yet. Connect it in Lead sources, then process it again.",
+    "form_map_incomplete": "This lead form's questions do not say which is the name and which is the phone. Match them in Lead sources, then process it again.",
+    "page_token_missing": "The Facebook Page of this form is not connected. Connect it in Lead sources, then process it again.",
+    "page_token_refused": "Facebook turned down the Page connection of this form. Connect the Page again in Lead sources, then process it again.",
+    "knowledge_transcript_not_roman": "Write the transcript in English letters only, as you would type Hindi words in a phone message, then save it again.",
+    "knowledge_transcript_not_audio": "Only a recording has a transcript to correct. Refresh the page to see this file as it is.",
+    "knowledge_transcript_too_long": "This transcript is too long to save. Shorten it, then save it again.",
+    "file_audio_too_long": "This recording is longer than 30 minutes. Split it into shorter recordings and upload each one as a WAV file.",
+    "dial_refused": "This call cannot be placed now. The reasons are listed under Call from the screen.",
+    "dial_phone_not_own": "This number belongs to a customer or a company line, or is the number you are calling. Enter the phone you take calls on.",
+    "dial_phone_missing": "Add your own phone number on your profile first. The call rings that phone before the customer's.",
+    "dial_in_progress": "Your last call is still being placed. Wait a moment before calling again.",
+    "dial_failed": "The call could not be placed. Try again, or dial by hand and save the call.",
+    "calling_not_set_up": "Calling from the screen is not set up yet. Dial by hand and save the call.",
+    "provider_call_missing": "This call was not found on this lead. Reload the page and save the call again.",
+    "provider_call_logged": "This call is saved already.",
+    "recording_missing": "There is no recording of this call to play.",
+    "ask_conversation_missing": "We couldn't find this conversation. It may have been deleted, or it covers companies you are not viewing.",
+    "ask_citation_unreturned": "We couldn't keep this answer because it points to records we did not read. Ask the question again.",
+    "ask_unavailable": "Ask the Business is not set up yet. Try again later.",
+    "ask_person_cap_reached": "You have reached today's limit for Ask the Business. You can ask again tomorrow.",
+    "ask_cap_reached": "Ask the Business has reached today's limit for everyone. You can ask again tomorrow.",
+    "ask_interrupted": "The answer did not arrive. Check your connection and ask again.",
+    "voice_unavailable": "Talking to Shakti is not set up yet. Type your question in Ask the Business for now.",
+    "voice_cap_reached": "You have used today's time for talking to Shakti. You can talk again tomorrow.",
+    "voice_session_ended": "This talk with Shakti has ended. Start a new one to go on.",
+    "voice_recording_refused": "This talk with Shakti cannot keep a recording. Only a Teach session you agreed to record keeps one, once.",
+    "voice_browser": "This browser cannot talk to Shakti. Open this page in a recent Chrome, Edge, Firefox or Safari.",
+    "voice_microphone": "Shakti could not use your microphone. Allow the microphone for this site in your browser, then start again.",
+    "voice_connection": "Shakti could not join the talk. Check your network, then start again."
   },
   "auth": {
     "signIn": {
@@ -447,11 +518,16 @@
     "inbox": "Agent Inbox",
     "adminAgents": "Agents",
     "knowledge": "Knowledge",
+    "knowledgePlaybook": "Playbook",
     "orders": "Orders",
     "dealerCredit": "Dealer credit",
     "targets": "Targets",
     "converters": "Lead converters",
-    "converting": "Converting"
+    "converting": "Converting",
+    "messages": "Messages",
+    "settingsLeadSources": "Lead sources",
+    "ask": "Ask the Business",
+    "voice": "Talk to Shakti"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -521,11 +597,16 @@
       "inbox": "Approve, change or reject what the agents suggest.",
       "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
       "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
+      "knowledgePlaybook": "Review the rules staff and the assistants follow, and approve new ones.",
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "targets": "Set what each caller and team is aiming for, and see what was set before.",
       "converters": "Choose who takes qualified leads, how many each person takes and who is present.",
-      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen."
+      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen.",
+      "messages": "Answer the WhatsApp chats waiting for a reply from you or your team.",
+      "settingsLeadSources": "Connect Facebook, Google and website lead forms, and make website keys.",
+      "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from.",
+      "voice": "Ask about the business or teach Shakti how you work, by speaking."
     },
     "progress": {
       "period": {
@@ -604,6 +685,16 @@
       "label": "I am present in {company}",
       "present": "You are present in {company}.",
       "away": "You are away in {company}."
+    },
+    "dialPhone": {
+      "heading": "Your phone for calls",
+      "intro": "When you call a customer from the screen, this phone rings first. Answer it, and the customer's phone rings next.",
+      "label": "Your phone number",
+      "labelIn": "Your phone number for {company}",
+      "helper": "Your 10-digit mobile number. Leave it empty to stop calling from the screen.",
+      "save": "Save",
+      "saved": "Your phone for calls is saved.",
+      "cleared": "Your phone for calls is removed."
     }
   },
   "mail": {
@@ -980,7 +1071,43 @@
     "proofWorking": "Printing the proof page. This takes a few seconds.",
     "proofReady": "The proof page is ready.",
     "proofSlow": "The proof page is taking longer than usual. Close this and try again in a minute.",
-    "openProof": "Open the proof page"
+    "openProof": "Open the proof page",
+    "channels": {
+      "kind": {
+        "whatsapp": "WhatsApp number",
+        "call_promo_140": "Sales calls number (140 series)",
+        "call_service_160": "Service calls number (160 series)",
+        "ivr": "Incoming calls number",
+        "missed_call": "Missed-call number"
+      },
+      "open": "Numbers",
+      "openLabel": "Numbers of {name}",
+      "title": "Numbers of {name}",
+      "intro": "The numbers this company calls and messages customers from. Sales calls go out on the 140-series number and service calls on the 160-series number.",
+      "loading": "Loading the numbers.",
+      "listLabel": "Numbers by channel",
+      "verified": "Checked and working",
+      "unverified": "Not checked yet",
+      "outOfSeries140": "This is not a 140-series number, so every sales call on it will be refused. Enter the 140-series number.",
+      "outOfSeries160": "This is not a 160-series number, so every service call on it will be refused. Enter the 160-series number.",
+      "add": "Add",
+      "addLabel": "Add: {kind}",
+      "edit": "Change",
+      "editLabel": "Change: {kind}",
+      "archive": "Take out of use",
+      "archiveLabel": "Take out of use: {kind}",
+      "archived": "{kind} taken out of use.",
+      "number": "Number",
+      "numberHelper": "The full number with its area code.",
+      "numberHelperCalls": "The full number as registered on DLT, starting with 140 for sales or 160 for service.",
+      "providerRef": "Reference from the calling or WhatsApp service",
+      "providerRefHelper": "Optional. The reference the service shows for this number.",
+      "dltHeader": "DLT header",
+      "dltHeaderHelper": "Optional. The header registered for this number on DLT.",
+      "verifiedCheck": "I have checked that this number works",
+      "save": "Save number",
+      "saved": "{kind} saved."
+    }
   },
   "priceMaster": {
     "title": "Price lists",
@@ -1621,7 +1748,55 @@
       "importIdentityCheck": "Identity numbers removed from an earlier import",
       "importPurgeFailed": "Clearing an import's details did not finish, and is tried again",
       "importPurge": "What an import file said cleared after its check period",
-      "importFileDeleted": "Import file deleted once it was no longer needed"
+      "importFileDeleted": "Import file deleted once it was no longer needed",
+      "playbookDraft": "Playbook rule drafted",
+      "playbookEdit": "Playbook rule edited",
+      "playbookApprove": "Playbook rule approved",
+      "playbookRetire": "Playbook rule retired",
+      "playbookResolveConflict": "Playbook clash settled",
+      "playbookCheckRecorded": "Playbook rule checked against the approved rules",
+      "playbookDraftFromFile": "Playbook rules drafted from a Knowledge Vault file",
+      "channelSet": "Company number set",
+      "channelArchive": "Company number taken out of use",
+      "phoneDndRecord": "Do-not-disturb list checked",
+      "webhookClaim": "A message from another system taken up",
+      "webhookMark": "A message from another system handled",
+      "webhookSweep": "Old messages from other systems cleared out",
+      "webhookReplay": "A failed message from another system handled again",
+      "whatsappSend": "WhatsApp message sent to a customer",
+      "whatsappHandOff": "WhatsApp chat taken over by a person",
+      "whatsappReturn": "WhatsApp chat given back to the assistant",
+      "whatsappTemplateRegister": "WhatsApp message template saved",
+      "whatsappInbound": "WhatsApp message received",
+      "whatsappMatch": "WhatsApp chat linked to its customer",
+      "whatsappStatus": "WhatsApp delivery update recorded",
+      "whatsappTemplateStatus": "WhatsApp template review recorded",
+      "whatsappOptOut": "Customer stopped WhatsApp messages",
+      "whatsappPlatformHandOff": "WhatsApp chat passed to the team",
+      "whatsappQueue": "Automatic WhatsApp message prepared",
+      "whatsappClaim": "WhatsApp message taken up for sending",
+      "whatsappSendRecorded": "WhatsApp sending result recorded",
+      "whatsappMediaAttach": "File from a WhatsApp chat kept for checking",
+      "leadIngest": "Lead came in from an ad, form, website or WhatsApp",
+      "leadQualificationSet": "Lead details recorded",
+      "sourceSet": "Lead source connected or changed",
+      "sourceArchive": "Lead source disconnected",
+      "ingestKeyCreate": "Website key made",
+      "ingestKeyRevoke": "Website key turned off",
+      "sourceQuestionsRecord": "A lead form's questions noted",
+      "knowledgeTranscriptKept": "Recording's transcript kept",
+      "knowledgeTranscriptCorrect": "Recording's transcript corrected",
+      "callDial": "Call placed from the screen",
+      "providerCallRecord": "Call progress recorded",
+      "callRecordingAttach": "Call recording kept",
+      "callRecordingDelete": "Old call recording removed",
+      "callRecordingPlay": "Call recording played",
+      "voiceSessionStart": "Talk to Shakti started",
+      "voiceSessionToken": "Talk to Shakti kept going",
+      "voiceSessionRecord": "Talk to Shakti length and spend recorded",
+      "callerProfileSetDialPhone": "Own calling phone changed",
+      "askRecord": "Question asked in Ask the Business",
+      "askDelete": "Ask the Business conversation deleted"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1672,7 +1847,12 @@
       "orderCreditHeld": "Order held for credit",
       "orderCreditReleased": "Credit hold released",
       "orderCancelled": "Order cancelled",
-      "commissionAccrued": "Referral commission recorded"
+      "commissionAccrued": "Referral commission recorded",
+      "playbookChanged": "Playbook rule changed",
+      "whatsappRequested": "WhatsApp message waiting to be sent",
+      "whatsappReceived": "WhatsApp message received",
+      "whatsappButtonPressed": "WhatsApp button pressed",
+      "dialCompleted": "Call from the screen ended"
     },
     "sheet": {
       "title": "{action}",
@@ -1913,7 +2093,70 @@
       "purgedAt": "What the file said cleared on",
       "deletedAt": "File deleted on",
       "leftOutColumns": "Columns of identity numbers left out",
-      "maskedValues": "Identity numbers hidden"
+      "maskedValues": "Identity numbers hidden",
+      "directiveType": "Kind of rule",
+      "audience": "Who it is for",
+      "directiveState": "Rule status",
+      "fromVaultFile": "Taken from a Knowledge Vault file",
+      "textChanged": "Wording changed",
+      "retiredReason": "Why it was retired",
+      "conflictsSettled": "Clashes settled",
+      "resolution": "How the clash was settled",
+      "resolutionNote": "Note on the clash",
+      "pairs": "Approved rules compared",
+      "openConflicts": "Clashes left to settle",
+      "drafts": "Rules drafted",
+      "channelKind": "Channel",
+      "channelNumber": "Number",
+      "providerRef": "Reference from the calling or WhatsApp service",
+      "dltHeader": "DLT header",
+      "verified": "Checked and working",
+      "isDnd": "On the do-not-disturb list",
+      "dndCheckedAt": "Do-not-disturb list checked",
+      "messageKind": "Kind of message",
+      "templateName": "Template",
+      "handledBy": "Answered by",
+      "handoffReason": "Why people took over",
+      "templateCategory": "Kind of template",
+      "templateStatus": "Review by WhatsApp",
+      "templatePurpose": "Sent automatically as",
+      "matched": "Linked to the customer",
+      "optedOutAt": "Stopped WhatsApp messages on",
+      "consentsWithdrawn": "WhatsApp agreements withdrawn",
+      "provider": "From",
+      "failed": "Failed",
+      "leadChannel": "Came in by",
+      "ingestOutcome": "What happened",
+      "assignedTo": "Given to",
+      "attribution": "Ad details recorded",
+      "qualification": "Lead details recorded",
+      "sourceProvider": "Kind of source",
+      "externalId": "Form or site",
+      "fieldMap": "Form questions matched",
+      "pageTokenSet": "Facebook Page connected",
+      "keyHint": "Key ends with",
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number",
+      "transcriptChars": "Characters in the transcript",
+      "callPurpose": "Kind of call",
+      "numberSeries": "Calling line",
+      "callStatus": "Call status",
+      "endedAt": "Ended",
+      "listenedAt": "Played",
+      "dialPhone": "Own calling phone",
+      "mode": "Talk to Shakti mode",
+      "consentRecording": "Recording allowed",
+      "minutes": "Minutes",
+      "costPaise": "Spend",
+      "turns": "Turns spoken",
+      "askAnswered": "Answered",
+      "citedSources": "Records it points to",
+      "unsourcedFigures": "Figures left out because no record shows them",
+      "askMessages": "Questions in it"
     },
     "values": {
       "percent": "{value}%",
@@ -1958,7 +2201,90 @@
         "handover_kit": "Handover kit",
         "company_letterhead_proof": "Proof page of the letterhead"
       },
-      "listSeparator": ", "
+      "listSeparator": ", ",
+      "channelKind": {
+        "whatsapp": "WhatsApp number",
+        "call_promo_140": "Sales calls number (140 series)",
+        "call_service_160": "Service calls number (160 series)",
+        "ivr": "Incoming calls number",
+        "missed_call": "Missed-call number"
+      },
+      "whatsappMessageKind": {
+        "text": "Message",
+        "template": "Template",
+        "media": "File",
+        "button": "Button reply",
+        "system": "Stop confirmation"
+      },
+      "whatsappHandler": {
+        "assistant": "The assistant",
+        "people": "The team"
+      },
+      "whatsappHandoffReason": {
+        "keyword": "The customer asked for a person",
+        "request": "Someone asked for a person",
+        "filter_refusals": "The assistant's replies were held back",
+        "complaint": "A complaint",
+        "no_assistant": "The team answers every chat for now"
+      },
+      "whatsappTemplateCategory": {
+        "utility": "Updates",
+        "marketing": "Offers",
+        "authentication": "One-time codes"
+      },
+      "whatsappTemplateStatus": {
+        "pending": "Waiting for review",
+        "approved": "Approved",
+        "rejected": "Turned down",
+        "paused": "Paused",
+        "disabled": "Switched off"
+      },
+      "whatsappTemplatePurpose": {
+        "welcome": "Welcome",
+        "opt_out_confirmation": "Stop confirmation"
+      },
+      "leadChannel": {
+        "meta_ads": "Facebook or Instagram ad",
+        "google_ads": "Google ad",
+        "website": "Company website",
+        "whatsapp": "WhatsApp message",
+        "ivr": "Incoming call",
+        "missed_call": "Missed call"
+      },
+      "ingestOutcome": {
+        "created": "New lead made",
+        "attached": "Added to the open lead"
+      },
+      "ingestAssignee": {
+        "caller": "A tele-caller, in turn",
+        "team_lead": "The sales team lead, as work to pass on",
+        "customer_owner": "The colleague who looks after the customer",
+        "lead_owner": "The owner of the open lead",
+        "unassigned": "Nobody yet"
+      },
+      "sourceProvider": {
+        "meta_leadgen": "Facebook and Instagram lead form",
+        "google_leadform": "Google lead form",
+        "website": "Company website"
+      },
+      "callPurpose": {
+        "promotional": "Sales call",
+        "service": "Service call"
+      },
+      "callStatus": {
+        "dialling": "Dialling",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Ended after talking",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Did not go through",
+        "canceled": "Stopped before answered"
+      },
+      "voiceMode": {
+        "teach": "Teach",
+        "ask": "Ask"
+      }
     }
   },
   "print": {
@@ -2530,7 +2856,9 @@
       "tagDetail": "Tag: {name}",
       "callDetail": "Outcome: {outcome}",
       "sizingInBounds": "{kind} sizing, within limits",
-      "sizingOutOfBounds": "{kind} sizing, outside limits"
+      "sizingOutOfBounds": "{kind} sizing, outside limits",
+      "play": "Play recording",
+      "recordingLabel": "Recording of the call"
     },
     "dialogs": {
       "accountTitle": "Edit customer details",
@@ -2654,7 +2982,14 @@
       "task": "Task",
       "state": "State",
       "lastRun": "Last run",
-      "runs": "Runs"
+      "runs": "Runs",
+      "source": "From",
+      "received": "Received",
+      "handled": "Handled",
+      "failed": "Failed",
+      "refused": "Turned away",
+      "receivedAt": "Received at",
+      "failedAt": "Failed at"
     },
     "lastRun": {
       "heading": "Last sending round",
@@ -2716,7 +3051,9 @@
         "audit-logs-partitions": "Make room for next months’ activity log",
         "audit-logs-detach": "Archive activity log entries older than eight years",
         "idempotency-keys-purge": "Clear out old records of forms already sent",
-        "outbox-events-purge": "Clear out updates sent more than 30 days ago"
+        "outbox-events-purge": "Clear out updates sent more than 30 days ago",
+        "whatsapp-messages-partitions": "Make room for next months’ WhatsApp messages",
+        "ask-conversations-purge": "Remove Ask the Business conversations unused for 90 days"
       },
       "state": {
         "ok": "Ran well",
@@ -2730,6 +3067,77 @@
       },
       "every": "{hours, select, 1 {Every hour} 24 {Every day} 168 {Every week} other {Every month}}",
       "never": "Not yet"
+    },
+    "webhooks": {
+      "heading": "Messages from other systems",
+      "intro": "Messages the other systems send in over the last 24 hours. A message that fails its check is turned away and never kept.",
+      "caption": "Messages from other systems in the last 24 hours, by system",
+      "providers": {
+        "meta_whatsapp": "WhatsApp messages",
+        "meta_leadgen": "Facebook and Instagram lead forms",
+        "google_leadform": "Google lead forms",
+        "exotel_status": "Call updates",
+        "exotel_incoming": "Incoming calls",
+        "livekit": "Voice sessions"
+      },
+      "failedHeading": "Messages that failed",
+      "failedIntro": "Process a message again once the cause is fixed. Each one is handled only once.",
+      "failedCaption": "Messages from other systems that failed, newest first",
+      "empty": "No messages from other systems have failed.",
+      "total": "{count, plural, one {# message failed} other {# messages failed}}",
+      "processAgain": "Process again",
+      "describe": "{source}, received at {at}",
+      "processing": "The message is handled again within a minute.",
+      "reasons": {
+        "payload_unreadable": "We could not read it",
+        "handler_failed": "The step that handles it failed",
+        "too_many_attempts": "It failed ten times",
+        "other": "Something else went wrong",
+        "form_unmapped": "The lead form is not connected to a company",
+        "form_map_incomplete": "The form's name or phone question is not matched",
+        "page_token_missing": "The Facebook Page is not connected",
+        "page_token_refused": "Facebook turned down the Page connection",
+        "lead_unreadable": "Facebook sent a lead we could not read",
+        "lead_fetch_refused": "Facebook did not give the lead"
+      }
+    },
+    "whatsapp": {
+      "heading": "WhatsApp",
+      "caption": "Each company's WhatsApp number",
+      "budget": "{used} of today's {limit} new chats started by the companies are used.",
+      "budgetStarting": "{used} of {limit} new chats started by the companies are used today. The limit is the starting one until WhatsApp reports the companies' own.",
+      "noNumbers": "No company has a WhatsApp number yet. An Executive adds them in Settings › Companies.",
+      "notSentHeading": "Messages not sent in the last 24 hours",
+      "noneHeld": "Every message was sent.",
+      "failed": "Not delivered:",
+      "never": "Not yet",
+      "columns": {
+        "company": "Company",
+        "quality": "Quality",
+        "pending": "Templates waiting",
+        "rejected": "Templates turned down",
+        "updated": "Last update"
+      },
+      "quality": {
+        "green": "High",
+        "yellow": "Medium",
+        "red": "Low",
+        "unknown": "Not known yet"
+      }
+    },
+    "unowned": {
+      "heading": "Leads nobody has yet",
+      "intro": "Leads from ads, forms, websites and WhatsApp that came in when no tele-caller was present and the company has no sales team lead. Give each one to someone from the leads board.",
+      "caption": "Leads from other systems with no owner, newest first",
+      "empty": "Every lead from other systems has an owner.",
+      "total": "{count, plural, one {# lead has no owner} other {# leads have no owner}}",
+      "columns": {
+        "company": "Company",
+        "channel": "Came in by",
+        "arrived": "Arrived",
+        "customer": "Customer"
+      },
+      "open": "Open the customer"
     }
   },
   "files": {
@@ -2757,7 +3165,9 @@
       "letterhead": "Letterhead",
       "knowledge": "Knowledge Vault document",
       "consent_evidence": "Proof of consent",
-      "print_proof": "Proof page"
+      "print_proof": "Proof page",
+      "whatsapp_media": "File sent on WhatsApp",
+      "call_recording": "Call recording"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -2766,7 +3176,8 @@
       "pdf": "PDF document",
       "csv": "CSV file",
       "xlsx": "Excel workbook",
-      "docx": "Word document"
+      "docx": "Word document",
+      "wav": "WAV recording"
     },
     "shortTypes": {
       "jpeg": "JPEG",
@@ -2775,7 +3186,8 @@
       "pdf": "PDF",
       "csv": "CSV",
       "xlsx": "XLSX",
-      "docx": "DOCX"
+      "docx": "DOCX",
+      "wav": "WAV"
     },
     "size": {
       "kb": "{value} KB",
@@ -2790,7 +3202,8 @@
       "pdf_checked": "PDF checked for scripts and attached files",
       "masked": "Numbers on the photo covered",
       "sheet_checked": "Spreadsheet checked before reading",
-      "document_checked": "Word document opened and its text read"
+      "document_checked": "Word document opened and its text read",
+      "audio_checked": "Recording checked and saved again without hidden details"
     },
     "scanStatus": {
       "NO_THREATS_FOUND": "No harmful content found",
@@ -3176,7 +3589,9 @@
       "integrations": "Other systems",
       "files": "Uploaded files",
       "notifications": "Notices",
-      "platform": "Upkeep"
+      "platform": "Upkeep",
+      "webhooks": "Messages from other systems",
+      "messaging": "WhatsApp"
     },
     "permissions": {
       "crm_lead_read": "See leads",
@@ -3231,7 +3646,10 @@
       "knowledge_vault_read_management": "Search management knowledge",
       "knowledge_vault_read_exec": "Search Executive knowledge",
       "knowledge_vault_write": "Add and archive Knowledge Vault files",
+      "knowledge_playbook_draft": "Draft and edit Playbook guidance",
       "knowledge_playbook_approve": "Approve Playbook guidance",
+      "messaging_send": "Send WhatsApp messages to customers",
+      "messaging_templates_write": "Keep the list of WhatsApp message templates",
       "agents_inbox_act": "Act on Agent Inbox items",
       "agents_autonomy_write": "Choose how freely agents act",
       "agents_killswitch": "Pause agents",
@@ -3258,7 +3676,16 @@
       "notifications_send": "Send notices to the people who act on them",
       "crm_handover_run": "Give a qualified lead to a Lead Converter",
       "crm_retention_run": "Remove the personal details of old leads that never went ahead",
-      "platform_jobs_check": "Check that the scheduled upkeep tasks ran"
+      "platform_jobs_check": "Check that the scheduled upkeep tasks ran",
+      "knowledge_playbook_check": "Check new Playbook guidance against the approved guidance",
+      "crm_dnd_record": "Record whether a customer number is on the do-not-disturb list",
+      "webhooks_process": "Handle the messages other systems send in",
+      "messaging_process": "Receive and send WhatsApp messages for the companies",
+      "crm_sources_write": "Connect lead forms and websites, and manage their keys",
+      "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
+      "calls_process": "Record how a placed call went and keep its recording",
+      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
+      "knowledge_ask": "Ask the Business questions"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3662,7 +4089,59 @@
     "keys": {
       "next": "N",
       "dial": "D",
-      "search": "/"
+      "search": "/",
+      "callFromScreen": "C"
+    },
+    "plan": {
+      "title": "How this call would go out",
+      "loading": "Checking the calling rules.",
+      "purpose": {
+        "service_order": "A service call: the customer has an order with us and agreed to service calls.",
+        "service_callback": "A service call: the customer asked us to call back and agreed to service calls.",
+        "service_enquiry": "A service call: the customer contacted us first and agreed to service calls.",
+        "promotional_no_consent": "A sales call: the customer has not agreed to service calls.",
+        "promotional_not_requested": "A sales call: we are contacting the customer first."
+      },
+      "number": "It goes out on the company's {series}-series number {number}.",
+      "noNumber": "The company has no {series}-series number yet.",
+      "dndChecked": "Do-not-disturb list checked on {when}",
+      "allowedBadge": "Can call",
+      "allowed": "Every calling rule is met.",
+      "refusedBadge": "Cannot call now",
+      "refused": "This call breaks these rules:",
+      "refusal": {
+        "outside_calling_hours": "It is outside calling hours. Calls can be made from 9 AM to 9 PM.",
+        "recipient_not_a_mobile_number": "The customer's number is not an Indian mobile number. Check it on the customer page.",
+        "call_consent_withdrawn": "The customer asked us not to call. Do not call this number.",
+        "company_number_missing": "The company has no number for this kind of call. Ask an Executive to add one in Settings, Companies.",
+        "caller_id_not_promotional": "The company's sales calls number is not in the 140 series. Ask an Executive to check it.",
+        "caller_id_not_service": "The company's service calls number is not in the 160 series. Ask an Executive to check it.",
+        "service_call_without_consent": "The customer has not agreed to service calls.",
+        "recipient_on_dnd": "The number is on the do-not-disturb list, so a sales call to it is not allowed.",
+        "dnd_unknown": "We could not check the do-not-disturb list just now. Try again in a few minutes.",
+        "dnd_not_set_up": "The do-not-disturb check is not set up yet, so sales calls cannot be checked against it."
+      }
+    },
+    "bar": {
+      "title": "Call from the screen",
+      "noticeFirst": "Say this first:",
+      "dial": "Call",
+      "howItWorks": "Your own phone rings first. Answer it, and the customer's phone rings next.",
+      "timeLabel": "Time on the call",
+      "status": {
+        "dialling": "Placing the call",
+        "ringing": "Ringing",
+        "in_progress": "On the line",
+        "completed": "Call ended",
+        "no_answer": "Not answered",
+        "busy": "Line busy",
+        "failed": "Call did not go through",
+        "canceled": "Call stopped"
+      },
+      "logNow": "The call has ended. Choose its outcome to save it.",
+      "refused": "This call cannot be placed now:",
+      "noOwnPhone": "To call from the screen, add the phone you take calls on.",
+      "addOwnPhone": "Add it on your profile"
     }
   },
   "duplicates": {
@@ -4139,7 +4618,8 @@
       "pdf": "PDF",
       "photo": "Photo",
       "word": "Word document",
-      "excel": "Excel workbook"
+      "excel": "Excel workbook",
+      "audio": "Recording"
     },
     "state": {
       "waiting": "Being read",
@@ -4150,7 +4630,7 @@
     },
     "add": "Add a file",
     "addTitle": "Add a file to the Knowledge Vault",
-    "addIntro": "Give it a title and choose who can find it, then upload a PDF, a photo, a Word document or an Excel workbook. Numbers on photos are covered before they are read.",
+    "addIntro": "Give it a title and choose who can find it, then upload a PDF, a photo, a Word document, an Excel workbook or a recording. Numbers on photos are covered before they are read, and numbers in a recording's transcript before it is kept.",
     "titleLabel": "Title",
     "titleHint": "A name people will recognise in search results.",
     "titleMissing": "Give the file a title.",
@@ -4167,7 +4647,28 @@
     "archive": "Archive",
     "archiveTitle": "Archive this file?",
     "archiveIntro": "{title} will no longer appear in search. This cannot be undone.",
-    "archivedNotice": "Archived. The file no longer appears in search."
+    "archivedNotice": "Archived. The file no longer appears in search.",
+    "fileHint": "{types} up to {size}, or a recording as a WAV file up to {recordingSize}, which holds about 13 minutes of a standard recording",
+    "fileWrongType": "This kind of file cannot be added. Choose a {types} file. Save a recording as a WAV file first: MP3, M4A and OGG recordings cannot be added.",
+    "fileTooLarge": "This file is too large. A document or photo can be up to {size}, and a WAV recording up to {recordingSize}.",
+    "file": {
+      "title": "Knowledge Vault file",
+      "back": "Back to Knowledge",
+      "about": "About this file",
+      "recording": "Recording",
+      "player": "Play the recording {title}",
+      "cannotPlay": "This recording cannot be played here. Ask your administrator to check file storage.",
+      "transcript": "Transcript",
+      "transcriptLabel": "What was said",
+      "transcriptHint": "Correct any words the speech service heard wrongly, such as Rajasthani or Marwari words. Write in English letters. Numbers like Aadhaar and phone numbers are covered when you save.",
+      "transcriptMissing": "Write what was said before you save.",
+      "save": "Save transcript",
+      "savedNotice": "Saved. The recording is being read again for search from your transcript.",
+      "correctedOn": "Corrected on",
+      "transcribing": "The recording is being turned into text. The transcript shows here when it is ready.",
+      "readingAgain": "This transcript is being read again for search. You can correct it once that is done.",
+      "noTranscript": "There is no transcript yet. The reason is shown above."
+    }
   },
   "notifications": {
     "bell": "Notifications",
@@ -4196,7 +4697,8 @@
       "quote_expiring": "A quote on your lead lapses within a day",
       "first_call_late": "A new lead was not called in time",
       "enquiry_routed": "An enquiry from your customer was passed to you",
-      "order_credit_held": "A dealer order is held for credit"
+      "order_credit_held": "A dealer order is held for credit",
+      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply"
     },
     "settings": {
       "title": "Notification settings",
@@ -4228,6 +4730,70 @@
       "pushOffDone": "Alerts are off for this browser."
     }
   },
+  "messaging": {
+    "title": "Messages",
+    "intro": "WhatsApp chats waiting for a reply from you or your team, newest first.",
+    "listLabel": "Chats waiting for a reply",
+    "empty": "No chats are waiting for a reply.",
+    "loadMore": "Show more chats",
+    "keysHelp": "Press J and K to move between chats, and R to write a reply.",
+    "noChat": "Choose a chat to read it.",
+    "unknownCustomer": "Customer not recorded yet",
+    "lastMessage": "Last message <time>{when}</time>",
+    "thread": {
+      "sectionTitle": "WhatsApp",
+      "none": "No WhatsApp chat with this customer yet.",
+      "chatWith": "Chat with {number}",
+      "numberRemoved": "Customer details removed",
+      "assistant": "The assistant answers",
+      "people": "The team answers",
+      "peopleOnly": "Your team answers every WhatsApp chat. No assistant replies to customers yet.",
+      "optedOut": "Stopped WhatsApp messages",
+      "windowOpen": "Replies can be typed freely until <time>{when}</time>.",
+      "windowClosed": "The customer last wrote more than 24 hours ago. Send an approved template.",
+      "takeOver": "Take over chat",
+      "giveBack": "Give back to assistant",
+      "holders": "More than one customer has this number. Ask who is writing, then open that customer:",
+      "noHolders": "No customer has this number yet. The chat is linked once the customer is recorded.",
+      "showEarlier": "Show earlier messages",
+      "messagesLabel": "Messages in this chat",
+      "fromCustomer": "Customer",
+      "fromSystem": "Sent automatically",
+      "template": "Template: {name}",
+      "templateUnnamed": "a template no longer listed",
+      "templateValues": "Filled in: {values}",
+      "mediaNotKept": "The customer sent something this chat cannot show.",
+      "file": "File from the customer",
+      "open": "Open",
+      "status": {
+        "queued": "Waiting to send",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "read": "Read",
+        "failed": "Not delivered",
+        "refused": "Not sent"
+      },
+      "refusal": {
+        "opted_out": "The customer stopped WhatsApp messages.",
+        "window_closed": "The customer last wrote more than 24 hours ago.",
+        "template_not_approved": "The template is not approved.",
+        "tier_budget_reached": "Today's WhatsApp limit was reached.",
+        "output_filter": "It had a link, a phone number or an ID number that cannot be sent."
+      },
+      "readOnly": "You can read this chat but cannot reply to it.",
+      "optedOutNote": "This customer stopped WhatsApp messages, so nothing more can be sent.",
+      "reply": "Reply",
+      "replyHelper": "Do not type ID or bank account numbers. They are hidden before the message is kept.",
+      "send": "Send",
+      "templateLabel": "Template",
+      "templateChoose": "Choose a template",
+      "noTemplates": "No approved templates yet. An Executive adds them.",
+      "sendTemplate": "Send template",
+      "sent": "Your message is on its way.",
+      "takenOver": "You now answer this chat.",
+      "givenBack": "The assistant answers this chat again."
+    }
+  },
   "pushAlerts": {
     "lead_assigned": {
       "title": "A lead was given to you",
@@ -4256,6 +4822,10 @@
     "order_credit_held": {
       "title": "A dealer order is held for credit",
       "body": "The order waits until its credit is cleared or someone who can release it does so. Tap to open it."
+    },
+    "whatsapp_reply_waiting": {
+      "title": "A customer is waiting on WhatsApp",
+      "body": "A customer has waited 10 minutes for a reply. Tap to open the chat."
     }
   },
   "orders": {
@@ -4678,6 +5248,389 @@
         "outcome": "Save the call with that outcome",
         "help": "Show or hide this list"
       }
+    }
+  },
+  "playbook": {
+    "type": {
+      "policy": "Policy",
+      "priority": "Priority",
+      "target": "Target",
+      "sop": "How we work",
+      "faq": "Common question",
+      "tone": "Tone"
+    },
+    "audience": {
+      "customer": "Customers",
+      "staff": "Staff",
+      "management": "Management"
+    },
+    "state": {
+      "draft": "Draft",
+      "approved": "Approved",
+      "retired": "Retired"
+    },
+    "resolution": {
+      "not_a_conflict": "Not a clash",
+      "other_retired": "Other rule retired"
+    },
+    "title": "Playbook",
+    "intro": "The rules staff and the assistants follow. A rule takes effect only once an Executive approves it.",
+    "filters": {
+      "label": "Show rules",
+      "state": "Status",
+      "type": "Kind of rule",
+      "company": "For",
+      "any": "All",
+      "everyCompany": "Every company"
+    },
+    "list": {
+      "heading": "Rules",
+      "empty": "No rules match these choices.",
+      "everyCompany": "Every company",
+      "clashCount": "{count, plural, one {# clash to settle} other {# clashes to settle}}",
+      "checking": "Being checked"
+    },
+    "new": "New rule",
+    "draftFromFile": "Draft from a file",
+    "review": {
+      "heading": "Review",
+      "nothingChosen": "Choose a rule to review it.",
+      "keys": "Keys: J for the next rule, K for the one before, A to approve.",
+      "source": "Where it comes from",
+      "sourceFile": "From the Knowledge Vault file {title}",
+      "sourceGone": "This part of the file is no longer in the Knowledge Vault.",
+      "typedIn": "Typed in by a person.",
+      "checking": "We are checking this rule against the approved rules. This takes a minute.",
+      "clear": "It does not clash with any approved rule.",
+      "pairs": "Approved rules it was compared with",
+      "thisRule": "This rule",
+      "otherRule": "Approved rule",
+      "otherHidden": "You can't see this approved rule. Ask an Executive to settle it.",
+      "unlabelled": "We couldn't tell whether these clash. Read both and decide.",
+      "settled": "Settled: {resolution}",
+      "label": {
+        "conflict": "They clash",
+        "overlap": "They say the same thing",
+        "none": "No clash"
+      },
+      "approved": "Approved on <date></date>",
+      "retired": "Retired on <date></date>: {reason}",
+      "actions": "What to do with {title}",
+      "wait": {
+        "not_set_up": "The check against the approved rules is not set up yet, so this rule can't be approved for now. Ask your administrator to switch it on.",
+        "limit_reached": "Today's limit for checking rules has been reached. The check runs again tomorrow; come back then to approve this rule.",
+        "running": "The check is taking longer than usual. Refresh the page in a few minutes to see it."
+      }
+    },
+    "approve": "Approve",
+    "edit": "Edit",
+    "retire": "Retire",
+    "notAClash": "Not a clash",
+    "retireOther": "Retire the other rule",
+    "form": {
+      "newTitle": "New rule",
+      "editTitle": "Edit rule",
+      "intro": "Write the rule as staff or a customer should hear it. It is checked against the approved rules before anyone can approve it.",
+      "titleLabel": "Short name",
+      "titleMissing": "Give the rule a short name.",
+      "textLabel": "The rule",
+      "textMissing": "Write the rule.",
+      "typeLabel": "Kind of rule",
+      "audienceLabel": "Who it is for",
+      "audienceHint": "Customers: an assistant may say it to a customer. Management: only managers can see it.",
+      "forLabel": "For",
+      "everyCompany": "Every company",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "retireDialog": {
+      "title": "Retire this rule",
+      "intro": "Staff and the assistants stop using {title}. Say why it no longer holds.",
+      "reasonLabel": "Why",
+      "reasonMissing": "Say why the rule is retired.",
+      "retire": "Retire",
+      "cancel": "Cancel"
+    },
+    "resolveDialog": {
+      "notAClashTitle": "Not a clash",
+      "notAClashIntro": "Both rules stay. Say why they can both be followed.",
+      "retireOtherTitle": "Retire the other rule",
+      "retireOtherIntro": "The approved rule {title} is retired and this rule can then be approved. Say why it no longer holds.",
+      "noteLabel": "Why",
+      "noteMissing": "Say why.",
+      "notAClash": "Not a clash",
+      "retireOther": "Retire the other rule",
+      "cancel": "Cancel"
+    },
+    "drafting": {
+      "title": "Draft rules from a file",
+      "intro": "We read a Knowledge Vault file and draft up to ten rules from it, each pointing to the part of the file it comes from. You review every draft before it is approved.",
+      "fileLabel": "File",
+      "noFiles": "No Knowledge Vault file is ready to draft from.",
+      "forLabel": "For",
+      "everyCompany": "Every company",
+      "run": "Draft rules",
+      "cancel": "Cancel",
+      "working": "Reading the file. This can take a minute.",
+      "searchLabel": "Find a file by its name",
+      "more": "More files"
+    },
+    "notices": {
+      "saved": "Rule saved. We are checking it against the approved rules.",
+      "approved": "Rule approved. Staff and the assistants now follow it.",
+      "retired": "Rule retired.",
+      "settled": "Clash settled.",
+      "drafted": "{count, plural, =0 {The file states no rule we could draft.} one {# draft rule added.} other {# draft rules added.}}"
+    }
+  },
+  "leadSources": {
+    "title": "Lead sources",
+    "intro": "Connect each company's Facebook and Instagram lead forms, Google lead forms and website, and make the keys a website sends leads with.",
+    "company": "Company",
+    "noCompany": "You do not work for any company yet.",
+    "sourcesHeading": "Forms and websites",
+    "sourcesIntro": "Leads from these arrive on their own and go to a tele-caller in turn. A form not connected here is kept aside on Integration health until it is.",
+    "connect": "Connect a form",
+    "noSources": "No forms or websites are connected to this company yet.",
+    "provider": {
+      "meta_leadgen": "Facebook and Instagram lead form",
+      "google_leadform": "Google lead form",
+      "website": "Company website"
+    },
+    "matched": "Name and phone matched",
+    "notMatched": "Name or phone not matched",
+    "consentQuestion": "Has a consent question",
+    "noConsentQuestion": "No consent question",
+    "pageConnected": "Facebook Page connected",
+    "pageMissing": "Facebook Page not connected",
+    "noLeadYet": "No lead has come in from it yet.",
+    "lastLead": "Last lead came in on <time>{when}</time>.",
+    "change": "Change",
+    "changeLabel": "Change {name}",
+    "disconnect": "Disconnect",
+    "disconnectLabel": "Disconnect {name}",
+    "disconnected": "{name} is disconnected.",
+    "connectTitle": "Connect a form",
+    "changeTitle": "Change a form",
+    "dialogIntro": "Choose where its leads go and match each question of the form to a lead detail.",
+    "kind": "Kind of form",
+    "formId": "Form ID",
+    "formIdHelper": "Copy it from the form's page in Facebook or Google Ads.",
+    "siteHost": "Website address",
+    "siteHostHelper": "The address the site is on, such as shaktisupreme.com, without https. It is kept in small letters.",
+    "fixed": "A connected form cannot be swapped. Disconnect it and connect the new one instead.",
+    "name": "Name shown here",
+    "pipeline": "Line of business",
+    "pipelineHelper": "Every lead from this form goes to this line of business.",
+    "questions": "Questions of the form",
+    "questionsIntro": "These are the questions of the newest lead the form sent. Choose what each one fills in.",
+    "noQuestionsYet": "No lead has come in yet. Send a trial lead from the form's own page, or add its questions by hand.",
+    "targets": {
+      "none": "Not used",
+      "fullName": "Full name",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Mobile number",
+      "pin": "PIN code",
+      "village": "Village or town",
+      "message": "Message",
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number"
+    },
+    "addQuestion": "Add a question",
+    "addQuestionHelper": "Type the question's ID exactly as the form names it.",
+    "add": "Add",
+    "incomplete": "Match a name question and the mobile number question, or leads from this form are kept aside.",
+    "consent": "Consent",
+    "consentKey": "Consent question",
+    "consentKeyHelper": "A lead gets a consent only when the person ticked this question.",
+    "noConsent": "The form asks for no consent",
+    "consentVersion": "Version of the consent wording",
+    "consentVersionHelper": "Change it whenever the wording on the form changes, so each consent shows what was agreed.",
+    "consentChannels": "A tick agrees to",
+    "channels": {
+      "whatsapp": "WhatsApp messages",
+      "call": "Calls",
+      "sms": "Text messages",
+      "email": "Emails"
+    },
+    "consentPurpose": "For",
+    "purposes": {
+      "service": "Service about their enquiry",
+      "promotional": "Offers and promotions"
+    },
+    "pageToken": "Facebook Page access key",
+    "pageTokenHelper": "Paste the Page access key from Facebook. It is locked away when saved and never shown again.",
+    "pageTokenKept": "A Page access key is saved. Paste a new one only to replace it.",
+    "save": "Save form",
+    "saved": "{name} is saved.",
+    "close": "Close",
+    "keysHeading": "Website keys",
+    "keysIntro": "A company's website sends its enquiries with one of these keys. Turn a key off when the website no longer uses it.",
+    "keyLabel": "Name of the new key",
+    "keyLabelHelper": "Such as the website it is for.",
+    "makeKey": "Make a key",
+    "keyMade": "The key for {label}",
+    "keyOnce": "Copy it into the website now. It is not shown again.",
+    "keyCopied": "I have copied it",
+    "noKeys": "This company has no website keys yet.",
+    "endsWith": "Ends with {hint}",
+    "neverUsed": "Not used yet.",
+    "lastUsed": "Last used on <time>{when}</time>.",
+    "turnedOff": "Turned off on <time>{when}</time>.",
+    "turnOff": "Turn off",
+    "turnOffLabel": "Turn off {label}",
+    "keyTurnedOff": "{label} is turned off.",
+    "off": "Off",
+    "keySite": "Website the key is for",
+    "keySiteHelper": "Its leads go to that website's line of business, and its consent box is recorded as set there.",
+    "noSite": "No website: the form must name the line of business",
+    "forSite": "For {name}",
+    "siteGone": "a website no longer connected"
+  },
+  "qualification": {
+    "heading": "Lead details",
+    "edit": "Change details",
+    "none": "No details recorded yet.",
+    "save": "Save details",
+    "saved": "The lead details are saved.",
+    "facts": {
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (rupees)",
+      "roofAreaSqFt": "Roof area (square feet)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "discomConsumerNo": "Electricity consumer number"
+    },
+    "show": "Lead details",
+    "hide": "Hide lead details",
+    "dialogTitle": "Lead details of {name}",
+    "dialogIntro": "What the customer told us about their site and needs. A stage may need some of these before a lead moves on."
+  },
+  "ask": {
+    "title": "Ask the Business",
+    "intro": "Ask about your leads, quotes, orders, targets and the business's own files. Each answer shows the records it comes from, and only what you can see yourself.",
+    "conversations": {
+      "heading": "Your conversations",
+      "empty": "You have not asked anything yet.",
+      "newConversation": "New conversation",
+      "loadMore": "Show older",
+      "kept": "Conversations are removed 90 days after you last use them.",
+      "covers": "Covers {companies}"
+    },
+    "composer": {
+      "label": "Your question",
+      "askButton": "Ask",
+      "working": "Finding the answer",
+      "followUp": "Ask a follow-up question in this conversation."
+    },
+    "lookup": {
+      "search_vault": "Searching the Knowledge Vault",
+      "read_playbook": "Reading the Playbook",
+      "pipeline_by_stage": "Counting open leads by stage",
+      "list_leads": "Reading leads",
+      "list_quotes": "Reading quotes",
+      "list_orders": "Reading orders",
+      "sales_this_month": "Reading this month's sales",
+      "targets_progress": "Reading targets",
+      "dealer_credit": "Reading dealer credit",
+      "find_items": "Finding catalogue items"
+    },
+    "answer": {
+      "you": "You asked",
+      "unsourcedFigure": "a figure not found in the records",
+      "unsourcedNote": "Some figures could not be found in the records Ask read, so they are left out.",
+      "noAnswer": "Ask could not find an answer in the records you can see. Try asking in other words.",
+      "figures": "Figures in this answer",
+      "sources": "Where this comes from",
+      "sourceNumber": "Record {number}",
+      "sourceGone": "A record you can no longer open"
+    },
+    "kind": {
+      "knowledge_file": "Knowledge Vault file",
+      "playbook_directive": "Playbook rule",
+      "pipeline_stage": "Pipeline stage",
+      "opportunity": "Lead",
+      "quote": "Quote",
+      "sales_order": "Order",
+      "account": "Dealer",
+      "item": "Catalogue item"
+    },
+    "delete": {
+      "deleteButton": "Delete",
+      "deleteForGood": "Delete for good",
+      "keepIt": "Keep it",
+      "question": "Delete this conversation and all its answers?",
+      "done": "Conversation deleted."
+    }
+  },
+  "voice": {
+    "title": "Talk to Shakti",
+    "intro": "Ask about the business, or teach Shakti how you work, by speaking. Shakti answers aloud and shows what it hears.",
+    "notSetUp": "Talking to Shakti is not set up yet. You can type your questions in Ask the Business for now.",
+    "minutesLeft": "{minutes, plural, =0 {No minutes left today} one {# minute left today} other {# minutes left today}}",
+    "sessionLength": "A talk lasts at most {minutes, plural, one {# minute} other {# minutes}}.",
+    "start": {
+      "heading": "Start a talk",
+      "mode": "What would you like to do?",
+      "ask": "Ask about the business",
+      "askHint": "Shakti answers from the records you can see, and shows where each answer comes from.",
+      "teach": "Teach Shakti how we work",
+      "teachHint": "Shakti asks you questions, then drafts Playbook rules for you to check and save.",
+      "recording": "May Shakti keep a recording of this talk?",
+      "recordingHint": "A recording is kept only for a Teach talk, in the Knowledge Vault, for the Executive only.",
+      "recordYes": "Yes, keep a recording",
+      "recordNo": "No recording",
+      "answerFirst": "Answer the recording question to start.",
+      "startButton": "Start talking",
+      "starting": "Starting the talk…"
+    },
+    "live": {
+      "heading": "Your talk",
+      "light": "What Shakti is doing",
+      "listening": "Listening",
+      "thinking": "Thinking",
+      "speaking": "Speaking",
+      "push_to_talk": "Hold the button to speak",
+      "captions": "What was said",
+      "you": "You",
+      "shakti": "Shakti",
+      "noCaptions": "Start speaking. Your words and Shakti's answers appear here.",
+      "holdToTalk": "Hold to talk",
+      "weakConnection": "The connection is weak. Hold the button to speak, or type below.",
+      "typeLabel": "Type instead",
+      "send": "Send",
+      "makeDrafts": "Make drafts",
+      "end": "End talk",
+      "cards": "Where this comes from",
+      "reconnecting": "The connection dropped. Joining the talk again…",
+      "soundBlocked": "Your browser has paused Shakti's voice. Turn on sound to hear the answers.",
+      "turnOnSound": "Turn on sound",
+      "talkMinutesLeft": "{minutes, plural, =0 {No time left in this talk} one {# minute left in this talk} other {# minutes left in this talk}}"
+    },
+    "drafts": {
+      "heading": "Drafts to check",
+      "intro": "Check each draft. Saving adds it to the Playbook as a draft for the Executive to approve.",
+      "company": "Company",
+      "save": "Save draft",
+      "saved": "Saved to the Playbook as a draft.",
+      "kind": "{type} for {audience}"
+    },
+    "ended": {
+      "time_up": "This talk reached its time.",
+      "day_limit": "Today's time for talking is used up. You can talk again tomorrow.",
+      "ended": "This talk has ended.",
+      "failed": "This talk stopped because something went wrong. Please start again.",
+      "lost": "The connection was lost, so this talk ended. Start again when your network is back.",
+      "again": "Start another talk"
+    },
+    "recording": {
+      "fileName": "Teach session {date}.wav",
+      "title": "Teach session of {date}"
     }
   }
 }

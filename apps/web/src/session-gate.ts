@@ -29,6 +29,7 @@ export const BOS_PREFIXES = [
   '/targets',
   '/converters',
   '/converting',
+  '/messages',
   '/inbox',
   '/imports',
   '/price-master',
@@ -38,6 +39,8 @@ export const BOS_PREFIXES = [
   '/design',
   '/calling',
   '/knowledge',
+  '/ask',
+  '/voice',
 ] as const;
 
 /** True for a path inside the `(bos)` route group. */

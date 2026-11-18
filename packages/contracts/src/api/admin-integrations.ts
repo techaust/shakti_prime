@@ -3,6 +3,7 @@ import { MoneySchema } from '../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { CursorSchema, PageLimitSchema, SemverSchema } from './common';
 import { TallyCompanySchema } from './connector';
+import { MessagingRefusalSchema } from './messaging';
 import { AgentNameSchema } from './worker-jobs';
 
 /**
@@ -15,30 +16,78 @@ import { AgentNameSchema } from './worker-jobs';
 const Count = z.number().int().min(0);
 const Instant = z.iso.datetime();
 
-/** Providers whose webhooks land in `webhook_inbox` (docs/06-api.md §3.4). */
+/**
+ * Providers whose deliveries land in `webhook_inbox` (docs/06-api.md §3.4,
+ * docs/03-roadmap-appendix/phase2.md §5.1), one per webhook route: the two Exotel callbacks are
+ * authenticated differently, so each is a provider of its own.
+ */
 export const WEBHOOK_PROVIDERS = [
   'meta_whatsapp',
   'meta_leadgen',
   'google_leadform',
-  'exotel',
+  'exotel_status',
+  'exotel_incoming',
   'livekit',
 ] as const;
 export const WebhookProviderSchema = z.enum(WEBHOOK_PROVIDERS);
 export type WebhookProvider = z.infer<typeof WebhookProviderSchema>;
 
-/** One provider's inbox over the last 24 hours and what still waits. */
-export const WebhookInboxStats = z
+/**
+ * Why a stored delivery was not processed, or how it ended without a handler: `payload_unreadable`
+ * (its contract refused it; never retried), `no_handler` (no slice has registered a handler for
+ * its provider yet; the row counts as processed), `handler_failed` (the last retry failed), or a
+ * handler's own code. One word of lower-case letters, digits and `_`, so no text reaches a page.
+ */
+export const WebhookErrorCodeSchema = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/);
+export type WebhookErrorCode = z.infer<typeof WebhookErrorCodeSchema>;
+
+/**
+ * One provider's deliveries over the last 24 hours (`app.webhook_health()` and, for `refused24h`,
+ * the key-value store's hourly counts of deliveries that failed their check and were never
+ * stored), and what still waits: `waiting` rows are neither processed nor failed.
+ */
+export const WebhookProviderHealth = z
   .object({
     provider: WebhookProviderSchema,
     received24h: Count,
-    failedSignature24h: Count,
-    unprocessed: Count,
-    failed: Count,
-    lastReceivedAt: Instant.nullable(),
-    oldestUnprocessedAt: Instant.nullable(),
+    processed24h: Count,
+    failed24h: Count,
+    refused24h: Count,
+    waiting: Count,
+    oldestWaitingAt: Instant.nullable(),
   })
   .strict();
-export type WebhookInboxStats = z.infer<typeof WebhookInboxStats>;
+export type WebhookProviderHealth = z.infer<typeof WebhookProviderHealth>;
+
+/** A stored delivery that failed, for Process again; ids, times and its code only. */
+export const FailedWebhook = z
+  .object({
+    inboxId: IdSchema,
+    provider: WebhookProviderSchema,
+    errorCode: WebhookErrorCodeSchema,
+    attempts: Count,
+    receivedAt: Instant,
+    failedAt: Instant,
+  })
+  .strict();
+export type FailedWebhook = z.infer<typeof FailedWebhook>;
+
+/** How many failed rows the page lists, newest first. */
+export const FAILED_WEBHOOKS_SHOWN = 50;
+
+/** Integration Health › Webhooks: every provider, then the failed rows newest first. */
+export const WebhookHealth = z
+  .object({
+    providers: z.array(WebhookProviderHealth),
+    failed: z
+      .object({
+        total: Count,
+        items: z.array(FailedWebhook).max(FAILED_WEBHOOKS_SHOWN),
+      })
+      .strict(),
+  })
+  .strict();
+export type WebhookHealth = z.infer<typeof WebhookHealth>;
 
 /**
  * Why the last attempt of an outbox event failed, as the publisher records it: a short code such
@@ -100,6 +149,23 @@ export const WhatsAppNumberHealth = z
 export type WhatsAppNumberHealth = z.infer<typeof WhatsAppNumberHealth>;
 
 /**
+ * The portfolio's WhatsApp messaging (docs/03-roadmap-appendix/phase2.md §6.1): the limit Meta
+ * reports (or the starting tier until it does), the business-initiated conversations to distinct
+ * customers in the rolling 24 hours, and the last day's messages refused, by the check that refused
+ * them, and failed.
+ */
+export const WhatsAppBudgetHealth = z
+  .object({
+    limit: Count,
+    limitReported: z.boolean(),
+    used: Count,
+    refusals: z.array(z.object({ refusal: MessagingRefusalSchema, count: Count }).strict()),
+    failed: Count,
+  })
+  .strict();
+export type WhatsAppBudgetHealth = z.infer<typeof WhatsAppBudgetHealth>;
+
+/**
  * One agent's model spend in one company, in rupees, from its runs (`agent_runs`): today's and the
  * month's so far (IST), with the runs, beside the caps that apply there (`agent_configs`): the
  * company's and the group's, null for none. `stoppedByCap` when a run was stopped by a cap today.
@@ -125,10 +191,12 @@ export type AgentSpend = z.infer<typeof AgentSpend>;
  */
 export const DATABASE_JOBS = [
   'activities-partitions',
+  'ask-conversations-purge',
   'audit-logs-detach',
   'audit-logs-partitions',
   'idempotency-keys-purge',
   'outbox-events-purge',
+  'whatsapp-messages-partitions',
 ] as const;
 export const DatabaseJobSchema = z.enum(DATABASE_JOBS);
 export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
@@ -136,14 +204,17 @@ export type DatabaseJob = z.infer<typeof DatabaseJobSchema>;
 /**
  * How often each job is meant to run, in hours, shown for a job the database no longer schedules
  * (a scheduled job's period is read from its own schedule): the partition makers and the purges
- * daily, the audit archive monthly (31 days), and the activity partitions on the 25th.
+ * daily, the audit archive monthly (31 days), and the activity and WhatsApp message partitions on
+ * the 25th.
  */
 export const DATABASE_JOB_EVERY_HOURS: Readonly<Record<DatabaseJob, number>> = {
   'activities-partitions': 31 * 24,
+  'ask-conversations-purge': 24,
   'audit-logs-detach': 31 * 24,
   'audit-logs-partitions': 24,
   'idempotency-keys-purge': 24,
   'outbox-events-purge': 24,
+  'whatsapp-messages-partitions': 31 * 24,
 };
 
 /**
@@ -249,7 +320,7 @@ export const IntegrationHealthResponse = z
       })
       .strict(),
     deliveryCheck: DeliveryCheck.nullable(),
-    webhooks: z.array(WebhookInboxStats),
+    webhooks: WebhookHealth,
     deadLetters: z
       .object({
         total: Count,
@@ -259,6 +330,7 @@ export const IntegrationHealthResponse = z
       .strict(),
     connectors: z.array(ConnectorHealth),
     whatsapp: z.array(WhatsAppNumberHealth),
+    whatsappBudget: WhatsAppBudgetHealth,
     /** The database's scheduled jobs, each with its state and last run (audit 2026-10, DATA-3). */
     jobs: z.array(ScheduledJobHealth),
     aiSpend: z

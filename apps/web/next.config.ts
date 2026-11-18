@@ -26,6 +26,7 @@ const config: NextConfig = {
     '@shakti/domain',
     '@shakti/tokens',
     '@shakti/ui',
+    '@shakti/voice',
   ],
   // Chromium's driver and the serverless Chromium build load files beside their own code at run
   // time, so they stay plain packages rather than bundled (ADR 0009); so does PDFium, which loads its

@@ -26,6 +26,10 @@ export const API_HEADERS = {
 export const API_ERROR_REASONS = [
   'app_update_required',
   'voice_cap_reached',
+  // Live voice (docs/03-roadmap-appendix/phase2.md §7.5): not set up here, or the session is over.
+  'voice_unavailable',
+  'voice_session_ended',
+  'voice_recording_refused',
   'cursor_expired',
   'file_type_not_allowed',
   'file_too_large',
@@ -36,6 +40,10 @@ export const API_ERROR_REASONS = [
   'cursor_mismatch',
   'idempotency_mismatch',
   'not_dead_lettered',
+  // The website ingest route (docs/06-api.md §3.3, I1).
+  'ingest_key_refused',
+  'ingest_key_other_company',
+  'lead_source_missing',
 ] as const;
 export const ApiErrorReasonSchema = z.enum(API_ERROR_REASONS);
 export type ApiErrorReason = z.infer<typeof ApiErrorReasonSchema>;

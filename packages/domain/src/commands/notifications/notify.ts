@@ -20,6 +20,8 @@ import {
   QUOTE_EXPIRY_NOTICE_MS,
   type NoticeSettingRow,
 } from '../../notifications/push-plan';
+import { withinCallingHours } from '../../telecom/dial-policy';
+import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { requireEntity } from '../crm/opportunity-shared';
 import { writeNotices, type NoticeDraft } from './write-notices';
 
@@ -146,6 +148,15 @@ interface LateRow {
   dedupe_key: string;
 }
 
+/** A WhatsApp chat handed to people that waits for a reply (`app.notice_whatsapp_waiting()`). */
+interface WaitingRow {
+  thread_id: string;
+  user_id: string;
+  account_id: string | null;
+  opportunity_id: string | null;
+  dedupe_key: string;
+}
+
 interface PendingRow {
   id: string;
   user_id: string;
@@ -245,7 +256,9 @@ async function pendingPushes(
  * `notifications.due.scan`: one batch of a company's notices that no event announces, run every five
  * minutes by the scan worker: callbacks and nurture calls that fell due (for their person), quotes
  * that lapse within a day (for their lead's owner), and new leads past the first-contact limit and
- * never called (for the company's General Managers, once per lead). Each find comes with the
+ * never called (for the company's General Managers, once per lead), and, in calling hours, WhatsApp
+ * chats handed to people whose customer has waited `WORKSHOP_DEFAULTS.whatsapp.replyWaitMinutes`
+ * for a reply (for the person who looks after the customer, once per customer message). Each find comes with the
  * reason it is told for, and nothing already told for that reason comes back, so a repeated scan
  * writes nothing twice (and the pushes a cut-off run left pending come back in `resend`); `more` asks for another batch when a kind filled its batch.
  */
@@ -272,6 +285,14 @@ export const scanNotices = defineCommand({
     const late = (await ctx.tx.execute(
       sql`select * from app.notice_late_first_calls(${entity}::smallint, ${since}::timestamptz, ${NOTICE_SCAN_LIMIT})`,
     )) as unknown as LateRow[];
+    const waitedBefore = new Date(
+      ctx.now.getTime() - WORKSHOP_DEFAULTS.whatsapp.replyWaitMinutes * 60_000,
+    ).toISOString();
+    const waiting = withinCallingHours(ctx.now)
+      ? ((await ctx.tx.execute(
+          sql`select * from app.notice_whatsapp_waiting(${entity}::smallint, ${waitedBefore}::timestamptz, ${NOTICE_SCAN_LIMIT})`,
+        )) as unknown as WaitingRow[])
+      : [];
     const drafts: NoticeDraft[] = [
       ...calls.map((r) => ({
         userId: r.user_id,
@@ -297,10 +318,21 @@ export const scanNotices = defineCommand({
         payload: { accountId: r.account_id, opportunityId: r.opportunity_id },
         dedupeKey: r.dedupe_key,
       })),
+      ...waiting.map((r) => ({
+        userId: r.user_id,
+        type: 'whatsapp_reply_waiting' as const,
+        subjectType: 'whatsapp_thread' as const,
+        subjectId: r.thread_id,
+        payload: {
+          ...(r.account_id === null ? {} : { accountId: r.account_id }),
+          ...(r.opportunity_id === null ? {} : { opportunityId: r.opportunity_id }),
+        },
+        dedupeKey: r.dedupe_key,
+      })),
     ];
     const notices = await writeNotices(ctx, entity, drafts);
     const resend = await pendingPushes(ctx, entity, new Set(notices.map((n) => n.id)));
-    const more = [calls, quotes, late].some((rows) => rows.length === NOTICE_SCAN_LIMIT);
+    const more = [calls, quotes, late, waiting].some((rows) => rows.length === NOTICE_SCAN_LIMIT);
     return { entityId: entity, notices, resend, more };
   },
 });

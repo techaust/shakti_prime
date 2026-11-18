@@ -4,7 +4,8 @@ import type {
   MyProgressDto,
   PipelineStagesDto,
   ResponseTimeDto,
-  SalesHomeDto,
+  SalesOverviewDto,
+  SalesTotalDto,
   TargetMetric,
   TargetPeriod,
   TeamProgressDto,
@@ -400,28 +401,20 @@ export async function AccountsSection({
   );
 }
 
-/** Sums money strings in paise, so the group total is exact. */
-function sumMoney(values: readonly string[]): string {
-  const paise = values.reduce((sum, v) => sum + BigInt(v.replace('.', '')), 0n);
-  const text = paise.toString().padStart(3, '0');
-  return `${text.slice(0, -2)}.${text.slice(-2)}`;
-}
-
 /** The Executive's overview: the pipeline by stage, then quotes and orders per company and in all. */
 export async function ExecutiveSection({
   sales,
   pipelines,
   companies,
 }: {
-  sales: readonly SalesHomeDto[];
+  sales: SalesOverviewDto;
   pipelines: readonly PipelineStagesDto[];
   companies: Record<number, string>;
 }) {
   const t = await getTranslations('home.executive');
   const number = 'px-3 py-2 text-right tabular-nums';
-  const salesFields = (
-    s: Pick<SalesHomeDto, 'quotesSent' | 'quotesAccepted' | 'ordersConfirmed' | 'ordersValue'>,
-  ) => [
+  const { companies: perCompany, total } = sales;
+  const salesFields = (s: SalesTotalDto) => [
     { id: 'quotesSent', label: t('quotesSent'), value: formatCount(s.quotesSent), numeric: true },
     {
       id: 'quotesAccepted',
@@ -442,12 +435,6 @@ export async function ExecutiveSection({
       numeric: true,
     },
   ];
-  const total = {
-    quotesSent: sales.reduce((n, s) => n + s.quotesSent, 0),
-    quotesAccepted: sales.reduce((n, s) => n + s.quotesAccepted, 0),
-    ordersConfirmed: sales.reduce((n, s) => n + s.ordersConfirmed, 0),
-    ordersValue: sumMoney(sales.map((s) => s.ordersValue)),
-  };
   return (
     <>
       <HomeBlock id="home-executive-sales" title={t('salesHeading')}>
@@ -455,12 +442,12 @@ export async function ExecutiveSection({
         <CardList
           label={t('caption')}
           items={[
-            ...sales.map((s) => ({
+            ...perCompany.map((s) => ({
               key: String(s.entityId),
               title: companies[s.entityId] ?? '',
               fields: salesFields(s),
             })),
-            ...(sales.length > 1
+            ...(perCompany.length > 1
               ? [{ key: 'group', title: t('group'), fields: salesFields(total) }]
               : []),
           ]}
@@ -488,7 +475,7 @@ export async function ExecutiveSection({
               </tr>
             </thead>
             <tbody>
-              {sales.map((s) => (
+              {perCompany.map((s) => (
                 <tr key={s.entityId} className="border-border border-t">
                   <th scope="row" className="px-3 py-2 text-left font-medium">
                     {companies[s.entityId] ?? ''}
@@ -500,7 +487,7 @@ export async function ExecutiveSection({
                 </tr>
               ))}
             </tbody>
-            {sales.length > 1 ? (
+            {perCompany.length > 1 ? (
               <tfoot>
                 <tr className="border-border bg-surface-2 border-t font-medium">
                   <th scope="row" className="px-3 py-2 text-left">
@@ -520,7 +507,7 @@ export async function ExecutiveSection({
         <PipelineBlocks
           pipelines={pipelines}
           companies={companies}
-          showCompany={sales.length > 1}
+          showCompany={perCompany.length > 1}
         />
       </HomeBlock>
     </>
