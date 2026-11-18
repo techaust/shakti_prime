@@ -65,7 +65,7 @@ export type SummarySkip =
   | 'no_speech_service';
 
 export type SummariseResult =
-  { outcome: 'skipped'; reason: SummarySkip } | (CopilotRunResult & { transcribed: boolean });
+  { outcome: 'skipped'; why: SummarySkip } | (CopilotRunResult & { transcribed: boolean });
 
 export interface SummariseDeps extends CopilotDeps {
   /** `system:workers` of the event's company, which holds `calls.process`. */
@@ -173,23 +173,23 @@ export async function summariseCall(
 ): Promise<SummariseResult> {
   const call = await readCallFacts(job, deps.platform);
   if (call === undefined || call.opportunityId === null || call.direction !== 'outbound') {
-    return { outcome: 'skipped', reason: 'not_a_dial' };
+    return { outcome: 'skipped', why: 'not_a_dial' };
   }
-  if (call.leadAnonymised) return { outcome: 'skipped', reason: 'anonymised' };
+  if (call.leadAnonymised) return { outcome: 'skipped', why: 'anonymised' };
   if (!coveredCall(copilotCoverage(job.entityId), call.callerConverter)) {
-    return { outcome: 'skipped', reason: 'not_covered' };
+    return { outcome: 'skipped', why: 'not_covered' };
   }
-  if (call.status !== 'completed') return { outcome: 'skipped', reason: 'not_recorded' };
+  if (call.status !== 'completed') return { outcome: 'skipped', why: 'not_recorded' };
   const recorded = call.recording !== null || call.transcript !== null;
   const base = { eventId: job.eventId, kind: 'call_summary' as const, entityId: job.entityId };
   const config = await copilotSettings(job.entityId, 'call_summary');
   if (!copilotMayRun(config)) {
-    if (!recorded) return { outcome: 'skipped', reason: 'not_recorded' };
+    if (!recorded) return { outcome: 'skipped', why: 'not_recorded' };
     const stopped = await recordCopilotStop(base, deps);
     return { outcome: 'stopped', runs: { qualification: stopped }, transcribed: false };
   }
   if (!recorded) {
-    if (deps.transcriber === undefined) return { outcome: 'skipped', reason: 'no_speech_service' };
+    if (deps.transcriber === undefined) return { outcome: 'skipped', why: 'no_speech_service' };
     // The status is recorded before the recording is copied in: a call that ended moments ago is
     // delivered again until its recording is there or the wait is over.
     const now = (deps.now ?? (() => new Date()))().getTime();
@@ -199,7 +199,7 @@ export async function summariseCall(
         reason: 'call_recording_pending',
       });
     }
-    return { outcome: 'skipped', reason: 'not_recorded' };
+    return { outcome: 'skipped', why: 'not_recorded' };
   }
 
   let transcript: string;
@@ -210,23 +210,22 @@ export async function summariseCall(
     );
   } else {
     const recording = call.recording;
-    if (recording === null) return { outcome: 'skipped', reason: 'not_recorded' };
+    if (recording === null) return { outcome: 'skipped', why: 'not_recorded' };
     if (!WAV_TYPES.has(recording.contentType.toLowerCase())) {
-      return { outcome: 'skipped', reason: 'not_wav' };
+      return { outcome: 'skipped', why: 'not_wav' };
     }
     const speech = deps.transcriber;
-    if (speech === undefined) return { outcome: 'skipped', reason: 'no_speech_service' };
+    if (speech === undefined) return { outcome: 'skipped', why: 'no_speech_service' };
     const bytes = await storedBytes(deps.store, recording.key, recording.sha256);
     let audioMs: number;
     try {
       audioMs = speech.durationMs(bytes, recording.contentType);
     } catch (error) {
-      if (error instanceof KnowledgeExtractError)
-        return { outcome: 'skipped', reason: 'unreadable' };
+      if (error instanceof KnowledgeExtractError) return { outcome: 'skipped', why: 'unreadable' };
       throw error;
     }
     if (audioMs > AGENT_DEFAULTS.copilot.maxCallMinutes * 60_000) {
-      return { outcome: 'skipped', reason: 'too_long' };
+      return { outcome: 'skipped', why: 'too_long' };
     }
     const paise = (ms: number): number => (ms / 3_600_000) * speech.paisePerHour;
     let heard: string;
@@ -251,8 +250,7 @@ export async function summariseCall(
           }),
       );
     } catch (error) {
-      if (error instanceof KnowledgeExtractError)
-        return { outcome: 'skipped', reason: 'unreadable' };
+      if (error instanceof KnowledgeExtractError) return { outcome: 'skipped', why: 'unreadable' };
       // The daily cap reached: the summary waits for no one; the run's stop is recorded.
       if (
         error instanceof DomainError &&
@@ -265,9 +263,9 @@ export async function summariseCall(
       throw error;
     }
     // The adapter answers Roman script only; a transcript that is not is never kept (ADR 0014).
-    if (!isRomanScript(heard)) return { outcome: 'skipped', reason: 'unreadable' };
+    if (!isRomanScript(heard)) return { outcome: 'skipped', why: 'unreadable' };
     const masked = maskWholeText(heard).trim();
-    if (masked === '') return { outcome: 'skipped', reason: 'unreadable' };
+    if (masked === '') return { outcome: 'skipped', why: 'unreadable' };
     // A transcript over the limit keeps its end, where a call's agreements are.
     transcript =
       masked.length > CALL_TRANSCRIPT_MAX_CHARS
@@ -293,13 +291,13 @@ export async function summariseCall(
       { hosted: deps.hosted },
     );
     if (attached.outcome === 'not_recorded' || attached.outcome === 'missing') {
-      return { outcome: 'skipped', reason: 'not_recorded' };
+      return { outcome: 'skipped', why: 'not_recorded' };
     }
     // Another delivery kept its transcript first: that one is the call's.
     if (attached.outcome === 'other_file') {
       const again = await readCallFacts(job, deps.platform);
       if (again?.transcript === null || again?.transcript === undefined) {
-        return { outcome: 'skipped', reason: 'not_recorded' };
+        return { outcome: 'skipped', why: 'not_recorded' };
       }
       transcript = new TextDecoder().decode(
         await storedBytes(deps.store, again.transcript.key, again.transcript.sha256),

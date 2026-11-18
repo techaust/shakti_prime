@@ -12,7 +12,7 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import { approveSuggestion, dismissSuggestion, rejectSuggestion } from '../../actions/agents';
 import { loadCopilotPanel, requestCopilotBrief } from '../../actions/copilot';
 import { Key } from '../../components/calling/calling-parts';
-import { DateTime, momentValues } from '../../components/date-time';
+import { momentValues } from '../../components/date-time';
 import { FailureMessage } from '../../components/screens/failure';
 import { useCommand, useQuery } from '../../components/screens/use-command';
 import { actionTypeName } from '../agents';
@@ -190,11 +190,7 @@ function SuggestionBody({ item, facts }: { item: InboxItemDto; facts: CopilotFac
   return (
     <div className="flex min-w-0 flex-col gap-1 text-sm">
       {facts === undefined ? null : <Facts facts={facts} />}
-      {due === null ? null : (
-        <p>
-          {t('copilot.dueAt')} <DateTime value={due} />
-        </p>
-      )}
+      {due === null ? null : <p>{t.rich('copilot.dueAt', momentValues(due))}</p>}
       {title === null ? null : <p className="break-words">{title}</p>}
       {template === undefined ? null : (
         <p className="break-words">{template.label ?? template.value ?? ''}</p>

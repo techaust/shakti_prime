@@ -587,7 +587,7 @@ describe('the summary of a recorded call', () => {
       { eventId: newId(), entityId: ENTITY, providerCallId: call },
       deps(store, speech, provider),
     );
-    expect(result).toEqual({ outcome: 'skipped', reason: 'not_covered' });
+    expect(result).toEqual({ outcome: 'skipped', why: 'not_covered' });
     expect(speech.calls).toBe(0);
     expect(transport.requests).toHaveLength(0);
     await drop(cap);
@@ -673,7 +673,7 @@ describe('the summary of a recorded call', () => {
         { eventId: newId(), entityId: ENTITY, providerCallId: old },
         deps(memoryFileStore(), speech, provider),
       ),
-    ).toEqual({ outcome: 'skipped', reason: 'not_recorded' });
+    ).toEqual({ outcome: 'skipped', why: 'not_recorded' });
     expect(speech.calls).toBe(0);
     await drop(cap);
   });
@@ -698,7 +698,7 @@ describe('the summary of a recorded call', () => {
         { eventId: newId(), entityId: ENTITY, providerCallId: offCall },
         deps(store, undefined, provider),
       ),
-    ).toEqual({ outcome: 'skipped', reason: 'no_speech_service' });
+    ).toEqual({ outcome: 'skipped', why: 'no_speech_service' });
     const mp3 = await dial(l);
     await recording(store, mp3, 'audio/mpeg');
     expect(
@@ -706,7 +706,7 @@ describe('the summary of a recorded call', () => {
         { eventId: newId(), entityId: ENTITY, providerCallId: mp3 },
         deps(store, speech, provider),
       ),
-    ).toEqual({ outcome: 'skipped', reason: 'not_wav' });
+    ).toEqual({ outcome: 'skipped', why: 'not_wav' });
     expect(speech.calls).toBe(0);
     expect(transport.requests).toHaveLength(0);
     await drop(cap);

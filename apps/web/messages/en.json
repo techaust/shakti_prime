@@ -397,6 +397,7 @@
     "copilot_brief_recent": "This lead already has a brief from the last hour. Use that one, or ask again later.",
     "copilot_summary_recorded": "This call already has its summary.",
     "copilot_lead_closed": "This lead is closed, so the Co-pilot does not write a brief for it.",
+    "call_recording_pending": "The call recording is not ready yet. The Co-pilot reads it again in a few minutes.",
     "disposition_missing": "This call outcome is no longer in use. Refresh the page and choose another.",
     "lead_source_missing": "This lead source is no longer connected. Refresh the page to see the sources as they are now.",
     "lead_source_fixed": "A connected form cannot be swapped for another. Disconnect this one and connect the new form.",
@@ -4552,7 +4553,7 @@
       "keys": "A approves and R rejects the first suggestion that needs approval.",
       "approveKey": "A",
       "rejectKey": "R",
-      "dueAt": "Call back"
+      "dueAt": "Call back <time>{when}</time>"
     },
     "copilotReport": {
       "title": "What the Co-pilot suggested",
