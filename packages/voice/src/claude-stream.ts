@@ -1,4 +1,3 @@
-import { AGENT_DEFAULTS } from '@shakti/domain';
 import {
   asNumber,
   asObject,
@@ -8,26 +7,46 @@ import {
   ProviderError,
   providerFetch,
   type HttpDeps,
-} from '../http';
+} from './http';
 import { romanOnly } from './roman-script';
 import { keyFrom, parseVendorJson } from './vendor-json';
 import { systemClock, type Clock, type ReplyModel, type ReplyUsage } from './ports';
 
+/** A sentence's end inside a reply: . ? ! or the danda, with more text after it. */
+const SENTENCE_END_ANY = /[.?!\u0964](?=\s)/u;
+
+/** The sentences complete in `text` after the first `from` characters, and where they end. */
+export function completeSentences(
+  text: string,
+  from: number,
+): { sentences: string[]; end: number } {
+  const sentences: string[] = [];
+  let start = from;
+  let rest = text.slice(start);
+  let match = SENTENCE_END_ANY.exec(rest);
+  while (match !== null) {
+    const stop = start + match.index + 1;
+    const sentence = text.slice(start, stop).trim();
+    if (sentence !== '') sentences.push(sentence);
+    start = stop;
+    rest = text.slice(start);
+    match = SENTENCE_END_ANY.exec(rest);
+  }
+  return { sentences, end: start };
+}
+
 /**
- * The reply step of the latency spike: Claude's Messages API over plain HTTP with streaming
- * (server-sent events), timing the first text and the first full sentence. The voice worker will
- * use the Anthropic SDK inside the LiveKit worker (Phase 2); this harness uses fetch because the
- * spike takes no new dependency. The model, effort and thinking come from `AGENT_DEFAULTS.voice`
- * (Sonnet 5.5, docs/03-roadmap-appendix/phase2.md §9.1); `VOICE_SPIKE_MODEL` may name another
- * priced model to compare (Haiku 5.5, §9.3). This harness calls the API directly for timing only;
- * production calls go through the provider wrapper of ADR 0011, which owns the model choice.
+ * The reply step of a spoken turn: Claude's Messages API over plain HTTP with streaming
+ * (server-sent events), timing the first text and the first full sentence. The model, effort,
+ * thinking and answer length are the caller's (`VoiceModelSettings`): the web app passes
+ * `AGENT_DEFAULTS.voice` (Sonnet 5.5, docs/03-roadmap-appendix/phase2.md §9.1), and the voice
+ * worker the same values the BOS hands it when it dispatches the worker, so the domain stays
+ * their one source. `VOICE_SPIKE_MODEL` may name another priced model to compare (Haiku 5.5,
+ * §9.3) in the spike only.
  */
 
-/** The model the spike and the benchmark time unless `VOICE_SPIKE_MODEL` names another. */
-export const DEFAULT_VOICE_SPIKE_MODEL: string = AGENT_DEFAULTS.voice.model;
-
-export interface ClaudeConfig {
-  apiKey: string;
+/** The model settings of the reply step, as `AGENT_DEFAULTS.voice` names them. */
+export interface VoiceModelSettings {
   model: string;
   /** `low` keeps a spoken reply quick; the spike can compare levels. */
   effort: 'low' | 'medium' | 'high';
@@ -37,33 +56,39 @@ export interface ClaudeConfig {
    */
   thinking: 'between_tools' | undefined;
   maxTokens: number;
-  baseUrl: string;
 }
 
-/** A model the price table names, so a run's cost can be counted (`AGENT_DEFAULTS.modelPrices`). */
-export function isPricedModel(model: string): boolean {
-  return Object.hasOwn(AGENT_DEFAULTS.modelPrices, model);
+export interface ClaudeConfig extends VoiceModelSettings {
+  apiKey: string;
+  baseUrl: string;
 }
 
 export const CLAUDE_TIMEOUT_MS = 30_000;
 
+/**
+ * The reply step's settings from the environment's key and the caller's model settings;
+ * undefined without a key. `VOICE_SPIKE_MODEL` names another model to compare, which
+ * `isPriced` must know, so a run's cost can always be counted.
+ */
 export function claudeConfig(
+  settings: VoiceModelSettings,
+  isPriced: (model: string) => boolean,
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): ClaudeConfig | undefined {
   const apiKey = keyFrom(env.ANTHROPIC_API_KEY, 'ANTHROPIC_API_KEY');
   if (apiKey === undefined) return undefined;
   const effort = env.VOICE_SPIKE_EFFORT;
   const named = env.VOICE_SPIKE_MODEL?.trim() ?? '';
-  const model = named === '' ? DEFAULT_VOICE_SPIKE_MODEL : named;
-  if (!isPricedModel(model)) {
+  const model = named === '' ? settings.model : named;
+  if (!isPriced(model)) {
     throw new Error(`VOICE_SPIKE_MODEL names ${model}, which the price table does not list`);
   }
   return {
     apiKey,
     model,
-    effort: effort === 'medium' || effort === 'high' ? effort : AGENT_DEFAULTS.voice.effort,
-    thinking: model === AGENT_DEFAULTS.voice.model ? AGENT_DEFAULTS.voice.thinking : undefined,
-    maxTokens: AGENT_DEFAULTS.voice.maxTokens,
+    effort: effort === 'medium' || effort === 'high' ? effort : settings.effort,
+    thinking: model === settings.model ? settings.thinking : undefined,
+    maxTokens: settings.maxTokens,
     baseUrl: 'https://api.anthropic.com',
   };
 }
@@ -121,7 +146,7 @@ export function claudeReplyModel(
   return {
     vendor: `anthropic ${config.model}`,
     model: config.model,
-    async reply(system, userText) {
+    async reply(system, userText, options = {}) {
       const started = clock.now();
       const response = await providerFetch('anthropic', deps, `${config.baseUrl}/v1/messages`, {
         method: 'POST',
@@ -137,8 +162,12 @@ export function claudeReplyModel(
           system,
           ...(config.thinking === undefined ? {} : { thinking: { type: config.thinking } }),
           output_config: { effort: config.effort },
-          messages: [{ role: 'user', content: userText }],
+          messages: [
+            ...(options.history ?? []).map((turn) => ({ role: turn.role, content: turn.text })),
+            { role: 'user', content: userText },
+          ],
         }),
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
       });
       if (!response.ok || response.body === null) {
         const body: unknown = await response.json().catch(() => undefined);
@@ -154,6 +183,8 @@ export function claudeReplyModel(
       let firstSentenceMs: number | undefined;
       let firstSentence = '';
       let stopReason: string | undefined;
+      // Where the sentences handed to `onSentence` end.
+      let spoken = 0;
       const usage: ReplyUsage = {
         inputTokens: 0,
         outputTokens: 0,
@@ -192,6 +223,14 @@ export function claudeReplyModel(
             firstSentenceMs = clock.now() - started;
           }
         }
+        if (options.onSentence !== undefined) {
+          const done = completeSentences(text, spoken);
+          spoken = done.end;
+          // Each sentence is checked for its script before it is spoken, as the whole reply is.
+          for (const sentence of done.sentences) {
+            options.onSentence(romanOnly('anthropic', sentence, response.status));
+          }
+        }
       }
       const totalMs = clock.now() - started;
       // A declined reply is not an answer, whatever text came before the decline.
@@ -207,6 +246,8 @@ export function claudeReplyModel(
       // The prompt asks for Roman script; a reply in another script is refused here, as a
       // transcript is in the speech adapter (ADR 0014), so nothing past this point holds it.
       romanOnly('anthropic', text, response.status);
+      const last = text.slice(spoken).trim();
+      if (options.onSentence !== undefined && last !== '') options.onSentence(last);
       return {
         text: text.trim(),
         firstTokenMs: firstTokenMs ?? totalMs,

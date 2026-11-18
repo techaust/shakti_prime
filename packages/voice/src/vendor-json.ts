@@ -1,4 +1,4 @@
-import { ProviderError, type ProviderName } from '../http';
+import { ProviderError, type ProviderName } from './http';
 
 /**
  * JSON from a speech or model vendor holds transcripts and replies. A parse failure becomes an

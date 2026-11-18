@@ -3,6 +3,9 @@ import { asMigrator, closeDb, createTestPrincipal } from '@shakti/db/testing';
 import {
   AGENT_DEFAULTS,
   createAiProvider,
+  executeCommand,
+  startVoiceSession,
+  voiceSessionPrincipal,
   fakeModelTransport,
   memoryKeyValue,
   memoryLogger,
@@ -200,6 +203,54 @@ describe('POST /api/v1/ask', () => {
     expect(events).toEqual([
       { type: 'error', error: { code: 'not_found', reason: 'ask_conversation_missing' } },
     ]);
+  });
+
+  it("answers the voice worker's token as the session's person, audited as the session (V2)", async () => {
+    const grant = await executeCommand(gm, { entityIds: [1] }, startVoiceSession, {
+      mode: 'ask',
+      consentRecording: false,
+    });
+    const voice = voiceSessionPrincipal(gm, grant.sessionId, grant.entity_ids);
+    if (voice === undefined) throw new Error('no voice principal');
+    const tokens: string[] = [];
+    const d = {
+      ...deps(gm),
+      bearer: (token: string) => {
+        tokens.push(token);
+        return Promise.resolve(voice);
+      },
+    };
+    // No Origin: the worker is not a browser.
+    const request = new Request(`${ISSUER}/api/v1/ask`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer voice.token.here' },
+      body: JSON.stringify({ question: 'How many open leads are there?' }),
+    });
+    const events = await lines(await askRoute(request, d));
+    const last = events.at(-1);
+    if (last?.type !== 'answer') throw new Error(`expected an answer, got ${JSON.stringify(last)}`);
+    made.push(last.turn.conversation.id);
+    expect(tokens).toEqual(['voice.token.here']);
+    const rows = await asMigrator(
+      (m) => m<{ actor_principal_id: string; actor_kind: string; on_behalf_of_user_id: string }[]>`
+        select actor_principal_id, actor_kind, on_behalf_of_user_id from audit_logs
+         where aggregate_id = ${last.turn.conversation.id} and command like 'knowledge.ask.%'`,
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).toEqual({
+        actor_principal_id: grant.sessionId,
+        actor_kind: 'voice_session',
+        on_behalf_of_user_id: gm.id,
+      });
+    }
+    // A voice session never comes through the cookie, and a person never through the token.
+    expect((await askRoute(ask({ question: 'Leads?' }), deps(voice))).status).toBe(403);
+    const asPerson = { ...deps(gm), bearer: () => Promise.resolve(gm) };
+    expect(
+      (await askRoute(ask({ question: 'Leads?' }, { authorization: 'Bearer x.y.z' }), asPerson))
+        .status,
+    ).toBe(403);
   });
 
   it('caps the questions one person sends in a minute', async () => {

@@ -5,6 +5,9 @@ packages:
 
 # Native binaries these packages install in their postinstall step (pnpm 12 blocks builds by default).
 allowBuilds:
+  # Their install scripts are no-ops (`node -e ""`); the native parts come prebuilt as optional packages.
+  '@livekit/blingfire': false
+  '@livekit/local-inference': false
   '@parcel/watcher': true
   '@swc/core': true
   esbuild: true

@@ -1,5 +1,6 @@
 import type { PermissionGrant } from '@shakti/contracts';
 import {
+  AudioLines,
   BookCheck,
   Bot,
   Building2,
@@ -238,6 +239,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Ask the Business: the scope only opens the screen; what an answer reads comes from the
     // person's own grants and row security (docs/03-roadmap-appendix/phase2.md §4).
     requires: [{ key: 'knowledge.ask', scope: 'team' }],
+  },
+  {
+    id: 'voice',
+    href: '/voice',
+    label: 'voice',
+    icon: AudioLines,
+    group: 'work',
+    // Talk to Shakti (docs/03-roadmap-appendix/phase2.md §7.5): Executives and GMs; a spoken
+    // answer reads what the person reads, never a cost or a supplier's rate.
+    requires: [{ key: 'voice.use', scope: 'all' }],
   },
   {
     id: 'price-master',
