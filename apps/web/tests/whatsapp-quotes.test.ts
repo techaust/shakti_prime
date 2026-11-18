@@ -591,7 +591,8 @@ describe('Accept pressed on WhatsApp (SAL-05)', () => {
     expect(answer?.kind).toBe('text');
     expect(answer?.body_masked).toContain(newer.quote.quoteNo);
     const [order] = await asMigrator(
-      (m) => m<{ so_no: string }[]>`select so_no from sales_orders where quote_id = ${newer.quote.id}`,
+      (m) =>
+        m<{ so_no: string }[]>`select so_no from sales_orders where quote_id = ${newer.quote.id}`,
     );
     expect(answer?.body_masked).toContain(order?.so_no ?? 'no order');
     const notices = await asMigrator(
@@ -659,7 +660,7 @@ describe('the one-time code from ₹2,00,000 (question 5)', () => {
   it('sends no second code for a press while the first one waits (review 5)', async () => {
     const kv = memoryKeyValue();
     const { customer, quote, code } = await codeSent(kv);
-    const { accept } = await acceptOf(customer, quote.id);
+    const { accept } = acceptOf(customer, quote.id);
     expect(await press(kv, customer.waId, accept)).toBe('code_waiting');
     const codes = (await answersOn(customer.threadId)).filter((a) => a.kind === 'template');
     // The quote's own milestone and one code.
@@ -709,7 +710,7 @@ describe('the one-time code from ₹2,00,000 (question 5)', () => {
     const kept = await asMigrator(
       (m) => m<{ body_masked: string }[]>`select body_masked from whatsapp_messages
                 where thread_id = ${customer.threadId} and direction = 'inbound'
-                order by created_at desc, id desc limit 1`,
+                  and body_masked in ('302019', '••••••')`,
     );
     expect(kept).toEqual([{ body_masked: '302019' }]);
     expect(await answersOn(customer.threadId)).toHaveLength(before);

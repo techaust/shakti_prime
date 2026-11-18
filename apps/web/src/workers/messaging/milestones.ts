@@ -6,6 +6,7 @@ import type {
 import {
   executeCommand,
   executeQuery,
+  notifyEvent,
   readMilestoneSubject,
   sendWhatsAppMilestone,
   type Logger,
@@ -14,6 +15,7 @@ import {
 import { logger as appLogger } from '../../log';
 import { formatDate, formatRupees } from '../../print/format';
 import type { EventHandlerContext } from '../events/registry';
+import { deliverNoticeBatch } from '../notify/deliver-notices';
 
 /*
  * The customer milestones of Phase 2 on WhatsApp (docs/03-roadmap-appendix/phase2.md §7.1, PRD
@@ -72,7 +74,22 @@ async function sendMilestone(
   return sent.outcome;
 }
 
-/** `sales.quote.sent`: a quote sent by WhatsApp goes as the `quote_sent` milestone on its chat. */
+/** The outcomes of a quote's milestone that leave the customer without it. */
+const NOT_SENT: readonly WhatsAppMilestoneOutcome[] = [
+  'held',
+  'not_mapped',
+  'not_due',
+  'no_chat',
+  'opted_out',
+  'no_consent',
+];
+
+/**
+ * `sales.quote.sent`: a quote sent by WhatsApp goes as the `quote_sent` milestone on its chat.
+ * When it does not go (its template not approved, no map, no chat, no consent, the number
+ * stopped messages), the person who sent it is told once (`whatsapp_quote_not_sent`), so they
+ * share it another way: the quote reads as sent, and the customer has nothing.
+ */
 export async function handleQuoteSent(
   event: DeliveredEvent,
   ctx: EventHandlerContext,
@@ -80,7 +97,24 @@ export async function handleQuoteSent(
 ): Promise<WhatsAppMilestoneOutcome | 'not_found' | 'recorded'> {
   if (event.payload.channel !== 'whatsapp') return 'recorded';
   const threadId = typeof event.payload.threadId === 'string' ? event.payload.threadId : null;
-  return sendMilestone(event, ctx, 'quote_sent', 'quote', threadId, logger);
+  const outcome = await sendMilestone(event, ctx, 'quote_sent', 'quote', threadId, logger);
+  const sentBy = event.payload.sentBy;
+  if (outcome !== 'not_found' && NOT_SENT.includes(outcome) && typeof sentBy === 'string') {
+    const batch = await executeCommand(
+      ctx.principal,
+      { entityIds: [event.entityId], requestId: ctx.requestId },
+      notifyEvent,
+      {
+        event: 'sales.quote.sent',
+        entityId: event.entityId,
+        eventId: event.id,
+        quoteId: event.aggregateId,
+        sentBy,
+      },
+    );
+    await deliverNoticeBatch(ctx.principal, batch, { requestId: ctx.requestId });
+  }
+  return outcome;
 }
 
 /** `sales.order.confirmed`: the `order_confirmed` milestone on the customer's chat. */

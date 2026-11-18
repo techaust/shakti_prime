@@ -1,5 +1,6 @@
 import { DomainError, newId, type DeliveredEvent, type Principal } from '@shakti/contracts';
 import {
+  acceptanceCodeWaits,
   acceptQuoteRemote,
   checkAcceptanceCode,
   dropAcceptanceCode,
@@ -45,6 +46,7 @@ export type PressOutcome =
   | 'accepted'
   | 'already_accepted'
   | 'code_sent'
+  | 'code_waiting'
   | 'code_unavailable'
   | 'code_wrong'
   | 'code_locked'
@@ -72,9 +74,11 @@ function scopeOf(deps: QuotePressDeps, entityId: number) {
 /**
  * The `messaging.button.pressed` worker: the pressed message's chat and button id, the button
  * checked against the secret, the quote, the chat and its number in constant time; Talk to us
- * hands the chat to people; Accept on a quote no longer open answers `quote_expired` and tells
- * the lead's owner; below the code's value it accepts (`whatsapp_reply`); from it, it sends the
- * company's authentication template with a code and waits for it. A press that verifies to
+ * hands the chat to people; Accept on a quote already accepted, or withdrawn because the customer
+ * accepted another quote of the lead, answers that acceptance and its order; on a quote no longer
+ * open otherwise it answers `quote_expired` and tells the lead's owner; below the code's value it
+ * accepts (`whatsapp_reply`); from it, it sends the company's authentication template with a code
+ * and waits for it, sending no second code while that one is valid. A press that verifies to
  * nothing (forged, of another chat or number, or no quote button at all) changes nothing.
  */
 export async function handleQuotePress(
@@ -138,7 +142,8 @@ async function acceptPressed(
   const subject = await readQuote(chat, quoteId, deps);
   if (subject === null) return 'unverified';
   if (subject.accountId !== chat.accountId) return 'not_customer';
-  if (subject.state === 'accepted') {
+  // Accepted, or withdrawn for another accepted quote: the acceptance answers its own order.
+  if (subject.state === 'accepted' || subject.state === 'withdrawn') {
     return accept(chat, quoteId, subject.ref, 'whatsapp_reply', noticeEventId, deps);
   }
   if (!open(subject, deps.now())) {
@@ -147,14 +152,17 @@ async function acceptPressed(
   if (!needsAcceptanceCode(subject.grandTotal)) {
     return accept(chat, quoteId, subject.ref, 'whatsapp_reply', noticeEventId, deps);
   }
-  // From the code's value: the code first. Its hash is held before the message is queued, so a
-  // customer who answers at once finds it waiting.
-  const codeMessageId = newId();
+  // From the code's value: the code first, once while it is valid (a second press, or a double
+  // tap, sends no other). Its hash is held before the message is queued, so a customer who
+  // answers at once finds it waiting.
   const where = { entityId: chat.entityId, waId: chat.waId };
+  const waiting = { ...where, threadId: chat.threadId, quoteId };
+  if (await acceptanceCodeWaits(deps.keyValue, waiting, deps.now())) return 'code_waiting';
+  const codeMessageId = newId();
   await holdAcceptanceCode(
     deps.keyValue,
     deps.buttonSecret ?? '',
-    { ...where, threadId: chat.threadId, quoteId },
+    waiting,
     codeMessageId,
     deps.now(),
   );
@@ -207,7 +215,7 @@ export async function handleCodeReply(
   }
   const subject = await readQuote(chat, check.quoteId, deps);
   if (subject === null) return 'unverified';
-  if (subject.state !== 'accepted' && !open(subject, deps.now())) {
+  if (subject.state !== 'accepted' && subject.state !== 'withdrawn' && !open(subject, deps.now())) {
     return quoteNoLongerOpen(chat, check.quoteId, subject.ref, messageId, deps);
   }
   return accept(chat, check.quoteId, subject.ref, 'whatsapp_otp', messageId, deps);
@@ -247,7 +255,8 @@ async function readQuote(
 
 /**
  * The platform's acceptance (`sales.quote.accept_remote`), which checks every fact again under
- * the quote's lock and makes one order however many presses arrive; answered on the chat.
+ * the quote's lock (from the code's value only `whatsapp_otp` accepts) and makes one order however
+ * many presses arrive; answered on the chat with the accepted quote and its order.
  */
 async function accept(
   chat: Chat,
@@ -257,7 +266,7 @@ async function accept(
   noticeEventId: string,
   deps: QuotePressDeps,
 ): Promise<PressOutcome> {
-  let accepted: { soNo: string; accepted: boolean };
+  let accepted: { quoteNo: string; soNo: string; accepted: boolean };
   try {
     accepted = await executeCommand(
       deps.principal,
@@ -267,7 +276,8 @@ async function accept(
     );
   } catch (error) {
     const reason = error instanceof DomainError ? error.details?.reason : undefined;
-    if (reason === 'quote_expired') {
+    // Lapsed, or withdrawn for no accepted quote: no longer open.
+    if (reason === 'quote_expired' || reason === 'quote_transition_not_allowed') {
       return quoteNoLongerOpen(chat, quoteId, quoteNo, noticeEventId, deps);
     }
     if (reason === 'whatsapp_quote_not_customer') return 'not_customer';
@@ -275,7 +285,8 @@ async function accept(
   }
   await queueAnswer(deps.principal, deps.requestId, chat, {
     kind: 'text',
-    body: acceptedAnswer(quoteNo, accepted.soNo, !accepted.accepted),
+    // The accepted quote's own number: a withdrawn quote's press names the one accepted.
+    body: acceptedAnswer(accepted.quoteNo, accepted.soNo, !accepted.accepted),
   });
   return accepted.accepted ? 'accepted' : 'already_accepted';
 }

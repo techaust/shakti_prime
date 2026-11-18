@@ -33,12 +33,13 @@ const scope = { entityIds: [E] };
 const waIdOf = (typed: string): string => `91${typed.replace(/\D/g, '')}`;
 const workers = () => principalFor('system:workers', [E], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
 
-/** The template, registered and approved once. */
+/** The template, registered and approved once; a quote's carries its PDF as the header. */
 async function ensureTemplate(
   executive: Principal,
   template: { name: string; label: string },
   params: string[],
   buttons: { kind: 'quick_reply'; text: string }[],
+  header: 'none' | 'document' = 'none',
 ): Promise<string> {
   const made = await executeCommand(executive, scope, registerWhatsAppTemplate, {
     entityId: E,
@@ -47,6 +48,7 @@ async function ensureTemplate(
     category: 'utility',
     params,
     buttons,
+    header,
   });
   await executeCommand(workers(), scope, recordWhatsAppTemplateStatus, {
     name: template.name,
@@ -137,6 +139,7 @@ export async function ensureWhatsAppQuoteJourneys(executiveId: string): Promise<
       { kind: 'quick_reply', text: 'Accept' },
       { kind: 'quick_reply', text: 'Talk to us' },
     ],
+    'document',
   );
   const orderTemplate = await ensureTemplate(
     executive,

@@ -390,6 +390,10 @@
     "whatsapp_quote_not_customer": "This WhatsApp chat belongs to another customer, so the quote was not accepted.",
     "whatsapp_milestone_template_unfit": "This template is sent for something else and cannot be used here. Choose another template.",
     "whatsapp_milestone_values": "This template has a different number of blanks from what this update fills in. Choose a template with the right blanks.",
+    "whatsapp_milestone_template_shape": "This template does not have the buttons or the document this update sends with it. Choose a template made for this update.",
+    "whatsapp_template_purpose_shape": "The code template must be an authentication template with one copy-code button. Register it that way, as it was sent to WhatsApp.",
+    "whatsapp_template_mapped": "A customer update is sent with this template, so only its label can change. Choose another template for that update first.",
+    "whatsapp_code_required": "A quote of this value is accepted on WhatsApp only with the code sent to the customer.",
     "whatsapp_template_purpose_taken": "This company already has a template sent for this. Clear it on the other template first.",
     "whatsapp_template_changed_meanwhile": "Someone else saved this template at the same moment. Refresh the page to see it, then try again.",
     "whatsapp_number_unknown": "This WhatsApp number is not set up for any company.",
@@ -4737,7 +4741,8 @@
       "order_credit_held": "A dealer order is held for credit",
       "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply",
       "quote_accepted": "A quote on your lead was accepted",
-      "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid"
+      "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
+      "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp"
     },
     "settings": {
       "title": "Notification settings",
@@ -4873,6 +4878,10 @@
     "whatsapp_quote_expired": {
       "title": "A customer wants a new quote",
       "body": "A customer pressed Accept on WhatsApp on a quote that is no longer valid. They were told a new quote will follow. Tap to open it."
+    },
+    "whatsapp_quote_not_sent": {
+      "title": "A quote did not go on WhatsApp",
+      "body": "A quote you sent could not reach the customer on WhatsApp. Tap to open it and share it with them another way."
     }
   },
   "orders": {
@@ -5624,7 +5633,7 @@
       "quote_sent": "Sent with the quote document, its Accept button and its Talk to us button. Its blanks: the quote number, the total and the date it is valid until.",
       "order_confirmed": "Sent when the order is confirmed. Its blanks: the order number and the total."
     },
-    "noFit": "No template of this company has the blanks this update fills in. An Executive registers one first.",
+    "noFit": "No template of this company fits this update. Ask the team that sets up WhatsApp to register one that does.",
     "choose": "Choose a template",
     "notApprovedOption": "{template} ({status})",
     "active": "Send this update to customers",
@@ -5644,7 +5653,7 @@
     "sentByPeople": "Sent by people and updates"
   },
   "whatsappAnswers": {
-    "accepted": "Thank you. Quote {quoteNo} is accepted and your order number is {soNo}. We will confirm the order here.",
+    "accepted": "Thank you. Quote {quoteNo} is accepted and your order number is {soNo}.",
     "alreadyAccepted": "Quote {quoteNo} is already accepted. Your order number is {soNo}.",
     "codeWrong": "That code does not match. You can try {left, plural, one {once more} other {# more times}}.",
     "codeLocked": "That code did not match {tries} times. Press Accept on the quote again for a new code.",

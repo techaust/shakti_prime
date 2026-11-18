@@ -10,12 +10,12 @@ import {
   AGENT_DEFAULTS,
   attachWhatsAppMedia,
   codeOf,
+  codeWaiting,
   executeCommand,
   executeQuery,
   ingestIdempotencyKey,
   matchKeyword,
   matchWhatsAppThread,
-  pendingAcceptanceCode,
   queueWhatsAppMessage,
   readStatusSummary,
   recordInboundWhatsApp,
@@ -124,9 +124,9 @@ export interface WhatsAppHandlerDeps {
 }
 
 /** A message the platform answers itself: STATUS, or a code while one waits on the chat. */
-type PlatformAnswer = { kind: 'status' } | { kind: 'code'; code: string };
+type PlatformAnswer = { kind: 'status' } | { kind: 'code'; code: string; matches: boolean };
 
-/** What the chat keeps of a one-time code the customer sent back: never the digits. */
+/** What the chat keeps of a matching one-time code the customer sent back: never the digits. */
 const CODE_SHOWN = '••••••';
 
 /** How long the note that a message was answered is kept, so a repeat never answers it twice. */
@@ -384,8 +384,9 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       waId: message.from,
       providerMessageId: message.id,
       kind: read.kind,
-      // A one-time code is never kept: the chat shows that one was sent, not which.
-      body: platform?.kind === 'code' ? CODE_SHOWN : read.body,
+      // A matching one-time code is never kept: the chat shows that one was sent, not which. A
+      // wrong guess is no secret, and staff read it as written.
+      body: platform?.kind === 'code' && platform.matches ? CODE_SHOWN : read.body,
       buttonPayload: read.buttonPayload,
       sentAt: instant(message.timestamp),
       handledBy: NEW_THREADS,
@@ -434,7 +435,9 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
 
   /**
    * Whether the platform answers this message itself: the STATUS keyword, or six digits on a
-   * chat where a quote's code waits. Customer text is read here, never logged.
+   * chat where a quote's code waits within its minutes (past them, six digits are the customer's
+   * own message for people, a PIN code say), with whether they are that code. Customer text is
+   * read here, never logged.
    */
   async function platformAnswerOf(
     read: NonNullable<ReturnType<typeof readMessage>>,
@@ -444,10 +447,10 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
     if (read.kind !== 'text') return null;
     if (matchKeyword(read.body) === 'status') return { kind: 'status' };
     const code = codeOf(read.body);
-    if (code === null || (deps.buttonSecret ?? '') === '') return null;
-    return (await pendingAcceptanceCode(deps.keyValue, { entityId, waId })) === null
-      ? null
-      : { kind: 'code', code };
+    const secret = deps.buttonSecret ?? '';
+    if (code === null || secret === '') return null;
+    const waiting = await codeWaiting(deps.keyValue, secret, { entityId, waId }, code, deps.now());
+    return waiting === null ? null : { kind: 'code', code, matches: waiting.matches };
   }
 
   /**

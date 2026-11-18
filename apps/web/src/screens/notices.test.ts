@@ -44,7 +44,11 @@ describe('where a notice takes its person (docs/03-roadmap-appendix/phase1.md §
       }),
     ).toBe(`/orders/2/${subject}`);
     // A quote accepted, or Accept pressed on WhatsApp after it lapsed (phase2.md §7.1).
-    for (const type of ['quote_accepted', 'whatsapp_quote_expired'] as const) {
+    for (const type of [
+      'quote_accepted',
+      'whatsapp_quote_expired',
+      'whatsapp_quote_not_sent',
+    ] as const) {
       expect(
         noticeHref({ type, entityId: 2, accountId: account, quoteId: quote, subjectId: quote }),
       ).toBe(`/quotes/2/${quote}`);

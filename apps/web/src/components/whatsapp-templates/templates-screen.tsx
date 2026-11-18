@@ -25,13 +25,17 @@ const STATUS_TONE = {
   disabled: 'neutral',
 } as const;
 
-/** The templates a milestone may send: the company's own, for people, with its values' count. */
-function fitFor(milestone: LiveMilestone, templates: readonly WhatsAppTemplateDto[]) {
-  return templates.filter(
-    (t) =>
-      t.purpose === null &&
-      t.category !== 'authentication' &&
-      t.params.length === WHATSAPP_LIVE_MILESTONE_VALUES[milestone],
+/**
+ * The company's templates a milestone may send: those the server found fit it (its values, header
+ * and buttons, by `messaging.milestone.set`'s own rule).
+ */
+function fitFor(
+  milestone: LiveMilestone,
+  templates: readonly WhatsAppTemplateDto[],
+  fits: WhatsAppTemplateSettingsDto['fits'],
+) {
+  return templates.filter((t) =>
+    fits.some((fit) => fit.templateId === t.id && fit.milestone === milestone),
   );
 }
 
@@ -74,7 +78,7 @@ export function TemplatesScreen({
                   key={milestone}
                   entityId={company.id}
                   milestone={milestone}
-                  templates={fitFor(milestone, templates)}
+                  templates={fitFor(milestone, templates, initial.fits)}
                   current={milestones.find(
                     (m) => m.entityId === company.id && m.milestone === milestone,
                   )}
