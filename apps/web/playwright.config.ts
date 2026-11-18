@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { JOURNEY_SERVER_ENV } from './e2e/setup/server-env';
 
 /**
  * End-to-end journeys (docs/09-testing.md §5). The database is seeded on the host first
@@ -111,8 +112,7 @@ export default defineConfig({
           // the runner's stop and leaves the server holding the port.
           command: `next start -p ${port}`,
           url: `${baseURL}/api/v1/health`,
-          // The stand-in AI transport, so the Knowledge Vault indexes and searches without a key.
-          env: { BOS_ENVIRONMENT: 'local', AI_TRANSPORT: 'fake' },
+          env: JOURNEY_SERVER_ENV,
           reuseExistingServer: process.env.CI === undefined,
           timeout: 120_000,
           stdout: 'pipe',

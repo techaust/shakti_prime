@@ -1,14 +1,25 @@
-import { AcceptQuoteInput, AccountTypeSchema, DomainError, QuoteDto } from '@shakti/contracts';
+import {
+  AcceptQuoteInput,
+  AccountTypeSchema,
+  DomainError,
+  QuoteDto,
+  QuoteStateSchema,
+} from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
-import { toLineDto } from '../../queries/sales/line-dto';
 import { readQuote } from '../../queries/sales/quote-dto';
-import { ORDER_AUDIT_FIELDS, saveSalesOrder } from '../../sales/save-order';
-import { transition } from '../../state-machines/define-machine';
-import { quoteMachine } from '../../state-machines/machines/quote';
-import { salesOrderMachine } from '../../state-machines/machines/sales-order';
+import {
+  acceptedOrder,
+  acceptQuoteMoves,
+  drawOrderNumber,
+  orderFromQuote,
+  recordAcceptance,
+  withdrawOthersMoves,
+} from '../../sales/quote-acceptance';
+import { ORDER_AUDIT_FIELDS, recordOrderMade } from '../../sales/save-order';
+import type { QuoteMachineState } from '../../state-machines/machines/quote';
 import { lockQuote, quoteRecordOf } from './quote-shared';
 
 /**
@@ -65,35 +76,38 @@ async function holdLeadSale(ctx: CommandContext, entityId: number, quoteId: stri
  * The lead's other draft and sent quotes stop standing once one is accepted (DOM-4): each is
  * withdrawn through the quote machine, naming the accepted quote (`withdrawn_for_id`), so none of
  * them can be sent or accepted into a second order and a second commission. Answers the quotes it
- * withdrew, for the command's events.
+ * withdrew with the state each had, for the acceptance's record.
  */
 async function withdrawOtherQuotes(
   ctx: CommandContext,
-  accepted: { id: string; entityId: number; opportunityId: string; quoteNo: string },
-): Promise<{ id: string; entityId: number; opportunityId: string }[]> {
+  accepted: { id: string; opportunityId: string; quoteNo: string },
+): Promise<{ id: string; state: QuoteMachineState }[]> {
   const q = schema.quotes;
-  const others = await ctx.tx
-    .select()
-    .from(q)
-    .where(
-      and(
-        eq(q.opportunityId, accepted.opportunityId),
-        ne(q.id, accepted.id),
-        inArray(q.state, ['draft', 'sent']),
-      ),
-    )
-    .orderBy(asc(q.id))
-    .for('update');
+  const others = (
+    await ctx.tx
+      .select({ id: q.id, state: q.state })
+      .from(q)
+      .where(
+        and(
+          eq(q.opportunityId, accepted.opportunityId),
+          ne(q.id, accepted.id),
+          inArray(q.state, ['draft', 'sent']),
+        ),
+      )
+      .orderBy(asc(q.id))
+      .for('update')
+  ).map((other) => ({ id: other.id, state: QuoteStateSchema.parse(other.state) }));
+  withdrawOthersMoves(
+    { kind: 'principal', principal: ctx.principal },
+    ctx.now,
+    others,
+    accepted.quoteNo,
+  );
   for (const other of others) {
-    const withdrawn = transition(quoteMachine, quoteRecordOf(other), 'withdraw', {
-      actor: { kind: 'principal', principal: ctx.principal },
-      now: ctx.now,
-      params: { reason: accepted.quoteNo },
-    });
     const done = await ctx.tx
       .update(q)
       .set({
-        state: withdrawn.to,
+        state: 'withdrawn',
         stateChangedAt: ctx.now,
         withdrawnForId: accepted.id,
         updatedBy: ctx.principal.id,
@@ -103,13 +117,6 @@ async function withdrawOtherQuotes(
     if (done.length !== 1) {
       throw new DomainError('forbidden', `quote ${other.id} is outside the caller's scope`);
     }
-    ctx.audit({
-      aggregateType: 'quote',
-      aggregateId: other.id,
-      entityId: other.entityId,
-      before: { state: other.state },
-      after: { state: withdrawn.to, withdrawnForId: accepted.id },
-    });
   }
   return others;
 }
@@ -125,8 +132,10 @@ async function withdrawOtherQuotes(
  * one accepted quote, so one order and one commission (DOM-4): a quote of a lead whose other quote
  * is accepted is refused (`quote_lead_already_accepted`, which `quotes_opportunity_accepted_unique`
  * backs), and the lead's other draft and sent quotes are withdrawn in the same transaction. People
- * only: the WhatsApp acceptance of Phase 2 will be the platform's. The order is made with
- * `sales.order.create` over the lead, which the insert policy checks again.
+ * only: the WhatsApp acceptance is the platform's (`sales.quote.accept_remote`), which shares the
+ * machine moves, the numbering, the order's making and its record (`sales/quote-acceptance.ts`).
+ * The order is made by `app.order_from_quote()` as the caller, under `sales.order.create` over the
+ * lead, which the insert policy checks.
  */
 export const acceptQuote = defineCommand({
   name: 'sales.quote.accept',
@@ -146,12 +155,28 @@ export const acceptQuote = defineCommand({
   async handler(ctx, input) {
     await holdLeadSale(ctx, input.entityId, input.quoteId);
     const quote = await lockQuote(ctx, input.entityId, input.quoteId);
-    const actor = { kind: 'principal' as const, principal: ctx.principal };
-    const accepted = transition(quoteMachine, quoteRecordOf(quote), 'accept', {
-      actor,
-      now: ctx.now,
-      params: { acceptedVia: 'signed_upload' },
-    });
+    const [account] = await ctx.tx
+      .select({ type: schema.accounts.type })
+      .from(schema.accounts)
+      .where(eq(schema.accounts.id, quote.accountId))
+      .limit(1);
+    const [entity] = await ctx.tx
+      .select({ code: schema.entities.code })
+      .from(schema.entities)
+      .where(eq(schema.entities.id, quote.entityId))
+      .limit(1);
+    if (!account || !entity)
+      throw new DomainError('internal', 'the quote has no readable customer');
+    const accountType = AccountTypeSchema.parse(account.type);
+    // The machines first, so a lapsed quote answers `quote_expired` before the signed copy's checks.
+    const to = acceptQuoteMoves(
+      { kind: 'principal', principal: ctx.principal },
+      ctx.now,
+      quoteRecordOf(quote),
+      accountType,
+      quote.grandTotal,
+      'signed_upload',
+    );
     const fileId = await signedCopy(ctx, quote.entityId, input.signedFileId);
     const [acceptedBefore] = await ctx.tx
       .select({ id: schema.quotes.id })
@@ -170,113 +195,27 @@ export const acceptQuote = defineCommand({
       });
     }
 
-    const [account] = await ctx.tx
-      .select({ type: schema.accounts.type })
-      .from(schema.accounts)
-      .where(eq(schema.accounts.id, quote.accountId))
-      .limit(1);
-    const [entity] = await ctx.tx
-      .select({ code: schema.entities.code })
-      .from(schema.entities)
-      .where(eq(schema.entities.id, quote.entityId))
-      .limit(1);
-    if (!account || !entity)
-      throw new DomainError('internal', 'the quote has no readable customer');
-    const accountType = AccountTypeSchema.parse(account.type);
-
     await ctx.tx
       .update(schema.quotes)
       .set({
-        state: accepted.to,
+        state: to,
         stateChangedAt: ctx.now,
         acceptedVia: 'signed_upload',
         signedFileId: fileId,
         updatedBy: ctx.principal.id,
       })
       .where(eq(schema.quotes.id, quote.id));
-    ctx.audit({
-      aggregateType: 'quote',
-      aggregateId: quote.id,
-      entityId: quote.entityId,
-      before: { state: quote.state },
-      after: { state: accepted.to, acceptedVia: 'signed_upload', signedFileId: fileId },
-    });
-    for (const other of await withdrawOtherQuotes(ctx, quote)) {
-      ctx.emit({
-        type: 'sales.quote.withdrawn',
-        entityId: other.entityId,
-        aggregateType: 'quote',
-        aggregateId: other.id,
-        payload: { opportunityId: other.opportunityId },
-      });
-    }
-
-    transition(
-      salesOrderMachine,
-      {
-        state: null,
-        accountType,
-        fromAcceptedQuote: true,
-        credit: {
-          accountType: 'household',
-          creditLimit: null,
-          creditDays: null,
-          outstanding: '0.00',
-          confirmedUnpaid: '0.00',
-          orderValue: quote.grandTotal,
-          oldestUnpaidInvoiceDate: null,
-          oldestUnpaidInvoiceNo: null,
-        },
-        creditHeld: false,
-        creditRelease: null,
-        hasActiveDispatch: false,
-        voucherLinked: false,
-        balanceDue: quote.grandTotal,
-      },
-      'create',
-      { actor, now: ctx.now, params: {} },
-    );
-    const l = schema.quoteLines;
-    const lines = await ctx.tx
-      .select()
-      .from(l)
-      .where(eq(l.quoteId, quote.id))
-      .orderBy(asc(l.position));
-    const order = await saveSalesOrder(ctx, {
-      entityId: quote.entityId,
-      entityCode: entity.code,
-      accountId: quote.accountId,
-      accountType,
-      quoteId: quote.id,
-      opportunityId: quote.opportunityId,
-      siteId: quote.siteId,
-      tierId: quote.tierId,
-      priceListId: quote.priceListId,
-      supply: {
-        stateCode: quote.placeOfSupplyState,
-        kind: quote.supplyKind === 'inter' ? 'inter' : 'intra',
-      },
-      lines: lines.map(toLineDto),
-      totals: {
-        subtotal: quote.subtotal,
-        cgst: quote.cgst,
-        sgst: quote.sgst,
-        igst: quote.igst,
-        taxTotal: quote.taxTotal,
-        roundOff: quote.roundOff,
-        grandTotal: quote.grandTotal,
-      },
-    });
-    ctx.emit({
-      type: 'sales.quote.accepted',
-      entityId: quote.entityId,
-      aggregateType: 'quote',
-      aggregateId: quote.id,
-      payload: {
-        opportunityId: quote.opportunityId,
-        orderId: order.id,
-        acceptedVia: 'signed_upload',
-      },
+    const withdrawn = await withdrawOtherQuotes(ctx, quote);
+    const order = await drawOrderNumber(ctx, quote.entityId, entity.code);
+    const lineCount = await orderFromQuote(ctx, quote.id, order);
+    const accepted = { ...quote, state: QuoteStateSchema.parse(quote.state) };
+    recordOrderMade(ctx, acceptedOrder(accepted, accountType, order, lineCount));
+    recordAcceptance(ctx, {
+      quote: accepted,
+      acceptedVia: 'signed_upload',
+      signedFileId: fileId,
+      withdrawn,
+      order,
     });
     return readQuote(ctx, quote.entityId, quote.id);
   },

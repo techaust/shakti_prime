@@ -8,21 +8,28 @@ import type {
   AgentRunOutcome,
   AgentSettingSource,
   CommissionAccrualState,
+  CopilotFact,
+  CopilotNoteKind,
+  CopilotOutcomeAgreement,
+  CopilotTemplateOccasion,
   CommissionBasis,
   ConsentChannel,
   DialPurpose,
   ProviderCallStatus,
+  InboundCallSeries,
   ConsentPurpose,
   ConsentSource,
   CustomerLanguage,
   CustomerSort,
   EntityChannelKind,
   MessagingRefusal,
+  QuoteSendChannel,
   WhatsAppHandoffReason,
   WhatsAppMessageDirection,
   WhatsAppMessageKind,
   WhatsAppMessageStatus,
   WhatsAppTemplateCategory,
+  WhatsAppMilestone,
   WhatsAppTemplatePurpose,
   WhatsAppTemplateStatus,
   WhatsAppThreadHandler,
@@ -89,6 +96,7 @@ import type {
   UploadContentType,
   UserSort,
   UserStatus,
+  VoiceSessionMode,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -166,6 +174,35 @@ export const CALL_PURPOSE_VALUES = [
   'service',
 ] as const satisfies readonly DialPurpose[];
 
+/** What a Caller Co-pilot note is (`COPILOT_NOTE_KINDS`): a brief, or a call's summary. */
+export const COPILOT_NOTE_KIND_VALUES = [
+  'brief',
+  'call_summary',
+] as const satisfies readonly CopilotNoteKind[];
+
+/** The qualification facts the Caller Co-pilot hears in a call (`COPILOT_FACTS`), in order. */
+export const COPILOT_FACT_VALUES = [
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+] as const satisfies readonly CopilotFact[];
+
+/** How a call summary's outcome compares with the logged call (`COPILOT_OUTCOME_AGREEMENTS`). */
+export const COPILOT_OUTCOME_AGREEMENT_VALUES = [
+  'agree',
+  'disagree',
+  'pending',
+  'none',
+] as const satisfies readonly CopilotOutcomeAgreement[];
+
+/** Why the Caller Co-pilot proposes a WhatsApp template (`COPILOT_TEMPLATE_OCCASIONS`). */
+export const TEMPLATE_OCCASION_VALUES = [
+  'nurture',
+  'quote_expiry',
+] as const satisfies readonly CopilotTemplateOccasion[];
+
 /** Where a click-to-dial call stands (`PROVIDER_CALL_STATUSES`), first to last. */
 export const PROVIDER_CALL_STATUS_VALUES = [
   'dialling',
@@ -177,6 +214,18 @@ export const PROVIDER_CALL_STATUS_VALUES = [
   'failed',
   'canceled',
 ] as const satisfies readonly ProviderCallStatus[];
+
+/** The lines a customer calls a company on (`INBOUND_CALL_SERIES`): the IVR and the missed-call number. */
+export const INBOUND_CALL_SERIES_VALUES = [
+  'ivr',
+  'missed_call',
+] as const satisfies readonly InboundCallSeries[];
+
+/** The modes of a Talk to Shakti session (`VOICE_SESSION_MODES`). */
+export const VOICE_SESSION_MODE_VALUES = [
+  'teach',
+  'ask',
+] as const satisfies readonly VoiceSessionMode[];
 
 /** A company's channels (`ENTITY_CHANNEL_KINDS`), in the order Settings › Companies lists them. */
 export const ENTITY_CHANNEL_KINDS = [
@@ -250,7 +299,36 @@ export const WHATSAPP_TEMPLATE_STATUSES = [
 export const WHATSAPP_TEMPLATE_PURPOSES = [
   'welcome',
   'opt_out_confirmation',
+  'acceptance_code',
+  'quote_expired',
 ] as const satisfies readonly WhatsAppTemplatePurpose[];
+
+/** The customer milestones a company's WhatsApp number tells (`WHATSAPP_MILESTONES`). */
+export const WHATSAPP_MILESTONES = [
+  'quote_sent',
+  'order_confirmed',
+  'dispatched',
+  'visit_booked',
+  'visit_reminder',
+  'installed',
+  'payment_due',
+  'handover_kit',
+] as const satisfies readonly WhatsAppMilestone[];
+
+/**
+ * The milestones Settings maps in this phase, with the count of values each template takes
+ * (`WHATSAPP_LIVE_MILESTONES`, `WHATSAPP_MILESTONE_VALUES`).
+ */
+export const WHATSAPP_LIVE_MILESTONE_VALUES = {
+  quote_sent: 3,
+  order_confirmed: 2,
+} as const satisfies Partial<Record<WhatsAppMilestone, number>>;
+
+/** How a quote is sent (`QUOTE_SEND_CHANNELS`). */
+export const QUOTE_SEND_CHANNELS = [
+  'recorded',
+  'whatsapp',
+] as const satisfies readonly QuoteSendChannel[];
 /** The channels a lead may arrive by from an integration (`INGEST_CHANNELS`). */
 export const INGEST_CHANNELS = [
   'meta_ads',
@@ -397,6 +475,11 @@ export const AGENT_FILTER_REASON_VALUES = [
   'text_has_phone',
   'text_has_identity_number',
   'text_has_instruction',
+  'text_too_long',
+  'fact_out_of_bounds',
+  'task_outside_hours',
+  'template_not_allowed',
+  'unknown_outcome',
   'reply_too_long',
   'link_not_allowed',
   'fact_not_grounded',
@@ -404,7 +487,6 @@ export const AGENT_FILTER_REASON_VALUES = [
   'unknown_directive',
   'reply_not_fixed_form',
   'callback_outside_hours',
-  'fact_out_of_bounds',
 ] as const satisfies readonly AgentFilterReason[];
 
 /** The kinds of proposal the Triage agent makes, each named under `agents.shadow.kinds`. */
@@ -885,6 +967,7 @@ export const FILE_PURPOSES = [
   'consent_evidence',
   'call_recording',
   'whatsapp_media',
+  'call_transcript',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */

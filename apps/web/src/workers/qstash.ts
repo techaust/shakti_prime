@@ -78,11 +78,14 @@ export const EVENT_JOB_ROUTES: Readonly<
     path: MESSAGING_SEND_PATH,
     body: sendJobOf,
   },
-  // A notifying event goes to the notify route as itself (`NotifyJob`).
-  'crm.opportunity.assigned': { path: NOTIFY_PATH, body: (event) => event },
+  // A notifying event goes to the notify route as itself (`NotifyJob`). `crm.opportunity.assigned`
+  // does not: it also starts the Caller Co-pilot's brief, so it goes to its own event route, whose
+  // worker sends the notices and then writes the brief.
   'crm.duplicate.found': { path: NOTIFY_PATH, body: (event) => event },
   'crm.enquiry.routed': { path: NOTIFY_PATH, body: (event) => event },
   'sales.order.credit_held': { path: NOTIFY_PATH, body: (event) => event },
+  'sales.quote.accepted': { path: NOTIFY_PATH, body: (event) => event },
+  'calls.missed.recorded': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

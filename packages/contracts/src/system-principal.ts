@@ -70,5 +70,13 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // `calls.recording.attach`, `calls.recording.delete`): it writes `provider_calls` and the
     // recording's file through definers, and reads no customer row.
     { key: 'calls.process', scope: 'all' },
+    // A quote accepted from a verified WhatsApp reply or code (`sales.quote.accept.remote`): it
+    // reads the quote's facts and accepts it into its draft order through two definers, nothing
+    // more (docs/03-roadmap-appendix/phase2.md §7.1).
+    { key: 'sales.quote.accept.remote', scope: 'all' },
+    // A voice session's end, minutes, spend and turn timings from LiveKit's events
+    // (`voice.session.record`): it writes them through one definer, and reads no session by a
+    // person's rule.
+    { key: 'voice.session.record', scope: 'all' },
   ],
 };

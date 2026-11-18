@@ -25,16 +25,18 @@
     "spike:notifications": "tsx tests/spike/notifications-explain.ts",
     "spike:orders": "tsx tests/spike/orders-explain.ts",
     "spike:targets": "tsx tests/spike/targets-explain.ts",
+    "spike:copilot": "tsx tests/spike/copilot-explain.ts",
     "spike:shadow": "tsx tests/spike/shadow-explain.ts",
+    "eval:copilot": "tsx scripts/eval-copilot.ts",
     "eval:triage": "tsx scripts/eval-triage.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.6.0",
+    "@anthropic-ai/sdk": "^1.8.0",
     "@shakti/contracts": "workspace:*",
     "@shakti/db": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "exceljs": "^4.4.0",
-    "papaparse": "^5.7.0",
+    "papaparse": "^5.7.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

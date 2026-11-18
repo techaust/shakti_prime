@@ -14,8 +14,10 @@ import { discardVaultMasker, maskingConfigured, vaultMasker } from '../ocr/vault
 import { handleHandoverEvent } from '../handover/handover-event';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
+import { handleBriefEvent, handleCallSummaryEvent } from '../copilot/copilot-event';
 import { renderJobOf } from '../pdf/job';
 import { sendJobOf } from '../messaging/job';
+import { whatsappButtonSecret } from '../messaging/button-secret';
 import { recordProbeArrival } from './probe';
 
 /** What a handler is given: the system principal for the event's company and the shared store. */
@@ -131,6 +133,20 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   },
   // The Triage agent on each new lead (docs/03-roadmap-appendix/phase1.md §9, A1): in Shadow it
   // records what it would propose and changes nothing. A repeat records nothing twice.
+  // The Caller Co-pilot (A2, docs/03-roadmap-appendix/phase2.md §7.3): a brief a person asked for,
+  // and the summary of a recorded call. Each records nothing twice for a repeat.
+  'agents.brief.requested': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await handleBriefEvent(event, ctx);
+    },
+  },
+  'calls.dial.completed': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await handleCallSummaryEvent(event, ctx);
+    },
+  },
   'crm.lead.created': {
     ordering: 'every',
     handle: async (event, ctx) => {
@@ -151,13 +167,55 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       );
     },
   },
+  // A quote sent by WhatsApp and an order confirmed go to the customer as their milestones
+  // (docs/03-roadmap-appendix/phase2.md §7.1), once per subject however often delivered.
+  'sales.quote.sent': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      const { handleQuoteSent } = await import('../messaging/milestones');
+      await handleQuoteSent(event, ctx);
+    },
+  },
+  'sales.order.confirmed': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      const { handleOrderConfirmed } = await import('../messaging/milestones');
+      await handleOrderConfirmed(event, ctx);
+    },
+  },
+  // A quote's Accept or Talk to us pressed on WhatsApp (§7.1): checked and answered by the
+  // platform; one acceptance makes one order however often it arrives.
+  'messaging.button.pressed': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      const { handleQuotePress } = await import('../messaging/quote-press');
+      await handleQuotePress(event, {
+        principal: ctx.principal,
+        keyValue: ctx.keyValue,
+        requestId: ctx.requestId,
+        now: () => new Date(),
+        buttonSecret: whatsappButtonSecret(),
+      });
+    },
+  },
   // The notices people act on (docs/03-roadmap-appendix/phase1.md §8.1). Hosted, the publisher sends these
   // types to the notify route as a `NotifyJob` (`EVENT_JOB_ROUTES`); without a queue they are
   // handled here. Each notice is one per person and reason, so a repeat writes nothing new.
-  'crm.opportunity.assigned': { ordering: 'every', handle: notify },
+  // An assigned lead also gets the Caller Co-pilot's brief (docs/03-roadmap-appendix/phase2.md
+  // §7.3), after its notices; so this type runs on its own event route, whose minute holds both.
+  'crm.opportunity.assigned': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await notify(event, ctx);
+      await handleBriefEvent(event, ctx);
+    },
+  },
   'crm.duplicate.found': { ordering: 'every', handle: notify },
   'crm.enquiry.routed': { ordering: 'every', handle: notify },
   'sales.order.credit_held': { ordering: 'every', handle: notify },
+  'sales.quote.accepted': { ordering: 'every', handle: notify },
+  // A missed call's callback, told to the lead's owner (docs/03-roadmap-appendix/phase2.md §7.4).
+  'calls.missed.recorded': { ordering: 'every', handle: notify },
 };
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */

@@ -78,6 +78,13 @@ export async function withRequestContext<T>(
       entityIds: outside,
     });
   }
+  // A voice session acts as its person (docs/07-security.md §3.4): `app.user_id` stays the
+  // person's, and `app.voice_session_id` marks the request so the audit trail names the session
+  // and the merge definers refuse it. A voice principal without its session is refused outright.
+  const voiceSessionId = principal.kind === 'voice_session' ? principal.voiceSessionId : '';
+  if (voiceSessionId === undefined) {
+    throw new DomainError('forbidden', 'a voice session principal must name its session');
+  }
   const requestId = scope.requestId ?? newId();
   const agentThreadId = scope.agentThreadId ?? '';
   if (agentThreadId !== '' && (principal.kind !== 'agent' || !UUID.test(agentThreadId))) {
@@ -103,6 +110,7 @@ export async function withRequestContext<T>(
         set_config('app.team_id', ${acting.teamId ?? ''}, true),
         set_config('app.request_id', ${requestId}, true),
         set_config('app.agent_thread_id', ${agentThreadId}, true),
+        set_config('app.voice_session_id', ${voiceSessionId}, true),
         set_config('DateStyle', 'ISO, YMD', true)${readOnly ? READ_ONLY_SETTING : sql``}
     `);
     return fn({ principal: acting, entityIds: requested, requestId, tx });

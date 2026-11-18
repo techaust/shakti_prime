@@ -2,6 +2,9 @@ import { newId } from '@shakti/contracts';
 import { asMigrator } from '@shakti/db/testing';
 import { fakeEmbedding } from '../../src/ai/transport';
 
+/** A random id with its digits as the letters g to p, so the masking finds no number in it. */
+const lettersOnly = (id: string) => id.replace(/[0-9]/g, (d) => 'ghijklmnop'[Number(d)] ?? 'g');
+
 // Seeded data for Ask the Business's suites (docs/03-roadmap-appendix/phase2.md §14), written as
 // the owner in company 1 under this run's own words, so no earlier run's rows meet it: an item
 // with a cost side (a moving average cost and a last purchase rate, which only `finance.cost.read`
@@ -37,7 +40,8 @@ const made = {
 };
 
 export async function seedAskData(ownerId: string): Promise<AskData> {
-  const tag = `asktag${newId().replace(/-/g, '').slice(-10)}`;
+  // Letters only: a run of digits in a random id is masked as a number before the lookup.
+  const tag = `asktag${lettersOnly(newId().replace(/-/g, '').slice(-10))}`;
   const itemId = newId();
   const upload = newId();
   const vaultFileId = newId();

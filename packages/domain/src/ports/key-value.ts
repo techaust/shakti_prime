@@ -27,6 +27,11 @@ export interface KeyValue {
    * non-negative whole numbers written without leading zeros (an outbox sequence).
    */
   raiseTo(key: string, value: string, ttlSeconds: number): Promise<string>;
+  /**
+   * Deletes the key only while it still holds exactly `value`, in one step: true for the one
+   * caller that deleted it, false when it holds another value or none (a claim on what was read).
+   */
+  delIfValue(key: string, value: string): Promise<boolean>;
 }
 
 /** Whether one non-negative whole number, as written without leading zeros, exceeds another. */
@@ -91,6 +96,11 @@ export function memoryKeyValue(now: () => number = Date.now): KeyValue {
       }
       entries.set(key, { value, expiresAt: now() + ttlSeconds * 1000 });
       return Promise.resolve(value);
+    },
+    delIfValue: (key, value) => {
+      if (live(key)?.value !== value) return Promise.resolve(false);
+      entries.delete(key);
+      return Promise.resolve(true);
     },
   };
 }

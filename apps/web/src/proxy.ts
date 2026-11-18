@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { realtimeConnectOrigins } from './calls/transport';
 import { contentSecurityPolicy, fileUploadOrigins, sentryIngestOrigin } from './csp';
 import { needsSignIn, PATH_HEADER, SERVER_ACTION_HEADER, signInPath } from './session-gate';
 
@@ -23,6 +24,7 @@ export function proxy(request: NextRequest): NextResponse {
     process.env.NODE_ENV === 'development',
     sentryIngestOrigin(process.env.NEXT_PUBLIC_SENTRY_DSN),
     fileUploadOrigins(process.env),
+    realtimeConnectOrigins(process.env),
   );
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);

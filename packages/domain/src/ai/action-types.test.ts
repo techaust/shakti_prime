@@ -14,6 +14,7 @@ import {
   automaticEarned,
   editableFields,
   isShadowOnly,
+  personOnly,
   startingAutonomy,
   summaryFields,
   wasEdited,
@@ -21,8 +22,9 @@ import {
 } from './action-types';
 import { AGENT_DEFAULTS } from './agent-defaults';
 
-// The actions an agent may propose or take: each runs a command the agent may run itself, never
-// a command for people only, and a person may change only the fields its type names.
+// The actions an agent may propose or take: each runs a command the agent may run itself, or a
+// command for people only that runs on a person's approval as that person (the Co-pilot's
+// WhatsApp template), and a person may change only the fields its type names.
 
 describe('AGENT_ACTION_TYPES', () => {
   it('names each type by its command, or as a shadow-only kind, open to agents that hold its permissions', () => {
@@ -30,7 +32,11 @@ describe('AGENT_ACTION_TYPES', () => {
       expect(type.name).toBe(name);
       if (type.command !== undefined) {
         expect(type.command.name).toBe(name);
-        expect(type.command.peopleOnly).not.toBe(true);
+        // A command for people only is the Co-pilot's WhatsApp template alone, run on approval.
+        expect({ name, personOnly: personOnly(type) }).toEqual({
+          name,
+          personOnly: name === 'messaging.template.request',
+        });
         expect(type.command.permission).toBe(type.requirements[0].permission);
         if (type.actionIdKey === undefined) expect(type.input).toBe(type.command.input);
         // The proposal never names the draft, which the approval adds (the Concierge's reply).
@@ -99,10 +105,10 @@ describe('AGENT_ACTION_TYPES', () => {
     expect(() => applyEdits(reply, proposal, { draftedByAgentActionId: draft })).toThrow();
   });
 
-  it('starts the Triage agent and the Concierge in Shadow and every other agent at Suggest', () => {
+  it('starts the Triage agent, the Caller Co-pilot and the Concierge in Shadow', () => {
     expect(startingAutonomy('agent:triage')).toBe('shadow');
+    expect(startingAutonomy('agent:copilot')).toBe('shadow');
     expect(startingAutonomy('agent:concierge')).toBe('shadow');
-    expect(startingAutonomy('agent:copilot')).toBe('suggest');
   });
 });
 

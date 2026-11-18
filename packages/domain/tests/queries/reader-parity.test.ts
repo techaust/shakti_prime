@@ -14,6 +14,7 @@ import { executeQuery } from '../../src/command/execute';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { loadShadowReport } from '../../src/queries/agents/shadow-report';
+import { loadCopilotPanel, loadCopilotReport } from '../../src/queries/agents/copilot';
 import { readAgentSpend } from '../../src/queries/agents/spend';
 import { readTriageFacts } from '../../src/ai/triage/read-facts';
 import { fakeEmbedding } from '../../src/ai/transport';
@@ -144,6 +145,23 @@ import {
   readWhatsAppCounts,
   readWhatsAppThread,
 } from '../../src/queries/messaging/whatsapp';
+import { readInboundFacts, readSendExtras } from '../../src/queries/messaging/answers';
+import {
+  listWhatsAppTemplateSettings,
+  readMilestoneSubject,
+  readStatusSummary,
+} from '../../src/queries/messaging/milestones';
+import { readQuoteWhatsAppReadiness } from '../../src/sales/quote-whatsapp';
+import { readScreenPop } from '../../src/queries/calls/screen-pop';
+
+/** A ringing call as the key-value store holds it, the same for both pools (T4's screen-pop). */
+const RINGING = {
+  providerCallId: newId(),
+  entityId: 1,
+  accountIds: [newId()],
+  phone: '+919812345678',
+  ringingAt: new Date().toISOString(),
+};
 
 /** Ask's seeded records (an item with its cost side, a vault file, two rules), for its reads. */
 let askData: AskData;
@@ -256,6 +274,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   loadAgentSettings: (ctx) => loadAgentSettings(ctx, { now: new Date(NOW) }),
   loadShadowReport: (ctx) =>
     loadShadowReport(ctx, { entityId: 1, from: '2026-09-01', to: '2026-09-30', limit: 20 }),
+  // The Caller Co-pilot's panel and shadow report (A2).
+  loadCopilotPanel: (ctx) => loadCopilotPanel(ctx, { entityId: 1, opportunityId: newId() }),
+  loadCopilotReport: (ctx) =>
+    loadCopilotReport(ctx, { entityId: 1, from: '2026-09-01', to: '2026-09-30', limit: 20 }),
   readAgentSpend: (ctx) => readAgentSpend(ctx, new Date(NOW)),
   readTriageFacts: (ctx) =>
     readTriageFacts(
@@ -295,6 +317,23 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readWhatsAppThread: (ctx) => readWhatsAppThread(ctx, { entityId: 1, threadId: newId() }),
   readWhatsAppCounts: (ctx) => readWhatsAppCounts(ctx),
   readSendFacts: (ctx) => readSendFacts(ctx, newId()),
+  // S3: a milestone's subject and STATUS on a chat (the platform's definers).
+  readMilestoneSubject: (ctx) =>
+    readMilestoneSubject(ctx, {
+      entityId: 1,
+      milestone: 'quote_sent',
+      subjectKind: 'quote',
+      subjectId: newId(),
+      threadId: null,
+    }),
+  readStatusSummary: (ctx) => readStatusSummary(ctx, newId()),
+  readInboundFacts: (ctx) => readInboundFacts(ctx, newId()),
+  readSendExtras: (ctx) => readSendExtras(ctx, newId()),
+  readQuoteWhatsAppReadiness: (ctx) =>
+    readQuoteWhatsAppReadiness(ctx, { entityId: 1, quoteId: newId() }),
+  listWhatsAppTemplateSettings: (ctx) => listWhatsAppTemplateSettings(ctx),
+  // The screen-pop's read of a ringing call, under the person's own policies.
+  readScreenPop: (ctx) => readScreenPop(ctx, RINGING),
   listDealerCredit: (ctx) => listDealerCredit(ctx, { entityId: 1, limit: 20 }),
 };
 

@@ -2,6 +2,7 @@
 // §3.4). Pure functions, so the screen and its tests share them.
 
 import type { EventType } from '@shakti/contracts';
+import { moneyFromPaise } from './agents';
 import { istDay } from './ist';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -69,6 +70,7 @@ const ACTIONS = {
   'sales.quote.expire': 'quoteExpire',
   'sales.quote.pdf.attach': 'quotePdfAttach',
   'sales.quote.accept': 'quoteAccept',
+  'sales.quote.accept_remote': 'quoteAcceptRemote',
   'sales.order.create': 'orderCreate',
   'sales.order.confirm': 'orderConfirm',
   'sales.credit.release': 'creditRelease',
@@ -99,6 +101,7 @@ const ACTIONS = {
   'messaging.thread.hand_off': 'whatsappHandOff',
   'messaging.thread.return_to_assistant': 'whatsappReturn',
   'messaging.template.register': 'whatsappTemplateRegister',
+  'messaging.template.request': 'whatsappTemplateRequest',
   'messaging.inbound.record': 'whatsappInbound',
   'messaging.thread.match': 'whatsappMatch',
   'messaging.status.record': 'whatsappStatus',
@@ -109,6 +112,9 @@ const ACTIONS = {
   'messaging.message.claim': 'whatsappClaim',
   'messaging.message.record_send': 'whatsappSendRecorded',
   'messaging.media.attach': 'whatsappMediaAttach',
+  'messaging.milestone.set': 'whatsappMilestoneSet',
+  'messaging.milestone.send': 'whatsappMilestoneSend',
+  'messaging.answer.queue': 'whatsappAnswerQueue',
   'crm.lead.ingest': 'leadIngest',
   'crm.lead.qualification.set': 'leadQualificationSet',
   'crm.source.set': 'sourceSet',
@@ -167,6 +173,8 @@ const ACTIONS = {
   'realtime.token.issue': 'liveUpdatesOpen',
   'profile.contrast.set': 'contrastSet',
   'agents.run.record': 'agentRunRecord',
+  'agents.note.record': 'copilotNoteRecord',
+  'agents.brief.request': 'copilotBriefRequest',
   'agents.inbox.approve': 'inboxApprove',
   'agents.inbox.edit': 'inboxEdit',
   'agents.inbox.reject': 'inboxReject',
@@ -229,10 +237,17 @@ const ACTIONS = {
   'calls.call.log': 'callLog',
   'calls.call.dial': 'callDial',
   'calls.provider_call.record': 'providerCallRecord',
+  'calls.inbound_call.record': 'inboundCallRecord',
+  'calls.ringing.signal': 'ringingSignal',
   'calls.recording.attach': 'callRecordingAttach',
+  'calls.transcript.attach': 'callTranscriptAttach',
+  'calls.transcript.reserve': 'callTranscriptReserve',
   'calls.recording.delete': 'callRecordingDelete',
   'calls.recording.play': 'callRecordingPlay',
   'crm.caller_profile.set_dial_phone': 'callerProfileSetDialPhone',
+  'voice.session.start': 'voiceSessionStart',
+  'voice.session.token': 'voiceSessionToken',
+  'voice.session.record': 'voiceSessionRecord',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -305,6 +320,9 @@ const EVENT_NAMES = {
   'messaging.message.received': 'whatsappReceived',
   'messaging.button.pressed': 'whatsappButtonPressed',
   'calls.dial.completed': 'dialCompleted',
+  'agents.brief.requested': 'copilotBriefRequested',
+  'calls.inbound.ringing': 'inboundRinging',
+  'calls.missed.recorded': 'missedCallRecorded',
   'sales.quote.accepted': 'quoteAccepted',
   'sales.order.created': 'orderCreated',
   'sales.order.confirmed': 'orderConfirmed',
@@ -444,12 +462,18 @@ const CODE_GROUPS = [
   'whatsappTemplateCategory',
   'whatsappTemplateStatus',
   'whatsappTemplatePurpose',
+  'whatsappMilestone',
+  'quoteSendChannel',
   'leadChannel',
   'ingestOutcome',
   'ingestAssignee',
   'sourceProvider',
   'callPurpose',
   'callStatus',
+  'copilotNoteKind',
+  'templateOccasion',
+  'inboundLine',
+  'voiceMode',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -570,6 +594,8 @@ const FIELD_KINDS = [
   ['templateCategory', 'whatsappTemplateCategory'],
   ['templateStatus', 'whatsappTemplateStatus'],
   ['templatePurpose', 'whatsappTemplatePurpose'],
+  ['milestone', 'whatsappMilestone'],
+  ['milestoneActive', 'yesNo'],
   ['matched', 'yesNo'],
   ['optedOutAt', 'time'],
   ['consentsWithdrawn', 'number'],
@@ -662,6 +688,14 @@ const FIELD_KINDS = [
   ['endedAt', 'time'],
   ['listenedAt', 'time'],
   ['dialPhone', 'text'],
+  // The Caller Co-pilot's notes and the WhatsApp follow-ups it proposes
+  ['noteKind', 'copilotNoteKind'],
+  ['copilotBriefRequested', 'yesNo'],
+  ['occasion', 'templateOccasion'],
+  // Calls customers made to the companies' lines (T4)
+  ['inboundLine', 'inboundLine'],
+  ['customersMatched', 'number'],
+  ['personRung', 'yesNo'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],
   ['purpose', 'filePurpose'],
@@ -698,6 +732,7 @@ const FIELD_KINDS = [
   ['grandTotal', 'money'],
   ['validUntil', 'time'],
   ['withdrawnReason', 'text'],
+  ['sendChannel', 'quoteSendChannel'],
   // Orders, acceptance, dealer credit and commission
   ['acceptedVia', 'acceptedVia'],
   ['soNo', 'text'],
@@ -784,6 +819,13 @@ const FIELD_KINDS = [
   ['roofAreaSqFt', 'number'],
   ['sanctionedLoadKw', 'number'],
   ['discomConsumerNo', 'text'],
+  // Talk to Shakti sessions (V2)
+  ['mode', 'voiceMode'],
+  ['consentRecording', 'yesNo'],
+  ['minutes', 'number'],
+  // Whole paise, shown as rupees through the money formatter.
+  ['costPaise', 'paise'],
+  ['turns', 'number'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
@@ -915,6 +957,11 @@ function known(field: FieldKey, value: unknown, aggregateType: string | null): C
   if (value === undefined) return EMPTY;
   if (kind === 'recorded') return { kind: 'yesNo', value: value !== null };
   if (value === null) return EMPTY;
+  if (kind === 'paise') {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+      ? { kind: 'money', amount: moneyFromPaise(value) }
+      : EMPTY;
+  }
   if (typeof value === 'string') {
     if (kind === 'money') return { kind: 'money', amount: value };
     if (kind === 'userStatus') return { kind: 'userStatus', value };

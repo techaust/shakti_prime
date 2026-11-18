@@ -105,6 +105,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   print_proof: grant('admin.entities.write', 'own'),
   // A call's recording is heard only through calls.recording.play, never read as a file.
   call_recording: NEVER,
+  // A call's transcript is read with its call, so with the lead (0190).
+  call_transcript: LEAD_READ,
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({
@@ -269,6 +271,14 @@ const RULES: Record<MatrixTable, TableRule> = {
     group: NEVER,
     leak: otherCompany,
   },
+  // A person's own voice sessions; another person's only to the Executive (audit.read for the
+  // group). A session over every company is read only in a request covering them all.
+  voice_sessions: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? grant('audit.read', 'all') : CONTEXT),
+    group: NEVER,
+    leak: otherCompany,
+  },
   // A caller's own target and their team's, whatever their role; another caller's only to a
   // holder of sales.targets.write over the team (a team lead), the company or the group.
   targets: {
@@ -301,6 +311,7 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   // A company's templates: every principal acting in the company reads them (the composer).
   whatsapp_templates: { read: CONTEXT, leak: otherCompany },
+  whatsapp_milestones: { read: CONTEXT, leak: otherCompany },
   // A company's connected forms and sites and its website keys: an Executive's (design phase2 §6.2).
   ingest_sources: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
   ingest_keys: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
@@ -308,6 +319,8 @@ const RULES: Record<MatrixTable, TableRule> = {
   lead_qualifications: { read: LEAD_READ, leak: otherCompany },
   // A provider's call is a child of the lead: read with it, as the call log is.
   provider_calls: { read: LEAD_READ, leak: otherCompany },
+  // The Co-pilot's briefs and summaries are a child of the lead: read with it (design phase2 §7.3).
+  copilot_notes: { read: LEAD_READ, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {

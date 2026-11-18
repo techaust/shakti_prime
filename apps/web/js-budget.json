@@ -37,6 +37,10 @@
       "maxKb": 204,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Ask the Business: the conversation list, the open conversation with its answers, figures and sources, and the question box that reads the answer's stream. Measured 194.2 kB on 14-11-2026, plus 5 %."
     },
+    "/voice": {
+      "maxKb": 204,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and Talk to Shakti: the recording question, the live talk with its light, captions, cited records, push-to-talk and text box, and Teach's drafts with their Save through the Playbook's action. The LiveKit room and livekit-client (about 151 kB) are not in it: they load when a talk starts. Measured 194.2 kB on 17-11-2026, plus 5 %."
+    },
     "/calling": {
       "maxKb": 206,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Cold Caller workspace: the queue, the lead with its outcome keys, script card, checklist and recent activity, and the search; the dialog that asks for a call back time or a reason loads when an outcome first needs it. Measured 196.6 kB on 05-10-2026, plus 5 %."
@@ -129,6 +133,10 @@
       "maxKb": 205,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the pipeline cards with their stage lists; the call outcome and score rule editors and the stage dialogs load after the page. Measured 192.3 kB on 30-09-2026, plus 5 %."
     },
+    "/settings/whatsapp-templates": {
+      "maxKb": 205,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and each company's WhatsApp templates with the form of its two customer updates. Measured 195.1 kB on 18-11-2026, plus 5 %."
+    },
     "/settings/notifications": {
       "maxKb": 205,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar with the notification bell, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts, the search palette and the notification centre, load after the page), and the switches per kind of notice, quiet hours and alerts on this browser. Measured 194.8 kB on 06-10-2026, plus 5 %."
@@ -164,6 +172,10 @@
     "/inbox": {
       "maxKb": 204,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Agent Inbox's suggestion cards; the edit dialog loads when first opened. Measured 193.4 kB on 05-10-2026, plus 5 %."
+    },
+    "/admin/agents/copilot": {
+      "maxKb": 242,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and the Caller Co-pilot's shadow report: the company and period filters with the date inputs, the agreement summary, the refusals and suggestions by kind, and the call summaries grid. Measured 230.1 kB on 18-11-2026, plus 5 %."
     },
     "/admin/agents/shadow": {
       "maxKb": 248,

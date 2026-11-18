@@ -1,5 +1,5 @@
 {
-  "id": "1b29fe6d-f6ba-4a8a-bd0f-8a093d3ea7ac",
+  "id": "941097d1-99f2-4fed-ae1f-f6db5c740be6",
   "prevId": "3522f6b0-8ee4-44d5-a377-cbe5574b51a2",
   "version": "7",
   "dialect": "postgresql",
@@ -1612,7 +1612,7 @@
         },
         "agent_runs_filter_reason_check": {
           "name": "agent_runs_filter_reason_check",
-          "value": "\"agent_runs\".\"filter_reason\" in ('unreadable_answer', 'unknown_pipeline', 'score_out_of_bounds', 'unknown_candidate', 'unknown_person', 'text_has_phone', 'text_has_identity_number', 'text_has_instruction', 'reply_too_long', 'link_not_allowed', 'fact_not_grounded', 'text_has_promise', 'unknown_directive', 'reply_not_fixed_form', 'callback_outside_hours', 'fact_out_of_bounds')"
+          "value": "\"agent_runs\".\"filter_reason\" in ('unreadable_answer', 'unknown_pipeline', 'score_out_of_bounds', 'unknown_candidate', 'unknown_person', 'text_has_phone', 'text_has_identity_number', 'text_has_instruction')"
         },
         "agent_runs_filtered_check": {
           "name": "agent_runs_filtered_check",

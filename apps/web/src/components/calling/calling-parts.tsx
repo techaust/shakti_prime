@@ -80,17 +80,24 @@ export function DialNumber({
   );
 }
 
-/** The outcomes on their number keys, which save the call (with a detail when one is needed). */
+/**
+ * The outcomes on their number keys, which save the call (with a detail when one is needed). The
+ * outcome the Caller Co-pilot suggests for the call just made (`suggestedId`) is marked, and the
+ * caller still chooses: nothing is saved until they do.
+ */
 export function Outcomes({
   lead,
   pending,
   onPick,
+  suggestedId = null,
 }: {
   lead: CallLeadDto;
   pending: boolean;
   onPick: (outcome: DispositionDto) => void;
+  suggestedId?: string | null;
 }) {
   const t = useTranslations('calling');
+  const suggestedNote = useId();
   const disabled = !lead.canLog || lead.consentWithdrawn;
   return (
     <Panel id="calling-outcomes" title={t('outcomes.title')}>
@@ -107,23 +114,32 @@ export function Outcomes({
         <p className="text-text-muted">{t('outcomes.none')}</p>
       ) : (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {lead.dispositions.map((outcome) => (
-            <Button
-              key={outcome.id}
-              variant="secondary"
-              className="justify-start"
-              disabled={disabled || pending}
-              aria-keyshortcuts={String(outcome.key)}
-              onClick={() => {
-                onPick(outcome);
-              }}
-            >
-              <Key>{outcome.key}</Key>
-              <span className="truncate">{outcome.label}</span>
-            </Button>
-          ))}
+          {lead.dispositions.map((outcome) => {
+            const suggested = outcome.id === suggestedId;
+            return (
+              <Button
+                key={outcome.id}
+                variant={suggested ? 'primary' : 'secondary'}
+                className="justify-start"
+                disabled={disabled || pending}
+                aria-keyshortcuts={String(outcome.key)}
+                aria-describedby={suggested ? suggestedNote : undefined}
+                onClick={() => {
+                  onPick(outcome);
+                }}
+              >
+                <Key>{outcome.key}</Key>
+                <span className="truncate">{outcome.label}</span>
+              </Button>
+            );
+          })}
         </div>
       )}
+      {lead.dispositions.some((outcome) => outcome.id === suggestedId) ? (
+        <p id={suggestedNote} className="text-text-muted text-sm">
+          {t('outcomes.suggested')}
+        </p>
+      ) : null}
     </Panel>
   );
 }

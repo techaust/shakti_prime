@@ -164,6 +164,8 @@ describe('app_user role (docs/05-database.md §3)', () => {
     whatsapp_threads: { i: false, u: false },
     whatsapp_messages: { i: true, u: false },
     whatsapp_templates: { i: true, u: false },
+    // A milestone's map changes only its template and whether it is on (column grants, S3).
+    whatsapp_milestones: { i: true, u: false },
     // A lead source is written column by column, its sealed Page token never read back; a key
     // keeps its hash and changes only by its revoke (column grants, I1); a lead's facts change
     // only their values.
@@ -174,6 +176,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // only the link to their log (a column grant), and the platform's definers write the rest
     // (0169, provider-calls.test.ts).
     provider_calls: { i: true, u: false },
+    // A Co-pilot note is written once by the Co-pilot and never changed (copilot-notes.test.ts).
+    copilot_notes: { i: true, u: false },
+    // Written only through the voice definers (0190): app_user reads it and nothing more.
+    voice_sessions: { i: false, u: false },
   };
 
   /**
@@ -477,6 +483,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // page lists the people of a manager's scope (0125).
       'app.caller_profile_manages(uuid,smallint)',
       'app.caller_profile_people(smallint)',
+      // When a lead's Co-pilot brief was last asked for or started, for its panel (A2, 0194).
+      'app.copilot_brief_started_at(smallint,uuid,timestamp with time zone,interval)',
       'app.customer_search_ids(text,text,integer)',
       // The dealer credit screen's figures, the one place the exposure is worked out (0117).
       'app.dealer_credit_position(smallint,uuid,uuid)',
@@ -509,6 +517,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // The sweep of abandoned uploads asks which companies to visit, as the worker
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',
+      // STATUS: the chat's customer's own quotes and orders, read by the platform (S3).
+      'app.status_summary(uuid)',
       // The targets' progress: a caller's own figures, a team lead's team's (0125).
       'app.target_actuals(smallint,timestamp with time zone,timestamp with time zone,uuid[])',
       // Whether a person is in a team now and may be set a target (the targets' policies, 0125).
@@ -522,6 +532,13 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // The company of a WhatsApp delivery, and the companies of a template, found before the
       // handler acts in one company's request (W1).
       'app.whatsapp_channel_entity(text,text)',
+      // A pressed button's chat, number and payload, read before the platform answers it (S3).
+      'app.whatsapp_inbound_facts(uuid)',
+      // What a milestone of a quote or an order carries, read before it is queued (S3).
+      'app.whatsapp_milestone_subject(smallint,text,text,uuid,uuid)',
+      // What a message carries beyond its values (a quote's buttons and PDF, a code), read before
+      // the worker takes it (S3).
+      'app.whatsapp_send_extras(uuid)',
       // What the messaging worker checks before a send, read before it takes the message (W1).
       'app.whatsapp_send_facts(uuid)',
       'app.whatsapp_template_entities(text,text)',

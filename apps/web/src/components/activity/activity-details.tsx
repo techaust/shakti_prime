@@ -51,10 +51,16 @@ import {
   INGEST_SOURCE_PROVIDERS,
   CALL_PURPOSE_VALUES,
   PROVIDER_CALL_STATUS_VALUES,
+  COPILOT_NOTE_KIND_VALUES,
+  TEMPLATE_OCCASION_VALUES,
+  INBOUND_CALL_SERIES_VALUES,
+  VOICE_SESSION_MODE_VALUES,
   WHATSAPP_HANDOFF_REASONS,
   WHATSAPP_MESSAGE_KINDS,
   WHATSAPP_TEMPLATE_CATEGORIES,
   WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_MILESTONES,
+  QUOTE_SEND_CHANNELS,
   WHATSAPP_TEMPLATE_STATUSES,
   WHATSAPP_THREAD_HANDLERS,
   CONSENT_PURPOSES,
@@ -526,6 +532,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(WHATSAPP_TEMPLATE_PURPOSES, value)
           ? t(`values.whatsappTemplatePurpose.${value}`)
           : wordsOf(value);
+      case 'whatsappMilestone':
+        return oneOf(WHATSAPP_MILESTONES, value)
+          ? t(`values.whatsappMilestone.${value}`)
+          : wordsOf(value);
+      case 'quoteSendChannel':
+        return oneOf(QUOTE_SEND_CHANNELS, value)
+          ? t(`values.quoteSendChannel.${value}`)
+          : wordsOf(value);
       case 'leadChannel':
         return oneOf(INGEST_CHANNELS, value) ? t(`values.leadChannel.${value}`) : wordsOf(value);
       case 'ingestOutcome':
@@ -545,6 +559,22 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'callStatus':
         return oneOf(PROVIDER_CALL_STATUS_VALUES, value)
           ? t(`values.callStatus.${value}`)
+          : wordsOf(value);
+      case 'copilotNoteKind':
+        return oneOf(COPILOT_NOTE_KIND_VALUES, value)
+          ? t(`values.copilotNoteKind.${value}`)
+          : wordsOf(value);
+      case 'templateOccasion':
+        return oneOf(TEMPLATE_OCCASION_VALUES, value)
+          ? t(`values.templateOccasion.${value}`)
+          : wordsOf(value);
+      case 'inboundLine':
+        return oneOf(INBOUND_CALL_SERIES_VALUES, value)
+          ? t(`values.inboundLine.${value}`)
+          : wordsOf(value);
+      case 'voiceMode':
+        return oneOf(VOICE_SESSION_MODE_VALUES, value)
+          ? t(`values.voiceMode.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)

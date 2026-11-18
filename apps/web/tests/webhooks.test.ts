@@ -124,11 +124,13 @@ describe('the webhook routes on real Postgres', () => {
       const rows = (await rowsAfter(mark)).filter((r) => r.provider === d.provider);
       expect(rows, d.provider).toHaveLength(1);
       const row = await settled(rows[0]?.id ?? '');
-      // A provider with no handler yet has its row processed with that code; the lead forms'
+      // Every provider has a handler: the lead forms'
       // handlers (I1) set a delivery for a form no company has connected aside, never guessed;
       // Exotel's status has T3's, which finds no call of ours for the fixture's reference and
       // records nothing; the WhatsApp handler (W1) finds no company for the signed fixture's
-      // number and records nothing, with its code.
+      // number and records nothing, with its code; Exotel's inbound handler (T4) finds no company
+      // line with the fixture's number and records nothing, with its code; LiveKit's (V2) records
+      // nothing for an event that is not a session's end or the voice worker's report.
       expect(row).toMatchObject(
         d.provider === 'meta_leadgen' || d.provider === 'google_leadform'
           ? { failed: true, attempts: 1, error_code: 'form_unmapped' }
@@ -136,11 +138,11 @@ describe('the webhook routes on real Postgres', () => {
               processed: true,
               attempts: 1,
               error_code:
-                d.provider === 'exotel_status'
+                d.provider === 'exotel_status' || d.provider === 'livekit'
                   ? null
                   : d.provider === 'meta_whatsapp'
                     ? 'whatsapp_number_unknown'
-                    : 'no_handler',
+                    : 'call_number_unknown',
             },
       );
       // Processing it again changes nothing.
@@ -324,13 +326,14 @@ describe('the webhook worker and its failure callback', () => {
     const body = JSON.stringify({ inboxId: id });
     const first = await signedCall(PROCESS, '/api/v1/workers/webhooks/process', body);
     expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({ inboxId: id, outcome: 'processed', handled: false });
+    // LiveKit's handler (V2) reads a room that started and records nothing.
+    expect(await first.json()).toEqual({ inboxId: id, outcome: 'processed', handled: true });
     const again = await signedCall(PROCESS, '/api/v1/workers/webhooks/process', body);
     expect(await again.json()).toEqual({ inboxId: id, outcome: 'duplicate' });
     expect(await rowOf(id)).toMatchObject({
       processed: true,
       attempts: 1,
-      error_code: 'no_handler',
+      error_code: null,
     });
   });
 
@@ -536,7 +539,7 @@ describe('retries, the attempt limit and Process again (review 1, 2, 9)', () => 
     expect(await processWebhook(id, { requestId: newId() })).toEqual({
       inboxId: id,
       outcome: 'processed',
-      handled: false,
+      handled: true,
     });
     expect(ids.map((i) => i.split(':').slice(0, 2).join(':'))).toEqual([`${id}:r10`, `${id}:r20`]);
     expect(new Set(ids).size).toBe(ids.length);

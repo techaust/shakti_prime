@@ -280,10 +280,13 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
            order by a.name, a.id
            limit 20`)) as unknown as { account_id: string; name: string }[])
       : [];
+  // A template whose header takes a document is the platform's to send (a quote's PDF): the
+  // composer sends body values alone, which WhatsApp refuses for it.
   const templates = (await ctx.tx.execute(sql`
-    select id, entity_id, name, label, language, category, status, params, buttons, purpose
+    select id, entity_id, name, label, language, category, status, params, buttons, header, purpose
       from whatsapp_templates
      where entity_id = ${row.entity_id} and status = 'approved' and purpose is null
+       and header = 'none'
      order by label, name
      limit 100`)) as unknown as {
     id: string;
@@ -295,6 +298,7 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
     status: string;
     params: unknown;
     buttons: unknown;
+    header: string;
     purpose: string | null;
   }[];
   const holds = ctx.principal.permissions.some((g) => g.key === 'messaging.send');
@@ -317,6 +321,7 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
         status: t.status,
         params: t.params,
         buttons: t.buttons,
+        header: t.header,
         purpose: t.purpose,
       }),
     ),

@@ -10,6 +10,7 @@ import { ImportKindSchema } from '../imports/enums';
 import { KNOWLEDGE_PDF_MAX_PAGES, KnowledgeSensitivitySchema } from '../knowledge';
 import { PlaybookDirectiveStateSchema } from '../playbook';
 import { MessageRequested } from '../api/messaging';
+import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 
 /**
@@ -144,7 +145,8 @@ const eventCatalogue = {
     meaning:
       'A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves.',
     emittedBy: ['crm.lead.reassign_all', 'crm.opportunity.assign', 'crm.opportunity.hand_over'],
-    // The notify worker tells the new owner (docs/03-roadmap-appendix/phase1.md §8.1).
+    // The notify worker tells the new owner (docs/03-roadmap-appendix/phase1.md §8.1), and the
+    // Caller Co-pilot writes the lead's brief (docs/03-roadmap-appendix/phase2.md §7.3).
     subscribed: true,
     payload: z
       .object({
@@ -483,18 +485,26 @@ const eventCatalogue = {
    */
   'messaging.message.requested': {
     meaning:
-      'A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP); the messaging worker checks and sends it.',
-    emittedBy: ['messaging.message.send', 'messaging.message.queue'],
+      'A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP, a milestone, an answer to a quote button, a code or STATUS); the messaging worker checks and sends it.',
+    emittedBy: [
+      'messaging.message.send',
+      'messaging.message.queue',
+      'messaging.milestone.send',
+      'messaging.answer.queue',
+      'messaging.template.request',
+    ],
     subscribed: true,
     payload: MessageRequested,
   },
   /**
    * A customer's WhatsApp message was stored on its thread, once (a repeat emits nothing). The
    * aggregate is the thread; the Concierge and the notices read the message from the thread.
+   * `platform` marks a message the platform answers itself (STATUS, a one-time code), which no
+   * agent drafts a reply to (`isHandledByPlatform()` in apps/web/src/workers/messaging).
    */
   'messaging.message.received': {
     meaning:
-      "A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread.",
+      "A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread, `platform` that the platform answers it itself (STATUS or a one-time code).",
     emittedBy: ['messaging.inbound.record'],
     subscribed: false,
     payload: z
@@ -503,15 +513,20 @@ const eventCatalogue = {
         kind: z.enum(['text', 'media']),
         accountId: IdSchema.nullable(),
         firstMessage: z.boolean(),
+        platform: z.boolean(),
       })
       .strict(),
   },
-  /** A customer pressed a button of a WhatsApp message; the reply's id is in the stored message. */
+  /**
+   * A customer pressed a button of a WhatsApp message; the reply's id is in the stored message.
+   * The platform answers a quote's Accept and Talk to us buttons (docs/03-roadmap-appendix/
+   * phase2.md §7.1).
+   */
   'messaging.button.pressed': {
     meaning:
-      "A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message.",
+      "A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. The platform answers a quote's Accept and Talk to us buttons.",
     emittedBy: ['messaging.inbound.record'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         messageId: IdSchema,
@@ -520,17 +535,54 @@ const eventCatalogue = {
       })
       .strict(),
   },
+  /**
+   * A person asked the Caller Co-pilot for a brief on a lead (docs/03-roadmap-appendix/phase2.md
+   * §7.3); the brief worker writes it, at most once an hour per lead.
+   */
+  'agents.brief.requested': {
+    meaning:
+      'A person asked the Caller Co-pilot for a brief on a lead; the brief worker writes one unless the lead had one within the hour.',
+    emittedBy: ['agents.brief.request'],
+    subscribed: true,
+    payload: z.object({ requestedById: IdSchema }).strict(),
+  },
   'calls.dial.completed': {
     meaning:
       'A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line.',
     emittedBy: ['calls.provider_call.record'],
-    subscribed: false,
+    // The Caller Co-pilot's summary of a recorded call (docs/03-roadmap-appendix/phase2.md §7.3).
+    subscribed: true,
     payload: z
       .object({
         opportunityId: IdSchema,
         callerId: IdSchema.nullable(),
         status: z.enum(PROVIDER_CALL_ENDS),
         durationSeconds: z.number().int().min(0).nullable(),
+      })
+      .strict(),
+  },
+  'calls.inbound.ringing': {
+    meaning:
+      "A customer's call to a company's IVR number is ringing a person (the one whose own dial phone the IVR rings); `accountIds` are the company's customers holding the caller's number, none when no customer does. The screen-pop is waiting for that person.",
+    emittedBy: ['calls.inbound_call.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        userId: IdSchema,
+        accountIds: z.array(IdSchema).max(INBOUND_MATCH_LIMIT),
+      })
+      .strict(),
+  },
+  'calls.missed.recorded': {
+    meaning:
+      "A customer's call to a company's missed-call number was recorded on the lead it made or joined, with a callback for the lead's owner in calling hours (`taskId`, none when the lead has no owner or one is due already); the notify worker tells the owner.",
+    emittedBy: ['calls.inbound_call.record'],
+    subscribed: true,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        ownerId: IdSchema.nullable(),
+        taskId: IdSchema.nullable(),
       })
       .strict(),
   },
@@ -548,10 +600,19 @@ const eventCatalogue = {
       .strict(),
   },
   'sales.quote.sent': {
-    meaning: 'A quote with its PDF was marked as sent to the customer.',
+    meaning:
+      "A quote with its PDF was marked as sent to the customer by `sentBy`: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`, which the platform sends as the `quote_sent` milestone (and tells `sentBy` when it cannot).",
     emittedBy: ['sales.quote.send'],
-    subscribed: false,
-    payload: z.object({ opportunityId: IdSchema, pdfFileId: IdSchema }).strict(),
+    subscribed: true,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        pdfFileId: IdSchema,
+        channel: z.enum(['recorded', 'whatsapp']),
+        threadId: IdSchema.nullable(),
+        sentBy: IdSchema,
+      })
+      .strict(),
   },
   'sales.quote.superseded': {
     meaning: 'A quote was replaced by a re-quote at current prices (`supersededById`).',
@@ -562,7 +623,12 @@ const eventCatalogue = {
   'sales.quote.withdrawn': {
     meaning:
       'A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose order was cancelled.',
-    emittedBy: ['sales.order.cancel', 'sales.quote.accept', 'sales.quote.withdraw'],
+    emittedBy: [
+      'sales.order.cancel',
+      'sales.quote.accept',
+      'sales.quote.accept_remote',
+      'sales.quote.withdraw',
+    ],
     subscribed: false,
     payload: z.object({ opportunityId: IdSchema }).strict(),
   },
@@ -574,21 +640,22 @@ const eventCatalogue = {
   },
   'sales.quote.accepted': {
     meaning:
-      'A sent quote was accepted (by a signed copy staff uploaded, in Phase 1) and became the order `orderId`.',
-    emittedBy: ['sales.quote.accept'],
-    subscribed: false,
+      "A sent quote was accepted (by a signed copy staff uploaded, or on WhatsApp by its Accept button and, for a large quote, a code) and became the order `orderId`; `acceptedBy` is the person who recorded it or the platform. The notify worker tells the lead's owner.",
+    emittedBy: ['sales.quote.accept', 'sales.quote.accept_remote'],
+    subscribed: true,
     payload: z
       .object({
         opportunityId: IdSchema,
         orderId: IdSchema,
         acceptedVia: z.enum(['whatsapp_reply', 'whatsapp_otp', 'signed_upload']),
+        acceptedBy: IdSchema,
       })
       .strict(),
   },
   'sales.order.created': {
     meaning:
       'A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one.',
-    emittedBy: ['sales.quote.accept', 'sales.order.create'],
+    emittedBy: ['sales.quote.accept', 'sales.quote.accept_remote', 'sales.order.create'],
     subscribed: false,
     payload: z
       .object({
@@ -601,9 +668,9 @@ const eventCatalogue = {
   },
   'sales.order.confirmed': {
     meaning:
-      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it.',
+      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone.',
     emittedBy: ['sales.order.confirm'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({ accountId: IdSchema, opportunityId: IdSchema.nullable(), released: z.boolean() })
       .strict(),

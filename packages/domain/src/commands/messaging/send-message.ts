@@ -81,14 +81,21 @@ export async function queueWhatsAppMessage(
   } else {
     const w = schema.whatsappTemplates;
     const [template] = await ctx.tx
-      .select({ status: w.status, params: w.params, purpose: w.purpose, label: w.label })
+      .select({
+        status: w.status,
+        params: w.params,
+        purpose: w.purpose,
+        header: w.header,
+        label: w.label,
+      })
       .from(w)
       .where(
         and(eq(w.entityId, thread.entityId), eq(w.name, input.templateName), eq(w.language, 'en')),
       )
       .limit(1);
-    // A template the platform sends for a purpose is not offered to people.
-    if (template?.purpose !== null) {
+    // A template the platform sends for a purpose, or with a document it attaches (a quote's
+    // PDF), is not offered to people.
+    if (template?.purpose !== null || template.header !== 'none') {
       throw new DomainError('not_found', `template ${input.templateName} is not registered`, {
         reason: 'whatsapp_template_missing',
       });

@@ -47,13 +47,16 @@ async function setting(row: {
 }): Promise<string> {
   const id = newId();
   madeConfigs.push(id);
+  // The stand-in runs as the Caller Co-pilot, which starts in Shadow (A2); the company's row names
+  // Suggest, the level these cases are written for, unless a case sets its own.
+  const autonomy = row.autonomy ?? ((row.actionType ?? null) === null ? 'suggest' : null);
   await asMigrator(async (m) => {
     // A row another suite or run left for the same agent, action type and company (the journeys'
     // seed keeps the Caller Co-pilot's) gives way to this test's own.
     await m`delete from agent_configs where agent is not distinct from 'agent:copilot'
                      and action_type is not distinct from ${row.actionType ?? null} and entity_id is not distinct from ${ENTITY}`;
     await m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
-             values (${id}, 'agent:copilot', ${row.actionType ?? null}, ${ENTITY}, ${row.autonomy ?? null},
+             values (${id}, 'agent:copilot', ${row.actionType ?? null}, ${ENTITY}, ${autonomy},
                      ${row.cap ?? null}, ${row.enabled ?? true}, ${owner.id})`;
   });
   return id;

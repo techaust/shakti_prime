@@ -19,6 +19,7 @@ import { suggestDuplicate } from '../commands/crm/duplicates';
 import { assignOpportunity } from '../commands/crm/assign-opportunity';
 import { setLeadQualification } from '../commands/crm/lead-qualification';
 import { createTask } from '../commands/crm/tasks';
+import { requestTemplate } from '../commands/messaging/template-request';
 import { sendWhatsAppReply } from '../commands/messaging/reply';
 import { AGENT_DEFAULTS } from './agent-defaults';
 
@@ -27,7 +28,9 @@ import { AGENT_DEFAULTS } from './agent-defaults';
 // approves, and Automatic (not in Phase 1) runs it as the agent. A shadow-only kind runs no command
 // (no command moves a lead between pipelines or changes a score by hand): it is only ever recorded
 // in Shadow, whatever autonomy is set. Each agent named here must hold the permissions the action
-// needs itself, and none is a command for people only (`action-types.test.ts`).
+// needs itself. Only one is a command for people only, the Co-pilot's WhatsApp template
+// (`personOnly()`): a person approves it and it runs as them; it never runs as the agent, whatever
+// autonomy is set (`action-types.test.ts`).
 
 /** A field of a suggestion a person may change before approving it (`agents.inbox.edit`). */
 export interface EditableField {
@@ -109,8 +112,10 @@ const ABOUT_A_LEAD = { subjectType: 'opportunity', subjectKey: 'opportunityId' }
 
 export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Object.fromEntries(
   [
-    // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3), and the
-    // Concierge's callback for the lead's owner (A3).
+    // --- The Caller Co-pilot (A2, docs/03-roadmap-appendix/phase2.md §7.3) ---------------------
+    // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3), for the lead's
+    // owner, inside calling hours (`filterCopilotOutput()`), and the Concierge's callback for the
+    // lead's owner (A3).
     commanded(createTask, {
       agents: ['agent:copilot', 'agent:concierge'],
       subjectType: 'opportunity',
@@ -125,6 +130,30 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
         { name: 'title', kind: 'text', maxLength: 80 },
       ],
     }),
+    // The qualification facts heard in a recorded call (the Co-pilot) or written in a WhatsApp
+    // chat (the Concierge, A3), each within its field's bounds; for no one in particular, so
+    // whoever acts on the lead's company inbox decides.
+    commanded(setLeadQualification, {
+      agents: ['agent:copilot', 'agent:concierge'],
+      subjectType: 'opportunity',
+      subjectKey: 'opportunityId',
+      summary: [],
+      editable: [],
+    }),
+    // A WhatsApp nurture message or quote-expiry nudge from an approved template with no blanks,
+    // for the customer of a lead in nurture or with a quote about to expire; approved, the person
+    // queues it under their own messaging grant.
+    commanded(requestTemplate, {
+      agents: ['agent:copilot'],
+      subjectType: 'opportunity',
+      subjectKey: 'opportunityId',
+      summary: [
+        { name: 'templateName', kind: 'template' },
+        { name: 'occasion', kind: 'code' },
+      ],
+      editable: [],
+    }),
+    // --- End of the Caller Co-pilot ------------------------------------------------------------
     // The Triage agent (A1, SECURITY §3.3): who should take a new lead, among the people of the
     // company who work on leads. The item, under Suggest or Needs approval, is for whoever acts
     // on the company's inbox, never the person proposed.
@@ -144,8 +173,9 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
     }),
     // The WhatsApp Concierge (A3, docs/03-roadmap-appendix/phase2.md §7.2): an in-window reply on
     // the thread its run is bound to, sent by the person who approves it and marked as the
-    // assistant's draft, about the thread's customer; the lead's qualification facts. Its callback
-    // is `crm.task.create` above. A person may change the reply's words before sending it.
+    // assistant's draft, about the thread's customer. Its qualification facts and its callback are
+    // `crm.lead.qualification.set` and `crm.task.create` above. A person may change the reply's
+    // words before sending it.
     {
       ...commanded(sendWhatsAppReply, {
         agents: ['agent:concierge'],
@@ -157,12 +187,6 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
       }),
       input: ConciergeReplyProposalInput,
     },
-    commanded(setLeadQualification, {
-      agents: ['agent:concierge'],
-      ...ABOUT_A_LEAD,
-      summary: [],
-      editable: [],
-    }),
     shadowOnly(
       TRIAGE_ACTION_TYPES.pipeline,
       TriagePipelineProposalInput,
@@ -187,6 +211,15 @@ export function actionTypeOf(name: string): AgentActionType {
     });
   }
   return found;
+}
+
+/**
+ * Whether an action type's command is for people only: it runs when a person approves it, as that
+ * person, and never as the agent, so it is never taken on the agent's own (Automatic files it for
+ * approval instead).
+ */
+export function personOnly(type: AgentActionType): boolean {
+  return type.command?.peopleOnly === true;
 }
 
 /** Whether an action type is only ever recorded in Shadow (it runs no command). */
@@ -222,21 +255,29 @@ export function withAssignee(
   return { ...input, [key]: assignee };
 }
 
-/** The read-only inputs of an action, as the inbox shows them; `names` holds people's names. */
+/** The key a WhatsApp template's label is found under in `summaryFields()`'s labels. */
+export const templateLabelKey = (entityId: number, name: string): string =>
+  `template:${String(entityId)}:${name}`;
+
+/**
+ * The read-only inputs of an action, as the inbox shows them. `labels` holds people's names by id
+ * and WhatsApp templates' labels by `templateLabelKey()` of the input's company.
+ */
 export function summaryFields(
   type: AgentActionType,
   input: Readonly<Record<string, unknown>>,
-  names: ReadonlyMap<string, string>,
+  labels: ReadonlyMap<string, string>,
 ): InboxSummaryDto[] {
+  const entityId = typeof input.entityId === 'number' ? input.entityId : undefined;
   return type.summary.map((field) => {
     const raw = input[field.name];
     const value = typeof raw === 'string' && raw.length <= 64 ? raw : null;
-    return {
-      name: field.name,
-      kind: field.kind,
-      value,
-      label: field.kind === 'person' && value !== null ? (names.get(value) ?? null) : null,
-    };
+    let label: string | null = null;
+    if (value !== null && field.kind === 'person') label = labels.get(value) ?? null;
+    if (value !== null && field.kind === 'template' && entityId !== undefined) {
+      label = labels.get(templateLabelKey(entityId, value)) ?? null;
+    }
+    return { name: field.name, kind: field.kind, value, label };
   });
 }
 

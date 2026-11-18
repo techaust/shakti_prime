@@ -2,10 +2,12 @@
 
 import {
   CreateQuoteInput,
+  DomainError,
   ListQuotesInput,
   QuoteBuilderInput,
   QuoteRefInput,
   RequoteInput,
+  SendQuoteInput,
   SetAccountTierInput,
   WithdrawQuoteInput,
   type AccountTierDto,
@@ -24,12 +26,15 @@ import {
   listQuotes as listQuotesQuery,
   loadQuoteBuilder as loadQuoteBuilderQuery,
   previewQuote as previewQuoteQuery,
+  readQuoteWhatsAppReadiness,
   requoteQuote as requoteQuoteCommand,
   sendQuote as sendQuoteCommand,
   setAccountTier as setAccountTierCommand,
   withdrawQuote as withdrawQuoteCommand,
   type AnyCommand,
+  type QuoteWhatsAppRefusal,
 } from '@shakti/domain';
+import { whatsappButtonSecret } from '../workers/messaging/button-secret';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from './support';
 
@@ -134,7 +139,35 @@ export async function sendQuote(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<QuoteDto>> {
-  return quoteCommand('sendQuote', QuoteRefInput, sendQuoteCommand, rawInput, idempotencyKey);
+  return quoteCommand('sendQuote', SendQuoteInput, sendQuoteCommand, rawInput, idempotencyKey);
+}
+
+/**
+ * Whether the quote can go by WhatsApp now (docs/03-roadmap-appendix/phase2.md §7.1), for the send
+ * dialog: `ready`, or why not, in the words of its `errors.*` reason (`whatsapp_unavailable` while
+ * no button secret is set here). The send checks it all again.
+ */
+export async function quoteSendOptions(
+  rawInput: unknown,
+): Promise<ActionResult<{ whatsapp: 'ready' | QuoteWhatsAppRefusal | 'whatsapp_unavailable' }>> {
+  return toResult('quoteSendOptions', async () => {
+    const principal = await signedIn();
+    const input = parseInput(QuoteRefInput, rawInput);
+    const { requestId } = await requestMeta();
+    const readiness = await executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (context) => readQuoteWhatsAppReadiness(context, input),
+      { name: 'quoteSendOptions' },
+    );
+    if (readiness === null) {
+      throw new DomainError('not_found', `quote ${input.quoteId} is not visible`, {
+        reason: 'quote_missing',
+      });
+    }
+    if (whatsappButtonSecret() === undefined) return { whatsapp: 'whatsapp_unavailable' };
+    return { whatsapp: readiness.reason ?? 'ready' };
+  });
 }
 
 /** A new quote at today's prices in place of this one. */

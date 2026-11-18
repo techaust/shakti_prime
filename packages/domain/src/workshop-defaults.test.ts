@@ -75,7 +75,15 @@ describe('workshop defaults', () => {
             'insaan se baat',
             'kisi se baat karni hai',
           ],
-          status: ['status', 'order status', 'mera order'],
+          status: [
+            'status',
+            'order status',
+            'quote status',
+            'mera order',
+            'mera quote',
+            'order kahan hai',
+            'status batao',
+          ],
         },
         marketingHoldShare: 0.8,
         startingLimit: 250,
@@ -102,6 +110,10 @@ describe('workshop defaults', () => {
           'pakka',
         ],
         leadPipelineKey: 'farmer_pumps',
+        // Question 5 (a) and §7.1 (S3): the code from ₹2,00,000, 5 minutes, 3 tries.
+        otpFromRupees: 200_000,
+        otpMinutes: 5,
+        otpTries: 3,
       },
       sizing: {
         hazenWilliamsC: { hdpe: 140, gi: 120 },

@@ -164,6 +164,28 @@ export async function createTestPrincipal(
   return principal;
 }
 
+/**
+ * A voice session's principal (docs/07-security.md §3.4) for a person of the given role: the
+ * person's own `principals` row and the session's (kind `voice_session`), with no
+ * `voice_sessions` row, for the guard and audit tests of commands a session may not run. A test
+ * of a live session opens one through `voice.session.start` instead.
+ */
+export async function createTestVoicePrincipal(
+  roleKey: RoleKey,
+  entityIds: readonly number[] = ALL_ENTITY_IDS,
+  overrides: Partial<Principal> = {},
+): Promise<Principal> {
+  const person = await createTestPrincipal(roleKey, entityIds, overrides);
+  const voiceSessionId = newId();
+  await asMigrator(
+    (m) => m`
+      insert into principals (id, kind, display_name, created_by)
+      values (${voiceSessionId}, 'voice_session', ${`test voice ${roleKey}`}, ${person.id})
+    `,
+  );
+  return { ...person, kind: 'voice_session', voiceSessionId };
+}
+
 /** A staff user for identity tests: principal, `users` row and one role per entity. */
 export interface TestUser {
   id: string;
@@ -351,6 +373,9 @@ export const ENTITY_TABLES = [
   'whatsapp_threads',
   'whatsapp_messages',
   'whatsapp_templates',
+  // a company's map of each customer milestone to its template, read by every principal acting
+  // in it (docs/03-roadmap-appendix/phase2.md §7.1)
+  'whatsapp_milestones',
   // a company's connected forms and sites, and its website keys: read and written by an Executive
   // (crm.sources.write); a lead's qualification facts, read with the lead
   // (docs/03-roadmap-appendix/phase2.md §6.2)
@@ -359,6 +384,12 @@ export const ENTITY_TABLES = [
   'lead_qualifications',
   // a provider's call, a child of the lead, read with it (docs/03-roadmap-appendix/phase2.md §6.3)
   'provider_calls',
+  // the Caller Co-pilot's briefs and call summaries, a child of the lead, read with it
+  // (docs/03-roadmap-appendix/phase2.md §7.3)
+  'copilot_notes',
+  // a person's own Talk to Shakti sessions, and everyone's to the Executive, read in a request
+  // covering every company the session covers (docs/03-roadmap-appendix/phase2.md §7.5)
+  'voice_sessions',
 ] as const;
 
 /**
@@ -397,14 +428,17 @@ export const PRINCIPAL_TABLES = [
  * `all` reads (docs/05-database.md §7): no request role inserts, updates or deletes them, and most
  * callers with a context read nothing, so neither the shared loops (readable by any caller) nor
  * the entity loops (scoped by company) apply. Asserted in retention.test.ts, agents.test.ts and
- * webhooks.test.ts (`webhook_inbox`, which no request role reads at all) and whatsapp.test.ts
- * (`whatsapp_message_keys`, Meta's message ids, read and written only by the WhatsApp definers).
+ * webhooks.test.ts (`webhook_inbox`, which no request role reads at all), whatsapp.test.ts
+ * (`whatsapp_message_keys`, Meta's message ids, read and written only by the WhatsApp definers)
+ * and whatsapp-quotes.test.ts (`whatsapp_milestone_sends`, each milestone once per subject,
+ * read and written only by the milestone definers).
  */
 export const PLATFORM_TABLES = [
   'retention_runs',
   'agent_evals',
   'webhook_inbox',
   'whatsapp_message_keys',
+  'whatsapp_milestone_sends',
 ] as const;
 
 /**

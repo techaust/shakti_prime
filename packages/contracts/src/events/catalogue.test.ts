@@ -52,6 +52,10 @@ describe('the event catalogue', () => {
   it('subscribes only the types a worker handles (apps/web/src/workers/events/registry.ts)', () => {
     expect(EVENT_TYPES.filter(isSubscribed).sort()).toEqual(
       [
+        // The Caller Co-pilot's brief on demand and the summary of an ended dial (A2).
+        'agents.brief.requested',
+        'calls.dial.completed',
+        'calls.missed.recorded',
         'crm.duplicate.found',
         'crm.enquiry.routed',
         'crm.lead.created',
@@ -60,10 +64,14 @@ describe('the event catalogue', () => {
         'files.file.uploaded',
         'knowledge.file.index_requested',
         'knowledge.playbook.changed',
+        'messaging.button.pressed',
         'messaging.message.requested',
         'platform.probe.requested',
         'print.document.requested',
+        'sales.order.confirmed',
         'sales.order.credit_held',
+        'sales.quote.accepted',
+        'sales.quote.sent',
       ].sort(),
     );
     expect(isSubscribed('crm.lead.vanished')).toBe(false);

@@ -91,6 +91,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   notifications: 'x.id::text',
   ask_conversations: 'x.id::text',
   ask_messages: 'x.id::text',
+  voice_sessions: 'x.id::text',
   targets: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
@@ -105,10 +106,12 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   whatsapp_threads: 'x.id::text',
   whatsapp_messages: 'x.id::text',
   whatsapp_templates: 'x.id::text',
+  whatsapp_milestones: 'x.id::text',
   ingest_sources: 'x.id::text',
   ingest_keys: 'x.id::text',
   lead_qualifications: 'x.opportunity_id::text',
   provider_calls: 'x.id::text',
+  copilot_notes: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -198,9 +201,16 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from notifications where id::text like ${like}`;
       // A conversation's messages go with it.
       await tx`delete from ask_conversations where id::text like ${like}`;
+      // A voice session and its own principal row.
+      await tx`delete from voice_sessions where id::text like ${like}`;
+      await tx`delete from principals where kind = 'voice_session' and id::text like ${like}`;
       await tx`alter table targets disable trigger targets_append_only`;
       await tx`delete from targets where id::text like ${like}`;
       await tx`alter table targets enable trigger targets_append_only`;
+      // A Co-pilot note names its call and the call's transcript: removed before both.
+      await tx`alter table copilot_notes disable trigger copilot_notes_append_only`;
+      await tx`delete from copilot_notes where id::text like ${like}`;
+      await tx`alter table copilot_notes enable trigger copilot_notes_append_only`;
       await tx`alter table provider_calls disable trigger provider_calls_no_delete`;
       await tx`delete from provider_calls where id::text like ${like}`;
       await tx`alter table provider_calls enable trigger provider_calls_no_delete`;
@@ -209,6 +219,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from whatsapp_messages where id::text like ${like}`;
       await tx`alter table whatsapp_messages enable trigger whatsapp_messages_guard`;
       await tx`delete from whatsapp_threads where id::text like ${like}`;
+      await tx`delete from whatsapp_milestones where id::text like ${like}`;
       await tx`delete from whatsapp_templates where id::text like ${like}`;
       await tx`delete from entity_channels where id::text like ${like}`;
       await tx`delete from ingest_sources where id::text like ${like}`;
@@ -345,6 +356,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     notifications: [],
     ask_conversations: [],
     ask_messages: [],
+    voice_sessions: [],
     targets: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
@@ -359,10 +371,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     whatsapp_threads: [],
     whatsapp_messages: [],
     whatsapp_templates: [],
+    whatsapp_milestones: [],
     ingest_sources: [],
     ingest_keys: [],
     lead_qualifications: [],
     provider_calls: [],
+    copilot_notes: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -394,6 +408,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   const groupAskMessage = id(0x0013);
   rows.ask_conversations.push({ key: groupConversation, entities: null });
   rows.ask_messages.push({ key: groupAskMessage, entities: null });
+  // A voice session of the owner over every company: read only in a request covering every
+  // company, so nobody acting in one company reads it.
+  const groupVoiceSession = id(0x0014);
+  rows.voice_sessions.push({ key: groupVoiceSession, entities: null });
   // The fixture's agent rows name an agent no other suite sets, so its settings change nothing.
   const MATRIX_AGENT = 'agent:orchestrator';
   const agentId = AGENT_PRINCIPAL_IDS[MATRIX_AGENT];
@@ -449,6 +467,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         values (${groupConversation}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'matrix question')`;
       await tx`insert into ask_messages (id, conversation_id, user_id, entity_id, entity_ids, question, answer, outcome)
         values (${groupAskMessage}, ${groupConversation}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'matrix question', 'matrix answer', 'answered')`;
+      await tx`insert into principals (id, kind, display_name) values (${groupVoiceSession}, 'voice_session', 'matrix voice')`;
+      await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, max_minutes)
+        values (${groupVoiceSession}, ${ownerId}, null, ${[...ALL_ENTITY_IDS]}::smallint[], 'ask', false, 15)`;
 
       for (const e of ALL_ENTITY_IDS) {
         const team = per(e, 0x01);
@@ -481,6 +502,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const othersConversation = per(e, 0x54);
         const ownAskMessage = per(e, 0x55);
         const othersAskMessage = per(e, 0x56);
+        // The owner's voice session in the company and another person's.
+        const ownVoiceSession = per(e, 0x70);
+        const othersVoiceSession = per(e, 0x71);
         const othersNotice = per(e, 0x41);
         const agentRun = newId();
         const agentAction = newId();
@@ -510,6 +534,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         // only the file checks read as a file (calls.recording.play hears it).
         const providerCall = per(e, 0x53);
         const recording = per(e, 0x54);
+        // The call's transcript, read with the call (and so the lead), and the Co-pilot's summary
+        // of it on the lead.
+        const transcript = per(e, 0x7a);
+        const copilotNote = per(e, 0x7b);
         const quote = per(e, 0x1c);
         const quoteLine = per(e, 0x1d);
         const quoteVersion = per(e, 0x1e);
@@ -535,6 +563,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const message = per(e, 0x62);
         const unmatchedMessage = per(e, 0x63);
         const waTemplate = per(e, 0x64);
+        // The company's map of one milestone to that template (S3).
+        const waMilestone = per(e, 0x65);
         // A connected website and a revoked key of the company (I1).
         const ingestSource = per(e, 0x53);
         const ingestKey = per(e, 0x54);
@@ -609,6 +639,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into ask_messages (id, conversation_id, user_id, entity_id, entity_ids, question, answer, outcome) values
           (${ownAskMessage}, ${ownConversation}, ${ownerId}, ${e}, ${[e]}::smallint[], 'matrix question', 'matrix answer', 'answered'),
           (${othersAskMessage}, ${othersConversation}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'matrix question', 'matrix answer', 'answered')`;
+        await tx`insert into principals (id, kind, display_name) values
+          (${ownVoiceSession}, 'voice_session', 'matrix voice'),
+          (${othersVoiceSession}, 'voice_session', 'matrix voice')`;
+        await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode, consent_recording, ended_at, minutes, max_minutes) values
+          (${ownVoiceSession}, ${ownerId}, ${e}, ${[e]}::smallint[], 'teach', true, now(), 3, 15),
+          (${othersVoiceSession}, ${otherUserId}, ${e}, ${[e]}::smallint[], 'ask', false, null, null, 15)`;
         await tx`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by) values
           (${ownTarget}, ${e}, 'caller', ${ownerId}, ${team}, 'calls', 'day', '2026-01-01', 10, ${ownerId}),
           (${othersTarget}, ${e}, 'caller', ${otherUserId}, ${team}, 'calls', 'day', '2026-01-01', 12, ${ownerId}),
@@ -641,6 +677,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           (${unmatchedMessage}, ${e}, ${unmatchedThread}, 'inbound', 'text', ${`wamid.matrix.${unmatchedMessage}`}, 'matrix message')`;
         await tx`insert into whatsapp_templates (id, entity_id, name, label, category, created_by)
           values (${waTemplate}, ${e}, 'matrix_template', 'Matrix template', 'utility', ${ownerId})`;
+        await tx`insert into whatsapp_milestones (id, entity_id, milestone, template_id, is_active, created_by)
+          values (${waMilestone}, ${e}, 'handover_kit', ${waTemplate}, false, ${ownerId})`;
         await tx`insert into ingest_sources (id, entity_id, provider, external_id, name, pipeline_id, created_by)
           values (${ingestSource}, ${e}, 'website', ${`matrix-${e.toString()}.invalid`}, 'matrix site', ${pipeline.id}, ${ownerId})`;
         await tx`insert into ingest_keys (id, entity_id, label, key_hash, key_hint, revoked_at, revoked_by, created_by)
@@ -649,8 +687,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${opportunity}, ${e}, 120, ${ownerId})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
           values (${recording}, ${e}, 'call_recording', 'matrix', ${`matrix/${recording}`}, 'matrix file', 'audio/mpeg', 1, ${sha}, 'ready', ${ownerId})`;
-        await tx`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, provider_call_sid, status, started_at, ended_at, duration_s, recording_file_id, call_id)
-          values (${providerCall}, ${e}, ${opportunity}, ${phone}, ${ownerId}, 'outbound', '140', 'promotional', ${`matrix-${providerCall}`}, 'completed', now(), now(), 30, ${recording}, ${call})`;
+        await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+          values (${transcript}, ${e}, 'call_transcript', 'matrix', ${`matrix/${transcript}`}, 'matrix file', 'text/plain', 1, ${sha}, 'ready', ${ownerId})`;
+        await tx`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, provider_call_sid, status, started_at, ended_at, duration_s, recording_file_id, transcript_file_id, call_id)
+          values (${providerCall}, ${e}, ${opportunity}, ${phone}, ${ownerId}, 'outbound', '140', 'promotional', ${`matrix-${providerCall}`}, 'completed', now(), now(), 30, ${recording}, ${transcript}, ${call})`;
+        await tx`insert into copilot_notes (id, entity_id, opportunity_id, provider_call_id, kind, body, created_by)
+          values (${copilotNote}, ${e}, ${opportunity}, ${providerCall}, 'call_summary', 'matrix summary', ${AGENT_PRINCIPAL_IDS['agent:copilot']})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -799,11 +841,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: unmatchedMessage, entities: only, unmatched: true },
         );
         rows.whatsapp_templates.push({ key: waTemplate, entities: only });
+        rows.whatsapp_milestones.push({ key: waMilestone, entities: only });
         rows.ingest_sources.push({ key: ingestSource, entities: only });
         rows.ingest_keys.push({ key: ingestKey, entities: only });
         rows.lead_qualifications.push({ key: opportunity, entities: only });
         rows.provider_calls.push({ key: providerCall, entities: only });
         rows.files.push({ key: recording, entities: only, purpose: 'call_recording' });
+        rows.files.push({ key: transcript, entities: only, purpose: 'call_transcript' });
+        rows.copilot_notes.push({ key: copilotNote, entities: only });
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
         rows.playbook_directives.push(
@@ -827,6 +872,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.ask_messages.push(
           { key: ownAskMessage, entities: only },
           { key: othersAskMessage, entities: only, othersOwn: true },
+        );
+        rows.voice_sessions.push(
+          { key: ownVoiceSession, entities: only },
+          { key: othersVoiceSession, entities: only, othersOwn: true },
         );
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },

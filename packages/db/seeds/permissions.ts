@@ -63,6 +63,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'messaging.send': 'Send WhatsApp messages to customers',
   'messaging.templates.write': 'Keep the list of WhatsApp message templates',
   'knowledge.ask': 'Ask the Business',
+  'agents.note.write': 'Write call briefs and call summaries',
   'agents.inbox.act': 'Act on Agent Inbox items',
   'agents.autonomy.write': 'Change agent autonomy',
   'agents.killswitch': 'Pause agents',
@@ -93,6 +94,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'messaging.process': 'Receive and send WhatsApp messages for the companies',
   'crm.ingest.run': 'Add leads that arrive from ads, lead forms, websites and WhatsApp',
   'calls.process': 'Record how a placed call went and keep its recording',
+  'sales.quote.accept.remote': 'Accept a quote the customer accepted on WhatsApp',
+  'voice.session.record': 'Record how long a Talk to Shakti session lasted and what it cost',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

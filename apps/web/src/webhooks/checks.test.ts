@@ -195,6 +195,15 @@ describe('LiveKit token', () => {
       problem: 'unsigned',
     });
   });
+
+  it("refuses a delivery signed with the voice worker's own key of the project", async () => {
+    // The worker holds an agent key of its own (SECURITY §3.4), never the BOS's.
+    const forged = await token({ sha256: sha }, 'the voice worker secret', 'APIvoiceworker');
+    expect(await checkLiveKit(bytes(body), forged, apiKey, apiSecret, now)).toEqual({
+      ok: false,
+      problem: 'bad_token',
+    });
+  });
 });
 
 describe('an empty secret', () => {

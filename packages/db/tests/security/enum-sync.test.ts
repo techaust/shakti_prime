@@ -1,8 +1,10 @@
 import {
+  VOICE_SESSION_MODES,
   AGENT_ACTION_STATES,
   AGENT_AUTONOMY,
   AGENT_FILTER_REASONS,
   AGENT_RUN_OUTCOMES,
+  COPILOT_NOTE_KINDS,
   INBOX_ITEM_KINDS,
   INBOX_ITEM_STATES,
   INBOX_SUBJECT_TYPES,
@@ -33,10 +35,15 @@ import {
   WHATSAPP_TEMPLATE_CATEGORIES,
   WHATSAPP_TEMPLATE_LANGUAGES,
   WHATSAPP_TEMPLATE_PURPOSES,
+  WHATSAPP_TEMPLATE_HEADERS,
+  WHATSAPP_MILESTONES,
+  WHATSAPP_MILESTONE_RECORDS,
+  WHATSAPP_MILESTONE_SUBJECTS,
   WHATSAPP_TEMPLATE_STATUSES,
   WHATSAPP_THREAD_HANDLERS,
   CALL_PURPOSES,
   DIALLED_SERIES,
+  INBOUND_CALL_SERIES,
   PROVIDER_CALL_SERIES,
   PROVIDER_CALL_STATUSES,
   ConsentPurposeSchema,
@@ -241,17 +248,28 @@ const PAIRS: Record<string, readonly string[]> = {
   whatsapp_templates_category_check: WHATSAPP_TEMPLATE_CATEGORIES,
   whatsapp_templates_status_check: WHATSAPP_TEMPLATE_STATUSES,
   whatsapp_templates_purpose_check: WHATSAPP_TEMPLATE_PURPOSES,
+  whatsapp_templates_header_check: WHATSAPP_TEMPLATE_HEADERS,
+  whatsapp_milestones_milestone_check: WHATSAPP_MILESTONES,
+  whatsapp_milestone_sends_milestone_check: WHATSAPP_MILESTONES,
+  whatsapp_milestone_sends_subject_kind_check: WHATSAPP_MILESTONE_SUBJECTS,
+  whatsapp_milestone_sends_outcome_check: WHATSAPP_MILESTONE_RECORDS,
+  // A queued milestone names its chat and message.
+  whatsapp_milestone_sends_shape_check: ['queued'],
   ingest_sources_provider_check: INGEST_SOURCE_PROVIDERS,
   // Only a Lead Ads form is fetched with a Page token.
   ingest_sources_page_token_check: ['meta_leadgen'],
   ingest_sources_consent_channels_check: ConsentChannelSchema.options,
   ingest_sources_consent_purpose_check: ConsentPurposeSchema.options,
+  copilot_notes_kind_check: COPILOT_NOTE_KINDS,
   provider_calls_direction_check: CallDirectionSchema.options,
   provider_calls_series_check: PROVIDER_CALL_SERIES,
   provider_calls_purpose_check: CALL_PURPOSES,
   provider_calls_status_check: PROVIDER_CALL_STATUSES,
   // An outbound call is a person's dial, on one of the lines a person dials out on.
   provider_calls_outbound_check: ['outbound', ...DIALLED_SERIES],
+  // An inbound call came in on a line a customer calls (T4); a missed call names its lead.
+  provider_calls_inbound_check: ['inbound', ...INBOUND_CALL_SERIES, 'missed_call'],
+  voice_sessions_mode_check: VOICE_SESSION_MODES,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

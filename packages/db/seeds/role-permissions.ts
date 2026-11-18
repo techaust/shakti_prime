@@ -248,6 +248,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     project_manager: 'entity',
     accounts: 'entity',
   },
+  // The Caller Co-pilot's briefs and call summaries: its own (AGENT_MATRIX), no person's role
+  // (design phase2 §4).
+  'agents.note.write': {},
   'agents.inbox.act': {
     ...EXEC,
     general_manager: 'entity',
@@ -335,6 +338,11 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // The platform's record of a provider call and its recording; no person's role holds it
   // (SECURITY §3.3).
   'calls.process': {},
+  // The platform's acceptance of a quote from WhatsApp; no person's role holds it (SECURITY §3.3).
+  'sales.quote.accept.remote': {},
+  // The platform's record of a voice session from LiveKit's events; no person's role holds it
+  // (SECURITY §3.3).
+  'voice.session.record': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

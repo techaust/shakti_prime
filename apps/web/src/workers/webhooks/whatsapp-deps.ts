@@ -4,6 +4,7 @@ import { defaultAuthDeps } from '../../auth/deps';
 import { fileStore } from '../../files/store';
 import { downloadMedia, whatsappAccess } from '../../integrations/whatsapp/media';
 import { systemWorkersPrincipal } from '../events/system-principal';
+import { whatsappButtonSecret } from '../messaging/button-secret';
 import type { IngestLeadPort, WhatsAppHandlerDeps } from './whatsapp';
 
 /**
@@ -30,7 +31,8 @@ export const ingestThroughCommand: IngestLeadPort = async ({ input, idempotencyK
 
 /**
  * The WhatsApp handler's dependencies on this runtime: the shared key-value store, the system
- * key's media download and the file store when each is set up, and the lead intake.
+ * key's media download and the file store when each is set up, the lead intake, and the quote
+ * buttons' secret a one-time code is checked with.
  */
 export function whatsappHandlerDeps(): WhatsAppHandlerDeps {
   const access = whatsappAccess();
@@ -40,5 +42,6 @@ export function whatsappHandlerDeps(): WhatsAppHandlerDeps {
     ingestLead: ingestThroughCommand,
     downloadMedia: access === undefined ? undefined : (mediaId) => downloadMedia(access, mediaId),
     store: fileStore(),
+    buttonSecret: whatsappButtonSecret(),
   };
 }

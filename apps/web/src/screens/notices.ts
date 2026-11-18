@@ -19,8 +19,10 @@ export interface NoticeLinkFacts {
 }
 
 /**
- * The screen the person acts on: their calling queue for a call that fell due (due calls come
- * first there), the quote for one about to lapse, their Agent Inbox for an enquiry passed to them
+ * The screen the person acts on: their calling queue for a call that fell due or a missed call's
+ * callback (due calls come first there), the quote for one about to lapse, accepted, pressed on
+ * WhatsApp after it lapsed (where its order is, or the re-quote), or sent on WhatsApp but not
+ * delivered (where its PDF is), their Agent Inbox for an enquiry passed to them
  * (where its interest and note are, and Done), the order for one held for credit (where the
  * Executive releases it), the chat for a WhatsApp customer waiting for a reply, and the customer's
  * Account 360, in the notice's
@@ -29,6 +31,7 @@ export interface NoticeLinkFacts {
 export function noticeHref(notice: NoticeLinkFacts): Route {
   switch (notice.type) {
     case 'call_due':
+    case 'missed_call':
       return '/calling';
     case 'enquiry_routed':
       return '/inbox';
@@ -37,6 +40,9 @@ export function noticeHref(notice: NoticeLinkFacts): Route {
     case 'whatsapp_reply_waiting':
       return messagesHref(notice.entityId, notice.subjectId);
     case 'quote_expiring':
+    case 'quote_accepted':
+    case 'whatsapp_quote_expired':
+    case 'whatsapp_quote_not_sent':
       return notice.quoteId === null ? '/quotes' : quoteHref(notice.entityId, notice.quoteId);
     default:
       return notice.accountId === null ? '/home' : customerHref(notice.accountId, notice.entityId);

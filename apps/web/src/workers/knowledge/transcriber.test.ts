@@ -8,8 +8,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { stubFetch } from '../../integrations/test-fetch';
 import { SARVAM_PRICE } from '../../integrations/voice/benchmark/stand-in-set';
-import { writeWav } from '../../integrations/voice/recording';
-import { sarvamConfig, sarvamSpeech } from '../../integrations/voice/sarvam';
+import { sarvamConfig, sarvamSpeech, writeWav } from '@shakti/voice';
 import { recordingTranscriber, vaultTranscriber } from './transcriber';
 
 // The vault's speech service (K3) over V1's `transcribeRecording()` and the Sarvam adapter, on

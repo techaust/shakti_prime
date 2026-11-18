@@ -13,12 +13,13 @@ import type { PermissionByInput, Requirement } from '../command/define-command';
  * document); `vault` reads it with its Knowledge Vault file, by that file's sensitivity, and its
  * uploader while they hold `knowledge.vault.write` (the policy `files_knowledge_read`), so the
  * general rule of `app.file_purpose_grant()` names nothing for it; `thread` reads it with the
- * WhatsApp message it came on, under its thread's rule (`files_whatsapp_read`); null hides it from
- * every request.
+ * WhatsApp message it came on, under its thread's rule (`files_whatsapp_read`); `call` reads it with
+ * the provider call it is the transcript of, under its lead's rule (`files_call_transcript_read`);
+ * null hides it from every request.
  */
 export interface FilePurposeRule {
   write: Requirement | null;
-  read: PermissionKey | 'company' | 'vault' | 'thread' | null;
+  read: PermissionKey | 'company' | 'vault' | 'thread' | 'call' | null;
 }
 
 const needs = (permission: PermissionKey, minScope: Scope): Requirement => ({
@@ -51,12 +52,19 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   call_recording: { write: null, read: null },
   // A file a customer sent on WhatsApp: stored by the platform alone, read with its thread.
   whatsapp_media: { write: null, read: 'thread' },
+  // A recorded call's transcript, masked before it is stored by the platform: read with the call,
+  // so whoever reads the lead reads it (docs/03-roadmap-appendix/phase2.md §7.3).
+  call_transcript: { write: null, read: 'call' },
 };
 
 /** The answer `app.file_purpose_grant(purpose, access)` gives, in its own shape. */
 export function filePurposeGrant(purpose: FilePurpose, access: 'write' | 'read'): string | null {
   const rule = FILE_PURPOSE_RULES[purpose];
-  if (access === 'read') return rule.read === 'vault' || rule.read === 'thread' ? null : rule.read;
+  if (access === 'read') {
+    return rule.read === 'vault' || rule.read === 'thread' || rule.read === 'call'
+      ? null
+      : rule.read;
+  }
   return rule.write === null ? null : `${rule.write.permission}:${rule.write.minScope}`;
 }
 

@@ -32,6 +32,7 @@ vi.mock('@shakti/domain', async (original) => ({
 const { noticeCount } = await import('./notifications');
 const { getImportJob } = await import('./imports');
 const { recheckKnowledgeFiles } = await import('./knowledge');
+const { ringingTicket } = await import('./screen-pop');
 
 describe('the background reads never extend the session (WEB-8)', () => {
   it.each([
@@ -46,6 +47,14 @@ describe('the background reads never extend the session (WEB-8)', () => {
     resolvers.quiet.mockClear();
     const result = await read();
     expect(result).toMatchObject({ ok: true });
+    expect(resolvers.quiet).toHaveBeenCalled();
+    expect(resolvers.loud).not.toHaveBeenCalled();
+  });
+
+  it('the screen-pop’s ticket resolves its caller quietly, and only for a person who places calls', async () => {
+    resolvers.loud.mockClear();
+    resolvers.quiet.mockClear();
+    expect(await ringingTicket()).toMatchObject({ ok: false, error: 'forbidden' });
     expect(resolvers.quiet).toHaveBeenCalled();
     expect(resolvers.loud).not.toHaveBeenCalled();
   });

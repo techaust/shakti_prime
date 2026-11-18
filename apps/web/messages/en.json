@@ -385,7 +385,7 @@
     "whatsapp_template_missing": "We couldn't find this template. Refresh the page and choose another one.",
     "whatsapp_template_not_approved": "This template is not approved by WhatsApp yet. Choose an approved template.",
     "whatsapp_template_values": "Fill in every blank of the template, then send it again.",
-    "whatsapp_template_purpose_values": "A template the system sends by itself cannot have blanks to fill in. Remove them, or clear what it is sent as.",
+    "whatsapp_template_purpose_values": "A template the system sends by itself needs the blanks its use names, and no others. Match its blanks, or clear what it is sent as.",
     "whatsapp_template_purpose_taken": "This company already has a template sent for this. Clear it on the other template first.",
     "whatsapp_template_changed_meanwhile": "Someone else saved this template at the same moment. Refresh the page to see it, then try again.",
     "whatsapp_number_unknown": "This WhatsApp number is not set up for any company.",
@@ -420,7 +420,36 @@
     "ask_unavailable": "Ask the Business is not set up yet. Try again later.",
     "ask_person_cap_reached": "You have reached today's limit for Ask the Business. You can ask again tomorrow.",
     "ask_cap_reached": "Ask the Business has reached today's limit for everyone. You can ask again tomorrow.",
-    "ask_interrupted": "The answer did not arrive. Check your connection and ask again."
+    "ask_interrupted": "The answer did not arrive. Check your connection and ask again.",
+    "whatsapp_consent_missing": "This customer has not agreed to get WhatsApp messages, so nothing was sent.",
+    "copilot_lead_not_in_nurture": "This lead is no longer waiting for a follow-up, so the message was not sent.",
+    "copilot_quote_not_open": "This quote is no longer open, so the reminder was not sent.",
+    "copilot_template_not_allowed": "This template cannot be suggested. Choose an approved template with no blanks to fill in.",
+    "copilot_note_refused": "The Co-pilot's note was not kept, because it held something a note may not hold.",
+    "copilot_brief_recent": "This lead already has a brief from the last hour. Use that one, or ask again later.",
+    "copilot_summary_recorded": "This call already has its summary.",
+    "copilot_lead_closed": "This lead is closed, so the Co-pilot does not write a brief for it.",
+    "call_recording_pending": "The call recording is not ready yet. The Co-pilot reads it again in a few minutes.",
+    "copilot_out_of_time": "The Co-pilot ran short of time on this call. It tries again in a moment.",
+    "disposition_missing": "This call outcome is no longer in use. Refresh the page and choose another.",
+    "whatsapp_quote_no_chat": "This customer has no WhatsApp chat with this company yet. Send the quote by hand and record it, or wait until they write to you.",
+    "whatsapp_quote_no_consent": "This customer has not agreed to get WhatsApp messages. Record their agreement first, or send the quote by hand.",
+    "whatsapp_quote_template_missing": "This company has no approved WhatsApp template for quotes yet. Send the quote by hand and record it.",
+    "whatsapp_quote_not_customer": "This WhatsApp chat belongs to another customer, so the quote was not accepted.",
+    "whatsapp_milestone_template_unfit": "This template is sent for something else and cannot be used here. Choose another template.",
+    "whatsapp_milestone_values": "This template has a different number of blanks from what this update fills in. Choose a template with the right blanks.",
+    "whatsapp_milestone_template_shape": "This template does not have the buttons or the document this update sends with it. Choose a template made for this update.",
+    "whatsapp_template_purpose_shape": "The code template must be an authentication template with one copy-code button. Register it that way, as it was sent to WhatsApp.",
+    "whatsapp_template_mapped": "A customer update is sent with this template, so only its label can change. Choose another template for that update first.",
+    "whatsapp_code_required": "A quote of this value is accepted on WhatsApp only with the code sent to the customer.",
+    "dial_phone_in_use": "Another person in this company already takes calls on this number. Enter your own phone, or ask them to clear theirs from their profile.",
+    "voice_unavailable": "Talking to Shakti is not set up yet. Type your question in Ask the Business for now.",
+    "voice_cap_reached": "You have used today's time for talking to Shakti. You can talk again tomorrow.",
+    "voice_session_ended": "This talk with Shakti has ended. Start a new one to go on.",
+    "voice_recording_refused": "This talk with Shakti cannot keep a recording. Only a Teach session you agreed to record keeps one, once.",
+    "voice_browser": "This browser cannot talk to Shakti. Open this page in a recent Chrome, Edge, Firefox or Safari.",
+    "voice_microphone": "Shakti could not use your microphone. Allow the microphone for this site in your browser, then start again.",
+    "voice_connection": "Shakti could not join the talk. Check your network, then start again."
   },
   "auth": {
     "signIn": {
@@ -521,7 +550,9 @@
     "converting": "Converting",
     "messages": "Messages",
     "settingsLeadSources": "Lead sources",
-    "ask": "Ask the Business"
+    "ask": "Ask the Business",
+    "settingsWhatsAppTemplates": "WhatsApp templates",
+    "voice": "Talk to Shakti"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -562,7 +593,23 @@
     "inboxMore": "99+",
     "inboxMoreLabel": "Agent Inbox, more than 99 waiting",
     "notificationSettings": "Notification settings",
-    "paletteOrder": "Order for {name}"
+    "paletteOrder": "Order for {name}",
+    "incomingCall": {
+      "title": "Incoming call",
+      "company": "For {company}",
+      "one": "{name} is calling.",
+      "oneOpened": "{name} is calling. Their page is open.",
+      "several": "{count} customers share this number. Open the one who is calling.",
+      "severalList": "Customers with this number",
+      "newNumber": "A new number ending {last4} is calling.",
+      "newOpened": "A new number ending {last4} is calling. The new lead form is open with the number filled in.",
+      "colleague": "A customer a colleague looks after is calling, from the number ending {last4}.",
+      "otherCompany": "Switch to {company} to open this call's customer.",
+      "kept": "Your page stays open, so nothing you were entering is lost.",
+      "openCustomer": "Open customer",
+      "addAsNewLead": "Add as new lead",
+      "closeLabel": "Close the incoming call"
+    }
   },
   "home": {
     "greeting": "Welcome, {name}",
@@ -599,7 +646,9 @@
       "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen.",
       "messages": "Answer the WhatsApp chats waiting for a reply from you or your team.",
       "settingsLeadSources": "Connect Facebook, Google and website lead forms, and make website keys.",
-      "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from."
+      "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from.",
+      "settingsWhatsAppTemplates": "Choose the WhatsApp template each customer update about a quote or an order is sent with.",
+      "voice": "Ask about the business or teach Shakti how you work, by speaking."
     },
     "progress": {
       "period": {
@@ -1787,7 +1836,21 @@
       "callRecordingPlay": "Call recording played",
       "callerProfileSetDialPhone": "Own calling phone changed",
       "askRecord": "Question asked in Ask the Business",
-      "askDelete": "Ask the Business conversation deleted"
+      "askDelete": "Ask the Business conversation deleted",
+      "copilotNoteRecord": "Co-pilot note added to a lead",
+      "copilotBriefRequest": "Co-pilot brief asked for",
+      "whatsappTemplateRequest": "Suggested WhatsApp follow-up sent",
+      "callTranscriptAttach": "Call transcript kept",
+      "callTranscriptReserve": "Call transcript started",
+      "quoteAcceptRemote": "Quote accepted by the customer on WhatsApp",
+      "whatsappMilestoneSet": "WhatsApp customer update set up",
+      "whatsappMilestoneSend": "WhatsApp customer update prepared",
+      "whatsappAnswerQueue": "WhatsApp answer prepared",
+      "inboundCallRecord": "Customer's call to the company recorded",
+      "ringingSignal": "Incoming call sent to the caller's screen",
+      "voiceSessionStart": "Talk to Shakti started",
+      "voiceSessionToken": "Talk to Shakti kept going",
+      "voiceSessionRecord": "Talk to Shakti length and spend recorded"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1843,7 +1906,10 @@
       "whatsappRequested": "WhatsApp message waiting to be sent",
       "whatsappReceived": "WhatsApp message received",
       "whatsappButtonPressed": "WhatsApp button pressed",
-      "dialCompleted": "Call from the screen ended"
+      "dialCompleted": "Call from the screen ended",
+      "copilotBriefRequested": "Co-pilot brief asked for",
+      "inboundRinging": "Customer's call ringing a team member",
+      "missedCallRecorded": "Missed call recorded"
     },
     "sheet": {
       "title": "{action}",
@@ -2143,7 +2209,21 @@
       "askAnswered": "Answered",
       "citedSources": "Records it points to",
       "unsourcedFigures": "Figures left out because no record shows them",
-      "askMessages": "Questions in it"
+      "askMessages": "Questions in it",
+      "noteKind": "Kind of note",
+      "copilotBriefRequested": "Brief asked for",
+      "occasion": "Sent for",
+      "milestone": "Customer update",
+      "milestoneActive": "Sent to customers",
+      "sendChannel": "Sent by",
+      "inboundLine": "Number the customer called",
+      "customersMatched": "Customers with this number",
+      "personRung": "Rang a team member",
+      "mode": "Talk to Shakti mode",
+      "consentRecording": "Recording allowed",
+      "minutes": "Minutes",
+      "costPaise": "Spend",
+      "turns": "Turns spoken"
     },
     "values": {
       "percent": "{value}%",
@@ -2228,7 +2308,9 @@
       },
       "whatsappTemplatePurpose": {
         "welcome": "Welcome",
-        "opt_out_confirmation": "Stop confirmation"
+        "opt_out_confirmation": "Stop confirmation",
+        "acceptance_code": "Code to accept a quote",
+        "quote_expired": "Quote no longer valid"
       },
       "leadChannel": {
         "meta_ads": "Facebook or Instagram ad",
@@ -2267,6 +2349,36 @@
         "busy": "Line busy",
         "failed": "Did not go through",
         "canceled": "Stopped before answered"
+      },
+      "copilotNoteKind": {
+        "brief": "Brief before the call",
+        "call_summary": "Call summary"
+      },
+      "templateOccasion": {
+        "nurture": "Follow-up message",
+        "quote_expiry": "Reminder before the quote expires"
+      },
+      "whatsappMilestone": {
+        "quote_sent": "Quote sent",
+        "order_confirmed": "Order confirmed",
+        "dispatched": "Dispatched",
+        "visit_booked": "Site visit booked",
+        "visit_reminder": "Site visit reminder",
+        "installed": "Installed",
+        "payment_due": "Payment due",
+        "handover_kit": "Handover documents"
+      },
+      "quoteSendChannel": {
+        "recorded": "Handed over and recorded",
+        "whatsapp": "WhatsApp"
+      },
+      "inboundLine": {
+        "ivr": "Company's calling number",
+        "missed_call": "Missed-call number"
+      },
+      "voiceMode": {
+        "teach": "Teach",
+        "ask": "Ask"
       }
     }
   },
@@ -3150,7 +3262,8 @@
       "consent_evidence": "Proof of consent",
       "print_proof": "Proof page",
       "whatsapp_media": "File sent on WhatsApp",
-      "call_recording": "Call recording"
+      "call_recording": "Call recording",
+      "call_transcript": "Call transcript"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -3667,7 +3780,10 @@
       "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
       "calls_process": "Record how a placed call went and keep its recording",
-      "knowledge_ask": "Ask the Business questions"
+      "knowledge_ask": "Ask the Business questions",
+      "agents_note_write": "Write call briefs and call summaries",
+      "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
+      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -4016,7 +4132,8 @@
       "title": "How did the call go?",
       "hint": "Press the number of the outcome, or choose it here.",
       "none": "No call outcomes are set up. Ask an Executive to add them on the pipelines settings page.",
-      "keyed": "{key}. {label}"
+      "keyed": "{key}. {label}",
+      "suggested": "The highlighted outcome is the one the Co-pilot suggests. You choose."
     },
     "script": {
       "title": "Call script",
@@ -4306,8 +4423,8 @@
       "pdfWaiting": "The quote document is being prepared. This takes a few seconds.",
       "pdfLate": "The quote document has not been made. If it is still missing in a few minutes, ask an Executive to send it again from Integration health, then open this quote again.",
       "open": "Open the document",
-      "send": "Mark as sent",
-      "sendIntro": "Mark this quote as sent once you have given the customer its document.",
+      "send": "Send the quote",
+      "sendIntro": "Send this quote to the customer on WhatsApp, or record that you gave them its document.",
       "sent": "Quote marked as sent.",
       "requote": "Re-quote",
       "requoteIntro": "Make a new quote of the same items at today's prices. This quote is kept as replaced.",
@@ -4319,7 +4436,14 @@
       "submitWithdraw": "Withdraw the quote",
       "withdrawn": "Quote withdrawn.",
       "expiredNote": "This quote has expired. Re-quote to give the customer today's prices.",
-      "back": "All quotes"
+      "back": "All quotes",
+      "acceptedVia": "How it was accepted",
+      "acceptedHow": {
+        "signed_upload": "By a signed copy",
+        "whatsapp_reply": "On WhatsApp, with the Accept button",
+        "whatsapp_otp": "On WhatsApp, with the Accept button and a one-time code"
+      },
+      "sentWhatsApp": "Quote sent. It goes to the customer on WhatsApp in a moment."
     },
     "tier": {
       "dialogTitle": "Price tier",
@@ -4329,6 +4453,26 @@
       "loading": "Loading the price tiers.",
       "submit": "Save the tier",
       "saved": "Price tier saved."
+    },
+    "send": {
+      "title": "Send this quote",
+      "intro": "Choose how the customer gets this quote.",
+      "how": "How it goes",
+      "whatsapp": "On WhatsApp, from the company's number",
+      "whatsappHelper": "The customer gets the quote document with an Accept button. A large quote also asks them for a one-time code.",
+      "recorded": "I gave the customer the document",
+      "recordedHelper": "Record that the customer has the quote, by hand or by email.",
+      "checking": "Checking whether this customer can get it on WhatsApp.",
+      "reasons": {
+        "whatsapp_quote_no_chat": "Not on WhatsApp: the customer has no WhatsApp chat with this company yet.",
+        "whatsapp_opted_out": "Not on WhatsApp: the customer asked not to get WhatsApp messages.",
+        "whatsapp_quote_no_consent": "Not on WhatsApp: the customer has not agreed to get WhatsApp messages.",
+        "whatsapp_quote_template_missing": "Not on WhatsApp: this company has no approved WhatsApp template for quotes yet.",
+        "whatsapp_unavailable": "Not on WhatsApp: WhatsApp is not set up for quotes yet.",
+        "not_checked": "Not on WhatsApp: it could not be checked just now. Close this and try again."
+      },
+      "submitWhatsApp": "Send on WhatsApp",
+      "submitRecord": "Record as sent"
     }
   },
   "agents": {
@@ -4347,7 +4491,8 @@
       "pipelineChoose": "Choose the pipeline of a new lead",
       "scoreAdjust": "Adjust the score of a new lead",
       "whatsappReply": "Reply to a customer on WhatsApp",
-      "qualificationSet": "Record what a lead told us about their needs"
+      "qualificationSet": "Record what was heard on a call",
+      "templateRequest": "Send a WhatsApp follow-up"
     },
     "fields": {
       "dueAt": "Due",
@@ -4389,7 +4534,9 @@
       "summary": {
         "assigneeId": "Task for",
         "kind": "Kind of task",
-        "ownerId": "Lead for"
+        "ownerId": "Lead for",
+        "templateName": "WhatsApp message",
+        "occasion": "Sent for"
       },
       "someone": "Someone you cannot see",
       "dismiss": "Dismiss",
@@ -4422,7 +4569,11 @@
       "routedComplete": "Done",
       "routedDone": "Marked done.",
       "handoverFrom": "Qualified lead with no Lead Converter free",
-      "handoverFor": "{customer} is ready for a quote"
+      "handoverFor": "{customer} is ready for a quote",
+      "occasion": {
+        "nurture": "Follow-up message",
+        "quote_expiry": "Reminder before the quote expires"
+      }
     },
     "admin": {
       "title": "Agents",
@@ -4505,7 +4656,11 @@
       "unknown_directive": "It named a Playbook rule it was not given",
       "reply_not_fixed_form": "Its reply named no Playbook rule and was not one of the set replies",
       "callback_outside_hours": "It asked for a callback outside calling hours",
-      "fact_out_of_bounds": "It gave a qualification fact outside its limits"
+      "fact_out_of_bounds": "It gave a lead detail outside the allowed range",
+      "text_too_long": "Its note was longer than allowed",
+      "task_outside_hours": "It set a follow-up outside calling hours",
+      "template_not_allowed": "It chose a WhatsApp message this customer may not be sent",
+      "unknown_outcome": "It named a call outcome that was not offered"
     },
     "shadow": {
       "title": "What the Triage agent proposed",
@@ -4571,6 +4726,66 @@
       },
       "loadMore": "Show more",
       "back": "Back to agents"
+    },
+    "copilot": {
+      "title": "Co-pilot",
+      "intro": "Notes and suggestions from the Co-pilot. Nothing changes until you act on one.",
+      "askBrief": "Ask for a brief",
+      "briefAsked": "The Co-pilot is writing a brief.",
+      "briefComing": "The Co-pilot is writing a brief. It shows here in a minute.",
+      "brief": "Before you call",
+      "noBrief": "No brief for this lead yet.",
+      "nextBrief": "You can ask for a new brief from <time>{when}</time>.",
+      "summary": "Last call",
+      "noSummary": "No summary of a recorded call yet.",
+      "written": "Written <time>{when}</time>",
+      "suggestedOutcome": "Suggested outcome: {outcome}. It is marked in the outcomes, and you choose.",
+      "suggestions": "Suggestions",
+      "noSuggestions": "No suggestions are waiting.",
+      "suggestion": "Suggestion",
+      "keys": "A approves and R rejects the first suggestion that needs approval.",
+      "approveKey": "A",
+      "rejectKey": "R",
+      "dueAt": "Call back <time>{when}</time>"
+    },
+    "copilotReport": {
+      "title": "What the Co-pilot suggested",
+      "intro": "Each call summary the Co-pilot wrote while callers could not see its suggestions, beside the outcome the caller saved and the details the lead now holds.",
+      "open": "Co-pilot report",
+      "summaryHeading": "How often callers agreed",
+      "summaries": "{count, plural, =0 {No call summaries} one {# call summary} other {# call summaries}}",
+      "shownLeftOut": "{count, plural, one {# summary whose suggestions the caller saw is not counted here} other {# summaries whose suggestions callers saw are not counted here}}",
+      "outcomes": "Outcomes",
+      "facts": "Details heard",
+      "agreed": "{agreed} of {decided} agreed",
+      "noneDecided": "Nothing decided yet",
+      "waiting": "{count, plural, =0 {None waiting for the caller} one {# waiting for the caller} other {# waiting for the caller}}",
+      "noOutcome": "{count, plural, =0 {Every summary suggested an outcome} one {# summary suggested no outcome} other {# summaries suggested no outcome}}",
+      "refusedHeading": "Refused by the checks",
+      "noneRefused": "Nothing was refused in this period.",
+      "proposalsHeading": "Suggestions by kind",
+      "proposalLine": "{shadowed, number} recorded in shadow, {waiting, number} waiting, {approved, number} approved, {rejected, number} rejected",
+      "caption": "Call summaries, newest first",
+      "empty": "No call summaries in this period. The Co-pilot writes one for each recorded call it covers once it has a daily spending limit.",
+      "columns": {
+        "when": "When",
+        "customer": "Customer",
+        "suggested": "Suggested outcome",
+        "logged": "Outcome saved",
+        "facts": "Details heard",
+        "agreement": "Agreed"
+      },
+      "noSuggestion": "None suggested",
+      "notLogged": "Not saved yet",
+      "fact": "{fact}: {heard}",
+      "factRecorded": "{fact}: {heard}, the lead holds {recorded}",
+      "noFacts": "None heard",
+      "agreement": {
+        "agree": "Agreed",
+        "disagree": "Differed",
+        "pending": "Not known yet",
+        "none": "No outcome suggested"
+      }
     }
   },
   "knowledge": {
@@ -4691,7 +4906,11 @@
       "first_call_late": "A new lead was not called in time",
       "enquiry_routed": "An enquiry from your customer was passed to you",
       "order_credit_held": "A dealer order is held for credit",
-      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply"
+      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply",
+      "quote_accepted": "A quote on your lead was accepted",
+      "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
+      "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
+      "missed_call": "A customer gave you a missed call"
     },
     "settings": {
       "title": "Notification settings",
@@ -4819,6 +5038,22 @@
     "whatsapp_reply_waiting": {
       "title": "A customer is waiting on WhatsApp",
       "body": "A customer has waited 10 minutes for a reply. Tap to open the chat."
+    },
+    "quote_accepted": {
+      "title": "A quote was accepted",
+      "body": "A customer accepted a quote on your lead, and its order is made. Tap to open the quote."
+    },
+    "whatsapp_quote_expired": {
+      "title": "A customer wants a new quote",
+      "body": "A customer pressed Accept on WhatsApp on a quote that is no longer valid. They were told a new quote will follow. Tap to open it."
+    },
+    "whatsapp_quote_not_sent": {
+      "title": "A quote did not go on WhatsApp",
+      "body": "A quote you sent could not reach the customer on WhatsApp. Tap to open it and share it with them another way."
+    },
+    "missed_call": {
+      "title": "A customer gave you a missed call",
+      "body": "Call them back. The callback is in your calling list."
     }
   },
   "orders": {
@@ -5559,6 +5794,126 @@
       "keepIt": "Keep it",
       "question": "Delete this conversation and all its answers?",
       "done": "Conversation deleted."
+    }
+  },
+  "whatsappTemplates": {
+    "title": "WhatsApp templates",
+    "intro": "The WhatsApp templates each company has registered, and which template tells customers each update about their quote or order.",
+    "updatesHeading": "Customer updates",
+    "updatesIntro": "Choose the template each update is sent with. An update whose template is not approved yet is held, not sent.",
+    "helper": {
+      "quote_sent": "Sent with the quote document, its Accept button and its Talk to us button. Its blanks: the quote number, the total and the date it is valid until.",
+      "order_confirmed": "Sent when the order is confirmed. Its blanks: the order number and the total."
+    },
+    "noFit": "No template of this company fits this update. Ask the team that sets up WhatsApp to register one that does.",
+    "choose": "Choose a template",
+    "notApprovedOption": "{template} ({status})",
+    "active": "Send this update to customers",
+    "save": "Save",
+    "saved": "{update} saved.",
+    "notSet": "No template chosen",
+    "offWith": "Switched off ({template})",
+    "templatesHeading": "Registered templates",
+    "templatesCaption": "WhatsApp templates of {company}",
+    "noTemplates": "No WhatsApp templates are registered for this company yet.",
+    "columns": {
+      "label": "Template",
+      "kind": "Kind",
+      "use": "Used for",
+      "status": "Review"
+    },
+    "sentByPeople": "Sent by people and updates"
+  },
+  "whatsappAnswers": {
+    "accepted": "Thank you. Quote {quoteNo} is accepted and your order number is {soNo}.",
+    "alreadyAccepted": "Quote {quoteNo} is already accepted. Your order number is {soNo}.",
+    "codeWrong": "That code does not match. You can try {left, plural, one {once more} other {# more times}}.",
+    "codeLocked": "That code did not match {tries} times. Press Accept on the quote again for a new code.",
+    "codeExpired": "That code is no longer valid. Press Accept on the quote again for a new code.",
+    "statusHeading": "Your quotes and orders with us:",
+    "statusNone": "We found no quotes or orders for this number. Write your question here and our team will help.",
+    "statusQuoteOpen": "Quote {ref}: {state}, {total}, valid until {date}",
+    "statusQuote": "Quote {ref}: {state}, {total}",
+    "statusOrder": "Order {ref}: {state}, {total}",
+    "unknownState": "in progress",
+    "quoteStates": {
+      "sent": "waiting for your answer",
+      "accepted": "accepted",
+      "expired": "no longer valid"
+    },
+    "orderStates": {
+      "draft": "being prepared",
+      "confirmed": "confirmed",
+      "partially_dispatched": "partly dispatched",
+      "dispatched": "dispatched",
+      "invoiced": "invoiced",
+      "closed": "complete",
+      "cancelled": "cancelled"
+    }
+  },
+  "voice": {
+    "title": "Talk to Shakti",
+    "intro": "Ask about the business, or teach Shakti how you work, by speaking. Shakti answers aloud and shows what it hears.",
+    "notSetUp": "Talking to Shakti is not set up yet. You can type your questions in Ask the Business for now.",
+    "minutesLeft": "{minutes, plural, =0 {No minutes left today} one {# minute left today} other {# minutes left today}}",
+    "sessionLength": "A talk lasts at most {minutes, plural, one {# minute} other {# minutes}}.",
+    "start": {
+      "heading": "Start a talk",
+      "mode": "What would you like to do?",
+      "ask": "Ask about the business",
+      "askHint": "Shakti answers from the records you can see, and shows where each answer comes from.",
+      "teach": "Teach Shakti how we work",
+      "teachHint": "Shakti asks you questions, then drafts Playbook rules for you to check and save.",
+      "recording": "May Shakti keep a recording of this talk?",
+      "recordingHint": "A recording is kept only for a Teach talk, in the Knowledge Vault, for the Executive only.",
+      "recordYes": "Yes, keep a recording",
+      "recordNo": "No recording",
+      "answerFirst": "Answer the recording question to start.",
+      "startButton": "Start talking",
+      "starting": "Starting the talk…"
+    },
+    "live": {
+      "heading": "Your talk",
+      "light": "What Shakti is doing",
+      "listening": "Listening",
+      "thinking": "Thinking",
+      "speaking": "Speaking",
+      "push_to_talk": "Hold the button to speak",
+      "captions": "What was said",
+      "you": "You",
+      "shakti": "Shakti",
+      "noCaptions": "Start speaking. Your words and Shakti's answers appear here.",
+      "holdToTalk": "Hold to talk",
+      "weakConnection": "The connection is weak. Hold the button to speak, or type below.",
+      "typeLabel": "Type instead",
+      "send": "Send",
+      "makeDrafts": "Make drafts",
+      "end": "End talk",
+      "cards": "Where this comes from",
+      "reconnecting": "The connection dropped. Joining the talk again…",
+      "soundBlocked": "Your browser has paused Shakti's voice. Turn on sound to hear the answers.",
+      "turnOnSound": "Turn on sound",
+      "talkMinutesLeft": "{minutes, plural, =0 {No time left in this talk} one {# minute left in this talk} other {# minutes left in this talk}}"
+    },
+    "drafts": {
+      "heading": "Drafts to check",
+      "intro": "Check each draft. Saving adds it to the Playbook as a draft for the Executive to approve.",
+      "company": "Company",
+      "save": "Save draft",
+      "saved": "Saved to the Playbook as a draft.",
+      "kind": "{type} for {audience}"
+    },
+    "ended": {
+      "time_up": "This talk reached its time.",
+      "day_limit": "Today's time for talking is used up. You can talk again tomorrow.",
+      "ended": "This talk has ended.",
+      "failed": "This talk stopped because something went wrong. Please start again.",
+      "lost": "The connection was lost, so this talk ended. Start again when your network is back.",
+      "again": "Start another talk"
+    },
+    "recording": {
+      "fileName": "Teach session {date}.wav",
+      "title": "Teach session of {date}"
     }
   }
 }

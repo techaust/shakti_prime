@@ -61,7 +61,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `calling.recordingNotice` | call_recording_notice |
 | `whatsapp.keywords.stop` | stop, unsubscribe, stop all, stop promotions, band karo, band kar do, mat bhejo, message mat bhejo |
 | `whatsapp.keywords.human` | human, agent, person, talk to a person, insaan, insaan se baat, kisi se baat karni hai |
-| `whatsapp.keywords.status` | status, order status, mera order |
+| `whatsapp.keywords.status` | status, order status, quote status, mera order, mera quote, order kahan hai, status batao |
 | `whatsapp.marketingHoldShare` | 0.8 |
 | `whatsapp.startingLimit` | 250 |
 | `whatsapp.messagesPerThreadHour` | 20 |
@@ -69,6 +69,9 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `whatsapp.linkHosts` | none |
 | `whatsapp.promiseWords` | discount, guarantee, gaurantee, free, free of cost, cashback, cash back, lowest price, best price, cheapest, promise, assured, waiver, muft, chhoot, chhut, pakka |
 | `whatsapp.leadPipelineKey` | farmer_pumps |
+| `whatsapp.otpFromRupees` | 200000 |
+| `whatsapp.otpMinutes` | 5 |
+| `whatsapp.otpTries` | 3 |
 | `sizing.hazenWilliamsC.hdpe` | 140 |
 | `sizing.hazenWilliamsC.gi` | 120 |
 | `sizing.fittingsLossFraction` | 0.1 |

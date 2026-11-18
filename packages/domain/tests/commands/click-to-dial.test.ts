@@ -233,6 +233,11 @@ beforeAll(async () => {
   ] as const) {
     await run(exec, setEntityChannel, { entityId: ENTITY, channel, number, verified: true });
   }
+  // One person per phone in a company: earlier runs' callers let this run's take the suite's.
+  await asMigrator(
+    (m) => m`update caller_profiles set dial_phone_e164 = null
+              where entity_id = ${ENTITY} and dial_phone_e164 in (${CALLER_PHONE}, '+919800000402')`,
+  );
   await run(caller, setDialPhone, { entityId: ENTITY, phone: CALLER_PHONE });
 });
 
@@ -293,6 +298,22 @@ describe('crm.caller_profile.set_dial_phone', () => {
     expect(
       await failure(run(caller, setDialPhone, { entityId: 2, phone: CALLER_PHONE })),
     ).toMatchObject({ code: 'forbidden' });
+  });
+
+  it('refuses a phone another person of the company holds, since an incoming call rings its holder', async () => {
+    expect(
+      await failure(run(colleague, setDialPhone, { entityId: ENTITY, phone: CALLER_PHONE })),
+    ).toEqual({ code: 'conflict', reason: 'dial_phone_in_use' });
+    // The caller keeps it; once they clear it, the colleague may take it.
+    await run(caller, setDialPhone, { entityId: ENTITY, phone: null });
+    try {
+      expect(await run(colleague, setDialPhone, { entityId: ENTITY, phone: CALLER_PHONE })).toEqual(
+        { entityId: ENTITY, dialPhone: CALLER_PHONE },
+      );
+      await run(colleague, setDialPhone, { entityId: ENTITY, phone: null });
+    } finally {
+      await run(caller, setDialPhone, { entityId: ENTITY, phone: CALLER_PHONE });
+    }
   });
 
   it("never lets a manager set a caller's dial phone", async () => {
