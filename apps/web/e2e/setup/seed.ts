@@ -44,6 +44,7 @@ import { converterKey, CONVERTER_NAME } from '../converting-fixtures';
 import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
 import { ensureConvertingJourneys } from './converting';
+import { ensureCopilotJourneys } from './copilot';
 import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
@@ -1060,6 +1061,9 @@ await suggestFollowUp({
   dueAt: inThreeDays(),
   assigneeId: ids.executive ?? '',
 });
+
+progress('the Caller Co-pilot journey');
+await ensureCopilotJourneys(ids.teleCaller ?? '');
 
 progress('the Triage agent in shadow');
 await ensureTriageJourney(ids.executive ?? '', ids.snapshotCaller ?? '');

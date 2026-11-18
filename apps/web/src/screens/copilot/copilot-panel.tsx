@@ -91,7 +91,8 @@ export function useCopilot(lead: CopilotLead | null): CopilotState {
   // A brief asked for is looked for more often until it arrives.
   const brief = current?.brief ?? null;
   const briefAt = brief === null ? 0 : Date.parse(brief.createdAt);
-  const askedAt = asked?.opportunityId === opportunityId ? asked.at : undefined;
+  const askedAt =
+    asked !== undefined && asked.opportunityId === opportunityId ? asked.at : undefined;
   const waiting = askedAt !== undefined && briefAt < askedAt;
   useEffect(() => {
     if (!waiting) return undefined;
