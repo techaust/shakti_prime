@@ -1,4 +1,5 @@
 import {
+  AGENT_PRINCIPAL_IDS,
   newId,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   type InboundWhatsAppRecorded,
@@ -20,6 +21,7 @@ import {
   type WhatsAppChannelFixture,
   type WhatsAppCustomerFixture,
 } from '@shakti/db/testing';
+import { withRequestContext } from '@shakti/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -171,15 +173,41 @@ describe('messaging.message.send', () => {
       body,
     });
 
-  it('is forbidden without messaging.send, and to an agent that holds none', async () => {
+  it('is forbidden without messaging.send', async () => {
     const customer = await customerWithThread();
-    for (const who of [
-      accounts,
-      principalFor('agent:concierge', [1]),
-      principalFor('hr_admin', [1]),
-    ]) {
+    for (const who of [accounts, principalFor('hr_admin', [1])]) {
       expect(await refusal(text(who, customer.threadId))).toMatchObject({ code: 'forbidden' });
     }
+  });
+
+  it('sends nothing as the Concierge, whose messaging.send:own only lets it propose a reply', async () => {
+    // A3: unbound, its own scope reads no thread; bound to the thread, it reads it but its own
+    // scope writes nothing, so it cannot take the thread to queue on it (the lock asks for the
+    // update policy) and a person sends what it drafts.
+    const customer = await customerWithThread();
+    const concierge = principalFor('agent:concierge', [1], {
+      id: AGENT_PRINCIPAL_IDS['agent:concierge'],
+    });
+    expect(await refusal(text(concierge, customer.threadId))).toMatchObject({
+      code: 'not_found',
+      reason: 'whatsapp_thread_missing',
+    });
+    const bound = withRequestContext(concierge, { agentThreadId: customer.threadId }, (context) =>
+      runCommand(
+        sendWhatsAppMessage,
+        { context, audit, outbox },
+        {
+          entityId: 1,
+          threadId: customer.threadId,
+          kind: 'text',
+          body: 'Your engineer visits tomorrow.',
+        },
+      ),
+    );
+    expect(await refusal(bound)).toMatchObject({
+      code: 'not_found',
+      reason: 'whatsapp_thread_missing',
+    });
   });
 
   it('refuses a company outside the request, and a thread of another company', async () => {

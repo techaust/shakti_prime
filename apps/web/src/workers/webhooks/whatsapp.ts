@@ -7,10 +7,10 @@ import {
   type WhatsAppWebhook,
 } from '@shakti/contracts';
 import {
-  AGENT_DEFAULTS,
   attachWhatsAppMedia,
   codeOf,
   codeWaiting,
+  conciergeAnswersChats,
   executeCommand,
   executeQuery,
   ingestIdempotencyKey,
@@ -134,9 +134,6 @@ const ANSWERED_SECONDS = 24 * 60 * 60;
 
 /** Why a chat goes to people when the customer writes HUMAN. */
 const KEYWORD_HANDOFF = 'keyword';
-
-/** Who answers a chat a message opens: people until the Concierge answers (A3). */
-const NEW_THREADS = AGENT_DEFAULTS.concierge.handlesNewThreads ? 'assistant' : 'people';
 
 /** The file types a customer's message brings in: photos and PDFs, as the file checks read them. */
 const MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -370,6 +367,14 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
     // Decided before the record, so its `messaging.message.received` already says the platform
     // answers it and no agent drafts a reply (docs/03-roadmap-appendix/phase2.md §7.1).
     const platform = await platformAnswerOf(read, entityId, message.from);
+    // Who answers a chat the message opens: the assistant while the Concierge may run in the
+    // company (switched on, with a spending limit), people otherwise (A3).
+    const assistant = await executeQuery(
+      principal,
+      { entityIds: [entityId], requestId },
+      ({ tx }) => conciergeAnswersChats(tx, entityId),
+      { name: 'messaging.concierge_answers' },
+    );
     const recorded = await run<{
       threadId: string;
       messageId: string;
@@ -389,7 +394,7 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       body: platform?.kind === 'code' && platform.matches ? CODE_SHOWN : read.body,
       buttonPayload: read.buttonPayload,
       sentAt: instant(message.timestamp),
-      handledBy: NEW_THREADS,
+      handledBy: assistant ? 'assistant' : 'people',
       platform: platform !== null,
     });
     const thread = { entityId, threadId: recorded.threadId };

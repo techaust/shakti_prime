@@ -65,7 +65,10 @@ export type AgentActionState = z.infer<typeof AgentActionStateSchema>;
  * Why the deterministic output filter refused what the model proposed (`agent_runs.filter_reason`):
  * an answer that could not be read, a pipeline, candidate or person the run did not offer, a score
  * change outside its bounds, or a text field carrying a phone number, an identity number or an
- * instruction.
+ * instruction. The Concierge's filter (A3) adds a reply that is too long, links outside the
+ * companies' sites, names an amount, share, rating or date nothing it read gives, makes a promise,
+ * cites a rule it was not given, or cites none and is not one of the fixed forms; a callback
+ * outside calling hours; and a qualification fact outside its bounds.
  */
 export const AGENT_FILTER_REASONS = [
   'unreadable_answer',
@@ -84,6 +87,14 @@ export const AGENT_FILTER_REASONS = [
   'task_outside_hours',
   'template_not_allowed',
   'unknown_outcome',
+  // The Concierge's filter (A3; `fact_out_of_bounds` above is shared with it).
+  'reply_too_long',
+  'link_not_allowed',
+  'fact_not_grounded',
+  'text_has_promise',
+  'unknown_directive',
+  'reply_not_fixed_form',
+  'callback_outside_hours',
 ] as const;
 export const AgentFilterReasonSchema = z.enum(AGENT_FILTER_REASONS);
 export type AgentFilterReason = z.infer<typeof AgentFilterReasonSchema>;
@@ -146,7 +157,7 @@ export const EditInboxItemInput = z
     entityId: EntityIdSchema,
     itemId: IdSchema,
     changes: z
-      .record(InboxFieldNameSchema, z.string().max(200))
+      .record(InboxFieldNameSchema, z.string().max(600))
       .refine((c) => Object.keys(c).length <= 10),
   })
   .strict();
@@ -302,7 +313,7 @@ export const InboxFieldDto = z
     kind: z.enum(['date_time', 'text']),
     value: z.string().nullable(),
     /** For text: the longest value the command accepts. */
-    maxLength: z.number().int().min(1).max(200).nullable(),
+    maxLength: z.number().int().min(1).max(600).nullable(),
   })
   .strict();
 export type InboxFieldDto = z.infer<typeof InboxFieldDto>;

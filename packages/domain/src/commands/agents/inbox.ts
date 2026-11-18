@@ -155,7 +155,12 @@ async function approve(
   if (type.command === undefined) {
     throw new DomainError('internal', `${type.name} runs no command`);
   }
-  await ctx.run(type.command, edited ? runInput : proposed);
+  // An action type that marks what it makes as the agent's draft takes the action's own id.
+  const decided = edited ? runInput : proposed;
+  await ctx.run(
+    type.command,
+    type.actionIdKey === undefined ? decided : { ...decided, [type.actionIdKey]: action.id },
+  );
   return record(ctx, item, action, {
     state: 'approved',
     edited,

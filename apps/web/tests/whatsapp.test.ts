@@ -39,7 +39,25 @@ import { ingestThroughCommand } from '../src/workers/webhooks/whatsapp-deps';
 // given recorded-shape deliveries, and the messaging worker with a fake WhatsApp client. Company 1
 // and company 2 each have their WhatsApp number; every customer is new on each run.
 
-afterAll(closeDb);
+/** The Concierge's setting for company 1 here: switched on with a spending limit (A3). */
+const CONCIERGE_SETTING = newId();
+
+/** Sets the Concierge on or off for company 1, with a spending limit. */
+async function concierge(enabled: boolean, createdBy: string): Promise<void> {
+  await asMigrator(async (m) => {
+    await m`delete from agent_configs where agent = 'agent:concierge' and action_type is null
+             and entity_id = 1`;
+    await m`insert into agent_configs (id, agent, action_type, entity_id, daily_spend_cap_paise, enabled, created_by)
+             values (${CONCIERGE_SETTING}, 'agent:concierge', null, 1, 10000, ${enabled}, ${createdBy})`;
+  });
+}
+
+let executiveId: string;
+
+afterAll(async () => {
+  await asMigrator((m) => m`delete from agent_configs where id = ${CONCIERGE_SETTING}`);
+  await closeDb();
+});
 
 let one: WhatsAppChannelFixture;
 let two: WhatsAppChannelFixture;
@@ -68,6 +86,9 @@ beforeAll(async () => {
                                    where entity_id = 1 and purpose = 'welcome'`,
   );
   welcome = row?.name ?? '';
+  // The Concierge answers company 1's chats: switched on with a spending limit.
+  executiveId = exec.id;
+  await concierge(true, executiveId);
 });
 
 function deps(over: Partial<WhatsAppHandlerDeps> = {}): WhatsAppHandlerDeps & {
@@ -132,9 +153,10 @@ async function threadsOf(waId: string) {
         entity_id: number;
         account_id: string | null;
         handled_by: string;
+        handoff_reason: string | null;
         opted_out_at: Date | null;
       }[]
-    >`select id, entity_id, account_id, handled_by, opted_out_at from whatsapp_threads
+    >`select id, entity_id, account_id, handled_by, handoff_reason, opted_out_at from whatsapp_threads
           where wa_id = ${waId} order by entity_id`,
   );
 }
@@ -525,8 +547,8 @@ describe('the meta_whatsapp handler', () => {
     ).rejects.toThrow();
     let [thread] = await threadsOf(waId);
     expect(thread?.opted_out_at).toBeNull();
-    // A new chat starts with the team while no assistant answers.
-    expect(thread?.handled_by).toBe('people');
+    // A new chat starts with the assistant, which drafts replies a person sends (A3).
+    expect(thread?.handled_by).toBe('assistant');
     failing = false;
     await handle(delivery(one.phoneNumberId, { messages: [stop] }), context());
     await handle(delivery(one.phoneNumberId, { messages: [stop] }), context());
@@ -827,7 +849,8 @@ describe('the messaging worker', () => {
       (ctx) => readWhatsAppThread(ctx, { entityId: 1, threadId: thread?.id }),
       { name: 'messaging.thread' },
     );
-    expect(view.assistantOn).toBe(false);
+    // The assistant drafts replies (A3), so a chat with people may be given back to it.
+    expect(view.assistantOn).toBe(true);
     const shown = view.messages.find((m) => m.id === queued?.id);
     expect(shown).toMatchObject({ status: 'failed', sentByName: null });
     expect(shown?.templateLabel).toEqual(
@@ -871,5 +894,41 @@ describe('the messaging worker', () => {
       code: 'rate_limited',
     });
     expect(sent).toEqual([]);
+  });
+});
+
+describe('who answers a new chat', () => {
+  it('is the assistant only while the Concierge may run in the company; else people, with no give-back', async () => {
+    const handle = whatsappHandler(deps());
+    const opened = async () => {
+      const customer = await whatsappCustomer(1);
+      await handle(
+        delivery(one.phoneNumberId, { messages: [text(customer.waId, 'Hello')] }),
+        context(),
+      );
+      const [thread] = await threadsOf(customer.waId);
+      const view = await executeQuery(
+        customer.owner,
+        { entityIds: [1] },
+        (ctx) => readWhatsAppThread(ctx, { entityId: 1, threadId: thread?.id }),
+        { name: 'messaging.thread' },
+      );
+      return {
+        handledBy: thread?.handled_by,
+        reason: thread?.handoff_reason,
+        assistantOn: view.assistantOn,
+      };
+    };
+    expect(await opened()).toEqual({ handledBy: 'assistant', reason: null, assistantOn: true });
+    try {
+      await concierge(false, executiveId);
+      expect(await opened()).toEqual({
+        handledBy: 'people',
+        reason: 'no_assistant',
+        assistantOn: false,
+      });
+    } finally {
+      await concierge(true, executiveId);
+    }
   });
 });

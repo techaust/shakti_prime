@@ -359,7 +359,71 @@ function allows(principal: Principal, rule: Rule | undefined): boolean {
   return rule.kind === 'context' || hasGrant(principal.permissions, rule.key, rule.scope);
 }
 
+/**
+ * The tables an agent reads at `own` scope only through the WhatsApp thread its run is bound to
+ * (A3): the customer master and the leads, and every table read through them. For an agent, `own`
+ * there is the bound thread's customer and lead, never rows it owns, and the matrix binds no
+ * thread, so an agent's `own` grants read none of them (agent-thread-binding.test.ts reads them
+ * bound).
+ */
+const THREAD_BOUND_FOR_AGENTS: ReadonlySet<MatrixTable> = new Set<MatrixTable>([
+  'account_contacts',
+  'account_entities',
+  'accounts',
+  'activities',
+  'calls',
+  'consents',
+  'contact_phones',
+  'contacts',
+  // The Caller Co-pilot's notes, read with the lead (A2).
+  'copilot_notes',
+  'customer_merges',
+  'customer_sites',
+  'dealer_outstanding',
+  'dealer_terms',
+  'duplicate_candidates',
+  'lead_qualifications',
+  'opportunities',
+  'opportunity_tags',
+  'provider_calls',
+  'quote_lines',
+  'quote_versions',
+  'quotes',
+  'referral_partners',
+  'sales_order_lines',
+  'sales_orders',
+  'sizings',
+  'tasks',
+  'whatsapp_messages',
+  'whatsapp_threads',
+]);
+
+/** The principal as a table's policies read it: an agent unbound holds no `own` scope there. */
+function readingAs(principal: Principal, table: MatrixTable): Principal {
+  if (principal.kind !== 'agent' || !THREAD_BOUND_FOR_AGENTS.has(table)) return principal;
+  return { ...principal, permissions: principal.permissions.filter((g) => g.scope !== 'own') };
+}
+
 const readRule = (rule: TableRule, row: MatrixRow): Rule => rule.readRow?.(row) ?? rule.read;
+
+/**
+ * The file purposes read through a lead (a call's transcript, with its call): for an agent, thread
+ * bound like the tables above, so an unbound agent's `own` grants read none.
+ */
+const THREAD_BOUND_FILE_PURPOSES: ReadonlySet<string> = new Set(['call_transcript']);
+
+/** The principal as a row's policy reads it: `readingAs`, and a thread-bound file's too. */
+function readingRowAs(principal: Principal, table: MatrixTable, row: MatrixRow): Principal {
+  if (
+    principal.kind === 'agent' &&
+    table === 'files' &&
+    row.purpose !== undefined &&
+    THREAD_BOUND_FILE_PURPOSES.has(row.purpose)
+  ) {
+    return readingAs(principal, 'accounts');
+  }
+  return readingAs(principal, table);
+}
 
 interface Seen {
   seen: string[];
@@ -385,7 +449,7 @@ async function observe(
         select (select coalesce(array_agg(s.k), '{}') from (select ${key} as k from ${t} x) s
                  where s.k = any(string_to_array(${keys}, ','))) as seen,
                (select count(*)::int from ${t} x
-                 where ${rule.leak(entityId, allows(principal, rule.group))}) as leaked,
+                 where ${rule.leak(entityId, allows(readingAs(principal, table), rule.group))}) as leaked,
                (select count(*)::int from ${t}) as total`)) as unknown as Seen[];
       if (!row) throw new Error(`no answer for ${table}`);
       out.set(table, { ...row, seen: [...row.seen].sort() });
@@ -458,13 +522,16 @@ describe('every role acting in one company sees only that company (SECURITY §11
 
   describe.each(ROLES)('%s', (role) => {
     it.each(ALL_ENTITY_IDS)('acting in company %i', async (entityId) => {
-      const principal = actingIn(role, entityId);
-      const seen = await observe(principal, entityId, TABLES, (t) => fx.rows[t].map((r) => r.key));
+      const acting = actingIn(role, entityId);
+      const seen = await observe(acting, entityId, TABLES, (t) => fx.rows[t].map((r) => r.key));
       const problems: unknown[] = [];
       for (const table of TABLES) {
         const rule = RULES[table];
+        const principal = readingAs(acting, table);
         // Whether any row of the table is the caller's to read in their own company.
-        const readsOwn = fx.rows[table].some((r) => allows(principal, readRule(rule, r)));
+        const readsOwn = fx.rows[table].some((r) =>
+          allows(readingRowAs(acting, table, r), readRule(rule, r)),
+        );
         const readsGroup = allows(principal, rule.group);
         const readsOwnRows = allows(principal, rule.ownRows);
         // People only: an agent reads customers by crm.account.read scope alone (0057).
@@ -476,7 +543,8 @@ describe('every role acting in one company sees only that company (SECURITY §11
               ? readsGroup
               : r.onLead === true
                 ? readsLead && r.entities.includes(entityId)
-                : (allows(principal, readRule(rule, r)) && r.entities.includes(entityId)) ||
+                : (allows(readingRowAs(acting, table, r), readRule(rule, r)) &&
+                    r.entities.includes(entityId)) ||
                   (readsOwnRows && r.ownedByActor === true) ||
                   (readsThroughLead && r.leadIn?.includes(entityId) === true),
           )

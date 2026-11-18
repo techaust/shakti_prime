@@ -37,7 +37,7 @@ function checkInbox(ctx: Ctx): void {
  * planner can use the assignee and team indexes: own scope reads the caller's items, team scope
  * their team's as well, company scope every item of the company.
  */
-function inboxScope(ctx: Ctx): SQL | undefined {
+export function inboxScope(ctx: Ctx): SQL | undefined {
   const i = schema.inboxItems;
   const perms = ctx.principal.permissions;
   if (hasGrant(perms, 'agents.inbox.act', 'entity')) return undefined;

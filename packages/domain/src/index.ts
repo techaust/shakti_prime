@@ -28,6 +28,7 @@ export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
 export { sendWhatsAppMessage } from './commands/messaging/send-message';
+export { sendWhatsAppReply } from './commands/messaging/reply';
 export { requestTemplate } from './commands/messaging/template-request';
 export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
@@ -686,6 +687,18 @@ export {
 } from './ai/copilot/prompt';
 export { filterCopilotOutput } from './ai/copilot/filter';
 export type { CopilotRunFacts } from './ai/copilot/facts';
+export { CONCIERGE_PURPOSE, conciergeCeilings, runConcierge } from './ai/concierge/run-concierge';
+export { conciergeAnswersChats, conciergeMayRun } from './ai/concierge/availability';
+export type {
+  ConciergeDeps,
+  ConciergeRunInput,
+  ConciergeRunOutcome,
+  ConciergeRunResult,
+} from './ai/concierge/run-concierge';
+export { buildConciergePrompt, CONCIERGE_SYSTEM } from './ai/concierge/prompt';
+export { filterConciergeAnswer } from './ai/concierge/filter';
+export type { ConciergeRunFacts } from './ai/concierge/facts';
+export type { ConciergeSkip } from './ai/concierge/read-facts';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
 export { recordCopilotNote } from './commands/agents/notes';
@@ -723,6 +736,7 @@ export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';
 export { loadShadowReport } from './queries/agents/shadow-report';
 export { loadCopilotPanel, loadCopilotReport } from './queries/agents/copilot';
+export { loadConciergeDraft, loadConciergeReport } from './queries/agents/concierge';
 export { readAgentSpend } from './queries/agents/spend';
 export {
   addKnowledgeFile,

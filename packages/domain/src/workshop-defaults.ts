@@ -124,6 +124,23 @@ export interface WhatsAppDefaults {
    */
   readonly linkHosts: readonly string[];
   /**
+   * Words that make a promise or an offer, which no reply the WhatsApp Concierge drafts may hold
+   * (docs/03-roadmap-appendix/phase2.md §7.2, its output filter), in English and Roman Hindi, each
+   * matched as a whole word in any case, with its plural and past forms. Flagged for the sales
+   * head to confirm (§13, question 11).
+   */
+  readonly promiseWords: readonly string[];
+  /**
+   * Words in a customer's message that hand the chat from the WhatsApp Concierge to people at once
+   * (A3, §7.2): a complaint, a legal matter, a question of price and one of subsidy.
+   */
+  readonly handoffWords: {
+    readonly complaint: readonly string[];
+    readonly legal: readonly string[];
+    readonly price: readonly string[];
+    readonly subsidy: readonly string[];
+  };
+  /**
    * The pipeline a lead from a WhatsApp number no customer holds starts in (`crm.lead.ingest` needs
    * one, since WhatsApp has no ingest source); the Triage agent and the callers move it on.
    */
@@ -341,6 +358,93 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     messagesPerThreadHour: 20,
     replyWaitMinutes: 10,
     linkHosts: [],
+    promiseWords: [
+      'discount',
+      'guarantee',
+      'gaurantee',
+      'free',
+      'free of cost',
+      'cashback',
+      'cash back',
+      'lowest price',
+      'best price',
+      'cheapest',
+      'promise',
+      'assured',
+      'waiver',
+      'muft',
+      'chhoot',
+      'chhut',
+      'pakka',
+    ],
+    /**
+     * The words that hand a chat from the WhatsApp Concierge to people at once (A3, design §7.2),
+     * in English and Roman Hindi, each a whole word or phrase in any case: a complaint, a legal
+     * matter, a question of price and one of subsidy, which only a person answers. For the sales
+     * head to confirm in the final phase, as the promise words are.
+     */
+    handoffWords: {
+      complaint: [
+        'complaint',
+        'complain',
+        'not working',
+        'stopped working',
+        'broken',
+        'damaged',
+        'faulty',
+        'refund',
+        'cheated',
+        'fraud',
+        'shikayat',
+        'kharab',
+        'band ho gaya',
+        'kaam nahi kar raha',
+        'dhokha',
+      ],
+      legal: [
+        'legal',
+        'lawyer',
+        'advocate',
+        'court',
+        'police',
+        'consumer forum',
+        'legal notice',
+        'vakil',
+        'kanooni',
+        'adalat',
+      ],
+      price: [
+        'price',
+        'prices',
+        'rate',
+        'rates',
+        'cost',
+        'costs',
+        'how much',
+        'quotation',
+        'kitna',
+        'kitne',
+        'kitne ka',
+        'kimat',
+        'keemat',
+        'daam',
+        'paisa',
+        'paise',
+      ],
+      subsidy: [
+        'subsidy',
+        'subsidies',
+        'sabsidi',
+        'anudan',
+        'kusum',
+        'pm kusum',
+        'surya ghar',
+        'yojana',
+        'scheme',
+        'government scheme',
+        'sarkari',
+      ],
+    },
     // For the sales head to confirm (phase 2 design §13, question 8): the farm pump line, the
     // group's largest by enquiries, until a WhatsApp number per business line is known.
     leadPipelineKey: 'farmer_pumps',

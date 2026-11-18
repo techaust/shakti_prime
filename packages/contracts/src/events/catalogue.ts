@@ -498,7 +498,7 @@ const eventCatalogue = {
   },
   /**
    * A customer's WhatsApp message was stored on its thread, once (a repeat emits nothing). The
-   * aggregate is the thread; the Concierge and the notices read the message from the thread.
+   * aggregate is the thread; the Concierge's worker (A3) reads the message from the thread.
    * `platform` marks a message the platform answers itself (STATUS, a one-time code), which no
    * agent drafts a reply to (`isHandledByPlatform()` in apps/web/src/workers/messaging).
    */
@@ -506,7 +506,7 @@ const eventCatalogue = {
     meaning:
       "A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread, `platform` that the platform answers it itself (STATUS or a one-time code).",
     emittedBy: ['messaging.inbound.record'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         messageId: IdSchema,

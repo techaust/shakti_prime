@@ -19,9 +19,10 @@ export type WhatsAppThreadHandler = z.infer<typeof WhatsAppThreadHandlerSchema>;
 
 /**
  * Why a thread went to people: the customer's HUMAN (`keyword`), a person's or the customer's
- * request, the output filter refusing the assistant's replies, complaint words, or no assistant
- * answering chats yet (`no_assistant`: a new chat starts with people while
- * `AGENT_DEFAULTS.concierge.handlesNewThreads` is off).
+ * request, the output filter refusing the assistant's replies, complaint words, no assistant
+ * answering chats (`no_assistant`: a new chat starts with people while
+ * `AGENT_DEFAULTS.concierge.handlesNewThreads` is off), or a question only a person answers, which
+ * the Concierge passes on (`question`: a price, a subsidy, anything outside its rules).
  */
 export const WHATSAPP_HANDOFF_REASONS = [
   'keyword',
@@ -29,6 +30,7 @@ export const WHATSAPP_HANDOFF_REASONS = [
   'filter_refusals',
   'complaint',
   'no_assistant',
+  'question',
 ] as const;
 export const WhatsAppHandoffReasonSchema = z.enum(WHATSAPP_HANDOFF_REASONS);
 export type WhatsAppHandoffReason = z.infer<typeof WhatsAppHandoffReasonSchema>;
@@ -435,7 +437,10 @@ export const ThreadViewDto = z
     templates: z.array(WhatsAppTemplateDto),
     /** Whether the caller may send on this chat (`messaging.send` over it). */
     canSend: z.boolean(),
-    /** Whether an assistant answers chats yet (`AGENT_DEFAULTS.concierge.handlesNewThreads`). */
+    /**
+     * Whether the assistant answers the company's chats now (`handlesNewThreads`, and the
+     * Concierge switched on with a spending limit there).
+     */
     assistantOn: z.boolean(),
   })
   .strict();

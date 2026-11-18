@@ -92,7 +92,7 @@ export const whatsappThreads = pgTable(
     check('whatsapp_threads_handled_by_check', sql`${t.handledBy} in ('assistant', 'people')`),
     check(
       'whatsapp_threads_handoff_reason_check',
-      sql`${t.handoffReason} is null or ${t.handoffReason} in ('keyword', 'request', 'filter_refusals', 'complaint', 'no_assistant')`,
+      sql`${t.handoffReason} is null or ${t.handoffReason} in ('keyword', 'request', 'filter_refusals', 'complaint', 'no_assistant', 'question')`,
     ),
     // Handed to people with a reason and a time; back with the assistant, neither.
     check(

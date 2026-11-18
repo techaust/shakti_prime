@@ -27,6 +27,7 @@
     "spike:targets": "tsx tests/spike/targets-explain.ts",
     "spike:copilot": "tsx tests/spike/copilot-explain.ts",
     "spike:shadow": "tsx tests/spike/shadow-explain.ts",
+    "eval:concierge": "tsx scripts/eval-concierge.ts",
     "eval:copilot": "tsx scripts/eval-copilot.ts",
     "eval:triage": "tsx scripts/eval-triage.ts"
   },

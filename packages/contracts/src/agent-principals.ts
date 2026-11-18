@@ -15,7 +15,9 @@ export const AGENT_PRINCIPAL_IDS: Record<AgentRoleKey, string> = {
 };
 
 /**
- * What each agent principal holds (docs/07-security.md §3.3), limited to keys in the catalogue. The
+ * What each agent principal holds (docs/07-security.md §3.3), limited to keys in the catalogue. For
+ * an agent, `own` is the one WhatsApp thread its run is bound to (`app.agent_thread_id`), and
+ * nothing when the run is bound to none. The
  * seed writes these rows and the agent runtime builds its principal from the same list; no agent
  * ever holds a cost, admin or agent-control permission (the agent refusal sweep checks it).
  */
@@ -31,6 +33,8 @@ export const AGENT_MATRIX: Record<AgentRoleKey, readonly PermissionGrant[]> = {
     { key: 'crm.lead.write', scope: 'own' },
     { key: 'crm.account.read', scope: 'own' },
     { key: 'documents.write', scope: 'own' },
+    // A3: an in-window reply it drafts; a person sends it (docs/03-roadmap-appendix/phase2.md §4).
+    { key: 'messaging.send', scope: 'own' },
   ],
   'agent:copilot': [
     { key: 'crm.lead.read', scope: 'entity' },

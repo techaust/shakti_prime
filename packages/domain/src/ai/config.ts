@@ -48,7 +48,8 @@ export interface AppliedAutonomy {
 
 /**
  * The autonomy that applies, from the most specific row of the agent's own that sets one, else
- * where the agent starts (`startingAutonomy()`: Shadow for the Triage agent, Suggest otherwise).
+ * where the agent starts (`startingAutonomy()`: Shadow for the Triage agent and the Concierge,
+ * Suggest otherwise).
  * While Automatic is not available (`AUTOMATIC_AVAILABLE`), a stored Automatic applies as Needs
  * approval, and says so. A shadow-only action type is Shadow whatever is set.
  */

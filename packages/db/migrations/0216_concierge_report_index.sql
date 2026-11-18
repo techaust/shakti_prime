@@ -1,0 +1,1 @@
+CREATE INDEX "agent_actions_type_created_idx" ON "agent_actions" USING btree ("entity_id","agent","action_type","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);

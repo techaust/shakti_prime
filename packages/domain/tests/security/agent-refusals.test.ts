@@ -469,6 +469,14 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   // Taking a WhatsApp chat over from the assistant, and giving it back, is a person's decision.
   'messaging.thread.hand_off': { entityId: 1, threadId: newId(), reason: 'request' },
   'messaging.thread.return_to_assistant': { entityId: 1, threadId: newId() },
+  // The Concierge's draft is sent only by the person who approves it, never by an agent (A3).
+  'messaging.reply.send': {
+    entityId: 1,
+    threadId: newId(),
+    accountId: newId(),
+    body: 'Thank you for writing to us.',
+    draftedByAgentActionId: newId(),
+  },
 };
 
 describe('commands for people only', () => {
@@ -970,6 +978,31 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     // The Realtime wake-up of the person a ringing call waits for (T4).
     'calls.ringing.signal': { entityId: 1, userId: newId(), providerCallId: newId() },
   };
+
+  it('the Concierge holds exactly its own-scope grants: no cost, price, sales or platform-only grant', () => {
+    // A3 (docs/03-roadmap-appendix/phase2.md §4): `own` is the one thread its run is bound to.
+    const held = AGENT_MATRIX['agent:concierge'];
+    expect(held.map((g) => `${g.key}:${g.scope}`).sort()).toEqual([
+      'crm.account.read:own',
+      'crm.lead.read:own',
+      'crm.lead.write:own',
+      'documents.write:own',
+      'messaging.send:own',
+    ]);
+    for (const g of held) {
+      expect({
+        key: g.key,
+        refused:
+          isRestricted(g.key) ||
+          PLATFORM_ONLY_PERMISSIONS.includes(g.key) ||
+          g.key.startsWith('sales.') ||
+          g.key.startsWith('pricing.') ||
+          g.key.startsWith('procurement.') ||
+          g.key.startsWith('finance.') ||
+          g.key.startsWith('knowledge.'),
+      }).toEqual({ key: g.key, refused: false });
+    }
+  });
 
   it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {
     for (const agent of AGENTS) {

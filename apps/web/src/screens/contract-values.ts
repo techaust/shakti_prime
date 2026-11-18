@@ -258,6 +258,7 @@ export const WHATSAPP_HANDOFF_REASONS = [
   'filter_refusals',
   'complaint',
   'no_assistant',
+  'question',
 ] as const satisfies readonly WhatsAppHandoffReason[];
 
 export const WHATSAPP_MESSAGE_DIRECTIONS = [
@@ -480,6 +481,13 @@ export const AGENT_FILTER_REASON_VALUES = [
   'task_outside_hours',
   'template_not_allowed',
   'unknown_outcome',
+  'reply_too_long',
+  'link_not_allowed',
+  'fact_not_grounded',
+  'text_has_promise',
+  'unknown_directive',
+  'reply_not_fixed_form',
+  'callback_outside_hours',
 ] as const satisfies readonly AgentFilterReason[];
 
 /** The kinds of proposal the Triage agent makes, each named under `agents.shadow.kinds`. */

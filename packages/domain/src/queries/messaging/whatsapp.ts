@@ -16,7 +16,7 @@ import type { RequestContext } from '@shakti/db';
 import { sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
-import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
+import { conciergeAnswersChats } from '../../ai/concierge/availability';
 
 // The WhatsApp reads (docs/03-roadmap-appendix/phase2.md §6.1): the chats waiting for a reply on
 // `/messages`, a customer's chats on Account 360 and the Converting workspace, one chat with a page
@@ -326,7 +326,7 @@ export async function readWhatsAppThread(ctx: Ctx, rawInput: unknown): Promise<T
       }),
     ),
     canSend: holds && row.can_send,
-    assistantOn: AGENT_DEFAULTS.concierge.handlesNewThreads,
+    assistantOn: await conciergeAnswersChats(ctx.tx, row.entity_id),
   });
 }
 

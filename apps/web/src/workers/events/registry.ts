@@ -15,6 +15,7 @@ import { handleHandoverEvent } from '../handover/handover-event';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
 import { handleBriefEvent, handleCallSummaryEvent } from '../copilot/copilot-event';
+import { handleConciergeEvent } from '../concierge/concierge-event';
 import { renderJobOf } from '../pdf/job';
 import { sendJobOf } from '../messaging/job';
 import { whatsappButtonSecret } from '../messaging/button-secret';
@@ -165,6 +166,16 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
         sendJobOf(event),
         sendDeps(ctx.principal, ctx.keyValue, ctx.requestId, hostedRuntime()),
       );
+    },
+  },
+  // The WhatsApp Concierge (A3, docs/03-roadmap-appendix/phase2.md §7.2) on each customer message
+  // of a chat the assistant answers: in Shadow it records the reply it would draft and sends
+  // nothing. A message the platform answers itself is never the Concierge's. A repeat records
+  // nothing twice.
+  'messaging.message.received': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await handleConciergeEvent(event, ctx);
     },
   },
   // A quote sent by WhatsApp and an order confirmed go to the customer as their milestones

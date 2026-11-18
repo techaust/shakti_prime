@@ -7,6 +7,8 @@ import {
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq } from 'drizzle-orm';
+import type { z } from 'zod';
+import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { requireEntity } from '../crm/opportunity-shared';
 import { maskMessageText, readThread, threadOptedOut } from './shared';
@@ -35,121 +37,132 @@ export const sendWhatsAppMessage = defineCommand({
     kind: input.kind,
     templateName: input.kind === 'template' ? input.templateName : null,
   }),
-  async handler(ctx, input) {
-    requireEntity(ctx, input.entityId);
-    const thread = await readThread(ctx, input, true);
-    if (await threadOptedOut(ctx, thread.id)) {
-      throw new DomainError('conflict', `thread ${thread.id} has opted out`, {
-        reason: 'whatsapp_opted_out',
-      });
-    }
-
-    let templateName: string | null = null;
-    let templateLabel: string | null = null;
-    let templateParams: string[] | null = null;
-    let body: string | null = null;
-    if (input.kind === 'text') {
-      if (thread.windowOpenUntil === null || thread.windowOpenUntil <= ctx.now) {
-        throw new DomainError('conflict', `the window of thread ${thread.id} is closed`, {
-          reason: 'whatsapp_window_closed',
-        });
-      }
-      body = maskMessageText(input.body);
-    } else {
-      const w = schema.whatsappTemplates;
-      const [template] = await ctx.tx
-        .select({
-          status: w.status,
-          params: w.params,
-          purpose: w.purpose,
-          header: w.header,
-          label: w.label,
-        })
-        .from(w)
-        .where(
-          and(
-            eq(w.entityId, thread.entityId),
-            eq(w.name, input.templateName),
-            eq(w.language, 'en'),
-          ),
-        )
-        .limit(1);
-      // A template the platform sends for a purpose, or with a document it attaches (a quote's
-      // PDF), is not offered to people.
-      if (template?.purpose !== null || template.header !== 'none') {
-        throw new DomainError('not_found', `template ${input.templateName} is not registered`, {
-          reason: 'whatsapp_template_missing',
-        });
-      }
-      if (template.status !== 'approved') {
-        throw new DomainError('conflict', `template ${input.templateName} is not approved`, {
-          reason: 'whatsapp_template_not_approved',
-        });
-      }
-      const expected = Array.isArray(template.params) ? template.params.length : 0;
-      if (input.params.length !== expected) {
-        throw new DomainError('validation_failed', 'the template takes another number of values', {
-          reason: 'whatsapp_template_values',
-        });
-      }
-      templateName = input.templateName;
-      templateLabel = template.label;
-      templateParams = input.params.map(maskMessageText);
-    }
-
-    const id = newId();
-    const kind: 'text' | 'template' = input.kind === 'text' ? 'text' : 'template';
-    await ctx.tx.insert(schema.whatsappMessages).values({
-      id,
-      entityId: thread.entityId,
-      threadId: thread.id,
-      direction: 'outbound',
-      kind,
-      templateName,
-      templateParams,
-      bodyMasked: body,
-      status: 'queued',
-      sentBy: ctx.principal.id,
-      createdAt: ctx.now,
-    });
-    if (thread.needsReply) {
-      const t = schema.whatsappThreads;
-      await ctx.tx
-        .update(t)
-        .set({ needsReply: false, updatedBy: ctx.principal.id })
-        .where(eq(t.id, thread.id));
-    }
-
-    const payload: MessageRequested = { messageId: id, threadId: thread.id, kind };
-    ctx.emit({
-      type: 'messaging.message.requested',
-      entityId: thread.entityId,
-      aggregateType: 'whatsapp_thread',
-      aggregateId: thread.id,
-      payload,
-    });
+  handler: async (ctx, input) => {
+    const message = await queueWhatsAppMessage(ctx, input, null);
     ctx.audit({
       aggregateType: 'whatsapp_message',
-      aggregateId: id,
-      entityId: thread.entityId,
-      after: { messageKind: kind, templateName },
+      aggregateId: message.id,
+      entityId: input.entityId,
+      after: { messageKind: message.kind, templateName: message.templateName },
     });
-    return {
-      id,
-      threadId: thread.id,
-      direction: 'outbound' as const,
-      kind,
-      templateName,
-      templateLabel,
-      templateParams,
-      body,
-      fileId: null,
-      status: 'queued' as const,
-      refusal: null,
-      sentBy: ctx.principal.id,
-      sentByName: null,
-      createdAt: ctx.now.toISOString(),
-      statusAt: null,
-    };
+    return message;
   },
 });
+
+/**
+ * Queues a message on a thread the caller may message, as `messaging.message.send` describes, and
+ * returns it; `draftedByAgentActionId` marks a reply the Concierge drafted (`messaging.reply.send`).
+ * The caller writes the audit row.
+ */
+export async function queueWhatsAppMessage(
+  ctx: CommandContext,
+  input: z.output<typeof SendWhatsAppMessageInput>,
+  draftedByAgentActionId: string | null,
+): Promise<WhatsAppMessageDto> {
+  requireEntity(ctx, input.entityId);
+  const thread = await readThread(ctx, input, true);
+  if (await threadOptedOut(ctx, thread.id)) {
+    throw new DomainError('conflict', `thread ${thread.id} has opted out`, {
+      reason: 'whatsapp_opted_out',
+    });
+  }
+
+  let templateName: string | null = null;
+  let templateLabel: string | null = null;
+  let templateParams: string[] | null = null;
+  let body: string | null = null;
+  if (input.kind === 'text') {
+    if (thread.windowOpenUntil === null || thread.windowOpenUntil <= ctx.now) {
+      throw new DomainError('conflict', `the window of thread ${thread.id} is closed`, {
+        reason: 'whatsapp_window_closed',
+      });
+    }
+    body = maskMessageText(input.body);
+  } else {
+    const w = schema.whatsappTemplates;
+    const [template] = await ctx.tx
+      .select({
+        status: w.status,
+        params: w.params,
+        purpose: w.purpose,
+        header: w.header,
+        label: w.label,
+      })
+      .from(w)
+      .where(
+        and(eq(w.entityId, thread.entityId), eq(w.name, input.templateName), eq(w.language, 'en')),
+      )
+      .limit(1);
+    // A template the platform sends for a purpose, or with a document it attaches (a quote's
+    // PDF), is not offered to people.
+    if (template?.purpose !== null || template.header !== 'none') {
+      throw new DomainError('not_found', `template ${input.templateName} is not registered`, {
+        reason: 'whatsapp_template_missing',
+      });
+    }
+    if (template.status !== 'approved') {
+      throw new DomainError('conflict', `template ${input.templateName} is not approved`, {
+        reason: 'whatsapp_template_not_approved',
+      });
+    }
+    const expected = Array.isArray(template.params) ? template.params.length : 0;
+    if (input.params.length !== expected) {
+      throw new DomainError('validation_failed', 'the template takes another number of values', {
+        reason: 'whatsapp_template_values',
+      });
+    }
+    templateName = input.templateName;
+    templateLabel = template.label;
+    templateParams = input.params.map(maskMessageText);
+  }
+
+  const id = newId();
+  const kind: 'text' | 'template' = input.kind === 'text' ? 'text' : 'template';
+  await ctx.tx.insert(schema.whatsappMessages).values({
+    id,
+    entityId: thread.entityId,
+    threadId: thread.id,
+    direction: 'outbound',
+    kind,
+    templateName,
+    templateParams,
+    bodyMasked: body,
+    status: 'queued',
+    sentBy: ctx.principal.id,
+    draftedByAgentActionId,
+    createdAt: ctx.now,
+  });
+  if (thread.needsReply) {
+    const t = schema.whatsappThreads;
+    await ctx.tx
+      .update(t)
+      .set({ needsReply: false, updatedBy: ctx.principal.id })
+      .where(eq(t.id, thread.id));
+  }
+
+  const payload: MessageRequested = { messageId: id, threadId: thread.id, kind };
+  ctx.emit({
+    type: 'messaging.message.requested',
+    entityId: thread.entityId,
+    aggregateType: 'whatsapp_thread',
+    aggregateId: thread.id,
+    payload,
+  });
+  return {
+    id,
+    threadId: thread.id,
+    direction: 'outbound' as const,
+    kind,
+    templateName,
+    templateLabel,
+    templateParams,
+    body,
+    fileId: null,
+    status: 'queued' as const,
+    refusal: null,
+    sentBy: ctx.principal.id,
+    sentByName: null,
+    createdAt: ctx.now.toISOString(),
+    statusAt: null,
+  };
+}

@@ -1,5 +1,7 @@
 import {
   AGENT_PRINCIPAL_IDS,
+  CONCIERGE_REPLY_MAX,
+  ConciergeReplyProposalInput,
   DomainError,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   TRIAGE_ACTION_TYPES,
@@ -15,9 +17,10 @@ import type { z } from 'zod';
 import type { AnyCommand, Requirement } from '../command/define-command';
 import { suggestDuplicate } from '../commands/crm/duplicates';
 import { assignOpportunity } from '../commands/crm/assign-opportunity';
-import { createTask } from '../commands/crm/tasks';
 import { setLeadQualification } from '../commands/crm/lead-qualification';
+import { createTask } from '../commands/crm/tasks';
 import { requestTemplate } from '../commands/messaging/template-request';
+import { sendWhatsAppReply } from '../commands/messaging/reply';
 import { AGENT_DEFAULTS } from './agent-defaults';
 
 // The actions an agent may propose or take (docs/03-roadmap-appendix/phase1.md §7.1, §9). An action
@@ -66,6 +69,12 @@ export interface AgentActionType {
   /** Every other input that changes the outcome, shown read-only on the inbox card. */
   summary: readonly SummaryField[];
   editable: readonly EditableField[];
+  /**
+   * The command input that takes the action's own id when a person approves it, so what it makes
+   * is marked as the agent's draft (`messaging.reply.send`'s `draftedByAgentActionId`). The
+   * proposal itself never names it: the approval fills it in.
+   */
+  actionIdKey?: string;
 }
 
 type Details = Omit<AgentActionType, 'name' | 'command' | 'input' | 'requirements'>;
@@ -105,9 +114,10 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
   [
     // --- The Caller Co-pilot (A2, docs/03-roadmap-appendix/phase2.md §7.3) ---------------------
     // A follow-up on a lead (the Caller Co-pilot's follow-up tasks, SECURITY §3.3), for the lead's
-    // owner, inside calling hours (`filterCopilotOutput()`).
+    // owner, inside calling hours (`filterCopilotOutput()`), and the Concierge's callback for the
+    // lead's owner (A3).
     commanded(createTask, {
-      agents: ['agent:copilot'],
+      agents: ['agent:copilot', 'agent:concierge'],
       subjectType: 'opportunity',
       subjectKey: 'opportunityId',
       assigneeKey: 'assigneeId',
@@ -120,10 +130,11 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
         { name: 'title', kind: 'text', maxLength: 80 },
       ],
     }),
-    // The qualification facts heard in a recorded call, each within its field's bounds; for no
-    // one in particular, so whoever acts on the lead's company inbox decides.
+    // The qualification facts heard in a recorded call (the Co-pilot) or written in a WhatsApp
+    // chat (the Concierge, A3), each within its field's bounds; for no one in particular, so
+    // whoever acts on the lead's company inbox decides.
     commanded(setLeadQualification, {
-      agents: ['agent:copilot'],
+      agents: ['agent:copilot', 'agent:concierge'],
       subjectType: 'opportunity',
       subjectKey: 'opportunityId',
       summary: [],
@@ -160,6 +171,22 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
       summary: [],
       editable: [],
     }),
+    // The WhatsApp Concierge (A3, docs/03-roadmap-appendix/phase2.md §7.2): an in-window reply on
+    // the thread its run is bound to, sent by the person who approves it and marked as the
+    // assistant's draft, about the thread's customer. Its qualification facts and its callback are
+    // `crm.lead.qualification.set` and `crm.task.create` above. A person may change the reply's
+    // words before sending it.
+    {
+      ...commanded(sendWhatsAppReply, {
+        agents: ['agent:concierge'],
+        subjectType: 'account',
+        subjectKey: 'accountId',
+        summary: [],
+        editable: [{ name: 'body', kind: 'text', maxLength: CONCIERGE_REPLY_MAX }],
+        actionIdKey: 'draftedByAgentActionId',
+      }),
+      input: ConciergeReplyProposalInput,
+    },
     shadowOnly(
       TRIAGE_ACTION_TYPES.pipeline,
       TriagePipelineProposalInput,
