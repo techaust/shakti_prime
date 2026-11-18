@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Admin › Agents › WhatsApp assistant report (docs/03-roadmap-appendix/phase2.md §7.2): the
+ * Admin › Agents › WhatsApp drafts (docs/03-roadmap-appendix/phase2.md §7.2): the
  * WhatsApp Concierge's shadow report of one company, the one chosen at the top or else the first
  * the viewer works for, over the last 30 days in India until another company or period is chosen.
  * Opened, as Admin › Agents is, with either agent control (an Executive or a General Manager).

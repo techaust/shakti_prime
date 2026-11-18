@@ -98,7 +98,7 @@ test.describe('the WhatsApp assistant report, as an Executive', () => {
   test('lists each draft beside what the team sent', async ({ page }) => {
     await page.goto('/admin/agents');
     await showCompany(page, SNAPSHOT_COMPANY.name);
-    await page.getByRole('link', { name: 'WhatsApp assistant report' }).click();
+    await page.getByRole('link', { name: 'WhatsApp drafts' }).click();
     await expect(
       page.getByRole('heading', { name: 'What the WhatsApp assistant drafted', level: 1 }),
     ).toBeVisible();

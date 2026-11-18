@@ -37,7 +37,7 @@ const STATE_TONE: Record<ConciergeDraftState, StatusTone> = {
 };
 
 /**
- * Admin › Agents › WhatsApp assistant report (docs/03-roadmap-appendix/phase2.md §7.2, PRD AI-04):
+ * Admin › Agents › WhatsApp drafts (docs/03-roadmap-appendix/phase2.md §7.2, PRD AI-04):
  * for a company and a period, how many replies the WhatsApp Concierge drafted and how they ended,
  * the runs the checks refused, its suggestions by kind, then every draft beside the customer's
  * message it answered and what a member of the team sent, newest first. The customer's words are

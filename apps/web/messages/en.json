@@ -4792,7 +4792,7 @@
     "conciergeReport": {
       "title": "What the WhatsApp assistant drafted",
       "intro": "Each reply the WhatsApp assistant drafted, beside the customer's message and what a member of the team sent. A draft recorded in shadow was never shown to anyone.",
-      "open": "WhatsApp assistant report",
+      "open": "WhatsApp drafts",
       "summaryHeading": "Its drafts",
       "drafts": "{count, plural, =0 {No drafts} one {# draft} other {# drafts}}",
       "states": "{shadowed, number} recorded in shadow, {waiting, number} waiting, {sent, number} sent as drafted, {edited, number} sent after an edit, {discarded, number} discarded",

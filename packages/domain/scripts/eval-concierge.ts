@@ -25,8 +25,9 @@ import { memoryLogger } from '../src/ports/logger';
 
 const RUN_CAP_PAISE = 5_000;
 
-const passed = (d: ConciergeDecision): d is Exclude<ConciergeDecision, null | { filtered: string }> =>
-  d !== null && !('filtered' in d);
+const passed = (
+  d: ConciergeDecision,
+): d is Exclude<ConciergeDecision, null | { filtered: string }> => d !== null && !('filtered' in d);
 
 async function main(): Promise<number> {
   const { claude } = vendorTransports(process.env);
@@ -35,7 +36,12 @@ async function main(): Promise<number> {
     return 1;
   }
   const logger = memoryLogger();
-  const provider = createAiProvider({ claude, voyage: undefined, keyValue: memoryKeyValue(), logger });
+  const provider = createAiProvider({
+    claude,
+    voyage: undefined,
+    keyValue: memoryKeyValue(),
+    logger,
+  });
 
   let evalCases = 0;
   let evalMatched = 0;
