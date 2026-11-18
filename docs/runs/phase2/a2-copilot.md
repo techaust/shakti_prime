@@ -234,6 +234,25 @@ No critical or high finding. 6 medium, 9 low. Run on Postgres 54333 through the 
 
 **Merge points for the lead** (beyond the run file's list). Main's V2 added a `voice_session` principal and `voiceSession` on `peopleOnly`. `messaging.template.request` refuses only `isAgent`, so check that no voice route can reach it. Main's `agent-defaults.ts` also changed (V2): keep both the Co-pilot block and `startingAutonomy`.
 
+### Lead's fix list, 18-11-2026
+Every finding is fixed in one fix round on this branch, each with a test that fails before the fix; the builder reports each under Report › Fix round with its commit. Two design points are the lead's call, recorded here and told to the owner.
+- 1: "Ask for a brief" locks the lead and counts brief requests and runs in the hour, not only saved briefs; the panel's button follows the same rule.
+- 2: before anything is read or downloaded, a run checks today's spend against the cap (with the run's largest estimate) and stops when it would not fit; the reservation stays as the final guard.
+- 3 (lead's decision): in Shadow the caller sees the brief and the summary text, but no suggested outcome is pre-selected or highlighted and no proposed fact or suggestion is shown; the shadow report then measures callers who did not see the suggestion. Needs approval shows them as built.
+- 4: transcription and the model call are each bounded by the time left on the route, and a run that cannot finish in time stops before it spends; a transcript whose attach fails is removed from the store (see 7).
+- 5 (lead's decision): briefs may use at most half of a company's daily cap, so call summaries keep the other half; bulk reassignments brief only leads with no brief in the last 24 hours.
+- 6: a journey for `/admin/agents/copilot` with axe and light, dark and 400 px snapshots (the lead makes the Linux baselines).
+- 7: a transcript stored before a failed attach is deleted by the run, and the retention sweep removes any transcript object with no file row.
+- 8: tests that the sweep removes transcripts by age and for an anonymised lead.
+- 9: the outcome is pre-selected only from the caller's own latest call on that lead that is not yet logged.
+- 10: `calls.transcript.attach` joins the agent refusal sweep (and the report's sentence is made true).
+- 11: `docs/06-api.md` routes `crm.opportunity.assigned` to its own event route; PRD §8's TEL-03, AI-04 and AI-05 rows name the Co-pilot's tests.
+- 12: a test of the assigned-lead worker where the brief throws after the notices: the notices are sent once and a retry repeats none.
+- 13: the transcript masking also catches a 12-digit identity number spoken as English or Hindi digit words in Roman script, with tests; the shared finder in `packages/domain/src/privacy` gains the rule only if it applies to every caller of it.
+- 14: amounts in staff messages are masked before the brief's prompt, so no price reaches it.
+- 15: the brief's prompt and the filter agree (the prompt asks for next steps in words the filter allows).
+- Merge point: `messaging.template.request` refuses every principal but a person (`peopleOnly`, which V2's `voiceSession` covers), with a test once `main` is taken in at integration.
+
 ## Integration
 ### Lead's read of the early check, 17-11-2026
 Passed. `app.anonymise_stale_leads()` keeps every line of 0188 and adds the `copilot_notes` delete; `files_purpose_check` keeps every earlier purpose. The `provider_calls_inbound_check` seen once on 54333 is T4's constraint, from outside this worktree; slot 3's database is recreated before steps 5 to 9. The inbox card may show a template's label through one additive summary field; making `agents.note.write` agent-only in `roleMayHold()` is a follow-up, since the insert policy already refuses every writer but the Co-pilot. After T4 merges, `provider_calls.opportunity_id` is nullable: the panel and workers read only dial calls with a lead.
