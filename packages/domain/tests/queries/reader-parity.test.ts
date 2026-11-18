@@ -14,6 +14,7 @@ import { executeQuery } from '../../src/command/execute';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { loadShadowReport } from '../../src/queries/agents/shadow-report';
+import { loadCopilotPanel, loadCopilotReport } from '../../src/queries/agents/copilot';
 import { readAgentSpend } from '../../src/queries/agents/spend';
 import { readTriageFacts } from '../../src/ai/triage/read-facts';
 import { fakeEmbedding } from '../../src/ai/transport';
@@ -256,6 +257,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   loadAgentSettings: (ctx) => loadAgentSettings(ctx, { now: new Date(NOW) }),
   loadShadowReport: (ctx) =>
     loadShadowReport(ctx, { entityId: 1, from: '2026-09-01', to: '2026-09-30', limit: 20 }),
+  // The Caller Co-pilot's panel and shadow report (A2).
+  loadCopilotPanel: (ctx) => loadCopilotPanel(ctx, { entityId: 1, opportunityId: newId() }),
+  loadCopilotReport: (ctx) =>
+    loadCopilotReport(ctx, { entityId: 1, from: '2026-09-01', to: '2026-09-30', limit: 20 }),
   readAgentSpend: (ctx) => readAgentSpend(ctx, new Date(NOW)),
   readTriageFacts: (ctx) =>
     readTriageFacts(

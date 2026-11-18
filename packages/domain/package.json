@@ -26,6 +26,7 @@
     "spike:orders": "tsx tests/spike/orders-explain.ts",
     "spike:targets": "tsx tests/spike/targets-explain.ts",
     "spike:shadow": "tsx tests/spike/shadow-explain.ts",
+    "eval:copilot": "tsx scripts/eval-copilot.ts",
     "eval:triage": "tsx scripts/eval-triage.ts"
   },
   "dependencies": {

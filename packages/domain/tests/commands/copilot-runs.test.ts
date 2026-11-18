@@ -306,11 +306,8 @@ describe('agents.brief.request', () => {
         select type, payload_json as payload from outbox_events
          where aggregate_id = ${l.opportunityId} and type = 'agents.brief.requested'`,
     );
-    expect(events).toEqual([
-      {
-        type: 'agents.brief.requested',
-        payload: expect.objectContaining({ requestedById: l.owner.id }),
-      },
+    expect(events.map((e) => [e.type, e.payload.requestedById])).toEqual([
+      ['agents.brief.requested', l.owner.id],
     ]);
     await run(copilot(), recordCopilotNote, {
       entityId: ENTITY,
@@ -336,7 +333,7 @@ describe('agents.brief.request', () => {
 });
 
 describe('calls.transcript.attach', () => {
-  async function stored(call: string) {
+  function stored(call: string) {
     const fileId = newId();
     const text = new TextEncoder().encode('masked words');
     return {
@@ -354,7 +351,7 @@ describe('calls.transcript.attach', () => {
     const l = await lead({ converter: true });
     const call = await dial(l);
     await recording(memoryFileStore(), call);
-    const input = await stored(call);
+    const input = stored(call);
     for (const who of [l.owner, exec, copilot(), agentPrincipal('agent:triage', ENTITY)]) {
       expect(await refusal(run(who, attachCallTranscript, input))).toMatchObject({
         code: 'forbidden',
@@ -365,7 +362,7 @@ describe('calls.transcript.attach', () => {
   it('refuses a company outside the request and a key that is not the call’s', async () => {
     const l = await lead({ converter: true });
     const call = await dial(l);
-    const input = await stored(call);
+    const input = stored(call);
     expect(await refusal(run(workers([2]), attachCallTranscript, input))).toMatchObject({
       code: 'forbidden',
     });
@@ -377,12 +374,12 @@ describe('calls.transcript.attach', () => {
   it('records the transcript of a recorded call once, read with the lead', async () => {
     const l = await lead({ converter: true });
     const call = await dial(l);
-    const unrecorded = await stored(call);
+    const unrecorded = stored(call);
     expect(
       await run<AttachCallTranscriptDto>(workers([ENTITY]), attachCallTranscript, unrecorded),
     ).toMatchObject({ outcome: 'not_recorded', fileId: null });
     await recording(memoryFileStore(), call);
-    const input = await stored(call);
+    const input = stored(call);
     expect(
       await run<AttachCallTranscriptDto>(workers([ENTITY]), attachCallTranscript, input),
     ).toMatchObject({ outcome: 'attached', fileId: input.fileId });
@@ -390,11 +387,7 @@ describe('calls.transcript.attach', () => {
       await run<AttachCallTranscriptDto>(workers([ENTITY]), attachCallTranscript, input),
     ).toMatchObject({ outcome: 'already' });
     expect(
-      await run<AttachCallTranscriptDto>(
-        workers([ENTITY]),
-        attachCallTranscript,
-        await stored(call),
-      ),
+      await run<AttachCallTranscriptDto>(workers([ENTITY]), attachCallTranscript, stored(call)),
     ).toMatchObject({ outcome: 'other_file', fileId: input.fileId });
     // The lead's owner and the Co-pilot read it with the call; a caller of another lead does not.
     const visible = (who: Principal) =>
