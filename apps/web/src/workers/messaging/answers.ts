@@ -1,4 +1,9 @@
-import { newId, type Principal, type WhatsAppAnswerQueued } from '@shakti/contracts';
+import {
+  newId,
+  type Principal,
+  type SalesOrderState,
+  type WhatsAppAnswerQueued,
+} from '@shakti/contracts';
 import {
   executeCommand,
   queueWhatsAppAnswer,
@@ -23,28 +28,27 @@ export function answerWords() {
 
 type Words = ReturnType<typeof answerWords>;
 
-const QUOTE_STATES = {
-  sent: 'quoteStates.sent',
-  accepted: 'quoteStates.accepted',
-  expired: 'quoteStates.expired',
-} as const;
+/** The quote states STATUS lists (`app.status_summary()`). */
+const QUOTE_STATES = ['sent', 'accepted', 'expired'] as const;
 
-const ORDER_STATES = {
-  draft: 'orderStates.draft',
-  confirmed: 'orderStates.confirmed',
-  partially_dispatched: 'orderStates.partially_dispatched',
-  dispatched: 'orderStates.dispatched',
-  invoiced: 'orderStates.invoiced',
-  closed: 'orderStates.closed',
-  cancelled: 'orderStates.cancelled',
-} as const;
+const ORDER_STATES = [
+  'draft',
+  'confirmed',
+  'partially_dispatched',
+  'dispatched',
+  'invoiced',
+  'closed',
+  'cancelled',
+] as const satisfies readonly SalesOrderState[];
+
+const isOneOf = <T extends string>(values: readonly T[], value: string): value is T =>
+  (values as readonly string[]).includes(value);
 
 function stateWords(t: Words, line: StatusLine): string {
-  const key =
-    line.kind === 'quote'
-      ? QUOTE_STATES[line.state as keyof typeof QUOTE_STATES]
-      : ORDER_STATES[line.state as keyof typeof ORDER_STATES];
-  return key === undefined ? t('unknownState') : t(key);
+  if (line.kind === 'quote') {
+    return isOneOf(QUOTE_STATES, line.state) ? t(`quoteStates.${line.state}`) : t('unknownState');
+  }
+  return isOneOf(ORDER_STATES, line.state) ? t(`orderStates.${line.state}`) : t('unknownState');
 }
 
 /**
@@ -103,10 +107,10 @@ export function queueAnswer(
   answer: Answer,
   messageId: string = newId(),
 ): Promise<WhatsAppAnswerQueued> {
-  return executeCommand(
-    principal,
-    { entityIds: [chat.entityId], requestId },
-    queueWhatsAppAnswer,
-    { entityId: chat.entityId, threadId: chat.threadId, messageId, answer },
-  );
+  return executeCommand(principal, { entityIds: [chat.entityId], requestId }, queueWhatsAppAnswer, {
+    entityId: chat.entityId,
+    threadId: chat.threadId,
+    messageId,
+    answer,
+  });
 }

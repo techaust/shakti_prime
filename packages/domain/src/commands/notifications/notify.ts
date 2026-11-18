@@ -108,7 +108,8 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
     case 'sales.quote.accepted': {
       // The lead's owner, unless they recorded the acceptance themselves; once a quote.
       const lead = await quoteLead(ctx, input.entityId, input.quoteId);
-      if (lead?.ownerId == null || lead.ownerId === input.acceptedBy) return [];
+      if (lead?.ownerId === undefined || lead.ownerId === null) return [];
+      if (lead.ownerId === input.acceptedBy) return [];
       return [
         {
           userId: lead.ownerId,
@@ -128,7 +129,7 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
       // Accept pressed on a quote no longer open: the lead's owner, once a quote, however often
       // the customer presses it; nothing when the quote is open after all.
       const lead = await quoteLead(ctx, input.entityId, input.quoteId);
-      if (lead?.ownerId == null || lead.open) return [];
+      if (lead?.ownerId === undefined || lead.ownerId === null || lead.open) return [];
       return [
         {
           userId: lead.ownerId,
@@ -153,8 +154,7 @@ async function quoteLead(
   entityId: number,
   quoteId: string,
 ): Promise<
-  | { accountId: string; opportunityId: string; ownerId: string | null; open: boolean }
-  | undefined
+  { accountId: string; opportunityId: string; ownerId: string | null; open: boolean } | undefined
 > {
   const rows = (await ctx.tx.execute(
     sql`select account_id, opportunity_id, owner_id, quote_open

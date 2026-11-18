@@ -36,7 +36,7 @@ export async function readInboundFacts(ctx: Ctx, messageId: string): Promise<Inb
   if (r === undefined) return null;
   return {
     messageId: r.message_id,
-    entityId: Number(r.entity_id),
+    entityId: r.entity_id,
     threadId: r.thread_id,
     kind: r.kind,
     buttonPayload: r.button_payload,

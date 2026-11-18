@@ -289,12 +289,12 @@ async function quoteNoLongerOpen(
   deps: QuotePressDeps,
 ): Promise<PressOutcome> {
   await queueAnswer(deps.principal, deps.requestId, chat, { kind: 'quote_expired', quoteNo });
-  const batch = await executeCommand(
-    deps.principal,
-    scopeOf(deps, chat.entityId),
-    notifyEvent,
-    { event: 'messaging.button.pressed', entityId: chat.entityId, eventId: noticeEventId, quoteId },
-  );
+  const batch = await executeCommand(deps.principal, scopeOf(deps, chat.entityId), notifyEvent, {
+    event: 'messaging.button.pressed',
+    entityId: chat.entityId,
+    eventId: noticeEventId,
+    quoteId,
+  });
   await deliverNoticeBatch(deps.principal, batch, { requestId: deps.requestId });
   return 'quote_expired';
 }

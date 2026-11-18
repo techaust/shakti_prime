@@ -73,7 +73,11 @@ afterAll(async () => {
 });
 
 const workers = (): Principal => systemWorkersPrincipal(E);
-const run = <T>(principal: Principal, command: Parameters<typeof executeCommand>[2], input: unknown) =>
+const run = <T>(
+  principal: Principal,
+  command: Parameters<typeof executeCommand>[2],
+  input: unknown,
+) =>
   executeCommand(principal, { entityIds: [E], requestId: newId() }, command, input) as Promise<T>;
 
 async function approved(name: string, params: string[], extra: object = {}) {
@@ -179,14 +183,17 @@ function delivery(messages: unknown[]): WhatsAppWebhook {
             field: 'messages',
             value: {
               messaging_product: 'whatsapp',
-              metadata: { display_phone_number: '919000000001', phone_number_id: channel.phoneNumberId },
+              metadata: {
+                display_phone_number: '919000000001',
+                phone_number_id: channel.phoneNumberId,
+              },
               messages,
             },
           },
         ],
       },
     ],
-  } as WhatsAppWebhook;
+  };
 }
 
 /** The WhatsApp handler of this file: one key-value store, the test secret, a clock to move. */
@@ -242,11 +249,19 @@ async function customerOnWhatsApp(large = false): Promise<Customer> {
   });
   const contactId = lead.contact?.id ?? '';
   await asMigrator(
-    (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+    (
+      m,
+    ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
              values (${newId()}, ${contactId}, 'whatsapp', 'service', 'whatsapp_opt_in', 's3-web-test',
                      now(), ${lc.id})`,
   );
-  return { leadId: lead.id, accountId: lead.account.id, contactId, waId, threadId: recorded.threadId };
+  return {
+    leadId: lead.id,
+    accountId: lead.account.id,
+    contactId,
+    waId,
+    threadId: recorded.threadId,
+  };
 }
 
 /** A quote of the customer, with its PDF, sent by WhatsApp. `modules` sets its size. */
@@ -258,7 +273,9 @@ async function sentQuote(customer: Customer, modules = 5): Promise<QuoteDto> {
   });
   const pdf = newId();
   await asMigrator(
-    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
              values (${pdf}, ${E}, 'quote_pdf', 'memory', ${`${String(E)}/quote_pdf/${pdf}`}, 'quote.pdf',
                      'application/pdf', 10, ${'d'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
   );
@@ -363,7 +380,13 @@ async function press(
   const wamid = `wamid.${newId()}`;
   await handlerOf(kv, now)(
     delivery([
-      { from: waId, id: wamid, timestamp: seconds(), type: 'button', button: { text: 'Accept', payload } },
+      {
+        from: waId,
+        id: wamid,
+        timestamp: seconds(),
+        type: 'button',
+        button: { text: 'Accept', payload },
+      },
     ]),
     context(),
   );
@@ -385,7 +408,9 @@ async function press(
 async function write(kv: KeyValue, customer: Customer, body: string, now?: () => Date) {
   const wamid = `wamid.${newId()}`;
   await handlerOf(kv, now)(
-    delivery([{ from: customer.waId, id: wamid, timestamp: seconds(), type: 'text', text: { body } }]),
+    delivery([
+      { from: customer.waId, id: wamid, timestamp: seconds(), type: 'text', text: { body } },
+    ]),
     context(),
   );
   const [row] = await asMigrator(
@@ -402,7 +427,8 @@ async function write(kv: KeyValue, customer: Customer, body: string, now?: () =>
 
 async function ordersOf(quoteId: string): Promise<number> {
   const [row] = await asMigrator(
-    (m) => m<{ n: number }[]>`select count(*)::int as n from sales_orders where quote_id = ${quoteId}`,
+    (m) =>
+      m<{ n: number }[]>`select count(*)::int as n from sales_orders where quote_id = ${quoteId}`,
   );
   return row?.n ?? 0;
 }
@@ -438,14 +464,17 @@ describe('a quote sent on WhatsApp (§7.1)', () => {
     expect(template.bodyParameters[0]).toBe(quote.quoteNo);
     expect(template.headerDocument?.filename).toBe('quote.pdf');
     const to = { threadId: customer.threadId, waId: customer.waId };
-    expect(verifyQuoteButtonToken(SECRET, accept, to)).toEqual({ action: 'accept', quoteId: quote.id });
+    expect(verifyQuoteButtonToken(SECRET, accept, to)).toEqual({
+      action: 'accept',
+      quoteId: quote.id,
+    });
     expect(verifyQuoteButtonToken(SECRET, talk, to)).toEqual({ action: 'talk', quoteId: quote.id });
     // No payload is stored with the message: they are made as it is sent.
     const [stored] = await answersOn(customer.threadId);
     expect(JSON.stringify(stored)).not.toContain(accept);
-    expect(await handleQuoteSent(await lastEvent('sales.quote.sent', quote.id), eventContext())).toBe(
-      'already',
-    );
+    expect(
+      await handleQuoteSent(await lastEvent('sales.quote.sent', quote.id), eventContext()),
+    ).toBe('already');
   });
 });
 
@@ -493,6 +522,11 @@ describe('Accept pressed on WhatsApp (SAL-05)', () => {
   it('hands the chat to people for Talk to us', async () => {
     const customer = await customerOnWhatsApp();
     const { talk, quote } = await quoteOnChat(customer);
+    // The chat is with the assistant, as a chat the Concierge answers is (A3).
+    await asMigrator(
+      (m) => m`update whatsapp_threads set handled_by = 'assistant', handoff_reason = null,
+                      handed_off_at = null where id = ${customer.threadId}`,
+    );
     expect(await press(memoryKeyValue(), customer.waId, talk)).toBe('handed_to_people');
     const [thread] = await asMigrator(
       (m) => m<{ handled_by: string; handoff_reason: string | null }[]>`

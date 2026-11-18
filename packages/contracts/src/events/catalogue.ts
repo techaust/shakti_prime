@@ -627,7 +627,7 @@ const eventCatalogue = {
   },
   'sales.order.confirmed': {
     meaning:
-      "A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone.",
+      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone.',
     emittedBy: ['sales.order.confirm'],
     subscribed: true,
     payload: z

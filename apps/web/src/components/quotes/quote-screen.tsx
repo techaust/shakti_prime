@@ -222,7 +222,9 @@ export function QuoteScreen({
           </Detail>
         )}
         {quote.acceptedVia === null ? null : (
-          <Detail label={t('page.acceptedVia')}>{t(`page.acceptedHow.${quote.acceptedVia}`)}</Detail>
+          <Detail label={t('page.acceptedVia')}>
+            {t(`page.acceptedHow.${quote.acceptedVia}`)}
+          </Detail>
         )}
         {quote.orderId === null ? null : (
           <Detail label={orders('accept.order')}>

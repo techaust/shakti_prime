@@ -69,7 +69,9 @@ async function ensureChat(accountId: string, phone: string): Promise<void> {
     handledBy: 'people',
   });
   await asMigrator(
-    (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+    (
+      m,
+    ) => m`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
              select ${newId()}, ac.contact_id, 'whatsapp', 'service', 'whatsapp_opt_in', 'e2e', now(),
                     ${SYSTEM_WORKERS_PRINCIPAL_ID}
                from account_contacts ac

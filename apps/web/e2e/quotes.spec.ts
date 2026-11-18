@@ -98,7 +98,9 @@ test.describe('as an Executive, a sized lead to a sent quote', () => {
     await expect(
       dialog.getByRole('radio', { name: "On WhatsApp, from the company's number" }),
     ).toBeDisabled();
-    await expect(dialog.getByRole('radio', { name: 'I gave the customer the document' })).toBeChecked();
+    await expect(
+      dialog.getByRole('radio', { name: 'I gave the customer the document' }),
+    ).toBeChecked();
     await expectNoAxeViolations(page);
     await dialog.getByRole('button', { name: 'Record as sent' }).click();
     await expect(page.getByText('Quote marked as sent.')).toBeVisible();

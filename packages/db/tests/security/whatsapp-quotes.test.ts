@@ -390,9 +390,9 @@ describe('the platform’s answers on a chat (migration 0192)', () => {
     const [queued] = await answer(workers([1]), thread, 'template', code, '[]', null);
     expect(queued?.outcome).toBe('queued');
     // The code is never stored with its message.
-    expect(await failure(answer(workers([1]), thread, 'template', code, '["123456"]', null))).toMatch(
-      /the values of its purpose/,
-    );
+    expect(
+      await failure(answer(workers([1]), thread, 'template', code, '["123456"]', null)),
+    ).toMatch(/the values of its purpose/);
     // The platform's answers never send a template people or the milestones send.
     expect(await failure(answer(workers([1]), thread, 'template', plain, '[]', null))).toMatch(
       /not one the platform answers with/,

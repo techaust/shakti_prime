@@ -96,5 +96,7 @@ export async function readQuoteWhatsAppReadiness(
     .limit(1);
   if (!quote) return null;
   const readiness = await quoteWhatsAppReadiness(ctx, input.entityId, quote.accountId);
-  return readiness.ready ? { ready: true, reason: null } : { ready: false, reason: readiness.reason };
+  return readiness.ready
+    ? { ready: true, reason: null }
+    : { ready: false, reason: readiness.reason };
 }

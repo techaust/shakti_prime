@@ -27,6 +27,10 @@ const accepted = {
   messages: [{ id: 'wamid.sent-1', message_status: 'accepted' }],
 };
 
+/** The components of a sent template, from the request's body. */
+const componentsOf = (body: string): unknown =>
+  (JSON.parse(body) as { template: { components: unknown } }).template.components;
+
 function client(response: Response) {
   const fetchImpl = stubFetch(() => response);
   return { fetchImpl, wa: whatsappClient(CONFIG, { fetch: fetchImpl, timeoutMs: 1_000 }) };
@@ -81,7 +85,7 @@ describe('sending', () => {
         { index: 1, kind: 'quick_reply', value: 'q1.t.payload' },
       ],
     });
-    expect(JSON.parse(bodyOf(fetchImpl.mock.calls[0]?.[1])).template.components).toEqual([
+    expect(componentsOf(bodyOf(fetchImpl.mock.calls[0]?.[1]))).toEqual([
       {
         type: 'header',
         parameters: [
@@ -113,9 +117,14 @@ describe('sending', () => {
       bodyParameters: ['123456'],
       buttons: [{ index: 0, kind: 'url', value: '123456' }],
     });
-    expect(JSON.parse(bodyOf(code.fetchImpl.mock.calls[0]?.[1])).template.components).toEqual([
+    expect(componentsOf(bodyOf(code.fetchImpl.mock.calls[0]?.[1]))).toEqual([
       { type: 'body', parameters: [{ type: 'text', text: '123456' }] },
-      { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: '123456' }] },
+      {
+        type: 'button',
+        sub_type: 'url',
+        index: '0',
+        parameters: [{ type: 'text', text: '123456' }],
+      },
     ]);
   });
 

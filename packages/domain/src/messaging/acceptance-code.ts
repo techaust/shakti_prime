@@ -64,13 +64,28 @@ interface Held {
   lapsesAt: number;
 }
 
-function parse<T>(value: string | null): T | null {
+function readJson(value: string | null): Record<string, unknown> | null {
   if (value === null) return null;
   try {
-    return JSON.parse(value) as T;
+    const read: unknown = JSON.parse(value);
+    return typeof read === 'object' && read !== null ? (read as Record<string, unknown>) : null;
   } catch {
     return null;
   }
+}
+
+function pendingOf(value: string | null): Pending | null {
+  const read = readJson(value);
+  return typeof read?.threadId === 'string' && typeof read.quoteId === 'string'
+    ? { threadId: read.threadId, quoteId: read.quoteId }
+    : null;
+}
+
+function heldOf(value: string | null): Held | null {
+  const read = readJson(value);
+  return typeof read?.hash === 'string' && typeof read.lapsesAt === 'number'
+    ? { hash: read.hash, lapsesAt: read.lapsesAt }
+    : null;
 }
 
 /**
@@ -98,7 +113,7 @@ export async function holdAcceptanceCode(
 
 /** The quote a code waits for on the chat, or null when none was sent there lately. */
 export async function pendingAcceptanceCode(kv: KeyValue, chat: CodeChat): Promise<Pending | null> {
-  return parse<Pending>(await kv.get(chatKey(chat)));
+  return pendingOf(await kv.get(chatKey(chat)));
 }
 
 /** What came of a code the customer sent. */
@@ -135,7 +150,7 @@ export async function checkAcceptanceCode(
 ): Promise<CodeCheck> {
   const pending = await pendingAcceptanceCode(kv, chat);
   if (pending?.threadId !== chat.threadId) return { outcome: 'none' };
-  const held = parse<Held>(await kv.get(codeKey(pending.threadId, pending.quoteId)));
+  const held = heldOf(await kv.get(codeKey(pending.threadId, pending.quoteId)));
   if (held === null || now.getTime() > held.lapsesAt) {
     await clear(kv, chat, pending);
     return { outcome: 'expired', quoteId: pending.quoteId };

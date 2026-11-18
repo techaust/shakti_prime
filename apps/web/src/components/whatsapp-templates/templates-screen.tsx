@@ -1,21 +1,21 @@
 'use client';
 
-import {
-  WHATSAPP_LIVE_MILESTONES,
-  WHATSAPP_MILESTONE_VALUES,
-  type WhatsAppMilestoneDto,
-  type WhatsAppTemplateDto,
-  type WhatsAppTemplateSettingsDto,
+import type {
+  WhatsAppMilestoneDto,
+  WhatsAppTemplateDto,
+  WhatsAppTemplateSettingsDto,
 } from '@shakti/contracts';
 import { Button, EmptyState, Field, Select, StatusBadge, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
 import { setWhatsAppMilestone } from '../../actions/whatsapp-templates';
+import { WHATSAPP_LIVE_MILESTONE_VALUES } from '../../screens/contract-values';
 import { FailureMessage } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';
 
-type LiveMilestone = (typeof WHATSAPP_LIVE_MILESTONES)[number];
+type LiveMilestone = keyof typeof WHATSAPP_LIVE_MILESTONE_VALUES;
+const LIVE_MILESTONES = Object.keys(WHATSAPP_LIVE_MILESTONE_VALUES) as LiveMilestone[];
 
 const STATUS_TONE = {
   pending: 'warning',
@@ -31,7 +31,7 @@ function fitFor(milestone: LiveMilestone, templates: readonly WhatsAppTemplateDt
     (t) =>
       t.purpose === null &&
       t.category !== 'authentication' &&
-      t.params.length === WHATSAPP_MILESTONE_VALUES[milestone].length,
+      t.params.length === WHATSAPP_LIVE_MILESTONE_VALUES[milestone],
   );
 }
 
@@ -69,7 +69,7 @@ export function TemplatesScreen({
             <h3 className="font-medium">{t('updatesHeading')}</h3>
             <p className="text-text-muted text-sm">{t('updatesIntro')}</p>
             <div className="flex flex-col gap-4">
-              {WHATSAPP_LIVE_MILESTONES.map((milestone) => (
+              {LIVE_MILESTONES.map((milestone) => (
                 <MilestoneRow
                   key={milestone}
                   entityId={company.id}
@@ -80,10 +80,7 @@ export function TemplatesScreen({
                   )}
                   canChange={canChange}
                   onSaved={(saved) => {
-                    setMilestones((all) => [
-                      ...all.filter((m) => m.id !== saved.id),
-                      saved,
-                    ]);
+                    setMilestones((all) => [...all.filter((m) => m.id !== saved.id), saved]);
                   }}
                 />
               ))}
@@ -174,13 +171,10 @@ function MilestoneRow({
     const form = new FormData(e.currentTarget);
     const templateId = formText(form, 'templateId');
     if (templateId === '') return;
-    run(
-      { entityId, milestone, templateId, isActive: form.get('isActive') === 'on' },
-      (saved) => {
-        onSaved(saved);
-        toast.success(t('saved', { update: label }));
-      },
-    );
+    run({ entityId, milestone, templateId, isActive: form.get('isActive') === 'on' }, (saved) => {
+      onSaved(saved);
+      toast.success(t('saved', { update: label }));
+    });
   }
 
   if (!canChange) {
@@ -202,7 +196,12 @@ function MilestoneRow({
         label={label}
         helper={templates.length === 0 ? t('noFit') : t(`helper.${milestone}`)}
         actions={
-          <Button type="submit" variant="secondary" pending={pending} disabled={templates.length === 0}>
+          <Button
+            type="submit"
+            variant="secondary"
+            pending={pending}
+            disabled={templates.length === 0}
+          >
             {t('save')}
           </Button>
         }

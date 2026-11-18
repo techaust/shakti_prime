@@ -955,12 +955,15 @@ describe('the notices of a quote (§7.1)', () => {
     const { quote, threadId } = await whatsappQuote();
     await acceptRemote(quote.id, threadId);
     const accepted = { event: 'sales.quote.accepted', quoteId: quote.id };
-    expect(
-      await notify({ ...accepted, acceptedBy: lc.id }).then((b) => b.notices),
-    ).toEqual([]);
+    expect(await notify({ ...accepted, acceptedBy: lc.id }).then((b) => b.notices)).toEqual([]);
     const batch = await notify({ ...accepted, acceptedBy: SYSTEM_WORKERS_PRINCIPAL_ID });
     expect(batch.notices).toMatchObject([
-      { userId: lc.id, type: 'quote_accepted', subjectId: quote.id, payload: { quoteId: quote.id } },
+      {
+        userId: lc.id,
+        type: 'quote_accepted',
+        subjectId: quote.id,
+        payload: { quoteId: quote.id },
+      },
     ]);
     expect(
       (await notify({ ...accepted, acceptedBy: SYSTEM_WORKERS_PRINCIPAL_ID })).notices,

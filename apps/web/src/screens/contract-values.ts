@@ -268,6 +268,15 @@ export const WHATSAPP_MILESTONES = [
   'handover_kit',
 ] as const satisfies readonly WhatsAppMilestone[];
 
+/**
+ * The milestones Settings maps in this phase, with the count of values each template takes
+ * (`WHATSAPP_LIVE_MILESTONES`, `WHATSAPP_MILESTONE_VALUES`).
+ */
+export const WHATSAPP_LIVE_MILESTONE_VALUES = {
+  quote_sent: 3,
+  order_confirmed: 2,
+} as const satisfies Partial<Record<WhatsAppMilestone, number>>;
+
 /** How a quote is sent (`QUOTE_SEND_CHANNELS`). */
 export const QUOTE_SEND_CHANNELS = [
   'recorded',

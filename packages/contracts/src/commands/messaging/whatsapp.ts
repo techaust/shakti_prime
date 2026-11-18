@@ -401,9 +401,7 @@ export const QueueWhatsAppAnswerInput = z
     answer: z.discriminatedUnion('kind', [
       z.object({ kind: z.literal('text'), body: WhatsAppBodySchema }).strict(),
       z.object({ kind: z.literal('acceptance_code') }).strict(),
-      z
-        .object({ kind: z.literal('quote_expired'), quoteNo: WhatsAppTemplateValueSchema })
-        .strict(),
+      z.object({ kind: z.literal('quote_expired'), quoteNo: WhatsAppTemplateValueSchema }).strict(),
     ]),
   })
   .strict();
@@ -413,7 +411,12 @@ export type QueueWhatsAppAnswerInput = z.input<typeof QueueWhatsAppAnswerInput>;
  * What came of an answer: queued, or not: the company registered no template of the purpose, the
  * chat's number was removed, or it opted out.
  */
-export const WHATSAPP_ANSWER_OUTCOMES = ['queued', 'no_template', 'no_number', 'opted_out'] as const;
+export const WHATSAPP_ANSWER_OUTCOMES = [
+  'queued',
+  'no_template',
+  'no_number',
+  'opted_out',
+] as const;
 
 export const WhatsAppAnswerQueued = z
   .object({

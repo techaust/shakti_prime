@@ -238,7 +238,10 @@ const instant = (seconds: string): string => new Date(Number(seconds) * 1000).to
  * to the message for its checks, unless the message already has its file; a number no customer
  * holds goes to the lead intake, and the chat is matched to the customer it made; STOP (or Meta's
  * "Stop promotions" reply) opts the number out and sends the one confirmation, HUMAN hands the
- * chat to people; a chat's first message sends the welcome. Each step after the record runs again
+ * chat to people; STATUS, and six digits while a quote's one-time code waits on the chat, are
+ * answered by the platform from the records (docs/03-roadmap-appendix/phase2.md §7.1), their
+ * `messaging.message.received` marked `platform` so no agent drafts a reply, and a code's digits
+ * never kept; a chat's first message sends the welcome. Each step after the record runs again
  * on a repeated delivery and is safe to run twice (the intake by its idempotency key, the opt-out
  * and the hand-off by their definers, the welcome once per thread and the confirmation once after
  * each STOP by `app.whatsapp_queue_message()`), so a delivery that failed after the record
