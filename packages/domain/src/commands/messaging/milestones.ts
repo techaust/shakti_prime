@@ -4,16 +4,18 @@ import {
   SendWhatsAppMilestoneInput,
   SetWhatsAppMilestoneInput,
   WHATSAPP_MILESTONE_SUBJECT_OF,
-  WHATSAPP_MILESTONE_VALUES,
   WhatsAppMilestoneDto,
   WhatsAppMilestoneOutcomeSchema,
   WhatsAppMilestoneSchema,
   WhatsAppMilestoneSent,
+  WhatsAppTemplateButtonSchema,
   type MessageRequested,
 } from '@shakti/contracts';
+import { z } from 'zod';
 import { schema } from '@shakti/db';
 import { and, eq, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { milestoneMisfit } from '../../messaging/template-shape';
 import { requireEntity } from '../crm/opportunity-shared';
 import { maskMessageText } from './shared';
 
@@ -34,8 +36,12 @@ function toMilestoneDto(row: MilestoneRow): WhatsAppMilestoneDto {
  * a customer milestone of the company to one of its registered templates, or switches the
  * milestone off, in Settings › WhatsApp templates. The template must be the company's, a
  * template people or the milestones send (not one of the platform's own purposes, nor a one-time
- * code), taking exactly the values the milestone gives (`WHATSAPP_MILESTONE_VALUES`): otherwise
- * `whatsapp_template_missing`, `whatsapp_milestone_template_unfit` or `whatsapp_milestone_values`.
+ * code), taking exactly the values the milestone gives (`WHATSAPP_MILESTONE_VALUES`), with the
+ * header and buttons the platform sends with it (`WHATSAPP_MILESTONE_SHAPES`: a quote's PDF and
+ * its two reply buttons; nothing for an order's confirmation): otherwise
+ * `whatsapp_template_missing`, `whatsapp_milestone_template_unfit`, `whatsapp_milestone_values` or
+ * `whatsapp_milestone_template_shape`. The template is read under a share lock, so it cannot be
+ * registered again differently while it is mapped (`messaging.template.register` then refuses).
  * One map per company and milestone, updated in place. A template not yet approved may be mapped:
  * the milestone is then held, not sent, until Meta approves it (WA-01). People only;
  * `messaging.templates.write` for the whole group, which the policies check.
@@ -60,25 +66,39 @@ export const setWhatsAppMilestone = defineCommand({
         name: w.name,
         category: w.category,
         params: w.params,
+        buttons: w.buttons,
+        header: w.header,
         purpose: w.purpose,
       })
       .from(w)
       .where(and(eq(w.id, input.templateId), eq(w.entityId, input.entityId)))
-      .limit(1);
+      .limit(1)
+      .for('share');
     if (!template) {
       throw new DomainError('not_found', `template ${input.templateId} is not registered`, {
         reason: 'whatsapp_template_missing',
       });
     }
-    if (template.purpose !== null || template.category === 'authentication') {
+    const misfit = milestoneMisfit(input.milestone, {
+      category: template.category,
+      params: Array.isArray(template.params) ? template.params : [],
+      buttons: z.array(WhatsAppTemplateButtonSchema).parse(template.buttons),
+      header: template.header,
+      purpose: template.purpose,
+    });
+    if (misfit === 'unfit') {
       throw new DomainError('validation_failed', 'the template is not one a milestone sends', {
         reason: 'whatsapp_milestone_template_unfit',
       });
     }
-    const values = Array.isArray(template.params) ? template.params.length : 0;
-    if (values !== WHATSAPP_MILESTONE_VALUES[input.milestone].length) {
+    if (misfit === 'values') {
       throw new DomainError('validation_failed', 'the template takes other values', {
         reason: 'whatsapp_milestone_values',
+      });
+    }
+    if (misfit === 'shape') {
+      throw new DomainError('validation_failed', 'the template has other buttons or header', {
+        reason: 'whatsapp_milestone_template_shape',
       });
     }
 

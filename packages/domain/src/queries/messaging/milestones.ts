@@ -1,4 +1,5 @@
 import {
+  WHATSAPP_LIVE_MILESTONES,
   WHATSAPP_TEMPLATE_LIST_MAX,
   WhatsAppMilestoneDto,
   WhatsAppMilestoneSchema,
@@ -9,6 +10,7 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { asc, inArray, sql } from 'drizzle-orm';
 import { toTemplateDto } from '../../commands/messaging/templates';
+import { milestoneMisfit } from '../../messaging/template-shape';
 
 type Ctx = Pick<RequestContext, 'tx'>;
 
@@ -108,14 +110,15 @@ export async function readStatusSummary(ctx: Ctx, threadId: string): Promise<Sta
 /**
  * Settings › WhatsApp templates (docs/03-roadmap-appendix/phase2.md §7.1), read as the caller:
  * the templates of the request's companies, by company and name (at most
- * `WHATSAPP_TEMPLATE_LIST_MAX`), and each company's milestone map. The policies read both for every
- * principal acting in the company; the screen offers changes only to whoever may make them.
+ * `WHATSAPP_TEMPLATE_LIST_MAX`), each company's milestone map, and the templates each live
+ * milestone may be mapped to, by `messaging.milestone.set`'s own rule. The policies read both for
+ * every principal acting in the company; the screen offers changes only to whoever may make them.
  */
 export async function listWhatsAppTemplateSettings(
   ctx: Pick<RequestContext, 'tx' | 'entityIds'>,
 ): Promise<WhatsAppTemplateSettingsDto> {
   const entityIds = [...ctx.entityIds];
-  if (entityIds.length === 0) return { templates: [], milestones: [] };
+  if (entityIds.length === 0) return { templates: [], milestones: [], fits: [] };
   const w = schema.whatsappTemplates;
   const m = schema.whatsappMilestones;
   const templates = await ctx.tx
@@ -129,8 +132,14 @@ export async function listWhatsAppTemplateSettings(
     .from(m)
     .where(inArray(m.entityId, entityIds))
     .orderBy(asc(m.entityId), asc(m.milestone));
+  const dtos = templates.map(toTemplateDto);
   return WhatsAppTemplateSettingsDto.parse({
-    templates: templates.map(toTemplateDto),
+    templates: dtos,
+    fits: WHATSAPP_LIVE_MILESTONES.flatMap((milestone) =>
+      dtos
+        .filter((t) => milestoneMisfit(milestone, t) === null)
+        .map((t) => ({ templateId: t.id, milestone })),
+    ),
     milestones: milestones.map((row) =>
       WhatsAppMilestoneDto.parse({
         id: row.id,

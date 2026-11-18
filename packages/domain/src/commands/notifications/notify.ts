@@ -125,6 +125,26 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         },
       ];
     }
+    case 'sales.quote.sent': {
+      // A quote marked sent on WhatsApp that did not go: the person who sent it, once a quote, so
+      // they share it another way.
+      const lead = await quoteLead(ctx, input.entityId, input.quoteId);
+      if (lead === undefined) return [];
+      return [
+        {
+          userId: input.sentBy,
+          type: 'whatsapp_quote_not_sent',
+          subjectType: 'quote',
+          subjectId: input.quoteId,
+          payload: {
+            accountId: lead.accountId,
+            opportunityId: lead.opportunityId,
+            quoteId: input.quoteId,
+          },
+          dedupeKey: `whatsapp_quote_not_sent:${input.quoteId}`,
+        },
+      ];
+    }
     case 'messaging.button.pressed': {
       // Accept pressed on a quote no longer open: the lead's owner, once a quote, however often
       // the customer presses it; nothing when the quote is open after all.
@@ -179,8 +199,9 @@ async function quoteLead(
 /**
  * `notifications.event.notify`: the notices one event stands for (`crm.opportunity.assigned`,
  * `crm.duplicate.found`, `crm.enquiry.routed`, `sales.order.credit_held`, `sales.quote.accepted`,
- * and an Accept pressed on WhatsApp on a lapsed quote), each for the person who acts on it in the
- * event's company and once per person however often the event is delivered.
+ * a quote marked sent on WhatsApp that did not go, and an Accept pressed on WhatsApp on a lapsed
+ * quote), each for the person who acts on it in the event's company and once per person however
+ * often the event is delivered.
  */
 export const notifyEvent = defineCommand({
   name: 'notifications.event.notify',

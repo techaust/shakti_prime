@@ -765,8 +765,10 @@ export {
 } from './queries/messaging/answers';
 export {
   acceptanceCode,
+  acceptanceCodeWaits,
   checkAcceptanceCode,
   codeOf,
+  codeWaiting,
   dropAcceptanceCode,
   holdAcceptanceCode,
   needsAcceptanceCode,

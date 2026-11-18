@@ -8,11 +8,14 @@ import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 // stored or logged: it is made from the code message's own id under `WHATSAPP_BUTTON_SECRET` (the
 // messaging worker makes it again as it sends), and the key-value store holds only a keyed hash of
 // it, by chat and quote, with when it lapses; each try counts, and a code missed `otpTries` times
-// or older than `otpMinutes` is cleared. A plain hash of six digits could be reversed by trying
+// or older than `otpMinutes` is cleared. Six digits are taken as a code only while one is valid. A plain hash of six digits could be reversed by trying
 // all of them, so the hash is an HMAC under the same secret.
 
 const RULES = WORKSHOP_DEFAULTS.whatsapp;
-/** How long the chat remembers a code after it lapsed, to answer a late code as expired. */
+/**
+ * How long the store keeps a code's entries. Only a code within its minutes is taken
+ * (`codeWaiting`); the rest of the time lets a code checked as it lapses be answered as expired.
+ */
 const REMEMBER_SECONDS = RULES.otpMinutes * 60 * 3;
 const PREFIX = 'whatsapp:acceptance-code';
 
@@ -114,6 +117,51 @@ export async function holdAcceptanceCode(
 /** The quote a code waits for on the chat, or null when none was sent there lately. */
 export async function pendingAcceptanceCode(kv: KeyValue, chat: CodeChat): Promise<Pending | null> {
   return pendingOf(await kv.get(chatKey(chat)));
+}
+
+/** The code waiting on the chat while it is still within its minutes, or null. */
+async function validCode(
+  kv: KeyValue,
+  chat: CodeChat,
+  now: Date,
+): Promise<(Pending & { held: Held }) | null> {
+  const pending = await pendingAcceptanceCode(kv, chat);
+  if (pending === null) return null;
+  const held = heldOf(await kv.get(codeKey(pending.threadId, pending.quoteId)));
+  return held === null || now.getTime() > held.lapsesAt ? null : { ...pending, held };
+}
+
+/**
+ * Whether a customer's six digits are taken as a code: only while a code waits on the chat within
+ * its minutes (afterwards, and with none, they are the customer's own message for people, a PIN
+ * code say); then whether they are that code, read without counting a try, so that only a matching
+ * code is hidden from staff (a wrong guess is no secret).
+ */
+export async function codeWaiting(
+  kv: KeyValue,
+  secret: string,
+  chat: CodeChat,
+  code: string,
+  now: Date,
+): Promise<{ matches: boolean } | null> {
+  const waiting = await validCode(kv, chat, now);
+  if (waiting === null) return null;
+  const expected = Buffer.from(waiting.held.hash);
+  const given = Buffer.from(codeHash(secret, waiting.threadId, waiting.quoteId, code));
+  return { matches: expected.length === given.length && timingSafeEqual(expected, given) };
+}
+
+/**
+ * Whether a code for this quote waits on this chat within its minutes, so that another press of
+ * Accept sends no second code (the first one still accepts).
+ */
+export async function acceptanceCodeWaits(
+  kv: KeyValue,
+  chat: CodeChat & Pending,
+  now: Date,
+): Promise<boolean> {
+  const waiting = await validCode(kv, chat, now);
+  return waiting?.threadId === chat.threadId && waiting.quoteId === chat.quoteId;
 }
 
 /** What came of a code the customer sent. */

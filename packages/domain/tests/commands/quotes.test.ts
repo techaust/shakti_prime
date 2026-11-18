@@ -612,6 +612,7 @@ describe('sending, withdrawing and re-quoting', () => {
       pdfFileId: fileId,
       channel: 'recorded',
       threadId: null,
+      sentBy: lc.id,
     });
   });
 

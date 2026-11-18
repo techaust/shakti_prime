@@ -344,6 +344,7 @@ describe('sales.quote.send by WhatsApp (SAL-05)', () => {
         pdfFileId: draft.pdfFileId,
         channel: 'recorded',
         threadId: null,
+        sentBy: lc.id,
       },
     });
   });
@@ -359,6 +360,7 @@ describe('sales.quote.send by WhatsApp (SAL-05)', () => {
         pdfFileId: quote.pdfFileId,
         channel: 'whatsapp',
         threadId,
+        sentBy: lc.id,
       },
     });
   });
@@ -898,21 +900,22 @@ describe('sales.quote.accept_remote (SAL-05)', () => {
       readRemoteQuoteFacts(context, { entityId: E, quoteId: quote.id, threadId }),
     );
     const [row] = await asMigrator(
-      (m) => m<
-        {
-          state: string;
-          tier_id: string;
-          price_list_id: string | null;
-          pdf_file_id: string | null;
-          valid_until: Date;
-        }[]
-      >`select state, tier_id, price_list_id, pdf_file_id, valid_until from quotes where id = ${quote.id}`,
+      (m) =>
+        m<
+          {
+            state: string;
+            tier_id: string;
+            price_list_id: string;
+            pdf_file_id: string | null;
+            valid_until: Date;
+          }[]
+        >`select state, tier_id, price_list_id, pdf_file_id, valid_until from quotes where id = ${quote.id}`,
     );
     expect(facts?.record).toEqual(
       quoteRecordOf({
         state: row?.state ?? '',
         tierId: row?.tier_id ?? '',
-        priceListId: row?.price_list_id ?? null,
+        priceListId: row?.price_list_id ?? '',
         pdfFileId: row?.pdf_file_id ?? null,
         validUntil: row?.valid_until ?? new Date(0),
       }),
@@ -1061,10 +1064,12 @@ describe('messaging.answer.queue (docs/03-roadmap-appendix/phase2.md §7.1)', ()
     expect(thread?.needs_reply).toBe(true);
     // The reply-waiting scan finds it once the wait has passed (a minute from now here).
     const waitedBefore = new Date(Date.now() + 60_000).toISOString();
-    const waiting = await asPrincipal(workers(), async (context) =>
-      (await context.tx.execute(
-        sql`select thread_id, user_id from app.notice_whatsapp_waiting(${E}::smallint, ${waitedBefore}::timestamptz, 1000)`,
-      )) as unknown as { thread_id: string; user_id: string }[],
+    const waiting = await asPrincipal(
+      workers(),
+      async (context) =>
+        (await context.tx.execute(
+          sql`select thread_id, user_id from app.notice_whatsapp_waiting(${E}::smallint, ${waitedBefore}::timestamptz, 1000)`,
+        )) as unknown as { thread_id: string; user_id: string }[],
     );
     expect(waiting).toContainEqual({ thread_id: threadId, user_id: lc.id });
   });

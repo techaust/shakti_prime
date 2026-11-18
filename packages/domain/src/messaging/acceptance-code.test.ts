@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { memoryKeyValue } from '../ports/key-value';
 import {
   acceptanceCode,
+  acceptanceCodeWaits,
   checkAcceptanceCode,
   codeOf,
+  codeWaiting,
   holdAcceptanceCode,
   needsAcceptanceCode,
   pendingAcceptanceCode,
@@ -101,6 +103,33 @@ describe('the one-time code of a WhatsApp acceptance (docs/03-roadmap-appendix/p
     expect(await checkAcceptanceCode(kv, SECRET, CHAT, code, later(6))).toEqual({
       outcome: 'none',
     });
+  });
+
+  it('takes six digits as a code only while it is valid, and says whether they match without a try', async () => {
+    const { kv, at } = await held();
+    const code = acceptanceCode(SECRET, MESSAGE);
+    const wrong = code === '000000' ? '111111' : '000000';
+    expect(await codeWaiting(kv, SECRET, CHAT, code, later(1))).toEqual({ matches: true });
+    expect(await codeWaiting(kv, SECRET, CHAT, wrong, later(1))).toEqual({ matches: false });
+    // Reading it counted no try: three wrong ones are still allowed.
+    expect(await checkAcceptanceCode(kv, SECRET, CHAT, wrong, later(1))).toMatchObject({
+      triesLeft: 2,
+    });
+    at(6);
+    // Past its minutes, six digits are the customer's own message, a PIN code say.
+    expect(await codeWaiting(kv, SECRET, CHAT, code, later(6))).toBeNull();
+    expect(
+      await codeWaiting(kv, SECRET, { ...CHAT, waId: '919000000003' }, code, later(1)),
+    ).toBeNull();
+  });
+
+  it('knows a valid code waits for the quote on the chat, so a second press sends no other', async () => {
+    const { kv, at } = await held();
+    expect(await acceptanceCodeWaits(kv, CHAT, later(1))).toBe(true);
+    const otherQuote = { ...CHAT, quoteId: '01990000-0000-7000-8000-0000000000c8' };
+    expect(await acceptanceCodeWaits(kv, otherQuote, later(1))).toBe(false);
+    at(6);
+    expect(await acceptanceCodeWaits(kv, CHAT, later(6))).toBe(false);
   });
 
   it('reads six digits as a code, spaces allowed, and nothing else', () => {

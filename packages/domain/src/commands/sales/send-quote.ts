@@ -67,6 +67,7 @@ export const sendQuote = defineCommand({
         pdfFileId: row.pdfFileId,
         channel: input.channel,
         threadId,
+        sentBy: ctx.principal.id,
       },
     });
     return readQuote(ctx, row.entityId, row.id);
