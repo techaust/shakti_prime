@@ -7,7 +7,7 @@ import {
   ProviderError,
   providerFetch,
   type HttpDeps,
-} from '../http';
+} from './http';
 import {
   systemClock,
   type Clock,

@@ -61,6 +61,8 @@ const REVIEWED: Record<string, string> = {
     'The webhook retention and its list of waiting rows belong to no company (`webhook_inbox`, platform data): the worker runs with no company, and the denied case refuses every person and agent in webhooks.test.ts.',
   'webhooks.event.replay':
     'A failed webhook delivery belongs to no company: Process again is an Executive acting for the group (`integrations.dlq.replay:all`), and the denied case refuses every other role, the workers and agents in webhooks.test.ts.',
+  'voice.session.record':
+    'A voice session may cover several companies, so the platform records it with no company (`app.record_voice_session()`, `voice.session.record:all`): there is no company to be outside of, and the denied case refuses a person, an Executive included, in voice-sessions.test.ts.',
   'webhooks.event.mark':
     'A webhook delivery belongs to no company until its handler names one: the company case is a company the group does not have, refused in webhooks.test.ts "refuses a company the group does not have, and a failure with no code".',
 };

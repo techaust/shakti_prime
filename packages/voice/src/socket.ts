@@ -1,4 +1,4 @@
-import { ProviderError, type ProviderName } from '../http';
+import { ProviderError, type ProviderName } from './http';
 
 /**
  * WebSocket plumbing for the streaming speech adapters, without a vendor SDK: Node's own

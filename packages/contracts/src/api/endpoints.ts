@@ -41,7 +41,15 @@ import {
 import { AskInput, AskStreamEvent } from '../ask';
 import { RealtimeTokenRequest, RealtimeTokenResponse } from './realtime';
 import { SyncPullQuery, SyncPullResponse, SyncPushRequest, SyncPushResponse } from './sync';
-import { VoiceSessionRequest, VoiceSessionResponse } from './voice';
+import {
+  VoiceRecordingCompleteRequest,
+  VoiceRecordingCompleteResponse,
+  VoiceRecordingRequest,
+  VoiceSessionRequest,
+  VoiceSessionResponse,
+  VoiceTokenRequest,
+  VoiceTokenResponse,
+} from './voice';
 import {
   ExotelCallStatusWebhook,
   ExotelIncomingParams,
@@ -201,6 +209,35 @@ export const API_ENDPOINTS = {
     request: VoiceSessionRequest,
     response: VoiceSessionResponse,
     errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // The voice worker's token for its live session, refreshed before it expires.
+  'voice.token': {
+    method: 'POST',
+    path: '/voice/token',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceTokenRequest,
+    response: VoiceTokenResponse,
+    errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // A Teach session's recording, uploaded by the worker straight to the file store, then filed.
+  'voice.recording': {
+    method: 'POST',
+    path: '/voice/recording',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceRecordingRequest,
+    response: FilePresignResponse,
+    errors: ['validation_failed', ...AUTHED, 'conflict', 'integration_unavailable'],
+  },
+  'voice.recording.complete': {
+    method: 'POST',
+    path: '/voice/recording/complete',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceRecordingCompleteRequest,
+    response: VoiceRecordingCompleteResponse,
+    errors: ['validation_failed', ...AUTHED, 'not_found', 'conflict', 'integration_unavailable'],
   },
   'sync.pull': {
     method: 'GET',

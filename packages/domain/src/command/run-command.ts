@@ -100,11 +100,14 @@ export function auditBase(
   AuditRecord,
   'command' | 'actorPrincipalId' | 'actorKind' | 'onBehalfOfUserId' | 'requestId' | 'client'
 > {
+  // A voice session's row names the session as its actor and the speaking person beside it
+  // (docs/07-security.md §3.4); the `audit_logs` insert policy holds a voice request to exactly that.
+  const voice = principal.kind === 'voice_session' ? principal.voiceSessionId : undefined;
   return {
     command,
-    actorPrincipalId: principal.id,
+    actorPrincipalId: voice ?? principal.id,
     actorKind: principal.kind,
-    onBehalfOfUserId: null,
+    onBehalfOfUserId: voice === undefined ? null : principal.id,
     requestId,
     client,
   };
@@ -321,7 +324,14 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
   const data = maskInputIdentity(parsed.data, command.unmaskedFields).value;
 
   try {
-    if (command.peopleOnly === true) checkPerson(context.principal, command.name);
+    // A person's own voice session runs a command for people only that opts in (Ask's record).
+    const voiceAllowed =
+      command.voiceSession === true &&
+      context.principal.kind === 'voice_session' &&
+      context.principal.voiceSessionId !== undefined;
+    if (command.peopleOnly === true && !voiceAllowed) {
+      checkPerson(context.principal, command.name);
+    }
     guardPermission(context.principal, command, data);
     for (const also of command.alsoRequires ?? []) {
       checkPermission(context.principal, also.permission, also.minScope);

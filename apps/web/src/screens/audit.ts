@@ -2,6 +2,7 @@
 // §3.4). Pure functions, so the screen and its tests share them.
 
 import type { EventType } from '@shakti/contracts';
+import { moneyFromPaise } from './agents';
 import { istDay } from './ist';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -232,6 +233,9 @@ const ACTIONS = {
   'calls.recording.delete': 'callRecordingDelete',
   'calls.recording.play': 'callRecordingPlay',
   'crm.caller_profile.set_dial_phone': 'callerProfileSetDialPhone',
+  'voice.session.start': 'voiceSessionStart',
+  'voice.session.token': 'voiceSessionToken',
+  'voice.session.record': 'voiceSessionRecord',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -449,6 +453,7 @@ const CODE_GROUPS = [
   'sourceProvider',
   'callPurpose',
   'callStatus',
+  'voiceMode',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -782,6 +787,13 @@ const FIELD_KINDS = [
   ['roofAreaSqFt', 'number'],
   ['sanctionedLoadKw', 'number'],
   ['discomConsumerNo', 'text'],
+  // Talk to Shakti sessions (V2)
+  ['mode', 'voiceMode'],
+  ['consentRecording', 'yesNo'],
+  ['minutes', 'number'],
+  // Whole paise, shown as rupees through the money formatter.
+  ['costPaise', 'paise'],
+  ['turns', 'number'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
@@ -913,6 +925,11 @@ function known(field: FieldKey, value: unknown, aggregateType: string | null): C
   if (value === undefined) return EMPTY;
   if (kind === 'recorded') return { kind: 'yesNo', value: value !== null };
   if (value === null) return EMPTY;
+  if (kind === 'paise') {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+      ? { kind: 'money', amount: moneyFromPaise(value) }
+      : EMPTY;
+  }
   if (typeof value === 'string') {
     if (kind === 'money') return { kind: 'money', amount: value };
     if (kind === 'userStatus') return { kind: 'userStatus', value };
