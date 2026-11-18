@@ -24,6 +24,9 @@ async function openLeadSources(page: Page): Promise<void> {
 
 test.describe('lead sources as an Executive', () => {
   test.use(signedInAs('executive'));
+  // In order: the picture shows company 4's empty list of forms, which the first test fills while
+  // it runs and empties at its end.
+  test.describe.configure({ mode: 'serial' });
 
   test('connects a website, matches its questions, and makes and turns off a key', async ({
     page,
