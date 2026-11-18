@@ -13,13 +13,14 @@ import { queueWhatsAppMessage } from './send-message';
  * window, the opt-out, the messaging worker's filter), and marks the message as drafted by the
  * assistant. The draft must be the Concierge's reply on this thread and still undecided, which
  * the person reads through their own inbox item, so no message is ever marked with a draft that
- * was not this one. Under Automatic (not before Phase 6) the agent itself would run it, and its own
- * scope writes no message.
+ * was not this one. Only a person sends it (`peopleOnly`): no agent, the workers or a voice
+ * session ever does, whatever their grants.
  */
 export const sendWhatsAppReply = defineCommand({
   name: 'messaging.reply.send',
   permission: 'messaging.send',
   minScope: 'own',
+  peopleOnly: true,
   input: SendWhatsAppReplyInput,
   output: WhatsAppMessageDto,
   auditFields: ['messageKind', 'draftedByAssistant'],

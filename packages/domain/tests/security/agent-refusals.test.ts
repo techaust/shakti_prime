@@ -469,6 +469,14 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   // Taking a WhatsApp chat over from the assistant, and giving it back, is a person's decision.
   'messaging.thread.hand_off': { entityId: 1, threadId: newId(), reason: 'request' },
   'messaging.thread.return_to_assistant': { entityId: 1, threadId: newId() },
+  // The Concierge's draft is sent only by the person who approves it, never by an agent (A3).
+  'messaging.reply.send': {
+    entityId: 1,
+    threadId: newId(),
+    accountId: newId(),
+    body: 'Thank you for writing to us.',
+    draftedByAgentActionId: newId(),
+  },
 };
 
 describe('commands for people only', () => {
