@@ -384,6 +384,9 @@ export const ENTITY_TABLES = [
   'lead_qualifications',
   // a provider's call, a child of the lead, read with it (docs/03-roadmap-appendix/phase2.md §6.3)
   'provider_calls',
+  // the Caller Co-pilot's briefs and call summaries, a child of the lead, read with it
+  // (docs/03-roadmap-appendix/phase2.md §7.3)
+  'copilot_notes',
   // a person's own Talk to Shakti sessions, and everyone's to the Executive, read in a request
   // covering every company the session covers (docs/03-roadmap-appendix/phase2.md §7.5)
   'voice_sessions',

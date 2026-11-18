@@ -346,6 +346,15 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       'agents.killswitch.set',
     ].map((name) => [name, INPUTS[name]]),
   ),
+  // The Caller Co-pilot's brief on demand: a person asks for it, never an agent (A2).
+  'agents.brief.request': { entityId: 1, opportunityId: newId() },
+  // The WhatsApp template the Co-pilot proposes: only the person approving it queues it (A2).
+  'messaging.template.request': {
+    entityId: 1,
+    opportunityId: newId(),
+    occasion: 'nurture',
+    templateName: 'refused_template',
+  },
   // The handover: a profile, a person's own presence and moving a leaving person's leads.
   'crm.caller_profile.set': {
     entityId: 1,
@@ -898,6 +907,38 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       knowledgeFileId: newId(),
       transcript: 'Refused transcript',
     },
+    // The calls' platform work (T3, A2): a provider's status report, the recording and the
+    // Co-pilot's transcript of a call, and their removal.
+    'calls.provider_call.record': { entityId: 1, providerCallId: newId(), status: 'completed' },
+    'calls.recording.attach': {
+      entityId: 1,
+      providerCallId: newId(),
+      fileId: newId(),
+      bucket: 'refused',
+      key: '1/call_recording/x.wav',
+      contentType: 'audio/wav',
+      size: 1,
+      sha256: 'a'.repeat(64),
+    },
+    'calls.recording.delete': { entityId: 1, fileId: newId() },
+    'calls.transcript.reserve': {
+      entityId: 1,
+      providerCallId: newId(),
+      fileId: newId(),
+      bucket: 'refused',
+      key: '1/call_transcript/x.txt',
+      size: 1,
+      sha256: 'a'.repeat(64),
+    },
+    'calls.transcript.attach': {
+      entityId: 1,
+      providerCallId: newId(),
+      fileId: newId(),
+      bucket: 'refused',
+      key: '1/call_transcript/x.txt',
+      size: 1,
+      sha256: 'a'.repeat(64),
+    },
     // A quote accepted on WhatsApp, a customer update sent and the platform's own answers on a chat
     // (docs/03-roadmap-appendix/phase2.md §7.1): the platform's alone, never an agent's.
     'sales.quote.accept_remote': {
@@ -969,6 +1010,80 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       }
     });
   }
+});
+
+/**
+ * The Caller Co-pilot's commands (A2, docs/03-roadmap-appendix/phase2.md §4, §7.3): only the
+ * Co-pilot records briefs and call summaries (`agents.note.write`, its alone), and no agent queues
+ * the WhatsApp template it proposes; every other agent and the workers are refused. The Co-pilot
+ * holds no cost, price, `sales.*`, `calls.dial`, `calls.recording.listen` or platform-only grant.
+ */
+describe('the Caller Co-pilot’s commands', () => {
+  const byName = commands as Record<string, AnyCommand>;
+  const lead = newId();
+  const COPILOT_INPUTS: Record<string, unknown> = {
+    'agents.note.record': {
+      entityId: 1,
+      opportunityId: lead,
+      kind: 'brief',
+      body: 'Wants a 5 HP pump before sowing.',
+    },
+    'messaging.template.request': {
+      entityId: 1,
+      opportunityId: lead,
+      occasion: 'nurture',
+      templateName: 'refused_template',
+    },
+  };
+
+  it('has a valid input for each, and each is registered', () => {
+    for (const [name, input] of Object.entries(COPILOT_INPUTS)) {
+      expect({ name, valid: byName[name]?.input.safeParse(input).success }).toEqual({
+        name,
+        valid: true,
+      });
+    }
+  });
+
+  for (const role of SERVICES) {
+    it(`${role} is refused both, but the Co-pilot reaches the lead for its note`, async () => {
+      const principal = principalFor(role, [1]);
+      for (const [name, input] of Object.entries(COPILOT_INPUTS)) {
+        const command = byName[name];
+        if (command === undefined) throw new Error(`${name} is not registered`);
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, input),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        // The Co-pilot passes the guard and the checks of its note, then finds no such lead.
+        const expected =
+          role === 'agent:copilot' && name === 'agents.note.record'
+            ? { code: 'not_found', details: { reason: 'lead_missing' } }
+            : { code: 'forbidden' };
+        expect({ role, name, error }).toMatchObject({ role, name, error: expected });
+      }
+    });
+  }
+
+  it('gives agents.note.write to the Co-pilot alone, and the Co-pilot none of the forbidden grants', () => {
+    for (const role of SERVICES) {
+      const holds = grantsOf(role).some((g) => g.key === 'agents.note.write');
+      expect({ role, holds }).toEqual({ role, holds: role === 'agent:copilot' });
+    }
+    const held = AGENT_MATRIX['agent:copilot'].map((g) => g.key);
+    for (const key of held) {
+      expect({ key, forbidden: isRestricted(key) }).toEqual({ key, forbidden: false });
+      expect({ key, platform: PLATFORM_ONLY_PERMISSIONS.includes(key) }).toEqual({
+        key,
+        platform: false,
+      });
+      expect(key.startsWith('sales.') || key === 'pricing.read').toBe(false);
+    }
+    expect(held).not.toContain('calls.dial');
+    expect(held).not.toContain('calls.recording.listen');
+  });
 });
 
 describe('a voice session (SECURITY §3.4)', () => {

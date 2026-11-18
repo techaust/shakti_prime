@@ -176,6 +176,8 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // only the link to their log (a column grant), and the platform's definers write the rest
     // (0169, provider-calls.test.ts).
     provider_calls: { i: true, u: false },
+    // A Co-pilot note is written once by the Co-pilot and never changed (copilot-notes.test.ts).
+    copilot_notes: { i: true, u: false },
     // Written only through the voice definers (0190): app_user reads it and nothing more.
     voice_sessions: { i: false, u: false },
   };
@@ -478,6 +480,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // page lists the people of a manager's scope (0125).
       'app.caller_profile_manages(uuid,smallint)',
       'app.caller_profile_people(smallint)',
+      // When a lead's Co-pilot brief was last asked for or started, for its panel (A2, 0194).
+      'app.copilot_brief_started_at(smallint,uuid,timestamp with time zone,interval)',
       'app.customer_search_ids(text,text,integer)',
       // The dealer credit screen's figures, the one place the exposure is worked out (0117).
       'app.dealer_credit_position(smallint,uuid,uuid)',

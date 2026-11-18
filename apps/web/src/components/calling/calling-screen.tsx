@@ -29,6 +29,7 @@ import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
 import { DialNumber, Key, Outcomes, Panel, Search, savedMessage } from './calling-parts';
 import type { OutcomeDetail } from './outcome-dialog';
+import { CopilotPanel, useCopilot } from '../../screens/copilot/copilot-panel';
 
 // The detail dialog loads when an outcome first needs it.
 const OutcomeDialog = dynamic(() => import('./outcome-dialog').then((m) => m.OutcomeDialog));
@@ -204,6 +205,7 @@ export function CallingScreen({
   const t = useTranslations('calling');
   const [queue, setQueue] = useState(initialQueue);
   const [lead, setLead] = useState<CallLeadDto | null>(initialLead);
+  const copilot = useCopilot(lead);
   const [shown, setShown] = useState<string | undefined>();
   // When Dial showed the number: the call's start, which calling hours are checked on (DOM-6).
   const [dialledAt, setDialledAt] = useState<string | undefined>();
@@ -435,8 +437,14 @@ export function CallingScreen({
                 </p>
               ) : null}
             </section>
-            <Outcomes lead={lead} pending={save.pending} onPick={pick} />
+            <Outcomes
+              lead={lead}
+              pending={save.pending}
+              onPick={pick}
+              suggestedId={copilot.preselectId}
+            />
             <FailureMessage failure={picked === undefined ? save.failure : undefined} />
+            <CopilotPanel copilot={copilot} />
             <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
               <ScriptCard lead={lead} />
               <Checklist lead={lead} />

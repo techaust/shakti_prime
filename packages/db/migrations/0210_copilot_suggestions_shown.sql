@@ -1,0 +1,3 @@
+ALTER TABLE "copilot_notes" ADD COLUMN "suggestions_shown" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "outbox_events_copilot_brief_idx" ON "outbox_events" USING btree ("aggregate_id","created_at" DESC NULLS LAST) WHERE "outbox_events"."type" in ('agents.brief.requested', 'crm.opportunity.assigned');--> statement-breakpoint
+ALTER TABLE "copilot_notes" ADD CONSTRAINT "copilot_notes_shown_check" CHECK ("copilot_notes"."kind" <> 'brief' or not "copilot_notes"."suggestions_shown");

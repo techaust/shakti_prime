@@ -21,6 +21,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [print](#print)
   - [knowledge](#knowledge)
   - [messaging](#messaging)
+  - [agents](#agents)
   - [calls](#calls)
   - [sales](#sales)
 - [Payloads](#payloads)
@@ -48,7 +49,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-56 types, 17 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+57 types, 19 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -147,15 +148,21 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP, a milestone, an answer to a quote button, a code or STATUS); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue`, `messaging.milestone.send`, `messaging.answer.queue` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
+| [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP, a milestone, an answer to a quote button, a code or STATUS); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue`, `messaging.milestone.send`, `messaging.answer.queue`, `messaging.template.request` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
 | [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread, `platform` that the platform answers it itself (STATUS or a one-time code). | `messaging.inbound.record` | none |
 | [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. The platform answers a quote's Accept and Talk to us buttons. | `messaging.inbound.record` | `POST /api/v1/workers/outbox/messaging.button.pressed` (QStash URL group `evt-messaging.button.pressed`) |
+
+### agents
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`agents.brief.requested`](#agentsbriefrequested) | A person asked the Caller Co-pilot for a brief on a lead; the brief worker writes one unless the lead had one within the hour. | `agents.brief.request` | `POST /api/v1/workers/outbox/agents.brief.requested` (QStash URL group `evt-agents.brief.requested`) |
 
 ### calls
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`calls.dial.completed`](#callsdialcompleted) | A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line. | `calls.provider_call.record` | none |
+| [`calls.dial.completed`](#callsdialcompleted) | A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line. | `calls.provider_call.record` | `POST /api/v1/workers/outbox/calls.dial.completed` (QStash URL group `evt-calls.dial.completed`) |
 | [`calls.inbound.ringing`](#callsinboundringing) | A customer's call to a company's IVR number is ringing a person (the one whose own dial phone the IVR rings); `accountIds` are the company's customers holding the caller's number, none when no customer does. The screen-pop is waiting for that person. | `calls.inbound_call.record` | none |
 | [`calls.missed.recorded`](#callsmissedrecorded) | A customer's call to a company's missed-call number was recorded on the lead it made or joined, with a callback for the lead's owner in calling hours (`taskId`, none when the lead has no owner or one is due already); the notify worker tells the owner. | `calls.inbound_call.record` | `POST /api/v1/workers/outbox/calls.missed.recorded` (QStash URL group `evt-calls.missed.recorded`) |
 
@@ -421,7 +428,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
@@ -473,6 +480,12 @@ No fields apart from `v`.
 | `messageId` | id |
 | `accountId` | id or null |
 | `firstMessage` | true or false |
+
+### agents.brief.requested
+
+| Field | Type |
+|---|---|
+| `requestedById` | id |
 
 ### calls.dial.completed
 

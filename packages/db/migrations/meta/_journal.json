@@ -1443,6 +1443,48 @@
       "when": 1794971939521,
       "tag": "0205_quote_fix_round_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 206,
+      "version": "7",
+      "when": 1794971940521,
+      "tag": "0206_copilot_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 207,
+      "version": "7",
+      "when": 1794971941521,
+      "tag": "0207_copilot_notes_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 208,
+      "version": "7",
+      "when": 1794975185408,
+      "tag": "0208_copilot_workers",
+      "breakpoints": true
+    },
+    {
+      "idx": 209,
+      "version": "7",
+      "when": 1794976838999,
+      "tag": "0209_copilot_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 210,
+      "version": "7",
+      "when": 1794986313475,
+      "tag": "0210_copilot_suggestions_shown",
+      "breakpoints": true
+    },
+    {
+      "idx": 211,
+      "version": "7",
+      "when": 1794986324811,
+      "tag": "0211_copilot_fix_round",
+      "breakpoints": true
     }
   ]
 }

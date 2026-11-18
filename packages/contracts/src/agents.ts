@@ -76,6 +76,14 @@ export const AGENT_FILTER_REASONS = [
   'text_has_phone',
   'text_has_identity_number',
   'text_has_instruction',
+  // The Caller Co-pilot's filter (docs/03-roadmap-appendix/phase2.md §7.3): a brief or summary
+  // over its length, a fact outside its field's bounds, a follow-up outside calling hours, a
+  // template the customer may not be sent, an outcome that was not offered.
+  'text_too_long',
+  'fact_out_of_bounds',
+  'task_outside_hours',
+  'template_not_allowed',
+  'unknown_outcome',
 ] as const;
 export const AgentFilterReasonSchema = z.enum(AGENT_FILTER_REASONS);
 export type AgentFilterReason = z.infer<typeof AgentFilterReasonSchema>;
@@ -279,9 +287,9 @@ export type AgentRunDto = z.infer<typeof AgentRunDto>;
 export const InboxSummaryDto = z
   .object({
     name: InboxFieldNameSchema,
-    kind: z.enum(['person', 'code']),
+    kind: z.enum(['person', 'code', 'template']),
     value: z.string().max(64).nullable(),
-    /** A person's name, when the caller reads it. */
+    /** A person's name when the caller reads it, or a WhatsApp template's label. */
     label: z.string().nullable(),
   })
   .strict();
@@ -341,7 +349,14 @@ export type InboxCountDto = z.infer<typeof InboxCountDto>;
 
 /** `listInbox`: the caller's open items, newest first, keyset by creation time and id. */
 export const ListInboxInput = z
-  .object({ cursor: z.string().max(200).optional(), limit: z.number().int().min(1).max(100) })
+  .object({
+    cursor: z.string().max(200).optional(),
+    limit: z.number().int().min(1).max(100),
+    /** Only the items about this lead or customer (the Co-pilot panel's suggestions). */
+    subjectId: IdSchema.optional(),
+    /** Only one agent's suggestions. */
+    agent: AgentRoleKeySchema.optional(),
+  })
   .strict();
 export type ListInboxInput = z.infer<typeof ListInboxInput>;
 

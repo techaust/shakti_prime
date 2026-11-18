@@ -27,7 +27,13 @@ import {
   agentSummaryName,
   inboxKeyAction,
 } from '../../screens/agents';
-import { AGENT_ROLES, agentNameKey, SEGMENTS, TASK_KINDS } from '../../screens/contract-values';
+import {
+  AGENT_ROLES,
+  agentNameKey,
+  SEGMENTS,
+  TASK_KINDS,
+  TEMPLATE_OCCASION_VALUES,
+} from '../../screens/contract-values';
 import { customerHref, isOneOf } from '../../screens/customers';
 import { DateTime, momentValues } from '../date-time';
 import { FailureMessage } from '../screens/failure';
@@ -321,8 +327,11 @@ function InboxCard({
           let shown: string;
           if (entry.value === null) shown = t('inbox.noValue');
           else if (entry.kind === 'person') shown = entry.label ?? t('inbox.someone');
+          else if (entry.kind === 'template') shown = entry.label ?? entry.value;
           else if (entry.name === 'kind' && isOneOf(TASK_KINDS, entry.value)) {
             shown = customers(`tasks.kind.${entry.value}`);
+          } else if (entry.name === 'occasion' && isOneOf(TEMPLATE_OCCASION_VALUES, entry.value)) {
+            shown = t(`inbox.occasion.${entry.value}`);
           } else shown = entry.value;
           return (
             <div key={entry.name} className="contents">

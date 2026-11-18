@@ -68,6 +68,9 @@ export const PERMISSION_KEYS = [
   'messaging.send',
   'messaging.templates.write',
   'knowledge.ask',
+  // The Caller Co-pilot's briefs and call summaries (docs/03-roadmap-appendix/phase2.md §4, §7.3):
+  // held only by `agent:copilot`, never by a person's role.
+  'agents.note.write',
   'agents.inbox.act',
   'agents.autonomy.write',
   'agents.killswitch',
@@ -354,6 +357,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'messaging.send': ['own', 'team', 'entity', 'all'],
   'messaging.templates.write': ['all'],
   'knowledge.ask': ['team', 'entity', 'all'],
+  'agents.note.write': ['entity'],
   'agents.inbox.act': ['own', 'team', 'entity', 'all'],
   'agents.autonomy.write': ['all'],
   'agents.killswitch': ['all'],

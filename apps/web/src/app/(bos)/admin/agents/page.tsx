@@ -21,7 +21,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * Admin › Agents (docs/03-roadmap-appendix/phase1.md §7.1): the kill switches for an Executive or a GM
  * (`agents.killswitch`), and for an Executive (`agents.autonomy.write`) each agent's autonomy, its
  * daily spending limit and the autonomy of each action type, at the company chosen at the top or
- * for the whole group; and a way to the Triage agent's shadow report (A1).
+ * for the whole group; and a way to the Triage agent's shadow report (A1) and the Caller
+ * Co-pilot's (A2).
  */
 export default async function AgentsPage() {
   const { access, activeEntityId, can } = await screenAccess(navRequires('admin-agents'));
@@ -34,9 +35,14 @@ export default async function AgentsPage() {
       title={t('admin.title')}
       description={t('admin.intro')}
       actions={
-        <Button asChild variant="secondary">
-          <Link href="/admin/agents/shadow">{t('admin.view')}</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="secondary">
+            <Link href="/admin/agents/shadow">{t('admin.view')}</Link>
+          </Button>
+          <Button asChild variant="secondary">
+            <Link href="/admin/agents/copilot">{t('copilotReport.open')}</Link>
+          </Button>
+        </div>
       }
     >
       {aiProvider().claudeAvailable ? null : (

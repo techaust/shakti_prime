@@ -153,7 +153,6 @@ describe('qstashEventPublisher', () => {
 
   it('sends each notifying event to the notify route as itself, with no queue group', async () => {
     const types = [
-      'crm.opportunity.assigned',
       'crm.duplicate.found',
       'crm.enquiry.routed',
       'sales.order.credit_held',
@@ -171,6 +170,20 @@ describe('qstashEventPublisher', () => {
       })),
     );
     expect(queue.addEndpoints).not.toHaveBeenCalled();
+  });
+
+  it('sends an assigned lead to its own event route, whose worker notifies and writes the Co-pilot’s brief', async () => {
+    const assigned = event('crm.opportunity.assigned');
+    queue.batchJSON.mockResolvedValue([[{ messageId: 'm', url: 'u' }]]);
+    await qstashEventPublisher(config).publish([assigned]);
+    expect(queue.batchJSON).toHaveBeenCalledWith([
+      {
+        urlGroup: 'evt-crm.opportunity.assigned',
+        body: assigned,
+        deduplicationId: assigned.id,
+        failureCallback: 'https://bos.example.in/api/v1/workers/outbox/failed',
+      },
+    ]);
   });
 
   it('fails an event the queue refused or did not answer for', async () => {

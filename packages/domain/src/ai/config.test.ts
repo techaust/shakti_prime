@@ -19,9 +19,18 @@ const TASK = 'crm.task.create';
 
 describe('resolveAgentConfig', () => {
   it('suggests, with no cap, when nothing is set', () => {
-    expect(resolveAgentConfig([], 'agent:copilot', TASK, 1)).toEqual({
+    expect(resolveAgentConfig([], 'agent:concierge', TASK, 1)).toEqual({
       enabled: true,
       autonomy: 'suggest',
+      autonomySource: 'default',
+      caps: [],
+    });
+  });
+
+  it('keeps the Caller Co-pilot in Shadow, with no cap, when nothing is set', () => {
+    expect(resolveAgentConfig([], 'agent:copilot', TASK, 1)).toEqual({
+      enabled: true,
+      autonomy: 'shadow',
       autonomySource: 'default',
       caps: [],
     });

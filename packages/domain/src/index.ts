@@ -28,6 +28,7 @@ export { updateEntity } from './commands/org/update-entity';
 export { archiveEntityChannel, setEntityChannel } from './commands/org/channels';
 export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
 export { sendWhatsAppMessage } from './commands/messaging/send-message';
+export { requestTemplate } from './commands/messaging/template-request';
 export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
 export { sendWhatsAppMilestone, setWhatsAppMilestone } from './commands/messaging/milestones';
@@ -658,8 +659,38 @@ export { filterTriageAnswer, noteProblem, parseTriageAnswer } from './ai/triage/
 export type { TriageDecision, TriageVerdicts } from './ai/triage/filter';
 export type { TriageFacts } from './ai/triage/facts';
 export { readTriageFacts } from './ai/triage/read-facts';
+export {
+  copilotCeilings,
+  copilotMayRun,
+  COPILOT_BRIEF_PURPOSE,
+  COPILOT_SUMMARY_PURPOSE,
+  runCopilot,
+} from './ai/copilot/run-copilot';
+export type {
+  CopilotDeps,
+  CopilotRunInput,
+  CopilotRunOutcome,
+  CopilotRunResult,
+} from './ai/copilot/run-copilot';
+export { copilotCoverage, coveredCall, summariseCall } from './ai/copilot/summarise-call';
+export type {
+  SummariseDeps,
+  SummariseJob,
+  SummariseResult,
+  SummarySkip,
+} from './ai/copilot/summarise-call';
+export {
+  buildCopilotPrompt,
+  COPILOT_BRIEF_SYSTEM,
+  COPILOT_SUMMARY_SYSTEM,
+} from './ai/copilot/prompt';
+export { filterCopilotOutput } from './ai/copilot/filter';
+export type { CopilotRunFacts } from './ai/copilot/facts';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
+export { recordCopilotNote } from './commands/agents/notes';
+export { requestCopilotBrief } from './commands/agents/brief-request';
+export { attachCallTranscript, reserveCallTranscript } from './commands/calls/call-transcript';
 export {
   approveInboxItem,
   completeInboxItem,
@@ -691,6 +722,7 @@ export { setAgentConfig, setKillSwitch } from './commands/agents/config';
 export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';
 export { loadShadowReport } from './queries/agents/shadow-report';
+export { loadCopilotPanel, loadCopilotReport } from './queries/agents/copilot';
 export { readAgentSpend } from './queries/agents/spend';
 export {
   addKnowledgeFile,

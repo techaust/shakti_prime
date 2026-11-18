@@ -59,6 +59,11 @@ export const outboxEvents = pgTable(
     index('outbox_events_pending_idx')
       .on(t.sequence)
       .where(sql`${t.publishedAt} is null and ${t.deadLetteredAt} is null`),
+    // The Caller Co-pilot's hour between briefs of a lead: the events that start a brief, by lead
+    // and time (`app.copilot_brief_started_at()`); two types only, so the index stays small.
+    index('outbox_events_copilot_brief_idx')
+      .on(t.aggregateId, t.createdAt.desc())
+      .where(sql`${t.type} in ('agents.brief.requested', 'crm.opportunity.assigned')`),
     // Readiness counts the dead letters on every call; there are few, so the index stays small.
     index('outbox_events_dead_letters_idx')
       .on(t.deadLetteredAt)

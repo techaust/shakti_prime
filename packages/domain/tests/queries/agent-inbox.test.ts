@@ -121,8 +121,9 @@ beforeAll(async () => {
     account: { type: 'farm', name: 'Inbox list farm' },
   })) as { id: string };
   lead = made.id;
-  // The Caller Co-pilot's own row here says nothing, whatever the journeys' seed left: Suggest.
-  await setting({ entityId: ENTITY });
+  // The Caller Co-pilot's own row here names Suggest, whatever the journeys' seed left: it starts
+  // in Shadow (A2), and these cases list what Suggest files.
+  await setting({ entityId: ENTITY, autonomy: 'suggest' });
   await setting({ entityId: ENTITY, actionType: 'crm.task.create' });
 });
 
@@ -237,14 +238,20 @@ describe('loadAgentSettings', () => {
         groupCapPaise: 50_000,
       });
       expect(copilot?.spentTodayPaise).toBeGreaterThanOrEqual(40);
-      expect(copilot?.actionTypes).toEqual([
-        expect.objectContaining({
-          actionType: 'crm.task.create',
+      // Each of the Co-pilot's action types (its follow-ups, and with A2 the facts it heard and
+      // its WhatsApp follow-ups) takes the company's setting.
+      expect(copilot?.actionTypes.map((t) => t.actionType)).toEqual([
+        'crm.task.create',
+        'crm.lead.qualification.set',
+        'messaging.template.request',
+      ]);
+      for (const type of copilot?.actionTypes ?? []) {
+        expect(type).toMatchObject({
           autonomy: null,
           effective: { autonomy: 'needs_approval', source: 'agent_company', automaticHeld: false },
           inherited: { autonomy: 'needs_approval', source: 'agent_company', automaticHeld: false },
-        }),
-      ]);
+        });
+      }
       expect(settings.agents.find((a) => a.agent === 'agent:chief')).toMatchObject({
         enabled: true,
         stopped: false,
