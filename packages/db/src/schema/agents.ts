@@ -200,6 +200,15 @@ export const agentActions = pgTable(
     index('agent_actions_shadow_idx')
       .on(t.entityId, t.agent, t.createdAt.desc(), t.id.desc())
       .where(sql`${t.state} = 'shadowed'`),
+    // The Concierge's shadow report (A3): one company's drafts of one agent and action type,
+    // whatever became of them, newest first.
+    index('agent_actions_type_created_idx').on(
+      t.entityId,
+      t.agent,
+      t.actionType,
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
   ],
 );
 

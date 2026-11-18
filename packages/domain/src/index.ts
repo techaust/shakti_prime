@@ -740,6 +740,7 @@ export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';
 export { loadShadowReport } from './queries/agents/shadow-report';
 export { loadCopilotPanel, loadCopilotReport } from './queries/agents/copilot';
+export { loadConciergeDraft, loadConciergeReport } from './queries/agents/concierge';
 export { readAgentSpend } from './queries/agents/spend';
 export {
   addKnowledgeFile,

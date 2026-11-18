@@ -8,6 +8,7 @@ export * from './agent-principals';
 export * from './agents';
 export * from './triage';
 export * from './copilot';
+export * from './concierge';
 export * from './knowledge';
 export * from './roman-script';
 export * from './playbook';
