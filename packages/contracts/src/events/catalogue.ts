@@ -144,7 +144,8 @@ const eventCatalogue = {
     meaning:
       'A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves.',
     emittedBy: ['crm.lead.reassign_all', 'crm.opportunity.assign', 'crm.opportunity.hand_over'],
-    // The notify worker tells the new owner (docs/03-roadmap-appendix/phase1.md §8.1).
+    // The notify worker tells the new owner (docs/03-roadmap-appendix/phase1.md §8.1), and the
+    // Caller Co-pilot writes the lead's brief (docs/03-roadmap-appendix/phase2.md §7.3).
     subscribed: true,
     payload: z
       .object({
@@ -520,11 +521,23 @@ const eventCatalogue = {
       })
       .strict(),
   },
+  /**
+   * A person asked the Caller Co-pilot for a brief on a lead (docs/03-roadmap-appendix/phase2.md
+   * §7.3); the brief worker writes it, at most once an hour per lead.
+   */
+  'agents.brief.requested': {
+    meaning:
+      'A person asked the Caller Co-pilot for a brief on a lead; the brief worker writes one unless the lead had one within the hour.',
+    emittedBy: ['agents.brief.request'],
+    subscribed: true,
+    payload: z.object({ requestedById: IdSchema }).strict(),
+  },
   'calls.dial.completed': {
     meaning:
       'A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line.',
     emittedBy: ['calls.provider_call.record'],
-    subscribed: false,
+    // The Caller Co-pilot's summary of a recorded call (docs/03-roadmap-appendix/phase2.md §7.3).
+    subscribed: true,
     payload: z
       .object({
         opportunityId: IdSchema,

@@ -626,9 +626,38 @@ export { filterTriageAnswer, noteProblem, parseTriageAnswer } from './ai/triage/
 export type { TriageDecision, TriageVerdicts } from './ai/triage/filter';
 export type { TriageFacts } from './ai/triage/facts';
 export { readTriageFacts } from './ai/triage/read-facts';
+export {
+  copilotCeilings,
+  copilotMayRun,
+  COPILOT_BRIEF_PURPOSE,
+  COPILOT_SUMMARY_PURPOSE,
+  runCopilot,
+} from './ai/copilot/run-copilot';
+export type {
+  CopilotDeps,
+  CopilotRunInput,
+  CopilotRunOutcome,
+  CopilotRunResult,
+} from './ai/copilot/run-copilot';
+export { copilotCoverage, coveredCall, summariseCall } from './ai/copilot/summarise-call';
+export type {
+  SummariseDeps,
+  SummariseJob,
+  SummariseResult,
+  SummarySkip,
+} from './ai/copilot/summarise-call';
+export {
+  buildCopilotPrompt,
+  COPILOT_BRIEF_SYSTEM,
+  COPILOT_SUMMARY_SYSTEM,
+} from './ai/copilot/prompt';
+export { filterCopilotOutput } from './ai/copilot/filter';
+export type { CopilotRunFacts } from './ai/copilot/facts';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
 export { recordCopilotNote } from './commands/agents/notes';
+export { requestCopilotBrief } from './commands/agents/brief-request';
+export { attachCallTranscript } from './commands/calls/call-transcript';
 export {
   approveInboxItem,
   completeInboxItem,

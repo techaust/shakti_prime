@@ -2,6 +2,13 @@
 // 05-10-2026). Each one is flagged for the owner to confirm; a change is made here and nowhere
 // else. Prices are kept in US dollars per million tokens, as the vendors publish them.
 
+/**
+ * Which recorded calls the Caller Co-pilot transcribes and summarises (question 8 of
+ * docs/03-roadmap-appendix/phase2.md): the calls of the company's Lead Converters, every recorded
+ * dial, or none.
+ */
+export type CopilotCoverage = 'lead_converter' | 'all' | 'none';
+
 /** One model's published price, in US dollars per million tokens. */
 export interface ModelPrice {
   input: number;
@@ -99,9 +106,11 @@ export const AGENT_DEFAULTS = {
    * Where an agent starts when no setting names its autonomy (PRD AI-04: shadow, then approval,
    * then automatic). The Triage agent starts in Shadow (A1): it records what it would propose and
    * never acts or fills an inbox; raising an action type to Suggest or Needs approval is an
-   * Executive's choice on Admin › Agents. Every other agent starts at Suggest.
+   * Executive's choice on Admin › Agents. The Caller Co-pilot starts in Shadow too (A2, design
+   * §7.3): its suggestions reach no inbox until an Executive raises an action type to Needs
+   * approval after reviewing its shadow report. Every other agent starts at Suggest.
    */
-  startingAutonomy: { 'agent:triage': 'shadow' },
+  startingAutonomy: { 'agent:triage': 'shadow', 'agent:copilot': 'shadow' },
 
   /**
    * The Triage agent (A1). Each value is flagged for the owner to confirm; a change moves only how
@@ -234,11 +243,46 @@ export const AGENT_DEFAULTS = {
    * - `briefIntervalMinutes`: a lead gets at most one brief an hour, on assignment or on demand;
    * - `quoteNudgeDaysBefore`: the quote-expiry nudge is proposed two days before a sent quote
    *   expires (CALL-5's WhatsApp follow-up); the nurture message falls on the nurture days of
-   *   `WORKSHOP_DEFAULTS.calling.nurtureCallDays`.
+   *   `WORKSHOP_DEFAULTS.calling.nurtureCallDays`;
+   * - `transcribe`: which recorded calls are transcribed and summarised (question 8 (a)): the
+   *   calls of the company's Lead Converters (`lead_converter`), every recorded dial (`all`) or
+   *   none, as `coverage` for every company unless `byCompany` names one by its id;
+   * - `companyDailyCapPaise`: the most the Co-pilot spends a day in one company, its models and
+   *   transcribing together, beside the caps an Executive sets on Admin › Agents (₹100, the
+   *   building cap of design §10);
+   * - `briefModel` (Sonnet 5.5) and `summaryModel` (Haiku 5.5), question 1 (a), each at its own
+   *   effort, answer length (thinking included) and `totalTimeoutMs` for the call, inside the
+   *   event route's minute;
+   * - `callsRead`, `messagesRead` and `directivesRead`: the most recent calls, chat messages and
+   *   approved `staff` directives a brief reads; `transcriptCharsRead`: the most of a transcript a
+   *   summary reads, its end kept;
+   * - `maxCallMinutes`: a longer recording is not transcribed, so one call cannot take the day's
+   *   cap and its transcript is made inside the event route's minute;
+   * - `answerTtlSeconds`: how long the model's answer for an event is kept for a redelivery;
+   * - `promptVersion`: named with every change of the prompts.
    */
   copilot: {
     briefIntervalMinutes: 60,
     quoteNudgeDaysBefore: 2,
+    transcribe: {
+      coverage: 'lead_converter' as CopilotCoverage,
+      byCompany: {} as Readonly<Partial<Record<number, CopilotCoverage>>>,
+    },
+    companyDailyCapPaise: 10_000,
+    briefModel: 'claude-sonnet-5-5',
+    briefEffort: 'low',
+    briefMaxTokens: 3_000,
+    summaryModel: 'claude-haiku-5-5',
+    summaryEffort: 'low',
+    summaryMaxTokens: 3_000,
+    totalTimeoutMs: 40_000,
+    callsRead: 10,
+    messagesRead: 10,
+    directivesRead: 30,
+    transcriptCharsRead: 18_000,
+    maxCallMinutes: 15,
+    answerTtlSeconds: 60 * 60,
+    promptVersion: 'copilot-1',
   },
 
   /**

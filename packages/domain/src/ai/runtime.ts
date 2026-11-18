@@ -17,7 +17,7 @@ import { executeCommand, executeQuery } from '../command/execute';
 import { recordAgentRun } from '../commands/agents/record-run';
 import { jsonLogger, type Logger } from '../ports/logger';
 import { loadAgentConfig } from './config';
-import type { AiProvider, CompleteCall, CompleteResult } from './provider';
+import type { AiProvider, CompleteCall, CompleteResult, SpendCap } from './provider';
 
 // The agent runtime's own path (docs/03-roadmap-appendix/phase1.md §7.1, ARCHITECTURE §11): what an agent's
 // worker calls for one step of work. It reads the agent's settings as the agent, lets the agent's
@@ -59,6 +59,11 @@ export interface AgentStep {
    * output filter refused what the model proposed (`{ filtered }`), which is recorded as such.
    */
   decide: (model: RunModel) => Promise<AgentDecision>;
+  /**
+   * Caps of the agent's own named defaults, held beside the settings' caps (the Caller Co-pilot's
+   * daily cap per company). They never stand in for a missing setting: no cap set means no calls.
+   */
+  ceilings?: readonly SpendCap[];
 }
 
 /** What one step's work comes to. */
@@ -151,7 +156,7 @@ export async function runAgentStep(step: AgentStep, deps: AgentStepDeps): Promis
   else if (config.caps.length === 0 || config.caps.some((c) => c.paise === 0)) {
     ended = 'cap_reached';
   } else {
-    const caps = config.caps;
+    const caps = [...config.caps, ...(step.ceilings ?? [])];
     const runModel: RunModel = {
       async complete(call) {
         const result = await deps.provider.complete({

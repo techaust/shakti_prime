@@ -135,7 +135,7 @@ export const AGENT_ACTION_TYPES: Readonly<Record<string, AgentActionType>> = Obj
       subjectType: 'opportunity',
       subjectKey: 'opportunityId',
       summary: [
-        { name: 'templateName', kind: 'code' },
+        { name: 'templateName', kind: 'template' },
         { name: 'occasion', kind: 'code' },
       ],
       editable: [],
@@ -217,21 +217,29 @@ export function withAssignee(
   return { ...input, [key]: assignee };
 }
 
-/** The read-only inputs of an action, as the inbox shows them; `names` holds people's names. */
+/** The key a WhatsApp template's label is found under in `summaryFields()`'s labels. */
+export const templateLabelKey = (entityId: number, name: string): string =>
+  `template:${String(entityId)}:${name}`;
+
+/**
+ * The read-only inputs of an action, as the inbox shows them. `labels` holds people's names by id
+ * and WhatsApp templates' labels by `templateLabelKey()` of the input's company.
+ */
 export function summaryFields(
   type: AgentActionType,
   input: Readonly<Record<string, unknown>>,
-  names: ReadonlyMap<string, string>,
+  labels: ReadonlyMap<string, string>,
 ): InboxSummaryDto[] {
+  const entityId = typeof input.entityId === 'number' ? input.entityId : undefined;
   return type.summary.map((field) => {
     const raw = input[field.name];
     const value = typeof raw === 'string' && raw.length <= 64 ? raw : null;
-    return {
-      name: field.name,
-      kind: field.kind,
-      value,
-      label: field.kind === 'person' && value !== null ? (names.get(value) ?? null) : null,
-    };
+    let label: string | null = null;
+    if (value !== null && field.kind === 'person') label = labels.get(value) ?? null;
+    if (value !== null && field.kind === 'template' && entityId !== undefined) {
+      label = labels.get(templateLabelKey(entityId, value)) ?? null;
+    }
+    return { name: field.name, kind: field.kind, value, label };
   });
 }
 

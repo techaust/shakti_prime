@@ -13,7 +13,12 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import { AGENT_ACTION_TYPES, editableFields, summaryFields } from '../../ai/action-types';
+import {
+  AGENT_ACTION_TYPES,
+  editableFields,
+  summaryFields,
+  templateLabelKey,
+} from '../../ai/action-types';
 import { checkPermission, isAgent } from '../../command/run-command';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 
@@ -89,6 +94,8 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         eq(i.state, 'open'),
         inArray(i.entityId, [...ctx.entityIds]),
         inboxScope(ctx),
+        input.subjectId === undefined ? undefined : eq(i.subjectId, input.subjectId),
+        input.agent === undefined ? undefined : eq(a.agent, input.agent),
         after === undefined
           ? undefined
           : sql`(${i.createdAt}, ${i.id}) < (${after.t}::text::timestamptz, ${after.id}::uuid)`,
@@ -115,6 +122,19 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         .filter((v): v is string => typeof v === 'string' && IdSchema.safeParse(v).success),
     ),
   );
+  const templates = await templateLabels(
+    ctx,
+    typed.flatMap(({ type, proposed }) =>
+      (type?.summary ?? [])
+        .filter((f) => f.kind === 'template')
+        .map((f) => ({ entityId: proposed.entityId, name: proposed[f.name] }))
+        .filter(
+          (t): t is { entityId: number; name: string } =>
+            typeof t.entityId === 'number' && typeof t.name === 'string' && t.name.length <= 64,
+        ),
+    ),
+  );
+  for (const [key, label] of templates) names.set(key, label);
   return {
     items: typed.map(({ row: r, type, proposed }) => {
       return InboxItemDto.parse({
@@ -143,6 +163,26 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         ? encodeCursor({ t: last.createdText, id: last.item.id })
         : null,
   };
+}
+
+/** The labels of the WhatsApp templates a page of suggestions names, by `templateLabelKey()`. */
+async function templateLabels(
+  ctx: Ctx,
+  wanted: readonly { entityId: number; name: string }[],
+): Promise<Map<string, string>> {
+  if (wanted.length === 0) return new Map();
+  const w = schema.whatsappTemplates;
+  const rows = await ctx.tx
+    .select({ entityId: w.entityId, name: w.name, label: w.label })
+    .from(w)
+    .where(
+      and(
+        inArray(w.entityId, [...new Set(wanted.map((t) => t.entityId))]),
+        inArray(w.name, [...new Set(wanted.map((t) => t.name))]),
+        eq(w.language, 'en'),
+      ),
+    );
+  return new Map(rows.map((r) => [templateLabelKey(r.entityId, r.name), r.label]));
 }
 
 /** The names of the people a page of suggestions is for, by id. */

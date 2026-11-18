@@ -10,6 +10,8 @@ import {
 } from '../commands/agents/inbox';
 import { recordAgentRun } from '../commands/agents/record-run';
 import { recordCopilotNote } from '../commands/agents/notes';
+import { requestCopilotBrief } from '../commands/agents/brief-request';
+import { attachCallTranscript } from '../commands/calls/call-transcript';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
 import { setRolePermissions } from '../commands/admin/set-role-permissions';
@@ -326,6 +328,8 @@ export const commands = Object.freeze({
   [setTarget.name]: setTarget,
   [recordAgentRun.name]: recordAgentRun,
   [recordCopilotNote.name]: recordCopilotNote,
+  [requestCopilotBrief.name]: requestCopilotBrief,
+  [attachCallTranscript.name]: attachCallTranscript,
   [approveInboxItem.name]: approveInboxItem,
   [editInboxItem.name]: editInboxItem,
   [rejectInboxItem.name]: rejectInboxItem,

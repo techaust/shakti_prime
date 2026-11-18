@@ -287,9 +287,9 @@ export type AgentRunDto = z.infer<typeof AgentRunDto>;
 export const InboxSummaryDto = z
   .object({
     name: InboxFieldNameSchema,
-    kind: z.enum(['person', 'code']),
+    kind: z.enum(['person', 'code', 'template']),
     value: z.string().max(64).nullable(),
-    /** A person's name, when the caller reads it. */
+    /** A person's name when the caller reads it, or a WhatsApp template's label. */
     label: z.string().nullable(),
   })
   .strict();
@@ -349,7 +349,14 @@ export type InboxCountDto = z.infer<typeof InboxCountDto>;
 
 /** `listInbox`: the caller's open items, newest first, keyset by creation time and id. */
 export const ListInboxInput = z
-  .object({ cursor: z.string().max(200).optional(), limit: z.number().int().min(1).max(100) })
+  .object({
+    cursor: z.string().max(200).optional(),
+    limit: z.number().int().min(1).max(100),
+    /** Only the items about this lead or customer (the Co-pilot panel's suggestions). */
+    subjectId: IdSchema.optional(),
+    /** Only one agent's suggestions. */
+    agent: AgentRoleKeySchema.optional(),
+  })
   .strict();
 export type ListInboxInput = z.infer<typeof ListInboxInput>;
 

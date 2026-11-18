@@ -239,7 +239,7 @@ function followUp(answer: Answer, context: CopilotContext): CopilotDecision {
 const DAY_MS = 86_400_000;
 
 /** Whole IST calendar days from `from` to `to`. */
-function istDaysBetween(from: Date, to: Date): number {
+export function istDaysBetween(from: Date, to: Date): number {
   return Math.round((Date.parse(istCalendarDate(to)) - Date.parse(istCalendarDate(from))) / DAY_MS);
 }
 

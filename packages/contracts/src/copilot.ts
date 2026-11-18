@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { InboxItemDto } from './agents';
+import { FileSha256Schema } from './api/files';
 import { WhatsAppTemplateNameSchema } from './api/messaging';
 import { LeadQualificationFactsSchema } from './commands/crm/ingest';
 import { EntityIdSchema, IdSchema } from './ids';
@@ -121,3 +123,112 @@ export const COPILOT_ACTION_TYPES = {
   followUp: 'crm.task.create',
   template: 'messaging.template.request',
 } as const;
+
+/**
+ * `agents.brief.request`: a person asks the Co-pilot for a brief on a lead they read, on demand
+ * (at most once an hour per lead); the brief worker writes it from `agents.brief.requested`.
+ */
+export const RequestCopilotBriefInput = z
+  .object({ entityId: EntityIdSchema, opportunityId: IdSchema })
+  .strict();
+export type RequestCopilotBriefInput = z.input<typeof RequestCopilotBriefInput>;
+
+export const RequestCopilotBriefDto = z
+  .object({ opportunityId: IdSchema, requestedAt: z.iso.datetime() })
+  .strict();
+export type RequestCopilotBriefDto = z.infer<typeof RequestCopilotBriefDto>;
+
+/** The longest masked call transcript kept, in characters. */
+export const CALL_TRANSCRIPT_MAX_CHARS = 100_000;
+
+/**
+ * `calls.transcript.attach` (the platform's, `calls.process`): the masked transcript of a call's
+ * recording was stored under its own key (`callTranscriptKey`) and is recorded as the call's
+ * `call_transcript` file, once.
+ */
+export const AttachCallTranscriptInput = z
+  .object({
+    entityId: EntityIdSchema,
+    providerCallId: IdSchema,
+    fileId: IdSchema,
+    bucket: z.string().min(1).max(100),
+    key: z.string().min(1).max(300),
+    /** UTF-8 bytes of the masked text: at most four bytes a character. */
+    size: z
+      .number()
+      .int()
+      .min(1)
+      .max(CALL_TRANSCRIPT_MAX_CHARS * 4),
+    sha256: FileSha256Schema,
+  })
+  .strict();
+export type AttachCallTranscriptInput = z.input<typeof AttachCallTranscriptInput>;
+
+/**
+ * What attaching did: `attached`, or `already` (the same file), and nothing for `other_file` (the
+ * call has another transcript), `not_recorded` (the call has not ended, its recording is gone or
+ * its lead was anonymised) or `missing` (no such call).
+ */
+export const CALL_TRANSCRIPT_ATTACH_OUTCOMES = [
+  'attached',
+  'already',
+  'other_file',
+  'not_recorded',
+  'missing',
+] as const;
+
+export const AttachCallTranscriptDto = z
+  .object({
+    providerCallId: IdSchema,
+    outcome: z.enum(CALL_TRANSCRIPT_ATTACH_OUTCOMES),
+    fileId: IdSchema.nullable(),
+  })
+  .strict();
+export type AttachCallTranscriptDto = z.infer<typeof AttachCallTranscriptDto>;
+
+/** The key a call's transcript is stored under: `<company>/call_transcript/<file id>.txt`. */
+export function callTranscriptKey(entityId: number, fileId: string): string {
+  return `${String(entityId)}/call_transcript/${fileId}.txt`;
+}
+
+/** `agents.copilot.panel`: the Co-pilot panel of one lead the caller reads. */
+export const CopilotPanelInput = z
+  .object({ entityId: EntityIdSchema, opportunityId: IdSchema })
+  .strict();
+export type CopilotPanelInput = z.input<typeof CopilotPanelInput>;
+
+/** A brief or a summary as the panel shows it, with the outcome's label for a summary. */
+export const CopilotPanelNoteDto = z
+  .object({
+    id: IdSchema,
+    kind: CopilotNoteKindSchema,
+    body: z.string(),
+    fields: CopilotFactsSchema,
+    providerCallId: IdSchema.nullable(),
+    suggestedDispositionId: IdSchema.nullable(),
+    suggestedOutcomeLabel: z.string().nullable(),
+    createdAt: z.iso.datetime(),
+  })
+  .strict();
+export type CopilotPanelNoteDto = z.infer<typeof CopilotPanelNoteDto>;
+
+export const CopilotPanelDto = z
+  .object({
+    entityId: EntityIdSchema,
+    opportunityId: IdSchema,
+    /** The newest brief. */
+    brief: CopilotPanelNoteDto.nullable(),
+    /** The newest call summary, of a dial call of the lead. */
+    summary: CopilotPanelNoteDto.nullable(),
+    /**
+     * The outcome to pre-select in the call log: the newest summary's, while the call it summarises
+     * is not logged yet. Never logged by the agent.
+     */
+    preselectDispositionId: IdSchema.nullable(),
+    /** When a brief may next be asked for; null when one may be asked for now. */
+    nextBriefAt: z.iso.datetime().nullable(),
+    /** The Co-pilot's open suggestions on the lead that the caller may act on. */
+    suggestions: z.array(InboxItemDto),
+  })
+  .strict();
+export type CopilotPanelDto = z.infer<typeof CopilotPanelDto>;

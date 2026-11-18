@@ -327,6 +327,7 @@ function InboxCard({
           let shown: string;
           if (entry.value === null) shown = t('inbox.noValue');
           else if (entry.kind === 'person') shown = entry.label ?? t('inbox.someone');
+          else if (entry.kind === 'template') shown = entry.label ?? entry.value;
           else if (entry.name === 'kind' && isOneOf(TASK_KINDS, entry.value)) {
             shown = customers(`tasks.kind.${entry.value}`);
           } else if (entry.name === 'occasion' && isOneOf(TEMPLATE_OCCASION_VALUES, entry.value)) {
