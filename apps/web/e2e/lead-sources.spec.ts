@@ -165,7 +165,8 @@ test.describe('the qualification card as a tele-caller', () => {
     await expectNoAxeViolations(page);
     await dialog.getByRole('button', { name: 'Save details' }).click();
     await expect(page.getByText('The lead details are saved.')).toBeVisible();
-    await expect(dialog.getByText('320')).toBeVisible();
-    await expect(dialog.getByText('1,800')).toBeVisible();
+    // Exact: the lead's name ends in random digits, which may hold the same figures.
+    await expect(dialog.getByText('320', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('1,800', { exact: true })).toBeVisible();
   });
 });

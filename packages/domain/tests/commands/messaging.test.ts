@@ -132,7 +132,15 @@ beforeAll(async () => {
   execElsewhere = await createTestPrincipal('executive', [2]);
   gm = await createTestPrincipal('general_manager', [1]);
   accounts = await createTestPrincipal('accounts', [1]);
-  // The company's templates, registered again on every run under the same names.
+  // The company's templates, registered again on every run under the same names. A purpose is
+  // one template's per company, and the web suite's `whatsapp.test.ts` may have given company 1's
+  // welcome and STOP confirmation to its own templates first (turbo orders the suites freely), so
+  // those purposes are taken back from any other template before this suite registers its own.
+  await asMigrator(
+    (m) => m`update whatsapp_templates set purpose = null
+              where entity_id = 1 and purpose in ('welcome', 'opt_out_confirmation')
+                and name not in (${WELCOME}, ${STOP_NOTE})`,
+  );
   for (const input of [
     { name: WELCOME, label: 'Visit update', category: 'utility', purpose: 'welcome' },
     {
