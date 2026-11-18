@@ -4,7 +4,9 @@
 // filed through the real runtime under Needs approval for the tele-caller, its owner (the settings
 // that allow it are set while it is filed and removed after, so no other journey meets them). In
 // the snapshot company, on the messages journey's chat, one draft the assistant recorded in Shadow
-// with fixed ids, refreshed on every run, which the report pictures. Nothing reaches a vendor.
+// with fixed ids, written once and kept (a run and its action are append-only), which the report
+// pictures; the journeys run on a fresh database, where it is the company's one draft. Nothing
+// reaches a vendor.
 import {
   AGENT_PRINCIPAL_IDS,
   CONCIERGE_ACTION_TYPES,
@@ -122,7 +124,7 @@ export async function ensureConciergeJourneys(callerId: string): Promise<void> {
     await asMigrator((m) => m`delete from agent_configs where id = any(${SETTINGS})`);
   }
 
-  // The snapshot company's chat: one draft in Shadow, after its customer's message.
+  // The snapshot company's chat: one draft in Shadow, after its customer's message, written once.
   const waId = `91${SNAPSHOT_LEADS[1].phone.replace(/\D/g, '')}`;
   await asMigrator(async (m) => {
     const [thread] = await m<{ id: string; account_id: string | null }[]>`
@@ -136,7 +138,7 @@ export async function ensureConciergeJourneys(callerId: string): Promise<void> {
              values (${SHADOW_RUN}, ${SNAPSHOT_COMPANY.entityId}, 'agent:concierge', ${CONCIERGE},
                      'whatsapp_reply', ${REPLY}, 'claude-sonnet-5-5', 3000, 60, 1, 'shadowed', 1200,
                      'e2e-concierge')
-             on conflict (id) do update set created_at = now()`;
+             on conflict (id) do nothing`;
     await m`insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json, autonomy,
                                        state, created_by)
              values (${SHADOW_ACTION}, ${SNAPSHOT_COMPANY.entityId}, ${SHADOW_RUN}, 'agent:concierge',
@@ -148,6 +150,6 @@ export async function ensureConciergeJourneys(callerId: string): Promise<void> {
                        body: CONCIERGE_JOURNEY.shadowDraft,
                      })},
                      'shadow', 'shadowed', ${CONCIERGE})
-             on conflict (id) do update set created_at = now(), input_json = excluded.input_json`;
+             on conflict (id) do nothing`;
   });
 }
