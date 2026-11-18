@@ -375,6 +375,8 @@ const THREAD_BOUND_FOR_AGENTS: ReadonlySet<MatrixTable> = new Set<MatrixTable>([
   'consents',
   'contact_phones',
   'contacts',
+  // The Caller Co-pilot's notes, read with the lead (A2).
+  'copilot_notes',
   'customer_merges',
   'customer_sites',
   'dealer_outstanding',
@@ -403,6 +405,25 @@ function readingAs(principal: Principal, table: MatrixTable): Principal {
 }
 
 const readRule = (rule: TableRule, row: MatrixRow): Rule => rule.readRow?.(row) ?? rule.read;
+
+/**
+ * The file purposes read through a lead (a call's transcript, with its call): for an agent, thread
+ * bound like the tables above, so an unbound agent's `own` grants read none.
+ */
+const THREAD_BOUND_FILE_PURPOSES: ReadonlySet<string> = new Set(['call_transcript']);
+
+/** The principal as a row's policy reads it: `readingAs`, and a thread-bound file's too. */
+function readingRowAs(principal: Principal, table: MatrixTable, row: MatrixRow): Principal {
+  if (
+    principal.kind === 'agent' &&
+    table === 'files' &&
+    row.purpose !== undefined &&
+    THREAD_BOUND_FILE_PURPOSES.has(row.purpose)
+  ) {
+    return readingAs(principal, 'accounts');
+  }
+  return readingAs(principal, table);
+}
 
 interface Seen {
   seen: string[];
@@ -508,7 +529,9 @@ describe('every role acting in one company sees only that company (SECURITY §11
         const rule = RULES[table];
         const principal = readingAs(acting, table);
         // Whether any row of the table is the caller's to read in their own company.
-        const readsOwn = fx.rows[table].some((r) => allows(principal, readRule(rule, r)));
+        const readsOwn = fx.rows[table].some((r) =>
+          allows(readingRowAs(acting, table, r), readRule(rule, r)),
+        );
         const readsGroup = allows(principal, rule.group);
         const readsOwnRows = allows(principal, rule.ownRows);
         // People only: an agent reads customers by crm.account.read scope alone (0057).
@@ -520,7 +543,8 @@ describe('every role acting in one company sees only that company (SECURITY §11
               ? readsGroup
               : r.onLead === true
                 ? readsLead && r.entities.includes(entityId)
-                : (allows(principal, readRule(rule, r)) && r.entities.includes(entityId)) ||
+                : (allows(readingRowAs(acting, table, r), readRule(rule, r)) &&
+                    r.entities.includes(entityId)) ||
                   (readsOwnRows && r.ownedByActor === true) ||
                   (readsThroughLead && r.leadIn?.includes(entityId) === true),
           )
