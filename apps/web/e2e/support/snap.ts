@@ -96,16 +96,17 @@ async function markFixedWidths(masks: Locator[]): Promise<void> {
  * Compares the page with its baseline for the running project (desktop light, desktop dark,
  * phone). Baselines are made and compared only on Linux, inside the Playwright image
  * (`pnpm --filter web e2e:snap`), so fonts and anti-aliasing match CI; elsewhere the call returns
- * without comparing, and no baseline is ever written from another system.
+ * without comparing, and no baseline is ever written from another system. `element` pictures one
+ * part of the page alone (a card that floats over a page whose content changes from run to run).
  */
 export async function snap(
   page: Page,
   name: string,
-  options: { mask?: Locator[]; fullPage?: boolean } = {},
+  options: { mask?: Locator[]; fullPage?: boolean; element?: Locator } = {},
 ): Promise<void> {
   if (process.platform !== 'linux') return;
   await test.step(`screenshot ${name}`, async () => {
-    const fullPage = options.fullPage ?? true;
+    const fullPage = options.element === undefined && (options.fullPage ?? true);
     if (fullPage) {
       // A full-page picture draws the fixed top bar where the page is scrolled to, and a run leaves
       // the page wherever its last action (or a reload) scrolled it, so the picture starts at the top.
@@ -122,8 +123,8 @@ export async function snap(
     ];
     await markFixedWidths(changing);
     try {
-      await expect(page).toHaveScreenshot(`${name}.png`, {
-        fullPage,
+      await expect(options.element ?? page).toHaveScreenshot(`${name}.png`, {
+        ...(options.element === undefined ? { fullPage } : {}),
         // A long page (the design board) takes more than one quick capture to settle.
         timeout: 60_000,
         mask: [...alwaysMasked(page), ...changing],

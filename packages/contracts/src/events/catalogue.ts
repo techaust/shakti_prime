@@ -10,6 +10,7 @@ import { ImportKindSchema } from '../imports/enums';
 import { KNOWLEDGE_PDF_MAX_PAGES, KnowledgeSensitivitySchema } from '../knowledge';
 import { PlaybookDirectiveStateSchema } from '../playbook';
 import { MessageRequested } from '../api/messaging';
+import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 
 /**
@@ -531,6 +532,31 @@ const eventCatalogue = {
         callerId: IdSchema.nullable(),
         status: z.enum(PROVIDER_CALL_ENDS),
         durationSeconds: z.number().int().min(0).nullable(),
+      })
+      .strict(),
+  },
+  'calls.inbound.ringing': {
+    meaning:
+      "A customer's call to a company's IVR number is ringing a person (the one whose own dial phone the IVR rings); `accountIds` are the company's customers holding the caller's number, none when no customer does. The screen-pop is waiting for that person.",
+    emittedBy: ['calls.inbound_call.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        userId: IdSchema,
+        accountIds: z.array(IdSchema).max(INBOUND_MATCH_LIMIT),
+      })
+      .strict(),
+  },
+  'calls.missed.recorded': {
+    meaning:
+      "A customer's call to a company's missed-call number was recorded on the lead it made or joined, with a callback for the lead's owner in calling hours (`taskId`, none when the lead has no owner or one is due already); the notify worker tells the owner.",
+    emittedBy: ['calls.inbound_call.record'],
+    subscribed: true,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        ownerId: IdSchema.nullable(),
+        taskId: IdSchema.nullable(),
       })
       .strict(),
   },

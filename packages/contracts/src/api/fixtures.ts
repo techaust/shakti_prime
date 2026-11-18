@@ -229,6 +229,16 @@ export const API_FIXTURES: Record<
       channels: [`user:${IDS.user}`, 'entity:1:queue', 'entity:3:queue'],
     },
   },
+  'calls.ringing': {
+    response: {
+      providerCallId: IDS.call,
+      entityId: 1,
+      ringingAt: '2026-11-17T06:30:00.000Z',
+      phoneLast4: '5678',
+      customers: [{ accountId: IDS.askAccount, name: 'Ramesh Kumar Meena' }],
+      newLeadPhone: null,
+    },
+  },
   ask: {
     request: { question: 'How many open leads are in each stage?' },
     response: {

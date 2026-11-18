@@ -5,8 +5,9 @@ import { Button, Field, Input, Select, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { takeEnquiry } from '../../actions/crm';
+import { takeHandedPhone, typedPhone } from '../../calls/new-lead-phone';
 import {
   ACCOUNT_TYPES,
   buildLeadInput,
@@ -37,23 +38,39 @@ const FIELDS = [
 /**
  * The New lead form: a new customer with their mobile number, the line of business and, when the
  * caller knows it, the site and where the lead came from. One idempotency key per rendered form,
- * so a double press saves one lead.
+ * so a double press saves one lead. Opened by the screen-pop for a new number calling in, a fresh
+ * form has the number filled in (TEL-05) and the call's company chosen.
  */
 export function NewLeadForm({
   companies,
   pipelines,
   sources,
+  initialEntityId,
 }: {
   companies: { id: number; name: string; mayMakeDealer: boolean }[];
   pipelines: PipelineDto[];
   sources: LeadSourceDto[];
+  /** The company to start with when the person may choose it (the screen-pop's call's). */
+  initialEntityId?: number | undefined;
 }) {
   const t = useTranslations('leads.new');
   const leads = useTranslations('leads');
   const router = useRouter();
   const { run, pending, failure } = useCommand(takeEnquiry);
   const { fieldError, formFailure } = useFieldFailure(failure, FIELDS);
-  const [entityId, setEntityId] = useState(companies.length === 1 ? companies[0]?.id : undefined);
+  const [entityId, setEntityId] = useState(
+    companies.length === 1 ? companies[0]?.id : companies.find((c) => c.id === initialEntityId)?.id,
+  );
+  const phoneRef = useRef<HTMLInputElement>(null);
+  // The number of a call the screen-pop opened this form for, taken as the form opens: never
+  // written into a form already open, which may hold what the person is typing (the page gives
+  // each call's form its own key, so a call opens a fresh one).
+  useEffect(() => {
+    const phone = takeHandedPhone();
+    if (phone !== undefined && phoneRef.current !== null) {
+      phoneRef.current.value = typedPhone(phone);
+    }
+  }, []);
   const offered = entityId === undefined ? [] : pipelinesFor(pipelines, entityId);
   // Dealer is offered only where the person may make one; anyone else enters a dealer's enquiry
   // as a business, and an Executive makes them a dealer when their terms are set (DOM-1).
@@ -157,6 +174,7 @@ export function NewLeadForm({
           error={fieldError('contact.phone')}
         >
           <Input
+            ref={phoneRef}
             name="phone"
             type="tel"
             inputMode="tel"

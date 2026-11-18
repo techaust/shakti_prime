@@ -406,6 +406,7 @@
     "file_audio_too_long": "This recording is longer than 30 minutes. Split it into shorter recordings and upload each one as a WAV file.",
     "dial_refused": "This call cannot be placed now. The reasons are listed under Call from the screen.",
     "dial_phone_not_own": "This number belongs to a customer or a company line, or is the number you are calling. Enter the phone you take calls on.",
+    "dial_phone_in_use": "Another person in this company already takes calls on this number. Enter your own phone, or ask them to clear theirs from their profile.",
     "dial_phone_missing": "Add your own phone number on your profile first. The call rings that phone before the customer's.",
     "dial_in_progress": "Your last call is still being placed. Wait a moment before calling again.",
     "dial_failed": "The call could not be placed. Try again, or dial by hand and save the call.",
@@ -568,7 +569,23 @@
     "inboxMore": "99+",
     "inboxMoreLabel": "Agent Inbox, more than 99 waiting",
     "notificationSettings": "Notification settings",
-    "paletteOrder": "Order for {name}"
+    "paletteOrder": "Order for {name}",
+    "incomingCall": {
+      "title": "Incoming call",
+      "company": "For {company}",
+      "one": "{name} is calling.",
+      "oneOpened": "{name} is calling. Their page is open.",
+      "several": "{count} customers share this number. Open the one who is calling.",
+      "severalList": "Customers with this number",
+      "newNumber": "A new number ending {last4} is calling.",
+      "newOpened": "A new number ending {last4} is calling. The new lead form is open with the number filled in.",
+      "colleague": "A customer a colleague looks after is calling, from the number ending {last4}.",
+      "otherCompany": "Switch to {company} to open this call's customer.",
+      "kept": "Your page stays open, so nothing you were entering is lost.",
+      "openCustomer": "Open customer",
+      "addAsNewLead": "Add as new lead",
+      "closeLabel": "Close the incoming call"
+    }
   },
   "home": {
     "greeting": "Welcome, {name}",
@@ -1788,15 +1805,17 @@
       "knowledgeTranscriptCorrect": "Recording's transcript corrected",
       "callDial": "Call placed from the screen",
       "providerCallRecord": "Call progress recorded",
+      "inboundCallRecord": "Customer's call to the company recorded",
+      "ringingSignal": "Incoming call sent to the caller's screen",
       "callRecordingAttach": "Call recording kept",
       "callRecordingDelete": "Old call recording removed",
       "callRecordingPlay": "Call recording played",
-      "voiceSessionStart": "Talk to Shakti started",
-      "voiceSessionToken": "Talk to Shakti kept going",
-      "voiceSessionRecord": "Talk to Shakti length and spend recorded",
       "callerProfileSetDialPhone": "Own calling phone changed",
       "askRecord": "Question asked in Ask the Business",
-      "askDelete": "Ask the Business conversation deleted"
+      "askDelete": "Ask the Business conversation deleted",
+      "voiceSessionStart": "Talk to Shakti started",
+      "voiceSessionToken": "Talk to Shakti kept going",
+      "voiceSessionRecord": "Talk to Shakti length and spend recorded"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1852,7 +1871,9 @@
       "whatsappRequested": "WhatsApp message waiting to be sent",
       "whatsappReceived": "WhatsApp message received",
       "whatsappButtonPressed": "WhatsApp button pressed",
-      "dialCompleted": "Call from the screen ended"
+      "dialCompleted": "Call from the screen ended",
+      "inboundRinging": "Customer's call ringing a team member",
+      "missedCallRecorded": "Missed call recorded"
     },
     "sheet": {
       "title": "{action}",
@@ -2148,15 +2169,18 @@
       "endedAt": "Ended",
       "listenedAt": "Played",
       "dialPhone": "Own calling phone",
+      "inboundLine": "Number the customer called",
+      "customersMatched": "Customers with this number",
+      "personRung": "Rang a team member",
+      "askAnswered": "Answered",
+      "citedSources": "Records it points to",
+      "unsourcedFigures": "Figures left out because no record shows them",
+      "askMessages": "Questions in it",
       "mode": "Talk to Shakti mode",
       "consentRecording": "Recording allowed",
       "minutes": "Minutes",
       "costPaise": "Spend",
-      "turns": "Turns spoken",
-      "askAnswered": "Answered",
-      "citedSources": "Records it points to",
-      "unsourcedFigures": "Figures left out because no record shows them",
-      "askMessages": "Questions in it"
+      "turns": "Turns spoken"
     },
     "values": {
       "percent": "{value}%",
@@ -2280,6 +2304,10 @@
         "busy": "Line busy",
         "failed": "Did not go through",
         "canceled": "Stopped before answered"
+      },
+      "inboundLine": {
+        "ivr": "Company's calling number",
+        "missed_call": "Missed-call number"
       },
       "voiceMode": {
         "teach": "Teach",
@@ -3684,8 +3712,8 @@
       "crm_sources_write": "Connect lead forms and websites, and manage their keys",
       "crm_ingest_run": "Add leads that arrive from ads, lead forms, websites and WhatsApp",
       "calls_process": "Record how a placed call went and keep its recording",
-      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
-      "knowledge_ask": "Ask the Business questions"
+      "knowledge_ask": "Ask the Business questions",
+      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -4698,7 +4726,8 @@
       "first_call_late": "A new lead was not called in time",
       "enquiry_routed": "An enquiry from your customer was passed to you",
       "order_credit_held": "A dealer order is held for credit",
-      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply"
+      "whatsapp_reply_waiting": "A WhatsApp customer is waiting for your reply",
+      "missed_call": "A customer gave you a missed call"
     },
     "settings": {
       "title": "Notification settings",
@@ -4826,6 +4855,10 @@
     "whatsapp_reply_waiting": {
       "title": "A customer is waiting on WhatsApp",
       "body": "A customer has waited 10 minutes for a reply. Tap to open the chat."
+    },
+    "missed_call": {
+      "title": "A customer gave you a missed call",
+      "body": "Call them back. The callback is in your calling list."
     }
   },
   "orders": {
