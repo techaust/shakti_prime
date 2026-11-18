@@ -21,6 +21,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [print](#print)
   - [knowledge](#knowledge)
   - [messaging](#messaging)
+  - [agents](#agents)
   - [calls](#calls)
   - [sales](#sales)
 - [Payloads](#payloads)
@@ -48,7 +49,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-54 types, 12 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+55 types, 14 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -151,11 +152,17 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread. | `messaging.inbound.record` | none |
 | [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. | `messaging.inbound.record` | none |
 
+### agents
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`agents.brief.requested`](#agentsbriefrequested) | A person asked the Caller Co-pilot for a brief on a lead; the brief worker writes one unless the lead had one within the hour. | `agents.brief.request` | `POST /api/v1/workers/outbox/agents.brief.requested` (QStash URL group `evt-agents.brief.requested`) |
+
 ### calls
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`calls.dial.completed`](#callsdialcompleted) | A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line. | `calls.provider_call.record` | none |
+| [`calls.dial.completed`](#callsdialcompleted) | A click-to-dial call ended as the provider reported it: answered and completed, not answered, busy, failed or cancelled (`status`), with how long the customer was on the line. | `calls.provider_call.record` | `POST /api/v1/workers/outbox/calls.dial.completed` (QStash URL group `evt-calls.dial.completed`) |
 
 ### sales
 
@@ -470,6 +477,12 @@ No fields apart from `v`.
 | `messageId` | id |
 | `accountId` | id or null |
 | `firstMessage` | true or false |
+
+### agents.brief.requested
+
+| Field | Type |
+|---|---|
+| `requestedById` | id |
 
 ### calls.dial.completed
 
