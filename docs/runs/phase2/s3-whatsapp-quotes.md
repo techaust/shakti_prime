@@ -200,6 +200,18 @@ No critical or high findings. Four medium, five low. Read end to end: the four m
 - Meta's handling of a document header by signed link, the copy-code button and template parameter mismatches (no sandbox send).
 - No suite was run by the reviewer (the lock was held). `turbo.json` changed as well as `js-budget.json`, so the pull request needs `checks-ok` for both.
 
+### Lead's fix list, 18-11-2026
+Every finding is fixed in one fix round on this branch, each with a test that fails before the fix, and the builder reports each under Report › Fix round with its commit.
+- 1: the answer definer never clears `needs_reply`; a person's reply clears it as before. Test: a question, then STATUS, still waits and the reply-waiting notice fires.
+- 2: `messaging.milestone.set` requires two `quick_reply` buttons and a document header for `quote_sent`, a `url` button and the `authentication` category for `acceptance_code`, and no buttons for `order_confirmed`; `messaging.template.register` refuses a change of values, buttons, header or purpose on a template a milestone maps. The header is recorded by one additive column on `whatsapp_templates` with a default for existing rows (a migration of this slice, after its last one), with its `enum-sync`, docs and seed effects.
+- 3: `sales.quote.accept_remote` refuses `whatsapp_reply` at or above `otpFromRupees` with a catalogued reason; a command test.
+- 4: a message is taken as a code only while the code is valid; a wrong guess is stored unmasked; a test that a PIN code sent after the code lapsed reaches people unmasked.
+- 5: a press while a valid code waits for the same chat and quote sends no new code.
+- 6: a press on a quote withdrawn because another quote of the lead was accepted answers as already accepted, with that quote's order, and asks the owner for nothing.
+- 7: `app.remote_quote_facts()` returns the record's columns and the command builds the record as `quoteRecordOf()` does.
+- 8: when a milestone is not queued after a quote is marked sent, its sender is told through the existing notification path; if that needs a new notification kind, it is added with its setting and catalogue line, and the screens it changes are listed for the baselines.
+- 9: both strings say what is true now (no promise of a confirmation; no screen that does not exist). The missing template registration screen goes to the follow-ups for W1.
+
 ## Integration
 ### Lead's read of the early check, 17-11-2026
 Passed. `app.next_document_no()` keeps 0006's body (with 0024's hardening as `search_path = ''` and qualified names) and adds only the platform's sales-order case; the definers check their grants in their bodies. Decisions 1 to 11 accepted as built: the key `sales.quote.accept.remote`, the quote sent through the milestone registry, held milestones never sent later. Slot 1's database is recreated before steps 5 to 9 (decision 11), so 0189 and 0190 are applied clean then.
