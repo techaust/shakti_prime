@@ -233,7 +233,8 @@ export async function runCopilot(
         now: now(),
         ...(input.transcript === undefined ? {} : { transcript: input.transcript }),
       }),
-    { name: 'agents.copilot.facts' },
+    // The Co-pilot's chat definers are granted to `app_user` alone.
+    { name: 'agents.copilot.facts', pool: 'app_user' },
   );
   if (facts === undefined) return { outcome: 'no_lead', runs: {} };
 

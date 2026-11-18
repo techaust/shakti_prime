@@ -61,9 +61,10 @@ describe('AGENT_ACTION_TYPES', () => {
     expect(isShadowOnly('no.such.type')).toBe(false);
   });
 
-  it('starts the Triage agent in Shadow and every other agent at Suggest', () => {
+  it('starts the Triage agent and the Caller Co-pilot in Shadow and every other agent at Suggest', () => {
     expect(startingAutonomy('agent:triage')).toBe('shadow');
-    expect(startingAutonomy('agent:copilot')).toBe('suggest');
+    expect(startingAutonomy('agent:copilot')).toBe('shadow');
+    expect(startingAutonomy('agent:concierge')).toBe('suggest');
   });
 });
 

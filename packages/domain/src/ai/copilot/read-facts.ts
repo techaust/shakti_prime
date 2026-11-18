@@ -6,7 +6,7 @@ import {
   type WhatsAppTemplateCategory,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { approvedPlaybook } from '../../queries/knowledge/playbook';
 import { effectiveDispositions } from '../../queries/crm/pipeline-settings';
 import { AGENT_DEFAULTS } from '../agent-defaults';
@@ -145,64 +145,45 @@ export async function readCopilotFacts(
     ];
   });
 
-  // The customer's newest chat with the company that still has a number.
-  const th = schema.whatsappThreads;
-  const [thread] = await tx
-    .select({ id: th.id, contactPhoneId: th.contactPhoneId, optedOutAt: th.optedOutAt })
-    .from(th)
-    .where(
-      and(eq(th.entityId, lead.entityId), eq(th.accountId, lead.accountId), isNotNull(th.waId)),
-    )
-    .orderBy(sql`${th.lastInboundAt} desc nulls last`, desc(th.id))
-    .limit(1);
+  // The customer's newest chat with the company that still has a number, through the Co-pilot's
+  // own definers: a chat is read under the customer's read rule, which no agent holds.
+  const [thread] = (await tx.execute(sql`
+    select thread_id, opted_out, consent_service, consent_promotional
+      from app.copilot_lead_chat(${lead.entityId}::smallint, ${lead.id}::uuid)`)) as unknown as {
+    thread_id: string;
+    opted_out: boolean;
+    consent_service: boolean;
+    consent_promotional: boolean;
+  }[];
   let messages: CopilotMessageLine[] = [];
-  const consents = { service: false, promotional: false };
   if (thread !== undefined) {
-    const m = schema.whatsappMessages;
-    const rows = await tx
-      .select({
-        direction: m.direction,
-        kind: m.kind,
-        body: m.bodyMasked,
-        templateName: m.templateName,
-        createdAt: m.createdAt,
-      })
-      .from(m)
-      .where(and(eq(m.threadId, thread.id), eq(m.entityId, lead.entityId)))
-      .orderBy(desc(m.createdAt), desc(m.id))
-      .limit(d.messagesRead);
+    const rows = (await tx.execute(sql`
+      select direction, kind, body_masked, template_name, created_at
+        from app.copilot_chat_messages(${lead.entityId}::smallint, ${lead.id}::uuid,
+                                       ${thread.thread_id}::uuid, ${d.messagesRead}::integer)`)) as unknown as {
+      direction: string;
+      kind: string;
+      body_masked: string | null;
+      template_name: string | null;
+      created_at: Date | string;
+    }[];
     const labels = new Map(templates.map((t) => [t.name, t.label]));
     messages = rows.reverse().flatMap((r): CopilotMessageLine[] => {
       const direction = r.direction === 'inbound' ? 'inbound' : 'outbound';
-      const daysAgo = Math.max(0, istDaysBetween(r.createdAt, job.now));
+      const daysAgo = Math.max(0, istDaysBetween(new Date(r.created_at), job.now));
       if (r.kind === 'template') {
-        const label = r.templateName === null ? undefined : labels.get(r.templateName);
+        const label = r.template_name === null ? undefined : labels.get(r.template_name);
         return [{ direction, daysAgo, text: `(template) ${label ?? 'a WhatsApp template'}` }];
       }
       if (r.kind === 'media') return [{ direction, daysAgo, text: '(a picture or file)' }];
-      if (r.body === null || r.body.trim() === '') return [];
-      return [{ direction, daysAgo, text: r.body }];
+      if (r.body_masked === null || r.body_masked.trim() === '') return [];
+      return [{ direction, daysAgo, text: r.body_masked }];
     });
-    if (thread.contactPhoneId !== null) {
-      const cp = schema.contactPhones;
-      const cs = schema.consents;
-      const held = await tx
-        .selectDistinct({ purpose: cs.purpose })
-        .from(cs)
-        .innerJoin(cp, eq(cp.contactId, cs.contactId))
-        .where(
-          and(
-            eq(cp.id, thread.contactPhoneId),
-            eq(cs.channel, 'whatsapp'),
-            inArray(cs.purpose, ['service', 'promotional']),
-            isNull(cs.withdrawnAt),
-            lte(cs.givenAt, job.now),
-          ),
-        );
-      consents.service = held.some((h) => h.purpose === 'service');
-      consents.promotional = held.some((h) => h.purpose === 'promotional');
-    }
   }
+  const consents = {
+    service: thread?.consent_service === true,
+    promotional: thread?.consent_promotional === true,
+  };
 
   // The lead's sent quotes still valid: their dates only, never an amount.
   const q = schema.quotes;
@@ -257,7 +238,7 @@ export async function readCopilotFacts(
     templates,
     quotes,
     whatsapp: {
-      chat: thread?.optedOutAt === null,
+      chat: thread?.opted_out === false,
       consents,
     },
     ...(job.transcript === undefined ? {} : { transcript: job.transcript }),

@@ -147,7 +147,8 @@ async function readCallFacts(
             : { key: row.transcript_key, sha256: row.transcript_sha256 },
       };
     },
-    { name: 'agents.copilot.call_facts' },
+    // The calls definers are granted to `app_user` alone.
+    { name: 'agents.copilot.call_facts', pool: 'app_user' },
   );
 }
 
