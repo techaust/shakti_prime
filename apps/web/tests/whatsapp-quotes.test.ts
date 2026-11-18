@@ -29,10 +29,12 @@ import {
   memoryKeyValue,
   recordInboundWhatsApp,
   recordSizing,
+  recordWhatsAppOptOut,
   registerWhatsAppTemplate,
   sendQuote,
   setAccountTier,
   setWhatsAppMilestone,
+  quoteButtonTokens,
   verifyQuoteButtonToken,
   type KeyValue,
 } from '@shakti/domain';
@@ -145,6 +147,7 @@ beforeAll(async () => {
     }),
   );
   const quoteTemplate = await approved(`s3w_quote_${RUN}`, ['Quote', 'Total', 'Valid until'], {
+    header: 'document',
     buttons: [
       { kind: 'quick_reply', text: 'Accept' },
       { kind: 'quick_reply', text: 'Talk to us' },
@@ -370,6 +373,15 @@ async function quoteOnChat(customer: Customer, modules = 5) {
   return { quote, template, accept: accept ?? '', talk: talk ?? '' };
 }
 
+/** A quote's Accept payload on the customer's chat, as the messaging worker made it. */
+function acceptOf(customer: Customer, quoteId: string) {
+  const [accept] = quoteButtonTokens(SECRET, quoteId, {
+    threadId: customer.threadId,
+    waId: customer.waId,
+  });
+  return { accept: accept ?? '' };
+}
+
 /** A button press delivered from `waId` and handled as the platform. */
 async function press(
   kv: KeyValue,
@@ -478,6 +490,37 @@ describe('a quote sent on WhatsApp (§7.1)', () => {
   });
 });
 
+describe('a quote that did not go on WhatsApp (review 8)', () => {
+  it('tells the person who sent it, once, when its milestone is not queued', async () => {
+    const customer = await customerOnWhatsApp();
+    const quote = await sentQuote(customer);
+    // The number stopped WhatsApp messages between the send and the worker.
+    await run(workers(), recordWhatsAppOptOut, {
+      entityId: E,
+      threadId: customer.threadId,
+      at: new Date().toISOString(),
+    });
+    const event = await lastEvent('sales.quote.sent', quote.id);
+    expect(await handleQuoteSent(event, eventContext())).toBe('opted_out');
+    expect(await handleQuoteSent(event, eventContext())).toBe('opted_out');
+    const notices = await asMigrator(
+      (m) => m<{ user_id: string }[]>`select user_id from notifications
+                                        where type = 'whatsapp_quote_not_sent' and subject_id = ${quote.id}`,
+    );
+    expect(notices).toEqual([{ user_id: lc.id }]);
+  });
+
+  it('tells nobody when the quote went', async () => {
+    const customer = await customerOnWhatsApp();
+    const { quote } = await quoteOnChat(customer);
+    const notices = await asMigrator(
+      (m) => m`select id from notifications where type = 'whatsapp_quote_not_sent'
+                 and subject_id = ${quote.id}`,
+    );
+    expect(notices).toEqual([]);
+  });
+});
+
 describe('Accept pressed on WhatsApp (SAL-05)', () => {
   it('accepts a quote under ₹2,00,000 from its own chat and number, and a replay accepts nothing more', async () => {
     const kv = memoryKeyValue();
@@ -536,6 +579,29 @@ describe('Accept pressed on WhatsApp (SAL-05)', () => {
     expect(await ordersOf(quote.id)).toBe(0);
   });
 
+  it('answers a press on a quote withdrawn for another accepted one with that order (review 6)', async () => {
+    const kv = memoryKeyValue();
+    const customer = await customerOnWhatsApp();
+    const older = await quoteOnChat(customer, 4);
+    const newer = await quoteOnChat(customer, 5);
+    expect(await press(kv, customer.waId, newer.accept)).toBe('accepted');
+    expect((await quoteRow(older.quote.id))?.state).toBe('withdrawn');
+    expect(await press(kv, customer.waId, older.accept)).toBe('already_accepted');
+    const [answer] = await answersOn(customer.threadId);
+    expect(answer?.kind).toBe('text');
+    expect(answer?.body_masked).toContain(newer.quote.quoteNo);
+    const [order] = await asMigrator(
+      (m) => m<{ so_no: string }[]>`select so_no from sales_orders where quote_id = ${newer.quote.id}`,
+    );
+    expect(answer?.body_masked).toContain(order?.so_no ?? 'no order');
+    const notices = await asMigrator(
+      (m) => m`select id from notifications where type = 'whatsapp_quote_expired'
+                 and subject_id = ${older.quote.id}`,
+    );
+    expect(notices).toEqual([]);
+    expect(await ordersOf(older.quote.id)).toBe(0);
+  });
+
   it('answers a lapsed quote with quote_expired and tells the lead’s owner, once', async () => {
     const customer = await customerOnWhatsApp();
     const { quote, accept } = await quoteOnChat(customer);
@@ -590,6 +656,19 @@ describe('the one-time code from ₹2,00,000 (question 5)', () => {
     expect(kept).toEqual([]);
   });
 
+  it('sends no second code for a press while the first one waits (review 5)', async () => {
+    const kv = memoryKeyValue();
+    const { customer, quote, code } = await codeSent(kv);
+    const { accept } = await acceptOf(customer, quote.id);
+    expect(await press(kv, customer.waId, accept)).toBe('code_waiting');
+    const codes = (await answersOn(customer.threadId)).filter((a) => a.kind === 'template');
+    // The quote's own milestone and one code.
+    expect(codes.filter((a) => JSON.stringify(a.template_params) === '[]')).toHaveLength(1);
+    // The code sent first still accepts.
+    expect(await write(kv, customer, code)).toMatchObject({ platform: true });
+    expect(await quoteRow(quote.id)).toEqual({ state: 'accepted', accepted_via: 'whatsapp_otp' });
+  });
+
   it('accepts nothing after a wrong code three times, the right one included', async () => {
     const kv = memoryKeyValue();
     const { customer, quote, code } = await codeSent(kv);
@@ -597,6 +676,12 @@ describe('the one-time code from ₹2,00,000 (question 5)', () => {
     for (let i = 0; i < 3; i += 1) {
       expect(await write(kv, customer, wrong)).toMatchObject({ platform: true });
     }
+    // A wrong guess is no secret: staff read it as the customer wrote it (review 4).
+    const guesses = await asMigrator(
+      (m) => m`select id from whatsapp_messages where thread_id = ${customer.threadId}
+                 and direction = 'inbound' and body_masked = ${wrong}`,
+    );
+    expect(guesses).toHaveLength(3);
     const [answer] = await answersOn(customer.threadId);
     expect(answer?.body_masked).toContain('3 times');
     // No code waits any more: six digits are the customer's own message, for people.
@@ -608,9 +693,26 @@ describe('the one-time code from ₹2,00,000 (question 5)', () => {
     const kv = memoryKeyValue();
     const { customer, quote, code } = await codeSent(kv);
     const later = () => new Date(Date.now() + 6 * 60_000);
-    expect(await write(kv, customer, code, later)).toMatchObject({ platform: true });
-    const [answer] = await answersOn(customer.threadId);
-    expect(answer?.body_masked).toContain('no longer valid');
+    const before = (await answersOn(customer.threadId)).length;
+    // Past its minutes six digits are the customer's own message, for people (review 4).
+    expect(await write(kv, customer, code, later)).toMatchObject({ platform: false });
+    expect(await answersOn(customer.threadId)).toHaveLength(before);
+    expect(await ordersOf(quote.id)).toBe(0);
+  });
+
+  it('passes a PIN code sent after the code lapsed to people, as written (review 4)', async () => {
+    const kv = memoryKeyValue();
+    const { customer, quote } = await codeSent(kv);
+    const later = () => new Date(Date.now() + 6 * 60_000);
+    const before = (await answersOn(customer.threadId)).length;
+    expect(await write(kv, customer, '302019', later)).toMatchObject({ platform: false });
+    const kept = await asMigrator(
+      (m) => m<{ body_masked: string }[]>`select body_masked from whatsapp_messages
+                where thread_id = ${customer.threadId} and direction = 'inbound'
+                order by created_at desc, id desc limit 1`,
+    );
+    expect(kept).toEqual([{ body_masked: '302019' }]);
+    expect(await answersOn(customer.threadId)).toHaveLength(before);
     expect(await ordersOf(quote.id)).toBe(0);
   });
 });
@@ -629,6 +731,22 @@ describe('STATUS (WA-03)', () => {
     expect(answer?.body_masked).not.toContain(other.quoteNo);
     // An ordinary message is the Concierge's or people's to answer.
     expect(await write(kv, mine, 'When will you visit?')).toMatchObject({ platform: false });
+  });
+});
+
+describe('STATUS after a question (review 1)', () => {
+  it('leaves the question waiting for people', async () => {
+    const kv = memoryKeyValue();
+    // The chat opened with the customer's question, handed to people.
+    const customer = await customerOnWhatsApp();
+    expect(await write(kv, customer, 'Status')).toMatchObject({ platform: true });
+    const [answer] = await answersOn(customer.threadId);
+    expect(answer?.kind).toBe('text');
+    const [thread] = await asMigrator(
+      (m) => m<{ needs_reply: boolean }[]>`select needs_reply from whatsapp_threads
+                                             where id = ${customer.threadId}`,
+    );
+    expect(thread?.needs_reply).toBe(true);
   });
 });
 

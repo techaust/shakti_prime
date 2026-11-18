@@ -25,6 +25,7 @@ import {
   whatsappChannel,
   type WhatsAppChannelFixture,
 } from '@shakti/db/testing';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -45,7 +46,11 @@ import {
 } from '../../src/commands/messaging/platform';
 import { registerWhatsAppTemplate } from '../../src/commands/messaging/templates';
 import { acceptQuote } from '../../src/commands/sales/accept-quote';
-import { acceptQuoteRemote } from '../../src/commands/sales/accept-quote-remote';
+import {
+  acceptQuoteRemote,
+  readRemoteQuoteFacts,
+} from '../../src/commands/sales/accept-quote-remote';
+import { quoteRecordOf } from '../../src/commands/sales/quote-shared';
 import { attachQuotePdf } from '../../src/commands/sales/attach-quote-pdf';
 import { confirmSalesOrder } from '../../src/commands/sales/confirm-order';
 import { createQuote } from '../../src/commands/sales/create-quote';
@@ -74,6 +79,14 @@ const ids = {
   priced: fixed(0x0005),
 };
 const RUN = newId().slice(-8);
+/** What a quote's template carries: its PDF as the header and the Accept and Talk to us buttons. */
+const QUOTE_TEMPLATE_SHAPE = {
+  header: 'document',
+  buttons: [
+    { kind: 'quick_reply', text: 'Accept' },
+    { kind: 'quick_reply', text: 'Talk to us' },
+  ],
+};
 
 let lc: Principal;
 let exec: Principal;
@@ -118,13 +131,18 @@ async function eventsOf(aggregateId: string): Promise<{ type: string; payload: u
 }
 
 /** A template of company 2 registered by the Executive and approved by Meta's event. */
-async function approvedTemplate(name: string, params: string[]): Promise<WhatsAppTemplateDto> {
+async function approvedTemplate(
+  name: string,
+  params: string[],
+  extra: object = {},
+): Promise<WhatsAppTemplateDto> {
   const template = await run<WhatsAppTemplateDto>(exec, registerWhatsAppTemplate, {
     entityId: E,
     name,
     label: 'S3 test template',
     category: 'utility',
     params,
+    ...extra,
   });
   await run(workers([1, 2, 3, 4]), recordWhatsAppTemplateStatus, {
     name,
@@ -141,8 +159,11 @@ interface Customer {
   waId: string;
 }
 
-/** A sized rooftop lead of the LC on the test tier, with a WhatsApp number. */
-async function sizedLead(): Promise<Customer> {
+/**
+ * A sized rooftop lead of the LC on the test tier, with a WhatsApp number; a `large` one is sized
+ * for 20 modules, so its quote can pass the code's value.
+ */
+async function sizedLead(large = false): Promise<Customer> {
   const phone = testPhone();
   const lead = await run<{ id: string; account: { id: string }; contact: { id: string } | null }>(
     lc,
@@ -161,7 +182,9 @@ async function sizedLead(): Promise<Customer> {
     opportunityId: lead.id,
     sizing: {
       kind: 'rooftop',
-      inputs: { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
+      inputs: large
+        ? { monthlyUnitsKwh: 1500, roofAreaSqm: 160, sanctionedLoadKw: 15 }
+        : { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
     },
   });
   return {
@@ -281,7 +304,11 @@ beforeAll(async () => {
         on conflict (id) do nothing`;
     }),
   );
-  quoteTemplate = await approvedTemplate(`s3_quote_${RUN}`, ['Quote', 'Total', 'Valid until']);
+  quoteTemplate = await approvedTemplate(
+    `s3_quote_${RUN}`,
+    ['Quote', 'Total', 'Valid until'],
+    QUOTE_TEMPLATE_SHAPE,
+  );
   orderTemplate = await approvedTemplate(`s3_order_${RUN}`, ['Order', 'Total']);
   await run(exec, setWhatsAppMilestone, {
     entityId: E,
@@ -415,6 +442,124 @@ describe('messaging.milestone.set (WA-01)', () => {
     expect(await set(newId())).toMatchObject({ reason: 'whatsapp_template_missing' });
     // A milestone with no event before later phases cannot be mapped yet.
     expect(await set(quoteTemplate.id, 'dispatched')).toMatchObject({ code: 'validation_failed' });
+  });
+
+  it('maps only a template with the buttons and header its update sends (review 2)', async () => {
+    const set = (templateId: string, milestone = 'quote_sent') =>
+      failure(exec, setWhatsAppMilestone, { entityId: E, milestone, templateId });
+    const values = ['Quote', 'Total', 'Valid until'];
+    const bare = await approvedTemplate(`s3_bare_${RUN}`, values);
+    const noHeader = await approvedTemplate(`s3_noheader_${RUN}`, values, {
+      buttons: QUOTE_TEMPLATE_SHAPE.buttons,
+    });
+    const oneButton = await approvedTemplate(`s3_onebutton_${RUN}`, values, {
+      header: 'document',
+      buttons: [{ kind: 'quick_reply', text: 'Accept' }],
+    });
+    const urlButtons = await approvedTemplate(`s3_urlbuttons_${RUN}`, values, {
+      header: 'document',
+      buttons: [
+        { kind: 'url', text: 'Accept' },
+        { kind: 'quick_reply', text: 'Talk to us' },
+      ],
+    });
+    for (const unfit of [bare, noHeader, oneButton, urlButtons]) {
+      expect(await set(unfit.id)).toMatchObject({ reason: 'whatsapp_milestone_template_shape' });
+    }
+    const orderWithButton = await approvedTemplate(`s3_orderbutton_${RUN}`, ['Order', 'Total'], {
+      buttons: [{ kind: 'quick_reply', text: 'Thanks' }],
+    });
+    const orderWithDocument = await approvedTemplate(`s3_orderdoc_${RUN}`, ['Order', 'Total'], {
+      header: 'document',
+    });
+    for (const unfit of [orderWithButton, orderWithDocument]) {
+      expect(await set(unfit.id, 'order_confirmed')).toMatchObject({
+        reason: 'whatsapp_milestone_template_shape',
+      });
+    }
+    const fit = await approvedTemplate(`s3_fit_${RUN}`, values, QUOTE_TEMPLATE_SHAPE);
+    expect(
+      await run<WhatsAppMilestoneDto>(exec, setWhatsAppMilestone, {
+        entityId: E,
+        milestone: 'quote_sent',
+        templateId: fit.id,
+      }),
+    ).toMatchObject({ templateId: fit.id });
+    await run(exec, setWhatsAppMilestone, {
+      entityId: E,
+      milestone: 'quote_sent',
+      templateId: quoteTemplate.id,
+    });
+  });
+
+  it('keeps a mapped template as it is, but for its label (review 2)', async () => {
+    const register = (input: object) =>
+      failure(exec, registerWhatsAppTemplate, {
+        entityId: E,
+        name: quoteTemplate.name,
+        label: 'S3 test template',
+        category: 'utility',
+        params: ['Quote', 'Total', 'Valid until'],
+        ...QUOTE_TEMPLATE_SHAPE,
+        ...input,
+      });
+    for (const change of [
+      { params: ['Quote', 'Total'] },
+      { buttons: [{ kind: 'quick_reply', text: 'Accept' }] },
+      { header: 'none' },
+      { purpose: 'quote_expired', params: ['Quote'] },
+      { category: 'marketing' },
+    ]) {
+      expect(await register(change)).toMatchObject({ reason: 'whatsapp_template_mapped' });
+    }
+    const relabelled = await run<WhatsAppTemplateDto>(exec, registerWhatsAppTemplate, {
+      entityId: E,
+      name: quoteTemplate.name,
+      label: 'S3 test quote template',
+      category: 'utility',
+      params: ['Quote', 'Total', 'Valid until'],
+      ...QUOTE_TEMPLATE_SHAPE,
+    });
+    expect(relabelled).toMatchObject({
+      id: quoteTemplate.id,
+      label: 'S3 test quote template',
+      header: 'document',
+      params: ['Quote', 'Total', 'Valid until'],
+    });
+  });
+
+  it('registers the one-time code only as an authentication template with its copy-code button (review 2)', async () => {
+    const register = (name: string, input: object) =>
+      run<WhatsAppTemplateDto>(exec, registerWhatsAppTemplate, {
+        entityId: 3,
+        name,
+        label: 'S3 test code',
+        params: ['Code'],
+        purpose: 'acceptance_code',
+        ...input,
+      });
+    const refused = (name: string, input: object) =>
+      register(name, input).then(
+        () => undefined,
+        (e: unknown) => (e as { details?: { reason?: unknown } }).details?.reason,
+      );
+    const urlButton = [{ kind: 'url', text: 'Copy code' }];
+    expect(await refused(`s3_code_util_${RUN}`, { category: 'utility', buttons: urlButton })).toBe(
+      'whatsapp_template_purpose_shape',
+    );
+    expect(await refused(`s3_code_nobutton_${RUN}`, { category: 'authentication' })).toBe(
+      'whatsapp_template_purpose_shape',
+    );
+    expect(
+      await refused(`s3_code_reply_${RUN}`, {
+        category: 'authentication',
+        buttons: [{ kind: 'quick_reply', text: 'Copy code' }],
+      }),
+    ).toBe('whatsapp_template_purpose_shape');
+    // One code template a company: a fixed name, updated in place on a later run.
+    expect(
+      await register('s3_code_ok', { category: 'authentication', buttons: urlButton }),
+    ).toMatchObject({ purpose: 'acceptance_code', category: 'authentication' });
   });
 
   it('is the Executive’s alone, and refused for a company outside the request', async () => {
@@ -692,6 +837,88 @@ describe('sales.quote.accept_remote (SAL-05)', () => {
     expect([await ordersOf(lapsed.quote.id), await ordersOf(mine.quote.id)]).toEqual([0, 0]);
   });
 
+  it('refuses a bare press from ₹2,00,000, which needs the code (review 3)', async () => {
+    const customer = await sizedLead(true);
+    const threadId = await chatOf(customer);
+    await consentOf(customer);
+    // 20 test modules at the test price and rate: ₹2,68,800, over the code's value.
+    const draft = await draftQuote(customer, 20);
+    const quote = await run<QuoteDto>(lc, sendQuote, {
+      entityId: E,
+      quoteId: draft.id,
+      channel: 'whatsapp',
+    });
+    expect(
+      await failure(workers(), acceptQuoteRemote, {
+        entityId: E,
+        quoteId: quote.id,
+        threadId,
+        acceptedVia: 'whatsapp_reply',
+      }),
+    ).toMatchObject({ code: 'validation_failed', reason: 'whatsapp_code_required' });
+    expect(await ordersOf(quote.id)).toBe(0);
+    const byCode = await run<QuoteAcceptedRemotely>(workers(), acceptQuoteRemote, {
+      entityId: E,
+      quoteId: quote.id,
+      threadId,
+      acceptedVia: 'whatsapp_otp',
+    });
+    expect(byCode.accepted).toBe(true);
+    // Pressed again after the code accepted it: the order it made, still without a code.
+    expect(await acceptRemote(quote.id, threadId)).toEqual({ ...byCode, accepted: false });
+  });
+
+  it('answers a press on a quote withdrawn for another accepted quote with that order (review 6)', async () => {
+    const customer = await sizedLead();
+    const threadId = await chatOf(customer);
+    await consentOf(customer);
+    const send = async (modules: number) =>
+      run<QuoteDto>(lc, sendQuote, {
+        entityId: E,
+        quoteId: (await draftQuote(customer, modules)).id,
+        channel: 'whatsapp',
+      });
+    const older = await send(4);
+    const newer = await send(5);
+    const accepted = await acceptRemote(newer.id, threadId);
+    expect(await acceptRemote(older.id, threadId)).toEqual({
+      quoteId: newer.id,
+      quoteNo: newer.quoteNo,
+      orderId: accepted.orderId,
+      soNo: accepted.soNo,
+      accepted: false,
+      ownerId: lc.id,
+    });
+    expect(await ordersOf(older.id)).toBe(0);
+  });
+
+  it('reads the quote for the machine as every other quote command does (review 7)', async () => {
+    const { threadId, quote } = await whatsappQuote();
+    const facts = await asPrincipal(workers(), (context) =>
+      readRemoteQuoteFacts(context, { entityId: E, quoteId: quote.id, threadId }),
+    );
+    const [row] = await asMigrator(
+      (m) => m<
+        {
+          state: string;
+          tier_id: string;
+          price_list_id: string | null;
+          pdf_file_id: string | null;
+          valid_until: Date;
+        }[]
+      >`select state, tier_id, price_list_id, pdf_file_id, valid_until from quotes where id = ${quote.id}`,
+    );
+    expect(facts?.record).toEqual(
+      quoteRecordOf({
+        state: row?.state ?? '',
+        tierId: row?.tier_id ?? '',
+        priceListId: row?.price_list_id ?? null,
+        pdfFileId: row?.pdf_file_id ?? null,
+        validUntil: row?.valid_until ?? new Date(0),
+      }),
+    );
+  });
+
   it('is the platform’s alone, and refused for a company outside the request', async () => {
     const { threadId, quote } = await whatsappQuote();
     const input = { entityId: E, quoteId: quote.id, threadId, acceptedVia: 'whatsapp_reply' };
@@ -815,6 +1042,31 @@ describe('messaging.answer.queue (docs/03-roadmap-appendix/phase2.md §7.1)', ()
       outcome: 'opted_out',
       messageId: null,
     });
+  });
+
+  it('leaves a question the customer wrote waiting for people, and their notice due (review 1)', async () => {
+    // The chat opened with the customer's question, handed to people, on the LC's lead.
+    const { threadId } = await whatsappQuote();
+    const answered = await run<WhatsAppAnswerQueued>(workers(), queueWhatsAppAnswer, {
+      entityId: E,
+      threadId,
+      messageId: newId(),
+      answer: { kind: 'text', body: 'Your quotes and orders with us:' },
+    });
+    expect(answered.outcome).toBe('queued');
+    const [thread] = await asMigrator(
+      (m) => m<{ needs_reply: boolean }[]>`select needs_reply from whatsapp_threads
+                                             where id = ${threadId}`,
+    );
+    expect(thread?.needs_reply).toBe(true);
+    // The reply-waiting scan finds it once the wait has passed (a minute from now here).
+    const waitedBefore = new Date(Date.now() + 60_000).toISOString();
+    const waiting = await asPrincipal(workers(), async (context) =>
+      (await context.tx.execute(
+        sql`select thread_id, user_id from app.notice_whatsapp_waiting(${E}::smallint, ${waitedBefore}::timestamptz, 1000)`,
+      )) as unknown as { thread_id: string; user_id: string }[],
+    );
+    expect(waiting).toContainEqual({ thread_id: threadId, user_id: lc.id });
   });
 
   it('answers that a company without the code template has none to send', async () => {
@@ -968,6 +1220,20 @@ describe('the notices of a quote (§7.1)', () => {
     expect(
       (await notify({ ...accepted, acceptedBy: SYSTEM_WORKERS_PRINCIPAL_ID })).notices,
     ).toEqual([]);
+  });
+
+  it('tells the person who sent a quote on WhatsApp, once, when it did not go (review 8)', async () => {
+    const { quote } = await whatsappQuote();
+    const notSent = { event: 'sales.quote.sent', quoteId: quote.id, sentBy: lc.id };
+    expect((await notify(notSent)).notices).toMatchObject([
+      {
+        userId: lc.id,
+        type: 'whatsapp_quote_not_sent',
+        subjectId: quote.id,
+        payload: { quoteId: quote.id },
+      },
+    ]);
+    expect((await notify(notSent)).notices).toEqual([]);
   });
 
   it('tells the owner once when Accept is pressed on a lapsed quote, never on an open one', async () => {

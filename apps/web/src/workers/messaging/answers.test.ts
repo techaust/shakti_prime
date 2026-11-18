@@ -55,9 +55,10 @@ describe('the STATUS answer (WA-03)', () => {
 });
 
 describe('the answers to a press and a code', () => {
-  it('names the quote and its order', () => {
+  it('names the quote and its order, and promises nothing more (review 9)', () => {
+    // No confirmation is promised: it reaches the customer only when the company maps one.
     expect(acceptedAnswer('SMP/Q/1', 'SMP/SO/1', false)).toBe(
-      'Thank you. Quote SMP/Q/1 is accepted and your order number is SMP/SO/1. We will confirm the order here.',
+      'Thank you. Quote SMP/Q/1 is accepted and your order number is SMP/SO/1.',
     );
     expect(acceptedAnswer('SMP/Q/1', 'SMP/SO/1', true)).toBe(
       'Quote SMP/Q/1 is already accepted. Your order number is SMP/SO/1.',
