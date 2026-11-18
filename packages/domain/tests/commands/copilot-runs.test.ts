@@ -245,6 +245,10 @@ let outcomeCode: string;
 let outcomeId: string;
 
 beforeAll(async () => {
+  // The Co-pilot's own settings here start from none, whatever the journeys' seed left.
+  await asMigrator(
+    (m) => m`delete from agent_configs where agent = 'agent:copilot' and entity_id = ${ENTITY}`,
+  );
   exec = await createTestPrincipal('executive', [ENTITY]);
   channel = await whatsappChannel(ENTITY);
   const pipeline = PIPELINE_SEED[0];
