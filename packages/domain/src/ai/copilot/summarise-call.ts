@@ -38,6 +38,7 @@ interface CallFacts {
   opportunityId: string | null;
   direction: string;
   status: string;
+  endedAt: Date | null;
   callerConverter: boolean;
   leadAnonymised: boolean;
   recording: { key: string; contentType: string; sha256: string } | null;
@@ -105,13 +106,14 @@ async function readCallFacts(
     { entityIds: [job.entityId] },
     async ({ tx }) => {
       const rows = (await tx.execute(sql`
-        select opportunity_id, direction, status, caller_converter, lead_anonymised,
+        select opportunity_id, direction, status, ended_at, caller_converter, lead_anonymised,
                recording_key, recording_content_type, recording_sha256,
                transcript_key, transcript_sha256
           from app.copilot_call_facts(${job.entityId}::smallint, ${job.providerCallId}::uuid)`)) as unknown as {
         opportunity_id: string | null;
         direction: string;
         status: string;
+        ended_at: Date | string | null;
         caller_converter: boolean;
         lead_anonymised: boolean;
         recording_key: string | null;
@@ -126,6 +128,7 @@ async function readCallFacts(
         opportunityId: row.opportunity_id,
         direction: row.direction,
         status: row.status,
+        endedAt: row.ended_at === null ? null : new Date(row.ended_at),
         callerConverter: row.caller_converter,
         leadAnonymised: row.lead_anonymised,
         recording:
@@ -172,18 +175,30 @@ export async function summariseCall(
     return { outcome: 'skipped', reason: 'not_a_dial' };
   }
   if (call.leadAnonymised) return { outcome: 'skipped', reason: 'anonymised' };
-  if (call.status !== 'completed' || (call.recording === null && call.transcript === null)) {
-    return { outcome: 'skipped', reason: 'not_recorded' };
-  }
   if (!coveredCall(copilotCoverage(job.entityId), call.callerConverter)) {
     return { outcome: 'skipped', reason: 'not_covered' };
   }
-
+  if (call.status !== 'completed') return { outcome: 'skipped', reason: 'not_recorded' };
+  const recorded = call.recording !== null || call.transcript !== null;
   const base = { eventId: job.eventId, kind: 'call_summary' as const, entityId: job.entityId };
   const config = await copilotSettings(job.entityId, 'call_summary');
   if (!copilotMayRun(config)) {
+    if (!recorded) return { outcome: 'skipped', reason: 'not_recorded' };
     const stopped = await recordCopilotStop(base, deps);
     return { outcome: 'stopped', runs: { qualification: stopped }, transcribed: false };
+  }
+  if (!recorded) {
+    if (deps.transcriber === undefined) return { outcome: 'skipped', reason: 'no_speech_service' };
+    // The status is recorded before the recording is copied in: a call that ended moments ago is
+    // delivered again until its recording is there or the wait is over.
+    const now = (deps.now ?? (() => new Date()))().getTime();
+    const waitMs = AGENT_DEFAULTS.copilot.recordingWaitMinutes * 60_000;
+    if (call.endedAt !== null && now - call.endedAt.getTime() < waitMs) {
+      throw new DomainError('integration_unavailable', 'the call recording is not copied in yet', {
+        reason: 'call_recording_pending',
+      });
+    }
+    return { outcome: 'skipped', reason: 'not_recorded' };
   }
 
   let transcript: string;

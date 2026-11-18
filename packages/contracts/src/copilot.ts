@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { InboxItemDto } from './agents';
+import { AgentFilterReasonSchema, InboxItemDto } from './agents';
+import { ShadowAgreementSchema } from './triage';
 import { FileSha256Schema } from './api/files';
 import { WhatsAppTemplateNameSchema } from './api/messaging';
 import { LeadQualificationFactsSchema } from './commands/crm/ingest';
@@ -232,3 +233,76 @@ export const CopilotPanelDto = z
   })
   .strict();
 export type CopilotPanelDto = z.infer<typeof CopilotPanelDto>;
+
+/** Whether a summary's outcome matches the call as logged; `none` when it suggested none. */
+export const COPILOT_OUTCOME_AGREEMENTS = ['agree', 'disagree', 'pending', 'none'] as const;
+export const CopilotOutcomeAgreementSchema = z.enum(COPILOT_OUTCOME_AGREEMENTS);
+export type CopilotOutcomeAgreement = z.infer<typeof CopilotOutcomeAgreementSchema>;
+
+/** One fact a summary heard beside what the lead now records. */
+export const CopilotReportFactDto = z
+  .object({
+    fact: z.enum(COPILOT_FACTS),
+    heard: z.number(),
+    recorded: z.number().nullable(),
+    agreement: ShadowAgreementSchema,
+  })
+  .strict();
+export type CopilotReportFactDto = z.infer<typeof CopilotReportFactDto>;
+
+/** One call summary beside what the caller logged and what the lead records. Strict. */
+export const CopilotReportItemDto = z
+  .object({
+    noteId: IdSchema,
+    createdAt: z.iso.datetime(),
+    opportunityId: IdSchema,
+    accountId: IdSchema.nullable(),
+    customerName: z.string().nullable(),
+    suggestedOutcome: z.string().nullable(),
+    loggedOutcome: z.string().nullable(),
+    outcomeAgreement: CopilotOutcomeAgreementSchema,
+    facts: z.array(CopilotReportFactDto),
+  })
+  .strict();
+export type CopilotReportItemDto = z.infer<typeof CopilotReportItemDto>;
+
+const Counts = z
+  .object({
+    agreed: z.number().int().min(0),
+    disagreed: z.number().int().min(0),
+    pending: z.number().int().min(0),
+  })
+  .strict();
+
+/**
+ * The Co-pilot's shadow report (design §7.3): one company's call summaries in a period, their
+ * suggested outcomes and heard facts beside what callers logged and leads record, the runs the
+ * output filter refused by reason, and its proposals by action type and how they ended.
+ */
+export const CopilotReportDto = z
+  .object({
+    entityId: EntityIdSchema,
+    from: z.iso.date(),
+    to: z.iso.date(),
+    summaries: z.number().int().min(0),
+    outcomes: Counts.extend({ none: z.number().int().min(0) }).strict(),
+    facts: Counts,
+    filtered: z.array(
+      z.object({ reason: AgentFilterReasonSchema, runs: z.number().int().min(0) }).strict(),
+    ),
+    proposals: z.array(
+      z
+        .object({
+          actionType: z.string(),
+          shadowed: z.number().int().min(0),
+          waiting: z.number().int().min(0),
+          approved: z.number().int().min(0),
+          rejected: z.number().int().min(0),
+        })
+        .strict(),
+    ),
+    items: z.array(CopilotReportItemDto),
+    nextCursor: z.string().nullable(),
+  })
+  .strict();
+export type CopilotReportDto = z.infer<typeof CopilotReportDto>;

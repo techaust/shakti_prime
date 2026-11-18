@@ -6,12 +6,12 @@
 -- removal.
 
 -- 1. What the summary worker needs of one provider call of the company: its lead, direction,
---    status and caller, whether the caller is a Lead Converter of the company (the coverage
+--    status, caller and end, whether the caller is a Lead Converter of the company (the coverage
 --    setting, question 8), the recording as stored (none once removed) and the transcript if one
 --    was made. No row for a call outside the request's companies.
 create or replace function app.copilot_call_facts(p_entity smallint, p_call uuid)
   returns table (opportunity_id uuid, direction text, status text, caller_id uuid,
-                 caller_converter boolean, lead_anonymised boolean,
+                 ended_at timestamptz, caller_converter boolean, lead_anonymised boolean,
                  recording_file_id uuid, recording_bucket text, recording_key text,
                  recording_content_type text, recording_size integer, recording_sha256 text,
                  transcript_file_id uuid, transcript_bucket text, transcript_key text,
@@ -20,7 +20,7 @@ create or replace function app.copilot_call_facts(p_entity smallint, p_call uuid
 begin
   perform app.require_calls_process(p_entity);
   return query
-    select pc.opportunity_id, pc.direction, pc.status, pc.caller_id,
+    select pc.opportunity_id, pc.direction, pc.status, pc.caller_id, pc.ended_at,
            coalesce((select cp.is_converter from public.caller_profiles cp
                       where cp.user_id = pc.caller_id and cp.entity_id = pc.entity_id), false),
            coalesce(o.anonymised_at is not null, false),

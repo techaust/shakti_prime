@@ -258,6 +258,8 @@ export const AGENT_DEFAULTS = {
    *   summary reads, its end kept;
    * - `maxCallMinutes`: a longer recording is not transcribed, so one call cannot take the day's
    *   cap and its transcript is made inside the event route's minute;
+   * - `recordingWaitMinutes`: an answered call whose recording is not copied in yet is delivered
+   *   again for this long after it ended, then left without a summary (a call placed unrecorded);
    * - `answerTtlSeconds`: how long the model's answer for an event is kept for a redelivery;
    * - `promptVersion`: named with every change of the prompts.
    */
@@ -281,6 +283,7 @@ export const AGENT_DEFAULTS = {
     directivesRead: 30,
     transcriptCharsRead: 18_000,
     maxCallMinutes: 15,
+    recordingWaitMinutes: 5,
     answerTtlSeconds: 60 * 60,
     promptVersion: 'copilot-1',
   },
