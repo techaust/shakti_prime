@@ -68,6 +68,10 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `whatsapp.replyWaitMinutes` | 10 |
 | `whatsapp.linkHosts` | none |
 | `whatsapp.promiseWords` | discount, guarantee, gaurantee, free, free of cost, cashback, cash back, lowest price, best price, cheapest, promise, assured, waiver, muft, chhoot, chhut, pakka |
+| `whatsapp.handoffWords.complaint` | complaint, complain, not working, stopped working, broken, damaged, faulty, refund, cheated, fraud, shikayat, kharab, band ho gaya, kaam nahi kar raha, dhokha |
+| `whatsapp.handoffWords.legal` | legal, lawyer, advocate, court, police, consumer forum, legal notice, vakil, kanooni, adalat |
+| `whatsapp.handoffWords.price` | price, prices, rate, rates, cost, costs, how much, quotation, kitna, kitne, kitne ka, kimat, keemat, daam, paisa, paise |
+| `whatsapp.handoffWords.subsidy` | subsidy, subsidies, sabsidi, anudan, kusum, pm kusum, surya ghar, yojana, scheme, government scheme, sarkari |
 | `whatsapp.leadPipelineKey` | farmer_pumps |
 | `whatsapp.otpFromRupees` | 200000 |
 | `whatsapp.otpMinutes` | 5 |

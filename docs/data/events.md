@@ -49,7 +49,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-57 types, 19 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+57 types, 20 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -149,7 +149,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`messaging.message.requested`](#messagingmessagerequested) | A WhatsApp message was queued on a thread: by a person, or by the platform (the welcome, the confirmation of a STOP, a milestone, an answer to a quote button, a code or STATUS); the messaging worker checks and sends it. | `messaging.message.send`, `messaging.message.queue`, `messaging.milestone.send`, `messaging.answer.queue`, `messaging.template.request` | `POST /api/v1/workers/outbox/messaging.message.requested` (QStash URL group `evt-messaging.message.requested`) |
-| [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread, `platform` that the platform answers it itself (STATUS or a one-time code). | `messaging.inbound.record` | none |
+| [`messaging.message.received`](#messagingmessagereceived) | A customer's WhatsApp message (text or a file) was stored on its thread, once; `firstMessage` says it opened the thread, `platform` that the platform answers it itself (STATUS or a one-time code). | `messaging.inbound.record` | `POST /api/v1/workers/outbox/messaging.message.received` (QStash URL group `evt-messaging.message.received`) |
 | [`messaging.button.pressed`](#messagingbuttonpressed) | A customer pressed a button of a WhatsApp message (a quick reply); the button's own id is stored with the message. The platform answers a quote's Accept and Talk to us buttons. | `messaging.inbound.record` | `POST /api/v1/workers/outbox/messaging.button.pressed` (QStash URL group `evt-messaging.button.pressed`) |
 
 ### agents

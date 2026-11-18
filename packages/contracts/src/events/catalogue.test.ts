@@ -66,6 +66,8 @@ describe('the event catalogue', () => {
         'knowledge.playbook.changed',
         'messaging.button.pressed',
         'messaging.message.requested',
+        // The WhatsApp Concierge on each customer message (A3).
+        'messaging.message.received',
         'platform.probe.requested',
         'print.document.requested',
         'sales.order.confirmed',
