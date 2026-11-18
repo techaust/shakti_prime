@@ -3,7 +3,8 @@
 // approval). Per project, one lead of the tele-caller made afresh on every run, with what the
 // Co-pilot would have written by then: a brief two hours old, so a new one may be asked for; an
 // answered dial of the lead, not saved yet, and its summary with the facts heard and the outcome
-// it suggests; and its two suggestions that need approval, the facts and a follow-up for the
+// it suggests; an older dial whose summary was written in Shadow, for the Co-pilot report; and
+// its two suggestions that need approval, the facts and a follow-up for the
 // caller, filed through the real runtime with the fake transport. Nothing reaches a vendor.
 import { AGENT_PRINCIPAL_IDS, newId } from '@shakti/contracts';
 import { asMigrator, principalFor } from '@shakti/db/testing';
@@ -116,10 +117,25 @@ export async function ensureCopilotJourneys(callerId: string): Promise<void> {
       await m`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_at, created_by)
                values (${newId()}, ${ENTITY}, ${lead.id}, 'brief', ${COPILOT_JOURNEY.brief},
                        now() - interval '2 hours', ${COPILOT})`;
+      // Written under Needs approval, so its suggestions are shown to the caller.
       await m`insert into copilot_notes (id, entity_id, opportunity_id, provider_call_id, kind, body,
-                                         fields_json, suggested_disposition_id, created_by)
+                                         fields_json, suggested_disposition_id, suggestions_shown,
+                                         created_by)
                values (${newId()}, ${ENTITY}, ${lead.id}, ${call}, 'call_summary', ${COPILOT_JOURNEY.summary},
-                       ${m.json({ ...COPILOT_JOURNEY.facts })}, ${outcome.id}, ${COPILOT})`;
+                       ${m.json({ ...COPILOT_JOURNEY.facts })}, ${outcome.id}, true, ${COPILOT})`;
+      // An older dial whose summary was written in Shadow, which the Co-pilot report counts.
+      const older = newId();
+      await m`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id,
+                                          direction, series, purpose, status, started_at, answered_at,
+                                          ended_at, duration_s)
+               values (${older}, ${ENTITY}, ${lead.id}, ${contactPhone?.id ?? null}, ${callerId},
+                       'outbound', '140', 'promotional', 'completed', now() - interval '3 days',
+                       now() - interval '3 days', now() - interval '3 days', 180)`;
+      await m`insert into copilot_notes (id, entity_id, opportunity_id, provider_call_id, kind, body,
+                                         fields_json, suggested_disposition_id, created_at, created_by)
+               values (${newId()}, ${ENTITY}, ${lead.id}, ${older}, 'call_summary', ${COPILOT_JOURNEY.shadowSummary},
+                       ${m.json({ ...COPILOT_JOURNEY.shadowFacts })}, ${outcome.id},
+                       now() - interval '3 days', ${COPILOT})`;
     });
     await suggest(
       'crm.lead.qualification.set',

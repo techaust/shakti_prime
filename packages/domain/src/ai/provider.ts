@@ -199,11 +199,69 @@ export interface AiProvider {
    * what it was sent. The work keeps its own timeouts and retries.
    */
   metered<T>(call: MeteredCall, work: (spend: (paise: number) => void) => Promise<T>): Promise<T>;
+  /**
+   * Whether work of at most `paise` would pass every cap of `call` now: the reservation's own check
+   * on the day's totals, read without reserving anything, so a run can stop before it reads or
+   * downloads what the work would need. The reservation stays the final guard.
+   */
+  fits(call: SpendCheck, paise: number): Promise<boolean>;
 }
+
+/** What a spend check needs of a call: whose spend, in which company, under which caps. */
+export type SpendCheck = Pick<CallBase, 'agent' | 'entityId' | 'caps' | 'person' | 'part'>;
 
 /** The key holding one agent's spend today, in a company or (null) the group. */
 export function spendKey(agent: string, entityId: number | null, day: string): string {
   return `ai:spend:${agent}:${entityId === null ? 'all' : String(entityId)}:${day}`;
+}
+
+/** The key holding one part's spend today (`CallBase.part`), counted beside the caps. */
+export function partSpendKey(agent: string, part: string, day: string): string {
+  return `ai:spend:${agent}:part:${part}:${day}`;
+}
+
+/** The keys a call's spend is counted under today: the totals of the caps, then its shares. */
+function spendKeysOf(call: SpendCheck, day: string) {
+  const keys =
+    call.entityId === null
+      ? [spendKey(call.agent, null, day)]
+      : [spendKey(call.agent, call.entityId, day), spendKey(call.agent, null, day)];
+  // The person's and the part's own totals, each beside the caps with its own limit.
+  const shares: { key: string; capPaise: number; scope: 'person' | 'part' }[] = [];
+  if (call.person !== undefined) {
+    shares.push({
+      key: `ai:spend:${call.agent}:person:${call.person.id}:${day}`,
+      capPaise: call.person.capPaise,
+      scope: 'person',
+    });
+  }
+  if (call.part !== undefined) {
+    shares.push({
+      key: partSpendKey(call.agent, call.part.name, day),
+      capPaise: call.part.capPaise,
+      scope: 'part',
+    });
+  }
+  return { keys, shares };
+}
+
+/**
+ * Which limit the totals (the caps' totals, then the shares', each with the call counted in) pass,
+ * if any: `cap` for a cap, or the share's scope.
+ */
+function passedLimit(
+  call: SpendCheck,
+  spent: ReturnType<typeof spendKeysOf>,
+  totals: readonly number[],
+): 'cap' | 'person' | 'part' | undefined {
+  const group = totals[spent.keys.length - 1] ?? 0;
+  // A call of the whole group has no company total: a company's cap is held against the group's.
+  const company = totals[0] ?? group;
+  if (call.caps.some((cap) => (cap.entityId === null ? group : company) > cap.paise)) return 'cap';
+  for (const [i, share] of spent.shares.entries()) {
+    if ((totals[spent.keys.length + i] ?? 0) > share.capPaise) return share.scope;
+  }
+  return undefined;
 }
 
 /** The length of a text in UTF-8 bytes, the most tokens it can be. */
@@ -264,28 +322,8 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
    */
   async function reserve(call: CallBase, paise: number): Promise<Reservation> {
     if (call.caps.length === 0) throw capReached(call);
-    const day = istCalendarDate(now());
-    const keys =
-      call.entityId === null
-        ? [spendKey(call.agent, null, day)]
-        : [spendKey(call.agent, call.entityId, day), spendKey(call.agent, null, day)];
-    // The person's and the part's own totals, each beside the caps with its own limit.
-    const shares: { key: string; capPaise: number; scope: 'person' | 'part' }[] = [];
-    if (call.person !== undefined) {
-      shares.push({
-        key: `ai:spend:${call.agent}:person:${call.person.id}:${day}`,
-        capPaise: call.person.capPaise,
-        scope: 'person',
-      });
-    }
-    if (call.part !== undefined) {
-      shares.push({
-        key: `ai:spend:${call.agent}:part:${call.part.name}:${day}`,
-        capPaise: call.part.capPaise,
-        scope: 'part',
-      });
-    }
-    const held: readonly string[] = [...keys, ...shares.map((share) => share.key)];
+    const spent = spendKeysOf(call, istCalendarDate(now()));
+    const held: readonly string[] = [...spent.keys, ...spent.shares.map((share) => share.key)];
     const totals: number[] = [];
     for (const key of held) {
       try {
@@ -298,19 +336,11 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         throw unavailable('the spend could not be reserved', error);
       }
     }
-    const group = totals[keys.length - 1] ?? 0;
-    // A call of the whole group has no company total: a company's cap is held against the group's.
-    const company = totals[0] ?? group;
     const reservation: Reservation = { keys: held, paise };
-    if (call.caps.some((cap) => (cap.entityId === null ? group : company) > cap.paise)) {
+    const passed = passedLimit(call, spent, totals);
+    if (passed !== undefined) {
       await move(call, reservation, -paise);
-      throw capReached(call);
-    }
-    for (const [i, share] of shares.entries()) {
-      if ((totals[keys.length + i] ?? 0) > share.capPaise) {
-        await move(call, reservation, -paise);
-        throw capReached(call, share.scope);
-      }
+      throw capReached(call, passed === 'cap' ? undefined : passed);
     }
     return reservation;
   }
@@ -513,6 +543,17 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         costPaise,
       });
       return { vectors: reply.vectors, model, tokens: reply.tokens, costPaise };
+    },
+
+    async fits(call, paise) {
+      if (call.caps.length === 0) return false;
+      const spent = spendKeysOf(call, istCalendarDate(now()));
+      const totals: number[] = [];
+      for (const key of [...spent.keys, ...spent.shares.map((share) => share.key)]) {
+        const raw = await store('the spend could not be read', () => keyValue.get(key));
+        totals.push(Number(raw ?? 0) + Math.max(0, paise));
+      }
+      return passedLimit(call, spent, totals) === undefined;
     },
 
     async metered(call, work) {

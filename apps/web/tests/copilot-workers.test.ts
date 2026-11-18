@@ -181,6 +181,47 @@ describe('the Caller Co-pilot’s event workers', () => {
     expect(await briefs(lead)).toEqual([]);
   });
 
+  it('send an assigned lead’s notices once, though its brief fails and the event comes again', async () => {
+    const lead = await newLead();
+    const assigner = await createTestUser([{ entityId: CO, roleKey: 'sales_team_lead' }]);
+    const event = {
+      id: newId(),
+      sequence: '1',
+      type: 'crm.opportunity.assigned',
+      entityId: CO,
+      aggregateType: 'opportunity',
+      aggregateId: lead,
+      payload: { ownerId: caller.id, teamId: null, lockHours: 48, assignedById: assigner.id, v: 1 },
+    } as unknown as DeliveredEvent;
+    const notices = () =>
+      asMigrator(
+        (m) => m<{ created_at: Date }[]>`
+          select created_at from notifications
+           where user_id = ${caller.id} and subject_id = ${lead} and type = 'lead_assigned'`,
+      );
+    const keyValue = memoryKeyValue();
+    // The first delivery starts with its time used up: the notices go, then the brief stops.
+    await expect(
+      deliverEvent(event, {
+        keyValue,
+        requestId: newId(),
+        startedAt: performance.now() - 60_000,
+      }),
+    ).rejects.toMatchObject({
+      code: 'integration_unavailable',
+      details: { reason: 'copilot_out_of_time' },
+    });
+    const first = await notices();
+    expect(first).toHaveLength(1);
+    const between = new Date();
+    // The retry runs the brief (recorded as unavailable without a model key) and repeats no notice.
+    const again = await deliverEvent(event, { keyValue, requestId: newId() });
+    expect(again.outcome).toBe('done');
+    const after = await notices();
+    expect(after).toHaveLength(1);
+    expect(new Date(after[0]?.created_at ?? 0).getTime()).toBeLessThan(between.getTime());
+  });
+
   it('stop at the switch: a run recorded as switched off, nothing asked', async () => {
     await setting(false);
     const lead = await newLead();

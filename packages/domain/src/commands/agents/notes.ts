@@ -1,4 +1,5 @@
 import {
+  COPILOT_ACTION_TYPES,
   CopilotNoteDto,
   DomainError,
   newId,
@@ -8,6 +9,7 @@ import {
 import { schema } from '@shakti/db';
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm';
 import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
+import { loadAgentConfig } from '../../ai/config';
 import { copilotTextProblem } from '../../ai/copilot/filter';
 import { defineCommand } from '../../command/define-command';
 import { isAgent } from '../../command/run-command';
@@ -27,6 +29,7 @@ function toNoteDto(row: NoteRow): CopilotNoteDto {
     fields: row.fieldsJson as CopilotFacts,
     suggestedDispositionId: row.suggestedDispositionId,
     agentActionId: row.agentActionId,
+    suggestionsShown: row.suggestionsShown,
     createdAt: row.createdAt.toISOString(),
   });
 }
@@ -39,7 +42,9 @@ function toNoteDto(row: NoteRow): CopilotNoteDto {
  * 600 characters) and its identity numbers masked before it is stored. A summary is of a provider
  * call of the same lead, once per call, and its outcome one of the group's or the company's in
  * use; the outcome is only pre-selected in the call log, never logged here. A lead gets at most
- * one brief an hour (`AGENT_DEFAULTS.copilot.briefIntervalMinutes`). Nothing else changes: the
+ * one brief an hour (`AGENT_DEFAULTS.copilot.briefIntervalMinutes`). A summary's suggestions are
+ * shown to callers only when its facts' action type is past Shadow (`suggestions_shown`). Nothing
+ * else changes: the
  * facts it heard are a suggestion of their own, which a person approves.
  */
 export const recordCopilotNote = defineCommand({
@@ -131,6 +136,19 @@ export const recordCopilotNote = defineCommand({
       }
     }
 
+    // A summary's suggestions are shown to callers only past Shadow, as its facts' action type
+    // stands now: in Shadow the caller sees its text alone (the lead's decision of 18-11-2026).
+    let suggestionsShown = false;
+    if (input.kind === 'call_summary') {
+      const config = await loadAgentConfig(
+        ctx.tx,
+        'agent:copilot',
+        COPILOT_ACTION_TYPES.qualification,
+        lead.entityId,
+      );
+      suggestionsShown = config.enabled && config.autonomy !== 'shadow';
+    }
+
     const id = newId();
     const [row] = await ctx.tx
       .insert(n)
@@ -144,6 +162,7 @@ export const recordCopilotNote = defineCommand({
         fieldsJson: input.fields,
         suggestedDispositionId: input.suggestedDispositionId ?? null,
         agentActionId: input.agentActionId ?? null,
+        suggestionsShown,
         createdAt: ctx.now,
         createdBy: ctx.principal.id,
       })

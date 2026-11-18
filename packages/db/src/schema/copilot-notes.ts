@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   index,
@@ -30,6 +31,9 @@ import { providerCalls } from './provider-calls';
  * qualification facts it heard (`fields_json`) and the outcome it would pre-select in the call
  * log (`suggested_disposition_id`); the outcome is never logged by the agent. A brief names none
  * of them. `agent_action_id` is the suggestion filed with the note, when there is one.
+ * `suggestions_shown` says whether a summary's suggestions (the outcome to pre-select and the facts
+ * heard) are shown to callers: only when its facts' action type was past Shadow as it was written,
+ * so the shadow report measures callers who did not see them (the lead's decision of 18-11-2026).
  */
 export const copilotNotes = pgTable(
   'copilot_notes',
@@ -45,6 +49,7 @@ export const copilotNotes = pgTable(
     fieldsJson: jsonb('fields_json').notNull().default({}),
     suggestedDispositionId: uuid('suggested_disposition_id').references(() => callDispositions.id),
     agentActionId: uuid('agent_action_id'),
+    suggestionsShown: boolean('suggestions_shown').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     createdBy: uuid('created_by')
       .notNull()
@@ -74,6 +79,8 @@ export const copilotNotes = pgTable(
       'copilot_notes_brief_check',
       sql`${t.kind} <> 'brief' or (${t.suggestedDispositionId} is null and ${t.fieldsJson} = '{}'::jsonb)`,
     ),
+    // A brief carries no suggestion to show.
+    check('copilot_notes_shown_check', sql`${t.kind} <> 'brief' or not ${t.suggestionsShown}`),
     check(
       'copilot_notes_fields_check',
       sql`jsonb_typeof(${t.fieldsJson}) = 'object' and pg_column_size(${t.fieldsJson}) <= 1000`,

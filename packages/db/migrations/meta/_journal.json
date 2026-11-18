@@ -1352,6 +1352,20 @@
       "when": 1794976838999,
       "tag": "0192_copilot_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 193,
+      "version": "7",
+      "when": 1794986313475,
+      "tag": "0193_copilot_suggestions_shown",
+      "breakpoints": true
+    },
+    {
+      "idx": 194,
+      "version": "7",
+      "when": 1794986324811,
+      "tag": "0194_copilot_fix_round",
+      "breakpoints": true
     }
   ]
 }

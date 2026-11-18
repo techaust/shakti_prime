@@ -22,4 +22,7 @@ export const COPILOT_JOURNEY = {
   /** The facts the summary heard, as the panel shows them. */
   facts: { pumpDepthFt: 180, requiredHp: 7.5 },
   followUp: 'Call back about the pump quote',
+  /** The summary of an older call, written in Shadow: the Co-pilot report counts it. */
+  shadowSummary: 'The farmer has a 150 foot bore and is comparing quotes. He will decide after the harvest.',
+  shadowFacts: { pumpDepthFt: 150 },
 } as const;

@@ -7,6 +7,7 @@ import { costInPaise, DEFAULT_CLAUDE_MODEL, maxCostInPaise, PAISE_PER_USD } from
 import {
   BREAKER_FAILURES,
   createAiProvider,
+  partSpendKey,
   spendKey,
   type AiProviderDeps,
   type CompleteCall,
@@ -468,3 +469,36 @@ describe('createAiProvider', () => {
     expect(istCalendarDate(new Date('2026-10-05T18:31:00Z'))).toBe('2026-10-06');
   });
 });
+
+describe('fits', () => {
+  it('reads the day’s totals against every cap and share without reserving anything', async () => {
+    const { provider, keyValue } = setup();
+    const day = istCalendarDate(NOW);
+    const check = {
+      agent: 'agent:copilot' as const,
+      entityId: 1,
+      caps: [
+        { paise: 1_000, entityId: 1 },
+        { paise: 5_000, entityId: null },
+      ],
+    };
+    expect(await provider.fits(check, 1_000)).toBe(true);
+    expect(await provider.fits(check, 1_001)).toBe(false);
+    await keyValue.incrBy(spendKey('agent:copilot', 1, day), 600, 3_600);
+    expect(await provider.fits(check, 400)).toBe(true);
+    expect(await provider.fits(check, 401)).toBe(false);
+    // The group's total is held against the group's cap.
+    await keyValue.incrBy(spendKey('agent:copilot', null, day), 4_500, 3_600);
+    expect(await provider.fits({ ...check, entityId: 2 }, 500)).toBe(true);
+    expect(await provider.fits({ ...check, entityId: 2 }, 501)).toBe(false);
+    // A part's own share, beside the caps.
+    const part = { name: 'brief:1', capPaise: 300 };
+    expect(await provider.fits({ ...check, part }, 300)).toBe(true);
+    await keyValue.incrBy(partSpendKey('agent:copilot', 'brief:1', day), 100, 3_600);
+    expect(await provider.fits({ ...check, part }, 300)).toBe(false);
+    // No cap means no call; nothing was reserved by any check.
+    expect(await provider.fits({ ...check, caps: [] }, 0)).toBe(false);
+    expect(await keyValue.get(spendKey('agent:copilot', 1, day))).toBe('600');
+  });
+});
+

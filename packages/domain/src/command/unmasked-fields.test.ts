@@ -131,6 +131,7 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   'calls.provider_call.record': { callSid: HEX },
   'calls.recording.attach': { sha256: HEX },
   'calls.transcript.attach': { sha256: HEX },
+  'calls.transcript.reserve': { sha256: HEX },
   'knowledge.playbook.record_check': { wordingSha256: HEX },
   'admin.role.permissions.set': { expectedVersion: HEX },
   'crm.lead.create': { referralCode: AADHAAR },

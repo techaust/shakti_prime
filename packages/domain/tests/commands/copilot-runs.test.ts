@@ -6,6 +6,7 @@ import {
   type InboundWhatsAppRecorded,
   type Principal,
   type RequestCopilotBriefDto,
+  type SweepUploadsDto,
 } from '@shakti/contracts';
 import {
   asMigrator,
@@ -24,9 +25,9 @@ import {
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AGENT_DEFAULTS } from '../../src/ai/agent-defaults';
-import { runCopilot } from '../../src/ai/copilot/run-copilot';
+import { copilotModelEstimatePaise, runCopilot } from '../../src/ai/copilot/run-copilot';
 import { summariseCall, type SummariseDeps } from '../../src/ai/copilot/summarise-call';
-import { createAiProvider, spendKey } from '../../src/ai/provider';
+import { createAiProvider, partSpendKey, spendKey } from '../../src/ai/provider';
 import { agentPrincipal } from '../../src/ai/runtime';
 import { fakeModelTransport, fakeReply, type FakeModelTransport } from '../../src/ai/transport';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -34,14 +35,22 @@ import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { requestCopilotBrief } from '../../src/commands/agents/brief-request';
 import { recordCopilotNote } from '../../src/commands/agents/notes';
-import { attachCallTranscript } from '../../src/commands/calls/call-transcript';
+import {
+  attachCallTranscript,
+  reserveCallTranscript,
+} from '../../src/commands/calls/call-transcript';
+import { deleteCallRecording } from '../../src/commands/calls/provider-calls';
+import { sweepUploads } from '../../src/commands/files/sweep-uploads';
+import { dueCallRecordings } from '../../src/queries/calls/provider-calls';
 import { recordInboundWhatsApp } from '../../src/commands/messaging/platform';
+import { KnowledgeExtractError } from '../../src/knowledge/extract';
 import type { RecordingTranscriber } from '../../src/knowledge/index-file';
 import { istCalendarDate } from '../../src/numbering/financial-year';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryFileStore, sha256Hex } from '../../src/ports/file-store';
 import { memoryKeyValue, type KeyValue } from '../../src/ports/key-value';
 import { memoryLogger } from '../../src/ports/logger';
+import { loadCopilotPanel, loadCopilotReport } from '../../src/queries/agents/copilot';
 import { effectiveDispositions } from '../../src/queries/crm/pipeline-settings';
 
 // The Caller Co-pilot's runs end to end on Postgres (A2, docs/03-roadmap-appendix/phase2.md §7.3):
@@ -452,8 +461,99 @@ describe('the Co-pilot’s brief', () => {
       { provider, logger: memoryLogger() },
     );
     expect(transport.requests).toHaveLength(0);
+    // Stopped before the lead was read, not refused at the model call after reading it.
+    expect(result.outcome).toBe('stopped');
     expect(result.runs.followUp?.outcome).toBe('cap_reached');
     expect(await notesOf(l.opportunityId)).toEqual([]);
+    await drop(cap);
+  });
+
+  it('stops before reading when the day’s spend has no room for the run’s estimate', async () => {
+    const l = await lead();
+    const cap = await setting({ cap: 1_000_000 });
+    const keyValue = memoryKeyValue();
+    // Room for a paisa less than the brief is reckoned to cost.
+    await keyValue.incrBy(
+      spendKey('agent:copilot', ENTITY, istCalendarDate(new Date())),
+      AGENT_DEFAULTS.copilot.companyDailyCapPaise - copilotModelEstimatePaise('brief') + 1,
+      3_600,
+    );
+    const { transport, provider } = model(BRIEF, keyValue);
+    const result = await runCopilot(
+      { eventId: newId(), kind: 'brief', entityId: ENTITY, opportunityId: l.opportunityId },
+      { provider, logger: memoryLogger() },
+    );
+    expect(result.outcome).toBe('stopped');
+    expect(result.runs.followUp?.outcome).toBe('cap_reached');
+    expect(transport.requests).toHaveLength(0);
+    await drop(cap);
+  });
+
+  it('keeps briefs to half of the company’s day, so summaries keep the rest', async () => {
+    const l = await lead();
+    const cap = await setting({ cap: 1_000_000 });
+    const keyValue = memoryKeyValue();
+    const day = istCalendarDate(new Date());
+    const half = Math.floor(AGENT_DEFAULTS.copilot.companyDailyCapPaise / 2);
+    // A brief is counted in the briefs' share.
+    const { provider } = model(BRIEF, keyValue);
+    const job = { kind: 'brief' as const, entityId: ENTITY, opportunityId: l.opportunityId };
+    expect((await runCopilot({ ...job, eventId: newId() }, { provider })).outcome).toBe('ran');
+    const counted = Number(await keyValue.get(partSpendKey('agent:copilot', `brief:${String(ENTITY)}`, day)));
+    expect(counted).toBeGreaterThan(0);
+    // With the briefs' half used, a brief stops though the company's cap has room.
+    await keyValue.incrBy(partSpendKey('agent:copilot', `brief:${String(ENTITY)}`, day), half, 3_600);
+    const other = await lead();
+    const stopped = await runCopilot(
+      { ...job, opportunityId: other.opportunityId, eventId: newId() },
+      { provider },
+    );
+    expect(stopped.outcome).toBe('stopped');
+    expect(stopped.runs.followUp?.outcome).toBe('cap_reached');
+    await drop(cap);
+  });
+
+  it('briefs an assigned lead only when it has had no brief for a day; a person may still ask', async () => {
+    const l = await lead();
+    const cap = await setting({ cap: 50_000 });
+    // A brief two hours old (notes are append-only, so it is written with its time).
+    await asMigrator(
+      (m) => m`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_at, created_by)
+                values (${newId()}, ${ENTITY}, ${l.opportunityId}, 'brief', 'Wants a 5 HP pump.',
+                        now() - interval '2 hours', ${copilot().id})`,
+    );
+    const { transport, provider } = model(BRIEF);
+    const job = { kind: 'brief' as const, entityId: ENTITY, opportunityId: l.opportunityId };
+    expect(
+      (await runCopilot({ ...job, eventId: newId(), trigger: 'assigned' }, { provider })).outcome,
+    ).toBe('recent');
+    expect(transport.requests).toHaveLength(0);
+    expect(
+      (await runCopilot({ ...job, eventId: newId(), trigger: 'requested' }, { provider })).outcome,
+    ).toBe('ran');
+    expect(transport.requests).toHaveLength(1);
+    await drop(cap);
+  });
+
+  it('asks the model only with enough of the delivery’s time left, and is delivered again', async () => {
+    const l = await lead();
+    const cap = await setting({ cap: 50_000 });
+    const { transport, provider } = model(BRIEF);
+    expect(
+      await refusal(
+        runCopilot(
+          { eventId: newId(), kind: 'brief', entityId: ENTITY, opportunityId: l.opportunityId },
+          { provider, timeLeft: () => AGENT_DEFAULTS.copilot.minModelMs - 1 },
+        ),
+      ),
+    ).toMatchObject({ code: 'integration_unavailable', reason: 'copilot_out_of_time' });
+    expect(transport.requests).toHaveLength(0);
+    // The model call is held to what is left.
+    await runCopilot(
+      { eventId: newId(), kind: 'brief', entityId: ENTITY, opportunityId: l.opportunityId },
+      { provider, timeLeft: () => 12_000 },
+    );
+    expect(transport.requests).toHaveLength(1);
     await drop(cap);
   });
 
@@ -663,6 +763,208 @@ describe('the summary of a recorded call', () => {
     await drop(cap);
   });
 
+  it('downloads nothing when the day’s spend has no room for the transcription and the summary', async () => {
+    const l = await lead({ converter: true });
+    const call = await dial(l);
+    const store = memoryFileStore();
+    await recording(store, call);
+    const cap = await setting({ cap: 1_000_000 });
+    const keyValue = memoryKeyValue();
+    await keyValue.incrBy(
+      spendKey('agent:copilot', ENTITY, istCalendarDate(new Date())),
+      AGENT_DEFAULTS.copilot.companyDailyCapPaise - copilotModelEstimatePaise('call_summary'),
+      3_600,
+    );
+    const speech = transcriber(HEARD);
+    const { transport, provider } = model(answer(), keyValue);
+    let reads = 0;
+    const counted = {
+      ...store,
+      get: (key: string) => {
+        reads += 1;
+        return store.get(key);
+      },
+    };
+    const result = await summariseCall(
+      { eventId: newId(), entityId: ENTITY, providerCallId: call },
+      deps(counted, speech, provider),
+    );
+    expect(result).toMatchObject({ outcome: 'stopped', transcribed: false });
+    expect(reads).toBe(0);
+    expect(speech.calls).toBe(0);
+    expect(transport.requests).toHaveLength(0);
+    await drop(cap);
+  });
+
+  it('transcribes only with enough of the delivery’s time left, and is delivered again', async () => {
+    const l = await lead({ converter: true });
+    const call = await dial(l);
+    const store = memoryFileStore();
+    await recording(store, call);
+    const cap = await setting({ cap: 50_000 });
+    const speech = transcriber(HEARD);
+    const { provider } = model(answer());
+    const d = AGENT_DEFAULTS.copilot;
+    expect(
+      await refusal(
+        summariseCall(
+          { eventId: newId(), entityId: ENTITY, providerCallId: call },
+          { ...deps(store, speech, provider), timeLeft: () => d.minTranscribeMs + d.storeMarginMs - 1 },
+        ),
+      ),
+    ).toMatchObject({ code: 'integration_unavailable', reason: 'copilot_out_of_time' });
+    expect(speech.calls).toBe(0);
+    // A slow speech service is stopped at the time left, and the call is left unsummarised.
+    const slow: RecordingTranscriber = {
+      ...transcriber(HEARD),
+      transcribe: (_bytes, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            reject(new KnowledgeExtractError('knowledge_timed_out', 'transcribing ran out of time'));
+          });
+        }),
+    };
+    const started = Date.now();
+    expect(
+      await summariseCall(
+        { eventId: newId(), entityId: ENTITY, providerCallId: call },
+        { ...deps(store, slow, provider), timeLeft: () => d.minTranscribeMs + d.storeMarginMs + 50 },
+      ),
+    ).toEqual({ outcome: 'skipped', why: 'timed_out' });
+    expect(Date.now() - started).toBeLessThan(d.minTranscribeMs + 5_000);
+    await drop(cap);
+  }, 30_000);
+
+  /** The call's transcript files, newest first, with their state. */
+  async function transcriptFiles(call: string) {
+    return asMigrator(
+      (m) => m<{ id: string; key: string; status: string; deleted: boolean; attached: boolean }[]>`
+        select f.id, f.key, f.status, f.deleted_at is not null as deleted,
+               exists (select 1 from provider_calls pc where pc.transcript_file_id = f.id) as attached
+          from files f
+          join audit_logs a on a.aggregate_id = f.id::text and a.command = 'calls.transcript.reserve'
+         where f.purpose = 'call_transcript' and a.input_json ->> 'providerCallId' = ${call}
+         order by f.created_at desc`,
+    );
+  }
+
+  it('records the transcript’s file before storing it, and removes one that is not the call’s', async () => {
+    const l = await lead({ converter: true });
+    const call = await dial(l);
+    const store = memoryFileStore();
+    await recording(store, call);
+    const cap = await setting({ cap: 50_000 });
+    const { provider } = model(answer());
+    // The recording is removed while the transcript is stored: the attach answers not_recorded.
+    const racing = {
+      ...store,
+      put: async (key: string, bytes: Uint8Array, type: string) => {
+        await store.put(key, bytes, type);
+        if (key.includes('/call_transcript/')) {
+          await asMigrator(
+            (m) => m`update files set deleted_at = now()
+                      where id = (select recording_file_id from provider_calls where id = ${call})`,
+          );
+        }
+      },
+    };
+    expect(
+      await summariseCall(
+        { eventId: newId(), entityId: ENTITY, providerCallId: call },
+        deps(racing, transcriber(HEARD), provider),
+      ),
+    ).toEqual({ outcome: 'skipped', why: 'not_recorded' });
+    const [file] = await transcriptFiles(call);
+    expect(file).toMatchObject({ status: 'pending', deleted: true, attached: false });
+    expect(store.objects.has(file?.key ?? '')).toBe(false);
+    await drop(cap);
+  });
+
+  it('leaves a pending file for the sweep of abandoned uploads when a run stops after storing', async () => {
+    const l = await lead({ converter: true });
+    const call = await dial(l);
+    const store = memoryFileStore();
+    await recording(store, call);
+    const cap = await setting({ cap: 50_000 });
+    const { provider } = model(answer());
+    // The run stops just after the bytes are stored (the route's time ran out).
+    const stopping = {
+      ...store,
+      put: async (key: string, bytes: Uint8Array, type: string) => {
+        await store.put(key, bytes, type);
+        if (key.includes('/call_transcript/')) throw new Error('the function was stopped');
+      },
+    };
+    await expect(
+      summariseCall(
+        { eventId: newId(), entityId: ENTITY, providerCallId: call },
+        deps(stopping, transcriber(HEARD), provider),
+      ),
+    ).rejects.toThrow('the function was stopped');
+    const [file] = await transcriptFiles(call);
+    expect(file).toMatchObject({ status: 'pending', deleted: false, attached: false });
+    expect(store.objects.has(file?.key ?? '')).toBe(true);
+    // A day later the sweep refuses it and names its key, whose bytes the worker deletes.
+    await asMigrator(
+      (m) => m`update files set created_at = now() - interval '2 days' where id = ${file?.id ?? ''}`,
+    );
+    const swept = await run<SweepUploadsDto>(workers([ENTITY]), sweepUploads, {
+      olderThanMinutes: 1_440,
+    });
+    expect(swept.keys).toContain(file?.key);
+    await drop(cap);
+  });
+
+  it('is removed by the recordings’ sweep after the retention period and for an anonymised lead', async () => {
+    const store = memoryFileStore();
+    const kept = async (l: Lead) => {
+      const call = await dial(l);
+      await recording(store, call);
+      const text = new TextEncoder().encode('masked words');
+      const fileId = newId();
+      const input = {
+        entityId: ENTITY,
+        providerCallId: call,
+        fileId,
+        bucket: store.bucket,
+        key: callTranscriptKey(ENTITY, fileId),
+        size: text.byteLength,
+        sha256: sha256Hex(text),
+      };
+      await run(workers([ENTITY]), reserveCallTranscript, input);
+      await store.put(input.key, text, 'text/plain');
+      await run(workers([ENTITY]), attachCallTranscript, input);
+      return fileId;
+    };
+    const old = await kept(await lead({ converter: true }));
+    await asMigrator(
+      (m) => m`update files set created_at = now() - interval '13 months' where id = ${old}`,
+    );
+    const anonymised = await lead({ converter: true });
+    const fresh = await kept(anonymised);
+    await asMigrator(
+      (m) => m`update opportunities set anonymised_at = now() where id = ${anonymised.opportunityId}`,
+    );
+    const recent = await kept(await lead({ converter: true }));
+    const before = new Date(Date.now() - 365 * 86_400_000);
+    const due = await asPrincipal(workers([ENTITY]), (ctx) => dueCallRecordings(ctx, before, 500));
+    const ids = due.map((d) => d.fileId);
+    expect(ids).toContain(old);
+    expect(ids).toContain(fresh);
+    expect(ids).not.toContain(recent);
+    for (const fileId of [old, fresh]) {
+      expect(
+        await run<{ deleted: boolean }>(workers([ENTITY]), deleteCallRecording, {
+          entityId: ENTITY,
+          fileId,
+        }),
+      ).toEqual({ fileId, deleted: true });
+    }
+    const after = await asPrincipal(workers([ENTITY]), (ctx) => dueCallRecordings(ctx, before, 500));
+    expect(after.map((d) => d.fileId)).not.toContain(old);
+    expect(after.map((d) => d.fileId)).not.toContain(fresh);
+  });
+
   it('waits for a recording not copied in yet, then leaves an unrecorded call alone', async () => {
     const l = await lead({ converter: true });
     const cap = await setting({ cap: 50_000 });
@@ -722,3 +1024,130 @@ describe('the summary of a recorded call', () => {
     await drop(cap);
   });
 });
+
+describe('the Co-pilot panel and report', () => {
+  /** A dial of the lead by `callerId`, started `minutesAgo` minutes ago and ended. */
+  async function dialBy(l: Lead, callerId: string, minutesAgo: number): Promise<string> {
+    const id = newId();
+    await asMigrator(
+      (m) => m`insert into provider_calls (id, entity_id, opportunity_id, contact_phone_id, caller_id, direction, series, purpose, status, started_at, ended_at, duration_s)
+        values (${id}, ${ENTITY}, ${l.opportunityId}, ${l.phoneId}, ${callerId}, 'outbound', '160', 'service', 'completed',
+                now() - make_interval(mins => ${minutesAgo}), now() - make_interval(mins => ${minutesAgo - 1}), 60)`,
+    );
+    return id;
+  }
+  const summarise = (l: Lead, call: string) =>
+    run<{ id: string; suggestionsShown: boolean }>(copilot(), recordCopilotNote, {
+      entityId: ENTITY,
+      opportunityId: l.opportunityId,
+      providerCallId: call,
+      kind: 'call_summary',
+      body: 'Farmer needs a 5 HP pump for a 120 foot bore.',
+      fields: { pumpDepthFt: 120 },
+      suggestedDispositionId: outcomeId,
+    });
+  const panel = (who: Principal, l: Lead) =>
+    asPrincipal(who, (ctx) =>
+      loadCopilotPanel(ctx, { entityId: ENTITY, opportunityId: l.opportunityId }),
+    );
+
+  it('in Shadow shows a summary’s text alone: no outcome pre-selected, no facts heard', async () => {
+    const l = await lead({ converter: true });
+    const shadowed = await summarise(l, await dialBy(l, l.owner.id, 30));
+    expect(shadowed.suggestionsShown).toBe(false);
+    const seen = await panel(l.owner, l);
+    expect(seen.summary).toMatchObject({
+      body: 'Farmer needs a 5 HP pump for a 120 foot bore.',
+      fields: {},
+      suggestedDispositionId: null,
+      suggestedOutcomeLabel: null,
+    });
+    expect(seen.preselectDispositionId).toBeNull();
+    // Past Shadow, a summary written then shows them, and its outcome is pre-selected.
+    const needs = await setting({
+      actionType: 'crm.lead.qualification.set',
+      autonomy: 'needs_approval',
+    });
+    const shown = await summarise(l, await dialBy(l, l.owner.id, 10));
+    expect(shown.suggestionsShown).toBe(true);
+    const after = await panel(l.owner, l);
+    expect(after.summary).toMatchObject({
+      fields: { pumpDepthFt: 120 },
+      suggestedDispositionId: outcomeId,
+    });
+    expect(after.preselectDispositionId).toBe(outcomeId);
+    // The report counts only what callers did not see, and says how many it leaves out.
+    const today = istCalendarDate(new Date());
+    const report = await asPrincipal(exec, (ctx) =>
+      loadCopilotReport(ctx, { entityId: ENTITY, from: today, to: today, limit: 100 }),
+    );
+    expect(report.shown).toBeGreaterThanOrEqual(1);
+    expect(report.items.map((i) => i.noteId)).not.toContain(shown.id);
+    await drop(needs);
+  });
+
+  it('pre-selects only from the caller’s own latest dial of the lead that is not logged', async () => {
+    const l = await lead({ converter: true });
+    const needs = await setting({
+      actionType: 'crm.lead.qualification.set',
+      autonomy: 'needs_approval',
+    });
+    await summarise(l, await dialBy(l, l.owner.id, 40));
+    expect((await panel(l.owner, l)).preselectDispositionId).toBe(outcomeId);
+    // Another caller's later dial with its summary: not the owner's to pre-select from.
+    const other = await createTestPrincipal('tele_caller_lc', [ENTITY]);
+    await summarise(l, await dialBy(l, other.id, 20));
+    expect((await panel(l.owner, l)).preselectDispositionId).toBe(outcomeId);
+    // The owner dials again: the newer call has no summary, so nothing is pre-selected.
+    await dialBy(l, l.owner.id, 5);
+    expect((await panel(l.owner, l)).preselectDispositionId).toBeNull();
+    await drop(needs);
+  });
+
+  it('counts a brief asked for, not only one written, for the hour and the button', async () => {
+    const l = await lead();
+    const input = { entityId: ENTITY, opportunityId: l.opportunityId };
+    expect((await panel(l.owner, l)).nextBriefAt).toBeNull();
+    await run(l.owner, requestCopilotBrief, input);
+    // No brief came of it yet: the hour still runs from the request.
+    expect(await notesOf(l.opportunityId)).toEqual([]);
+    expect(await refusal(run(l.owner, requestCopilotBrief, input))).toMatchObject({
+      code: 'conflict',
+      reason: 'copilot_brief_recent',
+    });
+    const next = (await panel(l.owner, l)).nextBriefAt;
+    expect(next).not.toBeNull();
+    expect(Date.parse(next ?? '') - Date.now()).toBeGreaterThan(55 * 60_000);
+  });
+
+  it('counts an assignment that started a brief, but not one of a lead briefed that day', async () => {
+    const assigned = async (l: Lead) =>
+      asMigrator(
+        (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id, payload_json)
+          values (${newId()}, ${ENTITY}, 'crm.opportunity.assigned', 'opportunity', ${l.opportunityId},
+                  ${m.json({ v: 1, ownerId: l.owner.id, teamId: null, lockHours: 24, assignedById: exec.id })})`,
+      );
+    const fresh = await lead();
+    await assigned(fresh);
+    expect(
+      await refusal(
+        run(fresh.owner, requestCopilotBrief, { entityId: ENTITY, opportunityId: fresh.opportunityId }),
+      ),
+    ).toMatchObject({ code: 'conflict', reason: 'copilot_brief_recent' });
+    // A lead with a brief two hours old: its assignment started none, so a person may ask.
+    const briefed = await lead();
+    await asMigrator(
+      (m) => m`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_at, created_by)
+                values (${newId()}, ${ENTITY}, ${briefed.opportunityId}, 'brief', 'Wants a 5 HP pump.',
+                        now() - interval '2 hours', ${copilot().id})`,
+    );
+    await assigned(briefed);
+    await expect(
+      run(briefed.owner, requestCopilotBrief, {
+        entityId: ENTITY,
+        opportunityId: briefed.opportunityId,
+      }),
+    ).resolves.toMatchObject({ opportunityId: briefed.opportunityId });
+  });
+});
+

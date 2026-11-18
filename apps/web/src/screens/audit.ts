@@ -233,6 +233,7 @@ const ACTIONS = {
   'calls.provider_call.record': 'providerCallRecord',
   'calls.recording.attach': 'callRecordingAttach',
   'calls.transcript.attach': 'callTranscriptAttach',
+  'calls.transcript.reserve': 'callTranscriptReserve',
   'calls.recording.delete': 'callRecordingDelete',
   'calls.recording.play': 'callRecordingPlay',
   'crm.caller_profile.set_dial_phone': 'callerProfileSetDialPhone',

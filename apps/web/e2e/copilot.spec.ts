@@ -2,10 +2,12 @@ import type { Page } from '@playwright/test';
 import { COPILOT_JOURNEY, COPILOT_LEADS } from './copilot-fixtures';
 import { CONVERTING_LEADS, converterKey } from './converting-fixtures';
 import {
+  dataGrid,
   expect,
   expectNoAxeViolations,
   hydrated,
   projectName,
+  showCompany,
   signedInAs,
   snap,
   test,
@@ -17,7 +19,8 @@ import { emailFor } from './support/users';
 // tele-caller opens the project's seeded lead in the Cold Caller workspace (`e2e/setup/copilot.ts`)
 // and reads the Co-pilot's brief and the summary of her last call, whose suggested outcome is
 // marked among the outcomes and not saved; A approves the first suggestion and R rejects the next,
-// and a new brief is asked for. The Lead Converter sees the same panel on Converting.
+// and a new brief is asked for. The Lead Converter sees the same panel on Converting. The
+// Executive reads the Co-pilot report: the summaries written in Shadow, beside what was saved.
 
 const panel = (page: Page) => page.getByRole('region', { name: 'Co-pilot' });
 
@@ -113,3 +116,38 @@ test.describe('the Caller Co-pilot as a Lead Converter', () => {
     await expectNoAxeViolations(page);
   });
 });
+
+test.describe('the Co-pilot report as an Executive', () => {
+  test.use(signedInAs('executive'));
+
+  test('shows the summaries callers did not see, beside what they saved', async ({ page }) => {
+    await page.goto('/admin/agents');
+    await showCompany(page, 'Shakti Supreme');
+    await page.getByRole('link', { name: 'Co-pilot report' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'What the Co-pilot suggested', level: 1 }),
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'How often callers agreed' })).toBeVisible();
+    // The seed's summaries written under Needs approval were seen by the callers: left out.
+    await expect(
+      page.getByText(/summar(y|ies) whose suggestions (the caller|callers) saw (is|are) not counted/),
+    ).toBeVisible();
+    const grid = dataGrid(page, 'Call summaries, newest first');
+    const row = grid
+      .getByRole('row')
+      .or(grid.getByRole('listitem'))
+      .filter({ hasText: COPILOT_LEADS[projectName()] });
+    await expect(row).toContainText('Not saved yet');
+    await expect(row).toContainText('150');
+    await expectNoAxeViolations(page);
+    // The period runs to today and the summaries are days old, so the dates are masked.
+    await snap(page, 'copilot-report', {
+      mask: [
+        page.getByLabel('From', { exact: true }),
+        page.getByLabel('To', { exact: true }),
+        page.locator('main time'),
+      ],
+    });
+  });
+});
+

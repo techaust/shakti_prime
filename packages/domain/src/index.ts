@@ -657,7 +657,7 @@ export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
 export { recordCopilotNote } from './commands/agents/notes';
 export { requestCopilotBrief } from './commands/agents/brief-request';
-export { attachCallTranscript } from './commands/calls/call-transcript';
+export { attachCallTranscript, reserveCallTranscript } from './commands/calls/call-transcript';
 export {
   approveInboxItem,
   completeInboxItem,

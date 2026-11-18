@@ -250,6 +250,18 @@ export const AGENT_DEFAULTS = {
    * - `companyDailyCapPaise`: the most the Co-pilot spends a day in one company, its models and
    *   transcribing together, beside the caps an Executive sets on Admin › Agents (₹100, the
    *   building cap of design §10);
+   * - `briefShareOfCap`: briefs may use at most half of the smallest daily cap that applies to the
+   *   company, so call summaries always keep the other half (the lead's decision of 18-11-2026);
+   * - `assignedBriefSkipHours`: an assigned lead (one at a time, or many in a reassignment or
+   *   handover) is briefed only when it has had no brief for 24 hours; a person may still ask;
+   * - `promptBytesEstimate`: the prompt size a run is checked with against the day's spend before
+   *   it reads anything (with the answer's length and, for a summary, the longest call's
+   *   transcription); the reservation of the call itself, at its true size, stays the final guard;
+   * - `minModelMs`, `minTranscribeMs` and `storeMarginMs`: a run starts the model only with at
+   *   least 10 seconds left of its delivery, and a transcription with at least 10 seconds left
+   *   after the 5 kept to store and record it; each is bounded by what is left, so a run never
+   *   outlives the event route's minute, and a run short of time stops before it spends and is
+   *   delivered again;
    * - `briefModel` (Sonnet 5.5) and `summaryModel` (Haiku 5.5), question 1 (a), each at its own
    *   effort, answer length (thinking included) and `totalTimeoutMs` for the call, inside the
    *   event route's minute;
@@ -271,6 +283,12 @@ export const AGENT_DEFAULTS = {
       byCompany: {} as Readonly<Partial<Record<number, CopilotCoverage>>>,
     },
     companyDailyCapPaise: 10_000,
+    briefShareOfCap: 0.5,
+    assignedBriefSkipHours: 24,
+    promptBytesEstimate: 24_000,
+    minModelMs: 10_000,
+    minTranscribeMs: 10_000,
+    storeMarginMs: 5_000,
     briefModel: 'claude-sonnet-5-5',
     briefEffort: 'low',
     briefMaxTokens: 3_000,

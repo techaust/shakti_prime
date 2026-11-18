@@ -17,7 +17,7 @@ import {
   type ShadowAgreement,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { checkPermission, isAgent } from '../../command/run-command';
@@ -33,6 +33,38 @@ type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 // suggestions with the viewer's inbox scope, the report's leads and customers as the viewer reads
 // them.
 
+/**
+ * When the lead's newest brief was written or started since `since`: a brief note, a person's
+ * request for one, or an assignment that started one (`app.copilot_brief_started_at()`); null
+ * when none was. Asking for a brief and the panel's button both count all three, so a brief is
+ * asked for at most once an hour whether or not one came of it. The lead is one the caller has
+ * already read under its own policies.
+ */
+export async function copilotBriefStartedAt(
+  ctx: Pick<RequestContext, 'tx'>,
+  lead: { entityId: number; id: string },
+  since: Date,
+): Promise<Date | null> {
+  const d = AGENT_DEFAULTS.copilot;
+  const n = schema.copilotNotes;
+  const [note] = await ctx.tx
+    .select({ at: n.createdAt })
+    .from(n)
+    .where(and(eq(n.opportunityId, lead.id), eq(n.kind, 'brief'), gt(n.createdAt, since)))
+    .orderBy(desc(n.createdAt), desc(n.id))
+    .limit(1);
+  const [started] = (await ctx.tx.execute(sql`
+    select app.copilot_brief_started_at(${lead.entityId}::smallint, ${lead.id}::uuid,
+             ${since.toISOString()}::timestamptz,
+             make_interval(hours => ${d.assignedBriefSkipHours}::integer)) as at`)) as unknown as {
+    at: Date | string | null;
+  }[];
+  const times = [note?.at, started?.at ?? null]
+    .filter((t): t is Date | string => t !== undefined && t !== null)
+    .map((t) => new Date(t).getTime());
+  return times.length === 0 ? null : new Date(Math.max(...times));
+}
+
 /** How many of the Co-pilot's open suggestions on one lead the panel shows. */
 export const COPILOT_PANEL_SUGGESTIONS = 20;
 
@@ -44,9 +76,11 @@ interface NoteRow {
   providerCallId: string | null;
   suggestedDispositionId: string | null;
   outcomeLabel: string | null;
+  shown: boolean;
   createdAt: Date;
 }
 
+/** A note as the panel shows it: a summary written in Shadow shows its text alone. */
 function panelNote(row: NoteRow | undefined): CopilotPanelNoteDto | null {
   if (row === undefined) return null;
   const fields = CopilotFactsSchema.safeParse(row.fields);
@@ -54,19 +88,22 @@ function panelNote(row: NoteRow | undefined): CopilotPanelNoteDto | null {
     id: row.id,
     kind: row.kind === 'brief' ? 'brief' : 'call_summary',
     body: row.body,
-    fields: fields.success ? fields.data : {},
+    fields: row.shown && fields.success ? fields.data : {},
     providerCallId: row.providerCallId,
-    suggestedDispositionId: row.suggestedDispositionId,
-    suggestedOutcomeLabel: row.outcomeLabel,
+    suggestedDispositionId: row.shown ? row.suggestedDispositionId : null,
+    suggestedOutcomeLabel: row.shown ? row.outcomeLabel : null,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
 /**
  * The Co-pilot panel of one lead the caller reads: its newest brief, the newest summary of a dial
- * call of the lead (a call with no lead is never read here), the outcome to pre-select while that
- * call is not logged yet, when a brief may next be asked for, and the Co-pilot's open suggestions
- * on the lead in the caller's inbox scope. A person's screen: an agent never reads it.
+ * call of the lead (a call with no lead is never read here), the outcome to pre-select from the
+ * summary of the caller's own latest dial of the lead while that call is not logged yet, when a
+ * brief may next be asked for, and the Co-pilot's open suggestions on the lead in the caller's
+ * inbox scope. A summary written in Shadow shows its text alone: no facts heard, no outcome
+ * (`suggestions_shown`, the lead's decision of 18-11-2026). A person's screen: an agent never reads
+ * it.
  */
 export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<CopilotPanelDto> {
   const input = parseQueryInput(CopilotPanelInput, rawInput, 'agents.copilot.panel');
@@ -100,6 +137,7 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
     providerCallId: n.providerCallId,
     suggestedDispositionId: n.suggestedDispositionId,
     outcomeLabel: d.label,
+    shown: n.suggestionsShown,
     createdAt: n.createdAt,
   };
   const [brief] = await ctx.tx
@@ -110,7 +148,7 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
     .orderBy(desc(n.createdAt), desc(n.id))
     .limit(1);
   const [summary] = await ctx.tx
-    .select({ ...columns, logged: sql<boolean>`${pc.callId} is not null` })
+    .select(columns)
     .from(n)
     .innerJoin(
       pc,
@@ -125,9 +163,47 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
     .orderBy(desc(n.createdAt), desc(n.id))
     .limit(1);
 
+  // The outcome to pre-select: the summary of the caller's own latest dial of the lead, while that
+  // call is not logged yet and the summary's suggestions are shown.
+  const [mine] = await ctx.tx
+    .select({ id: pc.id, logged: sql<boolean>`${pc.callId} is not null` })
+    .from(pc)
+    .where(
+      and(
+        eq(pc.opportunityId, lead.id),
+        eq(pc.entityId, input.entityId),
+        eq(pc.direction, 'outbound'),
+        eq(pc.callerId, ctx.principal.id),
+      ),
+    )
+    .orderBy(desc(pc.startedAt), desc(pc.id))
+    .limit(1);
+  let preselect: string | null = null;
+  if (mine !== undefined && !mine.logged) {
+    const [own] = await ctx.tx
+      .select({ id: n.suggestedDispositionId })
+      .from(n)
+      .where(
+        and(
+          eq(n.providerCallId, mine.id),
+          eq(n.opportunityId, lead.id),
+          eq(n.kind, 'call_summary'),
+          eq(n.suggestionsShown, true),
+        ),
+      )
+      .limit(1);
+    preselect = own?.id ?? null;
+  }
+
+  // A brief may be asked for an hour after the newest one written, asked for or started.
   const intervalMs = AGENT_DEFAULTS.copilot.briefIntervalMinutes * 60_000;
-  const nextBrief = brief === undefined ? undefined : brief.createdAt.getTime() + intervalMs;
   const now = Date.now();
+  const started = await copilotBriefStartedAt(
+    ctx,
+    { entityId: input.entityId, id: lead.id },
+    new Date(now - intervalMs),
+  );
+  const nextBrief = started === null ? undefined : started.getTime() + intervalMs;
 
   const suggestions = hasGrant(ctx.principal.permissions, 'agents.inbox.act', 'own')
     ? (
@@ -163,8 +239,7 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
     opportunityId: lead.id,
     brief: panelNote(brief),
     summary: panelNote(summary),
-    preselectDispositionId:
-      summary === undefined || summary.logged ? null : summary.suggestedDispositionId,
+    preselectDispositionId: preselect,
     nextBriefAt:
       nextBrief === undefined || nextBrief <= now ? null : new Date(nextBrief).toISOString(),
     suggestions,
@@ -200,9 +275,10 @@ const RECORDED: Readonly<Record<CopilotFact, string>> = {
 };
 
 /**
- * The call summaries of one company in a period, newest first, with the outcome each suggested,
- * the outcome the caller logged for its call and the lead's recorded facts. Keyset on
- * `(created_at, id)` over `copilot_notes_entity_created_idx`.
+ * The call summaries of one company in a period whose suggestions callers did not see (written in
+ * Shadow), newest first, with the outcome each suggested, the outcome the caller logged for its
+ * call and the lead's recorded facts. Keyset on `(created_at, id)` over
+ * `copilot_notes_entity_created_idx`.
  */
 export function copilotSummariesSql(
   entityId: number,
@@ -231,7 +307,7 @@ export function copilotSummariesSql(
            end as outcome_agreement
       from (
         select n.* from copilot_notes n
-         where n.entity_id = ${entityId} and n.kind = 'call_summary'
+         where n.entity_id = ${entityId} and n.kind = 'call_summary' and not n.suggestions_shown
            and n.created_at >= ${from}::timestamptz and n.created_at < ${until}::timestamptz
            ${keyset}
          ${paged}) n
@@ -279,8 +355,10 @@ function factLines(row: SummaryRow): CopilotReportFactDto[] {
 
 /**
  * The Co-pilot's shadow report (PRD AI-04, design §7.3): for one company and a period of IST days,
- * each call summary's suggested outcome and heard facts beside what the caller logged and what the
- * lead now records, how often they agree, the runs the output filter refused by reason, and the
+ * each call summary written while callers could not see its suggestions, its suggested outcome and
+ * heard facts beside what the caller logged and what the lead now records, how often they agree
+ * (so the figures measure callers who did not see the suggestion), how many summaries callers saw
+ * and are left out, the runs the output filter refused by reason, and the
  * proposals by action type and how they ended.
  */
 export async function loadCopilotReport(ctx: Ctx, rawInput: unknown): Promise<CopilotReportDto> {
@@ -311,6 +389,12 @@ export async function loadCopilotReport(ctx: Ctx, rawInput: unknown): Promise<Co
     disagreed: number;
     pending: number;
     none: number;
+  }[];
+  const [shown] = (await ctx.tx.execute(sql`
+    select count(*)::int as n from copilot_notes n
+     where n.entity_id = ${input.entityId} and n.kind = 'call_summary' and n.suggestions_shown
+       and n.created_at >= ${from}::timestamptz and n.created_at < ${until}::timestamptz`)) as unknown as {
+    n: number;
   }[];
   const recorded = sql.raw(
     `case f.key ${COPILOT_FACTS.map((fact) => `when '${fact}' then s.${RECORDED[fact]}::numeric`).join(' ')} end`,
@@ -360,6 +444,7 @@ export async function loadCopilotReport(ctx: Ctx, rawInput: unknown): Promise<Co
     from: input.from,
     to: input.to,
     summaries: outcomes?.summaries ?? 0,
+    shown: shown?.n ?? 0,
     outcomes: {
       agreed: outcomes?.agreed ?? 0,
       disagreed: outcomes?.disagreed ?? 0,

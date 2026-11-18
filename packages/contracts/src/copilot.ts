@@ -83,6 +83,11 @@ export const CopilotNoteDto = z
     fields: CopilotFactsSchema,
     suggestedDispositionId: IdSchema.nullable(),
     agentActionId: IdSchema.nullable(),
+    /**
+     * Whether a summary's suggestions (its outcome and facts heard) are shown to callers: only
+     * when its facts' action type was past Shadow as it was written. Never for a brief.
+     */
+    suggestionsShown: z.boolean(),
     createdAt: z.iso.datetime(),
   })
   .strict();
@@ -187,6 +192,36 @@ export const AttachCallTranscriptDto = z
   .strict();
 export type AttachCallTranscriptDto = z.infer<typeof AttachCallTranscriptDto>;
 
+/**
+ * `calls.transcript.reserve` (the platform's, `calls.process`): before the masked transcript is
+ * stored, its file is recorded `pending` under its own key, so stored bytes always have a row the
+ * sweep of abandoned uploads finds if the transcript is never attached. The same fields as the
+ * attach that follows.
+ */
+export const ReserveCallTranscriptInput = AttachCallTranscriptInput;
+export type ReserveCallTranscriptInput = z.input<typeof ReserveCallTranscriptInput>;
+
+/**
+ * What reserving did: `reserved`, and nothing for `other_file` (the call has a transcript, named),
+ * `not_recorded` (the call has not ended, its recording is gone or its lead was anonymised) or
+ * `missing` (no such call).
+ */
+export const CALL_TRANSCRIPT_RESERVE_OUTCOMES = [
+  'reserved',
+  'other_file',
+  'not_recorded',
+  'missing',
+] as const;
+
+export const ReserveCallTranscriptDto = z
+  .object({
+    providerCallId: IdSchema,
+    outcome: z.enum(CALL_TRANSCRIPT_RESERVE_OUTCOMES),
+    fileId: IdSchema.nullable(),
+  })
+  .strict();
+export type ReserveCallTranscriptDto = z.infer<typeof ReserveCallTranscriptDto>;
+
 /** The key a call's transcript is stored under: `<company>/call_transcript/<file id>.txt`. */
 export function callTranscriptKey(entityId: number, fileId: string): string {
   return `${String(entityId)}/call_transcript/${fileId}.txt`;
@@ -198,7 +233,10 @@ export const CopilotPanelInput = z
   .strict();
 export type CopilotPanelInput = z.input<typeof CopilotPanelInput>;
 
-/** A brief or a summary as the panel shows it, with the outcome's label for a summary. */
+/**
+ * A brief or a summary as the panel shows it, with the outcome's label for a summary. A summary
+ * written in Shadow shows its text only: no facts heard and no outcome (`suggestionsShown`).
+ */
 export const CopilotPanelNoteDto = z
   .object({
     id: IdSchema,
@@ -222,11 +260,15 @@ export const CopilotPanelDto = z
     /** The newest call summary, of a dial call of the lead. */
     summary: CopilotPanelNoteDto.nullable(),
     /**
-     * The outcome to pre-select in the call log: the newest summary's, while the call it summarises
-     * is not logged yet. Never logged by the agent.
+     * The outcome to pre-select in the call log: from the summary of the viewer's own latest dial
+     * of the lead, while that call is not logged yet and its suggestions are shown. Never logged by
+     * the agent.
      */
     preselectDispositionId: IdSchema.nullable(),
-    /** When a brief may next be asked for; null when one may be asked for now. */
+    /**
+     * When a brief may next be asked for: an hour after the newest brief written or asked for
+     * (a person's request, or an assignment that started one); null when one may be asked for now.
+     */
     nextBriefAt: z.iso.datetime().nullable(),
     /** The Co-pilot's open suggestions on the lead that the caller may act on. */
     suggestions: z.array(InboxItemDto),
@@ -277,7 +319,8 @@ const Counts = z
   .strict();
 
 /**
- * The Co-pilot's shadow report (design §7.3): one company's call summaries in a period, their
+ * The Co-pilot's shadow report (design §7.3): one company's call summaries in a period written
+ * while callers could not see their suggestions (Shadow), their
  * suggested outcomes and heard facts beside what callers logged and leads record, the runs the
  * output filter refused by reason, and its proposals by action type and how they ended.
  */
@@ -287,6 +330,8 @@ export const CopilotReportDto = z
     from: z.iso.date(),
     to: z.iso.date(),
     summaries: z.number().int().min(0),
+    /** Summaries in the period whose suggestions callers saw, which the figures leave out. */
+    shown: z.number().int().min(0),
     outcomes: Counts.extend({ none: z.number().int().min(0) }).strict(),
     facts: Counts,
     filtered: z.array(

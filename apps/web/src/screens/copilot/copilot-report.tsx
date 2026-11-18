@@ -252,6 +252,9 @@ export function CopilotReportScreen({
           {t('summaryHeading')}
         </h2>
         <p className="text-text-muted text-sm">{t('summaries', { count: report.summaries })}</p>
+        {report.shown === 0 ? null : (
+          <p className="text-text-muted text-sm">{t('shownLeftOut', { count: report.shown })}</p>
+        )}
         <ul className="grid gap-3 sm:grid-cols-2">
           <Agreement
             name={t('outcomes')}

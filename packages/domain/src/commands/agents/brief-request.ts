@@ -1,17 +1,19 @@
 import { DomainError, RequestCopilotBriefDto, RequestCopilotBriefInput } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { defineCommand } from '../../command/define-command';
+import { copilotBriefStartedAt } from '../../queries/agents/copilot';
 import { requireEntity } from '../crm/opportunity-shared';
 
 /**
  * `agents.brief.request` (docs/03-roadmap-appendix/phase2.md §7.3): a person asks the Caller
  * Co-pilot for a brief on an open lead they read, from its panel; the brief worker writes it from
  * `agents.brief.requested`. A lead gets at most one brief an hour
- * (`AGENT_DEFAULTS.copilot.briefIntervalMinutes`), so a lead briefed within the hour is refused
- * here (`copilot_brief_recent`) and again by `agents.note.record`. Nothing else changes; a person
- * asks for it, never an agent.
+ * (`AGENT_DEFAULTS.copilot.briefIntervalMinutes`): a lead with a brief written, asked for or
+ * started by an assignment within the hour is refused here (`copilot_brief_recent`), under a lock
+ * on the lead, and a brief within the hour again by `agents.note.record`. Nothing else changes; a
+ * person asks for it, never an agent.
  */
 export const requestCopilotBrief = defineCommand({
   name: 'agents.brief.request',
@@ -42,16 +44,15 @@ export const requestCopilotBrief = defineCommand({
         reason: 'copilot_lead_closed',
       });
     }
-    const n = schema.copilotNotes;
+    // The lead held for this request: a person who only reads it cannot lock its row, so the lock
+    // is on its id, to the end of the transaction. Two requests at once cannot both pass the hour.
+    await ctx.tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`copilot-brief:${lead.id}`}, 0))`,
+    );
     const since = new Date(
       ctx.now.getTime() - AGENT_DEFAULTS.copilot.briefIntervalMinutes * 60_000,
     );
-    const [recent] = await ctx.tx
-      .select({ id: n.id })
-      .from(n)
-      .where(and(eq(n.opportunityId, lead.id), eq(n.kind, 'brief'), gt(n.createdAt, since)))
-      .limit(1);
-    if (recent !== undefined) {
+    if ((await copilotBriefStartedAt(ctx, lead, since)) !== null) {
       throw new DomainError('conflict', `lead ${lead.id} had a brief within the hour`, {
         reason: 'copilot_brief_recent',
       });

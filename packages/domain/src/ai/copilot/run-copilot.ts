@@ -13,7 +13,8 @@ import { recordCopilotNote } from '../../commands/agents/notes';
 import type { KeyValue } from '../../ports/key-value';
 import { AGENT_DEFAULTS } from '../agent-defaults';
 import { loadAgentConfig, type ResolvedAgentConfig } from '../config';
-import type { SpendCap } from '../provider';
+import { maxCostInPaise } from '../models';
+import type { AiProvider, SpendCap } from '../provider';
 import { agentPrincipal, runAgentStep, type AgentStepDeps, type RunModel } from '../runtime';
 import { copilotContext } from './facts';
 import { COPILOT_PART_ACTION_TYPES, filterCopilotOutput, type CopilotVerdicts } from './filter';
@@ -42,6 +43,11 @@ type Part = keyof typeof COPILOT_PART_ACTION_TYPES;
 
 export interface CopilotDeps extends AgentStepDeps {
   /**
+   * Milliseconds left of the delivery's time (the event route stops at 60 seconds), read before
+   * each step that waits on a vendor; unbounded when left out.
+   */
+  timeLeft?: () => number;
+  /**
    * Where the model's answer for one event is kept (`copilot:answer:{eventId}`), so a delivery
    * that runs again after a partial run asks the model nothing for the parts left.
    */
@@ -57,12 +63,20 @@ export interface CopilotRunInput {
   /** A summary's call and its masked transcript. */
   providerCallId?: string;
   transcript?: string;
+  /**
+   * What started a brief: an assignment (`crm.opportunity.assigned`) briefs only a lead with no
+   * brief for `assignedBriefSkipHours`; a person's request, one with none within the hour.
+   */
+  trigger?: 'assigned' | 'requested';
 }
 
 export type CopilotRunOutcome =
-  /** Switched off or without a spending limit: one stopped run is recorded, nothing read. */
+  /**
+   * Switched off, without a spending limit, or with too little of the day's spend left for the
+   * run: one stopped run is recorded, nothing read.
+   */
   | 'stopped'
-  /** A brief was written within the hour (or the call has its summary): nothing ran. */
+  /** A brief was written recently (or the call has its summary): nothing ran. */
   | 'recent'
   /** The agent cannot read the lead, or a brief's lead is closed: nothing ran. */
   | 'no_lead'
@@ -81,6 +95,65 @@ export interface CopilotRunResult {
 /** The Co-pilot's own cap for a company (`AGENT_DEFAULTS.copilot.companyDailyCapPaise`). */
 export function copilotCeilings(entityId: number): SpendCap[] {
   return [{ paise: AGENT_DEFAULTS.copilot.companyDailyCapPaise, entityId }];
+}
+
+/** Every cap a run is held to: the settings' and the Co-pilot's own for the company. */
+export function copilotRunCaps(config: ResolvedAgentConfig, entityId: number): SpendCap[] {
+  return [...config.caps, ...copilotCeilings(entityId)];
+}
+
+/**
+ * Briefs' own share of a company's day (`AGENT_DEFAULTS.copilot.briefShareOfCap` of the smallest
+ * cap that applies), counted beside the caps, so call summaries always keep the rest.
+ */
+export function briefPart(
+  entityId: number,
+  caps: readonly SpendCap[],
+): { name: string; capPaise: number } {
+  const smallest = Math.min(...caps.map((cap) => cap.paise));
+  return {
+    name: `brief:${String(entityId)}`,
+    capPaise: Math.floor(smallest * AGENT_DEFAULTS.copilot.briefShareOfCap),
+  };
+}
+
+/** The most a run's model call is reckoned to cost before anything is read. */
+export function copilotModelEstimatePaise(kind: CopilotNoteKind): number {
+  const d = AGENT_DEFAULTS.copilot;
+  return kind === 'brief'
+    ? maxCostInPaise(d.briefModel, d.promptBytesEstimate, d.briefMaxTokens)
+    : maxCostInPaise(d.summaryModel, d.promptBytesEstimate, d.summaryMaxTokens);
+}
+
+/**
+ * Whether the day's spend leaves room for a run of `kind` costing its model estimate and
+ * `morePaise` (a summary's transcription): checked before anything is read or downloaded, as the
+ * provider's reservation checks it, without reserving anything.
+ */
+export function copilotSpendFits(
+  provider: AiProvider,
+  kind: CopilotNoteKind,
+  entityId: number,
+  config: ResolvedAgentConfig,
+  morePaise = 0,
+): Promise<boolean> {
+  const caps = copilotRunCaps(config, entityId);
+  return provider.fits(
+    {
+      agent: 'agent:copilot',
+      entityId,
+      caps,
+      ...(kind === 'brief' ? { part: briefPart(entityId, caps) } : {}),
+    },
+    copilotModelEstimatePaise(kind) + morePaise,
+  );
+}
+
+/** A delivery with too little time left to wait on a vendor: delivered again, nothing spent. */
+export function copilotOutOfTime(step: string): DomainError {
+  return new DomainError('integration_unavailable', `too little time is left to ${step}`, {
+    reason: 'copilot_out_of_time',
+  });
 }
 
 /** Whether settings let the agent call the model at all: switched on with every cap above zero. */
@@ -103,10 +176,14 @@ export async function copilotSettings(
   );
 }
 
-/** The step that records a stop: the first part's, which never asks for a decision. */
+/**
+ * The step that records a stop: the first part's, which never asks for a decision. With
+ * `capReached`, a run the day's spend has no room for is recorded as having reached its cap.
+ */
 export function recordCopilotStop(
   input: Pick<CopilotRunInput, 'eventId' | 'kind' | 'entityId'>,
   deps: AgentStepDeps,
+  capReached = false,
 ): Promise<AgentRunDto> {
   return runAgentStep(
     {
@@ -115,17 +192,29 @@ export function recordCopilotStop(
       eventId: input.eventId,
       purpose: input.kind === 'brief' ? COPILOT_BRIEF_PURPOSE : COPILOT_SUMMARY_PURPOSE,
       actionType: COPILOT_PART_ACTION_TYPES[PARTS[input.kind][0]],
-      decide: () => Promise.resolve(null),
+      decide: capReached
+        ? () =>
+            Promise.reject(
+              new DomainError('rate_limited', 'agent:copilot has no room left in its daily cap', {
+                reason: 'agent_spend_cap_reached',
+              }),
+            )
+        : () => Promise.resolve(null),
       ceilings: copilotCeilings(input.entityId),
     },
     deps,
   );
 }
 
-/** Whether the lead had a brief within the hour, read as the agent. */
-async function briefedRecently(entityId: number, opportunityId: string, now: Date) {
+/** Whether the lead had a brief in the last `minutes`, read as the agent. */
+async function briefedRecently(
+  entityId: number,
+  opportunityId: string,
+  now: Date,
+  minutes: number,
+) {
   const principal = agentPrincipal('agent:copilot', entityId);
-  const since = new Date(now.getTime() - AGENT_DEFAULTS.copilot.briefIntervalMinutes * 60_000);
+  const since = new Date(now.getTime() - minutes * 60_000);
   return executeQuery(
     principal,
     { entityIds: [entityId] },
@@ -210,17 +299,26 @@ export async function runCopilot(
 ): Promise<CopilotRunResult> {
   const now = deps.now ?? (() => new Date());
   const principal = agentPrincipal('agent:copilot', input.entityId);
+  const d = AGENT_DEFAULTS.copilot;
   const config = await copilotSettings(input.entityId, input.kind);
   if (!copilotMayRun(config)) {
     const stopped = await recordCopilotStop(input, deps);
     return { outcome: 'stopped', runs: { [PARTS[input.kind][0]]: stopped } };
   }
-  if (
-    input.kind === 'brief' &&
-    (await briefedRecently(input.entityId, input.opportunityId, now()))
-  ) {
-    return { outcome: 'recent', runs: {} };
+  if (input.kind === 'brief') {
+    const minutes =
+      input.trigger === 'assigned' ? d.assignedBriefSkipHours * 60 : d.briefIntervalMinutes;
+    if (await briefedRecently(input.entityId, input.opportunityId, now(), minutes)) {
+      return { outcome: 'recent', runs: {} };
+    }
   }
+  // Before anything is read: the day's spend must have room for the run.
+  if (!(await copilotSpendFits(deps.provider, input.kind, input.entityId, config))) {
+    const stopped = await recordCopilotStop(input, deps, true);
+    return { outcome: 'stopped', runs: { [PARTS[input.kind][0]]: stopped } };
+  }
+  const timeLeft = deps.timeLeft ?? (() => Number.POSITIVE_INFINITY);
+  if (timeLeft() < d.minModelMs) throw copilotOutOfTime('ask the model');
 
   const facts = await executeQuery(
     principal,
@@ -238,6 +336,10 @@ export async function runCopilot(
   );
   if (facts === undefined) return { outcome: 'no_lead', runs: {} };
 
+  // Reading took some of the time: the model is asked only with enough of it left.
+  if (timeLeft() < d.minModelMs) throw copilotOutOfTime('ask the model');
+  const caps = copilotRunCaps(config, input.entityId);
+  const part = input.kind === 'brief' ? { part: briefPart(input.entityId, caps) } : {};
   const prompt = buildCopilotPrompt(facts);
   const promptHash = hashPrompt(prompt);
   const context = copilotContext(facts);
@@ -255,7 +357,8 @@ export async function runCopilot(
             question: prompt.question,
             untrusted: prompt.untrusted,
             maxTokens: prompt.maxTokens,
-            totalTimeoutMs: AGENT_DEFAULTS.copilot.totalTimeoutMs,
+            totalTimeoutMs: Math.min(d.totalTimeoutMs, timeLeft()),
+            ...part,
           })
           .then(async (reply) => {
             await keepAnswer(input.eventId, { prompt: promptHash, text: reply.text }, deps);

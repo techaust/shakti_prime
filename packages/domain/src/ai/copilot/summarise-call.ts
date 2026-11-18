@@ -4,20 +4,27 @@ import {
   DomainError,
   isRomanScript,
   newId,
+  type AttachCallTranscriptDto,
   type Principal,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { executeCommand, executeQuery } from '../../command/execute';
-import { attachCallTranscript } from '../../commands/calls/call-transcript';
+import {
+  attachCallTranscript,
+  reserveCallTranscript,
+} from '../../commands/calls/call-transcript';
+import { deleteCallRecording } from '../../commands/calls/provider-calls';
 import type { RecordingTranscriber } from '../../knowledge/index-file';
 import { KnowledgeExtractError } from '../../knowledge/extract';
 import { maskWholeText } from '../../knowledge/passages';
 import { sha256Hex, type FileStore } from '../../ports/file-store';
 import { AGENT_DEFAULTS, type CopilotCoverage } from '../agent-defaults';
 import {
-  copilotCeilings,
   copilotMayRun,
+  copilotOutOfTime,
+  copilotRunCaps,
   copilotSettings,
+  copilotSpendFits,
   recordCopilotStop,
   runCopilot,
   type CopilotDeps,
@@ -63,7 +70,9 @@ export type SummarySkip =
   /** Nothing was heard, or the transcript was not in Roman script. */
   | 'unreadable'
   /** No speech service is set up on this runtime. */
-  | 'no_speech_service';
+  | 'no_speech_service'
+  /** The transcription ran past the time it was given. */
+  | 'timed_out';
 
 export type SummariseResult =
   { outcome: 'skipped'; why: SummarySkip } | (CopilotRunResult & { transcribed: boolean });
@@ -153,6 +162,31 @@ async function readCallFacts(
   );
 }
 
+/**
+ * Removes a transcript that did not become the call's: its bytes from the store and its row
+ * marked deleted (`calls.recording.delete`). A failure here is logged and left to the sweep of
+ * abandoned uploads, which finds the row still pending.
+ */
+async function discardTranscript(
+  deps: SummariseDeps,
+  entityId: number,
+  fileId: string,
+  key: string,
+): Promise<void> {
+  try {
+    await deps.store.delete(key);
+    await executeCommand(
+      deps.platform,
+      { entityIds: [entityId] },
+      deleteCallRecording,
+      { entityId, fileId },
+      { hosted: deps.hosted },
+    );
+  } catch (error) {
+    deps.logger?.log('warn', 'agent.copilot_transcript_not_discarded', { entityId, fileId, error });
+  }
+}
+
 /** The bytes under `key`, checked against their SHA-256; a store that fails is retried. */
 async function storedBytes(store: FileStore, key: string, sha256: string): Promise<Uint8Array> {
   const bytes = await store.get(key);
@@ -203,6 +237,19 @@ export async function summariseCall(
     return { outcome: 'skipped', why: 'not_recorded' };
   }
 
+  // Before anything is downloaded: the day's spend must have room for the transcription of the
+  // longest call this run takes and the summary's model call.
+  const d = AGENT_DEFAULTS.copilot;
+  const speechPaise =
+    call.transcript === null && deps.transcriber !== undefined
+      ? (d.maxCallMinutes / 60) * deps.transcriber.paisePerHour
+      : 0;
+  if (!(await copilotSpendFits(deps.provider, 'call_summary', job.entityId, config, speechPaise))) {
+    const stopped = await recordCopilotStop(base, deps, true);
+    return { outcome: 'stopped', runs: { qualification: stopped }, transcribed: false };
+  }
+  const timeLeft = deps.timeLeft ?? (() => Number.POSITIVE_INFINITY);
+
   let transcript: string;
   let transcribed = false;
   if (call.transcript !== null) {
@@ -217,6 +264,8 @@ export async function summariseCall(
     }
     const speech = deps.transcriber;
     if (speech === undefined) return { outcome: 'skipped', why: 'no_speech_service' };
+    // The transcription gets what is left of the delivery, less the time to store and record it.
+    if (timeLeft() - d.storeMarginMs < d.minTranscribeMs) throw copilotOutOfTime('transcribe');
     const bytes = await storedBytes(deps.store, recording.key, recording.sha256);
     let audioMs: number;
     try {
@@ -229,6 +278,8 @@ export async function summariseCall(
       return { outcome: 'skipped', why: 'too_long' };
     }
     const paise = (ms: number): number => (ms / 3_600_000) * speech.paisePerHour;
+    const transcribeMs = Math.min(d.totalTimeoutMs, timeLeft() - d.storeMarginMs);
+    if (transcribeMs < d.minTranscribeMs) throw copilotOutOfTime('transcribe');
     let heard: string;
     try {
       heard = await deps.provider.metered(
@@ -236,22 +287,27 @@ export async function summariseCall(
           agent: 'agent:copilot',
           purpose: 'copilot_transcribe',
           entityId: job.entityId,
-          caps: [...config.caps, ...copilotCeilings(job.entityId)],
+          caps: copilotRunCaps(config, job.entityId),
           vendor: speech.vendor,
           maxPaise: paise(audioMs),
-          totalTimeoutMs: AGENT_DEFAULTS.copilot.totalTimeoutMs,
+          totalTimeoutMs: transcribeMs,
         },
         (paid) =>
           speech.transcribe(bytes, {
             contentType: recording.contentType,
-            signal: AbortSignal.timeout(AGENT_DEFAULTS.copilot.totalTimeoutMs),
+            signal: AbortSignal.timeout(transcribeMs),
             sent: (pieceMs) => {
               paid(paise(pieceMs));
             },
           }),
       );
     } catch (error) {
-      if (error instanceof KnowledgeExtractError) return { outcome: 'skipped', why: 'unreadable' };
+      if (error instanceof KnowledgeExtractError) {
+        return {
+          outcome: 'skipped',
+          why: error.reason === 'knowledge_timed_out' ? 'timed_out' : 'unreadable',
+        };
+      }
       // The daily cap reached: the summary waits for no one; the run's stop is recorded.
       if (
         error instanceof DomainError &&
@@ -276,27 +332,41 @@ export async function summariseCall(
     const fileId = newId();
     const key = callTranscriptKey(job.entityId, fileId);
     const text = new TextEncoder().encode(transcript);
-    await deps.store.put(key, text, 'text/plain');
-    const attached = await executeCommand(
-      deps.platform,
-      { entityIds: [job.entityId] },
-      attachCallTranscript,
-      {
-        entityId: job.entityId,
-        providerCallId: job.providerCallId,
-        fileId,
-        bucket: deps.store.bucket,
-        key,
-        size: text.byteLength,
-        sha256: sha256Hex(text),
-      },
-      { hosted: deps.hosted },
-    );
-    if (attached.outcome === 'not_recorded' || attached.outcome === 'missing') {
+    const file = {
+      entityId: job.entityId,
+      providerCallId: job.providerCallId,
+      fileId,
+      bucket: deps.store.bucket,
+      key,
+      size: text.byteLength,
+      sha256: sha256Hex(text),
+    };
+    const scope = { entityIds: [job.entityId] };
+    // The file's row first, `pending`, so bytes in the store always have one: a run that stops
+    // before the attach leaves a pending row, which the sweep of abandoned uploads removes.
+    const reserved = await executeCommand(deps.platform, scope, reserveCallTranscript, file, {
+      hosted: deps.hosted,
+    });
+    let attached: AttachCallTranscriptDto | undefined;
+    if (reserved.outcome === 'reserved') {
+      await deps.store.put(key, text, 'text/plain');
+      try {
+        attached = await executeCommand(deps.platform, scope, attachCallTranscript, file, {
+          hosted: deps.hosted,
+        });
+      } finally {
+        // A transcript that is not the call's is removed at once, with its row.
+        if (attached?.outcome !== 'attached' && attached?.outcome !== 'already') {
+          await discardTranscript(deps, job.entityId, fileId, key);
+        }
+      }
+    }
+    const outcome = attached?.outcome ?? reserved.outcome;
+    if (outcome === 'not_recorded' || outcome === 'missing') {
       return { outcome: 'skipped', why: 'not_recorded' };
     }
     // Another delivery kept its transcript first: that one is the call's.
-    if (attached.outcome === 'other_file') {
+    if (outcome === 'other_file') {
       const again = await readCallFacts(job, deps.platform);
       if (again?.transcript === null || again?.transcript === undefined) {
         return { outcome: 'skipped', why: 'not_recorded' };
