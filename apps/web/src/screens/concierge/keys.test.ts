@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { draftKeyAction } from './keys';
+import { draftKeyAction, draftLineKey } from './keys';
 
 const key = (
   k: string,
@@ -24,5 +24,16 @@ describe('draftKeyAction', () => {
     expect(key('s', { ctrlKey: true })).toBeUndefined();
     expect(key('d', { metaKey: true })).toBeUndefined();
     expect(key('e', { altKey: true })).toBeUndefined();
+  });
+});
+
+describe('draftLineKey', () => {
+  it('reads the draft again for a new message and on each read of the chat', () => {
+    const newest = '01990000-0000-7000-8000-00000000e001';
+    expect(draftLineKey(newest, 1)).not.toBe(draftLineKey(newest, 0));
+    expect(draftLineKey('01990000-0000-7000-8000-00000000e002', 0)).not.toBe(
+      draftLineKey(newest, 0),
+    );
+    expect(draftLineKey(newest, 2)).toBe(draftLineKey(newest, 2));
   });
 });

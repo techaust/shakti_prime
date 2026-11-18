@@ -3,6 +3,7 @@
 import type { ConciergeDraftDto } from '@shakti/contracts';
 import { Button, Field, Textarea, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { approveSuggestion, editSuggestion, rejectSuggestion } from '../../actions/agents';
 import { loadConciergeDraft } from '../../actions/concierge';
@@ -27,8 +28,9 @@ function typing(target: EventTarget): boolean {
  * approval, the reply the WhatsApp Concierge drafted to the customer's newest message, shown to
  * the person whose Agent Inbox holds it, who sends it (S), edits it and sends their words (E), or
  * discards it (D). Each runs as that person through the inbox's own decision; nothing reaches the
- * customer before it. Shows nothing when there is no draft for the viewer (in Shadow there never
- * is). Read once for the chat's newest message: the chat mounts it afresh when a message comes.
+ * customer before it. Under Suggest the draft is only shown, with the way to the Agent Inbox, where
+ * a suggestion is decided. Shows nothing when there is no draft for the viewer (in Shadow there
+ * never is). Read once each time the chat is read: the chat mounts it afresh (`draftLineKey`).
  */
 export function ConciergeDraftLine({
   entityId,
@@ -63,6 +65,7 @@ export function ConciergeDraftLine({
   }, []);
 
   if (draft === null) return <FailureMessage failure={read.failure} />;
+  if (!draft.decidable) return <SuggestedDraft draft={draft} />;
   const ref = { entityId, itemId: draft.itemId };
 
   function decided(message: string): () => void {
@@ -183,6 +186,36 @@ export function ConciergeDraftLine({
         </>
       )}
       <FailureMessage failure={send.failure ?? edit.failure ?? discard.failure} />
+    </section>
+  );
+}
+
+/**
+ * A draft under Suggest: the words and when they were drafted, and the way to the Agent Inbox,
+ * where a suggestion is dismissed; no send, edit or discard here, which a suggestion does not take.
+ */
+export function SuggestedDraft({ draft }: { draft: NonNullable<ConciergeDraftDto['draft']> }) {
+  const t = useTranslations('messaging.draft');
+  const id = useId();
+  return (
+    <section
+      aria-labelledby={`${id}-heading`}
+      className="border-border bg-surface-2 flex flex-col gap-2 rounded-lg border p-3"
+      data-testid="concierge-draft"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 id={`${id}-heading`} className="text-sm font-medium">
+          {t('heading')}
+        </h3>
+        <p className="text-text-muted text-xs">
+          {t('drafted', { when: formatDateTime(draft.createdAt) })}
+        </p>
+      </div>
+      <p className="text-sm whitespace-pre-wrap">{draft.body}</p>
+      <p className="text-text-muted text-xs">{t('suggestHelper')}</p>
+      <Link href="/inbox" className="text-accent-text text-sm underline-offset-4 hover:underline">
+        {t('openInbox')}
+      </Link>
     </section>
   );
 }

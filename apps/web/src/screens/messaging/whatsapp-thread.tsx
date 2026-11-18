@@ -14,6 +14,7 @@ import {
 } from '../../actions/messaging';
 import { FailureMessage } from '../../components/screens/failure';
 import { ConciergeDraftLine } from '../concierge/draft-line';
+import { draftLineKey } from '../concierge/keys';
 import { useCommand, useQuery } from '../../components/screens/use-command';
 import { MESSAGING_REFUSALS, WHATSAPP_MESSAGE_STATUSES } from '../contract-values';
 import { customerHref, isOneOf } from '../customers';
@@ -35,6 +36,8 @@ export const WhatsAppThread = forwardRef<
   const [view, setView] = useState<ThreadViewDto | undefined>(initial);
   const [earlier, setEarlier] = useState<WhatsAppMessageDto[]>([]);
   const [cursor, setCursor] = useState<string | null>(initial?.nextCursor ?? null);
+  // How often the chat was read again: the assistant's draft is read with it.
+  const [reads, setReads] = useState(0);
   const read = useQuery<ThreadViewDto>();
   const more = useQuery<ThreadViewDto>();
 
@@ -45,6 +48,7 @@ export const WhatsAppThread = forwardRef<
         setView(data);
         setEarlier([]);
         setCursor(data.nextCursor);
+        setReads((n) => n + 1);
       },
     );
   }
@@ -123,7 +127,7 @@ export const WhatsAppThread = forwardRef<
       </p>
       {view.canSend && !thread.optedOut ? (
         <ConciergeDraftLine
-          key={`draft:${String(view.messages[0]?.id)}`}
+          key={draftLineKey(view.messages[0]?.id, reads)}
           entityId={entityId}
           threadId={thread.id}
           onDecided={reload}

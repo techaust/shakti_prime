@@ -552,6 +552,30 @@ describe('under Needs approval', () => {
     }
   });
 
+  it('shows a draft under Suggest as one to decide in the Agent Inbox, not to send from the chat', async () => {
+    const shownUnder = async (autonomy: 'suggest' | 'needs_approval') => {
+      await setting({ actionType: REPLY, autonomy });
+      const c = await chat();
+      const msg = await say(c, `Need a pump, ${autonomy}`);
+      const text = 'Thank you. How deep is your bore, in feet?';
+      await runOn(c, msg, deps(c, [reply(text)]));
+      const shown = await asPrincipal(c.caller, (ctx) =>
+        loadConciergeDraft(ctx, { entityId: ENTITY, threadId: c.threadId }),
+      );
+      return { body: shown.draft?.body, decidable: shown.draft?.decidable };
+    };
+    try {
+      const text = 'Thank you. How deep is your bore, in feet?';
+      expect(await shownUnder('suggest')).toEqual({ body: text, decidable: false });
+      expect(await shownUnder('needs_approval')).toEqual({ body: text, decidable: true });
+    } finally {
+      await asMigrator(
+        (m) => m`delete from agent_configs where agent = 'agent:concierge'
+                  and action_type = ${REPLY} and entity_id = ${ENTITY}`,
+      );
+    }
+  });
+
   it('keeps the report from a caller and the draft line from an agent', async () => {
     const caller = await createTestPrincipal('tele_caller_cc', [ENTITY]);
     const today = istCalendarDate(new Date());

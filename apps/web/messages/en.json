@@ -5053,7 +5053,9 @@
       "editHelper": "Change the words as you need, then send.",
       "sent": "Your message is on its way.",
       "discarded": "The draft was set aside. Write your own reply if the customer needs one.",
-      "drafted": "Drafted {when}"
+      "drafted": "Drafted {when}",
+      "suggestHelper": "The assistant only suggests this reply. Nothing goes to the customer from here. Decide on it in your Agent Inbox.",
+      "openInbox": "Open the Agent Inbox"
     }
   },
   "pushAlerts": {

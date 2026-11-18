@@ -24,3 +24,12 @@ export function draftKeyAction(event: {
       return undefined;
   }
 }
+
+/**
+ * The draft line's key in the chat: read afresh for the chat's newest message and on each time the
+ * chat is read again (`reads`), so a draft written after the chat opened shows at the chat's next
+ * refresh (a reply sent, a hand-over, a decision), with no polling of its own.
+ */
+export function draftLineKey(newestMessageId: string | undefined, reads: number): string {
+  return `draft:${newestMessageId ?? 'none'}:${String(reads)}`;
+}

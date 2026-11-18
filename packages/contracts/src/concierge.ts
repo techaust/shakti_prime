@@ -23,6 +23,11 @@ export const ConciergeDraftDto = z
         itemId: IdSchema,
         body: z.string(),
         createdAt: z.iso.datetime(),
+        /**
+         * Whether the viewer sends, edits or discards it from the chat (Needs approval); under
+         * Suggest it is only shown, and decided in the Agent Inbox.
+         */
+        decidable: z.boolean(),
       })
       .strict()
       .nullable(),

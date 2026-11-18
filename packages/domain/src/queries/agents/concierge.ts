@@ -30,7 +30,8 @@ const REPLY = CONCIERGE_ACTION_TYPES.reply;
 /**
  * The assistant's newest undecided reply on one chat the viewer reads, in the viewer's own Agent
  * Inbox scope (their own item, their team's or the company's, as `agents.inbox.act` reaches): the
- * item to decide and the words. None for a person who acts on no inbox, or when there is none (in
+ * item to decide, the words, and whether it is decided from the chat (Needs approval) or only in
+ * the Agent Inbox (Suggest). None for a person who acts on no inbox, or when there is none (in
  * Shadow there never is). A person's screen: an agent never reads it.
  */
 export async function loadConciergeDraft(ctx: Ctx, rawInput: unknown): Promise<ConciergeDraftDto> {
@@ -56,6 +57,7 @@ export async function loadConciergeDraft(ctx: Ctx, rawInput: unknown): Promise<C
       itemId: i.id,
       body: sql<string>`${a.inputJson} ->> 'body'`,
       createdAt: a.createdAt,
+      autonomy: a.autonomy,
     })
     .from(i)
     .innerJoin(a, and(eq(a.id, i.agentActionId), eq(a.entityId, i.entityId)))
@@ -79,7 +81,13 @@ export async function loadConciergeDraft(ctx: Ctx, rawInput: unknown): Promise<C
     draft:
       row === undefined
         ? null
-        : { itemId: row.itemId, body: row.body, createdAt: row.createdAt.toISOString() },
+        : {
+            itemId: row.itemId,
+            body: row.body,
+            createdAt: row.createdAt.toISOString(),
+            // A suggestion is only dismissed (agents.inbox.dismiss), never sent from the chat.
+            decidable: row.autonomy !== 'suggest',
+          },
   });
 }
 
