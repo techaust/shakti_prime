@@ -271,6 +271,14 @@ const RULES: Record<MatrixTable, TableRule> = {
     group: NEVER,
     leak: otherCompany,
   },
+  // A person's own voice sessions; another person's only to the Executive (audit.read for the
+  // group). A session over every company is read only in a request covering them all.
+  voice_sessions: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? grant('audit.read', 'all') : CONTEXT),
+    group: NEVER,
+    leak: otherCompany,
+  },
   // A caller's own target and their team's, whatever their role; another caller's only to a
   // holder of sales.targets.write over the team (a team lead), the company or the group.
   targets: {
@@ -303,6 +311,7 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   // A company's templates: every principal acting in the company reads them (the composer).
   whatsapp_templates: { read: CONTEXT, leak: otherCompany },
+  whatsapp_milestones: { read: CONTEXT, leak: otherCompany },
   // A company's connected forms and sites and its website keys: an Executive's (design phase2 §6.2).
   ingest_sources: { read: grant('crm.sources.write', 'all'), leak: otherCompany },
   ingest_keys: { read: grant('crm.sources.write', 'all'), leak: otherCompany },

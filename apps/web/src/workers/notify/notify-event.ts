@@ -43,6 +43,21 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
       };
     case 'sales.order.credit_held':
       return { ...base, event: 'sales.order.credit_held', orderId: event.aggregateId };
+    case 'sales.quote.accepted':
+      return {
+        ...base,
+        event: 'sales.quote.accepted',
+        quoteId: event.aggregateId,
+        acceptedBy: String(p.acceptedBy),
+      };
+    case 'calls.missed.recorded':
+      return {
+        ...base,
+        event: 'calls.missed.recorded',
+        providerCallId: event.aggregateId,
+        opportunityId: String(p.opportunityId),
+        ownerId: typeof p.ownerId === 'string' ? p.ownerId : null,
+      };
     default:
       throw new DomainError('validation_failed', `${event.type} does not notify`, {
         type: event.type,

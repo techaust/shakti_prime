@@ -129,6 +129,7 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   'files.document.record': { sha256: HEX },
   // The provider's id of a call and a copied recording's SHA-256.
   'calls.provider_call.record': { callSid: HEX },
+  'calls.inbound_call.record': { callSid: HEX },
   'calls.recording.attach': { sha256: HEX },
   'calls.transcript.attach': { sha256: HEX },
   'calls.transcript.reserve': { sha256: HEX },
@@ -191,6 +192,8 @@ const KEPT_EXAMPLES: readonly { command: string; path: string; value: unknown }[
   { command: 'crm.contact.update', path: 'addPhones.phone', value: '+91 98765 43216' },
   { command: 'crm.lead.create', path: 'contact.phone', value: MOBILE_91 },
   { command: 'crm.enquiry.route', path: 'phone', value: MOBILE_91 },
+  { command: 'calls.inbound_call.record', path: 'from', value: MOBILE_91 },
+  { command: 'calls.inbound_call.record', path: 'dialWhom', value: '+91 98765 43216' },
   {
     command: 'files.document.record',
     path: 'key',

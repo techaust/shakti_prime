@@ -5,6 +5,7 @@ import {
   type Principal,
 } from '@shakti/contracts';
 import {
+  acceptanceCode,
   claimWhatsAppMessage,
   noteConversation,
   decideSend,
@@ -12,13 +13,18 @@ import {
   executeCommand,
   executeQuery,
   budgetFor,
+  quoteButtonTokens,
+  readSendExtras,
   readSendFacts,
   recordWhatsAppSend,
+  type FileStore,
   type KeyValue,
   type Logger,
+  type SendExtras,
+  type SendFactsRow,
 } from '@shakti/domain';
 import { ProviderError } from '../../integrations/http';
-import type { WhatsAppClient } from '../../integrations/whatsapp/client';
+import type { TemplateMessage, WhatsAppClient } from '../../integrations/whatsapp/client';
 import { logger as appLogger } from '../../log';
 
 export interface SendDeps {
@@ -30,7 +36,62 @@ export interface SendDeps {
   /** The send client of a company's number; undefined while no access key is set. */
   client: (phoneNumberId: string) => WhatsAppClient | undefined;
   hosted: boolean;
+  /** `WHATSAPP_BUTTON_SECRET`: a quote's button payloads and a one-time code are made with it. */
+  buttonSecret: string | undefined;
+  /** Where a quote's PDF is read from, for the address Meta fetches it at; undefined if none. */
+  store: FileStore | undefined;
   logger?: Logger;
+}
+
+/** What a template's message carries beyond its stored values. */
+type TemplateParts = Pick<TemplateMessage, 'bodyParameters' | 'headerDocument' | 'buttons'>;
+
+const unavailable = (what: string) =>
+  new DomainError('integration_unavailable', `${what} is not set up here`, {
+    reason: 'whatsapp_unavailable',
+  });
+
+/**
+ * A template's values as it goes out (docs/03-roadmap-appendix/phase2.md §7.1): the stored ones,
+ * and, made only now so that none is ever stored, the one-time code of an `acceptance_code`
+ * message (from the message's id, in its body and its copy-code button) and the Accept and Talk to
+ * us payloads of a quote's `quote_sent` milestone (bound to the quote, the chat and the number),
+ * with the quote's PDF as the header document. Without the secret, or a store for the PDF, the
+ * message waits (`integration_unavailable`), since it cannot go as it should.
+ */
+async function templateParts(
+  facts: SendFactsRow,
+  extras: SendExtras | null,
+  deps: SendDeps,
+): Promise<TemplateParts> {
+  const secret = deps.buttonSecret ?? '';
+  if (extras?.templatePurpose === 'acceptance_code') {
+    if (secret === '') throw unavailable('the WhatsApp button secret');
+    const code = acceptanceCode(secret, facts.messageId);
+    return { bodyParameters: [code], buttons: [{ index: 0, kind: 'url', value: code }] };
+  }
+  const milestone = extras?.milestone;
+  if (milestone?.name !== 'quote_sent' || milestone.subjectKind !== 'quote') {
+    return { bodyParameters: facts.templateParams };
+  }
+  if (secret === '') throw unavailable('the WhatsApp button secret');
+  const [accept, talk] = quoteButtonTokens(secret, milestone.subjectId, {
+    threadId: facts.threadId,
+    waId: facts.waId,
+  });
+  const parts: TemplateParts = {
+    bodyParameters: facts.templateParams,
+    buttons: [
+      { index: 0, kind: 'quick_reply', value: accept ?? '' },
+      { index: 1, kind: 'quick_reply', value: talk ?? '' },
+    ],
+  };
+  const file = extras?.file;
+  if (file?.status !== 'ready') return parts;
+  if (deps.store === undefined) throw unavailable('a file store');
+  const filename = file.name === '' ? 'quote.pdf' : file.name;
+  const signed = await deps.store.presignGet(file.key, { filename, disposition: 'inline' });
+  return { ...parts, headerDocument: { link: signed.url, filename } };
 }
 
 type Outcome = Exclude<MessagingSendResult, { outcome: 'duplicate' }>;
@@ -94,11 +155,18 @@ export async function sendQueuedMessage(job: MessagingSendJob, deps: SendDeps): 
   }
 
   const client = facts.phoneNumberId === null ? undefined : deps.client(facts.phoneNumberId);
-  if (client === undefined) {
-    throw new DomainError('integration_unavailable', 'WhatsApp is not set up here', {
-      reason: 'whatsapp_unavailable',
-    });
-  }
+  if (client === undefined) throw unavailable('WhatsApp');
+  // Made before the message is taken, so a message that cannot go as it should waits instead.
+  const parts =
+    facts.kind === 'text'
+      ? undefined
+      : await templateParts(
+          facts,
+          await executeQuery(deps.principal, scope, (ctx) => readSendExtras(ctx, job.messageId), {
+            name: 'messaging.send.extras',
+          }),
+          deps,
+        );
   const claimed = await executeCommand(deps.principal, scope, claimWhatsAppMessage, {
     entityId: job.entityId,
     messageId: job.messageId,
@@ -134,6 +202,7 @@ export async function sendQueuedMessage(job: MessagingSendJob, deps: SendDeps): 
             templateName: facts.templateName ?? '',
             languageCode: 'en',
             bodyParameters: facts.templateParams,
+            ...parts,
           });
   } catch (error) {
     const vendor = error instanceof ProviderError ? error.vendorCode : undefined;

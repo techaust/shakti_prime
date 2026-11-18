@@ -19,6 +19,7 @@ import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
 import { dialCall } from '../commands/calls/dial-call';
+import { recordInboundCall, signalRinging } from '../commands/calls/inbound-calls';
 import { logCall } from '../commands/calls/log-call';
 import { playCallRecording } from '../commands/calls/play-recording';
 import {
@@ -116,6 +117,8 @@ import { sendWhatsAppMessage } from '../commands/messaging/send-message';
 import { requestTemplate } from '../commands/messaging/template-request';
 import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messaging/threads';
 import { registerWhatsAppTemplate } from '../commands/messaging/templates';
+import { sendWhatsAppMilestone, setWhatsAppMilestone } from '../commands/messaging/milestones';
+import { queueWhatsAppAnswer } from '../commands/messaging/answers';
 import {
   attachWhatsAppMedia,
   claimWhatsAppMessage,
@@ -149,6 +152,7 @@ import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { requestPrintProof } from '../commands/print/request-proof';
 import { setPrice } from '../commands/pricing/set-price';
 import { acceptQuote } from '../commands/sales/accept-quote';
+import { acceptQuoteRemote } from '../commands/sales/accept-quote-remote';
 import { attachQuotePdf } from '../commands/sales/attach-quote-pdf';
 import { cancelSalesOrder } from '../commands/sales/cancel-order';
 import { confirmSalesOrder } from '../commands/sales/confirm-order';
@@ -171,6 +175,11 @@ import { withdrawQuote } from '../commands/sales/withdraw-quote';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { issueRealtimeToken } from '../commands/realtime/issue-token';
+import {
+  recordVoiceSession,
+  refreshVoiceToken,
+  startVoiceSession,
+} from '../commands/voice/sessions';
 import { setContrast } from '../commands/profile/set-contrast';
 import { setCompositeRule } from '../commands/tax/set-composite-rule';
 import { setTaxRate } from '../commands/tax/set-tax-rate';
@@ -198,6 +207,9 @@ export const commands = Object.freeze({
   [claimWhatsAppMessage.name]: claimWhatsAppMessage,
   [recordWhatsAppSend.name]: recordWhatsAppSend,
   [attachWhatsAppMedia.name]: attachWhatsAppMedia,
+  [setWhatsAppMilestone.name]: setWhatsAppMilestone,
+  [sendWhatsAppMilestone.name]: sendWhatsAppMilestone,
+  [queueWhatsAppAnswer.name]: queueWhatsAppAnswer,
   [ingestLead.name]: ingestLead,
   [setLeadQualification.name]: setLeadQualification,
   [setIngestSource.name]: setIngestSource,
@@ -253,9 +265,14 @@ export const commands = Object.freeze({
   [logCall.name]: logCall,
   [dialCall.name]: dialCall,
   [recordProviderCall.name]: recordProviderCall,
+  [recordInboundCall.name]: recordInboundCall,
+  [signalRinging.name]: signalRinging,
   [attachCallRecording.name]: attachCallRecording,
   [deleteCallRecording.name]: deleteCallRecording,
   [playCallRecording.name]: playCallRecording,
+  [startVoiceSession.name]: startVoiceSession,
+  [refreshVoiceToken.name]: refreshVoiceToken,
+  [recordVoiceSession.name]: recordVoiceSession,
   [setPrice.name]: setPrice,
   [createPriceList.name]: createPriceList,
   [approvePriceList.name]: approvePriceList,
@@ -319,6 +336,7 @@ export const commands = Object.freeze({
   [replayWebhook.name]: replayWebhook,
   [attachQuotePdf.name]: attachQuotePdf,
   [acceptQuote.name]: acceptQuote,
+  [acceptQuoteRemote.name]: acceptQuoteRemote,
   [createSalesOrder.name]: createSalesOrder,
   [confirmSalesOrder.name]: confirmSalesOrder,
   [releaseCredit.name]: releaseCredit,

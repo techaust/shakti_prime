@@ -27,6 +27,10 @@ const accepted = {
   messages: [{ id: 'wamid.sent-1', message_status: 'accepted' }],
 };
 
+/** The components of a sent template, from the request's body. */
+const componentsOf = (body: string): unknown =>
+  (JSON.parse(body) as { template: { components: unknown } }).template.components;
+
 function client(response: Response) {
   const fetchImpl = stubFetch(() => response);
   return { fetchImpl, wa: whatsappClient(CONFIG, { fetch: fetchImpl, timeoutMs: 1_000 }) };
@@ -66,6 +70,62 @@ describe('sending', () => {
         ],
       },
     });
+  });
+
+  it('sends a quote template with its document and button payloads, and a code in its button', async () => {
+    const { fetchImpl, wa } = client(Response.json(accepted));
+    await wa.sendTemplate({
+      to: '919000000002',
+      templateName: 'quote_ready',
+      languageCode: 'en',
+      bodyParameters: ['Q-1'],
+      headerDocument: { link: 'https://files.example.test/q.pdf', filename: 'Q-1.pdf' },
+      buttons: [
+        { index: 0, kind: 'quick_reply', value: 'q1.a.payload' },
+        { index: 1, kind: 'quick_reply', value: 'q1.t.payload' },
+      ],
+    });
+    expect(componentsOf(bodyOf(fetchImpl.mock.calls[0]?.[1]))).toEqual([
+      {
+        type: 'header',
+        parameters: [
+          {
+            type: 'document',
+            document: { link: 'https://files.example.test/q.pdf', filename: 'Q-1.pdf' },
+          },
+        ],
+      },
+      { type: 'body', parameters: [{ type: 'text', text: 'Q-1' }] },
+      {
+        type: 'button',
+        sub_type: 'quick_reply',
+        index: '0',
+        parameters: [{ type: 'payload', payload: 'q1.a.payload' }],
+      },
+      {
+        type: 'button',
+        sub_type: 'quick_reply',
+        index: '1',
+        parameters: [{ type: 'payload', payload: 'q1.t.payload' }],
+      },
+    ]);
+    const code = client(Response.json(accepted));
+    await code.wa.sendTemplate({
+      to: '919000000002',
+      templateName: 'acceptance_code',
+      languageCode: 'en',
+      bodyParameters: ['123456'],
+      buttons: [{ index: 0, kind: 'url', value: '123456' }],
+    });
+    expect(componentsOf(bodyOf(code.fetchImpl.mock.calls[0]?.[1]))).toEqual([
+      { type: 'body', parameters: [{ type: 'text', text: '123456' }] },
+      {
+        type: 'button',
+        sub_type: 'url',
+        index: '0',
+        parameters: [{ type: 'text', text: '123456' }],
+      },
+    ]);
   });
 
   it('sends a text inside the customer window', async () => {

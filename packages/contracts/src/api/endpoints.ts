@@ -39,9 +39,18 @@ import {
   MobileTokenResponse,
 } from './mobile-auth';
 import { AskInput, AskStreamEvent } from '../ask';
+import { ScreenPopDto } from '../commands/calls/inbound';
 import { RealtimeTokenRequest, RealtimeTokenResponse } from './realtime';
 import { SyncPullQuery, SyncPullResponse, SyncPushRequest, SyncPushResponse } from './sync';
-import { VoiceSessionRequest, VoiceSessionResponse } from './voice';
+import {
+  VoiceRecordingCompleteRequest,
+  VoiceRecordingCompleteResponse,
+  VoiceRecordingRequest,
+  VoiceSessionRequest,
+  VoiceSessionResponse,
+  VoiceTokenRequest,
+  VoiceTokenResponse,
+} from './voice';
 import {
   ExotelCallStatusWebhook,
   ExotelIncomingParams,
@@ -86,6 +95,8 @@ export type ApiAuth =
   | 'bearer'
   | 'session_or_bearer'
   | 'session'
+  /** The screen-pop's ticket in `x-ringing-ticket`, then the session when a call is waiting. */
+  | 'ringing_ticket'
   | 'ingest_key'
   | 'provider_signature'
   | 'connector_hmac'
@@ -181,6 +192,16 @@ export const API_ENDPOINTS = {
     // A body with any field; signing keys or the issuer not configured (realtime/handlers.ts).
     errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
   },
+  // The screen-pop's poll (docs/03-roadmap-appendix/phase2.md §7.4): 204 with no body while
+  // nothing rings; the example is a call that is waiting.
+  'calls.ringing': {
+    method: 'GET',
+    path: '/calls/ringing',
+    auth: 'ringing_ticket',
+    idempotencyKey: false,
+    response: ScreenPopDto,
+    errors: ['unauthorized', 'forbidden', 'integration_unavailable'],
+  },
   // One question to Ask the Business (docs/03-roadmap-appendix/phase2.md §6.5): the response is a
   // stream of `AskStreamEvent` lines; the example is its last line. The key answers a repeated
   // question from its record. A failure once the stream has begun is its last line instead.
@@ -201,6 +222,35 @@ export const API_ENDPOINTS = {
     request: VoiceSessionRequest,
     response: VoiceSessionResponse,
     errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // The voice worker's token for its live session, refreshed before it expires.
+  'voice.token': {
+    method: 'POST',
+    path: '/voice/token',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceTokenRequest,
+    response: VoiceTokenResponse,
+    errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
+  },
+  // A Teach session's recording, uploaded by the worker straight to the file store, then filed.
+  'voice.recording': {
+    method: 'POST',
+    path: '/voice/recording',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceRecordingRequest,
+    response: FilePresignResponse,
+    errors: ['validation_failed', ...AUTHED, 'conflict', 'integration_unavailable'],
+  },
+  'voice.recording.complete': {
+    method: 'POST',
+    path: '/voice/recording/complete',
+    auth: 'bearer',
+    idempotencyKey: false,
+    request: VoiceRecordingCompleteRequest,
+    response: VoiceRecordingCompleteResponse,
+    errors: ['validation_failed', ...AUTHED, 'not_found', 'conflict', 'integration_unavailable'],
   },
   'sync.pull': {
     method: 'GET',

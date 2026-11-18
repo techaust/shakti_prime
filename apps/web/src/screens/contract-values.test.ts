@@ -46,6 +46,10 @@ import {
   WhatsAppMessageStatusSchema,
   WhatsAppTemplateCategorySchema,
   WhatsAppTemplatePurposeSchema,
+  WhatsAppMilestoneSchema,
+  WHATSAPP_LIVE_MILESTONES,
+  WHATSAPP_MILESTONE_VALUES,
+  QuoteSendChannelSchema,
   WhatsAppTemplateStatusSchema,
   WhatsAppThreadHandlerSchema,
   CALL_PURPOSES,
@@ -54,6 +58,12 @@ import {
   COPILOT_OUTCOME_AGREEMENTS,
   COPILOT_TEMPLATE_OCCASIONS,
   PROVIDER_CALL_STATUSES,
+  INBOUND_CALL_SERIES,
+  VOICE_SESSION_MODES,
+  VOICE_DATA_TOPIC,
+  VOICE_STATES,
+  VOICE_END_REASONS,
+  ASK_SOURCE_KINDS,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
@@ -153,6 +163,8 @@ import {
   COPILOT_NOTE_KIND_VALUES,
   COPILOT_OUTCOME_AGREEMENT_VALUES,
   TEMPLATE_OCCASION_VALUES,
+  INBOUND_CALL_SERIES_VALUES,
+  VOICE_SESSION_MODE_VALUES,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CUSTOMER_LANGUAGES,
@@ -205,6 +217,9 @@ import {
   TARGET_SCOPES,
   WEBHOOK_PROVIDERS,
   QUOTE_ACCEPTED_VIA,
+  QUOTE_SEND_CHANNELS,
+  WHATSAPP_LIVE_MILESTONE_VALUES,
+  WHATSAPP_MILESTONES,
   COMMISSION_ACCRUAL_STATES,
   SUBSIDY_SCHEMES,
   SIZING_REASONS,
@@ -234,6 +249,12 @@ import {
   USER_SORT_COLUMNS,
   USER_STATUSES,
 } from './contract-values';
+import {
+  ASK_SOURCE_KIND_VALUES,
+  VOICE_END_REASON_VALUES,
+  VOICE_STATE_VALUES,
+  VOICE_TOPIC,
+} from './voice-values';
 
 describe('the contract values copied for the browser', () => {
   it('list every code of their schema, in the same order', () => {
@@ -304,6 +325,14 @@ describe('the contract values copied for the browser', () => {
     expect(WHATSAPP_TEMPLATE_CATEGORIES).toEqual(WhatsAppTemplateCategorySchema.options);
     expect(WHATSAPP_TEMPLATE_STATUSES).toEqual(WhatsAppTemplateStatusSchema.options);
     expect(WHATSAPP_TEMPLATE_PURPOSES).toEqual(WhatsAppTemplatePurposeSchema.options);
+    expect(WHATSAPP_MILESTONES).toEqual(WhatsAppMilestoneSchema.options);
+    expect(Object.keys(WHATSAPP_LIVE_MILESTONE_VALUES)).toEqual([...WHATSAPP_LIVE_MILESTONES]);
+    for (const milestone of WHATSAPP_LIVE_MILESTONES) {
+      expect(WHATSAPP_LIVE_MILESTONE_VALUES[milestone]).toBe(
+        WHATSAPP_MILESTONE_VALUES[milestone].length,
+      );
+    }
+    expect(QUOTE_SEND_CHANNELS).toEqual(QuoteSendChannelSchema.options);
     expect(INGEST_CHANNELS).toEqual(CONTRACT_INGEST_CHANNELS);
     expect(INGEST_OUTCOMES).toEqual(CONTRACT_INGEST_OUTCOMES);
     expect(INGEST_ASSIGNEES).toEqual(CONTRACT_INGEST_ASSIGNEES);
@@ -316,6 +345,12 @@ describe('the contract values copied for the browser', () => {
     expect(COPILOT_FACT_VALUES).toEqual(COPILOT_FACTS);
     expect(COPILOT_OUTCOME_AGREEMENT_VALUES).toEqual(COPILOT_OUTCOME_AGREEMENTS);
     expect(PROVIDER_CALL_STATUS_VALUES).toEqual(PROVIDER_CALL_STATUSES);
+    expect(INBOUND_CALL_SERIES_VALUES).toEqual(INBOUND_CALL_SERIES);
+    expect(VOICE_SESSION_MODE_VALUES).toEqual(VOICE_SESSION_MODES);
+    expect(VOICE_TOPIC).toBe(VOICE_DATA_TOPIC);
+    expect(VOICE_STATE_VALUES).toEqual(VOICE_STATES);
+    expect(VOICE_END_REASON_VALUES).toEqual(VOICE_END_REASONS);
+    expect(ASK_SOURCE_KIND_VALUES).toEqual(ASK_SOURCE_KINDS);
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);

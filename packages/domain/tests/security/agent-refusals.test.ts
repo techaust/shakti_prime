@@ -14,6 +14,7 @@ import {
   asMigrator,
   asPrincipal,
   closeDb,
+  createTestVoicePrincipal,
   principalFor,
   SYSTEM_MATRIX,
 } from '@shakti/db/testing';
@@ -206,6 +207,9 @@ const INPUTS: Record<string, unknown> = {
     label: 'Refused template',
     category: 'utility',
   },
+  // The milestone map decides which template the platform sends a customer for each update
+  // (docs/03-roadmap-appendix/phase2.md §7.1): an Executive's, as the template registry is.
+  'messaging.milestone.set': { entityId: 1, milestone: 'quote_sent', templateId: newId() },
   'crm.source.set': {
     entityId: 1,
     provider: 'website',
@@ -385,6 +389,8 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) },
   },
   'notifications.push.unsubscribe': { endpoint: 'https://fcm.googleapis.com/fcm/send/refused' },
+  // Talk to Shakti is started by the person who speaks (docs/03-roadmap-appendix/phase2.md §7.5).
+  'voice.session.start': { mode: 'ask', consentRecording: true },
   // Merges and decisions on duplicates (SECURITY §3.3: an agent only suggests a candidate).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
   'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
@@ -452,6 +458,7 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       // Process again of a failed webhook delivery (P5): a person's decision.
       'webhooks.event.replay',
       'messaging.template.register',
+      'messaging.milestone.set',
       // Where leads come in from, and the website keys (I1): an Executive's.
       'crm.source.set',
       'crm.source.archive',
@@ -932,6 +939,36 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       size: 1,
       sha256: 'a'.repeat(64),
     },
+    // A quote accepted on WhatsApp, a customer update sent and the platform's own answers on a chat
+    // (docs/03-roadmap-appendix/phase2.md §7.1): the platform's alone, never an agent's.
+    'sales.quote.accept_remote': {
+      entityId: 1,
+      quoteId: newId(),
+      threadId: newId(),
+      acceptedVia: 'whatsapp_reply',
+    },
+    'messaging.milestone.send': {
+      entityId: 1,
+      milestone: 'order_confirmed',
+      subjectKind: 'sales_order',
+      subjectId: newId(),
+      values: ['SO-1', 'Rs 1'],
+    },
+    'messaging.answer.queue': {
+      entityId: 1,
+      threadId: newId(),
+      messageId: newId(),
+      answer: { kind: 'text', body: 'Refused answer' },
+    },
+    // A customer's call to a company's IVR or missed-call number (T4): the platform's record.
+    'calls.inbound_call.record': {
+      entityId: 1,
+      series: 'missed_call',
+      callSid: 'refused-call-sid',
+      from: '+919812345678',
+    },
+    // The Realtime wake-up of the person a ringing call waits for (T4).
+    'calls.ringing.signal': { entityId: 1, userId: newId(), providerCallId: newId() },
   };
 
   it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {
@@ -1046,5 +1083,47 @@ describe('the Caller Co-pilot’s commands', () => {
     }
     expect(held).not.toContain('calls.dial');
     expect(held).not.toContain('calls.recording.listen');
+  });
+});
+
+describe('a voice session (SECURITY §3.4)', () => {
+  it('is refused at the guard by every command for people only, even with its grants', async () => {
+    // A voice session acts as its person but is not the person at a keyboard: an Executive's own
+    // session, given every grant each command needs, is refused by the people rule alone.
+    const voice = await createTestVoicePrincipal('executive', [1]);
+    // The commands a person's voice session may run as the person, each with its reason.
+    const forVoice = PEOPLE_ONLY.filter((command) => command.voiceSession === true);
+    expect(forVoice.map((command) => command.name).sort()).toEqual(
+      [
+        // Ask's spoken answers record the person's question (phase 2 design §7.5).
+        'knowledge.ask.record',
+        // A Teach session the person let be recorded files its audio in the vault (§7.5).
+        'knowledge.file.add',
+      ].sort(),
+    );
+    for (const command of PEOPLE_ONLY.filter((c) => c.voiceSession !== true)) {
+      const principal = {
+        ...voice,
+        permissions: [
+          ...voice.permissions,
+          ...needs(command).map((key) => ({ key, scope: 'all' as const })),
+        ],
+      };
+      const error: unknown = await asPrincipal(principal, (context) =>
+        runCommand(command, { context, audit, outbox }, PEOPLE_ONLY_INPUTS[command.name]),
+      ).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect({ command: command.name, error }).toMatchObject({
+        command: command.name,
+        error: { code: 'forbidden', details: { reason: 'people_only' } },
+      });
+      expect({ command: command.name, stage: failureOf(error)?.stage }).toEqual({
+        command: command.name,
+        stage: 'guard',
+      });
+    }
+    expect(PEOPLE_ONLY.length).toBeGreaterThan(20);
   });
 });

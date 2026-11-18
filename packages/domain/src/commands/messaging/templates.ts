@@ -5,6 +5,7 @@ import {
   WhatsAppTemplateButtonSchema,
   WhatsAppTemplateCategorySchema,
   WhatsAppTemplateDto,
+  WhatsAppTemplateHeaderSchema,
   WhatsAppTemplateParamSchema,
   WhatsAppTemplatePurposeSchema,
   WhatsAppTemplateStatusSchema,
@@ -13,6 +14,7 @@ import { schema } from '@shakti/db';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { defineCommand } from '../../command/define-command';
+import { purposeMisfit } from '../../messaging/template-shape';
 import { requireEntity } from '../crm/opportunity-shared';
 
 type TemplateRow = typeof schema.whatsappTemplates.$inferSelect;
@@ -29,6 +31,7 @@ export function toTemplateDto(row: TemplateRow): WhatsAppTemplateDto {
     status: WhatsAppTemplateStatusSchema.parse(row.status),
     params: z.array(WhatsAppTemplateParamSchema).parse(row.params),
     buttons: z.array(WhatsAppTemplateButtonSchema).parse(row.buttons),
+    header: WhatsAppTemplateHeaderSchema.parse(row.header),
     purpose: row.purpose === null ? null : WhatsAppTemplatePurposeSchema.parse(row.purpose),
   });
 }
@@ -38,14 +41,34 @@ function audited(row: Pick<TemplateRow, 'name' | 'category' | 'purpose'>) {
   return { templateName: row.name, templateCategory: row.category, templatePurpose: row.purpose };
 }
 
+/** Whether the input registers the template again as it stands, its label aside. */
+function sameTemplate(
+  current: TemplateRow,
+  input: Pick<TemplateRow, 'category' | 'params' | 'buttons' | 'header' | 'purpose'>,
+): boolean {
+  return (
+    current.category === input.category &&
+    current.header === input.header &&
+    current.purpose === input.purpose &&
+    JSON.stringify(current.params) === JSON.stringify(input.params) &&
+    JSON.stringify(current.buttons) === JSON.stringify(input.buttons)
+  );
+}
+
 /**
  * `messaging.template.register` (docs/03-roadmap-appendix/phase2.md §6.1): an Executive records a
  * template of the company as it was submitted to Meta: its name and language, its category, what
- * each body value stands for and its buttons, and whether the platform sends it itself (the
- * welcome, the confirmation of a STOP; one of each per company, taking no body values). The same
- * name and language again updates it in place. Its status is never written here: a new template
- * waits as `pending` until Meta's template event, which only the platform records. People only;
- * `messaging.templates.write` for the whole group, which the policies check.
+ * each body value stands for, its buttons and what its header takes, and whether the platform
+ * sends it itself (the welcome, the confirmation of a STOP, the acceptance code, the answer on an
+ * expired quote; one of each per company, taking the values its purpose gives,
+ * `WHATSAPP_PURPOSE_VALUES`, and the one-time code only as an authentication template with its
+ * copy-code button, `WHATSAPP_PURPOSE_SHAPES`: `whatsapp_template_purpose_values` or
+ * `whatsapp_template_purpose_shape` otherwise). The same name and language again updates it in
+ * place, but a template an active milestone sends keeps everything except its label
+ * (`whatsapp_template_mapped`): the milestone was mapped to it as it is. Its status is never
+ * written here: a new template waits as `pending` until Meta's template event, which only the
+ * platform records. People only; `messaging.templates.write` for the whole group, which the
+ * policies check.
  */
 export const registerWhatsAppTemplate = defineCommand({
   name: 'messaging.template.register',
@@ -61,9 +84,15 @@ export const registerWhatsAppTemplate = defineCommand({
   },
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
-    if (input.purpose !== null && input.params.length > 0) {
-      throw new DomainError('validation_failed', 'a template the platform sends takes no values', {
+    const misfit = input.purpose === null ? null : purposeMisfit(input.purpose, input);
+    if (misfit === 'values') {
+      throw new DomainError('validation_failed', 'a platform template takes its purpose’s values', {
         reason: 'whatsapp_template_purpose_values',
+      });
+    }
+    if (misfit === 'shape') {
+      throw new DomainError('validation_failed', 'a platform template has its purpose’s kind', {
+        reason: 'whatsapp_template_purpose_shape',
       });
     }
     const w = schema.whatsappTemplates;
@@ -77,6 +106,25 @@ export const registerWhatsAppTemplate = defineCommand({
       .for('update');
 
     if (current) {
+      if (!sameTemplate(current, input)) {
+        const m = schema.whatsappMilestones;
+        const [mapped] = await ctx.tx
+          .select({ id: m.id })
+          .from(m)
+          .where(
+            and(
+              eq(m.entityId, current.entityId),
+              eq(m.templateId, current.id),
+              eq(m.isActive, true),
+            ),
+          )
+          .limit(1);
+        if (mapped) {
+          throw new DomainError('conflict', 'a milestone sends this template as it is', {
+            reason: 'whatsapp_template_mapped',
+          });
+        }
+      }
       const [row] = await ctx.tx
         .update(w)
         .set({
@@ -84,6 +132,7 @@ export const registerWhatsAppTemplate = defineCommand({
           category: input.category,
           params: input.params,
           buttons: input.buttons,
+          header: input.header,
           purpose: input.purpose,
           updatedBy: ctx.principal.id,
         })
@@ -111,6 +160,7 @@ export const registerWhatsAppTemplate = defineCommand({
         category: input.category,
         params: input.params,
         buttons: input.buttons,
+        header: input.header,
         purpose: input.purpose,
         createdBy: ctx.principal.id,
       })

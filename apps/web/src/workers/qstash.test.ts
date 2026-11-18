@@ -152,7 +152,12 @@ describe('qstashEventPublisher', () => {
   });
 
   it('sends each notifying event to the notify route as itself, with no queue group', async () => {
-    const types = ['crm.duplicate.found', 'crm.enquiry.routed', 'sales.order.credit_held'] as const;
+    const types = [
+      'crm.duplicate.found',
+      'crm.enquiry.routed',
+      'sales.order.credit_held',
+      'calls.missed.recorded',
+    ] as const;
     const events = types.map((type) => event(type));
     queue.batchJSON.mockResolvedValue(events.map(() => ({ messageId: 'm', url: 'u' })));
     await qstashEventPublisher(config).publish(events);

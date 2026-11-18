@@ -25,6 +25,9 @@ import { principals } from './principals';
  * platform (`calls.process`, through definers) records what the provider reports: its call id,
  * each status, when it was answered and ended, its length and its recording. A status only moves
  * forward (`app.provider_calls_guard()`), so a repeated or late report changes nothing back.
+ * An inbound call (T4) is recorded by the platform alone when the provider passes it through: on
+ * the IVR number with the person it rings and no lead, or on the missed-call number with the lead
+ * it made or joined.
  *
  * Its own table, not columns of `calls`: a call log is written once by the person who made the
  * call and never changed, while a provider call changes several times after it starts. The
@@ -37,7 +40,11 @@ export const providerCalls = pgTable(
     entityId: smallint('entity_id')
       .notNull()
       .references(() => entities.id),
-    opportunityId: uuid('opportunity_id').notNull(),
+    /**
+     * The lead the call is about: always for a dial and a missed call; an inbound call through the
+     * IVR is recorded before anyone knows which lead it is about, so it has none (T4).
+     */
+    opportunityId: uuid('opportunity_id'),
     /**
      * The customer's phone called; it is never copied here, only named. Cleared when the number
      * comes off the customer or the customer is anonymised, so the call never holds a number back.
@@ -82,6 +89,17 @@ export const providerCalls = pgTable(
     check(
       'provider_calls_outbound_check',
       sql`${t.direction} <> 'outbound' or (${t.callerId} is not null and ${t.purpose} is not null and ${t.series} in ('140', '160'))`,
+    ),
+    // A dial is always about a lead.
+    check(
+      'provider_calls_outbound_lead_check',
+      sql`${t.direction} <> 'outbound' or ${t.opportunityId} is not null`,
+    ),
+    // An inbound call came in on the IVR or the missed-call number, for no purpose of ours; a
+    // missed call always makes or joins a lead (T4, docs/03-roadmap-appendix/phase2.md §7.4).
+    check(
+      'provider_calls_inbound_check',
+      sql`${t.direction} <> 'inbound' or (${t.series} in ('ivr', 'missed_call') and ${t.purpose} is null and (${t.series} <> 'missed_call' or ${t.opportunityId} is not null))`,
     ),
     check(
       'provider_calls_sid_check',

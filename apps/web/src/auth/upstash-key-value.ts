@@ -14,6 +14,12 @@ end
 redis.call('SET', KEYS[1], v, 'EX', tonumber(ARGV[2]))
 return v`;
 
+/** `delIfValue` in one step on the server: the key is deleted only while it holds the value. */
+const DEL_IF_VALUE = `if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0`;
+
 /** Deadline for one Upstash call: the store sits on the path of every signed-in request. */
 const UPSTASH_CALL_TIMEOUT_MS = 1000;
 
@@ -78,6 +84,10 @@ export function upstashKeyValue(config: UpstashConfig): KeyValue {
         [value, String(ttlSeconds)],
       );
       return String(stored);
+    },
+    delIfValue: async (key, value) => {
+      const deleted = await redis.eval<[string], number | string>(DEL_IF_VALUE, [key], [value]);
+      return String(deleted) === '1';
     },
   };
 }

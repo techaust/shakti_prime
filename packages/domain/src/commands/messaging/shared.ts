@@ -23,7 +23,10 @@ export function maskMessageText(text: string): string {
 }
 
 /** Whether the thread's number has opted out of WhatsApp now (`app.whatsapp_thread_opted_out()`). */
-export async function threadOptedOut(ctx: CommandContext, threadId: string): Promise<boolean> {
+export async function threadOptedOut(
+  ctx: Pick<CommandContext, 'tx'>,
+  threadId: string,
+): Promise<boolean> {
   const rows = (await ctx.tx.execute(
     sql`select app.whatsapp_thread_opted_out(${threadId}::uuid) as opted_out`,
   )) as unknown as { opted_out: boolean }[];

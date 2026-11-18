@@ -43,6 +43,13 @@ export interface TemplateMessage {
   languageCode: string;
   /** Values for the body's {{1}}, {{2}} … in order. */
   bodyParameters: readonly string[];
+  /** A document in the template's header (a quote's PDF): an address Meta fetches it from. */
+  headerDocument?: { link: string; filename: string };
+  /**
+   * The values of the template's buttons, by their place: a quick reply's payload, which WhatsApp
+   * sends back when it is pressed, or a link button's text (an authentication template's code).
+   */
+  buttons?: readonly { index: number; kind: 'quick_reply' | 'url'; value: string }[];
 }
 
 export interface TextMessage {
@@ -107,20 +114,37 @@ export function whatsappClient(
 
   return {
     sendTemplate(message) {
+      const components: Record<string, unknown>[] = [];
+      if (message.headerDocument !== undefined) {
+        components.push({
+          type: 'header',
+          parameters: [{ type: 'document', document: message.headerDocument }],
+        });
+      }
+      if (message.bodyParameters.length > 0) {
+        components.push({
+          type: 'body',
+          parameters: message.bodyParameters.map((text) => ({ type: 'text', text })),
+        });
+      }
+      for (const button of message.buttons ?? []) {
+        components.push({
+          type: 'button',
+          sub_type: button.kind,
+          index: String(button.index),
+          parameters: [
+            button.kind === 'quick_reply'
+              ? { type: 'payload', payload: button.value }
+              : { type: 'text', text: button.value },
+          ],
+        });
+      }
       return send(message.to, {
         type: 'template',
         template: {
           name: message.templateName,
           language: { code: message.languageCode },
-          components:
-            message.bodyParameters.length === 0
-              ? []
-              : [
-                  {
-                    type: 'body',
-                    parameters: message.bodyParameters.map((text) => ({ type: 'text', text })),
-                  },
-                ],
+          components,
         },
       });
     },

@@ -90,10 +90,22 @@ test.describe('as an Executive, a sized lead to a sent quote', () => {
     expect((await pdf.body()).subarray(0, 5).toString('latin1')).toBe('%PDF-');
     await tab.close();
 
-    await page.getByRole('button', { name: 'Mark as sent' }).click();
+    // Sent by hand: the customer has no WhatsApp chat with this company, so WhatsApp is off in the
+    // send dialog, with its reason (docs/03-roadmap-appendix/phase2.md §7.1).
+    await page.getByRole('button', { name: 'Send the quote' }).click();
+    await expect(dialog.getByRole('heading', { name: 'Send this quote' })).toBeVisible();
+    await expect(dialog.getByText(/^Not on WhatsApp:/)).toBeVisible();
+    await expect(
+      dialog.getByRole('radio', { name: "On WhatsApp, from the company's number" }),
+    ).toBeDisabled();
+    await expect(
+      dialog.getByRole('radio', { name: 'I gave the customer the document' }),
+    ).toBeChecked();
+    await expectNoAxeViolations(page);
+    await dialog.getByRole('button', { name: 'Record as sent' }).click();
     await expect(page.getByText('Quote marked as sent.')).toBeVisible();
     await expect(page.getByText('Sent', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Mark as sent' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Send the quote' })).toHaveCount(0);
 
     // ⌘K finds the quote by its number (RPT-03).
     await page

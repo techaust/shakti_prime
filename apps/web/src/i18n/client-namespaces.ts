@@ -44,6 +44,7 @@ export const CLIENT_SCOPES = {
     'users',
   ],
   '/ask': ['ask'],
+  '/voice': ['ask', 'playbook', 'voice'],
   '/calling': [
     'activity',
     'agents',
@@ -103,6 +104,7 @@ export const CLIENT_SCOPES = {
     'pipelineSettings',
     'profile',
     'taxSettings',
+    'whatsappTemplates',
   ],
   '/targets': ['targets'],
 } as const satisfies Record<string, readonly Namespace[]>;

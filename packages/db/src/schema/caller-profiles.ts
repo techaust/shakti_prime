@@ -8,6 +8,7 @@ import {
   smallint,
   text,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from './columns';
@@ -45,7 +46,8 @@ export const callerProfiles = pgTable(
       .default(sql`'{}'::text[]`),
     /**
      * The person's own phone that click-to-dial rings first (docs/03-roadmap-appendix/phase2.md
-     * §6.3), set by the person alone on their profile; null until they set it.
+     * §6.3), set by the person alone on their profile; null until they set it. The IVR rings it
+     * for an incoming call (§7.4), so one company's phone belongs to one person at most.
      */
     dialPhoneE164: text('dial_phone_e164'),
     updatedBy: uuid('updated_by').references(() => principals.id),
@@ -70,6 +72,11 @@ export const callerProfiles = pgTable(
       'caller_profiles_dial_phone_check',
       sql`${t.dialPhoneE164} is null or ${t.dialPhoneE164} ~ '^\\+[1-9]\\d{6,14}$'`,
     ),
+    // One person's phone in a company: the IVR's incoming call rings, and pops on the screen of,
+    // whoever holds it (docs/03-roadmap-appendix/phase2.md §7.4).
+    uniqueIndex('caller_profiles_entity_dial_phone_unique')
+      .on(t.entityId, t.dialPhoneE164)
+      .where(sql`${t.dialPhoneE164} is not null`),
     // The handover reads a company's present converters.
     index('caller_profiles_converters_idx')
       .on(t.entityId)

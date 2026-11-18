@@ -24,6 +24,13 @@ export const PrincipalSchema = z.object({
    * `teamId` is unset; a request narrowed to one entity takes that entity's team from here.
    */
   entityTeams: z.array(z.object({ entityId: EntityIdSchema, teamId: IdSchema })).optional(),
+  /**
+   * For a `voice_session` principal only: the session (its own `principals` row) the speaking
+   * person acts through. `id` stays the person's, so every policy and grant reads them as
+   * themselves, and the audit row names the session as its actor and the person beside it
+   * (docs/07-security.md §3.4).
+   */
+  voiceSessionId: IdSchema.optional(),
 });
 
 export type Principal = z.infer<typeof PrincipalSchema>;

@@ -28,11 +28,18 @@ export async function lockQuote(
   return row;
 }
 
+/** The columns of a saved quote the quote machine reads. */
+export type QuoteRecordColumns = Pick<
+  typeof schema.quotes.$inferSelect,
+  'state' | 'tierId' | 'priceListId' | 'pdfFileId' | 'validUntil'
+>;
+
 /**
- * A saved quote as the quote machine reads it for a state change. The creation facts (tier, list,
- * sizing) were checked when it was made and are frozen with it, so they read as met.
+ * A saved quote as the quote machine reads it for a state change, whoever changes it (a person's
+ * command on the row it locked, the platform's on `app.remote_quote_facts()`). The creation facts
+ * (tier, list, sizing) were checked when it was made and are frozen with it, so they read as met.
  */
-export function quoteRecordOf(row: typeof schema.quotes.$inferSelect): QuoteRecord {
+export function quoteRecordOf(row: QuoteRecordColumns): QuoteRecord {
   return {
     state: QuoteStateSchema.parse(row.state),
     segment: 'farmer_pumps',

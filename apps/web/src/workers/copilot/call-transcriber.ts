@@ -1,6 +1,6 @@
 import type { RecordingTranscriber } from '@shakti/domain';
 import { SARVAM_PRICE } from '../../integrations/voice/benchmark/stand-in-set';
-import { sarvamConfig, sarvamSpeech } from '../../integrations/voice/sarvam';
+import { sarvamConfig, sarvamSpeech } from '@shakti/voice';
 import { recordingTranscriber } from '../knowledge/transcriber';
 
 /**

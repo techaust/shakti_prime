@@ -84,6 +84,8 @@ export const recordAsk = defineCommand({
   permission: 'knowledge.ask',
   minScope: 'team',
   peopleOnly: true,
+  // A spoken question of the person's own live voice session (V2, SECURITY §3.4).
+  voiceSession: true,
   input: RecordAskInput,
   output: AskTurnDto,
   auditFields: ['askAnswered', 'citedSources', 'unsourcedFigures'],

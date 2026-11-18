@@ -1,4 +1,5 @@
-import { writeWav } from '../src/integrations/voice/recording';
+// The WAV writer alone: the package's index loads the contracts, whose JSON a journey cannot import.
+import { writeWav } from '@shakti/voice/recording';
 import {
   expect,
   expectNoAxeViolations,

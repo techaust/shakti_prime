@@ -80,12 +80,49 @@ export async function saveSalesOrder(
       ...line,
     })),
   );
+  recordOrderMade(ctx, {
+    id,
+    soNo: number.formatted,
+    entityId: order.entityId,
+    quoteId: order.quoteId,
+    opportunityId: order.opportunityId,
+    accountId: order.accountId,
+    accountType: order.accountType,
+    tierId: order.tierId,
+    priceListId: order.priceListId,
+    lineCount: order.lines.length,
+    grandTotal: order.totals.grandTotal,
+  });
+  return { id, soNo: number.formatted };
+}
+
+/** A draft order just made, as its audit row and `sales.order.created` record it. */
+export interface OrderMade {
+  id: string;
+  soNo: string;
+  entityId: number;
+  quoteId: string | null;
+  opportunityId: string | null;
+  accountId: string;
+  accountType: AccountType;
+  tierId: string;
+  priceListId: string | null;
+  lineCount: number;
+  grandTotal: string;
+}
+
+/**
+ * Audits a draft order just made and sends `sales.order.created`: a dealer's order saved here, or
+ * the order of an accepted quote made by `app.order_from_quote()` (a person's acceptance or the
+ * platform's from WhatsApp), so every order is recorded the same way.
+ */
+export function recordOrderMade(ctx: CommandContext, order: OrderMade): void {
   ctx.audit({
     aggregateType: 'sales_order',
-    aggregateId: id,
+    aggregateId: order.id,
     entityId: order.entityId,
     after: {
-      soNo: number.formatted,
+      soNo: order.soNo,
       orderState: 'draft',
       quoteId: order.quoteId,
       opportunityId: order.opportunityId,
@@ -93,21 +130,20 @@ export async function saveSalesOrder(
       accountType: order.accountType,
       tierId: order.tierId,
       priceListId: order.priceListId,
-      lineCount: order.lines.length,
-      grandTotal: order.totals.grandTotal,
+      lineCount: order.lineCount,
+      grandTotal: order.grandTotal,
     },
   });
   ctx.emit({
     type: 'sales.order.created',
     entityId: order.entityId,
     aggregateType: 'sales_order',
-    aggregateId: id,
+    aggregateId: order.id,
     payload: {
       accountId: order.accountId,
       quoteId: order.quoteId,
       opportunityId: order.opportunityId,
-      lineCount: order.lines.length,
+      lineCount: order.lineCount,
     },
   });
-  return { id, soNo: number.formatted };
 }

@@ -7,6 +7,7 @@ import { inboxCount } from '../../actions/agents';
 import { noticeCount } from '../../actions/notifications';
 import { vapidConfig } from '../../notifications/push';
 import { currentSession } from '../../auth/current-principal';
+import { screenPopSettings } from '../../calls/settings';
 import { AppShell } from '../../components/shell/app-shell';
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from '../../components/shell/sidebar-state';
 import { ContrastSync, ThemeSync } from '../../components/theme';
@@ -64,6 +65,8 @@ export default async function BosLayout({ children }: { children: ReactNode }) {
         inboxCount={inbox === undefined ? undefined : inbox.ok ? inbox.data.open : null}
         noticeCount={notices.ok ? notices.data.unread : null}
         pushKey={vapidConfig()?.publicKey ?? null}
+        // The screen-pop of a person who places calls (T4), with its ticket for the ringing route.
+        screenPop={screenPopSettings(principal)}
       >
         {children}
       </AppShell>

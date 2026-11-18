@@ -1,5 +1,6 @@
 import type { PermissionGrant } from '@shakti/contracts';
 import {
+  AudioLines,
   BookCheck,
   Bot,
   Building2,
@@ -16,6 +17,7 @@ import {
   MessageCircle,
   ListTodo,
   MessageCircleQuestion,
+  MessageSquareText,
   Package,
   PhoneCall,
   Palette,
@@ -240,6 +242,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     requires: [{ key: 'knowledge.ask', scope: 'team' }],
   },
   {
+    id: 'voice',
+    href: '/voice',
+    label: 'voice',
+    icon: AudioLines,
+    group: 'work',
+    // Talk to Shakti (docs/03-roadmap-appendix/phase2.md §7.5): Executives and GMs; a spoken
+    // answer reads what the person reads, never a cost or a supplier's rate.
+    requires: [{ key: 'voice.use', scope: 'all' }],
+  },
+  {
     id: 'price-master',
     href: '/price-master',
     label: 'priceMaster',
@@ -343,6 +355,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // tax.rate.set and tax.composite.set; a change also needs a request for every company.
     requires: [{ key: 'tax.rates.write', scope: 'entity' }],
+  },
+  {
+    id: 'settings-whatsapp-templates',
+    href: '/settings/whatsapp-templates',
+    label: 'settingsWhatsAppTemplates',
+    icon: MessageSquareText,
+    group: 'admin',
+    // messaging.milestone.set (docs/03-roadmap-appendix/phase2.md §7.1)
+    requires: [{ key: 'messaging.templates.write', scope: 'all' }],
   },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];

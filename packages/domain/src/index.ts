@@ -31,6 +31,8 @@ export { sendWhatsAppMessage } from './commands/messaging/send-message';
 export { requestTemplate } from './commands/messaging/template-request';
 export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
+export { sendWhatsAppMilestone, setWhatsAppMilestone } from './commands/messaging/milestones';
+export { queueWhatsAppAnswer } from './commands/messaging/answers';
 export {
   attachWhatsAppMedia,
   claimWhatsAppMessage,
@@ -73,6 +75,14 @@ export {
   recordProviderCall,
   toProviderCallDto,
 } from './commands/calls/provider-calls';
+export {
+  inboundCallLines,
+  missedCallCallbackDue,
+  recordInboundCall,
+  signalRinging,
+} from './commands/calls/inbound-calls';
+export { readScreenPop } from './queries/calls/screen-pop';
+export type { InboundCallLine } from './commands/calls/inbound-calls';
 export { placeDial } from './calls/place-dial';
 export {
   dialReadiness,
@@ -129,6 +139,7 @@ export { claimWebhook, markWebhook, replayWebhook, sweepWebhooks } from './comma
 export { countStaleLeads } from './queries/crm/stale-leads';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { acceptQuote } from './commands/sales/accept-quote';
+export { acceptQuoteRemote } from './commands/sales/accept-quote-remote';
 export { createSalesOrder } from './commands/sales/create-order';
 export { confirmSalesOrder } from './commands/sales/confirm-order';
 export { releaseCredit } from './commands/sales/release-credit';
@@ -199,6 +210,22 @@ export { setContrast } from './commands/profile/set-contrast';
 export { deleteView, saveView } from './commands/profile/saved-views';
 export { listSavedViews, toSavedViewDto } from './queries/profile/saved-views';
 export { issueRealtimeToken } from './commands/realtime/issue-token';
+export {
+  recordVoiceSession,
+  refreshVoiceToken,
+  startVoiceSession,
+} from './commands/voice/sessions';
+export {
+  liveVoiceSession,
+  liveVoiceSessionFacts,
+  voiceToday,
+  type VoiceToday,
+  voiceSessionLive,
+  voiceSessionNotAfter,
+  voiceRecordingUpload,
+  type VoiceSessionFacts,
+} from './queries/voice/sessions';
+export { voiceSessionPrincipal } from './auth/voice-principal';
 export { createImportJob } from './commands/imports/create-job';
 export { mapImportJob } from './commands/imports/map-job';
 export { previewImportJob } from './commands/imports/preview-job';
@@ -608,7 +635,13 @@ export type {
   ModelTransport,
 } from './ai/transport';
 export { vendorTransports } from './ai/env';
-export { costInPaise, DEFAULT_CLAUDE_MODEL, DEFAULT_EMBEDDING_MODEL } from './ai/models';
+export {
+  costInPaise,
+  DEFAULT_CLAUDE_MODEL,
+  DEFAULT_EMBEDDING_MODEL,
+  MODEL_PRICES,
+  type ModelPrice,
+} from './ai/models';
 export {
   AGENT_ACTION_TYPES,
   AUTOMATIC_AVAILABLE,
@@ -779,7 +812,47 @@ export {
   whatsappTemplateEntities,
   type SendFactsRow,
 } from './queries/messaging/whatsapp';
+export {
+  listWhatsAppTemplateSettings,
+  readMilestoneSubject,
+  readStatusSummary,
+  type MilestoneSubject,
+  type StatusLine,
+} from './queries/messaging/milestones';
+export {
+  readInboundFacts,
+  readSendExtras,
+  type InboundFacts,
+  type SendExtras,
+} from './queries/messaging/answers';
+export {
+  acceptanceCode,
+  acceptanceCodeWaits,
+  checkAcceptanceCode,
+  codeOf,
+  codeWaiting,
+  dropAcceptanceCode,
+  holdAcceptanceCode,
+  needsAcceptanceCode,
+  pendingAcceptanceCode,
+  type CodeChat,
+  type CodeCheck,
+} from './messaging/acceptance-code';
+export {
+  quoteWhatsAppReadiness,
+  readQuoteWhatsAppReadiness,
+  type QuoteWhatsAppReadiness,
+  type QuoteWhatsAppRefusal,
+} from './sales/quote-whatsapp';
 export { matchKeyword, type WhatsAppKeyword } from './messaging/keywords';
+export {
+  QUOTE_BUTTON_ACTIONS,
+  quoteButtonToken,
+  quoteButtonTokens,
+  verifyQuoteButtonToken,
+  type QuoteButtonAction,
+  type QuoteButtonAudience,
+} from './messaging/quote-button';
 export { filterOutbound, type OutputFilterReason } from './messaging/output-filter';
 export {
   decideSend,
