@@ -162,7 +162,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`sales.quote.created`](#salesquotecreated) | A quote was made for a lead, priced from the Price Master and taxed by the tax engine; `supersedesId` names the quote a re-quote replaced. | `sales.quote.create`, `sales.quote.requote` | none |
-| [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`, which the platform sends as the `quote_sent` milestone. | `sales.quote.send` | `POST /api/v1/workers/outbox/sales.quote.sent` (QStash URL group `evt-sales.quote.sent`) |
+| [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer by `sentBy`: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`, which the platform sends as the `quote_sent` milestone (and tells `sentBy` when it cannot). | `sales.quote.send` | `POST /api/v1/workers/outbox/sales.quote.sent` (QStash URL group `evt-sales.quote.sent`) |
 | [`sales.quote.superseded`](#salesquotesuperseded) | A quote was replaced by a re-quote at current prices (`supersededById`). | `sales.quote.requote` | none |
 | [`sales.quote.withdrawn`](#salesquotewithdrawn) | A quote was withdrawn: a draft or sent one with a reason a person gave or because another quote of its lead was accepted, or an accepted one whose order was cancelled. | `sales.order.cancel`, `sales.quote.accept`, `sales.quote.accept_remote`, `sales.quote.withdraw` | none |
 | [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
@@ -497,6 +497,7 @@ No fields apart from `v`.
 | `pdfFileId` | id |
 | `channel` | one of `recorded`, `whatsapp` |
 | `threadId` | id or null |
+| `sentBy` | id |
 
 ### sales.quote.superseded
 
