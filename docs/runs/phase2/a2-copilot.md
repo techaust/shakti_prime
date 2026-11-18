@@ -7,8 +7,8 @@
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an AI agent principal, call recordings and transcripts |
 | Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 12 points of it (early check) |
-| State | steps 5 to 9 built, report written (18-11) |
-| Next step | review |
+| State | fix round done, report written (18-11) |
+| Next step | the lead reads the fix round, then integration |
 
 ## Brief
 Read first:
@@ -193,6 +193,74 @@ Steps 5 to 9 are built, tested and committed. Skills: `add-table` and `add-comma
   - the removed `crm.opportunity.assigned` line in `EVENT_JOB_ROUTES`;
   - `startingAutonomy`;
   - the copilot rows the e2e seed sets for companies 1 to 3.
+
+### Fix round, 18-11-2026 (the lead's cloud VM, worktree `a2-copilot`, Postgres 54333)
+Every finding of the lead's fix list is fixed, with its test. A first builder made the fixes in six commits (facfa12b to f757d956) until the VM restarted; a second builder checked each one against the list, finished the report journey, formatted the files and ran the checks. The second builder did not undo each fix to see its test fail again: the tests were written before the fixes by the first builder, and they pass now. Skills: none loaded again; the fixes follow `add-command` (the new `calls.transcript.reserve`) and `add-table` (the `copilot_notes` column), loaded at the early check.
+
+**Each finding**
+| # | What changed | Commit | Test |
+|---|---|---|---|
+| 1 | `agents.brief.request` takes a transaction lock on the lead, then refuses when a brief was written, asked for or started by an assignment within the hour. `app.copilot_brief_started_at()` (0194) reads that from the events, over the new partial index `outbox_events_copilot_brief_idx` (0193). The panel's `nextBriefAt`, and so the button, uses the same rule (`copilotBriefStartedAt()`). | d9978a87 | `copilot-runs.test.ts`: "counts a brief asked for, not only one written, for the hour and the button"; "counts an assignment that started a brief, but not one of a lead briefed that day" |
+| 2 | `AiProvider.fits()` reads the day's totals against every cap and share without reserving. `copilotSpendFits()` checks it with the run's largest estimate (the model at `promptBytesEstimate` and its answer length, plus 15 minutes of transcription for a summary) before anything is read or downloaded. When the estimate does not fit, the run records `agent_spend_cap_reached` and stops. The reservation stays as the final guard. | d9978a87 | `provider.test.ts` "fits"; `copilot-runs.test.ts`: "stops before reading when the day's spend has no room for the run's estimate"; "downloads nothing when the day's spend has no room for the transcription and the summary" |
+| 3 | The column `copilot_notes.suggestions_shown` (0193; a brief is always false) is set when the summary is recorded: true only when the facts' action type is past Shadow. In Shadow the panel shows the summary text only, with no facts heard and no outcome, and nothing is pre-selected. The report counts only the summaries in Shadow and says how many it left out (`shownLeftOut`). | d9978a87 | `copilot-runs.test.ts` "in Shadow shows a summary's text alone: no outcome pre-selected, no facts heard"; journey |
+| 4 | The brief and summary workers read the time left on the route (`deliveryTimeLeft(ctx)`, 50 s from `ctx.startedAt`). The transcription gets what is left less 5 s for storing, and starts only when at least 10 s remain. The model starts only with 10 s left, and its timeout is what is left. A run short of time stops before it spends (`copilot_out_of_time`, a plain sentence in `en.json`) and is delivered again. | d9978a87, bda2d245 | `copilot-runs.test.ts`: "asks the model only with enough of the delivery's time left, and is delivered again"; "transcribes only with enough of the delivery's time left, and is delivered again" |
+| 5 | A brief is a `part` of the provider's spend, capped at `briefShareOfCap` (half) of the smallest cap that applies, so summaries keep the other half. An assigned lead is briefed only when it has had no brief for `assignedBriefSkipHours` (24). This covers every assignment, single, bulk or handover; a person may still ask for one. | d9978a87 | `copilot-runs.test.ts`: "keeps briefs to half of the company's day, so summaries keep the rest"; "briefs an assigned lead only when it has had no brief for a day; a person may still ask" |
+| 6 | The journey "shows the summaries callers did not see, beside what they saved": the Executive opens Admin › Agents › Co-pilot report, then axe and the `copilot-report` snapshot. The row filter (finished in this run) picks this run's Shadow summary of the project's lead, the newest when an aged database also holds earlier runs' summaries. It checks "Not saved yet" and "Not known yet", which `150` alone did not test. | d9978a87, 960abc5d | `copilot.spec.ts` |
+| 7 | New platform command `calls.transcript.reserve` (`app.reserve_call_transcript()`, 0194). It records the transcript's file as `pending` before the bytes are stored. The attach (redefined in 0194, every line of 0191 kept) makes it `ready`. When the attach does not answer `attached` or `already`, the run deletes the object and marks the row deleted. If the run stops between the two, the pending row remains, and the existing sweep of abandoned uploads refuses it a day later and returns its key for deletion. So no stored transcript ever lacks a file row. | d9978a87, 1d60c4b6 | `copilot-runs.test.ts`: "records the transcript's file before storing it, and removes one that is not the call's"; "leaves a pending file for the sweep of abandoned uploads when a run stops after storing"; "reserves the transcript's file pending first, for the platform alone" (denied, wrong company, happy path) |
+| 8 | Tests only. | d9978a87 | `copilot-runs.test.ts` "is removed by the recordings' sweep after the retention period and for an anonymised lead" |
+| 9 | The outcome is pre-selected only from the summary of the viewer's own latest dial of the lead (`caller_id`), when that dial is not logged and its suggestions are shown. | d9978a87 | `copilot-runs.test.ts` "pre-selects only from the caller's own latest dial of the lead that is not logged" |
+| 10 | `calls.provider_call.record`, `calls.recording.attach`, `calls.recording.delete`, `calls.transcript.attach` and `calls.transcript.reserve` join the platform sweep (`CHECKS`). | facfa12b, 1d60c4b6 | `agent-refusals.test.ts` |
+| 11 | `docs/06-api.md` sends `crm.opportunity.assigned` to `/workers/outbox/:type`. PRD §8's TEL-03, AI-04 and AI-05 rows name A2 and its tests. | d9978a87 | (documents) |
+| 12 | Test only. | d9978a87 | `copilot-workers.test.ts` "send an assigned lead's notices once, though its brief fails and the event comes again" |
+| 13 | `spokenDigitsAsFigures()` (`ai/copilot/spoken-digits.ts`) turns English and Hindi digit words in Roman script (with "double" and "triple") into figures before `maskWholeText()`. Only the transcript uses it, so the shared finder is unchanged: no other caller reads speech. | 9bfde3da | `spoken-digits.test.ts`, 4 tests |
+| 14 | `maskAmounts()` (`ai/copilot/amounts.ts`) masks amounts in the business's own chat texts before they reach the brief's prompt. The customer's words are kept. | 9bfde3da | `amounts.test.ts`, 3 tests |
+| 15 | The brief prompt asks for next steps in the imperative and names the wording the filter refuses. `promptVersion` is now `copilot-2`. | 9bfde3da | `prompt.test.ts` "asks for next steps in words the output filter keeps" |
+| Merge point | `messaging.template.request` is `peopleOnly`, refused at the guard for every non-person (V2's `voiceSession` included after the merge). `personOnly()` keeps its action type from ever running as the agent, even at Automatic. | facfa12b | `copilot.test.ts` "is for people only: any other principal is refused at the guard, whatever it holds"; `PEOPLE_ONLY_INPUTS` in the sweep; `action-types.test.ts` |
+
+**Also in this run** (960abc5d): Prettier on the round's files, because CI runs `pnpm format:check` and nine of them were not formatted. One of them was `en.json`, where `shownLeftOut` was mis-indented.
+
+**Migrations** (renumbered by the lead at the merge): `0193_copilot_suggestions_shown` (generated: the column, its check, the outbox index); `0194_copilot_fix_round` (custom: `app.copilot_brief_started_at()` for `app_user` and `app_reader`, `app.reserve_call_transcript()` for `app_user`, `app.attach_call_transcript()` redefined). `pnpm db:docs` is current.
+
+**Tests added:** `copilot-runs.test.ts` 15, `copilot.test.ts` 1, `copilot-workers.test.ts` 1, `provider.test.ts` 1, `spoken-digits.test.ts` 4, `amounts.test.ts` 3, `prompt.test.ts` 1; the sweeps gain six commands (five platform, one people-only); `grants.test.ts` gains the new definer.
+
+**Checks** (all through the lock, on Postgres 54333)
+- `pnpm typecheck`: `8 successful, 8 total`.
+- ESLint, folder by folder (`packages/domain`, `packages/contracts`, `packages/db`, `apps/web/src`, `apps/web/e2e`, `apps/web/tests`): clean. The whole-repository `pnpm lint`, run last: exit 0.
+- `turbo run test --force`: domain `103 passed (103)`, `2600 passed (2600)`; web `144 passed (144)`, `1098 passed | 1 skipped (1099)`; db `158`; contracts `194`; ui `107`; tokens `146`; copy-lint `17`; `Tasks: 8 successful, 8 total`.
+- `pnpm copy-lint`: clean. `pnpm db:docs`: no change.
+- `pnpm test:security`: db `54 passed (54)`, `1443 passed (1443)`; domain `92 passed (92)`, `1295 passed (1295)`; web `2 failed | 31 passed (33)`, `2 failed | 407 passed (409)`. Both failures repeat when the two files run alone, and neither touches what A2 changed (the branch changes no pricing, demo or duplicate-scan code):
+  - `demo-data.test.ts` "puts the items, kits and prices...": the demo's `PUMP-3HP` price is not on the live retail list. The slot database holds 82 group price lists from earlier runs.
+  - `duplicate-scan.test.ts` "searches every live company in turn...": `done` false after 44 s over 3,540 leads in company 1.
+  - Both point to the slot database's age (its data was kept through the restart). Recreate it, then run `pnpm test:security` again before the merge.
+- `pnpm build`: compiled. `pnpm --filter web js-budget`: `Every page is within its budget (52 pages)`. `/admin/agents/copilot` 230.1 of 242 kB, `/calling` 204.9 of 206, `/converting` 208.2 of 213.
+- Journeys, seeded on the host: `copilot.spec.ts` gave `23 passed (37.3s)` in all three projects, setup included. The pictures it wrote are deleted, and none is committed.
+- `EXPLAIN (ANALYZE)` (`spike:copilot`, 3,000 leads in company 2, under RLS):
+
+| Query | Reader | Plan | Time |
+|---|---|---|---|
+| Panel: newest brief | tele-caller | `copilot_notes_opportunity_idx` | 0.39 ms |
+| Panel: newest summary | tele-caller | `copilot_notes_opportunity_idx` + `provider_calls_opportunity_started_idx` | 0.51 ms |
+| Panel: the caller's own latest dial (new) | tele-caller | `provider_calls_opportunity_started_idx` | 0.11 ms |
+| When a brief was last started (new definer) | its owner | `outbox_events_copilot_brief_idx`, then `copilot_notes_opportunity_idx` | 0.09 ms |
+| Report: summaries callers saw (new) | Executive | `copilot_notes_entity_created_idx` | 0.65 ms |
+| Report: first page of 30 days | Executive | `copilot_notes_entity_created_idx` | 10.1 ms |
+| Report: outcomes agreed over 1,418 summaries | Executive | `copilot_notes_entity_created_idx` | 9.9 ms |
+| Report: refused runs | Executive | `agent_runs_entity_created_idx` | 0.17 ms |
+
+**Screens and baselines for the lead**
+- New: `copilot-report` (desktop-light, desktop-dark, phone).
+- Changed: `copilot-panel`. The seed's shown summary is written under Needs approval, so the panel still shows its facts and its outcome.
+- The report lists every Shadow summary in the period, so the page grows with each run on an aged database. On the host it ran to 7,210 px at 400 wide. Make its baselines on a fresh database.
+
+**Decisions the fix list did not settle**
+- 5: the 24-hour skip applies to every assignment, not only bulk ones, so that one handover cannot add briefs through single events.
+- 7: the transcript gets a row before its bytes are stored, rather than a new sweep for objects with no row. The existing abandoned-upload sweep then removes any leftover, and the retention sweep's reach is unchanged.
+- 3: `suggestions_shown` is fixed when the note is written. Raising autonomy later does not show older Shadow summaries, so the report's population stays as it was written.
+- 4: the delivery limit is 50 s of the route's 60 s (`COPILOT_DELIVERY_LIMIT_MS`), with 10 s as the least time for a model call or a transcription.
+
+**Not done, or open**
+- No live model, Sarvam or Exotel call. The refusal rate after 15 and Sarvam's spoken-digit output (13) are still to be seen in a live `eval:copilot` run.
+- The two web security failures above wait for a fresh slot database.
 
 ## Review
 
