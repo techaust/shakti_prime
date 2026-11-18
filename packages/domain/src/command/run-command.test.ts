@@ -86,6 +86,30 @@ describe('a command for people only', () => {
     expect(failureOf(error)?.stage).toBe('guard');
   });
 
+  it("lets a person's voice session run a command that opts in, and still refuses agents", async () => {
+    const spoken = defineCommand({
+      ...echo,
+      name: 'test.spoken',
+      peopleOnly: true,
+      voiceSession: true,
+    });
+    const runSpoken = (p: Principal) =>
+      runCommand(
+        spoken,
+        { context: context(p), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+        { value: 'v' },
+      );
+    const voice = principal({ kind: 'voice_session', voiceSessionId: newId() });
+    await expect(runSpoken(voice)).resolves.toEqual({ value: 'v' });
+    // A voice principal that names no session is no session at all.
+    await expect(runSpoken(principal({ kind: 'voice_session' }))).rejects.toMatchObject({
+      details: { reason: 'people_only' },
+    });
+    await expect(
+      runSpoken(principal({ kind: 'agent', roleKey: 'agent:sizing' })),
+    ).rejects.toMatchObject({ details: { reason: 'people_only' } });
+  });
+
   it('leaves a command without the rule open to service principals that hold its grant', async () => {
     const agent = principal({ kind: 'agent', roleKey: 'agent:sizing' });
     await expect(

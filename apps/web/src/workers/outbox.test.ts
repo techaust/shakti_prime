@@ -155,6 +155,7 @@ describe('publishOutbox and the outbox alerts (docs/03-roadmap-appendix/phase1.m
       incrBy: () => Promise.reject(new Error('down')),
       setIfAbsent: () => Promise.reject(new Error('down')),
       raiseTo: () => Promise.reject(new Error('down')),
+      delIfValue: () => Promise.reject(new Error('down')),
     };
     outbox.rows = [row()];
     const alerts = memoryAlertSink();

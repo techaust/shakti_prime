@@ -50,6 +50,14 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
         quoteId: event.aggregateId,
         acceptedBy: String(p.acceptedBy),
       };
+    case 'calls.missed.recorded':
+      return {
+        ...base,
+        event: 'calls.missed.recorded',
+        providerCallId: event.aggregateId,
+        opportunityId: String(p.opportunityId),
+        ownerId: typeof p.ownerId === 'string' ? p.ownerId : null,
+      };
     default:
       throw new DomainError('validation_failed', `${event.type} does not notify`, {
         type: event.type,

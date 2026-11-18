@@ -37,6 +37,8 @@ const Count = z.number().int().min(0);
  * - `whatsapp_quote_not_sent`: a quote you marked sent on WhatsApp did not go to the customer (no
  *   chat, no consent, the number stopped messages, or the company's template not approved), so
  *   it is for you to share another way (§7.1).
+ * - `missed_call`: a customer gave your lead a missed call, and a callback is due for you
+ *   (docs/03-roadmap-appendix/phase2.md §7.4).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -50,6 +52,7 @@ export const NOTICE_TYPES = [
   'quote_accepted',
   'whatsapp_quote_expired',
   'whatsapp_quote_not_sent',
+  'missed_call',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -265,6 +268,7 @@ export const NOTICE_EVENT_TYPES = [
   'crm.enquiry.routed',
   'sales.order.credit_held',
   'sales.quote.accepted',
+  'calls.missed.recorded',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -346,6 +350,16 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       entityId: EntityIdSchema,
       eventId: IdSchema,
       quoteId: IdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      event: z.literal('calls.missed.recorded'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      providerCallId: IdSchema,
+      opportunityId: IdSchema,
+      ownerId: IdSchema.nullable(),
     })
     .strict(),
 ]);

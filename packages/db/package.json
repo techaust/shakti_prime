@@ -27,9 +27,9 @@
   },
   "dependencies": {
     "@shakti/contracts": "workspace:*",
-    "dotenv": "^18.0.9",
+    "dotenv": "^18.0.10",
     "drizzle-orm": "^0.45.4",
-    "postgres": "^4.1.0"
+    "postgres": "^4.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

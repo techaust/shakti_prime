@@ -279,6 +279,7 @@ describe('the handover definers', () => {
         'knowledge.playbook.check',
         'messaging.process',
         'calls.process',
+        'voice.session.record',
       ]),
     );
     expect(list?.keys).toHaveLength(PLATFORM_ONLY_PERMISSIONS.length);

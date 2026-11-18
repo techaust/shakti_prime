@@ -4,6 +4,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  createTestVoicePrincipal,
   principalFor,
 } from '@shakti/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -44,7 +45,7 @@ describe('realtime.token.issue', () => {
   });
 
   it('refuses a voice session even for a role that holds profile.write', async () => {
-    const voice = await createTestPrincipal('field_engineer', [1], { kind: 'voice_session' });
+    const voice = await createTestVoicePrincipal('field_engineer', [1]);
     const requestId = newId();
     await expect(
       executeCommand(voice, { entityIds: [1], requestId }, issueRealtimeToken, {}),

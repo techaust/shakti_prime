@@ -1,5 +1,5 @@
 import { MAX_AUDIO_MS, type FileRejectReason } from '@shakti/contracts';
-import { durationMs, readWav, writeWav } from '../../integrations/voice/recording';
+import { durationMs, readWav, writeWav } from '@shakti/voice';
 
 export type AudioCheck =
   | { ok: true; sanitising: 'audio_checked'; bytes: Uint8Array }

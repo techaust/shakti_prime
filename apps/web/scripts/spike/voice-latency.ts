@@ -32,27 +32,27 @@ import {
 import { SARVAM_PRICE } from '../../src/integrations/voice/benchmark/stand-in-set';
 import {
   CLAUDE_TIMEOUT_MS,
-  claudeConfig,
   claudeReplyModel,
-} from '../../src/integrations/voice/claude-stream';
-import { systemClock } from '../../src/integrations/voice/ports';
-import { recordingFetch, recordingSockets } from '../../src/integrations/voice/recorded';
-import { durationMs, readWav, speechEndMs } from '../../src/integrations/voice/recording';
-import {
+  durationMs,
+  FIRST_AUDIO_P50_TARGET_MS,
+  readWav,
+  recordingFetch,
+  recordingSockets,
+  runTurn,
   SARVAM_TIMEOUT_MS,
+  sarvamConfig,
+  sarvamSpeech,
   sarvamStreamingStt,
   sarvamStreamingTts,
-} from '../../src/integrations/voice/sarvam';
-import { webSocketOpener } from '../../src/integrations/voice/socket';
-import {
-  FIRST_AUDIO_P50_TARGET_MS,
-  runTurn,
+  speechEndMs,
   summarize,
+  systemClock,
   type TurnTiming,
-} from '../../src/integrations/voice/latency';
+  webSocketOpener,
+} from '@shakti/voice';
 import { liveKitConfig, liveKitRooms } from '../../src/integrations/voice/livekit';
 import { PRONUNCIATION_CHECKLIST } from '../../src/integrations/voice/pronunciation-checklist';
-import { sarvamConfig, sarvamSpeech } from '../../src/integrations/voice/sarvam';
+import { voiceClaudeConfig } from '../../src/integrations/voice/voice-model';
 
 const args = process.argv.slice(2);
 const mode = args.find((a) => a === 'latency' || a === 'pronunciation' || a === 'benchmark');
@@ -108,7 +108,7 @@ if (mode === 'pronunciation') {
   );
   process.stdout.write(`${JSON.stringify({ speech: summarize(times), outDir }, null, 2)}\n`);
 } else if (mode === 'latency') {
-  const claude = claudeConfig();
+  const claude = voiceClaudeConfig();
   const livekit = liveKitConfig();
   const audioDir = process.env.VOICE_SPIKE_AUDIO_DIR ?? '';
   if (sarvam === undefined || claude === undefined || livekit === undefined || audioDir === '') {
@@ -194,7 +194,7 @@ if (mode === 'pronunciation') {
     const turns = readRecordedTurns(set, replayFolder);
     report = await replayBenchmark({ set, turns, marks, speechPrice: SARVAM_PRICE });
   } else {
-    const claude = claudeConfig();
+    const claude = voiceClaudeConfig();
     if (sarvam === undefined || claude === undefined) {
       console.error(
         'set SARVAM_API_KEY and ANTHROPIC_API_KEY first, or pass --replay (docs/04-architecture-appendix/voice.md)',

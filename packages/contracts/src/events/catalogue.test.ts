@@ -52,6 +52,7 @@ describe('the event catalogue', () => {
   it('subscribes only the types a worker handles (apps/web/src/workers/events/registry.ts)', () => {
     expect(EVENT_TYPES.filter(isSubscribed).sort()).toEqual(
       [
+        'calls.missed.recorded',
         'crm.duplicate.found',
         'crm.enquiry.routed',
         'crm.lead.created',

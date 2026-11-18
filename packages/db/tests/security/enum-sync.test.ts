@@ -1,4 +1,5 @@
 import {
+  VOICE_SESSION_MODES,
   AGENT_ACTION_STATES,
   AGENT_AUTONOMY,
   AGENT_FILTER_REASONS,
@@ -41,6 +42,7 @@ import {
   WHATSAPP_THREAD_HANDLERS,
   CALL_PURPOSES,
   DIALLED_SERIES,
+  INBOUND_CALL_SERIES,
   PROVIDER_CALL_SERIES,
   PROVIDER_CALL_STATUSES,
   ConsentPurposeSchema,
@@ -263,6 +265,9 @@ const PAIRS: Record<string, readonly string[]> = {
   provider_calls_status_check: PROVIDER_CALL_STATUSES,
   // An outbound call is a person's dial, on one of the lines a person dials out on.
   provider_calls_outbound_check: ['outbound', ...DIALLED_SERIES],
+  // An inbound call came in on a line a customer calls (T4); a missed call names its lead.
+  provider_calls_inbound_check: ['inbound', ...INBOUND_CALL_SERIES, 'missed_call'],
+  voice_sessions_mode_check: VOICE_SESSION_MODES,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

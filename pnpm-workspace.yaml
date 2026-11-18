@@ -5,6 +5,9 @@ packages:
 
 # Native binaries these packages install in their postinstall step (pnpm 12 blocks builds by default).
 allowBuilds:
+  # Their install scripts are no-ops (`node -e ""`); the native parts come prebuilt as optional packages.
+  '@livekit/blingfire': false
+  '@livekit/local-inference': false
   '@parcel/watcher': true
   '@swc/core': true
   esbuild: true
@@ -31,6 +34,13 @@ auditConfig:
     # format strings; the app never runs that command nor passes outside input to sprintf. Remove
     # this entry when a patched sprintf-js is released.
     - GHSA-hp3w-g68c-fv3c
+    # picomatch (GHSA-fc5q-39xc-vjpf, ReDoS through single-branch repeated extglobs, every version
+    # to 4.0.7, no patched release yet) reaches us only through build and development tools:
+    # vite, vitest and tinyglobby (also listed by better-auth and @sentry/cloudflare), Sentry's
+    # Rollup plugin, typescript-eslint, fast-glob under eslint-config-next, and next-intl's
+    # @parcel/watcher; they match the repository's own file globs, and no app code calls a glob
+    # matcher or passes outside input to one. Remove this entry when a patched picomatch is released.
+    - GHSA-fc5q-39xc-vjpf
     # minimatch (GHSA-g3hv-75wg-m249, pattern amplification with optimizationLevel 2 or more,
     # patched only in 11.0.1) reaches us through eslint, typescript-eslint, glob and archiver's
     # readdir-glob, all on 3.x, 5.x or 10.x; they match the repository's own lint and build globs

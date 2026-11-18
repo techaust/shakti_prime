@@ -94,6 +94,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.ingest.run': 'Add leads that arrive from ads, lead forms, websites and WhatsApp',
   'calls.process': 'Record how a placed call went and keep its recording',
   'sales.quote.accept.remote': 'Accept a quote the customer accepted on WhatsApp',
+  'voice.session.record': 'Record how long a Talk to Shakti session lasted and what it cost',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

@@ -26,18 +26,21 @@ export function sentryIngestOrigin(dsn: string | undefined): string | undefined 
  * may send error reports to Sentry's ingest host only when a DSN names one (`sentryOrigin`).
  * `fileOrigins` adds the origins a page uploads to directly (the environment's file bucket), and
  * plays a recording from (K3's vault recordings and T3's call recordings: each player reads the
- * bucket's signed address).
+ * bucket's signed address). `socketOrigins` adds the Realtime socket the screen-pop listens on
+ * when its transport is Realtime (`realtimeConnectOrigins()`, `src/calls/transport.ts`).
  */
 export function contentSecurityPolicy(
   nonce: string,
   development: boolean,
   sentryOrigin?: string,
   fileOrigins: readonly string[] = [],
+  socketOrigins: readonly string[] = [],
 ): string {
   const connect = [
     TURNSTILE,
     ...(sentryOrigin === undefined ? [] : [sentryOrigin]),
     ...fileOrigins,
+    ...socketOrigins,
   ].join(' ');
   return [
     "default-src 'self'",

@@ -151,6 +151,16 @@ import {
   readStatusSummary,
 } from '../../src/queries/messaging/milestones';
 import { readQuoteWhatsAppReadiness } from '../../src/sales/quote-whatsapp';
+import { readScreenPop } from '../../src/queries/calls/screen-pop';
+
+/** A ringing call as the key-value store holds it, the same for both pools (T4's screen-pop). */
+const RINGING = {
+  providerCallId: newId(),
+  entityId: 1,
+  accountIds: [newId()],
+  phone: '+919812345678',
+  ringingAt: new Date().toISOString(),
+};
 
 /** Ask's seeded records (an item with its cost side, a vault file, two rules), for its reads. */
 let askData: AskData;
@@ -317,6 +327,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readQuoteWhatsAppReadiness: (ctx) =>
     readQuoteWhatsAppReadiness(ctx, { entityId: 1, quoteId: newId() }),
   listWhatsAppTemplateSettings: (ctx) => listWhatsAppTemplateSettings(ctx),
+  // The screen-pop's read of a ringing call, under the person's own policies.
+  readScreenPop: (ctx) => readScreenPop(ctx, RINGING),
   listDealerCredit: (ctx) => listDealerCredit(ctx, { entityId: 1, limit: 20 }),
 };
 

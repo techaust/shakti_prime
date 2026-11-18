@@ -1,0 +1,24 @@
+{
+  "name": "@shakti/voice",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Streaming speech and reply adapters (Sarvam, Claude) and the vendor HTTP plumbing, shared by the web app and the voice worker",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./recording": "./src/recording.ts",
+    "./testing": "./src/test-fetch.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@shakti/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

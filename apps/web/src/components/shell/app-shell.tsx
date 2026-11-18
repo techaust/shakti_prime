@@ -10,6 +10,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
+import { DeferredScreenPop } from '../calls/deferred-screen-pop';
+import type { ScreenPopSettings } from '../calls/screen-pop';
 import { DeferredCompanySwitcher, DeferredProfileMenu } from './deferred-menus';
 import type { CompanyOption } from './menu-triggers';
 import { rememberSidebar } from './sidebar-state';
@@ -116,6 +118,7 @@ export function AppShell({
   inboxCount,
   noticeCount,
   pushKey,
+  screenPop,
   children,
 }: {
   user: { name: string; role: string };
@@ -138,6 +141,8 @@ export function AppShell({
   noticeCount: number | null;
   /** The app's public key for alerts (`VAPID_PUBLIC_KEY`); null when alerts are not set up. */
   pushKey: string | null;
+  /** For a person who places calls, what the screen-pop needs; undefined for everyone else. */
+  screenPop?: ScreenPopSettings | undefined;
   children: ReactNode;
 }) {
   const t = useTranslations('shell');
@@ -288,6 +293,10 @@ export function AppShell({
           searchable={searchable}
         />
       ) : null}
+      {/* The screen-pop of a person who places calls (T4), loaded once the page has come to life. */}
+      {screenPop === undefined ? null : (
+        <DeferredScreenPop settings={screenPop} companies={companies} />
+      )}
       <Toaster
         label={t('notifications')}
         theme={resolvedTheme === 'dark' ? 'dark' : resolvedTheme === 'light' ? 'light' : 'system'}

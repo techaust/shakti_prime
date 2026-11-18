@@ -16,6 +16,7 @@ import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
 import { dialCall } from '../commands/calls/dial-call';
+import { recordInboundCall, signalRinging } from '../commands/calls/inbound-calls';
 import { logCall } from '../commands/calls/log-call';
 import { playCallRecording } from '../commands/calls/play-recording';
 import {
@@ -170,6 +171,11 @@ import { withdrawQuote } from '../commands/sales/withdraw-quote';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { issueRealtimeToken } from '../commands/realtime/issue-token';
+import {
+  recordVoiceSession,
+  refreshVoiceToken,
+  startVoiceSession,
+} from '../commands/voice/sessions';
 import { setContrast } from '../commands/profile/set-contrast';
 import { setCompositeRule } from '../commands/tax/set-composite-rule';
 import { setTaxRate } from '../commands/tax/set-tax-rate';
@@ -254,9 +260,14 @@ export const commands = Object.freeze({
   [logCall.name]: logCall,
   [dialCall.name]: dialCall,
   [recordProviderCall.name]: recordProviderCall,
+  [recordInboundCall.name]: recordInboundCall,
+  [signalRinging.name]: signalRinging,
   [attachCallRecording.name]: attachCallRecording,
   [deleteCallRecording.name]: deleteCallRecording,
   [playCallRecording.name]: playCallRecording,
+  [startVoiceSession.name]: startVoiceSession,
+  [refreshVoiceToken.name]: refreshVoiceToken,
+  [recordVoiceSession.name]: recordVoiceSession,
   [setPrice.name]: setPrice,
   [createPriceList.name]: createPriceList,
   [approvePriceList.name]: approvePriceList,

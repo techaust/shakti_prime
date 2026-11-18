@@ -165,6 +165,23 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         },
       ];
     }
+    case 'calls.missed.recorded': {
+      // The owner of the lead the missed call made or joined, while the lead is still theirs; one
+      // notice per call however often the event is delivered.
+      if (input.ownerId === null) return [];
+      const lead = await leadNow(ctx, input.entityId, input.opportunityId);
+      if (lead?.ownerId !== input.ownerId) return [];
+      return [
+        {
+          userId: input.ownerId,
+          type: 'missed_call',
+          subjectType: 'opportunity',
+          subjectId: input.opportunityId,
+          payload: { accountId: lead.accountId, opportunityId: input.opportunityId },
+          dedupeKey: `missed_call:${input.providerCallId}`,
+        },
+      ];
+    }
   }
 }
 
@@ -199,9 +216,9 @@ async function quoteLead(
 /**
  * `notifications.event.notify`: the notices one event stands for (`crm.opportunity.assigned`,
  * `crm.duplicate.found`, `crm.enquiry.routed`, `sales.order.credit_held`, `sales.quote.accepted`,
- * a quote marked sent on WhatsApp that did not go, and an Accept pressed on WhatsApp on a lapsed
- * quote), each for the person who acts on it in the event's company and once per person however
- * often the event is delivered.
+ * `calls.missed.recorded`, a quote marked sent on WhatsApp that did not go, and an Accept pressed
+ * on WhatsApp on a lapsed quote), each for the person who acts on it in the event's company and
+ * once per person however often the event is delivered.
  */
 export const notifyEvent = defineCommand({
   name: 'notifications.event.notify',

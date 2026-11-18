@@ -176,6 +176,8 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // only the link to their log (a column grant), and the platform's definers write the rest
     // (0169, provider-calls.test.ts).
     provider_calls: { i: true, u: false },
+    // Written only through the voice definers (0190): app_user reads it and nothing more.
+    voice_sessions: { i: false, u: false },
   };
 
   /**

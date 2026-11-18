@@ -74,6 +74,14 @@ export {
   recordProviderCall,
   toProviderCallDto,
 } from './commands/calls/provider-calls';
+export {
+  inboundCallLines,
+  missedCallCallbackDue,
+  recordInboundCall,
+  signalRinging,
+} from './commands/calls/inbound-calls';
+export { readScreenPop } from './queries/calls/screen-pop';
+export type { InboundCallLine } from './commands/calls/inbound-calls';
 export { placeDial } from './calls/place-dial';
 export {
   dialReadiness,
@@ -201,6 +209,22 @@ export { setContrast } from './commands/profile/set-contrast';
 export { deleteView, saveView } from './commands/profile/saved-views';
 export { listSavedViews, toSavedViewDto } from './queries/profile/saved-views';
 export { issueRealtimeToken } from './commands/realtime/issue-token';
+export {
+  recordVoiceSession,
+  refreshVoiceToken,
+  startVoiceSession,
+} from './commands/voice/sessions';
+export {
+  liveVoiceSession,
+  liveVoiceSessionFacts,
+  voiceToday,
+  type VoiceToday,
+  voiceSessionLive,
+  voiceSessionNotAfter,
+  voiceRecordingUpload,
+  type VoiceSessionFacts,
+} from './queries/voice/sessions';
+export { voiceSessionPrincipal } from './auth/voice-principal';
 export { createImportJob } from './commands/imports/create-job';
 export { mapImportJob } from './commands/imports/map-job';
 export { previewImportJob } from './commands/imports/preview-job';
@@ -610,7 +634,13 @@ export type {
   ModelTransport,
 } from './ai/transport';
 export { vendorTransports } from './ai/env';
-export { costInPaise, DEFAULT_CLAUDE_MODEL, DEFAULT_EMBEDDING_MODEL } from './ai/models';
+export {
+  costInPaise,
+  DEFAULT_CLAUDE_MODEL,
+  DEFAULT_EMBEDDING_MODEL,
+  MODEL_PRICES,
+  type ModelPrice,
+} from './ai/models';
 export {
   AGENT_ACTION_TYPES,
   AUTOMATIC_AVAILABLE,

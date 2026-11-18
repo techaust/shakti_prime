@@ -112,10 +112,14 @@ jobs:
           say() { echo "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
 
           # The state of the latest CI run on a commit, started by a pull request or by this
-          # workflow: none, running, passed or failed.
+          # workflow: none, running, passed or failed. A run GitHub holds for a person's
+          # "Approve and run" (conclusion action_required, as the pull_request run of this
+          # workflow's own catch-up commit is) never ran, so it is passed over and the run this
+          # workflow started on the same commit decides.
           run_state() {
             gh api "repos/${GH_REPO}/actions/workflows/ci.yml/runs?head_sha=$1&per_page=20" --jq \
-              '[.workflow_runs[] | select(.event == "pull_request" or .event == "workflow_dispatch")]
+              '[.workflow_runs[] | select(.event == "pull_request" or .event == "workflow_dispatch")
+                | select(.conclusion != "action_required")]
                | if length == 0 then "none"
                  else first | if .status != "completed" then "running"
                    elif .conclusion == "success" then "passed" else "failed" end

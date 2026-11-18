@@ -38,9 +38,11 @@ import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
 import { renderMaskedPages } from '../../src/workers/files/pdf-pages';
-import { writeWav } from '../../src/integrations/voice/recording';
+// The WAV writer alone: the package's index loads the contracts, whose JSON a journey cannot import.
+import { writeWav } from '@shakti/voice/recording';
 import { readWordText } from '../../src/workers/knowledge/read-word';
 import { converterKey, CONVERTER_NAME } from '../converting-fixtures';
+import { POP_CALLER_NAME, popCallerKey } from '../screen-pop-fixtures';
 import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
 import { ensureConvertingJourneys } from './converting';
@@ -48,6 +50,7 @@ import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
+import { ensureScreenPopJourneys } from './screen-pop';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
@@ -904,6 +907,17 @@ for (const project of PROJECTS) {
   await setPassword(email);
 }
 await ensureConvertingJourneys(converterIds, ids.executive ?? '');
+
+progress('the screen-pop');
+// One tele-caller of company 1 per project, each rung by company 1's incoming calls number at her
+// own phone, with customers of her own (screen-pop.spec.ts).
+const popCallerIds = {} as Record<ProjectName, string>;
+for (const project of PROJECTS) {
+  const email = emailFor(popCallerKey(project));
+  popCallerIds[project] = await ensureUser(email, POP_CALLER_NAME, 'tele_caller_cc', [1]);
+  await setPassword(email);
+}
+await ensureScreenPopJourneys(ids.executive ?? '', popCallerIds);
 
 progress('the snapshot team’s target, calls and notices');
 const snapshotPrincipals = {
