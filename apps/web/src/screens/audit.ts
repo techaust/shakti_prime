@@ -111,6 +111,7 @@ const ACTIONS = {
   'messaging.media.attach': 'whatsappMediaAttach',
   'messaging.milestone.set': 'whatsappMilestoneSet',
   'messaging.milestone.send': 'whatsappMilestoneSend',
+  'messaging.answer.queue': 'whatsappAnswerQueue',
   'crm.lead.ingest': 'leadIngest',
   'crm.lead.qualification.set': 'leadQualificationSet',
   'crm.source.set': 'sourceSet',

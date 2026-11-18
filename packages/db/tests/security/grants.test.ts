@@ -523,8 +523,13 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // The company of a WhatsApp delivery, and the companies of a template, found before the
       // handler acts in one company's request (W1).
       'app.whatsapp_channel_entity(text,text)',
+      // A pressed button's chat, number and payload, read before the platform answers it (S3).
+      'app.whatsapp_inbound_facts(uuid)',
       // What a milestone of a quote or an order carries, read before it is queued (S3).
       'app.whatsapp_milestone_subject(smallint,text,text,uuid,uuid)',
+      // What a message carries beyond its values (a quote's buttons and PDF, a code), read before
+      // the worker takes it (S3).
+      'app.whatsapp_send_extras(uuid)',
       // What the messaging worker checks before a send, read before it takes the message (W1).
       'app.whatsapp_send_facts(uuid)',
       'app.whatsapp_template_entities(text,text)',

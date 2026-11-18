@@ -55,6 +55,9 @@ export type PressOutcome =
   | 'unverified'
   | 'ignored';
 
+/** Why a chat goes to people when the customer presses Talk to us, or no code can be sent. */
+const ASKED_FOR_PEOPLE = 'request';
+
 interface Chat {
   entityId: number;
   threadId: string;
@@ -111,7 +114,7 @@ export async function handleQuotePress(
     await executeCommand(deps.principal, scopeOf(deps, chat.entityId), recordWhatsAppHandOff, {
       entityId: chat.entityId,
       threadId: chat.threadId,
-      reason: 'request',
+      reason: ASKED_FOR_PEOPLE,
     });
     return 'handed_to_people';
   }
@@ -169,7 +172,7 @@ async function acceptPressed(
     await executeCommand(deps.principal, scopeOf(deps, chat.entityId), recordWhatsAppHandOff, {
       entityId: chat.entityId,
       threadId: chat.threadId,
-      reason: 'request',
+      reason: ASKED_FOR_PEOPLE,
     });
   }
   return 'code_unavailable';
