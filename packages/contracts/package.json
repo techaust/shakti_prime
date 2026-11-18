@@ -5,7 +5,8 @@
   "description": "Zod schemas, DTOs, error codes and the permission catalogue shared by every app",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./masking": "./src/masking/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

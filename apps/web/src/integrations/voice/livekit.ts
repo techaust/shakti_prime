@@ -35,6 +35,20 @@ export interface VideoGrant {
   room?: string;
   canPublish?: boolean;
   canSubscribe?: boolean;
+  /** Captions, cards and push-to-talk text go over the room's data channel. */
+  canPublishData?: boolean;
+}
+
+/** A session's room: who may wait in it, for how long, and the voice worker it asks for. */
+export interface AgentRoomOptions {
+  /** Seconds the room waits for its first participant before LiveKit closes it. */
+  emptyTimeoutSeconds: number;
+  /** Seconds the room stays open after the last participant leaves. */
+  departureTimeoutSeconds: number;
+  maxParticipants: number;
+  /** The worker LiveKit dispatches into the room, and what it is handed. */
+  agentName: string;
+  agentMetadata: string;
 }
 
 /** A LiveKit access token: `iss` is the API key, `sub` the identity, `video` the grant. */
@@ -63,6 +77,11 @@ export function liveKitHttpBase(url: string): string {
 
 export interface LiveKitRooms {
   createRoom(name: string): Promise<{ ms: number }>;
+  /**
+   * Makes a voice session's room with its worker dispatched into it (LiveKit's `CreateRoom` with
+   * `agents`); the dispatch metadata reaches only that worker.
+   */
+  createAgentRoom(name: string, options: AgentRoomOptions): Promise<{ ms: number }>;
   deleteRoom(name: string): Promise<{ ms: number }>;
   listRooms(): Promise<{ ms: number; count: number }>;
 }
@@ -89,6 +108,20 @@ export function liveKitRooms(
   return {
     async createRoom(name) {
       const { ms } = await call('CreateRoom', { name, empty_timeout: 60 }, { roomCreate: true });
+      return { ms };
+    },
+    async createAgentRoom(name, options) {
+      const { ms } = await call(
+        'CreateRoom',
+        {
+          name,
+          empty_timeout: options.emptyTimeoutSeconds,
+          departure_timeout: options.departureTimeoutSeconds,
+          max_participants: options.maxParticipants,
+          agents: [{ agent_name: options.agentName, metadata: options.agentMetadata }],
+        },
+        { roomCreate: true },
+      );
       return { ms };
     },
     async deleteRoom(name) {

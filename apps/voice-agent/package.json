@@ -1,0 +1,23 @@
+{
+  "name": "@shakti/voice-agent",
+  "version": "0.0.0",
+  "private": true,
+  "description": "LiveKit Agents worker for Talk to Shakti: live voice Teach and Ask over /api/v1 (docs/03-roadmap-appendix/phase2.md §7.5)",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@livekit/agents": "1.9.5",
+    "@livekit/rtc-node": "1.2.1",
+    "@shakti/contracts": "workspace:*",
+    "@shakti/voice": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
+  }
+}
