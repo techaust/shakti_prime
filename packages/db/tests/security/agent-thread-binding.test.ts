@@ -337,3 +337,49 @@ describe('the Playbook a bound run reads', () => {
     expect(await readable(undefined)).toEqual([]);
   });
 });
+
+describe('the internal notes a bound run never reads', () => {
+  const noteId = newId();
+  const callId = newId();
+  const transcriptId = newId();
+
+  beforeAll(async () => {
+    const copilotId = AGENT_PRINCIPAL_IDS['agent:copilot'];
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size,
+                                    sha256, status, created_by)
+          values (${transcriptId}, 1, 'call_transcript', 'local',
+                  ${`1/call_transcript/${transcriptId}.txt`}, 'transcript.txt', 'text/plain', 10,
+                  ${SHA}, 'ready', ${copilotId})`;
+        await tx`insert into provider_calls (id, entity_id, opportunity_id, caller_id, direction,
+                                             series, purpose, status, started_at, ended_at,
+                                             transcript_file_id)
+          values (${callId}, 1, ${a.opportunityId}, ${a.owner.id}, 'outbound', '140',
+                  'promotional', 'completed', now(), now(), ${transcriptId})`;
+        await tx`insert into copilot_notes (id, entity_id, opportunity_id, kind, body, created_by)
+          values (${noteId}, 1, ${a.opportunityId}, 'brief', 'Wants a 5 HP pump.', ${copilotId})`;
+      }),
+    );
+  });
+
+  const notes = async (principal: Principal, threadId: string | undefined) => {
+    const [row] = await read<Record<string, string>>(
+      principal,
+      threadId,
+      sql`select
+        (select count(*) from copilot_notes where id = ${noteId})::int as notes,
+        (select count(*) from files where id = ${transcriptId})::int as transcripts`,
+    );
+    return { notes: Number(row?.notes), transcripts: Number(row?.transcripts) };
+  };
+
+  it("reads neither the Co-pilot's notes nor a call transcript of its thread's lead", async () => {
+    // A person who reads the lead reads both, so the rows are there to be read.
+    expect(await notes(creator, undefined)).toEqual({ notes: 1, transcripts: 1 });
+    expect(await notes(concierge(), a.threadId)).toEqual({ notes: 0, transcripts: 0 });
+    // Nor any other agent bound to the thread.
+    const chief = principalFor('agent:chief', [1], { id: AGENT_PRINCIPAL_IDS['agent:chief'] });
+    expect(await notes(chief, a.threadId)).toEqual({ notes: 0, transcripts: 0 });
+  });
+});
