@@ -226,6 +226,22 @@ export const AGENT_DEFAULTS = {
     effort: 'low',
     thinking: 'between_tools',
     maxTokens: 400,
+    /**
+     * Each person's limits (question 12 (a), flagged for the owner to confirm): 30 minutes and
+     * ₹200 a day, the day starting at midnight in India, and sessions of at most 15 minutes.
+     * `voice.session.start` refuses a session once either day's limit is reached
+     * (`voice_cap_reached`), and the worker ends one that reaches a limit while it runs.
+     */
+    personDailyMinutes: 30,
+    personDailyCapPaise: 20_000,
+    sessionMaxMinutes: 15,
+    /**
+     * Speech counted against the day's spend, per minute of a session: Sarvam's published
+     * speech-to-text price, ₹30 an hour (as `knowledge.transcribeDailyCapPaise` counts it). Its
+     * text to speech and LiveKit's minutes are not counted until the vendors' quotes give them
+     * (flagged for the owner, docs/03-roadmap-appendix/phase2.md §10).
+     */
+    speechPaisePerMinute: 50,
   },
 
   /**

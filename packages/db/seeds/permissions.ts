@@ -93,6 +93,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'messaging.process': 'Receive and send WhatsApp messages for the companies',
   'crm.ingest.run': 'Add leads that arrive from ads, lead forms, websites and WhatsApp',
   'calls.process': 'Record how a placed call went and keep its recording',
+  'voice.session.record': 'Record how long a Talk to Shakti session lasted and what it cost',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

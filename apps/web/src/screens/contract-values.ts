@@ -90,6 +90,7 @@ import type {
   UploadContentType,
   UserSort,
   UserStatus,
+  VoiceSessionMode,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -184,6 +185,12 @@ export const INBOUND_CALL_SERIES_VALUES = [
   'ivr',
   'missed_call',
 ] as const satisfies readonly InboundCallSeries[];
+
+/** The modes of a Talk to Shakti session (`VOICE_SESSION_MODES`). */
+export const VOICE_SESSION_MODE_VALUES = [
+  'teach',
+  'ask',
+] as const satisfies readonly VoiceSessionMode[];
 
 /** A company's channels (`ENTITY_CHANNEL_KINDS`), in the order Settings › Companies lists them. */
 export const ENTITY_CHANNEL_KINDS = [

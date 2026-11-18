@@ -1,4 +1,5 @@
 import {
+  VOICE_SESSION_MODES,
   AGENT_ACTION_STATES,
   AGENT_AUTONOMY,
   AGENT_FILTER_REASONS,
@@ -255,6 +256,7 @@ const PAIRS: Record<string, readonly string[]> = {
   provider_calls_outbound_check: ['outbound', ...DIALLED_SERIES],
   // An inbound call came in on a line a customer calls (T4); a missed call names its lead.
   provider_calls_inbound_check: ['inbound', ...INBOUND_CALL_SERIES, 'missed_call'],
+  voice_sessions_mode_check: VOICE_SESSION_MODES,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

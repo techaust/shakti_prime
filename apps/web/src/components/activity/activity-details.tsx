@@ -52,6 +52,7 @@ import {
   CALL_PURPOSE_VALUES,
   PROVIDER_CALL_STATUS_VALUES,
   INBOUND_CALL_SERIES_VALUES,
+  VOICE_SESSION_MODE_VALUES,
   WHATSAPP_HANDOFF_REASONS,
   WHATSAPP_MESSAGE_KINDS,
   WHATSAPP_TEMPLATE_CATEGORIES,
@@ -550,6 +551,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'inboundLine':
         return oneOf(INBOUND_CALL_SERIES_VALUES, value)
           ? t(`values.inboundLine.${value}`)
+          : wordsOf(value);
+      case 'voiceMode':
+        return oneOf(VOICE_SESSION_MODE_VALUES, value)
+          ? t(`values.voiceMode.${value}`)
           : wordsOf(value);
       case 'consentPurpose':
         return oneOf(CONSENT_PURPOSES, value)

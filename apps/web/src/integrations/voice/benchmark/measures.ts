@@ -1,4 +1,4 @@
-import { percentile } from '../latency';
+import { percentile } from '@shakti/voice';
 import { normalise } from './normalise';
 
 /**

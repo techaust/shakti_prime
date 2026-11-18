@@ -1,5 +1,5 @@
 import { isRomanScript } from '@shakti/contracts';
-import { ProviderError, type ProviderName } from '../http';
+import { ProviderError, type ProviderName } from './http';
 
 /**
  * ADR 0014: no Devanagari in the product's own text, and transcripts in Roman script. A speech

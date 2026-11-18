@@ -168,6 +168,11 @@ import { withdrawQuote } from '../commands/sales/withdraw-quote';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { issueRealtimeToken } from '../commands/realtime/issue-token';
+import {
+  recordVoiceSession,
+  refreshVoiceToken,
+  startVoiceSession,
+} from '../commands/voice/sessions';
 import { setContrast } from '../commands/profile/set-contrast';
 import { setCompositeRule } from '../commands/tax/set-composite-rule';
 import { setTaxRate } from '../commands/tax/set-tax-rate';
@@ -254,6 +259,9 @@ export const commands = Object.freeze({
   [attachCallRecording.name]: attachCallRecording,
   [deleteCallRecording.name]: deleteCallRecording,
   [playCallRecording.name]: playCallRecording,
+  [startVoiceSession.name]: startVoiceSession,
+  [refreshVoiceToken.name]: refreshVoiceToken,
+  [recordVoiceSession.name]: recordVoiceSession,
   [setPrice.name]: setPrice,
   [createPriceList.name]: createPriceList,
   [approvePriceList.name]: approvePriceList,

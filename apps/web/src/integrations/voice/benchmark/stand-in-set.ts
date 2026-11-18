@@ -1,4 +1,4 @@
-import { isRomanScript } from '../roman-script';
+import { isRomanScript } from '@shakti/voice';
 import type { KeyTerm, KeyTermKind, ListenerMark, SpeechPrice } from './measures';
 
 /**
