@@ -49,7 +49,8 @@ test.describe('the Caller Co-pilot as a tele-caller', () => {
     const copilot = panel(page);
     await expect(copilot.getByText(COPILOT_JOURNEY.brief)).toBeVisible();
     await expect(copilot.getByText(COPILOT_JOURNEY.summary)).toBeVisible();
-    await expect(copilot.getByText('Pump depth (feet)')).toBeVisible();
+    // Heard on the call, in the summary and in the suggestion to record it.
+    await expect(copilot.getByText('Pump depth (feet)')).toHaveCount(2);
     await expect(
       copilot.getByText(/^Suggested outcome: .+\. It is marked in the outcomes/),
     ).toBeVisible();
@@ -89,7 +90,7 @@ test.describe('the Caller Co-pilot as a tele-caller', () => {
     const ask = copilot.getByRole('button', { name: 'Ask for a brief' });
     await expect(ask).toBeEnabled();
     await ask.click();
-    await expect(page.getByText('The Co-pilot is writing a brief.')).toBeVisible();
+    await expect(page.getByText('The Co-pilot is writing a brief.', { exact: true })).toBeVisible();
     await expect(ask).toBeDisabled();
     await expectNoAxeViolations(page);
   });

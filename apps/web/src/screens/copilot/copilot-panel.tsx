@@ -278,7 +278,7 @@ export function CopilotPanel({ copilot }: { copilot: CopilotState }) {
           disabled={!canAsk}
           pending={ask.pending}
           onClick={() => {
-            ask.run(lead, () => {
+            ask.run({ entityId: lead.entityId, opportunityId: lead.opportunityId }, () => {
               setAskedAt(Date.now());
               toast.success(t('briefAsked'));
             });
