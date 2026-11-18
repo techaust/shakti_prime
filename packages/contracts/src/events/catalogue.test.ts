@@ -52,6 +52,9 @@ describe('the event catalogue', () => {
   it('subscribes only the types a worker handles (apps/web/src/workers/events/registry.ts)', () => {
     expect(EVENT_TYPES.filter(isSubscribed).sort()).toEqual(
       [
+        // The Caller Co-pilot's brief on demand and the summary of an ended dial (A2).
+        'agents.brief.requested',
+        'calls.dial.completed',
         'crm.duplicate.found',
         'crm.enquiry.routed',
         'crm.lead.created',
