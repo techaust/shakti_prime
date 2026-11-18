@@ -161,6 +161,19 @@ Counts: 0 critical, 1 high, 3 medium, 6 low.
 **Not checked**
 - The Linux screenshots (not made yet), the journeys and axe (not run here), the JavaScript budget and the whole security suite (the builder's runs are recorded above). The live model (`eval:concierge`).
 
+### Lead's fix list, 18-11-2026
+Every finding except L6 is fixed in one fix round on this branch, each with a test that fails before the fix; the builder reports each under Report › Fix round with its commit.
+- H1: a draft never states an amount, a price, a subsidy, a discount or offer, a warranty or guarantee, a date or day, or a commitment (confirmed, will deliver, will visit, will call at a time), in digits or in words, in English or Roman Hindi (number words such as paanch, hazaar, lakh, sau, and fifty, thousand; day words such as kal, parso, tomorrow, Monday, next week; currency words such as rupaye, rupees, Rs), unless the sentence quotes a grounded fact it cites; a callback time is offered only through the callback proposal, never in the reply's text. Injection cases for each of the review's six examples and their Roman Hindi forms.
+- M1: the uncited forms are short (at most 160 characters for a greeting or a hand-off note) and each passes H1's checks; the test that a 600-character greeting passes is replaced by one that it is refused.
+- M2: a run stopped by a switch, a missing limit or the day's spend hands an assistant chat to people (a hand-off reason that says the assistant is unavailable), the hand-off words still hand off before any stop, `handlesNewThreads` follows whether the Concierge may run for the company, and a message on a chat handled by people records no run.
+- M3 (lead's decision): a bound run reaches no internal note: `copilot_notes_read` and the call-transcript file policy add `(select app.agent_thread_id()) is null`, keeping every line of `main`'s latest definitions (A2's 0206 to 0211), in a new migration after 0216; a security case proves a bound Concierge run reads neither, and SECURITY §3.3 states what a bound run reaches.
+- L1: `messaging.reply.send` is `peopleOnly` (V2's voice session refused too), and its comment says only a person sends.
+- L2: under Suggest the draft line shows the draft and leads to its Agent Inbox item, with no S, E or D that would fail.
+- L3: the draft line refreshes when a draft lands on the open chat (on the chat's existing refresh, no new poll).
+- L4: the 30-runs cap is checked before anything is read, as SECURITY and the defaults say.
+- L5: a redelivery that completes a partial run counts a refused answer once.
+- L6: not done (the binding definer already answers nothing for anyone but an agent); recorded as optional.
+
 ## Integration
 ### Lead's read of the early check, 17-11-2026
 Passed. The five policies match `main`'s newest definitions (0064, 0028, 0078 with 0089's roles kept by `alter policy`, 0183, 0166) with only the agent clause added. Decision 2: a bound run reads its own customer's quotes and orders because quote access follows the lead; these are the customer's own prices, not cost data, and no further clause is added. The worker's fact reader reads only the brief's list, which the review checks. The `is_agent_request()` prefix may go into 0190 now, since slot 2's database is recreated before steps 5 to 9. `crm.task.create`'s shared entry in `AGENT_ACTION_TYPES` is settled with A2 at merge.
