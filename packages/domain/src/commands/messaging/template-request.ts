@@ -7,7 +7,6 @@ import {
 import { schema } from '@shakti/db';
 import { and, desc, eq, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
-import { isAgent } from '../../command/run-command';
 import { lockOpportunity, requireEntity } from '../crm/opportunity-shared';
 import { sendWhatsAppMessage } from './send-message';
 
@@ -23,10 +22,10 @@ const CONSENT_FOR: Readonly<Record<'utility' | 'marketing', readonly ConsentPurp
  * nurture, or a nudge about a sent quote of the lead that has not expired. The Caller Co-pilot
  * proposes it (`crm.lead.write`, its own grant), and nothing is sent until a person approves it:
  * approving runs this command as the person, who then queues the template through
- * `messaging.message.send` under their own `messaging.send`. An agent running it itself, the
- * Co-pilot included, is refused (`people_only`): it is not marked for people only, since the
- * action type must name a command the Co-pilot may propose, but its handler queues nothing for an
- * agent.
+ * `messaging.message.send` under their own `messaging.send`. It is for people only
+ * (`peopleOnly`): an agent, the Co-pilot included, the workers or a voice session running it
+ * itself is refused at the guard (`people_only`), so its action type is never taken on the
+ * agent's own (`personOnly()` in `ai/action-types.ts`).
  *
  * Checked in the transaction, whatever the proposal said: the lead is the caller's to write; the
  * customer has a WhatsApp chat with the company; the template is the company's, approved, a
@@ -39,17 +38,13 @@ export const requestTemplate = defineCommand({
   name: 'messaging.template.request',
   permission: 'crm.lead.write',
   minScope: 'own',
+  // Only a person queues a WhatsApp message: the Co-pilot proposes this, never runs it.
+  peopleOnly: true,
   input: RequestTemplateInput,
   output: WhatsAppMessageDto,
   auditFields: ['occasion', 'templateName'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
-    // Only a person queues a WhatsApp message: the Co-pilot proposes this, never runs it.
-    if (isAgent(ctx.principal)) {
-      throw new DomainError('forbidden', `${ctx.principal.roleKey} does not queue messages`, {
-        reason: 'people_only',
-      });
-    }
     // The lead, under the caller's write scope (the lock takes the update policy).
     const lead = await lockOpportunity(ctx, input);
 

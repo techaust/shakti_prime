@@ -13,6 +13,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import {
   AGENT_ACTION_TYPES,
   actionTypeOf,
+  personOnly,
   withAssignee,
   type AgentActionType,
 } from '../../ai/action-types';
@@ -102,7 +103,8 @@ export const recordAgentRun = defineCommand({
         plan = 'shadow';
         outcome = 'shadowed';
       } else {
-        plan = autonomy === 'automatic' ? 'act' : 'propose';
+        // A command for people only is never run as the agent: it waits for a person instead.
+        plan = autonomy === 'automatic' && !personOnly(type) ? 'act' : 'propose';
         outcome = plan === 'act' ? 'acted' : 'proposed';
       }
     }

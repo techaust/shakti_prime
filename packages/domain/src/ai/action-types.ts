@@ -25,7 +25,9 @@ import { AGENT_DEFAULTS } from './agent-defaults';
 // approves, and Automatic (not in Phase 1) runs it as the agent. A shadow-only kind runs no command
 // (no command moves a lead between pipelines or changes a score by hand): it is only ever recorded
 // in Shadow, whatever autonomy is set. Each agent named here must hold the permissions the action
-// needs itself, and none is a command for people only (`action-types.test.ts`).
+// needs itself. Only one is a command for people only, the Co-pilot's WhatsApp template
+// (`personOnly()`): a person approves it and it runs as them; it never runs as the agent, whatever
+// autonomy is set (`action-types.test.ts`).
 
 /** A field of a suggestion a person may change before approving it (`agents.inbox.edit`). */
 export interface EditableField {
@@ -182,6 +184,15 @@ export function actionTypeOf(name: string): AgentActionType {
     });
   }
   return found;
+}
+
+/**
+ * Whether an action type's command is for people only: it runs when a person approves it, as that
+ * person, and never as the agent, so it is never taken on the agent's own (Automatic files it for
+ * approval instead).
+ */
+export function personOnly(type: AgentActionType): boolean {
+  return type.command?.peopleOnly === true;
 }
 
 /** Whether an action type is only ever recorded in Shadow (it runs no command). */

@@ -371,6 +371,24 @@ describe('messaging.template.request', () => {
     }
   });
 
+  it('is for people only: any other principal is refused at the guard, whatever it holds', async () => {
+    const lead = await copilotLead('nurture');
+    await chat(lead);
+    await consent(lead, 'service');
+    // The workers given the write grant over leads, and the Co-pilot itself: still refused.
+    const base = workers([1]);
+    const platform: Principal = {
+      ...base,
+      permissions: [...base.permissions, { key: 'crm.lead.write', scope: 'entity' }],
+    };
+    for (const who of [platform, agentPrincipal('agent:copilot', 1)]) {
+      expect(await refusal(run(who, requestTemplate, nurture(lead)))).toMatchObject({
+        code: 'forbidden',
+        reason: 'people_only',
+      });
+    }
+  });
+
   it('refuses a company outside the request and a lead of another company', async () => {
     const lead = await copilotLead('nurture');
     const elsewhere = { ...lead.owner, entityIds: [2] };

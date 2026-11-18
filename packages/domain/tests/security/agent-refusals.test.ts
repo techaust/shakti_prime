@@ -344,6 +344,13 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   ),
   // The Caller Co-pilot's brief on demand: a person asks for it, never an agent (A2).
   'agents.brief.request': { entityId: 1, opportunityId: newId() },
+  // The WhatsApp template the Co-pilot proposes: only the person approving it queues it (A2).
+  'messaging.template.request': {
+    entityId: 1,
+    opportunityId: newId(),
+    occasion: 'nurture',
+    templateName: 'refused_template',
+  },
   // The handover: a profile, a person's own presence and moving a leaving person's leads.
   'crm.caller_profile.set': {
     entityId: 1,
@@ -892,6 +899,29 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       entityId: 1,
       knowledgeFileId: newId(),
       transcript: 'Refused transcript',
+    },
+    // The calls' platform work (T3, A2): a provider's status report, the recording and the
+    // Co-pilot's transcript of a call, and their removal.
+    'calls.provider_call.record': { entityId: 1, providerCallId: newId(), status: 'completed' },
+    'calls.recording.attach': {
+      entityId: 1,
+      providerCallId: newId(),
+      fileId: newId(),
+      bucket: 'refused',
+      key: '1/call_recording/x.wav',
+      contentType: 'audio/wav',
+      size: 1,
+      sha256: 'a'.repeat(64),
+    },
+    'calls.recording.delete': { entityId: 1, fileId: newId() },
+    'calls.transcript.attach': {
+      entityId: 1,
+      providerCallId: newId(),
+      fileId: newId(),
+      bucket: 'refused',
+      key: '1/call_transcript/x.txt',
+      size: 1,
+      sha256: 'a'.repeat(64),
     },
   };
 
