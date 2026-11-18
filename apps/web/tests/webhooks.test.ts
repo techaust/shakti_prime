@@ -124,7 +124,7 @@ describe('the webhook routes on real Postgres', () => {
       const rows = (await rowsAfter(mark)).filter((r) => r.provider === d.provider);
       expect(rows, d.provider).toHaveLength(1);
       const row = await settled(rows[0]?.id ?? '');
-      // A provider with no handler yet has its row processed with that code; the lead forms'
+      // Every provider has a handler: the lead forms'
       // handlers (I1) set a delivery for a form no company has connected aside, never guessed;
       // Exotel's status has T3's, which finds no call of ours for the fixture's reference and
       // records nothing; the WhatsApp handler (W1) finds no company for the signed fixture's
@@ -142,9 +142,7 @@ describe('the webhook routes on real Postgres', () => {
                   ? null
                   : d.provider === 'meta_whatsapp'
                     ? 'whatsapp_number_unknown'
-                    : d.provider === 'exotel_incoming'
-                      ? 'call_number_unknown'
-                      : 'no_handler',
+                    : 'call_number_unknown',
             },
       );
       // Processing it again changes nothing.
