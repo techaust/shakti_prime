@@ -44,6 +44,7 @@ import {
   recordWhatsAppOptOut,
   recordWhatsAppTemplateStatus,
 } from '../../src/commands/messaging/platform';
+import { sendWhatsAppMessage } from '../../src/commands/messaging/send-message';
 import { registerWhatsAppTemplate } from '../../src/commands/messaging/templates';
 import { acceptQuote } from '../../src/commands/sales/accept-quote';
 import {
@@ -58,6 +59,7 @@ import { sendQuote } from '../../src/commands/sales/send-quote';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { readInboundFacts, readSendExtras } from '../../src/queries/messaging/answers';
 import { readMilestoneSubject, readStatusSummary } from '../../src/queries/messaging/milestones';
+import { readWhatsAppThread } from '../../src/queries/messaging/whatsapp';
 import { getSalesOrder } from '../../src/queries/sales/list-orders';
 
 // S3 WhatsApp quotes, milestones and STATUS (docs/03-roadmap-appendix/phase2.md §7.1, PRD SAL-05,
@@ -562,6 +564,25 @@ describe('messaging.milestone.set (WA-01)', () => {
     expect(
       await register('s3_code_ok', { category: 'authentication', buttons: urlButton }),
     ).toMatchObject({ purpose: 'acceptance_code', category: 'authentication' });
+  });
+
+  it('keeps a template with a document header out of people’s hands (the quote’s PDF is the platform’s)', async () => {
+    const { threadId } = await whatsappQuote();
+    const view = await asPrincipal(lc, (context) =>
+      readWhatsAppThread(context, { entityId: E, threadId }),
+    );
+    expect(view.templates.length).toBeGreaterThan(0);
+    expect(view.templates.every((t) => t.header === 'none')).toBe(true);
+    expect(view.templates.map((t) => t.id)).not.toContain(quoteTemplate.id);
+    expect(
+      await failure(lc, sendWhatsAppMessage, {
+        entityId: E,
+        threadId,
+        kind: 'template',
+        templateName: quoteTemplate.name,
+        params: ['Q', 'Rs 1', '01-12-2026'],
+      }),
+    ).toMatchObject({ reason: 'whatsapp_template_missing' });
   });
 
   it('is the Executive’s alone, and refused for a company outside the request', async () => {
