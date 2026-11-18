@@ -123,7 +123,7 @@ export const WhatsAppThread = forwardRef<
       </p>
       {view.canSend && !thread.optedOut ? (
         <ConciergeDraftLine
-          key={String(view.messages[0]?.id)}
+          key={`draft:${String(view.messages[0]?.id)}`}
           entityId={entityId}
           threadId={thread.id}
           onDecided={reload}

@@ -81,7 +81,7 @@ test.describe('the Caller Co-pilot as a tele-caller', () => {
     await expect(suggestions).toHaveCount(2);
     await expect(copilot.getByText('Add a follow-up task')).toBeVisible();
     await expect(copilot.getByText(COPILOT_JOURNEY.followUp)).toBeVisible();
-    await expect(copilot.getByText('Record what was heard on a call')).toBeVisible();
+    await expect(copilot.getByText('Record details the customer gave')).toBeVisible();
     await expectNoAxeViolations(page);
     // The panel alone: the queue beside it lists other journeys' leads, whose names end in random
     // digits, and the lead's history shows today's times.
