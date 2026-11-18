@@ -87,6 +87,14 @@ export const WHATSAPP_TEMPLATE_STATUSES = [
 export const WhatsAppTemplateStatusSchema = z.enum(WHATSAPP_TEMPLATE_STATUSES);
 export type WhatsAppTemplateStatus = z.infer<typeof WhatsAppTemplateStatusSchema>;
 
+/**
+ * What a template's header takes when it is sent (`whatsapp_templates.header`): nothing (no header,
+ * or a fixed text), or a document the platform attaches (a quote's PDF).
+ */
+export const WHATSAPP_TEMPLATE_HEADERS = ['none', 'document'] as const;
+export const WhatsAppTemplateHeaderSchema = z.enum(WHATSAPP_TEMPLATE_HEADERS);
+export type WhatsAppTemplateHeader = z.infer<typeof WhatsAppTemplateHeaderSchema>;
+
 /** Templates are written in English (ADR 0014). */
 export const WHATSAPP_TEMPLATE_LANGUAGES = ['en'] as const;
 export const WhatsAppTemplateLanguageSchema = z.enum(WHATSAPP_TEMPLATE_LANGUAGES);
@@ -117,6 +125,27 @@ export const WHATSAPP_PURPOSE_VALUES: Record<WhatsAppTemplatePurpose, readonly s
   opt_out_confirmation: [],
   acceptance_code: ['code'],
   quote_expired: ['quote_no'],
+};
+
+/**
+ * What the platform sends with a template beyond its body values, which the template must have
+ * been submitted to Meta with, or Meta refuses the message: its category, its header and its
+ * buttons by kind, in order. The one-time code is an authentication template with Meta's
+ * copy-code button (a `url` button taking the code); `null` leaves that part as the Executive
+ * registers it (W1's welcome and STOP confirmation, and the answer on a lapsed quote, are sent
+ * with their body values alone).
+ */
+export interface WhatsAppTemplateShape {
+  category: WhatsAppTemplateCategory | null;
+  header: WhatsAppTemplateHeader | null;
+  buttons: readonly (typeof WHATSAPP_BUTTON_KINDS)[number][] | null;
+}
+
+export const WHATSAPP_PURPOSE_SHAPES: Record<WhatsAppTemplatePurpose, WhatsAppTemplateShape> = {
+  welcome: { category: null, header: null, buttons: null },
+  opt_out_confirmation: { category: null, header: null, buttons: null },
+  acceptance_code: { category: 'authentication', header: 'none', buttons: ['url'] },
+  quote_expired: { category: null, header: null, buttons: null },
 };
 
 /**
@@ -163,6 +192,20 @@ export const WHATSAPP_LIVE_MILESTONES = [
   'quote_sent',
   'order_confirmed',
 ] as const satisfies readonly WhatsAppMilestone[];
+
+/**
+ * What each live milestone sends with its template beyond the body values: a quote goes with its
+ * PDF as the header document and its Accept and Talk to us buttons (two quick replies, in that
+ * order); an order's confirmation with its words alone. A template mapped to the milestone has
+ * exactly this header and these buttons, and is not an authentication template.
+ */
+export const WHATSAPP_MILESTONE_SHAPES: Record<
+  (typeof WHATSAPP_LIVE_MILESTONES)[number],
+  { header: WhatsAppTemplateHeader; buttons: readonly (typeof WHATSAPP_BUTTON_KINDS)[number][] }
+> = {
+  quote_sent: { header: 'document', buttons: ['quick_reply', 'quick_reply'] },
+  order_confirmed: { header: 'none', buttons: [] },
+};
 
 /** What one milestone of one subject is about (`whatsapp_milestone_sends.subject_kind`). */
 export const WHATSAPP_MILESTONE_SUBJECT_OF: Record<
@@ -293,6 +336,7 @@ export const WhatsAppTemplateDto = z
     status: WhatsAppTemplateStatusSchema,
     params: z.array(WhatsAppTemplateParamSchema).max(20),
     buttons: z.array(WhatsAppTemplateButtonSchema).max(10),
+    header: WhatsAppTemplateHeaderSchema,
     purpose: WhatsAppTemplatePurposeSchema.nullable(),
   })
   .strict();
@@ -321,6 +365,8 @@ export const WhatsAppTemplateSettingsDto = z
   .object({
     templates: z.array(WhatsAppTemplateDto).max(WHATSAPP_TEMPLATE_LIST_MAX),
     milestones: z.array(WhatsAppMilestoneDto),
+    /** The templates each live milestone may be mapped to (`messaging.milestone.set`'s rule). */
+    fits: z.array(z.object({ templateId: IdSchema, milestone: WhatsAppMilestoneSchema }).strict()),
   })
   .strict();
 export type WhatsAppTemplateSettingsDto = z.infer<typeof WhatsAppTemplateSettingsDto>;

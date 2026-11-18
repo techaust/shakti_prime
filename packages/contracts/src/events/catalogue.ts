@@ -561,7 +561,7 @@ const eventCatalogue = {
   },
   'sales.quote.sent': {
     meaning:
-      "A quote with its PDF was marked as sent to the customer: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`, which the platform sends as the `quote_sent` milestone.",
+      "A quote with its PDF was marked as sent to the customer by `sentBy`: recorded as handed over, or to go by the company's WhatsApp number on the chat `threadId`, which the platform sends as the `quote_sent` milestone (and tells `sentBy` when it cannot).",
     emittedBy: ['sales.quote.send'],
     subscribed: true,
     payload: z
@@ -570,6 +570,7 @@ const eventCatalogue = {
         pdfFileId: IdSchema,
         channel: z.enum(['recorded', 'whatsapp']),
         threadId: IdSchema.nullable(),
+        sentBy: IdSchema,
       })
       .strict(),
   },

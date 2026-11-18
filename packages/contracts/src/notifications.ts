@@ -33,7 +33,10 @@ const Count = z.number().int().min(0);
  * - `quote_accepted`: a quote on your lead was accepted (on WhatsApp, or by a signed copy someone
  *   else recorded) and became an order (docs/03-roadmap-appendix/phase2.md §7.1);
  * - `whatsapp_quote_expired`: a customer pressed Accept on WhatsApp on a quote of your lead that is
- *   no longer open, and was told a new quote will follow (§7.1).
+ *   no longer open, and was told a new quote will follow (§7.1);
+ * - `whatsapp_quote_not_sent`: a quote you marked sent on WhatsApp did not go to the customer (no
+ *   chat, no consent, the number stopped messages, or the company's template not approved), so
+ *   it is for you to share another way (§7.1).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -46,6 +49,7 @@ export const NOTICE_TYPES = [
   'whatsapp_reply_waiting',
   'quote_accepted',
   'whatsapp_quote_expired',
+  'whatsapp_quote_not_sent',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -322,6 +326,17 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       eventId: IdSchema,
       quoteId: IdSchema,
       acceptedBy: IdSchema,
+    })
+    .strict(),
+  // A quote marked sent on WhatsApp whose message was not queued: the person who sent it is told,
+  // once a quote (the milestone worker asks for it itself, naming the send's event).
+  z
+    .object({
+      event: z.literal('sales.quote.sent'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      quoteId: IdSchema,
+      sentBy: IdSchema,
     })
     .strict(),
   // Accept pressed on WhatsApp on a quote no longer open: its lead's owner is told, once a quote.

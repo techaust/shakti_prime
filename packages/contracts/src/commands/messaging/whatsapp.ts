@@ -13,6 +13,7 @@ import {
   WhatsAppProviderMessageIdSchema,
   WhatsAppTemplateButtonSchema,
   WhatsAppTemplateCategorySchema,
+  WhatsAppTemplateHeaderSchema,
   WhatsAppTemplateLabelSchema,
   WhatsAppTemplateLanguageSchema,
   WhatsAppTemplateParamSchema,
@@ -95,6 +96,7 @@ export const RegisterWhatsAppTemplateInput = z
     category: WhatsAppTemplateCategorySchema,
     params: z.array(WhatsAppTemplateParamSchema).max(20).default([]),
     buttons: z.array(WhatsAppTemplateButtonSchema).max(10).default([]),
+    header: WhatsAppTemplateHeaderSchema.default('none'),
     purpose: WhatsAppTemplatePurposeSchema.nullable().default(null),
   })
   .strict();

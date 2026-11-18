@@ -314,6 +314,11 @@ export const whatsappTemplates = pgTable(
     statusAt: timestamp('status_at', { withTimezone: true }),
     params: jsonb('params').notNull().default([]),
     buttons: jsonb('buttons').notNull().default([]),
+    /**
+     * What the template's header takes when it is sent: nothing (no header, or a fixed text), or a
+     * document (a quote's PDF), as the template was submitted to Meta.
+     */
+    header: text('header').notNull().default('none'),
     purpose: text('purpose'),
     ...timestamps,
     ...actorsRequired,
@@ -336,6 +341,7 @@ export const whatsappTemplates = pgTable(
       'whatsapp_templates_status_check',
       sql`${t.status} in ('pending', 'approved', 'rejected', 'paused', 'disabled')`,
     ),
+    check('whatsapp_templates_header_check', sql`${t.header} in ('none', 'document')`),
     check(
       'whatsapp_templates_purpose_check',
       sql`${t.purpose} is null or ${t.purpose} in ('welcome', 'opt_out_confirmation', 'acceptance_code', 'quote_expired')`,

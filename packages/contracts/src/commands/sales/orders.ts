@@ -34,12 +34,15 @@ export type AcceptQuoteRemoteInput = z.input<typeof AcceptQuoteRemoteInput>;
 
 /**
  * What a WhatsApp acceptance did: the order made (`accepted`), or the order an earlier acceptance
- * made (`accepted` false: a second press answers the same order). `ownerId` is the lead's owner,
- * whom the answer and the notice reach.
+ * made (`accepted` false: a second press answers the same order, and a press on a quote withdrawn
+ * because the customer accepted another quote of the lead answers that quote and its order).
+ * `quoteId` and `quoteNo` are the accepted quote's. `ownerId` is the lead's owner, whom the answer
+ * and the notice reach.
  */
 export const QuoteAcceptedRemotely = z
   .object({
     quoteId: IdSchema,
+    quoteNo: z.string().min(1).max(40),
     orderId: IdSchema,
     soNo: z.string().min(1).max(40),
     accepted: z.boolean(),
