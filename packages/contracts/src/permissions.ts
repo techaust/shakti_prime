@@ -141,6 +141,10 @@ export const PERMISSION_KEYS = [
   // phase2.md §6.3): held only by the platform's worker principal, which writes `provider_calls`
   // and their recordings through narrow definers, nothing more.
   'calls.process',
+  // A voice session's end, minutes, spend and turn timings from LiveKit's events
+  // (docs/03-roadmap-appendix/phase2.md §7.5): held only by the platform's worker principal, which
+  // records them through one narrow definer, nothing more.
+  'voice.session.record',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -223,6 +227,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'messaging.process',
   'crm.ingest.run',
   'calls.process',
+  'voice.session.record',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -375,6 +380,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'messaging.process': ['all'],
   'crm.ingest.run': ['all'],
   'calls.process': ['all'],
+  'voice.session.record': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

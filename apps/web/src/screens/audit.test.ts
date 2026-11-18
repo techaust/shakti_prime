@@ -147,6 +147,18 @@ describe('what changed', () => {
     ]);
   });
 
+  it("reads a voice session's spend, kept in paise, as rupees", () => {
+    const rows = auditChanges(null, { minutes: 4, costPaise: 1250 });
+    expect(rows.map((r) => [r.field, r.after])).toEqual([
+      ['minutes', { kind: 'number', value: 4 }],
+      ['costPaise', { kind: 'money', amount: '12.50' }],
+    ]);
+    expect(auditChanges(null, { costPaise: 7 })[0]?.after).toEqual({
+      kind: 'money',
+      amount: '0.07',
+    });
+  });
+
   it('lists anything else under its name in plain words, one plain value per line', () => {
     const rows = auditChanges(null, {
       scriptVersion: 'v2',

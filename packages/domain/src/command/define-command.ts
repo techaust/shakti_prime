@@ -38,6 +38,12 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
    * such as a customer note, a tag of the company or a sizing (ADR 0021).
    */
   peopleOnly?: boolean;
+  /**
+   * With `peopleOnly`: a person's own voice session may run it as the person too (docs/07-security.md
+   * §3.4), as Ask's spoken answers record the person's question. Agents and the system principal
+   * are still refused at the guard; every other command for people only refuses a voice session.
+   */
+  voiceSession?: boolean;
   input: I;
   /** A strict DTO. Anything the handler returns beyond it is an error, never a leak. */
   output: O;

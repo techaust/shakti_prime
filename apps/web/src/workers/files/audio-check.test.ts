@@ -1,6 +1,6 @@
 import { MAX_AUDIO_MS } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
-import { readWav, writeWav } from '../../integrations/voice/recording';
+import { readWav, writeWav } from '@shakti/voice';
 import { checkRecording } from './audio-check';
 
 const RATE = 8_000;

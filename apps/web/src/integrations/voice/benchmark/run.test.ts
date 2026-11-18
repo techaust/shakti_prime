@@ -7,7 +7,7 @@ import type {
   StreamingSpeechToText,
   StreamingTextToSpeech,
   SttEvent,
-} from '../ports';
+} from '@shakti/voice';
 import { observeTurn, type Pace, type TurnAudio } from './run';
 import type { SetItem } from './stand-in-set';
 

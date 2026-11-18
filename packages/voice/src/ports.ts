@@ -110,9 +110,24 @@ export interface Reply {
   usage: ReplyUsage;
 }
 
+/** An earlier turn of the conversation, for a reply that follows on (a Teach interview). */
+export interface ReplyTurn {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+export interface ReplyOptions {
+  /** The conversation so far, oldest first; the new text follows it. */
+  history?: readonly ReplyTurn[];
+  /** Each sentence as it ends, so its speech can start before the reply is done. */
+  onSentence?: (sentence: string) => void;
+  /** Stops the reply (the person spoke over it); the call then throws. */
+  signal?: AbortSignal;
+}
+
 export interface ReplyModel {
   readonly vendor: string;
   /** The model's id, for its price. */
   readonly model: string;
-  reply(system: string, userText: string): Promise<Reply>;
+  reply(system: string, userText: string, options?: ReplyOptions): Promise<Reply>;
 }
