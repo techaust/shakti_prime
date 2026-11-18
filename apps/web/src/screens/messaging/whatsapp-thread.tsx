@@ -13,6 +13,7 @@ import {
   takeOverThread,
 } from '../../actions/messaging';
 import { FailureMessage } from '../../components/screens/failure';
+import { ConciergeDraftLine } from '../concierge/draft-line';
 import { useCommand, useQuery } from '../../components/screens/use-command';
 import { MESSAGING_REFUSALS, WHATSAPP_MESSAGE_STATUSES } from '../contract-values';
 import { customerHref, isOneOf } from '../customers';
@@ -120,6 +121,14 @@ export const WhatsAppThread = forwardRef<
             })
           : t('windowClosed')}
       </p>
+      {view.canSend && !thread.optedOut ? (
+        <ConciergeDraftLine
+          key={String(view.messages[0]?.id)}
+          entityId={entityId}
+          threadId={thread.id}
+          onDecided={reload}
+        />
+      ) : null}
       {thread.optedOut ? (
         <p className="text-text-muted text-sm">{t('optedOutNote')}</p>
       ) : view.canSend ? (

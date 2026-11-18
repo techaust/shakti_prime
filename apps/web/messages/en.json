@@ -449,7 +449,8 @@
     "voice_recording_refused": "This talk with Shakti cannot keep a recording. Only a Teach session you agreed to record keeps one, once.",
     "voice_browser": "This browser cannot talk to Shakti. Open this page in a recent Chrome, Edge, Firefox or Safari.",
     "voice_microphone": "Shakti could not use your microphone. Allow the microphone for this site in your browser, then start again.",
-    "voice_connection": "Shakti could not join the talk. Check your network, then start again."
+    "voice_connection": "Shakti could not join the talk. Check your network, then start again.",
+    "concierge_out_of_time": "The WhatsApp assistant ran short of time on this message. It tries again in a moment."
   },
   "auth": {
     "signIn": {
@@ -2292,7 +2293,8 @@
         "request": "Someone asked for a person",
         "filter_refusals": "The assistant's replies were held back",
         "complaint": "A complaint",
-        "no_assistant": "The team answers every chat for now"
+        "no_assistant": "The team answers every chat for now",
+        "question": "A question only the team can answer"
       },
       "whatsappTemplateCategory": {
         "utility": "Updates",
@@ -4491,7 +4493,7 @@
       "pipelineChoose": "Choose the pipeline of a new lead",
       "scoreAdjust": "Adjust the score of a new lead",
       "whatsappReply": "Reply to a customer on WhatsApp",
-      "qualificationSet": "Record what was heard on a call",
+      "qualificationSet": "Record details the customer gave",
       "templateRequest": "Send a WhatsApp follow-up"
     },
     "fields": {
@@ -4786,6 +4788,40 @@
         "pending": "Not known yet",
         "none": "No outcome suggested"
       }
+    },
+    "conciergeReport": {
+      "title": "What the WhatsApp assistant drafted",
+      "intro": "Each reply the WhatsApp assistant drafted, beside the customer's message and what a member of the team sent. A draft recorded in shadow was never shown to anyone.",
+      "open": "WhatsApp assistant report",
+      "summaryHeading": "Its drafts",
+      "drafts": "{count, plural, =0 {No drafts} one {# draft} other {# drafts}}",
+      "states": "{shadowed, number} recorded in shadow, {waiting, number} waiting, {sent, number} sent as drafted, {edited, number} sent after an edit, {discarded, number} discarded",
+      "answered": "{count, plural, =0 {The team sent nothing after any draft} one {The team sent a message after # draft} other {The team sent a message after # drafts}}",
+      "refusedHeading": "Refused by the checks",
+      "noneRefused": "Nothing was refused in this period.",
+      "proposalsHeading": "Suggestions by kind",
+      "proposalLine": "{shadowed, number} recorded in shadow, {waiting, number} waiting, {approved, number} approved, {rejected, number} rejected",
+      "caption": "Drafts, newest first",
+      "empty": "No drafts in this period. The assistant drafts a reply to each customer message in the chats it answers once it has a daily spending limit.",
+      "columns": {
+        "when": "When",
+        "customer": "Customer",
+        "asked": "Customer wrote",
+        "draft": "Assistant's draft",
+        "sent": "Team sent",
+        "state": "What happened"
+      },
+      "file": "A picture or file",
+      "nothingSent": "Nothing sent yet",
+      "template": "Template: {name}",
+      "fromDraft": "Sent from this draft",
+      "state": {
+        "shadowed": "Recorded in shadow",
+        "waiting": "Waiting",
+        "sent": "Sent as drafted",
+        "edited": "Sent after an edit",
+        "discarded": "Discarded"
+      }
     }
   },
   "knowledge": {
@@ -4957,7 +4993,7 @@
       "none": "No WhatsApp chat with this customer yet.",
       "chatWith": "Chat with {number}",
       "numberRemoved": "Customer details removed",
-      "assistant": "The assistant answers",
+      "assistant": "The assistant drafts replies",
       "people": "The team answers",
       "peopleOnly": "Your team answers every WhatsApp chat. No assistant replies to customers yet.",
       "optedOut": "Stopped WhatsApp messages",
@@ -5003,7 +5039,21 @@
       "sendTemplate": "Send template",
       "sent": "Your message is on its way.",
       "takenOver": "You now answer this chat.",
-      "givenBack": "The assistant answers this chat again."
+      "givenBack": "The assistant drafts replies in this chat again."
+    },
+    "draft": {
+      "heading": "Reply drafted by the assistant",
+      "helper": "Read it first. Nothing goes to the customer until you send it.",
+      "keys": "Keys: S sends it, E edits it, D discards it.",
+      "send": "Send",
+      "edit": "Edit",
+      "discard": "Discard",
+      "cancel": "Cancel",
+      "editLabel": "Your reply",
+      "editHelper": "Change the words as you need, then send.",
+      "sent": "Your message is on its way.",
+      "discarded": "The draft was set aside. Write your own reply if the customer needs one.",
+      "drafted": "Drafted {when}"
     }
   },
   "pushAlerts": {

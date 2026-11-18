@@ -34,7 +34,13 @@ export type ConciergeDraftDto = z.infer<typeof ConciergeDraftDto>;
  * What became of a draft: recorded in Shadow, waiting for its person, sent as written or edited,
  * or discarded.
  */
-export const CONCIERGE_DRAFT_STATES = ['shadowed', 'waiting', 'sent', 'edited', 'discarded'] as const;
+export const CONCIERGE_DRAFT_STATES = [
+  'shadowed',
+  'waiting',
+  'sent',
+  'edited',
+  'discarded',
+] as const;
 export const ConciergeDraftStateSchema = z.enum(CONCIERGE_DRAFT_STATES);
 export type ConciergeDraftState = z.infer<typeof ConciergeDraftStateSchema>;
 

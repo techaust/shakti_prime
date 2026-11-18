@@ -35,7 +35,10 @@ import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { approveInboxItem, editInboxItem, rejectInboxItem } from '../../src/commands/agents/inbox';
-import { recordInboundWhatsApp, recordWhatsAppHandOff } from '../../src/commands/messaging/platform';
+import {
+  recordInboundWhatsApp,
+  recordWhatsAppHandOff,
+} from '../../src/commands/messaging/platform';
 import { istCalendarDate } from '../../src/numbering/financial-year';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryKeyValue, type KeyValue } from '../../src/ports/key-value';
@@ -313,13 +316,20 @@ describe('a Concierge run on a customer message', () => {
     const msg = await say(c, 'Do you sell tractors?');
     const d = deps(c, [
       reply('Thank you. A member of our team will reply soon.', {
-        reply: { text: 'Thank you. A member of our team will reply soon.', form: 'handoff', directives: [] },
+        reply: {
+          text: 'Thank you. A member of our team will reply soon.',
+          form: 'handoff',
+          directives: [],
+        },
         handoff: { reason: 'out_of_scope' },
       }),
     ]);
     const result = await runOn(c, msg, d);
     expect(result.handoff).toBe('out_of_scope');
-    expect(await threadOf(c.threadId)).toEqual({ handled_by: 'people', handoff_reason: 'question' });
+    expect(await threadOf(c.threadId)).toEqual({
+      handled_by: 'people',
+      handoff_reason: 'question',
+    });
   });
 
   it('hands the chat to people after three answers in a row the filter refused', async () => {
@@ -411,9 +421,7 @@ describe('under Needs approval', () => {
           await run<InboxDecisionDto>(c.caller, rejectInboxItem, { entityId: ENTITY, itemId });
         }
         const out = await outboundOf(c.threadId);
-        expect(out.map((o) => o.body_masked)).toEqual(
-          decision === 'reject' ? [] : [sent.at(-1)],
-        );
+        expect(out.map((o) => o.body_masked)).toEqual(decision === 'reject' ? [] : [sent.at(-1)]);
         expect(
           (
             await asPrincipal(c.caller, (ctx) =>

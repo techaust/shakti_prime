@@ -52,9 +52,9 @@ describe('buildConciergePrompt', () => {
     expect(buildConciergePrompt({ ...facts, ownerId: null }).question).toContain(
       'a callback can be booked: no',
     );
-    expect(
-      buildConciergePrompt({ ...facts, opportunityId: null, lead: null }).question,
-    ).toContain('lead: none open for this customer');
+    expect(buildConciergePrompt({ ...facts, opportunityId: null, lead: null }).question).toContain(
+      'lead: none open for this customer',
+    );
   });
 });
 

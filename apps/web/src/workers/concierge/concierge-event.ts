@@ -6,14 +6,10 @@ import {
   type ConciergeDeps,
   type ConciergeRunResult,
 } from '@shakti/domain';
-import { z } from 'zod';
 import { aiProvider } from '../../integrations/ai';
 import { deliveryTimeLeft } from '../copilot/copilot-event';
 import type { EventHandlerContext } from '../events/registry';
 import { isHandledByPlatform } from '../messaging/handled-by-platform';
-
-/** What the worker reads of the event: the message, and whether the platform answers it. */
-const Received = z.object({ messageId: IdSchema, platform: z.boolean().optional() });
 
 /**
  * The WhatsApp Concierge's worker for one `messaging.message.received` event
@@ -32,16 +28,17 @@ export async function handleConciergeEvent(
   ctx: EventHandlerContext,
   deps?: ConciergeDeps,
 ): Promise<ConciergeRunResult | null> {
-  const payload = Received.safeParse(event.payload);
-  if (event.type !== 'messaging.message.received' || !payload.success) return null;
-  if (isHandledByPlatform(payload.data)) return null;
+  // What the worker reads of the event: the message, and whether the platform answers it.
+  const messageId = IdSchema.safeParse(event.payload.messageId);
+  if (event.type !== 'messaging.message.received' || !messageId.success) return null;
+  if (isHandledByPlatform({ platform: event.payload.platform === true })) return null;
   const threadId = event.aggregateId;
   return runConcierge(
     {
       eventId: event.id,
       entityId: event.entityId,
       threadId,
-      messageId: payload.data.messageId,
+      messageId: messageId.data,
     },
     deps ?? {
       provider: aiProvider(),
