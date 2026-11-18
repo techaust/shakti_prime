@@ -61,10 +61,14 @@ describe('the event catalogue', () => {
         'files.file.uploaded',
         'knowledge.file.index_requested',
         'knowledge.playbook.changed',
+        'messaging.button.pressed',
         'messaging.message.requested',
         'platform.probe.requested',
         'print.document.requested',
+        'sales.order.confirmed',
         'sales.order.credit_held',
+        'sales.quote.accepted',
+        'sales.quote.sent',
       ].sort(),
     );
     expect(isSubscribed('crm.lead.vanished')).toBe(false);

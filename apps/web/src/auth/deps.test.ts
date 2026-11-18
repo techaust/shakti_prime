@@ -149,6 +149,16 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
     expect(productionConfigProblems({ ...GOOD, GOOGLE_LEADFORM_KEY: '' })).toEqual([]);
   });
 
+  it('refuses a short WhatsApp button secret, and the local phrase, when one is set', () => {
+    expect(
+      productionConfigProblems({ ...GOOD, WHATSAPP_BUTTON_SECRET: 'local-whatsapp-button-phrase' }),
+    ).toEqual(['WHATSAPP_BUTTON_SECRET must be at least 32 characters when set']);
+    expect(productionConfigProblems({ ...GOOD, WHATSAPP_BUTTON_SECRET: 'b'.repeat(40) })).toEqual(
+      [],
+    );
+    expect(productionConfigProblems({ ...GOOD, WHATSAPP_BUTTON_SECRET: '' })).toEqual([]);
+  });
+
   it('starts without any file storage or key settings', () => {
     const none = { FILES_BUCKET: '', FILES_KMS_KEY_ID: '', AWS_ACCESS_KEY_ID: '' };
     expect(productionConfigProblems({ ...GOOD, ...none })).toEqual([]);

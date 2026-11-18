@@ -30,6 +30,8 @@ export { recordPhoneDnd } from './commands/crm/record-phone-dnd';
 export { sendWhatsAppMessage } from './commands/messaging/send-message';
 export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messaging/threads';
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
+export { sendWhatsAppMilestone, setWhatsAppMilestone } from './commands/messaging/milestones';
+export { queueWhatsAppAnswer } from './commands/messaging/answers';
 export {
   attachWhatsAppMedia,
   claimWhatsAppMessage,
@@ -136,6 +138,7 @@ export { claimWebhook, markWebhook, replayWebhook, sweepWebhooks } from './comma
 export { countStaleLeads } from './queries/crm/stale-leads';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { acceptQuote } from './commands/sales/accept-quote';
+export { acceptQuoteRemote } from './commands/sales/accept-quote-remote';
 export { createSalesOrder } from './commands/sales/create-order';
 export { confirmSalesOrder } from './commands/sales/confirm-order';
 export { releaseCredit } from './commands/sales/release-credit';
@@ -777,7 +780,47 @@ export {
   whatsappTemplateEntities,
   type SendFactsRow,
 } from './queries/messaging/whatsapp';
+export {
+  listWhatsAppTemplateSettings,
+  readMilestoneSubject,
+  readStatusSummary,
+  type MilestoneSubject,
+  type StatusLine,
+} from './queries/messaging/milestones';
+export {
+  readInboundFacts,
+  readSendExtras,
+  type InboundFacts,
+  type SendExtras,
+} from './queries/messaging/answers';
+export {
+  acceptanceCode,
+  acceptanceCodeWaits,
+  checkAcceptanceCode,
+  codeOf,
+  codeWaiting,
+  dropAcceptanceCode,
+  holdAcceptanceCode,
+  needsAcceptanceCode,
+  pendingAcceptanceCode,
+  type CodeChat,
+  type CodeCheck,
+} from './messaging/acceptance-code';
+export {
+  quoteWhatsAppReadiness,
+  readQuoteWhatsAppReadiness,
+  type QuoteWhatsAppReadiness,
+  type QuoteWhatsAppRefusal,
+} from './sales/quote-whatsapp';
 export { matchKeyword, type WhatsAppKeyword } from './messaging/keywords';
+export {
+  QUOTE_BUTTON_ACTIONS,
+  quoteButtonToken,
+  quoteButtonTokens,
+  verifyQuoteButtonToken,
+  type QuoteButtonAction,
+  type QuoteButtonAudience,
+} from './messaging/quote-button';
 export { filterOutbound, type OutputFilterReason } from './messaging/output-filter';
 export {
   decideSend,

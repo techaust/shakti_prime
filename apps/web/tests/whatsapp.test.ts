@@ -739,6 +739,8 @@ describe('the messaging worker', () => {
     now: () => new Date(),
     client: () => fake,
     hosted: false,
+    buttonSecret: undefined,
+    store: undefined,
   });
 
   it('sends a queued message once and records Meta’s id; a repeat sends nothing', async () => {

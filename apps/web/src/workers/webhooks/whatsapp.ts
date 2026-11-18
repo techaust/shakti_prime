@@ -1,6 +1,7 @@
 import {
   DomainError,
   newId,
+  type Principal,
   type WhatsAppInboundMessage,
   type WhatsAppStatus,
   type WhatsAppWebhook,
@@ -8,12 +9,15 @@ import {
 import {
   AGENT_DEFAULTS,
   attachWhatsAppMedia,
+  codeOf,
+  codeWaiting,
   executeCommand,
   executeQuery,
   ingestIdempotencyKey,
   matchKeyword,
   matchWhatsAppThread,
   queueWhatsAppMessage,
+  readStatusSummary,
   recordInboundWhatsApp,
   recordQuality,
   recordWhatsAppHandOff,
@@ -32,6 +36,8 @@ import { createHash } from 'node:crypto';
 import type { DownloadedMedia } from '../../integrations/whatsapp/media';
 import { logger as appLogger } from '../../log';
 import { systemWorkersPrincipal } from '../events/system-principal';
+import { queueAnswer, statusAnswer } from '../messaging/answers';
+import { handleCodeReply } from '../messaging/quote-press';
 import type { WebhookHandled, WebhookHandlerContext } from './registry';
 
 /**
@@ -112,8 +118,19 @@ export interface WhatsAppHandlerDeps {
   downloadMedia: ((mediaId: string) => Promise<DownloadedMedia>) | undefined;
   /** Where a customer's file is kept; undefined where no store is set up. */
   store: FileStore | undefined;
+  /** `WHATSAPP_BUTTON_SECRET`, which the one-time code of a quote's acceptance is checked with. */
+  buttonSecret?: string | undefined;
   logger?: Logger;
 }
+
+/** A message the platform answers itself: STATUS, or a code while one waits on the chat. */
+type PlatformAnswer = { kind: 'status' } | { kind: 'code'; code: string; matches: boolean };
+
+/** What the chat keeps of a matching one-time code the customer sent back: never the digits. */
+const CODE_SHOWN = '••••••';
+
+/** How long the note that a message was answered is kept, so a repeat never answers it twice. */
+const ANSWERED_SECONDS = 24 * 60 * 60;
 
 /** Why a chat goes to people when the customer writes HUMAN. */
 const KEYWORD_HANDOFF = 'keyword';
@@ -221,7 +238,10 @@ const instant = (seconds: string): string => new Date(Number(seconds) * 1000).to
  * to the message for its checks, unless the message already has its file; a number no customer
  * holds goes to the lead intake, and the chat is matched to the customer it made; STOP (or Meta's
  * "Stop promotions" reply) opts the number out and sends the one confirmation, HUMAN hands the
- * chat to people; a chat's first message sends the welcome. Each step after the record runs again
+ * chat to people; STATUS, and six digits while a quote's one-time code waits on the chat, are
+ * answered by the platform from the records (docs/03-roadmap-appendix/phase2.md §7.1), their
+ * `messaging.message.received` marked `platform` so no agent drafts a reply, and a code's digits
+ * never kept; a chat's first message sends the welcome. Each step after the record runs again
  * on a repeated delivery and is safe to run twice (the intake by its idempotency key, the opt-out
  * and the hand-off by their definers, the welcome once per thread and the confirmation once after
  * each STOP by `app.whatsapp_queue_message()`), so a delivery that failed after the record
@@ -266,7 +286,15 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
             (value.contacts ?? []).map((c) => [c.wa_id, c.profile?.name] as const),
           );
           for (const message of value.messages ?? []) {
-            await handleMessage(message, entityId, value.metadata.phone_number_id, profiles, run);
+            await handleMessage(
+              message,
+              entityId,
+              value.metadata.phone_number_id,
+              profiles,
+              run,
+              principal,
+              context.requestId,
+            );
           }
           for (const status of value.statuses ?? []) {
             await handleStatus(status, run);
@@ -334,9 +362,14 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
     phoneNumberId: string,
     profiles: Map<string, string | undefined>,
     run: <T>(command: Parameters<typeof executeCommand>[2], input: unknown) => Promise<T>,
+    principal: Principal,
+    requestId: string,
   ): Promise<void> {
     const read = readMessage(message);
     if (read === null) return;
+    // Decided before the record, so its `messaging.message.received` already says the platform
+    // answers it and no agent drafts a reply (docs/03-roadmap-appendix/phase2.md §7.1).
+    const platform = await platformAnswerOf(read, entityId, message.from);
     const recorded = await run<{
       threadId: string;
       messageId: string;
@@ -351,10 +384,13 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       waId: message.from,
       providerMessageId: message.id,
       kind: read.kind,
-      body: read.body,
+      // A matching one-time code is never kept: the chat shows that one was sent, not which. A
+      // wrong guess is no secret, and staff read it as written.
+      body: platform?.kind === 'code' && platform.matches ? CODE_SHOWN : read.body,
       buttonPayload: read.buttonPayload,
       sentAt: instant(message.timestamp),
       handledBy: NEW_THREADS,
+      platform: platform !== null,
     });
     const thread = { entityId, threadId: recorded.threadId };
 
@@ -387,10 +423,82 @@ export function whatsappHandler(deps: WhatsAppHandlerDeps) {
       const handOff = { ...thread, reason: KEYWORD_HANDOFF };
       await run(recordWhatsAppHandOff, handOff);
     }
+    if (platform !== null && !recorded.optedOut) {
+      await answerOnPlatform(platform, thread, recorded, message.from, principal, requestId);
+    }
     // The welcome on a chat's first message (question 2 (a)); a customer who asked for a person
     // with their first word has people answering instead.
-    if (recorded.firstMessage && !recorded.optedOut && keyword === null) {
+    if (recorded.firstMessage && !recorded.optedOut && keyword === null && platform === null) {
       await run(queueWhatsAppMessage, { ...thread, purpose: 'welcome' });
+    }
+  }
+
+  /**
+   * Whether the platform answers this message itself: the STATUS keyword, or six digits on a
+   * chat where a quote's code waits within its minutes (past them, six digits are the customer's
+   * own message for people, a PIN code say), with whether they are that code. Customer text is
+   * read here, never logged.
+   */
+  async function platformAnswerOf(
+    read: NonNullable<ReturnType<typeof readMessage>>,
+    entityId: number,
+    waId: string,
+  ): Promise<PlatformAnswer | null> {
+    if (read.kind !== 'text') return null;
+    if (matchKeyword(read.body) === 'status') return { kind: 'status' };
+    const code = codeOf(read.body);
+    const secret = deps.buttonSecret ?? '';
+    if (code === null || secret === '') return null;
+    const waiting = await codeWaiting(deps.keyValue, secret, { entityId, waId }, code, deps.now());
+    return waiting === null ? null : { kind: 'code', code, matches: waiting.matches };
+  }
+
+  /**
+   * The platform's answer, deterministic and from the records alone: STATUS lists the chat's
+   * customer's own quotes and orders (`app.status_summary()`); a code is checked and, when it
+   * matches, accepts its quote. Answered once per message, however often it is delivered: a
+   * try that fails lets the next delivery answer.
+   */
+  async function answerOnPlatform(
+    platform: PlatformAnswer,
+    chat: { entityId: number; threadId: string },
+    recorded: { messageId: string; accountId: string | null },
+    waId: string,
+    principal: Principal,
+    requestId: string,
+  ): Promise<void> {
+    const claim = `whatsapp:platform-answer:${recorded.messageId}`;
+    if (!(await deps.keyValue.setIfAbsent(claim, '1', ANSWERED_SECONDS))) return;
+    try {
+      if (platform.kind === 'status') {
+        const lines = await executeQuery(
+          principal,
+          { entityIds: [chat.entityId], requestId },
+          (ctx) => readStatusSummary(ctx, chat.threadId),
+          { name: 'messaging.status_summary' },
+        );
+        await queueAnswer(principal, requestId, chat, {
+          kind: 'text',
+          body: statusAnswer(lines),
+        });
+        return;
+      }
+      await handleCodeReply(
+        { ...chat, waId, accountId: recorded.accountId },
+        platform.code,
+        recorded.messageId,
+        {
+          principal,
+          keyValue: deps.keyValue,
+          requestId,
+          now: deps.now,
+          buttonSecret: deps.buttonSecret,
+          logger: log,
+        },
+      );
+    } catch (error) {
+      await deps.keyValue.del(claim);
+      throw error;
     }
   }
 

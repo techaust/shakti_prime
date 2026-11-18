@@ -94,7 +94,8 @@
         "OCR_LANG_PATH",
         "VAPID_PUBLIC_KEY",
         "VAPID_PRIVATE_KEY",
-        "VAPID_SUBJECT"
+        "VAPID_SUBJECT",
+        "WHATSAPP_BUTTON_SECRET"
       ]
     },
     "test:e2e": {
@@ -134,6 +135,7 @@
         "VAPID_PUBLIC_KEY",
         "VAPID_PRIVATE_KEY",
         "VAPID_SUBJECT",
+        "WHATSAPP_BUTTON_SECRET",
         "E2E_APP_HOST",
         "E2E_PORT",
         "E2E_REAL_TURNSTILE",

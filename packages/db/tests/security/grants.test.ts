@@ -164,6 +164,8 @@ describe('app_user role (docs/05-database.md §3)', () => {
     whatsapp_threads: { i: false, u: false },
     whatsapp_messages: { i: true, u: false },
     whatsapp_templates: { i: true, u: false },
+    // A milestone's map changes only its template and whether it is on (column grants, S3).
+    whatsapp_milestones: { i: true, u: false },
     // A lead source is written column by column, its sealed Page token never read back; a key
     // keeps its hash and changes only by its revoke (column grants, I1); a lead's facts change
     // only their values.
@@ -508,6 +510,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // The sweep of abandoned uploads asks which companies to visit, as the worker
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',
+      // STATUS: the chat's customer's own quotes and orders, read by the platform (S3).
+      'app.status_summary(uuid)',
       // The targets' progress: a caller's own figures, a team lead's team's (0125).
       'app.target_actuals(smallint,timestamp with time zone,timestamp with time zone,uuid[])',
       // Whether a person is in a team now and may be set a target (the targets' policies, 0125).
@@ -521,6 +525,13 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // The company of a WhatsApp delivery, and the companies of a template, found before the
       // handler acts in one company's request (W1).
       'app.whatsapp_channel_entity(text,text)',
+      // A pressed button's chat, number and payload, read before the platform answers it (S3).
+      'app.whatsapp_inbound_facts(uuid)',
+      // What a milestone of a quote or an order carries, read before it is queued (S3).
+      'app.whatsapp_milestone_subject(smallint,text,text,uuid,uuid)',
+      // What a message carries beyond its values (a quote's buttons and PDF, a code), read before
+      // the worker takes it (S3).
+      'app.whatsapp_send_extras(uuid)',
       // What the messaging worker checks before a send, read before it takes the message (W1).
       'app.whatsapp_send_facts(uuid)',
       'app.whatsapp_template_entities(text,text)',

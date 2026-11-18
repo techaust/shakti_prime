@@ -308,6 +308,32 @@ export interface QuoteJourneySeed {
   journeyLeads: Record<ProjectName, { accountId: string; name: string }>;
 }
 
+/**
+ * WhatsApp quotes (whatsapp-quotes.spec.ts, docs/03-roadmap-appendix/phase2.md §7.1), in the
+ * snapshot company, which has a WhatsApp number: its quote and order templates, mapped to the two
+ * customer updates; per project a sized lead whose customer writes on WhatsApp and agreed to it;
+ * and one quote the seed sends on WhatsApp and the platform accepts with a one-time code.
+ */
+export const WHATSAPP_QUOTES = {
+  templates: {
+    quote: { name: 'quote_ready', label: 'Quote ready' },
+    order: { name: 'order_confirmed_note', label: 'Order confirmed' },
+  },
+  leads: {
+    'desktop-light': { name: 'Ramkishan Bunkar', phone: '98765 40061' },
+    'desktop-dark': { name: 'Kamla Devi Sharma', phone: '98765 40062' },
+    phone: { name: 'Bhanwar Lal Kumawat', phone: '98765 40063' },
+  } satisfies Record<ProjectName, { name: string; phone: string }>,
+  accepted: { name: 'Gopal Lal Meena', phone: '98765 40064' },
+} as const;
+
+/** What the WhatsApp quote journeys need of the seed. */
+export interface WhatsAppQuoteSeed {
+  leads: Record<ProjectName, { accountId: string; name: string }>;
+  acceptedQuoteId: string;
+  acceptedQuoteNo: string;
+}
+
 /** Per project: the fresh lead of the journeys' company whose quote is accepted and confirmed. */
 export const ORDER_JOURNEY_LEADS: Record<ProjectName, string> = {
   'desktop-light': 'Bhagwan Sahay Meena',
@@ -381,6 +407,8 @@ export interface SeededUsers {
   secondCompanyLead: string;
   /** The quote journeys' fixtures. */
   quotes: QuoteJourneySeed;
+  /** The WhatsApp quote journeys' fixtures. */
+  whatsappQuotes: WhatsAppQuoteSeed;
   /** The order journeys' fixtures. */
   orders: OrderJourneySeed;
   /** The UAT journeys' fixtures. */
@@ -410,6 +438,8 @@ export function seededUsers(): SeededUsers {
 export const WHATSAPP = {
   numbers: {
     1: { e164: '+919900000101', phoneNumberId: 'e2e-whatsapp-1' },
+    // The quote journeys' company: the WhatsApp quote journeys send from it (setup/whatsapp-quotes.ts).
+    2: { e164: '+919900000102', phoneNumberId: 'e2e-whatsapp-2' },
     3: { e164: '+919900000103', phoneNumberId: 'e2e-whatsapp-3' },
   },
   customers: {

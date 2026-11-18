@@ -92,6 +92,7 @@ export const CLIENT_SCOPES = {
     'pipelineSettings',
     'profile',
     'taxSettings',
+    'whatsappTemplates',
   ],
   '/targets': ['targets'],
 } as const satisfies Record<string, readonly Namespace[]>;

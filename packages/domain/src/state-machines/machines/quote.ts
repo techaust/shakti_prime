@@ -211,6 +211,8 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       event: 'withdraw',
       to: 'withdrawn',
       permission: 'sales.quote.send',
+      // The platform withdraws a lead's other quotes when it accepts one from WhatsApp (DOM-4).
+      system: true,
       emits: 'sales.quote.withdrawn',
       guard: reasonGiven(),
     },

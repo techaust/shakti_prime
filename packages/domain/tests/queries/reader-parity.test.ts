@@ -144,6 +144,13 @@ import {
   readWhatsAppCounts,
   readWhatsAppThread,
 } from '../../src/queries/messaging/whatsapp';
+import { readInboundFacts, readSendExtras } from '../../src/queries/messaging/answers';
+import {
+  listWhatsAppTemplateSettings,
+  readMilestoneSubject,
+  readStatusSummary,
+} from '../../src/queries/messaging/milestones';
+import { readQuoteWhatsAppReadiness } from '../../src/sales/quote-whatsapp';
 import { readScreenPop } from '../../src/queries/calls/screen-pop';
 
 /** A ringing call as the key-value store holds it, the same for both pools (T4's screen-pop). */
@@ -305,6 +312,21 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readWhatsAppThread: (ctx) => readWhatsAppThread(ctx, { entityId: 1, threadId: newId() }),
   readWhatsAppCounts: (ctx) => readWhatsAppCounts(ctx),
   readSendFacts: (ctx) => readSendFacts(ctx, newId()),
+  // S3: a milestone's subject and STATUS on a chat (the platform's definers).
+  readMilestoneSubject: (ctx) =>
+    readMilestoneSubject(ctx, {
+      entityId: 1,
+      milestone: 'quote_sent',
+      subjectKind: 'quote',
+      subjectId: newId(),
+      threadId: null,
+    }),
+  readStatusSummary: (ctx) => readStatusSummary(ctx, newId()),
+  readInboundFacts: (ctx) => readInboundFacts(ctx, newId()),
+  readSendExtras: (ctx) => readSendExtras(ctx, newId()),
+  readQuoteWhatsAppReadiness: (ctx) =>
+    readQuoteWhatsAppReadiness(ctx, { entityId: 1, quoteId: newId() }),
+  listWhatsAppTemplateSettings: (ctx) => listWhatsAppTemplateSettings(ctx),
   // The screen-pop's read of a ringing call, under the person's own policies.
   readScreenPop: (ctx) => readScreenPop(ctx, RINGING),
   listDealerCredit: (ctx) => listDealerCredit(ctx, { entityId: 1, limit: 20 }),

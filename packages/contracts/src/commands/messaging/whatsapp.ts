@@ -13,6 +13,7 @@ import {
   WhatsAppProviderMessageIdSchema,
   WhatsAppTemplateButtonSchema,
   WhatsAppTemplateCategorySchema,
+  WhatsAppTemplateHeaderSchema,
   WhatsAppTemplateLabelSchema,
   WhatsAppTemplateLanguageSchema,
   WhatsAppTemplateParamSchema,
@@ -21,6 +22,9 @@ import {
   WhatsAppTemplateValueSchema,
   WhatsAppThreadHandlerSchema,
   WhatsAppWaIdSchema,
+  WhatsAppMilestoneOutcomeSchema,
+  WhatsAppMilestoneSubjectSchema,
+  WHATSAPP_LIVE_MILESTONES,
 } from '../../whatsapp';
 
 /**
@@ -81,7 +85,7 @@ export type ReturnWhatsAppThreadInput = z.input<typeof ReturnWhatsAppThreadInput
  * the company: its name and language, category, what each body value stands for and its buttons.
  * Registering the same name and language again updates it; its status stays as Meta last
  * reported it, and a new template waits as `pending` until Meta's event. A template the platform
- * sends (`purpose`) takes no body values, since the platform has none to give it.
+ * sends (`purpose`) takes the body values its purpose gives (`WHATSAPP_PURPOSE_VALUES`).
  */
 export const RegisterWhatsAppTemplateInput = z
   .object({
@@ -92,6 +96,7 @@ export const RegisterWhatsAppTemplateInput = z
     category: WhatsAppTemplateCategorySchema,
     params: z.array(WhatsAppTemplateParamSchema).max(20).default([]),
     buttons: z.array(WhatsAppTemplateButtonSchema).max(10).default([]),
+    header: WhatsAppTemplateHeaderSchema.default('none'),
     purpose: WhatsAppTemplatePurposeSchema.nullable().default(null),
   })
   .strict();
@@ -115,6 +120,11 @@ export const RecordInboundWhatsAppInput = z
     sentAt: z.iso.datetime(),
     /** Who answers a thread this message opens: people while no assistant answers chats. */
     handledBy: WhatsAppThreadHandlerSchema,
+    /**
+     * The platform answers this message itself (STATUS, or a one-time code while one is waiting
+     * on the chat), so `messaging.message.received` marks it and no agent drafts a reply.
+     */
+    platform: z.boolean().default(false),
   })
   .strict();
 export type RecordInboundWhatsAppInput = z.input<typeof RecordInboundWhatsAppInput>;
@@ -248,7 +258,7 @@ export const QueueWhatsAppMessageInput = z
   .object({
     entityId: EntityIdSchema,
     threadId: IdSchema,
-    purpose: WhatsAppTemplatePurposeSchema,
+    purpose: z.enum(['welcome', 'opt_out_confirmation']),
   })
   .strict();
 export type QueueWhatsAppMessageInput = z.input<typeof QueueWhatsAppMessageInput>;
@@ -334,3 +344,86 @@ export const WhatsAppMediaAttached = z
   .object({ messageId: IdSchema, fileId: IdSchema, attached: z.boolean() })
   .strict();
 export type WhatsAppMediaAttached = z.infer<typeof WhatsAppMediaAttached>;
+
+// --- Milestones (docs/03-roadmap-appendix/phase2.md §7.1, PRD WA-01) --------------------------------
+
+/**
+ * `messaging.milestone.set`: an Executive maps a milestone of the company to one of its registered
+ * templates (`templateId`), or stops it (`isActive` false), in Settings › WhatsApp templates.
+ */
+export const SetWhatsAppMilestoneInput = z
+  .object({
+    entityId: EntityIdSchema,
+    milestone: z.enum(WHATSAPP_LIVE_MILESTONES),
+    templateId: IdSchema,
+    isActive: z.boolean().default(true),
+  })
+  .strict();
+export type SetWhatsAppMilestoneInput = z.input<typeof SetWhatsAppMilestoneInput>;
+
+/**
+ * `messaging.milestone.send`: the platform sends a milestone of a quote or an order once, on the
+ * customer's chat in the company (`threadId` when one is named, as a quote sent on WhatsApp names
+ * it), with the template's body values in order, made from the subject by the worker.
+ */
+export const SendWhatsAppMilestoneInput = z
+  .object({
+    entityId: EntityIdSchema,
+    milestone: z.enum(WHATSAPP_LIVE_MILESTONES),
+    subjectKind: WhatsAppMilestoneSubjectSchema,
+    subjectId: IdSchema,
+    threadId: IdSchema.nullable().default(null),
+    values: z.array(WhatsAppTemplateValueSchema).max(20),
+  })
+  .strict();
+export type SendWhatsAppMilestoneInput = z.input<typeof SendWhatsAppMilestoneInput>;
+
+export const WhatsAppMilestoneSent = z
+  .object({
+    outcome: WhatsAppMilestoneOutcomeSchema,
+    messageId: IdSchema.nullable(),
+    threadId: IdSchema.nullable(),
+  })
+  .strict();
+export type WhatsAppMilestoneSent = z.infer<typeof WhatsAppMilestoneSent>;
+
+/**
+ * `messaging.answer.queue` (docs/03-roadmap-appendix/phase2.md §7.1): the platform's own answer
+ * on a customer's chat: a text in the customer's window (STATUS, an acceptance, a code that does
+ * not match), or the company's template of an answering purpose: the one-time code
+ * (`acceptance_code`, with no value: the code is made from `messageId` as the message is sent and
+ * never stored) or the answer on a quote no longer open (`quote_expired`, with the quote's
+ * number). `messageId` is the caller's new id.
+ */
+export const QueueWhatsAppAnswerInput = z
+  .object({
+    entityId: EntityIdSchema,
+    threadId: IdSchema,
+    messageId: IdSchema,
+    answer: z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('text'), body: WhatsAppBodySchema }).strict(),
+      z.object({ kind: z.literal('acceptance_code') }).strict(),
+      z.object({ kind: z.literal('quote_expired'), quoteNo: WhatsAppTemplateValueSchema }).strict(),
+    ]),
+  })
+  .strict();
+export type QueueWhatsAppAnswerInput = z.input<typeof QueueWhatsAppAnswerInput>;
+
+/**
+ * What came of an answer: queued, or not: the company registered no template of the purpose, the
+ * chat's number was removed, or it opted out.
+ */
+export const WHATSAPP_ANSWER_OUTCOMES = [
+  'queued',
+  'no_template',
+  'no_number',
+  'opted_out',
+] as const;
+
+export const WhatsAppAnswerQueued = z
+  .object({
+    outcome: z.enum(WHATSAPP_ANSWER_OUTCOMES),
+    messageId: IdSchema.nullable(),
+  })
+  .strict();
+export type WhatsAppAnswerQueued = z.infer<typeof WhatsAppAnswerQueued>;

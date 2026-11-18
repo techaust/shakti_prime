@@ -113,6 +113,8 @@ import { recordPhoneDnd } from '../commands/crm/record-phone-dnd';
 import { sendWhatsAppMessage } from '../commands/messaging/send-message';
 import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messaging/threads';
 import { registerWhatsAppTemplate } from '../commands/messaging/templates';
+import { sendWhatsAppMilestone, setWhatsAppMilestone } from '../commands/messaging/milestones';
+import { queueWhatsAppAnswer } from '../commands/messaging/answers';
 import {
   attachWhatsAppMedia,
   claimWhatsAppMessage,
@@ -146,6 +148,7 @@ import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { requestPrintProof } from '../commands/print/request-proof';
 import { setPrice } from '../commands/pricing/set-price';
 import { acceptQuote } from '../commands/sales/accept-quote';
+import { acceptQuoteRemote } from '../commands/sales/accept-quote-remote';
 import { attachQuotePdf } from '../commands/sales/attach-quote-pdf';
 import { cancelSalesOrder } from '../commands/sales/cancel-order';
 import { confirmSalesOrder } from '../commands/sales/confirm-order';
@@ -199,6 +202,9 @@ export const commands = Object.freeze({
   [claimWhatsAppMessage.name]: claimWhatsAppMessage,
   [recordWhatsAppSend.name]: recordWhatsAppSend,
   [attachWhatsAppMedia.name]: attachWhatsAppMedia,
+  [setWhatsAppMilestone.name]: setWhatsAppMilestone,
+  [sendWhatsAppMilestone.name]: sendWhatsAppMilestone,
+  [queueWhatsAppAnswer.name]: queueWhatsAppAnswer,
   [ingestLead.name]: ingestLead,
   [setLeadQualification.name]: setLeadQualification,
   [setIngestSource.name]: setIngestSource,
@@ -325,6 +331,7 @@ export const commands = Object.freeze({
   [replayWebhook.name]: replayWebhook,
   [attachQuotePdf.name]: attachQuotePdf,
   [acceptQuote.name]: acceptQuote,
+  [acceptQuoteRemote.name]: acceptQuoteRemote,
   [createSalesOrder.name]: createSalesOrder,
   [confirmSalesOrder.name]: confirmSalesOrder,
   [releaseCredit.name]: releaseCredit,

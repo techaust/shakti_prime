@@ -207,6 +207,9 @@ const INPUTS: Record<string, unknown> = {
     label: 'Refused template',
     category: 'utility',
   },
+  // The milestone map decides which template the platform sends a customer for each update
+  // (docs/03-roadmap-appendix/phase2.md §7.1): an Executive's, as the template registry is.
+  'messaging.milestone.set': { entityId: 1, milestone: 'quote_sent', templateId: newId() },
   'crm.source.set': {
     entityId: 1,
     provider: 'website',
@@ -446,6 +449,7 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       // Process again of a failed webhook delivery (P5): a person's decision.
       'webhooks.event.replay',
       'messaging.template.register',
+      'messaging.milestone.set',
       // Where leads come in from, and the website keys (I1): an Executive's.
       'crm.source.set',
       'crm.source.archive',
@@ -893,6 +897,27 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       entityId: 1,
       knowledgeFileId: newId(),
       transcript: 'Refused transcript',
+    },
+    // A quote accepted on WhatsApp, a customer update sent and the platform's own answers on a chat
+    // (docs/03-roadmap-appendix/phase2.md §7.1): the platform's alone, never an agent's.
+    'sales.quote.accept_remote': {
+      entityId: 1,
+      quoteId: newId(),
+      threadId: newId(),
+      acceptedVia: 'whatsapp_reply',
+    },
+    'messaging.milestone.send': {
+      entityId: 1,
+      milestone: 'order_confirmed',
+      subjectKind: 'sales_order',
+      subjectId: newId(),
+      values: ['SO-1', 'Rs 1'],
+    },
+    'messaging.answer.queue': {
+      entityId: 1,
+      threadId: newId(),
+      messageId: newId(),
+      answer: { kind: 'text', body: 'Refused answer' },
     },
     // A customer's call to a company's IVR or missed-call number (T4): the platform's record.
     'calls.inbound_call.record': {

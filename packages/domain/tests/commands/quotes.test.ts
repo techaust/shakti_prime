@@ -605,10 +605,14 @@ describe('sending, withdrawing and re-quoting', () => {
       (p) => p<{ payload_json: Record<string, unknown> }[]>`
         select payload_json from outbox_events where aggregate_id = ${quote.id} and type = 'sales.quote.sent'`,
     );
+    // Recorded as handed over (the default channel), so the event names no WhatsApp chat.
     expect(event?.payload_json).toEqual({
       v: 1,
       opportunityId: quote.opportunityId,
       pdfFileId: fileId,
+      channel: 'recorded',
+      threadId: null,
+      sentBy: lc.id,
     });
   });
 

@@ -19,11 +19,13 @@ import type {
   CustomerSort,
   EntityChannelKind,
   MessagingRefusal,
+  QuoteSendChannel,
   WhatsAppHandoffReason,
   WhatsAppMessageDirection,
   WhatsAppMessageKind,
   WhatsAppMessageStatus,
   WhatsAppTemplateCategory,
+  WhatsAppMilestone,
   WhatsAppTemplatePurpose,
   WhatsAppTemplateStatus,
   WhatsAppThreadHandler,
@@ -264,7 +266,36 @@ export const WHATSAPP_TEMPLATE_STATUSES = [
 export const WHATSAPP_TEMPLATE_PURPOSES = [
   'welcome',
   'opt_out_confirmation',
+  'acceptance_code',
+  'quote_expired',
 ] as const satisfies readonly WhatsAppTemplatePurpose[];
+
+/** The customer milestones a company's WhatsApp number tells (`WHATSAPP_MILESTONES`). */
+export const WHATSAPP_MILESTONES = [
+  'quote_sent',
+  'order_confirmed',
+  'dispatched',
+  'visit_booked',
+  'visit_reminder',
+  'installed',
+  'payment_due',
+  'handover_kit',
+] as const satisfies readonly WhatsAppMilestone[];
+
+/**
+ * The milestones Settings maps in this phase, with the count of values each template takes
+ * (`WHATSAPP_LIVE_MILESTONES`, `WHATSAPP_MILESTONE_VALUES`).
+ */
+export const WHATSAPP_LIVE_MILESTONE_VALUES = {
+  quote_sent: 3,
+  order_confirmed: 2,
+} as const satisfies Partial<Record<WhatsAppMilestone, number>>;
+
+/** How a quote is sent (`QUOTE_SEND_CHANNELS`). */
+export const QUOTE_SEND_CHANNELS = [
+  'recorded',
+  'whatsapp',
+] as const satisfies readonly QuoteSendChannel[];
 /** The channels a lead may arrive by from an integration (`INGEST_CHANNELS`). */
 export const INGEST_CHANNELS = [
   'meta_ads',

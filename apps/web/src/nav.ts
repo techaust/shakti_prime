@@ -17,6 +17,7 @@ import {
   MessageCircle,
   ListTodo,
   MessageCircleQuestion,
+  MessageSquareText,
   Package,
   PhoneCall,
   Palette,
@@ -354,6 +355,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // tax.rate.set and tax.composite.set; a change also needs a request for every company.
     requires: [{ key: 'tax.rates.write', scope: 'entity' }],
+  },
+  {
+    id: 'settings-whatsapp-templates',
+    href: '/settings/whatsapp-templates',
+    label: 'settingsWhatsAppTemplates',
+    icon: MessageSquareText,
+    group: 'admin',
+    // messaging.milestone.set (docs/03-roadmap-appendix/phase2.md §7.1)
+    requires: [{ key: 'messaging.templates.write', scope: 'all' }],
   },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];

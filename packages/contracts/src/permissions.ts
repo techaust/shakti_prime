@@ -141,6 +141,10 @@ export const PERMISSION_KEYS = [
   // phase2.md §6.3): held only by the platform's worker principal, which writes `provider_calls`
   // and their recordings through narrow definers, nothing more.
   'calls.process',
+  // Accepting a quote from a verified WhatsApp reply or code (docs/03-roadmap-appendix/phase2.md
+  // §7.1): held only by the platform's worker principal, which reads the quote's facts and accepts
+  // it into its order through two narrow definers, nothing more.
+  'sales.quote.accept.remote',
   // A voice session's end, minutes, spend and turn timings from LiveKit's events
   // (docs/03-roadmap-appendix/phase2.md §7.5): held only by the platform's worker principal, which
   // records them through one narrow definer, nothing more.
@@ -227,6 +231,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'messaging.process',
   'crm.ingest.run',
   'calls.process',
+  'sales.quote.accept.remote',
   'voice.session.record',
 ];
 
@@ -380,6 +385,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'messaging.process': ['all'],
   'crm.ingest.run': ['all'],
   'calls.process': ['all'],
+  'sales.quote.accept.remote': ['all'],
   'voice.session.record': ['all'],
 };
 

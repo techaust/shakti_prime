@@ -106,6 +106,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   whatsapp_threads: 'x.id::text',
   whatsapp_messages: 'x.id::text',
   whatsapp_templates: 'x.id::text',
+  whatsapp_milestones: 'x.id::text',
   ingest_sources: 'x.id::text',
   ingest_keys: 'x.id::text',
   lead_qualifications: 'x.opportunity_id::text',
@@ -213,6 +214,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from whatsapp_messages where id::text like ${like}`;
       await tx`alter table whatsapp_messages enable trigger whatsapp_messages_guard`;
       await tx`delete from whatsapp_threads where id::text like ${like}`;
+      await tx`delete from whatsapp_milestones where id::text like ${like}`;
       await tx`delete from whatsapp_templates where id::text like ${like}`;
       await tx`delete from entity_channels where id::text like ${like}`;
       await tx`delete from ingest_sources where id::text like ${like}`;
@@ -364,6 +366,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     whatsapp_threads: [],
     whatsapp_messages: [],
     whatsapp_templates: [],
+    whatsapp_milestones: [],
     ingest_sources: [],
     ingest_keys: [],
     lead_qualifications: [],
@@ -550,6 +553,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const message = per(e, 0x62);
         const unmatchedMessage = per(e, 0x63);
         const waTemplate = per(e, 0x64);
+        // The company's map of one milestone to that template (S3).
+        const waMilestone = per(e, 0x65);
         // A connected website and a revoked key of the company (I1).
         const ingestSource = per(e, 0x53);
         const ingestKey = per(e, 0x54);
@@ -662,6 +667,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           (${unmatchedMessage}, ${e}, ${unmatchedThread}, 'inbound', 'text', ${`wamid.matrix.${unmatchedMessage}`}, 'matrix message')`;
         await tx`insert into whatsapp_templates (id, entity_id, name, label, category, created_by)
           values (${waTemplate}, ${e}, 'matrix_template', 'Matrix template', 'utility', ${ownerId})`;
+        await tx`insert into whatsapp_milestones (id, entity_id, milestone, template_id, is_active, created_by)
+          values (${waMilestone}, ${e}, 'handover_kit', ${waTemplate}, false, ${ownerId})`;
         await tx`insert into ingest_sources (id, entity_id, provider, external_id, name, pipeline_id, created_by)
           values (${ingestSource}, ${e}, 'website', ${`matrix-${e.toString()}.invalid`}, 'matrix site', ${pipeline.id}, ${ownerId})`;
         await tx`insert into ingest_keys (id, entity_id, label, key_hash, key_hint, revoked_at, revoked_by, created_by)
@@ -820,6 +827,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: unmatchedMessage, entities: only, unmatched: true },
         );
         rows.whatsapp_templates.push({ key: waTemplate, entities: only });
+        rows.whatsapp_milestones.push({ key: waMilestone, entities: only });
         rows.ingest_sources.push({ key: ingestSource, entities: only });
         rows.ingest_keys.push({ key: ingestKey, entities: only });
         rows.lead_qualifications.push({ key: opportunity, entities: only });

@@ -269,7 +269,9 @@ test.describe('UAT: the Executive takes a lead from enquiry to a confirmed order
       timeout: 60_000,
     });
     await expect(page.getByText('The quote document is ready.')).toBeVisible({ timeout: 60_000 });
-    await page.getByRole('button', { name: 'Mark as sent' }).click();
+    // Handed over and recorded, in the send dialog (docs/03-roadmap-appendix/phase2.md §7.1).
+    await page.getByRole('button', { name: 'Send the quote' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Record as sent' }).click();
     await expect(page.getByText('Quote marked as sent.')).toBeVisible();
     await page.getByRole('button', { name: 'Record acceptance' }).click();
     const accept = page.getByRole('dialog');

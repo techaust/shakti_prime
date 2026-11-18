@@ -46,6 +46,10 @@ import {
   WhatsAppMessageStatusSchema,
   WhatsAppTemplateCategorySchema,
   WhatsAppTemplatePurposeSchema,
+  WhatsAppMilestoneSchema,
+  WHATSAPP_LIVE_MILESTONES,
+  WHATSAPP_MILESTONE_VALUES,
+  QuoteSendChannelSchema,
   WhatsAppTemplateStatusSchema,
   WhatsAppThreadHandlerSchema,
   CALL_PURPOSES,
@@ -205,6 +209,9 @@ import {
   TARGET_SCOPES,
   WEBHOOK_PROVIDERS,
   QUOTE_ACCEPTED_VIA,
+  QUOTE_SEND_CHANNELS,
+  WHATSAPP_LIVE_MILESTONE_VALUES,
+  WHATSAPP_MILESTONES,
   COMMISSION_ACCRUAL_STATES,
   SUBSIDY_SCHEMES,
   SIZING_REASONS,
@@ -310,6 +317,14 @@ describe('the contract values copied for the browser', () => {
     expect(WHATSAPP_TEMPLATE_CATEGORIES).toEqual(WhatsAppTemplateCategorySchema.options);
     expect(WHATSAPP_TEMPLATE_STATUSES).toEqual(WhatsAppTemplateStatusSchema.options);
     expect(WHATSAPP_TEMPLATE_PURPOSES).toEqual(WhatsAppTemplatePurposeSchema.options);
+    expect(WHATSAPP_MILESTONES).toEqual(WhatsAppMilestoneSchema.options);
+    expect(Object.keys(WHATSAPP_LIVE_MILESTONE_VALUES)).toEqual([...WHATSAPP_LIVE_MILESTONES]);
+    for (const milestone of WHATSAPP_LIVE_MILESTONES) {
+      expect(WHATSAPP_LIVE_MILESTONE_VALUES[milestone]).toBe(
+        WHATSAPP_MILESTONE_VALUES[milestone].length,
+      );
+    }
+    expect(QUOTE_SEND_CHANNELS).toEqual(QuoteSendChannelSchema.options);
     expect(INGEST_CHANNELS).toEqual(CONTRACT_INGEST_CHANNELS);
     expect(INGEST_OUTCOMES).toEqual(CONTRACT_INGEST_OUTCOMES);
     expect(INGEST_ASSIGNEES).toEqual(CONTRACT_INGEST_ASSIGNEES);

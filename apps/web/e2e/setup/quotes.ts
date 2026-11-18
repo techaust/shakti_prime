@@ -103,7 +103,7 @@ const ROOFTOP = { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 } a
  * A lead of the rooftop line in one company owned by `owner`, found again by its owner, company
  * and contact name, and sized once; the customer is given the journeys' tier when `tier` is set.
  */
-async function ensureSizedLead(
+export async function ensureSizedLead(
   owner: Principal,
   entityId: number,
   lead: { name: string; phone: string },
