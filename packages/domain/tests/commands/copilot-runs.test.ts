@@ -395,6 +395,7 @@ describe('calls.transcript.attach', () => {
         code: 'forbidden',
       });
     }
+    // A company outside the request is refused, and so is a key that is not the call's.
     expect(await refusal(run(workers([2]), reserveCallTranscript, input))).toMatchObject({
       code: 'forbidden',
     });
