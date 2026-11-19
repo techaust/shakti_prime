@@ -122,6 +122,20 @@ export async function snap(
       ...(options.mask ?? []),
     ];
     await markFixedWidths(changing);
+    // An element taller than the screen is pictured by scrolling, which draws the fixed top bar
+    // across it and leaves the masks where its values were before the scroll (the phone's Co-pilot
+    // panel showed its times unmasked, 19-11-2026). The screen is as tall as the page while the
+    // picture is taken, so nothing scrolls.
+    const screen = page.viewportSize();
+    const box = options.element === undefined ? null : await options.element.boundingBox();
+    const bar = await page.evaluate(
+      () => document.querySelector('header')?.getBoundingClientRect().height ?? 0,
+    );
+    const grow = screen !== null && box !== null && box.height > screen.height - bar;
+    if (grow) {
+      const height = await page.evaluate(() => document.documentElement.scrollHeight);
+      await page.setViewportSize({ width: screen.width, height: Math.max(screen.height, height) });
+    }
     try {
       await expect(options.element ?? page).toHaveScreenshot(`${name}.png`, {
         ...(options.element === undefined ? { fullPage } : {}),
@@ -131,6 +145,7 @@ export async function snap(
         stylePath: SNAP_CSS,
       });
     } finally {
+      if (grow) await page.setViewportSize(screen);
       await page.evaluate(() => {
         for (const el of document.querySelectorAll(
           '[data-snap-fixed], [data-snap-cell], [data-snap-table]',
