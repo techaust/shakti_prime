@@ -6,9 +6,9 @@
 | Worktree | `v2-voice`, slot 5 (Postgres 54335, app 3035), in the lead's cloud VM |
 | Runs on | the lead's cloud session (owner, 17-11-2026, a cloud day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an agent principal acting as a person, a platform-only grant, spend caps |
-| Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 37 points of it (the whole build) |
-| State | integrated, pull request open |
-| Next step | the owner's `checks-ok` (eslint config, Playwright config, js-budget, package scripts, pnpm-workspace); then migrate dev and staging (0189 to 0194) |
+| Usage | build Opus 5.5 high (agent-usage.py: every request at high); 5-hour window 1 % at 12:40 UTC, over 95 % by 16:25 UTC; this build about 37 points of it (the whole build); then the room adapter, the review and the fix round, 17-11 evening to 18-11, every run Opus 5.5 high: about 7 % of that period's use (agent-usage.py; the lead 25 %) |
+| State | merged (#261, 18-11-2026); dev and staging migrated |
+| Next step | none |
 
 ## Brief
 Read first:

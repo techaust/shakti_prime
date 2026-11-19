@@ -7,7 +7,8 @@
 #   PATH     a backtick-quoted repository path (`docs/...`, `tools/...`, `.claude/...`) that does
 #            not exist; placeholders (<slug>, *, {a,b}, ...) are skipped, and so are the records
 #            (CHANGELOG.md, docs/14-reviews/), which name files as they were; a folder path ending in
-#            `/` needs only its parent (a folder a step creates)
+#            `/` needs only its parent (a folder a step creates), and a path git ignores is each
+#            machine's own (`.claude/settings.local.json` is on the PC, not in a cloud checkout)
 #   ORPHAN   a Markdown file under docs/ that no checked file links to or names, by its own path
 #            or by a folder that holds it (docs/adr/ names every ADR)
 # Prints one line per problem, then "bad N"; exits 1 when N > 0.
@@ -23,6 +24,10 @@ def ours(f):
     if VENDORED.match(f):
         return False
     return not f.startswith('.claude/skills/') or f.endswith('/SKILL.md')
+
+def git_ignored(path):
+    """True for a path .gitignore covers: it may exist on one machine and not another."""
+    return subprocess.run(['git', 'check-ignore', '-q', '--no-index', path]).returncode == 0
 
 def exists_exact(path):
     """os.path.exists with the exact letter case, so a link that works only on Windows fails here too."""
@@ -104,7 +109,7 @@ for f in files:
             continue
         # A folder a step creates (`docs/04-architecture-appendix/exotel/` for a spike's reports) needs only its parent.
         made = p.endswith('/') and os.path.isdir(os.path.dirname(p.rstrip('/')))
-        if not exists_exact(p) and not made:
+        if not exists_exact(p) and not made and not git_ignored(p):
             print(f'PATH {f} -> {p}')
             bad += 1
 

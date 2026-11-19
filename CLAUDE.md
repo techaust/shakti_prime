@@ -51,9 +51,10 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
 | Files, mail, field encryption, Sentry, print, Realtime, vendor harnesses | `apps/web/src/files`, `src/mail`, `src/crypto`, `src/observability`, `src/print`, `src/realtime`, `src/integrations` |
 | Message catalogue; end-to-end journeys | `apps/web/messages/en.json`; `apps/web/e2e` |
 | UI kit; tokens; copy lint | `packages/ui/src`; `packages/tokens/src`; `tools/copy-lint` |
+| Voice: the LiveKit Agents worker; the speech and reply adapters it shares with `web` | `apps/voice-agent`; `packages/voice` |
 | AWS stacks (files, the production backup); CI, merge, migrate and release workflows | `infra/aws/files.yaml`, `infra/aws/backups.yaml`; `.github/workflows`, `.github/actions` |
 
-Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Android app for field staff), `apps/tally-connector` (Windows service that reads Tally and pushes outbound), `apps/voice-agent` (LiveKit Agents worker); see [AGENTS §3](AGENTS.md#3-repository-layout-and-import-fences).
+Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Android app for field staff), `apps/tally-connector` (Windows service that reads Tally and pushes outbound); see [AGENTS §3](AGENTS.md#3-repository-layout-and-import-fences).
 
 ## Working in this repo
 
@@ -67,6 +68,7 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 - What CI runs and when: [TESTING §6](docs/09-testing.md#6-what-ci-runs). How a pull request merges itself: [AGENTS §8](AGENTS.md#8-git-and-pull-requests). The `hold` label stops a merge; the merge workflow runs from `main` only, so a change to it takes effect after it merges.
 - A pull request that changes the checks (`.github/`, any `turbo.json`, a vitest or Playwright config, `eslint.config.mjs`, `.gitleaksignore`, `pnpm-workspace.yaml`, `js-budget.json`, `lighthouserc.json` or the `scripts` of a `package.json`) merges itself only after the owner adds the label `checks-ok` (only the owner, after reading the change; never the lead), and a later push that changes them again takes it off; every other one still merges itself on green ([DECISIONS](docs/11-decisions.md)).
 - When `main` has moved, the merge workflow takes it into the branch with its own token and tests again; GitHub can hold that commit's CI run for the owner's "Approve and run", and an approved run does not wake the workflow, so the lead then starts a look by hand ([slice-integration §8](docs/runbooks/slice-integration.md#8-pull-request-and-merge)). Adding `checks-ok` does not wake it either, and it skips a pull request whose latest CI run failed even after `main` fixed the cause: the lead takes `main` into that branch by a merge commit and pushes. In a cloud session `gh` reaches the REST API only: start workflows and open pull requests with `gh api` ([hybrid §2](docs/runbooks/hybrid.md#2-what-a-cloud-session-has-and-lacks)).
+- A look that merges a pull request and then fails starts no CI on `main` (a merge made with the workflow's token starts no push run): the lead starts it with `gh api -X POST repos/techaust/shakti_prime/actions/workflows/ci.yml/dispatches -f ref=main` and migrates the hosted environments only once it is green ([slice-integration §8](docs/runbooks/slice-integration.md#8-pull-request-and-merge)).
 - Never push to `main` directly: a private repository on the free plan cannot block it, and branch rules need a public repository, the client's organisation or a paid plan (the audit ([2026-09-audit](docs/14-reviews/2026-09-audit.md)) M45).
 - Branch the next slice from `main` after the previous pull request has merged; never stack. A slice built while others merged takes `main` by a merge commit, never a rebase, and its migrations move after `main`'s last one with journal times after `main`'s, because the migrator skips a migration older than the last one applied.
 - Taking `main` into a slice, check every function, check constraint and foreign key the slice's migrations redefine against `main`'s latest version: a moved migration that redefines `app.platform_only_permissions()` or the `activities` type check drops what `main` added, and a merge that the conflicts do not show is still a clash ([slice-integration §10](docs/runbooks/slice-integration.md#10-lessons)).
@@ -74,10 +76,11 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 - CI is trimmed because GitHub's free plan allows 2,000 Actions minutes a month ([DECISIONS](docs/11-decisions.md)). When they run out, GitHub starts no job: the run fails with no log, and the check run's annotation names billing.
 
 ### Tests
-- How to run everything, one file or one case: [TESTING §7](docs/09-testing.md#7-running-tests-locally). Workspace names are `web`, `@shakti/db`, `@shakti/domain`, `@shakti/contracts`, `@shakti/tokens`, `@shakti/ui` and `@shakti/copy-lint`.
+- How to run everything, one file or one case: [TESTING §7](docs/09-testing.md#7-running-tests-locally). Workspace names are `web`, `@shakti/db`, `@shakti/domain`, `@shakti/contracts`, `@shakti/tokens`, `@shakti/ui`, `@shakti/copy-lint`, `@shakti/voice` and `@shakti/voice-agent`.
 - After every test edit, run `pnpm typecheck` and lint the folder you edited (`pnpm exec eslint --max-warnings 0 <folder>`, for example `packages/domain`); the whole-repository `pnpm lint` is the final check, through the heavy-command lock.
 - Turbo caches every task except the three set to `cache: false` in `turbo.json` (`test:security`, `test:e2e` and `db:generate`): a task that prints "cache hit, replaying logs" did not run; force it with `pnpm exec turbo run <task> --force` (`pnpm test -- --force` hands the flag to vitest, which rejects it).
 - Never report the security suite as verified without running it against the local Docker Postgres.
+- Screenshot baselines are made and verified one project at a time, each on its own fresh database, as CI runs them; a picture holds only seed rows or what its own journey made ([slice-integration §10](docs/runbooks/slice-integration.md#10-lessons)).
 - Journeys and screenshot baselines run on a fresh database in a slot worktree (`fresh-db.sh`), never on the main checkout's database, which ages with every run and fails the journeys that read a recent window.
 
 ### Local database
