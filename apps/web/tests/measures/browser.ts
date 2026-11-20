@@ -1,4 +1,10 @@
-import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+  type Response,
+} from '@playwright/test';
 import { newId } from '@shakti/contracts';
 import { setTimeout as sleep } from 'node:timers/promises';
 import {
@@ -112,6 +118,8 @@ export interface DialMiss {
   round: number;
   /** The step that did not finish within its 30 seconds. */
   step: string;
+  /** What the call bar showed then, for the cause. */
+  bar?: string;
 }
 
 export interface DialResult {
@@ -122,6 +130,7 @@ export interface DialResult {
   action: Percentiles;
   within2s: number;
   misses: DialMiss[];
+  actionUnread: number;
 }
 
 /** A step that did not finish, named for the report. */
@@ -138,10 +147,10 @@ function step<T>(name: string, work: Promise<T>): Promise<T> {
 }
 
 /**
- * `rounds` dials of one lead, each saved as Not reachable before the next. The lead's phone comes
- * from `dialLeadPhone()`: made up only on the server started here, whose provider is simulated, and
- * otherwise the phone the owner's people answer (`G2_DIAL_LEAD_PHONE`), else the run is refused
- * before the browser opens. A round whose step does not finish within 30 seconds is a miss of
+ * `rounds` dials, each saved as Not reachable before the next. The lead's phone comes from
+ * `dialLeadPhone()`: made up, a new lead each round, only on the server started here, whose
+ * provider is simulated; otherwise the phone the owner's people answer (`G2_DIAL_LEAD_PHONE`), one
+ * lead for every round, else the run is refused before the browser opens. A round whose step does not finish within 30 seconds is a miss of
  * 30,000 ms with that step named, and the run goes on.
  */
 export async function measureDial(options: {
@@ -155,11 +164,17 @@ export async function measureDial(options: {
   /** The server was started here, with no vendor credential (and so the simulated provider). */
   serverStartedHere: boolean;
 }): Promise<DialResult> {
-  const leadPhone = dialLeadPhone({
-    serverStartedHere: options.serverStartedHere,
-    leadPhone: options.leadPhone,
-    madeUp: freshMobile,
-  });
+  // Refused here, before the browser opens, when no phone may be dialled.
+  const phoneFor = () =>
+    dialLeadPhone({
+      serverStartedHere: options.serverStartedHere,
+      leadPhone: options.leadPhone,
+      madeUp: freshMobile,
+    });
+  const firstPhone = phoneFor();
+  // A made-up lead each round on the simulated provider; one lead, the given phone, elsewhere (its
+  // tries without an answer stop at 3, so such a run takes `--rounds 3`).
+  const leadPerRound = (options.leadPhone?.trim() ?? '') === '';
   const person = options.person ?? { email: emailFor('teleCaller'), password: E2E_PASSWORD };
   // A real call lasts as long as the people on it; the simulated one ends in seconds.
   const callMs = options.serverStartedHere ? STEP_TIMEOUT_MS : 600_000;
@@ -167,6 +182,8 @@ export async function measureDial(options: {
   const accepted: number[] = [];
   const action: number[] = [];
   const misses: DialMiss[] = [];
+  /** Rounds whose dial action's answer could not be read (the accepted time still counts). */
+  let actionUnread = 0;
   try {
     const context = await newContext(browser, options.baseUrl);
     if (options.serverStartedHere) {
@@ -183,41 +200,55 @@ export async function measureDial(options: {
     await section.getByLabel('Your phone number').fill(options.dialPhone ?? '98000 00191');
     await section.getByRole('button', { name: 'Save' }).click();
     await page.getByText('Your phone for calls is saved.').waitFor();
-    const lead = await addLead(page, leadPhone);
+    const oneLead = leadPerRound ? undefined : await addLead(page, firstPhone);
 
     for (let round = 0; round < options.rounds; round += 1) {
       const bar = page.getByRole('region', { name: 'Call from the screen' });
       try {
+        const lead =
+          oneLead ??
+          (await step('the lead added', addLead(page, round === 0 ? firstPhone : phoneFor())));
         await step('the lead opened in the workspace', openInWorkspace(page, lead));
         const callButton = bar.getByRole('button', { name: /^Call/ });
         await step('the Dial key offered', callButton.waitFor());
         if (!(await callButton.isEnabled())) throw new StepMissed('the Dial key offered');
+        // Every server action's answer from the key on, stamped as it arrives; the dial action's is
+        // the one that carries the placed call (`kind: 'placed'`), read once the bar has shown it.
+        const answers: { at: number; text: Promise<string> }[] = [];
+        const onAnswer = (r: Response) => {
+          if (r.request().method() !== 'POST') return;
+          if (r.request().headers()['next-action'] === undefined) return;
+          answers.push({ at: Date.now(), text: r.text().catch(() => '') });
+        };
+        page.on('response', onAnswer);
         const t0 = Date.now();
-        // The dial action's own answer: the one that carries the placed call (`kind: 'placed'`),
-        // not the call bar's reads before and after it.
-        const answered = step(
-          'the dial action’s answer',
-          page.waitForResponse(async (r) => {
-            if (r.request().method() !== 'POST') return false;
-            if (r.request().headers()['next-action'] === undefined) return false;
-            return (await r.text().catch(() => '')).includes('"placed"');
-          }),
-        ).then(() => Date.now() - t0);
-        const shown = step(
-          'the call bar showing the call accepted',
-          bar
-            .getByRole('status')
-            .filter({ hasText: /Ringing|On the line|Call ended/ })
-            .waitFor(),
-        ).then(() => Date.now() - t0);
-        await page.keyboard.press('c');
-        const [actionMs, acceptedMs] = await Promise.all([answered, shown]);
-        action.push(actionMs);
-        accepted.push(acceptedMs);
+        try {
+          await page.keyboard.press('c');
+          await step(
+            'the call bar showing the call accepted',
+            bar
+              .getByRole('status')
+              .filter({ hasText: /Ringing|On the line|Call ended/ })
+              .waitFor(),
+          );
+          accepted.push(Date.now() - t0);
+          let found = false;
+          for (const answer of answers) {
+            if ((await answer.text).includes('"placed"')) {
+              action.push(answer.at - t0);
+              found = true;
+              break;
+            }
+          }
+          if (!found) actionUnread += 1;
+        } finally {
+          page.off('response', onAnswer);
+        }
       } catch (error) {
         if (!(error instanceof StepMissed)) throw error;
         accepted.push(STEP_TIMEOUT_MS);
-        misses.push({ round, step: error.step });
+        const shownThen = await bar.innerText({ timeout: 2_000 }).catch(() => '');
+        misses.push({ round, step: error.step, bar: shownThen.replace(/\s+/g, ' ').slice(0, 400) });
         console.error(`round ${String(round + 1)}: ${error.step} did not finish in 30 seconds`);
       }
       // The call ends by itself; its outcome saved, the bar starts afresh for the next round.
@@ -246,6 +277,7 @@ export async function measureDial(options: {
     action: percentiles(action),
     within2s: shareWithin(accepted, DIAL_TARGET_MS),
     misses,
+    actionUnread,
   };
 }
 

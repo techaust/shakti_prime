@@ -255,7 +255,7 @@ try {
         measure: 'Dial key to the call accepted',
         stats: result.accepted,
         target: { stat: 'p95', limitMs: DIAL_TARGET_MS },
-        note: `dial action answered p50 ${String(result.action.p50)} ms; missed rounds ${String(result.misses.length)}${result.misses.length === 0 ? '' : ` (${result.misses.map((m) => `${String(m.round + 1)}: ${m.step}`).join('; ')})`}`,
+        note: `dial action answered p50 ${String(result.action.p50)} ms (unread in ${String(result.actionUnread)} rounds); missed rounds ${String(result.misses.length)}${result.misses.length === 0 ? '' : ` (${result.misses.map((m) => `${String(m.round + 1)}: ${m.step}`).join('; ')})`}`,
       });
     } else if (measure === 'screen-pop' && server !== undefined) {
       const result = await measureScreenPop({
