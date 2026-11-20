@@ -5,9 +5,9 @@
 | Branch | `fix/p2-fixes` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): role grants in a definer, a customer-facing filter, an anonymisation window |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (start and early check) |
-| State | early check accepted by the lead; building items 4 to 9 |
-| Next step | the lead reads the early check; then items 4 to 8 and the lead's two additions |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort from start to done |
+| State | done: items 1 to 9 built, waiting for the lead's review |
+| Next step | the lead's review |
 
 ## Brief
 The open Phase 2 follow-ups of [STATUS](../../10-status.md#open-follow-ups) that are code, one commit each with its tests. Read each item's source finding in the run file named before you change anything.
@@ -118,6 +118,108 @@ Commits: 394a0114 (item 1), 721d2686 (item 2), ecef6f42 (item 3), 5dd9fbe7 (`doc
 **Lead's additions, received during the early check, to do after "continue":**
 - the `tier_budget_reached` refusal told to the quote's sender (part of item 5);
 - item 9: a Concierge run that ends with the AI service unavailable counts toward the hand-off.
+
+### 20-11-2026, cloud session: done (items 4 to 9)
+
+Commits after the early check: a7bd15ec (4), 72077ef5 and 20a3d522 (5), 4d3a7c73 (6), 70a7a0bd (7), e447070d and 6df1991c (8), 3ba7d1c6 (9, the lead's addition), 0a928f45 (baselines). New migrations after `main`'s 0218, for the lead to renumber: 0219 and 0220 (early check), 0221, 0222 (generated), 0223, 0224 (generated). None is cited by number in code.
+
+**4. Voice's `bosToken`**
+- `VoiceSessionResponse` no longer has `bosToken`, and `/voice/session` no longer sends it. The worker still receives the token in `VoiceDispatchMetadata`.
+- Updated alongside: the contract fixture, the voice journey's stub answer, and `docs/06-api.md`.
+- Test: `handlers.test.ts`. The route's raw answer has no `bosToken` and does not contain the worker's token; the token is verified from the dispatch metadata instead. It failed before the fix, since the strict schema rejects the key.
+- `voice.spec.ts` passes in all three projects.
+
+**5. WhatsApp quotes**
+- (a) A STATUS or a code alone on a chat handled by people:
+  - Migration 0221 redefines `app.whatsapp_record_inbound()` from 0188 (its newest definition on `main`). It gains `p_platform boolean default false`, and the waiting mark becomes `t.needs_reply or not p_platform`. Diff against 0188, nothing else changed:
+    ```
+    <   p_handled_by text
+    >   p_handled_by text,
+    >   p_platform boolean default false
+    <          needs_reply = true,
+    >          needs_reply = t.needs_reply or not coalesce(p_platform, false),
+    ```
+  - The 8-argument function is dropped and the 9-argument one granted to `app_user` as before. `messaging.inbound.record` passes its existing `platform` flag.
+  - Test: `whatsapp-quotes.test.ts` (domain). STATUS alone leaves the chat not waiting, and `app.notice_whatsapp_waiting()` does not list it; a question followed by STATUS still waits and is listed. It failed before the fix.
+- (b) A message the messaging worker refuses after the quote was marked sent:
+  - `whatsapp_milestone_sends.requested_by` (0222, nullable, FK to `principals`) keeps who asked for the milestone: the quote's sender, from `sales.quote.sent`.
+  - Migration 0223 redefines `app.whatsapp_queue_milestone()` from 0201 with `p_requested_by uuid default null`, written in both inserts. It also redefines `app.whatsapp_send_extras()` from 0203 to return `requested_by`. Diffs: only those lines; grants as before.
+  - `send.ts` (`tellQuoteSender`): after any refusal is recorded on a `quote_sent` message, the sender is told through the existing `whatsapp_quote_not_sent` notice (`notifyEvent` with `sales.quote.sent`, once per quote). This covers the window, the template, a STOP, the filter, and `tier_budget_reached` (the lead's addition). A failure to notify is logged and the refusal stands.
+  - Tests: `apps/web/tests/whatsapp-quotes.test.ts`, +2. A quote refused at the messaging limit (window closed, limit 0) and one refused for a STOP after queueing: the worker sends nothing and the sender gets the notice. Both failed before `send.ts` changed. The domain test of `readSendExtras` now carries `requestedBy`.
+
+**6. The audio player**
+- A failure is signed again once. The page instead says the browser cannot play the recording, with a "Download the recording" button, when either:
+  - a failure comes before the address loaded, after one new address was already signed, or
+  - a failure comes under 5 s after signing.
+- The download is `openFile(fileId, true)`, which signs an `attachment` address.
+- Copy: `knowledge.file.notPlayable` and `knowledge.file.downloadRecording`. The second key is added to the copy-lint button list.
+- Journey `knowledge-audio.spec.ts`, new case: every media request answers bytes no browser plays, after 5.5 s. Exactly two addresses are asked for, the sentence and the button show, no third address comes in the next 6 s, and axe is clean. It failed on the build from before the fix (the sentence never showed) and passes in all three projects.
+
+**7. The dialled call**
+- Both workspaces (`calling-screen.tsx`, `use-call-logging.ts`) clear the dialled call and remount the call bar only when the saved log is the dialled call's own lead.
+- Journey `click-to-dial.spec.ts`, new case: dial lead B, open lead A in the same page, save A by hand, return to B. B's bar still reads "The call has ended. Choose its outcome to save it.", and saving B records its outcome with no "saved already". On the old build it failed exactly there (line 109); it passes in all three projects.
+
+**8. Website keys and attached enquiries**
+- Tests for the three gaps. The code was already right (the finding says so), so these cases guard behaviour rather than fail first.
+  - Domain `lead-ingest.test.ts`, +2: another company's live website is refused (`lead_source_missing`), even for an Executive of both companies. A key whose site was archived is found without the site or its consent, and no new key takes the archived site.
+  - Security `lead-ingest.test.ts`, +1, the insert policy alone through direct inserts: a live site of the key's company passes; another company's site, an archived site and a form are refused.
+- The notice:
+  - `crm.lead.attached` gains `nurtured` and `attachedBy` (both optional in the catalogue, so older events still parse) and becomes subscribed: `NOTICE_EVENT_TYPES`, the registry, the QStash map.
+  - Both emitters set the new fields: `attachEnquiry()` from the lead's state before it is reopened, and `crm.lead.ingest` from `ingest_customer`'s `lead_state`; there the lead stays in nurture.
+  - The new notice kind `enquiry_attached` goes to the lead's owner now, once per event. It is not sent when the owner added the enquiry, or when the lead was not in nurture.
+  - Registration: `NOTICE_TYPES`, the check constraints in 0224 (`NOT VALID`, as 0202 did), `en.json` (kind and push), and `docs/05-database.md`. Each shared list carries a `p2-fixes` comment.
+  - Tests: `notifications.test.ts`, +2 (told once; nobody when the owner added it or the lead was not nurtured). They failed before the fix. `catalogue.test.ts` and `qstash.test.ts` were updated to list the event.
+  - Screen changed: Notification settings gains one row. Its Linux baselines were remade and verified per project, each on a fresh database.
+
+**9. The Concierge and a failing AI service (the lead's addition)**
+- Choice: hand off at once (`no_assistant`), not through the three-in-a-row streak:
+  - The stops before the model (switched off, no spending limit, spend or runs used up) already hand off at once as "the assistant cannot answer now", and an outage is the same case.
+  - The streak exists because one refused draft says little about the next. An outage drafts nothing for every message while it lasts (the provider's breaker pauses the vendor for minutes), so counting would leave up to two more customer messages unseen.
+- Code (`run-concierge.ts`): a reply run whose recorded outcome is `unavailable` (the provider's `integration_unavailable`: an outage, the breaker open, a deadline) or `cap_reached` (the spend reached while asking) hands over with cause `unavailable`. The chat goes to people with reason `no_assistant` in its history, and the refusal count is cleared.
+- `docs/03-roadmap-appendix/phase2.md` §7.2's built line says so.
+- Test: domain `concierge-runs.test.ts`, +1, a fake transport answering HTTP 503 (no live model call). The reply run is `unavailable`, the chat is with people for `no_assistant`, nothing is drafted, the refusal count is clear, and a redelivery is skipped without asking again. It failed before the fix.
+
+**Checks in this VM (final)**
+- `pnpm typecheck`: 10 of 10.
+- `pnpm lint` (whole repository): clean.
+- `pnpm copy-lint`: clean.
+- Unit tests: contracts 322, domain 2593, db 160, web 1155 (+1 skipped).
+- `pnpm test:security` after item 9: db 1513, domain 1395, web 447 (4 of 4 tasks).
+- `pnpm db:docs` and `machines:docs`: regenerated, in the commits.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within budget (55).
+- Journeys in the Linux image (`e2e:snap`) on the final build, specs `roles`, `voice`, `knowledge-audio`, `click-to-dial`, `notifications`, `calling`, `converting`, `whatsapp-quotes`:
+  - On the long-used database, every journey passed except five pictures and one notice count:
+    - `whatsapp-templates` showed a template my suites registered;
+    - `calling` showed company numbers left by the suites;
+    - the snapshot caller had a fourth notice (a `whatsapp_reply_waiting` from the suites);
+    - `notification-settings` (expected, the new row);
+    - `converting-board` (the lead's known fault).
+  - Each project was then rerun on its own fresh database (`fresh-db.sh` on this VM's own `shakti-postgres`), for `calling`, `converting`, `notifications` and `whatsapp-quotes`. Only `notification-settings` (remade, then verified: 20, 19 and 19 passed) and `converting-board` failed.
+  - `converting-board` fails in all three projects: the lead's known DND-date fault, fixed on techaust/shakti_prime#269. Its baseline is untouched.
+- Function diffs against `main`, one line each:
+  - 0219 `app.role_may_hold()`: the agent-only clause;
+  - 0220 `app.customer_idle()`: the WhatsApp clause;
+  - 0221 `app.whatsapp_record_inbound()`: the platform argument and the waiting mark;
+  - 0223 `app.whatsapp_queue_milestone()`: `requested_by` in its two inserts and its argument; `app.whatsapp_send_extras()`: `requested_by` returned.
+
+**Review checklist**
+- Every redefined SQL function keeps every clause `main` has (diffs above).
+- No staff role can be granted `agents.note.write` (the command, the guard and the oracle).
+- The filter still refuses every number not in the customer's name (9 refusal cases).
+- The anonymisation and its count agree (the window's `stale` equals the action).
+- Nothing reaches a customer without a person: item 9 only hands chats to people, and item 5 tells staff.
+- Each item has a test that failed before its fix, except item 8's three tests, which the finding names as missing tests only.
+
+**Assumptions**
+- (5b) Only a refusal tells the sender. A send Meta errors on is recorded `failed`, and a timeout may still have delivered it, so it tells no one.
+- (5b) A refused `order_confirmed` milestone tells no one: it has no `requested_by`.
+- (6) A failure under 5 s after signing is taken as the file's own, and the download is offered at once.
+- (8) The notice is for a nurtured lead only, as the brief says. An attach to an active lead tells no one, since its owner is working it.
+- (8) For an integration's lead (`crm.lead.ingest`), the notice goes to the owner even though the lead stays in nurture; it is the only signal they get.
+- (9) `failed` endings (a bug, not the service) do not hand over. They are logged as errors.
+- Repository debris: the long-used local database fails three journeys that pass on a fresh one. CLAUDE.md already requires fresh databases for journeys, so it is not a new follow-up.
+
+**Skills loaded:** none (no command or table added).
 
 ## Review
 
