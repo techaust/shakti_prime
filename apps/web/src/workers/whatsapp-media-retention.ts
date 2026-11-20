@@ -1,4 +1,11 @@
-import { idTime, type DueWhatsAppMediaDto, type MediaRetentionCursor } from '@shakti/contracts';
+import {
+  idTime,
+  WhatsAppMediaRetentionResponse,
+  type DueWhatsAppMediaDto,
+  type LeadAnonymiseWorkerBody,
+  type LeadAnonymiseWorkerResponse,
+  type MediaRetentionCursor,
+} from '@shakti/contracts';
 import {
   companyStanding,
   dueWhatsAppMedia,
@@ -11,8 +18,10 @@ import {
   type FileStore,
   type Logger,
 } from '@shakti/domain';
+import { fileStore } from '../files/store';
 import { logger as appLogger } from '../log';
 import { systemWorkersPrincipal } from './events/system-principal';
+import { runLeadAnonymise, type LeadAnonymiseOptions } from './lead-anonymise';
 
 /** Messages one batch looks at: one query, at most 200 deletions and one removal record. */
 export const MEDIA_RETENTION_BATCH = 200;
@@ -313,4 +322,65 @@ export async function runWhatsAppMediaRetention(
     }
     place = { entityId: entityId + 1, step: 'expire', after: null };
   }
+}
+
+/**
+ * The switch (docs/03-roadmap-appendix/phase2.md §11): the job removes files only with
+ * `WHATSAPP_MEDIA_RETENTION=on`, read at run time and off when empty or anything else, on every
+ * environment, so merging it deletes nothing until the owner turns it on where they choose. A dry
+ * run counts with the switch off as well, since it changes nothing.
+ */
+export function mediaRetentionOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.WHATSAPP_MEDIA_RETENTION?.trim() === 'on';
+}
+
+/** Messages a nightly batch looks at: each file costs a few store calls, and the night's call has
+ * a minute in all, so a batch started late still ends within it. */
+export const NIGHTLY_MEDIA_BATCH = 50;
+
+/** The longest the media job keeps starting batches in the night's call. */
+export const NIGHTLY_MEDIA_BUDGET_MS = 15_000;
+
+/** The time from the call's start after which the media job starts nothing (of the route's 60 s). */
+export const NIGHTLY_WORK_LIMIT_MS = 45_000;
+
+export interface NightlyRetentionOptions extends LeadAnonymiseOptions {
+  env?: NodeJS.ProcessEnv;
+  store?: FileStore | undefined;
+  logger?: Logger;
+}
+
+/**
+ * The nightly retention call (`lead-anonymise`, its route and schedule unchanged): the leads'
+ * anonymisation first (`runLeadAnonymise`), and in the call that finishes it, with the switch on
+ * (or for a dry run), the WhatsApp media retention job with the time left, at most
+ * `NIGHTLY_MEDIA_BUDGET_MS`. A night that runs out of time leaves the rest to the next night: a
+ * removed file leaves the job's window, so each night starts from the oldest file still kept.
+ * A failure of either fails the call, which counts towards the job's failure streak and the jobs
+ * check (`job.failing`); the leads' work already done stays done.
+ */
+export async function runNightlyRetention(
+  body: LeadAnonymiseWorkerBody,
+  options: NightlyRetentionOptions = {},
+): Promise<LeadAnonymiseWorkerResponse> {
+  const clock = options.now ?? Date.now;
+  const started = clock();
+  const leads = await runLeadAnonymise(body, options);
+  const dryRun = body.dryRun === true;
+  if (!leads.done || (!dryRun && !mediaRetentionOn(options.env))) return leads;
+  const budgetMs = Math.min(NIGHTLY_MEDIA_BUDGET_MS, NIGHTLY_WORK_LIMIT_MS - (clock() - started));
+  if (budgetMs <= 0) return leads;
+  const media = await runWhatsAppMediaRetention({
+    store: 'store' in options ? options.store : fileStore(),
+    requestId: options.requestId ?? 'nightly-retention',
+    dryRun,
+    budgetMs,
+    batchSize: NIGHTLY_MEDIA_BATCH,
+    ...(options.logger === undefined ? {} : { logger: options.logger }),
+  });
+  const { next, ...counts } = media;
+  return {
+    ...leads,
+    media: WhatsAppMediaRetentionResponse.parse({ ...counts, done: next === null }),
+  };
 }

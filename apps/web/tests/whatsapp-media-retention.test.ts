@@ -13,7 +13,9 @@ import {
 import { memoryFileStore, WORKSHOP_DEFAULTS, type FileStore, type Logger } from '@shakti/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  mediaRetentionOn,
   ORPHAN_LOOKBACK_DAYS,
+  runNightlyRetention,
   runWhatsAppMediaRetention,
   uuidTimePrefix,
 } from '../src/workers/whatsapp-media-retention';
@@ -101,7 +103,10 @@ describe('the WhatsApp media retention job', () => {
     expect(store.objects.has(fresh.key)).toBe(true);
     expect(await whatsappMediaState(photo)).toMatchObject({
       fileId: photo.fileId,
-      mediaSummary: expect.objectContaining({ contentType: 'image/jpeg', verdict: 'passed' }) as unknown,
+      mediaSummary: expect.objectContaining({
+        contentType: 'image/jpeg',
+        verdict: 'passed',
+      }) as unknown,
     });
     expect((await whatsappMediaState(pdf)).mediaSummary).toMatchObject({
       contentType: 'application/pdf',
@@ -253,4 +258,35 @@ describe('the WhatsApp media retention job', () => {
     expect(result).toMatchObject({ removed: 0, companies: 0, next: null });
     expect(lines).toContain('messaging.media_retention_no_store');
   });
+});
+
+describe('the nightly call', () => {
+  it('is switched on only by WHATSAPP_MEDIA_RETENTION=on', () => {
+    expect(mediaRetentionOn({})).toBe(false);
+    expect(mediaRetentionOn({ WHATSAPP_MEDIA_RETENTION: '' })).toBe(false);
+    expect(mediaRetentionOn({ WHATSAPP_MEDIA_RETENTION: 'yes' })).toBe(false);
+    expect(mediaRetentionOn({ WHATSAPP_MEDIA_RETENTION: ' on ' })).toBe(true);
+  });
+
+  it('removes nothing while the switch is off, counts in a dry run, and removes once it is on', async () => {
+    const photo = await stored(old());
+    const off = await runNightlyRetention({}, { env: {}, store, logger: silent });
+    expect(off.done).toBe(true);
+    expect(off.media).toBeUndefined();
+    expect(store.objects.has(photo.key)).toBe(true);
+
+    const dry = await runNightlyRetention({ dryRun: true }, { env: {}, store, logger: silent });
+    expect(dry.media).toMatchObject({ dryRun: true, done: true });
+    expect(dry.media?.removed).toBeGreaterThanOrEqual(1);
+    expect(store.objects.has(photo.key)).toBe(true);
+    expect((await whatsappMediaState(photo)).fileDeletedAt).toBeNull();
+
+    const on = await runNightlyRetention(
+      {},
+      { env: { WHATSAPP_MEDIA_RETENTION: 'on' }, store, logger: silent },
+    );
+    expect(on.media).toMatchObject({ dryRun: false, done: true, failed: 0 });
+    expect(store.objects.has(photo.key)).toBe(false);
+    expect((await whatsappMediaState(photo)).mediaSummary).not.toBeNull();
+  }, 120_000);
 });
