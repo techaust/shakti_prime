@@ -148,6 +148,31 @@ Documents: the design's Built lines take the new rules and plans (`8ab40f68`).
 - A template agrees within the same 48 hours as a task.
 - The 48 hours and the 24 hours are engineering rules in `shadow-pack.ts`, not workshop inputs; the design names them.
 
+### 20-11-2026, cloud session: fixes (the integration on the PC)
+The journey `e2e/shadow-pack.spec.ts` read the snapshot company's live Co-pilot and Concierge rows, which `copilot.spec.ts` and `agents.spec.ts` add to, approve and leave waiting, so its exact figures, the `copilot-kinds` picture and the review sets depended on which journeys ran first.
+
+**Fix** (`8ea42dba`): the journey has rows of its own.
+- **The seed** (`apps/web/e2e/setup/shadow-pack.ts`, last in `seed.ts`, its constants in `apps/web/e2e/shadow-pack-fixtures.ts`) writes, with fixed ids and `on conflict do nothing`, so a second seed changes nothing:
+  - a customer of company 2 (Devki Nandan Sharma, a synthetic name), its lead and its chat;
+  - on 3 June 2025 the customer's two messages and a person's reply (marked sent, so no worker picks it up);
+  - the Concierge's two replies in Shadow, its facts and callback in Shadow, a refused answer, and the assistant's hand-off;
+  - the Co-pilot's follow-up in Shadow, its rejected template and its approved follow-up;
+  - what a person did after them: the facts change and a callback of their own, each with its audit row.
+- **Why company 2:** it has a WhatsApp channel, other journeys there find their customers by name, and none of it is pictured. In the snapshot company a new customer would enter the pictured lists, and messages on its chat would enter the messages journey's picture.
+- **The journey** opens both reports at the week 02-06-2025 to 08-06-2025 through their period inputs, so every figure is the seed's alone. It asserts them exactly:
+  - Concierge: replies 2 in Shadow, 2 not known yet, 1 refused; facts and callback 1 agreed each; ₹14.00 on 5 runs over 1 lead; one hand-off by the assistant on a question.
+  - Co-pilot: follow-ups 1 agreed and 1 not known yet; template 1 differed; ₹3.00 on 3 runs.
+  - The review sets: the Concierge's 2 drafted replies, the Co-pilot's 3 suggestions.
+- **Pictures:** all eight (`concierge-kinds`, `concierge-spend`, `concierge-handoffs`, `concierge-review`, `concierge-review-print`, `copilot-kinds`, `copilot-spend`, `copilot-review`) are taken whole, with only times masked.
+- The concierge test had the same exposure (the snapshot company's Shadow draft and its hand-offs), and it now reads the same week.
+
+**Runs** (`e2e:snap -- e2e/shadow-pack.spec.ts e2e/concierge.spec.ts e2e/copilot.spec.ts e2e/agents.spec.ts`, after `pnpm build`), in the Linux image, every spec together:
+- Run 1, fresh database: 63 passed and 2 skipped (by design in `agents.spec.ts`). It wrote this journey's 24 baselines (8 pictures × 3 projects).
+- Run 2, the same database seeded a second time: `shadow-pack` passed. `copilot.spec.ts:133` failed in its own `copilot-report` picture (159 px tall expected, 282 px received): its seed adds Co-pilot summaries on every seed. That file is unchanged here and behaves the same on `main`.
+- Run 3, a new fresh database, as CI runs: 63 passed and 2 skipped against the new baselines.
+
+Only this journey's baselines changed. `main` was not merged in; nothing of it was needed.
+
 ## Review
 
 ## Integration
