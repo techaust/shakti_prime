@@ -5,9 +5,9 @@
 | Branch | `feat/g2-shadow-pack` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): reports over AI agent principals' work, read under row-level security |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; built on Opus 5.5 at high effort (start and early check) |
-| State | early check |
-| Next step | the lead reads the early check and sends "continue" |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; built on Opus 5.5 at high effort (start, early check and done) |
+| State | done |
+| Next step | the lead's review |
 
 ## Brief
 Read first:
@@ -84,6 +84,42 @@ What the two reports show today against §8.1's first bullet (per action type: p
 - Spend per lead uses the leads the agent proposed on (and the Co-pilot's notes), not every chat it read: a run that proposed nothing has no lead to count but its cost counts.
 
 **Next:** step 4 (the figures on both reports, the sample pages, copy, journeys) on "continue".
+
+### 20-11-2026, cloud session: done (steps 4 and 5)
+**Built** (after the early check, from `b97530a5`):
+- Screens: both reports show the figures per action type (`ProposalFigures`: how the suggestions ended, how the team's work compares, how many a person decided, the refusals of that kind by reason, and for replies in Shadow that the review set judges them), the spending per lead (`SpendPerLead`), the Concierge's chats handed to the team by whom and why (`HandoffCounts`; "shown to people who can open the activity log" when the viewer has no `audit.read`) and the Co-pilot's line that it hands nothing over; a "Suggestions to review" link carries the report's company and period (`sampleHref()`). All in `apps/web/src/components/agents/shadow-pack-figures.tsx`, wired into `concierge-report.tsx` and `copilot-report.tsx` in place of their own "Suggestions by kind" lists.
+- The pages `/admin/agents/concierge/sample` and `/admin/agents/copilot/sample` (`ShadowReviewPage`, `ShadowReviewSheet`, `PrintSheet`, `PrintButton` in `apps/web/src/components/agents/`; the actions `conciergeSample` and `copilotSample`): `screenAccess(navRequires('admin-agents'))` as Admin › Agents; the company and period from the address, else the viewer's company and the last 30 days (`sampleQuery()`, a company outside the viewer's or a period the report refuses falls back); rendered on the server, so only the print button runs in the browser (189.4 kB first load, the shell's); the customer's words as stored and as text. Printed, the page is the sheet alone (the shell hidden), in the light tokens in every theme (the `.theme-light` values from `@shakti/tokens`, written under `@media print` on the sheet), on A4 with 15 mm margins; nothing is recorded.
+- Copy: one block `agents.shadowPack` in `en.json`; "sample" is a banned word, so the pages are "suggestions to review". `tools/copy-lint/copy-lint.config.json`: `print` added to the button keys (24 characters).
+- Query plans (below) led to one change: a proposal's chat and lead are read as values of their own (`offset 0`) and the chat laterally, so each lookup by them is an index condition under the policies (`89b917af`).
+- Documents: phase 2 design §8.1 "Built (G2 shadow pack)" (naming `audit_logs_hand_off_idx`, built without `CONCURRENTLY` on the partitioned `audit_logs`, as an index to plan for the next production release, as A2's 0210 is); ARCHITECTURE's agents line, SECURITY's Concierge report bullet and DATABASE's `audit_logs` row; `docs/data/` regenerated.
+
+**Tests added:** `shadow-report.test.ts` +3 (the link, the address read, the fall-backs); the journey `apps/web/e2e/shadow-pack.spec.ts`, 2 tests × 3 projects (the Concierge report's figures and its suggestions to review in the snapshot company with axe, printed: the sheet's background `rgb(255, 255, 255)` in every theme, the menu and the buttons hidden; the Co-pilot report's figures and its suggestions to review, the seed's two follow-ups `SNAPSHOT_SUGGESTIONS`), with the Linux baselines `concierge-review`, `concierge-review-print` and `copilot-review` in desktop light, desktop dark and phone (made with `e2e:snap` in the Playwright image on a fresh database). With the early check's 10 Postgres cases: 13 unit and Postgres tests and 6 journeys.
+
+**`EXPLAIN (ANALYZE, BUFFERS)`**, on the local database with 3,000 proposals of each agent (and their runs and 1,000 hand-offs) in one month of company 2 beside every suite's rows, under the Executive's own context:
+
+| Statement | Concierge | Co-pilot | Plan |
+|---|---|---|---|
+| Refusals by type and reason | 1.1 ms | 1.0 ms | `agent_runs_agent_day_idx` |
+| Figures per type (`shadowActionsSql()`) | 71 ms | 62 ms | proposals off `agent_actions_type_created_idx`; tasks by `tasks_opportunity_idx` on the lead, templates by `whatsapp_threads_opportunity_idx`, facts by `lead_qualifications_pkey` |
+| Spend | 1.0 ms | 1.2 ms | `agent_runs_agent_day_idx` |
+| Distinct leads | 24 ms | 23 ms | `agent_actions_type_created_idx` |
+| The review set (50 of 3,000) | 8 ms | 6 ms | `ntile` over the index's rows, then the lookups for 50 only |
+| Hand-offs | 0.8 ms | | `audit_logs_hand_off_idx` (`audit_logs_default_entity_id_created_at_idx1` on the partition) |
+
+The chats (94 in the company) are read by a hash or a materialised list where that is cheaper; with hash, merge and materialise switched off the same statements read each chat by `whatsapp_threads_pkey` and each lead by `opportunities_pkey` (figures 33 ms), so the lookups are index conditions under the policies and the planner chooses them once the company holds more chats.
+
+**Checks in this VM:** `pnpm typecheck` clean; `pnpm lint` (the whole repository, once, last) clean; `pnpm exec eslint --max-warnings 0` on each folder touched, clean; `pnpm copy-lint` clean; `@shakti/contracts` unit 322 passed, `@shakti/domain` unit 2590 passed, `web` unit 1158 passed (160 files); `pnpm db:docs` regenerated; `pnpm build` passed; `pnpm --filter web js-budget`: every page within its budget (57 pages; the reports 231.7 and 231.9 kB of 242, the two new pages 189.4 kB of 199); journeys on a fresh database in the Linux image (`e2e:snap -- e2e/shadow-pack.spec.ts e2e/concierge.spec.ts e2e/copilot.spec.ts`): 41 passed, the existing Concierge and Co-pilot baselines unchanged; SECURITY_DONE_LINE.
+
+**Review checklist:** every figure and the review set read under the viewer's own context (`agent_actions_read`, `agent_runs_read`, the leads', chats', tasks' and facts' policies, the audit trail's only with `audit.read`), with no definer, one company per request and the company refused outside it (tested); no cost or supplier figure (spend is `agent_runs.cost_paise` only); customer text as stored (masked) and rendered as text by React, never as markup; the set deterministic and at most 50 (the DTO's `max(50)`, tested at 121); the statements on indexes (above); the pages print light (journey and baselines); copy in `en.json`, plain and final.
+
+**Assumptions (steps 4 and 5):**
+- The print path is a print stylesheet on the screen, not the HTML-to-PDF renderer: the Executive prints from the browser and nothing is stored. The light print is built from the tokens on the sheet alone, so no shared stylesheet changed.
+- `js-budget.json` gains the two new pages' entries (measured 189.4 kB plus 5 %); it is a check file, so the pull request needs the owner's `checks-ok`. The two reports keep their budgets (242 kB), with room.
+- The host's own journeys picture with a different Chromium than the Playwright image, so their screenshot comparisons fail on the host by design; the baselines and their comparison are the image's.
+- The security suite's `agents.test.ts` writes 250 Co-pilot proposals in company 3 with version 4 ids, which `IdSchema` refuses as every report does; on a database the suites used, the Co-pilot's review set of the snapshot company fails for that reason, never on a fresh one. The journeys and baselines were run on a fresh database (`start_db` on port 54332, removed after).
+- A first full security run after step 4 failed `retention.test.ts` once: the early check's test wrote its hand-off rows into a random month of 2001 to 2020, which the retention suite's random month (1971 to 2010) can meet in the audit trail's default partition. The test now uses 2011 to mid-2017, clear of every audit-partition test (`37910c40`).
+
+**For the lead:** a merge with `main` takes `en.json` (one block), `copy-lint.config.json` (one word on the button keys line) and `js-budget.json` (two entries); migration 0219 is renumbered at the merge.
 
 ## Review
 
