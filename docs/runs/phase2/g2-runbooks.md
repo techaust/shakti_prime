@@ -5,9 +5,9 @@
 | Branch | docs/g2-runbooks on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): documents only, no code |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder (cloud session) on Opus 5.5 at high effort from the start |
-| State | building |
-| Next step | write the six INCIDENTS sections and the exit-gate checklist |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder (cloud session) on Opus 5.5 at high effort from start to end |
+| State | done, waiting for the lead's review |
+| Next step | the lead reviews the branch |
 
 ## Brief
 Read first:
@@ -42,6 +42,42 @@ Review checklist (check before your report): every step names something that exi
 **Built beside you today, each in its own cloud session from `main` at 889ec54d:** `g2-shadow-pack` (the Concierge and Co-pilot shadow reports and review samples), `g2-alerts` (Phase 2 alerts), `g2-runbooks` (INCIDENTS sections and the exit-gate checklist; documents only), `g2-measures` (the latency and throughput measures), `p2-fixes` (Phase 2 review follow-ups) and `w2-media-retention` (the WhatsApp media retention job). Shared registration points (`en.json`, `AGENT_DEFAULTS`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event worker registry, the testing lists, `turbo.json`, `.env.example`, the jobs check's list) take one line or one block each, kept together under a comment naming your slice; the lead merges them.
 
 ## Report
+
+### 20-11-2026, cloud session: done
+**Written** (documents only; no code, no `en.json`):
+- [INCIDENTS](../../runbooks/incidents.md): sections 13 to 18 (a WhatsApp template turned down; the messaging limit reached; Exotel down; LiveKit down, type instead; the speech service down; the AI provider down, people take the chats), each with how it shows (the alert, the screen's words, Integration health), who acts, the steps, what staff and customers see meanwhile, and how to recover and check; the contents line; one header paragraph on the Phase 2 channels (sandboxes on dev and staging, nothing on production until the final phase) and the six alert names; §8 points to §18. §12 corrected where the code differs: a refused dial logs `action.failed` with `dialCall` and a reference, not the call's id; the sweep closes a call Exotel never answered at 17 minutes past the hour once an hour has passed (one to two hours), a refused one at once; reload the page before **Show number** when the bar is stuck on **Placing the call**, or the hand-dialled save is tied to the stuck call.
+- [exit-gate-actions](../../13-client-packs/exit-gate-actions.md): retitled "Exit gates"; §6 Phase 2's gate item by item in two parts (engineering: idempotency and contract tests Met with the test files and counts; consent routing Met in code and tests, the sandbox run waiting on the Exotel trial; voice latency on dev waiting on the LiveKit project and the Sarvam key; the three final-phase items pointing to §7); §7 the final-phase checklist, one row per slice of design §12 (A3 and A2, V1 and V2 split), with its live step, needs, who acts and where the result is recorded.
+
+**How each step was checked:** four read-only searches of the code (WhatsApp, Exotel, voice and speech, AI and webhooks), then each claim the steps rest on read in the code myself: `send-checks.ts` and `budget.ts` (order of checks, the 80 % hold, the 250 starting limit), `run-concierge.ts` (a failed model call hands nothing over; a stopped agent does), `availability.ts`, `config.ts`, the template webhook in `apps/web/src/workers/webhooks/whatsapp.ts` (name and English language), `milestones.ts` (which outcomes notify a quote's sender), `send.ts`, `voice/handlers.ts` (room failure, start cap), the voice worker's fallback in `apps/voice-agent/src/session.ts`, `sweep-calls.ts` and `schedules.ts`, `actions/result.ts`, `nav.ts` and the role seed (who sees each screen), and every quoted string against `en.json`.
+
+**Checks:**
+- `python3 tools/integration/check-doc-links.py`: `bad 0`.
+- The exit gate's evidence, run on the session's Postgres after `pnpm db:migrate` and `pnpm db:seed`: web security `tests/webhooks.test.ts` and `tests/lead-ingest.test.ts`, 25 passed; db security `webhooks` and `entity-channels`, 32 passed; domain security `commands/webhooks` and `commands/dial-rules`, 30 passed; web unit `src/webhooks` and `lead-forms`, 30 passed; domain unit `src/telecom`, `src/messaging` and `ai/config`, 106 passed.
+- No typecheck, lint, build or journeys: no code, test or `en.json` changed (Tier C).
+
+**Gaps: fallbacks the blueprint or design promise that the code does not have** (each section says what staff do instead):
+1. AI provider outage: no automatic fall back to Suggest (BLUEPRINT §12); with Automatic unavailable until Phase 6 nothing reaches a customer without a person anyway.
+2. A failing AI service does not hand the Concierge's chats to people; only a stopped agent, a spent limit or the day's run count does. §18 has the Executive or GM press **Stop**. No test covers the failing-model path.
+3. `ai.breaker_opened` is a log line only, with no Sentry report; no alert names an AI outage.
+4. A marketing message held at 80 % is never sent later by itself (already the owner's question in STATUS).
+5. A quote refused at the messaging limit does not notify its sender (`tier_budget_reached` is outside the milestone's not-sent list); §14 has the sender check the chat.
+6. A quality rating of Low changes nothing in sending; templates rejected, number quality and the budget raise no alert on `main` (G2's alerts add the last two).
+7. No screen registers a WhatsApp template (`messaging.template.register` has no action); a resubmitted template keeps its name; only English templates take Meta's review.
+8. No switch turns click-to-dial off for a company or the day, and no outage notice; **Take out of use** on a number cannot be undone.
+9. Incoming and missed calls during an Exotel outage are not recovered by the app (nothing polls Exotel).
+10. Talk to Shakti's push-to-talk and text box run inside the LiveKit room: a LiveKit outage leaves no voice, push-to-talk or text there; the written way is Ask the Business (the screen's own message says so).
+11. One speech vendor only, no failover; push-to-talk uses the same service, so a speech outage leaves typing only; the screen's message blames the network; a failure of speaking back is not told to the person.
+12. Voice spend is not on Integration health and has no group or monthly cap (per person only, in code); there is no stop switch for voice on Admin › Agents.
+13. A call transcription that failed has no screen state.
+
+**Assumptions:**
+- The six alert names are written as the brief gives them, in one header paragraph and in the sections that apply; the template section names none, since none covers a template. The lead aligns them with `g2-alerts` at the merge.
+- The Exotel runbook is a new §15 that covers the whole outage (calls out, calls in, recordings, Exotel's messages) and sends the screen steps to §12, rather than a second copy of §12.
+- The branch name in this file's header and *How this slice runs* is out of backticks, since the link check read the branch name as a missing path; naming `docs/runs/phase2/` in exit-gate-actions §6 clears this file's ORPHAN line (the run files' readme does not list it while the slice is in flight).
+- exit-gate-actions is retitled "Exit gates: who does what next" with Phase 2 as §6 and §7, since no document links to its title.
+- "Where the result is recorded" for I1 is beside G2's 10-second measure in `docs/04-architecture-appendix/`, whose file `g2-measures` names today.
+
+**Skills loaded:** none (documents only; the repository's skills are for code or the lead).
 
 ## Review
 
