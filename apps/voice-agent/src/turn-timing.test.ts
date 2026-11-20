@@ -7,7 +7,7 @@ import { measureTurnTiming } from './turn-timing';
 
 describe('voice turn timing on the fake room', () => {
   it('counts every turn and times each step from its own events', async () => {
-    const stats = await measureTurnTiming({
+    const { turnStats: stats, toPlayback } = await measureTurnTiming({
       turns: 3,
       delays: { finalMs: 20, firstSentenceMs: 40, firstAudioMs: 30 },
     });
@@ -22,5 +22,8 @@ describe('voice turn timing on the fake room', () => {
       (stats.steps.first_speech?.p50Ms ?? 0);
     // The first audio is the three steps end to end, never less than them.
     expect(stats.steps.first_audio?.p50Ms).toBeGreaterThanOrEqual(parts - 3);
+    // Timed from outside the session, to the room's play: every turn, at least the delays' sum.
+    expect(toPlayback.n).toBe(3);
+    expect(toPlayback.min).toBeGreaterThanOrEqual(88);
   });
 });

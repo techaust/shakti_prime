@@ -19,8 +19,10 @@ process.stdout.write(
   `${JSON.stringify(
     {
       at: new Date().toISOString(),
-      instant: { delays: NO_DELAYS, turnStats: instant },
-      budget: { delays: BUDGET_DELAYS, turnStats: budget },
+      // first_audio here covers §9.3's three vendor steps (1,100 ms of the budget's 1,500): the end
+      // of speech's detection (250 ms) and the network and playback (150 ms) are not in it.
+      instant: { delays: NO_DELAYS, ...instant },
+      budget: { delays: BUDGET_DELAYS, ...budget },
     },
     null,
     2,

@@ -6,6 +6,8 @@ import {
 } from '@shakti/contracts';
 import {
   AsyncQueue,
+  summarize,
+  type LatencySummary,
   type SpeechChunk,
   type StreamingSpeechToText,
   type StreamingTextToSpeech,
@@ -45,6 +47,18 @@ export const BUDGET_DELAYS: StandInDelays = {
 };
 export const NO_DELAYS: StandInDelays = { finalMs: 0, firstSentenceMs: 0, firstAudioMs: 0 };
 
+/** What the measure reads: the session's own stats, and the turns timed from outside it. */
+export interface TurnTimingResult {
+  /** `turnStats()`, as `voice_sessions.turn_stats_json` keeps it. */
+  turnStats: VoiceTurnStats;
+  /**
+   * From each turn's end of speech to the room's `play()` of its first audio, timed by the measure
+   * on the same clock, not from the session's own stamps: a check of `first_audio` that does not
+   * rest on how the session counts it.
+   */
+  toPlayback: LatencySummary;
+}
+
 const WAIT_STEP_MS = 2;
 const WAIT_LIMIT_MS = 30_000;
 
@@ -83,7 +97,7 @@ function metadata(now: number): VoiceDispatchMetadata {
 export async function measureTurnTiming(options: {
   turns: number;
   delays: StandInDelays;
-}): Promise<VoiceTurnStats> {
+}): Promise<TurnTimingResult> {
   const { delays } = options;
   const clock = { now: () => performance.now() };
   let events: AsyncQueue<SttEvent> | undefined;
@@ -121,6 +135,17 @@ export async function measureTurnTiming(options: {
     },
   };
   const room = fakeRoom();
+  // Each first play after a turn's end of speech, stamped as the room takes it.
+  const toPlayback: number[] = [];
+  let speechEndAt: number | undefined;
+  const play = room.play.bind(room);
+  room.play = (chunk: SpeechChunk) => {
+    if (speechEndAt !== undefined) {
+      toPlayback.push(clock.now() - speechEndAt);
+      speechEndAt = undefined;
+    }
+    return play(chunk);
+  };
   const session = new VoiceSession({
     room,
     metadata: metadata(Date.now()),
@@ -152,14 +177,15 @@ export async function measureTurnTiming(options: {
     const queue = events;
     if (queue === undefined) throw new Error('the speech stream is not open');
     queue.push({ type: 'speech_start', atMs: clock.now() });
-    queue.push({ type: 'speech_end', atMs: clock.now() });
+    speechEndAt = clock.now();
+    queue.push({ type: 'speech_end', atMs: speechEndAt });
     if (delays.finalMs > 0) await sleep(delays.finalMs);
     queue.push({ type: 'final', text: 'pump hai?', languageCode: 'hi-IN', atMs: clock.now() });
     // Each completed turn sends its report; the next waits for the light.
     await until(() => room.reports.length > turn && listening());
   }
-  const stats = session.turnStats();
+  const turnStats = session.turnStats();
   room.personLeaves();
   await done;
-  return stats;
+  return { turnStats, toPlayback: summarize(toPlayback) };
 }
