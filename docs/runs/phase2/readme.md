@@ -5,6 +5,14 @@ One file per slice, `docs/runs/phase2/<slug>.md`, kept as [the Phase 1 run files
 ## Slices in flight
 Each run file is on its slice's branch until the slice merges. None is in flight.
 
+## Merged on 20 November, run files on `main`
+- [G2 measures](g2-measures.md) (#275)
+- [P2 fixes, the Phase 2 review follow-ups](p2-fixes.md) (#274)
+- [W2 WhatsApp media retention](w2-media-retention.md) (#273)
+- [G2 Phase 2 alerts](g2-alerts.md) (#272)
+- [G2 shadow review pack](g2-shadow-pack.md) (#271)
+- [G2 runbooks and the exit-gate checklist](g2-runbooks.md) (#268)
+
 ## Merged on 18 November, run files on `main`
 - [A3 WhatsApp Concierge](a3-concierge.md) (#265)
 - [A2 Caller Co-pilot](a2-copilot.md) (#264)

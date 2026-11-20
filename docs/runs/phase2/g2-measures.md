@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): measuring scripts and their records |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (cloud session, started 05:47 UTC, resumed for the fix and the review's fix round, ended 08:55 UTC, on the same model and effort throughout) |
-| State | fixes |
-| Next step | the lead reads the fix round |
+| State | merged (#275, 20-11-2026); no migrations |
+| Next step | none |
 
 ## Brief
 Read first:

@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): reports over AI agent principals' work, read under row-level security |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; built on Opus 5.5 at high effort (start, early check, done and fixes) |
-| State | fixes |
-| Next step | the lead's review |
+| State | merged (#271, 20-11-2026); dev and staging migrated through 0220 |
+| Next step | none |
 
 ## Brief
 Read first:

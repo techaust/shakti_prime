@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): documents only, no code |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder (cloud session) on Opus 5.5 at high effort from start to end |
-| State | reviewed and integrated; pull request opened |
-| Next step | merge on green |
+| State | merged (#268, 20-11-2026); documents only |
+| Next step | none |
 
 ## Brief
 Read first:

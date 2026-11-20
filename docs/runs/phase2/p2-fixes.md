@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): role grants in a definer, a customer-facing filter, an anonymisation window |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort from start to done |
-| State | fix round done: M1, L1 and L2 fixed, waiting for the lead |
-| Next step | the lead reads the fix round and integrates |
+| State | merged (#274, 20-11-2026); dev and staging migrated through 0228 |
+| Next step | none |
 
 ## Brief
 The open Phase 2 follow-ups of [STATUS](../../10-status.md#open-follow-ups) that are code, one commit each with its tests. Read each item's source finding in the run file named before you change anything.

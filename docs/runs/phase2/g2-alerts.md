@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): workers and notifications |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; build Opus 5.5 at high effort, start to end |
-| State | fixes |
-| Next step | the lead's integration |
+| State | merged (#272, 20-11-2026); dev and staging migrated through 0219 |
+| Next step | none |
 
 ## Brief
 Read first:
