@@ -49,7 +49,7 @@ export interface LeadPathResult {
   graphMs: number;
   /** From the delivery's send to the route's answer. */
   answer: Percentiles;
-  /** From the delivery's send to the caller's search finding the lead. */
+  /** From the delivery's send to the caller's search finding the lead; a lost one counts 30 s. */
   visible: Percentiles;
   within10s: number;
   /** Rounds whose lead did not appear within 30 seconds. */
@@ -230,7 +230,12 @@ export async function measureLeadPath(options: {
         }
         await sleep(POLL_MS);
       }
-      if (!seen) lost += 1;
+      if (!seen) {
+        // A lead not seen within 30 seconds counts as 30 seconds, so the target reads it as missed
+        // (review M2), and is counted as lost besides.
+        visible.push(GIVE_UP_MS);
+        lost += 1;
+      }
     }
   } finally {
     await restore();
