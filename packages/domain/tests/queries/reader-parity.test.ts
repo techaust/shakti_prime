@@ -16,6 +16,8 @@ import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { loadShadowReport } from '../../src/queries/agents/shadow-report';
 import { loadConciergeDraft, loadConciergeReport } from '../../src/queries/agents/concierge';
 import { loadCopilotPanel, loadCopilotReport } from '../../src/queries/agents/copilot';
+// G2 shadow review pack
+import { loadConciergeSample, loadCopilotSample } from '../../src/queries/agents/shadow-pack';
 import { readAgentSpend } from '../../src/queries/agents/spend';
 import { readTriageFacts } from '../../src/ai/triage/read-facts';
 import { fakeEmbedding } from '../../src/ai/transport';
@@ -286,6 +288,11 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   loadConciergeDraft: (ctx) => loadConciergeDraft(ctx, { entityId: 1, threadId: newId() }),
   loadConciergeReport: (ctx) =>
     loadConciergeReport(ctx, { entityId: 1, from: '2026-09-01', to: '2026-09-30', limit: 20 }),
+  // The review samples (G2 shadow review pack).
+  loadConciergeSample: (ctx) =>
+    loadConciergeSample(ctx, { entityId: 1, from: '2026-09-01', to: '2026-09-30' }),
+  loadCopilotSample: (ctx) =>
+    loadCopilotSample(ctx, { entityId: 1, from: '2026-09-01', to: '2026-09-30' }),
   readAgentSpend: (ctx) => readAgentSpend(ctx, new Date(NOW)),
   readTriageFacts: (ctx) =>
     readTriageFacts(

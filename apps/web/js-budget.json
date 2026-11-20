@@ -177,9 +177,17 @@
       "maxKb": 242,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and the WhatsApp Concierge's shadow report: the company and period filters with the date inputs, the drafts summary, the refusals and suggestions by kind, and the drafts grid. Measured 230.5 kB on 18-11-2026, plus 5 %."
     },
+    "/admin/agents/concierge/sample": {
+      "maxKb": 199,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and the WhatsApp Concierge's suggestions to review, rendered on the server: only its print button runs in the browser. Measured 189.4 kB on 20-11-2026, plus 5 %."
+    },
     "/admin/agents/copilot": {
       "maxKb": 242,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and the Caller Co-pilot's shadow report: the company and period filters with the date inputs, the agreement summary, the refusals and suggestions by kind, and the call summaries grid. Measured 230.1 kB on 18-11-2026, plus 5 %."
+    },
+    "/admin/agents/copilot/sample": {
+      "maxKb": 199,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and the Caller Co-pilot's suggestions to review, rendered on the server: only its print button runs in the browser. Measured 189.4 kB on 20-11-2026, plus 5 %."
     },
     "/admin/agents/shadow": {
       "maxKb": 248,

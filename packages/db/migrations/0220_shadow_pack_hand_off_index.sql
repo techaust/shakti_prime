@@ -1,0 +1,1 @@
+CREATE INDEX "audit_logs_hand_off_idx" ON "audit_logs" USING btree ("entity_id","created_at") WHERE "audit_logs"."command" in ('messaging.thread.record_hand_off', 'messaging.thread.hand_off');
