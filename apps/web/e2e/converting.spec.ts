@@ -232,3 +232,110 @@ test.describe('converting as a Sales Team Lead', () => {
     await expectNoAxeViolations(page);
   });
 });
+
+// T3 re-check 12 on this workspace (the review of p2-fixes, L1): a save on one lead keeps another
+// lead's dialled call. Company 1's Lead Converter, whose company has calling numbers, on two leads
+// she adds (the simulated provider places the call; nothing rings).
+test.describe('converting: a dialled call as a Lead Converter of company 1', () => {
+  test.use(signedInAs('converter'));
+
+  /** A mobile number no earlier run used, typed the way a caller types it. */
+  const freshMobile = (): string => {
+    const digits = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+    return `${digits.slice(0, 5)} ${digits.slice(5)}`;
+  };
+
+  async function addLead(page: Page, first: string): Promise<string> {
+    const lead = `${first} ${String(Date.now()).slice(-6)}`;
+    await page.goto('/leads/new');
+    await page.getByLabel('Customer name').fill(lead);
+    await page.getByLabel('Mobile number').fill(freshMobile());
+    await page.getByLabel('Line of business').selectOption({ label: 'Farmer Pumps' });
+    await page.getByLabel('Type of customer').selectOption({ label: 'Farm' });
+    await page.getByRole('button', { name: 'Save lead' }).click();
+    await expect(page.getByText(`Lead saved for ${lead}.`)).toBeVisible({ timeout: 30_000 });
+    return lead;
+  }
+
+  async function openLead(page: Page, lead: string): Promise<void> {
+    const search = page.getByRole('searchbox', { name: /Find a lead/ });
+    await press(page, '/', async () => {
+      await expect(search).toBeFocused({ timeout: 1_000 });
+    });
+    await search.fill(lead);
+    await page.keyboard.press('Enter');
+    const hit = page.getByRole('list', { name: 'Leads found' }).getByRole('button').first();
+    await expect(hit).toContainText(lead);
+    await hit.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('heading', { name: lead, level: 2 })).toBeFocused();
+  }
+
+  test('keeps a lead’s dialled call when another lead’s call is saved (T3 re-check 12)', async ({
+    page,
+    context,
+    browser,
+  }) => {
+    test.setTimeout(180_000);
+    await setServerClock(context, insideCallingHours());
+    // Her own phone for calls (the same number each run).
+    await page.goto('/settings/profile');
+    const section = page.locator('#dial-phone');
+    const field = section.getByLabel('Your phone number');
+    await expect(field).toBeVisible();
+    await expect(async () => {
+      await field.fill('98000 00192');
+      await section.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Your phone for calls is saved.')).toBeVisible({
+        timeout: 5_000,
+      });
+    }).toPass({ timeout: 30_000 });
+
+    const other = await addLead(page, 'Gopal Ram Meena');
+    const dialledLead = await addLead(page, 'Santosh Devi Yadav');
+    await page.goto('/converting');
+    await expect(page.getByRole('heading', { name: 'Converting', level: 1 })).toBeVisible();
+    await openLead(page, dialledLead);
+    const bar = page.getByRole('region', { name: 'Call from the screen' });
+    await bar.getByRole('button', { name: /^Call/ }).click();
+    const ended = bar.getByText('The call has ended. Choose its outcome to save it.');
+    await expect(ended).toBeVisible({ timeout: 30_000 });
+
+    // Another lead, its call dialled by hand and saved, before this one is saved.
+    await openLead(page, other);
+    await expect(ended).toHaveCount(0);
+    await press(page, 'd', async () => {
+      await expect(page.getByText('Number to dial', { exact: true })).toBeVisible({
+        timeout: 1_000,
+      });
+    });
+    await page.keyboard.press('3');
+    await expect(
+      page.getByRole('region', { name: 'Recent activity' }).getByText('Outcome: Not reachable'),
+    ).toBeVisible();
+
+    // Back on the dialled lead: this workspace builds the calls panel afresh for each lead, so the
+    // bar starts empty, but the call the screen placed is still the one its log saves.
+    await openLead(page, dialledLead);
+    await page.keyboard.press('3');
+    await expect(
+      page.getByRole('region', { name: 'Recent activity' }).getByText('Outcome: Not reachable'),
+    ).toBeVisible();
+    await expect(page.getByText('This call is saved already.')).toHaveCount(0);
+    const customer = await page.getByRole('link', { name: 'Open customer' }).getAttribute('href');
+
+    // The log names the placed call: an Executive finds its recording on the customer's page (the
+    // simulated provider records every call); a log saved without it would have none.
+    const executive = await browser.newContext({
+      storageState: signedInAs('executive').storageState,
+    });
+    try {
+      const own = await executive.newPage();
+      await own.goto(customer ?? '/customers');
+      await expect(own.getByRole('button', { name: 'Play recording' })).toHaveCount(1);
+    } finally {
+      await executive.close();
+    }
+    await expectNoAxeViolations(page);
+  });
+});
