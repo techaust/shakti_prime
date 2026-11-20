@@ -180,7 +180,7 @@ Talk to Shakti (`/voice`, for Executives and General Managers) runs in a LiveKit
   - **Admin › Integration health** › **Messages from other systems**: **Voice sessions** stops counting new messages. LiveKit's status page shows the outage. No alert names LiveKit.
 - **Who acts:** the Executive or General Manager using it; the developer follows the outage in LiveKit Cloud.
 1. Ask in writing on **Ask the Business**. Teach waits: meanwhile a rule for the Playbook can be written with **New rule** on **Knowledge › Playbook**.
-2. Do not start talk after talk: after 10 starts in 5 minutes the start is refused for a while. A start that failed counts no minutes against the day.
+2. Do not start talk after talk: a person may start 10 talks in 5 minutes, and more are refused until the 5 minutes pass. A start whose room could not be made ends at once, so it takes next to nothing from the day's minutes.
 3. The developer checks LiveKit Cloud's status page and the project's dashboard. There is no switch that turns Talk to Shakti off; it stays as it is and is tried again later.
 - **Meanwhile:** customers are not affected; voice is for staff only.
 - **When it is back:** a new talk starts, **What Shakti is doing** reads **Listening** and **What was said** follows the talk. On **Integration health**, **Voice sessions** counts again and nothing is under **Messages that failed**; the minutes of a talk, recorded from LiveKit's messages, show in the minutes left today on `/voice` after it ends.
