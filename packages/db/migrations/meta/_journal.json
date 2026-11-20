@@ -1548,6 +1548,13 @@
       "when": 1795154187136,
       "tag": "0220_customer_idle_whatsapp",
       "breakpoints": true
+    },
+    {
+      "idx": 221,
+      "version": "7",
+      "when": 1795155837790,
+      "tag": "0221_whatsapp_platform_answer_waits",
+      "breakpoints": true
     }
   ]
 }

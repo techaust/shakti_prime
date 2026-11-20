@@ -1095,6 +1095,52 @@ describe('messaging.answer.queue (docs/03-roadmap-appendix/phase2.md §7.1)', ()
     expect(waiting).toContainEqual({ thread_id: threadId, user_id: lc.id });
   });
 
+  it('leaves a chat whose only new message the platform answers waiting for no one (S3 follow-up)', async () => {
+    const waitingThreads = async () => {
+      const waitedBefore = new Date(Date.now() + 60_000).toISOString();
+      const found = await asPrincipal(
+        workers(),
+        async (context) =>
+          (await context.tx.execute(
+            sql`select thread_id from app.notice_whatsapp_waiting(${E}::smallint, ${waitedBefore}::timestamptz, 1000)`,
+          )) as unknown as { thread_id: string }[],
+      );
+      return found.map((row) => row.thread_id);
+    };
+    const needsReply = async (threadId: string) => {
+      const [thread] = await asMigrator(
+        (m) => m<{ needs_reply: boolean }[]>`select needs_reply from whatsapp_threads
+                                               where id = ${threadId}`,
+      );
+      return thread?.needs_reply;
+    };
+    const message = (customer: Customer, body: string, platform: boolean) =>
+      run<InboundWhatsAppRecorded>(workers(), recordInboundWhatsApp, {
+        phoneNumberId: channel.phoneNumberId,
+        waId: customer.waId,
+        providerMessageId: `wamid.${newId()}`,
+        kind: 'text',
+        body,
+        buttonPayload: null,
+        sentAt: new Date().toISOString(),
+        handledBy: 'people',
+        platform,
+      });
+
+    // STATUS alone, on a chat handled by people: nothing waits, and no notice is due.
+    const alone = await sizedLead();
+    const status = await message(alone, 'status', true);
+    expect(await needsReply(status.threadId)).toBe(false);
+    expect(await waitingThreads()).not.toContain(status.threadId);
+
+    // A question, then STATUS: the question still waits, and its notice is due.
+    const asked = await sizedLead();
+    const question = await message(asked, 'Is the 5 HP pump in stock?', false);
+    await message(asked, 'status', true);
+    expect(await needsReply(question.threadId)).toBe(true);
+    expect(await waitingThreads()).toContain(question.threadId);
+  });
+
   it('answers that a company without the code template has none to send', async () => {
     const four = await whatsappChannel(4);
     const recorded = await run<InboundWhatsAppRecorded>(workers([4]), recordInboundWhatsApp, {
