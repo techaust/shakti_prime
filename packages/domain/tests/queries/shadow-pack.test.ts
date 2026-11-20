@@ -19,6 +19,10 @@ import {
   type WhatsAppCustomerFixture,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { databaseAuditSink as audit } from '../../src/audit/sink';
+import { runCommand } from '../../src/command/run-command';
+import { handOffWhatsAppThread } from '../../src/commands/messaging/threads';
+import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { loadConciergeReport } from '../../src/queries/agents/concierge';
 import { loadCopilotReport } from '../../src/queries/agents/copilot';
 import { loadConciergeSample, loadCopilotSample } from '../../src/queries/agents/shadow-pack';
@@ -65,7 +69,7 @@ async function seedRun(row: {
   filtered?: string;
   action?: {
     input: Record<string, unknown>;
-    state: 'shadowed' | 'proposed' | 'approved' | 'rejected' | 'dismissed';
+    state: 'shadowed' | 'proposed' | 'approved' | 'rejected' | 'dismissed' | 'executed';
     edited?: boolean;
   };
 }): Promise<string | null> {
@@ -83,8 +87,15 @@ async function seedRun(row: {
   });
   if (action === undefined) return null;
   const id = newId();
-  const autonomy = action.state === 'shadowed' ? 'shadow' : 'needs_approval';
-  const decided = ['approved', 'rejected'].includes(action.state);
+  const autonomy = {
+    shadowed: 'shadow',
+    dismissed: 'suggest',
+    executed: 'automatic',
+    proposed: 'needs_approval',
+    approved: 'needs_approval',
+    rejected: 'needs_approval',
+  }[action.state];
+  const decided = ['approved', 'rejected', 'dismissed'].includes(action.state);
   await asMigrator(
     (m) => m`insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json,
                                         autonomy, state, edited, decided_by, decided_at,
@@ -131,21 +142,61 @@ async function message(
   );
 }
 
-async function personTask(l: Lead, row: { at: string; due: string }): Promise<void> {
+/**
+ * A task on the lead and its audit row, as `crm.task.create` writes it: alone in its request when a
+ * person set it (`via` left out), or inside another command's request (`calls.call.log` filing a
+ * retry or callback, a nurture or a reassignment), whose own audit row shares the request.
+ */
+async function task(
+  l: Lead,
+  row: { at: string; due: string; kind?: string; via?: string },
+): Promise<void> {
+  const id = newId();
+  const request = `shadow-pack-${newId()}`;
+  await asMigrator(async (m) => {
+    await m`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, kind,
+                               title, due_at, created_at, created_by)
+            values (${id}, ${l.entityId}, ${l.opportunityId}, ${l.accountId}, ${person.id},
+                    ${row.kind ?? 'callback'}, 'Call back about the pump', ${row.due}, ${row.at},
+                    ${person.id})`;
+    await m`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command,
+                                    aggregate_type, aggregate_id, outcome, request_id, created_at)
+            values (${newId()}, ${l.entityId}, ${person.id}, 'user', 'crm.task.create', 'task',
+                    ${id}, 'ok', ${request}, ${row.at})`;
+    if (row.via !== undefined) {
+      await m`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command,
+                                      aggregate_type, aggregate_id, outcome, request_id, created_at)
+              values (${newId()}, ${l.entityId}, ${person.id}, 'user', ${row.via}, 'opportunity',
+                      ${l.opportunityId}, 'ok', ${request}, ${row.at})`;
+    }
+  });
+}
+
+/** The lead's facts as they stand now. */
+async function facts(
+  l: Lead,
+  row: { pumpDepthFt?: number; requiredHp?: number; roofAreaSqFt?: number },
+): Promise<void> {
   await asMigrator(
-    (m) => m`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, kind,
-                                title, due_at, created_at, created_by)
-             values (${newId()}, ${l.entityId}, ${l.opportunityId}, ${l.accountId}, ${person.id},
-                     'callback', 'Call back about the pump', ${row.due}, ${row.at}, ${person.id})`,
+    (m) => m`insert into lead_qualifications (opportunity_id, entity_id, pump_depth_ft, required_hp,
+                                              roof_area_sq_ft, updated_by)
+             values (${l.opportunityId}, ${l.entityId}, ${row.pumpDepthFt ?? null},
+                     ${row.requiredHp ?? null}, ${row.roofAreaSqFt ?? null}, ${person.id})`,
   );
 }
 
-async function facts(l: Lead, row: { pumpDepthFt?: number; requiredHp?: number }): Promise<void> {
+/** A person's change of the lead's facts in the audit trail, as `crm.lead.qualification.set` writes it. */
+async function factChange(
+  l: Lead,
+  row: { at: string; before: Record<string, number | null>; after: Record<string, number | null> },
+): Promise<void> {
   await asMigrator(
-    (m) => m`insert into lead_qualifications (opportunity_id, entity_id, pump_depth_ft, required_hp,
-                                              updated_by)
-             values (${l.opportunityId}, ${l.entityId}, ${row.pumpDepthFt ?? null},
-                     ${row.requiredHp ?? null}, ${person.id})`,
+    (m) => m`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command,
+                                     aggregate_type, aggregate_id, outcome, before_json, after_json,
+                                     request_id, created_at)
+             values (${newId()}, ${l.entityId}, ${person.id}, 'user', 'crm.lead.qualification.set',
+                     'opportunity', ${l.opportunityId}, 'ok', ${m.json(row.before)},
+                     ${m.json(row.after)}, ${`shadow-pack-${newId()}`}, ${row.at})`,
   );
 }
 
@@ -192,6 +243,8 @@ let leadB: Lead;
 let leadC: Lead;
 const conciergeReplies: string[] = [];
 const copilotTasks: string[] = [];
+let copilotFacts = '';
+let copilotTemplate = '';
 
 beforeAll(async () => {
   executive = await createTestPrincipal('executive', [ENTITY]);
@@ -208,11 +261,11 @@ beforeAll(async () => {
   );
 
   // The Concierge. Replies on chat A: two in Shadow (a person answered the first), one waiting,
-  // one sent as written, one sent after an edit, one discarded.
+  // one sent as written, one sent after an edit, one discarded, one the agent sent itself.
   await message(leadA, { at: at(10), inbound: true, body: 'Need a pump for 120 ft' });
   const reply = (
     minute: number,
-    state: 'shadowed' | 'proposed' | 'approved' | 'rejected',
+    state: 'shadowed' | 'proposed' | 'approved' | 'rejected' | 'executed',
     edited = false,
   ) =>
     seedRun({
@@ -238,16 +291,20 @@ beforeAll(async () => {
     [41, 'approved', false],
     [51, 'approved', true],
     [61, 'rejected', false],
+    // Carried out by the agent itself (Automatic, Phase 6): never read as people agreeing.
+    [71, 'executed', false],
   ] as const) {
     const id = await reply(minute, state, edited);
     if (id !== null) conciergeReplies.push(id);
   }
   await message(leadA, { at: at(12), body: 'We will call you about the 120 ft pump' });
 
-  // Facts: chat A's lead records the depth proposed (agrees), B's another power (disagrees), C's
-  // none (open).
+  // Facts. Lead A held the depth proposed before the proposal: a repeat, open. Lead B: a person
+  // recorded the power proposed after it (agrees), then corrected it, which changes nothing of the
+  // verdict. Lead C: a person recorded another roof area after it (disagrees).
   await facts(leadA, { pumpDepthFt: 120 });
   await facts(leadB, { requiredHp: 7.5 });
+  await facts(leadC, { roofAreaSqFt: 450 });
   for (const [l, proposed] of [
     [leadA, { pumpDepthFt: 120, discomConsumerNo: 'AB-1234' }],
     [leadB, { requiredHp: 5 }],
@@ -264,14 +321,24 @@ beforeAll(async () => {
       },
     });
   }
-  // Callbacks: a person made a task on lead A after it (agrees); lead B was lost without one
-  // (disagrees); lead C is open with none (open). A task made before the proposal does not count.
-  await personTask(leadC, { at: at(150), due: at(3000) });
-  for (const l of [leadA, leadB, leadC]) {
-    await seedRun({
+  await factChange(leadB, { at: at(150), before: { requiredHp: null }, after: { requiredHp: 5 } });
+  await factChange(leadB, { at: at(900), before: { requiredHp: 5 }, after: { requiredHp: 7.5 } });
+  await factChange(leadC, {
+    at: at(160),
+    before: { roofAreaSqFt: null },
+    after: { roofAreaSqFt: 450 },
+  });
+  // Callbacks, proposed at minute 200 due at minute 2000. Lead A: a person set a callback of their
+  // own after it, due an hour from the time proposed (agrees), and the same proposal under Suggest
+  // was dismissed (compared as Shadow is: agrees). Lead B was lost without one (disagrees). Lead C:
+  // only a callback made before the proposal, one the call log filed as a retry, one of another
+  // kind and one set too late (open).
+  await task(leadC, { at: at(150), due: at(2000) });
+  const callback = (l: Lead, minute: number, state: 'shadowed' | 'dismissed') =>
+    seedRun({
       agent: 'agent:concierge',
       actionType: TASK,
-      at: at(200),
+      at: at(minute),
       costPaise: 100,
       action: {
         input: {
@@ -281,11 +348,15 @@ beforeAll(async () => {
           dueAt: at(2000),
           assigneeId: l.owner.id,
         },
-        state: 'shadowed',
+        state,
       },
     });
-  }
-  await personTask(leadA, { at: at(300), due: at(2500) });
+  for (const l of [leadA, leadB, leadC]) await callback(l, 200, 'shadowed');
+  await callback(leadA, 210, 'dismissed');
+  await task(leadA, { at: at(300), due: at(2060) });
+  await task(leadC, { at: at(250), due: at(2000), via: 'calls.call.log' });
+  await task(leadC, { at: at(260), due: at(2000), kind: 'follow_up' });
+  await task(leadC, { at: at(200 + 49 * 60), due: at(2000) });
 
   // Refused runs and a run with nothing to do, which cost too.
   for (const [actionType, reason] of [
@@ -310,23 +381,34 @@ beforeAll(async () => {
   await handOff({ at: at(520), reason: 'complaint', byPerson: true });
   await handOff({ at: at(530), reason: 'question', before: 'people' });
 
-  // The Co-pilot on lead A: a template a person then sent (agrees), facts in Shadow (agree), and
-  // 120 follow-ups spread over the period for the sample.
-  await seedRun({
-    agent: 'agent:copilot',
-    actionType: TEMPLATE,
-    at: at(600),
-    costPaise: 1000,
-    action: {
-      input: {
-        entityId: ENTITY,
-        opportunityId: leadA.opportunityId,
-        occasion: 'nurture',
-        templateName: 'nurture_day_7',
+  // The Co-pilot: facts on lead B a person then recorded (agree), at no cost; a template on lead A
+  // a person then sent (agrees); and 120 follow-ups spread over the period for the review set.
+  copilotFacts =
+    (await seedRun({
+      agent: 'agent:copilot',
+      actionType: QUALIFICATION,
+      at: at(120),
+      action: {
+        input: { entityId: ENTITY, opportunityId: leadB.opportunityId, facts: { requiredHp: 5 } },
+        state: 'shadowed',
       },
-      state: 'shadowed',
-    },
-  });
+    })) ?? '';
+  copilotTemplate =
+    (await seedRun({
+      agent: 'agent:copilot',
+      actionType: TEMPLATE,
+      at: at(600),
+      costPaise: 1000,
+      action: {
+        input: {
+          entityId: ENTITY,
+          opportunityId: leadA.opportunityId,
+          occasion: 'nurture',
+          templateName: 'nurture_day_7',
+        },
+        state: 'shadowed',
+      },
+    })) ?? '';
   await message(leadA, { at: at(700), template: 'nurture_day_7' });
   for (let i = 0; i < 120; i += 1) {
     const id = await seedRun({
@@ -395,21 +477,34 @@ afterAll(async () => {
 describe('the Concierge report’s figures (§8.1)', () => {
   it('counts each action type’s proposals, decisions and agreement with what people did', async () => {
     const report = await conciergeReport(executive);
+    expect(report.compared).toBe(true);
     expect(figuresOf(report, REPLY)).toEqual({
       actionType: REPLY,
-      proposals: 6,
+      proposals: 7,
       shadowed: 2,
       waiting: 1,
       approved: 2,
       rejected: 1,
+      executed: 1,
       decided: 3,
       agreed: 1,
       edited: 1,
       disagreed: 1,
-      // A reply in Shadow stays open: only a reader of the sample can judge it.
-      open: 3,
+      // A reply in Shadow stays open (only a reader of the review set can judge it), and so does
+      // one the agent sent itself.
+      open: 4,
       filtered: [{ reason: 'reply_too_long', runs: 2 }],
     });
+    expect(report.filtered).toEqual([
+      { reason: 'fact_not_grounded', runs: 1 },
+      { reason: 'reply_too_long', runs: 2 },
+    ]);
+  });
+
+  it('holds facts to the first change a person recorded after them, and a repeat stays open', async () => {
+    const report = await conciergeReport(executive);
+    // A: the depth it held already (open); B: the power recorded after, then corrected (agrees
+    // still); C: another roof area recorded after (disagrees).
     expect(figuresOf(report, QUALIFICATION)).toMatchObject({
       proposals: 3,
       shadowed: 3,
@@ -419,17 +514,37 @@ describe('the Concierge report’s figures (§8.1)', () => {
       open: 1,
       filtered: [{ reason: 'fact_not_grounded', runs: 1 }],
     });
+  });
+
+  it('counts only a person’s own task of the kind, soon after and due near the time proposed', async () => {
+    const report = await conciergeReport(executive);
+    // A: a person's own callback an hour from the time, for the proposal in Shadow and the one
+    // dismissed under Suggest (both agree); B: lost without one (disagrees); C: a callback made
+    // before, a retry the call log filed, another kind and one too late (open).
     expect(figuresOf(report, TASK)).toMatchObject({
-      proposals: 3,
-      agreed: 1,
+      proposals: 4,
+      shadowed: 3,
+      rejected: 1,
+      decided: 1,
+      agreed: 2,
       disagreed: 1,
       open: 1,
       filtered: [],
     });
-    expect(report.filtered).toEqual([
-      { reason: 'fact_not_grounded', runs: 1 },
-      { reason: 'reply_too_long', runs: 2 },
-    ]);
+  });
+
+  it('compares nothing in Shadow for a viewer who does not read the audit trail', async () => {
+    const noAudit = {
+      ...executive,
+      permissions: executive.permissions.filter((p) => p.key !== 'audit.read'),
+    };
+    const report = await conciergeReport(noAudit);
+    expect(report.compared).toBe(false);
+    expect(report.handoffs).toBeNull();
+    expect(figuresOf(report, QUALIFICATION)).toMatchObject({ agreed: 0, disagreed: 0, open: 3 });
+    expect(figuresOf(report, TASK)).toMatchObject({ agreed: 0, disagreed: 0, open: 4 });
+    // A person's own decisions read the same.
+    expect(figuresOf(report, REPLY)).toMatchObject({ proposals: 7, agreed: 1, disagreed: 1 });
   });
 
   it('counts the hand-offs by reason and by whom, and only those that moved a chat', async () => {
@@ -442,21 +557,68 @@ describe('the Concierge report’s figures (§8.1)', () => {
     expect((await conciergeReport(gm)).handoffs).toEqual(report.handoffs);
   });
 
-  it('gives no hand-offs to a viewer who does not read the audit trail', async () => {
-    const noAudit = {
-      ...executive,
-      permissions: executive.permissions.filter((p) => p.key !== 'audit.read'),
-    };
-    const report = await conciergeReport(noAudit);
-    expect(report.handoffs).toBeNull();
-    expect(figuresOf(report, REPLY)?.proposals).toBe(6);
+  it('counts a person’s hand-off through the command itself', async () => {
+    const chat = await lead();
+    const today = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+    const handoffsToday = async () =>
+      (
+        await ask<ConciergeReportDto>(executive, loadConciergeReport, {
+          from: today,
+          to: today,
+          limit: 1,
+        })
+      ).handoffs?.find((h) => h.by === 'person' && h.reason === 'request')?.count ?? 0;
+    const before = await handoffsToday();
+    await asPrincipal({ ...chat.owner, entityIds: [ENTITY] }, (context) =>
+      runCommand(
+        handOffWhatsAppThread,
+        { context, audit, outbox },
+        { entityId: ENTITY, threadId: chat.threadId, reason: 'request' },
+      ),
+    );
+    expect(await handoffsToday()).toBe(before + 1);
   });
 
   it('gives the AI spend over the distinct leads it worked on', async () => {
     const report = await conciergeReport(executive);
-    // 6 replies at ₹4, 3 facts at ₹2, 3 callbacks at ₹1, 3 refused at ₹3 and one run for nothing:
-    // ₹42 over leads A, B and C.
-    expect(report.spend).toEqual({ total: '42.00', runs: 16, leads: 3, perLead: '14.00' });
+    // 7 replies at ₹4, 3 facts at ₹2, 4 callbacks at ₹1, 3 refused at ₹3 and one run for nothing:
+    // ₹47 over leads A, B and C, ₹15.666… a lead.
+    expect(report.spend).toEqual({ total: '47.00', runs: 18, leads: 3, perLead: '15.67' });
+  });
+
+  it('rounds the spend per lead half up to the paisa', async () => {
+    // One paisa over two leads, on a day of the 1990s of its own (no audit rows are written):
+    // half a paisa a lead, shown as one.
+    const day = (offset: number) =>
+      new Date(Date.UTC(1990, 0, 1) + offset * 86_400_000).toISOString();
+    const base = Math.floor(Math.random() * 3650);
+    const runAt = (minutes: number) =>
+      new Date(Date.parse(day(base)) + minutes * 60_000).toISOString();
+    await seedRun({ agent: 'agent:concierge', actionType: REPLY, at: runAt(1), costPaise: 1 });
+    for (const l of [leadA, leadB]) {
+      await seedRun({
+        agent: 'agent:concierge',
+        actionType: TASK,
+        at: runAt(2),
+        action: {
+          input: {
+            entityId: ENTITY,
+            opportunityId: l.opportunityId,
+            kind: 'callback',
+            dueAt: runAt(600),
+            assigneeId: l.owner.id,
+          },
+          state: 'shadowed',
+        },
+      });
+    }
+    const first = day(base).slice(0, 10);
+    const report = await ask<ConciergeReportDto>(executive, loadConciergeReport, {
+      from: first,
+      to: first,
+      limit: 1,
+    });
+    expect(report.spend).toEqual({ total: '0.01', runs: 3, leads: 2, perLead: '0.01' });
   });
 });
 
@@ -464,26 +626,26 @@ describe('the Co-pilot report’s figures (§8.1)', () => {
   it('counts its proposals per action type and its spend per lead', async () => {
     const report = await ask(executive, loadCopilotReport, { limit: 10 });
     expect(figuresOf(report, TEMPLATE)).toMatchObject({ proposals: 1, agreed: 1, open: 0 });
-    // The follow-ups on lead C: none had a person's task after it but the one before them.
+    // The follow-ups on lead C: no follow-up of a person's own after any of them.
     expect(figuresOf(report, TASK)).toMatchObject({ proposals: 120, agreed: 0, open: 120 });
-    expect(figuresOf(report, QUALIFICATION)?.proposals).toBe(0);
-    // ₹10 and 120 runs at ₹0.10 over lead A (the template), C (the follow-ups) and B (a brief).
-    expect(report.spend).toEqual({ total: '22.00', runs: 121, leads: 3, perLead: '7.33' });
+    expect(figuresOf(report, QUALIFICATION)).toMatchObject({ proposals: 1, agreed: 1 });
+    // ₹10 and 120 runs at ₹0.10 (the facts' run cost nothing) over lead A (the template), C (the
+    // follow-ups) and B (the facts and a brief).
+    expect(report.spend).toEqual({ total: '22.00', runs: 122, leads: 3, perLead: '7.33' });
     // The other company's refused reply is not this company's.
     expect(report.filtered).toEqual([]);
   });
 });
 
 describe('the review sample (§8.1)', () => {
-  it('lists every proposal of a short period, oldest first, beside what people did', async () => {
+  it('is the WhatsApp assistant’s drafted replies alone, oldest first, beside what people did', async () => {
     const sample = await ask(executive, loadConciergeSample);
-    expect(sample.proposals).toBe(12);
-    expect(sample.items).toHaveLength(12);
-    const times = sample.items.map((i) => i.createdAt);
-    expect([...times].sort()).toEqual(times);
-    const first = sample.items[0];
-    expect(first).toMatchObject({
-      actionId: conciergeReplies[0],
+    // Its 7 replies; its facts and callbacks stay in the report's figures.
+    expect(sample.proposals).toBe(7);
+    expect(sample.compared).toBe(true);
+    expect(sample.items.map((i) => i.actionId)).toEqual(conciergeReplies);
+    expect(new Set(sample.items.map((i) => i.actionType))).toEqual(new Set([REPLY]));
+    expect(sample.items[0]).toMatchObject({
       actionType: REPLY,
       asked: 'Need a pump for 120 ft',
       draft: { kind: 'reply', text: 'Draft at 11' },
@@ -491,44 +653,36 @@ describe('the review sample (§8.1)', () => {
       state: 'shadowed',
       agreement: 'open',
     });
-    const facts = sample.items.find(
-      (i) => i.actionType === QUALIFICATION && i.opportunityId === leadA.opportunityId,
-    );
-    // The consumer number is never shown; the lead's own depth is.
-    expect(facts).toMatchObject({
-      draft: { kind: 'facts', facts: { pumpDepthFt: 120 } },
-      did: { kind: 'facts', facts: { pumpDepthFt: 120 } },
-      agreement: 'agree',
-    });
-    const task = sample.items.find(
-      (i) => i.actionType === TASK && i.opportunityId === leadA.opportunityId,
-    );
-    expect(task).toMatchObject({
-      draft: { kind: 'task', taskKind: 'callback', dueAt: at(2000) },
-      did: { kind: 'task', taskKind: 'callback', at: at(300) },
-      agreement: 'agree',
-    });
-    expect(sample.filtered).toEqual([
-      { actionType: QUALIFICATION, reason: 'fact_not_grounded', runs: 1 },
-      { actionType: REPLY, reason: 'reply_too_long', runs: 2 },
-    ]);
+    expect(sample.items.at(-1)).toMatchObject({ state: 'executed', agreement: 'open' });
+    expect(sample.filtered).toEqual([{ actionType: REPLY, reason: 'reply_too_long', runs: 2 }]);
   });
 
   it('takes 50 of a long period, spread evenly, and the same 50 every time', async () => {
     const sample = await ask(executive, loadCopilotSample);
-    expect(sample.proposals).toBe(121);
+    expect(sample.proposals).toBe(122);
     expect(sample.items).toHaveLength(50);
     expect(await ask(executive, loadCopilotSample)).toEqual(sample);
-    // 121 proposals in 50 runs of equal length (21 of three, 29 of two), the first of each.
-    const all = [sample.items[0]?.actionId ?? '', ...copilotTasks];
+    // 122 proposals in 50 runs of equal length (22 of three, 28 of two), the first of each.
+    const all = [copilotFacts, copilotTemplate, ...copilotTasks];
     const picked: string[] = [];
     let i = 0;
     for (let b = 0; b < 50; b += 1) {
       picked.push(all[i] ?? '');
-      i += b < 121 % 50 ? 3 : 2;
+      i += b < 122 % 50 ? 3 : 2;
     }
     expect(sample.items.map((x) => x.actionId)).toEqual(picked);
+    // The facts beside the first value a person recorded after them, not its later correction.
     expect(sample.items[0]).toMatchObject({
+      actionType: QUALIFICATION,
+      draft: { kind: 'facts', facts: { requiredHp: 5 } },
+      did: { kind: 'facts', facts: { requiredHp: 5 } },
+      agreement: 'agree',
+    });
+    // The template beside the one a person sent, on the period's first day, whose four proposals
+    // the set holds all of.
+    const firstDay = await ask(executive, loadCopilotSample, { to: FROM });
+    expect(firstDay.items).toHaveLength(4);
+    expect(firstDay.items.find((x) => x.actionId === copilotTemplate)).toMatchObject({
       actionType: TEMPLATE,
       draft: { kind: 'template', templateName: 'nurture_day_7', occasion: 'nurture' },
       did: { kind: 'template', at: at(700) },

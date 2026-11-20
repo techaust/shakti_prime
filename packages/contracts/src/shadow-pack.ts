@@ -22,13 +22,16 @@ export type AgentRefusalCountDto = z.infer<typeof AgentRefusalCountDto>;
 
 /**
  * One action type's proposals in the period and how people's own work compares with them. Each
- * proposal is counted once in agreed, edited, disagreed or open:
+ * proposal is counted once in agreed, edited, disagreed or open (the rules are
+ * `shadowActionsSql()`'s in `packages/domain/src/queries/agents/shadow-pack.ts`):
  * - decided by a person: approved as proposed agrees, approved after an edit is edited, rejected
- *   or dismissed disagrees;
- * - waiting for a person: open;
- * - recorded in Shadow, compared with what people did (`shadowAgreementSql()`): the lead's facts,
- *   a person's task or template on the lead after it; a reply in Shadow stays open, since only a
- *   reader can judge two texts (the review sample).
+ *   disagrees; dismissed under Suggest ("done, or not wanted") is compared as Shadow is;
+ * - waiting for a person, or carried out by the agent itself (Automatic): open;
+ * - recorded in Shadow, compared with what people did, for a viewer who reads the audit trail
+ *   (`compared` on the report): the facts a person recorded first after it, a person's own task of
+ *   the kind proposed made soon after and due near the proposed time, the template a person sent
+ *   soon after; a reply in Shadow stays open, since only a reader can judge two texts (the review
+ *   set).
  */
 export const AgentProposalFiguresDto = z
   .object({
@@ -36,8 +39,12 @@ export const AgentProposalFiguresDto = z
     proposals: Count,
     shadowed: Count,
     waiting: Count,
+    /** Approved by a person, as proposed or after an edit. */
     approved: Count,
+    /** Rejected, or dismissed under Suggest. */
     rejected: Count,
+    /** Carried out by the agent itself (Automatic, not available before Phase 6). */
+    executed: Count,
     /** Approved, edited, rejected or dismissed by a person. */
     decided: Count,
     agreed: Count,
@@ -98,6 +105,8 @@ export const SHADOW_SAMPLE_STATES = [
   'approved',
   'edited',
   'rejected',
+  'dismissed',
+  'executed',
 ] as const;
 export const ShadowSampleStateSchema = z.enum(SHADOW_SAMPLE_STATES);
 export type ShadowSampleState = z.infer<typeof ShadowSampleStateSchema>;
@@ -196,8 +205,10 @@ export const ShadowSampleDto = z
     entityId: EntityIdSchema,
     from: Day,
     to: Day,
-    /** The agent's proposals in the period, of which `items` is the sample. */
+    /** The agent's proposals in the period of the kinds sampled, of which `items` is the set. */
     proposals: Count,
+    /** Whether the agreement compares with what people did (the viewer reads the audit trail). */
+    compared: z.boolean(),
     items: z.array(ShadowSampleItemDto).max(SHADOW_SAMPLE_SIZE),
     filtered: z.array(AgentRefusalCountDto.extend({ actionType: z.string() }).strict()),
   })

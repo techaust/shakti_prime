@@ -339,6 +339,11 @@ export const CopilotReportDto = z
       z.object({ reason: AgentFilterReasonSchema, runs: z.number().int().min(0) }).strict(),
     ),
     proposals: z.array(AgentProposalFiguresDto),
+    /**
+     * Whether the figures compare proposals with what people did: the viewer reads the audit
+     * trail; otherwise a proposal in Shadow reads as open.
+     */
+    compared: z.boolean(),
     /** The Co-pilot has no hand-off: it never answers a customer, a caller makes every call. */
     spend: AgentSpendPerLeadDto,
     items: z.array(CopilotReportItemDto),

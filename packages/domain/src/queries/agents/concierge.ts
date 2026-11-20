@@ -18,6 +18,7 @@ import { inboxScope } from './inbox';
 import { checkShadowReader, istEndAfter, istStart } from './shadow-report';
 import {
   agentRefusals,
+  comparesWithTeam,
   conciergeHandoffs,
   proposalFigures,
   refusalsByReason,
@@ -245,6 +246,7 @@ export async function loadConciergeReport(
     },
     filtered: refusalsByReason(refusals),
     proposals,
+    compared: comparesWithTeam(ctx),
     handoffs,
     spend,
     items: rows.map((r) => ({

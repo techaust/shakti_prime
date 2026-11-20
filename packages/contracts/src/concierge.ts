@@ -111,6 +111,11 @@ export const ConciergeReportDto = z
     ),
     proposals: z.array(AgentProposalFiguresDto),
     /**
+     * Whether the figures compare proposals with what people did: the viewer reads the audit
+     * trail; otherwise a proposal in Shadow reads as open.
+     */
+    compared: z.boolean(),
+    /**
      * The chats handed to people in the period, by reason and by whom, from the audit trail; null
      * when the viewer does not read the company's audit trail.
      */

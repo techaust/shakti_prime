@@ -22,7 +22,13 @@ import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { checkPermission, isAgent } from '../../command/run-command';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 import { checkShadowReader, istEndAfter, istStart } from './shadow-report';
-import { agentRefusals, proposalFigures, refusalsByReason, spendPerLead } from './shadow-pack';
+import {
+  agentRefusals,
+  comparesWithTeam,
+  proposalFigures,
+  refusalsByReason,
+  spendPerLead,
+} from './shadow-pack';
 import { listInbox } from './inbox';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -429,6 +435,7 @@ export async function loadCopilotReport(ctx: Ctx, rawInput: unknown): Promise<Co
     },
     filtered: refusalsByReason(refusals),
     proposals,
+    compared: comparesWithTeam(ctx),
     spend,
     items: rows.map((r) => ({
       noteId: r.id,

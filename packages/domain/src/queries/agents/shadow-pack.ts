@@ -101,31 +101,54 @@ const recordedFact = sql.raw(
 );
 const factKeys = sql.raw(COPILOT_FACTS.map((fact) => `'${fact}'`).join(', '));
 
+/** How long after a proposal a person's own task or template counts as bearing it out. */
+export const SHADOW_MATCH_WINDOW_HOURS = 48;
+/** How far a person's task may be due from the proposed time and still match it. */
+export const SHADOW_TASK_DUE_TOLERANCE_HOURS = 24;
+
+const number = (text: SQL) =>
+  sql`(case when ${text} ~ '^-?[0-9]+(\.[0-9]+)?$' then (${text})::numeric end)`;
+
 /**
  * One agent's proposals of a company in a period (`[from, until)`), each with its lead and how what
  * people did compares with it (`agreement`):
  * - a person's decision first: approved as proposed agrees, approved after an edit is `edited`,
- *   rejected or dismissed disagrees, waiting is open;
- * - in Shadow, by action type: qualification facts agree when every fact the lead records of
- *   those proposed is the one proposed (one that differs disagrees; none recorded is open); a task
- *   or a template agrees when a person made a task on the lead, or sent the template on the lead's
- *   chat, at or after the proposal, and disagrees when the lead was won or lost without it; a
- *   reply stays open, since only a reader can set two texts side by side (the review sample).
+ *   rejected disagrees; waiting, and an action the agent carried out itself (Automatic), are open;
+ * - recorded in Shadow, or dismissed under Suggest (dismissing means "done, or not wanted", so it
+ *   is read as Shadow is), by what people did, which the audit trail tells apart, so only for a
+ *   viewer who reads it (`compare`; otherwise open):
+ *   - qualification facts: each fact proposed is held to the first change of it a person recorded
+ *     at or after the proposal (`crm.lead.qualification.set`), so a later correction never changes
+ *     the verdict: the same value agrees, another disagrees; a fact equal to what the lead held
+ *     before the proposal (a repeat), or never recorded since, is open; one that differs makes the
+ *     proposal disagree, else one that agrees makes it agree;
+ *   - a task: a person's own task on the lead (a request that ran `crm.task.create` alone, never a
+ *     callback, retry, nurture call or move the call log, the nurture rules or a reassignment
+ *     filed), of the proposed kind, made within `SHADOW_MATCH_WINDOW_HOURS` of the proposal and
+ *     due within `SHADOW_TASK_DUE_TOLERANCE_HOURS` of the proposed time;
+ *   - a template: the same template a person sent on the lead's chat within the window;
+ *   - either disagrees once the lead was won or lost without one, and is open until then;
+ *   - a reply stays open, since only a reader can set two texts side by side (the review set).
  *
- * With `sample`, only the sample's rows: the period's proposals in time order cut into 50 runs of
- * equal length (`ntile`), the first of each, so the same period gives the same pairs; the customer's
- * message and what a person sent come with each reply. The agent's rows come off
- * `agent_actions_type_created_idx`; each lookup after is by key or by its own index.
+ * With `sample`, only the sample's rows: the period's proposals of `types` (every type when left
+ * out) in time order cut into 50 runs of equal length (`ntile`), the first of each, so the same
+ * period gives the same pairs; the customer's message and what a person sent come with each reply.
+ * The agent's rows come off `agent_actions_type_created_idx`; each lookup after is by key or by its
+ * own index.
  */
 export function shadowActionsSql(
   agent: PackAgent,
   entityId: number,
   from: string,
   until: string,
-  options: { sample?: boolean } = {},
+  options: { compare: boolean; sample?: boolean; types?: readonly string[] },
 ) {
+  const typeList = `{${(options.types ?? []).join(',')}}`;
+  const ofTypes =
+    options.types === undefined ? sql`` : sql`and a.action_type = any(${typeList}::text[])`;
   const period = sql`a.entity_id = ${entityId} and a.agent = ${agent}
-           and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz`;
+           and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz
+           ${ofTypes}`;
   const actions = options.sample
     ? sql`(
         select a.* from (
@@ -148,20 +171,22 @@ export function shadowActionsSql(
         on a.action_type = ${TEMPLATE} and pt.entity_id = a.entity_id
        and pt.name = a.input_json ->> 'templateName' and pt.language = 'en'`
     : sql``;
+  const compare = sql`${options.compare}::boolean`;
+  const window = sql`make_interval(hours => ${SHADOW_MATCH_WINDOW_HOURS}::integer)`;
+  const tolerance = SHADOW_TASK_DUE_TOLERANCE_HOURS * 3600;
   return sql`
     select a.id, a.action_type, a.created_at, a.state, a.edited, a.input_json as input,
            l.opportunity_id, o.account_id, acc.name as customer_name,
-           lq.pump_depth_ft, lq.required_hp, lq.monthly_bill_rupees, lq.roof_area_sq_ft,
-           lq.sanctioned_load_kw,
+           fc.recorded as recorded_facts,
            task.kind as task_kind, task.due_at as task_due_at, task.title as task_title,
            task.created_at as task_at,
            tpl.created_at as template_at, tpl.label as template_label
            ${texts},
            case
-             when a.state in ('approved', 'executed') then
-               case when a.edited then 'edited' else 'agree' end
-             when a.state in ('rejected', 'dismissed') then 'disagree'
-             when a.state <> 'shadowed' then 'open'
+             when a.state = 'approved' then case when a.edited then 'edited' else 'agree' end
+             when a.state = 'rejected' then 'disagree'
+             when a.state in ('proposed', 'executed') then 'open'
+             when not ${compare} then 'open'
              when a.action_type = ${QUALIFICATION} then
                case when fc.differ > 0 then 'disagree' when fc.same > 0 then 'agree' else 'open' end
              when a.action_type in (${TASK}, ${TEMPLATE}) then
@@ -173,12 +198,15 @@ export function shadowActionsSql(
              else 'open'
            end as agreement
       from ${actions} a
-      -- The proposal's chat and lead as values of their own (offset 0 keeps them so), and the chat
-      -- read laterally, so each lookup by them is an index condition: the casts are not leakproof,
-      -- and the policies would otherwise hold them back to a filter over every chat.
+      -- The proposal's chat, lead and proposed due time as values of their own (offset 0 keeps
+      -- them so), and the chat read laterally, so each lookup by them is an index condition: the
+      -- casts are not leakproof, and the policies would otherwise hold them back to a filter.
       cross join lateral (
         select (a.input_json ->> 'threadId')::uuid as thread_id,
-               (a.input_json ->> 'opportunityId')::uuid as opportunity_id offset 0) k
+               (a.input_json ->> 'opportunityId')::uuid as opportunity_id,
+               case when a.action_type = ${TASK} then (a.input_json ->> 'dueAt')::timestamptz end
+                 as due_at
+         offset 0) k
       left join lateral (
         select th.id, th.opportunity_id from whatsapp_threads th
          where a.action_type = ${REPLY} and th.id = k.thread_id and th.entity_id = a.entity_id) th
@@ -191,19 +219,57 @@ export function shadowActionsSql(
         on a.action_type = ${QUALIFICATION} and lq.opportunity_id = l.opportunity_id
        and lq.entity_id = a.entity_id
       left join lateral (
-        select count(*) filter (where r.recorded is not null and r.recorded = r.heard)::int as same,
-               count(*) filter (where r.recorded is not null and r.recorded <> r.heard)::int as differ
+        select count(*) filter (where v.verdict = 'agree')::int as same,
+               count(*) filter (where v.verdict = 'disagree')::int as differ,
+               jsonb_object_agg(f.key, v.after_value) filter (where v.changed) as recorded
           from jsonb_each_text(case when jsonb_typeof(a.input_json -> 'facts') = 'object'
                                     then a.input_json -> 'facts' else '{}'::jsonb end) f
+          -- The first change of the fact a person recorded at or after the proposal.
+          left join lateral (
+            select true as found, c.before_json ->> f.key as before_value,
+                   c.after_json ->> f.key as after_value
+              from audit_logs c
+             where ${compare} and c.aggregate_type = 'opportunity'
+               and c.aggregate_id = l.opportunity_id::text
+               and c.command = 'crm.lead.qualification.set' and c.outcome = 'ok'
+               and c.actor_kind = 'user' and c.created_at >= a.created_at
+               and c.after_json ? f.key
+             order by c.created_at, c.id limit 1) ch on true
           cross join lateral (
-            select case when f.value ~ '^-?[0-9]+(\\.[0-9]+)?$' then f.value::numeric end as heard,
-                   ${recordedFact} as recorded) r
+            select ${number(sql`f.value`)} as heard,
+                   -- What the lead held before the proposal: the change's own before, else (no
+                   -- person changed it since) what it holds now.
+                   case when ch.found then ${number(sql`ch.before_value`)} else ${recordedFact} end
+                     as prior,
+                   ${number(sql`ch.after_value`)} as after_number,
+                   ch.after_value,
+                   coalesce(ch.found, false) as changed) w
+          cross join lateral (
+            select w.after_value, w.changed,
+                   case
+                     when w.prior is not null and w.prior = w.heard then 'repeat'
+                     when not w.changed then 'open'
+                     when w.after_number = w.heard then 'agree'
+                     else 'disagree'
+                   end as verdict) v
          where f.key in (${factKeys})) fc on a.action_type = ${QUALIFICATION}
       left join lateral (
         select t.kind, t.due_at, t.title, t.created_at from tasks t
           join principals p on p.id = t.created_by and p.kind = 'user'
-         where a.action_type = ${TASK} and t.opportunity_id = l.opportunity_id
-           and t.entity_id = a.entity_id and t.created_at >= a.created_at
+         where ${compare} and a.action_type = ${TASK} and t.opportunity_id = l.opportunity_id
+           and t.entity_id = a.entity_id and t.kind = a.input_json ->> 'kind'
+           and t.created_at >= a.created_at and t.created_at < a.created_at + ${window}
+           and (k.due_at is null
+                or abs(extract(epoch from t.due_at - k.due_at)) <= ${tolerance}::integer)
+           -- A person's own task: its request ran crm.task.create alone, not inside the call log,
+           -- the nurture rules or a reassignment, whose own audit rows share the request.
+           and exists (
+             select 1 from audit_logs c
+              where c.aggregate_type = 'task' and c.aggregate_id = t.id::text
+                and c.command = 'crm.task.create' and c.outcome = 'ok'
+                and not exists (select 1 from audit_logs r
+                                 where r.request_id = c.request_id
+                                   and r.command <> 'crm.task.create'))
          order by t.created_at, t.id limit 1) task on true
       left join lateral (
         select m.created_at, w.label from whatsapp_threads t2
@@ -211,9 +277,10 @@ export function shadowActionsSql(
           join principals p on p.id = m.sent_by and p.kind = 'user'
           left join whatsapp_templates w
             on w.entity_id = m.entity_id and w.name = m.template_name and w.language = 'en'
-         where a.action_type = ${TEMPLATE} and t2.opportunity_id = l.opportunity_id
+         where ${compare} and a.action_type = ${TEMPLATE} and t2.opportunity_id = l.opportunity_id
            and t2.entity_id = a.entity_id and m.direction = 'outbound' and m.kind = 'template'
-           and m.template_name = a.input_json ->> 'templateName' and m.created_at >= a.created_at
+           and m.template_name = a.input_json ->> 'templateName'
+           and m.created_at >= a.created_at and m.created_at < a.created_at + ${window}
          order by m.created_at, m.id limit 1) tpl on true
       ${textJoins}`;
 }
@@ -225,6 +292,7 @@ interface FigureRow {
   waiting: number;
   approved: number;
   rejected: number;
+  executed: number;
   decided: number;
   agreed: number;
   edited: number;
@@ -268,11 +336,20 @@ export function refusalsByReason(
 }
 
 /**
+ * Whether the viewer's figures compare proposals with what people did: that reads the audit trail
+ * (`audit.read`, the Executive and the General Manager), to tell a person's own task or fact
+ * from one the call log or a rule recorded. Without it a proposal in Shadow reads as open.
+ */
+export function comparesWithTeam(ctx: Pick<Ctx, 'principal'>): boolean {
+  return hasGrant(ctx.principal.permissions, 'audit.read', 'entity');
+}
+
+/**
  * The agent's proposals per action type in the period: how they ended and how what people did
  * compares with them, with the output filter's refusals of that type.
  */
 export async function proposalFigures(
-  ctx: Pick<Ctx, 'tx'>,
+  ctx: Ctx,
   agent: PackAgent,
   entityId: number,
   from: string,
@@ -283,14 +360,15 @@ export async function proposalFigures(
     select s.action_type, count(*)::int as proposals,
            count(*) filter (where s.state = 'shadowed')::int as shadowed,
            count(*) filter (where s.state = 'proposed')::int as waiting,
-           count(*) filter (where s.state in ('approved', 'executed'))::int as approved,
+           count(*) filter (where s.state = 'approved')::int as approved,
            count(*) filter (where s.state in ('rejected', 'dismissed'))::int as rejected,
+           count(*) filter (where s.state = 'executed')::int as executed,
            count(*) filter (where s.state in ('approved', 'rejected', 'dismissed'))::int as decided,
            count(*) filter (where s.agreement = 'agree')::int as agreed,
            count(*) filter (where s.agreement = 'edited')::int as edited,
            count(*) filter (where s.agreement = 'disagree')::int as disagreed,
            count(*) filter (where s.agreement = 'open')::int as open
-      from (${shadowActionsSql(agent, entityId, from, until)}) s
+      from (${shadowActionsSql(agent, entityId, from, until, { compare: comparesWithTeam(ctx) })}) s
      group by s.action_type`)) as unknown as FigureRow[];
   return PACK_ACTION_TYPES[agent].map((actionType) => {
     const r = rows.find((x) => x.action_type === actionType);
@@ -301,6 +379,7 @@ export async function proposalFigures(
       waiting: r?.waiting ?? 0,
       approved: r?.approved ?? 0,
       rejected: r?.rejected ?? 0,
+      executed: r?.executed ?? 0,
       decided: r?.decided ?? 0,
       agreed: r?.agreed ?? 0,
       edited: r?.edited ?? 0,
@@ -418,11 +497,7 @@ interface SampleRow {
   opportunity_id: string | null;
   account_id: string | null;
   customer_name: string | null;
-  pump_depth_ft: number | string | null;
-  required_hp: number | string | null;
-  monthly_bill_rupees: number | string | null;
-  roof_area_sq_ft: number | string | null;
-  sanctioned_load_kw: number | string | null;
+  recorded_facts: Record<string, string | null> | null;
   task_kind: string | null;
   task_due_at: Date | string | null;
   task_title: string | null;
@@ -458,13 +533,14 @@ function proposedFacts(input: Record<string, unknown>): SampleFacts | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** The facts the lead records of those proposed. */
+/** The first values a person recorded after the proposal of the facts proposed. */
 function recordedFacts(row: SampleRow, proposed: SampleFacts): SampleFacts | null {
   const out: SampleFacts = {};
   for (const fact of COPILOT_FACTS) {
-    if (proposed[fact] === undefined) continue;
-    const raw = row[FACT_COLUMNS[fact]];
-    if (raw !== null) out[fact] = Number(raw);
+    const raw = row.recorded_facts?.[fact];
+    if (proposed[fact] === undefined || raw === undefined || raw === null) continue;
+    const value = Number(raw);
+    if (Number.isFinite(value)) out[fact] = value;
   }
   return Object.keys(out).length === 0 ? null : out;
 }
@@ -476,8 +552,11 @@ function stateOf(row: Pick<SampleRow, 'state' | 'edited'>): ShadowSampleState {
     case 'proposed':
       return 'waiting';
     case 'approved':
-    case 'executed':
       return row.edited ? 'edited' : 'approved';
+    case 'executed':
+      return 'executed';
+    case 'dismissed':
+      return 'dismissed';
     default:
       return 'rejected';
   }
@@ -559,6 +638,15 @@ function sampleItem(row: SampleRow): ShadowSampleItemDto | null {
 }
 
 /**
+ * The action types each agent's review set draws from: the Concierge's draft-and-reply pairs
+ * (its facts and callbacks stay in the report's figures), every kind of the Co-pilot's.
+ */
+const SAMPLE_TYPES: Readonly<Record<PackAgent, readonly string[]>> = {
+  'agent:concierge': [REPLY],
+  'agent:copilot': PACK_ACTION_TYPES['agent:copilot'],
+};
+
+/**
  * The review sample of one agent (design §8.1): at most 50 of its proposals of a company in a
  * period of IST days, spread evenly over the period in time order, oldest first, each beside what
  * people sent or did, with the period's proposals and the output filter's refusals by action type
@@ -574,12 +662,19 @@ export async function loadShadowSample(
   checkShadowReader(ctx, input.entityId);
   const from = istStart(input.from);
   const until = istEndAfter(input.to);
+  const compare = comparesWithTeam(ctx);
+  const types = SAMPLE_TYPES[agent];
   const rows = (await ctx.tx.execute(sql`
-    select * from (${shadowActionsSql(agent, input.entityId, from, until, { sample: true })}) s
+    select * from (${shadowActionsSql(agent, input.entityId, from, until, {
+      compare,
+      sample: true,
+      types,
+    })}) s
      order by s.created_at, s.id`)) as unknown as SampleRow[];
   const [total] = (await ctx.tx.execute(sql`
     select count(*)::int as n from agent_actions a
      where a.entity_id = ${input.entityId} and a.agent = ${agent}
+       and a.action_type = any(${`{${types.join(',')}}`}::text[])
        and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz`)) as unknown as {
     n: number;
   }[];
@@ -588,11 +683,14 @@ export async function loadShadowSample(
     from: input.from,
     to: input.to,
     proposals: total?.n ?? 0,
+    compared: compare,
     items: rows.flatMap((r) => {
       const item = sampleItem(r);
       return item === null ? [] : [item];
     }),
-    filtered: await agentRefusals(ctx, agent, input.entityId, from, until),
+    filtered: (await agentRefusals(ctx, agent, input.entityId, from, until)).filter((f) =>
+      types.includes(f.actionType),
+    ),
   });
 }
 
