@@ -32,6 +32,7 @@ import {
   measureDial,
   measureScreenPop,
   POP_TARGET_MS,
+  type Person,
   type PopSetup,
 } from './browser';
 import { LEAD_TARGET_MS, measureLeadPath } from './lead-path';
@@ -114,6 +115,23 @@ function signingEnv(): WebhookSigningEnv {
     process.exit(1);
   }
   return Object.fromEntries(names.map((n) => [n, process.env[n] ?? ''])) as WebhookSigningEnv;
+}
+
+/** The dial's caller and own phone: the journeys' tele-caller locally, from the env elsewhere. */
+function dialSetup(): { person?: Person; dialPhone?: string } {
+  if (baseUrl === undefined) return {};
+  const env = (n: string) => process.env[n] ?? '';
+  const missing = ['G2_DIAL_EMAIL', 'G2_DIAL_PASSWORD', 'G2_DIAL_PHONE'].filter(
+    (n) => env(n) === '',
+  );
+  if (missing.length > 0) {
+    console.error(`set ${missing.join(', ')} first`);
+    process.exit(1);
+  }
+  return {
+    person: { email: env('G2_DIAL_EMAIL'), password: env('G2_DIAL_PASSWORD') },
+    dialPhone: env('G2_DIAL_PHONE'),
+  };
 }
 
 /** The screen-pop's caller and numbers: the journeys' seed locally, from the env elsewhere. */
@@ -215,6 +233,7 @@ try {
         baseUrl: server.baseUrl,
         rounds: whole('rounds', 10, 200),
         localClock: server.local,
+        ...dialSetup(),
       });
       report.dial = result;
       rows.push({

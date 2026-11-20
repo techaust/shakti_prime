@@ -121,6 +121,8 @@ export async function measureDial(options: {
   baseUrl: string;
   rounds: number;
   person?: Person;
+  /** The caller's own phone the call rings first, as typed; the journeys' number by default. */
+  dialPhone?: string;
   /** Set the journeys' clock cookie to inside calling hours (a local server only). */
   localClock: boolean;
 }): Promise<DialResult> {
@@ -140,7 +142,7 @@ export async function measureDial(options: {
     // The caller's own phone for calls, which the call rings first (the journey's number).
     await page.goto('/settings/profile');
     const section = page.locator('#dial-phone');
-    await section.getByLabel('Your phone number').fill('98000 00191');
+    await section.getByLabel('Your phone number').fill(options.dialPhone ?? '98000 00191');
     await section.getByRole('button', { name: 'Save' }).click();
     await page.getByText('Your phone for calls is saved.').waitFor();
 
