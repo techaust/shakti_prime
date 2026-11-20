@@ -6,7 +6,7 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): role grants in a definer, a customer-facing filter, an anonymisation window |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (start and early check) |
-| State | early check: items 1 to 3 built, waiting for "continue" |
+| State | early check accepted by the lead; building items 4 to 9 |
 | Next step | the lead reads the early check; then items 4 to 8 and the lead's two additions |
 
 ## Brief
@@ -101,10 +101,7 @@ Commits: 394a0114 (item 1), 721d2686 (item 2), ecef6f42 (item 3), 5dd9fbe7 (`doc
 - `pnpm typecheck`: 10 of 10 tasks.
 - eslint `--max-warnings 0` on every folder and file touched: clean (needs `NODE_OPTIONS=--max-old-space-size=6144` here).
 - Unit tests: contracts 322 of 322, domain 2593 of 2593, db 160 of 160 after `pnpm db:docs`.
-- `pnpm test:security`:
-  - db: 1512 of 1512.
-  - domain: 1365 passed, 24 failed. All 24 are in `whatsapp-quotes.test.ts` (the clock fault above); after feb0c00d that file passes 34 of 34 alone, and `apps/web/tests/whatsapp-quotes.test.ts` passes 17 of 17.
-  - web: in the same run, passed.
+- `pnpm test:security`, run again after feb0c00d: db 1512 of 1512, domain 1389 of 1389, web 445 of 445 (4 of 4 tasks). The first run had 24 domain failures, all in `whatsapp-quotes.test.ts` (the clock fault above), and turbo stopped before the web suite.
 - `pnpm build`: passed.
 - `roles.spec.ts`:
   - with the host's Chromium, every step passed but the screenshot (a font-rendering difference);
