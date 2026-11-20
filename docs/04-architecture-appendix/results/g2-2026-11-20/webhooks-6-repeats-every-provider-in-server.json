@@ -1,0 +1,279 @@
+{
+  "at": "2026-11-20T08:09:32.132Z",
+  "machine": {
+    "processors": 4,
+    "model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memoryGb": 16
+  },
+  "target": "next start on this machine",
+  "processing": "in the server after each answer (no queue)",
+  "webhooks": [
+    {
+      "rate": 20,
+      "seconds": 30,
+      "sent": 600,
+      "repeats": 60,
+      "repeatsByProvider": {
+        "meta_whatsapp": 10,
+        "meta_leadgen": 10,
+        "google_leadform": 10,
+        "exotel_status": 10,
+        "exotel_incoming": 10,
+        "livekit": 10
+      },
+      "answers": {
+        "n": 600,
+        "p50": 9.8,
+        "p95": 292.5,
+        "p99": 1096.1,
+        "min": 5.7,
+        "max": 1412.7
+      },
+      "byProvider": {
+        "meta_whatsapp": {
+          "n": 110,
+          "p50": 10.1,
+          "p95": 443,
+          "p99": 1096.1,
+          "min": 6.7,
+          "max": 1407.4
+        },
+        "meta_leadgen": {
+          "n": 90,
+          "p50": 9.2,
+          "p95": 395.4,
+          "p99": 1412.7,
+          "min": 6.5,
+          "max": 1412.7
+        },
+        "google_leadform": {
+          "n": 110,
+          "p50": 9.8,
+          "p95": 218.7,
+          "p99": 1069.8,
+          "min": 6.4,
+          "max": 1309.3
+        },
+        "exotel_status": {
+          "n": 90,
+          "p50": 9.4,
+          "p95": 154.8,
+          "p99": 1313.1,
+          "min": 6.2,
+          "max": 1313.1
+        },
+        "exotel_incoming": {
+          "n": 110,
+          "p50": 9.3,
+          "p95": 245.2,
+          "p99": 969.3,
+          "min": 5.7,
+          "max": 1207.1
+        },
+        "livekit": {
+          "n": 90,
+          "p50": 10.6,
+          "p95": 343.6,
+          "p99": 1164,
+          "min": 6.9,
+          "max": 1164
+        }
+      },
+      "notOk": {},
+      "sendLag": {
+        "n": 600,
+        "p50": 0,
+        "p95": 0.7,
+        "p99": 2.5,
+        "min": 0,
+        "max": 47.7
+      },
+      "stored": {
+        "sent": 540,
+        "stored": 540,
+        "missing": [],
+        "repeated": [],
+        "unexpected": [],
+        "ok": true
+      }
+    },
+    {
+      "rate": 50,
+      "seconds": 30,
+      "sent": 1500,
+      "repeats": 150,
+      "repeatsByProvider": {
+        "meta_whatsapp": 25,
+        "meta_leadgen": 25,
+        "google_leadform": 25,
+        "exotel_status": 25,
+        "exotel_incoming": 25,
+        "livekit": 25
+      },
+      "answers": {
+        "n": 1500,
+        "p50": 6.2,
+        "p95": 11.3,
+        "p99": 23.4,
+        "min": 3.9,
+        "max": 38.7
+      },
+      "byProvider": {
+        "meta_whatsapp": {
+          "n": 275,
+          "p50": 6.3,
+          "p95": 11.4,
+          "p99": 29.4,
+          "min": 3.9,
+          "max": 38.7
+        },
+        "meta_leadgen": {
+          "n": 225,
+          "p50": 6,
+          "p95": 11.9,
+          "p99": 20.6,
+          "min": 4.1,
+          "max": 32.2
+        },
+        "google_leadform": {
+          "n": 275,
+          "p50": 6.1,
+          "p95": 11.7,
+          "p99": 15.7,
+          "min": 3.9,
+          "max": 36.3
+        },
+        "exotel_status": {
+          "n": 225,
+          "p50": 6.1,
+          "p95": 11.4,
+          "p99": 27.4,
+          "min": 4.3,
+          "max": 35.1
+        },
+        "exotel_incoming": {
+          "n": 275,
+          "p50": 6,
+          "p95": 11.6,
+          "p99": 20.8,
+          "min": 4,
+          "max": 21.3
+        },
+        "livekit": {
+          "n": 225,
+          "p50": 6.7,
+          "p95": 10.5,
+          "p99": 26.6,
+          "min": 4.5,
+          "max": 32.7
+        }
+      },
+      "notOk": {},
+      "sendLag": {
+        "n": 1500,
+        "p50": 0,
+        "p95": 0.4,
+        "p99": 1.7,
+        "min": 0,
+        "max": 10.5
+      },
+      "stored": {
+        "sent": 1350,
+        "stored": 1350,
+        "missing": [],
+        "repeated": [],
+        "unexpected": [],
+        "ok": true
+      }
+    },
+    {
+      "rate": 100,
+      "seconds": 30,
+      "sent": 3000,
+      "repeats": 300,
+      "repeatsByProvider": {
+        "meta_whatsapp": 50,
+        "meta_leadgen": 50,
+        "google_leadform": 50,
+        "exotel_status": 50,
+        "exotel_incoming": 50,
+        "livekit": 50
+      },
+      "answers": {
+        "n": 3000,
+        "p50": 5,
+        "p95": 17,
+        "p99": 102.9,
+        "min": 3.1,
+        "max": 257.1
+      },
+      "byProvider": {
+        "meta_whatsapp": {
+          "n": 550,
+          "p50": 5,
+          "p95": 15.4,
+          "p99": 95.8,
+          "min": 3.1,
+          "max": 257.1
+        },
+        "meta_leadgen": {
+          "n": 450,
+          "p50": 4.9,
+          "p95": 20.9,
+          "p99": 122.2,
+          "min": 3.1,
+          "max": 247
+        },
+        "google_leadform": {
+          "n": 550,
+          "p50": 4.9,
+          "p95": 16.3,
+          "p99": 120,
+          "min": 3.3,
+          "max": 237
+        },
+        "exotel_status": {
+          "n": 450,
+          "p50": 5.3,
+          "p95": 16.1,
+          "p99": 102.9,
+          "min": 3.2,
+          "max": 249.6
+        },
+        "exotel_incoming": {
+          "n": 550,
+          "p50": 4.9,
+          "p95": 17.3,
+          "p99": 84.7,
+          "min": 3.1,
+          "max": 240.3
+        },
+        "livekit": {
+          "n": 450,
+          "p50": 5.2,
+          "p95": 19.9,
+          "p99": 88.9,
+          "min": 3.3,
+          "max": 255.6
+        }
+      },
+      "notOk": {},
+      "sendLag": {
+        "n": 3000,
+        "p50": 0,
+        "p95": 0.5,
+        "p99": 2.2,
+        "min": 0,
+        "max": 29.1
+      },
+      "stored": {
+        "sent": 2700,
+        "stored": 2700,
+        "missing": [],
+        "repeated": [],
+        "unexpected": [],
+        "ok": true
+      }
+    }
+  ]
+}

@@ -17,6 +17,7 @@ A spike is a short, measured experiment that answers one technical question befo
 | [whatsapp.md](whatsapp.md) | WhatsApp Cloud API send and receive | Ready to run; waits for Meta verification and a number (04-10-2026) | Living until it runs | Not run |
 | [voice.md](voice.md) | LiveKit and speech latency, Roman-Hinglish pronunciation | Ready to run; waits for the sandboxes and voice samples (04-10-2026) | Living until it runs | Not run |
 | [tally.md](tally.md) | Tally, the BOS side | Ready to run; waits for the Tally visit and an instance (04-10-2026) | Living until it runs | Not run |
+| [webhooks.md](webhooks.md) | Webhook answers under load, the Lead Ads lead within 10 seconds and the queue's batch call of 200 (G2) | Met locally: webhook answers at 100 a second (longest 61 ms), the Lead Ads lead (177 ms), the batch call recorded; a defect of five routes found and fixed (20-11-2026); dev to measure | Record | 20-11-2026 (G2) |
 
 **Catalogue plans.** `pnpm --filter @shakti/domain spike:catalogue` (`packages/domain/tests/spike/catalogue-explain.ts`) fills the local database to 5,000 catalogue items and prints the plans of the items grid and the price change log, for slice C1 (`docs/03-roadmap-appendix/phase1.md` §6.1). It prints plans only and has no note of its own.
 
