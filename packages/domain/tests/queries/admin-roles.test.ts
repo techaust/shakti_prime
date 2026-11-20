@@ -68,7 +68,9 @@ describe('listRoles and getRoleGrants', () => {
     // A platform-only permission is held by the platform's workers alone and an agent-only one
     // by an agent alone; neither is listed.
     expect(page.permissions.map((p) => p.key)).toEqual(
-      PERMISSION_KEYS.filter((key) => !isPlatformOnlyPermission(key) && !isAgentOnlyPermission(key)),
+      PERMISSION_KEYS.filter(
+        (key) => !isPlatformOnlyPermission(key) && !isAgentOnlyPermission(key),
+      ),
     );
     expect(page.permissions.map((p) => p.key)).not.toContain('agents.note.write');
     const granted = Object.fromEntries(
