@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): deletes customers' files |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (start and end) |
-| State | done |
-| Next step | the lead reviews the branch |
+| State | fixes |
+| Next step | the lead reads the fix round and integrates |
 
 ## Brief
 Read first:
@@ -130,6 +130,42 @@ Model and effort: Opus 5.5, high (end). The lead's "continue" (early check accep
 13. The seed's removed photo is written once on the snapshot chat (not each project's chat), so the screenshot holds only seed rows and the photo never falls off the chat's first page.
 
 **For the lead:** `app.platform_only_permissions()` (0220) and the shared registration points (`en.json`, the permission catalogue and seeds, `.env.example`, the testing index, `enum-sync`, the agent refusal sweep) carry this slice's lines under W2 comments; the owner's switch step above belongs in DEPLOY §1 step 11 when `g2-runbooks` is merged.
+
+### 20-11-2026, cloud session: fixes
+Model and effort: Opus 5.5, high. One round on the review of b84369b1 (no critical or high finding). Commits: d3c03ebe (the job, the switches, the definers), 7192be3f (the db and domain tests), 2802dbc8 and a1061697 (documents), 4611f2a5 (the journeys' seed).
+
+| Item | What changed | Commit | Test |
+|---|---|---|---|
+| M1 | The run lists the live companies first and shares its time fairly: the sweep takes half (all of it when the removal is off), the removal the rest, and each company an equal share of what is left at its turn (unused time goes to the next). `start`, `next` and the place type are gone: each night restarts by itself (a removed file leaves the index; a sweep goes on from its record). The sweep runs before the removal's backlog. | d3c03ebe | web "shares its time between the companies, so a backlog in one never stops the others or their sweeps": 20 old files in company 1 and one file each in companies 3 and 4 plus an orphan key in 3; a 600 ms run (a clock stepping 10 ms a reading) removes companies 3 and 4's files and 3's key while company 1 is partly done, and company 1 finishes over the following runs |
+| M2 | The sweep has its own switch, `WHATSAPP_MEDIA_ORPHAN_SWEEP` (on only for `on`, off by default on every environment), and no fixed window: it starts after the resume key of the company's last good sweep, else a week before that sweep began less a day, else at the folder's start (the whole folder). `retention_runs` gains `entity_id` and `resume_key` (nullable; 0219); `app.whatsapp_media_orphans_record()` takes the resume key (only in the company's own folder) and the new `app.whatsapp_media_orphans_last()` answers the latest row with no error. A sweep stopped for time records the last key it examined; a sweep the store refused a key in is no good sweep, so the next covers its keys again. | d3c03ebe | web "starts where the last good sweep left off…" (`sweepStart`), web "sweeps the whole folder the first time, keeps young and named keys, resumes after a stop, and covers a refused key again" (a 900-day-old orphan goes on the first sweep; a sweep stopped after four deletions records `resume_key` = the fourth key and the next removes the fifth; a refused key goes on the next run); db "answers where the next sweep starts…"; domain record test with `resumeKey`; web nightly test: the sweep switch alone removes the orphan and leaves the old photo |
+| M3 | DATABASE §4.1: the five definers and two helpers (checks, `search_path` `''`, who executes, migration) and `app.whatsapp_media_summary_guard()`; §6: `whatsapp_messages.media_summary`, its check, `whatsapp_messages_media_kept_idx` and the guard on the row; `retention_runs`: the two jobs and the two new columns; §7 rewritten for the shares, the two switches and the sweep's start. | 2802dbc8, a1061697 | `data-docs.test.ts` (status column, data dictionary), the document link check |
+| L1 | `readMediaSummary()` (exported from `packages/domain/src/queries/messaging/whatsapp.ts`) keeps each field that reads as it should and leaves out the rest; `WhatsAppMediaSummaryDto` has every field optional. The thread shows the type, size and verdict line only when all three read, and "This file was removed after the time it is kept. The message stays." when the years do not. | d3c03ebe | domain "shows a summary it cannot fully read as far as it can, never failing the chat" (a summary with a wrong-typed size and verdict and an unknown field reads as `{ keptYears: 3 }`, `{}` as `{}`, an array as `{}`) |
+| L2 | Both definers take 3 to 10 years. | d3c03ebe | db "refuses a period under three years, until the CA decides" |
+| L4 | The time is checked before each batch, page, file and key; a batch stopped part-way records what it removed. | d3c03ebe | the M1 test (company 1 stops in its batch) and the M2 stop test (stops between keys) |
+| L5 | The named key's file id and stored time are two days old (the fixture takes a `fileId`); the dry-run test counts company 2's `whatsapp-media-*` rows before and after the dry run (unchanged), then after a real run (at least two more). | d3c03ebe | web "counts in a dry run and changes nothing, records nothing…", web sweep test |
+| L6 | The db and domain cursor tests start just before their own base time and remove their rows at the end through the removal, so they leave the job's index. | 7192be3f | db "reads a batch at a time, oldest first, from the cursor", domain "reads the due files…" (each ran twice on this VM's reused database) |
+| L7 | A run that tried to remove anything and removed none of it throws once its records are written, so the nightly call answers 500 and counts towards `job.failing`. | d3c03ebe | web "fails the run when the store removes nothing…" (the job and `runNightlyRetention` both reject; the refusal is recorded; the next run with a working store removes the file) |
+| L3 | Unchanged, decision 3. | – | – |
+
+**What the owner sets, per switch and environment** (Vercel projects `shakti-prime-dev`, `-staging` and `-production`, Settings › Environment Variables, the **Production** target, not Sensitive; then redeploy that project: the next push to `main` or *Redeploy* for dev and staging, the next approved release for production):
+- To keep both off: nothing; both variables stay unset everywhere.
+- `WHATSAPP_MEDIA_ORPHAN_SWEEP` = `on`: removes, from the next night, stored keys no file names more than a day old (unmasked originals a stopped try or the checks left behind). It waits for no period; the first sweep of each company covers its whole folder. Recommended on staging first, then production.
+- `WHATSAPP_MEDIA_RETENTION` = `on`: removes files older than three years and writes their summaries; turn it on once the CA confirms the period (BLUEPRINT §7.9). Nothing is due before November 2029 in any case.
+- A dry run before either: publish `{ "dryRun": true }` to that environment's `/api/v1/workers/crm/anonymise` from the QStash console; its `media` counts both steps and changes nothing.
+- To turn one off: delete the variable (or set it empty) and redeploy.
+
+**Also in this round:** the journeys' seed finishes the removal of a snapshot photo found without a summary (a database made before the summary was kept), so a reused database shows the same chat; the migrations were regenerated as 0219 (generated: the summary column, its check and index, the two `retention_runs` columns) and 0220 (custom), both still after `main`'s 0218.
+
+**Checks in this VM (after the fixes):**
+- `pnpm typecheck`: 0 errors. Whole-repository `pnpm lint`: clean. `pnpm copy-lint`: clean. Document links: 0 bad. `pnpm db:docs`: regenerated.
+- Unit tests: contracts 322; db 161; domain 2,592; web 1,157 passed, 1 skipped.
+- Security suite, each workspace alone (`pnpm test:security` runs them with `--concurrency=1`, and stops at the first that fails): db 1,519 passed; domain 1,371 passed, 24 failed; web 438 passed, 16 failed. Every failure is in `whatsapp-quotes.test.ts`, the known clock fault (techaust/shakti_prime#269). This slice's files: db 11, domain 6, web 9.
+- `pnpm build`: passed. Journeys in the Linux image: `messages.spec.ts` 26 passed against the existing baselines (none changed this round); `concierge.spec.ts` and `customers.spec.ts` 59 passed.
+
+**Decisions in this round:**
+14. The sweep's start is kept per company in `retention_runs` (two nullable columns, `entity_id` and `resume_key`) rather than a table of its own: it is the run's own record, and the lead asked for the last successful row there.
+15. A sweep's restart margin is a week before its last good sweep began, less the day a key waits (`ORPHAN_RECHECK_DAYS`), for a file whose checks finished late and left its upload under an older id.
+16. A run fails only when every removal it tried failed (L7 as asked); a run with some refusals succeeds, records them as its errors, and retries them the next night.
 
 ## Review
 
