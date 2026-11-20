@@ -71,7 +71,14 @@ Model and effort: Opus 5.5, high (start). Skills loaded: `add-command`.
 - `packages/domain/tests/security/agent-refusals.test.ts`: both commands in the platform-work sweep (every agent refused at the guard).
 - Unit: `file-store.test.ts` +2 (memory and disk listing), `s3-store.test.ts` +2 (versions grouped per key, paging, a prefix that is not a folder).
 
-**Checks in this VM:** CHECKS_PLACEHOLDER
+**Checks in this VM:**
+- `pnpm typecheck`: 0 errors, every workspace.
+- `pnpm exec eslint --max-warnings 0` on `packages/contracts`, `packages/db`, `packages/domain`, `apps/web/src/workers`, `apps/web/src/files`, `apps/web/src/screens`, `apps/web/src/print`, `apps/web/tests`: clean.
+- Unit tests: contracts 322 passed; db 161 passed; domain 2,594 passed (`refusal-coverage` and `permission-matrix` included); web 1,157 passed, 1 skipped.
+- `pnpm copy-lint`: clean. `pnpm db:docs`: `docs/data/data-dictionary.md` and `erd.md` regenerated and committed (`machines:docs` does not apply: no state machine changed).
+- `pnpm test:security`: db 1,517 passed (59 files). Domain 1,370 passed, 24 failed, all in `tests/commands/whatsapp-quotes.test.ts`; web (run alone, since turbo stops after domain) 435 passed, 16 failed, all in `tests/whatsapp-quotes.test.ts`. These are the known clock-dependent fault the lead named (a test number starting with 91, until about 19:00 UTC today, fixed by techaust/shakti_prime#269); no failure names any object of this slice. This slice's own files: db 9, domain 5, web 6, all passing, and the agent refusal sweep passing.
+- `pnpm build`: passed with no `.env` change.
+- No journey or screenshot yet: no screen changed before step 4. The whole-repository `pnpm lint` runs once, as the final check at "done".
 
 **`EXPLAIN (ANALYZE)`** of the due read (local data, 104 messages; with `enable_seqscan = off`, since the planner reads so few rows by a sequential scan): `Bitmap Index Scan on whatsapp_messages_default_entity_id_created_at_id_idx` (the partition's copy of `whatsapp_messages_media_kept_idx`), `Index Cond: entity_id = 1 AND created_at < now() - 3 years AND ROW(created_at, id) > ROW(cursor)`, the partial predicate matched, 4 of 5 partitions pruned; files by `files_entity_purpose_created_idx`; 0.32 ms.
 
