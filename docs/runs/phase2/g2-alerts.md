@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): workers and notifications |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; build Opus 5.5 at high effort, start to end |
-| State | done |
-| Next step | the lead's review |
+| State | fixes |
+| Next step | the lead's integration |
 
 ## Brief
 Read first:
@@ -211,6 +211,34 @@ The lead accepted the early check at 93de24ae, with the nine assumptions and `ai
 - The INCIDENTS gap for the two lead-form providers.
 - Migration 0219 cites its number in DATABASE §4.1, as the other definer rows do, for the lead to renumber at the merge.
 - Skills loaded: none. The brief named none, and this slice adds no command or table.
+
+### 20-11-2026, cloud session: fixes
+
+The review of df3b81a9 found no critical or high findings. Each item of the fix round is below with its commit and test: bda05c0b holds the code and tests, 8cb33990 the documents. Item 8 is the lead's, for INCIDENTS §18.
+
+| Item | Fix | Commit | Test |
+|---|---|---|---|
+| 1 (medium) re-arm on recovery | `recoveredSubjects()` lists, for `webhooks.failing`, `webhooks.backlog` and `ai.provider_failing`, each subject below its threshold in this run (every provider, every agent role). `rearm()` deletes its `alert:<name>:<subject>:<day>` key before the due alerts are raised. A store that cannot delete is logged (`alerts.not_rearmed`), and the alert stays told for the day. The spend, budget, quality and voice alerts stay once a day. The day key is shared through `alertKey()`. | bda05c0b | `phase2-alerts.test.ts`, *rearm*: due, due, below, due again in one day raises `webhooks.failing` and `ai.provider_failing` twice each; the recovered list holds only those three alerts' subjects below their threshold; a budget alert stays once a day while outages come and go |
+| 2 (medium) SECURITY's `platform.jobs.check` row | The row names `app.alert_counts()`, the only definer that takes this permission alone, and what it returns: companies' ids, codes and WhatsApp flag; webhook counts; the caps; per-agent unanswered runs; per-person voice minutes and spend by principal id. Counts, ids, codes and times, never content. | 8cb33990 | none (a document) |
+| 3 (low) bound the Phase 2 run's time | `runJobsCheck` races `runPhase2Alerts` against `PHASE2_ALERTS_TIMEOUT_MS` (15 s, half the route's 30). An overrun is the same `phase2-alerts` `failed` problem, told once a day, and the check answers. The timer is cleared in `finally`. The option `phase2TimeoutMs` is for tests. | bda05c0b | `jobs-check.test.ts`, *tells Phase 2 alerts that run past their time as failed*: a read that never answers, with a 200 ms limit; the check answers within 10 s and tells `phase2-alerts` `failed` |
+| 4 (low) the first jobs-check case's strength | It now asserts `first.alerted` equals every alert raised, the `job.problem` alerts equal `first.problems`, and `alerts.alerts.length` is unchanged after the second run. | bda05c0b | `jobs-check.test.ts`, first case |
+| 5 (low) the route test's exact count | It reads the jobs as the workers principal and asserts `problems` is exactly the jobs' own problems plus 1. | bda05c0b | `jobs-check-route.test.ts` |
+| 6 (low) a run of digits in a value | A string value that is not a UUID (a person's id) must hold no run of ten digits or more (`not.toMatch(/\d{10,}/)`). The comment says so. | bda05c0b | `phase2-alerts.test.ts`, *holds only the allowed fields* |
+| 7 (low) providers in step with the contract | The workers' answer lists exactly `WebhookProviderSchema.options`, in order. | bda05c0b | `alert-counts.test.ts`, *answers the workers principal with no company* |
+| 9 (low) in-flight reservations | A note beside `aiSpendShare`: the caps' running totals hold a call's most it can cost while it runs, so `ai.spend_high` can fire a little early. | bda05c0b | none (a comment) |
+| 10 (low) `alerted` | The jobs check's `alerted` now adds the Phase 2 alerts raised, and API §3.6 says so. ARCHITECTURE and DEPLOY §1 step 8 now name the re-arm and the 15-second bound. | bda05c0b, 8cb33990 | `jobs-check.test.ts`: the first case (`alerted` equals every alert), the fault case and the timeout case |
+
+**Tests.** `phase2-alerts.test.ts` +3 (23 in all), `jobs-check.test.ts` +1 (10 in all). `jobs-check-route.test.ts`, `alert-counts.test.ts` and the first jobs-check case are strengthened.
+
+**Checks run in this VM, after both commits.**
+- `pnpm build`: 2 successful, 2 total.
+- `pnpm lint` (the whole repository): exit 0.
+- Unit suites: `web` 161 files, 1179 passed, 1 skipped; `@shakti/db` 12 files, 160 passed. `@shakti/domain` is unchanged since the done report's 2590.
+- Typecheck of `web` and `@shakti/db`, and folder lint of each touched folder: clean.
+- `pnpm test:security`:
+  - `@shakti/db`: 59 files, 1513 passed.
+  - `@shakti/domain`: 1365 passed; the 24 failures are all the known `whatsapp-quotes.test.ts` fault.
+  - `web`, run on its own: 37 of 38 files, 433 of 449 passed; the 16 failures are all the known `whatsapp-quotes.test.ts` fault (techaust/shakti_prime#269). Nothing else fails.
 
 ## Review
 
