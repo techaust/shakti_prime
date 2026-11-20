@@ -19,13 +19,14 @@ import { copilotReport } from '../../actions/copilot';
 import { DateTime } from '../../components/date-time';
 import { FailureMessage } from '../../components/screens/failure';
 import { formText } from '../../components/screens/form-data';
+import { ProposalFigures, SpendPerLead } from '../../components/agents/shadow-pack-figures';
 import { useQuery } from '../../components/screens/use-command';
-import { actionTypeName } from '../agents';
 import { customerHref } from '../customers';
 import { formatCount } from '../format';
 import {
   agreementShare,
   periodProblem,
+  sampleHref,
   SHADOW_PAGE_SIZE,
   type PeriodProblem,
 } from '../shadow-report';
@@ -82,6 +83,7 @@ export function CopilotReportScreen({
   const shadow = useTranslations('agents.shadow');
   const agents = useTranslations('agents');
   const facts = useTranslations('qualification.facts');
+  const pack = useTranslations('agents.shadowPack');
   const [report, setReport] = useState(initial);
   const [rows, setRows] = useState(initial.items);
   const [from, setFrom] = useState<string | undefined>(initial.from);
@@ -284,33 +286,21 @@ export function CopilotReportScreen({
             </ul>
           )}
         </section>
-        <section aria-labelledby="copilot-proposals" className="flex flex-col gap-2">
-          <h2 id="copilot-proposals" className="text-h3">
-            {t('proposalsHeading')}
-          </h2>
-          <dl className="flex flex-col gap-2 text-sm">
-            {report.proposals.map((p) => {
-              const name = actionTypeName(p.actionType);
-              return (
-                <div key={p.actionType} className="flex flex-col">
-                  <dt className="font-medium">
-                    {name === undefined
-                      ? agents('copilot.suggestion')
-                      : agents(`actionTypes.${name}`)}
-                  </dt>
-                  <dd className="text-text-muted">
-                    {t('proposalLine', {
-                      shadowed: p.shadowed,
-                      waiting: p.waiting,
-                      approved: p.approved,
-                      rejected: p.rejected,
-                    })}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-        </section>
+        <ProposalFigures
+          id="copilot-proposals"
+          heading={t('proposalsHeading')}
+          proposals={report.proposals}
+        />
+      </div>
+      <SpendPerLead id="copilot-spend" spend={report.spend}>
+        <p className="text-text-muted">{pack('copilotNoHandoff')}</p>
+      </SpendPerLead>
+      <div>
+        <Button asChild variant="secondary">
+          <Link href={sampleHref('copilot', report.entityId, report.from, report.to)}>
+            {pack('review.open')}
+          </Link>
+        </Button>
       </div>
       <DataGrid
         caption={t('caption')}

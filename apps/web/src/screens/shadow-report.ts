@@ -39,3 +39,43 @@ export function agreementShare(agreed: number, disagreed: number): number | unde
   const decided = agreed + disagreed;
   return decided === 0 ? undefined : Math.round((agreed / decided) * 100);
 }
+
+// The G2 shadow review pack (docs/03-roadmap-appendix/phase2.md §8.1): the review sample's pages.
+
+/** The agents with a review sample, by the path segment of their report. */
+export type SampleAgent = 'concierge' | 'copilot';
+
+/** The review sample of a report's company and period. */
+export function sampleHref(agent: SampleAgent, entityId: number, from: string, to: string): string {
+  const query = new URLSearchParams({ company: String(entityId), from, to });
+  return `/admin/agents/${agent}/sample?${query.toString()}`;
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The company and period a sample page's address names, else the viewer's first company and the
+ * last 30 days. A company outside `entityIds` or a period the report would refuse falls back too,
+ * so the page never asks for what it may not read.
+ */
+export function sampleQuery(
+  params: Record<string, string | string[] | undefined>,
+  entityIds: readonly number[],
+  fallbackEntityId: number | undefined,
+  now: Date,
+): { entityId: number | undefined; from: string; to: string } {
+  const one = (v: string | string[] | undefined) => (typeof v === 'string' ? v : undefined);
+  const company = Number(one(params.company));
+  const entityId = entityIds.includes(company) ? company : fallbackEntityId;
+  const from = one(params.from);
+  const to = one(params.to);
+  const valid =
+    from !== undefined &&
+    to !== undefined &&
+    DAY.test(from) &&
+    DAY.test(to) &&
+    !Number.isNaN(Date.parse(`${from}T00:00:00Z`)) &&
+    !Number.isNaN(Date.parse(`${to}T00:00:00Z`)) &&
+    periodProblem(from, to) === undefined;
+  return valid ? { entityId, from, to } : { entityId, ...defaultShadowPeriod(now) };
+}
