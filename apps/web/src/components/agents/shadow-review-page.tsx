@@ -19,6 +19,11 @@ export const REVIEW_TITLE = {
   copilot: 'review.copilotTitle',
 } as const satisfies Record<SampleAgent, string>;
 
+const REVIEW_INTRO = {
+  concierge: 'review.conciergeIntro',
+  copilot: 'review.copilotIntro',
+} as const satisfies Record<SampleAgent, string>;
+
 /**
  * Admin › Agents › a report › Suggestions to review (the G2 shadow review pack,
  * docs/03-roadmap-appendix/phase2.md §8.1): the company and period the address names (the report's
@@ -49,7 +54,7 @@ export async function ShadowReviewPage({
     <PrintSheet>
       <Page
         title={t(REVIEW_TITLE[agent])}
-        description={t('review.intro')}
+        description={t(REVIEW_INTRO[agent])}
         actions={
           <div className="flex flex-wrap gap-2 print:hidden">
             <PrintButton label={t('review.print')} />
@@ -60,7 +65,11 @@ export async function ShadowReviewPage({
         }
       >
         {sample === undefined || entityId === undefined ? null : sample.ok ? (
-          <ShadowReviewSheet sample={sample.data} companyName={companies[entityId] ?? ''} />
+          <ShadowReviewSheet
+            sample={sample.data}
+            companyName={companies[entityId] ?? ''}
+            replies={agent === 'concierge'}
+          />
         ) : (
           <FailureMessage failure={firstFailure(sample)} />
         )}

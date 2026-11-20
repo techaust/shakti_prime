@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { CONCIERGE_JOURNEY } from './concierge-fixtures';
 import {
   expect,
@@ -17,6 +18,9 @@ import { SNAPSHOT_COMPANY, SNAPSHOT_SUGGESTIONS, WHATSAPP } from './support/user
 // it holds the seed's two follow-ups waiting for the snapshot caller (SNAPSHOT_SUGGESTIONS, filed
 // afresh each run with fixed due times and never decided by a journey), which it pictures.
 
+/** The spending's figures, which other journeys' runs in the company move. */
+const spendFigures = (spend: Locator) => spend.locator('p').filter({ hasText: '₹' });
+
 test.describe('the suggestions to review, as an Executive', () => {
   test.use(signedInAs('executive'));
 
@@ -32,12 +36,19 @@ test.describe('the suggestions to review, as an Executive', () => {
       '0 agreed, 0 approved after an edit, 0 differed, 1 not known yet',
     );
     await expect(kinds).toContainText('A reply recorded in shadow is judged by reading it');
-    // Other journeys' runs in the company may add to the spending: its words, not its figures.
-    await expect(page.getByRole('region', { name: 'Spending per lead' })).toContainText(
-      'never the cost of an item',
-    );
-    await expect(page.getByRole('region', { name: 'Chats handed to the team' })).toBeVisible();
+    const spend = page.getByRole('region', { name: 'Spending per lead' });
+    await expect(spend).toContainText('never the cost of an item');
+    const handoffs = page.getByRole('region', { name: 'Chats handed to the team' });
+    await expect(handoffs).toBeVisible();
     await expectNoAxeViolations(page);
+    // Other journeys' messages in the company make runs that stop (no spending limit) and hand
+    // their chats to the team: the spending's lines and the hand-offs' lists are masked.
+    await snap(page, 'concierge-kinds', { element: kinds });
+    await snap(page, 'concierge-spend', { element: spend, mask: [spendFigures(spend)] });
+    await snap(page, 'concierge-handoffs', {
+      element: handoffs,
+      mask: [handoffs.locator('ul, p')],
+    });
 
     await page.getByRole('link', { name: 'Suggestions to review' }).click();
     await expect(
@@ -47,7 +58,7 @@ test.describe('the suggestions to review, as an Executive', () => {
       }),
     ).toBeVisible();
     const sheet = page.getByTestId('shadow-review');
-    await expect(sheet.getByText('1 of 1 suggestion in this period')).toBeVisible();
+    await expect(sheet.getByText('1 of 1 drafted reply in this period')).toBeVisible();
     const item = sheet
       .getByRole('list', { name: 'Suggestions, oldest first' })
       .getByRole('listitem')
@@ -78,12 +89,15 @@ test.describe('the suggestions to review, as an Executive', () => {
     await page.goto('/admin/agents');
     await showCompany(page, SNAPSHOT_COMPANY.name);
     await page.getByRole('link', { name: 'Co-pilot report' }).click();
-    await expect(page.getByRole('region', { name: 'Spending per lead' })).toContainText(
-      'The Co-pilot hands nothing over',
-    );
-    await expect(page.getByRole('region', { name: 'Suggestions by kind' })).toContainText(
-      'Send a WhatsApp follow-up',
-    );
+    const spend = page.getByRole('region', { name: 'Spending per lead' });
+    await expect(spend).toContainText('The Co-pilot hands nothing over');
+    const kinds = page.getByRole('region', { name: 'Suggestions by kind' });
+    await expect(kinds).toContainText('Send a WhatsApp follow-up');
+    // The seed's two follow-ups wait for the snapshot caller.
+    await expect(kinds).toContainText('0 recorded in shadow, 2 waiting, 0 approved, 0 rejected');
+    await expectNoAxeViolations(page);
+    await snap(page, 'copilot-kinds', { element: kinds });
+    await snap(page, 'copilot-spend', { element: spend, mask: [spendFigures(spend)] });
     await page.getByRole('link', { name: 'Suggestions to review' }).click();
     await expect(
       page.getByRole('heading', { name: "The Co-pilot's suggestions to review", level: 1 }),

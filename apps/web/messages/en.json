@@ -4846,7 +4846,6 @@
         "open": "Suggestions to review",
         "conciergeTitle": "The WhatsApp assistant's suggestions to review",
         "copilotTitle": "The Co-pilot's suggestions to review",
-        "intro": "Up to 50 suggestions spread evenly over the period, oldest first, each beside what the team sent or did. Read them on screen or on paper: nothing here is saved.",
         "period": "{company}, {from} to {to}",
         "count": "{shown, number} of {count, plural, one {# suggestion} other {# suggestions}} in this period",
         "passed": "Every suggestion here passed the checks. The words of a refused one are not kept, only why it was refused:",
@@ -4862,7 +4861,7 @@
         "suggested": "Suggested",
         "did": "What the team sent or did",
         "happened": "What happened",
-        "agreement": "Agreed",
+        "agreement": "Compared with the team",
         "file": "A picture or file",
         "nothingYet": "Nothing yet",
         "template": "Template: {name}",
@@ -4876,15 +4875,22 @@
           "waiting": "Waiting",
           "approved": "Approved",
           "edited": "Approved after an edit",
-          "rejected": "Rejected"
+          "rejected": "Rejected",
+          "dismissed": "Set aside",
+          "executed": "Carried out by the agent"
         },
         "agreementValue": {
           "agree": "Agreed",
           "edited": "After an edit",
           "disagree": "Differed",
           "open": "Not known yet"
-        }
-      }
+        },
+        "conciergeIntro": "Up to 50 of the assistant's drafted replies, spread evenly through the period's replies and oldest first, each beside the customer's message and what the team sent. Read them on screen or on paper: nothing here is saved.",
+        "copilotIntro": "Up to 50 of the Co-pilot's suggestions, spread evenly through the period's suggestions and oldest first, each beside what the team did. Read them on screen or on paper: nothing here is saved.",
+        "countReplies": "{shown, number} of {count, plural, one {# drafted reply} other {# drafted replies}} in this period"
+      },
+      "executed": "{count, plural, one {# carried out by the agent} other {# carried out by the agent}}",
+      "notCompared": "Compared with the team's work only for people who can open the activity log. Until then every suggestion recorded in shadow shows as not known yet."
     }
   },
   "knowledge": {

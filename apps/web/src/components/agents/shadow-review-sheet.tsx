@@ -29,6 +29,8 @@ const STATE_TONE: Record<ShadowSampleState, StatusTone> = {
   approved: 'success',
   edited: 'success',
   rejected: 'warning',
+  dismissed: 'neutral',
+  executed: 'accent',
 };
 
 const AGREEMENT_TONE: Record<ShadowSampleAgreement, StatusTone> = {
@@ -46,14 +48,15 @@ const isOneOf = <T extends string>(list: readonly T[], value: string | null): va
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
 
 async function words() {
-  const [t, agents, facts, kinds, occasions] = await Promise.all([
+  const [t, pack, agents, facts, kinds, occasions] = await Promise.all([
     getTranslations('agents.shadowPack.review'),
+    getTranslations('agents.shadowPack'),
     getTranslations('agents'),
     getTranslations('qualification.facts'),
     getTranslations('customers.tasks.kind'),
     getTranslations('activity.values.templateOccasion'),
   ]);
-  return { t, agents, facts, kinds, occasions };
+  return { t, pack, agents, facts, kinds, occasions };
 }
 type Words = Awaited<ReturnType<typeof words>>;
 
@@ -195,9 +198,12 @@ function Item({
 export async function ShadowReviewSheet({
   sample,
   companyName,
+  replies,
 }: {
   sample: ShadowSampleDto;
   companyName: string;
+  /** The set is the WhatsApp assistant's drafted replies alone. */
+  replies: boolean;
 }) {
   const w = await words();
   const shadow: Translate = await getTranslations('agents.shadow');
@@ -213,8 +219,14 @@ export async function ShadowReviewSheet({
           })}
         </h2>
         <p className="text-sm">
-          {t('count', { shown: sample.items.length, count: sample.proposals })}
+          {t(replies ? 'countReplies' : 'count', {
+            shown: sample.items.length,
+            count: sample.proposals,
+          })}
         </p>
+        {sample.compared ? null : (
+          <p className="text-text-muted text-sm">{w.pack('notCompared')}</p>
+        )}
       </section>
       <section aria-label={t('passed')} className="flex flex-col gap-1 text-sm">
         {sample.filtered.length === 0 ? (

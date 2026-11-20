@@ -20,10 +20,13 @@ export function ProposalFigures({
   id,
   heading,
   proposals,
+  compared,
 }: {
   id: string;
   heading: string;
   proposals: readonly AgentProposalFiguresDto[];
+  /** Whether the figures compare with the team's work (the viewer reads the activity log). */
+  compared: boolean;
 }) {
   const t = useTranslations('agents.shadowPack');
   const report = useTranslations('agents.conciergeReport');
@@ -34,6 +37,7 @@ export function ProposalFigures({
       <h2 id={id} className="text-h3">
         {heading}
       </h2>
+      {compared ? null : <p className="text-text-muted text-sm">{t('notCompared')}</p>}
       <dl className="flex flex-col gap-3 text-sm">
         {proposals.map((p) => {
           const name = actionTypeName(p.actionType);
@@ -59,6 +63,9 @@ export function ProposalFigures({
                 })}
               </dd>
               <dd className="text-text-muted">{t('decided', { count: p.decided })}</dd>
+              {p.executed === 0 ? null : (
+                <dd className="text-text-muted">{t('executed', { count: p.executed })}</dd>
+              )}
               {name === 'whatsappReply' && p.shadowed > 0 ? (
                 <dd className="text-text-muted">{t('replyInShadow')}</dd>
               ) : null}

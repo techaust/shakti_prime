@@ -290,6 +290,7 @@ export function CopilotReportScreen({
           id="copilot-proposals"
           heading={t('proposalsHeading')}
           proposals={report.proposals}
+          compared={report.compared}
         />
       </div>
       <SpendPerLead id="copilot-spend" spend={report.spend}>

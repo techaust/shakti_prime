@@ -256,6 +256,7 @@ export function ConciergeReportScreen({
           id="concierge-proposals"
           heading={t('proposalsHeading')}
           proposals={report.proposals}
+          compared={report.compared}
         />
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
