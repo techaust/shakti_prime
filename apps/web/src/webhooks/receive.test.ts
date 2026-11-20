@@ -8,6 +8,7 @@ import { metaHandshake, receiveWebhook, type WebhookDeps } from './receive';
 import { refusedKey, refusedLastDay } from './refusals';
 import {
   everyProvider,
+  exotelIncomingDelivery,
   googleDelivery,
   TEST_ORIGIN,
   TEST_WEBHOOK_ENV,
@@ -109,6 +110,30 @@ describe('receiveWebhook', () => {
       expect(h.rows.size).toBe(1);
       expect(h.published).toHaveLength(1);
     }
+  });
+
+  it('stores a delivery to a route with no path parameter, whose params Next.js resolves to undefined', async () => {
+    // As `next start` and Vercel call `meta/whatsapp`, `meta/leadgen`, `google/leadform`,
+    // `exotel/call-status` and `livekit` (G2's webhook load found these answering 500).
+    for (const d of (await everyProvider(NOW)).filter((p) => p.provider !== 'exotel_incoming')) {
+      const h = harness();
+      const answer = await route(d.provider, h)(d.request(), {
+        params: Promise.resolve(undefined),
+      });
+      expect({ provider: d.provider, status: answer.status }).toEqual({
+        provider: d.provider,
+        status: 200,
+      });
+      expect(h.rows.size, d.provider).toBe(1);
+    }
+    // The Passthru route still reads its secret segment from real params.
+    const incoming = exotelIncomingDelivery();
+    const h = harness();
+    const answer = await route('exotel_incoming', h)(incoming.request(), {
+      params: Promise.resolve({ secret: TEST_WEBHOOK_ENV.EXOTEL_INCOMING_SECRET }),
+    });
+    expect(answer.status).toBe(200);
+    expect(h.rows.size).toBe(1);
   });
 
   it('keys each provider on its own event id, and WhatsApp’s batches on the body', async () => {
