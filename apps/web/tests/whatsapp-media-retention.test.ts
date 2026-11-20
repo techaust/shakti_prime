@@ -101,7 +101,7 @@ describe('the WhatsApp media retention job', () => {
     expect(store.objects.has(fresh.key)).toBe(true);
     expect(await whatsappMediaState(photo)).toMatchObject({
       fileId: photo.fileId,
-      mediaSummary: expect.objectContaining({ contentType: 'image/jpeg', verdict: 'passed' }),
+      mediaSummary: expect.objectContaining({ contentType: 'image/jpeg', verdict: 'passed' }) as unknown,
     });
     expect((await whatsappMediaState(pdf)).mediaSummary).toMatchObject({
       contentType: 'application/pdf',
@@ -210,7 +210,12 @@ describe('the WhatsApp media retention job', () => {
     const named = await stored(recent());
     const folder = '1/whatsapp_media/';
     const put = (key: string, storedAt: Date) =>
-      store.objects.set(key, { bytes: Uint8Array.from([9]), contentType: 'image/jpeg', tags: {}, storedAt });
+      store.objects.set(key, {
+        bytes: Uint8Array.from([9]),
+        contentType: 'image/jpeg',
+        tags: {},
+        storedAt,
+      });
     const twoDays = new Date(Date.now() - 2 * DAY);
     const anHour = new Date(Date.now() - 3_600_000);
     const longAgo = new Date(Date.now() - (ORPHAN_LOOKBACK_DAYS + 5) * DAY);

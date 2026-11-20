@@ -204,7 +204,10 @@ export function s3FileStore(config: S3StoreConfig): FileStore {
       // while an older version stayed still holds bytes. S3 answers a key's versions newest
       // first, so a key's newest version is on the page that first names it; the next page
       // starts after the last key named.
-      const limit = Math.min(Math.max(Math.trunc(options?.limit ?? LIST_PAGE_MAX), 1), LIST_PAGE_MAX);
+      const limit = Math.min(
+        Math.max(Math.trunc(options?.limit ?? LIST_PAGE_MAX), 1),
+        LIST_PAGE_MAX,
+      );
       const out = await client.send(
         new ListObjectVersionsCommand({
           Bucket,

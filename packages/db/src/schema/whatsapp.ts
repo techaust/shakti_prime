@@ -264,9 +264,7 @@ export const whatsappMessages = pgTable(
     // job's keyset; a message leaves it once its file is removed.
     index('whatsapp_messages_media_kept_idx')
       .on(t.entityId, t.createdAt, t.id)
-      .where(
-        sql`${t.kind} = 'media' and ${t.fileId} is not null and ${t.mediaSummary} is null`,
-      ),
+      .where(sql`${t.kind} = 'media' and ${t.fileId} is not null and ${t.mediaSummary} is null`),
   ],
 );
 

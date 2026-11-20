@@ -79,9 +79,10 @@ export function uuidTimePrefix(at: Date): string {
 
 /** When the file a key under a WhatsApp folder belongs to was made, from its id; else undefined. */
 function keyTime(key: string): Date | undefined {
-  const id = /\/whatsapp_media\/([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12})/.exec(
-    key,
-  )?.[1];
+  const id =
+    /\/whatsapp_media\/([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12})/.exec(
+      key,
+    )?.[1];
   return id === undefined ? undefined : idTime(id);
 }
 
@@ -90,8 +91,10 @@ async function fileKeys(store: FileStore, due: DueWhatsAppMediaDto): Promise<str
   const keys = [due.key];
   if (due.originalKey !== null && due.originalKey !== due.key) keys.push(due.originalKey);
   if (due.contentType === 'application/pdf') {
-    const stem = (due.originalKey ?? due.key).replace(/\.[A-Za-z0-9]+$/, '').replace(/-checked$/, '');
-    for (let after: string | undefined; ; ) {
+    const stem = (due.originalKey ?? due.key)
+      .replace(/\.[A-Za-z0-9]+$/, '')
+      .replace(/-checked$/, '');
+    for (let after: string | undefined; ;) {
       const page = await store.list(`${stem}-checked/`, after === undefined ? {} : { after });
       keys.push(...page.keys.map((k) => k.key));
       if (page.next === undefined) break;
@@ -147,10 +150,14 @@ export async function runWhatsAppMediaRetention(
   const scope = (entityId: number) => ({ entityIds: [entityId], requestId: deps.requestId });
   const finish = (next: MediaRetentionPlace | null): MediaRetentionResult => {
     result.next = next;
-    log.log('info', next === null ? 'messaging.media_retention_run' : 'messaging.media_retention_continued', {
-      requestId: deps.requestId,
-      ...result,
-    });
+    log.log(
+      'info',
+      next === null ? 'messaging.media_retention_run' : 'messaging.media_retention_continued',
+      {
+        requestId: deps.requestId,
+        ...result,
+      },
+    );
     return result;
   };
   if (store === undefined && !dryRun) {
@@ -240,7 +247,8 @@ export async function runWhatsAppMediaRetention(
       const folder = `${String(entityId)}/whatsapp_media/`;
       const youngest = now().getTime() - ORPHAN_MIN_AGE_HOURS * 3_600_000;
       let afterKey =
-        place.afterKey ?? `${folder}${uuidTimePrefix(new Date(now().getTime() - ORPHAN_LOOKBACK_DAYS * DAY_MS))}`;
+        place.afterKey ??
+        `${folder}${uuidTimePrefix(new Date(now().getTime() - ORPHAN_LOOKBACK_DAYS * DAY_MS))}`;
       let removed = 0;
       let failed = 0;
       for (;;) {

@@ -99,7 +99,11 @@ describe('messaging.media.expire is the platform’s alone', () => {
     expect(list?.keys).toContain('messaging.media.expire');
     // The keys before it stay platform-only.
     expect(list?.keys).toEqual(
-      expect.arrayContaining(['messaging.process', 'sales.quote.accept.remote', 'voice.session.record']),
+      expect.arrayContaining([
+        'messaging.process',
+        'sales.quote.accept.remote',
+        'voice.session.record',
+      ]),
     );
     const holders = await asMigrator(
       (m) => m<{ key: string }[]>`
@@ -176,7 +180,7 @@ describe('the removal', () => {
       name: media.key.slice(media.key.lastIndexOf('/') + 1),
       size: 2048,
       verdict: 'passed',
-      removedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/),
+      removedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/) as string,
     });
     const untouched = await whatsappMediaState(fresh);
     expect(untouched).toMatchObject({ fileDeletedAt: null, mediaSummary: null });
@@ -245,7 +249,10 @@ describe('the removal', () => {
     let after: { at: string; id: string } | null = null;
     for (let page = 0; page < 50; page += 1) {
       const cursor: { at: string; id: string } | null = after;
-      const batch = await rows<{ message_id: string; message_at: string }>(
+      const batch: { message_id: string; message_at: string }[] = await rows<{
+        message_id: string;
+        message_at: string;
+      }>(
         workers([3]),
         sql`select * from app.whatsapp_media_due(3::smallint, ${YEARS}::integer,
                                                 ${cursor?.at ?? null}::timestamptz,

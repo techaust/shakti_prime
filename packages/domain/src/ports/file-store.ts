@@ -86,7 +86,9 @@ function pageOf(
     .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const page = under.slice(0, limit);
   const last = page.at(-1);
-  return under.length > limit && last !== undefined ? { keys: page, next: last.key } : { keys: page };
+  return under.length > limit && last !== undefined
+    ? { keys: page, next: last.key }
+    : { keys: page };
 }
 
 export interface PresignPutRequest {
@@ -221,7 +223,7 @@ export function memoryFileStore(bucket = 'memory'): FileStore & {
       try {
         assertListPrefix(prefix);
       } catch (error) {
-        return Promise.reject(error as Error);
+        return Promise.reject(error instanceof Error ? error : new Error(String(error)));
       }
       const keys = [...objects].map(([key, object]) => ({
         key,

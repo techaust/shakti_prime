@@ -1,4 +1,9 @@
-import { newId, SYSTEM_WORKERS_PRINCIPAL_ID, type Principal } from '@shakti/contracts';
+import {
+  newId,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type DueWhatsAppMediaDto,
+  type Principal,
+} from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -45,7 +50,9 @@ const workers = (entityId = 1): Principal => ({
 });
 
 function run(principal: Principal, command: AnyCommand, input: unknown): Promise<unknown> {
-  return asPrincipal(principal, (context) => runCommand(command, { context, audit, outbox }, input));
+  return asPrincipal(principal, (context) =>
+    runCommand(command, { context, audit, outbox }, input),
+  );
 }
 
 async function failure(promise: Promise<unknown>): Promise<{ code: string | undefined }> {
@@ -103,7 +110,7 @@ describe('messaging.media.expire', () => {
     expect(await whatsappMediaState(media)).toMatchObject({
       fileId: media.fileId,
       bodyMasked: 'borewell photo',
-      mediaSummary: expect.objectContaining({ verdict: 'refused', size: 2048 }),
+      mediaSummary: expect.objectContaining({ verdict: 'refused', size: 2048 }) as unknown,
     });
     expect((await whatsappMediaState(media)).fileDeletedAt).not.toBeNull();
     expect(await whatsappMediaState(fresh)).toMatchObject({
@@ -137,8 +144,10 @@ describe('the job’s reads', () => {
     const seen: string[] = [];
     let after: { at: string; id: string } | null = null;
     for (let page = 0; page < 100; page += 1) {
-      const cursor = after;
-      const batch = await asPrincipal(workers(4), (ctx) => dueWhatsAppMedia(ctx, 4, cursor, 2));
+      const cursor: { at: string; id: string } | null = after;
+      const batch: DueWhatsAppMediaDto[] = await asPrincipal(workers(4), (ctx) =>
+        dueWhatsAppMedia(ctx, 4, cursor, 2),
+      );
       seen.push(...batch.map((d) => d.messageId));
       const last = batch.at(-1);
       if (batch.length < 2 || last === undefined) break;
@@ -166,6 +175,10 @@ describe('messaging.media.record_orphans', () => {
   it('records the sweep for the workers alone', async () => {
     const input = { entityId: 1, startedAt: new Date().toISOString(), removed: 3, failed: 0 };
     expect(await failure(run(exec, recordWhatsAppMediaOrphans, input))).toEqual({
+      code: 'forbidden',
+    });
+    // Not for a company outside the request.
+    expect(await failure(run(workers(2), recordWhatsAppMediaOrphans, input))).toEqual({
       code: 'forbidden',
     });
     expect(await run(workers(), recordWhatsAppMediaOrphans, input)).toEqual({
