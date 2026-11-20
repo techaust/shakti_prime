@@ -86,9 +86,14 @@ Review checklist (check before your report): each alert fires on its synthetic c
 - `pnpm exec eslint --max-warnings 0` on every folder and file touched: clean.
 - `vitest run src/workers/phase2-alerts.test.ts src/observability/alerts.test.ts`: 22 passed.
 - `alert-counts.test.ts` 4 passed; `grants.test.ts` 198 passed; `reader-parity.test.ts` 8 passed.
-- `pnpm test:security`: the result is in the next paragraph.
+- `pnpm test:security`: the result is in the next paragraph. After 0219 was edited it was re-applied locally: its own row was removed from `drizzle.__drizzle_migrations`, the function dropped, and `pnpm db:migrate` run again. On the lead's side it is one new migration.
 
-SECURITY_RESULT
+`pnpm test:security` (it migrates and seeds first), then the web suite on its own, because Turbo stops after a failed package:
+- db: 59 files, 1512 passed.
+- domain: 97 of 98 files passed, 24 failed of 1389. Every failure is in `tests/commands/whatsapp-quotes.test.ts`.
+- web: 36 of 37 files passed, 16 failed of 446. Every failure is in `tests/whatsapp-quotes.test.ts`.
+
+These are the known fault the lead named: a clock-dependent test number starting with 91 makes them fail on every branch until about 19:00 UTC today, and techaust/shakti_prime#269 fixes it. Nothing else fails. `tests/jobs-check.test.ts` passed in full after the suite's migrate and seed. Its first case had failed in this VM before that, with and without this slice's call line, because the database held no recorded run of `outbox-events-purge`.
 
 **`EXPLAIN (ANALYZE)` evidence.** The figures are from a transaction rolled back after inserting 300,000 processed inbox rows over three providers, 50 failed rows, 20 waiting rows and 200,000 agent runs, then `analyze`:
 - Failed rows in the last hour: an Index Scan on `webhook_inbox_failed_idx` with `failed_at >= now() - 1 hour`; 7 rows read, grouped by provider.
