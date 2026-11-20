@@ -1,0 +1,32 @@
+{
+  "at": "2026-11-20T06:19:13.054Z",
+  "machine": {
+    "processors": 4,
+    "model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memoryGb": 16
+  },
+  "target": "next start on this machine",
+  "processing": "in the server after each answer (no queue)",
+  "lead": {
+    "rounds": 20,
+    "graphMs": 0,
+    "answer": {
+      "n": 20,
+      "p50": 2.7,
+      "p95": 3.6,
+      "p99": 15.8,
+      "min": 2.1,
+      "max": 15.8
+    },
+    "visible": {
+      "n": 20,
+      "p50": 62.6,
+      "p95": 86.1,
+      "p99": 176.8,
+      "min": 49.6,
+      "max": 176.8
+    },
+    "within10s": 1,
+    "lost": 0
+  }
+}

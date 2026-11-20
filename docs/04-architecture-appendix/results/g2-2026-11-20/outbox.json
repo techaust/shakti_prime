@@ -1,0 +1,44 @@
+{
+  "at": "2026-11-20T06:19:18.201Z",
+  "machine": {
+    "processors": 4,
+    "model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memoryGb": 16
+  },
+  "target": "next start on this machine",
+  "processing": "in the server after each answer (no queue)",
+  "outbox": [
+    {
+      "call": "outbox publisher (event groups)",
+      "rounds": 20,
+      "ms": {
+        "n": 20,
+        "p50": 5.7,
+        "p95": 12.7,
+        "p99": 48,
+        "min": 4.1,
+        "max": 48
+      },
+      "bytes": 123301,
+      "messagesPerCall": 200,
+      "allAccepted": true,
+      "otherCalls": 2
+    },
+    {
+      "call": "webhook sweep (process jobs)",
+      "rounds": 20,
+      "ms": {
+        "n": 20,
+        "p50": 3.6,
+        "p95": 7.2,
+        "p99": 7.9,
+        "min": 3.4,
+        "max": 7.9
+      },
+      "bytes": 75801,
+      "messagesPerCall": 200,
+      "allAccepted": true,
+      "otherCalls": 0
+    }
+  ]
+}

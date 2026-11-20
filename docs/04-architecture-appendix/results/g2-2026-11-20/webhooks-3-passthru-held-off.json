@@ -1,0 +1,136 @@
+{
+  "at": "2026-11-20T06:17:17.072Z",
+  "machine": {
+    "processors": 4,
+    "model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memoryGb": 16
+  },
+  "target": "next start on this machine",
+  "processing": "held off: each delivery published to a local queue stand-in",
+  "webhooks": [
+    {
+      "rate": 20,
+      "seconds": 30,
+      "sent": 600,
+      "repeats": 60,
+      "answers": {
+        "n": 600,
+        "p50": 8.8,
+        "p95": 13.7,
+        "p99": 95.5,
+        "min": 5.3,
+        "max": 394.1
+      },
+      "byProvider": {
+        "exotel_incoming": {
+          "n": 600,
+          "p50": 8.8,
+          "p95": 13.7,
+          "p99": 95.5,
+          "min": 5.3,
+          "max": 394.1
+        }
+      },
+      "notOk": {},
+      "sendLag": {
+        "n": 600,
+        "p50": 0,
+        "p95": 0.6,
+        "p99": 0.8,
+        "min": 0,
+        "max": 3.4
+      },
+      "stored": {
+        "sent": 540,
+        "stored": 540,
+        "missing": [],
+        "repeated": [],
+        "unexpected": [],
+        "ok": true
+      }
+    },
+    {
+      "rate": 50,
+      "seconds": 30,
+      "sent": 1500,
+      "repeats": 150,
+      "answers": {
+        "n": 1500,
+        "p50": 6.3,
+        "p95": 10.1,
+        "p99": 19.4,
+        "min": 3.6,
+        "max": 51
+      },
+      "byProvider": {
+        "exotel_incoming": {
+          "n": 1500,
+          "p50": 6.3,
+          "p95": 10.1,
+          "p99": 19.4,
+          "min": 3.6,
+          "max": 51
+        }
+      },
+      "notOk": {},
+      "sendLag": {
+        "n": 1500,
+        "p50": 0,
+        "p95": 0.3,
+        "p99": 0.4,
+        "min": 0,
+        "max": 9.3
+      },
+      "stored": {
+        "sent": 1350,
+        "stored": 1350,
+        "missing": [],
+        "repeated": [],
+        "unexpected": [],
+        "ok": true
+      }
+    },
+    {
+      "rate": 100,
+      "seconds": 30,
+      "sent": 3000,
+      "repeats": 300,
+      "answers": {
+        "n": 3000,
+        "p50": 4.9,
+        "p95": 8.7,
+        "p99": 23.3,
+        "min": 2.8,
+        "max": 70.9
+      },
+      "byProvider": {
+        "exotel_incoming": {
+          "n": 3000,
+          "p50": 4.9,
+          "p95": 8.7,
+          "p99": 23.3,
+          "min": 2.8,
+          "max": 70.9
+        }
+      },
+      "notOk": {},
+      "sendLag": {
+        "n": 3000,
+        "p50": 0,
+        "p95": 0.5,
+        "p99": 0.6,
+        "min": 0,
+        "max": 19.4
+      },
+      "stored": {
+        "sent": 2700,
+        "stored": 2700,
+        "missing": [],
+        "repeated": [],
+        "unexpected": [],
+        "ok": true
+      }
+    }
+  ],
+  "queuePublishes": 4590
+}

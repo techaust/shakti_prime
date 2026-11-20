@@ -1,0 +1,59 @@
+{
+  "at": "2026-11-20T06:28:02.546Z",
+  "instant": {
+    "delays": {
+      "finalMs": 0,
+      "firstSentenceMs": 0,
+      "firstAudioMs": 0
+    },
+    "turnStats": {
+      "turns": 200,
+      "steps": {
+        "final_transcript": {
+          "p50Ms": 0,
+          "p95Ms": 0
+        },
+        "first_sentence": {
+          "p50Ms": 0,
+          "p95Ms": 0
+        },
+        "first_speech": {
+          "p50Ms": 0,
+          "p95Ms": 0
+        },
+        "first_audio": {
+          "p50Ms": 0,
+          "p95Ms": 0
+        }
+      }
+    }
+  },
+  "budget": {
+    "delays": {
+      "finalMs": 250,
+      "firstSentenceMs": 600,
+      "firstAudioMs": 250
+    },
+    "turnStats": {
+      "turns": 50,
+      "steps": {
+        "final_transcript": {
+          "p50Ms": 250,
+          "p95Ms": 251
+        },
+        "first_sentence": {
+          "p50Ms": 600,
+          "p95Ms": 601
+        },
+        "first_speech": {
+          "p50Ms": 250,
+          "p95Ms": 251
+        },
+        "first_audio": {
+          "p50Ms": 1101,
+          "p95Ms": 1102
+        }
+      }
+    }
+  }
+}

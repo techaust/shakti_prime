@@ -1,0 +1,32 @@
+{
+  "at": "2026-11-20T08:34:26.130Z",
+  "machine": {
+    "processors": 4,
+    "model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memoryGb": 16
+  },
+  "target": "next start on this machine",
+  "processing": "in the server after each answer (no queue)",
+  "dial": {
+    "rounds": 30,
+    "accepted": {
+      "n": 30,
+      "p50": 194,
+      "p95": 201,
+      "p99": 208,
+      "min": 190,
+      "max": 208
+    },
+    "action": {
+      "n": 30,
+      "p50": 126,
+      "p95": 175,
+      "p99": 186,
+      "min": 96,
+      "max": 186
+    },
+    "within2s": 1,
+    "misses": [],
+    "actionUnread": 0
+  }
+}
