@@ -195,7 +195,7 @@ The lead accepted the early check at 93de24ae, with the nine assumptions and `ai
 - Security suites:
   - `@shakti/db`, after the last definer change: 1512 passed.
   - `@shakti/domain`: only the 24 known `whatsapp-quotes.test.ts` failures (techaust/shakti_prime#269).
-  - `web`: WEB_SECURITY_RESULT
+  - `web`, after the last code change: 37 of 38 files passed, 432 of 448 tests. The 16 failures are all the known `tests/whatsapp-quotes.test.ts` cases, and nothing else fails.
   - `alert-counts.test.ts`, `jobs-check.test.ts` and `jobs-check-route.test.ts`: all passed on their own.
 - `pnpm db:docs` was regenerated. `pnpm copy-lint` and `machines:docs` do not apply: no copy and no state machine changed.
 - No journeys or screenshot baselines: the slice has no screen.
