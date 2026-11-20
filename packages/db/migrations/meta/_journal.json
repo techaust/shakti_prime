@@ -1541,6 +1541,13 @@
       "when": 1795153913740,
       "tag": "0219_agent_only_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 220,
+      "version": "7",
+      "when": 1795154187136,
+      "tag": "0220_customer_idle_whatsapp",
+      "breakpoints": true
     }
   ]
 }

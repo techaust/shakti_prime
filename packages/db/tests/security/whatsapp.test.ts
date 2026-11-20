@@ -1087,10 +1087,33 @@ describe('a stale customer who wrote on WhatsApp (app.anonymise_stale_leads)', (
     ).toEqual([{ message_id: null, created_at: null }]);
   });
 
+  /** The lead's row in company 1's window from just before 2010 (what the dry run counts). */
+  const inWindow = async (lead: string) => {
+    const found = await rows<{ lead_id: string; stale: boolean }>(
+      workers([1]),
+      sql`select lead_id, stale from app.stale_leads(1::smallint, 24, '2009-12-31T23:59:59Z'::timestamptz,
+                                                    '00000000-0000-0000-0000-000000000000'::uuid, 500)`,
+    );
+    return found.find((row) => row.lead_id === lead);
+  };
+
   it('passes by a customer who wrote on WhatsApp within the retention period', async () => {
     const recent = await staleCustomer(new Date().toISOString());
     const [run] = await anonymise(recent.lead);
     expect(run?.result).toMatchObject({ leads: [], failed: 0 });
+    await active(recent.lead);
+  });
+
+  it('counts in the window and the dry run only the customer it anonymises (W1 re-check N3)', async () => {
+    const recent = await staleCustomer(new Date().toISOString());
+    const old = await staleCustomer('2010-01-01');
+    // The window and the dry run read the same answer the anonymisation acts on.
+    expect(await inWindow(recent.lead)).toEqual({ lead_id: recent.lead, stale: false });
+    expect(await inWindow(old.lead)).toEqual({ lead_id: old.lead, stale: true });
+    const [passed] = await anonymise(recent.lead);
+    expect(passed?.result).toMatchObject({ leads: [], failed: 0 });
+    const [done] = await anonymise(old.lead);
+    expect(done?.result).toMatchObject({ leads: [{ id: old.lead }], failed: 0 });
     await active(recent.lead);
   });
 
