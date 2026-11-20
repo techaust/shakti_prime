@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): measuring scripts and their records |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (cloud session, started 05:47 UTC) |
-| State | briefed |
-| Next step | build to the early check |
+| State | early check |
+| Next step | the lead reads the early check and sends "continue" |
 
 ## Brief
 Read first:
@@ -49,6 +49,33 @@ Review checklist (check before your report): each figure comes from a run on thi
 **Built beside you today, each in its own cloud session from `main` at 889ec54d:** `g2-shadow-pack` (the Concierge and Co-pilot shadow reports and review samples), `g2-alerts` (Phase 2 alerts), `g2-runbooks` (INCIDENTS sections and the exit-gate checklist; documents only), `g2-measures` (the latency and throughput measures), `p2-fixes` (Phase 2 review follow-ups) and `w2-media-retention` (the WhatsApp media retention job). Shared registration points (`en.json`, `AGENT_DEFAULTS`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event worker registry, the testing lists, `turbo.json`, `.env.example`, the jobs check's list) take one line or one block each, kept together under a comment naming your slice; the lead merges them.
 
 ## Report
+
+### 20-11-2026, cloud session: early check
+Built on `feat/g2-measures` from 889ec54d, one cloud VM (4 processors, 15 GB). No skill of the brief applies (no table, command or screen); none loaded.
+
+**The commands** (run from the repository root; each starts `next start` on the production build itself, on the port of `BETTER_AUTH_URL`, with the journeys' settings, the webhook test phrases and no queue, unless `--base-url` names a running server):
+- `pnpm --filter web exec tsx apps/web/tests/measures/g2.ts <measure|all>`, written `pnpm --filter web exec tsx tests/measures/g2.ts …` (pnpm runs it in `apps/web`), with `--base-url`, `--port`, `--rounds`, `--rates 20,50,100`, `--seconds`, `--graph-ms`, `--out <file.json>`:
+  - `webhooks` (`tests/measures/webhook-load.ts`): an open-loop run at each rate, the six providers' recorded payloads in turn, each signed as its provider signs it with an event id of its own, one delivery in ten a repeat of an earlier one; each answer timed from the send to the end of its body; p50, p95, p99 and max overall and per provider, the answers other than 200, the generator's own send lag; then, on this machine's database, every delivery stored exactly once (`storedOnce`).
+  - `lead` (`lead-path.ts`): I1's in-process path: the signed `leadgen` delivery through the route's own `receiveWebhook()`, processed after the answer with no queue, Meta's Graph API a stand-in answering the recorded lead (no Meta call; `--graph-ms` adds its time), the lead given to the company's one present caller; timed until that caller's own `searchLeads` (under RLS) finds it by phone. The other callers' presence is put back afterwards.
+  - `dial` (`browser.ts`): headless Chromium signed in through the screens as the journeys' tele-caller; a new lead each round; from the `C` key to the call bar showing the call accepted ("Ringing", or a later state if the simulated provider moved first), and the dial action's answer; each call saved as Not reachable before the next.
+  - `screen-pop` (`browser.ts`): the journeys' screen-pop caller waiting on `/home`; Exotel's Passthru call on the real route (`/webhooks/exotel/incoming/<secret>`) at a random moment of the 3-second poll, from a number two of her customers share (so no page opens); timed to the ringing route's answer carrying it; the transport read from the page (a socket to the Realtime project or the poll).
+  - `outbox` (`outbox-batch.ts`): `qstashEventPublisher().publish()` and `publishWebhookJobs()` with 200 messages each, through `@upstash/qstash`'s own client, against a local stand-in that records every call and accepts every message; the call's time, the request's bytes, messages per call.
+- `pnpm --filter @shakti/voice-agent exec tsx src/measure-turns.ts [--turns 200]` (`apps/voice-agent/src/turn-timing.ts`): the worker's `VoiceSession` on V2's fake room with the real clock and timers, stand-ins for speech and the reply; its `turnStats()` (`turn_stats_json`) once with every stand-in instant (the worker's own time per step) and once with §9.3's budget as their delays (250, 600, 250 ms), which checks the timing adds up.
+- The arithmetic (`apps/web/scripts/measures/stats.ts`): p50, p95, p99 by V1's nearest-rank `percentile` (`@shakti/voice`), share within a limit, the verdict against a target, the open-loop send times and send lag, the stored-once check, the Markdown table.
+
+**Targets the report states:** webhook answers every one within 2 s (the route's own budget, design §5.1; read at the max, p99 beside it); the lead within 10 s (max); the dial accepted within 2 s (p95, which is the max at 10 rounds); the screen-pop within 2 s (p95); the batch call none (a stand-in: the app's side and the size); voice first audio p50 1,500 ms (§9.3) only with the vendors.
+
+**Tests:** `apps/web/scripts/measures/stats.test.ts` 15 (percentiles on 100 and 5 samples, sub-millisecond rounding, no samples, 200,000 samples; share within; verdicts; open-loop offsets and refusals; send lag; stored once passes and names missing, repeated and unexpected ids; the table); `apps/voice-agent/src/turn-timing.test.ts` 1 (on the fake room with the real clock: every turn counted, each step at least its stand-in's delay, first audio at least the sum).
+
+**Checks:** `pnpm --filter web typecheck` and `pnpm --filter @shakti/voice-agent typecheck` clean; `pnpm exec eslint --max-warnings 0 apps/web/tests/measures apps/web/scripts/measures apps/web/src/webhooks/signed-deliveries.ts apps/voice-agent/src` clean; `pnpm --filter web test` 161 files, 1170 passed, 1 skipped; `pnpm --filter @shakti/voice-agent test` 5 files, 23 passed; `tests/webhooks.test.ts` and `tests/lead-ingest.test.ts` on real Postgres (they use the changed helper) 25 passed. Smoke runs only, not the recorded measures: `lead --rounds 3` (139 ms p50, 194 ms max) and `outbox --rounds 3` (200 messages a call, all accepted); `measure-turns --turns 20`. The build, the webhook, dial and screen-pop runs and the records come after "continue".
+
+**Assumptions (the brief left these open):**
+1. P5's load script does not exist on `main` (design §14 lists one; P5's run file built none), and no `spike:*` script fits: each talks to one vendor with real keys and refuses to start without them. Rather than a new `package.json` script (the owner's `checks-ok`), the measures run through `pnpm --filter <workspace> exec tsx`; a `measure:g2` script can be added later with the label if the owner wants one.
+2. The runners live in `apps/web/tests/measures/`, not `apps/web/scripts/`: ESLint fences scripts away from `@shakti/db/testing` and `@shakti/db/webhooks`, which the stored-once count and the lead measure's set-up need, and allows them under `apps/*/tests/**`. No file there ends in `.test.ts`, so neither suite runs them. The voice measure lives in `apps/voice-agent/src/`, since apps/web may not import the worker.
+3. `apps/web/src/webhooks/signed-deliveries.ts` (P5's test helper, not a product path) takes an optional signing-phrases argument, the test phrases by default, so the load can be signed for another server; every existing caller is unchanged.
+4. Locally the server processes each delivery itself after answering (no queue), so under load the processing shares the server's processors with the answers; on Vercel the worker is a function of its own. The local figures are therefore a harder case for the answers, and say so.
+5. QStash's dev server is `@upstash/qstash-cli`, not in this repository and not installable here: the batch call goes to a local stand-in; QStash's own time and limits wait for a hosted call.
+6. Any `--base-url` off this machine is refused without `--hosted-run-approved`: a run on dev or staging is the owner's go-ahead.
 
 ## Review
 
