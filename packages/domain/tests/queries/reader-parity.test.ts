@@ -112,6 +112,7 @@ import {
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { readScheduledJobs } from '../../src/queries/platform/scheduled-jobs';
 import { readWebhookHealth } from '../../src/queries/platform/webhook-health';
+import { readAlertCounts } from '../../src/queries/platform/alert-counts';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
 import { listKitPrices, listPriceChanges } from '../../src/queries/pricing/price-history';
 import { listPriceTierOptions } from '../../src/queries/pricing/price-tiers';
@@ -255,6 +256,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readOutboxHealth: (ctx) => readOutboxHealth(ctx, { limit: 20 }),
   readScheduledJobs: (ctx) => readScheduledJobs(ctx, new Date('2026-09-29T00:00:00Z')),
   readWebhookHealth: (ctx) => readWebhookHealth(ctx),
+  // The hourly jobs check's counts for the Phase 2 alerts (G2), the workers principal's only.
+  readAlertCounts: (ctx) => readAlertCounts(ctx),
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
   listKitPrices: (ctx) => listKitPrices(ctx, { priceListId: newId(), limit: 20 }),
