@@ -1,5 +1,4 @@
 import {
-  AgentFilterReasonSchema,
   COPILOT_ACTION_TYPES,
   COPILOT_FACTS,
   CopilotFactsSchema,
@@ -22,7 +21,8 @@ import { z } from 'zod';
 import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { checkPermission, isAgent } from '../../command/run-command';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
-import { istEndAfter, istStart } from './shadow-report';
+import { checkShadowReader, istEndAfter, istStart } from './shadow-report';
+import { agentRefusals, proposalFigures, refusalsByReason, spendPerLead } from './shadow-pack';
 import { listInbox } from './inbox';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -247,21 +247,6 @@ export async function loadCopilotPanel(ctx: Ctx, rawInput: unknown): Promise<Cop
   });
 }
 
-/** The reader of the Co-pilot report: the agent controls, as the Triage report's. */
-function checkReader(ctx: Ctx, entityId: number): void {
-  if (isAgent(ctx.principal)) throw new DomainError('forbidden', 'the shadow report is for people');
-  const perms = ctx.principal.permissions;
-  if (
-    !hasGrant(perms, 'agents.killswitch', 'all') &&
-    !hasGrant(perms, 'agents.autonomy.write', 'all')
-  ) {
-    checkPermission(ctx.principal, 'agents.killswitch', 'all');
-  }
-  if (!ctx.entityIds.includes(entityId)) {
-    throw new DomainError('forbidden', 'the company is not in this request');
-  }
-}
-
 const Cursor = z.object({ t: z.string().max(40), id: IdSchema }).strict();
 const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/;
 
@@ -363,7 +348,7 @@ function factLines(row: SummaryRow): CopilotReportFactDto[] {
  */
 export async function loadCopilotReport(ctx: Ctx, rawInput: unknown): Promise<CopilotReportDto> {
   const input = parseQueryInput(ShadowReportInput, rawInput, 'agents.copilot.report');
-  checkReader(ctx, input.entityId);
+  checkShadowReader(ctx, input.entityId);
   const after = input.cursor === undefined ? undefined : decodeCursor(Cursor, input.cursor);
   if (after !== undefined && !PG_TIME.test(after.t)) {
     throw new DomainError('validation_failed', 'cursor is not valid', { cursor: input.cursor });
@@ -411,30 +396,16 @@ export async function loadCopilotReport(ctx: Ctx, rawInput: unknown): Promise<Co
     pending: number;
   }[];
 
-  const filtered = (await ctx.tx.execute(sql`
-    select r.filter_reason, count(*)::int as n from agent_runs r
-     where r.entity_id = ${input.entityId} and r.agent = 'agent:copilot' and r.outcome = 'filtered'
-       and r.created_at >= ${from}::timestamptz and r.created_at < ${until}::timestamptz
-     group by r.filter_reason
-     order by r.filter_reason`)) as unknown as { filter_reason: string; n: number }[];
-
-  const proposals = (await ctx.tx.execute(sql`
-    select a.action_type,
-           count(*) filter (where a.state = 'shadowed')::int as shadowed,
-           count(*) filter (where a.state = 'proposed')::int as waiting,
-           count(*) filter (where a.state in ('approved', 'executed'))::int as approved,
-           count(*) filter (where a.state in ('rejected', 'dismissed'))::int as rejected
-      from agent_actions a
-     where a.entity_id = ${input.entityId} and a.agent = 'agent:copilot'
-       and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz
-     group by a.action_type`)) as unknown as {
-    action_type: string;
-    shadowed: number;
-    waiting: number;
-    approved: number;
-    rejected: number;
-  }[];
-  const order: readonly string[] = Object.values(COPILOT_ACTION_TYPES);
+  const refusals = await agentRefusals(ctx, 'agent:copilot', input.entityId, from, until);
+  const proposals = await proposalFigures(
+    ctx,
+    'agent:copilot',
+    input.entityId,
+    from,
+    until,
+    refusals,
+  );
+  const spend = await spendPerLead(ctx, 'agent:copilot', input.entityId, from, until);
 
   const more = page.length > input.limit;
   const rows = page.slice(0, input.limit);
@@ -456,20 +427,9 @@ export async function loadCopilotReport(ctx: Ctx, rawInput: unknown): Promise<Co
       disagreed: facts?.disagreed ?? 0,
       pending: facts?.pending ?? 0,
     },
-    filtered: filtered.flatMap((f) => {
-      const reason = AgentFilterReasonSchema.safeParse(f.filter_reason);
-      return reason.success ? [{ reason: reason.data, runs: f.n }] : [];
-    }),
-    proposals: order.map((actionType) => {
-      const p = proposals.find((x) => x.action_type === actionType);
-      return {
-        actionType,
-        shadowed: p?.shadowed ?? 0,
-        waiting: p?.waiting ?? 0,
-        approved: p?.approved ?? 0,
-        rejected: p?.rejected ?? 0,
-      };
-    }),
+    filtered: refusalsByReason(refusals),
+    proposals,
+    spend,
     items: rows.map((r) => ({
       noteId: r.id,
       createdAt: new Date(r.created_at).toISOString(),

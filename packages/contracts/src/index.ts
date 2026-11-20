@@ -9,6 +9,8 @@ export * from './agents';
 export * from './triage';
 export * from './copilot';
 export * from './concierge';
+// G2 shadow review pack
+export * from './shadow-pack';
 export * from './knowledge';
 export * from './roman-script';
 export * from './playbook';
