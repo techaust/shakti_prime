@@ -5,9 +5,9 @@
 | Branch | `feat/w2-media-retention` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): deletes customers' files |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (start) |
-| State | early check |
-| Next step | the lead reads the early check; "continue" for steps 3 to 5 |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (start and end) |
+| State | done |
+| Next step | the lead reviews the branch |
 
 ## Brief
 Read first:
@@ -74,7 +74,7 @@ Model and effort: Opus 5.5, high (start). Skills loaded: `add-command`.
 **Checks in this VM:**
 - `pnpm typecheck`: 0 errors, every workspace.
 - `pnpm exec eslint --max-warnings 0` on `packages/contracts`, `packages/db`, `packages/domain`, `apps/web/src/workers`, `apps/web/src/files`, `apps/web/src/screens`, `apps/web/src/print`, `apps/web/tests`: clean.
-- Unit tests: contracts 322 passed; db 161 passed; domain 2,594 passed (`refusal-coverage` and `permission-matrix` included); web 1,157 passed, 1 skipped.
+- Unit tests: contracts 322 passed; db 161 passed; domain 2,592 passed (`refusal-coverage` included; corrected from 2,594 at done); web 1,157 passed, 1 skipped.
 - `pnpm copy-lint`: clean. `pnpm db:docs`: `docs/data/data-dictionary.md` and `erd.md` regenerated and committed (`machines:docs` does not apply: no state machine changed).
 - `pnpm test:security`: db 1,517 passed (59 files). Domain 1,370 passed, 24 failed, all in `tests/commands/whatsapp-quotes.test.ts`; web (run alone, since turbo stops after domain) 435 passed, 16 failed, all in `tests/whatsapp-quotes.test.ts`. These are the known clock-dependent fault the lead named (a test number starting with 91, until about 19:00 UTC today, fixed by techaust/shakti_prime#269); no failure names any object of this slice. This slice's own files: db 9, domain 5, web 6, all passing, and the agent refusal sweep passing.
 - `pnpm build`: passed with no `.env` change.
@@ -97,6 +97,39 @@ Model and effort: Opus 5.5, high (start). Skills loaded: `add-command`.
 **For the lead:** the migration redefines `app.platform_only_permissions()`; any other wave-4 slice that adds a platform-only key redefines it too, so the merge keeps both lists' keys (and SECURITY §3.2's holder list).
 
 **Next (after "continue"):** step 3 (the nightly route, the kill or enable setting, the jobs check), step 4 (the thread's removed-file line, copy, journey and baselines), step 5 (DATABASE, SECURITY's retention list if any, the design's "Built (W2)").
+
+### 20-11-2026, cloud session: done
+Model and effort: Opus 5.5, high (end). The lead's "continue" (early check accepted with its eight assumptions) asked for two more things; both are in.
+
+**Built (steps 3 to 5):**
+- **The switch, off everywhere by default:** `WHATSAPP_MEDIA_RETENTION`, read at run time (`mediaRetentionOn()`), on only for the value `on`; empty, missing or anything else is off. No retention job had a switch of its own before, so this follows the repository's runtime switches (`KNOWLEDGE_TRANSCRIBE`, `CALL_TRANSCRIBE`); added to `.env.example` empty. Merging deletes nothing anywhere: with the switch off the nightly call runs the leads' anonymisation exactly as before and answers no `media` field. A dry run (`{ "dryRun": true }`) counts the media and orphans with the switch off too, since it changes nothing.
+- **Running it** (`runNightlyRetention` in `apps/web/src/workers/whatsapp-media-retention.ts`, wired as the `run` of `apps/web/src/app/api/v1/workers/crm/anonymise/route.ts`; no new QStash schedule): the nightly `lead-anonymise` call runs the leads first; the call that finishes them (`done: true`) then runs the media job with the time left, at most 15 s and nothing started after 45 s of the route's 60 s, batches of 50 (`NIGHTLY_MEDIA_BATCH`), so a batch started late still ends in time. A night that runs out leaves the rest to the next night: a removed file leaves the job's index, so each night starts at the oldest file still kept (W1's first media arrived in November 2026, so nothing is due before November 2029; until then the job's only work is the orphan sweep). Failures fail the call, which counts in the `lead-anonymise` streak (`recordJobOutcome`, `job.failing` on the third failed call in a row) like the jobs beside it; the leads' work already committed stays. `LeadAnonymiseWorkerResponse` gains an optional `media` (`WhatsAppMediaRetentionResponse`), present only when the media job ran.
+- **The race rule (the lead's point 1):** the log line `messaging.media_retention_in_use_after_delete` stays, and DATABASE §7 names the rule a later slice must follow: a feature that files a customer's WhatsApp photo elsewhere copies it into a file of its own and never points at the `whatsapp_media` file.
+- **The thread** (`apps/web/src/screens/messaging/whatsapp-thread.tsx`): a message whose file was removed shows its caption, a line of what the file was ("Photo from the customer · 240 KB · passed the file checks", from `media_summary`; the stored name is the file's id, so it is not shown) and "This file was removed after 3 years. The message stays." (the years from the summary's new `keptYears`, the period the definer applied), never a link to open. `WhatsAppMessageDto.mediaSummary` (nullable), read by `readWhatsAppThread`; copy under `messaging.thread.removed` in `en.json`.
+- **The journey and baselines:** the seed (`apps/web/e2e/setup/whatsapp.ts`) gives the snapshot company's chat, once, a photo of more than three years ago whose file the job's own command removed; `messages.spec.ts` checks the summary, the notice and that no Open button is there; the `messages` baselines of desktop-light, desktop-dark and phone are remade in the Linux image.
+- **Documents:** DATABASE §7 (the built WhatsApp media item with the race rule; WhatsApp media leaves the planned list), API §3.6 (the anonymise route's `media`), SECURITY §5 (Retention line), the design's "Built (W2)" under §11. SECURITY's matrix rows came with the early check. `docs/runbooks/` is `g2-runbooks`' and is not touched: the owner's step below is for the lead to place there.
+
+**What the owner sets (the lead's point 2), per environment:** nothing, to keep it off: on the Vercel projects `shakti-prime-dev`, `shakti-prime-staging` and `shakti-prime-production`, `WHATSAPP_MEDIA_RETENTION` stays unset. To turn it on in one environment: that project › Settings › Environment Variables › add `WHATSAPP_MEDIA_RETENTION` with the value `on` on the **Production** target (the target DEPLOY §1 step 10 sets every runtime variable on; not Sensitive, it is no secret), then redeploy that project so the running functions read it (dev and staging: the next push to `main` or *Redeploy*; production: the next approved release). From the next night's `lead-anonymise` call the job removes files past three years and keys no file names. To turn it off: delete the variable (or set it empty) and redeploy. A dry run before turning it on: publish `{ "dryRun": true }` to that environment's `/api/v1/workers/crm/anonymise` from the QStash console (the route takes only signed calls); the answer's `media` says what would go. Recommended order: staging first, then production after the CA confirms the three years (BLUEPRINT §7.9).
+
+**Tests added since the early check:** web `whatsapp-media-retention.test.ts` +2 (the switch's values; off removes nothing, a dry run counts with it off, on removes); domain `whatsapp-media-retention.test.ts`: the happy path also reads the chat (`readWhatsAppThread`) and finds the summary with `keptYears`; db: the summary asserted with `keptYears`. Totals for the slice: db 9, domain 5, web 8 on real Postgres, the refusal sweep's two entries, unit +4. `enum-sync.test.ts` pairs `whatsapp_messages_media_summary_check` (`'object'`, `'media'`).
+
+**Checks in this VM (at done):**
+- `pnpm typecheck`: 0 errors. Whole-repository `pnpm lint`: clean (0 warnings). `pnpm copy-lint`: clean. Document links (`check-doc-links.py`): 0 bad. `pnpm db:docs`: regenerated, committed.
+- Unit tests: contracts 322; db 161; domain 2,592; web 1,157 passed, 1 skipped.
+- Security suite: db 1,517 passed (59 files); domain 1,370 passed, 24 failed; web 437 passed, 16 failed. Every failure is in `whatsapp-quotes.test.ts` (domain and web), the known clock-dependent fault (techaust/shakti_prime#269); none names this slice's objects. (Turbo stops the other workspaces when one fails, so db and web were also run alone.)
+- `pnpm build`: passed.
+- Journeys (`e2e:seed`, then Playwright): `messages.spec.ts` passed in every project except its screenshot before the baselines were remade; `pnpm --filter web e2e:snap -- messages.spec.ts --update-snapshots`, then the same without the flag: 26 passed. `concierge.spec.ts` and `customers.spec.ts` (which show the snapshot customer) verified in the image unchanged: 59 passed.
+
+**Review checklist:** nothing newer than the period is touched (the definers compute the cutoff themselves; db and domain tests name a newer message to the removal and it stays); text and summary survive (db, domain, web, and the chat read); a file used elsewhere survives (a consent's evidence, a newer message; catalogue-driven); only the workers principal can remove (four definers, the commands, the refusal sweep, the role seed); a dry run changes nothing (web, store and rows checked); every batch is recorded (`whatsapp-media-expire` per batch read, `whatsapp-media-orphans` per company sweep, a store refusal as the error); no customer's details in logs or alerts (ids, counts and store keys only; a web test asserts the customer's number appears in no line).
+
+**Decisions since the early check:**
+9. The media job runs in the nightly `lead-anonymise` call rather than the hourly files sweep: the brief's nightly route, and one run a night is enough for the volume; it hands nothing on through QStash, since each night resumes by itself from the oldest kept file.
+10. A dry run counts the media with the switch off: it changes nothing, and it lets the owner see the effect before turning it on.
+11. The thread shows type, size and verdict, not the stored file name (the file's id, meaningless to staff); the summary keeps the name for the trail.
+12. The summary records `keptYears`, so the notice says the period that applied when the file went, even after the workshop default changes.
+13. The seed's removed photo is written once on the snapshot chat (not each project's chat), so the screenshot holds only seed rows and the photo never falls off the chat's first page.
+
+**For the lead:** `app.platform_only_permissions()` (0220) and the shared registration points (`en.json`, the permission catalogue and seeds, `.env.example`, the testing index, `enum-sync`, the agent refusal sweep) carry this slice's lines under W2 comments; the owner's switch step above belongs in DEPLOY §1 step 11 when `g2-runbooks` is merged.
 
 ## Review
 
