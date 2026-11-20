@@ -40,3 +40,5 @@ Not run yet.
 
 ## Measured (G2)
 **20-11-2026:** the WhatsApp webhook route (`/api/v1/webhooks/meta/whatsapp`) answers 500 to every delivery on the production build served by `next start`, as do four other routes, so its answer time under load is not measured; the defect, its cause and the figures of the one route that works are in [webhooks.md](webhooks.md).
+
+**20-11-2026, after the fix (35305e13):** the WhatsApp route answers every delivery of the load; at 100 a second p50 4.8 ms, p99 25 ms, longest 52 ms, every delivery stored once ([webhooks.md](webhooks.md)).
