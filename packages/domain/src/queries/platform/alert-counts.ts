@@ -33,9 +33,10 @@ const Answer = z
         })
         .strict(),
     ),
-    voice: z.array(
-      z.object({ userId: z.uuid(), minutes: Count, spentPaise: Count }).strict(),
+    agentsUnavailable: z.array(
+      z.object({ agent: z.string(), unavailableLastHour: Count }).strict(),
     ),
+    voice: z.array(z.object({ userId: z.uuid(), minutes: Count, spentPaise: Count }).strict()),
   })
   .strict();
 
@@ -48,6 +49,11 @@ export interface AlertCounts {
     entityId: number | null;
     capPaise: number;
   }[];
+  /** Per agent with any, its runs recorded as `unavailable` in the last hour. */
+  agentsUnavailable: {
+    agent: z.output<typeof AgentRoleKeySchema>;
+    unavailableLastHour: number;
+  }[];
   voice: { userId: string; minutes: number; spentPaise: number }[];
 }
 
@@ -55,8 +61,8 @@ export interface AlertCounts {
  * The counts the hourly jobs check raises the Phase 2 alerts on, through `app.alert_counts()`,
  * which only the workers principal may call (`platform.jobs.check:all`, ADR 0020): each company's
  * code and whether it has a WhatsApp number, the webhooks per provider (failed in the last hour,
- * waiting, the oldest's wait), the agents' daily caps set on Admin › Agents, and each person's
- * voice minutes and spend today. Nothing in it names a person, a customer or a message.
+ * waiting, the oldest's wait), the agents' daily caps set on Admin › Agents, each agent's runs
+ * the AI provider did not answer in the last hour, and each person's voice minutes and spend today. Nothing in it names a person, a customer or a message.
  */
 export async function readAlertCounts(context: Pick<RequestContext, 'tx'>): Promise<AlertCounts> {
   const rows = (await context.tx.execute(sql`select app.alert_counts() as counts`)) as unknown as {
@@ -69,6 +75,10 @@ export async function readAlertCounts(context: Pick<RequestContext, 'tx'>): Prom
     agentCaps: answer.agentCaps.flatMap((cap) => {
       const agent = AgentRoleKeySchema.safeParse(cap.agent);
       return agent.success ? [{ ...cap, agent: agent.data }] : [];
+    }),
+    agentsUnavailable: answer.agentsUnavailable.flatMap((row) => {
+      const agent = AgentRoleKeySchema.safeParse(row.agent);
+      return agent.success ? [{ ...row, agent: agent.data }] : [];
     }),
     voice: answer.voice,
   };

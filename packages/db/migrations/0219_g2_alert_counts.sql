@@ -13,6 +13,8 @@
 --   seconds the oldest has waited (by the database's clock, as the sweep reads it);
 -- - `agentCaps`: the daily spend caps set on Admin › Agents for an agent (`agent_configs` rows
 --   with no action type), per company or (null) the group;
+-- - `agentsUnavailable`: per agent with any, its runs recorded as `unavailable` in the last hour
+--   (the AI provider did not answer, or its breaker was open), across the companies;
 -- - `voice`: per person with a session today (the day in India, `app.voice_day_start()`), the
 --   minutes and the spend in paise; a session still open counts the minutes it has run, at most
 --   its own longest length.
@@ -25,6 +27,7 @@ declare
   v_webhooks jsonb;
   v_caps jsonb;
   v_voice jsonb;
+  v_unavailable jsonb;
 begin
   if not app.has_perm('platform.jobs.check:all') then
     raise exception 'platform.jobs.check:all is required' using errcode = '42501';
@@ -68,6 +71,19 @@ begin
     into v_caps
     from public.agent_configs c
    where c.agent is not null and c.action_type is null and c.daily_spend_cap_paise is not null;
+  -- One range of each company's `(entity_id, created_at)` index over the last hour.
+  select coalesce(jsonb_agg(jsonb_build_object('agent', u.agent, 'unavailableLastHour', u.n)
+           order by u.agent), '[]'::jsonb)
+    into v_unavailable
+    from (select r.agent, sum(r.n)::integer as n
+            from public.entities e
+            cross join lateral (
+              select x.agent, count(*) as n
+                from public.agent_runs x
+               where x.entity_id = e.id and x.created_at >= v_now - interval '1 hour'
+                 and x.outcome = 'unavailable'
+               group by x.agent) r
+           group by r.agent) u;
   select coalesce(jsonb_agg(jsonb_build_object(
            'userId', v.user_id, 'minutes', v.minutes, 'spentPaise', v.spent)
            order by v.user_id), '[]'::jsonb)
@@ -82,7 +98,8 @@ begin
            where vs.started_at >= app.voice_day_start(v_now)
            group by vs.user_id) v;
   return jsonb_build_object('companies', v_companies, 'webhooks', v_webhooks,
-                            'agentCaps', v_caps, 'voice', v_voice);
+                            'agentCaps', v_caps, 'agentsUnavailable', v_unavailable,
+                            'voice', v_voice);
 end
 $$;
 --> statement-breakpoint

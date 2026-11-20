@@ -31,6 +31,8 @@ export const SENTRY_FLUSH_MS = 2_000;
  *     (`used`, `limit`);
  *   - `ai.spend_high`: a spender's spend today at or above 80 % of a daily cap, per agent and
  *     company or the group (`agent`, `company`, `spentPaise`, `capPaise`);
+ *   - `ai.provider_failing`: an agent's runs the AI provider did not answer in the last hour at
+ *     or above the threshold (`agent`, `unavailable`);
  *   - `voice.spend_high`: a person's voice minutes or spend today at or above 80 % of a daily cap
  *     (`person`, an id; `minutes`, `spentPaise` and their caps).
  */
@@ -45,6 +47,7 @@ export const ALERT_NAMES = [
   'whatsapp.quality_low',
   'whatsapp.budget_high',
   'ai.spend_high',
+  'ai.provider_failing',
   'voice.spend_high',
 ] as const;
 export type AlertName = (typeof ALERT_NAMES)[number];

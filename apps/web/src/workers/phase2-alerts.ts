@@ -43,6 +43,13 @@ export const PHASE2_ALERT_THRESHOLDS = {
    * (`WORKSHOP_DEFAULTS.whatsapp.marketingHoldShare`), so the owner is told as the hold starts.
    */
   whatsappBudgetShare: WORKSHOP_DEFAULTS.whatsapp.marketingHoldShare,
+  /**
+   * `ai.provider_failing` (an addition from the lead, 20-11-2026): an agent's runs recorded as
+   * `unavailable` in the last hour (the AI provider did not answer, or its breaker was open), at or
+   * above this many: five, the failures in a minute that open the provider's breaker
+   * (`BREAKER_FAILURES`), so a passing error is not an outage.
+   */
+  aiUnavailableLastHour: 5,
   /** `ai.spend_high`: a spender's spend today at or above this share of a daily cap. */
   aiSpendShare: 0.8,
   /** `voice.spend_high`: a person's voice minutes or spend today at or above this share of a cap. */
@@ -256,6 +263,24 @@ export function aiSpendAlerts(
   return due;
 }
 
+/** `ai.provider_failing`, per agent, once a day: its runs the AI provider did not answer. */
+export function providerAlerts(
+  unavailable: AlertCounts['agentsUnavailable'],
+  day: string,
+): DueAlert[] {
+  return unavailable
+    .filter((a) => a.unavailableLastHour >= PHASE2_ALERT_THRESHOLDS.aiUnavailableLastHour)
+    .map((a) => {
+      const agent = a.agent.replace(/^agent:/, '');
+      return {
+        name: 'ai.provider_failing' as const,
+        subject: agent,
+        period: day,
+        fields: { subject: agent, agent, unavailable: a.unavailableLastHour },
+      };
+    });
+}
+
 /** `voice.spend_high`, per person, once a day, when their minutes or spend near a day's cap. */
 export function voiceAlerts(voice: AlertCounts['voice'], day: string): DueAlert[] {
   const v = AGENT_DEFAULTS.voice;
@@ -354,6 +379,7 @@ export async function runPhase2Alerts(
     ...qualityAlerts(counts.companies, messaging.quality),
     ...budgetAlerts(messaging, day),
     ...aiSpendAlerts(spend, counts.companies, day),
+    ...providerAlerts(counts.agentsUnavailable, day),
     ...voiceAlerts(counts.voice, day),
   ];
   const alerted = await raiseOnce(due, options);

@@ -46,6 +46,7 @@ interface Counts {
     oldestWaitingSeconds: number | null;
   }[];
   agentCaps: { agent: string; entityId: number | null; capPaise: number }[];
+  agentsUnavailable: { agent: string; unavailableLastHour: number }[];
   voice: { userId: string; minutes: number; spentPaise: number }[];
 }
 
@@ -100,6 +101,7 @@ describe('app.alert_counts() (G2 alerts)', () => {
     });
     expect(Object.keys(counts ?? {}).sort()).toEqual([
       'agentCaps',
+      'agentsUnavailable',
       'companies',
       'voice',
       'webhooks',
@@ -185,6 +187,17 @@ describe('app.alert_counts() (G2 alerts)', () => {
                                                consent_recording, started_at, max_minutes)
                    values (${open}, ${person}, 1, '{1}', 'ask', false,
                            now() - interval '4 minutes 30 seconds', 10)`;
+          // The Concierge's runs the provider did not answer: five in the last hour across two
+          // companies, one two hours ago and one that failed otherwise, which do not count.
+          const run = (entityId: number, outcome: string, ago: string) =>
+            tx`insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type,
+                                       outcome, request_id, created_at)
+               values (${newId()}, ${entityId}, 'agent:concierge', ${SYSTEM_WORKERS_PRINCIPAL_ID},
+                       'alert_check', 'messaging.reply.draft', ${outcome}, 'alert-counts',
+                       now() - ${ago}::interval)`;
+          for (const entityId of [1, 1, 1, 2, 2]) await run(entityId, 'unavailable', '10 minutes');
+          await run(1, 'unavailable', '2 hours');
+          await run(1, 'failed', '5 minutes');
           await tx`select set_config('app.permissions', 'platform.jobs.check:all', true)`;
           const [row] = await tx<{ counts: Counts }[]>`select app.alert_counts() as counts`;
           throw new Undo(row?.counts);
@@ -195,6 +208,10 @@ describe('app.alert_counts() (G2 alerts)', () => {
       }
       return undefined;
     });
+    const unavailable = (counts: Counts | undefined) =>
+      counts?.agentsUnavailable.find((a) => a.agent === 'agent:concierge')?.unavailableLastHour ??
+      0;
+    expect(unavailable(answer)).toBe(unavailable(before) + 5);
     const livekit = answer?.webhooks.find((w) => w.provider === 'livekit');
     expect(livekit?.failedLastHour).toBe((livekitBefore?.failedLastHour ?? 0) + 3);
     expect(livekit?.waiting).toBe((livekitBefore?.waiting ?? 0) + 1);

@@ -5,6 +5,7 @@ import { memoryAlertSink } from '../observability/alerts';
 import {
   aiSpendAlerts,
   budgetAlerts,
+  providerAlerts,
   PHASE2_ALERT_THRESHOLDS as T,
   qualityAlerts,
   raiseOnce,
@@ -228,6 +229,38 @@ describe('ai.spend_high', () => {
       'concierge:group',
       'knowledge:index:transcribe:group',
     ]);
+  });
+});
+
+describe('ai.provider_failing (an addition from the lead)', () => {
+  const runs = (unavailableLastHour: number) => [
+    { agent: 'agent:concierge' as const, unavailableLastHour },
+  ];
+
+  it('fires at and above the runs the provider did not answer in the last hour, silent below', () => {
+    expect(providerAlerts(runs(T.aiUnavailableLastHour - 1), DAY)).toEqual([]);
+    for (const n of [T.aiUnavailableLastHour, T.aiUnavailableLastHour + 40]) {
+      expect(providerAlerts(runs(n), DAY)).toEqual([
+        {
+          name: 'ai.provider_failing',
+          subject: 'concierge',
+          period: DAY,
+          fields: { subject: 'concierge', agent: 'concierge', unavailable: n },
+        },
+      ]);
+    }
+  });
+
+  it('keeps each agent apart', () => {
+    const due = providerAlerts(
+      [
+        { agent: 'agent:triage', unavailableLastHour: 9 },
+        { agent: 'agent:copilot', unavailableLastHour: 1 },
+        { agent: 'agent:concierge', unavailableLastHour: 5 },
+      ],
+      DAY,
+    );
+    expect(due.map((a) => a.subject)).toEqual(['triage', 'concierge']);
   });
 });
 
