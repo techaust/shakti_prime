@@ -16,6 +16,8 @@ export interface WhatsAppMediaFixture {
   fileId: string;
   bucket: string;
   key: string;
+  /** The upload's own key, when the checks stored a changed copy under `key`. */
+  originalKey: string | null;
 }
 
 const EXTENSIONS: Record<string, string> = {
@@ -33,6 +35,8 @@ export async function whatsappMediaMessage(
     contentType?: 'image/jpeg' | 'application/pdf';
     status?: 'ready' | 'rejected' | 'scanning';
     caption?: string;
+    /** Recorded as the checks leave a file they replaced with a masked copy beside the upload. */
+    checkedCopy?: boolean;
   },
 ): Promise<WhatsAppMediaFixture> {
   const workers: Principal = {
@@ -54,13 +58,19 @@ export async function whatsappMediaMessage(
   const fileId = newId();
   const contentType = options.contentType ?? 'image/jpeg';
   const bucket = options.bucket ?? 'memory';
-  const key = `${String(customer.entityId)}/whatsapp_media/${fileId}.${EXTENSIONS[contentType] ?? 'bin'}`;
+  const extension = EXTENSIONS[contentType] ?? 'bin';
+  const upload = `${String(customer.entityId)}/whatsapp_media/${fileId}.${extension}`;
+  const key =
+    options.checkedCopy === true ? upload.replace(/\.[a-z]+$/, `-checked.${extension}`) : upload;
+  const originalKey = options.checkedCopy === true ? upload : null;
   const createdAt = await asMigrator(async (m) => {
     await m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256,
-                               status, created_by)
+                               status, scan_result, created_by)
             values (${fileId}, ${customer.entityId}, 'whatsapp_media', ${bucket}, ${key},
-                    ${key.slice(key.lastIndexOf('/') + 1)}, ${contentType}, 2048, ${'a'.repeat(64)},
-                    ${options.status ?? 'ready'}, ${SYSTEM_WORKERS_PRINCIPAL_ID})`;
+                    ${upload.slice(upload.lastIndexOf('/') + 1)}, ${contentType}, 2048,
+                    ${'a'.repeat(64)}, ${options.status ?? 'ready'},
+                    ${originalKey === null ? null : m.json({ originalKey })},
+                    ${SYSTEM_WORKERS_PRINCIPAL_ID})`;
     const [row] = await m<{ created_at: string }[]>`
       update whatsapp_messages set file_id = ${fileId}
        where id = ${recorded.message_id}
@@ -75,6 +85,7 @@ export async function whatsappMediaMessage(
     fileId,
     bucket,
     key,
+    originalKey,
   };
 }
 
