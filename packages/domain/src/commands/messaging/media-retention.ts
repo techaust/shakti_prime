@@ -85,7 +85,8 @@ export const recordWhatsAppMediaOrphans = defineCommand({
       select app.whatsapp_media_orphans_record(${input.entityId}::smallint,
                                                ${input.startedAt}::timestamptz,
                                                ${input.removed}::integer,
-                                               ${input.failed}::integer)`);
+                                               ${input.failed}::integer,
+                                               ${input.resumeKey}::text)`);
     return { entityId: input.entityId, removed: input.removed, failed: input.failed };
   },
 });

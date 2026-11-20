@@ -37,6 +37,8 @@ export async function whatsappMediaMessage(
     caption?: string;
     /** Recorded as the checks leave a file they replaced with a masked copy beside the upload. */
     checkedCopy?: boolean;
+    /** The file's id, and so its key; a new one when left out. */
+    fileId?: string;
   },
 ): Promise<WhatsAppMediaFixture> {
   const workers: Principal = {
@@ -55,7 +57,7 @@ export async function whatsappMediaMessage(
     return rows[0];
   });
   if (!recorded) throw new Error('no media message recorded');
-  const fileId = newId();
+  const fileId = options.fileId ?? newId();
   const contentType = options.contentType ?? 'image/jpeg';
   const bucket = options.bucket ?? 'memory';
   const extension = EXTENSIONS[contentType] ?? 'bin';

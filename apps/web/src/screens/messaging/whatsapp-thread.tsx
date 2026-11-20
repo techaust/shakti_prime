@@ -307,22 +307,29 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
  */
 function RemovedFile({ summary }: { summary: NonNullable<WhatsAppMessageDto['mediaSummary']> }) {
   const t = useTranslations('messaging.thread.removed');
-  const size = sizeParts(summary.size);
-  const type = summary.contentType.startsWith('image/')
-    ? t('photo')
-    : summary.contentType === 'application/pdf'
-      ? t('pdf')
-      : t('other');
+  const { contentType, size, verdict, keptYears } = summary;
+  // A summary is read field by field: what it could not read is left out of the line.
+  const described =
+    contentType !== undefined && size !== undefined && verdict !== undefined
+      ? t('summary', {
+          type: contentType.startsWith('image/')
+            ? t('photo')
+            : contentType === 'application/pdf'
+              ? t('pdf')
+              : t('other'),
+          size: (() => {
+            const parts = sizeParts(size);
+            return t(parts.unit, { value: parts.value });
+          })(),
+          verdict: t(`verdict.${verdict}`),
+        })
+      : null;
   return (
     <div className="flex flex-col gap-0.5 text-sm">
-      <p>
-        {t('summary', {
-          type,
-          size: t(size.unit, { value: size.value }),
-          verdict: t(`verdict.${summary.verdict}`),
-        })}
+      {described === null ? null : <p>{described}</p>}
+      <p className="text-text-muted">
+        {keptYears === undefined ? t('noticePlain') : t('notice', { years: keptYears })}
       </p>
-      <p className="text-text-muted">{t('notice', { years: summary.keptYears })}</p>
     </div>
   );
 }

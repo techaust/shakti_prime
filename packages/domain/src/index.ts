@@ -43,6 +43,7 @@ export {
   dueWhatsAppMedia,
   MEDIA_KEYS_MAX,
   whatsAppMediaKeysKept,
+  whatsAppMediaOrphansLast,
 } from './queries/messaging/media-retention';
 export {
   attachWhatsAppMedia,

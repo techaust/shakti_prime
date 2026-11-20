@@ -70,7 +70,8 @@ export type ExpireWhatsAppMediaDto = z.infer<typeof ExpireWhatsAppMediaDto>;
 
 /**
  * `messaging.media.record_orphans`: one company's sweep of the keys no file names, when it began,
- * the keys it removed and those the store refused.
+ * the keys it removed and those the store refused, and the last key it examined when it stopped
+ * for time (null when it reached its end), which the next sweep goes on after.
  */
 export const RecordWhatsAppMediaOrphansInput = z
   .object({
@@ -78,6 +79,7 @@ export const RecordWhatsAppMediaOrphansInput = z
     startedAt: z.iso.datetime(),
     removed: Count,
     failed: Count,
+    resumeKey: z.string().min(1).max(300).nullable().default(null),
   })
   .strict();
 export type RecordWhatsAppMediaOrphansInput = z.input<typeof RecordWhatsAppMediaOrphansInput>;
@@ -91,16 +93,31 @@ export type RecordWhatsAppMediaOrphansDto = z.infer<typeof RecordWhatsAppMediaOr
 export const MEDIA_SUMMARY_VERDICTS = ['passed', 'refused', 'unchecked'] as const;
 export type MediaSummaryVerdict = (typeof MEDIA_SUMMARY_VERDICTS)[number];
 
-/** What a removed file was, as its message keeps it (`whatsapp_messages.media_summary`). */
+/**
+ * Where one company's next sweep of keys no file names starts (`whatsAppMediaOrphansLast`): its
+ * latest sweep the store refused nothing in, when it began and where it stopped; none when there
+ * is no such sweep, and the whole folder is swept.
+ */
+export const WhatsAppMediaSweepDto = z
+  .object({ startedAt: z.iso.datetime({ offset: true }), resumeKey: z.string().nullable() })
+  .strict();
+export type WhatsAppMediaSweepDto = z.infer<typeof WhatsAppMediaSweepDto>;
+
+/**
+ * What a removed file was, as the chat shows it from `whatsapp_messages.media_summary`. Every
+ * field is optional: the read takes each field it can read and leaves out the rest, so a summary
+ * written by an older or newer job never fails the chat, and an empty one still says the file was
+ * removed.
+ */
 export const WhatsAppMediaSummaryDto = z
   .object({
-    contentType: z.string().max(100),
-    name: z.string().max(200),
-    size: z.number().int().positive(),
-    verdict: z.enum(MEDIA_SUMMARY_VERDICTS),
+    contentType: z.string().max(100).optional(),
+    name: z.string().max(200).optional(),
+    size: z.number().int().positive().optional(),
+    verdict: z.enum(MEDIA_SUMMARY_VERDICTS).optional(),
     /** The retention period the file was kept for, in years, when it was removed. */
-    keptYears: z.number().int().min(1).max(10),
-    removedAt: z.iso.datetime(),
+    keptYears: z.number().int().min(1).max(10).optional(),
+    removedAt: z.string().max(40).optional(),
   })
   .strict();
 export type WhatsAppMediaSummaryDto = z.infer<typeof WhatsAppMediaSummaryDto>;

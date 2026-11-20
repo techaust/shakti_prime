@@ -119,8 +119,10 @@ declare
   v_cutoff timestamptz;
 begin
   perform app.require_media_expire(p_entity);
-  if p_years is null or p_years not between 1 and 10 then
-    raise exception 'the period is 1 to 10 years' using errcode = 'check_violation';
+  -- At least three years until the CA decides (BLUEPRINT §7.9): a wrong default can never
+  -- remove a younger file.
+  if p_years is null or p_years not between 3 and 10 then
+    raise exception 'the period is 3 to 10 years' using errcode = 'check_violation';
   end if;
   if (p_after_at is null) <> (p_after_id is null) then
     raise exception 'a cursor has a time and an id' using errcode = 'check_violation';
@@ -181,8 +183,10 @@ declare
   v_removed jsonb;
 begin
   perform app.require_media_expire(p_entity);
-  if p_years is null or p_years not between 1 and 10 then
-    raise exception 'the period is 1 to 10 years' using errcode = 'check_violation';
+  -- At least three years until the CA decides (BLUEPRINT §7.9): a wrong default can never
+  -- remove a younger file.
+  if p_years is null or p_years not between 3 and 10 then
+    raise exception 'the period is 3 to 10 years' using errcode = 'check_violation';
   end if;
   if coalesce(pg_catalog.cardinality(p_messages), 0) > 500 or coalesce(p_failed, -1) < 0 then
     raise exception 'a batch names at most 500 messages' using errcode = 'check_violation';
@@ -234,12 +238,14 @@ begin
     into v_removed
     from summarised s;
 
-  insert into public.retention_runs (id, job, started_at, finished_at, rows_affected, error)
+  insert into public.retention_runs (id, job, started_at, finished_at, rows_affected, error,
+                                     entity_id)
   values (app.uuid_v7(), 'whatsapp-media-expire', v_started, pg_catalog.clock_timestamp(),
           pg_catalog.jsonb_array_length(v_removed),
           case when p_failed = 0 then null
                else 'the store refused ' || p_failed::text
-                    || case when p_failed = 1 then ' file' else ' files' end end);
+                    || case when p_failed = 1 then ' file' else ' files' end end,
+          p_entity);
   return pg_catalog.jsonb_build_object(
     'removed', v_removed,
     'inUse', coalesce(pg_catalog.cardinality(v_in_use), 0));
@@ -287,9 +293,10 @@ grant execute on function app.whatsapp_media_keys_kept(smallint, text, text[]) t
 --> statement-breakpoint
 
 -- 7. The record of one company's sweep of keys no file names: one row of retention_runs (job
---    whatsapp-media-orphans) with the keys removed, and those the store refused as its error.
+--    whatsapp-media-orphans, the company, the keys removed, those the store refused as its error,
+--    and where a sweep that stopped for time left off).
 create or replace function app.whatsapp_media_orphans_record(
-  p_entity smallint, p_started timestamptz, p_removed integer, p_failed integer
+  p_entity smallint, p_started timestamptz, p_removed integer, p_failed integer, p_resume_key text
 ) returns void
   language plpgsql volatile security definer set search_path = '' as $$
 begin
@@ -297,16 +304,45 @@ begin
   if coalesce(p_removed, -1) < 0 or coalesce(p_failed, -1) < 0 then
     raise exception 'counts are 0 or more' using errcode = 'check_violation';
   end if;
-  insert into public.retention_runs (id, job, started_at, finished_at, rows_affected, error)
+  if p_resume_key is not null
+     and not pg_catalog.starts_with(p_resume_key, p_entity::text || '/whatsapp_media/') then
+    raise exception 'a sweep stops in its company''s folder' using errcode = 'check_violation';
+  end if;
+  insert into public.retention_runs (id, job, started_at, finished_at, rows_affected, error,
+                                     entity_id, resume_key)
   values (app.uuid_v7(), 'whatsapp-media-orphans',
           least(coalesce(p_started, pg_catalog.clock_timestamp()), pg_catalog.clock_timestamp()),
           pg_catalog.clock_timestamp(), p_removed,
           case when p_failed = 0 then null
                else 'the store refused ' || p_failed::text
-                    || case when p_failed = 1 then ' key' else ' keys' end end);
+                    || case when p_failed = 1 then ' key' else ' keys' end end,
+          p_entity, p_resume_key);
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.whatsapp_media_orphans_record(smallint, timestamptz, integer, integer) from public, readonly_reporter;
+revoke execute on function app.whatsapp_media_orphans_record(smallint, timestamptz, integer, integer, text) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.whatsapp_media_orphans_record(smallint, timestamptz, integer, integer) to app_user;
+grant execute on function app.whatsapp_media_orphans_record(smallint, timestamptz, integer, integer, text) to app_user;
+--> statement-breakpoint
+
+-- 8. Where one company's next sweep of keys no file names starts: its latest sweep the store
+--    refused nothing in (when it began, and where it stopped if it stopped for time); no row when
+--    there is none, and the job then sweeps the whole folder.
+create or replace function app.whatsapp_media_orphans_last(p_entity smallint)
+  returns table (started_at timestamptz, resume_key text)
+  language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform app.require_media_expire(p_entity);
+  return query
+    select r.started_at, r.resume_key
+      from public.retention_runs r
+     where r.job = 'whatsapp-media-orphans' and r.entity_id = p_entity
+       and r.error is null and r.finished_at is not null
+     order by r.started_at desc, r.id desc
+     limit 1;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.whatsapp_media_orphans_last(smallint) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.whatsapp_media_orphans_last(smallint) to app_user;

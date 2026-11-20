@@ -1,6 +1,6 @@
 {
-  "id": "0e5e6305-8911-471c-b9b8-24f650d425ec",
-  "prevId": "d4e0f0f3-10f1-4566-9310-49fff9283085",
+  "id": "a52bdedc-8e33-4283-96bb-4e2ec7f55a86",
+  "prevId": "105d79e4-860a-40fb-ad51-ddef741a02e4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -14683,6 +14683,18 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resume_key": {
+          "name": "resume_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -14708,7 +14720,21 @@
           "concurrently": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "retention_runs_entity_id_entities_id_fk": {
+          "name": "retention_runs_entity_id_entities_id_fk",
+          "tableFrom": "retention_runs",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "tableTo": "entities",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -14724,6 +14750,10 @@
         "retention_runs_error_length_check": {
           "name": "retention_runs_error_length_check",
           "value": "char_length(\"retention_runs\".\"error\") <= 500"
+        },
+        "retention_runs_resume_key_length_check": {
+          "name": "retention_runs_resume_key_length_check",
+          "value": "char_length(\"retention_runs\".\"resume_key\") <= 300"
         }
       },
       "isRLSEnabled": false

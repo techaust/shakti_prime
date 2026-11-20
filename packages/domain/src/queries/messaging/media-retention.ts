@@ -1,6 +1,7 @@
 import {
   DueWhatsAppMediaDto,
   MEDIA_RETENTION_BATCH_MAX,
+  WhatsAppMediaSweepDto,
   type MediaRetentionCursor,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
@@ -76,4 +77,24 @@ export async function whatsAppMediaKeysKept(
     k: string;
   }[];
   return new Set(rows.map((r) => r.k));
+}
+
+/**
+ * Where one company's next sweep of keys no file names starts (`app.whatsapp_media_orphans_last()`):
+ * its latest sweep the store refused nothing in; null when there is none.
+ */
+export async function whatsAppMediaOrphansLast(
+  ctx: Pick<RequestContext, 'tx'>,
+  entityId: number,
+): Promise<WhatsAppMediaSweepDto | null> {
+  const [row] = (await ctx.tx.execute(sql`
+    select pg_catalog.to_char(started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as started_at,
+           resume_key
+      from app.whatsapp_media_orphans_last(${entityId}::smallint)`)) as unknown as {
+    started_at: string;
+    resume_key: string | null;
+  }[];
+  return row === undefined
+    ? null
+    : WhatsAppMediaSweepDto.parse({ startedAt: row.started_at, resumeKey: row.resume_key });
 }
