@@ -28,8 +28,8 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
   const [picked, setPicked] = useState<{ outcome: DispositionDto; need: OutcomeNeed }>();
   // A call placed from the screen (T3): its log takes the provider call's start and length.
   const [dialled, setDialled] = useState<DialledCall | undefined>();
-  // Calls saved: the call bar is mounted afresh after each, so a saved dialled call is never sent
-  // again with the next log.
+  // Dialled calls saved: the call bar is mounted afresh after each, so a saved dialled call is
+  // never sent again with the next log.
   const [saves, setSaves] = useState(0);
   const dial = useQuery<{ e164: string; dialledAt: string }>();
   // One form per lead: another lead's call is sent under a key of its own.
@@ -52,17 +52,20 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
   const saveCall = useCallback(
     (outcome: DispositionDto, detail: OutcomeDetail | Record<string, never> = {}) => {
       if (lead === null) return;
+      // The dialled call this log saves: only the open lead's. Another lead's stays for its own
+      // log (T3 re-check 12).
+      const linked = dialled?.opportunityId === lead.opportunityId ? dialled : undefined;
       save.run(
         {
           entityId: lead.entityId,
           opportunityId: lead.opportunityId,
           dispositionId: outcome.id,
-          ...(dialled?.opportunityId === lead.opportunityId
+          ...(linked !== undefined
             ? {
-                providerCallId: dialled.providerCallId,
-                ...(dialled.durationSeconds === undefined
+                providerCallId: linked.providerCallId,
+                ...(linked.durationSeconds === undefined
                   ? {}
-                  : { durationSeconds: dialled.durationSeconds }),
+                  : { durationSeconds: linked.durationSeconds }),
               }
             : number?.opportunityId === lead.opportunityId
               ? { startedAt: number.dialledAt }
@@ -73,8 +76,12 @@ export function useCallLogging(lead: CallLeadDto | null, onSaved: () => void) {
           setPicked(undefined);
           // The next call on the lead starts when Dial is pressed again.
           setNumber(undefined);
-          setDialled(undefined);
-          setSaves((n) => n + 1);
+          if (linked !== undefined) {
+            setDialled((current) =>
+              current?.providerCallId === linked.providerCallId ? undefined : current,
+            );
+            setSaves((n) => n + 1);
+          }
           toast.success(savedMessage(t, result));
           onSaved();
         },

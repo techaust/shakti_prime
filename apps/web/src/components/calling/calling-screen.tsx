@@ -211,8 +211,8 @@ export function CallingScreen({
   const [dialledAt, setDialledAt] = useState<string | undefined>();
   // A call placed from the screen (T3): its log takes the provider call's start and length.
   const [dialled, setDialled] = useState<DialledCall | undefined>();
-  // Calls saved on this screen: the call bar is mounted afresh after each, so a saved dialled call
-  // is never sent again with the next log.
+  // Dialled calls saved on this screen: the call bar is mounted afresh after each, so a saved
+  // dialled call is never sent again with the next log.
   const [saves, setSaves] = useState(0);
   const [picked, setPicked] = useState<{ outcome: DispositionDto; need: OutcomeNeed }>();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -263,17 +263,20 @@ export function CallingScreen({
   const saveCall = useCallback(
     (outcome: DispositionDto, detail: OutcomeDetail | Record<string, never> = {}) => {
       if (lead === null) return;
+      // The dialled call this log saves: only the open lead's. Another lead's stays for its own
+      // log (T3 re-check 12).
+      const linked = dialled?.opportunityId === lead.opportunityId ? dialled : undefined;
       save.run(
         {
           entityId: lead.entityId,
           opportunityId: lead.opportunityId,
           dispositionId: outcome.id,
-          ...(dialled?.opportunityId === lead.opportunityId
+          ...(linked !== undefined
             ? {
-                providerCallId: dialled.providerCallId,
-                ...(dialled.durationSeconds === undefined
+                providerCallId: linked.providerCallId,
+                ...(linked.durationSeconds === undefined
                   ? {}
-                  : { durationSeconds: dialled.durationSeconds }),
+                  : { durationSeconds: linked.durationSeconds }),
               }
             : dialledAt === undefined
               ? {}
@@ -282,8 +285,12 @@ export function CallingScreen({
         },
         (result) => {
           setPicked(undefined);
-          setDialled(undefined);
-          setSaves((n) => n + 1);
+          if (linked !== undefined) {
+            setDialled((current) =>
+              current?.providerCallId === linked.providerCallId ? undefined : current,
+            );
+            setSaves((n) => n + 1);
+          }
           toast.success(savedMessage(t, result));
           open(lead);
           refreshQueue();
