@@ -5,9 +5,9 @@
 | Branch | `feat/g2-measures` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): measuring scripts and their records |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (cloud session, started 05:47 UTC, ended 06:50 UTC on the same model and effort) |
-| State | blocked: a product defect found by the webhook load |
-| Next step | the lead decides who fixes `paramsOf()` (question below); then the six-route webhook load is run again |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (cloud session, started 05:47 UTC, resumed for the fix and ended 07:20 UTC, on the same model and effort throughout) |
+| State | done |
+| Next step | the lead reviews the branch; the fix 35305e13 goes to `main` in its own pull request |
 
 ## Brief
 Read first:
@@ -106,6 +106,24 @@ At 100 a second the in-process processing did not make Passthru's answers miss; 
 **Checks, on this branch's last commit:** `pnpm build` passed (1 min 54 s); `pnpm typecheck` 10 of 10 tasks; `pnpm --filter web test` 161 files, 1170 passed, 1 skipped; `pnpm --filter @shakti/voice-agent test` 5 files, 23 passed; `python3 tools/integration/check-doc-links.py` bad 0; Prettier clean on the measuring code; the whole-repository `pnpm lint` passed. Not run, as nothing they cover changed: `pnpm test:security` (no schema, policy, command or query), `copy-lint` (no copy), `db:docs` and `machines:docs`, the journeys and baselines (no screen). No measuring server is left running.
 
 **Review checklist:** each figure comes from a run on this branch in this VM, and its record says so; nothing hosted was loaded or called; targets stand beside results; percentiles are tested (`stats.test.ts`); the missed targets (the six-route load, the poll's screen-pop) are stated as missed, each with the step that missed.
+
+### 20-11-2026, cloud session: done
+The lead answered the blocked question with (a): the fix on this branch in a commit of its own, then the six-route load again.
+
+**The fix, 35305e13** (`fix(webhooks): a route with no path parameter gets no params from Next.js`, pushed at once, touching only `apps/web/src/webhooks/receive.ts` and `receive.test.ts`): `paramsOf()` treats `undefined` from `await context.params` as no params, and `RouteContext` says Next.js may hand it so. The new unit test calls every body provider's handler built by `receiveWebhook()` with `{ params: Promise.resolve(undefined) }` (each stores its delivery and answers 200), and `exotel_incoming` with real params (unchanged). It fails without the fix (1 failed, 16 passed) and passes with it; `src/webhooks` 28 passed; on real Postgres `tests/webhooks.test.ts`, `lead-ingest.test.ts` and `inbound-calls.test.ts` 34 passed.
+
+**A test through the built route: not added, more than a few lines.** The journeys' server (`e2e/setup/server-env.ts`, and CI's `ci.yml`, which sets the same values) has no webhook phrases, so every webhook route answers 503 before it reads its params, and a journey would never reach the line. Catching this class of fault in CI needs the webhook test phrases in the journeys' server settings and in `ci.yml` (a checks change, the owner's `checks-ok`), then one journey case that posts a signed delivery from `signed-deliveries.ts` to `/api/v1/webhooks/meta/whatsapp` and expects 200. Until then, `g2.ts webhooks` on a production build is the check.
+
+**The six-route load after the fix: met** (recorded in `webhooks.md`; the first run's figures kept as they were, with a dated line in `whatsapp.md` and the appendix readme's row). New build at 6a36b166; at 20, 50 and 100 a second every delivery of all six providers was answered 200 and stored exactly once:
+- processing in the server: p99 232 / 23 / 30 ms, longest 406 / 43 / 61 ms;
+- processing held off: p99 140 / 27 / 28 ms, longest 428 / 73 / 82 ms; 4,590 publishes to the stand-in.
+At 100 a second the server's own processing did not make the answers miss. The 20-a-second rows carry the server's warm-up.
+
+**Changed besides the fix:** the held-off load marks the rows it stored processed on the local database afterwards (6a36b166). The first held-off runs had left 4,590 rows waiting, and the sweep's real-Postgres test (`tests/webhooks.test.ts`, "the sweep publishes a row left waiting once per attempt it is on") then failed, because its own row was not among the first 200 waiting. I marked those 4,590 rows processed by hand on the local database, after which the test passed; no hosted database was touched.
+
+**Checks, on this branch's last commit:** `pnpm build` passed (with the fix); `pnpm typecheck` 10 of 10 tasks; `pnpm --filter web test` 161 files, 1171 passed, 1 skipped; `pnpm --filter @shakti/voice-agent test` 23 passed; the three real-Postgres webhook files above 34 passed; `python3 tools/integration/check-doc-links.py` bad 0; Prettier clean; the whole-repository `pnpm lint` passed. Not run: the whole `pnpm test:security` (no schema, policy, command or query changed; the route's own real-Postgres files ran), `copy-lint`, `db:docs`, `machines:docs`, the journeys and baselines (no screen or copy). No measuring server is left running.
+
+**Review checklist:** each figure comes from a run on this branch in this VM, and its record names the commit; nothing hosted was loaded or called; targets stand beside results; percentiles are tested; the missed target that remains (the screen-pop by the poll, the poll's own wait) is stated as missed, and the first webhook run's miss stays in the record with its cause and its fix.
 
 ## Review
 
