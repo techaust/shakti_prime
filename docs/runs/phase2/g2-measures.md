@@ -5,9 +5,9 @@
 | Branch | `feat/g2-measures` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): measuring scripts and their records |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (cloud session, started 05:47 UTC, resumed for the fix and ended 07:20 UTC, on the same model and effort throughout) |
-| State | done |
-| Next step | the lead reviews the branch; the fix 35305e13 goes to `main` in its own pull request |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (cloud session, started 05:47 UTC, resumed for the fix and the review's fix round, ended 08:55 UTC, on the same model and effort throughout) |
+| State | fixes |
+| Next step | the lead reads the fix round |
 
 ## Brief
 Read first:
@@ -124,6 +124,31 @@ At 100 a second the server's own processing did not make the answers miss. The 2
 **Checks, on this branch's last commit:** `pnpm build` passed (with the fix); `pnpm typecheck` 10 of 10 tasks; `pnpm --filter web test` 161 files, 1171 passed, 1 skipped; `pnpm --filter @shakti/voice-agent test` 23 passed; the three real-Postgres webhook files above 34 passed; `python3 tools/integration/check-doc-links.py` bad 0; Prettier clean; the whole-repository `pnpm lint` passed. Not run: the whole `pnpm test:security` (no schema, policy, command or query changed; the route's own real-Postgres files ran), `copy-lint`, `db:docs`, `machines:docs`, the journeys and baselines (no screen or copy). No measuring server is left running.
 
 **Review checklist:** each figure comes from a run on this branch in this VM, and its record names the commit; nothing hosted was loaded or called; targets stand beside results; percentiles are tested; the missed target that remains (the screen-pop by the poll, the poll's own wait) is stated as missed, and the first webhook run's miss stays in the record with its cause and its fix.
+
+### 20-11-2026, cloud session: fixes
+The review at 038b5030 (H1, M1 to M4, L1 to L6), one round. 35305e13 kept on the branch. Every re-run below is on this VM against the same production build (product code at 35305e13), its report in `docs/04-architecture-appendix/results/g2-2026-11-20/`.
+
+| Item | Commit | Test or evidence |
+|---|---|---|
+| H1 (a) no vendor credential reaches a measure | 25e2bebc | `withoutVendorCredentials()` (`apps/web/scripts/measures/safety.ts`, its list `VENDOR_CREDENTIALS`: Exotel's account keys and subdomain, Sentry, the model, speech, AWS and the bucket, SES, Supabase, Tally, Redis, Voyage, web push, WhatsApp's token and number, QStash) on the measuring server's settings and on the runner's own process, mail to the console; `safety.test.ts` "removes Exotel's keys and every other vendor credential, and keeps the rest" |
+| H1 (b) no made-up number off this machine | 25e2bebc, 397c6de0 | `dialLeadPhone()`: a made-up lead only on the server started here; elsewhere `G2_DIAL_LEAD_PHONE` or refused, before any server is reached; `safety.test.ts` "refuses another server without a phone the owner's people answer" and the two other cases; by hand, `dial --base-url http://localhost:3999` without it: `set G2_DIAL_LEAD_PHONE first` |
+| H1 the command for dev | ed1321d0 | `exotel.md`: `--rounds 3` with `G2_DIAL_LEAD_PHONE`, who answers each phone (the caller their own, the owner's people the "customer"), real calls billed, nobody else called |
+| M1 repeats reach every provider | 5b47262e | `repeatSources()`; `stats.test.ts` "sends repeats to every provider…" (10 each of 600 at six providers) and "makes one delivery in `every` a repeat…"; re-run: 10, 25, 50 repeats a provider at 20, 50, 100 a second, all answered 200, none stored again; the earlier claim restated in `webhooks.md` (those runs reached WhatsApp, Google and Passthru only) |
+| M2 a lost lead round counts 30 s | 9bf82036 | `lead-path.ts` pushes `GIVE_UP_MS` for a lost round; a Lost column in `webhooks.md`; re-run: 20 rounds longest 515 ms, 10 with Graph at 1 s longest 1,228 ms, none lost. No unit test: the round needs the database and a lead that never comes |
+| M3 voice | f4be1dee, ed1321d0 | `measureTurnTiming()` also times each turn to the fake room's `play()` (`toPlayback`); `turn-timing.test.ts` checks every turn and the delays' sum; `voice.md`: covers 1,100 of §9.3's 1,500 ms (no end-of-speech detection, no network or playback), compared with 1,100; "adds up" said to be by construction in the session, checked outside it by `toPlayback` (1,101 / 1,103 / 1,104 ms against 1,100) |
+| M4 a timed-out dial round | 25e2bebc, 5fd98d7e | a miss is 30,000 ms with its step and what the bar showed, and the run goes on; 30 rounds then missed 4, all at "the dial action's answer" while the bar showed the call placed and ended: the measure's own `waitForResponse` predicate reading bodies. Read from the page's response events instead: 30 rounds, none missed, the action read in all (p95 201 ms). Both runs recorded in `exotel.md`, the earlier stopped run's cause stated as the same wait (its log was not kept) |
+| L1 settle in a `finally` | 5b47262e | held-off rows are marked processed in a `finally`; `webhooks.md` says the runs leave failed rows and the journeys need a fresh database |
+| L2 hosted message count, the EU publish | ed1321d0 | `webhooks.md`: about 4,600 messages for the three rates, about 2,700 with `--rates 100`; dev's answers add a publish to QStash in the EU |
+| L3 `--seconds` at most 240 | 25e2bebc | by hand: `--seconds 300` refused |
+| L4 the 500s in the past tense | ed1321d0 | `webhooks.md`, `whatsapp.md`, naming 35305e13 |
+| L5 every run's report committed | ed1321d0 | 19 reports in `results/g2-2026-11-20/`, numbered as the records name them; gitleaks over the folder: no leaks |
+| L6 `--queue` only with webhooks | 25e2bebc | by hand: `lead --queue stand-in` refused |
+
+**Two things found while re-running.** Re-dialling one lead runs into its three tries (after the third Not reachable the lead moves to a follow-up and the outcome is saved differently), so locally each round makes a new lead (nobody rings), and the run with the owner's phone takes `--rounds 3`. The first in-server load after the M1 change had a slow 20-a-second row (longest 1,413 ms, in the server's first seconds); a second run (longest 380 ms) is recorded beside it, both within the 2 seconds.
+
+**Not re-run:** the screen-pop and the batch call, which no fix touched (the server's settings changed only by removing vendor credentials, of which this VM's `.env` holds none).
+
+**Checks, on this branch's last commit:** `pnpm typecheck` 10 of 10; `pnpm --filter web test` 162 files, 1177 passed, 1 skipped; `pnpm --filter @shakti/voice-agent test` 23 passed; on real Postgres `tests/webhooks.test.ts`, `lead-ingest.test.ts`, `inbound-calls.test.ts` and `click-to-dial.test.ts` 41 passed; `python3 tools/integration/check-doc-links.py` bad 0; the whole-repository `pnpm lint` passed. No measuring server is left running.
 
 ## Review
 
