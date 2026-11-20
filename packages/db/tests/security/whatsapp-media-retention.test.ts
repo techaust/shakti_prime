@@ -275,20 +275,20 @@ describe('the removal', () => {
     const ids = media.map((m) => m.messageId);
     const seen: string[] = [];
     // From just before this run's own rows, so rows earlier runs left never come first.
-    let after: { at: string; id: string } | null = {
+    let after: { at: string; id: string } = {
       at: new Date(base - 1).toISOString(),
       id: '00000000-0000-0000-0000-000000000000',
     };
     for (let page = 0; page < 50; page += 1) {
-      const cursor: { at: string; id: string } | null = after;
+      const cursor: { at: string; id: string } = after;
       const batch: { message_id: string; message_at: string }[] = await rows<{
         message_id: string;
         message_at: string;
       }>(
         workers([3]),
         sql`select * from app.whatsapp_media_due(3::smallint, ${YEARS}::integer,
-                                                ${cursor?.at ?? null}::timestamptz,
-                                                ${cursor?.id ?? null}::uuid, 1)`,
+                                                ${cursor.at}::timestamptz,
+                                                ${cursor.id}::uuid, 1)`,
       );
       const [row] = batch;
       if (!row) break;
