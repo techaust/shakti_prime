@@ -12,7 +12,7 @@ import {
   type KeyValue,
 } from '@shakti/domain';
 import { logger } from '../log';
-import type { AlertFields, AlertName, AlertSink } from '../observability/alerts';
+import type { AlertName, AlertSink } from '../observability/alerts';
 import { qualityRating } from '../observability/whatsapp-quality';
 import { systemWorkersPrincipal } from './events/system-principal';
 
@@ -56,6 +56,29 @@ export const PHASE2_ALERT_THRESHOLDS = {
   voiceShare: 0.8,
 } as const;
 
+/**
+ * Every field a Phase 2 alert may carry: counts, ids, company codes and the names of providers,
+ * agents and the portfolio, never a phone number, a message's text or a person's name (a person
+ * is their principal id). A test holds every alert to it.
+ */
+export const ALERT_FIELD_KEYS = [
+  'subject',
+  'provider',
+  'failed',
+  'waiting',
+  'oldestMinutes',
+  'company',
+  'used',
+  'limit',
+  'agent',
+  'spentPaise',
+  'capPaise',
+  'unavailable',
+  'person',
+  'minutes',
+  'minutesCap',
+] as const;
+
 /** The name a failed run of these alerts is told under, as a job's problem (`job.problem`). */
 export const PHASE2_ALERTS_JOB = 'phase2-alerts';
 
@@ -72,7 +95,8 @@ export interface DueAlert {
   subject: string;
   /** The period it stands for: the day in India, or the quality report it is about. */
   period: string;
-  fields: AlertFields;
+  /** Only `ALERT_FIELD_KEYS`, each a count or a code, id or name of a provider or agent. */
+  fields: Readonly<Partial<Record<(typeof ALERT_FIELD_KEYS)[number], number | string>>>;
 }
 
 /** Whether `value` is at or above `share` of `cap`; a cap of nothing is never reached. */

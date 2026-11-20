@@ -2,7 +2,9 @@ import { AGENT_DEFAULTS, memoryKeyValue, type AlertCounts, type KeyValue } from 
 import { describe, expect, it, vi } from 'vitest';
 import { logger } from '../log';
 import { memoryAlertSink } from '../observability/alerts';
+import { scrubEvent } from '../observability/sentry-scrub';
 import {
+  ALERT_FIELD_KEYS,
   aiSpendAlerts,
   budgetAlerts,
   providerAlerts,
@@ -345,5 +347,67 @@ describe('raiseOnce: one alert per subject per period', () => {
     await raiseOnce([alert('livekit')], options);
     expect(alerts.alerts).toHaveLength(2);
     vi.restoreAllMocks();
+  });
+});
+
+describe('what an alert carries: counts, ids, codes and names of jobs only', () => {
+  /** One of each of the seven alerts, from synthetic counts. */
+  const everyAlert = (): DueAlert[] => [
+    ...webhookAlerts(webhook(9, 7_200), DAY),
+    ...qualityAlerts(COMPANIES, [{ entityId: 1, event: 'FLAGGED', at: '2026-11-20T04:00:00Z' }]),
+    ...budgetAlerts({ used: 240, limit: 250 }, DAY),
+    ...aiSpendAlerts(
+      [
+        { spender: 'agent:concierge', entityId: 1, capPaise: 10_000, spentPaise: 9_000 },
+        {
+          spender: 'knowledge:index',
+          part: 'transcribe',
+          entityId: null,
+          capPaise: 30_000,
+          spentPaise: 29_000,
+        },
+      ],
+      COMPANIES,
+      DAY,
+    ),
+    ...providerAlerts([{ agent: 'agent:copilot', unavailableLastHour: 12 }], DAY),
+    ...voiceAlerts([{ userId: PERSON, minutes: 29, spentPaise: 19_000 }], DAY),
+  ];
+
+  it('covers every Phase 2 alert', () => {
+    expect(new Set(everyAlert().map((a) => a.name))).toEqual(
+      new Set([
+        'webhooks.failing',
+        'webhooks.backlog',
+        'whatsapp.quality_low',
+        'whatsapp.budget_high',
+        'ai.spend_high',
+        'ai.provider_failing',
+        'voice.spend_high',
+      ]),
+    );
+  });
+
+  it('holds only the allowed fields, each a count or a code, id or name of a job', () => {
+    for (const alert of everyAlert()) {
+      for (const [key, value] of Object.entries(alert.fields)) {
+        expect(ALERT_FIELD_KEYS, `${alert.name}.${key}`).toContain(key);
+        if (typeof value === 'number') {
+          expect(Number.isInteger(value), `${alert.name}.${key}`).toBe(true);
+        } else {
+          // No spaces, so never a name or a sentence; no `+`, so never a phone number.
+          expect(value, `${alert.name}.${key}`).toMatch(/^[a-z0-9_:.-]{1,80}$/i);
+        }
+      }
+    }
+  });
+
+  it('reaches Sentry unchanged by the scrubber, which would still mask a number slipped in', () => {
+    for (const alert of everyAlert()) {
+      const event = { message: alert.name, level: 'error', extra: { ...alert.fields } };
+      expect(scrubEvent(event), alert.name).toEqual(event);
+    }
+    const slipped = scrubEvent({ message: 'ai.spend_high', extra: { agent: '+919812345678' } });
+    expect(JSON.stringify(slipped)).not.toContain('9812345678');
   });
 });
