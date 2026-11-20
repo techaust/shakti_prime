@@ -5,9 +5,9 @@
 | Branch | `feat/g2-measures` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): measuring scripts and their records |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (cloud session, started 05:47 UTC) |
-| State | early check |
-| Next step | the lead reads the early check and sends "continue" |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (cloud session, started 05:47 UTC, ended 06:50 UTC on the same model and effort) |
+| State | blocked: a product defect found by the webhook load |
+| Next step | the lead decides who fixes `paramsOf()` (question below); then the six-route webhook load is run again |
 
 ## Brief
 Read first:
@@ -76,6 +76,36 @@ Built on `feat/g2-measures` from 889ec54d, one cloud VM (4 processors, 15 GB). N
 4. Locally the server processes each delivery itself after answering (no queue), so under load the processing shares the server's processors with the answers; on Vercel the worker is a function of its own. The local figures are therefore a harder case for the answers, and say so.
 5. QStash's dev server is `@upstash/qstash-cli`, not in this repository and not installable here: the batch call goes to a local stand-in; QStash's own time and limits wait for a hosted call.
 6. Any `--base-url` off this machine is refused without `--hosted-run-approved`: a run on dev or staging is the owner's go-ahead.
+
+### 20-11-2026, cloud session: measures run (blocked on one)
+The lead's "continue" (accepting the early check at 2018323e, assumptions 1 to 6) asked for the runs, a run with processing held off if 100 a second missed through the server's own processing, and each measure's command for dev. All ran in this VM (4 processors, Intel Xeon at 2.1 GHz, 16 GB) against one `pnpm build` served by `next start` here; product code unchanged from `main` at 889ec54d; nothing hosted was called or loaded.
+
+**Blocked: a product defect, which I did not fix (product code is on the brief's "do not touch" list).** On the production build, every webhook POST route with no path parameter answers 500 and stores nothing: `meta/whatsapp`, `meta/leadgen`, `google/leadform`, `exotel/call-status` and `livekit` (server log: `TypeError: Cannot convert undefined or null to object`, `request.failed`). Only `exotel/incoming/[secret]` works. Cause: `paramsOf()` in `apps/web/src/webhooks/receive.ts` lines 115-121 runs `Object.entries(await context.params)`, and Next.js resolves `params` to `undefined` for a route without dynamic segments. The suites call the handlers directly with no context (`context === undefined` returns `{}` first), so none reaches the line. Every Meta, Google, Exotel status and LiveKit delivery to a hosted site would get the same 500 (not checked on dev: no hosted call). Proposed fix: `const params = (await context.params) ?? {};`, and a route test that passes `{ params: Promise.resolve(undefined) }`. I tried to send this to the lead's session directly; the platform refused a message from a cloud session to a session on the owner's PC.
+
+**Question for the lead:** (a) I fix it on this branch in a commit of its own, with the test, and run the six-route load again; or (b) another slice fixes it (p2-fixes?), and the webhook measure stays recorded as blocked until a run after that fix. Either way the command is ready: `pnpm --filter web exec tsx tests/measures/g2.ts webhooks` (and again with `--queue stand-in`).
+
+**Recorded (each under "Measured (G2)", with the date, machine, commit, figures and target):**
+
+| Measure | Figures | Target | Result | Where |
+|---|---|---|---|---|
+| Webhook answers, all six providers, 20/50/100 a second | five routes answer 500; longest answer 303, 34, 66 ms | every answer ≤ 2 s and stored once | missed: blocked by the defect | `webhooks.md` |
+| Exotel Passthru alone, processing in the server | p99 65 / 13 / 21 ms, longest 344 / 39 / 53 ms; 540, 1,350, 2,700 stored once | the same | met | `webhooks.md` |
+| Exotel Passthru alone, processing held off (`--queue stand-in`) | p99 96 / 19 / 23 ms, longest 394 / 51 / 71 ms; all stored once; 4,590 publishes to the stand-in | the same | met | `webhooks.md` |
+| Lead Ads event to the caller's lead (in process) | p50 63, p95 86, longest 177 ms (20 rounds); with Graph at 1 s: longest 1,158 ms | ≤ 10 s | met | `webhooks.md` |
+| Batch call of 200 (stand-in) | outbox p50 5.7 ms, 123,301 bytes; sweep p50 3.6 ms, 75,801 bytes; 200 messages a call, all accepted | none (the app's side) | recorded | `webhooks.md` |
+| Dial key to the call accepted (simulated provider) | p50 195, p95 239 ms; the dial action p50 116 ms | p95 < 2 s | met | `exotel.md` |
+| Screen-pop by the poll | p50 1,650, p95 2,938, longest 3,030 ms; 18 of 30 within 2 s; Passthru p50 10 ms | p95 ≤ 2 s (TEL-05) | missed: the poll's own wait | `exotel.md`, `realtime.md` |
+| Voice turns on the fake room | the worker adds under 1 ms a step; with the budget's delays first audio p50 1,101 ms = 250 + 600 + 250 | first audio p50 ≤ 1,500 ms | real p50 and p95 wait for the vendors | `voice.md` |
+
+At 100 a second the in-process processing did not make Passthru's answers miss; the held-off run is there as the lead asked, and its answers are a millisecond or two slower because the answer includes the publish to the queue, as on Vercel. The first rate of each run carries the server's warm-up (the 300 to 400 ms longest answers at 20 a second).
+
+**Hosted runs, each with its exact command and what it waits on** (in the records): webhooks on dev (the defect's fix deployed, the receiver's role and dev's webhook phrases, with the two lead-form providers left out so no `form_unmapped` errors reach Sentry); Lead Ads on dev (no command: Meta's testing tool, Meta's keys); the batch call against QStash (no command: no vendor call by design); the dial on dev (the Exotel sandbox keys and DLT numbers; `G2_DIAL_*`); the screen-pop by Realtime on dev (`SCREEN_POP_TRANSPORT=realtime`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `BOS_JWT_CURRENT_KEY`; `G2_POP_*`); voice (V1 part 2's keys and the LiveKit project). `webhooks.md` is a new note, with its row in the appendix readme.
+
+**Changed since the early check:** `--queue stand-in` (`server.ts` sets the QStash variables to a local stand-in, `queueStandIn()` in `outbox-batch.ts`); `--providers`; `G2_SERVER_LOG=1` prints the measuring server's error output; the dial's timing waits for the action answer that carries the placed call (the first matching answer was another action's, 11 ms); the dial's person and phone come from `G2_DIAL_EMAIL`, `G2_DIAL_PASSWORD` and `G2_DIAL_PHONE` on another server. One run of the dial with the new wait stopped on a 30-second wait in one round; the two runs after it did not, and the recorded run is the last.
+
+**Checks, on this branch's last commit:** `pnpm build` passed (1 min 54 s); `pnpm typecheck` 10 of 10 tasks; `pnpm --filter web test` 161 files, 1170 passed, 1 skipped; `pnpm --filter @shakti/voice-agent test` 5 files, 23 passed; `python3 tools/integration/check-doc-links.py` bad 0; Prettier clean on the measuring code; the whole-repository `pnpm lint` passed. Not run, as nothing they cover changed: `pnpm test:security` (no schema, policy, command or query), `copy-lint` (no copy), `db:docs` and `machines:docs`, the journeys and baselines (no screen). No measuring server is left running.
+
+**Review checklist:** each figure comes from a run on this branch in this VM, and its record says so; nothing hosted was loaded or called; targets stand beside results; percentiles are tested (`stats.test.ts`); the missed targets (the six-route load, the poll's screen-pop) are stated as missed, each with the step that missed.
 
 ## Review
 
