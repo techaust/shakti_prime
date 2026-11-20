@@ -175,4 +175,18 @@ Only this journey's baselines changed. `main` was not merged in; nothing of it w
 
 ## Review
 
+### Slice review, 20-11-2026, on the PC (the `slice-reviewer` agent), head 8ef8c684 against 889ec54d
+One high, three medium and six low findings, each sent to the builder for one fix round (the first fixes report above, at 4a253cfc).
+| # | Sev | Finding | Outcome |
+|---|---|---|---|
+| H1 | high | Agreement overstated: any task a person made on the lead after a proposal agreed (the call log's retries and callbacks, nurture and moves file tasks as the caller), and a Concierge fact that repeated a recorded value agreed by construction | fixed: only a person's own task (told apart by the audit trail), of the proposed kind, within 48 h and due within 24 h; each fact held to the first value a person recorded after the proposal, a repeat open. Re-checked by the lead on the diff |
+| M1 | medium | A dismissed Suggest proposal read as "differed" | fixed: compared as Shadow |
+| M2 | medium | The Concierge's review set mixed kinds, so fewer than 50 draft-and-reply pairs | fixed: replies only |
+| M3 | medium | The new report sections had no pictures; the Co-pilot report no axe check | fixed |
+| L1 | low | `audit_logs_hand_off_idx` on the partitioned `audit_logs` is built without CONCURRENTLY | for the next production release (a quiet hour, as A2's index) |
+| L2 to L6 | low | `executed` read as agreement; the "Agreed" label; "evenly" wording; two tests that could pass vacuously; a comment | fixed |
+
+The integration on the PC then found the journey read the snapshot company's live rows, which `copilot.spec.ts` and `agents.spec.ts` change; fixed in the second fixes report (the journey's own rows in a past week).
+
 ## Integration
+- 20-11-2026, on the PC (slot g2-shadow-pack, Postgres 54332): `main` (#268 to #270) merged in with no conflict; the migration stays 0219 unless another slice merges first; `db:generate` reported no change; `docs/data` regenerated. The first full run failed the shadow-pack journey (other journeys' rows; fixed by the builder) and one unit test by its 5-second limit on the loaded PC (`event-emitters.test.ts`, 10.5 s); the second run is below.
