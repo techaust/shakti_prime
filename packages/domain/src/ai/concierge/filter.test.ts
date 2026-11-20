@@ -308,8 +308,8 @@ describe('a reply', () => {
         ['Ramesh Das', 'Hello Mr. Das, thank you for writing to us.'],
         ['ramesh das', 'Namaste RAMESH DAS ji, aapka sandesh mila.'],
         ['Sat Pal Das', 'Namaste Sat Pal Das ji, aapka sandesh mila.'],
-        ['Das', 'Namaste Das ji, thank you for writing to us.'],
         ['R.K. Das', 'Namaste R.K. Das, thank you for writing to us.'],
+        ['Ramesh Das', 'Namaste Shri Ramesh Das ji, thank you for writing to us.'],
       ] as const) {
         expect({ name, text, reason: named(name, text) }).toEqual({ name, text, reason: 'passed' });
       }
@@ -324,8 +324,15 @@ describe('a reply', () => {
         ['Ramesh Das', 'Namaste Das ji, pump ki keemat das hazaar hai.'],
         ['Ramesh Das', 'Namaste Das, thank you for writing to us.'],
         ['Ramesh Das', 'Hello Ramesh, it comes to das hazaar.'],
-        // A name of number words alone, written without a title, cannot be told from the number.
+        // A name of number words alone cannot be told from the number, with a title or without.
         ['Das', 'Namaste Das, thank you for writing to us.'],
+        ['Das', 'Namaste Das ji, thank you for writing to us.'],
+        ['Five Thousand', 'That comes to five thousand sir.'],
+        ['Paanch Hazaar', 'Woh paanch hazaar ji hoga.'],
+        // The review of the fix (M1): titled forms that would chain into a number phrase.
+        ['Ramesh Paanch Hazaar', 'Shri paanch hazaar ji.'],
+        ['Ramesh Das', 'Mr Das das ji.'],
+        ['Ramesh Das', 'Namaste Das ji das hazaar.'],
         // A name that holds a money or day word exempts nothing.
         ['Das Hazaar Rupaye', 'Namaste Das Hazaar Rupaye ji.'],
         ['Sat Somvar', 'Namaste Sat Somvar ji.'],
