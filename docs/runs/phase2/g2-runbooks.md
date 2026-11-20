@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): documents only, no code |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder (cloud session) on Opus 5.5 at high effort from start to end |
-| State | done, waiting for the lead's review |
-| Next step | the lead reviews the branch |
+| State | reviewed and integrated; pull request opened |
+| Next step | merge on green |
 
 ## Brief
 Read first:
@@ -81,4 +81,11 @@ Review checklist (check before your report): every step names something that exi
 
 ## Review
 
+### Lead's review, 20-11-2026, on the PC, head 94a11b9f against `main` 889ec54d
+Read in full: the six INCIDENTS sections, the corrections to §12, the header paragraph and §8's pointer, and exit-gate-actions §6 and §7. No finding blocks the merge.
+- Every step names a screen, setting or command; the quoted screen words were checked against `en.json` by the builder and spot-checked by the lead (`/settings/whatsapp-templates`, **Take over chat**, **Give back to assistant**, **Stop all agents**).
+- The gate's states are honest: only webhook idempotency and contract tests are Met; consent routing is Met in code with the sandbox run waiting; voice latency waits on V1 part 2.
+- Gaps 2, 3 and 5 of the report are taken into today's slices: `g2-alerts` adds `ai.provider_failing` (an AI outage reaches nobody today), `p2-fixes` hands a Concierge chat to people when its run finds the AI service unavailable and tells a quote's sender when the messaging limit refused it. §14 step 3 and §18's first bullet and step 2 are changed when those merge. The other gaps stay follow-ups in STATUS.
+
 ## Integration
+- 20-11-2026, on the PC: `main` had not moved since 889ec54d, so nothing was taken in; documents only, so no migration, typecheck, build or journey; `python3 tools/integration/check-doc-links.py` run again before the pull request.
