@@ -75,6 +75,7 @@ function store(keys: readonly string[]): FileStore {
     head: () => Promise.resolve(undefined),
     tags: () => Promise.resolve({}),
     delete: () => Promise.resolve(),
+    list: () => Promise.resolve({ keys: [] }),
   };
 }
 

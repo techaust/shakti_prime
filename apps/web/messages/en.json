@@ -1851,7 +1851,9 @@
       "ringingSignal": "Incoming call sent to the caller's screen",
       "voiceSessionStart": "Talk to Shakti started",
       "voiceSessionToken": "Talk to Shakti kept going",
-      "voiceSessionRecord": "Talk to Shakti length and spend recorded"
+      "voiceSessionRecord": "Talk to Shakti length and spend recorded",
+      "whatsappMediaExpire": "Old WhatsApp files removed",
+      "whatsappMediaOrphansRecord": "Unused WhatsApp copies removed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -3785,7 +3787,8 @@
       "knowledge_ask": "Ask the Business questions",
       "agents_note_write": "Write call briefs and call summaries",
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
-      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost"
+      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
+      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -4822,6 +4825,75 @@
         "edited": "Sent after an edit",
         "discarded": "Discarded"
       }
+    },
+    "shadowPack": {
+      "agreementLine": "{agreed, number} agreed, {edited, number} approved after an edit, {disagreed, number} differed, {open, number} not known yet",
+      "decided": "{count, plural, =0 {None decided by a team member} one {# decided by a team member} other {# decided by a team member}}",
+      "replyInShadow": "A reply recorded in shadow is judged by reading it among the suggestions to review.",
+      "refused": "{count, plural, =0 {None refused by the checks} one {# refused by the checks} other {# refused by the checks}}",
+      "spendHeading": "Spending per lead",
+      "spend": "{total} on {runs, plural, one {# run} other {# runs}}",
+      "perLead": "{perLead} a lead, over {leads, plural, one {# lead} other {# leads}}",
+      "noLeads": "It worked on no leads in this period.",
+      "spendNote": "The agent's own AI spending only, never the cost of an item.",
+      "handoffsHeading": "Chats handed to the team",
+      "noHandoffs": "No chat was handed to the team in this period.",
+      "handoffsHidden": "Shown to people who can open the activity log.",
+      "handoffLine": "{reason}: {count, number}",
+      "by": {
+        "assistant": "Handed over by the assistant",
+        "person": "Taken over by a team member"
+      },
+      "copilotNoHandoff": "The Co-pilot hands nothing over: it never writes to customers, and callers make every call.",
+      "review": {
+        "open": "Suggestions to review",
+        "conciergeTitle": "The WhatsApp assistant's suggestions to review",
+        "copilotTitle": "The Co-pilot's suggestions to review",
+        "period": "{company}, {from} to {to}",
+        "count": "{shown, number} of {count, plural, one {# suggestion} other {# suggestions}} in this period",
+        "passed": "Every suggestion here passed the checks. The words of a refused one are not kept, only why it was refused:",
+        "noneRefused": "The checks refused nothing in this period.",
+        "refusedLine": "{type}, {reason}: {count, number}",
+        "listLabel": "Suggestions, oldest first",
+        "empty": "No suggestions in this period.",
+        "print": "Print",
+        "back": "Back to the report",
+        "item": "{number, number}. {type}",
+        "customer": "Customer",
+        "wrote": "Customer wrote",
+        "suggested": "Suggested",
+        "did": "What the team sent or did",
+        "happened": "What happened",
+        "agreement": "Compared with the team",
+        "file": "A picture or file",
+        "nothingYet": "Nothing yet",
+        "template": "Template: {name}",
+        "fromDraft": "Sent from this suggestion",
+        "fact": "{fact}: {value}",
+        "task": "{kind}, due {due}",
+        "taskTitle": "Task: {title}",
+        "templateFor": "{name} ({occasion})",
+        "state": {
+          "shadowed": "Recorded in shadow",
+          "waiting": "Waiting",
+          "approved": "Approved",
+          "edited": "Approved after an edit",
+          "rejected": "Rejected",
+          "dismissed": "Set aside",
+          "executed": "Carried out by the agent"
+        },
+        "agreementValue": {
+          "agree": "Agreed",
+          "edited": "After an edit",
+          "disagree": "Differed",
+          "open": "Not known yet"
+        },
+        "conciergeIntro": "Up to 50 of the assistant's drafted replies, spread evenly through the period's replies and oldest first, each beside the customer's message and what the team sent. Read them on screen or on paper: nothing here is saved.",
+        "copilotIntro": "Up to 50 of the Co-pilot's suggestions, spread evenly through the period's suggestions and oldest first, each beside what the team did. Read them on screen or on paper: nothing here is saved.",
+        "countReplies": "{shown, number} of {count, plural, one {# drafted reply} other {# drafted replies}} in this period"
+      },
+      "executed": "{count, plural, one {# carried out by the agent} other {# carried out by the agent}}",
+      "notCompared": "Compared with the team's work only for people who can open the activity log. Until then every suggestion recorded in shadow shows as not known yet."
     }
   },
   "knowledge": {
@@ -5016,6 +5088,21 @@
       "mediaNotKept": "The customer sent something this chat cannot show.",
       "file": "File from the customer",
       "open": "Open",
+      "removed": {
+        "summary": "{type} · {size} · {verdict}",
+        "notice": "This file was removed after {years, plural, one {# year} other {# years}}. The message stays.",
+        "noticePlain": "This file was removed after the time it is kept. The message stays.",
+        "photo": "Photo from the customer",
+        "pdf": "PDF from the customer",
+        "other": "File from the customer",
+        "kb": "{value} KB",
+        "mb": "{value} MB",
+        "verdict": {
+          "passed": "passed the file checks",
+          "refused": "refused by the file checks",
+          "unchecked": "not checked"
+        }
+      },
       "status": {
         "queued": "Waiting to send",
         "sent": "Sent",

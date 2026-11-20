@@ -96,6 +96,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'calls.process': 'Record how a placed call went and keep its recording',
   'sales.quote.accept.remote': 'Accept a quote the customer accepted on WhatsApp',
   'voice.session.record': 'Record how long a Talk to Shakti session lasted and what it cost',
+  // W2 media retention.
+  'messaging.media.expire': 'Remove WhatsApp photos and files after the time they are kept',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

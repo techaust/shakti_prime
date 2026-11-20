@@ -53,6 +53,7 @@ import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
 import { ensureScreenPopJourneys } from './screen-pop';
+import { ensureShadowPackJourney } from './shadow-pack';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
@@ -1092,6 +1093,10 @@ await ensureTriageJourney(ids.executive ?? '', ids.snapshotCaller ?? '');
 
 progress('the UAT journeys');
 const uat = await ensureUatJourneys(ids.executive ?? '');
+
+// G2 shadow review pack
+progress('the shadow review pack journey');
+await ensureShadowPackJourney(ids.executive ?? '');
 
 progress('the events the seed left waiting');
 // Delivered here, so the first change a journey makes does not carry them (hardening batch 2).

@@ -263,4 +263,4 @@ No critical or high finding; every redefined SQL function (`app.role_may_hold()`
 The lead read the fix diffs (medium findings only, so no re-check by a reviewer). Found in the fix round, a design choice for later: the converting workspace's call bar does not keep another lead's ended call across a switch, as the calling screen's does.
 
 ## Integration
-- 20-11-2026, on the PC (slot p2-fixes, Postgres 54335): `main` (#268 to #270, #272) merged in; feb0c00d was already on `main` as #269; the conflicts were the migration journal, the 0219 snapshot and `docs/data`, resolved by the renumbering and regeneration; `db:generate` reported no change. INCIDENTS §14 step 3 and §18 step 2 follow items 5 and 9.
+- 20-11-2026, on the PC (slot p2-fixes, Postgres 54335): `main` (#268 to #270, #272) merged in, then #271 and #273, its migrations moving to 0223 to 0228 after media retention's 0222; feb0c00d was already on `main` as #269; the conflicts were the migration journal, the 0219 snapshot and `docs/data`, resolved by the renumbering and regeneration; `db:generate` reported no change. INCIDENTS §14 step 3 and §18 step 2 follow items 5 and 9.

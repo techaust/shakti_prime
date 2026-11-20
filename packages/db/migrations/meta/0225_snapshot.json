@@ -1,6 +1,6 @@
 {
-  "id": "b1335a39-f297-448a-a8d9-268fe2a2ae41",
-  "prevId": "00b5d81f-a305-41c7-a4bb-cabdb4866eab",
+  "id": "251ee0ca-ba76-45bd-b6de-3edbb306a57b",
+  "prevId": "4bccf10e-3874-40a3-a43b-4bad312b8756",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2308,6 +2308,28 @@
           ],
           "isUnique": false,
           "where": "\"audit_logs\".\"input_json\" ? 'existingAccountId'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_logs_hand_off_idx": {
+          "name": "audit_logs_hand_off_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"audit_logs\".\"command\" in ('messaging.thread.record_hand_off', 'messaging.thread.hand_off')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9891,7 +9913,7 @@
       "checkConstraints": {
         "notification_preferences_type_check": {
           "name": "notification_preferences_type_check",
-          "value": "\"notification_preferences\".\"type\" is null or \"notification_preferences\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached')"
+          "value": "\"notification_preferences\".\"type\" is null or \"notification_preferences\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call')"
         },
         "notification_preferences_quiet_check": {
           "name": "notification_preferences_quiet_check",
@@ -10090,7 +10112,7 @@
       "checkConstraints": {
         "notifications_type_check": {
           "name": "notifications_type_check",
-          "value": "\"notifications\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached')"
+          "value": "\"notifications\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call')"
         },
         "notifications_subject_type_check": {
           "name": "notifications_subject_type_check",
@@ -14683,6 +14705,18 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resume_key": {
+          "name": "resume_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -14708,7 +14742,21 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "retention_runs_entity_id_entities_id_fk": {
+          "name": "retention_runs_entity_id_entities_id_fk",
+          "tableFrom": "retention_runs",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -14724,6 +14772,10 @@
         "retention_runs_error_length_check": {
           "name": "retention_runs_error_length_check",
           "value": "char_length(\"retention_runs\".\"error\") <= 500"
+        },
+        "retention_runs_resume_key_length_check": {
+          "name": "retention_runs_resume_key_length_check",
+          "value": "char_length(\"retention_runs\".\"resume_key\") <= 300"
         }
       },
       "isRLSEnabled": false
@@ -18608,6 +18660,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "media_summary": {
+          "name": "media_summary",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -18678,6 +18736,34 @@
           ],
           "isUnique": false,
           "where": "\"whatsapp_messages\".\"file_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "whatsapp_messages_media_kept_idx": {
+          "name": "whatsapp_messages_media_kept_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"whatsapp_messages\".\"kind\" = 'media' and \"whatsapp_messages\".\"file_id\" is not null and \"whatsapp_messages\".\"media_summary\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -18800,6 +18886,10 @@
         "whatsapp_messages_button_check": {
           "name": "whatsapp_messages_button_check",
           "value": "\"whatsapp_messages\".\"button_payload\" is null or char_length(\"whatsapp_messages\".\"button_payload\") between 1 and 256"
+        },
+        "whatsapp_messages_media_summary_check": {
+          "name": "whatsapp_messages_media_summary_check",
+          "value": "\"whatsapp_messages\".\"media_summary\" is null\n          or (jsonb_typeof(\"whatsapp_messages\".\"media_summary\") = 'object' and \"whatsapp_messages\".\"kind\" = 'media'\n              and \"whatsapp_messages\".\"file_id\" is not null and octet_length(\"whatsapp_messages\".\"media_summary\"::text) <= 1000)"
         }
       },
       "isRLSEnabled": false
@@ -18856,12 +18946,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "requested_by": {
-          "name": "requested_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by": {
           "name": "created_by",
           "type": "uuid",
@@ -18915,19 +18999,6 @@
           "tableTo": "entities",
           "columnsFrom": [
             "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "whatsapp_milestone_sends_requested_by_principals_id_fk": {
-          "name": "whatsapp_milestone_sends_requested_by_principals_id_fk",
-          "tableFrom": "whatsapp_milestone_sends",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "requested_by"
           ],
           "columnsTo": [
             "id"

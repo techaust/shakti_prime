@@ -18,6 +18,7 @@ import { draftLineKey } from '../concierge/keys';
 import { useCommand, useQuery } from '../../components/screens/use-command';
 import { MESSAGING_REFUSALS, WHATSAPP_MESSAGE_STATUSES } from '../contract-values';
 import { customerHref, isOneOf } from '../customers';
+import { sizeParts } from '../files';
 import { formatDateTime, formatPhone } from '../format';
 
 /**
@@ -265,7 +266,9 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
       )}
       {message.body === null ? null : <p className="text-sm whitespace-pre-wrap">{message.body}</p>}
       {message.kind === 'media' ? (
-        message.fileId === null ? (
+        message.mediaSummary !== null ? (
+          <RemovedFile summary={message.mediaSummary} />
+        ) : message.fileId === null ? (
           <p className="text-text-muted text-sm">{t('mediaNotKept')}</p>
         ) : (
           <div className="flex items-center gap-2 text-sm">
@@ -295,6 +298,39 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
       )}
       <FailureMessage failure={opener.failure} />
     </li>
+  );
+}
+
+/**
+ * W2: a file the media retention job removed (docs/03-roadmap-appendix/phase2.md §11): what it
+ * was, from the summary its message keeps, and that it was removed, never a link to open.
+ */
+function RemovedFile({ summary }: { summary: NonNullable<WhatsAppMessageDto['mediaSummary']> }) {
+  const t = useTranslations('messaging.thread.removed');
+  const { contentType, size, verdict, keptYears } = summary;
+  // A summary is read field by field: what it could not read is left out of the line.
+  const described =
+    contentType !== undefined && size !== undefined && verdict !== undefined
+      ? t('summary', {
+          type: contentType.startsWith('image/')
+            ? t('photo')
+            : contentType === 'application/pdf'
+              ? t('pdf')
+              : t('other'),
+          size: (() => {
+            const parts = sizeParts(size);
+            return t(parts.unit, { value: parts.value });
+          })(),
+          verdict: t(`verdict.${verdict}`),
+        })
+      : null;
+  return (
+    <div className="flex flex-col gap-0.5 text-sm">
+      {described === null ? null : <p>{described}</p>}
+      <p className="text-text-muted">
+        {keptYears === undefined ? t('noticePlain') : t('notice', { years: keptYears })}
+      </p>
+    </div>
   );
 }
 

@@ -152,6 +152,11 @@ export const PERMISSION_KEYS = [
   // (docs/03-roadmap-appendix/phase2.md §7.5): held only by the platform's worker principal, which
   // records them through one narrow definer, nothing more.
   'voice.session.record',
+  // W2: the WhatsApp media retention job (docs/03-roadmap-appendix/phase2.md §11, BLUEPRINT §7.9):
+  // held only by the platform's worker principal, which reads the files due, records what it
+  // removed and asks which stored keys still belong to a file through narrow definers, nothing
+  // more.
+  'messaging.media.expire',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -236,6 +241,8 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'calls.process',
   'sales.quote.accept.remote',
   'voice.session.record',
+  // W2 media retention.
+  'messaging.media.expire',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -404,6 +411,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'calls.process': ['all'],
   'sales.quote.accept.remote': ['all'],
   'voice.session.record': ['all'],
+  // W2 media retention.
+  'messaging.media.expire': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {
