@@ -30,7 +30,7 @@ import {
   dueWhatsAppMedia,
   whatsAppMediaKeysKept,
 } from '../../src/queries/messaging/media-retention';
-import { readWhatsAppThread } from '../../src/queries/messaging/whatsapp';
+import { readMediaSummary, readWhatsAppThread } from '../../src/queries/messaging/whatsapp';
 import { WORKSHOP_DEFAULTS } from '../../src/workshop-defaults';
 
 // W2 WhatsApp media retention (docs/03-roadmap-appendix/phase2.md §11): the two commands and the
@@ -154,7 +154,11 @@ describe('the job’s reads', () => {
     }
     const ids = mine.map((m) => m.messageId);
     const seen: string[] = [];
-    let after: { at: string; id: string } | null = null;
+    // From just before this run's own rows, so rows earlier runs left never come first.
+    let after: { at: string; id: string } | null = {
+      at: new Date(base - 1).toISOString(),
+      id: '00000000-0000-0000-0000-000000000000',
+    };
     for (let page = 0; page < 100; page += 1) {
       const cursor: { at: string; id: string } | null = after;
       const batch: DueWhatsAppMediaDto[] = await asPrincipal(workers(4), (ctx) =>
@@ -171,6 +175,33 @@ describe('the job’s reads', () => {
     }
     // The reads refuse a person.
     await expect(asPrincipal(exec, (ctx) => dueWhatsAppMedia(ctx, 1, null, 10))).rejects.toThrow();
+    // Removed, so a later run of the suite or of the job never reads them again.
+    await run(workers(4), expireWhatsAppMedia, { entityId: 4, messageIds: ids });
+  });
+
+  it('shows a summary it cannot fully read as far as it can, never failing the chat', async () => {
+    const media = await whatsappMediaMessage(channel1, customer, { at: old() });
+    const empty = await whatsappMediaMessage(channel1, customer, { at: old() });
+    // As an older or newer job might have written them: a field of another shape, one unknown.
+    await asMigrator(async (m) => {
+      await m`update whatsapp_messages
+                 set media_summary = '{"size": "big", "verdict": "maybe", "keptYears": 3, "later": true}'::jsonb
+               where id = ${media.messageId}`;
+      await m`update whatsapp_messages set media_summary = '{}'::jsonb where id = ${empty.messageId}`;
+    });
+    const view = await asPrincipal(customer.owner, (ctx) =>
+      readWhatsAppThread(ctx, { entityId: 1, threadId: media.threadId, limit: 50 }),
+    );
+    const shown = new Map(view.messages.map((m) => [m.id, m.mediaSummary]));
+    expect(shown.get(media.messageId)).toEqual({ keptYears: 3 });
+    expect(shown.get(empty.messageId)).toEqual({});
+    expect(readMediaSummary(null)).toBeNull();
+    expect(readMediaSummary(['not', 'an', 'object'])).toEqual({});
+    expect(readMediaSummary({ contentType: 'image/jpeg', size: 10, verdict: 'passed' })).toEqual({
+      contentType: 'image/jpeg',
+      size: 10,
+      verdict: 'passed',
+    });
   });
 
   it('answers the keys still named, whatever characters a listed key holds', async () => {
@@ -205,5 +236,20 @@ describe('messaging.media.record_orphans', () => {
          order by finished_at desc limit 1`,
     );
     expect(row?.rows_affected).toBe(3);
+
+    // A sweep stopped for time keeps where it stopped. (Company 4, at a key before any file's id,
+    // so a sweep of the suites that reads it starts at the folder's start.)
+    const stopped = { entityId: 4, startedAt: new Date().toISOString(), removed: 1, failed: 0 };
+    await run(workers(4), recordWhatsAppMediaOrphans, {
+      ...stopped,
+      resumeKey: '4/whatsapp_media/0',
+    });
+    const [kept] = await asMigrator(
+      (m) => m<{ resume_key: string | null }[]>`
+        select resume_key from retention_runs
+         where job = 'whatsapp-media-orphans' and entity_id = 4 and started_at >= ${stopped.startedAt}
+         order by finished_at desc limit 1`,
+    );
+    expect(kept?.resume_key).toBe('4/whatsapp_media/0');
   });
 });

@@ -123,8 +123,11 @@ describe('messaging.media.expire is the platform’s alone', () => {
       expect(await failure(kept(who, [media.key]))).toMatch(/messaging.media.expire is required/);
       expect(
         await failure(
-          rows(who, sql`select app.whatsapp_media_orphans_record(1::smallint, now(), 0, 0)`),
+          rows(who, sql`select app.whatsapp_media_orphans_record(1::smallint, now(), 0, 0, null)`),
         ),
+      ).toMatch(/messaging.media.expire is required/);
+      expect(
+        await failure(rows(who, sql`select * from app.whatsapp_media_orphans_last(1::smallint)`)),
       ).toMatch(/messaging.media.expire is required/);
     }
     const other = workers([2]);
@@ -133,6 +136,30 @@ describe('messaging.media.expire is the platform’s alone', () => {
       /the company is outside the request/,
     );
     expect(await failure(kept(other, [media.key]))).toMatch(/the company is outside the request/);
+    expect(
+      await failure(rows(other, sql`select * from app.whatsapp_media_orphans_last(1::smallint)`)),
+    ).toMatch(/the company is outside the request/);
+    expect((await whatsappMediaState(media)).fileDeletedAt).toBeNull();
+  });
+
+  it('refuses a period under three years, until the CA decides', async () => {
+    const media = await whatsappMediaMessage(channel1, customer, { at: old() });
+    expect(
+      await failure(
+        rows(
+          workers([1]),
+          sql`select * from app.whatsapp_media_due(1::smallint, 2, null, null, 10)`,
+        ),
+      ),
+    ).toMatch(/the period is 3 to 10 years/);
+    expect(
+      await failure(
+        rows(
+          workers([1]),
+          sql`select app.whatsapp_expire_media(1::smallint, 2, ${uuids([media.messageId])}::uuid[], 0)`,
+        ),
+      ),
+    ).toMatch(/the period is 3 to 10 years/);
     expect((await whatsappMediaState(media)).fileDeletedAt).toBeNull();
   });
 
@@ -247,7 +274,11 @@ describe('the removal', () => {
     }
     const ids = media.map((m) => m.messageId);
     const seen: string[] = [];
-    let after: { at: string; id: string } | null = null;
+    // From just before this run's own rows, so rows earlier runs left never come first.
+    let after: { at: string; id: string } | null = {
+      at: new Date(base - 1).toISOString(),
+      id: '00000000-0000-0000-0000-000000000000',
+    };
     for (let page = 0; page < 50; page += 1) {
       const cursor: { at: string; id: string } | null = after;
       const batch: { message_id: string; message_at: string }[] = await rows<{
@@ -267,6 +298,9 @@ describe('the removal', () => {
     const mine = seen.filter((id) => ids.includes(id));
     expect(mine).toEqual(ids);
     expect(new Set(seen).size).toBe(seen.length);
+    // Removed, so a later run of the suite or of the job never reads them again.
+    await expire(workers([3]), ids, 3);
+    for (const m of media) expect((await whatsappMediaState(m)).mediaSummary).not.toBeNull();
   });
 });
 
@@ -327,7 +361,7 @@ describe('the keys no file names', () => {
     const before = new Date();
     await rows(
       workers([1]),
-      sql`select app.whatsapp_media_orphans_record(1::smallint, ${before.toISOString()}::timestamptz, 2, 1)`,
+      sql`select app.whatsapp_media_orphans_record(1::smallint, ${before.toISOString()}::timestamptz, 2, 1, null)`,
     );
     const runs = await asMigrator(
       (m) => m<{ rows_affected: number; error: string | null }[]>`
@@ -335,5 +369,33 @@ describe('the keys no file names', () => {
          where job = 'whatsapp-media-orphans' and finished_at >= ${before}`,
     );
     expect(runs).toContainEqual({ rows_affected: 2, error: 'the store refused 1 key' });
+  });
+
+  it('answers where the next sweep starts: the latest sweep the store refused nothing in', async () => {
+    // Company 4, which no other suite sweeps.
+    await asMigrator(
+      (m) => m`delete from retention_runs where job = 'whatsapp-media-orphans' and entity_id = 4`,
+    );
+    const last = () =>
+      rows<{ started_at: Date; resume_key: string | null }>(
+        workers([4]),
+        sql`select * from app.whatsapp_media_orphans_last(4::smallint)`,
+      );
+    expect(await last()).toEqual([]);
+    const record = (started: Date, failed: number, resume: string | null) =>
+      rows(
+        workers([4]),
+        sql`select app.whatsapp_media_orphans_record(4::smallint, ${started.toISOString()}::timestamptz,
+                                                     1, ${failed}::integer, ${resume}::text)`,
+      );
+    await record(new Date(Date.now() - 3000), 0, '4/whatsapp_media/stopped-here.jpg');
+    // A later sweep the store refused a key in is passed by.
+    await record(new Date(Date.now() - 1000), 1, null);
+    const [found] = await last();
+    expect(found?.resume_key).toBe('4/whatsapp_media/stopped-here.jpg');
+    // A sweep stops only in its own company's folder.
+    expect(await failure(record(new Date(), 0, '1/whatsapp_media/elsewhere.jpg'))).toMatch(
+      /stops in its company/,
+    );
   });
 });
