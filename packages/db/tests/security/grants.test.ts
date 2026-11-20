@@ -477,6 +477,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // The thread an agent's run is bound to, which the customer, lead, task and Playbook read
       // policies ask (A3).
       'app.agent_thread_binding()',
+      // The hourly jobs check's counts for the Phase 2 alerts, the workers principal's only (G2).
+      'app.alert_counts()',
       // A customer's opt-out by the dial rules, for the queue, the leads list and Show number (E1).
       'app.call_opt_out(uuid)',
       // A caller profile is read by its person and by whoever manages them, and the converters

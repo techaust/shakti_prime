@@ -107,14 +107,17 @@ function refuse(code: ErrorCode, requestId: string): Response {
   return workerFailure(code, requestId, headersFor(requestId));
 }
 
-/** The route's path parameters, as Next.js hands them to a handler. */
+/**
+ * The route's path parameters, as Next.js hands them to a handler: a route with no dynamic segment
+ * (every provider's but Exotel's Passthru) gets `params` that resolve to `undefined`.
+ */
 export interface RouteContext {
-  params: Promise<Record<string, string | string[] | undefined>>;
+  params: Promise<Record<string, string | string[] | undefined> | undefined>;
 }
 
 async function paramsOf(context: RouteContext | undefined): Promise<Record<string, string>> {
   if (context === undefined) return {};
-  const params = await context.params;
+  const params = (await context.params) ?? {};
   return Object.fromEntries(
     Object.entries(params).filter((e): e is [string, string] => typeof e[1] === 'string'),
   );

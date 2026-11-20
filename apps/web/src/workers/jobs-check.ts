@@ -1,10 +1,17 @@
 import { JobsCheckWorkerResponse } from '@shakti/contracts';
-import { executeQuery, readScheduledJobs, type KeyValue } from '@shakti/domain';
+import {
+  executeQuery,
+  istCalendarDate,
+  readScheduledJobs,
+  type AlertCounts,
+  type KeyValue,
+} from '@shakti/domain';
 import { defaultAuthDeps } from '../auth/deps';
 import { logger } from '../log';
 import { sentryAlertSink, type AlertSink } from '../observability/alerts';
 import { BACKUP_JOB, backupProblem, configuredBackupCheck, type BackupListing } from './backup-age';
 import { systemWorkersPrincipal } from './events/system-principal';
+import { PHASE2_ALERTS_JOB, PHASE2_ALERTS_TIMEOUT_MS, runPhase2Alerts } from './phase2-alerts';
 
 /** How long one alert for a job's problem stands before the check raises it again. */
 const ALERT_AGAIN_SECONDS = 7 * 24 * 60 * 60;
@@ -16,6 +23,10 @@ export interface JobsCheckOptions {
   now?: Date;
   /** The database copies' listing; by default production's bucket (`BACKUP_BUCKET`), else none. */
   backups?: { listing: BackupListing; environment: string } | null;
+  /** The Phase 2 alerts' counts; by default `app.alert_counts()` as `system:workers` (tests). */
+  readAlertCounts?: () => Promise<AlertCounts>;
+  /** How long the Phase 2 alerts may take; `PHASE2_ALERTS_TIMEOUT_MS` by default (tests). */
+  phase2TimeoutMs?: number;
 }
 
 /**
@@ -65,7 +76,7 @@ export async function runJobsCheck(options: JobsCheckOptions): Promise<JobsCheck
     }
   }
   let alerted = 0;
-  for (const { job, state, since } of problems) {
+  const tell = async (job: string, state: string, since: string): Promise<void> => {
     const key = `job:problem:${job}:${state}:${since}`;
     let first: boolean;
     try {
@@ -75,10 +86,51 @@ export async function runJobsCheck(options: JobsCheckOptions): Promise<JobsCheck
       logger.log('warn', 'jobs.alert_not_kept', { requestId, job, error: storeError });
       first = true;
     }
-    if (!first) continue;
+    if (!first) return;
     await alerts.report('job.problem', { job, problem: state });
     alerted += 1;
+  };
+  for (const { job, state, since } of problems) await tell(job, state, since);
+  // G2's Phase 2 alerts (g2-alerts), after the jobs' own. A fault in them never fails this check,
+  // so it can neither hold the check's own streak (`job.failing`) nor keep a job's problem untold;
+  // it is told once a day as a problem of its own (`phase2-alerts`, `failed`). They may take at
+  // most `PHASE2_ALERTS_TIMEOUT_MS`, so the route answers inside its time with its check-in sent;
+  // one that runs longer counts as failed.
+  let phase2Failed = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeoutMs = options.phase2TimeoutMs ?? PHASE2_ALERTS_TIMEOUT_MS;
+    const phase2 = await Promise.race([
+      runPhase2Alerts({
+        requestId,
+        keyValue,
+        alerts,
+        now,
+        ...(options.readAlertCounts === undefined ? {} : { readCounts: options.readAlertCounts }),
+      }),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`the Phase 2 alerts took longer than ${String(timeoutMs)} ms`));
+        }, timeoutMs);
+      }),
+    ]);
+    alerted += phase2.alerted;
+  } catch (error) {
+    phase2Failed = true;
+    logger.log('warn', 'jobs.problem', {
+      requestId,
+      job: PHASE2_ALERTS_JOB,
+      state: 'failed',
+      error,
+    });
+    await tell(PHASE2_ALERTS_JOB, 'failed', istCalendarDate(now));
+  } finally {
+    clearTimeout(timer);
   }
   const jobs = reports.length + (backups === null || backups === undefined ? 0 : 1);
-  return JobsCheckWorkerResponse.parse({ jobs, problems: problems.length, alerted });
+  return JobsCheckWorkerResponse.parse({
+    jobs,
+    problems: problems.length + (phase2Failed ? 1 : 0),
+    alerted,
+  });
 }

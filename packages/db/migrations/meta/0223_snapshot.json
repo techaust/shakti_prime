@@ -1,6 +1,6 @@
 {
-  "id": "c6cbc722-cf57-4ed7-a958-329f526f6c56",
-  "prevId": "4ec1514e-f511-4b8f-83c9-01363e8682e1",
+  "id": "339ef243-fb6c-41c8-8d33-dcaed43293b8",
+  "prevId": "7eef0cd8-72f2-4b8b-b575-5f89a0577709",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -18856,12 +18856,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "requested_by": {
-          "name": "requested_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by": {
           "name": "created_by",
           "type": "uuid",
@@ -18916,19 +18910,6 @@
             "entity_id"
           ],
           "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "whatsapp_milestone_sends_requested_by_principals_id_fk": {
-          "name": "whatsapp_milestone_sends_requested_by_principals_id_fk",
-          "tableFrom": "whatsapp_milestone_sends",
-          "columnsFrom": [
-            "requested_by"
-          ],
-          "tableTo": "principals",
           "columnsTo": [
             "id"
           ],

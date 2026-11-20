@@ -252,4 +252,15 @@ Commits after the early check: a7bd15ec (4), 72077ef5 and 20a3d522 (5), 4d3a7c73
 
 ## Review
 
+### Slice review, 20-11-2026, on the PC (the `slice-reviewer` agent), head 5ad17101 against 889ec54d
+No critical or high finding; every redefined SQL function (`app.role_may_hold()` against 0074, `app.customer_idle()` against 0142, `app.whatsapp_record_inbound()` against 0188, `whatsapp_queue_milestone` against 0201, `whatsapp_send_extras` against 0203) diffed clean. One medium and two low, sent to the builder for one fix round, all fixed at 755dd96e (the fixes report above).
+| # | Sev | Finding | Outcome |
+|---|---|---|---|
+| M1 | medium | The Concierge's name exemption reached past the name: a name made only of number words, or chained title-and-word matches, blanked a number phrase ("Five Thousand" let "That comes to five thousand sir." pass) | fixed: nothing exempt when every word is a number word; matches cannot chain; the review's cases refused |
+| L1 | low | Item 7 on the converting workspace had no test that failed without it | fixed |
+| L2 | low | The audio player's download path was never exercised | fixed |
+
+The lead read the fix diffs (medium findings only, so no re-check by a reviewer). Found in the fix round, a design choice for later: the converting workspace's call bar does not keep another lead's ended call across a switch, as the calling screen's does.
+
 ## Integration
+- 20-11-2026, on the PC (slot p2-fixes, Postgres 54335): `main` (#268 to #270, #272) merged in; feb0c00d was already on `main` as #269; the conflicts were the migration journal, the 0219 snapshot and `docs/data`, resolved by the renumbering and regeneration; `db:generate` reported no change. INCIDENTS §14 step 3 and §18 step 2 follow items 5 and 9.
