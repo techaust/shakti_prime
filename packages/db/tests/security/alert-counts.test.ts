@@ -1,4 +1,4 @@
-import { newId, SYSTEM_WORKERS_PRINCIPAL_ID } from '@shakti/contracts';
+import { newId, SYSTEM_WORKERS_PRINCIPAL_ID, WebhookProviderSchema } from '@shakti/contracts';
 import { createHash } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -119,14 +119,8 @@ describe('app.alert_counts() (G2 alerts)', () => {
       expect(Object.keys(company).sort()).toEqual(['code', 'entityId', 'whatsapp']);
       expect(company.code).toMatch(/^[A-Z0-9]{2,10}$/);
     }
-    expect(counts?.webhooks.map((w) => w.provider)).toEqual([
-      'meta_whatsapp',
-      'meta_leadgen',
-      'google_leadform',
-      'exotel_status',
-      'exotel_incoming',
-      'livekit',
-    ]);
+    // Every provider the webhook routes take, in the contract's order, so a new one is counted.
+    expect(counts?.webhooks.map((w) => w.provider)).toEqual([...WebhookProviderSchema.options]);
     for (const webhook of counts?.webhooks ?? []) {
       expect(Object.keys(webhook).sort()).toEqual([
         'failedLastHour',

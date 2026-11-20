@@ -26,10 +26,11 @@ describe('the hourly check of the scheduled jobs (audit 2026-10, DATA-3)', () =>
     const first = await runJobsCheck({ requestId: 'jobs-check-1', keyValue, alerts, now });
     expect(first.jobs).toBe(DATABASE_JOBS.length);
     expect(first.problems).toBeGreaterThan(0);
-    expect(first.alerted).toBe(first.problems);
-    // The same check raises the Phase 2 alerts on what the database holds now; only the jobs'
-    // own are counted here (the Phase 2 alerts are tested below).
+    // The same check raises the Phase 2 alerts on what the database holds now (tested below):
+    // `alerted` counts every alert raised, and each job's problem is told once.
+    expect(first.alerted).toBe(alerts.alerts.length);
     const problems = () => alerts.alerts.filter((a) => a.name === 'job.problem');
+    expect(problems()).toHaveLength(first.problems);
     expect(problems()).toContainEqual({
       name: 'job.problem',
       fields: { job: 'outbox-events-purge', problem: 'late' },
@@ -37,9 +38,10 @@ describe('the hourly check of the scheduled jobs (audit 2026-10, DATA-3)', () =>
     for (const alert of problems()) {
       expect(Object.keys(alert.fields).sort()).toEqual(['job', 'problem']);
     }
+    const told = alerts.alerts.length;
     const again = await runJobsCheck({ requestId: 'jobs-check-2', keyValue, alerts, now });
     expect(again).toEqual({ ...first, alerted: 0 });
-    expect(problems()).toHaveLength(first.alerted);
+    expect(alerts.alerts).toHaveLength(told);
   });
 
   it('tells of a run that has gone on past its time limit as stuck (review M2)', async () => {
@@ -229,5 +231,26 @@ describe('a fault in the Phase 2 alerts never silences the jobs’ own (the lead
     const again = await runJobsCheck({ requestId: 'phase2-fault-2', ...options });
     expect(again).toEqual({ ...first, alerted: 0 });
     expect(alerts.alerts.filter((a) => a.fields.job === 'phase2-alerts')).toHaveLength(1);
+  });
+
+  it('tells Phase 2 alerts that run past their time as failed, and still answers in time', async () => {
+    const alerts = memoryAlertSink();
+    // A read that never answers, as a database or store that hangs would.
+    const hanging = () => new Promise<never>(() => undefined);
+    const started = Date.now();
+    const answer = await runJobsCheck({
+      requestId: 'phase2-timeout',
+      keyValue: memoryKeyValue(),
+      alerts,
+      backups: null,
+      readAlertCounts: hanging,
+      phase2TimeoutMs: 200,
+    });
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(alerts.alerts).toContainEqual({
+      name: 'job.problem',
+      fields: { job: 'phase2-alerts', problem: 'failed' },
+    });
+    expect(answer.alerted).toBe(alerts.alerts.length);
   });
 });

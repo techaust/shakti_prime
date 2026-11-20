@@ -50,7 +50,11 @@ export const PHASE2_ALERT_THRESHOLDS = {
    * (`BREAKER_FAILURES`), so a passing error is not an outage.
    */
   aiUnavailableLastHour: 5,
-  /** `ai.spend_high`: a spender's spend today at or above this share of a daily cap. */
+  /**
+   * `ai.spend_high`: a spender's spend today at or above this share of a daily cap. The totals are
+   * the caps' running totals, which hold a call's most it can cost while it runs, so a check that
+   * reads them during calls in flight can fire a little early.
+   */
   aiSpendShare: 0.8,
   /** `voice.spend_high`: a person's voice minutes or spend today at or above this share of a cap. */
   voiceShare: 0.8,
@@ -78,6 +82,12 @@ export const ALERT_FIELD_KEYS = [
   'minutes',
   'minutesCap',
 ] as const;
+
+/**
+ * The longest the Phase 2 alerts may take inside the jobs check, whose route has 30 seconds: half
+ * of it, leaving the jobs' own read, the fault's own report and the check-in their time.
+ */
+export const PHASE2_ALERTS_TIMEOUT_MS = 15_000;
 
 /** The name a failed run of these alerts is told under, as a job's problem (`job.problem`). */
 export const PHASE2_ALERTS_JOB = 'phase2-alerts';
@@ -333,6 +343,60 @@ export function voiceAlerts(voice: AlertCounts['voice'], day: string): DueAlert[
     }));
 }
 
+/** The store's key that holds an alert as told for its subject and period. */
+const alertKey = (alert: Pick<DueAlert, 'name' | 'subject' | 'period'>): string =>
+  `alert:${alert.name}:${alert.subject}:${alert.period}`;
+
+/** An alert's subject that is below its threshold in this run, for `rearm`. */
+export type RecoveredSubject = Pick<DueAlert, 'name' | 'subject' | 'period'>;
+
+/**
+ * The outages that can end and come back within a day (a provider's failures or backlog, an
+ * agent's unanswered runs), for each subject below its threshold now: `rearm` forgets that they
+ * were told today, so a second outage the same day is told again. The spend and budget alerts
+ * stay once a day, since their totals only grow until the day's end.
+ */
+export function recoveredSubjects(counts: AlertCounts, day: string): RecoveredSubject[] {
+  const due = new Set(
+    [...webhookAlerts(counts.webhooks, day), ...providerAlerts(counts.agentsUnavailable, day)].map(
+      (a) => `${a.name}:${a.subject}`,
+    ),
+  );
+  const candidates: RecoveredSubject[] = [
+    ...counts.webhooks.flatMap((w) => [
+      { name: 'webhooks.failing' as const, subject: w.provider, period: day },
+      { name: 'webhooks.backlog' as const, subject: w.provider, period: day },
+    ]),
+    ...AGENT_ROLE_KEYS.map((agent) => ({
+      name: 'ai.provider_failing' as const,
+      subject: agent.replace(/^agent:/, ''),
+      period: day,
+    })),
+  ];
+  return candidates.filter((c) => !due.has(`${c.name}:${c.subject}`));
+}
+
+/**
+ * Forgets each recovered subject's alert of the day, so it is raised again if it comes back. A
+ * store that cannot forget leaves it told for the day (logged), as before.
+ */
+export async function rearm(
+  recovered: readonly RecoveredSubject[],
+  options: { requestId: string; keyValue: KeyValue },
+): Promise<void> {
+  for (const subject of recovered) {
+    try {
+      await options.keyValue.del(alertKey(subject));
+    } catch (storeError) {
+      logger.log('warn', 'alerts.not_rearmed', {
+        requestId: options.requestId,
+        alert: subject.name,
+        error: storeError,
+      });
+    }
+  }
+}
+
 /**
  * Raises each due alert once per subject and period: the first check to see it raises it, and
  * the store holds that for a week, so an alert that stands is not raised every hour. Without the
@@ -345,10 +409,9 @@ export async function raiseOnce(
 ): Promise<number> {
   let alerted = 0;
   for (const alert of due) {
-    const key = `alert:${alert.name}:${alert.subject}:${alert.period}`;
     let first: boolean;
     try {
-      first = await options.keyValue.setIfAbsent(key, '1', ALERT_AGAIN_SECONDS);
+      first = await options.keyValue.setIfAbsent(alertKey(alert), '1', ALERT_AGAIN_SECONDS);
     } catch (storeError) {
       logger.log('warn', 'alerts.not_kept', {
         requestId: options.requestId,
@@ -378,7 +441,8 @@ export interface Phase2AlertOptions {
  * database's counts as `system:workers` through `app.alert_counts()` (`platform.jobs.check`, no
  * company, no person's grant), and the WhatsApp quality, the portfolio's budget and the day's AI
  * spend from the key-value store, as Integration Health and the spend caps read them; raises each
- * alert due once per subject and period. A failed read rejects; the jobs check tells it as a
+ * alert due once per subject and period, and forgets the day's alert of an outage that ended
+ * (`rearm`), so a second one is told. A failed read rejects; the jobs check tells it as a
  * problem of its own (`job.problem`, `phase2-alerts`) and carries on.
  */
 export async function runPhase2Alerts(
@@ -412,6 +476,7 @@ export async function runPhase2Alerts(
     ...providerAlerts(counts.agentsUnavailable, day),
     ...voiceAlerts(counts.voice, day),
   ];
+  await rearm(recoveredSubjects(counts, day), options);
   const alerted = await raiseOnce(due, options);
   logger.log('info', 'alerts.checked', { requestId, due: due.length, alerted });
   return { due: due.length, alerted };

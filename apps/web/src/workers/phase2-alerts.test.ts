@@ -8,6 +8,8 @@ import {
   aiSpendAlerts,
   budgetAlerts,
   providerAlerts,
+  rearm,
+  recoveredSubjects,
   PHASE2_ALERT_THRESHOLDS as T,
   qualityAlerts,
   raiseOnce,
@@ -25,6 +27,7 @@ const COMPANIES: AlertCounts['companies'] = [
   { entityId: 2, code: 'SMP', whatsapp: false },
 ];
 const PERSON = '01990000-0000-7000-8000-0000000000aa';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const webhook = (failedLastHour: number, oldestWaitingSeconds: number | null) => [
   { provider: 'meta_whatsapp' as const, failedLastHour, waiting: 4, oldestWaitingSeconds },
@@ -395,8 +398,10 @@ describe('what an alert carries: counts, ids, codes and names of jobs only', () 
         if (typeof value === 'number') {
           expect(Number.isInteger(value), `${alert.name}.${key}`).toBe(true);
         } else {
-          // No spaces, so never a name or a sentence; no `+`, so never a phone number.
+          // No spaces, so never a name or a sentence; and, but for a person's id (a UUID), no run
+          // of ten digits or more, so never a phone number, with or without its `+`.
           expect(value, `${alert.name}.${key}`).toMatch(/^[a-z0-9_:.-]{1,80}$/i);
+          if (!UUID.test(value)) expect(value, `${alert.name}.${key}`).not.toMatch(/\d{10,}/);
         }
       }
     }
@@ -409,5 +414,67 @@ describe('what an alert carries: counts, ids, codes and names of jobs only', () 
     }
     const slipped = scrubEvent({ message: 'ai.spend_high', extra: { agent: '+919812345678' } });
     expect(JSON.stringify(slipped)).not.toContain('9812345678');
+  });
+});
+
+describe('rearm: an outage that ends is told again if it comes back the same day (review 1)', () => {
+  const counts = (failedLastHour: number, unavailableLastHour: number): AlertCounts => ({
+    companies: COMPANIES,
+    webhooks: [
+      { provider: 'meta_whatsapp', failedLastHour, waiting: 0, oldestWaitingSeconds: null },
+    ],
+    agentCaps: [],
+    agentsUnavailable:
+      unavailableLastHour === 0 ? [] : [{ agent: 'agent:concierge', unavailableLastHour }],
+    voice: [],
+  });
+
+  /** One hourly run of the due and recovered steps, as `runPhase2Alerts` takes them. */
+  const hour = async (
+    c: AlertCounts,
+    options: { requestId: string; keyValue: KeyValue; alerts: ReturnType<typeof memoryAlertSink> },
+    extra: DueAlert[] = [],
+  ) => {
+    await rearm(recoveredSubjects(c, DAY), options);
+    await raiseOnce(
+      [...webhookAlerts(c.webhooks, DAY), ...providerAlerts(c.agentsUnavailable, DAY), ...extra],
+      options,
+    );
+  };
+
+  it('raises a provider’s failures and an agent’s unanswered runs again after they recovered', async () => {
+    const alerts = memoryAlertSink();
+    const options = { requestId: 'r', keyValue: memoryKeyValue(), alerts };
+    await hour(counts(5, 7), options);
+    await hour(counts(5, 7), options);
+    await hour(counts(0, 0), options);
+    await hour(counts(4, 6), options);
+    expect(alerts.alerts.map((a) => `${a.name}:${String(a.fields.subject)}`)).toEqual([
+      'webhooks.failing:meta_whatsapp',
+      'ai.provider_failing:concierge',
+      'webhooks.failing:meta_whatsapp',
+      'ai.provider_failing:concierge',
+    ]);
+  });
+
+  it('names only those outages below their threshold, never the spend or budget alerts', () => {
+    const recovered = recoveredSubjects(counts(5, 0), DAY).map((r) => `${r.name}:${r.subject}`);
+    expect(recovered).not.toContain('webhooks.failing:meta_whatsapp');
+    expect(recovered).toContain('webhooks.backlog:meta_whatsapp');
+    expect(recovered).toContain('ai.provider_failing:concierge');
+    expect(
+      recovered.every((r) =>
+        /^(webhooks\.failing|webhooks\.backlog|ai\.provider_failing):/.test(r),
+      ),
+    ).toBe(true);
+  });
+
+  it('leaves the spend and budget alerts once a day, whatever the outages do', async () => {
+    const alerts = memoryAlertSink();
+    const options = { requestId: 'r', keyValue: memoryKeyValue(), alerts };
+    const budget = budgetAlerts({ used: 240, limit: 250 }, DAY);
+    await hour(counts(0, 0), options, budget);
+    await hour(counts(0, 0), options, budget);
+    expect(alerts.alerts.map((a) => a.name)).toEqual(['whatsapp.budget_high']);
   });
 });

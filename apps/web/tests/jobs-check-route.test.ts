@@ -1,5 +1,6 @@
 import { JobsCheckWorkerResponse, newId } from '@shakti/contracts';
 import { closeDb } from '@shakti/db/testing';
+import { executeQuery, readScheduledJobs } from '@shakti/domain';
 import { createHash, createHmac } from 'node:crypto';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as CheckIns from '../src/observability/check-ins';
@@ -25,6 +26,7 @@ vi.mock('../src/workers/phase2-alerts', async (original) => ({
 }));
 
 const { POST } = await import('../src/app/api/v1/workers/jobs/check/route');
+const { systemWorkersPrincipal } = await import('../src/workers/events/system-principal');
 
 afterAll(async () => {
   await closeDb();
@@ -83,7 +85,14 @@ describe('POST /api/v1/workers/jobs/check with the Phase 2 alerts failing', () =
     const response = await POST(new Request(ROUTE_URL, { method: 'POST', headers, body: '{}' }));
     expect(response.status).toBe(200);
     const answer = JobsCheckWorkerResponse.parse(await response.json());
-    expect(answer.problems).toBeGreaterThanOrEqual(1);
+    // Exactly the jobs' own problems, as the workers principal reads them now, and the fault.
+    const reports = await executeQuery(systemWorkersPrincipal(null), { entityIds: [] }, (context) =>
+      readScheduledJobs(context, new Date()),
+    );
+    const jobProblems = reports.filter(
+      ({ health }) => !['ok', 'running', 'waiting'].includes(health.state),
+    ).length;
+    expect(answer.problems).toBe(jobProblems + 1);
     expect(checkIns).toEqual([{ job: 'jobs-check', status: 'ok' }]);
   });
 });
