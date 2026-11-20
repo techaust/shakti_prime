@@ -177,10 +177,23 @@ describe('who may hold a permission (BLUEPRINT 7.1 to 7.3)', () => {
     ['accounts', 'admin.users.write', 'all'],
     ['hr_admin', 'integrations.dlq.replay', 'all'],
     ['agent:chief', 'finance.cost.read', 'entity'],
+    ['executive', 'agents.note.write', 'entity'],
+    ['tele_caller_lc', 'agents.note.write', 'entity'],
   ] as const)('refuses %s holding %s, even for the Executive', async (role, permission, scope) => {
     const insert = sql`insert into role_permissions (role_id, permission_key, scope)
       values (${roleId(role)}, ${permission}, ${scope}) returning role_id`;
     expect(await attempt(principalFor('executive'), insert)).toBe('holder');
+  });
+
+  it('answers that only an agent role may hold an agent-only permission', async () => {
+    const rows = await asMigrator(
+      (m) => m<{ role: string; may: boolean }[]>`
+        select r as role, app.role_may_hold(r, 'agents.note.write') as may
+          from unnest(${[...ROLE_KEYS]}::text[]) r`,
+    );
+    expect(rows.filter((row) => row.may).map((row) => row.role)).toEqual(
+      ROLE_KEYS.filter((role) => role.startsWith('agent:')),
+    );
   });
 
   it('refuses moving an existing grant onto a permission the role may not hold', async () => {

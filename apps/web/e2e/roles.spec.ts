@@ -28,6 +28,9 @@ test.describe('as an Executive, acting for every company', () => {
     ).toBeVisible();
     await expect(page.getByText('No changes yet.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    // The Co-pilot's notes are an agent's alone: the editor never offers them to a staff role.
+    await expect(page.getByLabel('See leads')).toBeVisible();
+    await expect(page.getByLabel('Write call briefs and call summaries')).toHaveCount(0);
     await expectNoAxeViolations(page);
 
     const seeLeads = page.getByLabel('See leads');

@@ -57,6 +57,10 @@ describe('permission catalogue', () => {
     expect(roleMayHold('system:workers', 'crm.duplicates.scan')).toBe(true);
     expect(roleMayHold('sales_team_lead', 'crm.duplicates.scan')).toBe(false);
     expect(roleMayHold('agent:triage', 'crm.duplicates.scan')).toBe(false);
+    expect(roleMayHold('agent:copilot', 'agents.note.write')).toBe(true);
+    expect(roleMayHold('executive', 'agents.note.write')).toBe(false);
+    expect(roleMayHold('tele_caller_lc', 'agents.note.write')).toBe(false);
+    expect(roleMayHold('system:workers', 'agents.note.write')).toBe(false);
     expect(roleMayHold('tele_caller_cc', 'crm.lead.read')).toBe(true);
   });
 

@@ -2,6 +2,7 @@ import {
   DomainError,
   EXECUTIVE_KEPT_GRANTS,
   EXECUTIVE_ONLY_PERMISSIONS,
+  isAgentOnlyPermission,
   isPlatformOnlyPermission,
   PERMISSION_SCOPES,
   PERMISSION_KEYS,
@@ -123,7 +124,12 @@ export async function getRoleGrants(ctx: AdminContext, rawInput: unknown): Promi
     sql`select app.request_covers_group() as ok`,
   )) as unknown as { ok: boolean }[];
   const permissions = rows
-    .filter((row) => CATALOGUE_ORDER.has(row.key) && !isPlatformOnlyPermission(row.key))
+    .filter(
+      (row) =>
+        CATALOGUE_ORDER.has(row.key) &&
+        !isPlatformOnlyPermission(row.key) &&
+        !isAgentOnlyPermission(row.key),
+    )
     .sort((a, b) => (CATALOGUE_ORDER.get(a.key) ?? 0) - (CATALOGUE_ORDER.get(b.key) ?? 0))
     .map((row) => ({
       key: row.key as PermissionKey,

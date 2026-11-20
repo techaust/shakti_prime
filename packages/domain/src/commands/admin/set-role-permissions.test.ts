@@ -69,6 +69,16 @@ describe('assertEditableGrants', () => {
     );
   });
 
+  it("refuses an agent-only permission for every staff role, the Executive's included", () => {
+    for (const key of ['executive', 'general_manager', 'tele_caller_lc']) {
+      const grants: RoleGrantInput[] = [{ permission: 'agents.note.write', scope: 'entity' }];
+      expect(refusal(key, key === 'executive' ? [...executiveAdmin, ...grants] : grants)).toEqual({
+        code: 'validation_failed',
+        details: { reason: 'permission_not_for_role', permissions: ['agents.note.write'] },
+      });
+    }
+  });
+
   it('offers only the scopes a permission honours', () => {
     expect(refusal('accounts', [{ permission: 'finance.cost.read', scope: 'own' }])).toEqual({
       code: 'validation_failed',

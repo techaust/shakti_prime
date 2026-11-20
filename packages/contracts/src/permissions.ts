@@ -274,13 +274,26 @@ export const EXECUTIVE_ONLY_PERMISSIONS = [
 ] as const satisfies readonly PermissionKey[];
 
 /**
+ * Permissions only an agent principal may hold (SECURITY §3.1, §3.3): the Caller Co-pilot's notes.
+ * The role editor never offers them and the database refuses them to any other role.
+ */
+export const AGENT_ONLY_PERMISSIONS = [
+  'agents.note.write',
+] as const satisfies readonly PermissionKey[];
+
+export function isAgentOnlyPermission(key: string): boolean {
+  return (AGENT_ONLY_PERMISSIONS as readonly string[]).includes(key);
+}
+
+/**
  * Whether a role may hold a permission at all, whoever grants it: a platform-only permission
- * only a system role, an Executive-only permission only the Executive role, a cost permission
- * only its listed roles. `app.role_may_hold()` answers the same, which a security test compares
- * for every role and permission.
+ * only a system role, an agent-only permission only an agent role, an Executive-only permission
+ * only the Executive role, a cost permission only its listed roles. `app.role_may_hold()` answers
+ * the same, which a security test compares for every role and permission.
  */
 export function roleMayHold(roleKey: string, permission: string): boolean {
   if (isPlatformOnlyPermission(permission)) return roleKey.startsWith('system:');
+  if (isAgentOnlyPermission(permission)) return roleKey.startsWith('agent:');
   if ((EXECUTIVE_ONLY_PERMISSIONS as readonly string[]).includes(permission)) {
     return roleKey === 'executive';
   }
