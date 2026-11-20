@@ -102,8 +102,18 @@ const eventCatalogue = {
       'crm.lead.ingest',
       'imports.job.commit_batch',
     ],
-    subscribed: false,
-    payload: z.object({ pipelineKey: Code, sourceCode: Code.nullable() }).strict(),
+    // p2-fixes: the notify worker tells the lead's owner an enquiry joined their nurtured lead.
+    subscribed: true,
+    payload: z
+      .object({
+        pipelineKey: Code,
+        sourceCode: Code.nullable(),
+        /** The lead was in nurture when the enquiry joined it (absent on events before this). */
+        nurtured: z.boolean().optional(),
+        /** Who added the enquiry: a person, or the platform for an integration's lead. */
+        attachedBy: IdSchema.optional(),
+      })
+      .strict(),
   },
   'crm.duplicate.found': {
     meaning:

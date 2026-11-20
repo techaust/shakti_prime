@@ -1562,6 +1562,48 @@
       "when": 1795160218542,
       "tag": "0222_w2_media_retention_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 223,
+      "version": "7",
+      "when": 1795160219542,
+      "tag": "0223_agent_only_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 224,
+      "version": "7",
+      "when": 1795160220542,
+      "tag": "0224_customer_idle_whatsapp",
+      "breakpoints": true
+    },
+    {
+      "idx": 225,
+      "version": "7",
+      "when": 1795160221542,
+      "tag": "0225_whatsapp_platform_answer_waits",
+      "breakpoints": true
+    },
+    {
+      "idx": 226,
+      "version": "7",
+      "when": 1795160222542,
+      "tag": "0226_milestone_requested_by",
+      "breakpoints": true
+    },
+    {
+      "idx": 227,
+      "version": "7",
+      "when": 1795160223542,
+      "tag": "0227_milestone_requested_by_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 228,
+      "version": "7",
+      "when": 1795160224542,
+      "tag": "0228_enquiry_attached_notice",
+      "breakpoints": true
     }
   ]
 }

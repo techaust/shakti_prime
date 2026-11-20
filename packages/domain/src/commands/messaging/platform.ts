@@ -94,7 +94,7 @@ export const recordInboundWhatsApp = defineCommand({
         from app.whatsapp_record_inbound(${input.phoneNumberId}, ${input.waId},
                                          ${input.providerMessageId}, ${input.kind}, ${body},
                                          ${input.buttonPayload}, ${input.sentAt}::timestamptz,
-                                         ${input.handledBy})`)) as unknown as InboundRow[];
+                                         ${input.handledBy}, ${input.platform})`)) as unknown as InboundRow[];
     const row = rows[0];
     if (row === undefined) {
       throw new DomainError('not_found', 'no company has this WhatsApp number', {

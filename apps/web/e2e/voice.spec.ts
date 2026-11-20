@@ -96,7 +96,6 @@ async function fakeRoom(page: Page): Promise<{ refuseNext: () => void }> {
           participantToken: 'journeys.room.token',
           expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
         },
-        bosToken: { token: 'journeys.voice.token', expiresAt: new Date().toISOString() },
         // Fewer than the server's own count, so the journey sees the day's minutes read again.
         limits: { minutesRemainingToday: 20, maxSessionMinutes: 15 },
       },

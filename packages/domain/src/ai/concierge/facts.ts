@@ -97,6 +97,7 @@ export function conciergeFilterFacts(facts: ConciergeRunFacts): ConciergeFilterF
       ...leadFactLines(facts),
     ],
     companyNumbers: facts.companyNumbers,
+    customerName: facts.customerName,
     now: facts.now,
   };
 }

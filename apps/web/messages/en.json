@@ -4974,6 +4974,8 @@
       "recording": "Recording",
       "player": "Play the recording {title}",
       "cannotPlay": "This recording cannot be played here. Ask your administrator to check file storage.",
+      "notPlayable": "This browser cannot play this recording. Download it to play it on your device.",
+      "downloadRecording": "Download the recording",
       "transcript": "Transcript",
       "transcriptLabel": "What was said",
       "transcriptHint": "Correct any words the speech service heard wrongly, such as Rajasthani or Marwari words. Write in English letters. Numbers like Aadhaar and phone numbers are covered when you save.",
@@ -5018,7 +5020,8 @@
       "quote_accepted": "A quote on your lead was accepted",
       "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
-      "missed_call": "A customer gave you a missed call"
+      "missed_call": "A customer gave you a missed call",
+      "enquiry_attached": "A customer of your lead in nurture asked again"
     },
     "settings": {
       "title": "Notification settings",
@@ -5193,6 +5196,10 @@
     "missed_call": {
       "title": "A customer gave you a missed call",
       "body": "Call them back. The callback is in your calling list."
+    },
+    "enquiry_attached": {
+      "title": "A customer asked again",
+      "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
     }
   },
   "orders": {

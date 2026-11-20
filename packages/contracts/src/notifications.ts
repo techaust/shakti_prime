@@ -39,6 +39,8 @@ const Count = z.number().int().min(0);
  *   it is for you to share another way (§7.1).
  * - `missed_call`: a customer gave your lead a missed call, and a callback is due for you
  *   (docs/03-roadmap-appendix/phase2.md §7.4).
+ * - `enquiry_attached`: a customer of your lead in nurture asked again, and the enquiry joined
+ *   that lead instead of making a new one (CRM-03; not when you added it yourself).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -53,6 +55,8 @@ export const NOTICE_TYPES = [
   'whatsapp_quote_expired',
   'whatsapp_quote_not_sent',
   'missed_call',
+  // p2-fixes (I1 re-check N2).
+  'enquiry_attached',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -269,6 +273,8 @@ export const NOTICE_EVENT_TYPES = [
   'sales.order.credit_held',
   'sales.quote.accepted',
   'calls.missed.recorded',
+  // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead.
+  'crm.lead.attached',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -332,8 +338,9 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       acceptedBy: IdSchema,
     })
     .strict(),
-  // A quote marked sent on WhatsApp whose message was not queued: the person who sent it is told,
-  // once a quote (the milestone worker asks for it itself, naming the send's event).
+  // A quote marked sent on WhatsApp whose message was not queued, or was refused by the messaging
+  // worker: the person who sent it is told, once a quote (the milestone and messaging workers ask
+  // for it themselves, naming their event).
   z
     .object({
       event: z.literal('sales.quote.sent'),
@@ -350,6 +357,17 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       entityId: EntityIdSchema,
       eventId: IdSchema,
       quoteId: IdSchema,
+    })
+    .strict(),
+  // An enquiry joined a lead: its owner is told when the lead was in nurture, unless they added it.
+  z
+    .object({
+      event: z.literal('crm.lead.attached'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      opportunityId: IdSchema,
+      nurtured: z.boolean(),
+      attachedBy: IdSchema.nullable(),
     })
     .strict(),
   z

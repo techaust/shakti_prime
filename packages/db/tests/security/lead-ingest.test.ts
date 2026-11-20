@@ -168,6 +168,33 @@ describe('ingest_sources and ingest_keys', () => {
     ).toMatch(/stays revoked/);
   });
 
+  // I1 re-check N2: the insert policy on its own, with no command before it.
+  it("take a key only for a live website of the key's own company, by the policy alone", async () => {
+    const both = await createTestPrincipal('executive', [1, 2]);
+    const site = async (entityId: number, archived: boolean) => {
+      const id = newId();
+      await asMigrator(
+        (
+          m,
+        ) => m`insert into ingest_sources (id, entity_id, provider, external_id, name, pipeline_id, archived_at, created_by)
+                 values (${id}, ${entityId}, 'website', ${`site-${id}`}, 'Site', ${PUMPS.id},
+                         ${archived ? new Date() : null}, ${exec1.id})`,
+      );
+      return id;
+    };
+    const insertKey = (sourceId: string) =>
+      rows(
+        both,
+        sql`insert into ingest_keys (id, entity_id, label, key_hash, key_hint, source_id, created_by)
+            values (${newId()}, 1, 'Site key', ${`${'c'.repeat(32)}${newId().replace(/-/g, '')}`}, 'cccc',
+                    ${sourceId}, ${both.id}) returning id`,
+      );
+    expect(await insertKey(await site(1, false))).toHaveLength(1);
+    for (const sourceId of [await site(2, false), await site(1, true), source.id]) {
+      expect(await failure(insertKey(sourceId))).toMatch(/row-level security/);
+    }
+  });
+
   it('keep an archived source archived', async () => {
     const archived = newId();
     await asMigrator(

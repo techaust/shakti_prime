@@ -71,6 +71,7 @@ interface CustomerRow {
   holder_works: boolean;
   lead_id: string | null;
   lead_owner_id: string | null;
+  lead_state: string | null;
   language: string | null;
 }
 
@@ -336,7 +337,7 @@ export const ingestLead = defineCommand({
     const since = new Date(ctx.now.getTime() - REPEAT_ENQUIRY_DAYS * DAY_MS).toISOString();
     const [customer] = (await ctx.tx.execute(
       sql`select account_id, contact_id, contact_phone_id, holder_id, holder_works, lead_id,
-                 lead_owner_id, language
+                 lead_owner_id, lead_state, language
             from app.ingest_customer(${input.entityId}::smallint, ${phone}::text,
                                      ${pipeline.segment}::text, ${since}::timestamptz)`,
     )) as unknown as CustomerRow[];
@@ -437,7 +438,13 @@ export const ingestLead = defineCommand({
         entityId: input.entityId,
         aggregateType: 'opportunity',
         aggregateId: row.opportunity_id,
-        payload: { pipelineKey: row.pipeline_key, sourceCode: row.source_code },
+        payload: {
+          pipelineKey: row.pipeline_key,
+          sourceCode: row.source_code,
+          // The lead stays in nurture: its owner is told an enquiry joined it.
+          nurtured: customer?.lead_state === 'nurture',
+          attachedBy: ctx.principal.id,
+        },
       });
     }
     // The colleague who looks after the customer, or the Sales Team Lead with no caller present,

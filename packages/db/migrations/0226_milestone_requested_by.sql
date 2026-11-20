@@ -1,0 +1,2 @@
+ALTER TABLE "whatsapp_milestone_sends" ADD COLUMN "requested_by" uuid;--> statement-breakpoint
+ALTER TABLE "whatsapp_milestone_sends" ADD CONSTRAINT "whatsapp_milestone_sends_requested_by_principals_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;

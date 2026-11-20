@@ -837,6 +837,73 @@ describe('crm.ingest_key.create and crm.ingest_key.revoke', () => {
     }
   });
 
+  // I1 re-check N2: the two cases the comment above names and no case tried.
+  it("takes no other company's live website for a key, even from an Executive of both", async () => {
+    const both = await createTestPrincipal('executive', [1, ENTITY]);
+    const theirs = await run<IngestSourceDto>(execElsewhere, setIngestSource, {
+      entityId: 1,
+      provider: 'website',
+      externalId: `other-${newId().slice(-8)}.example`,
+      name: 'Another company site',
+      pipelineId: PUMPS.id,
+      fieldMap: {},
+      consent: null,
+    });
+    expect(theirs.archivedAt).toBeNull();
+    const made = newIngestKey();
+    expect(
+      await refusal(
+        run(both, createIngestKey, {
+          entityId: ENTITY,
+          label: 'Their site',
+          keyHash: made.keyHash,
+          keyHint: made.keyHint,
+          sourceId: theirs.id,
+        }),
+      ),
+    ).toMatchObject({ code: 'validation_failed', reason: 'lead_source_missing' });
+  });
+
+  it('finds no website for a key once its site is archived, and takes no new key for it', async () => {
+    const site = await run<IngestSourceDto>(exec, setIngestSource, {
+      entityId: ENTITY,
+      provider: 'website',
+      externalId: `gone-${newId().slice(-8)}.example`,
+      name: 'Old site',
+      pipelineId: PUMPS.id,
+      fieldMap: {},
+      consent: { questionKey: 'agree', textVersion: 'v1', channels: ['call'], purpose: 'service' },
+    });
+    const made = newIngestKey();
+    const key = await run<IngestKeyDto>(exec, createIngestKey, {
+      entityId: ENTITY,
+      label: 'Old site key',
+      keyHash: made.keyHash,
+      keyHint: made.keyHint,
+      sourceId: site.id,
+    });
+    await run(exec, archiveIngestSource, { entityId: ENTITY, sourceId: site.id });
+    // The key still works for the company, without the archived site or its consent setting.
+    const [found] = (await asPrincipal(workers([]), (ctx) =>
+      ctx.tx.execute(
+        sql`select key_id, source_id, consent_purpose from app.ingest_key_find(${made.keyHash})`,
+      ),
+    )) as unknown as { key_id: string; source_id: string | null; consent_purpose: string | null }[];
+    expect(found).toEqual({ key_id: key.id, source_id: null, consent_purpose: null });
+    const again = newIngestKey();
+    expect(
+      await refusal(
+        run(exec, createIngestKey, {
+          entityId: ENTITY,
+          label: 'Old site again',
+          keyHash: again.keyHash,
+          keyHint: again.keyHint,
+          sourceId: site.id,
+        }),
+      ),
+    ).toMatchObject({ code: 'validation_failed', reason: 'lead_source_missing' });
+  });
+
   it('stores only the hash, lets the platform find the key, and refuses it once revoked', async () => {
     const made = newIngestKey();
     const key = await run<IngestKeyDto>(exec, createIngestKey, {

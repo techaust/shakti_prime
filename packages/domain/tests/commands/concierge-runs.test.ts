@@ -33,7 +33,12 @@ import {
 } from '../../src/ai/concierge/run-concierge';
 import { createAiProvider } from '../../src/ai/provider';
 import { runAgentStep } from '../../src/ai/runtime';
-import { fakeModelTransport, fakeReply, type FakeModelTransport } from '../../src/ai/transport';
+import {
+  fakeModelTransport,
+  fakeReply,
+  ModelCallError,
+  type FakeModelTransport,
+} from '../../src/ai/transport';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
@@ -352,6 +357,42 @@ describe('a Concierge run on a customer message', () => {
       handoff_reason: 'filter_refusals',
     });
     expect(await kv.get(conciergeRefusalsKey(ENTITY, c.threadId))).toBeNull();
+  });
+
+  it('hands the chat to people at once when the AI service cannot answer (the lead’s item 9)', async () => {
+    await setting({ cap: 10_000 });
+    const c = await chat();
+    const msg = await say(c, 'Is the pump in stock?');
+    // A fake model service that answers 503 to every call: no live model is called.
+    const kv = memoryKeyValue();
+    const transport = fakeModelTransport([new ModelCallError('http', { status: 503 })]);
+    const d = {
+      ...deps(c, [], kv),
+      transport,
+      provider: createAiProvider({
+        claude: transport,
+        voyage: undefined,
+        keyValue: kv,
+        logger: memoryLogger(),
+      }),
+    };
+    const eventId = newId();
+    const result = await runOn(c, msg, d, eventId);
+    expect(result.runs.reply?.outcome).toBe('unavailable');
+    expect(result.handoff).toBe('unavailable');
+    expect(d.handedOff).toEqual(['no_assistant']);
+    expect(await threadOf(c.threadId)).toEqual({
+      handled_by: 'people',
+      handoff_reason: 'no_assistant',
+    });
+    // Nothing was drafted, and the refused-answer count is left clear.
+    expect(await actionsOf(c.threadId)).toEqual([]);
+    expect(await kv.get(conciergeRefusalsKey(ENTITY, c.threadId))).toBeNull();
+    // A redelivery of the same message finds the chat with people and asks nothing.
+    const asked = transport.requests.length;
+    const again = await runOn(c, msg, d, eventId);
+    expect(again.outcome).toBe('skipped');
+    expect(transport.requests).toHaveLength(asked);
   });
 
   it('stops before reading when switched off, without a limit or past the spend, and hands the chat to people', async () => {

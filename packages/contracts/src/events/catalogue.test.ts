@@ -58,6 +58,8 @@ describe('the event catalogue', () => {
         'calls.missed.recorded',
         'crm.duplicate.found',
         'crm.enquiry.routed',
+        // An enquiry that joined a nurtured lead, told to its owner (p2-fixes).
+        'crm.lead.attached',
         'crm.lead.created',
         'crm.opportunity.assigned',
         'crm.opportunity.stage_moved',

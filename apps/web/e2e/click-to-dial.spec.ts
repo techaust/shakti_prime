@@ -50,6 +50,20 @@ async function openInWorkspace(page: Page, name: string): Promise<void> {
   await expect(heading).toBeFocused();
 }
 
+/** Opens another lead from the workspace's own search, keeping the page (and its call bar). */
+async function switchTo(page: Page, name: string): Promise<void> {
+  const search = page.getByRole('searchbox', { name: /Find a lead/ });
+  await search.fill(name);
+  await search.press('Enter');
+  const hit = page.getByRole('list', { name: 'Leads found' }).getByRole('button').first();
+  await expect(hit).toContainText(name);
+  await hit.focus();
+  await page.keyboard.press('Enter');
+  const heading = page.getByRole('heading', { name, level: 2 });
+  await expect(heading).toBeVisible();
+  await expect(heading).toBeFocused();
+}
+
 /** The tele-caller's own phone for calls, set on the profile (the same number each run). */
 async function ownPhone(page: Page): Promise<void> {
   await page.goto('/settings/profile');
@@ -65,6 +79,42 @@ async function ownPhone(page: Page): Promise<void> {
 
 test.describe('click-to-dial as a tele-caller', () => {
   test.use(signedInAs('teleCaller'));
+
+  test('keeps a lead’s dialled call when another lead’s call is saved (T3 re-check 12)', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(180_000);
+    await setServerClock(context, insideCallingHours());
+    await ownPhone(page);
+    const other = await addLead(page, 'Mohan Lal Jangid');
+    const dialledLead = await addLead(page, 'Kamla Devi Saini');
+    await openInWorkspace(page, dialledLead);
+    const bar = page.getByRole('region', { name: 'Call from the screen' });
+    await expect(bar.getByRole('button', { name: /^Call/ })).toBeEnabled();
+    await page.keyboard.press('c');
+    const ended = bar.getByText('The call has ended. Choose its outcome to save it.');
+    await expect(ended).toBeVisible({ timeout: 30_000 });
+
+    // Another lead, its call dialled by hand and saved, before this one is saved.
+    await switchTo(page, other);
+    await expect(ended).toHaveCount(0);
+    await page.keyboard.press('d');
+    await expect(page.getByText('Number to dial')).toBeVisible();
+    await page.keyboard.press('3');
+    await expect(page.getByText(/^Call saved\. /).first()).toBeVisible();
+
+    // Back on the dialled lead, its call still waits for its outcome, and saves as itself.
+    await switchTo(page, dialledLead);
+    await expect(ended).toBeVisible();
+    await page.keyboard.press('3');
+    await expect(
+      page.getByRole('region', { name: 'Recent activity' }).getByText('Outcome: Not reachable'),
+    ).toBeVisible();
+    await expect(page.getByText('This call is saved already.')).toHaveCount(0);
+    await expect(ended).toHaveCount(0);
+    await expectNoAxeViolations(page);
+  });
 
   test('refuses a phone that is not a mobile number on the profile', async ({ page }) => {
     await page.goto('/settings/profile');

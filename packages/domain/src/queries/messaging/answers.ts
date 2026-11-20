@@ -48,7 +48,13 @@ export async function readInboundFacts(ctx: Ctx, messageId: string): Promise<Inb
 /** What the messaging worker adds to a message as it sends it. */
 export interface SendExtras {
   /** The milestone and subject the message was queued for; null for any other message. */
-  milestone: { name: string; subjectKind: string; subjectId: string } | null;
+  milestone: {
+    name: string;
+    subjectKind: string;
+    subjectId: string;
+    /** The person whose action brought it (a quote's sender); null for none. */
+    requestedBy: string | null;
+  } | null;
   /** The purpose of its template (`acceptance_code` gets its code); null for none. */
   templatePurpose: string | null;
   /** The file it carries (a quote's PDF), with the file's state; null for none. */
@@ -62,7 +68,7 @@ export interface SendExtras {
 export async function readSendExtras(ctx: Ctx, messageId: string): Promise<SendExtras | null> {
   const [r] = (await ctx.tx.execute(sql`
     select milestone, subject_kind, subject_id, template_purpose, file_bucket, file_key,
-           file_name, file_status
+           file_name, file_status, requested_by
       from app.whatsapp_send_extras(${messageId}::uuid)`)) as unknown as {
     milestone: string | null;
     subject_kind: string | null;
@@ -72,13 +78,19 @@ export async function readSendExtras(ctx: Ctx, messageId: string): Promise<SendE
     file_key: string | null;
     file_name: string | null;
     file_status: string | null;
+    requested_by: string | null;
   }[];
   if (r === undefined) return null;
   return {
     milestone:
       r.milestone === null || r.subject_kind === null || r.subject_id === null
         ? null
-        : { name: r.milestone, subjectKind: r.subject_kind, subjectId: r.subject_id },
+        : {
+            name: r.milestone,
+            subjectKind: r.subject_kind,
+            subjectId: r.subject_id,
+            requestedBy: r.requested_by,
+          },
     templatePurpose: r.template_purpose,
     file:
       r.file_bucket === null || r.file_key === null

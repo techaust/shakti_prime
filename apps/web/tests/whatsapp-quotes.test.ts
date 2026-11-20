@@ -327,7 +327,7 @@ const eventContext = (): EventHandlerContext => ({
 });
 
 /** The messaging worker with a fake client that keeps what it was asked to send. */
-function fakeSender() {
+function fakeSender(kv: KeyValue = memoryKeyValue()) {
   const sent: (TemplateMessage | { to: string; body: string })[] = [];
   const client: WhatsAppClient = {
     sendTemplate: (message) => {
@@ -344,7 +344,7 @@ function fakeSender() {
       { eventId: newId(), entityId: E, messageId },
       {
         principal: workers(),
-        keyValue: memoryKeyValue(),
+        keyValue: kv,
         requestId: newId(),
         now: () => new Date(),
         client: () => client,
@@ -508,6 +508,59 @@ describe('a quote that did not go on WhatsApp (review 8)', () => {
                                         where type = 'whatsapp_quote_not_sent' and subject_id = ${quote.id}`,
     );
     expect(notices).toEqual([{ user_id: lc.id }]);
+  });
+
+  /** A quote marked sent on the customer's chat, its milestone queued: the queued message. */
+  async function queuedQuote(customer: Customer) {
+    const quote = await sentQuote(customer);
+    const event = await lastEvent('sales.quote.sent', quote.id);
+    expect(await handleQuoteSent(event, eventContext())).toBe('queued');
+    const [message] = await asMigrator(
+      (m) => m<{ id: string }[]>`select message_id as id from whatsapp_milestone_sends
+                                   where milestone = 'quote_sent' and subject_id = ${quote.id}`,
+    );
+    return { quote, messageId: message?.id ?? '' };
+  }
+
+  const notSentNotices = (quoteId: string) =>
+    asMigrator(
+      (m) => m<{ user_id: string }[]>`select user_id from notifications
+                                        where type = 'whatsapp_quote_not_sent' and subject_id = ${quoteId}`,
+    );
+
+  it('tells the person who sent it when the messaging worker refuses it at the messaging limit', async () => {
+    const customer = await customerOnWhatsApp();
+    // The customer's window has closed, so the quote opens a conversation, and the portfolio's
+    // limit is reached.
+    await asMigrator(
+      (m) => m`update whatsapp_threads set window_open_until = now() - interval '1 hour'
+                 where id = ${customer.threadId}`,
+    );
+    const { quote, messageId } = await queuedQuote(customer);
+    const kv = memoryKeyValue();
+    await kv.set('whatsapp:limit', '0', 3600);
+    const sender = fakeSender(kv);
+    expect(await sender.send(messageId)).toMatchObject({
+      status: 'refused',
+      refusal: 'tier_budget_reached',
+    });
+    expect(sender.sent).toEqual([]);
+    expect(await notSentNotices(quote.id)).toEqual([{ user_id: lc.id }]);
+  });
+
+  it('tells the person who sent it when the messaging worker refuses it for a STOP', async () => {
+    const customer = await customerOnWhatsApp();
+    // The quote is queued, then the number stops messages before the worker sends it.
+    const { quote, messageId } = await queuedQuote(customer);
+    await run(workers(), recordWhatsAppOptOut, {
+      entityId: E,
+      threadId: customer.threadId,
+      at: new Date().toISOString(),
+    });
+    const sender = fakeSender();
+    expect(await sender.send(messageId)).toMatchObject({ status: 'refused', refusal: 'opted_out' });
+    expect(sender.sent).toEqual([]);
+    expect(await notSentNotices(quote.id)).toEqual([{ user_id: lc.id }]);
   });
 
   it('tells nobody when the quote went', async () => {

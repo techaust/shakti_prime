@@ -278,7 +278,13 @@ export async function attachEnquiry(
     entityId: lead.entityId,
     aggregateType: 'opportunity',
     aggregateId: lead.id,
-    payload: { pipelineKey: input.pipelineKey, sourceCode: input.sourceCode ?? null },
+    payload: {
+      pipelineKey: input.pipelineKey,
+      sourceCode: input.sourceCode ?? null,
+      // As it was before the enquiry reopened it: its owner is told it is worked again.
+      nurtured: lead.state === 'nurture',
+      attachedBy: ctx.principal.id,
+    },
   });
   const [current] = await ctx.tx.select().from(o).where(eq(o.id, lead.id)).limit(1);
   return {

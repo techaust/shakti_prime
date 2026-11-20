@@ -1,4 +1,9 @@
-import { isPlatformOnlyPermission, PERMISSION_KEYS, STAFF_ROLE_KEYS } from '@shakti/contracts';
+import {
+  isAgentOnlyPermission,
+  isPlatformOnlyPermission,
+  PERMISSION_KEYS,
+  STAFF_ROLE_KEYS,
+} from '@shakti/contracts';
 import {
   asPrincipal,
   closeDb,
@@ -60,10 +65,14 @@ describe('listRoles and getRoleGrants', () => {
       getRoleGrants(ctx, { roleKey: 'tele_caller_cc' }),
     );
     expect(page.role.key).toBe('tele_caller_cc');
-    // A platform-only permission is held by the platform's workers alone and never listed.
+    // A platform-only permission is held by the platform's workers alone and an agent-only one
+    // by an agent alone; neither is listed.
     expect(page.permissions.map((p) => p.key)).toEqual(
-      PERMISSION_KEYS.filter((key) => !isPlatformOnlyPermission(key)),
+      PERMISSION_KEYS.filter(
+        (key) => !isPlatformOnlyPermission(key) && !isAgentOnlyPermission(key),
+      ),
     );
+    expect(page.permissions.map((p) => p.key)).not.toContain('agents.note.write');
     const granted = Object.fromEntries(
       grantsForRole('tele_caller_cc').map((g) => [g.key, g.scope]),
     );

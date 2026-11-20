@@ -210,8 +210,8 @@ function conciergeSettings(entityId: number): Promise<ResolvedAgentConfig> {
  * Then, before the chat's history, lead or rules are read: switched off, without a spending limit,
  * with too little of the day's spend left, or past the chat's runs for the day, one stopped run is
  * recorded and the chat goes to people. Otherwise the model is asked once, each proposal recorded,
- * and the chat handed to people when the answer asks to, is unsure, or is the third in a row the
- * filter refused.
+ * and the chat handed to people when the AI service could not answer, or the answer asks to, is
+ * unsure, or is the third in a row the filter refused.
  */
 export async function runConcierge(
   input: ConciergeRunInput,
@@ -341,8 +341,15 @@ export async function runConcierge(
     const kept = await keptAnswer(input.eventId, promptHash, deps);
     if (kept !== null) verdicts = filterConciergeAnswer(kept, filterFacts);
   }
-  const cause: ConciergeHandoff | null =
-    verdicts?.handoff ?? (refusedInARow >= d.refusalsInARow ? 'refusals' : null);
+  // The AI service could not answer (an outage, a vendor paused after repeated failures, the spend
+  // reached while asking): nothing was drafted for the customer, so people answer the chat now
+  // rather than after more unanswered messages (p2-fixes, the lead's item 9). A redelivery that
+  // finds the reply recorded so hands over too, in case the first stopped before it did.
+  const replyEnded = runs.reply?.outcome;
+  const assistantDown = replyEnded === 'unavailable' || replyEnded === 'cap_reached';
+  const cause: ConciergeHandoff | null = assistantDown
+    ? 'unavailable'
+    : (verdicts?.handoff ?? (refusedInARow >= d.refusalsInARow ? 'refusals' : null));
   if (cause === null) return { outcome: 'ran', runs };
   await handOff(cause);
   return { outcome: 'ran', runs, handoff: cause };
