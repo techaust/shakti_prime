@@ -239,7 +239,7 @@ async function customerOnWhatsApp(large = false): Promise<Customer> {
         : { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
     },
   });
-  const waId = `91${phone.replace(/^\+?91/, '')}`;
+  const waId = `91${phone.replace(/\D/g, '').slice(-10)}`;
   const recorded = await run<{ threadId: string }>(workers(), recordInboundWhatsApp, {
     phoneNumberId: channel.phoneNumberId,
     waId,
