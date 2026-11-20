@@ -30,8 +30,16 @@ interface Recorded {
   messages: number;
 }
 
-/** A stand-in that answers as QStash does: a message id for each message of a batch. */
-async function standIn(): Promise<{ url: string; calls: Recorded[]; close: () => Promise<void> }> {
+/**
+ * A stand-in that answers as QStash does: a message id for each message of a batch, and one for
+ * any other call (a publish, a queue group's endpoint). Also the webhook load's queue when
+ * processing is held off (`g2.ts webhooks --queue stand-in`).
+ */
+export async function queueStandIn(): Promise<{
+  url: string;
+  calls: Recorded[];
+  close: () => Promise<void>;
+}> {
   const calls: Recorded[] = [];
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = [];
@@ -40,7 +48,7 @@ async function standIn(): Promise<{ url: string; calls: Recorded[]; close: () =>
       const raw = Buffer.concat(chunks);
       const path = new URL(req.url ?? '/', 'http://stand-in').pathname;
       let messages = 0;
-      let answer: unknown = {};
+      let answer: unknown = { messageId: `msg_${newId()}` };
       if (path === '/v2/batch') {
         const body = JSON.parse(raw.toString('utf8')) as unknown[];
         messages = body.length;
@@ -99,7 +107,7 @@ export interface BatchCallResult {
 
 /** `rounds` batch calls of 200 messages each, through the outbox's and the sweep's publishers. */
 export async function measureBatchCall(options: { rounds: number }): Promise<BatchCallResult[]> {
-  const stand = await standIn();
+  const stand = await queueStandIn();
   const config: QStashConfig = {
     token: 'g2 measure stand-in, accepted by no queue',
     currentSigningKey: 'g2 measure current key',

@@ -17,7 +17,9 @@
 // or staging is the owner's go-ahead, never part of a slice. Nothing here runs in CI.
 // Usage: pnpm --filter web exec tsx tests/measures/g2.ts <measure|all> [--base-url <url>]
 //        [--port <n>] [--rounds <n>] [--rates 20,50,100] [--seconds <n>] [--graph-ms <n>]
-//        [--out <file.json>]
+//        [--out <file.json>] [--queue stand-in]
+// `--queue stand-in` holds processing off: the server publishes each stored delivery to a local
+// queue stand-in, as a hosted server publishes to QStash, so the answer time alone is measured.
 import { closeWebhookDb } from '@shakti/db/webhooks';
 import { closeDb } from '@shakti/db/testing';
 import { writeFileSync } from 'node:fs';
@@ -33,7 +35,7 @@ import {
   type PopSetup,
 } from './browser';
 import { LEAD_TARGET_MS, measureLeadPath } from './lead-path';
-import { measureBatchCall } from './outbox-batch';
+import { measureBatchCall, queueStandIn } from './outbox-batch';
 import { loadRootEnv, measureServer, type MeasureServer } from './server';
 import { loadAtRate, WEBHOOK_ANSWER_TARGET_MS } from './webhook-load';
 
@@ -90,6 +92,11 @@ if (rates.some((r) => !Number.isInteger(r) || r < 1 || r > 500)) {
   process.exit(1);
 }
 const seconds = whole('seconds', 30, 600);
+const queue = option('queue');
+if (queue !== undefined && (queue !== 'stand-in' || baseUrl !== undefined)) {
+  console.error('--queue takes stand-in, and only for the server started here');
+  process.exit(1);
+}
 
 /** The phrases deliveries are signed with: the test ones, or the target's own from the env. */
 function signingEnv(): WebhookSigningEnv {
@@ -141,9 +148,14 @@ const report: Record<string, unknown> = {
 const rows: TableRow[] = [];
 const needsServer = chosen.some((m) => m === 'webhooks' || m === 'dial' || m === 'screen-pop');
 let server: MeasureServer | undefined;
+const stand = queue === undefined ? undefined : await queueStandIn();
+report.processing =
+  stand === undefined
+    ? 'in the server after each answer (no queue)'
+    : 'held off: each delivery published to a local queue stand-in';
 
 try {
-  if (needsServer) server = await measureServer({ baseUrl, port });
+  if (needsServer) server = await measureServer({ baseUrl, port, queueUrl: stand?.url });
   for (const measure of chosen) {
     console.error(`measuring ${measure}`);
     if (measure === 'webhooks' && server !== undefined) {
@@ -166,7 +178,7 @@ try {
           .map(([status, n]) => `${String(n)} × ${status}`)
           .join(', ');
         rows.push({
-          measure: `webhook answer at ${String(rate)}/s`,
+          measure: `webhook answer at ${String(rate)}/s${stand === undefined ? '' : ', processing held off'}`,
           stats: result.answers,
           target: { stat: 'max', limitMs: WEBHOOK_ANSWER_TARGET_MS },
           note: `${stored}; not 200: ${failed === '' ? 'none' : failed}; send lag p99 ${String(result.sendLag.p99)} ms`,
@@ -175,6 +187,10 @@ try {
         await new Promise((r) => setTimeout(r, 5_000));
       }
       report.webhooks = results;
+      if (stand !== undefined) {
+        // Every new delivery was handed to the queue, none processed by the server.
+        report.queuePublishes = stand.calls.filter((c) => c.path.startsWith('/v2/publish')).length;
+      }
     } else if (measure === 'lead') {
       const result = await measureLeadPath({
         rounds: whole('rounds', 20, 1_000),
@@ -227,6 +243,7 @@ try {
   }
 } finally {
   await server?.stop();
+  await stand?.close();
   await closeWebhookDb();
   await closeDb();
 }

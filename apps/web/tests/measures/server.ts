@@ -83,6 +83,11 @@ function stopChild(child: ChildProcess): Promise<void> {
 export async function measureServer(options: {
   baseUrl?: string | undefined;
   port: number;
+  /**
+   * A queue address (the local stand-in): the server then publishes each stored delivery there, as
+   * a hosted server publishes to QStash, instead of processing it itself after the answer.
+   */
+  queueUrl?: string | undefined;
 }): Promise<MeasureServer> {
   if (options.baseUrl !== undefined) {
     const url = new URL(options.baseUrl);
@@ -100,6 +105,15 @@ export async function measureServer(options: {
   }
   const env: NodeJS.ProcessEnv = { ...process.env, ...MEASURE_SERVER_ENV, NODE_ENV: 'production' };
   for (const name of QUEUE_VARIABLES) Reflect.deleteProperty(env, name);
+  if (options.queueUrl !== undefined) {
+    Object.assign(env, {
+      QSTASH_URL: options.queueUrl,
+      QSTASH_TOKEN: 'g2 measure stand-in, accepted by no queue',
+      QSTASH_CURRENT_SIGNING_KEY: 'g2 measure current key',
+      QSTASH_NEXT_SIGNING_KEY: 'g2 measure next key',
+      BETTER_AUTH_URL: baseUrl,
+    });
+  }
   const nextBin = join(WEB_DIR, 'node_modules', '.bin', 'next');
   const child = spawn(nextBin, ['start', '-p', String(options.port)], {
     cwd: WEB_DIR,
