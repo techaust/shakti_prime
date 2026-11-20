@@ -92,7 +92,8 @@ if (rates.some((r) => !Number.isInteger(r) || r < 1 || r > 500)) {
   console.error('--rates takes whole numbers from 1 to 500, separated by commas');
   process.exit(1);
 }
-const seconds = whole('seconds', 30, 600);
+// LiveKit's signed delivery is good for 300 seconds from its signing before the run (review L3).
+const seconds = whole('seconds', 30, 240);
 const providers = (option('providers') ?? PROVIDERS.join(',')).split(',');
 const unknownProvider = providers.find((p) => !(PROVIDERS as readonly string[]).includes(p));
 if (unknownProvider !== undefined) {
@@ -100,8 +101,11 @@ if (unknownProvider !== undefined) {
   process.exit(1);
 }
 const queue = option('queue');
-if (queue !== undefined && (queue !== 'stand-in' || baseUrl !== undefined)) {
-  console.error('--queue takes stand-in, and only for the server started here');
+if (
+  queue !== undefined &&
+  (queue !== 'stand-in' || baseUrl !== undefined || chosen.length !== 1 || chosen[0] !== 'webhooks')
+) {
+  console.error('--queue takes stand-in, for webhooks alone on the server started here');
   process.exit(1);
 }
 
@@ -117,13 +121,22 @@ function signingEnv(): WebhookSigningEnv {
   return Object.fromEntries(names.map((n) => [n, process.env[n] ?? ''])) as WebhookSigningEnv;
 }
 
-/** The dial's caller and own phone: the journeys' tele-caller locally, from the env elsewhere. */
-function dialSetup(): { person?: Person; dialPhone?: string } {
-  if (baseUrl === undefined) return {};
+/**
+ * The dial's caller, their own phone and the lead's phone: the journeys' tele-caller and a made-up
+ * lead on the server started here (no Exotel keys reach it, so nothing rings); elsewhere all from
+ * the env, the lead's phone one the owner's people answer, since that server may place real calls.
+ */
+function dialSetup(): { person?: Person; dialPhone?: string; leadPhone?: string } {
   const env = (n: string) => process.env[n] ?? '';
-  const missing = ['G2_DIAL_EMAIL', 'G2_DIAL_PASSWORD', 'G2_DIAL_PHONE'].filter(
-    (n) => env(n) === '',
-  );
+  if (baseUrl === undefined) {
+    return env('G2_DIAL_LEAD_PHONE') === '' ? {} : { leadPhone: env('G2_DIAL_LEAD_PHONE') };
+  }
+  const missing = [
+    'G2_DIAL_EMAIL',
+    'G2_DIAL_PASSWORD',
+    'G2_DIAL_PHONE',
+    'G2_DIAL_LEAD_PHONE',
+  ].filter((n) => env(n) === '');
   if (missing.length > 0) {
     console.error(`set ${missing.join(', ')} first`);
     process.exit(1);
@@ -131,6 +144,7 @@ function dialSetup(): { person?: Person; dialPhone?: string } {
   return {
     person: { email: env('G2_DIAL_EMAIL'), password: env('G2_DIAL_PASSWORD') },
     dialPhone: env('G2_DIAL_PHONE'),
+    leadPhone: env('G2_DIAL_LEAD_PHONE'),
   };
 }
 
@@ -233,7 +247,7 @@ try {
       const result = await measureDial({
         baseUrl: server.baseUrl,
         rounds: whole('rounds', 10, 200),
-        localClock: server.local,
+        serverStartedHere: server.local,
         ...dialSetup(),
       });
       report.dial = result;
@@ -241,7 +255,7 @@ try {
         measure: 'Dial key to the call accepted',
         stats: result.accepted,
         target: { stat: 'p95', limitMs: DIAL_TARGET_MS },
-        note: `dial action answered p50 ${String(result.action.p50)} ms`,
+        note: `dial action answered p50 ${String(result.action.p50)} ms; missed rounds ${String(result.misses.length)}${result.misses.length === 0 ? '' : ` (${result.misses.map((m) => `${String(m.round + 1)}: ${m.step}`).join('; ')})`}`,
       });
     } else if (measure === 'screen-pop' && server !== undefined) {
       const result = await measureScreenPop({

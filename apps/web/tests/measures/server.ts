@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { JOURNEY_SERVER_ENV } from '../../e2e/setup/server-env';
+import { withoutVendorCredentials } from '../../scripts/measures/safety';
 import { TEST_WEBHOOK_ENV } from '../../src/webhooks/signed-deliveries';
 
 /**
@@ -15,9 +16,18 @@ import { TEST_WEBHOOK_ENV } from '../../src/webhooks/signed-deliveries';
 const WEB_DIR = resolve(import.meta.dirname, '..', '..');
 const ROOT_ENV = resolve(WEB_DIR, '..', '..', '.env');
 
-/** The repository's `.env` (database addresses and passwords), as the journeys load it. */
+/**
+ * The repository's `.env` (database addresses and passwords), as the journeys load it, without
+ * any vendor credential it holds: the measures' own process (the in-process lead path, the batch
+ * call) reaches no vendor either.
+ */
 export function loadRootEnv(): void {
   if (existsSync(ROOT_ENV)) process.loadEnvFile(ROOT_ENV);
+  const kept = withoutVendorCredentials(process.env);
+  for (const name of Object.keys(process.env)) {
+    if (!(name in kept)) Reflect.deleteProperty(process.env, name);
+  }
+  process.env.MAILER = 'log';
 }
 
 /** The settings the measuring server starts with: the journeys' and the webhook test phrases. */
@@ -25,14 +35,6 @@ export const MEASURE_SERVER_ENV = {
   ...JOURNEY_SERVER_ENV,
   ...TEST_WEBHOOK_ENV,
 } as const;
-
-/** QStash's settings, removed so the server processes deliveries itself after answering. */
-const QUEUE_VARIABLES = [
-  'QSTASH_TOKEN',
-  'QSTASH_CURRENT_SIGNING_KEY',
-  'QSTASH_NEXT_SIGNING_KEY',
-  'QSTASH_URL',
-];
 
 export interface MeasureServer {
   baseUrl: string;
@@ -103,8 +105,13 @@ export async function measureServer(options: {
   if (await healthy(baseUrl)) {
     throw new Error(`port ${String(options.port)} is taken: stop that server or pass --port`);
   }
-  const env: NodeJS.ProcessEnv = { ...process.env, ...MEASURE_SERVER_ENV, NODE_ENV: 'production' };
-  for (const name of QUEUE_VARIABLES) Reflect.deleteProperty(env, name);
+  // No vendor credential reaches the server (review H1): its calls go to the simulated provider,
+  // whatever Exotel keys the `.env` holds, and with no queue it processes deliveries itself.
+  const env = withoutVendorCredentials<NodeJS.ProcessEnv>({
+    ...process.env,
+    ...MEASURE_SERVER_ENV,
+    NODE_ENV: 'production',
+  });
   if (options.queueUrl !== undefined) {
     Object.assign(env, {
       QSTASH_URL: options.queueUrl,

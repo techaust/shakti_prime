@@ -11,6 +11,7 @@ import {
 import { insideCallingHours } from '../../e2e/support/clock';
 import { standInForTurnstile } from '../../e2e/support/turnstile';
 import { E2E_PASSWORD, emailFor } from '../../e2e/support/users';
+import { dialLeadPhone } from '../../scripts/measures/safety';
 import { percentiles, shareWithin, type Percentiles } from '../../scripts/measures/stats';
 import { TEST_WEBHOOK_ENV } from '../../src/webhooks/signed-deliveries';
 
@@ -72,12 +73,12 @@ function freshMobile(): string {
   return `${digits.slice(0, 5)} ${digits.slice(5)}`;
 }
 
-/** A new lead of company 1 through the New lead form, as the click-to-dial journey adds one. */
-async function addLead(page: Page): Promise<string> {
+/** A new lead of company 1 with this phone, through the New lead form, as the journey adds one. */
+async function addLead(page: Page, phone: string): Promise<string> {
   const name = `Measure Dial ${String(Date.now()).slice(-6)}`;
   await page.goto('/leads/new');
   await page.getByLabel('Customer name').fill(name);
-  await page.getByLabel('Mobile number').fill(freshMobile());
+  await page.getByLabel('Mobile number').fill(phone);
   await page.getByLabel('Line of business').selectOption({ label: 'Farmer Pumps' });
   await page.getByLabel('Type of customer').selectOption({ label: 'Farm' });
   await page.getByRole('button', { name: 'Save lead' }).click();
@@ -107,78 +108,133 @@ async function openInWorkspace(page: Page, name: string): Promise<void> {
   await page.getByRole('heading', { name, level: 2 }).waitFor();
 }
 
+export interface DialMiss {
+  round: number;
+  /** The step that did not finish within its 30 seconds. */
+  step: string;
+}
+
 export interface DialResult {
   rounds: number;
-  /** From the key to the call bar showing the call accepted. */
+  /** From the key to the call bar showing the call accepted; a missed round counts 30,000 ms. */
   accepted: Percentiles;
   /** From the key to the dial action's answer. */
   action: Percentiles;
   within2s: number;
+  misses: DialMiss[];
 }
 
-/** `rounds` dials, each on a new lead, each saved as Not reachable before the next. */
+/** A step that did not finish, named for the report. */
+class StepMissed extends Error {
+  constructor(readonly step: string) {
+    super(step);
+  }
+}
+
+function step<T>(name: string, work: Promise<T>): Promise<T> {
+  return work.catch(() => {
+    throw new StepMissed(name);
+  });
+}
+
+/**
+ * `rounds` dials of one lead, each saved as Not reachable before the next. The lead's phone comes
+ * from `dialLeadPhone()`: made up only on the server started here, whose provider is simulated, and
+ * otherwise the phone the owner's people answer (`G2_DIAL_LEAD_PHONE`), else the run is refused
+ * before the browser opens. A round whose step does not finish within 30 seconds is a miss of
+ * 30,000 ms with that step named, and the run goes on.
+ */
 export async function measureDial(options: {
   baseUrl: string;
   rounds: number;
   person?: Person;
   /** The caller's own phone the call rings first, as typed; the journeys' number by default. */
   dialPhone?: string;
-  /** Set the journeys' clock cookie to inside calling hours (a local server only). */
-  localClock: boolean;
+  /** The lead's phone; required unless the server was started here. */
+  leadPhone?: string;
+  /** The server was started here, with no vendor credential (and so the simulated provider). */
+  serverStartedHere: boolean;
 }): Promise<DialResult> {
+  const leadPhone = dialLeadPhone({
+    serverStartedHere: options.serverStartedHere,
+    leadPhone: options.leadPhone,
+    madeUp: freshMobile,
+  });
   const person = options.person ?? { email: emailFor('teleCaller'), password: E2E_PASSWORD };
+  // A real call lasts as long as the people on it; the simulated one ends in seconds.
+  const callMs = options.serverStartedHere ? STEP_TIMEOUT_MS : 600_000;
   const browser = await chromium.launch();
   const accepted: number[] = [];
   const action: number[] = [];
+  const misses: DialMiss[] = [];
   try {
     const context = await newContext(browser, options.baseUrl);
-    if (options.localClock) {
+    if (options.serverStartedHere) {
+      // The journeys' clock, which only a local production run honours: inside calling hours.
       await context.addCookies([
         { name: TEST_CLOCK_COOKIE, value: String(insideCallingHours()), url: options.baseUrl },
       ]);
     }
     const page = await context.newPage();
     await signIn(page, person);
-    // The caller's own phone for calls, which the call rings first (the journey's number).
+    // The caller's own phone for calls, which the call rings first.
     await page.goto('/settings/profile');
     const section = page.locator('#dial-phone');
     await section.getByLabel('Your phone number').fill(options.dialPhone ?? '98000 00191');
     await section.getByRole('button', { name: 'Save' }).click();
     await page.getByText('Your phone for calls is saved.').waitFor();
+    const lead = await addLead(page, leadPhone);
 
     for (let round = 0; round < options.rounds; round += 1) {
-      const lead = await addLead(page);
-      await openInWorkspace(page, lead);
       const bar = page.getByRole('region', { name: 'Call from the screen' });
-      const callButton = bar.getByRole('button', { name: /^Call/ });
-      await callButton.waitFor();
-      if (!(await callButton.isEnabled())) throw new Error('the Dial key is not offered');
-      // The dial action's own answer: the one that carries the placed call (`kind: 'placed'`), not
-      // the call bar's reads before and after it.
-      const answered = page.waitForResponse(async (r) => {
-        if (r.request().method() !== 'POST' || r.request().headers()['next-action'] === undefined) {
-          return false;
-        }
-        const text = await r.text().catch(() => '');
-        return text.includes('"placed"');
-      });
-      const t0 = Date.now();
-      await page.keyboard.press('c');
-      const shown = bar
-        .getByRole('status')
-        .filter({ hasText: /Ringing|On the line|Call ended/ })
-        .waitFor();
-      await answered;
-      action.push(Date.now() - t0);
-      await shown;
-      accepted.push(Date.now() - t0);
-      // The call ends by itself on the simulated provider; its outcome saved, the bar starts afresh.
-      await bar.getByRole('status').filter({ hasText: 'Call ended' }).waitFor();
-      await page.locator('body').press('3');
-      await page
-        .getByText(/^Call saved\. /)
-        .first()
-        .waitFor();
+      try {
+        await step('the lead opened in the workspace', openInWorkspace(page, lead));
+        const callButton = bar.getByRole('button', { name: /^Call/ });
+        await step('the Dial key offered', callButton.waitFor());
+        if (!(await callButton.isEnabled())) throw new StepMissed('the Dial key offered');
+        const t0 = Date.now();
+        // The dial action's own answer: the one that carries the placed call (`kind: 'placed'`),
+        // not the call bar's reads before and after it.
+        const answered = step(
+          'the dial action’s answer',
+          page.waitForResponse(async (r) => {
+            if (r.request().method() !== 'POST') return false;
+            if (r.request().headers()['next-action'] === undefined) return false;
+            return (await r.text().catch(() => '')).includes('"placed"');
+          }),
+        ).then(() => Date.now() - t0);
+        const shown = step(
+          'the call bar showing the call accepted',
+          bar
+            .getByRole('status')
+            .filter({ hasText: /Ringing|On the line|Call ended/ })
+            .waitFor(),
+        ).then(() => Date.now() - t0);
+        await page.keyboard.press('c');
+        const [actionMs, acceptedMs] = await Promise.all([answered, shown]);
+        action.push(actionMs);
+        accepted.push(acceptedMs);
+      } catch (error) {
+        if (!(error instanceof StepMissed)) throw error;
+        accepted.push(STEP_TIMEOUT_MS);
+        misses.push({ round, step: error.step });
+        console.error(`round ${String(round + 1)}: ${error.step} did not finish in 30 seconds`);
+      }
+      // The call ends by itself; its outcome saved, the bar starts afresh for the next round.
+      try {
+        await bar
+          .getByRole('status')
+          .filter({ hasText: 'Call ended' })
+          .waitFor({ timeout: callMs });
+        await page.locator('body').press('3');
+        await page
+          .getByText(/^Call saved\. /)
+          .first()
+          .waitFor();
+      } catch {
+        misses.push({ round, step: 'the call ended and its outcome saved' });
+        console.error(`round ${String(round + 1)}: the call's outcome was not saved`);
+      }
     }
     await context.close();
   } finally {
@@ -189,6 +245,7 @@ export async function measureDial(options: {
     accepted: percentiles(accepted),
     action: percentiles(action),
     within2s: shareWithin(accepted, DIAL_TARGET_MS),
+    misses,
   };
 }
 
