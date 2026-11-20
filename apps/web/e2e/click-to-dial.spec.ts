@@ -79,6 +79,9 @@ async function ownPhone(page: Page): Promise<void> {
 
 test.describe('click-to-dial as a tele-caller', () => {
   test.use(signedInAs('teleCaller'));
+  // One after another: the tele-caller's dials share one person, and a second dial within a
+  // minute of one still ringing is refused (`dial_in_progress`), so two at once would collide.
+  test.describe.configure({ mode: 'default' });
 
   test('keeps a lead’s dialled call when another lead’s call is saved (T3 re-check 12)', async ({
     page,

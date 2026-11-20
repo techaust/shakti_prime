@@ -72,7 +72,6 @@ Two of the six exit-gate items are met (the security suite and the tooling); the
 ## Open follow-ups
 | Follow-up | Phase / slice |
 |---|---|
-| `click-to-dial.spec.ts:131` on the phone project failed once and passed on its retry (CI run 44774635543, 20-11-2026): after the `C` key, the call bar showed no status within 15 seconds; the keypress may land before the workspace listens, so the journey should wait for the shortcut to be ready (or click **Call**) before it checks the status | Any slice |
 | Consent routing on the Exotel sandbox, Phase 2's exit-gate item: every calling case on two phones, recorded in exit-gate-actions §6 | Phase 3, once the owner's Exotel trial exists |
 | Voice p50 and p95 latency over 100 turns from Mumbai on dev, Phase 2's exit-gate item, recorded in `voice.md` §7 | V1 part 2 |
 | The merge workflow: since #260 it passes over a run held for approval, but a held run still needs the owner's "Approve and run" before it tests anything; it skips a pull request whose latest CI run failed even after `main` fixed the cause (the lead takes `main` in by a merge commit); adding `checks-ok` does not wake it (a look started by hand); and a look that merges and then fails stops there (#265, 18-11-2026: `gh pr merge` answered EOF after merging, so the branch stayed and CI on `main` was started by the lead): check the pull request's state when `gh pr merge` fails, then delete the branch and start CI (`.github/workflows/automerge.yml`, needs `checks-ok`) | 2 / tooling |
