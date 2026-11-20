@@ -144,6 +144,30 @@ export type LeadAnonymiseWorkerBody = z.infer<typeof LeadAnonymiseWorkerBody>;
  * run, would anonymise), those found kept for good, the customers that failed and were recorded,
  * and whether it finished (when not, the rest went to the next call).
  */
+/**
+ * W2: what the WhatsApp media retention job did in the same night's call, once the leads were
+ * done (docs/03-roadmap-appendix/phase2.md §11): media messages looked at, files removed (or, in
+ * a dry run, that would be), kept as in use or in another store, refused by the store, keys no
+ * file names removed or refused, and whether every company was reached (when not, the next night
+ * carries on, since a removed file leaves the job's window).
+ */
+export const WhatsAppMediaRetentionResponse = z
+  .object({
+    dryRun: z.boolean(),
+    companies: Count,
+    batches: Count,
+    examined: Count,
+    removed: Count,
+    inUse: Count,
+    otherStore: Count,
+    failed: Count,
+    orphansRemoved: Count,
+    orphansFailed: Count,
+    done: z.boolean(),
+  })
+  .strict();
+export type WhatsAppMediaRetentionResponse = z.infer<typeof WhatsAppMediaRetentionResponse>;
+
 export const LeadAnonymiseWorkerResponse = z
   .object({
     dryRun: z.boolean(),
@@ -153,6 +177,8 @@ export const LeadAnonymiseWorkerResponse = z
     kept: Count,
     failedCustomers: Count,
     done: z.boolean(),
+    // W2: present only when the media retention job ran in this call.
+    media: WhatsAppMediaRetentionResponse.optional(),
   })
   .strict();
 export type LeadAnonymiseWorkerResponse = z.infer<typeof LeadAnonymiseWorkerResponse>;

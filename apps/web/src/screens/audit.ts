@@ -248,6 +248,9 @@ const ACTIONS = {
   'voice.session.start': 'voiceSessionStart',
   'voice.session.token': 'voiceSessionToken',
   'voice.session.record': 'voiceSessionRecord',
+  // W2 media retention.
+  'messaging.media.expire': 'whatsappMediaExpire',
+  'messaging.media.record_orphans': 'whatsappMediaOrphansRecord',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',

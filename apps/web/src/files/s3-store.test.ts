@@ -181,6 +181,41 @@ describe('the S3 file store', () => {
     expect(s3.commandCalls(DeleteObjectsCommand)).toHaveLength(0);
   });
 
+  it('lists each key under a folder once, by its newest version, and pages after the last key', async () => {
+    s3.on(ListObjectVersionsCommand).resolves({
+      IsTruncated: true,
+      NextKeyMarker: '1/whatsapp_media/b.jpg',
+      Versions: [
+        { Key: '1/whatsapp_media/a.jpg', VersionId: 'v2', LastModified: new Date('2026-11-02') },
+        { Key: '1/whatsapp_media/a.jpg', VersionId: 'v1', LastModified: new Date('2026-11-01') },
+        { Key: '1/whatsapp_media/b.jpg', VersionId: 'v1', LastModified: new Date('2026-11-01') },
+      ],
+      DeleteMarkers: [
+        { Key: '1/whatsapp_media/b.jpg', VersionId: 'm1', LastModified: new Date('2026-11-03') },
+      ],
+    });
+    expect(await store.list('1/whatsapp_media/', { after: '1/whatsapp_media/0.jpg' })).toEqual({
+      keys: [
+        { key: '1/whatsapp_media/a.jpg', storedAt: new Date('2026-11-02') },
+        { key: '1/whatsapp_media/b.jpg', storedAt: new Date('2026-11-03') },
+      ],
+      next: '1/whatsapp_media/b.jpg',
+    });
+    const [call] = s3.commandCalls(ListObjectVersionsCommand);
+    expect(call?.args[0].input).toMatchObject({
+      Prefix: '1/whatsapp_media/',
+      KeyMarker: '1/whatsapp_media/0.jpg',
+      MaxKeys: 1000,
+    });
+  });
+
+  it('ends the listing on the last page, and refuses a prefix that is not a folder', async () => {
+    s3.on(ListObjectVersionsCommand).resolves({ IsTruncated: false });
+    expect(await store.list('1/whatsapp_media/')).toEqual({ keys: [] });
+    await expect(store.list('1/whatsapp')).rejects.toThrow('not a folder');
+    await expect(store.list('../')).rejects.toThrow('not a folder');
+  });
+
   it('refuses an unsafe key before any call', async () => {
     await expect(store.head('../x')).rejects.toThrow('not a safe path');
     expect(s3.calls()).toHaveLength(0);

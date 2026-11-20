@@ -162,6 +162,7 @@ export async function queueWhatsAppMessage(
     refusal: null,
     sentBy: ctx.principal.id,
     sentByName: null,
+    mediaSummary: null,
     createdAt: ctx.now.toISOString(),
     statusAt: null,
   };

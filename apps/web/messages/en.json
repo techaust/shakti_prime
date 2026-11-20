@@ -1851,7 +1851,9 @@
       "ringingSignal": "Incoming call sent to the caller's screen",
       "voiceSessionStart": "Talk to Shakti started",
       "voiceSessionToken": "Talk to Shakti kept going",
-      "voiceSessionRecord": "Talk to Shakti length and spend recorded"
+      "voiceSessionRecord": "Talk to Shakti length and spend recorded",
+      "whatsappMediaExpire": "Old WhatsApp files removed",
+      "whatsappMediaOrphansRecord": "Unused WhatsApp copies removed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -3785,7 +3787,8 @@
       "knowledge_ask": "Ask the Business questions",
       "agents_note_write": "Write call briefs and call summaries",
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
-      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost"
+      "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
+      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -5082,6 +5085,21 @@
       "mediaNotKept": "The customer sent something this chat cannot show.",
       "file": "File from the customer",
       "open": "Open",
+      "removed": {
+        "summary": "{type} · {size} · {verdict}",
+        "notice": "This file was removed after {years, plural, one {# year} other {# years}}. The message stays.",
+        "noticePlain": "This file was removed after the time it is kept. The message stays.",
+        "photo": "Photo from the customer",
+        "pdf": "PDF from the customer",
+        "other": "File from the customer",
+        "kb": "{value} KB",
+        "mb": "{value} MB",
+        "verdict": {
+          "passed": "passed the file checks",
+          "refused": "refused by the file checks",
+          "unchecked": "not checked"
+        }
+      },
       "status": {
         "queued": "Waiting to send",
         "sent": "Sent",

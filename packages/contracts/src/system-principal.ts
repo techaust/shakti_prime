@@ -78,5 +78,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // (`voice.session.record`): it writes them through one definer, and reads no session by a
     // person's rule.
     { key: 'voice.session.record', scope: 'all' },
+    // W2: WhatsApp files past the retention period and keys no file names
+    // (`messaging.media.expire`): it reads what is due, records what it removed and asks which
+    // stored keys still belong to a file through definers, and reads no message by a person's rule.
+    { key: 'messaging.media.expire', scope: 'all' },
   ],
 };
