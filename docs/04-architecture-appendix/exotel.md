@@ -41,3 +41,26 @@ Environment for the script: `EXOTEL_ACCOUNT_SID`, `EXOTEL_API_KEY`, `EXOTEL_API_
 
 ## 5. Results
 Not run yet.
+
+## Measured (G2)
+**Run of 20-11-2026**, in a cloud VM (4 processors, Intel Xeon at 2.1 GHz, 16 GB), on branch `feat/g2-measures` (measuring code at 0bea4de0 for the dial, 58720fdf for the screen-pop; product code unchanged from `main` at 889ec54d), against one `pnpm build` served by `next start` on the same VM with the journeys' settings and seed (`pnpm --filter web e2e:seed`), in headless Chromium signed in through the screens. Nothing hosted was called; no phone rang. The commands are `apps/web/tests/measures/g2.ts` ([webhooks.md](webhooks.md) has the rest of the G2 measures).
+
+**The dial accepted: met.** `pnpm --filter web exec tsx tests/measures/g2.ts dial`: the journeys' tele-caller, a new lead each round, from the `C` key in the Cold Caller workspace to the call bar showing the call accepted ("Ringing", or a later state), on T3's simulated provider (no Exotel account is set locally). Target: under 2 seconds (design §8.1), read at p95.
+
+| Rounds | p50 ms | p95 ms | Longest ms | The dial action's answer (p50, p95) | Result |
+|---|---|---|---|---|---|
+| 10 | 195 | 239 | 239 | 116 ms, 172 ms | met |
+
+Exotel's own acceptance of the call is not in the figure: the simulated provider answers at once. One earlier run of the same command stopped on a 30-second wait in one round and did not recur in the two runs after it.
+
+**The screen-pop by the poll: missed.** `pnpm --filter web exec tsx tests/measures/g2.ts screen-pop`: the journeys' screen-pop caller waiting on `/home`; Exotel's Passthru call on the real route at a random moment of the 3-second poll, from a number two of her customers share; timed from the Passthru call to the ringing route's answer carrying it. Target: TEL-05's 2 seconds (design §7.4), read at p95.
+
+| Transport | Calls | p50 ms | p95 ms | Longest ms | Within 2 s | Passthru answered (p50) | Result |
+|---|---|---|---|---|---|---|---|
+| The 3-second poll | 30 | 1,650 | 2,938 | 3,030 | 18 of 30 | 10 ms | missed |
+
+The step that misses is the poll's own wait (up to 3 seconds); the server's part, the Passthru call stored and the pop held, is about 10 ms. This agrees with T4's run of 17-11-2026, and with the owner's decision of 18-11-2026 that Realtime is the transport that meets the 2 seconds, with the poll as the fallback. The Realtime figure waits for dev ([realtime.md](realtime.md)).
+
+**Hosted runs still to make** (each the owner's go-ahead):
+1. The dial on dev: `pnpm --filter web exec tsx tests/measures/g2.ts dial --base-url https://shakti-prime-dev.vercel.app --hosted-run-approved --rounds 10`, with `G2_DIAL_EMAIL`, `G2_DIAL_PASSWORD` (a tele-caller of company 1 on dev) and `G2_DIAL_PHONE` (their own phone, which rings) set, between 9 AM and 9 PM in India. Waits on the Exotel sandbox keys and the DLT numbers mapped on dev (a hosted runtime has no simulated provider). Each round adds a lead named "Measure Dial" on dev.
+2. The screen-pop on dev: `pnpm --filter web exec tsx tests/measures/g2.ts screen-pop --base-url https://shakti-prime-dev.vercel.app --hosted-run-approved --rounds 30`, with `G2_POP_EMAIL`, `G2_POP_PASSWORD`, `EXOTEL_INCOMING_SECRET`, `G2_POP_CALL_TO` (company 1's incoming calls number), `G2_POP_DIAL_WHOM` (the caller's own phone) and `G2_POP_CALL_FROM` (a number two of the caller's customers share), each as Exotel's Passthru writes it (national form with its leading 0). Waits on Realtime on dev (see [realtime.md](realtime.md)).

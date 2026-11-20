@@ -88,3 +88,13 @@ Read through search results quoting each vendor's pages (the build session could
 
 ## 7. Results
 Not run yet: the fixture set's numbers (§5) test the arithmetic and are not results. Part 2 records here, with the date, each vendor's report on the stand-in set.
+
+## Measured (G2)
+**Run of 20-11-2026**, in a cloud VM (4 processors, Intel Xeon at 2.1 GHz, 16 GB), on branch `feat/g2-measures` at 58720fdf (product code unchanged from `main` at 889ec54d): the part of the voice turn that needs no vendor. `pnpm --filter @shakti/voice-agent exec tsx src/measure-turns.ts --turns 200` runs the worker's own `VoiceSession` on V2's fake room with the real clock and timers, with stand-ins for streaming speech-to-text, the reply and text-to-speech, and reads its `turnStats()`, what `voice_sessions.turn_stats_json` keeps (`apps/voice-agent/src/turn-timing.ts`).
+
+| Stand-ins | Turns | Final transcript p50 / p95 | First sentence | First speech | First audio | What it shows |
+|---|---|---|---|---|---|---|
+| Answer at once | 200 | 0 / 0 ms | 0 / 0 ms | 0 / 0 ms | 0 / 0 ms | the worker adds under 1 ms to each step |
+| §9.3's budget (250, 600, 250 ms) | 50 | 250 / 251 ms | 600 / 601 ms | 250 / 251 ms | 1,101 / 1,102 ms | the steps add up to the first audio |
+
+The target, first audio p50 at most 1,500 ms from Mumbai (design §9.3), is **not measured yet**: the real steps are the vendors' (Sarvam's speech, the model's first sentence, the network and playback). They wait for V1 part 2's keys and the LiveKit project: `pnpm --filter web spike:voice -- latency` (§3) gives each step's p50 and p95, and every real session on dev keeps its own `turn_stats_json`. A run on dev is the owner's go-ahead.

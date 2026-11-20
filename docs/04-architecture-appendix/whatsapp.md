@@ -37,3 +37,6 @@ Optional: `WHATSAPP_SPIKE_TEMPLATE`, `WHATSAPP_SPIKE_TEMPLATE_LANGUAGE`, `WHATSA
 
 ## 5. Results
 Not run yet.
+
+## Measured (G2)
+**20-11-2026:** the WhatsApp webhook route (`/api/v1/webhooks/meta/whatsapp`) answers 500 to every delivery on the production build served by `next start`, as do four other routes, so its answer time under load is not measured; the defect, its cause and the figures of the one route that works are in [webhooks.md](webhooks.md).
