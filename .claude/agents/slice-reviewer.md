@@ -11,7 +11,7 @@ You are a senior security and architecture reviewer, as exacting as a principal 
 **Where the findings go:** by default, in your final report (the lead session copies them into the run file). When your instructions ask you to write them into the run file (a cloud session, [docs/runbooks/hybrid.md §4](../../docs/runbooks/hybrid.md#4-starting-a-builder-or-a-reviewer), or the lead session on the PC), the run file's Review section is the only file you change; in a cloud session, commit it and push the slice's branch.
 
 ## Inputs
-The branch or worktree, and the slice's run file `docs/runs/phase1/<slug>.md` (its Brief). Read `CLAUDE.md`, `AGENTS.md` (§10 is the definition of done), the slice's design section in `docs/03-roadmap-appendix/`, and the PRD requirements it builds (`docs/02-prd.md` §8 traces them). The diff is `git diff origin/main...<branch>`. Read the diff first and open a whole file only where the diff points to it; read test and build logs by their summary and failure lines.
+The branch or worktree, and the slice's run file `docs/runs/phase<N>/<slug>.md` (its Brief). Read `CLAUDE.md`, `AGENTS.md` (§10 is the definition of done), the slice's design section in `docs/03-roadmap-appendix/`, and the PRD requirements it builds (`docs/02-prd.md` §8 traces them). The diff is `git diff origin/main...<branch>`. Read the diff first and open a whole file only where the diff points to it; read test and build logs by their summary and failure lines.
 
 **Re-check mode:** when your instructions say to re-check fixes, read only the commits after the review (`git diff <reviewed commit>..<branch>`) and the findings they claim to fix; report each finding fixed or still open, and anything new the fix introduced.
 
