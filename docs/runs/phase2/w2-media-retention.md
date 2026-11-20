@@ -169,4 +169,19 @@ Model and effort: Opus 5.5, high. One round on the review of b84369b1 (no critic
 
 ## Review
 
+### Slice review, 20-11-2026, on the PC (the `slice-reviewer` agent), head b84369b1 against 889ec54d
+No critical or high finding; the core rules held (nothing newer than the period, nothing in use, only the workers principal, off by default). Three medium and seven low, sent to the builder for one fix round, all fixed and tested at 82b82b3f (the fixes report above) but L3, kept as decision 3.
+| # | Sev | Finding | Outcome |
+|---|---|---|---|
+| M1 | medium | Every night restarted at company 1 with 15 seconds, so a backlog there starved the other companies and every orphan sweep | fixed: time shared fairly, the sweep before the backlog |
+| M2 | medium | The orphan sweep looked back only 30 days, so an unmasked original older than that, or one aging out in a gap, was never removed | fixed: resumes from the last good sweep, the whole folder the first time; its own switch |
+| M3 | medium | DATABASE lacked the definers, the summary column and the two jobs | fixed |
+| L1 | low | A summary of an older shape would fail the whole chat | fixed: read leniently |
+| L2 | low | The period's lower bound was one year | fixed: three |
+| L3 | low | The store is deleted before the record (a narrow race) | kept: decision 3, with its log line and DATABASE's rule for later slices |
+| L4 to L7 | low | The time checked only between batches; two tests that could pass vacuously; cursor tests that fail on a reused database; a run whose every removal failed did not fail | fixed |
+
+The lead read the fix diffs (medium findings only, so no re-check by a reviewer). Outside the brief, for the owner: an anonymised customer's WhatsApp files still wait the full three years (W1 decision 22), while call recordings go at once.
+
 ## Integration
+- 20-11-2026, on the PC (slot w2-media-retention, Postgres 54334): `main` (#268 to #270) merged in with no conflict; the migrations stay 0219 and 0220 unless another slice merges first; `db:generate` reported no change; `docs/data` regenerated.

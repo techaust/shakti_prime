@@ -5,7 +5,8 @@ import { StatusBadge } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { planCall } from '../../actions/calling';
-import { formatDateTime, formatPhone } from '../../screens/format';
+import { momentValues } from '../date-time';
+import { formatPhone } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
 import { useQuery } from '../screens/use-command';
 
@@ -61,7 +62,7 @@ export function CallPlan({ entityId, opportunityId }: { entityId: number; opport
           </p>
           {shown.purpose === 'promotional' && shown.dndCheckedAt !== null ? (
             <p className="text-text-muted text-sm">
-              {t('dndChecked', { when: formatDateTime(shown.dndCheckedAt) })}
+              {t.rich('dndChecked', momentValues(shown.dndCheckedAt))}
             </p>
           ) : null}
           {shown.allowed ? (
