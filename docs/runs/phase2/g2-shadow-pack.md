@@ -5,7 +5,7 @@
 | Branch | `feat/g2-shadow-pack` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): reports over AI agent principals' work, read under row-level security |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; built on Opus 5.5 at high effort (start) |
 | State | briefed |
 | Next step | build to the early check |
 
@@ -45,6 +45,18 @@ Review checklist (check before your report): every figure reads under the viewer
 **Built beside you today, each in its own cloud session from `main` at 889ec54d:** `g2-shadow-pack` (the Concierge and Co-pilot shadow reports and review samples), `g2-alerts` (Phase 2 alerts), `g2-runbooks` (INCIDENTS sections and the exit-gate checklist; documents only), `g2-measures` (the latency and throughput measures), `p2-fixes` (Phase 2 review follow-ups) and `w2-media-retention` (the WhatsApp media retention job). Shared registration points (`en.json`, `AGENT_DEFAULTS`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event worker registry, the testing lists, `turbo.json`, `.env.example`, the jobs check's list) take one line or one block each, kept together under a comment naming your slice; the lead merges them.
 
 ## Report
+
+### 20-11-2026, cloud session: the gap list (step 1)
+What the two reports show today against §8.1's first bullet (per action type: proposals, agreement with what people did, filter refusals, handoffs, spend per lead; a sample of 50 draft-and-reply pairs per agent):
+
+| §8.1 asks for | Concierge report (`/admin/agents/concierge`) today | Co-pilot report (`/admin/agents/copilot`) today | Gap built here |
+|---|---|---|---|
+| Proposals per action type | `proposals`: per type shadowed, waiting, approved, rejected | the same | kept; extended with decided |
+| Agreement with what people did, per type | only for replies, as draft states (sent, edited, discarded) and `answered`; none for the facts or the callback | outcome and fact agreement of the call summaries (not an action type); none per proposal type | per type agreed, edited, disagreed and open, by a rule per type (below) |
+| Filter refusals | by reason for the whole agent | the same | by action type and reason, beside each type |
+| Handoffs | none (the chat's current `handoff_reason` only, which a chat given back loses) | none | the Concierge's hand-offs by reason and by whom (the assistant's rules or a person), from the audit trail; the Co-pilot has no hand-off, stated on its report |
+| Spend per lead | none (Integration health shows spend per agent, not per lead) | none | the agent's spend, runs and distinct leads in the period, and spend per lead |
+| 50 draft-and-reply pairs | none (a paged list of every draft) | none (a paged list of every summary) | a sample query per agent and a print page each (step 4) |
 
 ## Review
 
