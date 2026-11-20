@@ -192,6 +192,7 @@ try {
           seconds,
           env,
           countStored: server.local,
+          settleHeldOff: server.local && stand !== undefined,
           providers: providers as typeof PROVIDERS,
         });
         results.push(result);

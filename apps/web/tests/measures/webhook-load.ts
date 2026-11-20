@@ -139,6 +139,12 @@ export async function loadAtRate(options: {
   env: WebhookSigningEnv;
   /** Count the stored rows on the local database. */
   countStored: boolean;
+  /**
+   * The local database's rows of a run whose processing was held off (published to the queue
+   * stand-in, which calls no worker): marked processed afterwards, so no backlog is left for the
+   * sweep and the suites that read the waiting rows.
+   */
+  settleHeldOff?: boolean;
   /** The providers sent in turn; all six by default. */
   providers?: readonly WebhookProvider[];
 }): Promise<RateResult> {
@@ -219,6 +225,13 @@ export async function loadAtRate(options: {
       ids,
       held.map((r) => r.provider_event_id),
     );
+    if (options.settleHeldOff === true) {
+      await asMigrator(
+        (m) => m`
+          update webhook_inbox set processed_at = now(), error_code = 'no_handler'
+           where provider_event_id = any(${ids}) and processed_at is null and failed_at is null`,
+      );
+    }
   }
   return result;
 }
