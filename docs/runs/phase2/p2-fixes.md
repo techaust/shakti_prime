@@ -5,9 +5,9 @@
 | Branch | `fix/p2-fixes` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): role grants in a definer, a customer-facing filter, an anonymisation window |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed |
-| State | briefed |
-| Next step | items 1 to 3 to the early check |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (start and early check) |
+| State | early check: items 1 to 3 built, waiting for "continue" |
+| Next step | the lead reads the early check; then items 4 to 8 and the lead's two additions |
 
 ## Brief
 The open Phase 2 follow-ups of [STATUS](../../10-status.md#open-follow-ups) that are code, one commit each with its tests. Read each item's source finding in the run file named before you change anything.
@@ -46,6 +46,81 @@ Review checklist (check before your report): each SQL function redefined keeps e
 **Built beside you today, each in its own cloud session from `main` at 889ec54d:** `g2-shadow-pack` (the Concierge and Co-pilot shadow reports and review samples), `g2-alerts` (Phase 2 alerts), `g2-runbooks` (INCIDENTS sections and the exit-gate checklist; documents only), `g2-measures` (the latency and throughput measures), `p2-fixes` (Phase 2 review follow-ups) and `w2-media-retention` (the WhatsApp media retention job). Shared registration points (`en.json`, `AGENT_DEFAULTS`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event worker registry, the testing lists, `turbo.json`, `.env.example`, the jobs check's list) take one line or one block each, kept together under a comment naming your slice; the lead merges them.
 
 ## Report
+
+### 20-11-2026, cloud session: early check (items 1 to 3)
+
+**Warning for the lead (affects every pull request's CI today):** `packages/domain/tests/commands/whatsapp-quotes.test.ts` fails 24 cases on any branch until about 19:00 UTC on 20-11-2026. `testPhone()` (`packages/db/src/testing/phone.ts`) numbers count from `Date.now() % 4e9`, so for about 13 hours in every 46 days they begin with `91`. The file's helpers (lines 196 and 1102) and `apps/web/tests/whatsapp-quotes.test.ts:242` strip `/^\+?91/` as if it were the country code, so the chat matches no customer (`holders: 0`). Fixed in feb0c00d (the number's own digits are kept); worth cherry-picking ahead of today's pull requests. This session could not message the lead's PC session (cloud to PC is refused), so it is recorded here.
+
+Commits: 394a0114 (item 1), 721d2686 (item 2), ecef6f42 (item 3), 5dd9fbe7 (`docs/data` regenerated), feb0c00d (the test number above).
+
+**1. `agents.note.write` agent-only**
+- `packages/contracts/src/permissions.ts`: `AGENT_ONLY_PERMISSIONS` (`agents.note.write`) and `isAgentOnlyPermission()`; `roleMayHold()` answers true only for an `agent:` role.
+- The role editor's page (`packages/domain/src/queries/admin/roles.ts`) no longer lists an agent-only permission for a staff role, as it already did for platform-only ones, so no locked row with a wrong reason appears. `admin.role.permissions.set` refuses it with `permission_not_for_role` through `roleMayHold()`.
+- Migration `0219_agent_only_permissions` redefines `app.role_may_hold()`. Its only definition on `main` is 0074, and the line-by-line diff against it is one added line; every other clause is unchanged:
+  ```
+  4a5
+  >     when p_permission_key = 'agents.note.write' then p_role_key like 'agent:%'
+  ```
+  The migration also deletes any staff role's `agents.note.write` grant left over from before. Such a grant wrote nothing, since the insert policy admits only the Co-pilot. The seed has none.
+- `docs/07-security.md` §3.1 names the agent-only rule.
+- Tests, all failing before the fix:
+  - `permissions.test.ts`: 4 expectations.
+  - `set-role-permissions.test.ts`: 1 case (the Executive, the GM and a tele-caller are refused).
+  - `role-editor.test.ts` (security): the oracle `app.role_may_hold()` against `roleMayHold()` failed before; plus 2 holder-guard refusals and 1 case where only agent roles may hold it. 4 cases failed against 0074's function.
+  - `admin-roles.test.ts`: the page omits it.
+  - `roles.spec.ts`: the Store Manager's page offers no "Write call briefs and call summaries".
+
+**2. The Concierge's number words and the customer's own name**
+- `claims.ts` `withoutCustomerName()`, called in `replyProblem()` after the company's own numbers are set aside. `ConciergeFilterFacts.customerName` comes from the run's facts (`conciergeFilterFacts`).
+- The name counts as standing as that name in two forms:
+  - written whole ("Ramesh Das", "R.K. Das");
+  - a word of it beside a title: before it `mr`, `mrs`, `ms`, `shri`, `sri`, `smt`, `shrimati`; after it `ji`, `sir`, `madam`, `sahab`, `saheb`.
+- Written whole without a title, the name counts only when one of its words is not a number word, since "Das" alone cannot be told from the number.
+- The name is untrusted (it can come from the WhatsApp profile), so the exemption is bounded:
+  - a name holding any money, day, offer or promise word exempts nothing;
+  - a name of more than 5 words exempts nothing;
+  - only the name's own span is blanked, and a number word anywhere else, even in the same sentence, is still a claim.
+- Tests in `filter.test.ts`, 2 new cases:
+  - 7 greetings that pass. These failed before the fix.
+  - 9 that are still refused: no name recorded, the same word used as a number, a bare all-number name, a name holding a money or day word, another number word beside the name.
+
+**3. The anonymisation window and WhatsApp**
+- Migration `0220_customer_idle_whatsapp` redefines `app.customer_idle()` (its only definition on `main` is 0142) with the anonymisation's own `last_inbound_at` test. Diff against 0142, one added clause, all else unchanged:
+  ```
+  28a29,30
+  >          and not exists (select 1 from public.whatsapp_threads x
+  >                           where x.account_id = a.id and x.last_inbound_at >= p_cutoff)
+  ```
+- `app.stale_leads()` (the window and the dry run) reads it through `app.lead_is_stale()`, so `stale` now agrees with what `app.anonymise_stale_leads()` acts on.
+- `anonymise_stale_leads()` is not redefined: its own check (0207's definition) stays and is now redundant but harmless. Redefining 250 lines for no change in behaviour seemed worse.
+- `docs/05-database.md` describes the clause in `customer_idle`.
+- `EXPLAIN (ANALYZE)` of the probe: Index Scan using `whatsapp_threads_account_idx`, Index Cond `account_id`, Filter `last_inbound_at`, 0.26 ms.
+- Security test in `whatsapp.test.ts`: a customer who wrote today has `stale: false` in the window and is passed by; one last heard from in 2010 has `stale: true` and is anonymised. It failed before the fix (the recent writer read as stale).
+
+**Checks in this VM**
+- `pnpm typecheck`: 10 of 10 tasks.
+- eslint `--max-warnings 0` on every folder and file touched: clean (needs `NODE_OPTIONS=--max-old-space-size=6144` here).
+- Unit tests: contracts 322 of 322, domain 2593 of 2593, db 160 of 160 after `pnpm db:docs`.
+- `pnpm test:security`:
+  - db: 1512 of 1512.
+  - domain: 1365 passed, 24 failed. All 24 are in `whatsapp-quotes.test.ts` (the clock fault above); after feb0c00d that file passes 34 of 34 alone, and `apps/web/tests/whatsapp-quotes.test.ts` passes 17 of 17.
+  - web: in the same run, passed.
+- `pnpm build`: passed.
+- `roles.spec.ts`:
+  - with the host's Chromium, every step passed but the screenshot (a font-rendering difference);
+  - `e2e:snap -- roles.spec.ts` in the Linux image: 20 passed, baselines unchanged. The role grants page has no screenshot, and the roles list does not change.
+- `machines:docs`: no change.
+
+**Assumptions**
+- Agent-only means any `agent:` role, the same shape as platform-only meaning any `system:` role. The notes' insert policy still admits only `agent:copilot`.
+- The role editor hides an agent-only permission rather than showing it locked, so no new lock reason or copy is needed.
+- In docs, the new migrations are not cited by number in `05-database.md`'s row, because the lead renumbers them at the merge.
+
+**Skills loaded:** none. `add-command` and `add-table` do not apply, since no command or table was added.
+
+**Lead's additions, received during the early check, to do after "continue":**
+- the `tier_budget_reached` refusal told to the quote's sender (part of item 5);
+- item 9: a Concierge run that ends with the AI service unavailable counts toward the hand-off.
 
 ## Review
 
