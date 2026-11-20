@@ -242,4 +242,21 @@ The review of df3b81a9 found no critical or high findings. Each item of the fix 
 
 ## Review
 
+### Slice review, 20-11-2026, on the PC (the `slice-reviewer` agent), head df3b81a9 against 889ec54d
+No critical or high finding. Two medium and eight low, each sent to the builder for one fix round; every one fixed and tested at 687aa1a6 (the fixes report above), item 8 by the lead.
+| # | Sev | Finding | Outcome |
+|---|---|---|---|
+| 1 | medium | The outage alerts (`webhooks.failing`, `webhooks.backlog`, `ai.provider_failing`) stayed silent for the rest of the day in India after the problem cleared, so a second outage the same day went untold | fixed: re-armed when the subject is below its threshold |
+| 2 | medium | SECURITY's `platform.jobs.check` row did not name `app.alert_counts()` and what it returns | fixed |
+| 3 | low | The Phase 2 run had no time bound inside the route's 30 seconds | fixed: 15 seconds, an overrun told as `phase2-alerts` failed |
+| 4, 5 | low | Two test assertions weaker than before | fixed |
+| 6 | low | The no-phone-number check let a bare run of digits through | fixed |
+| 7 | low | The definer's provider list could drift from the contract | fixed: a test holds them equal |
+| 8 | low | `ai.provider_failing` also fires on a store outage or a missing AI key | the lead's: INCIDENTS §18 says so |
+| 9 | low | Spend totals include calls still running | noted beside `aiSpendShare` |
+| 10 | low | The jobs check's `alerted` left out the Phase 2 alerts | fixed |
+
+The lead read the fix diffs (medium findings only, so no re-check by a reviewer).
+
 ## Integration
+- 20-11-2026, on the PC (slot g2-alerts, Postgres 54333): `main` (#268 to #270) merged in with no conflict; the migration stays 0219 (`main` added none); `db:generate` reported no change; `docs/data` regenerated. INCIDENTS gains `ai.provider_failing` in its header paragraph and in §18, with review finding 8.
