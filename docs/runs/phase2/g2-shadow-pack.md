@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): reports over AI agent principals' work, read under row-level security |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; built on Opus 5.5 at high effort (start) |
-| State | briefed |
-| Next step | build to the early check |
+| State | early check |
+| Next step | the lead reads the early check and sends "continue" |
 
 ## Brief
 Read first:
@@ -57,6 +57,33 @@ What the two reports show today against §8.1's first bullet (per action type: p
 | Handoffs | none (the chat's current `handoff_reason` only, which a chat given back loses) | none | the Concierge's hand-offs by reason and by whom (the assistant's rules or a person), from the audit trail; the Co-pilot has no hand-off, stated on its report |
 | Spend per lead | none (Integration health shows spend per agent, not per lead) | none | the agent's spend, runs and distinct leads in the period, and spend per lead |
 | 50 draft-and-reply pairs | none (a paged list of every draft) | none (a paged list of every summary) | a sample query per agent and a print page each (step 4) |
+
+### 20-11-2026, cloud session: early check (steps 1 to 3, queries)
+**Built** (commit `feat(agents): shadow pack figures, …`):
+- `packages/contracts/src/shadow-pack.ts`: `AgentProposalFiguresDto` (per action type: proposals, shadowed, waiting, approved, rejected, decided, agreed, edited, disagreed, open, and the refusals of that type by reason), `AgentSpendPerLeadDto`, `ConciergeHandoffCountDto`, `ShadowSampleInput` (a period of at most 92 IST days, as the reports), `ShadowSampleDto` (at most 50 items). `ConciergeReportDto` and `CopilotReportDto` take the figures in `proposals` (extended, not a second list) and gain `spend`; the Concierge's gains `handoffs` (null for a viewer without `audit.read`).
+- `packages/domain/src/queries/agents/shadow-pack.ts`: `shadowActionsSql()` (one statement for the figures and the sample: each proposal, its lead, and how what people did compares), `proposalFigures()`, `agentRefusals()` and `refusalsByReason()`, `spendPerLead()`, `conciergeHandoffs()`, `loadConciergeSample()` and `loadCopilotSample()` (exported from `@shakti/domain`); `replyLaterals()` moved here from `conciergeDraftsSql()`, which now uses it, so the report and the sample read a draft's two messages by one statement. `loadConciergeReport()` and `loadCopilotReport()` call the shared figures in place of their own proposals and refusals queries; the three reports' identical reader checks are one, `checkShadowReader()` in `shadow-report.ts`.
+- Migration `0219_shadow_pack_hand_off_index` (renumbered at the merge): `audit_logs_hand_off_idx` on `(entity_id, created_at)` where the command is one of the two hand-offs; `docs/data/` regenerated.
+
+**Agreement rules** (the brief left them to the build):
+- A person's decision first: approved as proposed agrees, approved after an edit counts as edited (its own figure), rejected or dismissed disagrees, waiting is open.
+- In Shadow, per action type: qualification facts agree when every fact the lead records of those proposed equals it, disagree when one differs, open when the lead records none (the five measures; a DISCOM consumer number is neither compared nor shown); a task (the Concierge's callback, the Co-pilot's follow-up) or a template agrees when a person made a task on the lead, or sent that template on the lead's chat, at or after the proposal, disagrees when the lead was won or lost without one, else open; a reply in Shadow stays open, since only a reader can set two texts side by side, which is what the sample is for.
+
+**Handoffs:** the Concierge's, from the audit trail (`messaging.thread.record_hand_off`, the assistant's rules and answers; `messaging.thread.hand_off`, a person who took the chat), only those that moved the chat from the assistant, by reason and by whom. The Co-pilot has none and no near equivalent: it never answers a customer, a caller makes every call; its report carries no hand-off figure and says so.
+
+**Spend per lead:** the sum of `agent_runs.cost_paise` of the agent in the company and period (every run, refused and stopped ones too), over the distinct leads its proposals name (a reply through its chat's lead) and, for the Co-pilot, the leads of its briefs and summaries; rounded half up to the paisa. No `finance.cost.read` or `procurement.rate.read` data is read.
+
+**The sample:** the period's proposals in time order cut into 50 runs of equal length (`ntile(50)` over `(created_at, id)`), the first of each, oldest first; every proposal when there are 50 or fewer. Each item: action type, the proposal (reply text, facts, task or template), what people sent or did (the first message a person sent after the draft and before the customer wrote again; the lead's recorded facts; the first task a person made on the lead after it; the template a person sent), the state and the agreement; the customer's message as stored (masked), plain text.
+
+**Tests:** `packages/domain/tests/queries/shadow-pack.test.ts`, 10 cases on real Postgres, rows seeded into a random 30-day period of 2001 to 2020 in company 3 with company 1's rows beside them: per action type counts and agreement for the three Concierge types (decided, edited, Shadow by rule), refusals per type, hand-offs by reason and whom (a no-op hand-off and company 1's not counted; a GM reads them; a viewer without `audit.read` gets none), spend per lead for both agents (company 1's ₹999.99 runs never counted), the Co-pilot's template agreement, the sample of 12 (all, oldest first, with the asked message, the person's reply, the facts with no consumer number, the task) and of 121 (exactly 50, the expected `ntile` picks, the same on a second read), a caller and an agent refused, a company outside the request refused, a period over 92 days refused. `reader-parity.test.ts` covers the two samples on both pools.
+
+**Checks in this VM:** `pnpm --filter <contracts, db, domain, web> typecheck` clean; `pnpm exec eslint --max-warnings 0` on `packages/domain/src/queries/agents`, `packages/domain/tests/queries`, `packages/contracts/src`, `packages/db/src/schema` clean; `@shakti/contracts` unit tests 322 passed; `@shakti/domain` unit tests 2590 passed (108 files); the new file and `reader-parity`, `shadow-report`, `concierge-runs`, `copilot-runs` on Postgres 62 passed; `pnpm db:docs` regenerated; SECURITY_SUITE_LINE.
+
+**Assumptions:**
+- The filter's verdict per pair: every proposal kept passed the filter (a refused answer keeps only its reason, never its words, and records no chat or lead), so the sample shows each pair's state and agreement and, beside the pairs, the period's refusals by action type and reason; a per-pair "refused" line would need the refused answers stored, which §7.2 and the runtime rule out.
+- Hand-offs come from the audit trail, readable by the Executive and the General Manager; a custom role holding an agent control without `audit.read` sees the other figures and no hand-offs (null, not zero).
+- Spend per lead uses the leads the agent proposed on (and the Co-pilot's notes), not every chat it read: a run that proposed nothing has no lead to count but its cost counts.
+
+**Next:** step 4 (the figures on both reports, the sample pages, copy, journeys) on "continue".
 
 ## Review
 
