@@ -13,6 +13,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  principalFor,
   whatsappChannel,
   whatsappCustomer,
   type WhatsAppCustomerFixture,
@@ -540,7 +541,10 @@ describe('who reads the pack', () => {
     await expect(conciergeReport(caller)).rejects.toMatchObject({ code: 'forbidden' });
     await expect(ask(caller, loadConciergeSample)).rejects.toMatchObject({ code: 'forbidden' });
     await expect(ask(caller, loadCopilotSample)).rejects.toMatchObject({ code: 'forbidden' });
-    const agent = await createTestPrincipal('agent:concierge', [ENTITY]);
+    // The seeded agent principal: a new agent row would be a principal every company reads.
+    const agent = principalFor('agent:concierge', [ENTITY], {
+      id: AGENT_PRINCIPAL_IDS['agent:concierge'],
+    });
     await expect(ask(agent, loadConciergeSample)).rejects.toMatchObject({ code: 'forbidden' });
   });
 
