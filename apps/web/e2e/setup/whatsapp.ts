@@ -111,12 +111,24 @@ export async function ensureWhatsAppJourneys(executiveId: string): Promise<void>
   // W2: a photo of more than three years ago whose file the media retention job removed (its own
   // command), written once, so the chat shows the removed file's line.
   const [photo] = await asMigrator(
-    (m) => m<{ id: string }[]>`select msg.id from whatsapp_messages msg
-                                 join whatsapp_threads t on t.id = msg.thread_id
-                                where t.entity_id = ${SNAPSHOT_COMPANY.entityId}
-                                  and t.wa_id = ${snapshotWaId} and msg.kind = 'media'`,
+    (m) => m<{ id: string; removed: boolean }[]>`
+      select msg.id, msg.media_summary is not null as removed from whatsapp_messages msg
+        join whatsapp_threads t on t.id = msg.thread_id
+       where t.entity_id = ${SNAPSHOT_COMPANY.entityId}
+         and t.wa_id = ${snapshotWaId} and msg.kind = 'media'`,
   );
-  if (photo === undefined) await removedPhoto(SNAPSHOT_COMPANY.entityId, snapshotWaId);
+  if (photo === undefined) {
+    await removedPhoto(SNAPSHOT_COMPANY.entityId, snapshotWaId);
+  } else if (!photo.removed) {
+    // A database made before the summary was kept: the job's command finishes the removal.
+    const entityId = SNAPSHOT_COMPANY.entityId;
+    await executeCommand(
+      principalFor('system:workers', [entityId], { id: SYSTEM_WORKERS_PRINCIPAL_ID }),
+      { entityIds: [entityId] },
+      expireWhatsAppMedia,
+      { entityId, messageIds: [photo.id] },
+    );
+  }
   // The snapshot chat waits for its reply with its window open on every run, so its screenshot
   // shows the same reply box whatever day the database was made. Every journey chat is answered
   // by people, as one a person took over is (a new chat starts with the assistant).
