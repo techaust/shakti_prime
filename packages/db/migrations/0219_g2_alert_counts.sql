@@ -36,12 +36,23 @@ begin
                                   and ec.is_active)) order by e.id), '[]'::jsonb)
     into v_companies
     from public.entities e;
+  -- One range of the failed rows' index and one pass of the waiting rows' index, each grouped by
+  -- provider, so neither reads the processed rows of a busy provider.
+  with failed as (
+    select w.provider, count(*)::integer as n
+      from public.webhook_inbox w
+     where w.failed_at >= v_now - interval '1 hour'
+     group by w.provider
+  ), waiting as (
+    select w.provider, count(*)::integer as n, pg_catalog.min(w.received_at) as oldest
+      from public.webhook_inbox w
+     where w.processed_at is null and w.failed_at is null
+     group by w.provider
+  )
   select coalesce(jsonb_agg(jsonb_build_object(
            'provider', p.provider,
-           'failedLastHour', (select count(*)::integer from public.webhook_inbox w
-                               where w.provider = p.provider
-                                 and w.failed_at >= v_now - interval '1 hour'),
-           'waiting', q.waiting,
+           'failedLastHour', coalesce(f.n, 0),
+           'waiting', coalesce(q.n, 0),
            'oldestWaitingSeconds',
              case when q.oldest is null then null
                   else greatest(0, pg_catalog.floor(extract(epoch from v_now - q.oldest)))::bigint
@@ -49,10 +60,8 @@ begin
     into v_webhooks
     from unnest(array['meta_whatsapp', 'meta_leadgen', 'google_leadform', 'exotel_status',
                       'exotel_incoming', 'livekit']) with ordinality as p(provider, ord)
-    cross join lateral (
-      select count(*)::integer as waiting, pg_catalog.min(w.received_at) as oldest
-        from public.webhook_inbox w
-       where w.provider = p.provider and w.processed_at is null and w.failed_at is null) q;
+    left join failed f on f.provider = p.provider
+    left join waiting q on q.provider = p.provider;
   select coalesce(jsonb_agg(jsonb_build_object(
            'agent', c.agent, 'entityId', c.entity_id, 'capPaise', c.daily_spend_cap_paise)
            order by c.agent, c.entity_id nulls first), '[]'::jsonb)
