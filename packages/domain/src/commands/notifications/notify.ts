@@ -165,6 +165,24 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         },
       ];
     }
+    case 'crm.lead.attached': {
+      // A nurtured lead an enquiry joined: its owner now, unless they added the enquiry
+      // themselves; once per event (I1 re-check N2).
+      if (!input.nurtured) return [];
+      const lead = await leadNow(ctx, input.entityId, input.opportunityId);
+      if (lead?.ownerId === undefined || lead.ownerId === null) return [];
+      if (lead.ownerId === input.attachedBy) return [];
+      return [
+        {
+          userId: lead.ownerId,
+          type: 'enquiry_attached',
+          subjectType: 'opportunity',
+          subjectId: input.opportunityId,
+          payload: { accountId: lead.accountId, opportunityId: input.opportunityId },
+          dedupeKey: `enquiry_attached:${input.eventId}`,
+        },
+      ];
+    }
     case 'calls.missed.recorded': {
       // The owner of the lead the missed call made or joined, while the lead is still theirs; one
       // notice per call however often the event is delivered.

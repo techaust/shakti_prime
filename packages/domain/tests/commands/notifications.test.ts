@@ -217,6 +217,72 @@ describe('a lead given to someone (lead_assigned)', () => {
   });
 });
 
+describe('an enquiry that joined a lead in nurture (enquiry_attached, I1 re-check N2)', () => {
+  /** A lead of callerA in nurture, and an enquiry for its number added by `by`: the event's input. */
+  async function attachedTo(by: Principal, nurtured = true) {
+    const number = phone();
+    const lead = await newLead(callerA, 'farmer_pumps', number);
+    if (nurtured) {
+      await asMigrator(
+        (
+          m,
+        ) => m`update opportunities set state = 'nurture', state_changed_at = now() - interval '40 days'
+                  where id = ${lead.id}`,
+      );
+    }
+    const events = memoryOutboxSink();
+    const again = await run<{ id: string; outcome: string }>(
+      by,
+      createLead,
+      {
+        entityId: 1,
+        pipelineKey: 'farmer_pumps',
+        contact: { name: `Notice customer ${RUN}`, phone: number },
+        account: { type: 'farm' },
+      },
+      { outbox: events },
+    );
+    expect(again).toMatchObject({ id: lead.id, outcome: 'attached' });
+    const attached = events.records.find((r) => r.type === 'crm.lead.attached');
+    expect(attached?.payload).toMatchObject({ nurtured, attachedBy: by.id });
+    return {
+      lead,
+      input: {
+        event: 'crm.lead.attached',
+        entityId: 1,
+        eventId: newId(),
+        opportunityId: lead.id,
+        nurtured,
+        attachedBy: by.id,
+      },
+    };
+  }
+
+  it('tells the lead’s owner once when a colleague’s enquiry joins it', async () => {
+    const { lead, input } = await attachedTo(teamLead);
+    const first = await notify(input);
+    expect(first.notices).toEqual([
+      expect.objectContaining({ userId: callerA.id, type: 'enquiry_attached' }),
+    ]);
+    expect((await notify(input)).notices).toEqual([]);
+    const rows = await noticesAbout(lead.id);
+    expect(rows.filter((r) => r.type === 'enquiry_attached').map((r) => r.user_id)).toEqual([
+      callerA.id,
+    ]);
+    expect(rows.find((r) => r.type === 'enquiry_attached')?.payload_json).toEqual({
+      accountId: lead.account.id,
+      opportunityId: lead.id,
+    });
+  });
+
+  it('tells nobody when the owner added it, or the lead was not in nurture', async () => {
+    const own = await attachedTo(callerA);
+    expect((await notify(own.input)).notices).toEqual([]);
+    const open = await attachedTo(teamLead, false);
+    expect((await notify(open.input)).notices).toEqual([]);
+  });
+});
+
 describe('a possible duplicate (duplicate_found)', () => {
   it('tells the owners of both leads in the card’s company, once', async () => {
     const first = await newLead(callerA);

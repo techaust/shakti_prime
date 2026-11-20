@@ -50,6 +50,14 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
         quoteId: event.aggregateId,
         acceptedBy: String(p.acceptedBy),
       };
+    case 'crm.lead.attached':
+      return {
+        ...base,
+        event: 'crm.lead.attached',
+        opportunityId: event.aggregateId,
+        nurtured: p.nurtured === true,
+        attachedBy: typeof p.attachedBy === 'string' ? p.attachedBy : null,
+      };
     case 'calls.missed.recorded':
       return {
         ...base,

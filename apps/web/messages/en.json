@@ -4948,7 +4948,8 @@
       "quote_accepted": "A quote on your lead was accepted",
       "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
-      "missed_call": "A customer gave you a missed call"
+      "missed_call": "A customer gave you a missed call",
+      "enquiry_attached": "A customer of your lead in nurture asked again"
     },
     "settings": {
       "title": "Notification settings",
@@ -5108,6 +5109,10 @@
     "missed_call": {
       "title": "A customer gave you a missed call",
       "body": "Call them back. The callback is in your calling list."
+    },
+    "enquiry_attached": {
+      "title": "A customer asked again",
+      "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
     }
   },
   "orders": {

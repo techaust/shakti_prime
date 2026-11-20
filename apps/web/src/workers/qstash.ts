@@ -86,6 +86,8 @@ export const EVENT_JOB_ROUTES: Readonly<
   'sales.order.credit_held': { path: NOTIFY_PATH, body: (event) => event },
   'sales.quote.accepted': { path: NOTIFY_PATH, body: (event) => event },
   'calls.missed.recorded': { path: NOTIFY_PATH, body: (event) => event },
+  // p2-fixes (I1 re-check N2).
+  'crm.lead.attached': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {
