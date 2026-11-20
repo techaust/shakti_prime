@@ -74,6 +74,11 @@ export const whatsappMilestoneSends = pgTable(
     /** The queued message (`whatsapp_messages.id`, partitioned, so no key points at it). */
     messageId: uuid('message_id'),
     outcome: text('outcome').notNull(),
+    /**
+     * The person whose action brought the milestone (a quote's sender), told when its message is
+     * refused later; null for a milestone no person asked for.
+     */
+    requestedBy: uuid('requested_by').references(() => principals.id),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => principals.id),

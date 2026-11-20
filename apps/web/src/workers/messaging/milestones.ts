@@ -41,6 +41,7 @@ async function sendMilestone(
   subjectKind: WhatsAppMilestoneSubject,
   threadId: string | null,
   log: Logger,
+  requestedBy: string | null = null,
 ): Promise<WhatsAppMilestoneOutcome | 'not_found'> {
   const scope = { entityIds: [event.entityId], requestId: ctx.requestId };
   const subject = await executeQuery(
@@ -64,6 +65,7 @@ async function sendMilestone(
     subjectId: event.aggregateId,
     threadId,
     values: milestoneValues(milestone, subject),
+    requestedBy,
   });
   log.log('info', 'messaging.milestone', {
     requestId: ctx.requestId,
@@ -88,7 +90,8 @@ const NOT_SENT: readonly WhatsAppMilestoneOutcome[] = [
  * `sales.quote.sent`: a quote sent by WhatsApp goes as the `quote_sent` milestone on its chat.
  * When it does not go (its template not approved, no map, no chat, no consent, the number
  * stopped messages), the person who sent it is told once (`whatsapp_quote_not_sent`), so they
- * share it another way: the quote reads as sent, and the customer has nothing.
+ * share it another way: the quote reads as sent, and the customer has nothing. The milestone
+ * keeps who sent it, so a refusal by the messaging worker later tells them too (`send.ts`).
  */
 export async function handleQuoteSent(
   event: DeliveredEvent,
@@ -97,9 +100,10 @@ export async function handleQuoteSent(
 ): Promise<WhatsAppMilestoneOutcome | 'not_found' | 'recorded'> {
   if (event.payload.channel !== 'whatsapp') return 'recorded';
   const threadId = typeof event.payload.threadId === 'string' ? event.payload.threadId : null;
-  const outcome = await sendMilestone(event, ctx, 'quote_sent', 'quote', threadId, logger);
-  const sentBy = event.payload.sentBy;
-  if (outcome !== 'not_found' && NOT_SENT.includes(outcome) && typeof sentBy === 'string') {
+  const sentBy = typeof event.payload.sentBy === 'string' ? event.payload.sentBy : null;
+  // The sender is kept with the milestone, so a refusal by the messaging worker tells them too.
+  const outcome = await sendMilestone(event, ctx, 'quote_sent', 'quote', threadId, logger, sentBy);
+  if (outcome !== 'not_found' && NOT_SENT.includes(outcome) && sentBy !== null) {
     const batch = await executeCommand(
       ctx.principal,
       { entityIds: [event.entityId], requestId: ctx.requestId },

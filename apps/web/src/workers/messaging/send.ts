@@ -13,6 +13,7 @@ import {
   executeCommand,
   executeQuery,
   budgetFor,
+  notifyEvent,
   quoteButtonTokens,
   readSendExtras,
   readSendFacts,
@@ -26,6 +27,7 @@ import {
 import { ProviderError } from '../../integrations/http';
 import type { TemplateMessage, WhatsAppClient } from '../../integrations/whatsapp/client';
 import { logger as appLogger } from '../../log';
+import { deliverNoticeBatch } from '../notify/deliver-notices';
 
 export interface SendDeps {
   /** `system:workers` scoped to the job's company. */
@@ -97,6 +99,48 @@ async function templateParts(
 type Outcome = Exclude<MessagingSendResult, { outcome: 'duplicate' }>;
 
 /**
+ * A quote's `quote_sent` message refused after the quote was marked sent (the window, the
+ * template, the number's STOP, the messaging limit, the filter): the person who sent the quote is
+ * told through the notice a milestone that was never queued brings (`whatsapp_quote_not_sent`,
+ * once a quote), so they share it another way. Any other message, or a milestone no person asked
+ * for, tells no one. Run after the refusal is recorded; a failure here is logged and the refusal
+ * stands, since a delivery again would find the message refused and skip it.
+ */
+async function tellQuoteSender(job: MessagingSendJob, deps: SendDeps, log: Logger): Promise<void> {
+  const scope = { entityIds: [job.entityId], requestId: deps.requestId };
+  try {
+    const extras = await executeQuery(
+      deps.principal,
+      scope,
+      (ctx) => readSendExtras(ctx, job.messageId),
+      { name: 'messaging.send.extras' },
+    );
+    const milestone = extras?.milestone;
+    if (
+      milestone?.name !== 'quote_sent' ||
+      milestone.subjectKind !== 'quote' ||
+      milestone.requestedBy === null
+    ) {
+      return;
+    }
+    const batch = await executeCommand(deps.principal, scope, notifyEvent, {
+      event: 'sales.quote.sent',
+      entityId: job.entityId,
+      eventId: job.eventId,
+      quoteId: milestone.subjectId,
+      sentBy: milestone.requestedBy,
+    });
+    await deliverNoticeBatch(deps.principal, batch, { requestId: deps.requestId });
+  } catch (error) {
+    log.log('error', 'messaging.quote_refusal_notice_failed', {
+      requestId: deps.requestId,
+      messageId: job.messageId,
+      error,
+    });
+  }
+}
+
+/**
  * Checks and sends one queued WhatsApp message (docs/06-api.md §6, design phase2 §6.1) as
  * `system:workers` of its company: the facts through `app.whatsapp_send_facts()`, the portfolio's
  * budget from the key-value store, then `decideSend` in the design's order. A refusal is recorded
@@ -144,6 +188,7 @@ export async function sendQueuedMessage(job: MessagingSendJob, deps: SendDeps): 
       messageId: job.messageId,
       refusal: decision.refusal,
     });
+    if (facts.kind === 'template') await tellQuoteSender(job, deps, log);
     return { eventId: job.eventId, outcome: 'done', status: 'refused', refusal: decision.refusal };
   }
   if (decision.kind === 'wait') {
@@ -188,6 +233,7 @@ export async function sendQueuedMessage(job: MessagingSendJob, deps: SendDeps): 
       !again.confirmation
     ) {
       await record({ status: 'refused', refusal: 'opted_out' });
+      if (again.kind === 'template') await tellQuoteSender(job, deps, log);
       return { eventId: job.eventId, outcome: 'done', status: 'refused', refusal: 'opted_out' };
     }
     return done('skipped');

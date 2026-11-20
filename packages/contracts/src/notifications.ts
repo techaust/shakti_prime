@@ -332,8 +332,9 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       acceptedBy: IdSchema,
     })
     .strict(),
-  // A quote marked sent on WhatsApp whose message was not queued: the person who sent it is told,
-  // once a quote (the milestone worker asks for it itself, naming the send's event).
+  // A quote marked sent on WhatsApp whose message was not queued, or was refused by the messaging
+  // worker: the person who sent it is told, once a quote (the milestone and messaging workers ask
+  // for it themselves, naming their event).
   z
     .object({
       event: z.literal('sales.quote.sent'),

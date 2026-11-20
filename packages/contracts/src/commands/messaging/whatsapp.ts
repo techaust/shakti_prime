@@ -374,6 +374,8 @@ export const SendWhatsAppMilestoneInput = z
     subjectId: IdSchema,
     threadId: IdSchema.nullable().default(null),
     values: z.array(WhatsAppTemplateValueSchema).max(20),
+    /** The person whose action brought the milestone (a quote's sender), told if it is refused. */
+    requestedBy: IdSchema.nullable().default(null),
   })
   .strict();
 export type SendWhatsAppMilestoneInput = z.input<typeof SendWhatsAppMilestoneInput>;

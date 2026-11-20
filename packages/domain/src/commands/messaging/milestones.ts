@@ -195,7 +195,8 @@ export const sendWhatsAppMilestone = defineCommand({
         from app.whatsapp_queue_milestone(${input.entityId}::smallint, ${input.milestone},
                                           ${input.subjectKind}, ${input.subjectId}::uuid,
                                           ${input.threadId}::uuid,
-                                          ${JSON.stringify(values)}::jsonb)`)) as unknown as {
+                                          ${JSON.stringify(values)}::jsonb,
+                                          ${input.requestedBy}::uuid)`)) as unknown as {
       outcome: string;
       message_id: string | null;
       thread_id: string | null;

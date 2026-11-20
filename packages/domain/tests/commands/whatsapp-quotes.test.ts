@@ -1255,11 +1255,18 @@ describe('the platform’s reads of a press and a send (§7.1)', () => {
       subjectId: quote.id,
       threadId,
       values: [quote.quoteNo, 'Rs 67,200.00', '01-12-2026'],
+      requestedBy: lc.id,
     });
     expect(
       await asPrincipal(workers(), (context) => readSendExtras(context, sent.messageId ?? '')),
     ).toEqual({
-      milestone: { name: 'quote_sent', subjectKind: 'quote', subjectId: quote.id },
+      // Who sent the quote, whom a refusal by the messaging worker is told to.
+      milestone: {
+        name: 'quote_sent',
+        subjectKind: 'quote',
+        subjectId: quote.id,
+        requestedBy: lc.id,
+      },
       templatePurpose: null,
       file: {
         bucket: 'local',
