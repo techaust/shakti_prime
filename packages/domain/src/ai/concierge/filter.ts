@@ -17,6 +17,7 @@ import {
   sentencesOf,
   SPELLED_OUT,
   ungroundedClaims,
+  withoutCustomerName,
   withoutOwnNumbers,
 } from './claims';
 
@@ -87,6 +88,8 @@ export interface ConciergeFilterFacts {
   groundTexts: readonly string[];
   /** The company's own numbers, in E.164: the only phone numbers a reply may name. */
   companyNumbers: readonly string[];
+  /** The customer's name as recorded (untrusted): its number words, as that name, are no figure. */
+  customerName: string | null;
   now: Date;
 }
 
@@ -297,7 +300,8 @@ function promisePattern(words: readonly string[]): RegExp | undefined {
 export function replyProblem(
   text: string,
   cited: readonly string[],
-  facts: Pick<ConciergeFilterFacts, 'companyNumbers'>,
+  facts: Pick<ConciergeFilterFacts, 'companyNumbers'> &
+    Partial<Pick<ConciergeFilterFacts, 'customerName'>>,
   rules: Pick<ConciergeFilterRules, 'linkHosts' | 'promiseWords'>,
 ): AgentFilterReason | undefined {
   if (text.length > CONCIERGE_REPLY_MAX) return 'reply_too_long';
@@ -321,7 +325,10 @@ export function replyProblem(
   }
   const promise = promisePattern(rules.promiseWords);
   if (promise?.test(read) === true) return 'text_has_promise';
-  const spoken = withoutOwnNumbers(text, facts.companyNumbers);
+  const spoken = withoutCustomerName(
+    withoutOwnNumbers(text, facts.companyNumbers),
+    facts.customerName,
+  );
   for (const sentence of sentencesOf(spoken)) {
     const missing = ungroundedClaims(sentence, cited);
     if (missing.length === 0) continue;

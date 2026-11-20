@@ -33,6 +33,7 @@ const facts: ConciergeFilterFacts = {
     'lead facts: segment farmer_pumps, stage new',
   ],
   companyNumbers: ['+919000000001'],
+  customerName: null,
   now: NOW,
 };
 
@@ -288,6 +289,56 @@ describe('a reply', () => {
         });
       }
     }
+  });
+
+  // A3's follow-up: Roman Hindi number words that are also names ("Das", "Sat").
+  describe("the customer's own name", () => {
+    const named = (customerName: string | null, text: string) => {
+      const verdict = replyOf(answer({ reply: { text, form: 'greeting' } }), {
+        ...facts,
+        customerName,
+      });
+      return verdict !== null && 'filtered' in verdict ? verdict.filtered : 'passed';
+    };
+
+    it('reads a number word standing as the name as no figure', () => {
+      for (const [name, text] of [
+        ['Ramesh Das', 'Namaste Ramesh Das, thank you for writing to us.'],
+        ['Ramesh Das', 'Namaste Das ji, thank you for writing to us.'],
+        ['Ramesh Das', 'Hello Mr. Das, thank you for writing to us.'],
+        ['ramesh das', 'Namaste RAMESH DAS ji, aapka sandesh mila.'],
+        ['Sat Pal Das', 'Namaste Sat Pal Das ji, aapka sandesh mila.'],
+        ['Das', 'Namaste Das ji, thank you for writing to us.'],
+        ['R.K. Das', 'Namaste R.K. Das, thank you for writing to us.'],
+      ] as const) {
+        expect({ name, text, reason: named(name, text) }).toEqual({ name, text, reason: 'passed' });
+      }
+    });
+
+    it('still refuses a number word that does not stand as the name', () => {
+      for (const [name, text] of [
+        // No name recorded: the greeting is refused, as before.
+        [null, 'Namaste Ramesh Das ji, thank you for writing to us.'],
+        // The same word as a number, beside the name or alone.
+        ['Ramesh Das', 'Namaste Ramesh Das, das din mein pump pahunch jayega.'],
+        ['Ramesh Das', 'Namaste Das ji, pump ki keemat das hazaar hai.'],
+        ['Ramesh Das', 'Namaste Das, thank you for writing to us.'],
+        ['Ramesh Das', 'Hello Ramesh, it comes to das hazaar.'],
+        // A name of number words alone, written without a title, cannot be told from the number.
+        ['Das', 'Namaste Das, thank you for writing to us.'],
+        // A name that holds a money or day word exempts nothing.
+        ['Das Hazaar Rupaye', 'Namaste Das Hazaar Rupaye ji.'],
+        ['Sat Somvar', 'Namaste Sat Somvar ji.'],
+        // Another number word in a sentence that names the customer.
+        ['Ramesh Das', 'Namaste Ramesh Das ji, it comes to paanch hazaar.'],
+      ] as const) {
+        expect({ name, text, reason: named(name, text) }).toEqual({
+          name,
+          text,
+          reason: 'fact_not_grounded',
+        });
+      }
+    });
   });
 
   it('hides no word in another script or spelled out letter by letter', () => {

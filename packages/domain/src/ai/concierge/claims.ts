@@ -482,6 +482,49 @@ export function withoutOwnNumbers(text: string, companyNumbers: readonly string[
   return out;
 }
 
+/** Words a reply may put before a customer's name ("Mr Das", "Shri Das"). */
+const NAME_BEFORE = ['mr', 'mrs', 'ms', 'shri', 'sri', 'smt', 'shrimati'];
+
+/** Words a reply may put after a customer's name ("Das ji", "Das sahab"). */
+const NAME_AFTER = ['ji', 'sir', 'madam', 'sahab', 'saheb'];
+
+/** At most this many words make a name the exemption reads. */
+const NAME_MAX_WORDS = 5;
+
+/**
+ * The text with the customer's own name blanked where it stands as that name, so a name whose
+ * words are also number words ("Das", "Sat") does not read as a figure in a greeting. It stands as
+ * the name when written whole ("Ramesh Das") or a word of it beside a title ("Mr Das", "Das ji").
+ * Written whole without a title, it counts only when one of its words is not a number word, since
+ * "Das" alone cannot be told from the number. The name is the customer's own, possibly from their
+ * WhatsApp profile, so it exempts number words only: a name holding a money, day or promise word,
+ * or more than five words, exempts nothing. A number word anywhere else is still a claim.
+ */
+export function withoutCustomerName(text: string, name: string | null | undefined): string {
+  if (name === null || name === undefined) return text;
+  const words = name
+    .normalize('NFKC')
+    .split(/[^\p{L}]+/u)
+    .filter((w) => w !== '');
+  if (words.length === 0 || words.length > NAME_MAX_WORDS) return text;
+  const claims = claimsIn(words.join(' '));
+  if (claims.length === 0 || claims.some((c) => c.kind !== 'number')) return text;
+  const whole = words.map(escape).join(String.raw`[\s.]+`);
+  const named = [whole, ...words.map(escape)].join('|');
+  const before = NAME_BEFORE.map(escape).join('|');
+  const after = NAME_AFTER.map(escape).join('|');
+  const forms = [
+    String.raw`(?:${before})\.?\s+(?:${named})`,
+    String.raw`(?:${named})\s+(?:${after})`,
+  ];
+  if (words.some((w) => claimsIn(w).length === 0)) forms.push(whole);
+  const pattern = new RegExp(
+    String.raw`(?<![\p{L}\p{N}])(?:${forms.join('|')})(?![\p{L}\p{N}])`,
+    'giu',
+  );
+  return text.replace(pattern, (found) => ' '.repeat(found.length));
+}
+
 /** One claim of a text: its kind and what two claims compare by. */
 export interface Claim {
   kind: ClaimKind;
