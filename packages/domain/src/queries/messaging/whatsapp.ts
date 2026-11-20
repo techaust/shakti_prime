@@ -167,6 +167,7 @@ interface MessageRow extends Record<string, unknown> {
   template_params: unknown;
   body_masked: string | null;
   file_id: string | null;
+  media_summary: unknown;
   status: string | null;
   refusal: string | null;
   sent_by: string | null;
@@ -203,7 +204,7 @@ export function threadMessagesSql(
            (select wt.label from whatsapp_templates wt
              where wt.entity_id = m.entity_id and wt.name = m.template_name
                and wt.language = 'en') as template_label,
-           m.template_params, m.body_masked, m.file_id,
+           m.template_params, m.body_masked, m.file_id, m.media_summary,
            case when m.status = 'queued'
                  and m.send_attempted_at < now() - ${SEND_ANSWER_SECONDS} * interval '1 second'
                 then 'failed' else m.status end as status,
@@ -232,6 +233,7 @@ function toMessage(row: MessageRow): WhatsAppMessageDto {
     templateParams: params,
     body: row.body_masked,
     fileId: row.file_id,
+    mediaSummary: row.media_summary,
     status: row.status,
     refusal: row.refusal as MessagingRefusal | null,
     sentBy: row.sent_by,

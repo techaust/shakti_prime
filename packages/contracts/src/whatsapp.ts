@@ -6,6 +6,8 @@ import {
 } from './api/messaging';
 import { E164Schema } from './crm/phone';
 import { EntityIdSchema, IdSchema } from './ids';
+// W2 media retention.
+import { WhatsAppMediaSummaryDto } from './commands/messaging/media-retention';
 
 // WhatsApp threads and messages (docs/03-roadmap-appendix/phase2.md §6.1, BLUEPRINT §7.8 and §10,
 // PRD WA-04 and CRM-10): one thread per company number and customer number, its messages both
@@ -315,6 +317,8 @@ export const WhatsAppMessageDto = z
     templateParams: z.array(z.string()).max(20).nullable(),
     body: z.string().max(WHATSAPP_BODY_MAX).nullable(),
     fileId: IdSchema.nullable(),
+    /** W2: what the file was, once the media retention job removed it; null while it is kept. */
+    mediaSummary: WhatsAppMediaSummaryDto.nullable(),
     status: WhatsAppMessageStatusSchema.nullable(),
     refusal: MessagingRefusalSchema.nullable(),
     sentBy: IdSchema.nullable(),

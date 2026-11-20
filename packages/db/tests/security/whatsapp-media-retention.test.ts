@@ -180,6 +180,7 @@ describe('the removal', () => {
       name: media.key.slice(media.key.lastIndexOf('/') + 1),
       size: 2048,
       verdict: 'passed',
+      keptYears: YEARS,
       removedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/) as string,
     });
     const untouched = await whatsappMediaState(fresh);

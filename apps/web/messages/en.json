@@ -5016,6 +5016,20 @@
       "mediaNotKept": "The customer sent something this chat cannot show.",
       "file": "File from the customer",
       "open": "Open",
+      "removed": {
+        "summary": "{type} · {size} · {verdict}",
+        "notice": "This file was removed after {years, plural, one {# year} other {# years}}. The message stays.",
+        "photo": "Photo from the customer",
+        "pdf": "PDF from the customer",
+        "other": "File from the customer",
+        "kb": "{value} KB",
+        "mb": "{value} MB",
+        "verdict": {
+          "passed": "passed the file checks",
+          "refused": "refused by the file checks",
+          "unchecked": "not checked"
+        }
+      },
       "status": {
         "queued": "Waiting to send",
         "sent": "Sent",

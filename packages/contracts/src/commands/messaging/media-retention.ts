@@ -98,6 +98,8 @@ export const WhatsAppMediaSummaryDto = z
     name: z.string().max(200),
     size: z.number().int().positive(),
     verdict: z.enum(MEDIA_SUMMARY_VERDICTS),
+    /** The retention period the file was kept for, in years, when it was removed. */
+    keptYears: z.number().int().min(1).max(10),
     removedAt: z.iso.datetime(),
   })
   .strict();

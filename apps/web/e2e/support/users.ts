@@ -452,5 +452,8 @@ export const WHATSAPP = {
   snapshot: {
     customer: SNAPSHOT_LEADS[1],
     message: 'When will the engineer come for the site visit?',
+    // W2: a photo the customer sent more than three years ago, whose file the media retention job
+    // removed; its caption stays (setup/whatsapp.ts).
+    removedPhotoCaption: 'Photo of the old pump nameplate',
   },
 } as const;

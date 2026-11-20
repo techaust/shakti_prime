@@ -162,7 +162,8 @@ grant execute on function app.whatsapp_media_due(smallint, integer, timestamptz,
 -- 5. What one batch removed: of the messages named (whose bytes the job deleted from the store),
 --    each still older than the period, a media message of the company with no summary, whose
 --    file is a WhatsApp file no other record uses, has its file marked deleted (the row kept for
---    the trail) and its summary written: type, name, size and the checks' verdict. Every other
+--    the trail) and its summary written: type, name, size, the checks' verdict and the period
+--    it was kept for. Every other
 --    message named changes nothing; one whose file is in use is counted as kept. Each call is one
 --    row of retention_runs (job whatsapp-media-expire), with the files the store refused
 --    (`p_failed`, counted by the job) as its error.
@@ -220,6 +221,7 @@ begin
              'verdict', case g.status when 'ready' then 'passed'
                                       when 'rejected' then 'refused'
                                       else 'unchecked' end,
+             'keptYears', p_years,
              'removedAt', pg_catalog.to_char(pg_catalog.now() at time zone 'UTC',
                                              'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
       from gone g

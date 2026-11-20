@@ -18,6 +18,7 @@ import { draftLineKey } from '../concierge/keys';
 import { useCommand, useQuery } from '../../components/screens/use-command';
 import { MESSAGING_REFUSALS, WHATSAPP_MESSAGE_STATUSES } from '../contract-values';
 import { customerHref, isOneOf } from '../customers';
+import { sizeParts } from '../files';
 import { formatDateTime, formatPhone } from '../format';
 
 /**
@@ -265,7 +266,9 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
       )}
       {message.body === null ? null : <p className="text-sm whitespace-pre-wrap">{message.body}</p>}
       {message.kind === 'media' ? (
-        message.fileId === null ? (
+        message.mediaSummary !== null ? (
+          <RemovedFile summary={message.mediaSummary} />
+        ) : message.fileId === null ? (
           <p className="text-text-muted text-sm">{t('mediaNotKept')}</p>
         ) : (
           <div className="flex items-center gap-2 text-sm">
@@ -295,6 +298,32 @@ function MessageItem({ message }: { message: WhatsAppMessageDto }) {
       )}
       <FailureMessage failure={opener.failure} />
     </li>
+  );
+}
+
+/**
+ * W2: a file the media retention job removed (docs/03-roadmap-appendix/phase2.md §11): what it
+ * was, from the summary its message keeps, and that it was removed, never a link to open.
+ */
+function RemovedFile({ summary }: { summary: NonNullable<WhatsAppMessageDto['mediaSummary']> }) {
+  const t = useTranslations('messaging.thread.removed');
+  const size = sizeParts(summary.size);
+  const type = summary.contentType.startsWith('image/')
+    ? t('photo')
+    : summary.contentType === 'application/pdf'
+      ? t('pdf')
+      : t('other');
+  return (
+    <div className="flex flex-col gap-0.5 text-sm">
+      <p>
+        {t('summary', {
+          type,
+          size: t(size.unit, { value: size.value }),
+          verdict: t(`verdict.${summary.verdict}`),
+        })}
+      </p>
+      <p className="text-text-muted">{t('notice', { years: summary.keptYears })}</p>
+    </div>
   );
 }
 

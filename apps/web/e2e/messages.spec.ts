@@ -93,6 +93,18 @@ test.describe('as the snapshot company’s caller', () => {
     await expect(row).toBeVisible();
     const chat = page.getByRole('region', { name: 'WhatsApp' });
     await expect(chat.getByText(WHATSAPP.snapshot.message)).toBeVisible();
+    // W2: a photo older than three years shows what it was and that it was removed, with its
+    // caption, and nothing to open.
+    const removed = chat.getByRole('listitem').filter({
+      hasText: WHATSAPP.snapshot.removedPhotoCaption,
+    });
+    await expect(
+      removed.getByText('Photo from the customer · 240 KB · passed the file checks'),
+    ).toBeVisible();
+    await expect(
+      removed.getByText('This file was removed after 3 years. The message stays.'),
+    ).toBeVisible();
+    await expect(removed.getByRole('button', { name: 'Open' })).toHaveCount(0);
     await expect(list.getByText(SNAPSHOT_COMPANY.name).first()).toBeVisible();
     await page.keyboard.press('j');
     await page.keyboard.press('k');

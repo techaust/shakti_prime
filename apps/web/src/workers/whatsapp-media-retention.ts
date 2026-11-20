@@ -330,7 +330,9 @@ export async function runWhatsAppMediaRetention(
  * environment, so merging it deletes nothing until the owner turns it on where they choose. A dry
  * run counts with the switch off as well, since it changes nothing.
  */
-export function mediaRetentionOn(env: NodeJS.ProcessEnv = process.env): boolean {
+export function mediaRetentionOn(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
   return env.WHATSAPP_MEDIA_RETENTION?.trim() === 'on';
 }
 
@@ -345,7 +347,7 @@ export const NIGHTLY_MEDIA_BUDGET_MS = 15_000;
 export const NIGHTLY_WORK_LIMIT_MS = 45_000;
 
 export interface NightlyRetentionOptions extends LeadAnonymiseOptions {
-  env?: NodeJS.ProcessEnv;
+  env?: Readonly<Record<string, string | undefined>>;
   store?: FileStore | undefined;
   logger?: Logger;
 }

@@ -2,12 +2,46 @@ import { newId, SYSTEM_WORKERS_PRINCIPAL_ID } from '@shakti/contracts';
 import { asMigrator, principalFor } from '@shakti/db/testing';
 import {
   executeCommand,
+  expireWhatsAppMedia,
   recordInboundWhatsApp,
   recordWhatsAppTemplateStatus,
   registerWhatsAppTemplate,
   setEntityChannel,
 } from '@shakti/domain';
 import { PROJECTS, SNAPSHOT_COMPANY, WHATSAPP } from '../support/users';
+
+/**
+ * W2: a photo the customer sent more than three years ago (docs/03-roadmap-appendix/phase2.md
+ * §11), recorded as the platform records it, its file attached as `messaging.media.attach` leaves
+ * it, then removed by the retention job's own command, so the message keeps its caption and the
+ * file's summary. No bytes are stored: the journeys' store never held them.
+ */
+async function removedPhoto(entityId: 1 | 3, waId: string): Promise<void> {
+  const workers = principalFor('system:workers', [entityId], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
+  const recorded = await executeCommand(workers, { entityIds: [entityId] }, recordInboundWhatsApp, {
+    phoneNumberId: WHATSAPP.numbers[entityId].phoneNumberId,
+    waId,
+    providerMessageId: `wamid.e2e.${newId()}`,
+    kind: 'media',
+    body: WHATSAPP.snapshot.removedPhotoCaption,
+    buttonPayload: null,
+    sentAt: new Date(Date.now() - (3 * 365 + 40) * 86_400_000).toISOString(),
+    handledBy: 'people',
+  });
+  const fileId = newId();
+  const key = `${String(entityId)}/whatsapp_media/${fileId}.jpg`;
+  await asMigrator(async (m) => {
+    await m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256,
+                               status, created_by)
+            values (${fileId}, ${entityId}, 'whatsapp_media', 'local', ${key}, ${`${fileId}.jpg`},
+                    'image/jpeg', 245760, ${'0'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`;
+    await m`update whatsapp_messages set file_id = ${fileId} where id = ${recorded.messageId}`;
+  });
+  await executeCommand(workers, { entityIds: [entityId] }, expireWhatsAppMedia, {
+    entityId,
+    messageIds: [recorded.messageId],
+  });
+}
 
 /** The number WhatsApp names a customer's phone by: its E.164 digits without the plus. */
 const waIdOf = (typed: string): string => `91${typed.replace(/\D/g, '')}`;
@@ -74,6 +108,15 @@ export async function ensureWhatsAppJourneys(executiveId: string): Promise<void>
   if (found === undefined) {
     await inbound(SNAPSHOT_COMPANY.entityId, snapshotWaId, WHATSAPP.snapshot.message);
   }
+  // W2: a photo of more than three years ago whose file the media retention job removed (its own
+  // command), written once, so the chat shows the removed file's line.
+  const [photo] = await asMigrator(
+    (m) => m<{ id: string }[]>`select msg.id from whatsapp_messages msg
+                                 join whatsapp_threads t on t.id = msg.thread_id
+                                where t.entity_id = ${SNAPSHOT_COMPANY.entityId}
+                                  and t.wa_id = ${snapshotWaId} and msg.kind = 'media'`,
+  );
+  if (photo === undefined) await removedPhoto(SNAPSHOT_COMPANY.entityId, snapshotWaId);
   // The snapshot chat waits for its reply with its window open on every run, so its screenshot
   // shows the same reply box whatever day the database was made. Every journey chat is answered
   // by people, as one a person took over is (a new chat starts with the assistant).

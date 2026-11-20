@@ -30,6 +30,7 @@ import {
   dueWhatsAppMedia,
   whatsAppMediaKeysKept,
 } from '../../src/queries/messaging/media-retention';
+import { readWhatsAppThread } from '../../src/queries/messaging/whatsapp';
 import { WORKSHOP_DEFAULTS } from '../../src/workshop-defaults';
 
 // W2 WhatsApp media retention (docs/03-roadmap-appendix/phase2.md §11): the two commands and the
@@ -117,6 +118,17 @@ describe('messaging.media.expire', () => {
       fileDeletedAt: null,
       mediaSummary: null,
     });
+    // The chat shows the summary in place of the file, to whoever reads it.
+    const view = await asPrincipal(customer.owner, (ctx) =>
+      readWhatsAppThread(ctx, { entityId: 1, threadId: media.threadId, limit: 50 }),
+    );
+    const shown = new Map(view.messages.map((m) => [m.id, m]));
+    expect(shown.get(media.messageId)).toMatchObject({
+      fileId: media.fileId,
+      body: 'borewell photo',
+      mediaSummary: { contentType: 'image/jpeg', verdict: 'refused', keptYears: YEARS },
+    });
+    expect(shown.get(fresh.messageId)?.mediaSummary).toBeNull();
     const rows = await asMigrator(
       (m) => m<{ command: string; after_json: Record<string, unknown> }[]>`
         select command, after_json from audit_logs
