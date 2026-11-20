@@ -343,6 +343,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // The platform's record of a voice session from LiveKit's events; no person's role holds it
   // (SECURITY §3.3).
   'voice.session.record': {},
+  // W2: the platform's removal of WhatsApp files past the retention period; no person's role holds
+  // it (SECURITY §3.3).
+  'messaging.media.expire': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

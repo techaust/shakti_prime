@@ -34,6 +34,16 @@ export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messagin
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
 export { sendWhatsAppMilestone, setWhatsAppMilestone } from './commands/messaging/milestones';
 export { queueWhatsAppAnswer } from './commands/messaging/answers';
+// W2 media retention.
+export {
+  expireWhatsAppMedia,
+  recordWhatsAppMediaOrphans,
+} from './commands/messaging/media-retention';
+export {
+  dueWhatsAppMedia,
+  MEDIA_KEYS_MAX,
+  whatsAppMediaKeysKept,
+} from './queries/messaging/media-retention';
 export {
   attachWhatsAppMedia,
   claimWhatsAppMessage,

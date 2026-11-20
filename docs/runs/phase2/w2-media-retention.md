@@ -5,7 +5,7 @@
 | Branch | `feat/w2-media-retention` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): deletes customers' files |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort (start) |
 | State | briefed |
 | Next step | build to the early check |
 

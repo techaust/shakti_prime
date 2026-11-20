@@ -51,6 +51,8 @@ export * from './commands/calls/dial';
 export * from './commands/calls/inbound';
 export * from './commands/messaging/whatsapp';
 export * from './commands/messaging/concierge';
+// W2 media retention.
+export * from './commands/messaging/media-retention';
 export * from './commands/calls/provider-calls';
 export * from './commands/crm/create-lead';
 export * from './commands/crm/opportunity';
