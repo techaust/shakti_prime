@@ -7,6 +7,7 @@ import {
   ThreadViewDto,
   WaitingThreadDto,
   WaitingThreadPageDto,
+  WhatsAppMediaSummaryDto,
   WhatsAppMessageDto,
   WhatsAppTemplateDto,
   type MessagingRefusal,
@@ -167,6 +168,7 @@ interface MessageRow extends Record<string, unknown> {
   template_params: unknown;
   body_masked: string | null;
   file_id: string | null;
+  media_summary: unknown;
   status: string | null;
   refusal: string | null;
   sent_by: string | null;
@@ -203,7 +205,7 @@ export function threadMessagesSql(
            (select wt.label from whatsapp_templates wt
              where wt.entity_id = m.entity_id and wt.name = m.template_name
                and wt.language = 'en') as template_label,
-           m.template_params, m.body_masked, m.file_id,
+           m.template_params, m.body_masked, m.file_id, m.media_summary,
            case when m.status = 'queued'
                  and m.send_attempted_at < now() - ${SEND_ANSWER_SECONDS} * interval '1 second'
                 then 'failed' else m.status end as status,
@@ -216,6 +218,25 @@ export function threadMessagesSql(
        and ${keyset}
      order by m.created_at desc, m.id desc
      limit ${limit}`;
+}
+
+/**
+ * W2: a removed file's summary as the chat shows it, read leniently: each field is kept only when
+ * it reads as that field should, anything else is left out, so a summary an older or newer job
+ * wrote never fails the chat; a summary of nothing readable still says the file was removed (an
+ * empty object). Null while the file is kept.
+ */
+export function readMediaSummary(value: unknown): WhatsAppMediaSummaryDto | null {
+  if (value === null || value === undefined) return null;
+  const raw: Record<string, unknown> =
+    typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const fields = WhatsAppMediaSummaryDto.shape;
+  const summary: Record<string, unknown> = {};
+  for (const key of Object.keys(fields) as (keyof typeof fields)[]) {
+    const parsed = fields[key].safeParse(raw[key]);
+    if (parsed.success && parsed.data !== undefined) summary[key] = parsed.data;
+  }
+  return WhatsAppMediaSummaryDto.parse(summary);
 }
 
 function toMessage(row: MessageRow): WhatsAppMessageDto {
@@ -232,6 +253,7 @@ function toMessage(row: MessageRow): WhatsAppMessageDto {
     templateParams: params,
     body: row.body_masked,
     fileId: row.file_id,
+    mediaSummary: readMediaSummary(row.media_summary),
     status: row.status,
     refusal: row.refusal as MessagingRefusal | null,
     sentBy: row.sent_by,

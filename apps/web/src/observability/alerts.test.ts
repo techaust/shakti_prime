@@ -76,4 +76,20 @@ describe('sentryAlertSink', () => {
     );
     expect(log).toHaveBeenCalledWith('warn', 'alert.send_failed', expect.anything());
   });
+
+  it('groups a Phase 2 alert by its subject, so each provider, company or person is one issue', async () => {
+    vi.spyOn(logger, 'log').mockImplementation(() => undefined);
+    vi.stubEnv('SENTRY_DSN', 'https://publickey@o4501.ingest.us.sentry.io/4502');
+    sentry.flush.mockResolvedValue(true);
+    await sentryAlertSink.report('webhooks.failing', {
+      subject: 'meta_whatsapp',
+      provider: 'meta_whatsapp',
+      failed: 3,
+    });
+    expect(sentry.captureMessage).toHaveBeenCalledWith('webhooks.failing', {
+      level: 'error',
+      fingerprint: ['webhooks.failing', 'meta_whatsapp'],
+      extra: { subject: 'meta_whatsapp', provider: 'meta_whatsapp', failed: 3 },
+    });
+  });
 });

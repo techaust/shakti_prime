@@ -34,6 +34,17 @@ export { handOffWhatsAppThread, returnWhatsAppThread } from './commands/messagin
 export { registerWhatsAppTemplate } from './commands/messaging/templates';
 export { sendWhatsAppMilestone, setWhatsAppMilestone } from './commands/messaging/milestones';
 export { queueWhatsAppAnswer } from './commands/messaging/answers';
+// W2 media retention.
+export {
+  expireWhatsAppMedia,
+  recordWhatsAppMediaOrphans,
+} from './commands/messaging/media-retention';
+export {
+  dueWhatsAppMedia,
+  MEDIA_KEYS_MAX,
+  whatsAppMediaKeysKept,
+  whatsAppMediaOrphansLast,
+} from './queries/messaging/media-retention';
 export {
   attachWhatsAppMedia,
   claimWhatsAppMessage,
@@ -272,6 +283,8 @@ export { importRowKey, rollbackChunks } from './imports/row-key';
 export {
   assertFileKey,
   contentDisposition,
+  assertListPrefix,
+  LIST_PAGE_MAX,
   localDiskFileStore,
   memoryFileStore,
   PRESIGN_SECONDS,
@@ -282,12 +295,15 @@ export {
 } from './ports/file-store';
 export type {
   FileStore,
+  ListOptions,
   LocalDiskOptions,
   LocalGrant,
   PresignedGet,
   PresignedPut,
   PresignGetOptions,
   PresignPutRequest,
+  StoredKey,
+  StoredKeyPage,
   StoredObject,
 } from './ports/file-store';
 export { loadUserDto } from './queries/admin/user-dto';
@@ -317,6 +333,8 @@ export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/quer
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
 export { readWebhookHealth, type StoredWebhookHealth } from './queries/platform/webhook-health';
+// G2's Phase 2 alerts: the counts the hourly jobs check reads (g2-alerts).
+export { readAlertCounts, type AlertCounts } from './queries/platform/alert-counts';
 export {
   JOB_RUN_LIMIT_MINUTES,
   readScheduledJobs,
@@ -616,7 +634,7 @@ export type {
   FieldCipher,
   FieldEnvelope,
 } from './privacy/field-cipher';
-export { createAiProvider, spendKey } from './ai/provider';
+export { createAiProvider, partSpendKey, spendKey } from './ai/provider';
 export type {
   AiProvider,
   AiProviderDeps,
@@ -737,6 +755,8 @@ export { loadAgentSettings } from './queries/agents/settings';
 export { loadShadowReport } from './queries/agents/shadow-report';
 export { loadCopilotPanel, loadCopilotReport } from './queries/agents/copilot';
 export { loadConciergeDraft, loadConciergeReport } from './queries/agents/concierge';
+// G2 shadow review pack: the review samples.
+export { loadConciergeSample, loadCopilotSample } from './queries/agents/shadow-pack';
 export { readAgentSpend } from './queries/agents/spend';
 export {
   addKnowledgeFile,

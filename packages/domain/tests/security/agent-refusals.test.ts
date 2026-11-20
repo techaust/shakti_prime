@@ -977,6 +977,14 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     },
     // The Realtime wake-up of the person a ringing call waits for (T4).
     'calls.ringing.signal': { entityId: 1, userId: newId(), providerCallId: newId() },
+    // W2: WhatsApp files removed after the retention period, and the sweep of keys no file names.
+    'messaging.media.expire': { entityId: 1, messageIds: [newId()], failed: 0 },
+    'messaging.media.record_orphans': {
+      entityId: 1,
+      startedAt: '2026-11-20T06:00:00.000Z',
+      removed: 0,
+      failed: 0,
+    },
   };
 
   it('the Concierge holds exactly its own-scope grants: no cost, price, sales or platform-only grant', () => {

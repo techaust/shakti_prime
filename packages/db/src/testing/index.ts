@@ -18,6 +18,9 @@ export { closeDb } from '../client';
 export { testPhone } from './phone';
 export { whatsappChannel, whatsappCustomer } from './whatsapp-fixture';
 export type { WhatsAppChannelFixture, WhatsAppCustomerFixture } from './whatsapp-fixture';
+// W2 media retention.
+export { whatsappMediaMessage, whatsappMediaState } from './whatsapp-media-fixture';
+export type { WhatsAppMediaFixture } from './whatsapp-media-fixture';
 /** The seed, so a test can prove a re-run keeps what an Executive changed (docs/05-database.md §9). */
 export { runSeeds };
 export { ALL_ENTITY_IDS } from '../../seeds/entities';

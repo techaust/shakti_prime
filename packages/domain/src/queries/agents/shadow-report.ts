@@ -184,8 +184,15 @@ function toDto(row: Row, kind: TriageProposalKind): ShadowProposalDto {
   };
 }
 
-/** The agents screen's readers: the agent controls, for every company (SECURITY §3.2). */
-function checkReader(ctx: Ctx, entityId: number): void {
+/**
+ * The shadow reports' readers (the Triage, Concierge and Co-pilot reports and the review samples):
+ * a person holding either agent control, for every company (SECURITY §3.2), in a request for the
+ * company read.
+ */
+export function checkShadowReader(
+  ctx: Pick<Ctx, 'principal' | 'entityIds'>,
+  entityId: number,
+): void {
   if (isAgent(ctx.principal)) throw new DomainError('forbidden', 'the shadow report is for people');
   const perms = ctx.principal.permissions;
   if (
@@ -201,7 +208,7 @@ function checkReader(ctx: Ctx, entityId: number): void {
 
 export async function loadShadowReport(ctx: Ctx, rawInput: unknown): Promise<ShadowReportDto> {
   const input = parseQueryInput(ShadowReportInput, rawInput, 'agents.shadow.report');
-  checkReader(ctx, input.entityId);
+  checkShadowReader(ctx, input.entityId);
   const after = input.cursor === undefined ? undefined : decodeCursor(Cursor, input.cursor);
   if (after !== undefined && !PG_TIME.test(after.t)) {
     throw new DomainError('validation_failed', 'cursor is not valid', { cursor: input.cursor });

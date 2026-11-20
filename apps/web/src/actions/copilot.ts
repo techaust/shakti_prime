@@ -6,15 +6,18 @@ import {
   CopilotPanelInput,
   RequestCopilotBriefInput,
   ShadowReportInput,
+  ShadowSampleInput,
   type CopilotPanelDto,
   type CopilotReportDto,
   type RequestCopilotBriefDto,
+  type ShadowSampleDto,
 } from '@shakti/contracts';
 import {
   executeCommand,
   executeQuery,
   loadCopilotPanel as loadCopilotPanelQuery,
   loadCopilotReport as loadCopilotReportQuery,
+  loadCopilotSample as loadCopilotSampleQuery,
   requestCopilotBrief as requestCopilotBriefCommand,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
@@ -65,6 +68,24 @@ export async function copilotReport(rawInput: unknown): Promise<ActionResult<Cop
       { entityIds: [input.entityId], requestId },
       (context) => loadCopilotReportQuery(context, input),
       { name: 'copilotReport' },
+    );
+  });
+}
+
+/**
+ * The Co-pilot's review sample of one company and period (G2 shadow review pack), in a request for
+ * that company: read-only, at most 50 pairs.
+ */
+export async function copilotSample(rawInput: unknown): Promise<ActionResult<ShadowSampleDto>> {
+  return toResult('copilotSample', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ShadowSampleInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (context) => loadCopilotSampleQuery(context, input),
+      { name: 'copilotSample' },
     );
   });
 }

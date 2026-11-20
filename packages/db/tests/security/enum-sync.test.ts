@@ -244,6 +244,11 @@ const PAIRS: Record<string, readonly string[]> = {
   whatsapp_messages_template_check: WHATSAPP_MESSAGE_KINDS.filter(
     (k) => k === 'template' || k === 'system',
   ),
+  // W2: a summary is a JSON object, and only a media message's file has one.
+  whatsapp_messages_media_summary_check: [
+    'object',
+    ...WHATSAPP_MESSAGE_KINDS.filter((k) => k === 'media'),
+  ],
   whatsapp_templates_language_check: WHATSAPP_TEMPLATE_LANGUAGES,
   whatsapp_templates_category_check: WHATSAPP_TEMPLATE_CATEGORIES,
   whatsapp_templates_status_check: WHATSAPP_TEMPLATE_STATUSES,

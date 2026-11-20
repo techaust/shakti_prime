@@ -1,0 +1,192 @@
+# G2 Shadow review pack (wave 4)
+
+| | |
+|---|---|
+| Branch | `feat/g2-shadow-pack` on GitHub, from `main` at 889ec54d |
+| Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
+| Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): reports over AI agent principals' work, read under row-level security |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; built on Opus 5.5 at high effort (start, early check, done and fixes) |
+| State | fixes |
+| Next step | the lead's review |
+
+## Brief
+Read first:
+- Design: [`docs/03-roadmap-appendix/phase2.md` §8.1](../../03-roadmap-appendix/phase2.md#81-g2-phase-2-exit-pack), its first bullet (the shadow reports and the 50-pair samples), §12 (rows A3, A2: the reports are reviewed with the Executive on real traffic in the final phase; here they are built and tested on seeded data), §14 (G2: "the shadow report queries").
+- What exists: [a3-concierge.md](a3-concierge.md) and [a2-copilot.md](a2-copilot.md) (their Built and shadow report parts), the Phase 1 report (`docs/03-roadmap-appendix/phase1.md` §9, A1). Code: `packages/domain/src/queries/agents/` (`shadow-report.ts`, `concierge.ts`, `copilot.ts`, `spend.ts`), `apps/web/src/screens/shadow-report.ts`, `apps/web/src/screens/concierge/concierge-report.tsx`, `apps/web/src/screens/copilot/copilot-report.tsx`, `apps/web/src/components/agents/shadow-report-screen.tsx`, the pages under `apps/web/src/app/(bos)/admin/agents/`, and the print path in `apps/web/src/print` if you print.
+- SECURITY §3.2 to §3.4 (who reads agent reports; cost isolation), `docs/08-design-system.md` §11 (copy).
+
+Build, in this order:
+1. **The gap list.** Compare what the Concierge and Co-pilot reports show today with §8.1: per action type the proposals, the agreement with what people did, the filter refusals, the handoffs, and the spend per lead. Write the list into your report first; build only the gaps, reusing the existing queries and screens (extend, never duplicate).
+2. **Queries** in `packages/domain/src/queries/agents/`: for each agent and period, per action type: proposals, decided, agreed, disagreed, open; refusals by filter reason; handoffs by reason (the Concierge's hand-offs to people; for the Co-pilot, state in the report what its nearest equivalent is, or that it has none); AI spend per lead (the agent's spend in the period over the distinct leads it worked on, from what `spend.ts` reads). Spend here is the agents' AI spend, never item cost or supplier rates: no `finance.cost.read` or `procurement.rate.read` data is read. The same permission as today's reports gates them; read under the viewer's own context, never a definer that widens it.
+3. **The review sample:** 50 draft-and-reply pairs per agent for a period, chosen deterministically (spread evenly over the period, the same period always giving the same 50), each with its action type, the draft, what the person sent or did, and the filter's verdict; customer text masked as the reports already mask it and shown as data. A read-only page per agent built to print (a print stylesheet on the screen, or the existing HTML print path, always light); the Executive reviews it offline, so nothing is recorded.
+
+**Early check (Tier A):** once steps 1 to 3's queries are committed with their tests (on real Postgres: per action type counts on seeded proposals, the sample's determinism and size, a role without the report's permission refused, another company's rows never counted), write a short report here, push `report: g2-shadow-pack early check` and stop. The lead reads the diff and sends "continue" to this session.
+
+4. **Screens:** the new figures on the Concierge and Co-pilot reports, and the sample pages linked from them; copy in `en.json`; journeys with axe and light, dark and 400 px snapshots; the JavaScript budget (`pnpm --filter web js-budget` after the build).
+5. **Evidence and documents:** `EXPLAIN (ANALYZE)` for each new query on the seeded database in your report; the design's "Built (G2 shadow pack)" lines under §8.1; the agents' document where it lists the reports.
+
+Files owned: the queries above, `apps/web/src/screens/concierge/`, `apps/web/src/screens/copilot/` report files (not `draft-line.tsx`), `apps/web/src/screens/shadow-report.ts`, `apps/web/src/components/agents/`, the report pages under `apps/web/src/app/(bos)/admin/agents/`.
+
+Do not touch: `packages/domain/src/ai/concierge/rules.ts` and `apps/web/src/screens/concierge/draft-line.tsx` (`p2-fixes`), `apps/web/src/observability/` and the jobs check (`g2-alerts`), `docs/runbooks/` and `docs/13-client-packs/` (`g2-runbooks`), `docs/04-architecture-appendix/` (`g2-measures`), `apps/web/src/workers/messaging/` (`p2-fixes`, `w2-media-retention`).
+
+Review checklist (check before your report): every figure reads under the viewer's own permissions and one company's rows; no cost or supplier figure; customer text masked and never rendered as markup; the sample is deterministic and capped at 50; the queries have indexes behind them (EXPLAIN); the pages print light; every word is plain final English.
+
+## How this slice runs
+- **Your role:** you are this slice's builder, not the lead. Read `.claude/agents/slice-builder.md` first and follow it as your rules (its **Cloud** lines), with this file as your brief. `CLAUDE.md` calls every session the lead: in this session that does not apply. Do not run the `start-session` or `end-session` skills, open or merge a pull request, push to `main`, touch any hosted service or GitHub workflow, delete a branch, or force-push.
+- **Branch:** `feat/g2-shadow-pack` is on GitHub with this file. Start with `git fetch origin && git switch feat/g2-shadow-pack` and work in the checkout itself (one slice in this VM); the session hook starts Postgres on 54322 (start every shell command with `. tools/integration/lib.sh &&`).
+- **Push:** commit as you go and push your branch after every commit, at least every 10 minutes; a reclaimed VM loses everything unpushed.
+- **Your checks, in the VM, before each report:** `pnpm typecheck`; `pnpm exec eslint --max-warnings 0 <each folder you touched>`; the unit tests of each package you touched; `pnpm test:security` when you touched schema, policies, definers, commands or queries; `pnpm copy-lint` when you touched `en.json`; `pnpm db:docs` and `pnpm --filter @shakti/domain machines:docs` when they apply; then `pnpm build` and your own journeys (`pnpm --filter web e2e:seed && pnpm --filter web exec playwright test <your specs>`), and your screens' Linux baselines with `pnpm --filter web e2e:snap -- <your specs>`. Run a long command in the background (each has 30 minutes), the build and the journeys as separate commands. The whole-repository `pnpm lint` once, as your final check.
+- **Reporting:** the lead watches your branch from the owner's PC and reads nothing else of this session. Write each report into this file's Report section (under a heading with the date and "cloud session"), commit it with the subject `report: g2-shadow-pack <stage>` and push. The stages are `early check`, `done`, `fixes` and `blocked`. That commit subject is how the lead knows you have stopped. After `report: g2-shadow-pack done` stop: the lead reviews the branch and may send the review's findings to this session for one fix round, which ends with `report: g2-shadow-pack fixes`.
+- **Questions:** the owner does not read this session. For a minor gap take the reasonable call, record it under "Assumptions" in your report and continue. Only when no reasonable call exists (an owner's or client's decision, a missing package, a refused tool), push `report: g2-shadow-pack blocked` with the question and stop.
+- **Migrations:** number yours after `main`'s last (0218); the lead renumbers them at the merge. Never cite a migration number in code.
+- **Never:** a live model, vendor or hosted call in a test; a `package.json` script change, a new package or a lockfile edit unless this brief names it; an edit to a file another slice owns (listed below).
+- **Usage line:** record your model and effort at the start and end in the header's Usage line (the owner runs this session on Opus 5.5 at high).
+
+**Built beside you today, each in its own cloud session from `main` at 889ec54d:** `g2-shadow-pack` (the Concierge and Co-pilot shadow reports and review samples), `g2-alerts` (Phase 2 alerts), `g2-runbooks` (INCIDENTS sections and the exit-gate checklist; documents only), `g2-measures` (the latency and throughput measures), `p2-fixes` (Phase 2 review follow-ups) and `w2-media-retention` (the WhatsApp media retention job). Shared registration points (`en.json`, `AGENT_DEFAULTS`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event worker registry, the testing lists, `turbo.json`, `.env.example`, the jobs check's list) take one line or one block each, kept together under a comment naming your slice; the lead merges them.
+
+## Report
+
+### 20-11-2026, cloud session: the gap list (step 1)
+What the two reports show today against §8.1's first bullet (per action type: proposals, agreement with what people did, filter refusals, handoffs, spend per lead; a sample of 50 draft-and-reply pairs per agent):
+
+| §8.1 asks for | Concierge report (`/admin/agents/concierge`) today | Co-pilot report (`/admin/agents/copilot`) today | Gap built here |
+|---|---|---|---|
+| Proposals per action type | `proposals`: per type shadowed, waiting, approved, rejected | the same | kept; extended with decided |
+| Agreement with what people did, per type | only for replies, as draft states (sent, edited, discarded) and `answered`; none for the facts or the callback | outcome and fact agreement of the call summaries (not an action type); none per proposal type | per type agreed, edited, disagreed and open, by a rule per type (below) |
+| Filter refusals | by reason for the whole agent | the same | by action type and reason, beside each type |
+| Handoffs | none (the chat's current `handoff_reason` only, which a chat given back loses) | none | the Concierge's hand-offs by reason and by whom (the assistant's rules or a person), from the audit trail; the Co-pilot has no hand-off, stated on its report |
+| Spend per lead | none (Integration health shows spend per agent, not per lead) | none | the agent's spend, runs and distinct leads in the period, and spend per lead |
+| 50 draft-and-reply pairs | none (a paged list of every draft) | none (a paged list of every summary) | a sample query per agent and a print page each (step 4) |
+
+### 20-11-2026, cloud session: early check (steps 1 to 3, queries)
+**Built** (commit `feat(agents): shadow pack figures, …`):
+- `packages/contracts/src/shadow-pack.ts`: `AgentProposalFiguresDto` (per action type: proposals, shadowed, waiting, approved, rejected, decided, agreed, edited, disagreed, open, and the refusals of that type by reason), `AgentSpendPerLeadDto`, `ConciergeHandoffCountDto`, `ShadowSampleInput` (a period of at most 92 IST days, as the reports), `ShadowSampleDto` (at most 50 items). `ConciergeReportDto` and `CopilotReportDto` take the figures in `proposals` (extended, not a second list) and gain `spend`; the Concierge's gains `handoffs` (null for a viewer without `audit.read`).
+- `packages/domain/src/queries/agents/shadow-pack.ts`: `shadowActionsSql()` (one statement for the figures and the sample: each proposal, its lead, and how what people did compares), `proposalFigures()`, `agentRefusals()` and `refusalsByReason()`, `spendPerLead()`, `conciergeHandoffs()`, `loadConciergeSample()` and `loadCopilotSample()` (exported from `@shakti/domain`); `replyLaterals()` moved here from `conciergeDraftsSql()`, which now uses it, so the report and the sample read a draft's two messages by one statement. `loadConciergeReport()` and `loadCopilotReport()` call the shared figures in place of their own proposals and refusals queries; the three reports' identical reader checks are one, `checkShadowReader()` in `shadow-report.ts`.
+- Migration `0219_shadow_pack_hand_off_index` (renumbered at the merge): `audit_logs_hand_off_idx` on `(entity_id, created_at)` where the command is one of the two hand-offs; `docs/data/` regenerated.
+
+**Agreement rules** (the brief left them to the build):
+- A person's decision first: approved as proposed agrees, approved after an edit counts as edited (its own figure), rejected or dismissed disagrees, waiting is open.
+- In Shadow, per action type: qualification facts agree when every fact the lead records of those proposed equals it, disagree when one differs, open when the lead records none (the five measures; a DISCOM consumer number is neither compared nor shown); a task (the Concierge's callback, the Co-pilot's follow-up) or a template agrees when a person made a task on the lead, or sent that template on the lead's chat, at or after the proposal, disagrees when the lead was won or lost without one, else open; a reply in Shadow stays open, since only a reader can set two texts side by side, which is what the sample is for.
+
+**Handoffs:** the Concierge's, from the audit trail (`messaging.thread.record_hand_off`, the assistant's rules and answers; `messaging.thread.hand_off`, a person who took the chat), only those that moved the chat from the assistant, by reason and by whom. The Co-pilot has none and no near equivalent: it never answers a customer, a caller makes every call; its report carries no hand-off figure and says so.
+
+**Spend per lead:** the sum of `agent_runs.cost_paise` of the agent in the company and period (every run, refused and stopped ones too), over the distinct leads its proposals name (a reply through its chat's lead) and, for the Co-pilot, the leads of its briefs and summaries; rounded half up to the paisa. No `finance.cost.read` or `procurement.rate.read` data is read.
+
+**The sample:** the period's proposals in time order cut into 50 runs of equal length (`ntile(50)` over `(created_at, id)`), the first of each, oldest first; every proposal when there are 50 or fewer. Each item: action type, the proposal (reply text, facts, task or template), what people sent or did (the first message a person sent after the draft and before the customer wrote again; the lead's recorded facts; the first task a person made on the lead after it; the template a person sent), the state and the agreement; the customer's message as stored (masked), plain text.
+
+**Tests:** `packages/domain/tests/queries/shadow-pack.test.ts`, 10 cases on real Postgres, rows seeded into a random 30-day period of 2001 to 2020 in company 3 with company 1's rows beside them: per action type counts and agreement for the three Concierge types (decided, edited, Shadow by rule), refusals per type, hand-offs by reason and whom (a no-op hand-off and company 1's not counted; a GM reads them; a viewer without `audit.read` gets none), spend per lead for both agents (company 1's ₹999.99 runs never counted), the Co-pilot's template agreement, the sample of 12 (all, oldest first, with the asked message, the person's reply, the facts with no consumer number, the task) and of 121 (exactly 50, the expected `ntile` picks, the same on a second read), a caller and an agent refused, a company outside the request refused, a period over 92 days refused. `reader-parity.test.ts` covers the two samples on both pools.
+
+**Checks in this VM:** `pnpm --filter <contracts, db, domain, web> typecheck` clean; `pnpm exec eslint --max-warnings 0` on `packages/domain/src/queries/agents`, `packages/domain/tests/queries`, `packages/contracts/src`, `packages/db/src/schema` clean; `@shakti/contracts` unit tests 322 passed; `@shakti/domain` unit tests 2590 passed (108 files); the new file and `reader-parity`, `shadow-report`, `concierge-runs`, `copilot-runs` on Postgres 62 passed; `pnpm db:docs` regenerated; `pnpm test:security`: `@shakti/db` 1508 passed (58 files); `@shakti/domain` 1375 passed, 24 failed, all in `tests/commands/whatsapp-quotes.test.ts`; `web` (run on its own, since Turbo stopped after the domain suite) 429 passed, 16 failed, all in `tests/whatsapp-quotes.test.ts`. Both failing files are the known clock-dependent fault (a test number starting with 91 until about 19:00 UTC today) that the lead's session reported on every branch, fixed by techaust/shakti_prime#269; nothing else fails. A first run failed `fail-closed.test.ts` (8 agent principals for 6): the new test had made an agent principal row of its own; it now uses the seeded agent's id with no row (commit `test(agents): refuse the review sample…`), and the two rows made locally were removed.
+
+**Assumptions:**
+- The filter's verdict per pair: every proposal kept passed the filter (a refused answer keeps only its reason, never its words, and records no chat or lead), so the sample shows each pair's state and agreement and, beside the pairs, the period's refusals by action type and reason; a per-pair "refused" line would need the refused answers stored, which §7.2 and the runtime rule out.
+- Hand-offs come from the audit trail, readable by the Executive and the General Manager; a custom role holding an agent control without `audit.read` sees the other figures and no hand-offs (null, not zero).
+- Spend per lead uses the leads the agent proposed on (and the Co-pilot's notes), not every chat it read: a run that proposed nothing has no lead to count but its cost counts.
+
+**Next:** step 4 (the figures on both reports, the sample pages, copy, journeys) on "continue".
+
+### 20-11-2026, cloud session: done (steps 4 and 5)
+**Built** (after the early check, from `b97530a5`):
+- Screens: both reports show the figures per action type (`ProposalFigures`: how the suggestions ended, how the team's work compares, how many a person decided, the refusals of that kind by reason, and for replies in Shadow that the review set judges them), the spending per lead (`SpendPerLead`), the Concierge's chats handed to the team by whom and why (`HandoffCounts`; "shown to people who can open the activity log" when the viewer has no `audit.read`) and the Co-pilot's line that it hands nothing over; a "Suggestions to review" link carries the report's company and period (`sampleHref()`). All in `apps/web/src/components/agents/shadow-pack-figures.tsx`, wired into `concierge-report.tsx` and `copilot-report.tsx` in place of their own "Suggestions by kind" lists.
+- The pages `/admin/agents/concierge/sample` and `/admin/agents/copilot/sample` (`ShadowReviewPage`, `ShadowReviewSheet`, `PrintSheet`, `PrintButton` in `apps/web/src/components/agents/`; the actions `conciergeSample` and `copilotSample`): `screenAccess(navRequires('admin-agents'))` as Admin › Agents; the company and period from the address, else the viewer's company and the last 30 days (`sampleQuery()`, a company outside the viewer's or a period the report refuses falls back); rendered on the server, so only the print button runs in the browser (189.4 kB first load, the shell's); the customer's words as stored and as text. Printed, the page is the sheet alone (the shell hidden), in the light tokens in every theme (the `.theme-light` values from `@shakti/tokens`, written under `@media print` on the sheet), on A4 with 15 mm margins; nothing is recorded.
+- Copy: one block `agents.shadowPack` in `en.json`; "sample" is a banned word, so the pages are "suggestions to review". `tools/copy-lint/copy-lint.config.json`: `print` added to the button keys (24 characters).
+- Query plans (below) led to one change: a proposal's chat and lead are read as values of their own (`offset 0`) and the chat laterally, so each lookup by them is an index condition under the policies (`89b917af`).
+- Documents: phase 2 design §8.1 "Built (G2 shadow pack)" (naming `audit_logs_hand_off_idx`, built without `CONCURRENTLY` on the partitioned `audit_logs`, as an index to plan for the next production release, as A2's 0210 is); ARCHITECTURE's agents line, SECURITY's Concierge report bullet and DATABASE's `audit_logs` row; `docs/data/` regenerated.
+
+**Tests added:** `shadow-report.test.ts` +3 (the link, the address read, the fall-backs); the journey `apps/web/e2e/shadow-pack.spec.ts`, 2 tests × 3 projects (the Concierge report's figures and its suggestions to review in the snapshot company with axe, printed: the sheet's background `rgb(255, 255, 255)` in every theme, the menu and the buttons hidden; the Co-pilot report's figures and its suggestions to review, the seed's two follow-ups `SNAPSHOT_SUGGESTIONS`), with the Linux baselines `concierge-review`, `concierge-review-print` and `copilot-review` in desktop light, desktop dark and phone (made with `e2e:snap` in the Playwright image on a fresh database). With the early check's 10 Postgres cases: 13 unit and Postgres tests and 6 journeys.
+
+**`EXPLAIN (ANALYZE, BUFFERS)`**, on the local database with 3,000 proposals of each agent (and their runs and 1,000 hand-offs) in one month of company 2 beside every suite's rows, under the Executive's own context:
+
+| Statement | Concierge | Co-pilot | Plan |
+|---|---|---|---|
+| Refusals by type and reason | 1.1 ms | 1.0 ms | `agent_runs_agent_day_idx` |
+| Figures per type (`shadowActionsSql()`) | 71 ms | 62 ms | proposals off `agent_actions_type_created_idx`; tasks by `tasks_opportunity_idx` on the lead, templates by `whatsapp_threads_opportunity_idx`, facts by `lead_qualifications_pkey` |
+| Spend | 1.0 ms | 1.2 ms | `agent_runs_agent_day_idx` |
+| Distinct leads | 24 ms | 23 ms | `agent_actions_type_created_idx` |
+| The review set (50 of 3,000) | 8 ms | 6 ms | `ntile` over the index's rows, then the lookups for 50 only |
+| Hand-offs | 0.8 ms | | `audit_logs_hand_off_idx` (`audit_logs_default_entity_id_created_at_idx1` on the partition) |
+
+The chats (94 in the company) are read by a hash or a materialised list where that is cheaper; with hash, merge and materialise switched off the same statements read each chat by `whatsapp_threads_pkey` and each lead by `opportunities_pkey` (figures 33 ms), so the lookups are index conditions under the policies and the planner chooses them once the company holds more chats.
+
+**Checks in this VM:** `pnpm typecheck` clean; `pnpm lint` (the whole repository, once, last) clean; `pnpm exec eslint --max-warnings 0` on each folder touched, clean; `pnpm copy-lint` clean; `@shakti/contracts` unit 322 passed, `@shakti/domain` unit 2590 passed, `web` unit 1158 passed (160 files); `pnpm db:docs` regenerated; `pnpm build` passed; `pnpm --filter web js-budget`: every page within its budget (57 pages; the reports 231.7 and 231.9 kB of 242, the two new pages 189.4 kB of 199); journeys on a fresh database in the Linux image (`e2e:snap -- e2e/shadow-pack.spec.ts e2e/concierge.spec.ts e2e/copilot.spec.ts`): 41 passed, the existing Concierge and Co-pilot baselines unchanged; the security suite on a fresh database, one suite at a time (`turbo run test:security --concurrency=1 --continue --force`): `@shakti/db` 1508 passed (58 files); `@shakti/domain` 1375 passed, 24 failed, all in `tests/commands/whatsapp-quotes.test.ts` (the known clock fault, techaust/shakti_prime#269); `web` 427 passed, 18 failed: 16 in `tests/whatsapp-quotes.test.ts` (the same fault) and one each in `tests/outbox-event-route.test.ts` and `tests/outbox-replay.test.ts`, whose single publisher claim did not reach the event each test had just inserted. This slice writes no outbox event (its tests insert rows directly and its queries only read). Both files pass alone (27 of 27), after the domain suite's 450 waiting events on a fresh database, and after the failing `whatsapp-quotes` file alone, so they depend on what the other web files leave waiting, not on this slice. On the VM's long-lived database the db suite's `retention.test.ts` failed: hand-off rows from this slice's first runs, in months of 2001 to 2020, sit in the audit trail's default partition, which is append-only (see Assumptions); on a fresh database it passes.
+
+**Review checklist:** every figure and the review set read under the viewer's own context (`agent_actions_read`, `agent_runs_read`, the leads', chats', tasks' and facts' policies, the audit trail's only with `audit.read`), with no definer, one company per request and the company refused outside it (tested); no cost or supplier figure (spend is `agent_runs.cost_paise` only); customer text as stored (masked) and rendered as text by React, never as markup; the set deterministic and at most 50 (the DTO's `max(50)`, tested at 121); the statements on indexes (above); the pages print light (journey and baselines); copy in `en.json`, plain and final.
+
+**Assumptions (steps 4 and 5):**
+- The print path is a print stylesheet on the screen, not the HTML-to-PDF renderer: the Executive prints from the browser and nothing is stored. The light print is built from the tokens on the sheet alone, so no shared stylesheet changed.
+- `js-budget.json` gains the two new pages' entries (measured 189.4 kB plus 5 %); it is a check file, so the pull request needs the owner's `checks-ok`. The two reports keep their budgets (242 kB), with room.
+- The host's own journeys picture with a different Chromium than the Playwright image, so their screenshot comparisons fail on the host by design; the baselines and their comparison are the image's.
+- The security suite's `agents.test.ts` writes 250 Co-pilot proposals in company 3 with version 4 ids, which `IdSchema` refuses as every report does; on a database the suites used, the Co-pilot's review set of the snapshot company fails for that reason, never on a fresh one. The journeys and baselines were run on a fresh database (`start_db` on port 54332, removed after).
+- A first full security run after step 4 failed `retention.test.ts` once: the early check's test wrote its hand-off rows into a random month of 2001 to 2020, which the retention suite's random month (1971 to 2010) can meet in the audit trail's default partition. The test now uses 2011 to mid-2017, clear of every audit-partition test (`37910c40`).
+
+**For the lead:** a merge with `main` takes `en.json` (one block), `copy-lint.config.json` (one word on the button keys line) and `js-budget.json` (two entries); migration 0219 is renumbered at the merge.
+
+### 20-11-2026, cloud session: fixes (the review of 8ef8c684)
+| Item | Fix | Commit | Test |
+|---|---|---|---|
+| H1 tasks | A task agrees only when a person set it themselves: its request ran `crm.task.create` alone. No column tells: the call log's retries and callbacks (`createCallTask`), the nurture calls and a reassignment's moves (`moveCallTasks`) all file through `crm.task.create` as the caller, inside their own command, whose audit row shares the request id, so the audit trail tells them apart. It must also be the proposed kind, made within 48 hours of the proposal (`SHADOW_MATCH_WINDOW_HOURS`) and due within 24 hours of the proposed time (`SHADOW_TASK_DUE_TOLERANCE_HOURS`). A template agrees within the same 48 hours. | `ddff027f` | `shadow-pack.test.ts` "counts only a person's own task…": a retry the call log filed, a callback made before, one of another kind and one made too late all stay open; a person's own callback an hour from the proposed time agrees |
+| H1 facts | Each fact is held to the first change of it a person recorded after the proposal (`crm.lead.qualification.set` audit rows), so a later correction never flips the verdict; a fact the lead already held is a repeat and stays open; never recorded since is open. | `ddff027f` | "holds facts to the first change…": a repeat stays open, a correction after an agreeing change leaves it agreed, another value disagrees; the Co-pilot's review set shows the first recorded value, not the correction |
+| H1 access | Both comparisons read the audit trail, so a viewer without `audit.read` sees every proposal in Shadow as open, and the report and the review set say so (`compared: false`, "Compared with the team's work only for people who can open the activity log"). | `ddff027f`, `aaa2551d` | "compares nothing in Shadow for a viewer who does not read the audit trail" |
+| M1 | A dismissed Suggest proposal is compared as Shadow is; rejected still disagrees. | `ddff027f` | the Suggest callback dismissed on lead A agrees (decided 1, agreed 2) |
+| M2 | The Concierge's review set is its drafted replies alone (`ntile(50)` over replies; its count, refusals and copy say replies); facts and callbacks stay in the figures; the Co-pilot keeps every kind. | `ddff027f`, `aaa2551d` | "is the WhatsApp assistant's drafted replies alone…" |
+| M3 | The journey pictures `concierge-kinds`, `concierge-spend`, `concierge-handoffs`, `copilot-kinds` and `copilot-spend` (light, dark, 400 px), masking the spending's figures and the hand-offs' lists, which other journeys' stopped runs move; axe on the Co-pilot report. | `aaa2551d`, `be703026` | `e2e/shadow-pack.spec.ts` |
+| L2 | `executed` is its own figure ("carried out by the agent", shown when there is one) and open in the agreement; `approved` is a person's approval only. | `ddff027f`, `aaa2551d` | an executed reply: executed 1, open 4; in the review set state `executed`, agreement open |
+| L3 | A pair's row reads "Compared with the team". | `aaa2551d` | the review baselines |
+| L4 | "Spread evenly through the period's replies (suggestions) and oldest first". | `aaa2551d` | the review baselines |
+| L5 | A hand-off through `messaging.thread.hand_off` run by the command runner counts once more for the person; one paisa over two leads gives ₹0.01 a lead. | `ddff027f` | "counts a person's hand-off through the command itself", "rounds the spend per lead half up to the paisa" |
+| L6 | The contract's comment names `shadowActionsSql()`. | `ddff027f` | |
+
+Documents: the design's Built lines take the new rules and plans (`8ab40f68`).
+
+**`EXPLAIN (ANALYZE)` after the fixes**, on the same 3,000 proposals per agent: figures 133 ms (Concierge) and 125 ms (Co-pilot), up from 71 and 62. A fact's changes are read on `audit_logs_*_aggregate_type_aggregate_id_created_at_idx` (one probe per proposed fact) and a task's request on `audit_logs_*_request_id_idx` (only for a candidate task). Review set 9 ms and 8 ms; hand-offs 0.8 ms.
+
+**Checks in this VM:** `pnpm typecheck` clean; `pnpm lint` (whole repository, last) clean; eslint on each folder touched clean; `pnpm copy-lint` clean; `web` unit 1158 passed; `pnpm build` passed; `pnpm --filter web js-budget`: every page within its budget (the reports 231.8 and 232.0 kB of 242, the review pages 189.4 of 199). Journeys in the Linux image: baselines remade on a fresh database (20 passed), then compared on another fresh database with `concierge.spec.ts` and `copilot.spec.ts` (41 passed, their baselines unchanged). Security suite on a fresh database, one suite at a time: `@shakti/db` 1508 passed; `@shakti/domain` 1379 passed, 24 failed, all in `whatsapp-quotes.test.ts`; `web` 429 passed, 16 failed, all in `whatsapp-quotes.test.ts`. Those failures are the known clock fault (techaust/shakti_prime#269); the two outbox tests of the last report passed.
+
+**Assumptions:**
+- The figures for tasks and facts in Shadow need the audit trail. Readers holding an agent control without `audit.read` (none by default: the Executive and the General Manager hold both) see them open, rather than a weaker rule that would overstate agreement.
+- A task's due time is compared only for a proposal that names one (both agents' do).
+- A template agrees within the same 48 hours as a task.
+- The 48 hours and the 24 hours are engineering rules in `shadow-pack.ts`, not workshop inputs; the design names them.
+
+### 20-11-2026, cloud session: fixes (the integration on the PC)
+The journey `e2e/shadow-pack.spec.ts` read the snapshot company's live Co-pilot and Concierge rows, which `copilot.spec.ts` and `agents.spec.ts` add to, approve and leave waiting, so its exact figures, the `copilot-kinds` picture and the review sets depended on which journeys ran first.
+
+**Fix** (`8ea42dba`): the journey has rows of its own.
+- **The seed** (`apps/web/e2e/setup/shadow-pack.ts`, last in `seed.ts`, its constants in `apps/web/e2e/shadow-pack-fixtures.ts`) writes, with fixed ids and `on conflict do nothing`, so a second seed changes nothing:
+  - a customer of company 2 (Devki Nandan Sharma, a synthetic name), its lead and its chat;
+  - on 3 June 2025 the customer's two messages and a person's reply (marked sent, so no worker picks it up);
+  - the Concierge's two replies in Shadow, its facts and callback in Shadow, a refused answer, and the assistant's hand-off;
+  - the Co-pilot's follow-up in Shadow, its rejected template and its approved follow-up;
+  - what a person did after them: the facts change and a callback of their own, each with its audit row.
+- **Why company 2:** it has a WhatsApp channel, other journeys there find their customers by name, and none of it is pictured. In the snapshot company a new customer would enter the pictured lists, and messages on its chat would enter the messages journey's picture.
+- **The journey** opens both reports at the week 02-06-2025 to 08-06-2025 through their period inputs, so every figure is the seed's alone. It asserts them exactly:
+  - Concierge: replies 2 in Shadow, 2 not known yet, 1 refused; facts and callback 1 agreed each; ₹14.00 on 5 runs over 1 lead; one hand-off by the assistant on a question.
+  - Co-pilot: follow-ups 1 agreed and 1 not known yet; template 1 differed; ₹3.00 on 3 runs.
+  - The review sets: the Concierge's 2 drafted replies, the Co-pilot's 3 suggestions.
+- **Pictures:** all eight (`concierge-kinds`, `concierge-spend`, `concierge-handoffs`, `concierge-review`, `concierge-review-print`, `copilot-kinds`, `copilot-spend`, `copilot-review`) are taken whole, with only times masked.
+- The concierge test had the same exposure (the snapshot company's Shadow draft and its hand-offs), and it now reads the same week.
+
+**Runs** (`e2e:snap -- e2e/shadow-pack.spec.ts e2e/concierge.spec.ts e2e/copilot.spec.ts e2e/agents.spec.ts`, after `pnpm build`), in the Linux image, every spec together:
+- Run 1, fresh database: 63 passed and 2 skipped (by design in `agents.spec.ts`). It wrote this journey's 24 baselines (8 pictures × 3 projects).
+- Run 2, the same database seeded a second time: `shadow-pack` passed. `copilot.spec.ts:133` failed in its own `copilot-report` picture (159 px tall expected, 282 px received): its seed adds Co-pilot summaries on every seed. That file is unchanged here and behaves the same on `main`.
+- Run 3, a new fresh database, as CI runs: 63 passed and 2 skipped against the new baselines.
+
+Only this journey's baselines changed. `main` was not merged in; nothing of it was needed.
+
+## Review
+
+### Slice review, 20-11-2026, on the PC (the `slice-reviewer` agent), head 8ef8c684 against 889ec54d
+One high, three medium and six low findings, each sent to the builder for one fix round (the first fixes report above, at 4a253cfc).
+| # | Sev | Finding | Outcome |
+|---|---|---|---|
+| H1 | high | Agreement overstated: any task a person made on the lead after a proposal agreed (the call log's retries and callbacks, nurture and moves file tasks as the caller), and a Concierge fact that repeated a recorded value agreed by construction | fixed: only a person's own task (told apart by the audit trail), of the proposed kind, within 48 h and due within 24 h; each fact held to the first value a person recorded after the proposal, a repeat open. Re-checked by the lead on the diff |
+| M1 | medium | A dismissed Suggest proposal read as "differed" | fixed: compared as Shadow |
+| M2 | medium | The Concierge's review set mixed kinds, so fewer than 50 draft-and-reply pairs | fixed: replies only |
+| M3 | medium | The new report sections had no pictures; the Co-pilot report no axe check | fixed |
+| L1 | low | `audit_logs_hand_off_idx` on the partitioned `audit_logs` is built without CONCURRENTLY | for the next production release (a quiet hour, as A2's index) |
+| L2 to L6 | low | `executed` read as agreement; the "Agreed" label; "evenly" wording; two tests that could pass vacuously; a comment | fixed |
+
+The integration on the PC then found the journey read the snapshot company's live rows, which `copilot.spec.ts` and `agents.spec.ts` change; fixed in the second fixes report (the journey's own rows in a past week).
+
+## Integration
+- 20-11-2026, on the PC (slot g2-shadow-pack, Postgres 54332): `main` (#268 to #270) merged in with no conflict; the migration was 0219, then 0220 after #272 (the alerts' 0219) merged; `db:generate` reported no change; `docs/data` regenerated. The first full run failed the shadow-pack journey (other journeys' rows; fixed by the builder) and one unit test by its 5-second limit on the loaded PC (`event-emitters.test.ts`, 10.5 s); the second run is below.

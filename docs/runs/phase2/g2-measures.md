@@ -152,4 +152,18 @@ The review at 038b5030 (H1, M1 to M4, L1 to L6), one round. 35305e13 kept on the
 
 ## Review
 
+### Slice review, 20-11-2026, on the PC (the `slice-reviewer` agent), head 038b5030 against 889ec54d
+One high, four medium and six low findings, sent to the builder for one fix round, all fixed at 3c87f1e6 (the fixes report above). 35305e13 (the webhook params fix) found sound and landed on its own as #270.
+| # | Sev | Finding | Outcome |
+|---|---|---|---|
+| H1 | high | The dial measure could place real calls to strangers: the measuring server inherited `.env` and added the callback secret, so Exotel keys there would make a "local" run dial made-up numbers inside calling hours at any time; the documented dev command dialled random numbers. No call was placed (the keys are empty on the PC and the VM) | fixed: every vendor credential removed from the measuring server; a dial off this machine needs `G2_DIAL_LEAD_PHONE`, never a made-up number. Re-checked by the lead on the diff |
+| M1 | medium | The load's repeats reached only 3 of the 6 providers | fixed: rotating repeats, re-run |
+| M2 | medium | A lost lead round was left out of the verdict | fixed: counts 30 s |
+| M3 | medium | Voice first audio compared with 1,500 ms though it covers 1,100 ms of §9.3 | fixed: compared with 1,100 ms; play timed |
+| M4 | medium | A dial round's time-out ended the run, undiagnosed | fixed: recorded as a miss with its step; the cause was the measure's own wait |
+| L1 to L6 | low | Cleanup in a `finally`; the hosted message count; LiveKit's 300-second token; tense after the fix; raw reports committed; `--queue` only with webhooks | fixed |
+
+Follow-up: `VENDOR_CREDENTIALS` is a fixed list; a test that every vendor variable of `.env.example` is on it would keep it complete.
+
 ## Integration
+- 20-11-2026, on the PC (slot g2-measures, Postgres 54336): `main` (#268 to #272) merged in with no conflict; 35305e13 was already on `main` as #270; no migration.

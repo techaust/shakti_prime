@@ -23,10 +23,14 @@ import { conciergeReport } from '../../actions/concierge';
 import { DateTime } from '../../components/date-time';
 import { FailureMessage } from '../../components/screens/failure';
 import { formText } from '../../components/screens/form-data';
+import {
+  HandoffCounts,
+  ProposalFigures,
+  SpendPerLead,
+} from '../../components/agents/shadow-pack-figures';
 import { useQuery } from '../../components/screens/use-command';
-import { actionTypeName } from '../agents';
 import { customerHref } from '../customers';
-import { periodProblem, SHADOW_PAGE_SIZE, type PeriodProblem } from '../shadow-report';
+import { periodProblem, sampleHref, SHADOW_PAGE_SIZE, type PeriodProblem } from '../shadow-report';
 
 const STATE_TONE: Record<ConciergeDraftState, StatusTone> = {
   shadowed: 'neutral',
@@ -53,6 +57,7 @@ export function ConciergeReportScreen({
   const t = useTranslations('agents.conciergeReport');
   const shadow = useTranslations('agents.shadow');
   const agents = useTranslations('agents');
+  const pack = useTranslations('agents.shadowPack');
   const [report, setReport] = useState(initial);
   const [rows, setRows] = useState(initial.items);
   const [from, setFrom] = useState<string | undefined>(initial.from);
@@ -247,33 +252,23 @@ export function ConciergeReportScreen({
             </ul>
           )}
         </section>
-        <section aria-labelledby="concierge-proposals" className="flex flex-col gap-2">
-          <h2 id="concierge-proposals" className="text-h3">
-            {t('proposalsHeading')}
-          </h2>
-          <dl className="flex flex-col gap-2 text-sm">
-            {report.proposals.map((p) => {
-              const name = actionTypeName(p.actionType);
-              return (
-                <div key={p.actionType} className="flex flex-col">
-                  <dt className="font-medium">
-                    {name === undefined
-                      ? agents('copilot.suggestion')
-                      : agents(`actionTypes.${name}`)}
-                  </dt>
-                  <dd className="text-text-muted">
-                    {t('proposalLine', {
-                      shadowed: p.shadowed,
-                      waiting: p.waiting,
-                      approved: p.approved,
-                      rejected: p.rejected,
-                    })}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-        </section>
+        <ProposalFigures
+          id="concierge-proposals"
+          heading={t('proposalsHeading')}
+          proposals={report.proposals}
+          compared={report.compared}
+        />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SpendPerLead id="concierge-spend" spend={report.spend} />
+        <HandoffCounts id="concierge-handoffs" handoffs={report.handoffs} />
+      </div>
+      <div>
+        <Button asChild variant="secondary">
+          <Link href={sampleHref('concierge', report.entityId, report.from, report.to)}>
+            {pack('review.open')}
+          </Link>
+        </Button>
       </div>
       <DataGrid
         caption={t('caption')}

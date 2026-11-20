@@ -23,6 +23,7 @@ import { logger } from '../log';
 import { readDeliveryCheck, rememberProbe } from '../workers/events/probe';
 import { refusedLastDay } from '../webhooks/refusals';
 import { lastPublisherRun } from '../workers/outbox';
+import { qualityRating } from './whatsapp-quality';
 
 /**
  * The page's own permission (docs/06-api.md §3.7). The outbox part is checked again in the database
@@ -166,24 +167,6 @@ export async function deliveryCheckStatus(
   const check = await readDeliveryCheck(keyValue, new Date(), probe);
   if (check === undefined) throw new DomainError('not_found', 'no such delivery check');
   return check;
-}
-
-/**
- * A number's quality as Meta's last `phone_number_quality_update` left it: flagged is low (red), a
- * downgrade medium (yellow), unflagged or an upgrade high (green); anything else is not known.
- */
-function qualityRating(event: string | null): 'green' | 'yellow' | 'red' | 'unknown' {
-  switch (event?.toUpperCase()) {
-    case 'FLAGGED':
-      return 'red';
-    case 'DOWNGRADE':
-      return 'yellow';
-    case 'UNFLAGGED':
-    case 'UPGRADE':
-      return 'green';
-    default:
-      return 'unknown';
-  }
 }
 
 /** The tier a limit is. */

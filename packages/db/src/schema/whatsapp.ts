@@ -165,6 +165,13 @@ export const whatsappMessages = pgTable(
     draftedByAgentActionId: uuid('drafted_by_agent_action_id'),
     /** When the worker took the message to send it: a message is handed to Meta once, never again. */
     sendAttemptedAt: timestamp('send_attempted_at', { withTimezone: true }),
+    /**
+     * What a customer's file was, once the media retention job removed it
+     * (`WORKSHOP_DEFAULTS.retention.whatsappMediaYears`, BLUEPRINT §7.9): its type, name, size and
+     * the file checks' verdict, written once by `app.whatsapp_expire_media()` and never changed.
+     * The message keeps its text and its file's row (marked deleted).
+     */
+    mediaSummary: jsonb('media_summary'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -246,6 +253,18 @@ export const whatsappMessages = pgTable(
     index('whatsapp_messages_file_idx')
       .on(t.fileId)
       .where(sql`${t.fileId} is not null`),
+    // W2 media retention: only a media message's file is summarised, as an object.
+    check(
+      'whatsapp_messages_media_summary_check',
+      sql`${t.mediaSummary} is null
+          or (jsonb_typeof(${t.mediaSummary}) = 'object' and ${t.kind} = 'media'
+              and ${t.fileId} is not null and octet_length(${t.mediaSummary}::text) <= 1000)`,
+    ),
+    // W2 media retention: a company's media messages whose file is still kept, oldest first, the
+    // job's keyset; a message leaves it once its file is removed.
+    index('whatsapp_messages_media_kept_idx')
+      .on(t.entityId, t.createdAt, t.id)
+      .where(sql`${t.kind} = 'media' and ${t.fileId} is not null and ${t.mediaSummary} is null`),
   ],
 );
 

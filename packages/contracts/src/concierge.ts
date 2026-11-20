@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { AgentFilterReasonSchema } from './agents';
 import { EntityIdSchema, IdSchema } from './ids';
+import {
+  AgentProposalFiguresDto,
+  AgentSpendPerLeadDto,
+  ConciergeHandoffCountDto,
+} from './shadow-pack';
 
 // The WhatsApp Concierge's screens (docs/03-roadmap-appendix/phase2.md §7.2, A3): the draft line in
 // a chat, where the lead's owner sends, edits or discards the assistant's reply under Needs
@@ -81,7 +86,8 @@ export type ConciergeReportItemDto = z.infer<typeof ConciergeReportItemDto>;
 /**
  * The Concierge's shadow report (design §7.2, PRD AI-04): one company's drafts in a period, newest
  * first, each beside what a person sent; how many there were and how they ended; the runs the
- * output filter refused by reason; and its proposals by action type and how they ended.
+ * output filter refused by reason; its proposals by action type, how they ended and how people's
+ * work compares with them; the chats handed to people; and the AI spend per lead (§8.1).
  */
 export const ConciergeReportDto = z
   .object({
@@ -103,17 +109,18 @@ export const ConciergeReportDto = z
     filtered: z.array(
       z.object({ reason: AgentFilterReasonSchema, runs: z.number().int().min(0) }).strict(),
     ),
-    proposals: z.array(
-      z
-        .object({
-          actionType: z.string(),
-          shadowed: z.number().int().min(0),
-          waiting: z.number().int().min(0),
-          approved: z.number().int().min(0),
-          rejected: z.number().int().min(0),
-        })
-        .strict(),
-    ),
+    proposals: z.array(AgentProposalFiguresDto),
+    /**
+     * Whether the figures compare proposals with what people did: the viewer reads the audit
+     * trail; otherwise a proposal in Shadow reads as open.
+     */
+    compared: z.boolean(),
+    /**
+     * The chats handed to people in the period, by reason and by whom, from the audit trail; null
+     * when the viewer does not read the company's audit trail.
+     */
+    handoffs: z.array(ConciergeHandoffCountDto).nullable(),
+    spend: AgentSpendPerLeadDto,
     items: z.array(ConciergeReportItemDto),
     nextCursor: z.string().nullable(),
   })

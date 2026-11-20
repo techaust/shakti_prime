@@ -120,6 +120,11 @@ import { handOffWhatsAppThread, returnWhatsAppThread } from '../commands/messagi
 import { registerWhatsAppTemplate } from '../commands/messaging/templates';
 import { sendWhatsAppMilestone, setWhatsAppMilestone } from '../commands/messaging/milestones';
 import { queueWhatsAppAnswer } from '../commands/messaging/answers';
+// W2 media retention.
+import {
+  expireWhatsAppMedia,
+  recordWhatsAppMediaOrphans,
+} from '../commands/messaging/media-retention';
 import {
   attachWhatsAppMedia,
   claimWhatsAppMessage,
@@ -212,6 +217,9 @@ export const commands = Object.freeze({
   [setWhatsAppMilestone.name]: setWhatsAppMilestone,
   [sendWhatsAppMilestone.name]: sendWhatsAppMilestone,
   [queueWhatsAppAnswer.name]: queueWhatsAppAnswer,
+  // W2 media retention.
+  [expireWhatsAppMedia.name]: expireWhatsAppMedia,
+  [recordWhatsAppMediaOrphans.name]: recordWhatsAppMediaOrphans,
   [ingestLead.name]: ingestLead,
   [setLeadQualification.name]: setLeadQualification,
   [setIngestSource.name]: setIngestSource,
