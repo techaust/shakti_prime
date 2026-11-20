@@ -278,7 +278,6 @@ export async function startVoiceSessionRoute(
           Math.floor(now.getTime() / 1000) * 1000 + joinSeconds * 1000,
         ).toISOString(),
       },
-      bosToken: { token: bos.token, expiresAt: bos.expiresAt.toISOString() },
       limits: {
         minutesRemainingToday: grant.limits.minutesRemainingToday,
         maxSessionMinutes: grant.limits.maxSessionMinutes,

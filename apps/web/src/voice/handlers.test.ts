@@ -140,7 +140,8 @@ describe('POST /api/v1/voice/session', () => {
     );
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    const body = VoiceSessionResponse.parse(await response.json());
+    const raw: unknown = await response.json();
+    const body = VoiceSessionResponse.parse(raw);
     expect(started).toEqual([{ mode: 'teach', consentRecording: true }]);
     expect(body.livekit).toMatchObject({ url: LIVEKIT.LIVEKIT_URL, roomName: body.sessionId });
     expect(body.limits).toEqual({ minutesRemainingToday: 30, maxSessionMinutes: 15 });
@@ -154,9 +155,11 @@ describe('POST /api/v1/voice/session', () => {
       apiBase: `${ISSUER}/api/v1`,
       mode: 'teach',
       consentRecording: true,
-      bosToken: body.bosToken,
     });
-    const claims = await verifyVoiceToken(body.bosToken.token, await keysOf(vars), ISSUER, NOW);
+    // The worker's token reaches the worker alone, never the person's browser (V2 review L3).
+    expect(raw).not.toHaveProperty('bosToken');
+    expect(JSON.stringify(raw)).not.toContain(metadata.bosToken.token);
+    const claims = await verifyVoiceToken(metadata.bosToken.token, await keysOf(vars), ISSUER, NOW);
     expect(claims).toMatchObject({ sub: person.id, sid: body.sessionId, entity_ids: [1, 2] });
     // The person joins that room only, as themselves, for at most the session's length.
     const join = decodeJwt(body.livekit.participantToken);
@@ -300,7 +303,7 @@ describe('POST /api/v1/voice/session', () => {
       maxSessionMinutes: 2,
     });
     // The worker's token lives no longer than the session: its 5 minutes cut to 2.
-    expect(new Date(body.bosToken.expiresAt).getTime()).toBe(NOW.getTime() + 2 * 60_000);
+    expect(new Date(metadata.bosToken.expiresAt).getTime()).toBe(NOW.getTime() + 2 * 60_000);
     const join = decodeJwt(body.livekit.participantToken);
     expect((join.exp ?? 0) - (join.iat ?? 0)).toBe(2 * 60);
   });

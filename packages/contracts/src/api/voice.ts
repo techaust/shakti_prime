@@ -38,6 +38,11 @@ export const VoiceSessionRequest = z
   .strict();
 export type VoiceSessionRequest = z.infer<typeof VoiceSessionRequest>;
 
+/**
+ * What the person's browser receives: the room to join and the day's limits. The worker's BOS
+ * token is not in it; it reaches only the voice worker, in the room's dispatch metadata, so script
+ * on the page cannot use up the session's token refreshes.
+ */
 export const VoiceSessionResponse = z
   .object({
     sessionId: IdSchema,
@@ -46,13 +51,6 @@ export const VoiceSessionResponse = z
         url: z.url({ protocol: /^wss$/ }),
         roomName: z.string().min(1).max(100),
         participantToken: z.jwt({ alg: 'HS256' }),
-        expiresAt: z.iso.datetime(),
-      })
-      .strict(),
-    /** Handed to the voice worker through the room's dispatch metadata, never shown to the person. */
-    bosToken: z
-      .object({
-        token: BosJwtSchema,
         expiresAt: z.iso.datetime(),
       })
       .strict(),
