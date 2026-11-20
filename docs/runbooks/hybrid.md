@@ -87,14 +87,14 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
 3. **Check it:** start a session on `main` and send `Say what the session-start hooks printed.` The answer names the cloud note of `[tooling-check]` and `[cloud-session]` lines naming Node 24 and pnpm of `package.json` and saying Postgres is up; the PC's MCP servers failing to connect is expected. If a line reports a problem, the setup script's log is in `/tmp/cloud-setup-*.log` and the hook's in `/tmp/cloud-session-*.log`.
 
 ## 4. Starting a builder or a reviewer
-Before a cloud session starts, the lead session on the PC writes or updates the slice's run file `docs/runs/phase1/<slice>.md` ([the run files](../runs/phase1/readme.md)), commits it on the slice's branch and pushes the branch. The session clones that branch.
+Before a cloud session starts, the lead session on the PC writes or updates the slice's run file `docs/runs/phase<N>/<slice>.md` ([the run files](../runs/phase1/readme.md)), commits it on the slice's branch and pushes the branch. The session clones that branch.
 
 Start the session on claude.ai/code (environment `shakti_prime`, the slice's branch), or from the PC with `claude --cloud "<message>"`, which starts a cloud session on the checkout's current branch once it is pushed. The first message, with the slice's names filled in:
 
 **Builder:**
 ```
 You are the slice builder for <slice> on Shakti Prime BOS, in a Claude Code cloud session on
-branch <branch>. Read docs/runs/phase1/<slice>.md (your brief) and follow
+branch <branch>. Read docs/runs/phase<N>/<slice>.md (your brief) and follow
 .claude/agents/slice-builder.md completely. The session-start hook started the local Postgres on
 port 54322. Commit at least every 20 minutes and push your branch after each commit. When you are
 done, or stopped by a rule, write your report into the run file's Report section, commit and push.
@@ -104,7 +104,7 @@ Never open a pull request, merge, or touch a hosted service.
 **Reviewer:**
 ```
 You are the slice reviewer for <slice> on Shakti Prime BOS, in a Claude Code cloud session on
-branch <branch>. Read docs/runs/phase1/<slice>.md and follow .claude/agents/slice-reviewer.md
+branch <branch>. Read docs/runs/phase<N>/<slice>.md and follow .claude/agents/slice-reviewer.md
 completely. Write your findings into the run file's Review section, the only file you change,
 then commit and push. Never open a pull request, merge, or touch a hosted service.
 ```

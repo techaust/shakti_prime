@@ -23,7 +23,7 @@ A cloud day, or any pull request merged since the PC last pulled, leaves the mai
 2. `docs/10-status.md`: the phase, what is merged, in progress (each slice's branch, run file, where it runs and its next step) and next, what waits on the owner, the open follow-ups.
 3. `docs/11-decisions.md`: what the owner has decided. Never ask again about a decided question.
 4. `AGENTS.md`, then the `docs/01-blueprint.md` sections, `docs/03-roadmap.md` for the current phase, and the module document and design section (`docs/03-roadmap-appendix/`) for the next item in STATUS. BLUEPRINT governs on any conflict.
-5. If the work is a slice of a phase: its run file `docs/runs/phase1/<slug>.md`, `docs/runbooks/slice-integration.md` and `docs/runbooks/hybrid.md`.
+5. If the work is a slice of a phase: its run file `docs/runs/phase<N>/<slug>.md`, `docs/runbooks/slice-integration.md` and `docs/runbooks/hybrid.md`.
 
 ## 2. Check
 - **Both:** the latest CI run on `main` is green (`gh run list --branch main --limit 3`; the merge workflow's own runs may send no email); open pull requests: `gh pr list`. `gh` is signed in on the PC and in the cloud.

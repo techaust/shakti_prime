@@ -24,6 +24,11 @@ Reached (dates from the merges on `main`; the full list is in [CHANGELOG.md](../
 | 08-10-2026 to 09-10-2026 | Orders, acceptance and credit S2 (#133), notifications N1 (#134), the Knowledge Vault K1 (#135), the handover T2 (#138): wave 4 complete |
 | 09-10-2026 to 10-10-2026 | Targets and home pages R1 (#140), Triage in shadow A1 (#146), the Lead Converter workspace L1 (#147): wave 5 complete |
 | 12-10-2026 to 14-10-2026 | The deep audit of Phases 0–1 (12-10-2026) closed in code: its five fix batches (#170, #171, #173, #174, #175) and Migration and UAT packs M1 (#172); dev and staging migrated through 0155 |
+| 12-11-2026 | Production live at https://shaktiprime.com from the owner's release `release-2` (#233, #234) |
+| 13-11-2026 | Phase 1 closed on its engineering work by the owner's decision, its client items moved to Phase 7; Phase 2 design approved (#239); Phase 2 wave 1: V1 part 1, P5, E1, K2 (#242 to #245) |
+| 15-11-2026 to 16-11-2026 | Phase 2 wave 2: K3, T3, I1, B1, W1 (#247 to #251) |
+| 18-11-2026 | Phase 2 wave 3: V2, T4, S3, A2, A3 (#261 to #265) |
+| 20-11-2026 | Phase 2 wave 4: G2 in four slices, W2 and the review follow-ups (#268 to #275); Phase 2 closed on its engineering work by the owner's decision (#277); Phase 3 starts with its design |
 
 Ahead (no date is set until what it depends on is in hand):
 
@@ -94,6 +99,8 @@ Closed on its engineering work on 20-11-2026 (the owner's decision): the run on 
 
 ## 5. Phase 3 — Inventory & procurement (7–8 weeks)
 **Scope:** full catalogue; stock ledger and balances; kit availability-to-promise; reservations; vendors and quote comparison; POs and goods receipt with serial capture; dispatch and challans with the e-way bill gate; labels; warranty claims and RMA; surplus pool.
+
+**Plan:** its design, slices in waves with the owner's questions, is drafted next in [`docs/03-roadmap-appendix/`](03-roadmap-appendix/) for the owner's approval; no slice starts before it is approved.
 
 **Exit gate:** physical stock audit at both sites reconciles with the ledger; supplier-rate isolation verified in the security suite.
 
