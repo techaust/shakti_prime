@@ -7,14 +7,15 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { SNAPSHOT_COMPANY, WHATSAPP } from './support/users';
+import { SNAPSHOT_COMPANY, SNAPSHOT_SUGGESTIONS, WHATSAPP } from './support/users';
 
 // The G2 shadow review pack (docs/03-roadmap-appendix/phase2.md §8.1). The Executive reads the
 // new figures on the WhatsApp assistant's report and opens its suggestions to review: in the
 // snapshot company the concierge seed keeps one draft recorded in Shadow (`setup/concierge.ts`), so
 // its page holds that draft alone and is pictured; printed, the sheet is all there is, light in
-// every theme. The Co-pilot's page is opened from its report the same way; the snapshot company
-// holds none of its suggestions, so its picture is the page with none.
+// every theme. The Co-pilot's page is opened from its report the same way: in the snapshot company
+// it holds the seed's two follow-ups waiting for the snapshot caller (SNAPSHOT_SUGGESTIONS, filed
+// afresh each run with fixed due times and never decided by a journey), which it pictures.
 
 test.describe('the suggestions to review, as an Executive', () => {
   test.use(signedInAs('executive'));
@@ -88,8 +89,14 @@ test.describe('the suggestions to review, as an Executive', () => {
       page.getByRole('heading', { name: "The Co-pilot's suggestions to review", level: 1 }),
     ).toBeVisible();
     const sheet = page.getByTestId('shadow-review');
-    await expect(sheet.getByText('No suggestions in this period.')).toBeVisible();
     await expect(sheet.getByText('The checks refused nothing in this period.')).toBeVisible();
+    const list = sheet.getByRole('list', { name: 'Suggestions, oldest first' });
+    for (const suggestion of SNAPSHOT_SUGGESTIONS) {
+      const item = list.getByRole('listitem').filter({ hasText: suggestion.title }).first();
+      await expect(item).toContainText('Add a follow-up task');
+      await expect(item).toContainText('Nothing yet');
+      await expect(item).toContainText('Waiting');
+    }
     await expectNoAxeViolations(page);
     await snap(page, 'copilot-review', { element: sheet, mask: [sheet.locator('#review-period')] });
   });
