@@ -75,9 +75,16 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       await expectNoAxeViolations(page);
       // The counts change with what other journeys saved, and with no fixed table layout a wider
       // count moves the column heads too, so both tables are masked whole, heads and cells; the
-      // figures' labels stay in the comparison (audit OPS-15).
+      // figures' labels stay in the comparison (audit OPS-15). On a phone the tables are card lists,
+      // masked whole the same way.
       await snap(page, 'home-team-lead', {
-        mask: [page.getByRole('table'), page.locator('main dl dd'), page.locator('time')],
+        mask: [
+          page.getByRole('table'),
+          board,
+          tableOrCards(page, 'Team queues'),
+          page.locator('main dl dd'),
+          page.locator('time'),
+        ],
       });
 
       // The week and the month are one click away.
