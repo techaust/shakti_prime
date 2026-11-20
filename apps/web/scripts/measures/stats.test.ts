@@ -4,6 +4,7 @@ import {
   markdownTable,
   openLoopOffsets,
   percentiles,
+  repeatSources,
   sendLag,
   shareWithin,
   storedOnce,
@@ -140,5 +141,30 @@ describe('markdownTable', () => {
     expect(formatMs(1234.56)).toBe('1235');
     expect(formatMs(0.25)).toBe('0.3');
     expect(formatMs(Number.NaN)).toBe('–');
+  });
+});
+
+describe('repeatSources', () => {
+  it('sends repeats to every provider, each of an earlier fresh delivery of that provider', () => {
+    const sources = repeatSources(600, 6, 10);
+    const repeated = new Map<number, number>();
+    sources.forEach((source, i) => {
+      if (source === null) return;
+      expect(source).toBeLessThan(i);
+      expect(sources[source]).toBeNull();
+      repeated.set(source % 6, (repeated.get(source % 6) ?? 0) + 1);
+    });
+    expect([...repeated.keys()].sort()).toEqual([0, 1, 2, 3, 4, 5]);
+    // 60 repeats, 10 for each provider.
+    expect([...repeated.values()]).toEqual([10, 10, 10, 10, 10, 10]);
+  });
+
+  it('makes one delivery in `every` a repeat, and none before a source exists', () => {
+    const sources = repeatSources(30, 6, 10);
+    expect(sources.map((s, i) => (s === null ? null : i))).toEqual(
+      Array.from({ length: 30 }, (_, i) => (i % 10 === 9 ? i : null)),
+    );
+    expect(repeatSources(2, 6, 2)).toEqual([null, 0]);
+    expect(() => repeatSources(10, 0, 10)).toThrow(RangeError);
   });
 });

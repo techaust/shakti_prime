@@ -5,6 +5,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import {
   openLoopOffsets,
   percentiles,
+  repeatSources,
   sendLag,
   storedOnce,
   type Percentiles,
@@ -43,7 +44,6 @@ export const PROVIDERS: readonly WebhookProvider[] = [
 ];
 /** One delivery in this many is sent again, a few deliveries after the first. */
 const REPEAT_EVERY = 10;
-const REPEAT_BACK = 5;
 /** A delivery's answer is waited for this long; longer is counted as failed. */
 const ANSWER_TIMEOUT_MS = 15_000;
 
@@ -121,6 +121,7 @@ export interface RateResult {
   seconds: number;
   sent: number;
   repeats: number;
+  repeatsByProvider: Record<string, number>;
   answers: Percentiles;
   byProvider: Record<string, Percentiles>;
   /** Answers other than 200, by status (0: no answer in time or a network error). */
@@ -156,12 +157,36 @@ export async function loadAtRate(options: {
   for (let i = 0; i < offsets.length; i += 1) {
     fresh.push(await plan(providers[i % providers.length] ?? 'meta_whatsapp', options.env, now));
   }
+  // One in ten repeats an earlier delivery, the providers' routes in turn (`repeatSources`).
+  const sources = repeatSources(offsets.length, providers.length, REPEAT_EVERY);
   const deliveries = offsets.map((_, i) => {
-    const repeat = i % REPEAT_EVERY === REPEAT_EVERY - 1 && i >= REPEAT_BACK;
-    const item = repeat ? fresh[i - REPEAT_BACK] : fresh[i];
+    const source = sources[i] ?? null;
+    const item = source === null ? fresh[i] : fresh[source];
     if (item === undefined) throw new Error('no delivery planned');
-    return { item, repeat };
+    return { item, repeat: source !== null };
   });
+  const ids = deliveries.map((d) => d.item.eventId);
+  try {
+    return await sendAll(options, providers, offsets, deliveries, ids);
+  } finally {
+    // Held-off rows are marked processed even when the run stops part way (review L1).
+    if (options.countStored && options.settleHeldOff === true) {
+      await asMigrator(
+        (m) => m`
+          update webhook_inbox set processed_at = now(), error_code = 'no_handler'
+           where provider_event_id = any(${ids}) and processed_at is null and failed_at is null`,
+      );
+    }
+  }
+}
+
+async function sendAll(
+  options: { baseUrl: string; rate: number; seconds: number; countStored: boolean },
+  providers: readonly WebhookProvider[],
+  offsets: readonly number[],
+  deliveries: readonly { item: Planned; repeat: boolean }[],
+  ids: readonly string[],
+): Promise<RateResult> {
   const requests = await Promise.all(
     deliveries.map(({ item }) => toBase(item.request(), options.baseUrl)),
   );
@@ -209,6 +234,9 @@ export async function loadAtRate(options: {
     seconds: options.seconds,
     sent: sent.length,
     repeats: deliveries.filter((d) => d.repeat).length,
+    repeatsByProvider: Object.fromEntries(
+      providers.map((p) => [p, deliveries.filter((d) => d.repeat && d.item.provider === p).length]),
+    ),
     answers: percentiles(sent.map((s) => s.ms)),
     byProvider,
     notOk,
@@ -216,7 +244,6 @@ export async function loadAtRate(options: {
   };
   if (options.countStored) {
     // In-process processing runs after each answer; the rows are written before it, by the route.
-    const ids = deliveries.map((d) => d.item.eventId);
     const held = await asMigrator(
       (m) => m<{ provider_event_id: string }[]>`
         select provider_event_id from webhook_inbox where provider_event_id = any(${ids})`,
@@ -225,13 +252,6 @@ export async function loadAtRate(options: {
       ids,
       held.map((r) => r.provider_event_id),
     );
-    if (options.settleHeldOff === true) {
-      await asMigrator(
-        (m) => m`
-          update webhook_inbox set processed_at = now(), error_code = 'no_handler'
-           where provider_event_id = any(${ids}) and processed_at is null and failed_at is null`,
-      );
-    }
   }
   return result;
 }

@@ -167,3 +167,35 @@ export function markdownTable(rows: readonly TableRow[]): string {
   }
   return lines.join('\n');
 }
+
+/**
+ * Which earlier delivery each delivery of a load run repeats, or null for a fresh one: one in
+ * `every` is a repeat, and the kth repeat is of provider `k mod providers` (deliveries take the
+ * providers in turn by their index), its latest earlier fresh delivery, so every provider's route
+ * is sent repeats (review M1: with 6 providers and one in 10, a fixed step back reached only 3).
+ */
+export function repeatSources(count: number, providers: number, every: number): (number | null)[] {
+  if (!Number.isInteger(providers) || providers < 1 || !Number.isInteger(every) || every < 2) {
+    throw new RangeError('providers must be at least 1 and every at least 2');
+  }
+  const isRepeat = (i: number) => i % every === every - 1;
+  const sources: (number | null)[] = [];
+  let k = 0;
+  for (let i = 0; i < count; i += 1) {
+    if (!isRepeat(i)) {
+      sources.push(null);
+      continue;
+    }
+    const provider = k % providers;
+    let source: number | null = null;
+    for (let j = i - 1; j >= 0; j -= 1) {
+      if (j % providers === provider && !isRepeat(j)) {
+        source = j;
+        break;
+      }
+    }
+    sources.push(source);
+    if (source !== null) k += 1;
+  }
+  return sources;
+}
