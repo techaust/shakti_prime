@@ -151,10 +151,15 @@ export async function measureDial(options: {
       const callButton = bar.getByRole('button', { name: /^Call/ });
       await callButton.waitFor();
       if (!(await callButton.isEnabled())) throw new Error('the Dial key is not offered');
-      const answered = page.waitForResponse(
-        (r) =>
-          r.request().method() === 'POST' && r.request().headers()['next-action'] !== undefined,
-      );
+      // The dial action's own answer: the one that carries the placed call (`kind: 'placed'`), not
+      // the call bar's reads before and after it.
+      const answered = page.waitForResponse(async (r) => {
+        if (r.request().method() !== 'POST' || r.request().headers()['next-action'] === undefined) {
+          return false;
+        }
+        const text = await r.text().catch(() => '');
+        return text.includes('"placed"');
+      });
       const t0 = Date.now();
       await page.keyboard.press('c');
       const shown = bar
