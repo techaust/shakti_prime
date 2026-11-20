@@ -184,6 +184,8 @@ const report: Record<string, unknown> = {
   target: baseUrl ?? 'next start on this machine',
 };
 const rows: TableRow[] = [];
+// Read before any server is reached: a dial with no phone it may call is refused first (review H1).
+const dialSettings = chosen.includes('dial') ? dialSetup() : {};
 const needsServer = chosen.some((m) => m === 'webhooks' || m === 'dial' || m === 'screen-pop');
 let server: MeasureServer | undefined;
 const stand = queue === undefined ? undefined : await queueStandIn();
@@ -248,7 +250,7 @@ try {
         baseUrl: server.baseUrl,
         rounds: whole('rounds', 10, 200),
         serverStartedHere: server.local,
-        ...dialSetup(),
+        ...dialSettings,
       });
       report.dial = result;
       rows.push({
