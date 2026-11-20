@@ -184,4 +184,4 @@ No critical or high finding; the core rules held (nothing newer than the period,
 The lead read the fix diffs (medium findings only, so no re-check by a reviewer). Outside the brief, for the owner: an anonymised customer's WhatsApp files still wait the full three years (W1 decision 22), while call recordings go at once.
 
 ## Integration
-- 20-11-2026, on the PC (slot w2-media-retention, Postgres 54334): `main` (#268 to #270) merged in with no conflict; the migrations were 0219 and 0220, then moved to 0220 and 0221 after #272 (the alerts' 0219) merged; `db:generate` reported no change; `docs/data` regenerated.
+- 20-11-2026, on the PC (slot w2-media-retention, Postgres 54334): `main` (#268 to #270) merged in with no conflict; the migrations were 0219 and 0220, then 0220 and 0221 after #272, then 0221 and 0222 after #271 (the shadow pack's 0220) merged; `db:generate` reported no change; `docs/data` regenerated.

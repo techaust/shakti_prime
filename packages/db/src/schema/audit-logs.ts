@@ -78,5 +78,12 @@ export const auditLogs = pgTable(
     index('audit_logs_input_existing_account_idx')
       .using('btree', sql`(${t.inputJson} ->> 'existingAccountId')`)
       .where(sql`${t.inputJson} ? 'existingAccountId'`),
+    // The WhatsApp chats handed to people, one company's in a period (the Concierge's shadow
+    // report, docs/03-roadmap-appendix/phase2.md §8.1).
+    index('audit_logs_hand_off_idx')
+      .on(t.entityId, t.createdAt)
+      .where(
+        sql`${t.command} in ('messaging.thread.record_hand_off', 'messaging.thread.hand_off')`,
+      ),
   ],
 );

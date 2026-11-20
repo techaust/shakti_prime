@@ -5,6 +5,7 @@ import { FileSha256Schema } from './api/files';
 import { WhatsAppTemplateNameSchema } from './api/messaging';
 import { LeadQualificationFactsSchema } from './commands/crm/ingest';
 import { EntityIdSchema, IdSchema } from './ids';
+import { AgentProposalFiguresDto, AgentSpendPerLeadDto } from './shadow-pack';
 
 // The Caller Co-pilot (docs/03-roadmap-appendix/phase2.md §7.3, PRD AI-04 and TEL-03): the briefs and
 // call summaries it records on a lead, and the WhatsApp follow-up it may propose.
@@ -337,17 +338,14 @@ export const CopilotReportDto = z
     filtered: z.array(
       z.object({ reason: AgentFilterReasonSchema, runs: z.number().int().min(0) }).strict(),
     ),
-    proposals: z.array(
-      z
-        .object({
-          actionType: z.string(),
-          shadowed: z.number().int().min(0),
-          waiting: z.number().int().min(0),
-          approved: z.number().int().min(0),
-          rejected: z.number().int().min(0),
-        })
-        .strict(),
-    ),
+    proposals: z.array(AgentProposalFiguresDto),
+    /**
+     * Whether the figures compare proposals with what people did: the viewer reads the audit
+     * trail; otherwise a proposal in Shadow reads as open.
+     */
+    compared: z.boolean(),
+    /** The Co-pilot has no hand-off: it never answers a customer, a caller makes every call. */
+    spend: AgentSpendPerLeadDto,
     items: z.array(CopilotReportItemDto),
     nextCursor: z.string().nullable(),
   })

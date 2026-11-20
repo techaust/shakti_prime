@@ -6,13 +6,16 @@
 import {
   ConciergeDraftInput,
   ShadowReportInput,
+  ShadowSampleInput,
   type ConciergeDraftDto,
   type ConciergeReportDto,
+  type ShadowSampleDto,
 } from '@shakti/contracts';
 import {
   executeQuery,
   loadConciergeDraft as loadConciergeDraftQuery,
   loadConciergeReport as loadConciergeReportQuery,
+  loadConciergeSample as loadConciergeSampleQuery,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
 import { parseInput, requestMeta, signedIn } from './support';
@@ -47,6 +50,24 @@ export async function conciergeReport(
       { entityIds: [input.entityId], requestId },
       (context) => loadConciergeReportQuery(context, input),
       { name: 'conciergeReport' },
+    );
+  });
+}
+
+/**
+ * The Concierge's review sample of one company and period (G2 shadow review pack), in a request for
+ * that company: read-only, at most 50 pairs.
+ */
+export async function conciergeSample(rawInput: unknown): Promise<ActionResult<ShadowSampleDto>> {
+  return toResult('conciergeSample', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ShadowSampleInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (context) => loadConciergeSampleQuery(context, input),
+      { name: 'conciergeSample' },
     );
   });
 }

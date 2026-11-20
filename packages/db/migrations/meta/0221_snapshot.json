@@ -1,6 +1,6 @@
 {
-  "id": "40e9e964-c67a-489c-b0ee-a6a0139e3400",
-  "prevId": "302fc110-0103-4bd0-ab12-1df7b3206b6f",
+  "id": "72912aee-ec67-49f5-902b-16246d989c6d",
+  "prevId": "44501789-0d83-4af6-ba01-7a96d4b187f0",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2308,6 +2308,28 @@
           ],
           "isUnique": false,
           "where": "\"audit_logs\".\"input_json\" ? 'existingAccountId'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_logs_hand_off_idx": {
+          "name": "audit_logs_hand_off_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"audit_logs\".\"command\" in ('messaging.thread.record_hand_off', 'messaging.thread.hand_off')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -14683,18 +14705,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resume_key": {
-          "name": "resume_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -14720,21 +14730,7 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "retention_runs_entity_id_entities_id_fk": {
-          "name": "retention_runs_entity_id_entities_id_fk",
-          "tableFrom": "retention_runs",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -14750,10 +14746,6 @@
         "retention_runs_error_length_check": {
           "name": "retention_runs_error_length_check",
           "value": "char_length(\"retention_runs\".\"error\") <= 500"
-        },
-        "retention_runs_resume_key_length_check": {
-          "name": "retention_runs_resume_key_length_check",
-          "value": "char_length(\"retention_runs\".\"resume_key\") <= 300"
         }
       },
       "isRLSEnabled": false
@@ -18638,12 +18630,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "media_summary": {
-          "name": "media_summary",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -18714,34 +18700,6 @@
           ],
           "isUnique": false,
           "where": "\"whatsapp_messages\".\"file_id\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "whatsapp_messages_media_kept_idx": {
-          "name": "whatsapp_messages_media_kept_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"whatsapp_messages\".\"kind\" = 'media' and \"whatsapp_messages\".\"file_id\" is not null and \"whatsapp_messages\".\"media_summary\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -18864,10 +18822,6 @@
         "whatsapp_messages_button_check": {
           "name": "whatsapp_messages_button_check",
           "value": "\"whatsapp_messages\".\"button_payload\" is null or char_length(\"whatsapp_messages\".\"button_payload\") between 1 and 256"
-        },
-        "whatsapp_messages_media_summary_check": {
-          "name": "whatsapp_messages_media_summary_check",
-          "value": "\"whatsapp_messages\".\"media_summary\" is null\n          or (jsonb_typeof(\"whatsapp_messages\".\"media_summary\") = 'object' and \"whatsapp_messages\".\"kind\" = 'media'\n              and \"whatsapp_messages\".\"file_id\" is not null and octet_length(\"whatsapp_messages\".\"media_summary\"::text) <= 1000)"
         }
       },
       "isRLSEnabled": false

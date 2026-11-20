@@ -1,5 +1,4 @@
 import {
-  AgentFilterReasonSchema,
   CONCIERGE_ACTION_TYPES,
   ConciergeDraftDto,
   ConciergeDraftInput,
@@ -13,10 +12,19 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { checkPermission, isAgent } from '../../command/run-command';
+import { isAgent } from '../../command/run-command';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 import { inboxScope } from './inbox';
-import { istEndAfter, istStart } from './shadow-report';
+import { checkShadowReader, istEndAfter, istStart } from './shadow-report';
+import {
+  agentRefusals,
+  comparesWithTeam,
+  conciergeHandoffs,
+  proposalFigures,
+  refusalsByReason,
+  replyLaterals,
+  spendPerLead,
+} from './shadow-pack';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
@@ -91,21 +99,6 @@ export async function loadConciergeDraft(ctx: Ctx, rawInput: unknown): Promise<C
   });
 }
 
-/** The reader of the Concierge report: the agent controls, as the other shadow reports'. */
-function checkReader(ctx: Ctx, entityId: number): void {
-  if (isAgent(ctx.principal)) throw new DomainError('forbidden', 'the shadow report is for people');
-  const perms = ctx.principal.permissions;
-  if (
-    !hasGrant(perms, 'agents.killswitch', 'all') &&
-    !hasGrant(perms, 'agents.autonomy.write', 'all')
-  ) {
-    checkPermission(ctx.principal, 'agents.killswitch', 'all');
-  }
-  if (!ctx.entityIds.includes(entityId)) {
-    throw new DomainError('forbidden', 'the company is not in this request');
-  }
-}
-
 const Cursor = z.object({ t: z.string().max(40), id: IdSchema }).strict();
 const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/;
 
@@ -145,26 +138,7 @@ export function conciergeDraftsSql(
            ${keyset}
          ${paged}) a
       left join accounts acc on acc.id = a.account_id
-      left join lateral (
-        select m.body_masked, m.kind from whatsapp_messages m
-         where m.thread_id = a.thread_id and m.entity_id = a.entity_id
-           and m.direction = 'inbound' and m.created_at <= a.created_at
-         order by m.created_at desc, m.id desc limit 1) asked on true
-      left join lateral (
-        select m.body_masked, w.label as template_label, m.created_at,
-               m.drafted_by_agent_action_id
-          from whatsapp_messages m
-          join principals p on p.id = m.sent_by and p.kind = 'user'
-          left join whatsapp_templates w
-            on w.entity_id = m.entity_id and w.name = m.template_name and w.language = 'en'
-         where m.thread_id = a.thread_id and m.entity_id = a.entity_id
-           and m.direction = 'outbound' and m.kind in ('text', 'template')
-           and m.created_at >= a.created_at
-           and not exists (select 1 from whatsapp_messages n
-                            where n.thread_id = m.thread_id and n.entity_id = m.entity_id
-                              and n.direction = 'inbound'
-                              and n.created_at > a.created_at and n.created_at < m.created_at)
-         order by m.created_at, m.id limit 1) sent on true`;
+      ${replyLaterals(sql`a.thread_id`)}`;
 }
 
 interface DraftRow {
@@ -210,7 +184,7 @@ export async function loadConciergeReport(
   rawInput: unknown,
 ): Promise<ConciergeReportDto> {
   const input = parseQueryInput(ShadowReportInput, rawInput, 'agents.concierge.report');
-  checkReader(ctx, input.entityId);
+  checkShadowReader(ctx, input.entityId);
   const after = input.cursor === undefined ? undefined : decodeCursor(Cursor, input.cursor);
   if (after !== undefined && !PG_TIME.test(after.t)) {
     throw new DomainError('validation_failed', 'cursor is not valid', { cursor: input.cursor });
@@ -241,29 +215,17 @@ export async function loadConciergeReport(
     answered: number;
   }[];
 
-  const filtered = (await ctx.tx.execute(sql`
-    select r.filter_reason, count(*)::int as n from agent_runs r
-     where r.entity_id = ${input.entityId} and r.agent = 'agent:concierge' and r.outcome = 'filtered'
-       and r.created_at >= ${from}::timestamptz and r.created_at < ${until}::timestamptz
-     group by r.filter_reason
-     order by r.filter_reason`)) as unknown as { filter_reason: string; n: number }[];
-
-  const proposals = (await ctx.tx.execute(sql`
-    select a.action_type,
-           count(*) filter (where a.state = 'shadowed')::int as shadowed,
-           count(*) filter (where a.state = 'proposed')::int as waiting,
-           count(*) filter (where a.state in ('approved', 'executed'))::int as approved,
-           count(*) filter (where a.state in ('rejected', 'dismissed'))::int as rejected
-      from agent_actions a
-     where a.entity_id = ${input.entityId} and a.agent = 'agent:concierge'
-       and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz
-     group by a.action_type`)) as unknown as {
-    action_type: string;
-    shadowed: number;
-    waiting: number;
-    approved: number;
-    rejected: number;
-  }[];
+  const refusals = await agentRefusals(ctx, 'agent:concierge', input.entityId, from, until);
+  const proposals = await proposalFigures(
+    ctx,
+    'agent:concierge',
+    input.entityId,
+    from,
+    until,
+    refusals,
+  );
+  const spend = await spendPerLead(ctx, 'agent:concierge', input.entityId, from, until);
+  const handoffs = await conciergeHandoffs(ctx, input.entityId, from, until);
 
   const more = page.length > input.limit;
   const rows = page.slice(0, input.limit);
@@ -282,20 +244,11 @@ export async function loadConciergeReport(
       discarded: drafts?.discarded ?? 0,
       answered: drafts?.answered ?? 0,
     },
-    filtered: filtered.flatMap((f) => {
-      const reason = AgentFilterReasonSchema.safeParse(f.filter_reason);
-      return reason.success ? [{ reason: reason.data, runs: f.n }] : [];
-    }),
-    proposals: Object.values(CONCIERGE_ACTION_TYPES).map((actionType) => {
-      const p = proposals.find((x) => x.action_type === actionType);
-      return {
-        actionType,
-        shadowed: p?.shadowed ?? 0,
-        waiting: p?.waiting ?? 0,
-        approved: p?.approved ?? 0,
-        rejected: p?.rejected ?? 0,
-      };
-    }),
+    filtered: refusalsByReason(refusals),
+    proposals,
+    compared: comparesWithTeam(ctx),
+    handoffs,
+    spend,
     items: rows.map((r) => ({
       actionId: r.id,
       createdAt: iso(r.created_at),

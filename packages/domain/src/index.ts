@@ -755,6 +755,8 @@ export { loadAgentSettings } from './queries/agents/settings';
 export { loadShadowReport } from './queries/agents/shadow-report';
 export { loadCopilotPanel, loadCopilotReport } from './queries/agents/copilot';
 export { loadConciergeDraft, loadConciergeReport } from './queries/agents/concierge';
+// G2 shadow review pack: the review samples.
+export { loadConciergeSample, loadCopilotSample } from './queries/agents/shadow-pack';
 export { readAgentSpend } from './queries/agents/spend';
 export {
   addKnowledgeFile,
