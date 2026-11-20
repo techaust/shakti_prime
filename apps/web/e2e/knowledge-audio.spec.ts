@@ -136,13 +136,22 @@ test.describe('as an Executive, with a recording the browser cannot play', () =>
         'This browser cannot play this recording. Download it to play it on your device.',
       ),
     ).toBeVisible({ timeout: 45_000 });
-    await expect(page.getByRole('button', { name: 'Download the recording' })).toBeVisible();
+    const downloadButton = page.getByRole('button', { name: 'Download the recording' });
+    await expect(downloadButton).toBeVisible();
     await expect(page.locator('audio')).toHaveCount(0);
     expect(addresses.size).toBe(2);
     // No address is asked for again once the page has said so.
     await page.waitForTimeout(6_000);
     expect(addresses.size).toBe(2);
     await expectNoAxeViolations(page);
+    // The button saves the recording to the device: an address made for download, not a player
+    // (review L2).
+    const saved = page.waitForEvent('download');
+    await downloadButton.click();
+    const download = await saved;
+    expect(download.suggestedFilename()).not.toBe('');
+    expect(await download.failure()).toBeNull();
+    expect(addresses.size).toBe(2);
   });
 });
 
