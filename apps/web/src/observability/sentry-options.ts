@@ -8,7 +8,7 @@ import { scrubBreadcrumb, scrubEvent } from './sentry-scrub';
 /**
  * The share of errors dev and staging send. Sentry stays on its free plan for good (DECISIONS,
  * 15-10-2026), whose monthly allowance production needs, so production sends every error and
- * dev and staging one in five. The four alerts (`ALERT_NAMES`) are always sent.
+ * dev and staging one in five. Every alert of `ALERT_NAMES` is always sent.
  */
 export const TRIAL_ERROR_SHARE = 0.2;
 const TRIAL_ENVIRONMENTS: ReadonlySet<string> = new Set(['dev', 'staging']);

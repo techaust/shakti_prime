@@ -18,12 +18,36 @@ export const SENTRY_FLUSH_MS = 2_000;
  * - `outbox.dead_lettered`, `outbox.publisher_failing`: the outbox (incidents §2);
  * - `job.failing`: a scheduled worker route failed three calls in a row (`job`, `runs`);
  * - `job.problem`: a database job failed its last run, or has not run for longer than its period
- *   (`job`, `problem`).
+ *   (`job`, `problem`);
+ * - the Phase 2 alerts of the hourly jobs check (docs/03-roadmap-appendix/phase2.md §8.1), each
+ *   once per subject and period, its thresholds in `PHASE2_ALERT_THRESHOLDS`
+ *   (`apps/web/src/workers/phase2-alerts.ts`):
+ *   - `webhooks.failing`: a provider's inbox rows failed in the last hour at or above the threshold
+ *     (`provider`, `failed`);
+ *   - `webhooks.backlog`: a provider's oldest waiting row has waited past the threshold
+ *     (`provider`, `waiting`, `oldestMinutes`);
+ *   - `whatsapp.quality_low`: a company's number at Low quality (`company`);
+ *   - `whatsapp.budget_high`: the portfolio's messaging used at or above 80 % of its limit
+ *     (`used`, `limit`);
+ *   - `ai.spend_high`: a spender's spend today at or above 80 % of a daily cap, per agent and
+ *     company or the group (`agent`, `company`, `spentPaise`, `capPaise`);
+ *   - `ai.provider_failing`: an agent's runs the AI provider did not answer in the last hour at
+ *     or above the threshold (`agent`, `unavailable`);
+ *   - `voice.spend_high`: a person's voice minutes or spend today at or above 80 % of a daily cap
+ *     (`person`, an id; `minutes`, `spentPaise` and their caps).
  */
 export const ALERT_NAMES = [
   'outbox.dead_lettered',
   'outbox.publisher_failing',
   'job.failing',
   'job.problem',
+  // G2's Phase 2 alerts (g2-alerts).
+  'webhooks.failing',
+  'webhooks.backlog',
+  'whatsapp.quality_low',
+  'whatsapp.budget_high',
+  'ai.spend_high',
+  'ai.provider_failing',
+  'voice.spend_high',
 ] as const;
 export type AlertName = (typeof ALERT_NAMES)[number];
