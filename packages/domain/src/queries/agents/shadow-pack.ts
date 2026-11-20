@@ -173,12 +173,18 @@ export function shadowActionsSql(
              else 'open'
            end as agreement
       from ${actions} a
-      left join whatsapp_threads th
-        on a.action_type = ${REPLY} and th.id = (a.input_json ->> 'threadId')::uuid
-       and th.entity_id = a.entity_id
+      -- The proposal's chat and lead as values of their own (offset 0 keeps them so), and the chat
+      -- read laterally, so each lookup by them is an index condition: the casts are not leakproof,
+      -- and the policies would otherwise hold them back to a filter over every chat.
       cross join lateral (
-        select coalesce((a.input_json ->> 'opportunityId')::uuid, th.opportunity_id)
-                 as opportunity_id) l
+        select (a.input_json ->> 'threadId')::uuid as thread_id,
+               (a.input_json ->> 'opportunityId')::uuid as opportunity_id offset 0) k
+      left join lateral (
+        select th.id, th.opportunity_id from whatsapp_threads th
+         where a.action_type = ${REPLY} and th.id = k.thread_id and th.entity_id = a.entity_id) th
+        on true
+      cross join lateral (
+        select coalesce(k.opportunity_id, th.opportunity_id) as opportunity_id offset 0) l
       left join opportunities o on o.id = l.opportunity_id and o.entity_id = a.entity_id
       left join accounts acc on acc.id = o.account_id
       left join lead_qualifications lq
@@ -342,11 +348,16 @@ export async function spendPerLead(
       : sql``;
   const [leads] = (await ctx.tx.execute(sql`
     select count(distinct l.id)::int as n from (
-      select coalesce((a.input_json ->> 'opportunityId')::uuid, th.opportunity_id) as id
+      select coalesce(k.opportunity_id, th.opportunity_id) as id
         from agent_actions a
-        left join whatsapp_threads th
-          on a.action_type = ${REPLY} and th.id = (a.input_json ->> 'threadId')::uuid
-         and th.entity_id = a.entity_id
+        -- As in shadowActionsSql(): the chat read laterally by its key, an index condition.
+        cross join lateral (
+          select (a.input_json ->> 'threadId')::uuid as thread_id,
+                 (a.input_json ->> 'opportunityId')::uuid as opportunity_id offset 0) k
+        left join lateral (
+          select th.opportunity_id from whatsapp_threads th
+           where a.action_type = ${REPLY} and th.id = k.thread_id and th.entity_id = a.entity_id) th
+          on true
        where a.entity_id = ${entityId} and a.agent = ${agent}
          and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz
       ${notes}) l
