@@ -1055,6 +1055,8 @@ erDiagram
     timestamptz finished_at "null"
     integer rows_affected "null"
     text error "null"
+    smallint entity_id FK "null"
+    text resume_key "null"
   }
   saved_views {
     uuid id PK
@@ -1099,6 +1101,7 @@ erDiagram
   notifications }o--|| principals : "user_id"
   outbox_events }o--|| entities : "entity_id"
   push_subscriptions }o--|| principals : "user_id"
+  retention_runs }o--o| entities : "entity_id"
   saved_views }o--|| principals : "principal_id"
   webhook_inbox }o--o| entities : "entity_id"
 ```
