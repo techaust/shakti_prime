@@ -2,6 +2,8 @@ import { JobsCheckWorkerResponse, newId } from '@shakti/contracts';
 import { closeDb } from '@shakti/db/testing';
 import { createHash, createHmac } from 'node:crypto';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as CheckIns from '../src/observability/check-ins';
+import type * as Phase2Alerts from '../src/workers/phase2-alerts';
 
 // The hourly jobs check's route with the Phase 2 alerts failing (the lead, 20-11-2026): the run
 // still answers 200, so the job's streak is not held at failing and its check-in is sent as ok.
@@ -10,14 +12,14 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 
 const checkIns = vi.hoisted(() => [] as { job: string; status: string }[]);
 vi.mock('../src/observability/check-ins', async (original) => ({
-  ...(await original<typeof import('../src/observability/check-ins')>()),
+  ...(await original<typeof CheckIns>()),
   sendCheckIn: (job: string, status: string) => {
     checkIns.push({ job, status });
     return Promise.resolve();
   },
 }));
 vi.mock('../src/workers/phase2-alerts', async (original) => ({
-  ...(await original<typeof import('../src/workers/phase2-alerts')>()),
+  ...(await original<typeof Phase2Alerts>()),
   runPhase2Alerts: () =>
     Promise.reject(new Error('platform.jobs.check:all is required (stood in for a refused read)')),
 }));
