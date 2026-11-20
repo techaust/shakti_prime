@@ -71,7 +71,7 @@ ROADMAP §4's gate reads in two parts ([phase 2 design §12](../03-roadmap-appen
 | Shadow reports reviewed with the Executive | Final phase | Reports built in G2; the review waits | §7, rows A3 and A2 |
 | Speech-to-text accuracy met on real samples | Final phase | Waiting | §7, row V1; the target is design §9.2's, measured first on the team's 30 stand-in recordings |
 
-When the engineering items are met and G2 has merged, the exit gate moves `currentPhase` in `.claude/tooling.json` ([design §8.1](../03-roadmap-appendix/phase2.md#81-g2-phase-2-exit-pack)).
+When the engineering items are met and G2 has merged, the exit gate moves `currentPhase` in `.claude/tooling.json` ([design §8.1](../03-roadmap-appendix/phase2.md#81-g2-phase-2-exit-pack)). The owner closed Phase 2 on 20-11-2026 with G2 merged and `currentPhase` 3; the sandbox run and the voice latency above stay open as follow-ups and are recorded in their rows when they run ([DECISIONS](../11-decisions.md)).
 
 ## 7. Phase 2 final-phase checklist
 Each slice is built and tested now on sandboxes, test numbers and recorded payloads; its live step runs in the final phase, once the accounts and the client's inputs exist, and is recorded where its row says. What the client's people provide is in [client-actions](client-actions.md); every value production needs is set by the owner, with nothing on a hosted service changed without the owner's go-ahead.

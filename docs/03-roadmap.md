@@ -86,7 +86,9 @@ Closed on its engineering work on 13-11-2026 (the owner's decision); the items t
 ## 4. Phase 2 — Communications & live voice (9–11 weeks)
 **Scope:** WhatsApp Cloud API with one number per entity; Lead Ads webhooks; Exotel click-to-dial and recordings on DLT-registered numbers; Concierge and Caller Co-pilot from shadow to approval; WhatsApp quote acceptance and milestone messages; speech-vendor benchmark and selection; Playbook directive review; Ask the Business; live voice Teach and Ask.
 
-**Plan:** 15 slices in four waves, in [`docs/03-roadmap-appendix/phase2.md`](03-roadmap-appendix/phase2.md) §3, awaiting the owner's approval.
+**Plan:** 15 slices in four waves, in [`docs/03-roadmap-appendix/phase2.md`](03-roadmap-appendix/phase2.md) §3, approved on 13-11-2026.
+
+Closed on its engineering work on 20-11-2026 (the owner's decision): the run on the Exotel sandbox and the voice latency on dev wait on vendor accounts and go on as open follow-ups; the live items are Phase 7's ([exit-gate-actions §6](13-client-packs/exit-gate-actions.md#6-phase-2-exit-gate)).
 
 **Exit gate:** webhook idempotency and contract tests green; DLT numbers live and consent routing verified; shadow reports reviewed with the Executive; voice p50 latency < 1.5 s; speech-to-text accuracy met on real samples, against a target set from the voice spike's measurements before Phase 2 starts (`docs/04-architecture-appendix/voice.md`).
 
