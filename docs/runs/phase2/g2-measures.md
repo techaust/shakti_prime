@@ -166,4 +166,4 @@ One high, four medium and six low findings, sent to the builder for one fix roun
 Follow-up: `VENDOR_CREDENTIALS` is a fixed list; a test that every vendor variable of `.env.example` is on it would keep it complete.
 
 ## Integration
-- 20-11-2026, on the PC (slot g2-measures, Postgres 54336): `main` (#268 to #272) merged in with no conflict; 35305e13 was already on `main` as #270; no migration.
+- 20-11-2026, on the PC (slot g2-measures, Postgres 54336): `main` (#268 to #273) merged in with no conflict; 35305e13 was already on `main` as #270; no migration.
