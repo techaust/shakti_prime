@@ -5,6 +5,7 @@ import { logger } from '../log';
 import { sentryAlertSink, type AlertSink } from '../observability/alerts';
 import { BACKUP_JOB, backupProblem, configuredBackupCheck, type BackupListing } from './backup-age';
 import { systemWorkersPrincipal } from './events/system-principal';
+import { runPhase2Alerts } from './phase2-alerts';
 
 /** How long one alert for a job's problem stands before the check raises it again. */
 const ALERT_AGAIN_SECONDS = 7 * 24 * 60 * 60;
@@ -79,6 +80,8 @@ export async function runJobsCheck(options: JobsCheckOptions): Promise<JobsCheck
     await alerts.report('job.problem', { job, problem: state });
     alerted += 1;
   }
+  // G2's Phase 2 alerts (g2-alerts): webhooks, WhatsApp quality and budget, AI and voice spend.
+  await runPhase2Alerts({ requestId, keyValue, alerts, now });
   const jobs = reports.length + (backups === null || backups === undefined ? 0 : 1);
   return JobsCheckWorkerResponse.parse({ jobs, problems: problems.length, alerted });
 }

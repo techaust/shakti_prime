@@ -1534,6 +1534,13 @@
       "when": 1795013640782,
       "tag": "0218_concierge_unavailable_hand_off",
       "breakpoints": true
+    },
+    {
+      "idx": 219,
+      "version": "7",
+      "when": 1795154026489,
+      "tag": "0219_g2_alert_counts",
+      "breakpoints": true
     }
   ]
 }
