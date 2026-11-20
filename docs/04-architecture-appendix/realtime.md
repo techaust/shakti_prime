@@ -54,3 +54,6 @@ The unit test "survives a rotation" in `apps/web/src/realtime/token.test.ts` wal
 
 ## 7. Results
 Not run yet.
+
+## Measured (G2)
+**20-11-2026:** the screen-pop by Realtime is not measured: Realtime runs only on a hosted project, and this slice called none. The local poll's figure (p50 1,650 ms, p95 2,938 ms, TEL-05's 2 seconds missed by the poll's own wait) is in [exotel.md](exotel.md). The same command measures the Realtime transport, which it reads from the page's socket to the project: `pnpm --filter web exec tsx tests/measures/g2.ts screen-pop --base-url https://shakti-prime-dev.vercel.app --hosted-run-approved --rounds 30`, with the variables [exotel.md](exotel.md) names. It waits on `SCREEN_POP_TRANSPORT=realtime`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `BOS_JWT_CURRENT_KEY` on dev, and on Exotel's incoming secret and a caller with customers on dev; the owner's go-ahead runs it.

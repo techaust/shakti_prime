@@ -88,3 +88,18 @@ Read through search results quoting each vendor's pages (the build session could
 
 ## 7. Results
 Not run yet: the fixture set's numbers (§5) test the arithmetic and are not results. Part 2 records here, with the date, each vendor's report on the stand-in set.
+
+## Measured (G2)
+**Runs of 20-11-2026**, in a cloud VM (4 processors, Intel Xeon at 2.1 GHz, 16 GB), on branch `feat/g2-measures` at 58720fdf (report `voice-1`) and f4be1dee (`voice-2`, which adds the timing to playback), product code unchanged from `main` at 889ec54d apart from the webhook fix 35305e13: the part of the voice turn that needs no vendor. `pnpm --filter @shakti/voice-agent exec tsx src/measure-turns.ts --turns 200` runs the worker's own `VoiceSession` on V2's fake room with the real clock and timers, with stand-ins for streaming speech-to-text, the reply and text-to-speech, and reads its `turnStats()`, what `voice_sessions.turn_stats_json` keeps (`apps/voice-agent/src/turn-timing.ts`). Reports in [results/g2-2026-11-20/](results/g2-2026-11-20/).
+
+**What it covers.** The session's `first_audio` runs from the end of speech as the speech service reports it to the first audio chunk of the reply: §9.3's three vendor steps, 1,100 ms of the 1,500 ms budget (final transcript 250, the model's first sentence 600, its first audio 250). The end of speech's own detection (250 ms) and the network and playback buffer (150 ms) are not in it, so its figures compare with 1,100 ms, not 1,500 ms. From f4be1dee the measure also times each turn itself, from the end of speech to the fake room's `play()` of the first audio, on the same clock but not from the session's stamps (`toPlayback`).
+
+| Stand-ins | Turns | Final transcript p50 / p95 | First sentence | First speech | First audio (session) | To playback (measure), p50 / p95 / longest |
+|---|---|---|---|---|---|---|
+| Answer at once (`voice-2`) | 200 | 0 / 0 ms | 0 / 0 ms | 0 / 0 ms | 0 / 0 ms | 0 / 0 / 2 ms |
+| §9.3's three steps as delays, 250, 600, 250 ms (`voice-2`) | 50 | 250 / 251 ms | 600 / 601 ms | 250 / 251 ms | 1,101 / 1,103 ms | 1,101 / 1,103 / 1,104 ms |
+
+- With stand-ins that answer at once, the worker's own handling between the vendors' events (the transcript to the reply, a sentence to its speech, the chunk to the room) rounds to 0 ms at p95 in `turn_stats_json`, and the measure's own timing to playback was at most 2 ms. That is what the worker adds to the three vendor steps; it says nothing of the end of speech's detection or the network.
+- With the budget's delays, `first_audio` is 1,101 ms against the 1,100 ms the three steps add up to. The session's figure agreeing with its own steps is so by construction (it subtracts the same stamps); the timing to playback, taken outside the session, agrees with it to within 2 ms, which is the check that the steps are counted end to end.
+
+The target, first audio p50 at most 1,500 ms from Mumbai (design §9.3), is **not measured yet**: the real steps are the vendors' (Sarvam's speech, the model's first sentence, the network and playback). They wait for V1 part 2's keys and the LiveKit project: `pnpm --filter web spike:voice -- latency` (§3) gives each step's p50 and p95, and every real session on dev keeps its own `turn_stats_json`. A run on dev is the owner's go-ahead.

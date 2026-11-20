@@ -1,0 +1,52 @@
+{
+  "at": "2026-11-20T08:27:29.007Z",
+  "machine": {
+    "processors": 4,
+    "model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memoryGb": 16
+  },
+  "target": "next start on this machine",
+  "processing": "in the server after each answer (no queue)",
+  "dial": {
+    "rounds": 30,
+    "accepted": {
+      "n": 30,
+      "p50": 191,
+      "p95": 30000,
+      "p99": 30000,
+      "min": 185,
+      "max": 30000
+    },
+    "action": {
+      "n": 26,
+      "p50": 147,
+      "p95": 202,
+      "p99": 219,
+      "min": 118,
+      "max": 219
+    },
+    "within2s": 0.8666666666666667,
+    "misses": [
+      {
+        "round": 12,
+        "step": "the dial action’s answer",
+        "bar": "Call from the screen Say this first: Namaste ji, aapki jaankari ke liye bata dein ki yeh call quality aur training ke liye record ho sakti hai. Call C Call ended 0:03 The call has ended. Choose its outcome to save it."
+      },
+      {
+        "round": 14,
+        "step": "the dial action’s answer",
+        "bar": "Call from the screen Say this first: Namaste ji, aapki jaankari ke liye bata dein ki yeh call quality aur training ke liye record ho sakti hai. Call C Call ended 0:03 The call has ended. Choose its outcome to save it."
+      },
+      {
+        "round": 24,
+        "step": "the dial action’s answer",
+        "bar": "Call from the screen Say this first: Namaste ji, aapki jaankari ke liye bata dein ki yeh call quality aur training ke liye record ho sakti hai. Call C Call ended 0:03 The call has ended. Choose its outcome to save it."
+      },
+      {
+        "round": 27,
+        "step": "the dial action’s answer",
+        "bar": "Call from the screen Say this first: Namaste ji, aapki jaankari ke liye bata dein ki yeh call quality aur training ke liye record ho sakti hai. Call C Call ended 0:03 The call has ended. Choose its outcome to save it."
+      }
+    ]
+  }
+}
