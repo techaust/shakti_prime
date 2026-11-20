@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| Branch | `docs/g2-runbooks` on GitHub, from `main` at 889ec54d |
+| Branch | docs/g2-runbooks on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): documents only, no code |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed |
-| State | briefed |
-| Next step | write the sections |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder (cloud session) on Opus 5.5 at high effort from the start |
+| State | building |
+| Next step | write the six INCIDENTS sections and the exit-gate checklist |
 
 ## Brief
 Read first:
@@ -30,7 +30,7 @@ Review checklist (check before your report): every step names something that exi
 
 ## How this slice runs
 - **Your role:** you are this slice's builder, not the lead. Read `.claude/agents/slice-builder.md` first and follow it as your rules (its **Cloud** lines), with this file as your brief. `CLAUDE.md` calls every session the lead: in this session that does not apply. Do not run the `start-session` or `end-session` skills, open or merge a pull request, push to `main`, touch any hosted service or GitHub workflow, delete a branch, or force-push.
-- **Branch:** `docs/g2-runbooks` is on GitHub with this file. Start with `git fetch origin && git switch docs/g2-runbooks` and work in the checkout itself (one slice in this VM); the session hook starts Postgres on 54322 (start every shell command with `. tools/integration/lib.sh &&`).
+- **Branch:** docs/g2-runbooks is on GitHub with this file. Start with `git fetch origin && git switch docs/g2-runbooks` and work in the checkout itself (one slice in this VM); the session hook starts Postgres on 54322 (start every shell command with `. tools/integration/lib.sh &&`).
 - **Push:** commit as you go and push your branch after every commit, at least every 10 minutes; a reclaimed VM loses everything unpushed.
 - **Your checks, in the VM, before each report:** `pnpm typecheck`; `pnpm exec eslint --max-warnings 0 <each folder you touched>`; the unit tests of each package you touched; `pnpm test:security` when you touched schema, policies, definers, commands or queries; `pnpm copy-lint` when you touched `en.json`; `pnpm db:docs` and `pnpm --filter @shakti/domain machines:docs` when they apply; then `pnpm build` and your own journeys (`pnpm --filter web e2e:seed && pnpm --filter web exec playwright test <your specs>`), and your screens' Linux baselines with `pnpm --filter web e2e:snap -- <your specs>`. Run a long command in the background (each has 30 minutes), the build and the journeys as separate commands. The whole-repository `pnpm lint` once, as your final check.
 - **Reporting:** the lead watches your branch from the owner's PC and reads nothing else of this session. Write each report into this file's Report section (under a heading with the date and "cloud session"), commit it with the subject `report: g2-runbooks <stage>` and push. The stages are `early check`, `done`, `fixes` and `blocked`. That commit subject is how the lead knows you have stopped. After `report: g2-runbooks done` stop: the lead reviews the branch and may send the review's findings to this session for one fix round, which ends with `report: g2-runbooks fixes`.
