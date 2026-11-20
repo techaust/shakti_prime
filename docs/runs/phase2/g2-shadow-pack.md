@@ -5,8 +5,8 @@
 | Branch | `feat/g2-shadow-pack` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): reports over AI agent principals' work, read under row-level security |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; built on Opus 5.5 at high effort (start, early check and done) |
-| State | done |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; built on Opus 5.5 at high effort (start, early check, done and fixes) |
+| State | fixes |
 | Next step | the lead's review |
 
 ## Brief
@@ -120,6 +120,33 @@ The chats (94 in the company) are read by a hash or a materialised list where th
 - A first full security run after step 4 failed `retention.test.ts` once: the early check's test wrote its hand-off rows into a random month of 2001 to 2020, which the retention suite's random month (1971 to 2010) can meet in the audit trail's default partition. The test now uses 2011 to mid-2017, clear of every audit-partition test (`37910c40`).
 
 **For the lead:** a merge with `main` takes `en.json` (one block), `copy-lint.config.json` (one word on the button keys line) and `js-budget.json` (two entries); migration 0219 is renumbered at the merge.
+
+### 20-11-2026, cloud session: fixes (the review of 8ef8c684)
+| Item | Fix | Commit | Test |
+|---|---|---|---|
+| H1 tasks | A task agrees only when a person set it themselves: its request ran `crm.task.create` alone. No column tells: the call log's retries and callbacks (`createCallTask`), the nurture calls and a reassignment's moves (`moveCallTasks`) all file through `crm.task.create` as the caller, inside their own command, whose audit row shares the request id, so the audit trail tells them apart. It must also be the proposed kind, made within 48 hours of the proposal (`SHADOW_MATCH_WINDOW_HOURS`) and due within 24 hours of the proposed time (`SHADOW_TASK_DUE_TOLERANCE_HOURS`). A template agrees within the same 48 hours. | `ddff027f` | `shadow-pack.test.ts` "counts only a person's own task…": a retry the call log filed, a callback made before, one of another kind and one made too late all stay open; a person's own callback an hour from the proposed time agrees |
+| H1 facts | Each fact is held to the first change of it a person recorded after the proposal (`crm.lead.qualification.set` audit rows), so a later correction never flips the verdict; a fact the lead already held is a repeat and stays open; never recorded since is open. | `ddff027f` | "holds facts to the first change…": a repeat stays open, a correction after an agreeing change leaves it agreed, another value disagrees; the Co-pilot's review set shows the first recorded value, not the correction |
+| H1 access | Both comparisons read the audit trail, so a viewer without `audit.read` sees every proposal in Shadow as open, and the report and the review set say so (`compared: false`, "Compared with the team's work only for people who can open the activity log"). | `ddff027f`, `aaa2551d` | "compares nothing in Shadow for a viewer who does not read the audit trail" |
+| M1 | A dismissed Suggest proposal is compared as Shadow is; rejected still disagrees. | `ddff027f` | the Suggest callback dismissed on lead A agrees (decided 1, agreed 2) |
+| M2 | The Concierge's review set is its drafted replies alone (`ntile(50)` over replies; its count, refusals and copy say replies); facts and callbacks stay in the figures; the Co-pilot keeps every kind. | `ddff027f`, `aaa2551d` | "is the WhatsApp assistant's drafted replies alone…" |
+| M3 | The journey pictures `concierge-kinds`, `concierge-spend`, `concierge-handoffs`, `copilot-kinds` and `copilot-spend` (light, dark, 400 px), masking the spending's figures and the hand-offs' lists, which other journeys' stopped runs move; axe on the Co-pilot report. | `aaa2551d`, `be703026` | `e2e/shadow-pack.spec.ts` |
+| L2 | `executed` is its own figure ("carried out by the agent", shown when there is one) and open in the agreement; `approved` is a person's approval only. | `ddff027f`, `aaa2551d` | an executed reply: executed 1, open 4; in the review set state `executed`, agreement open |
+| L3 | A pair's row reads "Compared with the team". | `aaa2551d` | the review baselines |
+| L4 | "Spread evenly through the period's replies (suggestions) and oldest first". | `aaa2551d` | the review baselines |
+| L5 | A hand-off through `messaging.thread.hand_off` run by the command runner counts once more for the person; one paisa over two leads gives ₹0.01 a lead. | `ddff027f` | "counts a person's hand-off through the command itself", "rounds the spend per lead half up to the paisa" |
+| L6 | The contract's comment names `shadowActionsSql()`. | `ddff027f` | |
+
+Documents: the design's Built lines take the new rules and plans (`8ab40f68`).
+
+**`EXPLAIN (ANALYZE)` after the fixes**, on the same 3,000 proposals per agent: figures 133 ms (Concierge) and 125 ms (Co-pilot), up from 71 and 62. A fact's changes are read on `audit_logs_*_aggregate_type_aggregate_id_created_at_idx` (one probe per proposed fact) and a task's request on `audit_logs_*_request_id_idx` (only for a candidate task). Review set 9 ms and 8 ms; hand-offs 0.8 ms.
+
+**Checks in this VM:** `pnpm typecheck` clean; `pnpm lint` (whole repository, last) clean; eslint on each folder touched clean; `pnpm copy-lint` clean; `web` unit 1158 passed; `pnpm build` passed; `pnpm --filter web js-budget`: every page within its budget (the reports 231.8 and 232.0 kB of 242, the review pages 189.4 of 199). Journeys in the Linux image: baselines remade on a fresh database (20 passed), then compared on another fresh database with `concierge.spec.ts` and `copilot.spec.ts` (41 passed, their baselines unchanged). Security suite on a fresh database, one suite at a time: `@shakti/db` 1508 passed; `@shakti/domain` 1379 passed, 24 failed, all in `whatsapp-quotes.test.ts`; `web` 429 passed, 16 failed, all in `whatsapp-quotes.test.ts`. Those failures are the known clock fault (techaust/shakti_prime#269); the two outbox tests of the last report passed.
+
+**Assumptions:**
+- The figures for tasks and facts in Shadow need the audit trail. Readers holding an agent control without `audit.read` (none by default: the Executive and the General Manager hold both) see them open, rather than a weaker rule that would overstate agreement.
+- A task's due time is compared only for a proposal that names one (both agents' do).
+- A template agrees within the same 48 hours as a task.
+- The 48 hours and the 24 hours are engineering rules in `shadow-pack.ts`, not workshop inputs; the design names them.
 
 ## Review
 
