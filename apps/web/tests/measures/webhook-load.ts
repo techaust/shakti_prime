@@ -33,7 +33,7 @@ import {
  */
 
 export const WEBHOOK_ANSWER_TARGET_MS = 2_000;
-const PROVIDERS: readonly WebhookProvider[] = [
+export const PROVIDERS: readonly WebhookProvider[] = [
   'meta_whatsapp',
   'meta_leadgen',
   'google_leadform',
@@ -139,13 +139,16 @@ export async function loadAtRate(options: {
   env: WebhookSigningEnv;
   /** Count the stored rows on the local database. */
   countStored: boolean;
+  /** The providers sent in turn; all six by default. */
+  providers?: readonly WebhookProvider[];
 }): Promise<RateResult> {
+  const providers = options.providers ?? PROVIDERS;
   const offsets = openLoopOffsets(options.rate, options.seconds);
   const now = new Date();
   // Planned and signed before the clock starts, so signing takes none of the run's time.
   const fresh: Planned[] = [];
   for (let i = 0; i < offsets.length; i += 1) {
-    fresh.push(await plan(PROVIDERS[i % PROVIDERS.length] ?? 'meta_whatsapp', options.env, now));
+    fresh.push(await plan(providers[i % providers.length] ?? 'meta_whatsapp', options.env, now));
   }
   const deliveries = offsets.map((_, i) => {
     const repeat = i % REPEAT_EVERY === REPEAT_EVERY - 1 && i >= REPEAT_BACK;
@@ -190,7 +193,7 @@ export async function loadAtRate(options: {
     if (s.status !== 200) notOk[String(s.status)] = (notOk[String(s.status)] ?? 0) + 1;
   }
   const byProvider: Record<string, Percentiles> = {};
-  for (const provider of PROVIDERS) {
+  for (const provider of providers) {
     byProvider[provider] = percentiles(
       sent.filter((s) => s.provider === provider).map((s) => s.ms),
     );

@@ -17,7 +17,7 @@
 // or staging is the owner's go-ahead, never part of a slice. Nothing here runs in CI.
 // Usage: pnpm --filter web exec tsx tests/measures/g2.ts <measure|all> [--base-url <url>]
 //        [--port <n>] [--rounds <n>] [--rates 20,50,100] [--seconds <n>] [--graph-ms <n>]
-//        [--out <file.json>] [--queue stand-in]
+//        [--out <file.json>] [--queue stand-in] [--providers meta_whatsapp,exotel_incoming,…]
 // `--queue stand-in` holds processing off: the server publishes each stored delivery to a local
 // queue stand-in, as a hosted server publishes to QStash, so the answer time alone is measured.
 import { closeWebhookDb } from '@shakti/db/webhooks';
@@ -37,7 +37,7 @@ import {
 import { LEAD_TARGET_MS, measureLeadPath } from './lead-path';
 import { measureBatchCall, queueStandIn } from './outbox-batch';
 import { loadRootEnv, measureServer, type MeasureServer } from './server';
-import { loadAtRate, WEBHOOK_ANSWER_TARGET_MS } from './webhook-load';
+import { loadAtRate, PROVIDERS, WEBHOOK_ANSWER_TARGET_MS } from './webhook-load';
 
 const MEASURES = ['webhooks', 'lead', 'dial', 'screen-pop', 'outbox'] as const;
 type Measure = (typeof MEASURES)[number];
@@ -92,6 +92,12 @@ if (rates.some((r) => !Number.isInteger(r) || r < 1 || r > 500)) {
   process.exit(1);
 }
 const seconds = whole('seconds', 30, 600);
+const providers = (option('providers') ?? PROVIDERS.join(',')).split(',');
+const unknownProvider = providers.find((p) => !(PROVIDERS as readonly string[]).includes(p));
+if (unknownProvider !== undefined) {
+  console.error(`--providers takes some of ${PROVIDERS.join(', ')}`);
+  process.exit(1);
+}
 const queue = option('queue');
 if (queue !== undefined && (queue !== 'stand-in' || baseUrl !== undefined)) {
   console.error('--queue takes stand-in, and only for the server started here');
@@ -168,6 +174,7 @@ try {
           seconds,
           env,
           countStored: server.local,
+          providers: providers as typeof PROVIDERS,
         });
         results.push(result);
         const stored =
@@ -178,7 +185,7 @@ try {
           .map(([status, n]) => `${String(n)} × ${status}`)
           .join(', ');
         rows.push({
-          measure: `webhook answer at ${String(rate)}/s${stand === undefined ? '' : ', processing held off'}`,
+          measure: `webhook answer at ${String(rate)}/s${providers.length === PROVIDERS.length ? '' : ` (${providers.join(', ')})`}${stand === undefined ? '' : ', processing held off'}`,
           stats: result.answers,
           target: { stat: 'max', limitMs: WEBHOOK_ANSWER_TARGET_MS },
           note: `${stored}; not 200: ${failed === '' ? 'none' : failed}; send lag p99 ${String(result.sendLag.p99)} ms`,

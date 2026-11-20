@@ -123,6 +123,7 @@ export async function measureServer(options: {
   let errors = '';
   child.stderr.on('data', (chunk: Buffer) => {
     errors = `${errors}${chunk.toString('utf8')}`.slice(-4_000);
+    if (process.env.G2_SERVER_LOG === '1') process.stderr.write(chunk);
   });
   const deadline = Date.now() + 120_000;
   while (!(await healthy(baseUrl))) {
