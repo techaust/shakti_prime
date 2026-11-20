@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): role grants in a definer, a customer-facing filter, an anonymisation window |
 | Usage | 5-hour window 0 % at 05:45 UTC when briefed; builder on Opus 5.5 at high effort from start to done |
-| State | done: items 1 to 9 built, waiting for the lead's review |
-| Next step | the lead's review |
+| State | fix round done: M1, L1 and L2 fixed, waiting for the lead |
+| Next step | the lead reads the fix round and integrates |
 
 ## Brief
 The open Phase 2 follow-ups of [STATUS](../../10-status.md#open-follow-ups) that are code, one commit each with its tests. Read each item's source finding in the run file named before you change anything.
@@ -220,6 +220,35 @@ Commits after the early check: a7bd15ec (4), 72077ef5 and 20a3d522 (5), 4d3a7c73
 - Repository debris: the long-used local database fails three journeys that pass on a fresh one. CLAUDE.md already requires fresh databases for journeys, so it is not a new follow-up.
 
 **Skills loaded:** none (no command or table added).
+
+### 20-11-2026, cloud session: fixes (the lead's review at 5ad17101)
+
+**M1, the Concierge's name exemption (5bc544e5)**
+- `withoutCustomerName()` in `claims.ts` now exempts nothing when every word of the name is a number word, titled forms included ("Das", "Paanch Hazaar", "Five Thousand").
+- The titled forms still take the whole name or one word of it. All matches are found first, and a match is left alone when the word beside it (spaces skipped) makes any claim, or when it touches another match, so matches cannot chain into a number phrase.
+- Tests in `filter.test.ts`:
+  - refused: the review's three ("Five Thousand" with "That comes to five thousand sir."; "Ramesh Paanch Hazaar" with "Shri paanch hazaar ji."; "Ramesh Das" with "Mr Das das ji."), plus "Paanch Hazaar" with "Woh paanch hazaar ji hoga.", "Ramesh Das" with "Namaste Das ji das hazaar." and "Das" with "Namaste Das ji, …";
+  - passing: every earlier passing greeting except "Das ji" for a customer named just "Das", which moves to refused under the all-number-words rule; plus "Namaste Shri Ramesh Das ji, …".
+- Each of the review's cases blanked its number words under the old function (checked with a throwaway test against both versions, 4 failed and 4 passed) and keeps them under the new one.
+
+**L1, item 7 on the converting workspace (af89643c)**
+- `converting.spec.ts`, new case: Kishan Verma, company 1's Lead Converter (company 1 has calling numbers), dials lead B from the bar, saves lead A by hand, returns to B and saves it.
+- An Executive then finds one "Play recording" on B's customer page, which means the log names the placed call.
+- Against a build with the hook as it was before item 7, it fails exactly there (0 recordings: B's log was saved unlinked). With the fix it passes in all three projects.
+- Found while writing it: this workspace rebuilds the calls panel per lead and per tab (`lead-workspace.tsx`, the panel body is keyed by lead and tab). So its call bar never shows B's ended call after a switch, before or after this slice; only the save's link is kept. The calling screen's bar does keep it. Left as it is; whether the bar should survive a tab or lead switch there is a design choice for the lead.
+
+**L2, the download path (84a8cd66)**
+- `knowledge-audio.spec.ts`: the unplayable-recording case clicks "Download the recording" and expects a download with a filename and no failure, and no third address is asked for.
+- Against a build whose `openFile` signs the address inline, the step fails (no download event within the test's time). With the real code it passes in all three projects.
+
+**Checks in this VM, after the fixes**
+- `pnpm typecheck`: 10 of 10. `pnpm lint` (whole repository): clean. `pnpm copy-lint`: clean.
+- Unit tests: contracts 322, domain 2593, db 160, web 1155 (+1 skipped).
+- `pnpm test:security`: db 1513, domain 1395, web 447 (4 of 4 tasks).
+- `pnpm build`: passed. js-budget: 55 pages within budget.
+- Journeys in the Linux image, each project on its own fresh database, specs `roles`, `voice`, `knowledge-audio`, `click-to-dial`, `notifications`, `calling`, `converting`, `whatsapp-quotes`: 44, 43 and 43 passed. The one failure per project is `converting-board`, the lead's known DND-date fault (fixed on techaust/shakti_prime#269), whose baseline is untouched. No baseline changed in this round.
+- The DATABASE rows' migration numbers are left as they are, as asked.
+- The VM restarted before this round. The session hook's `docker compose` could not start Postgres beside the container `fresh-db.sh` had made, so the database was recreated with `fresh-db.sh` and migrated.
 
 ## Review
 
