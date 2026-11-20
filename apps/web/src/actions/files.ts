@@ -99,11 +99,19 @@ export async function fileStatus(rawFileId: unknown): Promise<ActionResult<FileD
   });
 }
 
-/** A short-lived address that opens a checked file the caller may read. */
-export async function openFile(rawFileId: unknown): Promise<ActionResult<{ url: string }>> {
+/**
+ * A short-lived address that opens a checked file the caller may read; `download` makes the
+ * browser save it instead of showing it (a recording the browser cannot play).
+ */
+export async function openFile(
+  rawFileId: unknown,
+  rawDownload?: unknown,
+): Promise<ActionResult<{ url: string }>> {
   return toResult('openFile', async () => {
     const principal = await signedIn();
     const fileId = parseInput(IdSchema, rawFileId);
+    // Only a literal true downloads; anything else a caller sends opens the file as before.
+    const download = rawDownload === true;
     const { requestId } = await requestMeta();
     const file = await executeQuery(principal, { requestId }, (ctx) => getStoredFile(ctx, fileId), {
       name: 'openFile',
@@ -118,7 +126,7 @@ export async function openFile(rawFileId: unknown): Promise<ActionResult<{ url: 
     }
     const get = await store.presignGet(file.key, {
       filename: file.name,
-      disposition: 'inline',
+      disposition: download ? 'attachment' : 'inline',
     });
     return { url: get.url };
   });

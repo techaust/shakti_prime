@@ -106,6 +106,46 @@ test.describe('as an Executive', () => {
   });
 });
 
+test.describe('as an Executive, with a recording the browser cannot play', () => {
+  test.use(signedInAs('executive'));
+
+  test('asks for one new address, then says so and offers it to download (K3 re-check N2)', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    // Each address of the recording answers bytes no browser plays, after more than the 5 seconds
+    // under which a failure is taken as the file's own: the first failure signs a new address.
+    const addresses = new Set<string>();
+    await page.route('**/*', async (route) => {
+      const request = route.request();
+      if (request.resourceType() !== 'media') return route.fallback();
+      addresses.add(request.url());
+      await new Promise((resolve) => setTimeout(resolve, 5_500));
+      return route.fulfill({
+        status: 200,
+        contentType: 'audio/wav',
+        body: Buffer.from('this is not a recording'),
+      });
+    });
+    await page.goto(`/knowledge/files/${seededUsers().recordings.snapshot}`);
+    await expect(
+      page.getByRole('heading', { name: SNAPSHOT_RECORDING.title, level: 1 }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'This browser cannot play this recording. Download it to play it on your device.',
+      ),
+    ).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByRole('button', { name: 'Download the recording' })).toBeVisible();
+    await expect(page.locator('audio')).toHaveCount(0);
+    expect(addresses.size).toBe(2);
+    // No address is asked for again once the page has said so.
+    await page.waitForTimeout(6_000);
+    expect(addresses.size).toBe(2);
+    await expectNoAxeViolations(page);
+  });
+});
+
 test.describe('as a tele-caller', () => {
   test.use(signedInAs('teleCaller'));
 

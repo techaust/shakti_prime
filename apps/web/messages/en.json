@@ -4902,6 +4902,8 @@
       "recording": "Recording",
       "player": "Play the recording {title}",
       "cannotPlay": "This recording cannot be played here. Ask your administrator to check file storage.",
+      "notPlayable": "This browser cannot play this recording. Download it to play it on your device.",
+      "downloadRecording": "Download the recording",
       "transcript": "Transcript",
       "transcriptLabel": "What was said",
       "transcriptHint": "Correct any words the speech service heard wrongly, such as Rajasthani or Marwari words. Write in English letters. Numbers like Aadhaar and phone numbers are covered when you save.",

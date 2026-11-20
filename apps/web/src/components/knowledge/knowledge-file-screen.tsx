@@ -9,7 +9,7 @@ import { correctKnowledgeTranscript, recheckKnowledgeFile } from '../../actions/
 import { settle } from '../screens/settle';
 import { formatDate } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
-import { useCommand, useQuery } from '../screens/use-command';
+import { useCommand, useQuery, type CommandFailure } from '../screens/use-command';
 
 /** How often the file is read again while it is being transcribed and read. */
 const REFRESH_MS = 4_000;
@@ -18,7 +18,10 @@ const REFRESH_MS = 4_000;
  * under the store's 15 minutes (`PRESIGN_SECONDS`).
  */
 const RESIGN_AFTER_MS = 10 * 60 * 1000;
-/** A player that fails sooner than this after its address was signed is not signed again. */
+/**
+ * A player that fails sooner than this after its address was signed is not signed again: the
+ * address was good, so the browser cannot play the file.
+ */
 const RESIGN_MIN_MS = 5_000;
 
 /** The longest transcript a person may save (`KNOWLEDGE_TRANSCRIPT_MAX_CHARS`). */
@@ -69,9 +72,14 @@ export function KnowledgeFileScreen({
   const waiting = file.state === 'waiting';
 
   // The player's address lapses after 15 minutes: it is signed again when the player fails on it,
-  // or when the page reads the file and the address is getting old, and resumes where it was.
+  // or when the page reads the file and the address is getting old, and resumes where it was. A
+  // failure is signed again once: a fresh address that fails, or a second failure before the
+  // recording loaded, is a file this browser cannot play, which the page then says, with a
+  // download in its place (K3 re-check N2).
   const [playUrl, setPlayUrl] = useState(audioUrl);
+  const [unplayable, setUnplayable] = useState(false);
   const signedAt = useRef(0);
+  const signedAgainForFailure = useRef(false);
   const resumeAt = useRef<number | undefined>(undefined);
   const player = useRef<HTMLAudioElement>(null);
   useEffect(() => {
@@ -85,6 +93,15 @@ export function KnowledgeFileScreen({
       if (result.ok) setPlayUrl(result.data.url);
     });
   }, [file.fileId]);
+
+  const onPlayerError = useCallback(() => {
+    if (signedAgainForFailure.current || Date.now() - signedAt.current < RESIGN_MIN_MS) {
+      setUnplayable(true);
+      return;
+    }
+    signedAgainForFailure.current = true;
+    signAgain();
+  }, [signAgain]);
 
   useEffect(() => {
     if (!waiting) return;
@@ -149,6 +166,8 @@ export function KnowledgeFileScreen({
             </h2>
             {playUrl === undefined ? (
               <p className="text-text-muted text-sm">{t('file.cannotPlay')}</p>
+            ) : unplayable ? (
+              <RecordingDownload fileId={file.fileId} />
             ) : (
               // A spoken recording has no captions; its transcript beside it is its text
               // alternative (WCAG 1.2.1), named to the player by `aria-describedby`.
@@ -157,8 +176,10 @@ export function KnowledgeFileScreen({
                 controls
                 preload="metadata"
                 src={playUrl}
-                onError={signAgain}
+                onError={onPlayerError}
                 onLoadedMetadata={(event) => {
+                  // The address played: a later lapse may be signed again.
+                  signedAgainForFailure.current = false;
                   const at = resumeAt.current;
                   resumeAt.current = undefined;
                   if (at !== undefined && at > 0) event.currentTarget.currentTime = at;
@@ -281,5 +302,43 @@ function TranscriptPanel({
         </div>
       )}
     </section>
+  );
+}
+
+/** A recording this browser cannot play: said, with a download to play it on the device. */
+function RecordingDownload({ fileId }: { fileId: string }) {
+  const t = useTranslations('knowledge');
+  const [opening, setOpening] = useState(false);
+  const [failure, setFailure] = useState<CommandFailure | undefined>();
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <p className="text-text-muted text-sm" role="status">
+        {t('file.notPlayable')}
+      </p>
+      <Button
+        variant="secondary"
+        size="sm"
+        pending={opening}
+        onClick={() => {
+          setOpening(true);
+          void settle(() => openFile(fileId, true)).then((result) => {
+            setOpening(false);
+            if (result.ok) {
+              setFailure(undefined);
+              window.location.assign(result.data.url);
+              return;
+            }
+            setFailure((previous) => ({
+              error: result.error,
+              reference: result.reference,
+              attempt: (previous?.attempt ?? 0) + 1,
+            }));
+          });
+        }}
+      >
+        {t('file.downloadRecording')}
+      </Button>
+      <FailureMessage failure={failure} />
+    </div>
   );
 }
