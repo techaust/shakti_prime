@@ -50,6 +50,14 @@ interface Counts {
   voice: { userId: string; minutes: number; spentPaise: number }[];
 }
 
+/** What Integration Health's `app.webhook_health()` shows of one provider. */
+interface ScreenProvider {
+  provider: string;
+  failed24h: number;
+  waiting: number;
+  oldestWaitingAt: string | null;
+}
+
 const call = sql`select app.alert_counts() as counts`;
 const workers = () => principalFor('system:workers', [], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
 
@@ -232,5 +240,59 @@ describe('app.alert_counts() (G2 alerts)', () => {
         m<{ n: number }[]>`select count(*)::int as n from voice_sessions where user_id = ${person}`,
     );
     expect(left).toEqual([{ n: 0 }]);
+  });
+  it('reads the webhooks as Integration Health does: the same waiting rows and oldest, failures within its day', async () => {
+    const sha = () => createHash('sha256').update(newId()).digest('hex');
+    const answer = await asMigrator(async (m) => {
+      try {
+        await m.begin(async (tx) => {
+          for (const [provider, waitingMinutes] of [
+            ['meta_whatsapp', 95],
+            ['exotel_status', 3],
+          ] as const) {
+            await tx`insert into webhook_inbox (id, provider, provider_event_id, payload_json,
+                                                payload_sha256, received_at)
+                     values (${newId()}, ${provider}, ${`alert-same-${newId()}`}, '{}'::jsonb,
+                             ${sha()}, now() - ${`${String(waitingMinutes)} minutes`}::interval)`;
+            await tx`insert into webhook_inbox (id, provider, provider_event_id, payload_json,
+                                                payload_sha256, received_at, attempts, failed_at,
+                                                error_code)
+                     values (${newId()}, ${provider}, ${`alert-same-f-${newId()}`}, '{}'::jsonb,
+                             ${sha()}, now() - interval '4 hours', 10, now() - interval '3 hours',
+                             'handler_failed')`;
+          }
+          await tx`select set_config('app.user_id', ${SYSTEM_WORKERS_PRINCIPAL_ID}, true),
+                          set_config('app.permissions',
+                                     'admin.integrations.write:all,platform.jobs.check:all', true)`;
+          const [row] = await tx<{ counts: Counts; health: { providers: ScreenProvider[] } }[]>`
+            select app.alert_counts() as counts, app.webhook_health(1) as health`;
+          throw new Undo(row);
+        });
+      } catch (e) {
+        if (e instanceof Undo)
+          return e.answer as { counts: Counts; health: { providers: ScreenProvider[] } };
+        throw e;
+      }
+      return undefined;
+    });
+    const screen = new Map(answer?.health.providers.map((p) => [p.provider, p]));
+    expect(answer?.counts.webhooks).toHaveLength(screen.size);
+    for (const alert of answer?.counts.webhooks ?? []) {
+      const shown = screen.get(alert.provider);
+      expect(alert.waiting, alert.provider).toBe(shown?.waiting);
+      expect(alert.failedLastHour, alert.provider).toBeLessThanOrEqual(shown?.failed24h ?? 0);
+      // The oldest waiting row is the screen's "waiting since", by the same clock.
+      if (shown?.oldestWaitingAt === null) {
+        expect(alert.oldestWaitingSeconds, alert.provider).toBeNull();
+      } else {
+        const since = (Date.now() - new Date(shown?.oldestWaitingAt ?? 0).getTime()) / 1000;
+        expect(Math.abs((alert.oldestWaitingSeconds ?? 0) - since), alert.provider).toBeLessThan(
+          60,
+        );
+      }
+    }
+    expect(
+      answer?.counts.webhooks.find((w) => w.provider === 'meta_whatsapp')?.oldestWaitingSeconds,
+    ).toBeGreaterThanOrEqual(95 * 60);
   });
 });
