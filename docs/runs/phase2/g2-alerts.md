@@ -5,9 +5,9 @@
 | Branch | `feat/g2-alerts` on GitHub, from `main` at 889ec54d |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 20-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): workers and notifications |
-| Usage | 5-hour window 0 % at 05:45 UTC when briefed; build Opus 5.5 at high effort (start) |
-| State | early check |
-| Next step | the lead reads the early check's diff and sends "continue" |
+| Usage | 5-hour window 0 % at 05:45 UTC when briefed; build Opus 5.5 at high effort, start to end |
+| State | done |
+| Next step | the lead's review |
 
 ## Brief
 Read first:
@@ -126,6 +126,91 @@ These are the known fault the lead named: a clock-dependent test number starting
 - Step 4: the rest of Integration Health on the same figures.
 - Step 5: the documents, the Sentry rule per alert, and the INCIDENTS routing lines.
 - `pnpm build`, the full lint and the web unit suite.
+
+### 20-11-2026, cloud session: done
+
+The lead accepted the early check at 93de24ae, with the nine assumptions and `ai.provider_failing`, and sent "continue" with two points. Both are done.
+
+**The lead's point 1: a Phase 2 fault never silences the jobs' own alerts** (e7471310).
+- The jobs' alerts still run first.
+- `runPhase2Alerts` now runs in a `try`. A fault (a refused or failed `app.alert_counts()` read, or the store) is logged as `jobs.problem` and told once a day as `job.problem` with the job `phase2-alerts` and the problem `failed`.
+- The jobs check then answers normally, so its route records the run as done and sends its check-in.
+- This replaces the early check's assumption 7, where a fault failed the check. Under that design a lasting Phase 2 fault would have held `jobs-check`'s own streak at failing. `job.failing` is raised only on the third failed call in a row, so a later real failure of the jobs' read would then have gone untold.
+- `PHASE2_ALERTS_JOB` names the job, and the response counts the fault among `problems`.
+
+**Step 3: what an alert carries** (8418e861).
+- `ALERT_FIELD_KEYS` lists every field a Phase 2 alert may carry, and `DueAlert.fields` is typed to those keys.
+- The test covers one of each of the seven alerts:
+  - every field is an allowed key;
+  - every value is a whole number or a code, id or name of a provider or agent (`^[a-z0-9_:.-]{1,80}$`: no space, so never a name or a sentence; no `+`, so never a phone number);
+  - the Sentry event the sink builds passes `scrubEvent` unchanged;
+  - a phone number slipped into a field would still be masked by the scrubber.
+- Probing the scrubber showed it masks numbers but not names, so the guarantee is held at the source, by the key list and its type. The alerts' log lines go through the logger's own redaction too.
+
+**Step 4: Integration Health on the same figures** (a68e7e62, and the early check).
+- A number's quality goes through one `qualityRating()`, moved to `apps/web/src/observability/whatsapp-quality.ts`, for the screen and `whatsapp.quality_low`.
+- The budget is read through the same `messagingHealth()`.
+- For the webhooks, a security test runs `app.alert_counts()` and P5's `app.webhook_health()` on the same rows. Per provider it shows the same waiting count and the same oldest row (within a minute, by the database's clock), and a last-hour failure count within the screen's last-day count.
+- Nothing on the screen changed: no new screen, column or copy, so no journey, picture or `en.json` change.
+
+**Step 5: documents** (7b211d40).
+- **DEPLOY §1 step 8:** the third Sentry alert rule, written field by field as the owner will enter it, once for each of `production`, `staging` and `dev`:
+  - name `Phase 2 alerts (<environment>)`;
+  - When *any* of: a new issue, resolved to unresolved, archived to unresolved;
+  - If *any* of seven filters *The event's message value equals* `<alert>`;
+  - Then email the owner, action interval 5 minutes.
+  - It also says why to resolve an issue once it is handled: an issue is per alert and subject, and an open issue takes later events without a new email.
+- **DEPLOY §1 step 8, the thresholds:** the seven alerts with their thresholds, each a named default for the owner to confirm, with what each carries.
+- **ARCHITECTURE:** an observability line.
+- **API:** the jobs check's row.
+- **DATABASE §4.1:** the definer's row.
+- **Design §8.1:** a "Built (G2 alerts)" line.
+- **`sentry-options.ts`:** its comment no longer says "four" alerts. Every name in `ALERT_NAMES` is always sent, on dev and staging too.
+- `pnpm db:docs` regenerated `docs/data/` (the migration line only).
+
+**INCIDENTS routing.** One line per alert, for the lead to route into `g2-runbooks`' sections. That branch plans six sections numbered after §12, in its brief's order: §13 template rejected, §14 messaging limit, §15 Exotel outage, §16 LiveKit outage, §17 speech vendor outage, §18 AI provider outage.
+- `webhooks.failing`: by its `provider`. `exotel_status` and `exotel_incoming` go to §15, `livekit` to §16, and `meta_whatsapp` to §14 when sends are refused for the limit. `meta_leadgen` and `google_leadform` have no section: a gap, which may be a general "a provider's messages fail" section or §2.
+- `webhooks.backlog`: §2, *Updates are stuck or failing* (the queue and its sweep). Then the provider's own section as for `webhooks.failing`.
+- `whatsapp.quality_low`: §14, the messaging limit reached. A Low rating is what lowers the limit.
+- `whatsapp.budget_high`: §14.
+- `ai.spend_high`: §8, *The AI service is down or an agent has stopped*: a cap reached stops the agent for the day.
+- `ai.provider_failing`: §18, the AI provider outage (the lead's routing).
+- `voice.spend_high`: §8, for the person's limits. §16 and §17 are outages, not caps.
+- `job.problem` with the job `phase2-alerts`: §11, *A scheduled job failed or stopped*. Its line there could say that the error is in the app's log under `jobs.problem` with this job.
+
+**Tests added since the early check (5, 28 in all).**
+- `apps/web/src/workers/phase2-alerts.test.ts` +3 (20 in all): every alert covered; only the allowed fields and values; unchanged by the scrubber, with a slipped-in number still masked.
+- `apps/web/tests/jobs-check.test.ts` +1 (9 in all): the counts read as a General Manager, whom `app.alert_counts()` refuses, a real failed read. The jobs' own alerts are raised first, `phase2-alerts` `failed` is the last alert and is told once over two runs, and the check answers each time.
+- `apps/web/tests/jobs-check-route.test.ts`, new, 1: the signed scheduled call with the Phase 2 run failing answers 200 and checks in `jobs-check` as `ok`. The check-in and the Phase 2 run are stood in for; the signature, the jobs' read and the database are real.
+- `packages/db/tests/security/alert-counts.test.ts` +1 (5 in all): the same waiting rows and oldest as Integration Health's `app.webhook_health()`.
+
+**Checks run in this VM, after the last code change.**
+- `pnpm build`: 2 successful, 2 total.
+- `pnpm lint` (the whole repository, the final check): exit 0.
+- Unit suites:
+  - `web`: 161 files, 1176 passed, 1 skipped;
+  - `@shakti/domain`: 108 files, 2590 passed;
+  - `@shakti/db`: 12 files, 160 passed.
+- Typecheck of `web`, `@shakti/domain` and `@shakti/db`: no errors. Folder lint of each touched folder: clean.
+- Security suites:
+  - `@shakti/db`, after the last definer change: 1512 passed.
+  - `@shakti/domain`: only the 24 known `whatsapp-quotes.test.ts` failures (techaust/shakti_prime#269).
+  - `web`: WEB_SECURITY_RESULT
+  - `alert-counts.test.ts`, `jobs-check.test.ts` and `jobs-check-route.test.ts`: all passed on their own.
+- `pnpm db:docs` was regenerated. `pnpm copy-lint` and `machines:docs` do not apply: no copy and no state machine changed.
+- No journeys or screenshot baselines: the slice has no screen.
+- `python3 tools/integration/check-doc-links.py`: its one finding is `ORPHAN docs/runs/phase2/g2-alerts.md`, the run file not yet listed. It reports the same without this slice's document changes, and the run files' list is the lead's.
+
+**Assumptions since the early check.**
+10. A Phase 2 fault is told as `job.problem` (`phase2-alerts`, `failed`), once a day, not as a new alert name. So the existing second Sentry rule already mails it, and the owner reads it as a job of the check.
+11. The Sentry rule's field names follow Sentry's issue-alert form as the existing rules and the Sentry plugin's skill describe it: the triggers new issue, regression and reappeared, and the *event's message* filter. docs.sentry.io cannot be reached from this VM, so I could not read the current form's wording. The owner matches the nearest labels if Sentry names them differently.
+12. Step 4 adds no column to Integration Health. The alert's last-hour failure count and its thresholds are not on the screen; the screen's figures and the alerts' are the same reads, as the consistency test proves. A "needs attention" mark per provider would need the contract, copy, journeys and pictures, and the brief said no new screen.
+
+**Unfinished or uncertain.**
+- The Sentry rule's exact labels (assumption 11).
+- The INCIDENTS gap for the two lead-form providers.
+- Migration 0219 cites its number in DATABASE §4.1, as the other definer rows do, for the lead to renumber at the merge.
+- Skills loaded: none. The brief named none, and this slice adds no command or table.
 
 ## Review
 
