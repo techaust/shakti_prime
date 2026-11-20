@@ -26,7 +26,14 @@ function roundMs(ms: number): number {
 /** p50, p95 and p99 (nearest rank), the least and the most; NaN for each when there is no sample. */
 export function percentiles(values: readonly number[]): Percentiles {
   if (values.length === 0) {
-    return { n: 0, p50: Number.NaN, p95: Number.NaN, p99: Number.NaN, min: Number.NaN, max: Number.NaN };
+    return {
+      n: 0,
+      p50: Number.NaN,
+      p95: Number.NaN,
+      p99: Number.NaN,
+      min: Number.NaN,
+      max: Number.NaN,
+    };
   }
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;

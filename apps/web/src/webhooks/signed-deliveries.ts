@@ -28,6 +28,12 @@ export const TEST_WEBHOOK_ENV = {
   LIVEKIT_API_SECRET: 'livekit secret for the webhook tests',
 } as const;
 
+/**
+ * The phrases a delivery is signed with: the test ones above by default; the G2 load measure
+ * (`tests/measures/webhook-load.ts`) passes a server's own when it is given one.
+ */
+export type WebhookSigningEnv = { readonly [K in keyof typeof TEST_WEBHOOK_ENV]: string };
+
 export const TEST_ORIGIN = 'http://localhost:3000';
 
 export interface SignedDelivery {
@@ -70,7 +76,11 @@ function metaDelivery(
 }
 
 /** A WhatsApp delivery; `unique` changes its message id, so its body (its key) is new. */
-export function whatsappDelivery(unique: string = newId(), payload?: unknown): SignedDelivery {
+export function whatsappDelivery(
+  unique: string = newId(),
+  payload?: unknown,
+  env: WebhookSigningEnv = TEST_WEBHOOK_ENV,
+): SignedDelivery {
   const body =
     payload ??
     (JSON.parse(
@@ -80,17 +90,20 @@ export function whatsappDelivery(unique: string = newId(), payload?: unknown): S
     'meta_whatsapp',
     '/api/v1/webhooks/meta/whatsapp',
     body,
-    TEST_WEBHOOK_ENV.WHATSAPP_APP_SECRET,
+    env.WHATSAPP_APP_SECRET,
   );
 }
 
-export function leadgenDelivery(unique: string = newId()): SignedDelivery {
+export function leadgenDelivery(
+  unique: string = newId(),
+  env: WebhookSigningEnv = TEST_WEBHOOK_ENV,
+): SignedDelivery {
   const body = JSON.parse(JSON.stringify(leadgen).replace('444444444444', unique)) as unknown;
   return metaDelivery(
     'meta_leadgen',
     '/api/v1/webhooks/meta/leadgen',
     body,
-    TEST_WEBHOOK_ENV.META_LEADGEN_APP_SECRET,
+    env.META_LEADGEN_APP_SECRET,
   );
 }
 
@@ -113,6 +126,7 @@ export function googleDelivery(
 export function exotelStatusDelivery(
   unique: string = newId(),
   now: Date = new Date(),
+  env: WebhookSigningEnv = TEST_WEBHOOK_ENV,
 ): SignedDelivery {
   const fields: Record<string, string> = {};
   for (const [key, value] of Object.entries(exotelStatus)) {
@@ -124,7 +138,7 @@ export function exotelStatusDelivery(
   const url = signedStatusCallbackUrl(
     `${TEST_ORIGIN}/api/v1/webhooks/exotel/call-status`,
     unique,
-    TEST_WEBHOOK_ENV.EXOTEL_CALLBACK_SECRET,
+    env.EXOTEL_CALLBACK_SECRET,
     now,
   );
   const headers = { 'content-type': 'application/x-www-form-urlencoded' };
@@ -158,17 +172,18 @@ export function exotelIncomingDelivery(
 export async function livekitDelivery(
   unique: string = newId(),
   now: Date = new Date(),
+  env: WebhookSigningEnv = TEST_WEBHOOK_ENV,
 ): Promise<SignedDelivery> {
   const body = JSON.stringify({ ...livekit, id: `EV_${unique}` });
   const sha256 = createHash('sha256').update(body).digest('base64');
   const iat = Math.floor(now.getTime() / 1000);
   const token = await new SignJWT({ sha256 })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-    .setIssuer(TEST_WEBHOOK_ENV.LIVEKIT_API_KEY)
+    .setIssuer(env.LIVEKIT_API_KEY)
     .setNotBefore(iat)
     .setIssuedAt(iat)
     .setExpirationTime(iat + 300)
-    .sign(encoder.encode(TEST_WEBHOOK_ENV.LIVEKIT_API_SECRET));
+    .sign(encoder.encode(env.LIVEKIT_API_SECRET));
   const url = `${TEST_ORIGIN}/api/v1/webhooks/livekit`;
   const headers = { 'content-type': 'application/webhook+json', authorization: token };
   return {
