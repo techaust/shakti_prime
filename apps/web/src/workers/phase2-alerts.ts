@@ -56,6 +56,9 @@ export const PHASE2_ALERT_THRESHOLDS = {
   voiceShare: 0.8,
 } as const;
 
+/** The name a failed run of these alerts is told under, as a job's problem (`job.problem`). */
+export const PHASE2_ALERTS_JOB = 'phase2-alerts';
+
 /** How long one alert stands before the check raises it again for the same subject and period. */
 const ALERT_AGAIN_SECONDS = 7 * 24 * 60 * 60;
 
@@ -342,6 +345,8 @@ export interface Phase2AlertOptions {
   keyValue: KeyValue;
   alerts: AlertSink;
   now: Date;
+  /** The database's counts; by default `app.alert_counts()` as `system:workers`. */
+  readCounts?: () => Promise<AlertCounts>;
 }
 
 /**
@@ -349,20 +354,21 @@ export interface Phase2AlertOptions {
  * database's counts as `system:workers` through `app.alert_counts()` (`platform.jobs.check`, no
  * company, no person's grant), and the WhatsApp quality, the portfolio's budget and the day's AI
  * spend from the key-value store, as Integration Health and the spend caps read them; raises each
- * alert due once per subject and period. A failed read fails the check, so its route's streak
- * tells the owner (`job.failing`).
+ * alert due once per subject and period. A failed read rejects; the jobs check tells it as a
+ * problem of its own (`job.problem`, `phase2-alerts`) and carries on.
  */
 export async function runPhase2Alerts(
   options: Phase2AlertOptions,
 ): Promise<{ due: number; alerted: number }> {
   const { requestId, keyValue, now } = options;
   const day = istCalendarDate(now);
-  const counts = await executeQuery(
-    systemWorkersPrincipal(null),
-    { entityIds: [], requestId },
-    readAlertCounts,
-    { name: 'alertCounts' },
-  );
+  const counts = await (
+    options.readCounts ??
+    (() =>
+      executeQuery(systemWorkersPrincipal(null), { entityIds: [], requestId }, readAlertCounts, {
+        name: 'alertCounts',
+      }))
+  )();
   const messaging = await messagingHealth(
     keyValue,
     counts.companies.filter((c) => c.whatsapp).map((c) => c.entityId),

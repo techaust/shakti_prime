@@ -1,6 +1,12 @@
 import { DATABASE_JOBS } from '@shakti/contracts';
-import { asMigrator, closeDb } from '@shakti/db/testing';
-import { istCalendarDate, memoryKeyValue, spendKey } from '@shakti/domain';
+import { asMigrator, closeDb, principalFor } from '@shakti/db/testing';
+import {
+  executeQuery,
+  istCalendarDate,
+  memoryKeyValue,
+  readAlertCounts,
+  spendKey,
+} from '@shakti/domain';
 import { afterAll, describe, expect, it } from 'vitest';
 import { memoryAlertSink } from '../src/observability/alerts';
 import type { BackupListing } from '../src/workers/backup-age';
@@ -193,5 +199,35 @@ describe('the Phase 2 alerts in the same check (docs/03-roadmap-appendix/phase2.
     // Each alert once, though the check ran three times.
     const keys = phase2.map((a) => `${a.name}:${String(a.fields.subject)}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('a fault in the Phase 2 alerts never silences the jobs’ own (the lead, 20-11-2026)', () => {
+  it('raises the jobs’ alerts first, tells the fault once a day, and still answers', async () => {
+    const keyValue = memoryKeyValue();
+    const alerts = memoryAlertSink();
+    // A year on, so the jobs have problems to tell; the counts are read as a General Manager,
+    // whom `app.alert_counts()` refuses, so the read fails as a broken grant would.
+    const now = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    const refused = () =>
+      executeQuery(principalFor('general_manager', [1]), { requestId: 'refused' }, readAlertCounts);
+    await expect(refused()).rejects.toThrow();
+    const options = { keyValue, alerts, now, backups: null, readAlertCounts: refused };
+    const first = await runJobsCheck({ requestId: 'phase2-fault-1', ...options });
+    const jobProblems = alerts.alerts.filter(
+      (a) => a.name === 'job.problem' && a.fields.job !== 'phase2-alerts',
+    );
+    expect(jobProblems.length).toBeGreaterThan(0);
+    expect(alerts.alerts).toContainEqual({
+      name: 'job.problem',
+      fields: { job: 'phase2-alerts', problem: 'failed' },
+    });
+    // The fault is the last alert: the jobs' own were raised before the Phase 2 read.
+    expect(alerts.alerts.at(-1)?.fields.job).toBe('phase2-alerts');
+    expect(first.problems).toBe(jobProblems.length + 1);
+    expect(first.alerted).toBe(alerts.alerts.length);
+    const again = await runJobsCheck({ requestId: 'phase2-fault-2', ...options });
+    expect(again).toEqual({ ...first, alerted: 0 });
+    expect(alerts.alerts.filter((a) => a.fields.job === 'phase2-alerts')).toHaveLength(1);
   });
 });
