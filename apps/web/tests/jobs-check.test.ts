@@ -1,6 +1,6 @@
 import { DATABASE_JOBS } from '@shakti/contracts';
 import { asMigrator, closeDb } from '@shakti/db/testing';
-import { memoryKeyValue } from '@shakti/domain';
+import { istCalendarDate, memoryKeyValue, spendKey } from '@shakti/domain';
 import { afterAll, describe, expect, it } from 'vitest';
 import { memoryAlertSink } from '../src/observability/alerts';
 import type { BackupListing } from '../src/workers/backup-age';
@@ -21,17 +21,19 @@ describe('the hourly check of the scheduled jobs (audit 2026-10, DATA-3)', () =>
     expect(first.jobs).toBe(DATABASE_JOBS.length);
     expect(first.problems).toBeGreaterThan(0);
     expect(first.alerted).toBe(first.problems);
-    expect(alerts.alerts).toContainEqual({
+    // The same check raises the Phase 2 alerts on what the database holds now; only the jobs'
+    // own are counted here (the Phase 2 alerts are tested below).
+    const problems = () => alerts.alerts.filter((a) => a.name === 'job.problem');
+    expect(problems()).toContainEqual({
       name: 'job.problem',
       fields: { job: 'outbox-events-purge', problem: 'late' },
     });
-    for (const alert of alerts.alerts) {
-      expect(alert.name).toBe('job.problem');
+    for (const alert of problems()) {
       expect(Object.keys(alert.fields).sort()).toEqual(['job', 'problem']);
     }
     const again = await runJobsCheck({ requestId: 'jobs-check-2', keyValue, alerts, now });
     expect(again).toEqual({ ...first, alerted: 0 });
-    expect(alerts.alerts).toHaveLength(first.alerted);
+    expect(problems()).toHaveLength(first.alerted);
   });
 
   it('tells of a run that has gone on past its time limit as stuck (review M2)', async () => {
@@ -149,5 +151,47 @@ describe('the age of the newest database copy in the same check (docs/05-databas
     });
     expect(answer.jobs).toBe(DATABASE_JOBS.length);
     expect(backupAlerts(alerts)).toEqual([]);
+  });
+});
+
+describe('the Phase 2 alerts in the same check (docs/03-roadmap-appendix/phase2.md §8.1)', () => {
+  it('raises the alerts the store’s figures call for, once each however often it runs', async () => {
+    const keyValue = memoryKeyValue();
+    const alerts = memoryAlertSink();
+    const now = new Date();
+    const day = istCalendarDate(now);
+    // Ask the Business at ₹800 of its ₹1,000 a day; the Playbook at ₹239.99 of its ₹300 (below).
+    await keyValue.set(spendKey('knowledge:ask', null, day), '80000', 3_600);
+    await keyValue.set(spendKey('knowledge:playbook', null, day), '23999', 3_600);
+    // The Concierge in Shakti Supreme at ₹400 of its own ₹500 a company.
+    await keyValue.set(spendKey('agent:concierge', 1, day), '40000', 3_600);
+    // 200 of the starting limit's 250 conversations, in this hour's bucket.
+    const hour = Math.floor(now.getTime() / 3_600_000);
+    await keyValue.set(`whatsapp:budget:hour:${String(hour)}`, '200', 3_600);
+    for (const run of [1, 2, 3]) {
+      await runJobsCheck({
+        requestId: `phase2-${String(run)}`,
+        keyValue,
+        alerts,
+        now,
+        backups: null,
+      });
+    }
+    const phase2 = alerts.alerts.filter((a) => a.name !== 'job.problem');
+    const named = (name: string) => phase2.filter((a) => a.name === name);
+    expect(
+      named('ai.spend_high')
+        .map((a) => a.fields.subject)
+        .sort(),
+    ).toEqual(['concierge:SS', 'knowledge:ask:group']);
+    expect(named('whatsapp.budget_high')).toEqual([
+      {
+        name: 'whatsapp.budget_high',
+        fields: { subject: 'portfolio', used: 200, limit: 250 },
+      },
+    ]);
+    // Each alert once, though the check ran three times.
+    const keys = phase2.map((a) => `${a.name}:${String(a.fields.subject)}`);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
