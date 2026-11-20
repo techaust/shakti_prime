@@ -4205,7 +4205,7 @@
       },
       "number": "It goes out on the company's {series}-series number {number}.",
       "noNumber": "The company has no {series}-series number yet.",
-      "dndChecked": "Do-not-disturb list checked on {when}",
+      "dndChecked": "Do-not-disturb list checked on <time>{when}</time>",
       "allowedBadge": "Can call",
       "allowed": "Every calling rule is met.",
       "refusedBadge": "Cannot call now",

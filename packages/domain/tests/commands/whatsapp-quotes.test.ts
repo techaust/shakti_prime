@@ -193,7 +193,7 @@ async function sizedLead(large = false): Promise<Customer> {
     leadId: lead.id,
     accountId: lead.account.id,
     contactId: lead.contact?.id ?? '',
-    waId: `91${phone.replace(/^\+?91/, '')}`,
+    waId: `91${phone.replace(/\D/g, '').slice(-10)}`,
   };
 }
 
@@ -1099,7 +1099,7 @@ describe('messaging.answer.queue (docs/03-roadmap-appendix/phase2.md §7.1)', ()
     const four = await whatsappChannel(4);
     const recorded = await run<InboundWhatsAppRecorded>(workers([4]), recordInboundWhatsApp, {
       phoneNumberId: four.phoneNumberId,
-      waId: `91${testPhone().replace(/^\+?91/, '')}`,
+      waId: `91${testPhone()}`,
       providerMessageId: `wamid.${newId()}`,
       kind: 'text',
       body: 'Hello',
