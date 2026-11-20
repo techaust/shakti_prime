@@ -9,7 +9,7 @@ Plain steps for the owner or the developer on duty, one section per kind of trou
 
 Never send a password, key or secret value; a screenshot of a settings page is checked for them first.
 
-**The Phase 2 channels** (sections 12 to 18): WhatsApp, Exotel, LiveKit, the speech service and the Phase 2 agents run on dev and staging with sandbox accounts until the final phase; production has none of their settings, so its screens say the channel is not set up ([phase 2 design §2](../03-roadmap-appendix/phase2.md#2-decisions-for-the-owner), question 13). The Sentry alerts these sections name (`webhooks.failing`, `webhooks.backlog`, `whatsapp.quality_low`, `whatsapp.budget_high`, `ai.spend_high`, `voice.spend_high`) email the owner like the alerts of §2 and §11, with counts and ids only.
+**The Phase 2 channels** (sections 12 to 18): WhatsApp, Exotel, LiveKit, the speech service and the Phase 2 agents run on dev and staging with sandbox accounts until the final phase; production has none of their settings, so its screens say the channel is not set up ([phase 2 design §2](../03-roadmap-appendix/phase2.md#2-decisions-for-the-owner), question 13). The Sentry alerts these sections name (`webhooks.failing`, `webhooks.backlog`, `whatsapp.quality_low`, `whatsapp.budget_high`, `ai.spend_high`, `ai.provider_failing`, `voice.spend_high`) email the owner like the alerts of §2 and §11, with counts and ids only.
 
 ## Contents
 1. [The site is down](#1-the-site-is-down)
@@ -202,7 +202,7 @@ Sarvam AI turns speech into text and text into speech; no second speech service 
 ## 18. The AI provider is down: people take the chats
 When Anthropic's service fails (§8 for the signs on Admin › Agents), every agent stops proposing: the WhatsApp Concierge, the Caller Co-pilot, the Triage agent, Ask the Business and the answers of Talk to Shakti. Automatic is not available until Phase 6, so no agent sends anything to a customer or changes a record without a person; the work goes on with people.
 - **What it looks like:**
-  - No alert names an outage of the service (`ai.spend_high` is about spend). In Vercel › **Logs**, `ai.breaker_opened` (calls paused for a minute after five failures in a minute); **Admin › Agents** still shows each agent **Running**.
+  - Sentry: `ai.provider_failing`, one issue per agent, when its runs recorded as unavailable in the last hour reach the threshold of DEPLOY §1 step 8. A store outage or an environment with no AI key raises it too, since those runs are recorded the same way: check Anthropic's status page in step 1. In Vercel › **Logs**, `ai.breaker_opened` (calls paused for a minute after five failures in a minute); **Admin › Agents** still shows each agent **Running**.
   - **Admin › Activity log**: runs end with "AI service not available".
   - No new suggestions reach the **Agent Inbox**, and the Concierge's drafts stop appearing in the chats.
   - The Co-pilot panel stays on "No brief for this lead yet."; **Ask for a brief** comes back after about a minute with no brief.

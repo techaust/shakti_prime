@@ -333,6 +333,8 @@ export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/quer
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
 export { readWebhookHealth, type StoredWebhookHealth } from './queries/platform/webhook-health';
+// G2's Phase 2 alerts: the counts the hourly jobs check reads (g2-alerts).
+export { readAlertCounts, type AlertCounts } from './queries/platform/alert-counts';
 export {
   JOB_RUN_LIMIT_MINUTES,
   readScheduledJobs,
@@ -632,7 +634,7 @@ export type {
   FieldCipher,
   FieldEnvelope,
 } from './privacy/field-cipher';
-export { createAiProvider, spendKey } from './ai/provider';
+export { createAiProvider, partSpendKey, spendKey } from './ai/provider';
 export type {
   AiProvider,
   AiProviderDeps,

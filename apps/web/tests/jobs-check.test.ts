@@ -1,6 +1,12 @@
 import { DATABASE_JOBS } from '@shakti/contracts';
-import { asMigrator, closeDb } from '@shakti/db/testing';
-import { memoryKeyValue } from '@shakti/domain';
+import { asMigrator, closeDb, principalFor } from '@shakti/db/testing';
+import {
+  executeQuery,
+  istCalendarDate,
+  memoryKeyValue,
+  readAlertCounts,
+  spendKey,
+} from '@shakti/domain';
 import { afterAll, describe, expect, it } from 'vitest';
 import { memoryAlertSink } from '../src/observability/alerts';
 import type { BackupListing } from '../src/workers/backup-age';
@@ -20,18 +26,22 @@ describe('the hourly check of the scheduled jobs (audit 2026-10, DATA-3)', () =>
     const first = await runJobsCheck({ requestId: 'jobs-check-1', keyValue, alerts, now });
     expect(first.jobs).toBe(DATABASE_JOBS.length);
     expect(first.problems).toBeGreaterThan(0);
-    expect(first.alerted).toBe(first.problems);
-    expect(alerts.alerts).toContainEqual({
+    // The same check raises the Phase 2 alerts on what the database holds now (tested below):
+    // `alerted` counts every alert raised, and each job's problem is told once.
+    expect(first.alerted).toBe(alerts.alerts.length);
+    const problems = () => alerts.alerts.filter((a) => a.name === 'job.problem');
+    expect(problems()).toHaveLength(first.problems);
+    expect(problems()).toContainEqual({
       name: 'job.problem',
       fields: { job: 'outbox-events-purge', problem: 'late' },
     });
-    for (const alert of alerts.alerts) {
-      expect(alert.name).toBe('job.problem');
+    for (const alert of problems()) {
       expect(Object.keys(alert.fields).sort()).toEqual(['job', 'problem']);
     }
+    const told = alerts.alerts.length;
     const again = await runJobsCheck({ requestId: 'jobs-check-2', keyValue, alerts, now });
     expect(again).toEqual({ ...first, alerted: 0 });
-    expect(alerts.alerts).toHaveLength(first.alerted);
+    expect(alerts.alerts).toHaveLength(told);
   });
 
   it('tells of a run that has gone on past its time limit as stuck (review M2)', async () => {
@@ -149,5 +159,98 @@ describe('the age of the newest database copy in the same check (docs/05-databas
     });
     expect(answer.jobs).toBe(DATABASE_JOBS.length);
     expect(backupAlerts(alerts)).toEqual([]);
+  });
+});
+
+describe('the Phase 2 alerts in the same check (docs/03-roadmap-appendix/phase2.md §8.1)', () => {
+  it('raises the alerts the store’s figures call for, once each however often it runs', async () => {
+    const keyValue = memoryKeyValue();
+    const alerts = memoryAlertSink();
+    const now = new Date();
+    const day = istCalendarDate(now);
+    // Ask the Business at ₹800 of its ₹1,000 a day; the Playbook at ₹239.99 of its ₹300 (below).
+    await keyValue.set(spendKey('knowledge:ask', null, day), '80000', 3_600);
+    await keyValue.set(spendKey('knowledge:playbook', null, day), '23999', 3_600);
+    // The Concierge in Shakti Supreme at ₹400 of its own ₹500 a company.
+    await keyValue.set(spendKey('agent:concierge', 1, day), '40000', 3_600);
+    // 200 of the starting limit's 250 conversations, in this hour's bucket.
+    const hour = Math.floor(now.getTime() / 3_600_000);
+    await keyValue.set(`whatsapp:budget:hour:${String(hour)}`, '200', 3_600);
+    for (const run of [1, 2, 3]) {
+      await runJobsCheck({
+        requestId: `phase2-${String(run)}`,
+        keyValue,
+        alerts,
+        now,
+        backups: null,
+      });
+    }
+    const phase2 = alerts.alerts.filter((a) => a.name !== 'job.problem');
+    const named = (name: string) => phase2.filter((a) => a.name === name);
+    expect(
+      named('ai.spend_high')
+        .map((a) => a.fields.subject)
+        .sort(),
+    ).toEqual(['concierge:SS', 'knowledge:ask:group']);
+    expect(named('whatsapp.budget_high')).toEqual([
+      {
+        name: 'whatsapp.budget_high',
+        fields: { subject: 'portfolio', used: 200, limit: 250 },
+      },
+    ]);
+    // Each alert once, though the check ran three times.
+    const keys = phase2.map((a) => `${a.name}:${String(a.fields.subject)}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('a fault in the Phase 2 alerts never silences the jobs’ own (the lead, 20-11-2026)', () => {
+  it('raises the jobs’ alerts first, tells the fault once a day, and still answers', async () => {
+    const keyValue = memoryKeyValue();
+    const alerts = memoryAlertSink();
+    // A year on, so the jobs have problems to tell; the counts are read as a General Manager,
+    // whom `app.alert_counts()` refuses, so the read fails as a broken grant would.
+    const now = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    const refused = () =>
+      executeQuery(principalFor('general_manager', [1]), { requestId: 'refused' }, readAlertCounts);
+    await expect(refused()).rejects.toThrow();
+    const options = { keyValue, alerts, now, backups: null, readAlertCounts: refused };
+    const first = await runJobsCheck({ requestId: 'phase2-fault-1', ...options });
+    const jobProblems = alerts.alerts.filter(
+      (a) => a.name === 'job.problem' && a.fields.job !== 'phase2-alerts',
+    );
+    expect(jobProblems.length).toBeGreaterThan(0);
+    expect(alerts.alerts).toContainEqual({
+      name: 'job.problem',
+      fields: { job: 'phase2-alerts', problem: 'failed' },
+    });
+    // The fault is the last alert: the jobs' own were raised before the Phase 2 read.
+    expect(alerts.alerts.at(-1)?.fields.job).toBe('phase2-alerts');
+    expect(first.problems).toBe(jobProblems.length + 1);
+    expect(first.alerted).toBe(alerts.alerts.length);
+    const again = await runJobsCheck({ requestId: 'phase2-fault-2', ...options });
+    expect(again).toEqual({ ...first, alerted: 0 });
+    expect(alerts.alerts.filter((a) => a.fields.job === 'phase2-alerts')).toHaveLength(1);
+  });
+
+  it('tells Phase 2 alerts that run past their time as failed, and still answers in time', async () => {
+    const alerts = memoryAlertSink();
+    // A read that never answers, as a database or store that hangs would.
+    const hanging = () => new Promise<never>(() => undefined);
+    const started = Date.now();
+    const answer = await runJobsCheck({
+      requestId: 'phase2-timeout',
+      keyValue: memoryKeyValue(),
+      alerts,
+      backups: null,
+      readAlertCounts: hanging,
+      phase2TimeoutMs: 200,
+    });
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(alerts.alerts).toContainEqual({
+      name: 'job.problem',
+      fields: { job: 'phase2-alerts', problem: 'failed' },
+    });
+    expect(answer.alerted).toBe(alerts.alerts.length);
   });
 });

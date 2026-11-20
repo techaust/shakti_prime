@@ -13,7 +13,8 @@ export interface AlertSink {
 
 /**
  * Logs the alert as an error line and sends it to Sentry as one message whose fingerprint is its
- * name, and its job for a job's alert, so repeats group into one issue per job. The send is
+ * name, and its job for a job's alert or its subject for a Phase 2 alert (a provider, a company, an
+ * agent in a company, a person's id), so repeats group into one issue per job or subject. The send is
  * flushed before `report` resolves, so a function that awaits it is not frozen with the alert
  * still queued. Without `SENTRY_DSN` the SDK is not even loaded and the alert is only logged.
  * Sending never fails the caller.
@@ -25,9 +26,10 @@ export const sentryAlertSink: AlertSink = {
     try {
       const sentry = await import('@sentry/nextjs');
       const job = typeof fields.job === 'string' ? [fields.job] : [];
+      const subject = typeof fields.subject === 'string' ? [fields.subject] : [];
       sentry.captureMessage(name, {
         level: 'error',
-        fingerprint: [name, ...job],
+        fingerprint: [name, ...job, ...subject],
         extra: { ...fields },
       });
       await sentry.flush(SENTRY_FLUSH_MS);
