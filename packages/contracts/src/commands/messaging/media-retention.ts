@@ -37,6 +37,9 @@ export const DueWhatsAppMediaDto = z
     fileId: IdSchema,
     bucket: z.string(),
     key: z.string(),
+    /** The upload's own key when the checks stored a changed copy under `key`; else null. */
+    originalKey: z.string().nullable(),
+    contentType: z.string(),
     inUse: z.boolean(),
   })
   .strict();

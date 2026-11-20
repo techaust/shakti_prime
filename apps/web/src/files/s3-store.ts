@@ -11,10 +11,13 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
   assertFileKey,
+  assertListPrefix,
   contentDisposition,
+  LIST_PAGE_MAX,
   PRESIGN_SECONDS,
   sha256Hex,
   type FileStore,
+  type StoredKey,
 } from '@shakti/domain';
 
 export interface S3StoreConfig {
@@ -193,6 +196,35 @@ export function s3FileStore(config: S3StoreConfig): FileStore {
       if ((out.Errors ?? []).length > 0) {
         throw new Error(`the store kept ${String(out.Errors?.length)} versions of the object`);
       }
+    },
+    async list(prefix, options) {
+      assertListPrefix(prefix);
+      // Versions, not objects: the app's IAM user may list versions (`s3:ListBucketVersions`,
+      // which `delete` needs too) and not objects, and a key whose current object was removed
+      // while an older version stayed still holds bytes. S3 answers a key's versions newest
+      // first, so a key's newest version is on the page that first names it; the next page
+      // starts after the last key named.
+      const limit = Math.min(Math.max(Math.trunc(options?.limit ?? LIST_PAGE_MAX), 1), LIST_PAGE_MAX);
+      const out = await client.send(
+        new ListObjectVersionsCommand({
+          Bucket,
+          Prefix: prefix,
+          MaxKeys: limit,
+          ...(options?.after === undefined ? {} : { KeyMarker: options.after }),
+        }),
+      );
+      const newest = new Map<string, Date>();
+      for (const v of [...(out.Versions ?? []), ...(out.DeleteMarkers ?? [])]) {
+        if (v.Key === undefined || v.LastModified === undefined) continue;
+        if (options?.after !== undefined && v.Key <= options.after) continue;
+        const seen = newest.get(v.Key);
+        if (seen === undefined || v.LastModified > seen) newest.set(v.Key, v.LastModified);
+      }
+      const keys: StoredKey[] = [...newest]
+        .map(([key, storedAt]) => ({ key, storedAt }))
+        .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+      const last = keys.at(-1)?.key ?? out.NextKeyMarker;
+      return out.IsTruncated === true && last !== undefined ? { keys, next: last } : { keys };
     },
   };
 }

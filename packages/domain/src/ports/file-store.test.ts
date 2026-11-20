@@ -49,6 +49,40 @@ describe('file stores', () => {
   );
 });
 
+describe('listing a folder of keys (W2 media retention)', () => {
+  it('lists the keys under a folder in key order, a page at a time, in memory', async () => {
+    const store = memoryFileStore();
+    for (const name of ['c', 'a', 'b']) {
+      await store.put(`1/whatsapp_media/${name}.jpg`, bytes, 'image/jpeg');
+    }
+    await store.put('1/whatsapp_mediax/z.jpg', bytes, 'image/jpeg');
+    await store.put('2/whatsapp_media/a.jpg', bytes, 'image/jpeg');
+    const first = await store.list('1/whatsapp_media/', { limit: 2 });
+    expect(first.keys.map((k) => k.key)).toEqual(['1/whatsapp_media/a.jpg', '1/whatsapp_media/b.jpg']);
+    expect(first.next).toBe('1/whatsapp_media/b.jpg');
+    expect(first.keys[0]?.storedAt).toBeInstanceOf(Date);
+    const second = await store.list('1/whatsapp_media/', { limit: 2, after: first.next });
+    expect(second).toEqual({ keys: [expect.objectContaining({ key: '1/whatsapp_media/c.jpg' })] });
+    await expect(store.list('1/whatsapp_media')).rejects.toThrow('not a folder');
+  });
+
+  it('lists the keys under a folder on disk, nested ones too, never the type beside each', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'shakti-list-'));
+    dirs.push(dir);
+    const store = localDiskFileStore(dir);
+    await store.put('1/whatsapp_media/a.pdf', bytes, 'application/pdf');
+    await store.put('1/whatsapp_media/a-checked/p0001.jpg', bytes, 'image/jpeg');
+    await store.put('1/knowledge/b.pdf', bytes, 'application/pdf');
+    const page = await store.list('1/whatsapp_media/');
+    expect(page.keys.map((k) => k.key)).toEqual([
+      '1/whatsapp_media/a-checked/p0001.jpg',
+      '1/whatsapp_media/a.pdf',
+    ]);
+    expect(page.next).toBeUndefined();
+    expect(await store.list('3/whatsapp_media/')).toEqual({ keys: [] });
+  });
+});
+
 describe('signed development addresses', () => {
   const SECRET = 'development signing phrase for the tests';
   const grant = {

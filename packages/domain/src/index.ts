@@ -282,6 +282,8 @@ export { importRowKey, rollbackChunks } from './imports/row-key';
 export {
   assertFileKey,
   contentDisposition,
+  assertListPrefix,
+  LIST_PAGE_MAX,
   localDiskFileStore,
   memoryFileStore,
   PRESIGN_SECONDS,
@@ -292,12 +294,15 @@ export {
 } from './ports/file-store';
 export type {
   FileStore,
+  ListOptions,
   LocalDiskOptions,
   LocalGrant,
   PresignedGet,
   PresignedPut,
   PresignGetOptions,
   PresignPutRequest,
+  StoredKey,
+  StoredKeyPage,
   StoredObject,
 } from './ports/file-store';
 export { loadUserDto } from './queries/admin/user-dto';

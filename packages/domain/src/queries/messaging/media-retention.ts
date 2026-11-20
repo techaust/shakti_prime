@@ -24,7 +24,7 @@ export async function dueWhatsAppMedia(
   limit: number,
 ): Promise<DueWhatsAppMediaDto[]> {
   const rows = (await ctx.tx.execute(sql`
-    select message_id, message_at, file_id, bucket, key, in_use
+    select message_id, message_at, file_id, bucket, key, original_key, content_type, in_use
       from app.whatsapp_media_due(${entityId}::smallint,
                                   ${WORKSHOP_DEFAULTS.retention.whatsappMediaYears}::integer,
                                   ${after?.at ?? null}::timestamptz, ${after?.id ?? null}::uuid,
@@ -34,6 +34,8 @@ export async function dueWhatsAppMedia(
     file_id: string;
     bucket: string;
     key: string;
+    original_key: string | null;
+    content_type: string;
     in_use: boolean;
   }[];
   return rows.map((r) =>
@@ -43,6 +45,8 @@ export async function dueWhatsAppMedia(
       fileId: r.file_id,
       bucket: r.bucket,
       key: r.key,
+      originalKey: r.original_key,
+      contentType: r.content_type,
       inUse: r.in_use,
     }),
   );

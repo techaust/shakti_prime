@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
 /**
@@ -34,6 +34,59 @@ export interface FileStore {
   tags(key: string): Promise<Record<string, string>>;
   /** Removes the object, with every earlier version the store kept of it. */
   delete(key: string): Promise<void>;
+  /**
+   * One page of the keys stored under `prefix`, in key order after `after`, each with when its
+   * newest version was stored. Every version counts, so a key whose current object was removed
+   * while an older version stayed is listed too (and `delete` removes it all). `next`, when
+   * present, is the `after` of the following page.
+   */
+  list(prefix: string, options?: ListOptions): Promise<StoredKeyPage>;
+}
+
+export interface ListOptions {
+  /** List only keys after this one. */
+  after?: string;
+  /** At most this many keys, or versions in a store that keeps them; 1,000 when left out. */
+  limit?: number;
+}
+
+export interface StoredKey {
+  key: string;
+  storedAt: Date;
+}
+
+export interface StoredKeyPage {
+  keys: StoredKey[];
+  next?: string;
+}
+
+/** The most keys one page lists, as S3 answers at most. */
+export const LIST_PAGE_MAX = 1000;
+
+/** A folder of keys to list: whole segments of a key, ending with `/`. */
+const PREFIX = /^(?:[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*\/)+$/;
+
+export function assertListPrefix(prefix: string): void {
+  if (prefix.length > 300 || !PREFIX.test(prefix)) throw new Error('list prefix is not a folder');
+}
+
+const pageLimit = (limit: number | undefined): number =>
+  Math.min(Math.max(Math.trunc(limit ?? LIST_PAGE_MAX), 1), LIST_PAGE_MAX);
+
+/** The page of `keys` (in any order) under `prefix` after `after`. */
+function pageOf(
+  keys: readonly StoredKey[],
+  prefix: string,
+  options: ListOptions | undefined,
+): StoredKeyPage {
+  const after = options?.after;
+  const limit = pageLimit(options?.limit);
+  const under = keys
+    .filter((k) => k.key.startsWith(prefix) && (after === undefined || k.key > after))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const page = under.slice(0, limit);
+  const last = page.at(-1);
+  return under.length > limit && last !== undefined ? { keys: page, next: last.key } : { keys: page };
 }
 
 export interface PresignPutRequest {
@@ -103,11 +156,14 @@ export function contentDisposition(options: PresignGetOptions): string {
 
 /** For tests: one map per store. */
 export function memoryFileStore(bucket = 'memory'): FileStore & {
-  objects: Map<string, { bytes: Uint8Array; contentType: string; tags: Record<string, string> }>;
+  objects: Map<
+    string,
+    { bytes: Uint8Array; contentType: string; tags: Record<string, string>; storedAt?: Date }
+  >;
 } {
   const objects = new Map<
     string,
-    { bytes: Uint8Array; contentType: string; tags: Record<string, string> }
+    { bytes: Uint8Array; contentType: string; tags: Record<string, string>; storedAt?: Date }
   >();
   const expiresAt = () => new Date(Date.now() + PRESIGN_SECONDS * 1000);
   return {
@@ -117,7 +173,12 @@ export function memoryFileStore(bucket = 'memory'): FileStore & {
     put(key, bytes, contentType) {
       assertFileKey(key);
       if (!objects.has(key)) {
-        objects.set(key, { bytes: new Uint8Array(bytes), contentType, tags: {} });
+        objects.set(key, {
+          bytes: new Uint8Array(bytes),
+          contentType,
+          tags: {},
+          storedAt: new Date(),
+        });
       }
       return Promise.resolve();
     },
@@ -155,6 +216,18 @@ export function memoryFileStore(bucket = 'memory'): FileStore & {
     delete(key) {
       objects.delete(key);
       return Promise.resolve();
+    },
+    list(prefix, options) {
+      try {
+        assertListPrefix(prefix);
+      } catch (error) {
+        return Promise.reject(error as Error);
+      }
+      const keys = [...objects].map(([key, object]) => ({
+        key,
+        storedAt: object.storedAt ?? new Date(0),
+      }));
+      return Promise.resolve(pageOf(keys, prefix, options));
     },
   };
 }
@@ -318,6 +391,30 @@ export function localDiskFileStore(
       const path = pathFor(key);
       await rm(path, { force: true });
       await rm(`${path}.type`, { force: true });
+    },
+    async list(prefix, options) {
+      assertListPrefix(prefix);
+      const folder = resolve(join(base, prefix));
+      let names: string[];
+      try {
+        names = await readdir(folder, { recursive: true });
+      } catch (e) {
+        if (e instanceof Error && 'code' in e && e.code === 'ENOENT') return { keys: [] };
+        throw e;
+      }
+      const keys: StoredKey[] = [];
+      for (const name of names) {
+        if (name.endsWith('.type')) continue;
+        const key = `${prefix}${name.split(sep).join('/')}`;
+        try {
+          assertFileKey(key);
+        } catch {
+          continue;
+        }
+        const info = await stat(join(folder, name));
+        if (info.isFile()) keys.push({ key, storedAt: info.mtime });
+      }
+      return pageOf(keys, prefix, options);
     },
   };
 }

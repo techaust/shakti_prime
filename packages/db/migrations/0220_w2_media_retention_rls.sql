@@ -47,9 +47,12 @@ create trigger whatsapp_messages_media_summary_guard before insert or update on 
 -- 3. Of the files named, those another record still uses: any foreign key in the database that
 --    references files(id), found in the catalogue at run time (so a table added later that files a
 --    WhatsApp photo against a lead or a customer document is covered with no change here), and
---    another WhatsApp message than the ones named. A partition's copy of its parent's key is
---    skipped (the parent's is read). Called only by the definers below; no role may run it.
-create or replace function app.whatsapp_media_files_in_use(p_files uuid[], p_messages uuid[])
+--    another WhatsApp message than the ones named that arrived at or after `p_before`, so still
+--    within the period (one older than it goes with them). A partition's copy of its parent's key
+--    is skipped (the parent's is read). Called only by the definers below; no role may run it.
+create or replace function app.whatsapp_media_files_in_use(
+  p_files uuid[], p_messages uuid[], p_before timestamptz
+)
   returns setof uuid
   language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -60,11 +63,12 @@ begin
   end if;
   return query
     select distinct m.file_id from public.whatsapp_messages m
-     where m.file_id = any (p_files) and not (m.id = any (coalesce(p_messages, '{}'::uuid[])));
+     where m.file_id = any (p_files) and not (m.id = any (coalesce(p_messages, '{}'::uuid[])))
+       and m.created_at >= p_before;
   for r in
     select c.conrelid::regclass::text as rel, a.attname::text as col
       from pg_catalog.pg_constraint c
-      cross join lateral pg_catalog.unnest(c.conkey, c.confkey) as k(attnum, fattnum)
+      cross join lateral rows from (pg_catalog.unnest(c.conkey), pg_catalog.unnest(c.confkey)) as k(attnum, fattnum)
       join pg_catalog.pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum
       join pg_catalog.pg_attribute fa on fa.attrelid = c.confrelid and fa.attnum = k.fattnum
      where c.contype = 'f'
@@ -81,7 +85,7 @@ begin
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.whatsapp_media_files_in_use(uuid[], uuid[]) from public, readonly_reporter;
+revoke execute on function app.whatsapp_media_files_in_use(uuid[], uuid[], timestamptz) from public, readonly_reporter, app_user, app_reader;
 --> statement-breakpoint
 
 -- The check every definer below starts with: the platform's grant, a company of the request.
@@ -97,17 +101,19 @@ begin
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.require_media_expire(smallint) from public, readonly_reporter;
+revoke execute on function app.require_media_expire(smallint) from public, readonly_reporter, app_user, app_reader;
 --> statement-breakpoint
 
 -- 4. The next batch of one company's media messages older than the period whose file is still
 --    kept, oldest first after the cursor (on whatsapp_messages_media_kept_idx), each with its
---    file's place in the store and whether another record still uses it (`in_use`, kept). The
---    cursor's time is answered as text, exact to the microsecond. A dry run reads only this.
+--    file's place in the store (with the upload's own key, which the checks replace with a changed
+--    copy, and its type, so the job removes every key of the file) and whether another record
+--    still uses it (`in_use`, kept). The cursor's time is answered as text, exact to the
+--    microsecond. A dry run reads only this.
 create or replace function app.whatsapp_media_due(
   p_entity smallint, p_years integer, p_after_at timestamptz, p_after_id uuid, p_limit integer
 ) returns table (message_id uuid, message_at text, file_id uuid, bucket text, key text,
-                 in_use boolean)
+                 original_key text, content_type text, in_use boolean)
   language plpgsql stable security definer set search_path = '' as $$
 declare
   v_cutoff timestamptz;
@@ -122,7 +128,8 @@ begin
   v_cutoff := pg_catalog.now() - pg_catalog.make_interval(years => p_years);
   return query
     with due as (
-      select m.id, m.created_at, m.file_id, f.bucket, f.key
+      select m.id, m.created_at, m.file_id, f.bucket, f.key,
+             f.scan_result ->> 'originalKey' as original_key, f.content_type
         from public.whatsapp_messages m
         join public.files f on f.id = m.file_id and f.entity_id = m.entity_id
        where m.entity_id = p_entity
@@ -136,11 +143,11 @@ begin
     used as (
       select u.id
         from app.whatsapp_media_files_in_use(
-               array(select d.file_id from due d), array(select d.id from due d)) as u(id)
+               array(select d.file_id from due d), array(select d.id from due d), v_cutoff) as u(id)
     )
     select d.id,
            pg_catalog.to_char(d.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
-           d.file_id, d.bucket, d.key,
+           d.file_id, d.bucket, d.key, d.original_key, d.content_type,
            exists (select 1 from used where used.id = d.file_id)
       from due d
      order by d.created_at, d.id;
@@ -195,7 +202,7 @@ begin
              and f.purpose = 'whatsapp_media'
            order by m.created_at, m.id
              for update of m, f) m;
-  v_in_use := array(select u.id from app.whatsapp_media_files_in_use(v_files, v_ids) as u(id));
+  v_in_use := array(select u.id from app.whatsapp_media_files_in_use(v_files, v_ids, v_cutoff) as u(id));
 
   with gone as (
     update public.files f
