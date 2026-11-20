@@ -26,7 +26,7 @@ import { loadConciergeSample, loadCopilotSample } from '../../src/queries/agents
 // The G2 shadow review pack on Postgres (docs/03-roadmap-appendix/phase2.md §8.1): the Concierge's
 // and the Co-pilot's figures per action type, the hand-offs, the spend per lead and the review
 // sample, on rows seeded straight into one period of the past that no other suite writes (a random
-// month between 2001 and 2020), in company 3, with company 1's rows of the same period beside them
+// month between 2011 and 2017), in company 3, with company 1's rows of the same period beside them
 // that must never be counted.
 
 const ENTITY = 3;
@@ -36,8 +36,10 @@ const QUALIFICATION = CONCIERGE_ACTION_TYPES.qualification;
 const TASK = CONCIERGE_ACTION_TYPES.callback;
 const TEMPLATE = COPILOT_ACTION_TYPES.template;
 
-// A period of 30 IST days starting on a random day of 2001 to 2020.
-const START = new Date(Date.UTC(2001, 0, 1) + Math.floor(Math.random() * 7300) * 86_400_000);
+// A period of 30 IST days starting on a random day of 2011 to mid-2017. Its hand-offs go to the
+// audit trail's default partition, so the period stays clear of the months the retention suite
+// makes partitions for (1971 to 2010, and seven years and ten months ago) and of query-audit's.
+const START = new Date(Date.UTC(2011, 0, 1) + Math.floor(Math.random() * 2300) * 86_400_000);
 const FROM = START.toISOString().slice(0, 10);
 const TO = new Date(START.getTime() + 29 * 86_400_000).toISOString().slice(0, 10);
 const T0 = Date.parse(`${FROM}T00:00:00+05:30`);
