@@ -179,7 +179,7 @@ Findings 1 to 8 of the review, fixed in one round on the branch (0229 and 0230 e
 **Checks run here** (fresh migrations on the local Postgres):
 - `pnpm typecheck`: pass. ESLint on every folder touched: clean. Prettier on the changed files: clean. `pnpm copy-lint`: clean. `pnpm db:docs` and `machines:docs`: no change.
 - Unit: domain 108 files, 2,793 passed; web 164 files, 1,213 passed, 1 skipped.
-- Security suite (`pnpm test:security`): SECURITY_RESULT
+- Security suite (`pnpm test:security`, 21:0x UTC): db 61 files, 1,594 of 1,594; domain 106 files, 1,467 of 1,467; web 459 of 460: `demo-data.test.ts`, the same date-boundary failure as in the done report (its price lists take effect today in India, still tomorrow in UTC, after 18:30 UTC); nothing of H1 touches prices or the demo data.
 - Not run: the whole-repository `pnpm lint` (the heap, finding 9), `pnpm build`, the spike (no query changed).
 
 **Journeys not run** (sign-in is refused in the cloud), all in `apps/web/e2e/inventory.spec.ts`, in desktop-light, desktop-dark and phone:
