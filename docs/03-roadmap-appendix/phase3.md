@@ -66,7 +66,7 @@ The owner decided all eleven on 23-11-2026, each the recommended option (a), as 
     - (b) The surplus pool waits for Phase 4.
 
 ## 3. Slices
-Each slice is vertical, as in Phases 1 and 2: contract → schema, row security and grants → command → worker, route or server action → screen → end-to-end test, with its documents. A wave is a dependency tier; at most five builders run at once, and no two slices of a wave own the same file except the shared registration points below. Tiers follow [models-and-usage §2](../runbooks/models-and-usage.md#2-slice-tiers): stock, money, costs and rates are Tier A.
+Each slice is vertical, as in Phases 1 and 2: contract → schema, row security and grants → command → worker, route or server action → screen → end-to-end test, with its documents. A wave is a dependency tier; at most five builders run at once, and no two slices of a wave own the same file except the shared registration points below. Tiers follow [models-and-usage §2](../runbooks/models-and-usage.md#2-slice-tiers): stock, money, costs and rates are Tier A. Each slice's brief and reports are its run file in [runs/phase3](../runs/phase3/readme.md).
 
 | Wave | Slice | Needs | Tier | Requirements |
 |---|---|---|---|---|
