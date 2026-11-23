@@ -219,7 +219,7 @@ describe('catalogue.item.create and .update with stock and warranty (C5)', () =>
     // Eleven digits from the run's time, starting 2 to 9, and their Verhoeff check digit: the
     // runner would mask such a number in any field not declared a long number by design.
     const body = `9${String(Date.now()).slice(-10)}`;
-    const code = `${body}${String(verhoeffCheckDigit(body))}`;
+    const code = `${body}${verhoeffCheckDigit(body)}`;
     const created = await run<ItemOut>(manager, createItem, { ...cableInput(), barcode: code });
     expect(created.barcode).toBe(code);
     expect((await itemRow(created.id))?.barcode).toBe(code);

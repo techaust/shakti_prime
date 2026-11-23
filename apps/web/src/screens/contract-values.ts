@@ -690,6 +690,8 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'leads',
   'accounts',
   'pin_codes',
+  // C5: the catalogue's items.
+  'items',
 ] as const satisfies readonly ImportKind[];
 
 /** The most sites later rows of one customer add to it from one file (`MORE_SITES_MAX`). */

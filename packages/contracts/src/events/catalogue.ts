@@ -265,19 +265,21 @@ const eventCatalogue = {
   },
   'catalogue.item.created': {
     meaning: 'An item was added to the catalogue.',
-    emittedBy: ['catalogue.item.create'],
+    // An items file adds its new items through `catalogue.item.create` (C5).
+    emittedBy: ['catalogue.item.create', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
   'catalogue.item.updated': {
     meaning: "An item's details or specifications changed.",
-    emittedBy: ['catalogue.item.update'],
+    emittedBy: ['catalogue.item.update', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
   'catalogue.item.archived': {
     meaning: 'An item was withdrawn from sale.',
-    emittedBy: ['catalogue.item.archive'],
+    // Undoing an items file takes the items it added out of sale (C5).
+    emittedBy: ['catalogue.item.archive', 'imports.job.rollback'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },

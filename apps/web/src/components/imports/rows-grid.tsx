@@ -48,6 +48,19 @@ export function RowsGrid({
   const { load, pending, failure } = useQuery<ImportRowPage>();
   const kind = screenKind(job.kind);
   const offices = kind === 'pin_codes';
+  const items = kind === 'items';
+  // The two columns that name a row: its customer and phone, its post office and PIN, or its item
+  // and code.
+  const named = offices
+    ? ({ first: 'officeName', second: 'pin', firstHeader: 'office', secondHeader: 'pin' } as const)
+    : items
+      ? ({ first: 'itemName', second: 'sku', firstHeader: 'item', secondHeader: 'sku' } as const)
+      : ({
+          first: 'contactName',
+          second: 'phone',
+          firstHeader: 'name',
+          secondHeader: 'phone',
+        } as const);
 
   function read(next: RowView, after: number | undefined) {
     const state = rowStateOf(next);
@@ -105,15 +118,15 @@ export function RowsGrid({
     },
     {
       id: 'name',
-      header: offices ? t('columns.office') : t('columns.name'),
+      header: t(`columns.${named.firstHeader}`),
       primary: true,
-      cell: (r) => rowValue(r, job.mapping, offices ? 'officeName' : 'contactName') || notRecorded,
+      cell: (r) => rowValue(r, job.mapping, named.first) || notRecorded,
     },
     {
       id: 'phone',
-      header: offices ? t('columns.pin') : t('columns.phone'),
-      numeric: true,
-      cell: (r) => rowValue(r, job.mapping, offices ? 'pin' : 'phone') || notRecorded,
+      header: t(`columns.${named.secondHeader}`),
+      numeric: !items,
+      cell: (r) => rowValue(r, job.mapping, named.second) || notRecorded,
     },
     {
       id: 'status',

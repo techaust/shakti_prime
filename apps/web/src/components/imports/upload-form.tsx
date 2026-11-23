@@ -29,10 +29,13 @@ import { useCommand } from '../screens/use-command';
 export function UploadForm({
   companies,
   kinds,
+  initialKind,
   limits,
 }: {
   companies: { id: number; name: string }[];
   kinds: readonly ImplementedImportKind[];
+  /** The kind chosen first, when the page was opened for one (the items grid's Import items). */
+  initialKind?: ImplementedImportKind;
   limits: UploadLimits;
 }) {
   const t = useTranslations('imports.upload');
@@ -43,7 +46,7 @@ export function UploadForm({
   const [entityId, setEntityId] = useState<number | undefined>(
     companies.length === 1 ? companies[0]?.id : undefined,
   );
-  const [kind, setKind] = useState<ImplementedImportKind>(kinds[0] ?? 'leads');
+  const [kind, setKind] = useState<ImplementedImportKind>(initialKind ?? kinds[0] ?? 'leads');
   // The uploaded file, once the server recorded it; and whether its checks are still running.
   const fileId = useRef<string | undefined>(undefined);
   const [uploaded, setUploaded] = useState<'none' | 'waiting' | 'ready'>('none');

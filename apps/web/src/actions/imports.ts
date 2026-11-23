@@ -4,6 +4,7 @@ import {
   CommitImportJobInput,
   DomainError,
   GetImportJobInput,
+  isGroupImportKind,
   ListImportJobsInput,
   ListImportRowsInput,
   ListImportTemplatesInput,
@@ -204,8 +205,9 @@ export async function commitImportJob(
       commandOptions(meta, idempotencyKey),
     );
     if (job.state !== 'committing') return job;
-    // The worker acts for the companies the checked rows name (the PIN code list: every one).
-    const companies = job.kind === 'pin_codes' ? scope : (job.entityIds ?? [job.entityId]);
+    // The worker acts for the companies the checked rows name (the PIN code list and the
+    // catalogue's items: every one).
+    const companies = isGroupImportKind(job.kind) ? scope : (job.entityIds ?? [job.entityId]);
     try {
       await scheduleImportCommit(
         {

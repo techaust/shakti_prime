@@ -86,9 +86,9 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`catalogue.item.created`](#catalogueitemcreated) | An item was added to the catalogue. | `catalogue.item.create` | none |
-| [`catalogue.item.updated`](#catalogueitemupdated) | An item's details or specifications changed. | `catalogue.item.update` | none |
-| [`catalogue.item.archived`](#catalogueitemarchived) | An item was withdrawn from sale. | `catalogue.item.archive` | none |
+| [`catalogue.item.created`](#catalogueitemcreated) | An item was added to the catalogue. | `catalogue.item.create`, `imports.job.commit_batch` | none |
+| [`catalogue.item.updated`](#catalogueitemupdated) | An item's details or specifications changed. | `catalogue.item.update`, `imports.job.commit_batch` | none |
+| [`catalogue.item.archived`](#catalogueitemarchived) | An item was withdrawn from sale. | `catalogue.item.archive`, `imports.job.rollback` | none |
 | [`catalogue.kit.created`](#cataloguekitcreated) | A kit was added with its components. | `catalogue.kit.create` | none |
 | [`catalogue.kit.updated`](#cataloguekitupdated) | A kit's details or components changed. | `catalogue.kit.update` | none |
 | [`catalogue.kit.archived`](#cataloguekitarchived) | A kit was withdrawn from sale. | `catalogue.kit.archive` | none |

@@ -43,7 +43,7 @@ function hasNestedRepeat(source: string): boolean {
       if (closed === true) return true;
       if (open.length > 0) open[open.length - 1] = true;
     }
-    if (brace !== null && brace !== undefined) i += brace[0].length - 1;
+    if (brace !== null) i += brace[0].length - 1;
     closed = undefined;
   }
   return false;

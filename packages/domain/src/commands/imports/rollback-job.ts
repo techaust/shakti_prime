@@ -12,9 +12,11 @@ import { defineCommand } from '../../command/define-command';
 import { assertImportJobMove } from '../../imports/job-state';
 import { rollbackChunks } from '../../imports/row-key';
 import { recheckSitePins } from '../../imports/commit-pin-codes';
+import { archiveItem } from '../catalogue/items';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertItemImport,
   assertJobCompaniesCovered,
   implementedKind,
   jobState,
@@ -111,6 +113,8 @@ async function undo(
       .returning({ id: a.id });
     return changed.length;
   }
+  // Items are taken out of sale through their command, never here (`undoItems`).
+  if (kind === 'items') throw new DomainError('internal', 'items are undone through undoItems');
   const p = schema.pinCodes;
   const removed = await tx
     .delete(p)
@@ -137,8 +141,9 @@ async function undo(
  * companies; a customer a row was
  * linked to keeps the companies the row added. The request must act for every company the rows name. The offices a PIN code file
  * added are removed and the sites with their PINs checked again; an office it corrected keeps the
- * correction. A record the caller can no longer change stops the whole rollback, so nothing is
- * half undone.
+ * correction. The items an items file added are taken out of sale, except one a kit still sold
+ * holds; the items it changed keep the change. A record the caller can no longer change stops the
+ * whole rollback, so nothing is half undone.
  */
 export const rollbackImportJob = defineCommand({
   name: 'imports.job.rollback',
@@ -156,6 +161,7 @@ export const rollbackImportJob = defineCommand({
     const job = loaded.job;
     const kind = implementedKind(job);
     if (kind === 'pin_codes') await assertGroupImport(ctx);
+    if (kind === 'items') await assertItemImport(ctx);
     assertJobCompaniesCovered(ctx.entityIds, job);
     const actor = ctx.principal.id;
     const r = schema.importRows;
@@ -192,8 +198,14 @@ export const rollbackImportJob = defineCommand({
           : kind === 'leads'
             ? await leadsInUse(ctx.tx, job.id, ids)
             : NONE;
-      kept += inUse.size;
-      archived += await undo(ctx, ctx.tx, kind, ids, inUse);
+      if (kind === 'items') {
+        const items = await undoItems(ctx, ids);
+        archived += items.archived;
+        kept += items.kept;
+      } else {
+        kept += inUse.size;
+        archived += await undo(ctx, ctx.tx, kind, ids, inUse);
+      }
       await ctx.tx
         .update(r)
         .set({ state: 'rolled_back', updatedBy: actor })
@@ -229,3 +241,29 @@ export const rollbackImportJob = defineCommand({
     return toImportJobDto(rolledBack);
   },
 });
+
+/**
+ * Takes the items an items file added out of sale (C5), each through `catalogue.item.archive` in a
+ * savepoint of its own, as the caller: an item a kit still sold holds is kept, and one already out
+ * of sale is left as it is. Kept below the command that calls it, so the command's source names
+ * the command it runs (event-emitters.test.ts reads it). The items a file changed keep the change, whose before and after the
+ * Activity log holds. Answers how many were archived and kept.
+ */
+async function undoItems(
+  ctx: CommandContext,
+  ids: readonly string[],
+): Promise<{ archived: number; kept: number }> {
+  let archived = 0;
+  let kept = 0;
+  for (const itemId of ids) {
+    try {
+      await ctx.savepoint((sp) => ctx.run(archiveItem, { itemId }, { tx: sp }));
+      archived += 1;
+    } catch (error) {
+      const reason = error instanceof DomainError ? error.details?.reason : undefined;
+      if (reason === 'item_in_kit') kept += 1;
+      else if (reason !== 'catalogue_item_missing') throw error;
+    }
+  }
+  return { archived, kept };
+}
