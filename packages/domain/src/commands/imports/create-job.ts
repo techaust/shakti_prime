@@ -11,6 +11,7 @@ import {
   assertContentNotImported,
   assertEntityInScope,
   assertGroupImport,
+  assertVendorImport,
   toImportJobDto,
 } from './shared';
 
@@ -60,6 +61,7 @@ export const createImportJob = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     if (input.kind === 'pin_codes') await assertGroupImport(ctx);
+    if (input.kind === 'vendors') assertVendorImport(ctx.principal);
     const actor = ctx.principal.id;
 
     const f = schema.files;

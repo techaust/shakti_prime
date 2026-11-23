@@ -15,6 +15,7 @@ import { recheckSitePins } from '../../imports/commit-pin-codes';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertVendorImport,
   assertJobCompaniesCovered,
   implementedKind,
   jobState,
@@ -111,6 +112,17 @@ async function undo(
       .returning({ id: a.id });
     return changed.length;
   }
+  if (kind === 'vendors') {
+    // U1: the vendors the job added leave the active list, as an archive does; their people, items
+    // and any quote recorded since stay on record.
+    const v = schema.vendors;
+    const changed = await tx
+      .update(v)
+      .set({ isActive: false, updatedBy: actor })
+      .where(and(inArray(v.id, [...ids]), eq(v.isActive, true)))
+      .returning({ id: v.id });
+    return changed.length;
+  }
   const p = schema.pinCodes;
   const removed = await tx
     .delete(p)
@@ -156,6 +168,7 @@ export const rollbackImportJob = defineCommand({
     const job = loaded.job;
     const kind = implementedKind(job);
     if (kind === 'pin_codes') await assertGroupImport(ctx);
+    if (kind === 'vendors') assertVendorImport(ctx.principal);
     assertJobCompaniesCovered(ctx.entityIds, job);
     const actor = ctx.principal.id;
     const r = schema.importRows;
@@ -164,11 +177,14 @@ export const rollbackImportJob = defineCommand({
       .select({ rowNo: r.rowNo, createdId: r.createdId, createdType: r.createdType })
       .from(r)
       .where(and(eq(r.jobId, job.id), eq(r.state, 'committed')));
-    // A row linked to an existing customer made nothing to undo.
+    // A row linked to an existing customer, or one that updated an existing vendor (U1), made
+    // nothing to undo.
     const recordOf = new Map(
       committed.map((row) => [
         row.rowNo,
-        row.createdType === 'account_link' ? null : row.createdId,
+        row.createdType === 'account_link' || row.createdType === 'vendor_update'
+          ? null
+          : row.createdId,
       ]),
     );
     const batches: { fromRow: number; toRow: number; rows: number }[] = [];

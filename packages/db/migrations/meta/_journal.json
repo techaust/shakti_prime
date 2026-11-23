@@ -1632,6 +1632,13 @@
       "when": 1795457997090,
       "tag": "0232_u1_vendor_quote_files_grant",
       "breakpoints": true
+    },
+    {
+      "idx": 233,
+      "version": "7",
+      "when": 1795458626929,
+      "tag": "0233_u1_vendors_import",
+      "breakpoints": true
     }
   ]
 }

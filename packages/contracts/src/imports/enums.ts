@@ -15,6 +15,8 @@ export const ImportKindSchema = z.enum([
   'pin_codes',
   'items',
   'tally_masters',
+  // U1: the group's vendor master (docs/03-roadmap-appendix/phase3.md §6.3).
+  'vendors',
 ]);
 export type ImportKind = z.infer<typeof ImportKindSchema>;
 
@@ -23,6 +25,8 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'leads',
   'accounts',
   'pin_codes',
+  // U1 vendors.
+  'vendors',
 ] as const satisfies readonly ImportKind[];
 export type ImplementedImportKind = (typeof IMPLEMENTED_IMPORT_KINDS)[number];
 
@@ -70,6 +74,10 @@ export const ImportCreatedTypeSchema = z.enum([
   'account',
   'account_link',
   'pin_code',
+  // U1: a vendor a row added, or one with the row's GSTIN that the row updated (a rollback leaves
+  // an updated vendor as it is).
+  'vendor',
+  'vendor_update',
 ]);
 export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
 
@@ -181,6 +189,27 @@ export type AccountImportField = z.infer<typeof AccountImportFieldSchema>;
 export const PinCodeImportFieldSchema = z.enum(['pin', 'officeName', 'taluk', 'district', 'state']);
 export type PinCodeImportField = z.infer<typeof PinCodeImportFieldSchema>;
 
+/**
+ * U1: the fields of a vendor a file column can fill: its name, GSTIN, PAN, address, payment terms
+ * and lead time in days, and one of its people. A GSTIN already in the vendor master updates that
+ * vendor (docs/03-roadmap-appendix/phase3.md §6.3).
+ */
+export const VendorImportFieldSchema = z.enum([
+  'vendorName',
+  'gstin',
+  'pan',
+  'addressLine',
+  'city',
+  'pin',
+  'paymentTermsDays',
+  'leadTimeDays',
+  'contactName',
+  'contactRole',
+  'contactPhone',
+  'contactEmail',
+]);
+export type VendorImportField = z.infer<typeof VendorImportFieldSchema>;
+
 /** Every field a file column can fill, whatever the kind. */
 export const ImportFieldSchema = z.enum([
   ...LeadImportFieldSchema.options,
@@ -189,6 +218,17 @@ export const ImportFieldSchema = z.enum([
   'taluk',
   'district',
   'state',
+  // U1 vendors (the name of a vendor's person and its PIN are the leads' own fields).
+  'vendorName',
+  'gstin',
+  'pan',
+  'addressLine',
+  'city',
+  'paymentTermsDays',
+  'leadTimeDays',
+  'contactRole',
+  'contactPhone',
+  'contactEmail',
 ]);
 export type ImportField = z.infer<typeof ImportFieldSchema>;
 
@@ -197,6 +237,7 @@ export const IMPORT_FIELDS = {
   leads: LeadImportFieldSchema.options,
   accounts: AccountImportFieldSchema.options,
   pin_codes: PinCodeImportFieldSchema.options,
+  vendors: VendorImportFieldSchema.options,
 } as const satisfies Record<ImplementedImportKind, readonly ImportField[]>;
 /**
  * Why one row cannot be imported, keyed to `imports.rowErrors` in the message catalogue. These
@@ -217,5 +258,7 @@ export const ImportRowErrorCodeSchema = z.enum([
   'dealer_needs_executive',
   // A referral code no active partner of the company has (CRM-09).
   'referral_code_unknown',
+  // U1: the GSTIN is an archived vendor's, which an import does not change.
+  'vendor_archived',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

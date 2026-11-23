@@ -248,3 +248,29 @@ export type ListVendorsInput = z.input<typeof ListVendorsInput>;
 
 export const GetVendorInput = z.object({ vendorId: IdSchema }).strict();
 export type GetVendorInput = z.infer<typeof GetVendorInput>;
+
+/**
+ * U1: one row of a vendor list as the import's preview checks it and its commit writes it: the
+ * vendor, and one of its people when the row names one. A GSTIN already in the vendor master
+ * updates that vendor with what the row gives.
+ */
+export const VendorImportRowInput = z
+  .object({
+    vendor: z
+      .object({
+        name: vendorFields.name,
+        gstin: EntityGstinSchema.optional(),
+        /** Filled from the GSTIN, as the vendor sheet fills it. */
+        stateCode: GstStateCodeSchema.optional(),
+        pan: PanSchema.optional(),
+        address: VendorAddressSchema.default({}),
+        paymentTermsDays: Days.optional(),
+        leadTimeDays: Days.optional(),
+      })
+      .strict()
+      .superRefine(checkIdentity)
+      .transform(withIdentity),
+    contact: VendorContactInput.optional(),
+  })
+  .strict();
+export type VendorImportRowInput = z.infer<typeof VendorImportRowInput>;
