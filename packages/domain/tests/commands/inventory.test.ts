@@ -139,6 +139,40 @@ describe('inventory.hub.* and inventory.bin.*', () => {
     expect(row?.n).toBeGreaterThan(0);
   });
 
+  it('give two pairs whose codes join to the same text two transit bin codes (review probe C)', async () => {
+    const [live] = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        select id from warehouses where kind = 'transit' and archived_at is null limit 1`,
+    );
+    const transitId =
+      live?.id ??
+      (
+        await run<HubOut>(exec, createHub, {
+          code: code('T'),
+          name: 'Between the sites',
+          kind: 'transit',
+        })
+      ).id;
+    // `P` with `Q-R` and `P-Q` with `R` both join to `P-Q-R`.
+    const [p, q, r] = [`P${tag}`, `Q${tag}`, `R${tag}`];
+    const site = (hubCode: string) => run<HubOut>(exec, createHub, { ...godown(), code: hubCode });
+    const hubP = await site(p);
+    const hubQR = await site(`${q}-${r}`);
+    const hubPQ = await site(`${p}-${q}`);
+    const hubR = await site(r);
+    const codeOf = async (a: string, b: string) => {
+      const [row] = await asMigrator(
+        (m) => m<{ code: string }[]>`
+          select code from bins where warehouse_id = ${transitId}
+             and pair_a_warehouse_id = least(${a}::uuid, ${b}::uuid)
+             and pair_b_warehouse_id = greatest(${a}::uuid, ${b}::uuid)`,
+      );
+      return row?.code;
+    };
+    expect(await codeOf(hubP.id, hubQR.id)).toBe(`${p}-${q}-${r}`);
+    expect(await codeOf(hubPQ.id, hubR.id)).toBe(`${p}-${q}-${r}-2`);
+  });
+
   it('update, add, rename, archive and keep the bins a hub needs', async () => {
     const hub = await run<HubOut>(exec, createHub, godown());
     const updated = await run<HubOut>(exec, updateHub, {
@@ -244,7 +278,7 @@ describe('inventory.stock.adjust', () => {
     expect(Number(await onHand(1, f.binA, f.cable))).toBe(before + 5.5);
     expect(recorded.records[0]).toMatchObject({
       command: 'inventory.stock.adjust',
-      after: { stockReason: 'adjust_gain', quantity: '5.5', adjustNote: 'Found in the yard' },
+      after: { stockReason: 'adjust_gain', quantity: 5.5, adjustNote: 'Found in the yard' },
     });
     const [event] = emitted.records;
     expect(event).toMatchObject({
