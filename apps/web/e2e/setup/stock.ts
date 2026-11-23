@@ -60,7 +60,7 @@ export async function ensureStockJourneys(executiveId: string): Promise<void> {
           await tx`select set_config('app.user_id', ${executiveId}, true),
                           set_config('app.entity_ids', ${`{${String(STOCK_JOURNEY.entityId)}}`}, true),
                           set_config('app.permissions', 'inventory.stock.adjust:entity', true)`;
-          await tx`select app.stock_move(${JSON.stringify([
+          await tx`select app.stock_move(${tx.json([
             {
               reason: 'adjust_gain',
               entity_id: STOCK_JOURNEY.entityId,
@@ -70,7 +70,7 @@ export async function ensureStockJourneys(executiveId: string): Promise<void> {
               unit_cost: '25.0000',
               note: 'Journey starting stock',
             },
-          ])}::jsonb)`;
+          ])})`;
         });
       }
     }
@@ -89,7 +89,7 @@ export async function ensureStockJourneys(executiveId: string): Promise<void> {
         await tx`select set_config('app.user_id', ${executiveId}, true),
                         set_config('app.entity_ids', ${`{${String(SNAPSHOT_COMPANY.entityId)}}`}, true),
                         set_config('app.permissions', 'inventory.stock.adjust:entity', true)`;
-        await tx`select app.stock_move(${JSON.stringify([
+        await tx`select app.stock_move(${tx.json([
           {
             reason: 'adjust_gain',
             entity_id: SNAPSHOT_COMPANY.entityId,
@@ -99,7 +99,7 @@ export async function ensureStockJourneys(executiveId: string): Promise<void> {
             unit_cost: item.cost,
             note: 'Snapshot stock',
           },
-        ])}::jsonb)`;
+        ])})`;
       });
     }
   });
