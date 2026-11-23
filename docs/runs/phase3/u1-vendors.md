@@ -5,9 +5,9 @@
 | Branch | `feat/u1-vendors` on GitHub, from the approved design at a549b0d8 (`main` 334a6d0b plus the design) |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): supplier rates behind `procurement.rate.read`, row security |
-| Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done |
-| State | briefed |
-| Next step | the builder's early check |
+| Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (the builder's session reports `claude-opus-5-5`, high effort, at the start, 23-11-2026) |
+| State | early check |
+| Next step | the lead reads the early check and sends "continue" |
 
 ## Brief
 Build [phase3 §6.3](../../03-roadmap-appendix/phase3.md#63-u1-vendors-and-supplier-quotes) as written, with question 6 (a): one vendor master for the group. The exit gate's second item is supplier-rate isolation, so the rate rules are the heart of this slice. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
