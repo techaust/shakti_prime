@@ -100,7 +100,7 @@ Closed on its engineering work on 20-11-2026 (the owner's decision): the run on 
 ## 5. Phase 3 — Inventory & procurement (7–8 weeks)
 **Scope:** full catalogue; stock ledger and balances; kit availability-to-promise; reservations; vendors and quote comparison; POs and goods receipt with serial capture; dispatch and challans with the e-way bill gate; labels; warranty claims and RMA; surplus pool.
 
-**Plan:** its design, slices in waves with the owner's questions, is drafted next in [`docs/03-roadmap-appendix/`](03-roadmap-appendix/) for the owner's approval; no slice starts before it is approved.
+**Plan:** 12 slices in four waves, in [`docs/03-roadmap-appendix/phase3.md`](03-roadmap-appendix/phase3.md) §3, approved on 23-11-2026 with its eleven questions decided.
 
 **Exit gate:** physical stock audit at both sites reconciles with the ledger; supplier-rate isolation verified in the security suite.
 
