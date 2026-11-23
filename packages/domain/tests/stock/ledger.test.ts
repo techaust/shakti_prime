@@ -236,6 +236,16 @@ describe('refusals', () => {
         qty: '1',
         refType: 'x',
       },
+      // A reference kind longer than any document's name.
+      {
+        reason: 'adjust_gain',
+        entityId: 1,
+        itemId: f.cable,
+        toBinId: f.binA,
+        qty: '1',
+        refType: 'x'.repeat(41),
+        refId: newId(),
+      },
     ];
     for (const line of shapes) {
       await expect(move(manager, [line])).rejects.toMatchObject({

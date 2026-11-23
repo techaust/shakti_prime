@@ -332,7 +332,8 @@ begin
     end if;
     v_line.ref_type := nullif(pg_catalog.btrim(v_el ->> 'ref_type'), '');
     v_line.ref_id := (v_el ->> 'ref_id')::uuid;
-    if (v_line.ref_type is null) <> (v_line.ref_id is null) then
+    if (v_line.ref_type is null) <> (v_line.ref_id is null)
+       or pg_catalog.char_length(coalesce(v_line.ref_type, '')) > 40 then
       perform app.stock_refuse('stock_movement_shape', pg_catalog.jsonb_build_object('line', v_ord));
     end if;
 
