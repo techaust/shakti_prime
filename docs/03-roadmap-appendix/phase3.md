@@ -1,6 +1,6 @@
 # Backend and product design: Phase 3 (Inventory and procurement)
 
-Date: 23-11-2026. Status: drafted for the owner's approval; no slice starts before it is approved. Built slice by slice in the order of §3, each slice recording what it built here in the same pull request, as the Phase 1 and Phase 2 designs do; progress is in [STATUS](../10-status.md). Governing documents: BLUEPRINT §6.3, §7.1, §7.2, §8.3, §8.4, §8.10, §12, §16 and §17; ROADMAP §5; PRD SAL-04, SAL-06, INV-01 to INV-08, RPT-01, RPT-03, WA-01; DATABASE §4.3 and §6.5; SECURITY §3.2 and §3.4; the state machines `dispatch`, `warranty-claim` and `sales-order` in `docs/state-machines/`; the workshop items STOCK-1 to STOCK-4; [the Phase 1 design](phase1.md) and [the Phase 2 design](phase2.md). Where this design settles something the documents left open, the section says so; `docs/01-blueprint.md` governs on any conflict.
+Date: 23-11-2026. Status: approved by the owner on 23-11-2026, with every question of §2 decided. Built slice by slice in the order of §3, each slice recording what it built here in the same pull request, as the Phase 1 and Phase 2 designs do; progress is in [STATUS](../10-status.md). Governing documents: BLUEPRINT §6.3, §7.1, §7.2, §8.3, §8.4, §8.10, §12, §16 and §17; ROADMAP §5; PRD SAL-04, SAL-06, INV-01 to INV-08, RPT-01, RPT-03, WA-01; DATABASE §4.3 and §6.5; SECURITY §3.2 and §3.4; the state machines `dispatch`, `warranty-claim` and `sales-order` in `docs/state-machines/`; the workshop items STOCK-1 to STOCK-4; [the Phase 1 design](phase1.md) and [the Phase 2 design](phase2.md). Where this design settles something the documents left open, the section says so; `docs/01-blueprint.md` governs on any conflict.
 
 **Contents:** [1. Scope](#1-scope) · [2. Decisions for the owner](#2-decisions-for-the-owner) · [3. Slices](#3-slices) · [4. New permissions](#4-new-permissions) · [5. The stock model](#5-the-stock-model) · [6. Wave 1](#6-wave-1) · [7. Wave 2](#7-wave-2) · [8. Wave 3](#8-wave-3) · [9. Wave 4](#9-wave-4) · [10. Workshop defaults](#10-workshop-defaults) · [11. Final-phase verification](#11-final-phase-verification) · [12. Questions for the client](#12-questions-for-the-client-final-phase) · [13. Tests per slice](#13-tests-per-slice) · [14. Gaps and conflicts in the governing documents](#14-gaps-and-conflicts-in-the-governing-documents)
 
@@ -24,44 +24,44 @@ Date: 23-11-2026. Status: drafted for the owner's approval; no slice starts befo
 **In the final phase (the owner's decision of 13-11-2026):** every step that needs the client's people: the hubs' bin layout, the opening stock from the client's count, the vendor list and rates, reorder levels, the label printer and stock, the scanners, the e-way bill practice (STOCK-3), and the physical stock audit at both sites. Each slice is built and tested now on seeded data; its live step is a row of §11, never a blocker.
 
 ## 2. Decisions for the owner
-Each question gives the recommended option first, marked *Recommended*; the owner's answers become rows in [DECISIONS](../11-decisions.md).
+The owner decided all eleven on 23-11-2026, each the recommended option (a), as marked below and recorded in [DECISIONS](../11-decisions.md).
 
-1. **Who owns stock** (every slice; BLUEPRINT §6.1 makes the companies selling entities that share staff):
+1. **Who owns stock** (every slice; BLUEPRINT §6.1 makes the companies selling entities that share staff): **Decided: (a).**
    - (a) *Recommended:* stock belongs to a company. Every movement, balance, serial, reservation, purchase order, receipt and dispatch carries one company, and row security reads it as it reads orders. Hubs and bins are shared by the group, so both sites hold several companies' stock side by side. Goods pass from one company to another only by a sale between them (an order and a dispatch with its challan and invoice), never by a ledger transfer, since each company's stock is valued in its own Tally company (BLUEPRINT §8.8) and GST treats the move as a supply.
    - (b) One group pool, with the company named only on documents.
    - (c) Stock per company, with a free internal transfer between companies.
-2. **Stock cost** (H1, U2; workshop STOCK-1 and STOCK-2 for the CA):
+2. **Stock cost** (H1, U2; workshop STOCK-1 and STOCK-2 for the CA): **Decided: (a).**
    - (a) *Recommended:* a moving average per company and item. A receipt revalues the average; an issue takes the average at that moment. Each movement's cost is kept on the restricted side (`stock_movement_costs`, `finance.cost.read`) and the average in `item_costs`. A return while stock stands at or below zero takes the last positive average (STOCK-2's third option) as a named default until the CA decides.
    - (b) A moving average that may go negative, corrected at the next purchase.
    - (c) First in, first out cost layers.
-3. **When stock is set aside for an order, and for how long** (H2; workshop STOCK-4):
+3. **When stock is set aside for an order, and for how long** (H2; workshop STOCK-4): **Decided: (a).**
    - (a) *Recommended:* confirming an order reserves free stock for each line at once (a kit line reserves its components); what is short becomes a backorder, filled in order of confirmation as stock arrives. A reservation holds 15 days (named default); the order's owner and the Inventory Manager are told 2 days before it lapses, and the Inventory Manager or the General Manager may extend it once by the same period. The STOCK-4 answer replaces both numbers.
    - (b) Held until the order is dispatched or cancelled, with no expiry.
    - (c) Reserved by hand by the Inventory Manager, never on confirmation.
-4. **What a Lead Converter sees of stock on a quote** (H2; PRD SAL-04 asks for availability on quotes, SECURITY §3.2 gives tele-callers no `inventory.stock.read`):
+4. **What a Lead Converter sees of stock on a quote** (H2; PRD SAL-04 asks for availability on quotes, SECURITY §3.2 gives tele-callers no `inventory.stock.read`): **Decided: (a).**
    - (a) *Recommended:* each quote and order line shows a status, not a count: in stock, partly in stock, or on order with the expected date, answered by a definer for holders of `sales.quote.create`; the Inventory Manager, the General Manager and the Executive see the quantities.
    - (b) Lead Converters get `inventory.stock.read` for their company and see the quantities.
    - (c) No availability on quotes; orders only.
-5. **Who approves a purchase order** (U2; BLUEPRINT §8.4: "a reorder alert drafts a PO that a person approves"):
+5. **Who approves a purchase order** (U2; BLUEPRINT §8.4: "a reorder alert drafts a PO that a person approves"): **Decided: (a).**
    - (a) *Recommended:* a new `procurement.po.approve`. The Inventory Manager approves a purchase order below ₹2,00,000 for their company, the Executive any amount (the limit a named default, `WORKSHOP_DEFAULTS.procurement.poApprovalFromRupees`). Nobody approves a purchase order they drafted, unless they are an Executive.
    - (b) The Executive approves every purchase order.
    - (c) The Inventory Manager approves every purchase order.
-6. **Vendors shared or per company** (U1):
+6. **Vendors shared or per company** (U1): **Decided: (a).**
    - (a) *Recommended:* one vendor master for the group, as customers are shared (ADR 0008); a supplier quote may name the company it was given to; a purchase order belongs to one company. Any holder of `procurement.po.write` adds or edits a vendor, audited; rates stay behind `procurement.rate.read`.
    - (b) A vendor list per company.
-7. **Who records "materials arrived" in Phase 3** (D2; the dispatch machine's note: field engineers hold no dispatch permission and the field app is Phase 4):
+7. **Who records "materials arrived" in Phase 3** (D2; the dispatch machine's note: field engineers hold no dispatch permission and the field app is Phase 4): **Decided: (a).**
    - (a) *Recommended:* the holders of `inventory.dispatch.write` (the Inventory Manager, the Project Manager, the General Manager), from any browser with the photo taken on the phone; Phase 4 adds `inventory.dispatch.arrive` for a field engineer on their own assigned jobs in the app.
    - (b) Arrival is recorded without a photo until the field app exists.
-8. **Scanning serials and labels** (U2, D2, H3):
+8. **Scanning serials and labels** (U2, D2, H3): **Decided: (a).**
    - (a) *Recommended:* handheld scanners, which type into the focused field, and the camera through the browser: the browser's own barcode reader where it has one (Chrome on Android reads QR and the usual one-dimensional codes), else the installed `jsqr` for QR codes only; no new package. A one-dimensional supplier barcode on a laptop without a reader is typed or scanned with a handheld.
    - (b) Add a barcode-reading package (`@zxing/browser`) so every browser's camera reads one-dimensional codes; a new dependency needs the owner's go-ahead.
-9. **Labels** (Q1; PRD INV-07):
+9. **Labels** (Q1; PRD INV-07): **Decided: (a).**
    - (a) *Recommended:* PDF labels rendered by the existing Chromium print path at the label stock's exact size (50 × 25 mm for serials and bins, 100 × 50 mm for packages), with QR codes from the installed `qrcode`, printed from the browser to whichever label printer the hub has; the printer and stock the client names are checked in the final phase (INV-07's criterion).
    - (b) The printer's own language (ZPL for Zebra printers), which needs the model chosen now.
-10. **The cost of a warranty replacement before job costing exists** (R3; the `warranty-claim` machine's `cost_entry` writes a `job_cost_entries` row, a Phase 5 table):
+10. **The cost of a warranty replacement before job costing exists** (R3; the `warranty-claim` machine's `cost_entry` writes a `job_cost_entries` row, a Phase 5 table): **Decided: (a).**
     - (a) *Recommended:* the replacement's issue carries its moving-average cost on the restricted side of its movement, and the claim keeps the cost and any supplier credit in restricted columns (`finance.cost.read`); Phase 5 turns each into a job cost entry against the project or order.
     - (b) Claims carry no cost until Phase 5.
-11. **The surplus pool before projects exist** (R2; `surplus_pool.project_id` names a Phase 4 table):
+11. **The surplus pool before projects exist** (R2; `surplus_pool.project_id` names a Phase 4 table): **Decided: (a).**
     - (a) *Recommended:* the Inventory Manager logs leftovers returned from a delivered dispatch or an order into a surplus bin at zero value; they count apart from free stock, and are suggested when a later reservation or pick needs the same item. Phase 4 adds the project link and logging from the field app.
     - (b) The surplus pool waits for Phase 4.
 
