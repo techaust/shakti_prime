@@ -209,7 +209,7 @@ export { setPumpCurve } from './commands/catalogue/pump-curve';
 export { archiveVendor, createVendor, updateVendor } from './commands/procurement/vendors';
 export { setItemVendor, setVendorContacts } from './commands/procurement/vendor-links';
 export { recordVendorQuote, withdrawVendorQuote } from './commands/procurement/quotes';
-export { compareQuotes, getVendor, listVendors } from './queries/procurement/vendor-queries';
+export { readQuoteComparison, getVendor, listVendors } from './queries/procurement/vendor-queries';
 export { readsRates, readsVendors } from './queries/procurement/vendor-read';
 export { setTaxRate } from './commands/tax/set-tax-rate';
 export { setCompositeRule } from './commands/tax/set-composite-rule';

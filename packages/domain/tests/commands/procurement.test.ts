@@ -19,7 +19,7 @@ import { recordVendorQuote, withdrawVendorQuote } from '../../src/commands/procu
 import { archiveVendor, createVendor, updateVendor } from '../../src/commands/procurement/vendors';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import {
-  compareQuotes,
+  readQuoteComparison,
   getVendor,
   listVendors,
 } from '../../src/queries/procurement/vendor-queries';
@@ -443,6 +443,38 @@ describe('procurement.quote.record / withdraw', () => {
     await expect(
       run(managerOne, recordVendorQuote, quote({ fileId: import_ })),
     ).rejects.toMatchObject({ details: { reason: 'vendor_quote_file_missing' } });
+    // Review L8: a document another quote names, or another person uploaded, is refused.
+    await expect(run(managerOne, recordVendorQuote, quote({ fileId: good }))).rejects.toMatchObject(
+      { details: { reason: 'vendor_quote_file_missing' } },
+    );
+    const someoneElses = await file('vendor_quote', 1);
+    await asMigrator(
+      (m) => m`update files set created_by = ${executive.id} where id = ${someoneElses}`,
+    );
+    await expect(
+      run(managerOne, recordVendorQuote, quote({ fileId: someoneElses })),
+    ).rejects.toMatchObject({ details: { reason: 'vendor_quote_file_missing' } });
+  });
+
+  it('a replayed answer of a company the person has lost since is not given back (review L10)', async () => {
+    const both = await createTestPrincipal('inventory_manager', [1, 2]);
+    const key = newId();
+    const input = quote({ rate: '77.7' });
+    const first = await asPrincipal(both, (context) =>
+      runCommand(recordVendorQuote, { context, audit, outbox, idempotencyKey: key }, input),
+    );
+    expect(first.rate).toBe('77.7000');
+    // The same person, same key and same input, now acting only in company 2.
+    await expect(
+      asPrincipal({ ...both, entityIds: [2] }, (context) =>
+        runCommand(recordVendorQuote, { context, audit, outbox, idempotencyKey: key }, input),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    // In company 1 the replay answers as before.
+    const again = await asPrincipal(both, (context) =>
+      runCommand(recordVendorQuote, { context, audit, outbox, idempotencyKey: key }, input),
+    );
+    expect(again.id).toBe(first.id);
   });
 
   it('withdraws a quote once; another company’s holder cannot reach it', async () => {
@@ -561,7 +593,11 @@ describe('the vendor sheet and the comparison', () => {
     let cursor: string | undefined;
     for (let page = 0; page < 50; page += 1) {
       const out = await asPrincipal(principalFor('inventory_manager', [entityId]), (context) =>
-        compareQuotes(context, { entityId, category: 'cable', ...(cursor ? { cursor } : {}) }),
+        readQuoteComparison(context, {
+          entityId,
+          category: 'cable',
+          ...(cursor ? { cursor } : {}),
+        }),
       );
       const row = out.rows.find((r) => r.itemId === itemId);
       if (row !== undefined || out.nextCursor === null) return { out, row };
@@ -614,12 +650,12 @@ describe('the vendor sheet and the comparison', () => {
   it('pages by item, a page at a time by name', async () => {
     const reader = principalFor('inventory_manager', [1]);
     const first = await asPrincipal(reader, (context) =>
-      compareQuotes(context, { entityId: 1, category: 'cable', limit: 1 }),
+      readQuoteComparison(context, { entityId: 1, category: 'cable', limit: 1 }),
     );
     expect(first.rows).toHaveLength(1);
     expect(first.nextCursor).not.toBeNull();
     const second = await asPrincipal(reader, (context) =>
-      compareQuotes(context, {
+      readQuoteComparison(context, {
         entityId: 1,
         category: 'cable',
         limit: 1,
@@ -636,12 +672,12 @@ describe('the vendor sheet and the comparison', () => {
   it('refuses the comparison and the vendor list to whoever may not read them', async () => {
     await expect(
       asPrincipal(principalFor('general_manager', [1]), (context) =>
-        compareQuotes(context, { entityId: 1 }),
+        readQuoteComparison(context, { entityId: 1 }),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
     await expect(
       asPrincipal(principalFor('inventory_manager', [1]), (context) =>
-        compareQuotes(context, { entityId: 2 }),
+        readQuoteComparison(context, { entityId: 2 }),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
     await expect(

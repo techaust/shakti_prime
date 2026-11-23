@@ -136,7 +136,7 @@ interface CellRow extends Record<string, unknown> {
  * rate of each row is marked; an expired quote is never marked lowest. An item shows only when it
  * has a cell.
  */
-export async function compareQuotes(
+export async function readQuoteComparison(
   ctx: QueryContext,
   rawInput: unknown,
   now: Date = new Date(),

@@ -19,7 +19,7 @@ import {
 } from '@shakti/contracts';
 import {
   archiveVendor as archiveVendorCommand,
-  compareQuotes as compareQuotesQuery,
+  readQuoteComparison as compareQuotesQuery,
   createVendor as createVendorCommand,
   executeCommand,
   executeQuery,

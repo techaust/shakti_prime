@@ -42,8 +42,8 @@ async function assertQuoteCompany(ctx: CommandContext, entityId: number | null):
 }
 
 /**
- * The quote document, when one is named: a ready `vendor_quote` file the caller reads, stored in
- * the quote's company (any company of the request for a group quote).
+ * The quote document, when one is named: a ready `vendor_quote` file the caller uploaded and no
+ * other quote names, stored in the quote's company (any company of the request for a group quote).
  */
 async function assertQuoteFile(
   ctx: CommandContext,
@@ -60,6 +60,9 @@ async function assertQuoteFile(
         eq(f.purpose, 'vendor_quote'),
         eq(f.status, 'ready'),
         isNull(f.deletedAt),
+        // The caller's own upload (review L8), named by no other quote.
+        eq(f.createdBy, ctx.principal.id),
+        sql`not exists (select 1 from vendor_quotes q where q.file_id = ${f.id})`,
       ),
     )
     .limit(1);
