@@ -1,6 +1,6 @@
-assignment: 1
+assignment: 2
 role: review
-branch: fix/p3-fixes
-run_file: docs/runs/phase3/p3-fixes.md
-wait_for: report: p3-fixes done
-note: review the four follow-ups against the brief; check on a fresh database whether jobs-check.test.ts fails on the branch as the report says (and on main), and say which
+branch: feat/h1-stock-ledger
+run_file: docs/runs/phase3/h1-stock-ledger.md
+wait_for: report: h1-stock-ledger done
+note: Tier A, the ledger every later Phase 3 slice moves stock through. Attack app.stock_move(): lock order and deadlocks, a balance that can differ from its movements, a cost that leaks to someone without finance.cost.read (DTO, event, audit value, notification, error detail, import report, valuation), serial states out of step, reversal and opening-stock rules, row security per role and company, and the commands each refusal maps to. Re-run the property and concurrency tests. Journeys cannot sign in in the cloud: read their specs and say which were not run
