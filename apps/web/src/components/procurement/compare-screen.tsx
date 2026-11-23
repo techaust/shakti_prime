@@ -6,11 +6,11 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { compareQuotes } from '../../actions/procurement';
 import { ITEM_CATEGORIES } from '../../screens/contract-values';
-import { formatDate } from '../../screens/format';
 import { formatQuantity, formatRate } from '../../screens/procurement';
 import { useOpenFile } from '../files/use-open-file';
 import { FailureMessage } from '../screens/failure';
 import { useQuery } from '../screens/use-command';
+import { dayValues } from './day';
 
 /**
  * Procurement › Compare (INV-04): for one company, the items of a category down and the vendors
@@ -80,7 +80,7 @@ export function CompareScreen({
           </Select>
         </Field>
       </div>
-      <p className="text-text-muted">{t('asOf', { date: formatDate(result.asOf) })}</p>
+      <p className="text-text-muted">{t.rich('asOf', dayValues(result.asOf))}</p>
       <FailureMessage failure={failure} />
       <FailureMessage failure={doc.failure} />
       {result.rows.length === 0 ? (
@@ -216,8 +216,8 @@ function Cell({
       </p>
       <p className="text-text-muted">
         {cell.status === 'expired'
-          ? t('endedOn', { date: formatDate(cell.validUntil) })
-          : t('validUntil', { date: formatDate(cell.validUntil) })}
+          ? t.rich('endedOn', dayValues(cell.validUntil))
+          : t.rich('validUntil', dayValues(cell.validUntil))}
         {' · '}
         {cell.entityId === null ? t('forGroup') : t('forCompany')}
       </p>

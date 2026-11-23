@@ -103,6 +103,15 @@ export const SIGNED_IN_ROLES = [
     entityIds: [2],
     twoFactor: true,
   },
+  // U1: the Inventory Manager of company 1, who adds vendors and records their quotes
+  // (procurement.spec.ts).
+  {
+    key: 'inventoryManager',
+    name: 'Dinesh Prajapat',
+    roleKey: 'inventory_manager',
+    entityIds: [1],
+    twoFactor: false,
+  },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
 
@@ -456,4 +465,15 @@ export const WHATSAPP = {
     // removed; its caption stays (setup/whatsapp.ts).
     removedPhotoCaption: 'Photo of the old pump nameplate',
   },
+} as const;
+
+/**
+ * U1: the vendors the seed keeps for the procurement screenshots (setup/procurement.ts), each
+ * name starting with the word the journeys search for, so the pictured list holds these alone
+ * whatever vendors the journeys add. Their quotes are the snapshot company's.
+ */
+export const SNAPSHOT_VENDORS = {
+  search: 'Marudhar',
+  cables: 'Marudhar Cables and Wires',
+  solar: 'Marudhar Solar Traders',
 } as const;

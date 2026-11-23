@@ -321,9 +321,11 @@ export function VendorSheet({
                           {t('ratePer', { rate: formatRate(q.rate), unit: p(`units.${q.unit}`) })}
                         </p>
                         <p className="text-text-muted">
-                          {t('validity', {
+                          {t.rich('validity', {
                             from: formatDate(q.validFrom),
                             until: formatDate(q.validUntil),
+                            start: (chunks) => <time dateTime={q.validFrom}>{chunks}</time>,
+                            end: (chunks) => <time dateTime={q.validUntil}>{chunks}</time>,
                           })}
                           {' · '}
                           {q.entityId === null
