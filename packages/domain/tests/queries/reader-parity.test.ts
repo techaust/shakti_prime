@@ -52,6 +52,8 @@ import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
 import { getItem, getKit, listKits } from '../../src/queries/catalogue/catalogue-queries';
 import { listItems, listItemsWithCost } from '../../src/queries/catalogue/list-items';
+// U1 vendors and supplier quotes.
+import { getVendor, listVendors } from '../../src/queries/procurement/vendor-queries';
 import { listSizingPumps } from '../../src/queries/catalogue/list-sizing-pumps';
 import {
   dialNumber,
@@ -210,6 +212,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listKits: (ctx) => listKits(ctx, { limit: 20, includeArchived: true }),
   getItem: (ctx) => getItem(ctx, { itemId: newId() }),
   getKit: (ctx) => getKit(ctx, { kitId: newId() }),
+  // U1: the vendor list, and a vendor sheet asked for a vendor that does not exist.
+  listVendors: (ctx) => listVendors(ctx, { limit: 20, includeArchived: true }),
+  getVendor: (ctx) => getVendor(ctx, { vendorId: newId() }),
   listBoardLeads: (ctx) => listBoardLeads(ctx, { pipelineKey: PIPELINE }),
   listBoardStageLeads: (ctx) =>
     listBoardStageLeads(ctx, { pipelineKey: PIPELINE, stageId: STAGE, cursor: 'bm8' }),
