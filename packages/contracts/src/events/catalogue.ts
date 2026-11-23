@@ -734,7 +734,7 @@ const eventCatalogue = {
   // never a rate. A vendor's events are filed under the company the request acts for.
   'procurement.vendor.created': {
     meaning: 'A vendor was added to the group’s vendor master.',
-    emittedBy: ['procurement.vendor.create'],
+    emittedBy: ['procurement.vendor.create', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({}).strict(),
   },
@@ -744,6 +744,7 @@ const eventCatalogue = {
       'procurement.vendor.update',
       'procurement.vendor.contact.set',
       'procurement.item_vendor.set',
+      'imports.job.commit_batch',
     ],
     subscribed: false,
     payload: z

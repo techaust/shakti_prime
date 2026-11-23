@@ -37,10 +37,10 @@ const FIELD_OF_PATH: Readonly<Record<string, VendorImportField>> = {
   'vendor.address.pin': 'pin',
   'vendor.paymentTermsDays': 'paymentTermsDays',
   'vendor.leadTimeDays': 'leadTimeDays',
-  'contact.name': 'contactName',
-  'contact.role': 'contactRole',
-  'contact.phone': 'contactPhone',
-  'contact.email': 'contactEmail',
+  'contact.name': 'personName',
+  'contact.role': 'personRole',
+  'contact.phone': 'personPhone',
+  'contact.email': 'personEmail',
 };
 
 /** A whole number of days as a cell gives it; anything else stays text, for the check to refuse. */
@@ -84,10 +84,10 @@ export function checkVendorRow(
     ...(cell('leadTimeDays') === undefined ? {} : { leadTimeDays: days(cell('leadTimeDays')) }),
   };
   const person = {
-    name: cell('contactName'),
-    role: cell('contactRole'),
-    phone: cell('contactPhone'),
-    email: cell('contactEmail'),
+    name: cell('personName'),
+    role: cell('personRole'),
+    phone: cell('personPhone'),
+    email: cell('personEmail'),
   };
   const hasPerson = Object.values(person).some((v) => v !== undefined);
   const candidate: Record<string, unknown> = {
@@ -112,7 +112,7 @@ export function checkVendorRow(
       let at: unknown = candidate;
       for (const key of path) at = (at as Record<string, unknown> | undefined)?.[key];
       if (at === undefined) add({ field, code: 'required' });
-      else if (field === 'contactPhone') add({ field, code: 'phone_invalid' });
+      else if (field === 'personPhone') add({ field, code: 'phone_invalid' });
       else if (issue.code === 'too_big' && typeof at === 'string') add({ field, code: 'too_long' });
       else add({ field, code: 'invalid' });
     }
@@ -184,20 +184,17 @@ export async function commitVendorRow(
       throw new DomainError('not_found', 'vendor is not readable', { reason: 'vendor_missing' });
     }
     const now = toVendorDto(current);
-    await ctx.run(
-      updateVendor,
-      {
-        vendorId: existing.id,
-        name: v.name,
-        gstin: v.gstin,
-        pan: v.pan ?? now.pan,
-        address: Object.keys(v.address).length > 0 ? v.address : now.address,
-        paymentTermsDays: v.paymentTermsDays ?? now.paymentTermsDays,
-        leadTimeDays: v.leadTimeDays ?? now.leadTimeDays,
-        notes: now.notes,
-      },
-      nested,
-    );
+    const changed = {
+      vendorId: existing.id,
+      name: v.name,
+      gstin: v.gstin,
+      pan: v.pan ?? now.pan,
+      address: Object.keys(v.address).length > 0 ? v.address : now.address,
+      paymentTermsDays: v.paymentTermsDays ?? now.paymentTermsDays,
+      leadTimeDays: v.leadTimeDays ?? now.leadTimeDays,
+      notes: now.notes,
+    };
+    await ctx.run(updateVendor, changed, nested);
     vendorId = existing.id;
     type = 'vendor_update';
   }
@@ -207,17 +204,14 @@ export async function commitVendorRow(
     const people = await readContacts(tx, vendorId);
     const known = people.some((p) => p.name.toLowerCase() === person.name.toLowerCase());
     if (!known && people.length < 20) {
-      await ctx.run(
-        setVendorContacts,
-        {
-          vendorId,
-          contacts: [
-            ...people.map((p) => ({ name: p.name, role: p.role, phone: p.phone, email: p.email })),
-            person,
-          ],
-        },
-        nested,
-      );
+      const contacts = {
+        vendorId,
+        contacts: [
+          ...people.map((p) => ({ name: p.name, role: p.role, phone: p.phone, email: p.email })),
+          person,
+        ],
+      };
+      await ctx.run(setVendorContacts, contacts, nested);
     }
   }
   return { id: vendorId, type };

@@ -48,6 +48,8 @@ export function RowsGrid({
   const { load, pending, failure } = useQuery<ImportRowPage>();
   const kind = screenKind(job.kind);
   const offices = kind === 'pin_codes';
+  // U1: a vendor list names the vendor and its GSTIN.
+  const vendors = kind === 'vendors';
 
   function read(next: RowView, after: number | undefined) {
     const state = rowStateOf(next);
@@ -105,15 +107,18 @@ export function RowsGrid({
     },
     {
       id: 'name',
-      header: offices ? t('columns.office') : t('columns.name'),
+      header: offices ? t('columns.office') : vendors ? t('columns.vendor') : t('columns.name'),
       primary: true,
-      cell: (r) => rowValue(r, job.mapping, offices ? 'officeName' : 'contactName') || notRecorded,
+      cell: (r) =>
+        rowValue(r, job.mapping, offices ? 'officeName' : vendors ? 'vendorName' : 'contactName') ||
+        notRecorded,
     },
     {
       id: 'phone',
-      header: offices ? t('columns.pin') : t('columns.phone'),
+      header: offices ? t('columns.pin') : vendors ? t('columns.gstin') : t('columns.phone'),
       numeric: true,
-      cell: (r) => rowValue(r, job.mapping, offices ? 'pin' : 'phone') || notRecorded,
+      cell: (r) =>
+        rowValue(r, job.mapping, offices ? 'pin' : vendors ? 'gstin' : 'phone') || notRecorded,
     },
     {
       id: 'status',

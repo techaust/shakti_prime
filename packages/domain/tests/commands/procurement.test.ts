@@ -360,8 +360,8 @@ describe('procurement.quote.record / withdraw', () => {
         after: {
           vendorId: vendor.id,
           itemId: itemA,
-          validFrom: day(-1),
-          validUntil: day(30),
+          quoteValidFrom: day(-1),
+          quoteValidUntil: day(30),
         },
       }),
     ]);

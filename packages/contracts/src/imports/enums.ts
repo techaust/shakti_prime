@@ -203,10 +203,10 @@ export const VendorImportFieldSchema = z.enum([
   'pin',
   'paymentTermsDays',
   'leadTimeDays',
-  'contactName',
-  'contactRole',
-  'contactPhone',
-  'contactEmail',
+  'personName',
+  'personRole',
+  'personPhone',
+  'personEmail',
 ]);
 export type VendorImportField = z.infer<typeof VendorImportFieldSchema>;
 
@@ -218,7 +218,7 @@ export const ImportFieldSchema = z.enum([
   'taluk',
   'district',
   'state',
-  // U1 vendors (the name of a vendor's person and its PIN are the leads' own fields).
+  // U1 vendors (a vendor's PIN code is the leads' own field).
   'vendorName',
   'gstin',
   'pan',
@@ -226,9 +226,10 @@ export const ImportFieldSchema = z.enum([
   'city',
   'paymentTermsDays',
   'leadTimeDays',
-  'contactRole',
-  'contactPhone',
-  'contactEmail',
+  'personName',
+  'personRole',
+  'personPhone',
+  'personEmail',
 ]);
 export type ImportField = z.infer<typeof ImportFieldSchema>;
 

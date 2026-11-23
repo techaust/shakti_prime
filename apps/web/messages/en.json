@@ -450,7 +450,16 @@
     "voice_browser": "This browser cannot talk to Shakti. Open this page in a recent Chrome, Edge, Firefox or Safari.",
     "voice_microphone": "Shakti could not use your microphone. Allow the microphone for this site in your browser, then start again.",
     "voice_connection": "Shakti could not join the talk. Check your network, then start again.",
-    "concierge_out_of_time": "The WhatsApp assistant ran short of time on this message. It tries again in a moment."
+    "concierge_out_of_time": "The WhatsApp assistant ran short of time on this message. It tries again in a moment.",
+    "vendor_gstin_taken": "Another vendor already has this GSTIN. Open that vendor instead, or check the number.",
+    "vendor_missing": "This vendor is no longer on the list. Refresh the page to see the current vendors.",
+    "vendor_archived": "This vendor was archived, so it can no longer be changed or given new quotes.",
+    "item_vendor_changed": "Someone changed this vendor’s items at the same moment. Refresh the page and try again.",
+    "vendor_quote_needs_all_companies": "A quote for the whole group can only be recorded while you are working in all companies. Switch to all companies, or record it for one company.",
+    "vendor_quote_file_missing": "We couldn’t find the quote document. Upload it again, then save the quote.",
+    "vendor_quote_ended": "This quote has already ended. Check the dates on the quote.",
+    "vendor_quote_missing": "This quote is no longer available. Refresh the page to see the current quotes.",
+    "vendor_quote_withdrawn": "This quote was already withdrawn."
   },
   "auth": {
     "signIn": {
@@ -1853,7 +1862,14 @@
       "voiceSessionToken": "Talk to Shakti kept going",
       "voiceSessionRecord": "Talk to Shakti length and spend recorded",
       "whatsappMediaExpire": "Old WhatsApp files removed",
-      "whatsappMediaOrphansRecord": "Unused WhatsApp copies removed"
+      "whatsappMediaOrphansRecord": "Unused WhatsApp copies removed",
+      "vendorCreate": "Vendor added",
+      "vendorUpdate": "Vendor details changed",
+      "vendorArchive": "Vendor archived",
+      "vendorContactsSet": "Vendor’s people changed",
+      "itemVendorSet": "Items a vendor supplies changed",
+      "vendorQuoteRecord": "Supplier quote recorded",
+      "vendorQuoteWithdraw": "Supplier quote withdrawn"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1912,7 +1928,12 @@
       "dialCompleted": "Call from the screen ended",
       "copilotBriefRequested": "Co-pilot brief asked for",
       "inboundRinging": "Customer's call ringing a team member",
-      "missedCallRecorded": "Missed call recorded"
+      "missedCallRecorded": "Missed call recorded",
+      "vendorCreated": "Vendor added",
+      "vendorUpdated": "Vendor changed",
+      "vendorArchived": "Vendor archived",
+      "vendorQuoteRecorded": "Supplier quote recorded",
+      "vendorQuoteWithdrawn": "Supplier quote withdrawn"
     },
     "sheet": {
       "title": "{action}",
@@ -2226,7 +2247,17 @@
       "consentRecording": "Recording allowed",
       "minutes": "Minutes",
       "costPaise": "Spend",
-      "turns": "Turns spoken"
+      "turns": "Turns spoken",
+      "vendorName": "Vendor name",
+      "pan": "PAN",
+      "paymentTermsDays": "Payment terms in days",
+      "leadTimeDays": "Delivery time in days",
+      "vendorContacts": "People",
+      "itemSupplied": "Supplies the item",
+      "vendorItemCode": "Vendor’s item code",
+      "preferredVendor": "Preferred vendor",
+      "quoteValidFrom": "Quote valid from",
+      "quoteValidUntil": "Quote valid until"
     },
     "values": {
       "percent": "{value}%",
@@ -2594,7 +2625,8 @@
       "kinds": {
         "leads": "Leads",
         "accounts": "Customers",
-        "pin_codes": "PIN code list"
+        "pin_codes": "PIN code list",
+        "vendors": "Vendors"
       },
       "file": "Spreadsheet file",
       "fileHelper": "A CSV file or an Excel file saved as .xlsx, up to {megabytes} MB and {rows} rows. Put the column headings in the top row.",
@@ -2604,7 +2636,8 @@
       "kindHelpers": {
         "leads": "Each row becomes a new lead with its customer.",
         "accounts": "Each row becomes a customer of this company, or of the company a Company column names. Rows with the same mobile number become one customer.",
-        "pin_codes": "The India Post list of post offices and their PIN codes. It fills in the tehsil and district of every site, for all four companies."
+        "pin_codes": "The India Post list of post offices and their PIN codes. It fills in the tehsil and district of every site, for all four companies.",
+        "vendors": "Each row becomes a vendor of the group. A row with the GSTIN of a vendor already on the list updates that vendor and adds the row’s person to it."
       },
       "chooseCompanyFirst": "Choose the company first, then the file.",
       "checkingLong": "Uploaded. The check is taking a while. Choose Read the file in a moment.",
@@ -2667,7 +2700,9 @@
         "status": "Status",
         "findings": "What we found",
         "office": "Post office",
-        "pin": "PIN code"
+        "pin": "PIN code",
+        "vendor": "Vendor",
+        "gstin": "GSTIN"
       },
       "rowState": {
         "pending": "Not checked yet",
@@ -2679,7 +2714,7 @@
       },
       "finding": {
         "field": "{field}: {sentence}",
-        "sameAsRow": "{kind, select, accounts {{site, select, added {Same mobile number as row {row}. Its company and its site are added to that customer.} same {Same mobile number as row {row}. Its company is added to that customer, who already has this site.} too_many {Same mobile number as row {row}. Its company is added to that customer, but not its site: one customer takes at most {most} sites from a file.} kept {Same mobile number as row {row}. Its company is added to that customer. The customer's sites stay as they are.} other {Same mobile number as row {row}. Its company is added to that customer.}}} pin_codes {Same post office as row {row}. Only the first of them is added.} other {Same mobile number as row {row}. Only the first of them is added.}}",
+        "sameAsRow": "{kind, select, accounts {{site, select, added {Same mobile number as row {row}. Its company and its site are added to that customer.} same {Same mobile number as row {row}. Its company is added to that customer, who already has this site.} too_many {Same mobile number as row {row}. Its company is added to that customer, but not its site: one customer takes at most {most} sites from a file.} kept {Same mobile number as row {row}. Its company is added to that customer. The customer's sites stay as they are.} other {Same mobile number as row {row}. Its company is added to that customer.}}} pin_codes {Same post office as row {row}. Only the first of them is added.} vendors {Same GSTIN as row {row}. Only the first of them is added.} other {Same mobile number as row {row}. Only the first of them is added.}}",
         "customerByPhone": "Same mobile number as a customer: {name}. Check this before adding, so nobody is entered twice.",
         "linked": "{site, select, kept {Same mobile number as {name}, already in your customer list. This row adds its company to that customer instead of making a new one. The customer's sites stay as they are.} other {Same mobile number as {name}, already in your customer list. This row adds its company to that customer instead of making a new one.}}",
         "linkedUnnamed": "{site, select, kept {Same mobile number as a customer already in your list. This row adds its company to that customer instead of making a new one. The customer's sites stay as they are.} other {Same mobile number as a customer already in your list. This row adds its company to that customer instead of making a new one.}}",
@@ -2738,7 +2773,18 @@
       "officeName": "Post office",
       "taluk": "Tehsil",
       "district": "District",
-      "state": "State"
+      "state": "State",
+      "vendorName": "Vendor name",
+      "gstin": "GSTIN",
+      "pan": "PAN",
+      "addressLine": "Address",
+      "city": "Town or city",
+      "paymentTermsDays": "Payment terms in days",
+      "leadTimeDays": "Delivery time in days",
+      "personName": "Person’s name",
+      "personRole": "Person’s role",
+      "personPhone": "Person’s mobile number",
+      "personEmail": "Person’s email"
     },
     "rowErrors": {
       "required": "This is missing. Fill it in, or choose a value for every row.",
@@ -2752,7 +2798,8 @@
       "company_unknown": "We don't recognise this company. Use the company's short code or name, or leave it blank for this company.",
       "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code.",
       "dealer_needs_executive": "Only an Executive can add a dealer. Enter this customer as a business; an Executive makes them a dealer when their credit terms are set.",
-      "referral_code_unknown": "No active referral partner of this company has this code. Check the code with the partner, or leave the cell empty."
+      "referral_code_unknown": "No active referral partner of this company has this code. Check the code with the partner, or leave the cell empty.",
+      "vendor_archived": "This GSTIN belongs to a vendor that was archived. An import does not change an archived vendor."
     },
     "reconcile": {
       "title": "What happened to each row",
@@ -2779,7 +2826,8 @@
         "company_unknown": "The company was not recognised",
         "state_unknown": "The state was not recognised",
         "dealer_needs_executive": "Only an Executive can add a dealer",
-        "referral_code_unknown": "The referral code was not a partner's"
+        "referral_code_unknown": "The referral code was not a partner's",
+        "vendor_archived": "The GSTIN was an archived vendor’s"
       },
       "csvLine": "What happened",
       "csvRows": "Rows",
@@ -3267,7 +3315,8 @@
       "print_proof": "Proof page",
       "whatsapp_media": "File sent on WhatsApp",
       "call_recording": "Call recording",
-      "call_transcript": "Call transcript"
+      "call_transcript": "Call transcript",
+      "vendor_quote": "Supplier quote"
     },
     "types": {
       "jpeg": "JPEG picture",

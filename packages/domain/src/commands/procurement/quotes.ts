@@ -21,7 +21,7 @@ import { lockVendor } from './vendors';
  * the company (the row's own) and the validity only.
  */
 
-const QUOTE_AUDIT_FIELDS = ['validFrom', 'validUntil', 'withdrawnAt'] as const;
+const QUOTE_AUDIT_FIELDS = ['quoteValidFrom', 'quoteValidUntil', 'withdrawnAt'] as const;
 
 /** The company a quote belongs to must be the request's; a group quote needs every company. */
 async function assertQuoteCompany(ctx: CommandContext, entityId: number | null): Promise<void> {
@@ -138,8 +138,8 @@ export const recordVendorQuote = defineCommand({
       after: {
         vendorId: input.vendorId,
         itemId: input.itemId,
-        validFrom: input.validFrom,
-        validUntil: input.validUntil,
+        quoteValidFrom: input.validFrom,
+        quoteValidUntil: input.validUntil,
       },
     });
     ctx.emit({
