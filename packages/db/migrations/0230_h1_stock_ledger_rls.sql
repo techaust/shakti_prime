@@ -675,3 +675,22 @@ $$;
 revoke execute on function app.stock_balance_check() from public, readonly_reporter, app_reader;
 --> statement-breakpoint
 grant execute on function app.stock_balance_check() to app_user;
+--> statement-breakpoint
+
+-- 13. app.item_serial_nos(item): every serial number of an item, whichever company holds it, for
+--     C5's check that a new serial pattern fits the item's existing serials. Only with
+--     catalogue.write in a request covering every company, as a catalogue change is made.
+create or replace function app.item_serial_nos(p_item uuid)
+  returns setof text
+  language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not (app.has_perm('catalogue.write:entity') and app.request_covers_group()) then
+    raise exception 'catalogue.write for every company is required' using errcode = '42501';
+  end if;
+  return query select s.serial_no from public.serials s where s.item_id = p_item order by s.serial_no;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.item_serial_nos(uuid) from public, readonly_reporter, app_reader;
+--> statement-breakpoint
+grant execute on function app.item_serial_nos(uuid) to app_user;

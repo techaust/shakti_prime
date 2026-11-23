@@ -1,8 +1,15 @@
 import { newId, type Principal } from '@shakti/contracts';
-import { asMigrator, asPrincipal, closeDb, createTestPrincipal } from '@shakti/db/testing';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  createTestPrincipal,
+  principalFor,
+} from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { stockMove, type StockMoveLine, type StockMovementLine } from '../../src/stock/move';
+import { existingSerialsOf } from '../../src/stock/serials';
 import {
   averageOf,
   costOf,
@@ -74,7 +81,8 @@ describe('grants, per reason, from the request', () => {
       'accounts',
       'agent:sizing',
     ] as const) {
-      const who = await createTestPrincipal(roleKey, [1]);
+      // Refused before anything is written, so no principals row is needed (nor left behind).
+      const who = principalFor(roleKey, [1]);
       await expect(move(who, [gain(f.binA, '1')]), roleKey).rejects.toMatchObject({
         cause: { code: '42501' },
       });
@@ -628,5 +636,42 @@ describe('what a person without finance.cost.read reads of a movement', () => {
       return rows[0];
     });
     expect(seen).toEqual({ movements: 1, costs: 0 });
+  });
+});
+
+describe('existingSerialsOf (C5’s serial pattern check)', () => {
+  it('answers every company’s serials of the item to a catalogue writer acting for every company', async () => {
+    const mine = serialNo();
+    const theirs = serialNo();
+    await move(exec, [
+      {
+        reason: 'adjust_gain',
+        entityId: 1,
+        itemId: f.pump,
+        toBinId: f.binA,
+        qty: '1',
+        serialNo: mine,
+      },
+      {
+        reason: 'adjust_gain',
+        entityId: 3,
+        itemId: f.pump,
+        toBinId: f.binA,
+        qty: '1',
+        serialNo: theirs,
+      },
+    ]);
+    const writer = await createTestPrincipal('general_manager');
+    const all = await asPrincipal(writer, ({ tx }) => existingSerialsOf(tx, f.pump));
+    expect(all).toEqual(expect.arrayContaining([mine, theirs]));
+    // Never from one company, and never without catalogue.write.
+    await expect(
+      asPrincipal(await createTestPrincipal('general_manager', [1]), ({ tx }) =>
+        existingSerialsOf(tx, f.pump),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
+    await expect(
+      asPrincipal(await createTestPrincipal('accounts'), ({ tx }) => existingSerialsOf(tx, f.pump)),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
   });
 });

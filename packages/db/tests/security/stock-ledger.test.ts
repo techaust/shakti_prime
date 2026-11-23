@@ -300,6 +300,26 @@ describe('the definers', () => {
     );
   });
 
+  it('app.item_serial_nos() answers a catalogue writer acting for every company only', async () => {
+    const [row] = await withoutContext<Record<string, boolean>>(sql`
+      select has_function_privilege('app_user', 'app.item_serial_nos(uuid)', 'execute') as app,
+             has_function_privilege('app_reader', 'app.item_serial_nos(uuid)', 'execute') as reader,
+             has_function_privilege('public', 'app.item_serial_nos(uuid)', 'execute') as pub
+    `);
+    expect(row).toEqual({ app: true, reader: false, pub: false });
+    for (const who of [principalFor('general_manager', [1]), principalFor('accounts')]) {
+      expect(
+        (
+          await failure(
+            asPrincipal(who, ({ tx }) =>
+              tx.execute(sql`select * from app.item_serial_nos(${newId()})`),
+            ),
+          )
+        ).code,
+      ).toBe('42501');
+    }
+  });
+
   it('app.stock_balance_check() answers the workers principal only', async () => {
     expect(
       (
