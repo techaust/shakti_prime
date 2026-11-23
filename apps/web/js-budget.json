@@ -230,8 +230,8 @@
       "reason": "Executive and GM screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and the Playbook's list, filters and review; its dialogs load when opened. Measured 197.9 kB on 13-11-2026, plus 5 %."
     },
     "/procurement": {
-      "maxKb": 200,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and nothing of its own: it opens the vendor list. Measured 190.2 kB on 23-11-2026, plus 5 %."
+      "maxKb": 239,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the vendor grid with its search, which it renders itself so the shell's chunk is not split; the vendor sheet and its forms load when first opened. Measured 226.8 kB on 24-11-2026, plus 5 %."
     },
     "/procurement/compare": {
       "maxKb": 208,
