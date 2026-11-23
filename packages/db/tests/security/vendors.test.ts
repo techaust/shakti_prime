@@ -35,6 +35,7 @@ async function removeFixture(): Promise<void> {
   await asMigrator((m) =>
     m.begin(async (tx) => {
       await tx`delete from vendor_quotes where id::text like ${like} or vendor_id::text like ${like}`;
+      await tx`delete from files where id::text like ${like}`;
       await tx`delete from item_vendors where id::text like ${like} or vendor_id::text like ${like}`;
       await tx`delete from vendor_contacts where vendor_id::text like ${like}`;
       await tx`delete from vendors where id::text like ${like} or name like 'vendors-suite %'`;
@@ -460,5 +461,56 @@ describe('the vendor master is shared by the group', () => {
       );
       expect(causeOf(result)).toMatch(/vendors_(gstin|pan)_check/);
     }
+  });
+});
+
+describe('a group quote\u2019s document is read with the quote (review M2)', () => {
+  const groupFile = id(0x0401);
+  const companyFile = id(0x0402);
+  const groupDocQuote = id(0x0403);
+  const companyDocQuote = id(0x0404);
+
+  beforeAll(async () => {
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        for (const file of [groupFile, companyFile]) {
+          await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+            values (${file}, 1, 'vendor_quote', 'test', ${`1/vendor_quote/${file}.pdf`}, 'quote.pdf',
+                    'application/pdf', 1, ${'b'.repeat(64)}, 'ready', ${OWNER})`;
+        }
+        await tx`insert into vendor_quotes (id, vendor_id, item_id, entity_id, rate, valid_from, valid_until, file_id, recorded_by)
+          values (${groupDocQuote}, ${VENDOR}, ${ITEM}, null, 10.0000, '2026-01-01', '2099-12-31', ${groupFile}, ${OWNER}),
+                 (${companyDocQuote}, ${VENDOR}, ${ITEM}, 1, 11.0000, '2026-01-01', '2099-12-31', ${companyFile}, ${OWNER})`;
+      }),
+    );
+  });
+
+  afterAll(async () => {
+    await asMigrator(
+      (m) => m`delete from vendor_quotes where id in (${groupDocQuote}, ${companyDocQuote})`,
+    );
+  });
+
+  describe.each(POOLS)('on the %s pool', (pool) => {
+    it.each(ROLE_KEYS)(
+      '%s acting in company 3 reads the group quote\u2019s document only with the rate grant, and never company 1\u2019s own',
+      async (role) => {
+        const seen = await visible(principalFor(role, [3]), 'files', pool);
+        const expected = holds(role, 'procurement.rate.read') ? [groupFile] : [];
+        expect(seen.filter((f) => f === groupFile || f === companyFile)).toEqual(expected);
+      },
+    );
+  });
+
+  it('a withdrawn group quote no longer opens its document in another company', async () => {
+    await asMigrator(
+      (m) => m`update vendor_quotes set withdrawn_at = now(), withdrawn_by = ${OWNER}
+                 where id = ${groupDocQuote}`,
+    );
+    expect(await visible(principalFor('accounts', [3]), 'files', 'app_user')).not.toContain(
+      groupFile,
+    );
+    // In its own company the general rule still reads it.
+    expect(await visible(principalFor('accounts', [1]), 'files', 'app_user')).toContain(groupFile);
   });
 });

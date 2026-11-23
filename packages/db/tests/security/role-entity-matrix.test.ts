@@ -219,7 +219,12 @@ const RULES: Record<MatrixTable, TableRule> = {
   files: {
     read: IMPORTS,
     readRow: (row) => fileRead(row.purpose),
-    leak: otherCompany,
+    // A supplier's quote document named by a group quote is read with that quote in any company
+    // (0234, review M2): no leak of another company's file.
+    leak: (e, groupVisible) =>
+      sql`${otherCompany(e, groupVisible)} and not (x.purpose = 'vendor_quote' and exists (
+            select 1 from vendor_quotes q
+             where q.file_id = x.id and q.entity_id is null and q.withdrawn_at is null))`,
   },
   import_mapping_templates: { read: IMPORTS, leak: otherCompany },
   // The import worker (`system:workers`) reads a job of its company to stop it.
