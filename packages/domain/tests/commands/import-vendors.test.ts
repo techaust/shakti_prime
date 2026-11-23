@@ -167,13 +167,110 @@ describe('the vendors import kind', () => {
 
     const rolled = await run(executive, rollbackImportJob, { entityId: 1, jobId: job.id });
     expect(rolled.state).toBe('rolled_back');
+    // The vendor the job added, which nothing refers to, is removed; the one it updated is put
+    // back as it was, its added person taken off again (review M4, M5).
     const after = await asMigrator(
-      (m) => m<{ gstin: string; active: boolean }[]>`
-        select gstin, is_active as active from vendors where gstin in (${added}, ${known}) order by gstin`,
+      (m) => m<
+        { gstin: string; name: string; lead: number | null; active: boolean; people: number }[]
+      >`
+        select v.gstin, v.name, v.lead_time_days as lead, v.is_active as active,
+               (select count(*)::int from vendor_contacts c where c.vendor_id = v.id) as people
+          from vendors v where v.gstin in (${added}, ${known})`,
     );
-    expect(Object.fromEntries(after.map((v) => [v.gstin, v.active]))).toEqual({
-      [added]: false,
-      [known]: true,
+    expect(after).toEqual([
+      { gstin: known, name: `Import known ${tag}`, lead: 3, active: true, people: 0 },
+    ]);
+  });
+
+  it('archives on rollback a vendor something refers to, and a re-import brings it back (review M4)', async () => {
+    const free = fresh();
+    const used = fresh();
+    const csv = (suffix: string) =>
+      [
+        'Supplier,GSTIN,City',
+        `Rollback free ${tag} ${suffix},${free},Jaipur`,
+        `Rollback used ${tag} ${suffix},${used},Kota`,
+      ].join('\n');
+    const first = await committedJob(csv('one'));
+    const usedId = (await vendorId(used)) ?? '';
+    const item = newId();
+    await asMigrator(
+      (m) => m`insert into items (id, sku, name, category, hsn, unit)
+                 values (${item}, ${`T-${tag}-RB`}, ${`Rollback item ${tag}`}, 'cable', '8544', 'metre')`,
+    );
+    await asMigrator(
+      (m) => m`insert into item_vendors (id, item_id, vendor_id, created_by)
+                 values (${newId()}, ${item}, ${usedId}, ${executive.id})`,
+    );
+    await run(executive, rollbackImportJob, { entityId: 1, jobId: first.id });
+    expect(await vendorId(free)).toBeUndefined();
+    expect(await activeOf(used)).toBe(false);
+
+    // A new file with the archived vendor's GSTIN brings it back, updated.
+    const second = await committedJob(csv('two'));
+    expect(second.committedRows).toBe(2);
+    expect(await vendorId(used)).toBe(usedId);
+    expect(await activeOf(used)).toBe(true);
+    const [named] = await asMigrator(
+      (m) => m<{ name: string }[]>`select name from vendors where id = ${usedId}`,
+    );
+    expect(named?.name).toBe(`Rollback used ${tag} two`);
+  });
+
+  it('merges an address cell by cell: a blank cell keeps what the vendor has (review M5)', async () => {
+    const gstin = fresh();
+    await run(executive, createVendor, {
+      name: `Address ${tag}`,
+      gstin,
+      address: { line1: 'Plot 12, RIICO', city: 'Jodhpur', pin: '342005' },
     });
+    await committedJob(['Supplier,GSTIN,City', `Address ${tag},${gstin},Pali`].join('\n'));
+    const [row] = await asMigrator(
+      (m) => m<{ address: Record<string, string> }[]>`
+        select address_json as address from vendors where gstin = ${gstin}`,
+    );
+    expect(row?.address).toEqual({ line1: 'Plot 12, RIICO', city: 'Pali', pin: '342005' });
+  });
+
+  it('keeps only the mapped columns of the rows once the list is committed (review L9)', async () => {
+    const gstin = fresh();
+    const job = await committedJob(
+      ['Supplier,GSTIN,City,Rate', `Columns ${tag},${gstin},Ajmer,145.50`].join('\n'),
+    );
+    const rows = await asMigrator(
+      (m) => m<{ raw: Record<string, string> }[]>`
+        select raw_json as raw from import_rows where job_id = ${job.id}`,
+    );
+    expect(rows.map((r) => Object.keys(r.raw).sort())).toEqual([['City', 'GSTIN', 'Supplier']]);
   });
 });
+
+/** A job of a CSV file, mapped, previewed and committed by the Executive. */
+async function committedJob(csv: string): Promise<ImportJobDto> {
+  const job = await startedJob(executive, csv);
+  await run(executive, mapImportJob, {
+    entityId: 1,
+    jobId: job.id,
+    mapping: { columns: { vendorName: 'Supplier', gstin: 'GSTIN', city: 'City' } },
+  });
+  await run(executive, previewImportJob, { entityId: 1, jobId: job.id });
+  let current = await run(executive, commitImportJob, { entityId: 1, jobId: job.id });
+  while (current.state === 'committing') {
+    current = await run(executive, commitImportBatch, { entityId: 1, jobId: job.id });
+  }
+  return current;
+}
+
+async function vendorId(gstin: string): Promise<string | undefined> {
+  const [row] = await asMigrator(
+    (m) => m<{ id: string }[]>`select id from vendors where gstin = ${gstin}`,
+  );
+  return row?.id;
+}
+
+async function activeOf(gstin: string): Promise<boolean | undefined> {
+  const [row] = await asMigrator(
+    (m) => m<{ active: boolean }[]>`select is_active as active from vendors where gstin = ${gstin}`,
+  );
+  return row?.active;
+}

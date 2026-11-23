@@ -2259,7 +2259,8 @@
       "vendorItemCode": "Vendor’s item code",
       "preferredVendor": "Preferred vendor",
       "quoteValidFrom": "Quote valid from",
-      "quoteValidUntil": "Quote valid until"
+      "quoteValidUntil": "Quote valid until",
+      "restored": "Vendors put back as they were"
     },
     "values": {
       "percent": "{value}%",

@@ -7,12 +7,13 @@ import {
   type VendorImportMapping,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { CommandContext } from '../command/context';
 import { setVendorContacts } from '../commands/procurement/vendor-links';
 import { createVendor, updateVendor } from '../commands/procurement/vendors';
 import { readContacts, toVendorDto } from '../queries/procurement/vendor-read';
 import type { BatchRow } from './commit-leads';
+import type { VendorUndo } from './vendor-restore';
 
 /**
  * U1: the vendors import kind (docs/03-roadmap-appendix/phase3.md §6.3): a vendor list's rows
@@ -128,18 +129,31 @@ export function checkVendorRow(
   };
 }
 
-/** The vendors of the master with these GSTINs, by GSTIN, with whether each is active. */
+/** A vendor of the master with a GSTIN a file names, as the preview and the commit see it. */
+export interface KnownVendor {
+  id: string;
+  isActive: boolean;
+  /**
+   * Archived by the rollback of an earlier import that added it (review M4): an import of its
+   * GSTIN brings it back, where any other archived vendor is refused.
+   */
+  archivedByRollback: boolean;
+}
+
+/** The vendors of the master with these GSTINs, by GSTIN. */
 export async function vendorsByGstin(
   tx: RequestTx,
   gstins: readonly string[],
-): Promise<Map<string, { id: string; isActive: boolean }>> {
-  const found = new Map<string, { id: string; isActive: boolean }>();
+): Promise<Map<string, KnownVendor>> {
+  const found = new Map<string, KnownVendor>();
   for (const gstin of new Set(gstins)) {
-    const [row] = await tx
-      .select({ id: schema.vendors.id, isActive: schema.vendors.isActive })
-      .from(schema.vendors)
-      .where(eq(schema.vendors.gstin, gstin))
-      .limit(1);
+    const [row] = (await tx.execute(sql`
+      select v.id, v.is_active as "isActive",
+             (not v.is_active and exists (
+               select 1 from import_rows r
+                where r.created_type = 'vendor' and r.created_id = v.id
+                  and r.state = 'rolled_back')) as "archivedByRollback"
+        from vendors v where v.gstin = ${gstin} limit 1`)) as unknown as KnownVendor[];
     if (row) found.set(gstin, row);
   }
   return found;
@@ -147,14 +161,17 @@ export async function vendorsByGstin(
 
 /**
  * Commits one row of a vendor list: a new vendor, or the vendor with the row's GSTIN updated with
- * what the row gives (what it leaves blank stays as it is), and the row's person added to the
- * vendor's people unless one of that name is there already or the vendor has twenty. A GSTIN of an
- * archived vendor is refused (`vendor_archived`). Each change is the command's own, run inside the
- * batch, which writes one summary audit row.
+ * what the row gives, field by field (a blank cell, an address line among them, keeps what the
+ * vendor has), and the row's person added to the vendor's people unless one of that name is there
+ * already or the vendor has twenty. A vendor archived by the rollback of an earlier import is
+ * brought back; any other archived vendor's GSTIN is refused (`vendor_archived`). An update keeps
+ * what the vendor was in the row's `undo_json`, for a rollback to restore. Each change is the
+ * command's own, run inside the batch, which writes one summary audit row.
  */
 export async function commitVendorRow(
   ctx: CommandContext,
   tx: RequestTx,
+  jobId: string,
   row: BatchRow,
 ): Promise<{ id: string; type: ImportCreatedType }> {
   const input = VendorImportRowInput.parse(row.input);
@@ -162,19 +179,28 @@ export async function commitVendorRow(
   const v = input.vendor;
   const existing =
     v.gstin === undefined ? undefined : (await vendorsByGstin(tx, [v.gstin])).get(v.gstin);
-  if (existing !== undefined && !existing.isActive) {
-    throw new DomainError('conflict', 'the GSTIN is an archived vendor’s', {
+  if (existing !== undefined && !existing.isActive && !existing.archivedByRollback) {
+    throw new DomainError('conflict', 'the GSTIN is an archived vendor\u2019s', {
       reason: 'vendor_archived',
     });
   }
 
   let vendorId: string;
   let type: ImportCreatedType;
+  let undo: VendorUndo | undefined;
   if (existing === undefined) {
     const made = await ctx.run(createVendor, v, nested);
     vendorId = made.id;
     type = 'vendor';
   } else {
+    if (!existing.isActive) {
+      // Archived by an earlier import's rollback: the job adds it again, and its own rollback
+      // archives it again.
+      await tx
+        .update(schema.vendors)
+        .set({ isActive: true, updatedBy: ctx.principal.id })
+        .where(eq(schema.vendors.id, existing.id));
+    }
     const [current] = await tx
       .select()
       .from(schema.vendors)
@@ -189,14 +215,31 @@ export async function commitVendorRow(
       name: v.name,
       gstin: v.gstin,
       pan: v.pan ?? now.pan,
-      address: Object.keys(v.address).length > 0 ? v.address : now.address,
+      address: { ...now.address, ...v.address },
       paymentTermsDays: v.paymentTermsDays ?? now.paymentTermsDays,
       leadTimeDays: v.leadTimeDays ?? now.leadTimeDays,
       notes: now.notes,
     };
-    await ctx.run(updateVendor, changed, nested);
+    const updated = await ctx.run(updateVendor, changed, nested);
     vendorId = existing.id;
-    type = 'vendor_update';
+    if (existing.isActive) {
+      type = 'vendor_update';
+      undo = {
+        before: {
+          name: now.name,
+          gstin: now.gstin,
+          pan: now.pan,
+          address: now.address,
+          paymentTermsDays: now.paymentTermsDays,
+          leadTimeDays: now.leadTimeDays,
+          notes: now.notes,
+        },
+        contacts: null,
+        changedAt: updated.updatedAt,
+      };
+    } else {
+      type = 'vendor';
+    }
   }
 
   const person = input.contact;
@@ -204,15 +247,22 @@ export async function commitVendorRow(
     const people = await readContacts(tx, vendorId);
     const known = people.some((p) => p.name.toLowerCase() === person.name.toLowerCase());
     if (!known && people.length < 20) {
-      const contacts = {
-        vendorId,
-        contacts: [
-          ...people.map((p) => ({ name: p.name, role: p.role, phone: p.phone, email: p.email })),
-          person,
-        ],
-      };
+      const had = people.map((p) => ({
+        name: p.name,
+        role: p.role,
+        phone: p.phone,
+        email: p.email,
+      }));
+      const contacts = { vendorId, contacts: [...had, person] };
       await ctx.run(setVendorContacts, contacts, nested);
+      if (undo !== undefined) undo.contacts = had;
     }
+  }
+  if (undo !== undefined) {
+    await tx
+      .update(schema.importRows)
+      .set({ undoJson: undo, updatedBy: ctx.principal.id })
+      .where(and(eq(schema.importRows.jobId, jobId), eq(schema.importRows.rowNo, row.rowNo)));
   }
   return { id: vendorId, type };
 }

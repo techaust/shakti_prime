@@ -175,6 +175,11 @@ export const importRows = pgTable(
     normalisedJson: jsonb('normalised_json'),
     errorsJson: jsonb('errors_json').notNull().default([]),
     dedupeJson: jsonb('dedupe_json'),
+    /**
+     * U1: what a rollback restores of the record the row changed: a vendors row that updated a
+     * vendor keeps the vendor as it was before and the time of its change (review M5).
+     */
+    undoJson: jsonb('undo_json'),
     state: text('state').notNull().default('pending'),
     createdType: text('created_type'),
     createdId: uuid('created_id'),

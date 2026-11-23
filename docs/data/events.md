@@ -189,7 +189,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`procurement.vendor.created`](#procurementvendorcreated) | A vendor was added to the group’s vendor master. | `procurement.vendor.create`, `imports.job.commit_batch` | none |
-| [`procurement.vendor.updated`](#procurementvendorupdated) | A vendor's details, people or items supplied changed; `part` names which. | `procurement.vendor.update`, `procurement.vendor.contact.set`, `procurement.item_vendor.set`, `imports.job.commit_batch` | none |
+| [`procurement.vendor.updated`](#procurementvendorupdated) | A vendor's details, people or items supplied changed; `part` names which. | `procurement.vendor.update`, `procurement.vendor.contact.set`, `procurement.item_vendor.set`, `imports.job.commit_batch`, `imports.job.rollback` | none |
 | [`procurement.vendor.archived`](#procurementvendorarchived) | A vendor left the active vendor list; its quotes stay on record. | `procurement.vendor.archive` | none |
 | [`procurement.quote.recorded`](#procurementquoterecorded) | A supplier's quote for an item was recorded, for one company or the group; the rate stays in the quote. | `procurement.quote.record` | none |
 | [`procurement.quote.withdrawn`](#procurementquotewithdrawn) | A supplier's quote was withdrawn before it ended. | `procurement.quote.withdraw` | none |

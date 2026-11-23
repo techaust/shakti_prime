@@ -402,8 +402,9 @@ function previewPinCodes(rows: readonly FileRow[], mapping: PinCodeImportMapping
 
 /**
  * U1: a vendor list. Each row is checked; a GSTIN listed twice is skipped after its first row, and
- * a GSTIN of an archived vendor is refused, since an import changes no archived vendor. A GSTIN
- * already in the master updates that vendor when the rows are added.
+ * a GSTIN of an archived vendor is refused, since an import changes no archived vendor, unless the
+ * rollback of an earlier import archived it, which this import then brings back. A GSTIN already
+ * in the master updates that vendor when the rows are added.
  */
 async function previewVendors(
   tx: RequestTx,
@@ -418,7 +419,8 @@ async function previewVendors(
   const first = new Map<string, number>();
   return checks.map(({ rowNo, check }) => {
     if (check.state === 'invalid') return invalid(rowNo, check.errors);
-    if (check.gstin !== null && known.get(check.gstin)?.isActive === false) {
+    const vendor = check.gstin === null ? undefined : known.get(check.gstin);
+    if (vendor !== undefined && !vendor.isActive && !vendor.archivedByRollback) {
       return invalid(rowNo, [{ field: 'gstin', code: 'vendor_archived' }]);
     }
     const earlier = check.gstin === null ? undefined : first.get(check.gstin);

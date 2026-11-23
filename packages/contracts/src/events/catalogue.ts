@@ -745,6 +745,7 @@ const eventCatalogue = {
       'procurement.vendor.contact.set',
       'procurement.item_vendor.set',
       'imports.job.commit_batch',
+      'imports.job.rollback',
     ],
     subscribed: false,
     payload: z

@@ -853,6 +853,7 @@ const FIELD_KINDS = [
   ['vendorItemCode', 'text'],
   ['preferredVendor', 'yesNo'],
   ['quoteValidFrom', 'date'],
+  ['restored', 'number'],
   ['quoteValidUntil', 'date'],
 ] as const;
 

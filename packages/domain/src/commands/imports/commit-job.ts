@@ -23,6 +23,7 @@ import { commitLeadBatch, RowByRowNeeded, type BatchRow } from '../../imports/co
 import { commitPinCodeBatch } from '../../imports/commit-pin-codes';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
+import { keepMappedCells } from '../../imports/vendor-rows';
 import { commitVendorRow } from '../../imports/vendors';
 import { createLead } from '../crm/create-lead';
 import {
@@ -36,6 +37,7 @@ import {
   implementedKind,
   jobState,
   loadJob,
+  parseMappingFor,
   toImportJobDto,
   updateJob,
   type LoadedJob,
@@ -159,6 +161,11 @@ export const commitImportJob = defineCommand({
       throw new DomainError('validation_failed', 'no valid rows to import', {
         reason: 'import_nothing_to_commit',
       });
+    }
+    // U1 review L9: once a vendor list is committed, its rows keep only the mapped columns' cells.
+    if (implementedKind(loaded.job) === 'vendors') {
+      const mapping = parseMappingFor('vendors', loaded.job.mappingJson);
+      await keepMappedCells(ctx.tx, input.entityId, loaded.job.id, Object.values(mapping.columns));
     }
     const committing = await updateJob(ctx.tx, loaded, {
       state: 'committing',
@@ -619,17 +626,17 @@ const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
   // through the vendor commands; a refused row throws and the batch goes row by row.
   vendors: {
     createdType: 'vendor',
-    async setBased(ctx, sp, _jobId, rows, keep) {
+    async setBased(ctx, sp, jobId, rows, keep) {
       const created: Made[] = [];
       for (const row of rows) {
         await keep(sp);
-        const made = await commitVendorRow(ctx, sp, row);
+        const made = await commitVendorRow(ctx, sp, jobId, row);
         created.push({ rowNo: row.rowNo, id: made.id, type: made.type });
       }
       return { created, refused: [] };
     },
-    async oneRow(ctx, rowSp, _jobId, row) {
-      const made = await commitVendorRow(ctx, rowSp, row);
+    async oneRow(ctx, rowSp, jobId, row) {
+      const made = await commitVendorRow(ctx, rowSp, jobId, row);
       return { id: made.id, type: made.type };
     },
   },
