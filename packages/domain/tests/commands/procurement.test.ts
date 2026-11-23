@@ -63,7 +63,15 @@ beforeAll(async () => {
       (${archivedItem}, ${`T-${tag}-CBL-X`}, ${`Procurement cable X ${tag}`}, 'cable', '8544', 'metre', now(), false)`,
   );
 });
-afterAll(closeDb);
+afterAll(async () => {
+  // The suites never delete items, and lists of the whole catalogue read a page of them: this
+  // file's items leave the catalogue when it ends, so they never crowd another suite's page.
+  await asMigrator(
+    (m) => m`update items set archived_at = coalesce(archived_at, now()), is_active = false
+               where id in (${itemA}, ${itemB})`,
+  );
+  await closeDb();
+});
 
 function run<T = Record<string, unknown>>(
   principal: Principal,

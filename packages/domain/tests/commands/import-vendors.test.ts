@@ -25,7 +25,14 @@ import { parseImportFile } from '../../src/imports/parse';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { listImportRows } from '../../src/queries/imports/import-queries';
 
-afterAll(closeDb);
+afterAll(async () => {
+  // This file's items leave the catalogue when it ends (see procurement.test.ts).
+  await asMigrator(
+    (m) => m`update items set archived_at = coalesce(archived_at, now()), is_active = false
+               where sku like ${`T-${tag}-%`}`,
+  );
+  await closeDb();
+});
 vi.setConfig({ testTimeout: 60_000 });
 
 function run<I extends z.ZodType, O extends z.ZodType>(
