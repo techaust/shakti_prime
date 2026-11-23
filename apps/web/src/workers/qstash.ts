@@ -125,16 +125,22 @@ export function qstashConfig(env: NodeJS.ProcessEnv = process.env): QStashConfig
   } catch {
     return undefined;
   }
-  const baseUrl =
-    env.QSTASH_URL === undefined || env.QSTASH_URL === '' ? undefined : env.QSTASH_URL;
+  const regional = env.QSTASH_URL?.trim() ?? '';
+  const baseUrl = regional === '' ? undefined : regional;
   return { token, currentSigningKey, nextSigningKey, baseUrl, publishUrl };
 }
+
+/**
+ * QStash's own address, the one its client defaults to. The client is always given an address:
+ * given none, it reads `QSTASH_URL` itself and takes a blank one as its address (#236).
+ */
+export const QSTASH_DEFAULT_URL = 'https://qstash.upstash.io';
 
 function client(config: QStashConfig): Client {
   // No local dev server and no telemetry; one quick retry, since the outbox retries anyway.
   return new Client({
     token: config.token,
-    ...(config.baseUrl === undefined ? {} : { baseUrl: config.baseUrl }),
+    baseUrl: config.baseUrl ?? QSTASH_DEFAULT_URL,
     retry: { retries: 1, backoff: () => 200 },
     enableTelemetry: false,
     devMode: false,
