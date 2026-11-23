@@ -2,7 +2,7 @@ import { ErrorEnvelope, DuplicateScanWorkerResponse, newId } from '@shakti/contr
 import { closeOutboxDb } from '@shakti/db/outbox';
 import { asMigrator, closeDb, createTestPrincipal, createTestTeam } from '@shakti/db/testing';
 import type * as Domain from '@shakti/domain';
-import { createHash, createHmac } from 'node:crypto';
+import { createHash, createHmac, randomInt } from 'node:crypto';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The nightly duplicate search outside a Next.js request: the queue client is a stand-in,
@@ -113,7 +113,22 @@ async function liveCompanies(): Promise<number[]> {
 }
 
 const RUN = newId().slice(-6);
-let numbers = 0;
+
+/**
+ * A mobile number no contact holds yet: 8 random digits, drawn again while the number is taken.
+ * Earlier runs' customers stay in the shared database and the scan looks around every customer of
+ * a company, so a number an earlier run drew would pair with this run's (p3-fixes review, finding 1).
+ */
+async function unusedPhone(draw: () => number = () => randomInt(100_000_000)): Promise<string> {
+  for (let tries = 0; tries < 20; tries += 1) {
+    const e164 = `+9193${String(draw()).padStart(8, '0')}`;
+    const [row] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from contact_phones where e164 = ${e164}`,
+    );
+    if (row?.n === 0) return e164;
+  }
+  throw new Error('No unused number in 20 draws');
+}
 
 /**
  * Two customers of one company with one mobile number of this run only, written past the policies
@@ -121,13 +136,10 @@ let numbers = 0;
  */
 async function customersSharingAPhone(
   entityId: number,
-): Promise<{ entityId: number; first: string; second: string }> {
+): Promise<{ entityId: number; first: string; second: string; e164: string }> {
   const team = await createTestTeam(entityId, `duplicate scan route ${RUN}`);
   const owner = await createTestPrincipal('tele_caller_cc', [entityId], { teamId: team });
-  numbers += 1;
-  const e164 = `+9193${RUN.replace(/[^0-9]/g, '7')
-    .padEnd(6, '7')
-    .slice(0, 6)}${String(numbers).padStart(2, '0')}`;
+  const e164 = await unusedPhone();
   const [first, second] = [newId(), newId()];
   await asMigrator((m) =>
     m.begin(async (tx) => {
@@ -146,7 +158,7 @@ async function customersSharingAPhone(
       }
     }),
   );
-  return { entityId, first, second };
+  return { entityId, first, second, e164 };
 }
 
 /** The cards that name a customer. */
@@ -193,6 +205,16 @@ describe('POST /api/v1/workers/crm/duplicates', () => {
     const response = await call(body, sign(body));
     expect(response.status).toBe(400);
     expect(response.headers.get('upstash-nonretryable-error')).toBe('true');
+  });
+
+  it('gives each pair a number no contact holds, drawing again when one is taken', async () => {
+    const taken = await customersSharingAPhone(1);
+    const fresh = randomInt(100_000_000);
+    const draws = [Number(taken.e164.slice(-8)), fresh];
+    expect(await unusedPhone(() => draws.shift() ?? fresh)).toBe(
+      `+9193${String(fresh).padStart(8, '0')}`,
+    );
+    expect(draws).toEqual([]);
   });
 
   it('searches every live company in turn for a signed call, and is done', async () => {
