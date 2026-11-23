@@ -170,9 +170,14 @@ export async function listVendors(rawInput: unknown): Promise<ActionResult<Vendo
   return toResult('listVendors', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => listVendorsQuery(context, rawInput), {
-      name: 'listVendors',
-    });
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listVendorsQuery(context, rawInput),
+      {
+        name: 'listVendors',
+      },
+    );
   });
 }
 

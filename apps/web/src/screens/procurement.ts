@@ -33,9 +33,10 @@ export function rateFromTyped(typed: string): string | undefined {
 }
 
 /** How each quote status shows. */
-export const QUOTE_STATUS_TONE: Record<'live' | 'upcoming' | 'expired' | 'withdrawn', StatusTone> = {
-  live: 'success',
-  upcoming: 'info',
-  expired: 'neutral',
-  withdrawn: 'neutral',
-};
+export const QUOTE_STATUS_TONE: Record<'live' | 'upcoming' | 'expired' | 'withdrawn', StatusTone> =
+  {
+    live: 'success',
+    upcoming: 'info',
+    expired: 'neutral',
+    withdrawn: 'neutral',
+  };

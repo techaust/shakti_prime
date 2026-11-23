@@ -27,6 +27,7 @@ import {
   Shuffle,
   Store,
   Target,
+  Truck,
   ShieldCheck,
   ShoppingCart,
   UserPlus,
@@ -268,6 +269,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Items are shared and readable with any context; the screen sits beside the price lists,
     // and changes need catalogue.write, which the commands check.
     requires: [{ key: 'pricing.read', scope: 'entity' }],
+  },
+  // U1: the group's vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3).
+  {
+    id: 'procurement',
+    href: '/procurement',
+    label: 'procurement',
+    icon: Truck,
+    group: 'work',
+    // Vendors are read with inventory.stock.read or procurement.po.write; every holder of the
+    // second holds the first. Rates need procurement.rate.read, which the comparison asks for.
+    requires: [{ key: 'inventory.stock.read', scope: 'own' }],
   },
   {
     id: 'imports',
