@@ -54,10 +54,14 @@ test.describe('company numbers as an Executive', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'Numbers of RCREF' })).toBeVisible();
     const sales = dialog.getByRole('listitem').filter({ hasText: 'Sales calls number' });
-    // A run that stopped half way leaves the number set: take it out of use first.
+    // A run that stopped half way leaves the number set: take it out of use first. The list shows
+    // only once the numbers have loaded, so wait for one of the two before looking: a count taken
+    // while "Loading the numbers." shows reads 0 and leaves the number set (p3-fixes integration).
+    const notSet = sales.getByText('Not set');
     const leftOver = sales.getByRole('button', { name: /out of use/ });
-    if ((await leftOver.count()) > 0) await leftOver.click();
-    await expect(sales.getByText('Not set')).toBeVisible();
+    await expect(notSet.or(leftOver)).toBeVisible();
+    if (await leftOver.isVisible()) await leftOver.click();
+    await expect(notSet).toBeVisible();
 
     // A number outside the 140 series is kept, and the list says every sales call on it fails.
     await sales.getByRole('button', { name: /^Add: Sales calls number/ }).click();
