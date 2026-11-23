@@ -28,6 +28,48 @@ export interface AxeOptions {
   include?: string;
 }
 
+/** How long `waitUntilStill` waits at most, and for how many frames in a row nothing may move. */
+export const STILL_WAIT = { limitMs: 2_000, stillFrames: 3 } as const;
+
+/**
+ * Runs in the page: resolves once no CSS animation or transition that ends is running for
+ * `stillFrames` frames in a row, or after `limitMs` whatever moves, so it cannot hang a journey.
+ * A notice starts its fade a frame or two after it is marked mounted, so one look at the
+ * animations can miss it (`channels.spec.ts`, STATUS); frames in a row catch it. One that never
+ * ends (a spinner) is left running, and a finished one that holds its last frame does not count.
+ * Self-contained, since Playwright sends its source to the page.
+ */
+export async function waitUntilStill(options: {
+  limitMs: number;
+  stillFrames: number;
+}): Promise<'still' | 'moving'> {
+  const deadline = performance.now() + options.limitMs;
+  // A frame, or 50 ms where the page draws no frames, so the loop always moves on.
+  const nextFrame = () =>
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 50);
+      requestAnimationFrame(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  const moving = () =>
+    document
+      .getAnimations()
+      .some(
+        (a) =>
+          (a.playState === 'running' || a.pending) &&
+          a.effect?.getComputedTiming().endTime !== Infinity,
+      );
+  let still = 0;
+  while (performance.now() < deadline) {
+    await nextFrame();
+    still = moving() ? 0 : still + 1;
+    if (still >= options.stillFrames) return 'still';
+  }
+  return 'moving';
+}
+
 /**
  * Fails the test with every WCAG 2.1 A or AA violation axe finds on the page as it stands, and
  * with every button out of line with the box beside it (`expectAligned`, docs/08-design-system.md
@@ -42,22 +84,9 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
   // A notice (a toast) is drawn first in its hidden state and starts fading in a moment later, when
   // it is marked mounted; until then its fade is not an animation the wait below can see.
   await expect(page.locator('[data-sonner-toast][data-mounted="false"]')).toHaveCount(0);
-  // A dialog fading in shows its colours blended with the page behind it, which axe would measure
-  // as low contrast; every animation that ends is let finish first (a spinner never ends, so it is
-  // left running).
-  await page.evaluate(() =>
-    Promise.all(
-      document
-        .getAnimations()
-        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
-        .map((a) =>
-          a.finished.then(
-            () => undefined,
-            () => undefined,
-          ),
-        ),
-    ),
-  );
+  // A dialog or a notice fading in shows its colours blended with the page behind it, which axe
+  // would measure as low contrast: wait until the page is still (`waitUntilStill`).
+  await page.evaluate(waitUntilStill, STILL_WAIT);
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   if (options.include !== undefined) builder = builder.include(options.include);
   // With the frames gone, axe runs in the page alone: its cross-frame step opens a blank page to
