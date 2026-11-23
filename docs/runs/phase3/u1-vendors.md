@@ -41,3 +41,80 @@ Review checklist (check before your report): no rate in any DTO, export, event, 
 **Built beside you today, each in its own cloud session:** `web-push-4` (the `web-push` 4.0.0 bump, `apps/web/src/notifications/push.ts` only), `c5-catalogue-stock` (C5: the `items` columns, the item form and import), `h1-stock-ledger` (H1: hubs, bins, the ledger, balances, costs, serials, `/inventory`) and `u1-vendors` (U1: vendors, supplier quotes, `/procurement`). Shared registration points (`en.json`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event catalogue and worker registry, the state machine registry, the import kinds' registry, the testing lists, `nav.ts`, `turbo.json`, `.env.example`) take one line or one block each, kept together under a comment naming your slice; the lead merges them.
 
 ## Report
+
+### 23-11-2026, cloud session: early check
+Model and effort: Opus 5.5 (`claude-opus-5-5`) at high effort. Skill loaded: `add-table`.
+
+**Built** (commits `c1d35915`, `6c5017dc`):
+- `packages/db/src/schema/vendors.ts` (exported from `schema/index.ts` under a U1 comment): `vendors`, `vendor_contacts`, `item_vendors`, `vendor_quotes` with the columns of §6.3 and brief point 1.
+  - `vendors`: `gstin` is optional (a supplier without GST registration), unique where set (the import's key). Its check is the entities' `entities_gstin_check` format, plus `state_code = left(gstin, 2)`. `pan` must be the GSTIN's characters 3 to 12 when both are set. `address_json` is always an object. Payment terms and lead time are each 0 to 365 days. `notes` is at most 2,000 characters.
+  - `vendor_contacts`: `position` runs 1 to 20 and is unique per vendor. `phone_e164` takes the `contact_phones` format.
+  - `item_vendors`: `(item_id, vendor_id)` is unique, and the partial unique index `item_vendors_one_preferred` allows one preferred vendor per item.
+  - `vendor_quotes`: `rate numeric(14,4) > 0`, `moq numeric(12,3) > 0` (optional), `lead_time_days` (optional), `valid_until >= valid_from`, `file_id`, `recorded_by`, `withdrawn_at` and `withdrawn_by` (set together).
+- Migrations: `0229_u1_vendors.sql` (generated) and `0230_u1_vendors_rls.sql` (custom). Both are numbered after `main`'s 0228 and the lead renumbers them at the merge.
+- Testing lists: the four tables are in `ENTITY_TABLES`, so a request with no company reads none of them. `entity-matrix-fixture.ts` adds one group vendor with a contact and an item link, a group quote, and one quote per company. `role-entity-matrix.test.ts` gets the rules `VENDOR_READ` and `RATE_READ`. A vendor row is marked as belonging to every company, and its leak test is `false`, since it has no company. `NARROWER` in `grants.test.ts` gets the four entries. No list-valued check is added, so `enum-sync` is unchanged.
+- `packages/db/tests/security/vendors.test.ts` (new, 135 tests):
+  - Who may read rates: only the Executive, the Inventory Manager and Accounts hold `procurement.rate.read`, and no agent does.
+  - Every role and agent principal acting in company 1 reads `vendor_quotes` (the group quote and company 1's quotes for a holder, nothing for anyone else) on both the `app_user` and `app_reader` pools.
+  - A holder acting in company N never reads another company's quote. Acting in every company, a holder reads all quotes. With no company in the request, even the Executive reads none, the group quote included. Nothing is read without a context. `readonly_reporter` holds no privilege on `vendor_quotes`.
+  - Every role without both `procurement.rate.read` and `procurement.po.write` records no quote. Accounts, who reads rates, withdraws none.
+  - The Inventory Manager records a quote for their own company and none for another. A quote is signed by the person recording it. A group quote needs a request covering every company. No quote is recorded already withdrawn.
+  - A quote's rate, company, validity and vendor never change once it is recorded (privilege refusal), and no quote is deleted.
+  - The Inventory Manager withdraws a live quote of their own company once, never another company's, and a withdrawn quote is never brought back or withdrawn again. The withdrawal is signed by the person withdrawing. The reader pool writes nothing, even for the Executive.
+  - Vendor master reads: every role reads all three master tables in every company if it holds `inventory.stock.read` or `procurement.po.write`, otherwise nothing. Nothing is read with no company in the request, on either pool. The General Manager and the Store Manager read vendors and no rate.
+  - Vendor master writes: every role without `procurement.po.write` adds, changes and removes nothing. The Inventory Manager adds and edits a vendor signed by themselves, cannot change `created_by`, and cannot delete a vendor.
+  - Data checks: a second preferred vendor for the same item is refused. A GSTIN with the wrong state code or a PAN that does not match is refused, and so is a malformed GSTIN.
+- Documents: the DATABASE §6.5 catalogue rows for the four tables, and `pnpm db:docs` regenerated (`docs/data/`).
+
+**The policies** (`0230_u1_vendors_rls.sql`; each permission test and the company test is an initplan):
+```sql
+-- vendors, vendor_contacts, item_vendors: read (to app_user, app_reader)
+using (cardinality((select app.entity_ids())) > 0
+       and ((select app.has_perm('inventory.stock.read:own'))
+            or (select app.has_perm('procurement.po.write:entity'))))
+-- their insert (to app_user)
+with check (cardinality((select app.entity_ids())) > 0
+            and (select app.has_perm('procurement.po.write:entity'))
+            and created_by = (select app.user_id()))
+-- vendors and item_vendors update: the same with updated_by = (select app.user_id()) in the check;
+-- vendor_contacts and item_vendors delete: cardinality(...) > 0 and procurement.po.write:entity
+
+-- vendor_quotes_read (to app_user, app_reader)
+using ((select app.has_perm('procurement.rate.read:entity'))
+       and ((entity_id is null and cardinality((select app.entity_ids())) > 0)
+            or entity_id = any ((select app.entity_ids())::int[])))
+-- vendor_quotes_insert (to app_user)
+with check ((select app.has_perm('procurement.rate.read:entity'))
+            and (select app.has_perm('procurement.po.write:entity'))
+            and recorded_by = (select app.user_id())
+            and withdrawn_at is null
+            and ((entity_id is null and (select app.request_covers_group()))
+                 or entity_id = any ((select app.entity_ids())::int[])))
+-- vendor_quotes_withdraw (update, to app_user)
+using (<both grants> and withdrawn_at is null and <the insert's company test>)
+with check (<both grants> and withdrawn_at is not null
+            and withdrawn_by = (select app.user_id()) and <the insert's company test>)
+```
+**Grants:**
+- `vendors`: `select, insert`, plus `update` on its own columns only (never `created_by`).
+- `vendor_contacts`: `select, insert, delete` (replaced as a set).
+- `item_vendors`: `select, insert, delete`, plus `update (vendor_item_code, is_preferred, updated_at, updated_by)`.
+- `vendor_quotes`: `select, insert`, plus `update (withdrawn_at, withdrawn_by, updated_at)`.
+- `app_reader` selects all four tables. `readonly_reporter` selects the three master tables and has no privilege on `vendor_quotes`.
+
+**Checks run in the VM:**
+- `pnpm test:security`: db 1,680 passed (61 files), domain 1,415 passed (100 files), web 460 passed (39 files); 4 of 4 tasks successful.
+- `pnpm typecheck`: 10 of 10 successful.
+- `pnpm exec eslint --max-warnings 0 packages/db`: clean.
+- `pnpm db:docs`: regenerated.
+
+**Assumptions** (minor gaps, my call):
+- **Optional GSTIN.** `vendors.gstin` is optional, for a supplier without GST registration. An import row without a GSTIN therefore always creates a vendor, since a repeated GSTIN is the only key.
+- **Active flag.** A vendor is archived by `is_active = false` (the design's column). There is no `archived_at`.
+- **Quote validity.** `valid_until` is required, so every quote can expire and the comparison can mark it expired.
+- **Contacts as a set.** `vendor_contacts` are replaced as a set by delete and insert, not updated.
+- **Item links.** An `item_vendors` row is deleted when the vendor stops supplying the item; `procurement.item_vendor.set` will take a flag for it.
+- **Agents read vendors.** `agent:sizing` and `agent:chief` hold `inventory.stock.read:entity`, so they read the vendor master, which holds no rate, as brief point 2 says. They read no quote, since no agent holds `procurement.rate.read`, and they write nothing.
+- **Quote document.** `vendor_quotes.file_id` references `files`. The quote document's file purpose and its read rule come with the commands and screens after "continue".
+
+**Next, after "continue":** the contracts, the seven commands with their tests and the agent refusal sweep's inputs, the queries and DTOs, the screens, the import kind and the quote document's file purpose.
