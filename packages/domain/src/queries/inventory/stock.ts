@@ -83,8 +83,9 @@ export async function listStockBalances(ctx: Ctx, rawInput: unknown): Promise<St
   }
   if (input.cursor !== undefined) {
     const [hub, bin, item] = decodeCursor(BalanceCursor, input.cursor);
+    // The whole key, the company first, so the comparison reads the balance key's index in order.
     where.push(
-      sql`(b.warehouse_id, b.bin_id, b.item_id) > (${hub}::uuid, ${bin}::uuid, ${item}::uuid)`,
+      sql`(b.entity_id, b.warehouse_id, b.bin_id, b.item_id) > (${input.entityId}::smallint, ${hub}::uuid, ${bin}::uuid, ${item}::uuid)`,
     );
   }
   const rows = (await ctx.tx.execute(sql`
@@ -99,7 +100,7 @@ export async function listStockBalances(ctx: Ctx, rawInput: unknown): Promise<St
       join bins bn on bn.id = b.bin_id
       join items i on i.id = b.item_id
      where ${sql.join(where, sql` and `)}
-     order by b.warehouse_id, b.bin_id, b.item_id
+     order by b.entity_id, b.warehouse_id, b.bin_id, b.item_id
      limit ${input.limit + 1}`)) as unknown as BalanceRow[];
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
@@ -303,19 +304,18 @@ export async function readStockValuation(ctx: Ctx, rawInput: unknown): Promise<S
   assertEntityInScope(ctx.entityIds, input.entityId);
   checkPermission(ctx.principal, 'finance.cost.read', 'entity');
   const cut = sql`((${input.asOf}::date + 1)::timestamp at time zone 'Asia/Kolkata')`;
+  // One pass over the company's movements up to the date, each counted in the bin it entered
+  // (plus) and the bin it left (minus), summed per hub and item before the hubs and items join.
   const rows = (await ctx.tx.execute(sql`
-    with x as (
-      select bn.warehouse_id as hub, m.item_id, m.qty as q, m.qty * c.unit_cost as v
+    with x as materialized (
+      select bn.warehouse_id as hub, m.item_id, sum(v.sign * m.qty) as q,
+             sum(v.sign * m.qty * c.unit_cost) as v
         from stock_movements m
         join stock_movement_costs c on c.movement_id = m.id
-        join bins bn on bn.id = m.to_bin_id
+        cross join lateral (values (m.to_bin_id, 1), (m.from_bin_id, -1)) as v(bin_id, sign)
+        join bins bn on bn.id = v.bin_id
        where m.entity_id = ${input.entityId} and m.moved_at < ${cut}
-      union all
-      select bn.warehouse_id, m.item_id, -m.qty, -(m.qty * c.unit_cost)
-        from stock_movements m
-        join stock_movement_costs c on c.movement_id = m.id
-        join bins bn on bn.id = m.from_bin_id
-       where m.entity_id = ${input.entityId} and m.moved_at < ${cut}
+       group by bn.warehouse_id, m.item_id
     )
     select x.hub as "hubId", w.code as "hubCode", w.name as "hubName", i.category,
            sum(x.q)::numeric(12, 3)::text as qty,
