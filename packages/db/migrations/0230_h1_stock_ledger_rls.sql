@@ -456,8 +456,10 @@ begin
          where s.item_id = v_line.item_id and pg_catalog.lower(s.serial_no) = pg_catalog.lower(v_line.serial_no);
         if found then
           if v_serial.entity_id <> v_line.entity_id then
-            -- Another company's serial is never named to this one.
-            perform app.stock_refuse('stock_serial_exists',
+            -- Another company's serial is never named to this one: its number is taken for a new
+            -- serial, and unknown to a movement of one.
+            perform app.stock_refuse(case when v_reason in ('opening', 'adjust_gain')
+                                          then 'stock_serial_exists' else 'stock_serial_unknown' end,
               pg_catalog.jsonb_build_object('line', v_ord, 'serialNo', v_line.serial_no));
           end if;
           v_line.serial_id := v_serial.id;

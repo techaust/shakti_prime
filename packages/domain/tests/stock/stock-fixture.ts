@@ -79,7 +79,7 @@ export async function onHand(entityId: number, binId: string, itemId: string): P
   const [row] = await asMigrator(
     (m) => m<{ q: string }[]>`
       select coalesce((select qty_on_hand::text from stock_balances
-                        where entity_id = ${entityId} and bin_id = ${binId} and item_id = ${itemId}), '0') as q`,
+                        where entity_id = ${entityId} and bin_id = ${binId} and item_id = ${itemId}), '0.000') as q`,
   );
   return row?.q ?? '0';
 }
