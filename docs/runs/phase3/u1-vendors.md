@@ -248,3 +248,66 @@ Model and effort: Opus 5.5 (`claude-opus-5-5`) at high effort, start to done. Sk
 - **The General Manager and the Store Manager:** see vendors and no rate on every screen and route. The comparison page is not found for them and its query refuses them. `vendor_quote` files are unreadable to them.
 - **Company isolation:** a company's quote is invisible to another company's holder, on both pools.
 - **Expired quotes:** the comparison never marks one lowest.
+
+## Review
+
+### 24-11-2026 IST, cloud session (seat 2), commit 8c3f9912
+Adversarial review against the Brief, phase3 §6.3, AGENTS §10 and the exit gate's supplier-rate isolation. Diff: `origin/main...feat/u1-vendors`. I read the database layer, contracts, commands and queries myself. Two helper agents read the web layer, and the import, file and audit paths; I checked their main findings in the code.
+
+**Verdict:** I found no path by which a supplier rate reaches a person without `procurement.rate.read`, and none by which a company's quote reaches a holder acting only in another company. One finding blocks the merge (H1, CI). The rest are medium and low.
+
+| # | Severity | Where | What is wrong, and a failure scenario | Fix | Status |
+|---|---|---|---|---|---|
+| H1 | high (blocks CI) | `apps/web/js-budget.json`; the app shell | `pnpm --filter web js-budget` fails on this branch: `/admin/integrations` 240.1 kB against 240, and `/calling` 206.6 kB against 206. On `main` (334a6d0b plus docs, built here) they are 239.1 kB and 205.8 kB, so this slice's menu item and shell values tip them over, and CI's budget step fails the pull request. | Trim what the slice adds to the shared shell (for example, keep the Procurement icon and values out of the common chunk), or raise the two budgets with the reason. Either way it is a `checks-ok` change. | confirmed |
+| M1 | medium | `apps/web/e2e/procurement.spec.ts:116-136`; `e2e/setup/procurement.ts:37,54` | The General Manager and Store Manager "no rate" journey cannot fail on a rate. Both act in company 1, and every seeded quote is company 3's (`SNAPSHOT_COMPANY`). With no group or company-1 quote on the vendor they open, a broken quote gate would still show no "₹". Only the absent Quotes heading would catch it. | Seed a group quote and a company-1 quote on that vendor, and assert the Executive or Inventory Manager sees them on the same sheet, so the "no ₹" check means something. | confirmed |
+| M2 | medium | `apps/web/src/components/procurement/quote-form.tsx:84`; `vendor-read.ts:224`; `0066_files_uploads_rls.sql:41-47` | A group quote's document is stored in the first company listed. Every rate holder in any company can read the group quote, but the `files` policy shows the file only in its own company. An Accounts person of company 3, or the recorder acting in one other company, clicks Open quote and gets a failure. No leak: it is a broken button. | Either add a `files` read rule for `vendor_quote` files named by a group quote, under `procurement.rate.read`, or send `fileId` only when the file is readable in the request. | confirmed |
+| M3 | medium | `apps/web/src/components/procurement/compare-screen.tsx:304-315` | No guard against a stale answer. Change the company, then the category: if the first answer lands last, the picker says company 2 while the table shows company 1's rates and Lowest marks. Both companies are the viewer's own, so this mislabels rather than leaks. | Use the `wanted` reference guard `vendors-screen.tsx:70,85` already uses. | confirmed |
+| M4 | medium | `packages/domain/src/commands/imports/rollback-job.ts:115-125`; `vendors_gstin_unique` | Rolling back a vendor import archives its vendors, and nothing un-archives them. The GSTIN index covers archived rows, so a re-import is refused (`vendor_archived`), and so is adding the vendor by hand (`vendor_gstin_taken`). Scenario: an import with columns mapped wrongly, rolled back to redo the mapping, can never be imported again. | Delete the job's vendors that nothing refers to yet, or let a re-import or a restore bring back a vendor a rollback archived. | confirmed |
+| M5 | medium | `packages/domain/src/imports/vendors.ts:192` and its update path | An import row with a known GSTIN overwrites the vendor's fields. The inner commands' audit rows are discarded (`auditedByCaller`), so no before and after is kept, and a rollback skips `vendor_update` rows. Also, any address cell replaces the whole stored address: a file with only a City column wipes line 1 and the PIN, against the rule "blank keeps what the vendor has". | Keep a per-vendor before and after for import updates, and merge the address line by line. | confirmed |
+| M6 | medium | `packages/domain/src/queries/procurement/vendor-queries.ts:120-150` | `compareQuotes` reads every non-withdrawn quote the company and group ever had, with no lower date bound (only `valid_from <= today`), and no paging over items. Each expired quote is read only to pick the one that ended last. The work grows with years of history, and with no category it loads the whole catalogue times vendors into memory in one answer. | Choose each item-vendor cell in SQL (`distinct on (item_id, vendor_id)`, live first, then latest ended), bound expired quotes to a window, and page by item. | confirmed (code read; the builder's `EXPLAIN` used one category) |
+| L1 | low | `vendor-queries.ts:compareQuotes` | Quotes of archived vendors are compared and can be marked Lowest. The design does not say; an archived supplier is probably not one to buy from. | Leave them out, or show them apart and never mark them lowest. | confirmed |
+| L2 | low | `apps/web/src/components/procurement/quote-form.tsx:82-84,121,164` | Changing "Quoted to" after uploading keeps the old company's `fileId`, so the server refuses with `vendor_quote_file_missing` while the uploader still says ready. | Clear the file when the company changes. | confirmed |
+| L3 | low | `vendor-sheet.tsx:333-336`; `vendors/page.tsx:45-47` | Accounts (rates but no `procurement.po.write`) sees "For one company" on every company quote: names come from `quoteCompanies`, which is empty for them. | Pass the readable companies' names separately. | confirmed |
+| L4 | low | `apps/web/src/components/procurement/vendors-screen.tsx:185` | An `md:items-end` row lines up the checkbox and Add vendor with the search field's helper text, not its box (docs/08 §6). The lint rule misses it because the button is inside a conditional. | Use `items-start`, or move the page action out of the row. | plausible (no screenshot) |
+| L5 | low | `vendor-sheet.tsx:348-357,579`; `quote-form.tsx:219`; `vendor-links-form.tsx:296` | Accessibility: every sheet quote has a button named only "Open quote"; the withdraw dialog has no `returnFocusTo`; two quotes of one item share one withdraw label; the item-missing messages are plain paragraphs, not tied to the field or announced. | Use `openDocumentFor`, return focus, name by vendor, item and dates, and use the field's error slot. | confirmed |
+| L6 | low | `apps/web/e2e/procurement.spec.ts:140-143` and coverage | The refusal check (`toHaveCount(0)` on the heading) passes on any error page. No journey edits, archives or withdraws, uploads a document, or records a group quote, so those dialogs never get an axe check. | Assert the not-found screen's text, and add one journey through those dialogs. | confirmed |
+| L7 | low | `en.json` | "All four companies" and "All companies" both name the group quote (docs/08 §11.1 rule 4). | Use one wording. | confirmed |
+| L8 | low | `packages/domain/src/commands/procurement/quotes.ts:47-71` | `assertQuoteFile` accepts any ready `vendor_quote` file of the company, whoever uploaded it and even when another quote uses it, so a quote can point at another supplier's document. Every reader of that file holds `procurement.rate.read` there, so nothing leaks. | Require the caller's own upload, used by no other quote. | confirmed |
+| L9 | low | the import framework (`import_rows.raw_json`, the import file) | A vendor list's unmapped columns are kept whole and readable by any `imports.write` holder in the company, including the General Manager. A supplier price list uploaded as a vendor list would show its Rate column to them. | For the vendors kind, require `procurement.po.write` to read the job, its rows and its file, or drop unmapped cells once mapped. | plausible |
+| L10 | low | `packages/domain/src/command/run-command.ts:348-388` | A key replay returns the stored answer before the handler's company check. A person who recorded a company-1 quote, later lost company 1 but kept the rate grant, can replay the key within its window and see the rate they typed. | Check the stored answer's `entityId` against the request on replay. | plausible |
+| L11 | low | `reader-parity.test.ts` | `compareQuotes` is not in the reader parity list (builder's assumption 8); `vendors.test.ts` reads the table on both pools, but the query itself is not run on `app_reader`. | Add it under a name the pattern takes. | confirmed |
+
+**Checked and found sound**
+- **Row security (0230):**
+  - Forced on all four tables; every policy fails closed with no company in the request.
+  - `vendor_quotes_read` needs `procurement.rate.read`, and admits a group quote in any company and a company's quote only in that company, on both `app_user` and `app_reader`. `readonly_reporter` holds nothing on `vendor_quotes`.
+  - Inserts are signed by the caller, a group quote needs `request_covers_group()`, and only a live quote can be withdrawn; column grants keep a quote's rate, company and validity as recorded.
+  - A principal has one permission set across its companies (in All-companies mode the intersection, `resolve-principal.ts`), so the company-free `has_perm` test cannot admit a company where the grant is missing.
+  - Voice principals have `procurement.rate.read` removed.
+- **Commands:**
+  - All are people only; the quote commands need both grants.
+  - The record command's `auditInput` leaves the rate out, and a refused, failed or unparsable call records the summary or nothing (`execute.ts:179-194`).
+  - Events carry ids and booleans; error messages and details carry ids and reasons; there are no logger calls.
+  - Idempotency answers are readable only by their owner.
+  - `item_vendor.set` refuses `supplies: false` with `isPreferred: true`, and two concurrent preferred marks hit the unique index (`item_vendor_changed`).
+- **Queries:** the sheet without quotes never reads `vendor_quotes`, and quotes and the comparison are read only after `assertRateReader`. The comparison refuses a company outside the request, compares rates as whole ten-thousandths, and never marks an expired quote lowest.
+- **Migrations:**
+  - 0232's `app.file_purpose_grant()` equals main's latest (0123) plus the two `vendor_quote` lines.
+  - 0231 keeps all 18 purposes of main's latest check (0206); 0233 keeps 0101's kinds and 0105's created types, widened `NOT VALID`.
+  - The General Manager cannot read a `vendor_quote` file, and company 2 cannot read company 1's.
+- **Web:**
+  - Pages call `screenAccess(navRequires('procurement'))`; the compare page answers not-found without the grant before any read.
+  - Reads go through named `executeQuery` and writes through `executeCommand` with per-form keys.
+  - Failed actions return no DTO, and no rate is put in a URL or label.
+  - Browser code imports types only; copy is in `en.json`; colours are tokens.
+- **Documents:** SECURITY §4's U1 paragraph and DATABASE §6.5 match the code; phase3's Built record is present.
+
+**Run here**
+- `vendors.test.ts`, `role-entity-matrix.test.ts`, `grants.test.ts` and `files.test.ts` (db): 475 passed.
+- `procurement.test.ts`, `import-vendors.test.ts`, `agent-refusals.test.ts` and `reader-parity.test.ts` (domain): 93 passed.
+- `pnpm build`: passes.
+- `pnpm --filter web js-budget`: fails, as H1 says.
+
+**Not run** (for the lead on the PC)
+- The journeys in `apps/web/e2e/procurement.spec.ts`: 4 tests (Inventory Manager adds a vendor, records and compares; the General Manager and the Store Manager see vendors and no rate; the Executive's comparison screenshot), each in every Playwright project. They need sign-in, which this cloud session cannot reach (`challenges.cloudflare.com` is refused). Also not run: their axe checks and the Linux baselines `procurement-vendors`, `procurement-vendor-sheet-no-rates` and `procurement-compare`, so I looked at no screenshot (L4 stays plausible).
+- The whole `pnpm test:security` and `pnpm lint`.
