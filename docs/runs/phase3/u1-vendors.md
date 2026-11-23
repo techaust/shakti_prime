@@ -5,9 +5,9 @@
 | Branch | `feat/u1-vendors` on GitHub, from the approved design at a549b0d8 (`main` 334a6d0b plus the design) |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): supplier rates behind `procurement.rate.read`, row security |
-| Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (the builder's session reports `claude-opus-5-5`, high effort, at the start, 23-11-2026) |
-| State | early check |
-| Next step | the lead reads the early check and sends "continue" |
+| Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (the builder's session reports `claude-opus-5-5`, high effort, at the start and at done, 23-11-2026 and 24-11-2026 IST) |
+| State | done |
+| Next step | the lead's review, the journeys and Linux baselines on the PC, then integration |
 
 ## Brief
 Build [phase3 §6.3](../../03-roadmap-appendix/phase3.md#63-u1-vendors-and-supplier-quotes) as written, with question 6 (a): one vendor master for the group. The exit gate's second item is supplier-rate isolation, so the rate rules are the heart of this slice. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
@@ -118,3 +118,133 @@ with check (<both grants> and withdrawn_at is not null
 - **Quote document.** `vendor_quotes.file_id` references `files`. The quote document's file purpose and its read rule come with the commands and screens after "continue".
 
 **Next, after "continue":** the contracts, the seven commands with their tests and the agent refusal sweep's inputs, the queries and DTOs, the screens, the import kind and the quote document's file purpose.
+
+### 23-11-2026, cloud session: done
+Model and effort: Opus 5.5 (`claude-opus-5-5`) at high effort, start to done. Skills loaded: `add-table` (before the early check) and `add-command`.
+
+**Built after "continue"** (commits `03bc8d64` to `c3d69594` on `feat/u1-vendors`):
+- **Contracts** (`packages/contracts/src/procurement/`):
+  - The inputs of the seven commands. A vendor's GSTIN is checked with the entities' own `EntityGstinSchema`, now exported from `commands/org/update-entity.ts`; that is a one-word change to an org file.
+  - DTOs: `VendorDto`, `VendorContactDto`, `ItemVendorDto`, `VendorListRowDto`, `VendorSheetDto` (no quotes), `VendorSheetWithQuotesDto`, `VendorQuoteDto` and `CompareQuotesDto`, plus the vendors import's row input.
+  - Events: `procurement.vendor.created`, `.updated`, `.archived`, `procurement.quote.recorded` and `.withdrawn`. They carry ids and codes only, and none is subscribed.
+- **Commands** (`packages/domain/src/commands/procurement/`):
+  - `procurement.vendor.create`, `.update`, `.archive`, `.contact.set`, `procurement.item_vendor.set`, `procurement.quote.record` and `.withdraw`. All are people only.
+  - The quote commands need `procurement.rate.read` and, through `alsoRequires`, `procurement.po.write`. A group quote needs a request covering every company (`vendor_quote_needs_all_companies`).
+  - The record command's `auditInput` leaves the rate out, so neither a successful, refused nor failed call puts the rate in an audit row.
+  - Audit values are names, codes, the validity, `withdrawnAt` and ids; never a rate. A person's phone or email is never audited: the people change records names and roles only.
+  - Registered in the registry and exported from the domain index.
+- **Queries** (`packages/domain/src/queries/procurement/`):
+  - `listVendors` (keyset by name).
+  - `getVendor`: the sheet without quotes is built by `readVendorSheet()` and never reads `vendor_quotes`; quotes are read only after `assertRateReader()`.
+  - `compareQuotes`: for one company, with an optional category. Each cell is the vendor's lowest live quote, else the one that ended last, shown expired. The lowest live rate per item is marked by comparing whole ten-thousandths, with no floats. An expired quote is never marked lowest, and withdrawn or not-yet-started quotes are left out.
+- **File purpose `vendor_quote`:**
+  - Upload and read need `procurement.rate.read`.
+  - Migrations `0231_u1_vendor_quote_files.sql` (the purpose check widened `NOT VALID`) and `0232_u1_vendor_quote_files_grant.sql` (`app.file_purpose_grant()` as in 0123, plus the purpose).
+  - Also in `files/purposes.ts`, `files/limits.ts` (PDF or photo, the usual size limit), `contract-values.ts` and the suites' purpose lists.
+- **The `vendors` import kind:**
+  - Fields: vendor name, GSTIN, PAN, address, town, PIN, payment terms, delivery time, and one person per row (name, role, mobile, email).
+  - A GSTIN already in the master updates that vendor with what the row gives (`vendor_update`), and adds the row's person unless one of that name is there. A GSTIN listed twice in a file is skipped. An archived vendor's GSTIN is refused (`vendor_archived`).
+  - Rows run through the vendor commands. A rollback archives only the vendors the job added.
+  - Migration `0233_u1_vendors_import.sql` widens the kind and created-type checks `NOT VALID`.
+  - Edited in the import framework's shared registration points: `imports/enums.ts`, `commands/imports/jobs.ts`, `shared.ts`, `create-job`, `map-job`, `preview-job`, `commit-job`, `rollback-job`, `import-wizard.ts`, `rows-grid.tsx` and the new-import page. Each change is one block marked U1. C5's items kind edits the same places, so the lead merges them.
+- **Web:**
+  - Server actions in `apps/web/src/actions/procurement.ts`.
+  - The menu item Procurement (`nav.ts`), which needs `inventory.stock.read:own`; every holder of `procurement.po.write` holds it.
+  - `/procurement` redirects to `/procurement/vendors`.
+  - `/procurement/vendors`: the list with search and archived vendors, and the vendor sheet. The sheet has details, people, items supplied with their preferred mark and the vendor's code, and quotes only for a holder of `procurement.rate.read`, with Record quote (document uploaded through `sendFile` as `vendor_quote`), Withdraw, Open quote, Edit, Edit people, Add item, Remove and Archive.
+  - `/procurement/compare` (`procurement.rate.read`; anyone else gets the not-found screen): a table on wider screens and cards on a phone.
+  - Also: the `/procurement` client scope, `BOS_PREFIXES`, `en.json` (`procurement.*`, `nav.procurement`, `home.hint.procurement`, the import words, the Activity log names, nine `errors.*` sentences), the copy-lint button keys, and `js-budget.json` for the three pages.
+- **Journeys** (`apps/web/e2e/procurement.spec.ts`):
+  - The Inventory Manager: the vendor list, adding a vendor, its people, an item, recording a quote, and comparing.
+  - The General Manager and the Store Manager: the vendors with no Quotes section, no "₹" on the page and no comparison.
+  - The Executive: the snapshot company's comparison.
+  - axe on every screen and dialog, and three screenshots.
+  - The seed `apps/web/e2e/setup/procurement.ts` writes two vendors with fixed ids and the snapshot company's quotes.
+  - A new signed-in person, `inventoryManager` (Inventory Manager of company 1), is added to `SIGNED_IN_ROLES`.
+- **Documents:**
+  - DATABASE: the §6.5 rows `Built (0229)`, the `files` purpose and the import kind and created types.
+  - SECURITY §4: supplier rates.
+  - The design's **Built (U1)** record.
+  - `pnpm db:docs`.
+
+**Tests added:**
+- `packages/db/tests/security/vendors.test.ts`: 135 tests, from the early check.
+- `packages/domain/tests/commands/procurement.test.ts`: 23 tests.
+  - Every command is denied to roles without its grants and to agents. Wrong company: a quote for another company, and a group quote from a one-company request.
+  - Happy paths, and audit and event shapes with no rate in either, including a refused and a failed call through `executeCommand`.
+  - GSTIN, PAN and state checks, archiving withdrawing no quote, contacts as a set, the preferred vendor moving, and the document's purpose and company.
+  - The sheet without quotes for the General Manager and the Store Manager. Quotes for the group and the caller's company only.
+  - The comparison's lowest live rate marked and the cheaper expired quote not marked, another company's quote absent, the comparison refused to the General Manager and for a company outside the request, and keyset paging.
+- `packages/domain/tests/commands/import-vendors.test.ts`: 2 tests. The General Manager (imports but writes no purchase order) is refused. Preview findings, commit with a GSTIN update and a person added, and rollback.
+- Additions to shared tests:
+  - The agent refusal sweep: `U1_QUOTE_INPUTS` and the five vendor commands.
+  - `refusal-coverage.test.ts`: four reviewed entries, because the vendor master has no company.
+  - `reader-parity.test.ts`: `listVendors` and `getVendor`.
+  - `files.test.ts` and the role × company matrix: `vendor_quote`.
+  - `purposes.test.ts`.
+  - `apps/web/src/screens/procurement.test.ts`: 3 tests for the rate and quantity formats.
+
+**Checks run in the VM (24-11-2026 IST):**
+- `pnpm typecheck`: 10 of 10 tasks pass.
+- `pnpm lint` (whole repository, final): passes, exit 0.
+- `pnpm test` (unit): 10 of 10 tasks pass:
+  - contracts 322
+  - db 161
+  - domain 2,595
+  - web 1,210 (1 skipped)
+  - ui 107
+  - tokens 146
+  - voice 49
+  - voice-agent 23
+  - copy-lint 17
+- `pnpm test:security`:
+  - **db:** 1,679 of 1,680 passed on the last run. The one failure is `alert-counts.test.ts` "counts failed and waiting rows…", which inserts a voice session started 40 minutes ago and expects it in the India day. The run was at 00:32 IST, so the session fell on the previous day. It is a time-of-day flake, and it passed (1,680 of 1,680) on the early-check run at 18:05 UTC.
+  - **domain:** DOMAIN_RESULT
+  - **web:** 460 of 460, run on its own. Run beside the domain suite with `turbo --only`, five event-delivery cases failed because both suites shared the outbox; the full run orders the suites.
+- `pnpm copy-lint`: clean.
+- `pnpm db:docs` and `machines:docs`: regenerated.
+- `pnpm build`: passes, with `/procurement`, `/procurement/compare` and `/procurement/vendors` built.
+- `pnpm --filter web js-budget`:
+  - The three new pages are inside their new budgets: vendors 227.5 of 239 kB, compare 198.1 of 208, `/procurement` 190.2 of 200.
+  - **Two existing pages are now just over:** `/admin/integrations` 240.1 kB against 240, and `/calling` 206.6 kB against 206. They have drifted up over several slices (`/calling` measured 196.6 kB on 05-10-2026). This slice adds a menu item, an icon and a few shared values to every page's shell.
+  - I did not raise another page's budget. That is the lead's or owner's call.
+- `python3 tools/integration/check-doc-links.py`: one finding, `ORPHAN docs/runs/phase3/u1-vendors.md`. The run file is not linked from `docs/runs/phase3/readme.md`, which is the lead's file, so I left it.
+
+**`EXPLAIN (ANALYZE)` as `app_user` under the policies**, on synthetic rows that were removed afterwards (2,083 items, 650 vendors, 6,000 item links, 30,000 quotes over four companies and the group, a fifth of them expired):
+- `listVendors`, first page: `Index Scan using vendors_active_name_idx` with `Index Cond: (is_active = true)`, the item count by `item_vendors_vendor_idx` per row. 0.95 ms.
+- `compareQuotes`, company 1, cable: `BitmapOr` on `vendor_quotes_entity_idx` (group and company 1, about 12,000 rows each) hash-joined to the category's items (`items_category_idx`). 1,193 cells in 8.2 ms.
+- A vendor's quotes (`getVendor`, 50 quotes): `Bitmap Index Scan on vendor_quotes_vendor_idx`. 1.2 ms.
+
+**Not run here, for the lead on the PC:**
+- The journeys and their Linux baselines (`pnpm --filter web e2e:seed && pnpm --filter web exec playwright test procurement.spec.ts`, then `e2e:snap -- procurement.spec.ts`). They cannot sign in here, because this environment's network refuses `challenges.cloudflare.com`. The spec, its seed and `users.ts` typecheck and lint clean, but they have never run.
+- Expected screenshots: `procurement-vendors`, `procurement-vendor-sheet-no-rates` and `procurement-compare`. The rows pictured are seeded only, and the dates are in masked `time` elements.
+
+**For the lead at integration:**
+- **Migrations to renumber:** 0229 to 0233. The DATABASE rows name 0229, which `docs/data` checks.
+- **The owner's `checks-ok` label is needed:** this pull request changes `js-budget.json`.
+- **Shared points touched, one block each, marked U1:**
+  - `packages/db/src/testing/index.ts` and the matrix fixture
+  - `grants.test.ts`, `role-entity-matrix.test.ts`, `files.test.ts`, `agent-refusals.test.ts`, `refusal-coverage.test.ts`, `reader-parity.test.ts`
+  - the event catalogue, the registry, the domain index
+  - `en.json`, `nav.ts`, `session-gate.ts`, `client-namespaces.ts`
+  - `copy-lint.config.json`
+  - `audit.ts`, `contract-values.ts`
+  - the import framework files listed above
+  - `e2e/support/users.ts` and `e2e/setup/seed.ts`
+- **Likely overlaps:** C5's items import, and H1's or C5's own journey people.
+
+**Assumptions** (the brief and the early check left these open):
+1. **The comparison's unit.** C5's purchase units are not on this branch, so the comparison's rates are per the item's stock unit (`items.unit`). The screen says "Rates per {unit}". Once C5 merges, the column and the words change to the purchase unit.
+2. **Who imports vendors.** A vendor list is imported only by a holder of both `imports.write` and `procurement.po.write`, which today is only the Executive. The Inventory Manager holds no `imports.write`, and I did not change the permission matrix.
+3. **Updating by GSTIN.** An import row with a known GSTIN updates the name and the fields the row gives; fields left blank keep what the vendor has.
+4. **Where a group quote's document lives.** A group quote's document is stored in the first company the person may record quotes for, and is read with `procurement.rate.read` in that company. A holder acting only in another company sees the quote but cannot open its document.
+5. **Quote dates.** A quote that has already ended is refused (`vendor_quote_ended`). One that starts later is accepted, shown as "Starts later", and left out of the comparison until it starts.
+6. **Withdrawing a quote.** An Inventory Manager withdraws only their own company's quotes. A group quote is withdrawn from a request covering every company.
+7. **Replayed answers.** The record and withdraw answers carry the rate and are stored as the caller's idempotency answer in `idempotency_keys`, which is scoped to the caller, a holder of the grant.
+8. **The comparison is not in the reader parity list.** Its name does not match that test's query-name pattern. Its row security on the reader pool is covered by `vendors.test.ts`, which reads `vendor_quotes` on both pools.
+
+**Review checklist, checked:**
+- **No rate leaks to a person without `procurement.rate.read`:** no DTO, export (none exists), event, audit value or input, notification (none sent), log line or error message carries one.
+- **The General Manager and the Store Manager:** see vendors and no rate on every screen and route. The comparison page is not found for them and its query refuses them. `vendor_quote` files are unreadable to them.
+- **Company isolation:** a company's quote is invisible to another company's holder, on both pools.
+- **Expired quotes:** the comparison never marks one lowest.
