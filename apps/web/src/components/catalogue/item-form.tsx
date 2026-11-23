@@ -21,13 +21,12 @@ import { createItem, updateItem } from '../../actions/catalogue';
 import { specNumber } from '../../screens/catalogue';
 import {
   BARCODE_MAX_LENGTH,
-  ITEM_CATEGORIES,
   ITEM_SPEC_FIELDS,
-  ITEM_UNITS,
   NON_STOCK_CATEGORIES,
   SERIAL_PATTERN_MAX,
   WARRANTY_MONTHS_MAX,
-} from '../../screens/contract-values';
+} from '../../screens/catalogue-values';
+import { ITEM_CATEGORIES, ITEM_UNITS } from '../../screens/contract-values';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';

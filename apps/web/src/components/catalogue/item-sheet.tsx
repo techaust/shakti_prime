@@ -22,7 +22,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { archiveItem, getItem } from '../../actions/catalogue';
-import { ITEM_SPEC_FIELDS } from '../../screens/contract-values';
+import { ITEM_SPEC_FIELDS } from '../../screens/catalogue-values';
 import { curvePath } from '../../screens/catalogue';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';

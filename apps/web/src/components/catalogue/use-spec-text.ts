@@ -4,13 +4,12 @@ import type { ItemCategory, ItemUnit } from '@shakti/contracts';
 import { useTranslations } from 'next-intl';
 import { oneOf, wordsOf } from '../../screens/audit';
 import {
-  ITEM_CATEGORIES,
-  ITEM_UNITS,
   NUMERIC_SPEC_KEYS,
   SPEC_KEYS,
   type NumericSpecKey,
   type SpecKey,
-} from '../../screens/contract-values';
+} from '../../screens/catalogue-values';
+import { ITEM_CATEGORIES, ITEM_UNITS } from '../../screens/contract-values';
 
 /** The words for an item's category, unit and specifications, for every screen that shows them. */
 export function useCatalogueText() {
