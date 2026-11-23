@@ -112,6 +112,11 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   lead_qualifications: 'x.opportunity_id::text',
   provider_calls: 'x.id::text',
   copilot_notes: 'x.id::text',
+  // U1 vendors and supplier quotes.
+  vendors: 'x.id::text',
+  vendor_contacts: 'x.id::text',
+  item_vendors: 'x.id::text',
+  vendor_quotes: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -236,6 +241,11 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from knowledge_chunks where id::text like ${like}`;
       await tx`delete from knowledge_files where id::text like ${like}`;
       await tx`delete from files where id::text like ${like}`;
+      // U1: the quotes, links and contacts name the vendor and the matrix item.
+      await tx`delete from vendor_quotes where id::text like ${like}`;
+      await tx`delete from item_vendors where id::text like ${like}`;
+      await tx`delete from vendor_contacts where id::text like ${like}`;
+      await tx`delete from vendors where id::text like ${like}`;
       await tx`delete from item_costs where id::text like ${like}`;
       await tx`delete from items where id::text like ${like}`;
       await tx`delete from document_sequences where id::text like ${like}`;
@@ -377,6 +387,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     lead_qualifications: [],
     provider_calls: [],
     copilot_notes: [],
+    // U1 vendors and supplier quotes.
+    vendors: [],
+    vendor_contacts: [],
+    item_vendors: [],
+    vendor_quotes: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -886,6 +901,30 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: otherRole, entities: only },
         );
       }
+
+      // U1: one vendor of the group, with a contact and the matrix item, read acting in any
+      // company; a quote of the group and one of each company.
+      const vendor = id(0x0601);
+      const vendorContact = id(0x0602);
+      const itemVendor = id(0x0603);
+      const groupQuote = id(0x0604);
+      await tx`insert into vendors (id, name, created_by) values (${vendor}, 'matrix vendor', ${ownerId})`;
+      await tx`insert into vendor_contacts (id, vendor_id, name, position, created_by)
+        values (${vendorContact}, ${vendor}, 'matrix vendor person', 1, ${ownerId})`;
+      await tx`insert into item_vendors (id, item_id, vendor_id, created_by)
+        values (${itemVendor}, ${item}, ${vendor}, ${ownerId})`;
+      await tx`insert into vendor_quotes (id, vendor_id, item_id, entity_id, rate, valid_from, valid_until, recorded_by)
+        values (${groupQuote}, ${vendor}, ${item}, null, 90.0000, '2090-01-01', '2090-12-31', ${ownerId})`;
+      for (const e of ALL_ENTITY_IDS) {
+        await tx`insert into vendor_quotes (id, vendor_id, item_id, entity_id, rate, valid_from, valid_until, recorded_by)
+          values (${per(e, 0x80)}, ${vendor}, ${item}, ${e}, 95.0000, '2090-01-01', '2090-12-31', ${ownerId})`;
+        rows.vendor_quotes.push({ key: per(e, 0x80), entities: [e] });
+      }
+      const everyCompany = [...ALL_ENTITY_IDS];
+      rows.vendors.push({ key: vendor, entities: everyCompany });
+      rows.vendor_contacts.push({ key: vendorContact, entities: everyCompany });
+      rows.item_vendors.push({ key: itemVendor, entities: everyCompany });
+      rows.vendor_quotes.push({ key: groupQuote, entities: null });
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.
       const team1 = teamIds[1] ?? '';

@@ -393,6 +393,13 @@ export const ENTITY_TABLES = [
   // a person's own Talk to Shakti sessions, and everyone's to the Executive, read in a request
   // covering every company the session covers (docs/03-roadmap-appendix/phase2.md §7.5)
   'voice_sessions',
+  // U1: the group's vendor master, read acting in any company with inventory.stock.read or
+  // procurement.po.write; supplier quotes, of the group or of one company, read only with
+  // procurement.rate.read (docs/03-roadmap-appendix/phase3.md §6.3)
+  'vendors',
+  'vendor_contacts',
+  'item_vendors',
+  'vendor_quotes',
 ] as const;
 
 /**

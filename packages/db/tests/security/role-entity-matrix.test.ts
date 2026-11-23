@@ -78,6 +78,13 @@ const AGENT_CONTROLS: Rule = {
 };
 const INBOX = grant('agents.inbox.act', 'own');
 
+/** U1: the vendor master's readers, and the supplier rates' (docs/03-roadmap-appendix/phase3.md §6.3). */
+const VENDOR_READ: Rule = {
+  kind: 'any',
+  rules: [grant('inventory.stock.read', 'own'), grant('procurement.po.write', 'entity')],
+};
+const RATE_READ = grant('procurement.rate.read', 'entity');
+
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
@@ -348,6 +355,14 @@ const RULES: Record<MatrixTable, TableRule> = {
     throughLead: LEAD_READ,
     leak: accountOutside('x.account_id'),
   },
+  // U1: the group's vendor master has no company, so no row of it is another company's; it is
+  // read acting in any company with inventory.stock.read or procurement.po.write. A supplier
+  // quote is read only with procurement.rate.read: the group's acting in any company, a company's
+  // acting in that company (docs/03-roadmap-appendix/phase3.md §6.3).
+  vendors: { read: VENDOR_READ, leak: () => sql`false` },
+  vendor_contacts: { read: VENDOR_READ, leak: () => sql`false` },
+  item_vendors: { read: VENDOR_READ, leak: () => sql`false` },
+  vendor_quotes: { read: RATE_READ, group: RATE_READ, leak: otherCompany },
 };
 
 const TABLES = Object.keys(RULES) as MatrixTable[];

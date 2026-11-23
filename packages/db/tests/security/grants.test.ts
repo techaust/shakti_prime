@@ -180,6 +180,13 @@ describe('app_user role (docs/05-database.md §3)', () => {
     copilot_notes: { i: true, u: false },
     // Written only through the voice definers (0190): app_user reads it and nothing more.
     voice_sessions: { i: false, u: false },
+    // U1: a vendor and an item link change only their own columns (column grants); contacts are
+    // replaced as a set and a link removed when the vendor stops supplying the item; a supplier
+    // quote is written once and changes only its withdrawal (column grants).
+    vendors: { i: true, u: false },
+    vendor_contacts: { i: true, u: false, d: true },
+    item_vendors: { i: true, u: false, d: true },
+    vendor_quotes: { i: true, u: false },
   };
 
   /**
