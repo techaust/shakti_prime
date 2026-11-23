@@ -334,6 +334,41 @@ const PEOPLE_ONLY: AnyCommand[] = Object.values(commands as Record<string, AnyCo
 
 /** A valid input for each command for people only, so the refusal comes from the guard. */
 const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
+  // H1 stock ledger: hubs, bins and stock moved by hand are people's work in Phase 3.
+  'inventory.hub.create': {
+    code: 'REFUSED',
+    name: 'Refused hub',
+    kind: 'godown',
+    stateCode: '08',
+    pinCode: '302022',
+  },
+  'inventory.hub.update': {
+    hubId: newId(),
+    code: 'REFUSED',
+    name: 'Refused hub',
+    stateCode: '08',
+    pinCode: '302022',
+  },
+  'inventory.hub.archive': { hubId: newId() },
+  'inventory.bin.create': { hubId: newId(), code: 'REFUSED', kind: 'storage' },
+  'inventory.bin.update': { binId: newId(), code: 'REFUSED' },
+  'inventory.bin.archive': { binId: newId() },
+  'inventory.stock.transfer': {
+    entityId: 1,
+    itemId: newId(),
+    fromBinId: newId(),
+    toBinId: newId(),
+    qty: '1',
+  },
+  'inventory.stock.adjust': {
+    entityId: 1,
+    itemId: newId(),
+    binId: newId(),
+    adjustment: 'gain',
+    qty: '1',
+    note: 'Refused gain',
+  },
+  'inventory.stock.reverse': { entityId: 1, movementId: newId() },
   // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
   ...Object.fromEntries(
     [
