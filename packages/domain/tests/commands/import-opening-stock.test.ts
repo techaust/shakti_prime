@@ -6,6 +6,7 @@ import {
   createReadyImportFile,
   createTestPrincipal,
 } from '@shakti/db/testing';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { z } from 'zod';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -191,31 +192,42 @@ describe('the opening stock import', () => {
     expect(await onHand(ENTITY, f.binA, f.cable)).toBe('3.000');
   });
 
-  it('is refused at commit to a holder of imports.write without inventory.stock.adjust', async () => {
+  it('is refused to a holder of imports.write without finance.cost.read, who never reads its rows', async () => {
     const gm = await createTestPrincipal('general_manager', [ENTITY]);
-    // The General Manager holds imports.write but moves no stock: the ledger refuses the batch.
-    await clearOpenings();
     const parsed = await parseImportFile(
       new TextEncoder().encode(`Hub,Bin,SKU,Qty,Cost\nH${f.tag},A1,SC-${f.tag},1,1`),
     );
     const fileId = await createReadyImportFile(ENTITY, gm.id, { name: 'opening.csv' });
-    const asGm = <I extends z.ZodType, O extends z.ZodType>(c: Command<I, O>, input: unknown) =>
-      asPrincipal(gm, (context) => runCommand(c, { context, audit, outbox }, input));
-    const job = await asGm(createImportJob, {
-      entityId: ENTITY,
-      kind: 'opening_stock',
-      fileId,
-      format: parsed.format,
-      columns: parsed.columns,
-      rows: parsed.rows,
+    await expect(
+      asPrincipal(gm, (context) =>
+        runCommand(
+          createImportJob,
+          { context, audit, outbox },
+          {
+            entityId: ENTITY,
+            kind: 'opening_stock',
+            fileId,
+            format: parsed.format,
+            columns: parsed.columns,
+            rows: parsed.rows,
+          },
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    // The Executive's job, its rows and its file stay out of the General Manager's sight.
+    const job = await previewed(`Hub,Bin,SKU,Qty,Cost\nH${f.tag},A1,SC-${f.tag},1,77.5`);
+    const seen = await asPrincipal(gm, async ({ tx }) => {
+      const rows = (await tx.execute(sql`
+        select (select count(*)::int from import_rows where job_id = ${job.id}) as rows,
+               (select count(*)::int from import_jobs where id = ${job.id}) as jobs,
+               (select count(*)::int from files f join import_jobs j on j.file_id = f.id
+                 where j.id = ${job.id}) as files`)) as unknown as {
+        rows: number;
+        jobs: number;
+        files: number;
+      }[];
+      return rows[0];
     });
-    await asGm(mapImportJob, { entityId: ENTITY, jobId: job.id, mapping: mappingFor(parsed.columns) });
-    await asGm(previewImportJob, { entityId: ENTITY, jobId: job.id });
-    let current = await asGm(commitImportJob, { entityId: ENTITY, jobId: job.id });
-    while (current.state === 'committing') {
-      current = await asGm(commitImportBatch, { entityId: ENTITY, jobId: job.id });
-    }
-    expect(current.state).toBe('failed');
-    expect(await onHand(ENTITY, f.binA, f.cable)).toBe('0.000');
+    expect(seen).toEqual({ rows: 0, jobs: 1, files: 0 });
   });
 });

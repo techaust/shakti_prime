@@ -702,3 +702,20 @@ $$;
 revoke execute on function app.item_serial_nos(uuid) from public, readonly_reporter, app_reader;
 --> statement-breakpoint
 grant execute on function app.item_serial_nos(uuid) to app_user;
+--> statement-breakpoint
+
+-- 14. An opening stock import carries each row's unit cost, in its rows and in its uploaded file:
+--     only a holder of finance.cost.read reads either, whoever else holds imports.write (the
+--     General Manager). Restrictive, beside the policies of 0041 and 0062; the file checks
+--     (files.process) still read the file.
+create policy import_rows_opening_cost on import_rows as restrictive for select to app_user, app_reader using (
+  (select app.has_perm('finance.cost.read:entity'))
+  or not exists (select 1 from import_jobs j
+                  where j.id = import_rows.job_id and j.kind = 'opening_stock'));
+--> statement-breakpoint
+create policy files_opening_cost on files as restrictive for select to app_user, app_reader using (
+  purpose <> 'import'
+  or (select app.has_perm('finance.cost.read:entity'))
+  or (select app.has_perm('files.process:entity'))
+  or not exists (select 1 from import_jobs j
+                  where j.file_id = files.id and j.kind = 'opening_stock'));
