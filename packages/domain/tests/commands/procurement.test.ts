@@ -627,8 +627,9 @@ describe('the vendor sheet and the comparison', () => {
       }),
     );
     expect(second.rows).toHaveLength(1);
-    const names = [first.rows[0]?.itemName ?? '', second.rows[0]?.itemName ?? ''];
-    expect(names[0] <= names[1]).toBe(true);
+    const firstName = first.rows[0]?.itemName ?? '';
+    const secondName = second.rows[0]?.itemName ?? '';
+    expect(firstName <= secondName).toBe(true);
     expect(second.rows[0]?.itemId).not.toBe(first.rows[0]?.itemId);
   });
 

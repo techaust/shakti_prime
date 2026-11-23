@@ -167,16 +167,6 @@ export async function compareQuotes(
          and exists (select 1 from vendor_quotes q where q.item_id = i.id and ${shown})
        order by i.name, i.id
        limit ${input.limit + 1}
-    ),
-    cells as (
-      select distinct on (q.item_id, q.vendor_id)
-             q.item_id, q.vendor_id, q.id, q.entity_id, q.rate, q.moq, q.lead_time_days,
-             q.valid_until, q.file_id, (q.valid_until >= ${today}::date) as live
-        from vendor_quotes q
-       where q.item_id in (select id from page) and ${shown}
-       order by q.item_id, q.vendor_id, (q.valid_until >= ${today}::date) desc,
-                case when q.valid_until >= ${today}::date then q.rate end asc,
-                q.valid_until desc, q.id
     )
     select p.id as "itemId", p.sku, p.name as "itemName", p.category, p.unit,
            c.vendor_id as "vendorId", v.name as "vendorName", c.id as "quoteId",
@@ -184,7 +174,18 @@ export async function compareQuotes(
            c.lead_time_days as "leadTimeDays", c.valid_until::text as "validUntil", c.live,
            c.file_id as "fileId"
       from page p
-      join cells c on c.item_id = p.id
+      -- Each item's cells on their own, so the item's quotes are read by vendor_quotes_item_idx
+      -- (EXPLAIN in the U1 fixes report).
+      cross join lateral (
+        select distinct on (q.vendor_id)
+               q.vendor_id, q.id, q.entity_id, q.rate, q.moq, q.lead_time_days, q.valid_until,
+               q.file_id, (q.valid_until >= ${today}::date) as live
+          from vendor_quotes q
+         where q.item_id = p.id and ${shown}
+         order by q.vendor_id, (q.valid_until >= ${today}::date) desc,
+                  case when q.valid_until >= ${today}::date then q.rate end asc,
+                  q.valid_until desc, q.id
+      ) c
       join vendors v on v.id = c.vendor_id
      order by p.name, p.id, v.name, v.id`)) as unknown as CellRow[];
 
