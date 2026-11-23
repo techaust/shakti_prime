@@ -6,8 +6,8 @@
 | Runs on | a seat session (a cloud session under another of the owner's accounts, taking its work from `ops/seats`); the lead on the PC reviews and integrates (owner, 23-11-2026) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): tests and test helpers, one runtime guard |
 | Usage | 5-hour window 4 % on the lead's account at 18:30 UTC when briefed; builder on Opus 5.5 at high effort; builder started on seat 2 on Opus 5.5 at high effort (23-11-2026) and ended on the same model and effort; the fix round started on seat 4 on Opus 5.5 at high effort (24-11-2026) and ended on the same model and effort; the second fix round, on seat 4, started and ended on Opus 5.5 at high effort (24-11-2026) |
-| State | briefed |
-| Next step | the builder's report |
+| State | integrated on the PC; pull request open |
+| Next step | merge on green |
 
 ## Brief
 Four open follow-ups from [STATUS](../../10-status.md#open-follow-ups), one commit each with its test. Read each item's row in STATUS before changing anything; if an item is already fixed on this branch, say so with the evidence and change nothing for it.
@@ -219,3 +219,5 @@ Every step of `integrate.sh` passed except the journeys. On a fresh database (`f
 - Make the axe wait cover toasts: before `waitUntilStill`, wait (within the same 2 seconds) until every `[data-sonner-toast]` is mounted and its computed opacity is 1 (or no toast is present), then run `waitUntilStill`; a unit test on a stand-in page whose toast starts its fade after the first look.
 - Make the spec's clean-up complete: when the leftover button is there, click it, confirm its dialog, and wait for "Not set".
 - Prove it on the VM: `channels.spec.ts` ten times in a row, each run after a fresh `e2e:seed`, plus one run where the test's first attempt is made to fail after setting the number (by hand, then reverted) to show the retry recovers.
+
+**Integration, after the second fix round (the lead, 24-11-2026):** `channels.spec.ts` and `notifications.spec.ts` on a fresh database passed (37 passed, 4 skipped); `main` taken in again (with `web-push` 4.0.0); `eslint --max-warnings 0` on `apps/web/e2e` and the two test files, and `axe.test.ts` (10), passed. The first integration's other steps (lint, format, copy-lint, generated, typecheck, unit, security, `db:verify`, audit, build, budget, gitleaks) passed before the second round, which changed only `axe.ts`, its test and `channels.spec.ts`.
