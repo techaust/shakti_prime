@@ -5,8 +5,8 @@
 | Branch | `feat/h1-stock-ledger` on GitHub, from the approved design at a549b0d8 (`main` 334a6d0b plus the design) |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the stock ledger, its costs and row security |
-| Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done |
-| State | briefed |
+| Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder started on Opus 5.5 at high effort (cloud session, 23-11-2026) |
+| State | building |
 | Next step | the builder's early check |
 
 ## Brief
