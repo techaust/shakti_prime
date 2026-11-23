@@ -9,8 +9,11 @@ export const GstStateCodeSchema = StateCodeSchema.refine((code) => {
   return (n >= 1 && n <= 38) || n === 97;
 });
 
-/** A company's GSTIN as an Executive types it: spaces trimmed, letters in capitals. */
-const EntityGstinSchema = z
+/**
+ * A GSTIN as a person types it: spaces trimmed, letters in capitals, its first two digits a GST
+ * state code. A company's (here) and a vendor's (`procurement/vendors.ts`) are checked alike.
+ */
+export const EntityGstinSchema = z
   .string()
   .trim()
   .toUpperCase()
