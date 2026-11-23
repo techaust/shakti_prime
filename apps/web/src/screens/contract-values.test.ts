@@ -71,6 +71,10 @@ import {
   CUSTOMER_SORT_COLUMNS as CONTRACT_CUSTOMER_SORT_COLUMNS,
   ITEM_SORT_COLUMNS as CONTRACT_ITEM_SORT_COLUMNS,
   ITEM_SPEC_FIELDS as CONTRACT_ITEM_SPEC_FIELDS,
+  NON_STOCK_CATEGORIES as CONTRACT_NON_STOCK_CATEGORIES,
+  SERIAL_PATTERN_MAX as CONTRACT_SERIAL_PATTERN_MAX,
+  WarrantyMonthsSchema,
+  BarcodeSchema,
   ItemCategorySchema,
   ItemUnitSchema,
   KIT_PRICE_SORT_COLUMNS as CONTRACT_KIT_PRICE_SORT_COLUMNS,
@@ -174,6 +178,10 @@ import {
   ITEM_CATEGORIES,
   ITEM_SORT_COLUMNS,
   ITEM_SPEC_FIELDS,
+  NON_STOCK_CATEGORIES,
+  SERIAL_PATTERN_MAX,
+  WARRANTY_MONTHS_MAX,
+  BARCODE_MAX_LENGTH,
   ITEM_UNITS,
   NUMERIC_SPEC_KEYS,
   SPEC_KEYS,
@@ -380,6 +388,12 @@ describe('the contract values copied for the browser', () => {
     expect(KIT_SORT_COLUMNS).toEqual(CONTRACT_KIT_SORT_COLUMNS);
     expect(KIT_PRICE_SORT_COLUMNS).toEqual(CONTRACT_KIT_PRICE_SORT_COLUMNS);
     expect(ITEM_SPEC_FIELDS).toEqual(CONTRACT_ITEM_SPEC_FIELDS);
+    expect(NON_STOCK_CATEGORIES).toEqual(CONTRACT_NON_STOCK_CATEGORIES);
+    expect(SERIAL_PATTERN_MAX).toBe(CONTRACT_SERIAL_PATTERN_MAX);
+    expect(WarrantyMonthsSchema.safeParse(WARRANTY_MONTHS_MAX).success).toBe(true);
+    expect(WarrantyMonthsSchema.safeParse(WARRANTY_MONTHS_MAX + 1).success).toBe(false);
+    expect(BarcodeSchema.safeParse('A'.repeat(BARCODE_MAX_LENGTH)).success).toBe(true);
+    expect(BarcodeSchema.safeParse('A'.repeat(BARCODE_MAX_LENGTH + 1)).success).toBe(false);
     const fields = Object.values(CONTRACT_ITEM_SPEC_FIELDS).flat();
     expect([...SPEC_KEYS].sort()).toEqual([...new Set(fields.map((f) => f.key))].sort());
     expect([...NUMERIC_SPEC_KEYS].sort()).toEqual(

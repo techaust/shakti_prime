@@ -849,6 +849,12 @@ export const ITEM_SPEC_FIELDS: Readonly<Record<ItemCategory, readonly SpecField[
   other: [],
 };
 
+/** Stock and warranty on the item form (C5): `NON_STOCK_CATEGORIES`, the months, the pattern. */
+export const NON_STOCK_CATEGORIES = ['other'] as const satisfies readonly ItemCategory[];
+export const WARRANTY_MONTHS_MAX = 360;
+export const SERIAL_PATTERN_MAX = 200;
+export const BARCODE_MAX_LENGTH = 64;
+
 /** Every specification key, and those measured in numbers (each has a unit on screen). */
 export const SPEC_KEYS = [
   'hp',

@@ -12,7 +12,6 @@ import { defineCommand } from '../../command/define-command';
 import { assertImportJobMove } from '../../imports/job-state';
 import { rollbackChunks } from '../../imports/row-key';
 import { recheckSitePins } from '../../imports/commit-pin-codes';
-import { archiveItem } from '../catalogue/items';
 import {
   assertEntityInScope,
   assertGroupImport,
@@ -199,7 +198,7 @@ export const rollbackImportJob = defineCommand({
             ? await leadsInUse(ctx.tx, job.id, ids)
             : NONE;
       if (kind === 'items') {
-        const items = await undoItems(ctx, ids);
+        const items = await undoItems(ctx, ctx.tx, ids);
         archived += items.archived;
         kept += items.kept;
       } else {
@@ -243,27 +242,38 @@ export const rollbackImportJob = defineCommand({
 });
 
 /**
- * Takes the items an items file added out of sale (C5), each through `catalogue.item.archive` in a
- * savepoint of its own, as the caller: an item a kit still sold holds is kept, and one already out
- * of sale is left as it is. Kept below the command that calls it, so the command's source names
- * the command it runs (event-emitters.test.ts reads it). The items a file changed keep the change, whose before and after the
- * Activity log holds. Answers how many were archived and kept.
+ * Takes the items an items file added out of sale (C5), one chunk at a time: the chunk's items
+ * are locked first, so no kit takes one on meanwhile; an item a kit still sold holds is kept, and
+ * one already out of sale is left as it is. The items a file changed keep the change, whose before
+ * and after the Activity log holds. The job's own audit row counts what was archived and kept, as
+ * a leads rollback does, rather than a row per item (a file of thousands of items in one
+ * transaction). The write policies of `items` allow it only in a request for every company.
  */
 async function undoItems(
   ctx: CommandContext,
+  tx: RequestTx,
   ids: readonly string[],
 ): Promise<{ archived: number; kept: number }> {
-  let archived = 0;
-  let kept = 0;
-  for (const itemId of ids) {
-    try {
-      await ctx.savepoint((sp) => ctx.run(archiveItem, { itemId }, { tx: sp }));
-      archived += 1;
-    } catch (error) {
-      const reason = error instanceof DomainError ? error.details?.reason : undefined;
-      if (reason === 'item_in_kit') kept += 1;
-      else if (reason !== 'catalogue_item_missing') throw error;
-    }
-  }
-  return { archived, kept };
+  if (ids.length === 0) return { archived: 0, kept: 0 };
+  const i = schema.items;
+  const visible = await tx
+    .select({ id: i.id })
+    .from(i)
+    .where(inArray(i.id, [...ids]))
+    .for('update');
+  if (visible.length !== new Set(ids).size) throw blocked();
+  const held = await tx
+    .selectDistinct({ id: schema.kitComponents.itemId })
+    .from(schema.kitComponents)
+    .innerJoin(schema.kits, eq(schema.kits.id, schema.kitComponents.kitId))
+    .where(and(inArray(schema.kitComponents.itemId, [...ids]), isNull(schema.kits.archivedAt)));
+  const inKit = new Set(held.map((h) => h.id));
+  const free = ids.filter((id) => !inKit.has(id));
+  if (free.length === 0) return { archived: 0, kept: inKit.size };
+  const changed = await tx
+    .update(i)
+    .set({ isActive: false, archivedAt: ctx.now, updatedBy: ctx.principal.id })
+    .where(and(inArray(i.id, free), isNull(i.archivedAt)))
+    .returning({ id: i.id });
+  return { archived: changed.length, kept: inKit.size };
 }

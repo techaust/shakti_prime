@@ -628,6 +628,6 @@ const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
     setBased() {
       return Promise.reject(new RowByRowNeeded('items go one by one through the item commands'));
     },
-    oneRow: (ctx, rowSp, jobId, row) => commitItemRow(ctx, rowSp, jobId, row),
+    oneRow: (ctx, rowSp, _jobId, row) => commitItemRow(ctx, rowSp, row),
   },
 };

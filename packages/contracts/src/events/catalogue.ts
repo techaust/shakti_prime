@@ -278,8 +278,7 @@ const eventCatalogue = {
   },
   'catalogue.item.archived': {
     meaning: 'An item was withdrawn from sale.',
-    // Undoing an items file takes the items it added out of sale (C5).
-    emittedBy: ['catalogue.item.archive', 'imports.job.rollback'],
+    emittedBy: ['catalogue.item.archive'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },

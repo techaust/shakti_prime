@@ -10,7 +10,6 @@ import type { CommandContext } from '../command/context';
 import { createItem, updateItem } from '../commands/catalogue/items';
 import type { BatchRow } from './commit-leads';
 import { planItemRow, type ExistingItem } from './items';
-import { importRowKey } from './row-key';
 
 /** Codes and barcodes looked up per statement. */
 const CHUNK = 1000;
@@ -83,14 +82,13 @@ export async function skusByBarcode(
  * Commits one row of an items file in the row's own savepoint (phase3 §6.1): the item with the
  * row's code is found again and locked, and the row runs `catalogue.item.update` over it, or
  * `catalogue.item.create` for a new code, as the caller, each with its own guard, audit row and
- * event, and the idempotency key `import:{job}:{row}`. Answers the item a new code made, or none
+ * event. Answers the item a new code made, or none
  * for an item changed. A row the catalogue no longer takes throws `ItemRowRefused` with its
  * finding, so the savepoint takes back anything it did.
  */
 export async function commitItemRow(
   ctx: CommandContext,
   tx: RequestTx,
-  jobId: string,
   row: BatchRow,
 ): Promise<{ id: string | null }> {
   const input: ItemImportRow = ItemImportRowInput.parse(row.input);
@@ -104,7 +102,9 @@ export async function commitItemRow(
   if (plan.kind === 'refused') {
     throw new ItemRowRefused(plan.errors[0] ?? { field: 'row', code: 'invalid' });
   }
-  const options = { tx, idempotencyKey: importRowKey(jobId, row.rowNo), inImportBatch: true };
+  // No idempotency key: the row finds its item by code again, so running it twice changes nothing
+  // more, and each key would cost two statements a row.
+  const options = { tx, inImportBatch: true };
   try {
     if (plan.kind === 'create') {
       const made = await ctx.run(createItem, plan.input, options);
