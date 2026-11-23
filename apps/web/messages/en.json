@@ -6260,7 +6260,7 @@
       "empty": "No movements yet.",
       "none": "None",
       "binIn": "{bin} in {hub}",
-      "reversed": "Reversed",
+      "reversed": "Undone by a reversal",
       "reverse": "Reverse",
       "columns": {
         "when": "When",
@@ -6402,7 +6402,8 @@
         "qty": "Quantity",
         "avgCost": "Average cost",
         "value": "Value"
-      }
+      },
+      "dateFuture": "A date after today shows today's stock."
     },
     "serial": {
       "title": "Serial number",

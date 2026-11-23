@@ -83,9 +83,11 @@ export const OPEN_STOCK_REASONS = {
   transfer: 'inventory.stock.move',
 } as const satisfies Partial<Record<StockReason, string>>;
 
-/** The movements a person may reverse; a receipt or an issue is reversed by its own document. */
+/**
+ * The movements a person may reverse; opening stock, a receipt or an issue is reversed by its own
+ * document (the opening import's rollback, the receipt, the dispatch).
+ */
 export const REVERSIBLE_STOCK_REASONS = [
-  'opening',
   'adjust_gain',
   'adjust_loss',
   'damage',

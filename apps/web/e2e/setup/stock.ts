@@ -84,22 +84,32 @@ export async function ensureStockJourneys(executiveId: string): Promise<void> {
       const [held] = await m<{ n: number }[]>`
         select count(*)::int as n from stock_movements
          where entity_id = ${SNAPSHOT_COMPANY.entityId} and item_id = ${itemId}`;
-      if ((held?.n ?? 0) > 0) continue;
-      await m.begin(async (tx) => {
-        await tx`select set_config('app.user_id', ${executiveId}, true),
+      if ((held?.n ?? 0) === 0) {
+        await m.begin(async (tx) => {
+          await tx`select set_config('app.user_id', ${executiveId}, true),
                         set_config('app.entity_ids', ${`{${String(SNAPSHOT_COMPANY.entityId)}}`}, true),
                         set_config('app.permissions', 'inventory.stock.adjust:entity', true)`;
-        await tx`select app.stock_move(${tx.json([
-          {
-            reason: 'adjust_gain',
-            entity_id: SNAPSHOT_COMPANY.entityId,
-            item_id: itemId,
-            to_bin_id: snapBin,
-            qty: String(item.qty),
-            unit_cost: item.cost,
-            note: 'Snapshot stock',
-          },
-        ])})`;
+          await tx`select app.stock_move(${tx.json([
+            {
+              reason: 'adjust_gain',
+              entity_id: SNAPSHOT_COMPANY.entityId,
+              item_id: itemId,
+              to_bin_id: snapBin,
+              qty: String(item.qty),
+              unit_cost: item.cost,
+              note: 'Snapshot stock',
+            },
+          ])})`;
+        });
+      }
+      // Dated to the snapshot's own day, so the valuation at that day never changes.
+      await m.begin(async (tx) => {
+        await tx`alter table stock_movements disable trigger stock_movements_append_only`;
+        await tx`update stock_movements
+                    set moved_at = (${snap.date}::date + time '10:00') at time zone 'Asia/Kolkata'
+                  where entity_id = ${SNAPSHOT_COMPANY.entityId} and item_id = ${itemId}
+                    and moved_at <> (${snap.date}::date + time '10:00') at time zone 'Asia/Kolkata'`;
+        await tx`alter table stock_movements enable trigger stock_movements_append_only`;
       });
     }
   });

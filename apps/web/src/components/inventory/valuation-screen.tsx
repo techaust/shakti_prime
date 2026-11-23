@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState, type SyntheticEvent } from 'react';
 import { formatRupees } from '../../screens/format';
-import { formatQty } from '../../screens/inventory';
+import { formatQty, istDate, rupeesOfRate } from '../../screens/inventory';
 import { useCatalogueText } from '../catalogue/use-spec-text';
 import { formText } from '../screens/form-data';
 
@@ -27,8 +27,11 @@ import { formText } from '../screens/form-data';
 export function ValuationScreen({
   valuation,
   companies,
+  futureAsked = false,
 }: {
   valuation: StockValuationDto;
+  /** The address asked for a date after today, which reads as today. */
+  futureAsked?: boolean;
   /** The companies the caller may choose between, by id. */
   companies: Record<number, string>;
 }) {
@@ -42,7 +45,7 @@ export function ValuationScreen({
     e.preventDefault();
     const company =
       formText(new FormData(e.currentTarget), 'company') || String(valuation.entityId);
-    if (date === undefined) {
+    if (date === undefined || date > istDate(new Date())) {
       setProblem(true);
       return;
     }
@@ -58,7 +61,7 @@ export function ValuationScreen({
       id: 'avgCost',
       header: t('columns.avgCost'),
       numeric: true,
-      cell: (r) => formatRupees(r.avgCost.replace(/(\.\d{2})\d*$/, '$1')),
+      cell: (r) => formatRupees(rupeesOfRate(r.avgCost)),
     },
     { id: 'value', header: t('columns.value'), numeric: true, cell: (r) => formatRupees(r.value) },
   ];
@@ -98,6 +101,11 @@ export function ValuationScreen({
           <Button type="submit">{t('apply')}</Button>
         </div>
       </form>
+      {futureAsked ? (
+        <p role="status" className="text-text-muted text-sm">
+          {t('dateFuture')}
+        </p>
+      ) : null}
       <DataGrid
         caption={t('caption')}
         columns={columns}
@@ -105,9 +113,11 @@ export function ValuationScreen({
         rowKey={(r) => `${r.hubId}/${r.category}`}
         empty={<EmptyState message={t('empty')} />}
       />
-      <p className="text-right font-semibold">
-        {t('total', { value: formatRupees(valuation.total) })}
-      </p>
+      {valuation.rows.length === 0 ? null : (
+        <p className="text-right font-semibold">
+          {t('total', { value: formatRupees(valuation.total) })}
+        </p>
+      )}
     </div>
   );
 }

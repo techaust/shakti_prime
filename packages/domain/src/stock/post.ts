@@ -32,7 +32,7 @@ export async function postStockMoves(
       before: null,
       after: {
         stockReason: line?.stockReason,
-        quantity: line?.quantity,
+        quantity: line === undefined ? undefined : Number(line.quantity),
         serialNo: line?.serialNo ?? null,
         adjustNote: note,
       },

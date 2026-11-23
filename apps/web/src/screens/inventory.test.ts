@@ -3,6 +3,7 @@ import {
   formatQty,
   istDate,
   quantityFromTyped,
+  rupeesOfRate,
   serialHref,
   serialsFromTyped,
   stockCardHref,
@@ -29,6 +30,13 @@ describe('stock screens', () => {
     expect(serialsFromTyped('A1\na1')).toBeUndefined();
     expect(serialsFromTyped('  \n ')).toBeUndefined();
     expect(serialsFromTyped('x'.repeat(101))).toBeUndefined();
+  });
+
+  it('round a unit cost to paise, half up', () => {
+    expect(rupeesOfRate('42.3456')).toBe('42.35');
+    expect(rupeesOfRate('42.3449')).toBe('42.34');
+    expect(rupeesOfRate('0.0050')).toBe('0.01');
+    expect(rupeesOfRate('99.9950')).toBe('100.00');
   });
 
   it('link the stock card and a serial in their company', () => {

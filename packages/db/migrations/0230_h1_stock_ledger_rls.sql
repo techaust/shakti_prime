@@ -250,9 +250,14 @@ revoke execute on function app.stock_bin(uuid) from public, readonly_reporter, a
 --     The caller's grant is checked per reason from the request's settings: opening, adjust_gain,
 --     adjust_loss, damage, count and reversal need inventory.stock.adjust for the company, transfer
 --     inventory.stock.move; every other reason is refused (stock_reason_not_open) until the slice
---     that opens it. Rows are locked in one fixed order on every path: the balances by (company,
---     hub, bin, item) after inserting the missing ones, then item_costs by (company, item), then
---     the serials by id; the checks that depend on what is held run after the locks.
+--     that opens it. Rows are locked in one fixed order on every path: an opening batch's company
+--     (a transaction advisory lock), then the hubs its bins belong to `for share` by id, then the
+--     bins `for share` by id, then the balances by (company, hub, bin, item) after inserting the
+--     missing ones, then item_costs by (company, item), then the serials by id; the checks that
+--     depend on what is held (a bin or hub archived meanwhile among them) run after the locks.
+--     The hub and bin archive commands lock their row `for update` before their guard reads the
+--     balances, so an archive waits for every movement in flight into or out of the bin, and a
+--     movement that waited on an archive sees the bin archived.
 --     Costs (question 2 (a)): an inbound line takes its given unit cost, else the moving average
 --     while the company holds some of the item, else the last positive average (STOCK-2), and
 --     revalues the average; an outbound line or a transfer takes the moving average; a reversal
@@ -488,7 +493,13 @@ begin
 
   -- Opening stock once per company, unless the earlier one is reversed whole: an opening batch is
   -- the movements of one reference (an import job posts its rows batch by batch under its own
-  -- id), so a company's unreversed opening movement of another reference, or of none, refuses it.
+  -- id), so a company's unreversed opening movement of another reference, or of none, refuses it,
+  -- and so does a batch whose opening lines name two references (or one and none) for a company.
+  for v_entity in select l.entity_id from pg_catalog.unnest(v_lines) l
+                   where l.reason = 'opening' group by l.entity_id
+                  having count(distinct coalesce(l.ref_id::text, '')) > 1 loop
+    perform app.stock_refuse('opening_stock_posted', pg_catalog.jsonb_build_object('entityId', v_entity));
+  end loop;
   for v_entity, v_ref in select distinct l.entity_id, l.ref_id from pg_catalog.unnest(v_lines) l
                           where l.reason = 'opening' order by 1, 2 loop
     perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('app.stock_move.opening'), v_entity);
@@ -500,7 +511,31 @@ begin
     end if;
   end loop;
 
-  -- Locks, in the one order every stock path takes.
+  -- Locks, in the one order every stock path takes: hubs, bins, balances, item costs, serials.
+  perform 1 from public.warehouses w
+   where w.id in (select l.from_hub from pg_catalog.unnest(v_lines) l where l.from_hub is not null
+                  union
+                  select l.to_hub from pg_catalog.unnest(v_lines) l where l.to_hub is not null)
+   order by w.id
+   for share;
+  perform 1 from public.bins b
+   where b.id in (select l.from_bin from pg_catalog.unnest(v_lines) l where l.from_bin is not null
+                  union
+                  select l.to_bin from pg_catalog.unnest(v_lines) l where l.to_bin is not null)
+   order by b.id
+   for share;
+  -- A bin or hub archived while this batch waited for its lock: refused, never stock in it.
+  select l.ord into v_ord
+    from pg_catalog.unnest(v_lines) l
+    cross join lateral (values (l.from_bin), (l.to_bin)) as x(bin_id)
+    join public.bins b on b.id = x.bin_id
+    join public.warehouses w on w.id = b.warehouse_id
+   where b.archived_at is not null or w.archived_at is not null
+   order by l.ord
+   limit 1;
+  if found then
+    perform app.stock_refuse('stock_bin_archived', pg_catalog.jsonb_build_object('line', v_ord));
+  end if;
   insert into public.stock_balances (id, entity_id, warehouse_id, bin_id, item_id)
   select app.uuid_v7(), k.entity_id, k.hub, k.bin, k.item_id
     from (select l.entity_id, l.from_hub as hub, l.from_bin as bin, l.item_id

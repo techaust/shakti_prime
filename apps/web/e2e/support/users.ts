@@ -132,6 +132,11 @@ export const STOCK_JOURNEY = {
     phone: { sku: 'JRN-STK-PH', name: 'Journey cable, phone' },
   },
   snapshot: {
+    /**
+     * The day the seed dates the snapshot company's movements to (10:00 in India), so the
+     * valuation opened at it shows the same figures and the same date every run.
+     */
+    date: '2026-11-02',
     hub: { code: 'SNP-HUB', name: 'Snapshot godown' },
     bin: 'SA-01',
     items: [

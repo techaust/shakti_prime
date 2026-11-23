@@ -51,6 +51,7 @@ export default async function ValuationPage({
         <ValuationScreen
           key={`${String(entityId)}/${date}`}
           valuation={valuation.data}
+          futureAsked={typeof query.date === 'string' && query.date > today}
           companies={Object.fromEntries(
             principal.entityIds.map((id) => [id, names[id] ?? String(id)]),
           )}

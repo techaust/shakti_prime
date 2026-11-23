@@ -1,6 +1,6 @@
 import { OpeningStockImportRowInput } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { CommandContext } from '../command/context';
 import { stockMovedPayload } from '../stock/events';
 import { OPENING, REVERSAL, stockMove, type StockMoveLine } from '../stock/move';
@@ -57,17 +57,25 @@ export async function commitOpeningStockBatch(
 }
 
 /**
- * Undoes the movements an opening stock job posted, by their reversals in one batch: refused
- * whole (`stock_insufficient`) when any of the stock has moved on since. Answers how many.
+ * Undoes the movements an opening stock job posted, by their reversals in one batch: those not
+ * reversed yet (a line reversed by hand before reversing by hand was closed to openings stays as
+ * it is), refused whole (`stock_insufficient`) when any of the stock has moved on since. Answers
+ * how many it reversed.
  */
 export async function reverseOpeningStock(
   tx: RequestTx,
   movementIds: readonly string[],
 ): Promise<number> {
   if (movementIds.length === 0) return 0;
+  const open = (await tx.execute(sql`
+    select m.id from stock_movements m
+     where m.id = any(${`{${movementIds.join(',')}}`}::uuid[])
+       and not exists (select 1 from stock_movements r where r.reverses_id = m.id)
+     order by m.id`)) as unknown as { id: string }[];
+  if (open.length === 0) return 0;
   const done = await stockMove(
     tx,
-    movementIds.map((id) => ({ reason: REVERSAL, reversesId: id })),
+    open.map((o) => ({ reason: REVERSAL, reversesId: o.id })),
   );
   return done.length;
 }

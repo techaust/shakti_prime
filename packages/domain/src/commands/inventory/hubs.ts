@@ -11,7 +11,7 @@ import {
   UpdateHubInput,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { and, eq, isNull, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { readHub } from '../../queries/inventory/hubs';
@@ -98,9 +98,20 @@ async function lockBin(ctx: CommandContext, binId: string): Promise<BinRow> {
   return row;
 }
 
-/** A transit bin's code: its two hubs' codes, within the bin code's length. */
-function pairCode(a: HubRow, b: HubRow): string {
-  return `${a.code}-${b.code}`.slice(0, 41);
+/**
+ * A transit bin's code: its two hubs' codes, within the bin code's length. Hub codes may hold `-`,
+ * so two pairs can join to the same text (`P` with `Q-R`, `P-Q` with `R`): a code the transit hub
+ * already has, in any case, takes the first free suffix `-2`, `-3`, …
+ */
+function pairCode(a: HubRow, b: HubRow, taken: Set<string>): string {
+  const base = `${a.code}-${b.code}`.slice(0, 41);
+  let code = base;
+  for (let n = 2; taken.has(code.toLowerCase()); n += 1) {
+    const suffix = `-${String(n)}`;
+    code = `${base.slice(0, 41 - suffix.length)}${suffix}`;
+  }
+  taken.add(code.toLowerCase());
+  return code;
 }
 
 /**
@@ -133,13 +144,27 @@ async function addTransitBins(ctx: CommandContext, hub: HubRow): Promise<BinRow[
     }
   }
   if (pairs.length === 0) return [];
+  const b = schema.bins;
+  const existing = await ctx.tx
+    .select({ hubId: b.warehouseId, code: b.code })
+    .from(b)
+    .where(inArray(b.warehouseId, [...new Set(pairs.map((p) => p.transit.id))]));
+  const taken = new Map<string, Set<string>>();
+  for (const e of existing) {
+    taken.set(e.hubId, (taken.get(e.hubId) ?? new Set()).add(e.code.toLowerCase()));
+  }
+  const codesOf = (hubId: string) => {
+    const codes = taken.get(hubId) ?? new Set<string>();
+    taken.set(hubId, codes);
+    return codes;
+  };
   return ctx.tx
     .insert(schema.bins)
     .values(
       pairs.map((p) => ({
         id: newId(),
         warehouseId: p.transit.id,
-        code: pairCode(p.a, p.b),
+        code: pairCode(p.a, p.b, codesOf(p.transit.id)),
         kind: 'transit',
         pairAWarehouseId: p.a.id,
         pairBWarehouseId: p.b.id,

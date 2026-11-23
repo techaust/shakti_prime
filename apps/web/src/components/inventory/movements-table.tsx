@@ -43,7 +43,7 @@ export function MovementsTable({
       id: 'when',
       header: t('columns.when'),
       primary: true,
-      cell: (m) => formatDateTime(m.movedAt),
+      cell: (m) => <time dateTime={m.movedAt}>{formatDateTime(m.movedAt)}</time>,
     },
     {
       id: 'reason',

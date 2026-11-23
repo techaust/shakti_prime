@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useRef, useState } from 'react';
 import { getStockCard } from '../../actions/inventory';
-import { formatQty } from '../../screens/inventory';
 import { useCatalogueText } from '../catalogue/use-spec-text';
 import { FailureMessage } from '../screens/failure';
 import { useQuery } from '../screens/use-command';
@@ -73,7 +72,7 @@ export function StockCardScreen({
       id: 'reserved',
       header: t('columns.reserved'),
       numeric: true,
-      cell: (h) => formatQty(h.reserved),
+      cell: (h) => catalogue.quantity(card.item.unit, Number(h.reserved)),
     },
   ];
 

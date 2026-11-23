@@ -34,6 +34,18 @@ export function serialsFromTyped(typed: string): string[] | undefined {
   return new Set(lines.map((l) => l.toLowerCase())).size === lines.length ? lines : undefined;
 }
 
+/**
+ * A unit cost of four decimals (`42.3456`) as rupees and paise, rounded half up (`42.35`), for
+ * `formatRupees`. Works on the digits, so no float rounding creeps in.
+ */
+export function rupeesOfRate(rate: string): string {
+  const [whole = '0', fraction = ''] = rate.split('.');
+  const digits = `${whole}${fraction.padEnd(4, '0').slice(0, 4)}`;
+  const tenThousandths = BigInt(digits);
+  const paise = (tenThousandths + 50n) / 100n;
+  return `${(paise / 100n).toString()}.${(paise % 100n).toString().padStart(2, '0')}`;
+}
+
 /** An item's stock card in a company. */
 export function stockCardHref(entityId: number, itemId: string): Route {
   return `/inventory/stock/${String(entityId)}/${itemId}` as Route;

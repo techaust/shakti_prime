@@ -656,7 +656,7 @@ const FIELD_KINDS = [
   ['binCode', 'text'],
   ['binKind', 'binKind'],
   ['stockReason', 'stockReason'],
-  ['quantity', 'text'],
+  ['quantity', 'number'],
   ['serialNo', 'text'],
   ['adjustNote', 'text'],
   // Imports
