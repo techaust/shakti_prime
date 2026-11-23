@@ -592,7 +592,7 @@ begin
     elsif v_line.to_bin is null then
       v_cost := coalesce(case when v_line.reason = 'reversal' then v_line.unit_cost end, v_avg, 0);
       if v_line.reason = 'reversal' and v_onhand - v_line.qty > 0 then
-        v_new_avg := pg_catalog.greatest(0, pg_catalog.round(
+        v_new_avg := greatest(0, pg_catalog.round(
           (v_onhand * coalesce(v_avg, 0) - v_line.qty * v_cost) / (v_onhand - v_line.qty), 4));
       end if;
     else

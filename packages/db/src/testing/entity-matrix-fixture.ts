@@ -635,14 +635,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
            order by d.position limit 1`;
         await tx`insert into item_costs (id, item_id, entity_id, moving_avg_cost, last_purchase_rate, as_of)
           values (${cost}, ${item}, ${e}, 100.0000, 110.0000, now())`;
-        // H1: one serial, its opening movement with its cost, and the balance it leaves.
+        // H1: one serial, the gain that brought it in with its cost, and the balance it leaves.
         const serial = per(e, 0x80);
         const movement = per(e, 0x81);
         const balance = per(e, 0x82);
         await tx`insert into serials (id, entity_id, item_id, serial_no, state, bin_id, created_by)
           values (${serial}, ${e}, ${item}, ${`MX-SERIAL-${e.toString()}`}, 'in_stock', ${bin}, ${ownerId})`;
         await tx`insert into stock_movements (id, entity_id, item_id, serial_id, to_bin_id, qty, reason, batch_id, moved_by)
-          values (${movement}, ${e}, ${item}, ${serial}, ${bin}, 1, 'opening', ${movement}, ${ownerId})`;
+          values (${movement}, ${e}, ${item}, ${serial}, ${bin}, 1, 'adjust_gain', ${movement}, ${ownerId})`;
         await tx`insert into stock_movement_costs (movement_id, entity_id, unit_cost)
           values (${movement}, ${e}, 100.0000)`;
         await tx`insert into stock_balances (id, entity_id, warehouse_id, bin_id, item_id, qty_on_hand)
