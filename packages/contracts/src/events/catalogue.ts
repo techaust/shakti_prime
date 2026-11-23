@@ -291,6 +291,7 @@ const eventCatalogue = {
       'inventory.stock.transfer',
       'inventory.stock.adjust',
       'inventory.stock.reverse',
+      'imports.job.commit_batch',
     ],
     subscribed: false,
     payload: z

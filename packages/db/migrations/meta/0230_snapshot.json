@@ -1,6 +1,6 @@
 {
-  "id": "c1b9100f-5c93-4285-a006-6fb149418ca2",
-  "prevId": "24a0f95a-c19b-4d6f-aabe-dd6e0b00e465",
+  "id": "cec954b6-bdcb-477f-8983-c5730412f437",
+  "prevId": "8ac9e0d2-a496-4c13-a808-5c74de026ede",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7375,7 +7375,7 @@
       "checkConstraints": {
         "import_jobs_kind_check": {
           "name": "import_jobs_kind_check",
-          "value": "\"import_jobs\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')"
+          "value": "\"import_jobs\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')"
         },
         "import_jobs_state_check": {
           "name": "import_jobs_state_check",
@@ -7535,7 +7535,7 @@
       "checkConstraints": {
         "import_mapping_templates_kind_check": {
           "name": "import_mapping_templates_kind_check",
-          "value": "\"import_mapping_templates\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')"
+          "value": "\"import_mapping_templates\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')"
         }
       },
       "isRLSEnabled": false
@@ -7757,7 +7757,7 @@
         },
         "import_rows_created_type_check": {
           "name": "import_rows_created_type_check",
-          "value": "\"import_rows\".\"created_type\" in ('opportunity', 'account', 'account_link', 'pin_code')"
+          "value": "\"import_rows\".\"created_type\" in ('opportunity', 'account', 'account_link', 'pin_code', 'stock_movement')"
         },
         "import_rows_row_no_check": {
           "name": "import_rows_row_no_check",

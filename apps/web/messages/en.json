@@ -2689,7 +2689,8 @@
       "kinds": {
         "leads": "Leads",
         "accounts": "Customers",
-        "pin_codes": "PIN code list"
+        "pin_codes": "PIN code list",
+        "opening_stock": "Opening stock"
       },
       "file": "Spreadsheet file",
       "fileHelper": "A CSV file or an Excel file saved as .xlsx, up to {megabytes} MB and {rows} rows. Put the column headings in the top row.",
@@ -2699,7 +2700,8 @@
       "kindHelpers": {
         "leads": "Each row becomes a new lead with its customer.",
         "accounts": "Each row becomes a customer of this company, or of the company a Company column names. Rows with the same mobile number become one customer.",
-        "pin_codes": "The India Post list of post offices and their PIN codes. It fills in the tehsil and district of every site, for all four companies."
+        "pin_codes": "The India Post list of post offices and their PIN codes. It fills in the tehsil and district of every site, for all four companies.",
+        "opening_stock": "Each row is stock of this company in one hub and bin at go-live, with its cost; one row per serial number for an item tracked by serial. Opening stock is entered once per company."
       },
       "chooseCompanyFirst": "Choose the company first, then the file.",
       "checkingLong": "Uploaded. The check is taking a while. Choose Read the file in a moment.",
@@ -2833,7 +2835,13 @@
       "officeName": "Post office",
       "taluk": "Tehsil",
       "district": "District",
-      "state": "State"
+      "state": "State",
+      "hub": "Hub code",
+      "bin": "Bin code",
+      "sku": "Stock code",
+      "qty": "Quantity",
+      "unitCost": "Cost per unit",
+      "serialNo": "Serial number"
     },
     "rowErrors": {
       "required": "This is missing. Fill it in, or choose a value for every row.",
@@ -2847,7 +2855,17 @@
       "company_unknown": "We don't recognise this company. Use the company's short code or name, or leave it blank for this company.",
       "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code.",
       "dealer_needs_executive": "Only an Executive can add a dealer. Enter this customer as a business; an Executive makes them a dealer when their credit terms are set.",
-      "referral_code_unknown": "No active referral partner of this company has this code. Check the code with the partner, or leave the cell empty."
+      "referral_code_unknown": "No active referral partner of this company has this code. Check the code with the partner, or leave the cell empty.",
+      "hub_unknown": "No hub has this code. Check the code on the Hubs and bins page.",
+      "bin_unknown": "This hub has no bin with this code. Check the code on the Hubs and bins page.",
+      "sku_unknown": "No item has this stock code. Check the code in the catalogue.",
+      "item_not_stockable": "This item is no longer sold or is a service, so it can't have stock.",
+      "serial_not_tracked": "This item has no serial numbers. Leave the serial number empty.",
+      "serial_required": "This item is tracked by serial number. Put each serial number on its own row.",
+      "serial_qty": "A row with a serial number is one piece. Set the quantity to 1.",
+      "serial_taken": "This serial number is already in stock or appears twice in the file.",
+      "company_mismatch": "This row names another company. Import each company's stock separately.",
+      "opening_stock_posted": "Opening stock has already been entered for this company. Undo the earlier import first if it was wrong."
     },
     "reconcile": {
       "title": "What happened to each row",
@@ -2874,7 +2892,17 @@
         "company_unknown": "The company was not recognised",
         "state_unknown": "The state was not recognised",
         "dealer_needs_executive": "Only an Executive can add a dealer",
-        "referral_code_unknown": "The referral code was not a partner's"
+        "referral_code_unknown": "The referral code was not a partner's",
+        "hub_unknown": "The hub code was not found",
+        "bin_unknown": "The bin code was not found",
+        "sku_unknown": "The stock code was not found",
+        "item_not_stockable": "The item cannot have stock",
+        "serial_not_tracked": "A serial number was given for an item without them",
+        "serial_required": "A serial number was missing",
+        "serial_qty": "A serial number row had a quantity other than 1",
+        "serial_taken": "The serial number was already in stock",
+        "company_mismatch": "The row named another company",
+        "opening_stock_posted": "Opening stock was already entered"
       },
       "csvLine": "What happened",
       "csvRows": "Rows",

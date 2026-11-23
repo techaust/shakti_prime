@@ -12,6 +12,7 @@ import {
   type LeadImportMapping,
   type PermissionGrant,
   type PinCodeImportMapping,
+  type OpeningStockImportMapping,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, gt, inArray, ne, or, sql } from 'drizzle-orm';
@@ -130,6 +131,8 @@ export interface KindMappings {
   leads: LeadImportMapping;
   accounts: AccountImportMapping;
   pin_codes: PinCodeImportMapping;
+  // H1 stock ledger
+  opening_stock: OpeningStockImportMapping;
 }
 
 /** A job's mapping, read back under its own kind's rules; one that no longer fits is a fault. */

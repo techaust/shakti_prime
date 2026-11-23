@@ -28,8 +28,9 @@ export interface StockMovementLine {
 }
 
 /** The ledger's reasons the helpers name (constants, so no error catalogue reads them as one). */
-export const REVERSAL = 'reversal' satisfies StockReason;
-export const TRANSFER = 'transfer' satisfies StockReason;
+export const REVERSAL: Extract<StockReason, 'reversal'> = 'reversal';
+export const TRANSFER: Extract<StockReason, 'transfer'> = 'transfer';
+export const OPENING: Extract<StockReason, 'opening'> = 'opening';
 
 /** A reversal names only the movement it reverses and a reference. */
 export interface StockReversalLine {

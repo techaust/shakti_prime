@@ -48,6 +48,8 @@ export function RowsGrid({
   const { load, pending, failure } = useQuery<ImportRowPage>();
   const kind = screenKind(job.kind);
   const offices = kind === 'pin_codes';
+  // H1: an opening stock row reads as its stock code and quantity.
+  const stock = kind === 'opening_stock';
 
   function read(next: RowView, after: number | undefined) {
     const state = rowStateOf(next);
@@ -105,15 +107,18 @@ export function RowsGrid({
     },
     {
       id: 'name',
-      header: offices ? t('columns.office') : t('columns.name'),
+      header: stock ? fields('sku') : offices ? t('columns.office') : t('columns.name'),
       primary: true,
-      cell: (r) => rowValue(r, job.mapping, offices ? 'officeName' : 'contactName') || notRecorded,
+      cell: (r) =>
+        rowValue(r, job.mapping, stock ? 'sku' : offices ? 'officeName' : 'contactName') ||
+        notRecorded,
     },
     {
       id: 'phone',
-      header: offices ? t('columns.pin') : t('columns.phone'),
+      header: stock ? fields('qty') : offices ? t('columns.pin') : t('columns.phone'),
       numeric: true,
-      cell: (r) => rowValue(r, job.mapping, offices ? 'pin' : 'phone') || notRecorded,
+      cell: (r) =>
+        rowValue(r, job.mapping, stock ? 'qty' : offices ? 'pin' : 'phone') || notRecorded,
     },
     {
       id: 'status',

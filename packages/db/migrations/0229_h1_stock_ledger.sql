@@ -117,6 +117,9 @@ CREATE TABLE "warehouses" (
 	CONSTRAINT "warehouses_site_check" CHECK ("warehouses"."kind" = 'transit' or ("warehouses"."state_code" is not null and "warehouses"."pin_code" is not null))
 );
 --> statement-breakpoint
+ALTER TABLE "import_jobs" DROP CONSTRAINT "import_jobs_kind_check";--> statement-breakpoint
+ALTER TABLE "import_mapping_templates" DROP CONSTRAINT "import_mapping_templates_kind_check";--> statement-breakpoint
+ALTER TABLE "import_rows" DROP CONSTRAINT "import_rows_created_type_check";--> statement-breakpoint
 ALTER TABLE "item_costs" ADD COLUMN "last_positive_avg_cost" numeric(14, 4);--> statement-breakpoint
 ALTER TABLE "bins" ADD CONSTRAINT "bins_warehouse_id_warehouses_id_fk" FOREIGN KEY ("warehouse_id") REFERENCES "public"."warehouses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bins" ADD CONSTRAINT "bins_pair_a_warehouse_id_warehouses_id_fk" FOREIGN KEY ("pair_a_warehouse_id") REFERENCES "public"."warehouses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -161,4 +164,7 @@ CREATE INDEX "stock_movements_serial_idx" ON "stock_movements" USING btree ("ser
 CREATE INDEX "stock_movements_ref_idx" ON "stock_movements" USING btree ("ref_type","ref_id") WHERE "stock_movements"."ref_id" is not null;--> statement-breakpoint
 CREATE INDEX "stock_movements_batch_idx" ON "stock_movements" USING btree ("batch_id");--> statement-breakpoint
 CREATE INDEX "stock_movements_opening_idx" ON "stock_movements" USING btree ("entity_id") WHERE "stock_movements"."reason" = 'opening';--> statement-breakpoint
-CREATE UNIQUE INDEX "warehouses_code_unique" ON "warehouses" USING btree (lower("code"));
+CREATE UNIQUE INDEX "warehouses_code_unique" ON "warehouses" USING btree (lower("code"));--> statement-breakpoint
+ALTER TABLE "import_jobs" ADD CONSTRAINT "import_jobs_kind_check" CHECK ("import_jobs"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "import_mapping_templates" ADD CONSTRAINT "import_mapping_templates_kind_check" CHECK ("import_mapping_templates"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "import_rows" ADD CONSTRAINT "import_rows_created_type_check" CHECK ("import_rows"."created_type" in ('opportunity', 'account', 'account_link', 'pin_code', 'stock_movement')) NOT VALID;

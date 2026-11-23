@@ -35,7 +35,11 @@ export default async function NewImportPage() {
     (await executeQuery(principal, {}, (ctx) => requestCoversAllCompanies(ctx), {
       name: 'imports.new.coversAll',
     }));
-  const kinds = IMPLEMENTED_IMPORT_KINDS.filter((kind) => kind !== 'pin_codes' || group);
+  // Opening stock posts through the stock ledger, which needs inventory.stock.adjust (H1).
+  const stock = hasGrant(principal.permissions, 'inventory.stock.adjust', 'entity');
+  const kinds = IMPLEMENTED_IMPORT_KINDS.filter(
+    (kind) => (kind !== 'pin_codes' || group) && (kind !== 'opening_stock' || stock),
+  );
   return (
     <Page title={t('title')} description={t('intro')} width="form">
       <ImportSteps state={undefined} />

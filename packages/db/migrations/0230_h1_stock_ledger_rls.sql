@@ -287,6 +287,7 @@ declare
   v_serial record;
   v_serial_ids uuid[] := '{}';
   v_entity int;
+  v_ref uuid;
   v_have numeric(12, 3);
   v_onhand numeric(14, 3);
   v_avg numeric(14, 4);
@@ -485,12 +486,15 @@ begin
     v_lines := v_lines || v_line;
   end loop;
 
-  -- Opening stock once per company, unless the earlier batch is reversed whole.
-  for v_entity in select distinct l.entity_id from pg_catalog.unnest(v_lines) l
-                   where l.reason = 'opening' order by 1 loop
+  -- Opening stock once per company, unless the earlier one is reversed whole: an opening batch is
+  -- the movements of one reference (an import job posts its rows batch by batch under its own
+  -- id), so a company's unreversed opening movement of another reference, or of none, refuses it.
+  for v_entity, v_ref in select distinct l.entity_id, l.ref_id from pg_catalog.unnest(v_lines) l
+                          where l.reason = 'opening' order by 1, 2 loop
     perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('app.stock_move.opening'), v_entity);
     if exists (select 1 from public.stock_movements m
                 where m.entity_id = v_entity and m.reason = 'opening'
+                  and (v_ref is null or m.ref_id is distinct from v_ref)
                   and not exists (select 1 from public.stock_movements r where r.reverses_id = m.id)) then
       perform app.stock_refuse('opening_stock_posted', pg_catalog.jsonb_build_object('entityId', v_entity));
     end if;

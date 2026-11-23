@@ -15,6 +15,8 @@ export const ImportKindSchema = z.enum([
   'pin_codes',
   'items',
   'tally_masters',
+  // H1 stock ledger: a company's opening stock, posted as one batch (opening_stock_posted).
+  'opening_stock',
 ]);
 export type ImportKind = z.infer<typeof ImportKindSchema>;
 
@@ -23,6 +25,8 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'leads',
   'accounts',
   'pin_codes',
+  // H1 stock ledger
+  'opening_stock',
 ] as const satisfies readonly ImportKind[];
 export type ImplementedImportKind = (typeof IMPLEMENTED_IMPORT_KINDS)[number];
 
@@ -70,6 +74,8 @@ export const ImportCreatedTypeSchema = z.enum([
   'account',
   'account_link',
   'pin_code',
+  // H1 stock ledger: the opening movement a row posted.
+  'stock_movement',
 ]);
 export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
 
@@ -181,6 +187,22 @@ export type AccountImportField = z.infer<typeof AccountImportFieldSchema>;
 export const PinCodeImportFieldSchema = z.enum(['pin', 'officeName', 'taluk', 'district', 'state']);
 export type PinCodeImportField = z.infer<typeof PinCodeImportFieldSchema>;
 
+/**
+ * H1: a row of a company's opening stock: the hub and bin by code, the item by its stock code, the
+ * quantity and its unit cost, and for a tracked item its serial (one row per serial). A `company`
+ * column, when given, must name the job's company.
+ */
+export const OpeningStockImportFieldSchema = z.enum([
+  'company',
+  'hub',
+  'bin',
+  'sku',
+  'qty',
+  'unitCost',
+  'serialNo',
+]);
+export type OpeningStockImportField = z.infer<typeof OpeningStockImportFieldSchema>;
+
 /** Every field a file column can fill, whatever the kind. */
 export const ImportFieldSchema = z.enum([
   ...LeadImportFieldSchema.options,
@@ -189,6 +211,13 @@ export const ImportFieldSchema = z.enum([
   'taluk',
   'district',
   'state',
+  // H1 stock ledger
+  'hub',
+  'bin',
+  'sku',
+  'qty',
+  'unitCost',
+  'serialNo',
 ]);
 export type ImportField = z.infer<typeof ImportFieldSchema>;
 
@@ -197,6 +226,8 @@ export const IMPORT_FIELDS = {
   leads: LeadImportFieldSchema.options,
   accounts: AccountImportFieldSchema.options,
   pin_codes: PinCodeImportFieldSchema.options,
+  // H1 stock ledger
+  opening_stock: OpeningStockImportFieldSchema.options,
 } as const satisfies Record<ImplementedImportKind, readonly ImportField[]>;
 /**
  * Why one row cannot be imported, keyed to `imports.rowErrors` in the message catalogue. These
@@ -217,5 +248,19 @@ export const ImportRowErrorCodeSchema = z.enum([
   'dealer_needs_executive',
   // A referral code no active partner of the company has (CRM-09).
   'referral_code_unknown',
+  // H1 opening stock: a hub, bin or stock code the group does not have; an item not sold or not
+  // stocked; a serial on an item without them, none on one with them, a quantity other than 1 for
+  // a serial, a serial already held or given twice; a company other than the job's; opening stock
+  // already entered for the company.
+  'hub_unknown',
+  'bin_unknown',
+  'sku_unknown',
+  'item_not_stockable',
+  'serial_not_tracked',
+  'serial_required',
+  'serial_qty',
+  'serial_taken',
+  'company_mismatch',
+  'opening_stock_posted',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

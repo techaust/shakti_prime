@@ -237,9 +237,9 @@ describe('inventory.stock.adjust', () => {
     const recorded = memoryAuditSink();
     const emitted = memoryOutboxSink();
     const before = Number(await onHand(1, f.binA, f.cable));
-    const out = (await asPrincipal(manager, (context) =>
+    const out = await asPrincipal(manager, (context) =>
       runCommand(adjustStock, { context, audit: recorded, outbox: emitted }, gain('5.5')),
-    )) as { movementIds: string[] };
+    );
     expect(out.movementIds).toHaveLength(1);
     expect(Number(await onHand(1, f.binA, f.cable))).toBe(before + 5.5);
     expect(recorded.records[0]).toMatchObject({

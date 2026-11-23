@@ -1,0 +1,221 @@
+import { type ImportJobDto, type Principal } from '@shakti/contracts';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  createReadyImportFile,
+  createTestPrincipal,
+} from '@shakti/db/testing';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import type { z } from 'zod';
+import { databaseAuditSink as audit } from '../../src/audit/sink';
+import type { Command } from '../../src/command/define-command';
+import { runCommand } from '../../src/command/run-command';
+import { commitImportBatch, commitImportJob } from '../../src/commands/imports/commit-job';
+import { createImportJob } from '../../src/commands/imports/create-job';
+import { mapImportJob } from '../../src/commands/imports/map-job';
+import { previewImportJob } from '../../src/commands/imports/preview-job';
+import { rollbackImportJob } from '../../src/commands/imports/rollback-job';
+import { parseImportFile } from '../../src/imports/parse';
+import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { listImportRows } from '../../src/queries/imports/import-queries';
+import { stockMove } from '../../src/stock/move';
+import {
+  averageOf,
+  onHand,
+  serialOf,
+  stockFixture,
+  type StockFixture,
+} from '../stock/stock-fixture';
+
+/**
+ * H1's opening stock import (docs/03-roadmap-appendix/phase3.md §6.2) on real Postgres: rows found
+ * by hub, bin and stock code, a serial per row of a tracked item, posted under the job as one
+ * opening; a company's second opening refused until the first is undone whole. Company 3 is this
+ * file's (the ledger's own tests use company 4).
+ */
+
+afterAll(closeDb);
+vi.setConfig({ testTimeout: 60_000 });
+
+const ENTITY = 3;
+let exec: Principal;
+let f: StockFixture;
+
+function run<I extends z.ZodType, O extends z.ZodType>(
+  command: Command<I, O>,
+  input: unknown,
+): Promise<z.output<O>> {
+  return asPrincipal({ ...exec, entityIds: [ENTITY] }, (context) =>
+    runCommand(command, { context, audit, outbox }, input),
+  );
+}
+
+/** The mapping, keeping only the columns a file has. */
+function mappingFor(columns: readonly string[]) {
+  return {
+    columns: Object.fromEntries(
+      Object.entries(MAPPING.columns).filter(([, column]) => columns.includes(column)),
+    ),
+  };
+}
+
+const MAPPING = {
+  columns: {
+    hub: 'Hub',
+    bin: 'Bin',
+    sku: 'SKU',
+    qty: 'Qty',
+    unitCost: 'Cost',
+    serialNo: 'Serial',
+    company: 'Company',
+  },
+};
+
+async function previewed(csv: string): Promise<ImportJobDto> {
+  const parsed = await parseImportFile(new TextEncoder().encode(csv));
+  const fileId = await createReadyImportFile(ENTITY, exec.id, { name: 'opening.csv' });
+  const job = await run(createImportJob, {
+    entityId: ENTITY,
+    kind: 'opening_stock',
+    fileId,
+    format: parsed.format,
+    columns: parsed.columns,
+    rows: parsed.rows,
+  });
+  await run(mapImportJob, { entityId: ENTITY, jobId: job.id, mapping: mappingFor(parsed.columns) });
+  return run(previewImportJob, { entityId: ENTITY, jobId: job.id });
+}
+
+async function committed(job: ImportJobDto): Promise<ImportJobDto> {
+  let current = await run(commitImportJob, { entityId: ENTITY, jobId: job.id });
+  while (current.state === 'committing') {
+    current = await run(commitImportBatch, { entityId: ENTITY, jobId: job.id });
+  }
+  return current;
+}
+
+/** Any opening stock of company 3 a stopped run left behind is reversed first. */
+async function clearOpenings(): Promise<void> {
+  const open = await asMigrator(
+    (m) => m<{ id: string }[]>`
+      select m.id from stock_movements m
+       where m.entity_id = ${ENTITY} and m.reason = 'opening'
+         and not exists (select 1 from stock_movements r where r.reverses_id = m.id)`,
+  );
+  if (open.length > 0) {
+    await asPrincipal(exec, ({ tx }) =>
+      stockMove(
+        tx,
+        open.map((o) => ({ reason: 'reversal' as const, reversesId: o.id })),
+      ),
+    );
+  }
+}
+
+beforeAll(async () => {
+  exec = await createTestPrincipal('executive');
+  f = await stockFixture(exec.id);
+  await clearOpenings();
+});
+afterAll(clearOpenings);
+
+describe('the opening stock import', () => {
+  it('checks each row against the hubs, bins, items and serials, and posts the valid ones as one opening', async () => {
+    const code = await asMigrator(
+      (m) => m<{ code: string }[]>`select code from entities where id = ${ENTITY}`,
+    );
+    const csv = [
+      'Hub,Bin,SKU,Qty,Cost,Serial,Company',
+      `H${f.tag},A1,SC-${f.tag},12.5,100,,`,
+      `h${f.tag},b1,sc-${f.tag},"1,000",80.25,,${code[0]?.code ?? ''}`,
+      `H${f.tag},A1,SP-${f.tag},,5000,OS-${f.tag}-1,`,
+      `H${f.tag},A1,SP-${f.tag},1,5000,OS-${f.tag}-2,`,
+      // Refused: an unknown hub, a bin of no hub, an unknown code, a serial twice, a serial on
+      // an untracked item, none on a tracked one, an inactive item, another company.
+      `X${f.tag},A1,SC-${f.tag},1,1,,`,
+      `H${f.tag},NOPE,SC-${f.tag},1,1,,`,
+      `H${f.tag},A1,NO-${f.tag},1,1,,`,
+      `H${f.tag},A1,SP-${f.tag},1,5000,os-${f.tag}-1,`,
+      `H${f.tag},A1,SC-${f.tag},1,1,OS-${f.tag}-9,`,
+      `H${f.tag},A1,SP-${f.tag},1,5000,,`,
+      `H${f.tag},A1,SI-${f.tag},1,1,,`,
+      `H${f.tag},A1,SC-${f.tag},1,1,,ANOTHER`,
+    ].join('\n');
+    const job = await previewed(csv);
+    expect(job).toMatchObject({ state: 'previewed', validRows: 4, invalidRows: 8 });
+    const page = await asPrincipal({ ...exec, entityIds: [ENTITY] }, (ctx) =>
+      listImportRows(ctx, { entityId: ENTITY, jobId: job.id, limit: 50 }),
+    );
+    const codes = page.rows
+      .filter((r) => r.state === 'invalid')
+      .map((r) => r.errors.map((e) => e.code).join('+'));
+    expect(codes).toEqual([
+      'hub_unknown',
+      'bin_unknown',
+      'sku_unknown',
+      'serial_taken',
+      'serial_not_tracked',
+      'serial_required',
+      'item_not_stockable',
+      'company_mismatch',
+    ]);
+
+    const done = await committed(job);
+    expect(done).toMatchObject({ state: 'committed', committedRows: 4 });
+    expect(await onHand(ENTITY, f.binA, f.cable)).toBe('12.500');
+    expect(await onHand(ENTITY, f.binB, f.cable)).toBe('1000.000');
+    expect(await onHand(ENTITY, f.binA, f.pump)).toBe('2.000');
+    expect(await serialOf(f.pump, `OS-${f.tag}-2`)).toMatchObject({ state: 'in_stock' });
+    // 12.5 at 100 and 1,000 at 80.25: the company's average.
+    expect((await averageOf(ENTITY, f.cable)).avg).toBe('80.4938');
+    const refs = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from stock_movements
+         where entity_id = ${ENTITY} and reason = 'opening' and ref_type = 'import_job' and ref_id = ${job.id}`,
+    );
+    expect(refs[0]?.n).toBe(4);
+
+    // A second file for the company is refused at its preview, every row.
+    const second = await previewed(`Hub,Bin,SKU,Qty,Cost\nH${f.tag},A1,SC-${f.tag},1,1`);
+    expect(second).toMatchObject({ validRows: 0, invalidRows: 1 });
+
+    // Undoing the first reverses each movement; then a new opening may come in.
+    const undone = await run(rollbackImportJob, { entityId: ENTITY, jobId: job.id });
+    expect(undone.state).toBe('rolled_back');
+    expect(await onHand(ENTITY, f.binA, f.cable)).toBe('0.000');
+    expect(await serialOf(f.pump, `OS-${f.tag}-1`)).toMatchObject({ state: 'scrapped' });
+    const third = await previewed(`Hub,Bin,SKU,Qty,Cost\nH${f.tag},A1,SC-${f.tag},3,90`);
+    expect(third.validRows).toBe(1);
+    expect((await committed(third)).state).toBe('committed');
+    expect(await onHand(ENTITY, f.binA, f.cable)).toBe('3.000');
+  });
+
+  it('is refused at commit to a holder of imports.write without inventory.stock.adjust', async () => {
+    const gm = await createTestPrincipal('general_manager', [ENTITY]);
+    // The General Manager holds imports.write but moves no stock: the ledger refuses the batch.
+    await clearOpenings();
+    const parsed = await parseImportFile(
+      new TextEncoder().encode(`Hub,Bin,SKU,Qty,Cost\nH${f.tag},A1,SC-${f.tag},1,1`),
+    );
+    const fileId = await createReadyImportFile(ENTITY, gm.id, { name: 'opening.csv' });
+    const asGm = <I extends z.ZodType, O extends z.ZodType>(c: Command<I, O>, input: unknown) =>
+      asPrincipal(gm, (context) => runCommand(c, { context, audit, outbox }, input));
+    const job = await asGm(createImportJob, {
+      entityId: ENTITY,
+      kind: 'opening_stock',
+      fileId,
+      format: parsed.format,
+      columns: parsed.columns,
+      rows: parsed.rows,
+    });
+    await asGm(mapImportJob, { entityId: ENTITY, jobId: job.id, mapping: mappingFor(parsed.columns) });
+    await asGm(previewImportJob, { entityId: ENTITY, jobId: job.id });
+    let current = await asGm(commitImportJob, { entityId: ENTITY, jobId: job.id });
+    while (current.state === 'committing') {
+      current = await asGm(commitImportBatch, { entityId: ENTITY, jobId: job.id });
+    }
+    expect(current.state).toBe('failed');
+    expect(await onHand(ENTITY, f.binA, f.cable)).toBe('0.000');
+  });
+});
