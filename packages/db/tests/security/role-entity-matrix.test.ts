@@ -114,6 +114,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   call_recording: NEVER,
   // A call's transcript is read with its call, so with the lead (0190).
   call_transcript: LEAD_READ,
+  // U1: a supplier's quote document shows the rate.
+  vendor_quote: RATE_READ,
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({

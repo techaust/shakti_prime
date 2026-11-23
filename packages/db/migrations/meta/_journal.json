@@ -1618,6 +1618,20 @@
       "when": 1795456623823,
       "tag": "0230_u1_vendors_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 231,
+      "version": "7",
+      "when": 1795457991043,
+      "tag": "0231_u1_vendor_quote_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 232,
+      "version": "7",
+      "when": 1795457997090,
+      "tag": "0232_u1_vendor_quote_files_grant",
+      "breakpoints": true
     }
   ]
 }
