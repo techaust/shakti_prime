@@ -94,3 +94,6 @@ Checked and sound (review in a cloud session, seat 1, 23-11-2026, on `2726d492`)
 - **Scope:** the diff touches only the four owned files and this run file; `package.json` changes only the `web-push` line, and no script changed.
 
 Not checked: the notifications journey (`notifications.spec.ts`). Its sign-in needs `challenges.cloudflare.com`, which this environment's network policy refuses, so the lead runs it on the PC as the State line says. The real `sendNotification` against a push service is not exercised in any test (the brief forbids a live push service, and `isPushServiceEndpoint` refuses a local stand-in server); its reject path was read in the source instead.
+
+## Integration
+24-11-2026, the lead on the PC: reviewed by seat 1 (no finding); `main` taken in by merge commits. `integrate.sh` passed install, lint, format, copy-lint, generated, typecheck, unit, audit, build, the JavaScript budget, gitleaks and `notifications.spec.ts` (30 passed, 2 skipped) on the first run; the security suite and `db:verify` passed on a re-run at 01:41 to 02:01 IST (the first run's `.env` was missing from the worktree, and the second met `alert-counts.test.ts`'s midnight fault, fixed by #282).
