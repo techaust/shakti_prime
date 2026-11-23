@@ -169,3 +169,13 @@ Found sound:
 Not checked:
 - The journeys, `channels.spec.ts` five times included, and the builder's timing table for the duplicate scan: read from the report, not reproduced.
 - `pnpm build`, typecheck and lint: the report records them, and this review ran none.
+
+## Integration (the lead, 24-11-2026, on the PC)
+Every step of `integrate.sh` passed except the journeys. On a fresh database (`fresh-db.sh`, then `e2e:seed`), `notifications.spec.ts` passed, and `channels.spec.ts` › "sets a sales calls number, says when it is not of its series, and takes it out of use" failed on desktop-light, twice:
+1. **First attempt, axe:** `color-contrast` on `div[data-title=""]` (a sonner toast's title), 1.39 (`#c0dfcb` on `#f7fef9`), at `channels.spec.ts:79`. The message did not say "still moving", so `waitUntilStill` answered `'still'`: the toast was in the page before its fade had started, which a look at `getAnimations()` cannot see.
+2. **Retry, leftover number:** the first attempt had set RCREF's sales number, and the clean-up's click on "Take out of use" (line 59) does not confirm its dialog, so "Not set" never shows (line 60).
+
+**Second fix round (lead's call, the defect found at integration):**
+- Make the axe wait cover toasts: before `waitUntilStill`, wait (within the same 2 seconds) until every `[data-sonner-toast]` is mounted and its computed opacity is 1 (or no toast is present), then run `waitUntilStill`; a unit test on a stand-in page whose toast starts its fade after the first look.
+- Make the spec's clean-up complete: when the leftover button is there, click it, confirm its dialog, and wait for "Not set".
+- Prove it on the VM: `channels.spec.ts` ten times in a row, each run after a fresh `e2e:seed`, plus one run where the test's first attempt is made to fail after setting the number (by hand, then reverted) to show the retry recovers.
