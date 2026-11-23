@@ -12,6 +12,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
+import { executeCommand } from '../../src/command/execute';
 import { runCommand } from '../../src/command/run-command';
 import { setItemVendor, setVendorContacts } from '../../src/commands/procurement/vendor-links';
 import { recordVendorQuote, withdrawVendorQuote } from '../../src/commands/procurement/quotes';
@@ -372,6 +373,30 @@ describe('procurement.quote.record / withdraw', () => {
         payload: { vendorId: vendor.id, itemId: itemA, forGroup: false, v: 1 },
       }),
     ]);
+  });
+
+  it('a refused or failed record keeps no rate in its audit row', async () => {
+    const accounts = await createTestPrincipal('accounts', [1]);
+    const requestId = newId();
+    await expect(
+      executeCommand(accounts, { requestId }, recordVendorQuote, quote({ rate: '9876.5432' })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    const failedId = newId();
+    await expect(
+      executeCommand(
+        managerOne,
+        { requestId: failedId },
+        recordVendorQuote,
+        quote({ rate: '9876.5432', validFrom: day(-30), validUntil: day(-1) }),
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'vendor_quote_ended' } });
+    const rows = await asMigrator(
+      (m) => m<{ outcome: string; input: unknown }[]>`
+        select outcome, input_json as input from audit_logs
+         where request_id in (${requestId}, ${failedId}) order by outcome`,
+    );
+    expect(rows.map((r) => r.outcome)).toEqual(['denied', 'failed']);
+    expect(JSON.stringify(rows)).not.toContain('9876');
   });
 
   it('records a group quote acting for every company', async () => {
