@@ -6,8 +6,8 @@
 | Runs on | a seat session (taking its work from `ops/seats`); the lead on the PC reviews and integrates (owner, 23-11-2026) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): one test |
 | Usage | builder on Opus 5.5 at high effort; started and ended on seat 2 on Opus 5.5 at high effort (23-11-2026) |
-| State | briefed |
-| Next step | the builder's report |
+| State | integrated on the PC; pull request open |
+| Next step | merge on green |
 
 ## Brief
 `packages/db/tests/security/alert-counts.test.ts` › "counts failed and waiting rows, caps and voice use, and answers no payload, number or name" fails in the first 40 minutes after midnight in India: it makes an ended voice session started 40 minutes ago and an open one started 4 minutes 30 seconds ago, and `app.alert_counts()` counts only sessions started on the current day in India (`app.voice_day_start(now())`), so near midnight the sessions fall on the previous day and the person's 25 minutes are missing (seen on the PC at 00:10 IST on 24-11-2026). The function is right; the test is not.
@@ -71,3 +71,6 @@ Neither clash happens in CI, where each suite has its own database. On a cloud V
 - The arithmetic check runs as its own case beside the case it checks, on the database's `now()`, rather than inside the rolled-back transaction. It writes nothing.
 - I added a third day start, 2 minutes ago, to the brief's two, because it is the one where the open session is cut short and the `least()` matters.
 
+
+## Integration
+24-11-2026, the lead on the PC: reviewed (sound; no finding), `main` already in the branch. `integrate.sh` with `install format typecheck security dbverify gitleaks` passed (security 00:32 to 00:50 IST, so the case ran inside the first 40 minutes after midnight in India, where the old case failed); `eslint --max-warnings 0` on the test file clean. The whole-repository lint, the unit tests, the build and the journeys run in CI.
