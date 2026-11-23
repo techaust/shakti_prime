@@ -62,7 +62,12 @@ export const KEPT_LOOKALIKES = {
     'WEBHOOK_RECEIVER_PASSWORD',
   ],
   /** The app's own keys, which it signs or seals with and sends to no one. */
-  appKeys: ['BETTER_AUTH_SECRET', 'BOS_JWT_CURRENT_KEY', 'BOS_JWT_NEXT_KEY', 'FIELD_ENCRYPTION_KEY'],
+  appKeys: [
+    'BETTER_AUTH_SECRET',
+    'BOS_JWT_CURRENT_KEY',
+    'BOS_JWT_NEXT_KEY',
+    'FIELD_ENCRYPTION_KEY',
+  ],
   /** Sign-in needs them; a local run holds Cloudflare's test keys, which a hosted runtime refuses. */
   signIn: ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
   /**
