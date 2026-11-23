@@ -32,10 +32,10 @@ const MAX_VARIABLE_REPEATS = 2;
 const MAX_UNBOUNDED_REPEATS = 1;
 
 /** Signs that stand for themselves only when escaped; `\-` is one only inside a class (`u`). */
-const ESCAPABLE = new Set([...'\\^$.|?*+()[]{}/']);
+const ESCAPABLE = new Set(Array.from('\\^$.|?*+()[]{}/'));
 
 /** Signs that a pattern may not use bare: groups, alternation, anchors and stray brackets. */
-const REFUSED_BARE = new Set([...'()|^$]}']);
+const REFUSED_BARE = new Set(Array.from('()|^$]}'));
 
 /**
  * Reads one escape at `i` (just after a backslash): `\d`, `\w` or an escaped sign. Answers how many
