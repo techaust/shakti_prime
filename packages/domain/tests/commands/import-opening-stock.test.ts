@@ -17,9 +17,11 @@ import { createImportJob } from '../../src/commands/imports/create-job';
 import { mapImportJob } from '../../src/commands/imports/map-job';
 import { previewImportJob } from '../../src/commands/imports/preview-job';
 import { rollbackImportJob } from '../../src/commands/imports/rollback-job';
+import { reverseStock } from '../../src/commands/inventory/stock';
 import { parseImportFile } from '../../src/imports/parse';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { listImportRows } from '../../src/queries/imports/import-queries';
+import { getStockCard } from '../../src/queries/inventory/stock';
 import { stockMove } from '../../src/stock/move';
 import {
   averageOf,
@@ -190,6 +192,57 @@ describe('the opening stock import', () => {
     expect(third.validRows).toBe(1);
     expect((await committed(third)).state).toBe('committed');
     expect(await onHand(ENTITY, f.binA, f.cable)).toBe('3.000');
+  });
+
+  it('is never reversed by hand, and its rollback passes over a line an earlier version reversed (review probe B)', async () => {
+    await clearOpenings();
+    const job = await committed(
+      await previewed(
+        [
+          'Hub,Bin,SKU,Qty,Cost',
+          `H${f.tag},A1,SC-${f.tag},5,50`,
+          `H${f.tag},B1,SC-${f.tag},2,50`,
+        ].join('\n'),
+      ),
+    );
+    expect(job.state).toBe('committed');
+    const lines = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        select id from stock_movements
+         where entity_id = ${ENTITY} and reason = 'opening' and ref_id = ${job.id} order by id`,
+    );
+    expect(lines).toHaveLength(2);
+    const [first, second] = lines.map((l) => l.id);
+
+    // The stock card offers no Reverse on an opening line, and the command refuses one.
+    const card = await asPrincipal({ ...exec, entityIds: [ENTITY] }, (ctx) =>
+      getStockCard(ctx, { entityId: ENTITY, itemId: f.cable, limit: 50 }),
+    );
+    const openings = card.movements.filter((m) => m.reason === 'opening');
+    expect(openings.length).toBeGreaterThanOrEqual(2);
+    expect(openings.every((m) => !m.reversible)).toBe(true);
+    await expect(
+      run(reverseStock, { entityId: ENTITY, movementId: first ?? '' }),
+    ).rejects.toMatchObject({ details: { reason: 'stock_reversal_not_allowed' } });
+
+    // An earlier version's stock card could reverse one line by hand: the definer still does.
+    await asPrincipal(exec, ({ tx }) =>
+      stockMove(tx, [{ reason: 'reversal', reversesId: first ?? '' }]),
+    );
+    expect(await onHand(ENTITY, f.binA, f.cable)).toBe('0.000');
+
+    // The rollback reverses only the line left, and the company may take a new opening.
+    const undone = await run(rollbackImportJob, { entityId: ENTITY, jobId: job.id });
+    expect(undone.state).toBe('rolled_back');
+    const reversals = await asMigrator(
+      (m) => m<{ reverses: string; n: number }[]>`
+        select reverses_id as reverses, count(*)::int as n from stock_movements
+         where reverses_id in (${first ?? ''}, ${second ?? ''}) group by reverses_id order by reverses_id`,
+    );
+    expect(reversals.map((r) => r.n)).toEqual([1, 1]);
+    expect(await onHand(ENTITY, f.binB, f.cable)).toBe('0.000');
+    const next = await previewed(`Hub,Bin,SKU,Qty,Cost\nH${f.tag},A1,SC-${f.tag},1,40`);
+    expect(next.validRows).toBe(1);
   });
 
   it('is refused to a holder of imports.write without finance.cost.read, who never reads its rows', async () => {

@@ -633,6 +633,33 @@ describe('opening stock, once per company', () => {
     await move(exec, [opening('2')]);
     expect(await onHand(ENTITY, f.binA, f.cable)).toBe('2.000');
   });
+
+  it('refuses a batch whose opening lines name more than one reference for a company', async () => {
+    await reverseOpenOpenings();
+    const before = await onHand(ENTITY, f.binB, f.cable);
+    const opening = (refId: string | null): StockMovementLine => ({
+      reason: 'opening',
+      entityId: ENTITY,
+      itemId: f.cable,
+      toBinId: f.binB,
+      qty: '1',
+      unitCost: '20.0000',
+      ...(refId === null ? {} : { refType: 'import_job', refId }),
+    });
+    const [a, b] = [newId(), newId()];
+    // Two openings in one batch, or one opening and lines of none: each is two openings.
+    await expect(move(exec, [opening(a), opening(b)])).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'opening_stock_posted', entityId: ENTITY },
+    });
+    await expect(move(exec, [opening(a), opening(null)])).rejects.toMatchObject({
+      details: { reason: 'opening_stock_posted', entityId: ENTITY },
+    });
+    expect(await onHand(ENTITY, f.binB, f.cable)).toBe(before);
+    // One reference for every line is one opening.
+    await move(exec, [opening(a), opening(a)]);
+    expect(Number(await onHand(ENTITY, f.binB, f.cable))).toBe(Number(before) + 2);
+  });
 });
 
 describe('what a person without finance.cost.read reads of a movement', () => {
