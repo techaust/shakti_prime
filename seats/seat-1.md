@@ -1,6 +1,6 @@
-assignment: 1
+assignment: 2
 role: review
-branch: chore/web-push-4
-run_file: docs/runs/phase3/web-push-4.md
-wait_for: report: web-push-4 done
-note: review the web-push 4.0.0 bump against its brief; the review is short
+branch: feat/c5-catalogue-stock
+run_file: docs/runs/phase3/c5-catalogue-stock.md
+wait_for: report: c5-catalogue-stock done
+note: Tier B; journeys cannot sign in in the cloud, so read the journey and snapshot specs and say which were not run
