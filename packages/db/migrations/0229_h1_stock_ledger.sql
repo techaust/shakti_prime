@@ -81,6 +81,7 @@ CREATE TABLE "stock_movements" (
 	"ref_type" text,
 	"ref_id" uuid,
 	"reverses_id" uuid,
+	"note" text,
 	"batch_id" uuid NOT NULL,
 	"moved_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"moved_by" uuid NOT NULL,
@@ -92,7 +93,8 @@ CREATE TABLE "stock_movements" (
 	CONSTRAINT "stock_movements_serial_qty_check" CHECK ("stock_movements"."serial_id" is null or "stock_movements"."qty" = 1),
 	CONSTRAINT "stock_movements_reason_check" CHECK ("stock_movements"."reason" in ('opening', 'receipt', 'transfer', 'pick', 'issue', 'return_customer', 'return_supplier', 'adjust_gain', 'adjust_loss', 'damage', 'count', 'warranty_replacement', 'surplus_in', 'surplus_out', 'reversal')),
 	CONSTRAINT "stock_movements_reversal_check" CHECK (("stock_movements"."reason" = 'reversal') = ("stock_movements"."reverses_id" is not null)),
-	CONSTRAINT "stock_movements_ref_check" CHECK (("stock_movements"."ref_type" is null) = ("stock_movements"."ref_id" is null))
+	CONSTRAINT "stock_movements_ref_check" CHECK (("stock_movements"."ref_type" is null) = ("stock_movements"."ref_id" is null)),
+	CONSTRAINT "stock_movements_note_check" CHECK ("stock_movements"."note" is null or char_length("stock_movements"."note") between 1 and 300)
 );
 --> statement-breakpoint
 CREATE TABLE "warehouses" (

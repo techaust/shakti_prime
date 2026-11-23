@@ -203,6 +203,24 @@ export {
   createPriceList,
 } from './commands/pricing/price-lists';
 export { archiveItem, createItem, updateItem } from './commands/catalogue/items';
+// H1 stock ledger
+export {
+  archiveBin,
+  archiveHub,
+  createBin,
+  createHub,
+  updateBin,
+  updateHub,
+} from './commands/inventory/hubs';
+export { adjustStock, reverseStock, transferStock } from './commands/inventory/stock';
+export { listHubs } from './queries/inventory/hubs';
+export {
+  getSerial,
+  getStockCard,
+  listStockBalances,
+  readStockValuation,
+} from './queries/inventory/stock';
+export { existingSerialsOf } from './stock/serials';
 export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
 export { setPumpCurve } from './commands/catalogue/pump-curve';
 export { setTaxRate } from './commands/tax/set-tax-rate';

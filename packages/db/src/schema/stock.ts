@@ -185,6 +185,8 @@ export const stockMovements = pgTable(
     refType: text('ref_type'),
     refId: uuid('ref_id'),
     reversesId: uuid('reverses_id').references((): AnyPgColumn => stockMovements.id),
+    /** Why a person moved it: an adjustment's reason, or a reversal's. */
+    note: text('note'),
     /** The movements of one `app.stock_move()` call share it (an import posts one batch). */
     batchId: uuid('batch_id').notNull(),
     movedAt: timestamp('moved_at', { withTimezone: true }).notNull().defaultNow(),
@@ -216,6 +218,10 @@ export const stockMovements = pgTable(
       sql`(${t.reason} = 'reversal') = (${t.reversesId} is not null)`,
     ),
     check('stock_movements_ref_check', sql`(${t.refType} is null) = (${t.refId} is null)`),
+    check(
+      'stock_movements_note_check',
+      sql`${t.note} is null or char_length(${t.note}) between 1 and 300`,
+    ),
     // A movement is reversed at most once.
     uniqueIndex('stock_movements_reverses_unique')
       .on(t.reversesId)

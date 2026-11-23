@@ -63,6 +63,7 @@ export const serialMachine = defineMachine<SerialState, SerialEvent, SerialRecor
     'DATABASE §6.5 `serials`',
   ],
   states: SERIAL_STATES,
+  stored: { table: 'serials', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   initial: 'in_stock',
   terminal: [],
   stateNotes: {

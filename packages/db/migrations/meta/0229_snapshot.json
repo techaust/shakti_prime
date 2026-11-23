@@ -1,5 +1,5 @@
 {
-  "id": "dbbaad8a-f9e5-418f-85c0-ea2e9aa05c81",
+  "id": "24a0f95a-c19b-4d6f-aabe-dd6e0b00e465",
   "prevId": "b6fc0ef8-30d8-4cec-9f17-4fc32bc6f8fd",
   "version": "7",
   "dialect": "postgresql",
@@ -17310,6 +17310,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "batch_id": {
           "name": "batch_id",
           "type": "uuid",
@@ -17633,6 +17639,10 @@
         "stock_movements_ref_check": {
           "name": "stock_movements_ref_check",
           "value": "(\"stock_movements\".\"ref_type\" is null) = (\"stock_movements\".\"ref_id\" is null)"
+        },
+        "stock_movements_note_check": {
+          "name": "stock_movements_note_check",
+          "value": "\"stock_movements\".\"note\" is null or char_length(\"stock_movements\".\"note\") between 1 and 300"
         }
       },
       "isRLSEnabled": false

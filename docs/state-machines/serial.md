@@ -44,7 +44,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `supplier_return` *(proposed)* | `in_stock` → `with_supplier` | `procurement.grn.write` at entity scope or wider | – | – |
 | `settle` *(proposed)* | `with_supplier` → `scrapped` | `procurement.grn.write` at entity scope or wider | – | – |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `serial_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `serial_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `serials.state` and the time to `serials.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`; it emits no event.
 
 ## Notes
 

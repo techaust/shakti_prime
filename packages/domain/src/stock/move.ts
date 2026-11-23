@@ -23,6 +23,8 @@ export interface StockMovementLine {
   refId?: string | null;
   /** An inbound line's cost per unit, four decimals; else the definer's moving average. */
   unitCost?: string | null;
+  /** Why a person moved it, up to 300 characters. */
+  note?: string | null;
 }
 
 /** A reversal names only the movement it reverses and a reference. */
@@ -31,6 +33,7 @@ export interface StockReversalLine {
   reversesId: string;
   refType?: string | null;
   refId?: string | null;
+  note?: string | null;
 }
 
 /**
@@ -116,6 +119,7 @@ function lineJson(line: StockMoveLine): Record<string, unknown> {
       reverses_id: line.reversesId,
       ref_type: line.refType ?? null,
       ref_id: line.refId ?? null,
+      note: line.note ?? null,
     };
   }
   return {
@@ -130,6 +134,7 @@ function lineJson(line: StockMoveLine): Record<string, unknown> {
     ref_type: line.refType ?? null,
     ref_id: line.refId ?? null,
     unit_cost: line.unitCost ?? null,
+    note: line.note ?? null,
   };
 }
 

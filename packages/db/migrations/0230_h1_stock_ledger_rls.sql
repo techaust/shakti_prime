@@ -198,7 +198,8 @@ create type app.stock_line as (
   ref_type text,
   ref_id uuid,
   reverses_id uuid,
-  unit_cost numeric(14, 4)
+  unit_cost numeric(14, 4),
+  note text
 );
 --> statement-breakpoint
 
@@ -244,7 +245,7 @@ revoke execute on function app.stock_bin(uuid) from public, readonly_reporter, a
 
 -- 11. app.stock_move(movements jsonb): the one write path of the ledger (§5). A batch of lines,
 --     each {entity_id, item_id, serial_id | serial_no | null, from_bin_id | null, to_bin_id | null,
---     qty, reason, ref_type, ref_id, reverses_id | null, unit_cost | null}, posted in one call
+--     qty, reason, ref_type, ref_id, reverses_id | null, unit_cost | null, note | null}, posted in one call
 --     under one batch id, in the order given. Answers the movement ids, never a cost.
 --     The caller's grant is checked per reason from the request's settings: opening, adjust_gain,
 --     adjust_loss, damage, count and reversal need inventory.stock.adjust for the company, transfer
@@ -331,9 +332,11 @@ begin
       raise exception '% is required for a % movement', v_perm, v_reason using errcode = '42501';
     end if;
     v_line.ref_type := nullif(pg_catalog.btrim(v_el ->> 'ref_type'), '');
+    v_line.note := nullif(pg_catalog.btrim(v_el ->> 'note'), '');
     v_line.ref_id := (v_el ->> 'ref_id')::uuid;
     if (v_line.ref_type is null) <> (v_line.ref_id is null)
-       or pg_catalog.char_length(coalesce(v_line.ref_type, '')) > 40 then
+       or pg_catalog.char_length(coalesce(v_line.ref_type, '')) > 40
+       or pg_catalog.char_length(coalesce(v_line.note, '')) > 300 then
       perform app.stock_refuse('stock_movement_shape', pg_catalog.jsonb_build_object('line', v_ord));
     end if;
 
@@ -604,11 +607,11 @@ begin
 
     v_movement := app.uuid_v7();
     insert into public.stock_movements (id, entity_id, item_id, serial_id, from_bin_id, to_bin_id,
-                                        qty, reason, ref_type, ref_id, reverses_id, batch_id,
+                                        qty, reason, ref_type, ref_id, reverses_id, note, batch_id,
                                         moved_by, request_id)
     values (v_movement, v_line.entity_id, v_line.item_id, v_line.serial_id, v_line.from_bin,
             v_line.to_bin, v_line.qty, v_line.reason, v_line.ref_type, v_line.ref_id,
-            v_line.reverses_id, v_batch, v_actor, v_request);
+            v_line.reverses_id, v_line.note, v_batch, v_actor, v_request);
     insert into public.stock_movement_costs (movement_id, entity_id, unit_cost)
     values (v_movement, v_line.entity_id, v_cost);
 
