@@ -5,7 +5,7 @@
 | Branch | `fix/p3-fixes` on GitHub, from the approved design at a549b0d8 (`main` 334a6d0b plus the design) |
 | Runs on | a seat session (a cloud session under another of the owner's accounts, taking its work from `ops/seats`); the lead on the PC reviews and integrates (owner, 23-11-2026) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): tests and test helpers, one runtime guard |
-| Usage | 5-hour window 4 % on the lead's account at 18:30 UTC when briefed; builder on Opus 5.5 at high effort |
+| Usage | 5-hour window 4 % on the lead's account at 18:30 UTC when briefed; builder on Opus 5.5 at high effort; builder started on seat 2 on Opus 5.5 at high effort (23-11-2026) |
 | State | briefed |
 | Next step | the builder's report |
 

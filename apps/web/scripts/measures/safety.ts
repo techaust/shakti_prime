@@ -46,6 +46,57 @@ export const VENDOR_CREDENTIALS = [
   'QSTASH_URL',
 ] as const;
 
+/**
+ * The variables of `.env.example` whose names look like a vendor's secret (a `_KEY`, `_SECRET`,
+ * `_TOKEN` or `_PASSWORD` ending, or a vendor's prefix) and that the measures keep on purpose,
+ * because none of them lets a measure reach a vendor. `safety.test.ts` fails on any such variable
+ * that is neither here nor in `VENDOR_CREDENTIALS`, so a new vendor key is sorted when it is added.
+ */
+export const KEPT_LOOKALIKES = {
+  /** The local database's role passwords: the server needs them to reach its own Postgres. */
+  databaseRoles: [
+    'APP_USER_PASSWORD',
+    'APP_READER_PASSWORD',
+    'AUTH_SERVICE_PASSWORD',
+    'OUTBOX_PUBLISHER_PASSWORD',
+    'WEBHOOK_RECEIVER_PASSWORD',
+  ],
+  /** The app's own keys, which it signs or seals with and sends to no one. */
+  appKeys: ['BETTER_AUTH_SECRET', 'BOS_JWT_CURRENT_KEY', 'BOS_JWT_NEXT_KEY', 'FIELD_ENCRYPTION_KEY'],
+  /** Sign-in needs them; a local run holds Cloudflare's test keys, which a hosted runtime refuses. */
+  signIn: ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
+  /**
+   * Phrases that only check what reaches the server (webhooks, a quote's Accept button). The server
+   * started here is given its own (`MEASURE_SERVER_ENV`: LiveKit's are accepted by no project, at an
+   * address that does not exist), and the load measure signs its deliveries with them.
+   */
+  serverGivenPhrases: [
+    'EXOTEL_CALLBACK_SECRET',
+    'EXOTEL_INCOMING_SECRET',
+    'GOOGLE_LEADFORM_KEY',
+    'META_LEADGEN_APP_SECRET',
+    'META_LEADGEN_VERIFY_TOKEN',
+    'WHATSAPP_APP_SECRET',
+    'WHATSAPP_VERIFY_TOKEN',
+    'WHATSAPP_BUTTON_SECRET',
+    'LIVEKIT_API_KEY',
+    'LIVEKIT_API_SECRET',
+    'LIVEKIT_URL',
+  ],
+  /** Settings that hold no secret and no address. */
+  settings: [
+    'AWS_REGION',
+    'SARVAM_STT_MODEL',
+    'SARVAM_TTS_MODEL',
+    'SARVAM_TTS_SPEAKER',
+    'SENTRY_ORG',
+    'SENTRY_PROJECT',
+    'WHATSAPP_GRAPH_VERSION',
+    'WHATSAPP_MEDIA_ORPHAN_SWEEP',
+    'WHATSAPP_MEDIA_RETENTION',
+  ],
+} as const satisfies Record<string, readonly string[]>;
+
 /** A copy of `env` with every vendor credential removed and mail sent to the console. */
 export function withoutVendorCredentials<E extends Record<string, string | undefined>>(env: E): E {
   const copy: E = { ...env, MAILER: 'log' };
