@@ -14,6 +14,7 @@ import { projectStandardMachine } from './machines/project-standard';
 import { projectSuryaGharMachine } from './machines/project-surya-ghar';
 import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
+import { serialMachine } from './machines/serial';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
 import { taskMachine } from './machines/task';
@@ -43,6 +44,8 @@ export const MACHINES: readonly AnyMachine[] = [
   agentActionMachine,
   inboxItemMachine,
   knowledgeFileMachine,
+  // H1 stock ledger
+  serialMachine,
 ];
 
 /**

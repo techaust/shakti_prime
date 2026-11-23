@@ -27,6 +27,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Agent action | **yes** | 6 | 6 | 0 | [agent-action.md](agent-action.md) |
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
 | Knowledge Vault file | **yes** | 5 | 7 | 0 | [knowledge-file.md](knowledge-file.md) |
+| Serial | no | 8 | 18 | 14 | [serial.md](serial.md) |
 
 ## Workshop defaults
 

@@ -276,8 +276,12 @@ declare
   v_item_active boolean;
   v_item_tracked boolean;
   v_stocked boolean;
-  v_from record;
-  v_to record;
+  v_from_kind text;
+  v_from_pair_a uuid;
+  v_from_pair_b uuid;
+  v_to_kind text;
+  v_to_pair_a uuid;
+  v_to_pair_b uuid;
   v_orig record;
   v_serial record;
   v_serial_ids uuid[] := '{}';
@@ -391,21 +395,24 @@ begin
     end if;
 
     -- The bins: present, in use, and a transit bin only with a hub of its pair.
+    v_from_kind := null;
+    v_to_kind := null;
     if v_line.from_bin is not null then
-      select * into v_from from app.stock_bin(v_line.from_bin);
-      v_line.from_hub := v_from.warehouse_id;
+      select b.warehouse_id, b.kind, b.pair_a, b.pair_b
+        into v_line.from_hub, v_from_kind, v_from_pair_a, v_from_pair_b
+        from app.stock_bin(v_line.from_bin) b;
     end if;
     if v_line.to_bin is not null then
-      select * into v_to from app.stock_bin(v_line.to_bin);
-      v_line.to_hub := v_to.warehouse_id;
+      select b.warehouse_id, b.kind, b.pair_a, b.pair_b
+        into v_line.to_hub, v_to_kind, v_to_pair_a, v_to_pair_b
+        from app.stock_bin(v_line.to_bin) b;
     end if;
-    if v_line.from_bin is not null and v_line.to_bin is not null
-       and (v_from.kind = 'transit' or v_to.kind = 'transit')
-       and ((v_from.kind = 'transit' and v_to.kind = 'transit')
-            or (v_from.kind = 'transit' and v_line.to_hub is distinct from v_from.pair_a
-                and v_line.to_hub is distinct from v_from.pair_b)
-            or (v_to.kind = 'transit' and v_line.from_hub is distinct from v_to.pair_a
-                and v_line.from_hub is distinct from v_to.pair_b)) then
+    if v_from_kind is not null and v_to_kind is not null
+       and ((v_from_kind = 'transit' and v_to_kind = 'transit')
+            or (v_from_kind = 'transit' and v_line.to_hub is distinct from v_from_pair_a
+                and v_line.to_hub is distinct from v_from_pair_b)
+            or (v_to_kind = 'transit' and v_line.from_hub is distinct from v_to_pair_a
+                and v_line.from_hub is distinct from v_to_pair_b)) then
       perform app.stock_refuse('stock_transit_pair', pg_catalog.jsonb_build_object('line', v_ord));
     end if;
 

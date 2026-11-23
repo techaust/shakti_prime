@@ -17,6 +17,7 @@ import { projectStandardMachine } from './machines/project-standard';
 import { projectSuryaGharMachine } from './machines/project-surya-ghar';
 import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
+import { serialMachine } from './machines/serial';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
 import { taskMachine } from './machines/task';
@@ -48,8 +49,12 @@ interface Fixture {
   events?: Record<string, Setup>;
 }
 
+const SERIAL_BIN = newId();
+
 const FIXTURES: Fixture[] = [
   { machine: agentActionMachine, record: {}, params: {} },
+  // H1: a serial moves from the bin it is in.
+  { machine: serialMachine, record: { binId: SERIAL_BIN }, params: { fromBinId: SERIAL_BIN } },
   { machine: inboxItemMachine, record: {}, params: {} },
   { machine: knowledgeFileMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },

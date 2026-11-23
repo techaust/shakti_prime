@@ -1,0 +1,150 @@
+import {
+  DomainError,
+  STOCK_REFUSALS,
+  type StockReason,
+  type StockRefusal,
+} from '@shakti/contracts';
+import type { RequestTx } from '@shakti/db';
+import { sql } from 'drizzle-orm';
+
+/**
+ * One line of a batch for `app.stock_move()`, the ledger's one write path
+ * (docs/03-roadmap-appendix/phase3.md §5). A reversal names only the movement it reverses and a
+ * reference; the definer takes the rest from that movement.
+ */
+export type StockMoveLine =
+  | {
+      reason: Exclude<StockReason, 'reversal'>;
+      entityId: number;
+      itemId: string;
+      /** An existing serial of a tracked item. */
+      serialId?: string | null;
+      /** A serial by its number: a new one for `opening` and `adjust_gain`, else an existing one. */
+      serialNo?: string | null;
+      fromBinId?: string | null;
+      toBinId?: string | null;
+      /** In the item's stock unit, up to three decimals. */
+      qty: string;
+      refType?: string | null;
+      refId?: string | null;
+      /** An inbound line's cost per unit, four decimals; else the definer's moving average. */
+      unitCost?: string | null;
+    }
+  | {
+      reason: 'reversal';
+      reversesId: string;
+      refType?: string | null;
+      refId?: string | null;
+    };
+
+/** The refusals a person can act on as a state of the stock, rather than a mistake in the input. */
+const CONFLICTS: ReadonlySet<StockRefusal> = new Set<StockRefusal>([
+  'stock_insufficient',
+  'stock_serial_not_in_bin',
+  'stock_serial_exists',
+  'stock_already_reversed',
+  'opening_stock_posted',
+  'stock_bin_archived',
+]);
+
+/** The two unique indexes a concurrent batch can meet, with the refusal each one means. */
+const RACES: Readonly<Record<string, StockRefusal>> = {
+  serials_item_serial_no_unique: 'stock_serial_exists',
+  stock_movements_reverses_unique: 'stock_already_reversed',
+};
+
+/** The facts a refusal may carry to a screen: ids, codes and the batch line, never a cost. */
+const FACTS = ['line', 'itemId', 'sku', 'binId', 'binCode', 'serialNo', 'entityId'] as const;
+
+const REFUSALS: ReadonlySet<string> = new Set(STOCK_REFUSALS);
+
+interface PgFailure {
+  code?: unknown;
+  constraint_name?: unknown;
+  detail?: unknown;
+}
+
+function pgFailure(e: unknown): PgFailure | undefined {
+  const cause = e instanceof Error && e.cause instanceof Error ? e.cause : e;
+  return cause instanceof Error ? (cause as PgFailure) : undefined;
+}
+
+function facts(detail: unknown): Record<string, unknown> {
+  if (typeof detail !== 'string') return {};
+  try {
+    const parsed: unknown = JSON.parse(detail);
+    if (parsed === null || typeof parsed !== 'object') return {};
+    const out: Record<string, unknown> = {};
+    for (const key of FACTS) {
+      const value = (parsed as Record<string, unknown>)[key];
+      if (typeof value === 'string' || typeof value === 'number') out[key] = value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The ledger's refusal as a domain error with its catalogue reason and the facts it names, or
+ * undefined for any other failure (which the runner translates as usual).
+ */
+export function stockRefusal(e: unknown): DomainError | undefined {
+  const failure = pgFailure(e);
+  if (failure === undefined) return undefined;
+  const constraint =
+    typeof failure.constraint_name === 'string' ? failure.constraint_name : undefined;
+  if (constraint === undefined) return undefined;
+  let reason: StockRefusal | undefined;
+  if (failure.code === '23514' && REFUSALS.has(constraint)) reason = constraint as StockRefusal;
+  else if (failure.code === '23505') reason = RACES[constraint];
+  if (reason === undefined) return undefined;
+  return new DomainError(
+    CONFLICTS.has(reason) ? 'conflict' : 'validation_failed',
+    `stock movement refused: ${reason}`,
+    { ...facts(failure.detail), reason },
+    { cause: e },
+  );
+}
+
+function lineJson(line: StockMoveLine): Record<string, unknown> {
+  if (line.reason === 'reversal') {
+    return {
+      reason: 'reversal',
+      reverses_id: line.reversesId,
+      ref_type: line.refType ?? null,
+      ref_id: line.refId ?? null,
+    };
+  }
+  return {
+    reason: line.reason,
+    entity_id: line.entityId,
+    item_id: line.itemId,
+    serial_id: line.serialId ?? null,
+    serial_no: line.serialNo ?? null,
+    from_bin_id: line.fromBinId ?? null,
+    to_bin_id: line.toBinId ?? null,
+    qty: line.qty,
+    ref_type: line.refType ?? null,
+    ref_id: line.refId ?? null,
+    unit_cost: line.unitCost ?? null,
+  };
+}
+
+/**
+ * Posts a batch through `app.stock_move()` in the caller's transaction and answers the movement
+ * ids in the order given. The definer checks the caller's grant for each reason, locks what it
+ * touches in the one fixed order and refuses what the stock cannot do; a refusal is thrown as a
+ * `DomainError` with its catalogue reason. Nothing it answers carries a cost.
+ */
+export async function stockMove(tx: RequestTx, lines: readonly StockMoveLine[]): Promise<string[]> {
+  const payload = JSON.stringify(lines.map(lineJson));
+  try {
+    const rows = (await tx.execute(
+      sql`select app.stock_move(${payload}::jsonb) as ids`,
+    )) as unknown as { ids: string[] }[];
+    return rows[0]?.ids ?? [];
+  } catch (e) {
+    throw stockRefusal(e) ?? e;
+  }
+}
