@@ -184,7 +184,12 @@ export function QuoteFormDialog({
             <DialogDescription>{t('intro')}</DialogDescription>
           </DialogHeader>
           {items.length > 0 && picked === undefined ? (
-            <Field id="quote-item" label={t('item')} helper={t('itemHelper')}>
+            <Field
+              id="quote-item"
+              label={t('item')}
+              helper={t('itemHelper')}
+              error={problem === 'item' ? t('itemMissing') : undefined}
+            >
               <Select
                 value={itemId}
                 onChange={(e) => {
@@ -206,6 +211,7 @@ export function QuoteFormDialog({
               noneFound={t('noneFound')}
               chooseLabel={t('choose')}
               chooseFor={(i) => t('chooseFor', { item: i.name })}
+              error={problem === 'item' ? t('itemMissing') : undefined}
               onChoose={(i) => {
                 setPicked(i);
               }}
@@ -216,12 +222,14 @@ export function QuoteFormDialog({
               <span className="text-text-muted">{picked.sku}</span>
             </p>
           )}
-          {problem === 'item' ? <p className="text-danger">{t('itemMissing')}</p> : null}
           <Field id="quote-company" label={t('company')} helper={t('companyHelper')}>
             <Select
               value={company}
               onChange={(e) => {
                 setCompany(e.currentTarget.value);
+                // A document is stored in one company: a new choice asks for it again (review L2).
+                recorded.current = undefined;
+                setFileId(undefined);
               }}
             >
               {companies.map((c) => (
@@ -299,6 +307,7 @@ export function QuoteFormDialog({
             </Field>
           </div>
           <Uploader
+            key={company}
             id={`quote-document-${vendor.id}`}
             label={t('document')}
             hint={`${t('documentHelper')} ${files('uploader.limits', { types, size: sizeText })}`}

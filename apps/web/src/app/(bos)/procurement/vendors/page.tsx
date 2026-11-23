@@ -60,6 +60,11 @@ export default async function VendorsPage() {
             canWrite,
             canRecordQuotes: readsRates && canWrite && companies.length > 0,
             quoteCompanies: companies,
+            companyNames: Object.fromEntries(
+              access.entities
+                .filter((e) => principal.entityIds.includes(e.entityId))
+                .map((e) => [e.entityId, e.entityName]),
+            ),
           }}
           uploadLimit={quoteDocumentLimit()}
         />

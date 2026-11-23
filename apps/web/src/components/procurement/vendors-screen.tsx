@@ -39,6 +39,8 @@ export interface VendorPowers {
   canRecordQuotes: boolean;
   /** The companies a quote may be recorded for, the group first when the request covers it. */
   quoteCompanies: readonly QuoteCompany[];
+  /** Every company of the request by id, for the quotes a reader of rates sees (review L3). */
+  companyNames: Readonly<Record<number, string>>;
 }
 
 /**
@@ -182,37 +184,35 @@ export function VendorsScreen({
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end">
-        <Field
-          id="vendor-search"
-          label={t('search')}
-          helper={t('searchHelper')}
-          className="md:w-72"
-        >
-          <Input
-            type="search"
-            autoComplete="off"
-            value={filters.q}
-            onChange={(e) => {
-              changeFilters({ ...filters, q: e.currentTarget.value }, true);
-            }}
-          />
-        </Field>
-        <label className="flex min-h-9 items-center gap-2">
-          <input
-            type="checkbox"
-            className="accent-accent size-4"
-            checked={filters.includeArchived}
-            onChange={(e) => {
-              changeFilters({ ...filters, includeArchived: e.currentTarget.checked }, false);
-            }}
-          />
-          {t('showArchived')}
-        </label>
+      {/* The search and its archived choice stacked, and the page's own action apart from them, so
+          nothing is lined up with the field's helper text (docs/08-design-system.md §6, review L4). */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-2 md:w-72">
+          <Field id="vendor-search" label={t('search')} helper={t('searchHelper')}>
+            <Input
+              type="search"
+              autoComplete="off"
+              value={filters.q}
+              onChange={(e) => {
+                changeFilters({ ...filters, q: e.currentTarget.value }, true);
+              }}
+            />
+          </Field>
+          <label className="flex min-h-9 items-center gap-2">
+            <input
+              type="checkbox"
+              className="accent-accent size-4"
+              checked={filters.includeArchived}
+              onChange={(e) => {
+                changeFilters({ ...filters, includeArchived: e.currentTarget.checked }, false);
+              }}
+            />
+            {t('showArchived')}
+          </label>
+        </div>
         {powers.canWrite ? (
           <Button
             ref={addButton}
-            className="md:ml-auto"
             onClick={() => {
               setAdding(true);
             }}

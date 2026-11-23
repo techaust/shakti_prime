@@ -23,6 +23,7 @@ import {
   Skeleton,
   StatusBadge,
   toast,
+  useFocusTargets,
   type ReturnFocusTo,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
@@ -74,6 +75,15 @@ export function VendorSheet({
   const [sheet, setSheet] = useState<Sheet | undefined>();
   const [dialog, setDialog] = useState<DialogKind | undefined>();
   const [withdrawing, setWithdrawing] = useState<VendorQuoteDto | undefined>();
+  const withdrawButtons = useFocusTargets<string>();
+  /** A quote named for a screen reader: its item, dates and company (review L5). */
+  const quoteNames = (q: VendorQuoteDto) => ({
+    item: q.itemName,
+    from: formatDate(q.validFrom),
+    until: formatDate(q.validUntil),
+    company:
+      q.entityId === null ? p('wholeGroup') : (powers.companyNames[q.entityId] ?? t('oneCompany')),
+  });
   const editButton = useRef<HTMLButtonElement>(null);
   const contactsButton = useRef<HTMLButtonElement>(null);
   const itemButton = useRef<HTMLButtonElement>(null);
@@ -331,9 +341,7 @@ export function VendorSheet({
                           {q.entityId === null
                             ? t('forGroup')
                             : t('forCompany', {
-                                company:
-                                  powers.quoteCompanies.find((c) => c.entityId === q.entityId)
-                                    ?.name ?? t('oneCompany'),
+                                company: powers.companyNames[q.entityId] ?? t('oneCompany'),
                               })}
                         </p>
                         <p className="text-text-muted">
@@ -349,6 +357,7 @@ export function VendorSheet({
                               variant="link"
                               size="sm"
                               pending={doc.opening}
+                              aria-label={t('openDocumentFor', quoteNames(q))}
                               onClick={() => {
                                 if (q.fileId !== null) doc.open(q.fileId);
                               }}
@@ -359,9 +368,10 @@ export function VendorSheet({
                           {powers.canRecordQuotes &&
                           (q.status === 'live' || q.status === 'upcoming') ? (
                             <Button
+                              ref={withdrawButtons.ref(q.id)}
                               variant="secondary"
                               size="sm"
-                              aria-label={t('withdrawFor', { item: q.itemName })}
+                              aria-label={t('withdrawFor', quoteNames(q))}
                               onClick={() => {
                                 setWithdrawing(q);
                               }}
@@ -442,6 +452,7 @@ export function VendorSheet({
             {withdrawing === undefined ? null : (
               <WithdrawQuoteDialog
                 quote={withdrawing}
+                returnFocusTo={() => [withdrawButtons.get(withdrawing.id)]}
                 onClose={() => {
                   setWithdrawing(undefined);
                 }}
@@ -559,10 +570,12 @@ function ArchiveVendorDialog({
 
 function WithdrawQuoteDialog({
   quote,
+  returnFocusTo,
   onClose,
   onDone,
 }: {
   quote: VendorQuoteDto;
+  returnFocusTo: ReturnFocusTo;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -576,7 +589,7 @@ function WithdrawQuoteDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent closeLabel={common('close')}>
+      <DialogContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
         <DialogHeader>
           <DialogTitle>{t('title', { item: quote.itemName })}</DialogTitle>
           <DialogDescription>{t('intro')}</DialogDescription>

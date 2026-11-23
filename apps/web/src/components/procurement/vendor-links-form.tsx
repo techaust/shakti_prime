@@ -288,12 +288,12 @@ export function ItemLinkDialog({
                 chooseLabel={t('choose')}
                 chooseFor={(i) => t('chooseFor', { item: i.name })}
                 exclude={exclude}
+                error={itemMissing ? t('itemMissing') : undefined}
                 onChoose={(i) => {
                   setItem(i);
                   setItemMissing(false);
                 }}
               />
-              {itemMissing ? <p className="text-danger">{t('itemMissing')}</p> : null}
             </>
           ) : (
             <div className="border-border flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2">

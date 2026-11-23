@@ -6231,7 +6231,8 @@
       "noLeadTime": "Delivery time not given",
       "openDocument": "Open quote",
       "withdraw": "Withdraw",
-      "withdrawFor": "Withdraw the quote for {item}"
+      "withdrawFor": "Withdraw the quote for {item}, valid {from} to {until}, for {company}",
+      "openDocumentFor": "Open the quote for {item}, valid {from} to {until}, for {company}"
     },
     "archiveVendor": {
       "title": "Archive {name}?",
