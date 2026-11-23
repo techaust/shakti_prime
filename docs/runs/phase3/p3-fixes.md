@@ -92,3 +92,44 @@ All four items are done, one commit each with its test, on `fix/p3-fixes`. No co
 - The axe wait leaves out animations that never end (spinners) instead of waiting for `getAnimations()` to be empty, which a page with a spinner never is. Paused animations and finished ones holding their last frame are left out too.
 - The duplicate-scan case keeps the route's `'{}'` body and the real walk through the companies, and moves only where each company's search starts. The brief's "companies it made itself" is met by the customers it makes in each live company: making companies would change what every other suite and journey sees.
 
+## Review
+Slice-reviewer, 23-11-2026, cloud session (seat 3), on d92416f4 (`git diff a549b0d8..fix/p3-fixes`, which is `git diff origin/main...fix/p3-fixes` since `main` ef3798f1 adds nothing past a549b0d8), Tier C. Run in the VM: the three unit files (`safety.test.ts`, `axe.test.ts`, `qstash.test.ts`: 37 passed); `tests/duplicate-scan.test.ts` with the security config (10 passed); the five new `qstash.test.ts` cases against a549b0d8's `qstash.ts` (all 5 fail, the file restored afterwards); `jobs-check.test.ts` on fresh databases (below). Not run: typecheck, lint, the build and the journeys (the builder's report records them), and no screenshot was reviewed, since no screen changed.
+
+**The lead's question, `jobs-check.test.ts` on a fresh database:** it fails on the branch **and on `main`**, so the slice did not cause it.
+- On a fresh Postgres (`fresh-db.sh shakti-postgres 54322`), `vitest run --config vitest.security.config.ts tests/jobs-check.test.ts` fails "reads every job as the worker principal…" (1 failed, 9 passed), on d92416f4 and on `main` ef3798f1. Both runs fail the same way: the alerts hold `audit-logs-partitions` and `whatsapp-messages-partitions` late, and no `outbox-events-purge`.
+- Cause (confirmed): no migration runs the outbox purge. `retention_runs` on the fresh database holds only the two partition jobs, and `cron.job_run_details` is empty (pg_cron runs nothing in the test container). The only caller of `call app.purge_outbox_events()` outside pg_cron is `packages/db/tests/security/retention.test.ts` (lines 83 and 121). The case's comment ("The migrations run the outbox purge once and record it") is wrong.
+- Proof: on another fresh database, the db suite's `retention.test.ts` first (14 passed), then `jobs-check.test.ts`: 10 passed.
+- So the case passes only after the db suite has run against the same database, as in the whole `pnpm test:security` (`turbo run test:security --concurrency=1`, where `@shakti/db` runs before `web` in practice; no `dependsOn` orders it). It fails whenever the web suite or this file runs alone, as the builder ran it (`pnpm --filter web test:security`). See finding 2.
+
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 1 | Low | **The duplicate-scan case can fail on a database that holds an earlier run's number (plausible, by reading the code).** `customersSharingAPhone` (`duplicate-scan.test.ts`) builds the number from the last 6 characters of a UUIDv7 with every letter changed to `7`, plus the company's position. Earlier runs' customers stay in the shared database, and the scan looks around every customer of the company, not only those after the marker. So when an earlier run drew the same 6 characters, `candidatesOf(pair.first)` holds a second card and the `toEqual([…one card…])` fails. The chance is about 1 in 7,600 per pair of runs (the letter-to-7 change skews the digits), so roughly 1 % on a database aged by 100 runs, as the PC's main checkout is. Fix: take 8 decimal digits from `randomInt` (or from the id's hex read as a number), or assert `toContainEqual` on the pair's own card and that no card pairs `first` with anything but `second` among this run's ids. | open |
+| 2 | Low | **`jobs-check.test.ts` depends on the db suite having run first (confirmed; existed before this slice, outside its files).** See the lead's question above. Scenario: `pnpm --filter web test:security`, or this file alone, on a fresh database fails, as it did in the builder's VM and here on `main`. Fix (a follow-up, outside this brief's owned files): the case runs `call app.purge_outbox_events()` through `asMigrator` before its first check, as `retention.test.ts` does, and its comment says so. | open, for the lead (STATUS follow-up) |
+| 3 | Low | **The axe wait drops its `'moving'` answer silently (confirmed by reading the code).** `expectNoAxeViolations` (`axe.ts`) awaits `page.evaluate(waitUntilStill, STILL_WAIT)` and ignores the result. A fade or a finite animation longer than 2 seconds lets axe measure mid-fade again, and a contrast failure then gives no sign that the page was still moving. Fix, one line: when the answer is `'moving'`, add a test annotation, or name it in the failure message. | open |
+
+Found sound:
+- **Item 4, QStash:**
+  - `@upstash/qstash` 2.12.2 resolves `config?.baseUrl ?? env.QSTASH_URL ?? DEFAULT_QSTASH_URL` (`chunk-QZWHOQRG.mjs`, `getClientCredentials`), so a blank `QSTASH_URL` in the process became the address. The fix of always passing `baseUrl` is right, and `QSTASH_DEFAULT_URL` equals the library's `DEFAULT_QSTASH_URL`.
+  - The real-client case stubs `fetch` and reaches no vendor. `client()` is the only `new Client(` in `apps/web/src`.
+  - Passing `baseUrl` with a token skips the library's `QSTASH_REGION` lookup. Nothing in the repository sets `QSTASH_REGION`.
+- **Item 1, the vendor list:**
+  - The test reads `.env.example` lines, set and commented out, with the brief's endings and 13 prefixes. The made-up-variable case proves the check can fail, and the cross-checks (no name on both lists; every kept name is in `.env.example`; every kept phrase is in `MEASURE_SERVER_ENV`'s parts) hold.
+  - The kept LiveKit, WhatsApp, Meta, Google and Exotel phrases are replaced for the measuring server by `JOURNEY_SERVER_ENV` and `TEST_WEBHOOK_ENV`.
+  - The measures' own process (`loadRootEnv`) keeps the `.env`'s values of those names, but it runs only the lead path and the outbox batch, and neither reaches `integrations/voice/livekit.ts` or a webhook sender. No gap today.
+  - Comparing names with `.env.example` confirms nothing was missing from `VENDOR_CREDENTIALS`.
+- **Item 2, the axe wait:**
+  - It cannot hang a journey: the loop is bounded by `limitMs`, and each step ends after a frame or 50 ms.
+  - Paused animations, finished ones and endless ones (spinners) are left out, so no case waits on what never ends.
+  - The function is self-contained for `page.evaluate`.
+  - `axe.test.ts` is in the unit config's `e2e/support/**/*.test.ts`, so CI runs it.
+- **Item 3, duplicate scan:**
+  - The stand-in `executeCommand` moves only the starting cursor of `crm.duplicate.scan`, when its `afterId` is null and a case set the marker. The command, `app.duplicate_facts()`, `app.record_duplicates()`, the signature check and `runCompanyBatches`' walk stay real.
+  - The marker is minted before a database round trip, so every customer id after it sorts after it (UUIDv7 milliseconds).
+  - `liveCompanies()` mirrors the walk (from company 1 to the first missing id, skipping archived ones).
+  - The marker is reset in `afterEach`, the security config runs files one at a time (`fileParallelism: false`), and the 60-second limit is in the test, not a config.
+- No config file, `package.json` script, package, lockfile or Phase 3 slice file changed. The diff touches only the brief's owned files and the run file.
+- Each fix has a test that fails without it (QStash: reproduced; axe: the function did not exist; the list: the made-up-variable case; duplicate scan: the old case is the evidence of the timing).
+
+Not checked:
+- The journeys, `channels.spec.ts` five times included, and the builder's timing table for the duplicate scan: read from the report, not reproduced.
+- `pnpm build`, typecheck and lint: the report records them, and this review ran none.
