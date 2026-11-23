@@ -189,6 +189,10 @@ import {
 import { setContrast } from '../commands/profile/set-contrast';
 import { setCompositeRule } from '../commands/tax/set-composite-rule';
 import { setTaxRate } from '../commands/tax/set-tax-rate';
+// U1 vendors and supplier quotes.
+import { archiveVendor, createVendor, updateVendor } from '../commands/procurement/vendors';
+import { setItemVendor, setVendorContacts } from '../commands/procurement/vendor-links';
+import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/quotes';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -391,6 +395,14 @@ export const commands = Object.freeze({
   [setNotificationSettings.name]: setNotificationSettings,
   [subscribePush.name]: subscribePush,
   [unsubscribePush.name]: unsubscribePush,
+  // U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3).
+  [createVendor.name]: createVendor,
+  [updateVendor.name]: updateVendor,
+  [archiveVendor.name]: archiveVendor,
+  [setVendorContacts.name]: setVendorContacts,
+  [setItemVendor.name]: setItemVendor,
+  [recordVendorQuote.name]: recordVendorQuote,
+  [withdrawVendorQuote.name]: withdrawVendorQuote,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

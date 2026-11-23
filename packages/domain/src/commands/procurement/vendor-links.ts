@@ -116,7 +116,13 @@ export const setItemVendor = defineCommand({
       const taken = await ctx.tx
         .update(iv)
         .set({ isPreferred: false, updatedBy: ctx.principal.id })
-        .where(and(eq(iv.itemId, input.itemId), eq(iv.isPreferred, true), ne(iv.vendorId, input.vendorId)))
+        .where(
+          and(
+            eq(iv.itemId, input.itemId),
+            eq(iv.isPreferred, true),
+            ne(iv.vendorId, input.vendorId),
+          ),
+        )
         .returning();
       for (const other of taken) {
         ctx.audit({
