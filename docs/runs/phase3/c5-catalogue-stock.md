@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): catalogue columns and an import, no money or ledger |
 | Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (the builder's own model and effort at start and end: Opus 5.5, high) |
-| State | built; review fixed, report `fixes` (journeys and Linux baselines not run in the VM, see the reports) |
-| Next step | the lead's check of the fix diff, then the journeys and baselines on the PC |
+| State | integrated on the PC; pull request open |
+| Next step | merge on green |
 
 ## Brief
 Build [phase3 §6.1](../../03-roadmap-appendix/phase3.md#61-c5-catalogue-for-stock) as written. Points the design leaves to you, settled here:
@@ -130,3 +130,9 @@ The review's three findings, in one round (`503374c9`, `8ac69c4e`), as the lead 
 - `pnpm test:security` (`--continue`): db 1529 of 1529, domain 1435 of 1435, web 460 of 460.
 - `pnpm build` passes; `js-budget`: every page within budget (57).
 - Not run: the journeys and the Linux baselines, for the same reason as before. This environment's network policy refuses `challenges.cloudflare.com` and `api.pwnedpasswords.com`, so sign-in cannot pass. They wait for the lead on the PC: `playwright test catalogue.spec.ts`, then `e2e:snap -- catalogue.spec.ts`. `db:docs` and `machines:docs` were not re-run: nothing they read changed.
+
+## Integration (the lead, 24-11-2026, on the PC)
+- `main` taken in by merge commits; the migration stays `0229_c5_catalogue_stock` (main's last is 0228); `db:generate` reports no change.
+- `integrate.sh`: install, lint, format, copy-lint, generated, typecheck, unit, security, `db:verify`, audit, build, JavaScript budget and gitleaks passed; `catalogue.spec.ts` failed on two journey defects the cloud could not run: the existing `getByRole('link', { name: 'Items' })` also matched the new Import items link (now `exact: true`), and the new cases opened Solar cable 4 sq mm without searching the paged grid (now found by its code first). Fixed by the lead (`test(web): the catalogue journeys…`).
+- On a fresh database: `catalogue.spec.ts` 41 passed; Linux baselines made in the Playwright image (`catalogue-item-stock` and `imports-new-items` new in three projects, `catalogue-items` remade in three), each looked at, and a verification run without updating matched all 41.
+- Follow-up, not this slice's: the New import page's intro still says "a spreadsheet of leads or customers" and asks for a company for catalogue items, which are shared by the group.
