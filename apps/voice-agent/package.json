@@ -9,8 +9,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@livekit/agents": "1.9.5",
-    "@livekit/rtc-node": "1.2.1",
+    "@livekit/agents": "1.10.1",
+    "@livekit/rtc-node": "1.2.3",
     "@shakti/contracts": "workspace:*",
     "@shakti/voice": "workspace:*",
     "zod": "^4.6.7"
