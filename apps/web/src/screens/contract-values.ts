@@ -820,14 +820,30 @@ export const ITEM_SPEC_FIELDS: Readonly<Record<ItemCategory, readonly SpecField[
     { key: 'inputMinV', kind: 'number', min: 1, max: 2000, decimals: 0 },
     { key: 'inputMaxV', kind: 'number', min: 1, max: 2000, decimals: 0 },
   ],
-  structure: [],
-  cable: [],
+  structure: [
+    { key: 'capacityKwp', kind: 'number', min: 0.1, max: 1000, decimals: 2, optional: true },
+    { key: 'material', kind: 'text', maxLength: 40, optional: true },
+  ],
+  cable: [
+    { key: 'cores', kind: 'number', min: 1, max: 61, decimals: 0, optional: true },
+    { key: 'sizeMm2', kind: 'number', min: 0.5, max: 1000, decimals: 2, optional: true },
+    { key: 'conductor', kind: 'choice', options: ['copper', 'aluminium'], optional: true },
+  ],
   pipe: [
     { key: 'nominalSizeMm', kind: 'number', min: 1, max: 2000, decimals: 0 },
     { key: 'material', kind: 'text', maxLength: 40 },
+    { key: 'pipeClass', kind: 'text', maxLength: 20, optional: true },
+    { key: 'pieceLengthM', kind: 'number', min: 0.1, max: 1000, decimals: 2, optional: true },
   ],
-  inverter: [KW],
-  battery: [],
+  inverter: [
+    KW,
+    { key: 'kva', kind: 'number', min: 0.01, max: 10_000, decimals: 2, optional: true },
+    { ...PHASE, optional: true },
+  ],
+  battery: [
+    { key: 'ah', kind: 'number', min: 1, max: 100_000, decimals: 0, optional: true },
+    { key: 'voltageV', kind: 'number', min: 1, max: 2000, decimals: 1, optional: true },
+  ],
   other: [],
 };
 
@@ -844,6 +860,15 @@ export const SPEC_KEYS = [
   'inputMaxV',
   'nominalSizeMm',
   'material',
+  'capacityKwp',
+  'cores',
+  'sizeMm2',
+  'conductor',
+  'pipeClass',
+  'pieceLengthM',
+  'kva',
+  'ah',
+  'voltageV',
 ] as const;
 export type SpecKey = (typeof SPEC_KEYS)[number];
 export const NUMERIC_SPEC_KEYS = [
@@ -855,6 +880,13 @@ export const NUMERIC_SPEC_KEYS = [
   'inputMinV',
   'inputMaxV',
   'nominalSizeMm',
+  'capacityKwp',
+  'cores',
+  'sizeMm2',
+  'pieceLengthM',
+  'kva',
+  'ah',
+  'voltageV',
 ] as const satisfies readonly SpecKey[];
 export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 

@@ -39,7 +39,11 @@ export function useCatalogueText() {
     if (key === 'pumpType' && (value === 'surface' || value === 'submersible')) {
       return t(`choices.pumpType.${value}`);
     }
-    return key === 'material' ? value : wordsOf(value);
+    if (key === 'conductor' && (value === 'copper' || value === 'aluminium')) {
+      return t(`choices.conductor.${value}`);
+    }
+    // Free text the person typed stays as typed.
+    return key === 'material' || key === 'pipeClass' ? value : wordsOf(value);
   };
   return { category, unit, quantity, specLabel, specValue };
 }

@@ -232,6 +232,7 @@
     "catalogue_item_missing": "This item is no longer in the catalogue. Refresh the page to see the current list.",
     "catalogue_kit_missing": "This kit is no longer in the catalogue. Refresh the page to see the current list.",
     "item_sku_taken": "Another item already uses this item code. Choose a different code.",
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
     "kit_sku_taken": "Another kit already uses this kit code. Choose a different code.",
     "item_in_kit": "This item is part of a kit that is still sold. Take it out of the kit first, or stop selling the kit.",
     "kit_item_archived": "One of the items is no longer in the catalogue. Remove it from the kit and try again.",
@@ -2046,6 +2047,13 @@
       "isSerialTracked": "Serial number on each piece",
       "isDcr": "Made with Indian cells (DCR)",
       "almmRef": "ALMM listing",
+      "warrantyMonths": "Months of warranty to the customer",
+      "supplierWarrantyMonths": "Months of the supplier's warranty",
+      "barcode": "Barcode",
+      "purchaseUnit": "Unit it is bought in",
+      "purchaseUnitFactor": "Stock units in one bought unit",
+      "serialPattern": "Shape of its serial numbers",
+      "isStocked": "Kept in stock",
       "specs": "Specifications",
       "isActive": "Sold",
       "components": "Items in the kit",
@@ -3396,7 +3404,16 @@
       "inputMinV": "Lowest input voltage",
       "inputMaxV": "Highest input voltage",
       "nominalSizeMm": "Size in mm",
-      "material": "Material"
+      "material": "Material",
+      "capacityKwp": "Panel capacity in kWp",
+      "cores": "Number of cores",
+      "sizeMm2": "Size in sq mm",
+      "conductor": "Conductor",
+      "pipeClass": "Pressure class",
+      "pieceLengthM": "Length of one piece in metres",
+      "kva": "Power in kVA",
+      "ah": "Capacity in Ah",
+      "voltageV": "Voltage"
     },
     "specValues": {
       "hp": "{value} HP",
@@ -3406,7 +3423,14 @@
       "wp": "{value} Wp",
       "inputMinV": "{value} V",
       "inputMaxV": "{value} V",
-      "nominalSizeMm": "{value} mm"
+      "nominalSizeMm": "{value} mm",
+      "capacityKwp": "{value} kWp",
+      "cores": "{value} cores",
+      "sizeMm2": "{value} sq mm",
+      "pieceLengthM": "{value} m",
+      "kva": "{value} kVA",
+      "ah": "{value} Ah",
+      "voltageV": "{value} V"
     },
     "choices": {
       "phase": {
@@ -3416,6 +3440,10 @@
       "pumpType": {
         "surface": "Surface",
         "submersible": "Submersible"
+      },
+      "conductor": {
+        "copper": "Copper",
+        "aluminium": "Aluminium"
       }
     },
     "item": {
