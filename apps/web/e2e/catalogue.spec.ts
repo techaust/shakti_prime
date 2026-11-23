@@ -18,7 +18,10 @@ test.describe('as an Executive, acting for every company', () => {
     await page.goto('/catalogue');
     await expect(page.getByRole('heading', { name: 'Catalogue', level: 1 })).toBeVisible();
     await showCompany(page, 'All companies');
-    await expect(page.getByRole('link', { name: 'Items' })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('link', { name: 'Items', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     await expectNoAxeViolations(page);
     await snap(page, 'catalogue-items');
 
@@ -103,6 +106,8 @@ test.describe('stock and warranty, as an Executive acting for every company', ()
   }) => {
     await page.goto('/catalogue');
     await showCompany(page, 'All companies');
+    // The grid shows a page at a time: find the journeys' cable by its code first.
+    await page.getByLabel('Search by name or code').fill('JRN-CBL-4');
     await page.getByRole('button', { name: 'Open Solar cable 4 sq mm' }).click();
     const sheet = page.getByRole('dialog', { name: 'Solar cable 4 sq mm' });
     const stock = sheet.getByRole('region', { name: 'Stock and warranty' });
@@ -152,6 +157,8 @@ test.describe('stock and warranty, as a tele-caller who reads prices only', () =
   test('reads the terms without changing them, and is not offered the import', async ({ page }) => {
     await page.goto('/catalogue');
     await expect(page.getByRole('link', { name: 'Import items' })).toHaveCount(0);
+    // The grid shows a page at a time: find the journeys' cable by its code first.
+    await page.getByLabel('Search by name or code').fill('JRN-CBL-4');
     await page.getByRole('button', { name: 'Open Solar cable 4 sq mm' }).click();
     const sheet = page.getByRole('dialog', { name: 'Solar cable 4 sq mm' });
     await expect(sheet.getByRole('region', { name: 'Stock and warranty' })).toBeVisible();
