@@ -5,7 +5,7 @@
 | Branch | `fix/p3-fixes` on GitHub, from the approved design at a549b0d8 (`main` 334a6d0b plus the design) |
 | Runs on | a seat session (a cloud session under another of the owner's accounts, taking its work from `ops/seats`); the lead on the PC reviews and integrates (owner, 23-11-2026) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): tests and test helpers, one runtime guard |
-| Usage | 5-hour window 4 % on the lead's account at 18:30 UTC when briefed; builder on Opus 5.5 at high effort; builder started on seat 2 on Opus 5.5 at high effort (23-11-2026) and ended on the same model and effort; the fix round started on seat 4 on Opus 5.5 at high effort (24-11-2026) and ended on the same model and effort |
+| Usage | 5-hour window 4 % on the lead's account at 18:30 UTC when briefed; builder on Opus 5.5 at high effort; builder started on seat 2 on Opus 5.5 at high effort (23-11-2026) and ended on the same model and effort; the fix round started on seat 4 on Opus 5.5 at high effort (24-11-2026) and ended on the same model and effort; the second fix round, on seat 4, started and ended on Opus 5.5 at high effort (24-11-2026) |
 | State | briefed |
 | Next step | the builder's report |
 
@@ -125,6 +125,46 @@ The three Review findings the lead marked are fixed, one commit each with its te
 **Assumptions**
 - Finding 1: besides the 8 random digits the lead asked for, `unusedPhone` checks the database and draws again, so a collision is impossible rather than unlikely. Test files run one at a time, so nothing can take the number between the check and the insert.
 - The axe message is a test failure message, not product copy, so it stays out of `en.json`, as the message before it did.
+
+### 24-11-2026, cloud session (seat 4), second fix round
+The two defects found at integration ("Integration (the lead, 24-11-2026, on the PC)") are fixed, one commit each, on `fix/p3-fixes` after the lead's merge of `main` (24fa386c). Only `apps/web/e2e/support/axe.ts`, its test and `apps/web/e2e/channels.spec.ts` changed. No config file, `package.json` script, package, lockfile or Phase 3 slice file changed. Skills loaded: none.
+
+**1. The axe wait covers notices** (a6597723)
+- `waitUntilStill` counts a page as moving while any `[data-sonner-toast]` on show is not mounted or not fully opaque (computed `opacity` other than `1`), as well as while an animation runs. It is one loop under the same 2 seconds and 3 still frames, so it still cannot hang a journey. A notice that is leaving (`data-removed="true"`) or hidden behind others (`data-visible="false"`) stays at 0 and is not waited for, per sonner 2.0.8's `styles.css`.
+- The separate wait for `data-mounted="false"` in `expectNoAxeViolations` is gone, since the loop covers it.
+- `axe.test.ts` adds 3 cases (10 in the file):
+  - a notice that sits in the page unmounted, then mounted at opacity 0, then fading, with no animation at any point: the wait ends only once it is opaque;
+  - leaving and hidden notices do not hold the wait;
+  - a notice that never becomes opaque gives `'moving'` within the limit.
+- The first and third cases fail against a6597723's parent `axe.ts` (2 failed, 8 passed).
+
+**2. The spec's clean-up** (8b5b5ef5)
+- Root cause: the dialog shows "Loading the numbers." until its list arrives, and `leftOver.count()` does not wait. A count taken before the list showed read 0, so the leftover number was never taken out of use and "Not set" never showed.
+- "Take out of use" has no confirm dialog: `channels-dialog.tsx` runs `archive.run` straight from the button. So the brief's "confirm its dialog" has nothing to act on.
+- The clean-up now waits until either "Not set" or the "Take out of use" button shows (`expect(notSet.or(leftOver)).toBeVisible()`), clicks the button if it shows, and waits for "Not set".
+
+**Proof on the VM** (fresh database via `fresh-db.sh shakti-postgres 54322` and `pnpm db:migrate`, `pnpm build` of 8b5b5ef5's code, then `pnpm --filter web e2e:seed` before every run)
+- `channels.spec.ts` ten times in a row: 21 passed and 2 skipped every time (28.6 s, 28.5 s, 27.9 s, 28.2 s, 27.5 s, 29.7 s, 28.0 s, 28.0 s, 27.8 s, 29.2 s).
+- Retry recovery. The first attempt was made to fail just after the number shows "Checked and working" (`if (testInfo.retry === 0) throw …`, added by hand and reverted, the spec checked clean with `git diff`):
+
+  | Clean-up | The retry's numbers load | Result |
+  |---|---|---|
+  | old (a6597723) | as fast as the VM answers | 1 flaky, 20 passed, 2 skipped: the retry passed, since the list had loaded before the count |
+  | new | as fast as the VM answers | 1 flaky, 20 passed, 2 skipped |
+  | old (a6597723) | 1.5 s late (the retry's POSTs to `/settings/companies` held by `page.route`) | 1 failed: the retry fails at `expect(sales.getByText('Not set')).toBeVisible()`, element not found, as at integration |
+  | new | 1.5 s late | 1 flaky, 16 passed (desktop-light only): the retry takes the number out of use and passes |
+
+**Checks in the VM**
+- `pnpm --filter web typecheck`: exit 0.
+- `eslint --max-warnings 0` on `apps/web/e2e/support` and `apps/web/e2e/channels.spec.ts`: clean.
+- Whole-repository `pnpm lint`: exit 0.
+- `pnpm --filter web test`: 1225 passed, 1 skipped.
+- `pnpm build`: exit 0.
+- `notifications.spec.ts`, after `e2e:seed`: 24 passed, 2 skipped, 6 failed. All 6 (and their retries) are `toHaveScreenshot`, the VM's Chromium against the Linux image's baselines, as in the first round's report. No axe check failed.
+
+**Assumptions**
+- The notice wait is folded into `waitUntilStill`'s loop rather than run as a wait of its own before it. It is the same 2 seconds the brief asks for, and a notice that starts fading between the two waits cannot slip through.
+- The `channels.spec.ts` change is the lead's call in the Integration section, so the spec counts as owned for this round.
 
 ## Review
 Slice-reviewer, 23-11-2026, cloud session (seat 3), on d92416f4 (`git diff a549b0d8..fix/p3-fixes`, which is `git diff origin/main...fix/p3-fixes` since `main` ef3798f1 adds nothing past a549b0d8), Tier C. Run in the VM: the three unit files (`safety.test.ts`, `axe.test.ts`, `qstash.test.ts`: 37 passed); `tests/duplicate-scan.test.ts` with the security config (10 passed); the five new `qstash.test.ts` cases against a549b0d8's `qstash.ts` (all 5 fail, the file restored afterwards); `jobs-check.test.ts` on fresh databases (below). Not run: typecheck, lint, the build and the journeys (the builder's report records them), and no screenshot was reviewed, since no screen changed.
