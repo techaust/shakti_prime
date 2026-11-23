@@ -1,4 +1,4 @@
-import { newId, ROLE_KEYS, STAFF_ROLE_KEYS, type Principal, type RoleKey } from '@shakti/contracts';
+import { newId, ROLE_KEYS, STAFF_ROLE_KEYS, type Principal } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -61,12 +61,15 @@ beforeAll(async () => {
 });
 
 describe('hubs and bins: read with inventory.stock.read in a company', () => {
-  it.each(PERMISSION_SHARED_TABLES)('%s returns no row without a request context', async (table) => {
-    const [row] = await withoutContext<{ n: number }>(
-      sql`select count(*)::int as n from ${sql.identifier(table)}`,
-    );
-    expect(row?.n).toBe(0);
-  });
+  it.each(PERMISSION_SHARED_TABLES)(
+    '%s returns no row without a request context',
+    async (table) => {
+      const [row] = await withoutContext<{ n: number }>(
+        sql`select count(*)::int as n from ${sql.identifier(table)}`,
+      );
+      expect(row?.n).toBe(0);
+    },
+  );
 
   it.each(PERMISSION_SHARED_TABLES)(
     '%s returns no row to an Executive whose request names no company',
@@ -75,12 +78,15 @@ describe('hubs and bins: read with inventory.stock.read in a company', () => {
     },
   );
 
-  it.each(ROLE_KEYS)('%s reads them exactly when it holds inventory.stock.read', async (roleKey) => {
-    const principal = principalFor(roleKey as RoleKey, [1]);
-    const holds = principal.permissions.some((g) => g.key === 'inventory.stock.read');
-    expect(await count(principal, 'warehouses')).toBe(holds ? 1 : 0);
-    expect(await count(principal, 'bins')).toBe(holds ? 1 : 0);
-  });
+  it.each(ROLE_KEYS)(
+    '%s reads them exactly when it holds inventory.stock.read',
+    async (roleKey) => {
+      const principal = principalFor(roleKey, [1]);
+      const holds = principal.permissions.some((g) => g.key === 'inventory.stock.read');
+      expect(await count(principal, 'warehouses')).toBe(holds ? 1 : 0);
+      expect(await count(principal, 'bins')).toBe(holds ? 1 : 0);
+    },
+  );
 
   it('are written only with inventory.stock.adjust for every company, by the caller', async () => {
     for (const roleKey of ['inventory_manager', 'general_manager', 'store_manager'] as const) {
@@ -117,7 +123,9 @@ describe('hubs and bins: read with inventory.stock.read in a company', () => {
       tx.execute(sql`insert into warehouses (id, code, name, kind, state_code, pin_code, created_by)
         values (${id}, ${`SZ${tag}`}, 'written hub', 'godown', '08', '302001', ${exec.id})`),
     );
-    const [row] = await asMigrator((m) => m<{ name: string }[]>`select name from warehouses where id = ${id}`);
+    const [row] = await asMigrator(
+      (m) => m<{ name: string }[]>`select name from warehouses where id = ${id}`,
+    );
     expect(row?.name).toBe('written hub');
   });
 
@@ -131,7 +139,15 @@ describe('hubs and bins: read with inventory.stock.read in a company', () => {
                has_table_privilege('app_reader', ${table}, 'SELECT') as rs,
                has_table_privilege('app_reader', ${table}, 'INSERT, UPDATE, DELETE') as rw
       `);
-      expect({ table, ...row }).toEqual({ table, s: true, i: true, u: true, d: false, rs: true, rw: false });
+      expect({ table, ...row }).toEqual({
+        table,
+        s: true,
+        i: true,
+        u: true,
+        d: false,
+        rs: true,
+        rw: false,
+      });
     }
   });
 
@@ -177,16 +193,19 @@ describe('the ledger, its costs, the balances, the serials and item costs', () =
     'item_costs',
   ] as const;
 
-  it.each(LEDGER)('%s takes no insert, update or delete from app_user or app_reader', async (table) => {
-    const [row] = await withoutContext<Record<string, boolean>>(sql`
+  it.each(LEDGER)(
+    '%s takes no insert, update or delete from app_user or app_reader',
+    async (table) => {
+      const [row] = await withoutContext<Record<string, boolean>>(sql`
       select has_table_privilege('app_user', ${table}, 'INSERT') or has_table_privilege('app_user', ${table}, 'UPDATE')
                or has_table_privilege('app_user', ${table}, 'DELETE') as app,
              has_table_privilege('app_reader', ${table}, 'INSERT') or has_table_privilege('app_reader', ${table}, 'UPDATE')
                or has_table_privilege('app_reader', ${table}, 'DELETE') as reader,
              has_any_column_privilege('app_user', ${table}, 'INSERT') or has_any_column_privilege('app_user', ${table}, 'UPDATE') as columns
     `);
-    expect({ table, ...row }).toEqual({ table, app: false, reader: false, columns: false });
-  });
+      expect({ table, ...row }).toEqual({ table, app: false, reader: false, columns: false });
+    },
+  );
 
   it('refuses a direct write even to an Executive holding every stock and cost grant', async () => {
     const exec = await createTestPrincipal('executive', [1]);
@@ -202,12 +221,16 @@ describe('the ledger, its costs, the balances, the serials and item costs', () =
       sql`insert into item_costs (id, item_id, entity_id) select ${newId()}, i.id, 1 from items i limit 1`,
     ];
     for (const statement of attempts) {
-      expect((await failure(asPrincipal(exec, ({ tx }) => tx.execute(statement)))).code).toBe('42501');
+      expect((await failure(asPrincipal(exec, ({ tx }) => tx.execute(statement)))).code).toBe(
+        '42501',
+      );
     }
   });
 
   it('a movement and its cost stay as written, for the table owner too', async () => {
-    const movements = await asMigrator((m) => m<{ id: string }[]>`select id from stock_movements limit 1`);
+    const movements = await asMigrator(
+      (m) => m<{ id: string }[]>`select id from stock_movements limit 1`,
+    );
     const movement = movements[0];
     if (movement === undefined) return;
     await expect(
@@ -225,21 +248,26 @@ describe('the cost tables, role by role', () => {
   it.each(STAFF_ROLE_KEYS)('%s reads costs only with finance.cost.read', async (roleKey) => {
     const principal = principalFor(roleKey, [1, 2, 3, 4]);
     const holds = principal.permissions.some((g) => g.key === 'finance.cost.read');
-    const [policy] = await asPrincipal(principal, async ({ tx }) =>
-      (await tx.execute(sql`
+    const [policy] = await asPrincipal(
+      principal,
+      async ({ tx }) =>
+        (await tx.execute(sql`
         select app.has_perm('finance.cost.read:entity') as c,
                (select count(*)::int from stock_movement_costs) as costs,
                (select count(*)::int from item_costs) as items
       `)) as unknown as { c: boolean; costs: number; items: number }[],
     );
     expect(policy?.c).toBe(holds);
-    if (!holds) expect({ costs: policy?.costs, items: policy?.items }).toEqual({ costs: 0, items: 0 });
+    if (!holds)
+      expect({ costs: policy?.costs, items: policy?.items }).toEqual({ costs: 0, items: 0 });
   });
 
   it('no agent reads a cost', async () => {
     for (const agent of ROLE_KEYS.filter((r) => r.startsWith('agent:'))) {
-      const [row] = await asPrincipal(principalFor(agent, [1, 2, 3, 4]), async ({ tx }) =>
-        (await tx.execute(sql`
+      const [row] = await asPrincipal(
+        principalFor(agent, [1, 2, 3, 4]),
+        async ({ tx }) =>
+          (await tx.execute(sql`
           select (select count(*)::int from stock_movement_costs) as costs,
                  (select count(*)::int from item_costs) as items
         `)) as unknown as { costs: number; items: number }[],
@@ -259,8 +287,17 @@ describe('the definers', () => {
              has_function_privilege('app_user', 'app.stock_refuse(text,jsonb)', 'execute') as refuse,
              has_function_privilege('app_user', 'app.stock_bin(uuid)', 'execute') as bin
     `);
-    expect(row).toEqual({ app: true, reader: false, reporter: false, pub: false, refuse: false, bin: false });
-    expect((await failure(withoutContext(sql`select app.stock_move('[]'::jsonb)`))).code).toBe('42501');
+    expect(row).toEqual({
+      app: true,
+      reader: false,
+      reporter: false,
+      pub: false,
+      refuse: false,
+      bin: false,
+    });
+    expect((await failure(withoutContext(sql`select app.stock_move('[]'::jsonb)`))).code).toBe(
+      '42501',
+    );
   });
 
   it('app.stock_balance_check() answers the workers principal only', async () => {
@@ -273,10 +310,14 @@ describe('the definers', () => {
         )
       ).code,
     ).toBe('42501');
-    const rows = await asPrincipal(principalFor('system:workers'), async ({ tx }) =>
-      (await tx.execute(sql`select count(*)::int as n from app.stock_balance_check()`)) as unknown as {
-        n: number;
-      }[],
+    const rows = await asPrincipal(
+      principalFor('system:workers'),
+      async ({ tx }) =>
+        (await tx.execute(
+          sql`select count(*)::int as n from app.stock_balance_check()`,
+        )) as unknown as {
+          n: number;
+        }[],
     );
     expect(rows[0]?.n).toBeGreaterThanOrEqual(0);
   });

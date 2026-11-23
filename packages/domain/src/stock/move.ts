@@ -7,35 +7,37 @@ import {
 import type { RequestTx } from '@shakti/db';
 import { sql } from 'drizzle-orm';
 
+export interface StockMovementLine {
+  reason: Exclude<StockReason, 'reversal'>;
+  entityId: number;
+  itemId: string;
+  /** An existing serial of a tracked item. */
+  serialId?: string | null;
+  /** A serial by its number: a new one for `opening` and `adjust_gain`, else an existing one. */
+  serialNo?: string | null;
+  fromBinId?: string | null;
+  toBinId?: string | null;
+  /** In the item's stock unit, up to three decimals. */
+  qty: string;
+  refType?: string | null;
+  refId?: string | null;
+  /** An inbound line's cost per unit, four decimals; else the definer's moving average. */
+  unitCost?: string | null;
+}
+
+/** A reversal names only the movement it reverses and a reference. */
+export interface StockReversalLine {
+  reason: 'reversal';
+  reversesId: string;
+  refType?: string | null;
+  refId?: string | null;
+}
+
 /**
  * One line of a batch for `app.stock_move()`, the ledger's one write path
- * (docs/03-roadmap-appendix/phase3.md §5). A reversal names only the movement it reverses and a
- * reference; the definer takes the rest from that movement.
+ * (docs/03-roadmap-appendix/phase3.md §5). A reversal takes the rest from the movement it reverses.
  */
-export type StockMoveLine =
-  | {
-      reason: Exclude<StockReason, 'reversal'>;
-      entityId: number;
-      itemId: string;
-      /** An existing serial of a tracked item. */
-      serialId?: string | null;
-      /** A serial by its number: a new one for `opening` and `adjust_gain`, else an existing one. */
-      serialNo?: string | null;
-      fromBinId?: string | null;
-      toBinId?: string | null;
-      /** In the item's stock unit, up to three decimals. */
-      qty: string;
-      refType?: string | null;
-      refId?: string | null;
-      /** An inbound line's cost per unit, four decimals; else the definer's moving average. */
-      unitCost?: string | null;
-    }
-  | {
-      reason: 'reversal';
-      reversesId: string;
-      refType?: string | null;
-      refId?: string | null;
-    };
+export type StockMoveLine = StockMovementLine | StockReversalLine;
 
 /** The refusals a person can act on as a state of the stock, rather than a mistake in the input. */
 const CONFLICTS: ReadonlySet<StockRefusal> = new Set<StockRefusal>([

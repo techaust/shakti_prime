@@ -8,6 +8,12 @@ import { onHand, serialOf, stockFixture, type StockFixture } from './stock-fixtu
 
 afterAll(closeDb);
 
+/** A refusal's catalogue reason, else its code. */
+function refusalOf(e: DomainError): string {
+  const reason = e.details?.reason;
+  return typeof reason === 'string' ? reason : e.code;
+}
+
 /**
  * Concurrent writers (docs/03-roadmap-appendix/phase3.md §6.2): two issues of the last unit leave
  * one refused; two moves of one serial leave it in one bin; writers crossing the same bins and
@@ -34,7 +40,7 @@ function postAndHold(lines: readonly StockMoveLine[], holdMs: number): Promise<s
 function reasonOf(result: PromiseSettledResult<unknown>): string | undefined {
   if (result.status === 'fulfilled') return undefined;
   const e: unknown = result.reason;
-  return e instanceof DomainError ? String(e.details?.reason ?? e.code) : String(e);
+  return e instanceof DomainError ? refusalOf(e) : String(e);
 }
 
 beforeAll(async () => {
@@ -46,7 +52,9 @@ beforeAll(async () => {
 describe('concurrent writers', () => {
   it('two concurrent issues of the last unit leave one refused', async () => {
     await asPrincipal(manager, ({ tx }) =>
-      stockMove(tx, [{ reason: 'adjust_gain', entityId: 1, itemId: f.cable, toBinId: f.binA, qty: '1' }]),
+      stockMove(tx, [
+        { reason: 'adjust_gain', entityId: 1, itemId: f.cable, toBinId: f.binA, qty: '1' },
+      ]),
     );
     const loss: StockMoveLine = {
       reason: 'adjust_loss',
@@ -117,7 +125,7 @@ describe('concurrent writers', () => {
           await asPrincipal(manager, ({ tx }) => stockMove(tx, batch));
           outcomes.push('ok');
         } catch (e) {
-          outcomes.push(e instanceof DomainError ? String(e.details?.reason ?? e.code) : String(e));
+          outcomes.push(e instanceof DomainError ? refusalOf(e) : String(e));
         }
       }
       return outcomes;
@@ -125,16 +133,19 @@ describe('concurrent writers', () => {
     const outcomes = (await Promise.all([1, 2, 3, 4, 5, 6].map(worker))).flat();
     expect(outcomes.filter((o) => o !== 'ok' && o !== 'stock_insufficient')).toEqual([]);
     expect(outcomes.filter((o) => o === 'ok').length).toBeGreaterThan(60);
-    const differ = await asPrincipal(principalFor('system:workers'), async ({ tx }) =>
-      (await tx.execute(sql`
+    const differ = await asPrincipal(
+      principalFor('system:workers'),
+      async ({ tx }) =>
+        (await tx.execute(sql`
         select count(*)::int as n from app.stock_balance_check() c where c.item_id = ${f.cable}`)) as unknown as {
-        n: number;
-      }[],
+          n: number;
+        }[],
     );
     expect(differ[0]?.n).toBe(0);
-    const total = (
-      await Promise.all(bins.map((b) => onHand(1, b, f.cable)))
-    ).reduce((sum, q) => sum + Number(q), 0);
+    const total = (await Promise.all(bins.map((b) => onHand(1, b, f.cable)))).reduce(
+      (sum, q) => sum + Number(q),
+      0,
+    );
     expect(total).toBe(1500);
   });
 });

@@ -73,7 +73,8 @@ export const serialMachine = defineMachine<SerialState, SerialEvent, SerialRecor
     with_customer: 'Delivered; its warranty runs from the delivery (D2, R3).',
     faulty: 'Back from a customer as a fault, in quarantine (R3).',
     with_supplier: 'Sent to the supplier under their warranty or returned to them (R3, R2).',
-    scrapped: 'Written off by an adjustment, damage or a count; a reversal or a later find brings it back.',
+    scrapped:
+      'Written off by an adjustment, damage or a count; a reversal or a later find brings it back.',
   },
   transitions: [
     {
@@ -176,7 +177,7 @@ export const serialMachine = defineMachine<SerialState, SerialEvent, SerialRecor
       permission: 'inventory.dispatch.write',
       scope: 'entity',
       proposed: true,
-      note: later('D2', "delivered with the arrival photo; the warranty runs from today"),
+      note: later('D2', 'delivered with the arrival photo; the warranty runs from today'),
     },
     {
       from: ['in_stock'],
@@ -221,7 +222,7 @@ export const serialMachine = defineMachine<SerialState, SerialEvent, SerialRecor
       permission: 'procurement.po.write',
       scope: 'entity',
       proposed: true,
-      note: later('R3', "sent to the supplier under their warranty"),
+      note: later('R3', 'sent to the supplier under their warranty'),
     },
     {
       from: ['in_stock'],
@@ -239,7 +240,10 @@ export const serialMachine = defineMachine<SerialState, SerialEvent, SerialRecor
       permission: 'procurement.grn.write',
       scope: 'entity',
       proposed: true,
-      note: later('R3', "the supplier's credit or replacement settles it; a replacement is a new serial"),
+      note: later(
+        'R3',
+        "the supplier's credit or replacement settles it; a replacement is a new serial",
+      ),
     },
   ],
 });

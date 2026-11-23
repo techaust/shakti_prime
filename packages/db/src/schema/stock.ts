@@ -46,8 +46,14 @@ export const warehouses = pgTable(
     uniqueIndex('warehouses_code_unique').on(sql`lower(${t.code})`),
     check('warehouses_kind_check', sql`${t.kind} in ('godown', 'factory', 'transit')`),
     check('warehouses_code_check', sql`${t.code} ~ '^[A-Za-z0-9][A-Za-z0-9-]{0,19}$'`),
-    check('warehouses_state_code_check', sql`${t.stateCode} is null or ${t.stateCode} ~ '^[0-9]{2}$'`),
-    check('warehouses_pin_code_check', sql`${t.pinCode} is null or ${t.pinCode} ~ '^[1-9][0-9]{5}$'`),
+    check(
+      'warehouses_state_code_check',
+      sql`${t.stateCode} is null or ${t.stateCode} ~ '^[0-9]{2}$'`,
+    ),
+    check(
+      'warehouses_pin_code_check',
+      sql`${t.pinCode} is null or ${t.pinCode} ~ '^[1-9][0-9]{5}$'`,
+    ),
     check(
       'warehouses_site_check',
       sql`${t.kind} = 'transit' or (${t.stateCode} is not null and ${t.pinCode} is not null)`,
