@@ -1,6 +1,7 @@
 import { ErrorEnvelope, DuplicateScanWorkerResponse, newId } from '@shakti/contracts';
 import { closeOutboxDb } from '@shakti/db/outbox';
-import { closeDb } from '@shakti/db/testing';
+import { asMigrator, closeDb, createTestPrincipal, createTestTeam } from '@shakti/db/testing';
+import type * as Domain from '@shakti/domain';
 import { createHash, createHmac } from 'node:crypto';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,6 +18,34 @@ vi.mock('@upstash/qstash', async (original) => ({
     }
   },
 }));
+
+// Where each company's search starts while a case sets it: right after the id minted when the case
+// began, so the case searches only the customers it made and not every customer earlier runs left
+// in the shared database. The command, its definer and the walk through the companies are real.
+const scan = vi.hoisted(() => ({ startAfter: null as string | null }));
+
+vi.mock('@shakti/domain', async (original) => {
+  const domain = await original<typeof Domain>();
+  const executeCommand: typeof domain.executeCommand = (
+    principal,
+    scope,
+    command,
+    input,
+    options,
+  ) =>
+    domain.executeCommand(
+      principal,
+      scope,
+      command,
+      command.name === 'crm.duplicate.scan' &&
+        scan.startAfter !== null &&
+        (input as { afterId: string | null }).afterId === null
+        ? { ...(input as object), afterId: scan.startAfter }
+        : input,
+      options,
+    );
+  return { ...domain, executeCommand };
+});
 
 const { POST } = await import('../src/app/api/v1/workers/crm/duplicates/route');
 const { duplicateScanRunId, runDuplicateScan } = await import('../src/workers/duplicate-scan');
@@ -41,6 +70,7 @@ beforeEach(() => {
   queue.published.length = 0;
 });
 afterEach(() => {
+  scan.startAfter = null;
   for (const [name, value] of saved) {
     if (value === undefined) Reflect.deleteProperty(process.env, name);
     else process.env[name] = value;
@@ -66,6 +96,68 @@ function sign(body: string, key = CURRENT_KEY): string {
   );
   const signature = createHmac('sha256', key).update(`${header}.${claims}`).digest('base64url');
   return `${header}.${claims}.${signature}`;
+}
+
+/** The companies the search walks: from company 1 up to the first number none has, less archived. */
+async function liveCompanies(): Promise<number[]> {
+  const rows = await asMigrator(
+    (m) => m<{ id: number; archived: boolean }[]>`
+      select id, archived_at is not null as archived from entities order by id`,
+  );
+  const live: number[] = [];
+  for (const [index, row] of rows.entries()) {
+    if (row.id !== index + 1) break;
+    if (!row.archived) live.push(row.id);
+  }
+  return live;
+}
+
+const RUN = newId().slice(-6);
+let numbers = 0;
+
+/**
+ * Two customers of one company with one mobile number of this run only, written past the policies
+ * as an import commits them, so lead creation records no card for them and only the search can.
+ */
+async function customersSharingAPhone(
+  entityId: number,
+): Promise<{ entityId: number; first: string; second: string }> {
+  const team = await createTestTeam(entityId, `duplicate scan route ${RUN}`);
+  const owner = await createTestPrincipal('tele_caller_cc', [entityId], { teamId: team });
+  numbers += 1;
+  const e164 = `+9193${RUN.replace(/[^0-9]/g, '7')
+    .padEnd(6, '7')
+    .slice(0, 6)}${String(numbers).padStart(2, '0')}`;
+  const [first, second] = [newId(), newId()];
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      for (const [n, accountId] of [first, second].entries()) {
+        const contactId = newId();
+        const name = `Scan ${RUN} ${String(entityId)} ${String(n)}`;
+        await tx`insert into accounts (id, type, name, created_by)
+          values (${accountId}, 'farm', ${name}, ${owner.id})`;
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+          values (${newId()}, ${accountId}, ${entityId}, ${owner.id}, ${team}, ${owner.id})`;
+        await tx`insert into contacts (id, name, created_by) values (${contactId}, ${name}, ${owner.id})`;
+        await tx`insert into account_contacts (account_id, contact_id, role, created_by)
+          values (${accountId}, ${contactId}, 'owner', ${owner.id})`;
+        await tx`insert into contact_phones (id, contact_id, e164, is_primary, created_by)
+          values (${newId()}, ${contactId}, ${e164}, true, ${owner.id})`;
+      }
+    }),
+  );
+  return { entityId, first, second };
+}
+
+/** The cards that name a customer. */
+function candidatesOf(accountId: string) {
+  return asMigrator(
+    (m) => m<{ entity_id: number; kind: string; other: string | null; reason: string }[]>`
+      select entity_id, kind, reason,
+             case when account_id = ${accountId} then other_account_id else account_id end as other
+        from duplicate_candidates
+       where ${accountId} in (account_id, other_account_id)`,
+  );
 }
 
 function call(body: string, signature?: string): Promise<Response> {
@@ -104,14 +196,32 @@ describe('POST /api/v1/workers/crm/duplicates', () => {
   });
 
   it('searches every live company in turn for a signed call, and is done', async () => {
+    scan.startAfter = newId();
+    const companies = await liveCompanies();
+    const pairs = [];
+    for (const entityId of companies) pairs.push(await customersSharingAPhone(entityId));
+
     const response = await call('{}', sign('{}'));
     expect(response.status).toBe(200);
     const result = DuplicateScanWorkerResponse.parse(await response.json());
     expect(result.done).toBe(true);
-    // At least one batch for each of the four companies.
-    expect(result.batches).toBeGreaterThanOrEqual(4);
+    // At least one batch for each live company, and nothing handed on.
+    expect(result.batches).toBeGreaterThanOrEqual(companies.length);
+    expect(result.found).toBeGreaterThanOrEqual(companies.length);
     expect(queue.published).toEqual([]);
-  }, 120_000);
+    // Each company's own pair is a card of that company.
+    for (const pair of pairs) {
+      expect(await candidatesOf(pair.first)).toEqual([
+        {
+          entity_id: pair.entityId,
+          kind: 'customer',
+          other: pair.second,
+          reason: 'phone',
+        },
+      ]);
+    }
+    // Its own time limit: the run is bounded by what the case made, whatever the database holds.
+  }, 60_000);
 });
 
 describe('the duplicate search run', () => {
