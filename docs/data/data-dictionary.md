@@ -3204,12 +3204,13 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `files_guard_update`: before update, runs `app.files_guard_update()`
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
-**Row-level security:** enabled and forced; 9 policies.
+**Row-level security:** enabled and forced; 10 policies.
 
 - `files_call_transcript_read` (select, to app_user, app_reader): using `purpose = 'call_transcript' and entity_id = any ((select app.entity_ids())::int[]) and (select app.agent_thread_id()) is null and exists (select 1 from provider_calls pc where pc.transcript_file_id = files.id and pc.entity_id = files.entity_id and files.purpose = 'call_transcript')`
 - `files_complete` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and status = 'pending' and app.has_perm(app.file_purpose_grant(purpose, 'write'))`; with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and status = 'scanning'`
 - `files_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and ((select app.has_perm('files.process:entity')) or (app.has_perm(app.file_purpose_grant(purpose, 'write')) and status = 'pending'))`
 - `files_knowledge_read` (select, to app_user, app_reader): using `purpose = 'knowledge' and entity_id = any ((select app.entity_ids())::int[]) and ((created_by = (select app.user_id()) and (select app.has_perm('knowledge.vault.write:all'))) or app.vault_upload_readable(id))`
+- `files_opening_cost` (select, restrictive, to app_user, app_reader): using `purpose <> 'import' or (select app.has_perm('finance.cost.read:entity')) or (select app.has_perm('files.process:entity')) or not exists (select 1 from import_jobs j where j.file_id = files.id and j.kind = 'opening_stock')`
 - `files_process` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('files.process:entity'))`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('files.process:entity'))`
 - `files_quote_pdf_read` (select, to app_user, app_reader): using `purpose = 'quote_pdf' and entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from quotes q where q.pdf_file_id = files.id and q.entity_id = files.entity_id)`
 - `files_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('files.process:entity')) or app.file_purpose_grant(purpose, 'read') = 'company' or app.has_perm(app.file_purpose_grant(purpose, 'read') || ':entity') or (created_by = (select app.user_id()) and app.has_perm(app.file_purpose_grant(purpose, 'read') || ':own')))`
@@ -3426,9 +3427,10 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
-**Row-level security:** enabled and forced; 3 policies.
+**Row-level security:** enabled and forced; 4 policies.
 
 - `import_rows_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and created_by = (select app.user_id()) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
+- `import_rows_opening_cost` (select, restrictive, to app_user, app_reader): using `(select app.has_perm('finance.cost.read:entity')) or not exists (select 1 from import_jobs j where j.id = import_rows.job_id and j.kind = 'opening_stock')`
 - `import_rows_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
 - `import_rows_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
 

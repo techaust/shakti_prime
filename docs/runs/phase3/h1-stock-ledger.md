@@ -5,9 +5,9 @@
 | Branch | `feat/h1-stock-ledger` on GitHub, from the approved design at a549b0d8 (`main` 334a6d0b plus the design) |
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the stock ledger, its costs and row security |
-| Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder started on Opus 5.5 at high effort (cloud session, 23-11-2026) |
-| State | early check reported |
-| Next step | the lead reads the early-check diff and sends "continue" for the commands, queries, import, screens and spike |
+| Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (cloud session, 23-11-2026) |
+| State | done reported |
+| Next step | the lead reviews the branch, runs the journeys and baselines on the PC, and settles the lint heap |
 
 ## Brief
 Build [phase3 §5](../../03-roadmap-appendix/phase3.md#5-the-stock-model) and [§6.2](../../03-roadmap-appendix/phase3.md#62-h1-hubs-bins-and-the-stock-ledger) as written. Every later slice of Phase 3 moves stock through what you build, so its shape matters more than its screens. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
@@ -97,3 +97,65 @@ Builder on Opus 5.5 at high effort. Skills loaded: `add-table`, `add-command`. S
 - C5 and U1 will meet this branch at `items` (C5's columns beside `item_costs.last_positive_avg_cost`) and in the shared registration points (`index.ts` of contracts and schema, the testing lists, the matrix, `enum-sync`, `NARROWER`), each marked `H1`.
 
 **Not built yet (after "continue")**: the nine commands and their server actions, `WORKSHOP_DEFAULTS.stock.reversalDays`, the `inventory.stock.moved` event, the queries, the `opening_stock` import kind, the screens and menu, the journeys and baselines, and the volume spike with its `EXPLAIN (ANALYZE)`.
+
+### 23-11-2026, cloud session: done
+Builder on Opus 5.5 at high effort, continued after the lead's "continue" (which accepted the early check and its thirteen decisions, and kept the Lead Converter's `inventory.stock.read` for the owner). Skills: `add-table`, `add-command`.
+
+**Built since the early check**
+- Ledger additions: `stock_movements.note` (an adjustment's or reversal's reason, up to 300 characters); the opening rule compares references (decision 15); `app.item_serial_nos()`; restrictive policies `import_rows_opening_cost` and `files_opening_cost` (decision 16). Migrations 0229 and 0230 regenerated in place (still unmerged; the lead renumbers both).
+- `WORKSHOP_DEFAULTS.stock.reversalDays` (7); the event `inventory.stock.moved` (`count`, and up to 200 movements with id, item, bins, quantity and reason; never a cost), emitted by the three stock commands and by the opening import's batches.
+- Contracts `packages/contracts/src/inventory/stock.ts`: the inputs and strict DTOs of the commands and queries (no DTO but the valuation's carries a cost).
+- Commands (`packages/domain/src/commands/inventory/`, registered, audited, people only): `inventory.hub.create` (a godown or factory gets `RECEIVING` and `DISPATCH`; the transit hub gets one bin per pair of hubs, and a later hub its pairs), `.update`, `.archive` (with its bins; refused while any bin holds stock); `inventory.bin.create`, `.update`, `.archive` (refused while it holds stock, and for a receiving, dispatch or transit bin); `inventory.stock.transfer` (bins of one hub, `inventory.stock.move` for the company); `inventory.stock.adjust` (gain, loss or damage with a reason of 3 to 300 characters; serials for a tracked item); `inventory.stock.reverse` (within 7 days, never a reversal, receipt or issue, never twice). Each serial is fired through the `serial` machine first (now in `MACHINES_IN_USE`, `stored` on `serials.state` and `state_changed_at`); `postStockMoves()` posts, audits each movement (reason, quantity, serial, note) and emits.
+- Queries (`packages/domain/src/queries/inventory/`): `listHubs`, `listStockBalances`, `getStockCard`, `getSerial`, `readStockValuation` (`finance.cost.read`), each in the reader parity check.
+- The import kind `opening_stock` (contracts, preview `opening-stock-preview.ts`, commit and rollback `opening-stock.ts`, the wizard's fields, headings and row findings, the rows grid, three widened checks added `NOT VALID`).
+- Server actions `apps/web/src/actions/inventory.ts`; screens `/inventory/stock`, `/inventory/stock/[entityId]/[itemId]` (the stock card, with Adjust stock, Move between bins and Reverse), `/inventory/hubs` (an Executive's forms), `/inventory/serials/[id]?company=`, `/inventory/valuation`; the menu's Stock, Hubs and bins and Stock valuation (`nav.ts`, the gate's `/inventory`, the browser's message scope); Activity log names for the nine commands, the event and twelve fields; the copy in `en.json` (`inventory.*`, the errors, the import's words).
+- Journeys `apps/web/e2e/inventory.spec.ts` with the seed `e2e/setup/stock.ts` and the signed-in Inventory Manager `inventoryManager` (company 1) in `support/users.ts`.
+- Documents: phase3 §6.2 "Built (H1)", DATABASE §4.1 (the three definers, the guards and helpers) and §6.5, `pnpm db:docs`, `machines:docs`.
+
+**Tests added since the early check**
+- `packages/domain/tests/commands/inventory.test.ts` (13): every hub and bin command refused to the Inventory Manager, GM, Accounts and an agent; a godown with its two bins audited for no company; the transit hub's pairs; update, bins, codes in any case, kinds kept, receiving bin kept, archive and no bin on an archived hub; no archive while another company's stock is held; adjust refused per role, agent and company; a gain and a damage with their note, audit row and event (no cost); serials through the machine (required, taken, not in the bin, written off); a replay posts once; transfer refused to a Field Engineer, a GM and another company, never across hubs, never below zero; reverse refused per role and company, once only, never after 7 days; the outbox event without the cost or the note.
+- `packages/domain/tests/queries/inventory.test.ts` (7): balances by hub and bin with free stock in storage only and no other company's; keyset pages, item, category and code filters; refused without `inventory.stock.read:entity` (a caller, a Field Engineer) and for another company; the card per hub and newest first with no cost, a hub filter, nothing reversible for a GM; a serial's page and another company's refused; the valuation from the movements' costs at a date, refused to the Inventory Manager, GM and Store Manager; hubs with bins for any reader, archived on request.
+- `packages/domain/tests/commands/import-opening-stock.test.ts` (2): twelve rows, four valid and eight refused each with its finding, committed under the job, the company's average, a second file refused at its preview, the rollback reversing every movement and a new opening then accepted; a GM refused at create and never reading the Executive's rows or file.
+- `apps/web/src/screens/inventory.test.ts` (5): quantities shown and typed, serials typed, links, today in India.
+- Updated: the agent refusal sweep (nine people-only inputs), refusal coverage (six reviewed hub and bin commands), `contract-values.test.ts`, `workshop-defaults.test.ts`, `audit.test.ts` (its example of an unknown event is now one no slice emits).
+
+**Checks run in the VM**
+- `pnpm typecheck` (10 tasks): passed. `pnpm copy-lint`: clean. Whole-repository lint: **`pnpm lint` runs out of its 6,144 MB heap on this branch** (see For the lead); the same files lint clean in four parts with the same heap (`apps`, `packages`, `tools`, the root files), 0 problems, and through ESLint's API with a 9 GB heap, 2,018 files and 0 problems.
+- Unit tests: `@shakti/contracts` 322, `@shakti/db` 161, `@shakti/domain` 2,793, `web` 1,212 (1 skipped), all passed; `pnpm db:docs` regenerated after the last policy.
+- `pnpm test:security`: db 1,593 of 1,594 (`alert-counts.test.ts`, the known IST-midnight failure); domain 1,461 of 1,461 after `reader-parity.test.ts` took the five new queries; web 459 of 460: `demo-data.test.ts` fails on the date boundary (its price lists take effect today in India, still tomorrow in UTC, after 18:30 UTC); it passed at 18:0x UTC and nothing of H1 touches prices or the demo data.
+- `pnpm build`: passed (the five `/inventory` routes built). `pnpm --filter web js-budget`: every page within budget (62 pages) after `apps/web/js-budget.json` took the five new pages at their measured size plus 5 % and 1 kB more each for `/calling` (206.8 kB) and `/admin/integrations` (240.4 kB), which the menu's three entries pushed over; built once with icons already in the shell, `/calling` was still 0.1 kB over. **`js-budget.json` is a checks file: the pull request needs the owner's `checks-ok`.**
+- The stock seed (`ensureStockJourneys`) ran on its own twice, idempotent. `pnpm --filter web e2e:seed` as a whole stops before it, at the quote PDFs, because this VM's Chromium headless shell (1248) is not the installed Playwright's.
+- **Journeys not run** (sign-in is refused here, as the lead said): `inventory.spec.ts` "as the Inventory Manager, an item's stock card" (find, adjust, move, reverse, with axe on the list, card and the three dialogs) and "cannot open the stock valuation"; "as an Executive" values the snapshot company's stock (snapshot `stock-valuation`) and shows its stock list and the hubs (snapshots `stock-list`, `stock-hubs`). They type-check and lint; no Linux baseline is made. The lead runs them and `pnpm --filter web e2e:snap -- inventory.spec.ts` on the PC.
+
+**EXPLAIN (ANALYZE) at volume** (`pnpm --filter @shakti/domain exec tsx tests/spike/stock-explain.ts`, the session's Postgres 17: 20,348 items, 214 bins, 2,001,124 movements with their costs, 1,000,011 balances, a quarter of each per company; under the policies as the Inventory Manager and Accounts)
+
+| Read | Plan | Time |
+|---|---|---|
+| Stock list, first page (50) | Index Scan `stock_balances_key_unique` in key order, nested loops to bins (memoised), hubs and items | 0.9 ms |
+| Stock list, next page | the same, keyset `(entity_id, warehouse_id, bin_id, item_id) > (…)` as an index condition | 0.8 ms |
+| One hub, category cable | Bitmap Index Scan `stock_balances_key_unique` per bin of the hub, items by key | 9.5 ms |
+| One bin | Bitmap Index Scan `stock_balances_key_unique` per hub with the bin, items by key | 13.3 ms |
+| Stock code starting `STX-1234` | Seq Scan on items (20,348 rows, the code `like` prefix) then Index Scan `stock_balances_entity_item_idx` | 21.3 ms |
+| Stock card, newest 50 | Index Scan `stock_movements_card_idx`, bins, serials, principals and the reversal by `stock_movements_reverses_unique` | 0.9 ms (the card's three statements together under 1.3 ms) |
+| Valuation of company 1 today | one pass: Bitmap Index Scan `stock_movements_card_idx` (501,115 movements) hash-joined to their costs, summed per hub and item (materialised, 20,003 groups), then hubs and items | 2,237 ms |
+| `app.stock_move()`, 50 transfers | ten batches 144 (first), 25, 28, 53, 28, 26, 24, 21, 20, 29 ms; `EXPLAIN (ANALYZE)` of one: 17.6 ms | about 25 ms |
+
+The first run showed two problems, fixed before these numbers: the next page sorted 250,000 rows (1.4 s) because the keyset left the company out of the row comparison, and the valuation ran its union once per hub (16.8 s). The valuation reads every movement of the company up to the date; at 500,000 movements it takes about 2 s, which suits a report read a few times a day, and G3's measures may want it again at go-live volume.
+
+**Decisions since the early check**
+14. Adjustments and reversals keep their reason on the movement (`stock_movements.note`), as well as in the audit row (`adjustNote`).
+15. Opening stock is one per company per reference: an import job posts its rows in the framework's batches of 500 under `ref_type = 'import_job'` and its id, so the job is one opening; the ledger refuses an opening while the company has an unreversed opening movement of another reference or of none. The import's rollback reverses every movement of the job in one batch, refused whole (`stock_insufficient`) once any of that stock has moved on.
+16. An opening stock file carries costs: `imports.job.create` asks `finance.cost.read` and `inventory.stock.adjust` for this kind (so in practice the Executive), the New import screen offers it only to them, and restrictive policies hide its rows and its file from anyone without `finance.cost.read` (the file checks still read the file). The commit keeps the framework's `crm.lead.write` and `crm.account.write` guard, which every kind carries.
+17. The stock list pages by the balance key (company, hub, bin, item by id, the lock order), so hubs, bins and items come in the order they were made; codes are shown, and hub, bin, category and code or name filter it. Saved views are not built (the brief's point 7 does not ask for them).
+18. The stock card lives at `/inventory/stock/[company]/[item]`; a serial's page takes `?company=`.
+19. Every hub, bin and stock command is for people only: no agent moves stock in Phase 3.
+20. The valuation's average cost per hub and category is its value over its quantity; rows with no quantity left are not shown, a value below zero (only rounding could make one) shows as zero, and the date is the close of that day in India, a later date reading as today.
+21. `inventory.stock.moved` carries up to 200 movements and their count; the opening import's rollback emits none.
+22. The menu shows Stock and Hubs and bins with `inventory.stock.read` for the company, and Stock valuation with `finance.cost.read` as well; only an Executive sees the hub and bin forms.
+
+**For the lead**
+- **`pnpm lint` needs more heap.** Measured through ESLint's API with room to spare, `main` peaks at 6,272 MB of heap over 1,973 files and passes under the script's 6,144 MB limit only because the collector compacts at the edge (`pnpm lint` on `main` passed here); this branch peaks at 6,495 MB over 2,018 files (+223 MB) and runs out. C5 and U1 add files too. Raising `--max-old-space-size` in the root `lint` script, or linting workspace by workspace, is a change to the checks and to a `package.json` script, which the brief keeps from me: yours and the owner's to choose (CI runs `pnpm lint`, so the pull request fails lint until then).
+- `js-budget.json` changes the checks (owner's `checks-ok`).
+- Shared registration points touched, each marked `H1`: `en.json`, `nav.ts`, `session-gate.ts`, `client-namespaces.ts`, `contract-values.ts`, the event catalogue, `WORKSHOP_DEFAULTS`, the machine registry, the command registry and domain index, the import kinds (`imports/enums.ts`, `jobs.ts`, `rows.ts`, `import-wizard.ts`, the preview, commit and rollback commands, the rows grid, `imports/new`), `audit.ts` and `activity-details.tsx`, the testing lists and matrix, `grants.test.ts`, `enum-sync.test.ts`, the agent sweep, refusal coverage, reader parity, the copy-lint button keys, the e2e users and seed. C5 and U1 add import kinds in the same files.
+- The document link check reports `docs/runs/phase3/h1-stock-ledger.md` as an orphan, as it did on the brief's own commit: the runs readme names it without a link.
+- The spike leaves its 20,000 `STX-` items archived in the database it runs on (its movements went when I reset my migrations here); CI's databases are fresh.
