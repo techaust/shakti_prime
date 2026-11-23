@@ -84,6 +84,17 @@ export const recordVendorQuote = defineCommand({
   input: RecordVendorQuoteInput,
   output: VendorQuoteDto,
   auditFields: QUOTE_AUDIT_FIELDS,
+  // The audit row keeps what was asked without the rate, which lives only in the quote itself.
+  auditInput: (input) => ({
+    vendorId: input.vendorId,
+    itemId: input.itemId,
+    entityId: input.entityId,
+    moq: input.moq ?? null,
+    leadTimeDays: input.leadTimeDays ?? null,
+    validFrom: input.validFrom,
+    validUntil: input.validUntil,
+    fileId: input.fileId ?? null,
+  }),
   async handler(ctx, input) {
     await assertQuoteCompany(ctx, input.entityId);
     await lockVendor(ctx, input.vendorId);

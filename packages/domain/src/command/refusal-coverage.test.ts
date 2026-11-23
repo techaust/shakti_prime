@@ -63,6 +63,15 @@ const REVIEWED: Record<string, string> = {
     'A failed webhook delivery belongs to no company: Process again is an Executive acting for the group (`integrations.dlq.replay:all`), and the denied case refuses every other role, the workers and agents in webhooks.test.ts.',
   'voice.session.record':
     'A voice session may cover several companies, so the platform records it with no company (`app.record_voice_session()`, `voice.session.record:all`): there is no company to be outside of, and the denied case refuses a person, an Executive included, in voice-sessions.test.ts.',
+  // U1 vendors and supplier quotes.
+  'procurement.item_vendor.set':
+    'The vendor master is one list for the group with no company (design phase3 question 6, ADR 0008 for customers): the input names no company, and any holder of procurement.po.write acting in any company changes it; the denied cases are in procurement.test.ts and the row security in packages/db vendors.test.ts.',
+  'procurement.vendor.archive':
+    'The vendor master is one list for the group with no company (design phase3 question 6, ADR 0008 for customers): the input names no company, and any holder of procurement.po.write acting in any company changes it; the denied cases are in procurement.test.ts and the row security in packages/db vendors.test.ts.',
+  'procurement.vendor.contact.set':
+    'The vendor master is one list for the group with no company (design phase3 question 6, ADR 0008 for customers): the input names no company, and any holder of procurement.po.write acting in any company changes it; the denied cases are in procurement.test.ts and the row security in packages/db vendors.test.ts.',
+  'procurement.vendor.update':
+    'The vendor master is one list for the group with no company (design phase3 question 6, ADR 0008 for customers): the input names no company, and any holder of procurement.po.write acting in any company changes it; the denied cases are in procurement.test.ts and the row security in packages/db vendors.test.ts.',
   'webhooks.event.mark':
     'A webhook delivery belongs to no company until its handler names one: the company case is a company the group does not have, refused in webhooks.test.ts "refuses a company the group does not have, and a failure with no code".',
 };
