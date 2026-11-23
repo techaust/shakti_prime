@@ -5,7 +5,7 @@
 | Branch | `fix/p3-fixes` on GitHub, from the approved design at a549b0d8 (`main` 334a6d0b plus the design) |
 | Runs on | a seat session (a cloud session under another of the owner's accounts, taking its work from `ops/seats`); the lead on the PC reviews and integrates (owner, 23-11-2026) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): tests and test helpers, one runtime guard |
-| Usage | 5-hour window 4 % on the lead's account at 18:30 UTC when briefed; builder on Opus 5.5 at high effort; builder started on seat 2 on Opus 5.5 at high effort (23-11-2026) and ended on the same model and effort |
+| Usage | 5-hour window 4 % on the lead's account at 18:30 UTC when briefed; builder on Opus 5.5 at high effort; builder started on seat 2 on Opus 5.5 at high effort (23-11-2026) and ended on the same model and effort; the fix round started on seat 4 on Opus 5.5 at high effort (24-11-2026) and ended on the same model and effort |
 | State | briefed |
 | Next step | the builder's report |
 
@@ -91,6 +91,40 @@ All four items are done, one commit each with its test, on `fix/p3-fixes`. No co
 - The brief asks for "a short, commented allow-list of non-secret names". Some kept names are secrets that only check what reaches the server (webhook and button phrases, LiveKit's key and secret), and the measures must keep them: the measuring server is given its own phrases after the merge, and the load measure signs deliveries with them, so taking them off would break the webhook measure. The list says why for each group, and a test ties those phrases to `MEASURE_SERVER_ENV`.
 - The axe wait leaves out animations that never end (spinners) instead of waiting for `getAnimations()` to be empty, which a page with a spinner never is. Paused animations and finished ones holding their last frame are left out too.
 - The duplicate-scan case keeps the route's `'{}'` body and the real walk through the companies, and moves only where each company's search starts. The brief's "companies it made itself" is met by the customers it makes in each live company: making companies would change what every other suite and journey sees.
+
+### 24-11-2026, cloud session (seat 4), fix round
+The three Review findings the lead marked are fixed, one commit each with its test, on `fix/p3-fixes`. Only `apps/web/tests/duplicate-scan.test.ts`, `apps/web/tests/jobs-check.test.ts` (added to the owned files by the lead), `apps/web/e2e/support/axe.ts` and its test changed. No config file, `package.json` script, package, lockfile or Phase 3 slice file changed. Skills loaded: none.
+
+**1. The duplicate-scan number** (3ee6e9a4)
+- `unusedPhone()` gives each pair `+9193` and 8 digits from `randomInt(100_000_000)`, drawn again while any contact holds the number (at most 20 draws, then it throws). The run-derived digits and the per-run counter are gone, so no earlier run's customer can share a pair's number.
+- New case "gives each pair a number no contact holds, drawing again when one is taken": it makes a pair, offers `unusedPhone` that pair's number first, and checks it is refused and the second draw is taken.
+- `tests/duplicate-scan.test.ts` with the security config: 11 passed (10 before, plus the new case).
+
+**2. `jobs-check.test.ts` on a fresh database** (144de0aa)
+- The case runs `call app.purge_outbox_events()` through `asMigrator` before its first check, as `retention.test.ts` does. Its comment now says that no migration runs the purge and that pg_cron runs nothing in the test database.
+- Proof, the file alone (`vitest run --config vitest.security.config.ts tests/jobs-check.test.ts`), each time on a fresh database (`fresh-db.sh shakti-postgres 54322`, then `pnpm db:migrate` and `pnpm db:seed`):
+
+  | Database | `jobs-check.test.ts` |
+  |---|---|
+  | fresh, without the fix | 1 failed, 9 passed ("reads every job as the worker principal…") |
+  | another fresh one, with the fix, run twice | 10 passed, 10 passed |
+
+**3. The axe wait's `'moving'` answer** (e783c64b)
+- `expectNoAxeViolations` keeps `waitUntilStill`'s answer and passes it to the new `violationsMessage()`. On `'moving'` the failure message adds "the page was still moving after 2000 ms, so a colour may have been measured mid-fade". On `'still'` it is unchanged.
+- `axe.test.ts` adds 1 case for both answers (7 in the file).
+
+**Checks in the VM**
+- `pnpm --filter web typecheck`: exit 0.
+- `eslint --max-warnings 0` on `apps/web/tests` and `apps/web/e2e/support`: clean.
+- Whole-repository `pnpm lint`: exit 0.
+- `pnpm --filter web test`: 164 files, 1222 passed, 1 skipped.
+- `pnpm --filter web test:security`, on the fresh database used for item 2: 39 files, 461 passed. The `jobs-check.test.ts` failure in the first round's report is gone.
+- `pnpm build`: exit 0.
+- `pnpm --filter web e2e:seed`, then `channels.spec.ts` once: 21 passed, 2 skipped (25.3 s), the same as the first round's five runs.
+
+**Assumptions**
+- Finding 1: besides the 8 random digits the lead asked for, `unusedPhone` checks the database and draws again, so a collision is impossible rather than unlikely. Test files run one at a time, so nothing can take the number between the check and the insert.
+- The axe message is a test failure message, not product copy, so it stays out of `en.json`, as the message before it did.
 
 ## Review
 Slice-reviewer, 23-11-2026, cloud session (seat 3), on d92416f4 (`git diff a549b0d8..fix/p3-fixes`, which is `git diff origin/main...fix/p3-fixes` since `main` ef3798f1 adds nothing past a549b0d8), Tier C. Run in the VM: the three unit files (`safety.test.ts`, `axe.test.ts`, `qstash.test.ts`: 37 passed); `tests/duplicate-scan.test.ts` with the security config (10 passed); the five new `qstash.test.ts` cases against a549b0d8's `qstash.ts` (all 5 fail, the file restored afterwards); `jobs-check.test.ts` on fresh databases (below). Not run: typecheck, lint, the build and the journeys (the builder's report records them), and no screenshot was reviewed, since no screen changed.
