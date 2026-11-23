@@ -199,7 +199,7 @@ Model and effort: Opus 5.5 (`claude-opus-5-5`) at high effort, start to done. Sk
   - copy-lint 17
 - `pnpm test:security`:
   - **db:** 1,679 of 1,680 passed on the last run. The one failure is `alert-counts.test.ts` "counts failed and waiting rows…", which inserts a voice session started 40 minutes ago and expects it in the India day. The run was at 00:32 IST, so the session fell on the previous day. It is a time-of-day flake, and it passed (1,680 of 1,680) on the early-check run at 18:05 UTC.
-  - **domain:** DOMAIN_RESULT
+  - **domain:** 1,441 of 1,441 (102 files), after adding the two vendor queries to `reader-parity.test.ts`, which the run before had caught
   - **web:** 460 of 460, run on its own. Run beside the domain suite with `turbo --only`, five event-delivery cases failed because both suites shared the outbox; the full run orders the suites.
 - `pnpm copy-lint`: clean.
 - `pnpm db:docs` and `machines:docs`: regenerated.
