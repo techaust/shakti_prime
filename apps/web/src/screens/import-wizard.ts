@@ -205,7 +205,9 @@ const HEADINGS: Record<ImportField, readonly string[]> = {
     'conversionfactor',
     'perpurchaseunit',
   ],
-  isSerialTracked: ['serialtracked', 'serial', 'serialnumber', 'serialised', 'serialized'],
+  // Not "Serial" or "Serial number": price sheets head their row count so, and a column of
+  // serial numbers is no yes or no.
+  isSerialTracked: ['serialtracked', 'serialised', 'serialized'],
   isDcr: ['dcr'],
   almmRef: ['almm', 'almmref', 'almmlisting'],
   warrantyMonths: ['warranty', 'warrantymonths', 'customerwarranty'],

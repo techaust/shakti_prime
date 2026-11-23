@@ -264,7 +264,7 @@ export function planItemRow(
     const parsed = CreateItemInput.safeParse(candidate);
     return parsed.success
       ? { kind: 'create', input: candidate as CreateItemInput }
-      : { kind: 'refused', errors: issueErrors(parsed.error.issues) };
+      : { kind: 'refused', errors: issueErrors(parsed.error.issues, g) };
   }
   const almmRef = g.almmRef ?? existing.almmRef;
   const candidate = {
@@ -289,12 +289,18 @@ export function planItemRow(
   const parsed = UpdateItemInput.safeParse(candidate);
   return parsed.success
     ? { kind: 'update', input: candidate as UpdateItemInput }
-    : { kind: 'refused', errors: issueErrors(parsed.error.issues) };
+    : { kind: 'refused', errors: issueErrors(parsed.error.issues, g) };
 }
 
-/** The command input's issues as the row's findings, one per field. */
+/**
+ * The command input's issues as the row's findings, one per field. An item kept out of stock (a
+ * service, which only an Other item without serials may be) has no column of its own: the row is
+ * refused on the cell that broke the rule, serial tracking when the row turns it on, else the
+ * category.
+ */
 function issueErrors(
   issues: readonly { path: readonly PropertyKey[]; code: string }[],
+  given: ItemImportRowInput['given'],
 ): ImportRowErrorDto[] {
   const errors = new Map<string, ImportRowErrorDto>();
   for (const issue of issues) {
@@ -305,7 +311,12 @@ function issueErrors(
         ? { field: 'category', code: 'item_details_needed' }
         : key === 'serialPattern'
           ? { field: 'serialPattern', code: 'serial_pattern_invalid' }
-          : { field: importField(key), code: issue.code === 'too_big' ? 'too_long' : 'invalid' };
+          : key === 'isStocked'
+            ? {
+                field: given.isSerialTracked === true ? 'isSerialTracked' : 'category',
+                code: 'item_not_stocked',
+              }
+            : { field: importField(key), code: issue.code === 'too_big' ? 'too_long' : 'invalid' };
     if (!errors.has(error.field)) errors.set(error.field, error);
   }
   return [...errors.values()];

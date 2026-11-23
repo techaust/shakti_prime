@@ -2786,7 +2786,8 @@
       "barcode_taken": "Another item, or an earlier row of this file, already has this barcode. Check the barcode.",
       "item_details_needed": "Items of this category need their details, such as power or size. Add this item on its item sheet instead.",
       "item_archived": "This item is no longer sold, so it can't be changed from a file. Use a new item code.",
-      "barcode_hidden": "This barcode looks like an identity number, so it was hidden. Enter it on the item sheet."
+      "barcode_hidden": "This barcode looks like an identity number, so it was hidden. Enter it on the item sheet.",
+      "item_not_stocked": "This item is kept out of stock as a service, so it stays in Other and has no serial numbers. Change it on the item sheet if it is now stocked goods."
     },
     "reconcile": {
       "title": "What happened to each row",
@@ -2821,7 +2822,8 @@
         "barcode_taken": "Another item had the barcode",
         "item_details_needed": "The item needs details only its sheet takes",
         "item_archived": "The item is no longer sold",
-        "barcode_hidden": "The barcode was hidden as an identity number"
+        "barcode_hidden": "The barcode was hidden as an identity number",
+        "item_not_stocked": "The item is kept out of stock as a service"
       },
       "csvLine": "What happened",
       "csvRows": "Rows",
@@ -3557,7 +3559,7 @@
       "purchaseUnitFactor": "How much one bought unit holds",
       "purchaseUnitFactorHelper": "In the stock unit ({stocked}). A coil of 100 metres holds 100. At least 1.",
       "serialPattern": "Shape of its serial numbers",
-      "serialPatternHelper": "Optional. A scanned serial number must have this shape, such as SP[0-9]+ for SP followed by digits. Leave it empty if unsure.",
+      "serialPatternHelper": "Optional. Letters and digits stand for themselves; [0-9] or [A-Z] is one character from a set. After a character or set you may write '{8}' for exactly eight, '{2,4}' for two to four, ? for one or none, + for one or more or * for any number. Use + or * once at most, and +, *, ? and ranges like '{2,4}' twice at most in all. Round brackets and the bar | are not allowed. SP[0-9]'{8}' means SP and eight digits. Leave it empty if unsure.",
       "isStocked": "Kept in stock (leave this off for a service or labour)",
       "monthsWrong": "Enter whole months from 0 to {max}, or leave it empty.",
       "factorWrong": "Enter how many stock units one bought unit holds, 1 or more, with at most three decimal places.",

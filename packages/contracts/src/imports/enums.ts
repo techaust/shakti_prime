@@ -260,5 +260,7 @@ export const ImportRowErrorCodeSchema = z.enum([
   'item_details_needed',
   'item_archived',
   'barcode_hidden',
+  // An item kept out of stock (a service) that the row would make another category or serial-tracked.
+  'item_not_stocked',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

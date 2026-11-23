@@ -168,4 +168,25 @@ describe('planItemRow', () => {
       errors: [{ field: 'serialPattern', code: 'serial_pattern_invalid' }],
     });
   });
+
+  it('refuses a change of an item kept out of stock on the cell that broke the rule (review finding 2)', () => {
+    const labour: ExistingItem = {
+      ...existing,
+      category: 'other',
+      unit: 'hour',
+      specsJson: {},
+      isStocked: false,
+    };
+    expect(planItemRow({ sku: 'A1', given: { category: 'cable' } }, labour)).toEqual({
+      kind: 'refused',
+      errors: [{ field: 'category', code: 'item_not_stocked' }],
+    });
+    expect(planItemRow({ sku: 'A1', given: { isSerialTracked: true } }, labour)).toEqual({
+      kind: 'refused',
+      errors: [{ field: 'isSerialTracked', code: 'item_not_stocked' }],
+    });
+    expect(planItemRow({ sku: 'A1', given: { warrantyMonths: 3 } }, labour)).toMatchObject({
+      kind: 'update',
+    });
+  });
 });
