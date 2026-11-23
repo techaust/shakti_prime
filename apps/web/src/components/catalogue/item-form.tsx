@@ -434,11 +434,8 @@ export function ItemFormDialog({
               {needsFactor ? (
                 <Field
                   id="item-purchase-factor"
-                  label={t('purchaseUnitFactor', {
-                    bought: text.unit(purchaseUnit),
-                    stocked: text.unit(unit),
-                  })}
-                  helper={t('purchaseUnitFactorHelper')}
+                  label={t('purchaseUnitFactor')}
+                  helper={t('purchaseUnitFactorHelper', { stocked: text.unit(unit) })}
                   error={stockProblems.purchaseUnitFactor ?? fieldError('purchaseUnitFactor')}
                 >
                   <Input

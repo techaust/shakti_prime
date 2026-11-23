@@ -92,3 +92,70 @@ test.describe('as a tele-caller, who reads prices only', () => {
     await expect(page.getByRole('heading', { name: 'Tax rates', level: 1 })).toHaveCount(0);
   });
 });
+
+// Stock and warranty (phase3 §6.1, C5). The seeded cable is opened and its form filled but never
+// saved, so no other journey's picture of the catalogue changes.
+test.describe('stock and warranty, as an Executive acting for every company', () => {
+  test.use(signedInAs('executive'));
+
+  test('the item sheet shows the terms, and the form checks them before saving', async ({
+    page,
+  }) => {
+    await page.goto('/catalogue');
+    await showCompany(page, 'All companies');
+    await page.getByRole('button', { name: 'Open Solar cable 4 sq mm' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Solar cable 4 sq mm' });
+    const stock = sheet.getByRole('region', { name: 'Stock and warranty' });
+    await expect(stock).toBeVisible();
+    await expect(stock.getByText('Kept in stock')).toBeVisible();
+    await expect(stock.getByText('The same unit as stock')).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'catalogue-item-stock');
+
+    await sheet.getByRole('button', { name: 'Edit' }).click();
+    const form = page.getByRole('dialog', { name: 'Edit Solar cable 4 sq mm' });
+    const terms = form.getByRole('group', { name: 'Stock and warranty' });
+    await expect(terms).toBeVisible();
+    await terms.getByLabel('Warranty to the customer, in months').fill('400');
+    await terms.getByLabel('Bought in').selectOption({ label: 'Piece' });
+    await terms.getByLabel('How much one bought unit holds').fill('0.5');
+    await form.getByRole('button', { name: 'Save item' }).click();
+    await expect(
+      terms.getByText('Enter whole months from 0 to 360, or leave it empty.'),
+    ).toBeVisible();
+    await expect(
+      terms.getByText('Enter how many stock units one bought unit holds', { exact: false }),
+    ).toBeVisible();
+    // A serial pattern is asked only of an item with a serial number on each piece.
+    await expect(terms.getByLabel('Shape of its serial numbers')).toHaveCount(0);
+    await form.getByLabel('Each piece has its own serial number').check();
+    await expect(terms.getByLabel('Shape of its serial numbers')).toBeVisible();
+    await expectNoAxeViolations(page);
+    await form.getByRole('button', { name: 'Cancel' }).click();
+    await expect(form).toBeHidden();
+  });
+
+  test('Import items opens a new import of catalogue items', async ({ page }) => {
+    await page.goto('/catalogue');
+    await showCompany(page, 'All companies');
+    await page.getByRole('link', { name: 'Import items' }).click();
+    await expect(page).toHaveURL(/\/imports\/new\?kind=items$/);
+    await expect(page.getByLabel('What the file holds')).toHaveValue('items');
+    await expectNoAxeViolations(page);
+    await snap(page, 'imports-new-items');
+  });
+});
+
+test.describe('stock and warranty, as a tele-caller who reads prices only', () => {
+  test.use(signedInAs('teleCaller'));
+
+  test('reads the terms without changing them, and is not offered the import', async ({ page }) => {
+    await page.goto('/catalogue');
+    await expect(page.getByRole('link', { name: 'Import items' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Open Solar cable 4 sq mm' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Solar cable 4 sq mm' });
+    await expect(sheet.getByRole('region', { name: 'Stock and warranty' })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await expectNoAxeViolations(page);
+  });
+});
