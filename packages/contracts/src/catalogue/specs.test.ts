@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
-import { ItemCategorySchema } from './enums';
-import { ITEM_SPEC_FIELDS, ITEM_SPEC_SCHEMAS, parseItemSpecs } from './specs';
+import { ItemCategorySchema, type ItemCategory } from './enums';
+import {
+  ITEM_SPEC_FIELDS,
+  ITEM_SPEC_SCHEMAS,
+  mayBeUnstocked,
+  NON_STOCK_CATEGORIES,
+  parseItemSpecs,
+} from './specs';
 
 const pump = {
   hp: 5,
@@ -55,5 +61,48 @@ describe('item specifications', () => {
     expect(parseItemSpecs('structure', {}).success).toBe(true);
     expect(parseItemSpecs('structure', { wp: 1 }).success).toBe(false);
     expect(parseItemSpecs('pipe', { nominalSizeMm: 63, material: '  ' }).success).toBe(false);
+  });
+
+  it('takes the stock specifications of C5, each optional, in range', () => {
+    expect(parseItemSpecs('cable', {}).success).toBe(true);
+    expect(parseItemSpecs('cable', { cores: 4, sizeMm2: 2.5, conductor: 'copper' }).success).toBe(
+      true,
+    );
+    expect(parseItemSpecs('cable', { cores: 3.5 }).success).toBe(false);
+    expect(parseItemSpecs('cable', { conductor: 'silver' }).success).toBe(false);
+    expect(parseItemSpecs('pipe', { nominalSizeMm: 63, material: 'HDPE' }).success).toBe(true);
+    expect(
+      parseItemSpecs('pipe', {
+        nominalSizeMm: 63,
+        material: 'HDPE',
+        pipeClass: 'PN 6',
+        pieceLengthM: 6,
+      }).success,
+    ).toBe(true);
+    expect(
+      parseItemSpecs('pipe', { nominalSizeMm: 63, material: 'HDPE', pieceLengthM: 0 }).success,
+    ).toBe(false);
+    expect(parseItemSpecs('inverter', { kw: 5 }).success).toBe(true);
+    expect(parseItemSpecs('inverter', { kw: 5, kva: 6.25, phase: 'single' }).success).toBe(true);
+    expect(parseItemSpecs('inverter', { kva: 6 }).success).toBe(false);
+    expect(parseItemSpecs('battery', { ah: 150, voltageV: 51.2 }).success).toBe(true);
+    expect(parseItemSpecs('battery', { voltageV: 51.25 }).success).toBe(false);
+    expect(
+      parseItemSpecs('structure', { capacityKwp: 3.3, material: 'Galvanised iron' }).success,
+    ).toBe(true);
+  });
+
+  it('marks only optional fields optional on the form, and only Other as a possible service', () => {
+    for (const [category, fields] of Object.entries(ITEM_SPEC_FIELDS)) {
+      const empty = parseItemSpecs(category as ItemCategory, {});
+      const required = fields.filter((f) => f.optional !== true);
+      expect({ category, emptyAccepted: empty.success }).toEqual({
+        category,
+        emptyAccepted: required.length === 0,
+      });
+    }
+    expect(NON_STOCK_CATEGORIES).toEqual(['other']);
+    expect(mayBeUnstocked('other')).toBe(true);
+    expect(mayBeUnstocked('cable')).toBe(false);
   });
 });
