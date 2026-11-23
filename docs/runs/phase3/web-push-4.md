@@ -76,3 +76,21 @@ Review checklist (check before your report): the push still loads only on first 
 - The cloud environment's network settings need `challenges.cloudflare.com` allowed, as hybrid.md's host list already says, before a cloud session can run journeys. The owner changes that under the environment's Network access.
 - Skills loaded: none. The brief names none, and this slice has no command, table or screen.
 
+
+## Review
+| # | Severity | Finding | State |
+|---|---|---|---|
+| none | | No critical, high, medium or low finding. | |
+
+Checked and sound (review in a cloud session, seat 1, 23-11-2026, on `2726d492`):
+- **Export shape:** `web-push` 4.0.0's `src/index.js` is ESM with named exports only and no default (`sendNotification` is `webPush.sendNotification.bind(webPush)`), so `push.ts` reading `webpush.sendNotification` from the module namespace of `await import('web-push')` is right as it stands. (`generateRequestDetails` and `setVapidDetails` are exported unbound; the sender uses neither.)
+- **Options:** `vapidDetails`, `TTL`, `timeout` and `urgency` are all in 4.0.0's `validOptionKeys`, `'normal'` is one of the four urgencies, and `vapidDetails` is read as `{ subject, publicKey, privateKey }`, the shape `VapidConfig` has. No proxy is read from the environment: `HttpsProxyAgent` is used only when a `proxy` option is passed, and the sender passes none.
+- **Status:** a response outside 2xx rejects with `new WebPushError('Received unexpected response code', pushResponse.statusCode, …)` (`src/web-push-lib.js`), and a timeout with `pushRequest.destroy(new Error('Socket timeout'))`, as in 3.6.7. So 404 and 410 still give `gone`, and a timeout `failed`.
+- **Lazy load:** a mutation check (adding an eager `import * as eager from 'web-push'` to `push.ts`) fails the new test `loads web-push only on the first send` (1 failed, 5 passed); restored. In my own `next build` with no `.env` (`turbo run build --filter web --force`, passed, no warning), both chunks that hold web-push (`chunks/node_modules__pnpm_1ci1lmac4shsx._.js` and its `ssr` twin) are reached only through Turbopack's async loader (`a.v(b => Promise.all([...].map(b => a.l(b))).then(...))`).
+- **`kerberos`:** `proxy-agent-negotiate` imports it only on the Negotiate proxy path, and the build turns that into a throw at that point (`Cannot find module 'kerberos'`), never reached at import time or by the sender.
+- **Lockfile:** the diff moves only `web-push`'s own tree (`web-push`, `http_ece`, `https-proxy-agent`, `agent-base`, the new `proxy-agent-negotiate`, and `minimist` dropped from web-push's dependencies); no other importer or package. The new Node floor (20) is below the repository's Node 24.
+- **Tests:** the mock keeps 4.0.0's shape and rejects with the package's real `WebPushError` via `importOriginal`; `importOriginal` loads the real module, which has no side effect at import and calls nothing. Its assertions can fail (the builder's `status` mutation and mine). `@types/web-push` 3.6.4 stays because 4.0.0 ships no types, and it declares the same named exports and `WebPushError.statusCode`.
+- **Checks re-run here:** `vitest run src/notifications` 6 passed; `eslint --max-warnings 0 apps/web/src/notifications` clean; Prettier clean; `pnpm --filter web typecheck` clean; `pnpm audit --prod` "3 ignored: 3 moderate", nothing new; `pnpm install --frozen-lockfile` passed.
+- **Scope:** the diff touches only the four owned files and this run file; `package.json` changes only the `web-push` line, and no script changed.
+
+Not checked: the notifications journey (`notifications.spec.ts`). Its sign-in needs `challenges.cloudflare.com`, which this environment's network policy refuses, so the lead runs it on the PC as the State line says. The real `sendNotification` against a push service is not exercised in any test (the brief forbids a live push service, and `isPushServiceEndpoint` refuses a local stand-in server); its reject path was read in the source instead.
