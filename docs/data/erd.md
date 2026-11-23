@@ -1405,6 +1405,7 @@ erDiagram
     text ref_type "null"
     uuid ref_id "null"
     uuid reverses_id FK "null"
+    text note "null"
     uuid batch_id
     timestamptz moved_at
     uuid moved_by FK

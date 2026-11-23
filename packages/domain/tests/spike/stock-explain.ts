@@ -96,8 +96,8 @@ async function seed(createdBy: string): Promise<{ hubs: string[]; bins: string[]
     if ((moved?.n ?? 0) === 0) {
       await m.begin(async (tx) => {
         const batch = newId();
-        // Pair g: item g mod 20,000, bin (g div 20,000) mod 200, company 1 + (g div 7) mod 4 — each
-        // pair once; a gain of 10 at its cost, then a loss of 3 at the same cost.
+        // Pair g: item g mod 20,000, bin (g div 20,000 + g) mod 200, company 1 + (g div 7) mod 4 —
+        // each pair once, spread over every bin; a gain of 10 at its cost, then a loss of 3 at it.
         await tx`
           create temporary table plan_pairs on commit drop as
           select g, i.id as item_id, b.id as bin_id, b.warehouse_id as hub_id,
@@ -110,7 +110,7 @@ async function seed(createdBy: string): Promise<{ hubs: string[]; bins: string[]
             join (select b.id, b.warehouse_id, row_number() over (order by w.code, b.code) - 1 as n
                     from bins b join warehouses w on w.id = b.warehouse_id
                    where w.code = any(${hubs}) and b.code like 'P%') b
-              on b.n = (g / ${ITEMS}) % ${BINS}`;
+              on b.n = (g / ${ITEMS} + g) % ${BINS}`;
         await tx`
           insert into stock_movements (id, entity_id, item_id, to_bin_id, qty, reason, ref_type, ref_id,
                                        batch_id, moved_at, moved_by)

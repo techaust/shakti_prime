@@ -3310,7 +3310,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `import_jobs_entity_ids_check`: `"import_jobs"."entity_ids" is null or cardinality("import_jobs"."entity_ids") between 1 and 20`
 - `import_jobs_failed_batch_check`: `"import_jobs"."failed_batch" is null or "import_jobs"."failed_batch" >= 1`
 - `import_jobs_format_check`: `"import_jobs"."format" in ('csv', 'xlsx')`
-- `import_jobs_kind_check`: `"import_jobs"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')`
+- `import_jobs_kind_check`: `"import_jobs"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')`
 - `import_jobs_left_out_columns_check`: `cardinality("import_jobs"."left_out_columns") <= 50 and "import_jobs"."masked_values" >= 0`
 - `import_jobs_state_check`: `"import_jobs"."state" in ('uploaded', 'mapped', 'previewed', 'committing', 'committed', 'rolled_back', 'failed')`
 
@@ -3366,7 +3366,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Check constraints**
 
-- `import_mapping_templates_kind_check`: `"import_mapping_templates"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')`
+- `import_mapping_templates_kind_check`: `"import_mapping_templates"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')`
 
 **Triggers**
 
@@ -3413,7 +3413,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Check constraints**
 
 - `import_rows_created_check`: `("import_rows"."created_type" is null) = ("import_rows"."created_id" is null)`
-- `import_rows_created_type_check`: `"import_rows"."created_type" in ('opportunity', 'account', 'account_link', 'pin_code')`
+- `import_rows_created_type_check`: `"import_rows"."created_type" in ('opportunity', 'account', 'account_link', 'pin_code', 'stock_movement')`
 - `import_rows_row_no_check`: `"import_rows"."row_no" >= 1`
 - `import_rows_state_check`: `"import_rows"."state" in ('pending', 'valid', 'invalid', 'committed', 'skipped', 'rolled_back')`
 
@@ -4730,6 +4730,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `ref_type` | text | yes |  |  |
 | `ref_id` | uuid | yes |  |  |
 | `reverses_id` | uuid | yes |  | → `stock_movements.id` |
+| `note` | text | yes |  |  |
 | `batch_id` | uuid | no |  |  |
 | `moved_at` | timestamp with time zone | no | `now()` |  |
 | `moved_by` | uuid | no |  | → `principals.id` |
@@ -4756,6 +4757,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Check constraints**
 
 - `stock_movements_bins_check`: `("stock_movements"."from_bin_id" is not null or "stock_movements"."to_bin_id" is not null) and "stock_movements"."from_bin_id" is distinct from "stock_movements"."to_bin_id"`
+- `stock_movements_note_check`: `"stock_movements"."note" is null or char_length("stock_movements"."note") between 1 and 300`
 - `stock_movements_qty_check`: `"stock_movements"."qty" > 0`
 - `stock_movements_reason_check`: `"stock_movements"."reason" in ('opening', 'receipt', 'transfer', 'pick', 'issue', 'return_customer', 'return_supplier', 'adjust_gain', 'adjust_loss', 'damage', 'count', 'warranty_replacement', 'surplus_in', 'surplus_out', 'reversal')`
 - `stock_movements_ref_check`: `("stock_movements"."ref_type" is null) = ("stock_movements"."ref_id" is null)`

@@ -13,6 +13,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [CRM](#crm)
   - [Pricing](#pricing)
   - [Catalogue](#catalogue)
+  - [inventory](#inventory)
   - [Sign-in](#sign-in)
   - [Administration](#administration)
   - [Imports](#imports)
@@ -49,7 +50,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-57 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+58 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -93,6 +94,12 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`catalogue.kit.updated`](#cataloguekitupdated) | A kit's details or components changed. | `catalogue.kit.update` | none |
 | [`catalogue.kit.archived`](#cataloguekitarchived) | A kit was withdrawn from sale. | `catalogue.kit.archive` | none |
 | [`catalogue.pump_curve.set`](#cataloguepump_curveset) | A pump's curve was replaced; `points` counts its points. | `catalogue.pump_curve.set` | none |
+
+### inventory
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch` | none |
 
 ### Sign-in
 
@@ -327,6 +334,13 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 |---|---|
 | `category` | one of `pump`, `motor`, `solar_module`, `controller`, `structure`, `cable`, `pipe`, `inverter`, `battery`, `other` |
 
+### inventory.stock.moved
+
+| Field | Type |
+|---|---|
+| `count` | whole number from 1 |
+| `movements` | list of object with `movementId`, `itemId`, `fromBinId`, `toBinId`, `qty`, `reason`, at least 1 |
+
 ### catalogue.kit.created
 
 | Field | Type |
@@ -401,7 +415,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `opening_stock` |
 | `committedRows` | whole number from 0 |
 | `batches` | whole number from 1 |
 
@@ -409,7 +423,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `opening_stock` |
 | `committedRows` | whole number from 0 |
 | `failedBatch` | whole number from 1 |
 
@@ -423,7 +437,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `opening_stock` |
 | `rolledBackRows` | whole number from 0 |
 
 ### files.file.uploaded
