@@ -32,12 +32,15 @@ export interface AxeOptions {
 export const STILL_WAIT = { limitMs: 2_000, stillFrames: 3 } as const;
 
 /**
- * Runs in the page: resolves once no CSS animation or transition that ends is running for
- * `stillFrames` frames in a row, or after `limitMs` whatever moves, so it cannot hang a journey.
- * A notice starts its fade a frame or two after it is marked mounted, so one look at the
- * animations can miss it (`channels.spec.ts`, STATUS); frames in a row catch it. One that never
- * ends (a spinner) is left running, and a finished one that holds its last frame does not count.
- * Self-contained, since Playwright sends its source to the page.
+ * Runs in the page: resolves once no CSS animation or transition that ends is running and every
+ * notice on show is mounted and fully opaque, for `stillFrames` frames in a row, or after
+ * `limitMs` whatever moves, so it cannot hang a journey. A notice starts its fade a frame or two
+ * after it is marked mounted, so one look at the animations can miss it (`channels.spec.ts`,
+ * STATUS); frames in a row catch most of it, and a notice can sit in the page before its fade has
+ * started, which no look at the animations sees, so its own opacity is read too (p3-fixes
+ * integration). A notice leaving or hidden behind others stays at 0 and is not waited for. An
+ * animation that never ends (a spinner) is left running, and a finished one that holds its last
+ * frame does not count. Self-contained, since Playwright sends its source to the page.
  */
 export async function waitUntilStill(options: {
   limitMs: number;
@@ -53,7 +56,16 @@ export async function waitUntilStill(options: {
         resolve();
       });
     });
+  const noticeFading = () =>
+    Array.from(document.querySelectorAll('[data-sonner-toast]')).some(
+      (notice) =>
+        notice.getAttribute('data-visible') !== 'false' &&
+        notice.getAttribute('data-removed') !== 'true' &&
+        (notice.getAttribute('data-mounted') !== 'true' ||
+          getComputedStyle(notice).opacity !== '1'),
+    );
   const moving = () =>
+    noticeFading() ||
     document
       .getAnimations()
       .some(
@@ -91,11 +103,9 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
       for (const frame of frames) frame.remove();
     });
   }
-  // A notice (a toast) is drawn first in its hidden state and starts fading in a moment later, when
-  // it is marked mounted; until then its fade is not an animation the wait below can see.
-  await expect(page.locator('[data-sonner-toast][data-mounted="false"]')).toHaveCount(0);
   // A dialog or a notice fading in shows its colours blended with the page behind it, which axe
-  // would measure as low contrast: wait until the page is still (`waitUntilStill`).
+  // would measure as low contrast: wait until the page is still and every notice on show is
+  // mounted and opaque (`waitUntilStill`).
   const settled = await page.evaluate(waitUntilStill, STILL_WAIT);
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   if (options.include !== undefined) builder = builder.include(options.include);

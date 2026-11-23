@@ -12,11 +12,32 @@ interface StandIn {
 
 let animations: StandIn[] = [];
 
+/** A notice on the stand-in page: its sonner attributes and its computed opacity. */
+interface Notice {
+  attributes: Record<string, string>;
+  opacity: string;
+}
+
+let notices: Notice[] = [];
+const shownNotice = (opacity: string): Notice => ({
+  attributes: { 'data-mounted': 'true', 'data-visible': 'true', 'data-removed': 'false' },
+  opacity,
+});
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
   animations = [];
+  notices = [];
   vi.stubGlobal('requestAnimationFrame', (callback: () => void) => setTimeout(callback, 16));
+  vi.stubGlobal('getComputedStyle', (notice: Notice) => ({ opacity: notice.opacity }));
   vi.stubGlobal('document', {
+    querySelectorAll: (selector: string) => {
+      expect(selector).toBe('[data-sonner-toast]');
+      return notices.map((notice) => ({
+        ...notice,
+        getAttribute: (name: string) => notice.attributes[name] ?? null,
+      }));
+    },
     getAnimations: () =>
       animations.map((a) => ({
         playState: a.playState,
@@ -61,6 +82,46 @@ describe('waitUntilStill', () => {
     expect(result).toBe('still');
     expect(ms).toBeGreaterThan(420);
     expect(ms).toBeLessThan(420 + 5 * 16);
+  });
+
+  it('waits for a notice that sits in the page before its fade starts, until it is opaque', async () => {
+    // No animation at any point: only the notice's own state shows it is not yet on show.
+    notices = [{ ...shownNotice('0'), attributes: { 'data-mounted': 'false' } }];
+    setTimeout(() => {
+      notices = [shownNotice('0')];
+    }, 100);
+    setTimeout(() => {
+      notices = [shownNotice('0.4')];
+    }, 300);
+    setTimeout(() => {
+      notices = [shownNotice('1')];
+    }, 500);
+    const { result, ms } = await waited();
+    expect(result).toBe('still');
+    expect(ms).toBeGreaterThan(500);
+    expect(ms).toBeLessThan(500 + 5 * 16);
+  });
+
+  it('does not wait for a notice that is leaving or hidden behind others', async () => {
+    notices = [
+      shownNotice('1'),
+      {
+        ...shownNotice('0'),
+        attributes: { ...shownNotice('0').attributes, 'data-removed': 'true' },
+      },
+      {
+        ...shownNotice('0'),
+        attributes: { ...shownNotice('0').attributes, 'data-visible': 'false' },
+      },
+    ];
+    expect(await waited()).toEqual({ result: 'still', ms: 3 * 16 });
+  });
+
+  it('gives up after its limit on a notice that never becomes opaque', async () => {
+    notices = [shownNotice('0.5')];
+    const { result, ms } = await waited();
+    expect(result).toBe('moving');
+    expect(ms).toBeLessThan(STILL_WAIT.limitMs + 4 * 16);
   });
 
   it('counts a transition still to start (pending) as moving', async () => {
