@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): catalogue columns and an import, no money or ledger |
 | Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (the builder's own model and effort at start and end: Opus 5.5, high) |
-| State | built; report `done` (journeys and Linux baselines not run in the VM, see the report) |
-| Next step | the lead's review, then the journeys and baselines on the PC |
+| State | built; review fixed, report `fixes` (journeys and Linux baselines not run in the VM, see the reports) |
+| Next step | the lead's check of the fix diff, then the journeys and baselines on the PC |
 
 ## Brief
 Build [phase3 §6.1](../../03-roadmap-appendix/phase3.md#61-c5-catalogue-for-stock) as written. Points the design leaves to you, settled here:
@@ -108,3 +108,25 @@ Not checked:
   - For the lead on the PC: `playwright test catalogue.spec.ts`, then `e2e:snap -- catalogue.spec.ts`. The new pictures are `catalogue-item-stock` and `imports-new-items`, and `catalogue-items` changes. Check the Import items and Add item pair at 400 px.
 - The 5,000-row timing and the `EXPLAIN` are taken from the report.
 - `pnpm build` and `js-budget` were not re-run.
+
+### 23-11-2026, cloud session (builder): fixes
+
+The review's three findings, in one round (`503374c9`, `8ac69c4e`), as the lead asked.
+
+1. **Serial pattern time (medium): fixed by a safe part, not a patch.** `hasNestedRepeat()` is gone. `parseSerialPattern()` in `packages/contracts/src/catalogue/serial-pattern.ts` now accepts only:
+   - atoms: literal characters, `.`, `\d`, `\w`, an escaped sign (`\.`, `\+`…; `\-` only inside a class, as the `u` flag requires), and character classes `[...]` of listed characters and ascending ranges (a leading `^` allowed; no class inside, no `\s`, no empty class);
+   - one quantifier per atom: `?`, `+`, `*`, `{n}` or `{m,n}` with n up to 64 (`{n,}`, lazy and doubled quantifiers refused);
+   - no groups, alternation, back-references, lookaround or anchors (the code still adds `^(?:…)$`).
+   - One rule beyond the lead's list: at most two repeats whose length varies (`?`, `+`, `*`, `{m,n}` with m < n), one of them unbounded. Without it, `\d+` ten times (the review's second pattern) and `a?` repeated still fit the list and slow down as a power of the serial's length. With three repeats allowed, the worst pattern I found took 51 ms here; with two, the slowest takes under 1 ms on a 100-character near miss.
+   - Anything else is `unsupported`, under the same user-facing reason (`validation_failed` on `serialPattern`, `serial_pattern_invalid` in an import). `serialMatchesPattern()` keeps its signature. `serialFitsPattern()` answers no for a stored pattern outside the safe part, so one written before this rule never runs.
+   - Tests (`serial-pattern.test.ts`, 10): the safe part accepted; groups, alternation, back-references, lookaround, anchors, `\s`, `\b`, `\p{…}`, nested, empty and descending classes refused; bad quantifiers refused; the repeat limits; the review's patterns `(\d|\d)+`, `(SP|SP)[0-9]+`, `\d+` ten times and `[A-Z]+[0-9]+[A-Z]*[0-9]*` refused; and a timing test that three of the slowest allowed patterns (`\w*\w{0,64}\w{30}X`, `.*.{0,64}.{64}X`, `\w{0,64}\w+\w{20}X`) answer a 100-character near miss in under 50 ms.
+   - `en.json`: the form's help says in plain words what a pattern may hold, checked to render through ICU (the counts written `'{8}'`).
+2. **`item_not_stocked` (low): fixed.** A row that would move an item kept out of stock out of Other, or give it serial numbers, is refused as `item_not_stocked`: on `isSerialTracked` when the row turns serial tracking on, else on `category`. It has its sentence in `imports.rowErrors` and `imports.reconcile.reasons`, and a test in `imports/items.test.ts`. (The commit's `item_sku_taken` race still reads as an invalid code; it needs a new code made between check and commit, and the lead did not ask for it.)
+3. **Heading guess (low): fixed.** `Serial` and `Serial number` are no longer guessed as serial tracking (`serialtracked`, `serialised` and `serialized` stay), with a test in `import-wizard.test.ts`.
+
+**Checks run in the VM after the fixes** (the session's Postgres was recreated empty with `fresh-db.sh`: the VM restarted and the hook's start clashed with the container from the first round)
+- `pnpm typecheck` 10 of 10; `pnpm lint` (whole repository) clean; `pnpm copy-lint` clean (it refused the word "bar" in the help, so the text says "the sign |").
+- Unit: contracts 340, domain 2608, web 1207 passed and 1 skipped.
+- `pnpm test:security` (`--continue`): db 1529 of 1529, domain 1435 of 1435, web 460 of 460.
+- `pnpm build` passes; `js-budget`: every page within budget (57).
+- Not run: the journeys and the Linux baselines, for the same reason as before. This environment's network policy refuses `challenges.cloudflare.com` and `api.pwnedpasswords.com`, so sign-in cannot pass. They wait for the lead on the PC: `playwright test catalogue.spec.ts`, then `e2e:snap -- catalogue.spec.ts`. `db:docs` and `machines:docs` were not re-run: nothing they read changed.
