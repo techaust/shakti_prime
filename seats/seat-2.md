@@ -1,6 +1,6 @@
-assignment: 1
+assignment: 2
 role: build
-branch: fix/p3-fixes
-run_file: docs/runs/phase3/p3-fixes.md
+branch: fix/alert-counts-midnight
+run_file: docs/runs/phase3/alert-counts-midnight.md
 wait_for: none
-note: four open follow-ups; Tier C, no early check
+note: one date-dependent security test; small
