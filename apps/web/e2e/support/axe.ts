@@ -71,6 +71,16 @@ export async function waitUntilStill(options: {
 }
 
 /**
+ * The failure message for axe's violations. When the page was still moving after the wait, it
+ * says so: a colour measured mid-fade reads as low contrast (p3-fixes review, finding 3).
+ */
+export function violationsMessage(settled: 'still' | 'moving'): string {
+  const message = 'accessibility violations (WCAG 2.1 A and AA)';
+  if (settled === 'still') return message;
+  return `${message}; the page was still moving after ${String(STILL_WAIT.limitMs)} ms, so a colour may have been measured mid-fade`;
+}
+
+/**
  * Fails the test with every WCAG 2.1 A or AA violation axe finds on the page as it stands, and
  * with every button out of line with the box beside it (`expectAligned`, docs/08-design-system.md
  * §6), within `include` when it is given.
@@ -86,7 +96,7 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
   await expect(page.locator('[data-sonner-toast][data-mounted="false"]')).toHaveCount(0);
   // A dialog or a notice fading in shows its colours blended with the page behind it, which axe
   // would measure as low contrast: wait until the page is still (`waitUntilStill`).
-  await page.evaluate(waitUntilStill, STILL_WAIT);
+  const settled = await page.evaluate(waitUntilStill, STILL_WAIT);
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   if (options.include !== undefined) builder = builder.include(options.include);
   // With the frames gone, axe runs in the page alone: its cross-frame step opens a blank page to
@@ -102,6 +112,6 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
     help: v.help,
     targets: v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary ?? ''}`),
   }));
-  expect(summary, 'accessibility violations (WCAG 2.1 A and AA)').toEqual([]);
+  expect(summary, violationsMessage(settled)).toEqual([]);
   await expectAligned(page, options.include);
 }

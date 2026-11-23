@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { STILL_WAIT, waitUntilStill } from './axe';
+import { STILL_WAIT, violationsMessage, waitUntilStill } from './axe';
 
 // The wait before axe runs (STATUS: `channels.spec.ts` measured a notice still fading in), on a
 // stand-in page: its animations are what the case says, and frames come every 16 ms of fake time.
@@ -95,5 +95,14 @@ describe('waitUntilStill', () => {
     expect(result).toBe('still');
     expect(ms).toBeGreaterThanOrEqual(3 * 50);
     expect(ms).toBeLessThan(3 * 50 + 16);
+  });
+});
+
+describe('violationsMessage', () => {
+  it('names a page that was still moving, so a contrast failure says it may be mid-fade', () => {
+    expect(violationsMessage('still')).toBe('accessibility violations (WCAG 2.1 A and AA)');
+    expect(violationsMessage('moving')).toBe(
+      'accessibility violations (WCAG 2.1 A and AA); the page was still moving after 2000 ms, so a colour may have been measured mid-fade',
+    );
   });
 });
