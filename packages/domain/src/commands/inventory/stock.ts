@@ -18,7 +18,7 @@ import {
   type SerialEvent,
   type SerialRecord,
 } from '../../state-machines/machines/serial';
-import { type StockMoveLine } from '../../stock/move';
+import { REVERSAL, TRANSFER, type StockMoveLine } from '../../stock/move';
 import { postStockMoves } from '../../stock/post';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 
@@ -157,7 +157,7 @@ export const transferStock = defineCommand({
       });
     }
     const base = {
-      reason: 'transfer' as const,
+      reason: TRANSFER,
       entityId: input.entityId,
       itemId: item.id,
       fromBinId: from.id,
@@ -340,7 +340,7 @@ export const reverseStock = defineCommand({
     return postStockMoves(
       ctx,
       input.entityId,
-      [{ reason: 'reversal', reversesId: original.id, note: input.note ?? null }],
+      [{ reason: REVERSAL, reversesId: original.id, note: input.note ?? null }],
       [{ stockReason: 'reversal', quantity: original.qty, serialNo }],
       input.note ?? null,
     );

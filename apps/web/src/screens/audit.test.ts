@@ -97,7 +97,8 @@ describe('every recorded action and event has a name', () => {
     expect(keys.filter((key) => key === undefined)).toEqual([]);
     expect(new Set(keys).size).toBe(EVENT_TYPES.length);
     expect(Object.keys(events).sort()).toEqual([...keys].sort());
-    expect(eventNameKey('inventory.stock.moved')).toBeUndefined();
+    // A type no slice emits (H1 made inventory.stock.moved, the example before, a real one).
+    expect(eventNameKey('inventory.nothing.happened')).toBeUndefined();
   });
 });
 

@@ -41,6 +41,8 @@ export const BOS_PREFIXES = [
   '/knowledge',
   '/ask',
   '/voice',
+  // H1 stock ledger
+  '/inventory',
 ] as const;
 
 /** True for a path inside the `(bos)` route group. */

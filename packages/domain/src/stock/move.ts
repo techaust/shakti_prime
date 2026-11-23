@@ -8,7 +8,7 @@ import type { RequestTx } from '@shakti/db';
 import { sql } from 'drizzle-orm';
 
 export interface StockMovementLine {
-  reason: Exclude<StockReason, 'reversal'>;
+  reason: Exclude<StockReason, typeof REVERSAL>;
   entityId: number;
   itemId: string;
   /** An existing serial of a tracked item. */
@@ -27,9 +27,13 @@ export interface StockMovementLine {
   note?: string | null;
 }
 
+/** The ledger's reasons the helpers name (constants, so no error catalogue reads them as one). */
+export const REVERSAL = 'reversal' satisfies StockReason;
+export const TRANSFER = 'transfer' satisfies StockReason;
+
 /** A reversal names only the movement it reverses and a reference. */
 export interface StockReversalLine {
-  reason: 'reversal';
+  reason: typeof REVERSAL;
   reversesId: string;
   refType?: string | null;
   refId?: string | null;
@@ -113,9 +117,9 @@ export function stockRefusal(e: unknown): DomainError | undefined {
 }
 
 function lineJson(line: StockMoveLine): Record<string, unknown> {
-  if (line.reason === 'reversal') {
+  if (line.reason === REVERSAL) {
     return {
-      reason: 'reversal',
+      reason: REVERSAL,
       reverses_id: line.reversesId,
       ref_type: line.refType ?? null,
       ref_id: line.refId ?? null,

@@ -450,7 +450,44 @@
     "voice_browser": "This browser cannot talk to Shakti. Open this page in a recent Chrome, Edge, Firefox or Safari.",
     "voice_microphone": "Shakti could not use your microphone. Allow the microphone for this site in your browser, then start again.",
     "voice_connection": "Shakti could not join the talk. Check your network, then start again.",
-    "concierge_out_of_time": "The WhatsApp assistant ran short of time on this message. It tries again in a moment."
+    "concierge_out_of_time": "The WhatsApp assistant ran short of time on this message. It tries again in a moment.",
+    "stock_batch_empty": "Nothing was given to move. Add a quantity and try again.",
+    "stock_batch_too_large": "That is too much to move at once. Split it into smaller parts and try again.",
+    "stock_reason_not_open": "Stock can't be moved this way yet. Use an adjustment or a move between bins.",
+    "stock_movement_shape": "Some details of this stock movement don't fit together. Check the bins and the quantity, then try again.",
+    "stock_movement_missing": "We couldn't find that stock movement. Refresh the page to see the current list.",
+    "stock_reversal_not_allowed": "This movement can't be reversed here. A receipt or a dispatch is undone from its own document.",
+    "stock_already_reversed": "This movement has already been reversed. Refresh the page to see the current list.",
+    "stock_reversal_too_old": "This movement is too old to reverse. Make an adjustment instead.",
+    "stock_bin_missing": "We couldn't find that bin. Refresh the page and choose the bin again.",
+    "stock_bin_archived": "That bin or its hub is no longer in use. Choose another bin.",
+    "stock_transit_pair": "Goods in transit can only move to or from the two hubs they travel between.",
+    "stock_transfer_hubs_differ": "Both bins must be in the same hub. To send stock to another hub, use a dispatch.",
+    "stock_item_missing": "We couldn't find that item. Refresh the page and try again.",
+    "stock_item_inactive": "This item is no longer sold, so its stock can't be moved.",
+    "stock_item_not_stocked": "This item is a service, so it has no stock.",
+    "stock_serial_untracked": "This item has no serial numbers. Enter a quantity instead.",
+    "stock_serial_qty": "Each serial number is one piece. Enter each serial number on its own line.",
+    "stock_serial_required": "This item is tracked by serial number. Enter the serial numbers, one per line.",
+    "stock_serial_exists": "That serial number is already in stock. Check the number and try again.",
+    "stock_serial_unknown": "We couldn't find that serial number for this item. Check the number and try again.",
+    "stock_serial_not_in_bin": "That serial number is not in the bin you chose. Check where it is and try again.",
+    "stock_insufficient": "There isn't enough of this item in that bin. Check the stock and enter a smaller quantity.",
+    "opening_stock_posted": "Opening stock has already been entered for this company. Reverse the earlier entry first if it was wrong.",
+    "serial_transition_not_allowed": "This serial number can't be moved that way from where it is now. Refresh the page to see where it stands.",
+    "hub_code_taken": "Another hub already uses that code. Choose a different code.",
+    "hub_site_missing": "A godown or factory needs its state code and PIN code.",
+    "hub_holds_stock": "This hub still holds stock. Move or adjust the stock out of its bins first.",
+    "hub_kind_fixed": "A hub's kind can't be changed after it is set up.",
+    "hub_missing": "We couldn't find that hub. Refresh the page to see the current list.",
+    "hub_archived": "This hub is no longer in use, so it can't be changed.",
+    "bin_code_taken": "This hub already has a bin with that code. Choose a different code.",
+    "bin_holds_stock": "This bin still holds stock. Move or adjust the stock out of it first.",
+    "bin_kind_fixed": "This bin's kind can't be changed. Only storage, quarantine and surplus bins can switch between those kinds.",
+    "bin_hub_unavailable": "Bins can only be added to a godown or factory that is in use.",
+    "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
+    "bin_archived": "This bin is no longer in use, so it can't be changed.",
+    "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived."
   },
   "auth": {
     "signIn": {
@@ -553,7 +590,10 @@
     "settingsLeadSources": "Lead sources",
     "ask": "Ask the Business",
     "settingsWhatsAppTemplates": "WhatsApp templates",
-    "voice": "Talk to Shakti"
+    "voice": "Talk to Shakti",
+    "inventoryStock": "Stock",
+    "inventoryHubs": "Hubs and bins",
+    "inventoryValuation": "Stock valuation"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -649,7 +689,10 @@
       "settingsLeadSources": "Connect Facebook, Google and website lead forms, and make website keys.",
       "ask": "Ask about your leads, quotes, orders and targets, and see the records each answer comes from.",
       "settingsWhatsAppTemplates": "Choose the WhatsApp template each customer update about a quote or an order is sent with.",
-      "voice": "Ask about the business or teach Shakti how you work, by speaking."
+      "voice": "Ask about the business or teach Shakti how you work, by speaking.",
+      "inventoryStock": "See what each hub and bin holds, and adjust or move stock.",
+      "inventoryHubs": "See the hubs and their bins, and set them up.",
+      "inventoryValuation": "See what the stock is worth at a date."
     },
     "progress": {
       "period": {
@@ -1853,7 +1896,16 @@
       "voiceSessionToken": "Talk to Shakti kept going",
       "voiceSessionRecord": "Talk to Shakti length and spend recorded",
       "whatsappMediaExpire": "Old WhatsApp files removed",
-      "whatsappMediaOrphansRecord": "Unused WhatsApp copies removed"
+      "whatsappMediaOrphansRecord": "Unused WhatsApp copies removed",
+      "hubCreate": "Hub added",
+      "hubUpdate": "Hub changed",
+      "hubArchive": "Hub archived",
+      "binCreate": "Bin added",
+      "binUpdate": "Bin changed",
+      "binArchive": "Bin archived",
+      "stockTransfer": "Stock moved between bins",
+      "stockAdjust": "Stock adjusted",
+      "stockReverse": "Stock movement reversed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1912,7 +1964,8 @@
       "dialCompleted": "Call from the screen ended",
       "copilotBriefRequested": "Co-pilot brief asked for",
       "inboundRinging": "Customer's call ringing a team member",
-      "missedCallRecorded": "Missed call recorded"
+      "missedCallRecorded": "Missed call recorded",
+      "stockMoved": "Stock moved"
     },
     "sheet": {
       "title": "{action}",
@@ -2226,7 +2279,19 @@
       "consentRecording": "Recording allowed",
       "minutes": "Minutes",
       "costPaise": "Spend",
-      "turns": "Turns spoken"
+      "turns": "Turns spoken",
+      "hubCode": "Hub code",
+      "hubName": "Hub name",
+      "hubKind": "Kind of hub",
+      "hubAddress": "Hub address",
+      "hubStateCode": "State code",
+      "hubPinCode": "PIN code",
+      "binCode": "Bin code",
+      "binKind": "Kind of bin",
+      "stockReason": "Why stock moved",
+      "quantity": "Quantity",
+      "serialNo": "Serial number",
+      "adjustNote": "Reason given"
     },
     "values": {
       "percent": "{value}%",
@@ -2383,6 +2448,36 @@
       "voiceMode": {
         "teach": "Teach",
         "ask": "Ask"
+      },
+      "hubKind": {
+        "godown": "Godown",
+        "factory": "Factory",
+        "transit": "In transit"
+      },
+      "binKind": {
+        "storage": "Storage",
+        "receiving": "Receiving",
+        "dispatch": "Dispatch",
+        "quarantine": "Quarantine",
+        "surplus": "Surplus",
+        "transit": "In transit"
+      },
+      "stockReason": {
+        "opening": "Opening stock",
+        "receipt": "Goods received",
+        "transfer": "Moved between bins",
+        "pick": "Picked for dispatch",
+        "issue": "Dispatched",
+        "return_customer": "Returned by customer",
+        "return_supplier": "Returned to supplier",
+        "adjust_gain": "Found (gain)",
+        "adjust_loss": "Lost",
+        "damage": "Damaged",
+        "count": "Stock count",
+        "warranty_replacement": "Warranty replacement",
+        "surplus_in": "Into surplus",
+        "surplus_out": "Out of surplus",
+        "reversal": "Reversed"
       }
     }
   },
@@ -6060,6 +6155,242 @@
     "recording": {
       "fileName": "Teach session {date}.wav",
       "title": "Teach session of {date}"
+    }
+  },
+  "inventory": {
+    "hubKinds": {
+      "godown": "Godown",
+      "factory": "Factory",
+      "transit": "In transit"
+    },
+    "binKinds": {
+      "storage": "Storage",
+      "receiving": "Receiving",
+      "dispatch": "Dispatch",
+      "quarantine": "Quarantine",
+      "surplus": "Surplus",
+      "transit": "In transit"
+    },
+    "reasons": {
+      "opening": "Opening stock",
+      "receipt": "Goods received",
+      "transfer": "Moved between bins",
+      "pick": "Picked for dispatch",
+      "issue": "Dispatched",
+      "return_customer": "Returned by customer",
+      "return_supplier": "Returned to supplier",
+      "adjust_gain": "Found (gain)",
+      "adjust_loss": "Lost",
+      "damage": "Damaged",
+      "count": "Stock count",
+      "warranty_replacement": "Warranty replacement",
+      "surplus_in": "Into surplus",
+      "surplus_out": "Out of surplus",
+      "reversal": "Reversed"
+    },
+    "serialStates": {
+      "in_stock": "In stock",
+      "reserved": "Set aside for an order",
+      "picked": "Picked for dispatch",
+      "in_transit": "On the way",
+      "with_customer": "With the customer",
+      "faulty": "Faulty, in quarantine",
+      "with_supplier": "With the supplier",
+      "scrapped": "Written off"
+    },
+    "stock": {
+      "title": "Stock",
+      "intro": "What each hub and bin holds for the company you choose. Open an item to see its movements, adjust it or move it.",
+      "cardHint": "Adjustments and moves between bins are made from an item's stock card.",
+      "caption": "Stock by hub, bin and item",
+      "empty": "No stock matches these filters.",
+      "notFree": "Not free stock",
+      "columns": {
+        "item": "Item",
+        "category": "Category",
+        "hub": "Hub",
+        "bin": "Bin",
+        "onHand": "On hand",
+        "reserved": "Reserved",
+        "free": "Free"
+      },
+      "filters": {
+        "label": "Filter the stock",
+        "company": "Company",
+        "hub": "Hub",
+        "anyHub": "Every hub",
+        "category": "Category",
+        "anyCategory": "Every category",
+        "search": "Item",
+        "searchHelper": "The start of the stock code, or words of the name.",
+        "apply": "Show stock",
+        "clearFilters": "Clear filters"
+      }
+    },
+    "movements": {
+      "caption": "Stock movements, newest first",
+      "empty": "No movements yet.",
+      "none": "None",
+      "binIn": "{bin} in {hub}",
+      "reversed": "Reversed",
+      "reverse": "Reverse",
+      "columns": {
+        "when": "When",
+        "reason": "Why",
+        "qty": "Quantity",
+        "from": "From",
+        "to": "To",
+        "serial": "Serial number",
+        "by": "By",
+        "actions": "Actions"
+      }
+    },
+    "dialogs": {
+      "serials": "Serial numbers",
+      "serialsHelper": "One serial number per line, scanned or typed.",
+      "serialsInvalid": "Enter up to 100 serial numbers, each once, one per line.",
+      "qty": "Quantity",
+      "qtyHelper": "In the unit the item is counted in, up to three decimals.",
+      "qtyInvalid": "Enter a quantity above zero, with up to three decimals.",
+      "hub": "Hub",
+      "bin": "Bin",
+      "binMissing": "Choose a bin.",
+      "binOption": "{bin} ({kind})",
+      "adjustTitle": "Adjust stock of {name}",
+      "adjustIntro": "Record stock found, lost or damaged in one bin. Say why, so the change can be checked later.",
+      "adjustment": "Change",
+      "adjustments": {
+        "gain": "Found (add stock)",
+        "loss": "Lost (take stock out)",
+        "damage": "Damaged (take stock out)"
+      },
+      "note": "Reason",
+      "noteHelper": "Between 3 and 300 characters.",
+      "noteInvalid": "Enter a reason of 3 to 300 characters.",
+      "adjustSubmit": "Save adjustment",
+      "adjusted": "Stock adjusted.",
+      "moveTitle": "Move {name} between bins",
+      "moveIntro": "Move stock from one bin to another bin of the same hub.",
+      "fromBin": "From bin",
+      "toBin": "To bin",
+      "sameBin": "Choose two different bins.",
+      "moveSubmit": "Move stock",
+      "moved": "Stock moved.",
+      "reverseTitle": "Reverse this movement",
+      "reverseIntro": "This puts back the {qty} that was moved, as if the movement had not happened. Use it only for a movement made in error.",
+      "reverseNote": "Reason (optional)",
+      "reverseSubmit": "Reverse movement",
+      "reversed": "Movement reversed."
+    },
+    "card": {
+      "title": "Stock card",
+      "intro": "This item's stock and movements in {company}.",
+      "back": "Back to stock",
+      "summary": "{sku} · {category}",
+      "adjust": "Adjust stock",
+      "byHub": "In each hub",
+      "byHubCaption": "Stock of this item in each hub",
+      "noStock": "The company holds none of this item.",
+      "movements": "Movements",
+      "columns": {
+        "hub": "Hub",
+        "onHand": "On hand",
+        "reserved": "Reserved"
+      },
+      "moveBins": "Move between bins"
+    },
+    "hubs": {
+      "title": "Hubs and bins",
+      "intro": "The group's hubs and the bins in each. Every company's stock is kept in these bins.",
+      "empty": "No hubs are set up yet.",
+      "addHub": "Add hub",
+      "hubTitle": "{name} ({code})",
+      "hubLine": "{kind} · {address}",
+      "editHub": "Edit {name}",
+      "addBin": "Add bin to {name}",
+      "archiveHub": "Archive {name}",
+      "editBin": "Edit {bin}",
+      "archiveBin": "Archive {bin}",
+      "binsCaption": "Bins of {name}",
+      "noBins": "This hub has no bins yet.",
+      "columns": {
+        "bin": "Bin",
+        "kind": "Kind",
+        "actions": "Actions"
+      },
+      "archiveHubTitle": "Archive {name}",
+      "archiveHubIntro": "The hub and its bins will no longer be used. A hub that still holds stock can't be archived.",
+      "archiveBinTitle": "Archive bin {bin}",
+      "archiveBinIntro": "The bin will no longer be used. A bin that still holds stock can't be archived.",
+      "archived": "Archived.",
+      "archiveSubmit": "Archive",
+      "form": {
+        "saved": "Hub saved.",
+        "addTitle": "Add a hub",
+        "editTitle": "Edit {name}",
+        "intro": "A godown or factory gets its receiving and dispatch bins at once.",
+        "kind": "Kind of hub",
+        "kindHelper": "In transit holds goods travelling between two hubs.",
+        "code": "Code",
+        "codeHelper": "Up to 20 letters, digits and hyphens, as printed on labels.",
+        "codeInvalid": "Enter a code of letters, digits and hyphens, up to 20 characters.",
+        "name": "Name",
+        "nameInvalid": "Enter a name of 2 to 80 characters.",
+        "address": "Address",
+        "stateCode": "State code",
+        "stateCodeHelper": "The two-digit GST state code, such as 08 for Rajasthan.",
+        "stateCodeInvalid": "Enter the two-digit state code.",
+        "pinCode": "PIN code",
+        "pinCodeInvalid": "Enter the six-digit PIN code.",
+        "submit": "Save hub"
+      },
+      "binForm": {
+        "saved": "Bin saved.",
+        "addTitle": "Add a bin to {name}",
+        "editTitle": "Edit bin {bin}",
+        "intro": "Quarantine holds faulty and returned goods awaiting a decision; surplus holds leftovers.",
+        "code": "Code",
+        "codeHelper": "Letters, digits and hyphens, as printed on the bin label.",
+        "codeInvalid": "Enter a code of letters, digits and hyphens, up to 41 characters.",
+        "kind": "Kind of bin",
+        "submit": "Save bin"
+      }
+    },
+    "valuation": {
+      "title": "Stock valuation",
+      "intro": "What one company's stock is worth at the close of a date, per hub and category, from the cost of each movement.",
+      "filters": "Choose the company and date",
+      "company": "Company",
+      "date": "Date",
+      "dateHelper": "The value at the close of this day.",
+      "dateInvalid": "Enter a date on or before today.",
+      "apply": "Show valuation",
+      "caption": "Stock value by hub and category",
+      "empty": "The company held no stock at that date.",
+      "total": "Total value: {value}",
+      "columns": {
+        "hub": "Hub",
+        "category": "Category",
+        "qty": "Quantity",
+        "avgCost": "Average cost",
+        "value": "Value"
+      }
+    },
+    "serial": {
+      "title": "Serial number",
+      "heading": "Serial number {serial}",
+      "intro": "Where this serial is and every movement it has made.",
+      "card": "Open stock card",
+      "item": "Item",
+      "company": "Company",
+      "state": "Where it stands",
+      "bin": "Bin",
+      "noBin": "Not in any bin",
+      "binIn": "{bin} in {hub}",
+      "warrantyUntil": "Warranty to the customer until",
+      "supplierWarrantyUntil": "Supplier's warranty until",
+      "notSet": "Not set",
+      "movements": "Movements"
     }
   }
 }

@@ -224,6 +224,8 @@ export const StockMovementRowDto = z
     serialId: IdSchema.nullable(),
     serialNo: z.string().nullable(),
     movedBy: z.string(),
+    /** Why a person moved it: an adjustment's or a reversal's reason. */
+    note: z.string().nullable(),
     reversesId: IdSchema.nullable(),
     /** The reversal that undid it, if any. */
     reversedById: IdSchema.nullable(),

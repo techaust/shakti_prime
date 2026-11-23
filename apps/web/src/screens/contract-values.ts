@@ -1,4 +1,11 @@
 import type {
+  // H1 stock ledger
+  BinKind,
+  EditableBinKind,
+  SerialState,
+  StockAdjustment,
+  StockReason,
+  WarehouseKind,
   AccountType,
   ActivityType,
   AgentActionState,
@@ -1043,3 +1050,66 @@ export const WEBHOOK_PROVIDERS = [
   'exotel_incoming',
   'livekit',
 ] as const satisfies readonly WebhookProvider[];
+
+// H1 stock ledger
+/** A hub's kinds, in the order the hub form offers them. */
+export const WAREHOUSE_KINDS = [
+  'godown',
+  'factory',
+  'transit',
+] as const satisfies readonly WarehouseKind[];
+
+/** A bin's kinds. */
+export const BIN_KINDS = [
+  'storage',
+  'receiving',
+  'dispatch',
+  'quarantine',
+  'surplus',
+  'transit',
+] as const satisfies readonly BinKind[];
+
+/** The kinds a person gives a bin. */
+export const EDITABLE_BIN_KINDS = [
+  'storage',
+  'quarantine',
+  'surplus',
+] as const satisfies readonly EditableBinKind[];
+
+/** The states of a serial. */
+export const SERIAL_STATES = [
+  'in_stock',
+  'reserved',
+  'picked',
+  'in_transit',
+  'with_customer',
+  'faulty',
+  'with_supplier',
+  'scrapped',
+] as const satisfies readonly SerialState[];
+
+/** Why stock moved. */
+export const STOCK_REASONS = [
+  'opening',
+  'receipt',
+  'transfer',
+  'pick',
+  'issue',
+  'return_customer',
+  'return_supplier',
+  'adjust_gain',
+  'adjust_loss',
+  'damage',
+  'count',
+  'warranty_replacement',
+  'surplus_in',
+  'surplus_out',
+  'reversal',
+] as const satisfies readonly StockReason[];
+
+/** The adjustments the Adjust dialog offers. */
+export const STOCK_ADJUSTMENTS = [
+  'gain',
+  'loss',
+  'damage',
+] as const satisfies readonly StockAdjustment[];

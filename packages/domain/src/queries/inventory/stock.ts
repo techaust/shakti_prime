@@ -126,6 +126,7 @@ interface MovementRow {
   serialId: string | null;
   serialNo: string | null;
   movedBy: string | null;
+  note: string | null;
   reversesId: string | null;
   reversedById: string | null;
 }
@@ -135,7 +136,7 @@ const MOVEMENT_SELECT = sql`
   m.id, m.moved_at as "movedAt", m.reason, m.qty::text as qty,
   m.from_bin_id as "fromId", fb.code as "fromCode", fw.code as "fromHub",
   m.to_bin_id as "toId", tb.code as "toCode", tw.code as "toHub",
-  m.serial_id as "serialId", s.serial_no as "serialNo", p.display_name as "movedBy",
+  m.serial_id as "serialId", s.serial_no as "serialNo", p.display_name as "movedBy", m.note,
   m.reverses_id as "reversesId",
   (select r.id from stock_movements r where r.reverses_id = m.id) as "reversedById"`;
 
@@ -171,6 +172,7 @@ function toMovementDto(ctx: Ctx, row: MovementRow, now: Date): StockMovementRowD
     serialId: row.serialId,
     serialNo: row.serialNo,
     movedBy: row.movedBy ?? '',
+    note: row.note,
     reversesId: row.reversesId,
     reversedById: row.reversedById,
     reversible,
