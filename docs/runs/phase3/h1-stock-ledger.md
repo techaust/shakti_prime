@@ -160,6 +160,33 @@ The first run showed two problems, fixed before these numbers: the next page sor
 - The document link check reports `docs/runs/phase3/h1-stock-ledger.md` as an orphan, as it did on the brief's own commit: the runs readme names it without a link.
 - The spike leaves its 20,000 `STX-` items archived in the database it runs on (its movements went when I reset my migrations here); CI's databases are fresh.
 
+### 23-11-2026, cloud session: fixes
+Findings 1 to 8 of the review, fixed in one round on the branch (0229 and 0230 edited in place; still unmerged).
+
+| # | Fix | Proved by |
+|---|---|---|
+| 1 | The seed dates the snapshot company's movements to `STOCK_JOURNEY.snapshot.date` (2026-11-02, 10:00 in India; the append-only trigger is held off for that one update), and the journey opens the valuation with `date=` that day. The other screenshots hold no date: the stock card's times are `<time>` (masked), and the stock list, hubs and the three dialogs show none. | Journey (not run here) |
+| 2 | `app.stock_move()` takes its hubs and then its bins `for share` by id before the balance locks, then refuses a line whose bin or hub is archived (`stock_bin_archived`); the archive commands already lock their row `for update` before the guard counts balances. The lock-order comment and DATABASE §4.1 say hubs, bins, balances, item costs, serials. | `ledger-concurrency.test.ts`, three new cases: probe A for a bin and for a hub (the item's average held, the gain waits holding its locks, the archive waits and is refused `bin_holds_stock` / `hub_holds_stock`; never an archived bin with stock), and the other way round (an archive held open, the gain then refused `stock_bin_archived`) |
+| 3 | `opening` left `REVERSIBLE_STOCK_REASONS`: the stock card offers no Reverse on an opening line and `inventory.stock.reverse` refuses one (`stock_reversal_not_allowed`); the import's rollback is the one way back and now reverses only the job's movements not yet reversed. phase3 §6.2 says both. | `import-opening-stock.test.ts`, probe B: the card's opening lines not reversible, the command refused, one line reversed by the definer as an earlier version could, the rollback reversing the other once, a new opening then valid |
+| 4 | Journeys: the Inventory Manager's valuation shows the not-found heading (either apostrophe) and the menu has no Stock valuation link; a new case, the Inventory Manager on Hubs and bins sees the hub and no Add hub, Edit, Add bin or Archive button; screenshots `stock-adjust-dialog`, `stock-move-dialog`, `stock-reverse-dialog` (element shots, before typing) and `stock-card` (the snapshot company's item, its one movement past the 7 days, so no Reverse); the gain and the reversal carry a note with the run's own word and are found by it; a move has no note, so it is found as the newest movement of the project's own item (the table's first body row or the phone's first card); the undone tag now reads "Undone by a reversal", distinct from the reason "Reversed". | Journey (not run here) |
+| 5 | A transit bin code that the transit hub already has, in any case, takes the first free suffix `-2`, `-3`, … within 41 characters (the hub's existing codes are read first). | `commands/inventory.test.ts`, probe C: `P`, `Q-R`, `P-Q`, `R` made; the pairs get `P-Q-R` and `P-Q-R-2` |
+| 6 | The definer refuses `opening_stock_posted` when one batch's opening lines name more than one reference for a company (none counts as one). | `stock/ledger.test.ts`: references X and Y, and X and none, refused with nothing posted; X twice posted |
+| 7 | `rupeesOfRate()` rounds a 4-decimal rate half up to paise before `formatRupees`. | `screens/inventory.test.ts` (42.3456 → 42.35, 42.3449 → 42.34, 0.0050 → 0.01, 99.9950 → 100.00) |
+| 8 | The valuation's total is hidden with the empty state; a date after today shows "A date after today shows today's stock." (server and client); the stock card's Reserved carries the unit; a state or reason with no copy shows its words, never the code; the Activity log shows `quantity` as a number (the audit row now stores a number); the serial page has a loading screen. | `screens/inventory.test.ts`, `commands/inventory.test.ts` (audit `quantity: 5.5`); the rest by reading (journeys not run) |
+
+`package.json`'s lint script and `js-budget.json` are as they were (no new page).
+
+**Checks run here** (fresh migrations on the local Postgres):
+- `pnpm typecheck`: pass. ESLint on every folder touched: clean. Prettier on the changed files: clean. `pnpm copy-lint`: clean. `pnpm db:docs` and `machines:docs`: no change.
+- Unit: domain 108 files, 2,793 passed; web 164 files, 1,213 passed, 1 skipped.
+- Security suite (`pnpm test:security`): SECURITY_RESULT
+- Not run: the whole-repository `pnpm lint` (the heap, finding 9), `pnpm build`, the spike (no query changed).
+
+**Journeys not run** (sign-in is refused in the cloud), all in `apps/web/e2e/inventory.spec.ts`, in desktop-light, desktop-dark and phone:
+- Inventory Manager: "finds the item, adjusts its stock, moves it between bins and reverses the move" (5 axe checks; snapshots `stock-adjust-dialog`, `stock-move-dialog`, `stock-reverse-dialog`); "cannot open the stock valuation, and the menu does not offer it"; "reads the hubs and bins with no form to change them" (1 axe check).
+- Executive: "values the snapshot company's stock per hub and category on the snapshot's day" (axe; `stock-valuation`); "shows the snapshot company's stock, an item's stock card and the hubs" (3 axe checks; `stock-list`, `stock-card`, `stock-hubs`).
+- No Linux baseline exists for any of the seven screenshots.
+
 ## Review
 Slice-reviewer, 23-11-2026, cloud session (seat 3), on 3d301b3d (`git diff origin/main...feat/h1-stock-ledger`), Tier A. Run in the VM on a Postgres made fresh with `fresh-db.sh`:
 - db suite: `stock-ledger`, `role-entity-matrix`, `grants`, `catalogue-scope` and `enum-sync`: 5 files, 396 passed.
