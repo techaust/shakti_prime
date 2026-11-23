@@ -3,7 +3,7 @@
 import type { CompareCellDto, CompareQuotesDto, ItemCategory } from '@shakti/contracts';
 import { Button, CardList, EmptyState, Field, Select, StatusBadge } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { compareQuotes } from '../../actions/procurement';
 import { ITEM_CATEGORIES } from '../../screens/contract-values';
 import { formatQuantity, formatRate } from '../../screens/procurement';
@@ -32,18 +32,60 @@ export function CompareScreen({
   const [entityId, setEntityId] = useState(initial.entityId);
   const [category, setCategory] = useState<ItemCategory | ''>(initial.category ?? '');
   const { load, pending, failure } = useQuery<CompareQuotesDto>();
+  const [loadingMore, setLoadingMore] = useState(false);
   const doc = useOpenFile();
+  // The company and category whose answer is wanted: an answer for an earlier choice is dropped,
+  // so the table never shows one company's rates under another's name (review M3).
+  const wanted = useRef<{ entityId: number; category: ItemCategory | '' }>({
+    entityId: initial.entityId,
+    category: initial.category ?? '',
+  });
+
+  function query(asked: { entityId: number; category: ItemCategory | '' }, cursor?: string) {
+    return compareQuotes({
+      entityId: asked.entityId,
+      ...(asked.category === '' ? {} : { category: asked.category }),
+      ...(cursor === undefined ? {} : { cursor }),
+    });
+  }
 
   function read(nextEntity: number, nextCategory: ItemCategory | '') {
+    const asked = { entityId: nextEntity, category: nextCategory };
+    wanted.current = asked;
     setEntityId(nextEntity);
     setCategory(nextCategory);
+    setLoadingMore(false);
     load(
-      () =>
-        compareQuotes({
-          entityId: nextEntity,
-          ...(nextCategory === '' ? {} : { category: nextCategory }),
-        }),
-      setResult,
+      () => query(asked),
+      (answer) => {
+        if (wanted.current !== asked) return;
+        setResult(answer);
+      },
+    );
+  }
+
+  /** The next page of items, its vendors added to the columns. */
+  function loadMore() {
+    if (result.nextCursor === null) return;
+    const asked = wanted.current;
+    setLoadingMore(true);
+    load(
+      () => query(asked, result.nextCursor ?? undefined),
+      (answer) => {
+        if (wanted.current !== asked) return;
+        setLoadingMore(false);
+        setResult((shown) => {
+          const vendors = new Map(shown.vendors.map((v) => [v.id, v]));
+          for (const v of answer.vendors) vendors.set(v.id, v);
+          return {
+            ...answer,
+            vendors: [...vendors.values()].sort(
+              (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+            ),
+            rows: [...shown.rows, ...answer.rows],
+          };
+        });
+      },
     );
   }
 
@@ -179,6 +221,11 @@ export function CompareScreen({
             </table>
           </div>
         </>
+      )}
+      {result.nextCursor === null ? null : (
+        <Button variant="secondary" className="self-start" pending={loadingMore} onClick={loadMore}>
+          {t('loadMore')}
+        </Button>
       )}
     </div>
   );

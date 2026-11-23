@@ -556,17 +556,80 @@ describe('the vendor sheet and the comparison', () => {
     expect('quotes' in inOne && inOne.quotes.map((q) => q.entityId)).toEqual([null]);
   });
 
+  /** The comparison's row for an item, paging through the items as the screen does. */
+  async function compareRow(itemId: string, entityId = 1) {
+    let cursor: string | undefined;
+    for (let page = 0; page < 50; page += 1) {
+      const out = await asPrincipal(principalFor('inventory_manager', [entityId]), (context) =>
+        compareQuotes(context, { entityId, category: 'cable', ...(cursor ? { cursor } : {}) }),
+      );
+      const row = out.rows.find((r) => r.itemId === itemId);
+      if (row !== undefined || out.nextCursor === null) return { out, row };
+      cursor = out.nextCursor;
+    }
+    throw new Error('the item was not found in 50 pages');
+  }
+
   it('compares for one company: the lowest live rate marked, the expired one shown but never marked', async () => {
-    const out = await asPrincipal(principalFor('inventory_manager', [1]), (context) =>
-      compareQuotes(context, { entityId: 1, category: 'cable' }),
-    );
-    const row = out.rows.find((r) => r.itemId === itemB);
+    const { out, row } = await compareRow(itemB);
     const cells = Object.fromEntries((row?.cells ?? []).map((c) => [c.vendorId, c]));
     expect(cells[cheap.id]).toMatchObject({ rate: '20.0000', status: 'live', isLowest: true });
     expect(cells[dear.id]).toMatchObject({ rate: '25.0000', status: 'live', isLowest: false });
     expect(cells[lapsed.id]).toMatchObject({ rate: '10.0000', status: 'expired', isLowest: false });
     expect(row?.unit).toBe('metre');
     expect(JSON.stringify(out)).not.toContain('"5.0000"');
+  });
+
+  it('leaves out an archived vendor\u2019s quotes and a quote that ended over a year ago (review L1, M6)', async () => {
+    const gone = await run<VendorOut>(manager, createVendor, { name: vendorName('gone') });
+    await run(managerOne, recordVendorQuote, {
+      vendorId: gone.id,
+      itemId: itemB,
+      entityId: 1,
+      rate: '1',
+      validFrom: day(-1),
+      validUntil: day(10),
+    });
+    await run(manager, archiveVendor, { vendorId: gone.id });
+    const old = await run<VendorOut>(manager, createVendor, { name: vendorName('old') });
+    const ancient = await run<QuoteOut>(managerOne, recordVendorQuote, {
+      vendorId: old.id,
+      itemId: itemB,
+      entityId: 1,
+      rate: '2',
+      validFrom: day(-1),
+      validUntil: day(0),
+    });
+    await asMigrator(
+      (m) => m`update vendor_quotes set valid_from = ${day(-500)}, valid_until = ${day(-366)}
+                 where id = ${ancient.id}`,
+    );
+    const { row } = await compareRow(itemB);
+    const vendorsShown = (row?.cells ?? []).map((c) => c.vendorId);
+    expect(vendorsShown).toContain(cheap.id);
+    expect(vendorsShown).not.toContain(gone.id);
+    expect(vendorsShown).not.toContain(old.id);
+  });
+
+  it('pages by item, a page at a time by name', async () => {
+    const reader = principalFor('inventory_manager', [1]);
+    const first = await asPrincipal(reader, (context) =>
+      compareQuotes(context, { entityId: 1, category: 'cable', limit: 1 }),
+    );
+    expect(first.rows).toHaveLength(1);
+    expect(first.nextCursor).not.toBeNull();
+    const second = await asPrincipal(reader, (context) =>
+      compareQuotes(context, {
+        entityId: 1,
+        category: 'cable',
+        limit: 1,
+        cursor: first.nextCursor ?? undefined,
+      }),
+    );
+    expect(second.rows).toHaveLength(1);
+    const names = [first.rows[0]?.itemName ?? '', second.rows[0]?.itemName ?? ''];
+    expect(names[0] <= names[1]).toBe(true);
+    expect(second.rows[0]?.itemId).not.toBe(first.rows[0]?.itemId);
   });
 
   it('refuses the comparison and the vendor list to whoever may not read them', async () => {

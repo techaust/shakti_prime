@@ -110,17 +110,25 @@ export type VendorSheetWithQuotesDto = z.infer<typeof VendorSheetWithQuotesDto>;
  * Procurement › Compare: the items of a category down, the vendors with a quote across, for one
  * company (its own quotes and the group's).
  */
+/** Items per page of the comparison (review M6). */
+export const COMPARE_PAGE_ITEMS = 100;
+/** How far back an expired quote is still shown, in days (review M6). */
+export const COMPARE_EXPIRED_DAYS = 365;
+
 export const CompareQuotesInput = z
   .object({
     entityId: EntityIdSchema,
     category: ItemCategorySchema.optional(),
+    /** The page after this one: the last item's name and id, as the previous answer gave it. */
+    cursor: z.string().max(1024).optional(),
+    limit: z.number().int().min(1).max(COMPARE_PAGE_ITEMS).default(COMPARE_PAGE_ITEMS),
   })
   .strict();
 export type CompareQuotesInput = z.input<typeof CompareQuotesInput>;
 
 /**
  * One cell: the vendor's live quote for the item with the lowest rate, else its quote that ended
- * last, shown expired. `isLowest` marks the lowest live rate of the row and is never set on an
+ * last within `COMPARE_EXPIRED_DAYS`, shown expired. `isLowest` marks the lowest live rate of the row and is never set on an
  * expired quote.
  */
 export const CompareCellDto = z
@@ -160,6 +168,8 @@ export const CompareQuotesDto = z
     asOf: CalendarDateSchema,
     vendors: z.array(z.object({ id: IdSchema, name: z.string() }).strict()),
     rows: z.array(CompareRowDto),
+    /** Null on the last page of items. */
+    nextCursor: z.string().nullable(),
   })
   .strict();
 export type CompareQuotesDto = z.infer<typeof CompareQuotesDto>;

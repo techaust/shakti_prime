@@ -12,6 +12,7 @@ import {
   Handshake,
   House,
   Inbox,
+  Layers,
   IndianRupee,
   Library,
   MessageCircle,
@@ -27,7 +28,6 @@ import {
   Shuffle,
   Store,
   Target,
-  Truck,
   ShieldCheck,
   ShoppingCart,
   UserPlus,
@@ -275,7 +275,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     id: 'procurement',
     href: '/procurement',
     label: 'procurement',
-    icon: Truck,
+    // The top bar's company switcher already ships this icon, so the menu adds none to the shell
+    // every page loads (js-budget, review H1).
+    icon: Layers,
     group: 'work',
     // Vendors are read with inventory.stock.read or procurement.po.write; every holder of the
     // second holds the first. Rates need procurement.rate.read, which the comparison asks for.

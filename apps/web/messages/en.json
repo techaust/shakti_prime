@@ -6119,7 +6119,7 @@
     "sections": "Procurement pages",
     "vendorsTab": "Vendors",
     "compareTab": "Compare quotes",
-    "wholeGroup": "All four companies",
+    "wholeGroup": "All companies",
     "notRecorded": "Not recorded",
     "days": "{count, plural, =0 {Same day} one {# day} other {# days}}",
     "search": "Find a vendor",
@@ -6173,7 +6173,7 @@
     "vendorForm": {
       "createTitle": "Add a vendor",
       "editTitle": "Edit {name}",
-      "intro": "A vendor is shared by all four companies. Enter the GSTIN when the vendor has one: the state and PAN are read from it.",
+      "intro": "A vendor is shared by all companies. Enter the GSTIN when the vendor has one: the state and PAN are read from it.",
       "name": "Vendor name",
       "gstin": "GSTIN",
       "gstinHelper": "15 characters, as printed on the vendor's invoice. Leave empty if the vendor is not registered for GST.",
@@ -6222,7 +6222,7 @@
       "noQuotes": "No quotes recorded for this vendor.",
       "ratePer": "{rate} per {unit}, before GST",
       "validity": "Valid from <start>{from}</start> to <end>{until}</end>",
-      "forGroup": "For all four companies",
+      "forGroup": "For all companies",
       "forCompany": "For {company}",
       "oneCompany": "one company",
       "noMoq": "No minimum order",
@@ -6288,7 +6288,7 @@
       "chooseFor": "Choose {item}",
       "itemMissing": "Choose the item first.",
       "company": "Quoted to",
-      "companyHelper": "The company the vendor gave this quote to, or all four companies.",
+      "companyHelper": "The company the vendor gave this quote to, or All companies when it was given to the whole group.",
       "rate": "Rate per unit before GST",
       "rateHelper": "In rupees, up to four decimal places.",
       "rateWrong": "Enter the rate in rupees, above zero, with up to four decimal places.",
@@ -6333,7 +6333,8 @@
       "forGroup": "All companies",
       "forCompany": "This company",
       "openDocument": "Open quote",
-      "openDocumentFor": "Open the quote for {item} from {vendor}"
+      "openDocumentFor": "Open the quote for {item} from {vendor}",
+      "loadMore": "Load more items"
     }
   }
 }
