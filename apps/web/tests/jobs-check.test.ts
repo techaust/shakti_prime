@@ -20,8 +20,11 @@ describe('the hourly check of the scheduled jobs (audit 2026-10, DATA-3)', () =>
   it('reads every job as the worker principal and tells each problem once per job and run', async () => {
     const keyValue = memoryKeyValue();
     const alerts = memoryAlertSink();
-    // A year from now every job that ever ran is late. The migrations run the outbox purge once
-    // and record it, so that one at least has a problem to tell (review L8).
+    // A year from now every job that ever ran is late. The outbox purge runs here once and records
+    // it, so that one at least has a problem to tell (review L8); no migration runs it, and
+    // pg_cron runs nothing in the test database, so without this the case passed only after the db
+    // suite's retention test had run on the same database (p3-fixes review, finding 2).
+    await asMigrator((m) => m`call app.purge_outbox_events()`);
     const now = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     const first = await runJobsCheck({ requestId: 'jobs-check-1', keyValue, alerts, now });
     expect(first.jobs).toBe(DATABASE_JOBS.length);
