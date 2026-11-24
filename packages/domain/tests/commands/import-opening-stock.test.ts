@@ -209,9 +209,11 @@ describe('the opening stock import', () => {
     const lines = await asMigrator(
       (m) => m<{ id: string }[]>`
         select id from stock_movements
-         where entity_id = ${ENTITY} and reason = 'opening' and ref_id = ${job.id} order by id`,
+         where entity_id = ${ENTITY} and reason = 'opening' and ref_id = ${job.id}
+         order by qty desc`,
     );
     expect(lines).toHaveLength(2);
+    // The A1 line (5) first, the B1 line (2) second: ids made in one batch carry no order.
     const [first, second] = lines.map((l) => l.id);
 
     // The stock card offers no Reverse on an opening line, and the command refuses one.
