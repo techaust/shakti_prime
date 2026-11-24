@@ -125,10 +125,7 @@ export const IMPORT_FIELDS_BY_KIND: Record<ImplementedImportKind, readonly Impor
 
 /** A job's kind as the screens treat it; a kind not built yet reads as leads, which it cannot be. */
 export function screenKind(kind: ImportKind): ImplementedImportKind {
-  return kind === 'accounts' ||
-    kind === 'pin_codes' ||
-    kind === 'opening_stock' ||
-    kind === 'items'
+  return kind === 'accounts' || kind === 'pin_codes' || kind === 'opening_stock' || kind === 'items'
     ? kind
     : 'leads';
 }

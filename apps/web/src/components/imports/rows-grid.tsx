@@ -54,7 +54,12 @@ export function RowsGrid({
   // The two columns that name a row: its customer and phone, its post office and PIN, its item and
   // code, or (H1) its stock code and quantity.
   const named = stock
-    ? ({ first: 'sku', second: 'qty', firstHeader: fields('sku'), secondHeader: fields('qty') } as const)
+    ? ({
+        first: 'sku',
+        second: 'qty',
+        firstHeader: fields('sku'),
+        secondHeader: fields('qty'),
+      } as const)
     : offices
       ? ({
           first: 'officeName',

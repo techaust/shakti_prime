@@ -167,4 +167,4 @@ CREATE INDEX "stock_movements_opening_idx" ON "stock_movements" USING btree ("en
 CREATE UNIQUE INDEX "warehouses_code_unique" ON "warehouses" USING btree (lower("code"));--> statement-breakpoint
 ALTER TABLE "import_jobs" ADD CONSTRAINT "import_jobs_kind_check" CHECK ("import_jobs"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')) NOT VALID;--> statement-breakpoint
 ALTER TABLE "import_mapping_templates" ADD CONSTRAINT "import_mapping_templates_kind_check" CHECK ("import_mapping_templates"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')) NOT VALID;--> statement-breakpoint
-ALTER TABLE "import_rows" ADD CONSTRAINT "import_rows_created_type_check" CHECK ("import_rows"."created_type" in ('opportunity', 'account', 'account_link', 'pin_code', 'stock_movement')) NOT VALID;
+ALTER TABLE "import_rows" ADD CONSTRAINT "import_rows_created_type_check" CHECK ("import_rows"."created_type" in ('opportunity', 'account', 'account_link', 'pin_code', 'item', 'stock_movement')) NOT VALID;

@@ -557,25 +557,25 @@ export const previewImportJob = defineCommand({
             : kind === 'items'
               ? await previewItems(ctx, rows, parseMappingFor('items', mapping))
               : // H1 stock ledger
-              (
-                await previewOpeningStock(
-                  ctx.tx,
-                  rows,
-                  parseMappingFor('opening_stock', mapping),
-                  input.entityId,
-                )
-              ).map((finding, index): RowFinding => {
-                const rowNo = rows[index]?.rowNo ?? 0;
-                return finding.state === 'invalid'
-                  ? invalid(rowNo, finding.errors)
-                  : {
-                      row_no: rowNo,
-                      state: 'valid',
-                      normalised_json: finding.input,
-                      errors_json: [],
-                      dedupe_json: null,
-                    };
-              });
+                (
+                  await previewOpeningStock(
+                    ctx.tx,
+                    rows,
+                    parseMappingFor('opening_stock', mapping),
+                    input.entityId,
+                  )
+                ).map((finding, index): RowFinding => {
+                  const rowNo = rows[index]?.rowNo ?? 0;
+                  return finding.state === 'invalid'
+                    ? invalid(rowNo, finding.errors)
+                    : {
+                        row_no: rowNo,
+                        state: 'valid',
+                        normalised_json: finding.input,
+                        errors_json: [],
+                        dedupe_json: null,
+                      };
+                });
 
     for (let start = 0; start < findings.length; start += CHUNK) {
       const chunk = JSON.stringify(findings.slice(start, start + CHUNK));

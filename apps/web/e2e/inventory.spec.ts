@@ -32,7 +32,7 @@ test.describe('as the Inventory Manager, an item’s stock card', () => {
     const run = `R${String(Date.now()).slice(-8)}`;
     await page.goto('/inventory/stock');
     await expect(page.getByRole('heading', { name: 'Stock', level: 1 })).toBeVisible();
-    await (await hydrated(page.getByLabel('Item'))).fill(item.sku);
+    await (await hydrated(page.getByLabel('Item', { exact: true }))).fill(item.sku);
     await page.getByRole('button', { name: 'Show stock' }).click();
     const list = dataGrid(page, 'Stock by hub, bin and item');
     await expect(rowOf(list, item.sku).first()).toBeVisible();
@@ -89,7 +89,13 @@ test.describe('as the Inventory Manager, an item’s stock card', () => {
     await reverse.getByRole('button', { name: 'Reverse movement' }).click();
     await expect(page.getByText('Movement reversed.')).toBeVisible();
     await expect(rowOf(movements, reverseNote)).toContainText('Reversed');
-    await expect(moved).toContainText('Undone by a reversal');
+    // The reversal is now the newest row; the move, below it, says it was undone.
+    const undone = movements
+      .locator('tbody tr')
+      .or(movements.getByRole('listitem'))
+      .filter({ hasText: 'Moved between bins' })
+      .first();
+    await expect(undone).toContainText('Undone by a reversal');
   });
 
   test('cannot open the stock valuation, and the menu does not offer it', async ({ page }) => {
@@ -97,6 +103,10 @@ test.describe('as the Inventory Manager, an item’s stock card', () => {
     await expect(page.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
     await page.goto('/inventory/stock');
     await expect(page.getByRole('heading', { name: 'Stock', level: 1 })).toBeVisible();
+    // On a phone the menu is drawn only once it is opened.
+    if (projectName() === 'phone') {
+      await (await hydrated(page.getByRole('button', { name: 'Open menu' }))).click();
+    }
     await expect(page.getByRole('link', { name: 'Stock valuation' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Hubs and bins' }).first()).toBeAttached();
   });
