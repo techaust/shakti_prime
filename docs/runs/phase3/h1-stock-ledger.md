@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the stock ledger, its costs and row security |
 | Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (cloud session, 23-11-2026) |
-| State | done reported |
-| Next step | the lead reviews the branch, runs the journeys and baselines on the PC, and settles the lint heap |
+| State | integrated; pull request open, waiting for the owner's `checks-ok` |
+| Next step | the owner's `checks-ok` (`js-budget.json` and the root `lint` script), then the merge and the hosted migration |
 
 ## Brief
 Build [phase3 §5](../../03-roadmap-appendix/phase3.md#5-the-stock-model) and [§6.2](../../03-roadmap-appendix/phase3.md#62-h1-hubs-bins-and-the-stock-ledger) as written. Every later slice of Phase 3 moves stock through what you build, so its shape matters more than its screens. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
@@ -249,3 +249,14 @@ Found sound:
 Not checked:
 - The spike's `EXPLAIN (ANALYZE)` figures were read from the report, not reproduced.
 - A full `pnpm test:security` was not run here (the builder's report records it, with two known date-boundary failures outside H1).
+
+## Integration
+Lead, 24-11-2026, on the PC.
+- `main` taken in by a merge commit after C5 (#286): the import contracts, wizard, rows grid, New import page and the import commands hold both C5's `items` kind and H1's `opening_stock`; `imports.fields.sku` keeps `main`'s "Item code". H1's migrations move to 0230 and 0231. 0230 redefines `import_rows_created_type_check` and keeps C5's `item` beside `stock_movement` (the renumbering script rewrote 0230 from the pre-merge commit, so the value was added again after it); `pnpm db:generate` reports no changes; DATABASE cites 0230 and 0231; `pnpm db:docs` regenerated.
+- The root `lint` script's heap goes from 6,144 to 8,192 MB (finding 9; CI's runners have 16 GB). On the PC, `integrate.sh` linted in four parts (#284's script): clean.
+- `integrate.sh` with `E2E_SPECS="inventory.spec.ts"`: install, lint, format, copy-lint, generated, typecheck, unit, dbverify, audit, build, js-budget and gitleaks passed. Security suite: db 1,597 of 1,597, domain 1,487 of 1,487, web 461 of 461 (one earlier run had `lead-anonymise-complete.test.ts` fail in its setup under load; it passed alone and in the next whole run).
+- The journeys' first run on the PC found three faults in `inventory.spec.ts`, fixed: the Item search label also matched the stock list's region (now exact), a phone draws the menu only once it is opened, and after a reversal the newest row is the reversal (the undone move is found by its text). `inventory.spec.ts`: 30 of 30 in desktop-light, desktop-dark and phone.
+- Linux baselines made on a fresh database (`shakti-pg-h1`): the seven screenshots in three projects, 21 images, looked at; the verification run without updating matched (30 passed).
+- Checks files in the pull request: `apps/web/js-budget.json` (the five new pages and `/calling`, `/admin/integrations`) and the root `package.json` `lint` script: the owner's `checks-ok`.
+- For the owner: the Lead Converter's `inventory.stock.read:entity` (For the lead, first report) stays as SECURITY §3.2 grants it until the owner decides.
+
