@@ -28,6 +28,8 @@ describe('workshop defaults', () => {
       pricing: { tierByAccountType: {}, kitPricing: 'fixed' },
       credit: { exposureCountsConfirmedOrders: true },
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
+      // H1 stock ledger
+      stock: { reversalDays: 7 },
       crm: {
         dispositions: [
           { key: 1, code: 'interested', label: 'Interested', nextAction: 'callback' },

@@ -70,3 +70,12 @@ export { copilotNotes } from './copilot-notes';
 export { voiceSessions } from './voice-sessions';
 // U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3).
 export { vendors, vendorContacts, itemVendors, vendorQuotes } from './vendors';
+// H1 stock ledger
+export {
+  warehouses,
+  bins,
+  serials,
+  stockMovements,
+  stockMovementCosts,
+  stockBalances,
+} from './stock';

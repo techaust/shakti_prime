@@ -20,7 +20,9 @@ import {
 } from '../../imports/batch-settings';
 import { commitAccountBatch } from '../../imports/commit-accounts';
 import { commitLeadBatch, RowByRowNeeded, type BatchRow } from '../../imports/commit-leads';
+import { commitItemRow, ItemRowRefused } from '../../imports/commit-items';
 import { commitPinCodeBatch } from '../../imports/commit-pin-codes';
+import { commitOpeningStockBatch } from '../../imports/opening-stock';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
 import { keepMappedCells } from '../../imports/vendor-rows';
@@ -30,6 +32,7 @@ import {
   assertContentNotImported,
   assertEntityInScope,
   assertGroupImport,
+  assertItemImport,
   assertJobCompaniesCovered,
   assertVendorImport,
   assertNotPurged,
@@ -62,6 +65,8 @@ const HELD_BY_COLLEAGUE: ImportRowErrorDto = { field: 'phone', code: 'customer_h
  */
 function rowRefusal(error: unknown): ImportRowErrorDto | undefined {
   if (isHeldByColleague(error)) return HELD_BY_COLLEAGUE;
+  // An items row the catalogue no longer takes as the preview found it (C5).
+  if (error instanceof ItemRowRefused) return error.finding;
   if (error instanceof DomainError && error.details?.reason === 'referral_code_unknown') {
     return { field: 'referralCode', code: 'referral_code_unknown' };
   }
@@ -149,6 +154,7 @@ export const commitImportJob = defineCommand({
     assertJobCompaniesCovered(ctx.entityIds, loaded.job);
     if (implementedKind(loaded.job) === 'pin_codes') await assertGroupImport(ctx);
     if (implementedKind(loaded.job) === 'vendors') assertVendorImport(ctx.principal);
+    if (implementedKind(loaded.job) === 'items') await assertItemImport(ctx);
     // Another job of the same content may have been started beside this one, and committed since.
     const [content] = await ctx.tx
       .select({ id: schema.files.id, sha256: schema.files.sha256 })
@@ -193,7 +199,11 @@ async function refuseDealerRows(
   loaded: LoadedJob,
   kind: ImplementedImportKind,
 ): Promise<LoadedJob> {
-  if (kind === 'pin_codes' || hasGrant(ctx.principal.permissions, 'sales.credit.write', 'entity')) {
+  if (
+    kind === 'pin_codes' ||
+    kind === 'items' ||
+    hasGrant(ctx.principal.permissions, 'sales.credit.write', 'entity')
+  ) {
     return loaded;
   }
   const r = schema.importRows;
@@ -279,6 +289,7 @@ export const commitImportBatch = defineCommand({
     const job = loaded.job;
     if (kind === 'pin_codes') await assertGroupImport(ctx);
     if (kind === 'vendors') assertVendorImport(ctx.principal);
+    if (kind === 'items') await assertItemImport(ctx);
     const commit = KIND_COMMITS[kind];
     const actor = ctx.principal.id;
     const r = schema.importRows;
@@ -639,5 +650,26 @@ const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
       const made = await commitVendorRow(ctx, rowSp, jobId, row);
       return { id: made.id, type: made.type };
     },
+  },
+  // H1 stock ledger: every batch of the job posts under the job's reference, so the job is one
+  // opening, row by row as well as set-based.
+  opening_stock: {
+    createdType: 'stock_movement',
+    async setBased(ctx, sp, jobId, rows) {
+      return { created: await commitOpeningStockBatch(ctx, sp, jobId, rows), refused: [] };
+    },
+    async oneRow(ctx, rowSp, jobId, row) {
+      const [made] = await commitOpeningStockBatch(ctx, rowSp, jobId, [row]);
+      return { id: made?.id ?? null };
+    },
+  },
+  items: {
+    createdType: 'item',
+    // Each item goes through its own command, with its guard, audit row and event, so the rows
+    // run one by one, each in its own savepoint, and a refused row leaves nothing behind.
+    setBased() {
+      return Promise.reject(new RowByRowNeeded('items go one by one through the item commands'));
+    },
+    oneRow: (ctx, rowSp, _jobId, row) => commitItemRow(ctx, rowSp, row),
   },
 };

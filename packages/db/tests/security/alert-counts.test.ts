@@ -59,6 +59,7 @@ interface ScreenProvider {
 }
 
 const call = sql`select app.alert_counts() as counts`;
+
 const workers = () => principalFor('system:workers', [], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
 
 describe('app.alert_counts() (G2 alerts)', () => {
@@ -145,7 +146,7 @@ describe('app.alert_counts() (G2 alerts)', () => {
     });
     const livekitBefore = before?.webhooks.find((w) => w.provider === 'livekit');
     // Written and read in one transaction that is rolled back, so nothing is left.
-    const answer = await asMigrator(async (m) => {
+    const read = await asMigrator(async (m) => {
       try {
         await m.begin(async (tx) => {
           for (let i = 0; i < 3; i += 1) {
@@ -175,20 +176,25 @@ describe('app.alert_counts() (G2 alerts)', () => {
                    values (${person}, 'user', ${secretName})`;
           await tx`insert into principals (id, kind, display_name, created_by)
                    values (${session}, 'voice_session', ${secretName}, ${person})`;
-          // An ended session of 20 minutes and ₹120, and an open one of 5 minutes so far.
+          // An ended session of 20 minutes and ₹120 started 40 minutes ago, and an open one of 5
+          // minutes so far. `app.alert_counts()` counts only the day's sessions in India, so each
+          // starts no earlier than that day's start: in the first 40 minutes after midnight in
+          // India they would otherwise fall on the day before (the check of the arithmetic below).
           await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode,
                                                consent_recording, started_at, ended_at, minutes,
                                                max_minutes, cost_paise)
                    values (${session}, ${person}, 1, '{1}', 'ask', false,
-                           now() - interval '40 minutes', now() - interval '20 minutes', 20, 30,
-                           12000)`;
+                           greatest(now() - interval '40 minutes', app.voice_day_start(now())),
+                           greatest(now() - interval '20 minutes', app.voice_day_start(now())),
+                           20, 30, 12000)`;
           const open = newId();
           await tx`insert into principals (id, kind, display_name, created_by)
                    values (${open}, 'voice_session', ${secretName}, ${person})`;
           await tx`insert into voice_sessions (id, user_id, entity_id, entity_ids, mode,
                                                consent_recording, started_at, max_minutes)
                    values (${open}, ${person}, 1, '{1}', 'ask', false,
-                           now() - interval '4 minutes 30 seconds', 10)`;
+                           greatest(now() - interval '4 minutes 30 seconds',
+                                    app.voice_day_start(now())), 10)`;
           // The Concierge's runs the provider did not answer: five in the last hour across two
           // companies, one two hours ago and one that failed otherwise, which do not count.
           const run = (entityId: number, outcome: string, ago: string) =>
@@ -201,15 +207,21 @@ describe('app.alert_counts() (G2 alerts)', () => {
           await run(1, 'unavailable', '2 hours');
           await run(1, 'failed', '5 minutes');
           await tx`select set_config('app.permissions', 'platform.jobs.check:all', true)`;
-          const [row] = await tx<{ counts: Counts }[]>`select app.alert_counts() as counts`;
-          throw new Undo(row?.counts);
+          // The counts and the open session's minutes so far in one statement, on one clock.
+          const [row] = await tx<{ counts: Counts; openMinutes: number }[]>`
+            select app.alert_counts() as counts,
+                   (select ceil(extract(epoch from now() - vs.started_at) / 60)::int
+                      from voice_sessions vs where vs.id = ${open}) as "openMinutes"`;
+          throw new Undo(row);
         });
       } catch (e) {
-        if (e instanceof Undo) return e.answer as Counts;
+        if (e instanceof Undo) return e.answer as { counts: Counts; openMinutes: number };
         throw e;
       }
       return undefined;
     });
+    const openMinutes = read?.openMinutes ?? Number.NaN;
+    const answer = read?.counts;
     const unavailable = (counts: Counts | undefined) =>
       counts?.agentsUnavailable.find((a) => a.agent === 'agent:concierge')?.unavailableLastHour ??
       0;
@@ -223,7 +235,12 @@ describe('app.alert_counts() (G2 alerts)', () => {
       entityId: 3,
       capPaise: 4321,
     });
-    expect(answer?.voice).toContainEqual({ userId: person, minutes: 25, spentPaise: 12000 });
+    // 25 minutes, unless the day in India began less than 5 minutes ago and cut the open one short.
+    expect(answer?.voice).toContainEqual({
+      userId: person,
+      minutes: 20 + Math.min(10, openMinutes),
+      spentPaise: 12000,
+    });
     const text = JSON.stringify(answer);
     expect(text).not.toContain(secretNumber);
     expect(text).not.toContain(secretName);
@@ -235,6 +252,43 @@ describe('app.alert_counts() (G2 alerts)', () => {
     );
     expect(left).toEqual([{ n: 0 }]);
   });
+  it.each([
+    ['5 minutes ago', '5 minutes', 25],
+    ['3 hours ago', '3 hours', 25],
+    ['2 minutes ago, cutting the open session short', '2 minutes', 22],
+  ])(
+    'counts the case’s sessions in full whenever the day in India began: %s',
+    async (_label, sinceDayStart, total) => {
+      // The case's start times with this day start in place of `app.voice_day_start(now())`, and
+      // the function's sum over the sessions started on or after it, beside what the case expects.
+      const [row] = await withoutContext<{
+        sessions: number;
+        inside: boolean;
+        counted: number;
+        expected: number;
+      }>(sql`
+        with day as (select now() - ${sinceDayStart}::interval as start),
+        sessions as (
+          select greatest(now() - interval '40 minutes', day.start) as started_at,
+                 greatest(now() - interval '20 minutes', day.start) as ended_at,
+                 20 as minutes, 30 as max_minutes
+            from day
+          union all
+          select greatest(now() - interval '4 minutes 30 seconds', day.start), null, null, 10
+            from day)
+        select count(*)::int as sessions,
+               bool_and(coalesce(s.ended_at >= s.started_at, true)) as inside,
+               sum(coalesce(s.minutes, least(s.max_minutes, greatest(0, ceil(
+                 extract(epoch from now() - s.started_at) / 60.0)::integer))))::int as counted,
+               (20 + least(10, max(ceil(extract(epoch from now() - s.started_at) / 60)::int)
+                                 filter (where s.ended_at is null)))::int as expected
+          from sessions s, day
+         where s.started_at >= day.start`);
+      // Both sessions fall on the day, the ended one ends after it starts, and the totals agree.
+      expect(row).toEqual({ sessions: 2, inside: true, counted: total, expected: total });
+    },
+  );
+
   it('reads the webhooks as Integration Health does: the same waiting rows and oldest, failures within its day', async () => {
     const sha = () => createHash('sha256').update(newId()).digest('hex');
     const answer = await asMigrator(async (m) => {

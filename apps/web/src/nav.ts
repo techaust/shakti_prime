@@ -3,6 +3,8 @@ import {
   AudioLines,
   BookCheck,
   Bot,
+  Boxes,
+  Calculator,
   Building2,
   Cable,
   Combine,
@@ -33,6 +35,7 @@ import {
   UserPlus,
   UsersRound,
   Wallet,
+  Warehouse,
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
@@ -282,6 +285,36 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Vendors are read with inventory.stock.read or procurement.po.write; every holder of the
     // second holds the first. Rates need procurement.rate.read, which the comparison asks for.
     requires: [{ key: 'inventory.stock.read', scope: 'own' }],
+  },
+  // H1 stock ledger: Inventory › Stock, Hubs and bins, Stock valuation.
+  {
+    id: 'inventory-stock',
+    href: '/inventory/stock',
+    label: 'inventoryStock',
+    icon: Boxes,
+    group: 'work',
+    // listStockBalances reads a company's balances with inventory.stock.read for the company.
+    requires: [{ key: 'inventory.stock.read', scope: 'entity' }],
+  },
+  {
+    id: 'inventory-hubs',
+    href: '/inventory/hubs',
+    label: 'inventoryHubs',
+    icon: Warehouse,
+    group: 'work',
+    // Hubs and bins are read with inventory.stock.read; changes need it for every company.
+    requires: [{ key: 'inventory.stock.read', scope: 'entity' }],
+  },
+  {
+    id: 'inventory-valuation',
+    href: '/inventory/valuation',
+    label: 'inventoryValuation',
+    icon: Calculator,
+    group: 'work',
+    requires: [
+      { key: 'inventory.stock.read', scope: 'entity' },
+      { key: 'finance.cost.read', scope: 'entity' },
+    ],
   },
   {
     id: 'imports',

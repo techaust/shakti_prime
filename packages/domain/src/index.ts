@@ -203,6 +203,24 @@ export {
   createPriceList,
 } from './commands/pricing/price-lists';
 export { archiveItem, createItem, updateItem } from './commands/catalogue/items';
+// H1 stock ledger
+export {
+  archiveBin,
+  archiveHub,
+  createBin,
+  createHub,
+  updateBin,
+  updateHub,
+} from './commands/inventory/hubs';
+export { adjustStock, reverseStock, transferStock } from './commands/inventory/stock';
+export { listHubs } from './queries/inventory/hubs';
+export {
+  getSerial,
+  getStockCard,
+  listStockBalances,
+  readStockValuation,
+} from './queries/inventory/stock';
+export { existingSerialsOf } from './stock/serials';
 export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
 export { setPumpCurve } from './commands/catalogue/pump-curve';
 // U1 vendors and supplier quotes.
@@ -211,6 +229,8 @@ export { setItemVendor, setVendorContacts } from './commands/procurement/vendor-
 export { recordVendorQuote, withdrawVendorQuote } from './commands/procurement/quotes';
 export { readQuoteComparison, getVendor, listVendors } from './queries/procurement/vendor-queries';
 export { readsRates, readsVendors } from './queries/procurement/vendor-read';
+export { serialMatchesPattern, serialsOutsidePattern } from './catalogue/serial-pattern';
+export type { ItemSerialPattern } from './catalogue/serial-pattern';
 export { setTaxRate } from './commands/tax/set-tax-rate';
 export { setCompositeRule } from './commands/tax/set-composite-rule';
 export { inviteUser } from './commands/admin/invite-user';

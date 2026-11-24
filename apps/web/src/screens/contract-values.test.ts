@@ -71,6 +71,10 @@ import {
   CUSTOMER_SORT_COLUMNS as CONTRACT_CUSTOMER_SORT_COLUMNS,
   ITEM_SORT_COLUMNS as CONTRACT_ITEM_SORT_COLUMNS,
   ITEM_SPEC_FIELDS as CONTRACT_ITEM_SPEC_FIELDS,
+  NON_STOCK_CATEGORIES as CONTRACT_NON_STOCK_CATEGORIES,
+  SERIAL_PATTERN_MAX as CONTRACT_SERIAL_PATTERN_MAX,
+  WarrantyMonthsSchema,
+  BarcodeSchema,
   ItemCategorySchema,
   ItemUnitSchema,
   KIT_PRICE_SORT_COLUMNS as CONTRACT_KIT_PRICE_SORT_COLUMNS,
@@ -124,6 +128,13 @@ import {
   UserStatusSchema,
   COST_PERMISSIONS,
   SCOPES,
+  // H1 stock ledger
+  BinKindSchema,
+  EditableBinKindSchema,
+  SerialStateSchema,
+  StockAdjustmentSchema,
+  StockReasonSchema,
+  WarehouseKindSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -173,10 +184,7 @@ import {
   COST_PERMISSION_KEYS,
   ITEM_CATEGORIES,
   ITEM_SORT_COLUMNS,
-  ITEM_SPEC_FIELDS,
   ITEM_UNITS,
-  NUMERIC_SPEC_KEYS,
-  SPEC_KEYS,
   KIT_PRICE_SORT_COLUMNS,
   KIT_SORT_COLUMNS,
   PRICE_LIST_STATES,
@@ -248,7 +256,23 @@ import {
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
+  // H1 stock ledger
+  BIN_KINDS as BIN_KINDS_WEB,
+  EDITABLE_BIN_KINDS as EDITABLE_BIN_KINDS_WEB,
+  SERIAL_STATES as SERIAL_STATES_WEB,
+  STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
+  STOCK_REASONS as STOCK_REASONS_WEB,
+  WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
 } from './contract-values';
+import {
+  BARCODE_MAX_LENGTH,
+  ITEM_SPEC_FIELDS,
+  NON_STOCK_CATEGORIES,
+  NUMERIC_SPEC_KEYS,
+  SERIAL_PATTERN_MAX,
+  SPEC_KEYS,
+  WARRANTY_MONTHS_MAX,
+} from './catalogue-values';
 import {
   ASK_SOURCE_KIND_VALUES,
   VOICE_END_REASON_VALUES,
@@ -354,6 +378,13 @@ describe('the contract values copied for the browser', () => {
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);
+    // H1 stock ledger
+    expect(WAREHOUSE_KINDS_WEB).toEqual(WarehouseKindSchema.options);
+    expect(BIN_KINDS_WEB).toEqual(BinKindSchema.options);
+    expect(EDITABLE_BIN_KINDS_WEB).toEqual(EditableBinKindSchema.options);
+    expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
+    expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
+    expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);
@@ -380,6 +411,12 @@ describe('the contract values copied for the browser', () => {
     expect(KIT_SORT_COLUMNS).toEqual(CONTRACT_KIT_SORT_COLUMNS);
     expect(KIT_PRICE_SORT_COLUMNS).toEqual(CONTRACT_KIT_PRICE_SORT_COLUMNS);
     expect(ITEM_SPEC_FIELDS).toEqual(CONTRACT_ITEM_SPEC_FIELDS);
+    expect(NON_STOCK_CATEGORIES).toEqual(CONTRACT_NON_STOCK_CATEGORIES);
+    expect(SERIAL_PATTERN_MAX).toBe(CONTRACT_SERIAL_PATTERN_MAX);
+    expect(WarrantyMonthsSchema.safeParse(WARRANTY_MONTHS_MAX).success).toBe(true);
+    expect(WarrantyMonthsSchema.safeParse(WARRANTY_MONTHS_MAX + 1).success).toBe(false);
+    expect(BarcodeSchema.safeParse('A'.repeat(BARCODE_MAX_LENGTH)).success).toBe(true);
+    expect(BarcodeSchema.safeParse('A'.repeat(BARCODE_MAX_LENGTH + 1)).success).toBe(false);
     const fields = Object.values(CONTRACT_ITEM_SPEC_FIELDS).flat();
     expect([...SPEC_KEYS].sort()).toEqual([...new Set(fields.map((f) => f.key))].sort());
     expect([...NUMERIC_SPEC_KEYS].sort()).toEqual(

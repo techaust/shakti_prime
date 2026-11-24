@@ -210,6 +210,12 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   consents: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: contactOutside('x.contact_id') },
   item_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
+  // H1: a company's serials, movements and balances with inventory.stock.read for the company (a
+  // Field Engineer's own scope reads none); each movement's cost with finance.cost.read.
+  serials: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
+  stock_movements: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
+  stock_movement_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
+  stock_balances: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
   audit_logs: {
     read: grant('audit.read', 'entity'),

@@ -1,5 +1,6 @@
 import { newId, type DeliveredEvent } from '@shakti/contracts';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as QStash from '@upstash/qstash';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queue = vi.hoisted(() => ({
   batchJSON: vi.fn<(messages: unknown[]) => Promise<unknown[]>>(),
@@ -29,6 +30,7 @@ const {
   fromSchedule,
   nudgeViaQStash,
   publishImportCommit,
+  QSTASH_DEFAULT_URL,
   qstashConfig,
   qstashEventPublisher,
   verifyQStashSignature,
@@ -84,6 +86,57 @@ describe('qstashConfig', () => {
     'BETTER_AUTH_URL',
   ])('is nothing without %s', (name) => {
     expect(qstashConfig({ ...ENV, [name]: '' })).toBeUndefined();
+  });
+});
+
+describe('the queue address (a blank QSTASH_URL, as #236 fixed for qstash-schedule)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  /** The options the publisher's client is made with, for a config read from `env`. */
+  async function clientOptions(env: NodeJS.ProcessEnv): Promise<Record<string, unknown>> {
+    const config = qstashConfig(env);
+    if (config === undefined) throw new Error('test configuration is incomplete');
+    queue.publishJSON.mockResolvedValue({ messageId: 'm' });
+    await nudgeViaQStash(config);
+    return queue.options.at(-1) as Record<string, unknown>;
+  }
+
+  it.each([
+    ['absent', undefined],
+    ['blank', ''],
+    ['only spaces', '  '],
+  ])('uses QStash’s own address when QSTASH_URL is %s', async (_case, value) => {
+    const env: NodeJS.ProcessEnv = { ...ENV };
+    if (value !== undefined) env.QSTASH_URL = value;
+    expect(qstashConfig(env)?.baseUrl).toBeUndefined();
+    expect(await clientOptions(env)).toMatchObject({ baseUrl: QSTASH_DEFAULT_URL });
+  });
+
+  it('uses the regional address when QSTASH_URL is set', async () => {
+    const env = { ...ENV, QSTASH_URL: ' https://qstash-eu.example.io ' };
+    expect(await clientOptions(env)).toMatchObject({ baseUrl: 'https://qstash-eu.example.io' });
+  });
+
+  it('reaches QStash through the real client while the process holds a blank QSTASH_URL', async () => {
+    const actual = await vi.importActual<typeof QStash>('@upstash/qstash');
+    vi.stubEnv('QSTASH_URL', '');
+    const called: string[] = [];
+    vi.stubGlobal('fetch', (url: string | URL) => {
+      called.push(String(url));
+      return Promise.resolve(new Response(JSON.stringify({ messageId: 'm' }), { status: 200 }));
+    });
+    const options = await clientOptions({ ...ENV, QSTASH_URL: '' });
+    const real = new actual.Client({ ...options, retry: false });
+    await real.publishJSON({
+      url: 'https://bos.example.in/api/v1/workers/outbox/publish',
+      body: {},
+    });
+    expect(called).toEqual([
+      `${QSTASH_DEFAULT_URL}/v2/publish/https://bos.example.in/api/v1/workers/outbox/publish`,
+    ]);
   });
 });
 

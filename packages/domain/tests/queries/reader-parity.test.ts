@@ -129,6 +129,14 @@ import {
   searchQuotes,
 } from '../../src/queries/sales/list-quotes';
 import { dealerCreditHistory, listDealerCredit } from '../../src/queries/sales/dealer-credit';
+// H1 stock ledger
+import { listHubs } from '../../src/queries/inventory/hubs';
+import {
+  getSerial,
+  getStockCard,
+  listStockBalances,
+  readStockValuation,
+} from '../../src/queries/inventory/stock';
 import {
   accountSalesOrders,
   getSalesOrder,
@@ -361,6 +369,12 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   // The screen-pop's read of a ringing call, under the person's own policies.
   readScreenPop: (ctx) => readScreenPop(ctx, RINGING),
   listDealerCredit: (ctx) => listDealerCredit(ctx, { entityId: 1, limit: 20 }),
+  // H1 stock ledger
+  listHubs: (ctx) => listHubs(ctx, { includeArchived: true }),
+  listStockBalances: (ctx) => listStockBalances(ctx, { entityId: 1, limit: 20 }),
+  getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
+  getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
+  readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
 };
 
 /**

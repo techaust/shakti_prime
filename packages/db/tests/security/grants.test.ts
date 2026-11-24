@@ -6,6 +6,7 @@ import {
   closeDb,
   CONFIG_TABLES,
   OUTBOX_TABLES,
+  PERMISSION_SHARED_TABLES,
   PLATFORM_TABLES,
   PRINCIPAL_TABLES,
   RLS_TABLES,
@@ -40,6 +41,7 @@ describe('app_user role (docs/05-database.md §3)', () => {
         ...OUTBOX_TABLES,
         ...PRINCIPAL_TABLES,
         ...PLATFORM_TABLES,
+        ...PERMISSION_SHARED_TABLES,
       ].sort(),
     );
     expect(rows.filter((r) => !r.enabled || !r.forced).map((r) => r.name)).toEqual([]);
@@ -52,6 +54,7 @@ describe('app_user role (docs/05-database.md §3)', () => {
     ...OUTBOX_TABLES,
     ...PRINCIPAL_TABLES,
     ...PLATFORM_TABLES,
+    ...PERMISSION_SHARED_TABLES,
   ])('does not own %s and the table forces RLS', async (table) => {
     const [row] = await withoutContext<{ owner: string; enabled: boolean; forced: boolean }>(sql`
       select pg_get_userbyid(c.relowner) as owner, c.relrowsecurity as enabled, c.relforcerowsecurity as forced
@@ -187,6 +190,13 @@ describe('app_user role (docs/05-database.md §3)', () => {
     vendor_contacts: { i: true, u: false, d: true },
     item_vendors: { i: true, u: false, d: true },
     vendor_quotes: { i: true, u: false },
+    // H1: the ledger, its costs, the balances, the serials and the moving average are written
+    // only by app.stock_move(), as the table owner (stock-ledger.test.ts).
+    serials: { i: false, u: false },
+    stock_movements: { i: false, u: false },
+    stock_movement_costs: { i: false, u: false },
+    stock_balances: { i: false, u: false },
+    item_costs: { i: false, u: false },
   };
 
   /**

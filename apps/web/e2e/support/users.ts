@@ -103,17 +103,61 @@ export const SIGNED_IN_ROLES = [
     entityIds: [2],
     twoFactor: true,
   },
-  // U1: the Inventory Manager of company 1, who adds vendors and records their quotes
-  // (procurement.spec.ts).
+  // The Inventory Manager of company 1, who adjusts and moves stock (H1, inventory.spec.ts) and adds
+  // vendors and records their quotes (U1, procurement.spec.ts).
   {
     key: 'inventoryManager',
-    name: 'Dinesh Prajapat',
+    name: 'Harish Saini',
     roleKey: 'inventory_manager',
     entityIds: [1],
     twoFactor: false,
   },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
+
+/**
+ * H1's stock journeys (inventory.spec.ts), written by the seed (`e2e/setup/stock.ts`): a hub with
+ * two storage bins and, per project, an item of company 1 with stock in the first bin to adjust
+ * and move; and in the snapshot company a hub of its own with two items' stock at fixed costs,
+ * which only the seed writes, for the screenshots of the stock list and the valuation. Every
+ * quantity and cost is a test value for these journeys alone.
+ */
+export const STOCK_JOURNEY = {
+  entityId: 1,
+  hub: { code: 'JRN-HUB', name: 'Journey godown' },
+  bins: ['JA-01', 'JA-02'],
+  startingQty: 50,
+  items: {
+    'desktop-light': { sku: 'JRN-STK-DL', name: 'Journey cable, light' },
+    'desktop-dark': { sku: 'JRN-STK-DD', name: 'Journey cable, dark' },
+    phone: { sku: 'JRN-STK-PH', name: 'Journey cable, phone' },
+  },
+  snapshot: {
+    /**
+     * The day the seed dates the snapshot company's movements to (10:00 in India), so the
+     * valuation opened at it shows the same figures and the same date every run.
+     */
+    date: '2026-11-02',
+    hub: { code: 'SNP-HUB', name: 'Snapshot godown' },
+    bin: 'SA-01',
+    items: [
+      {
+        sku: 'SNP-STK-1',
+        name: 'Snapshot pipe 63 mm',
+        category: 'pipe',
+        qty: 120,
+        cost: '85.5000',
+      },
+      {
+        sku: 'SNP-STK-2',
+        name: 'Snapshot cable 4 sq mm',
+        category: 'cable',
+        qty: 300,
+        cost: '42.0000',
+      },
+    ],
+  },
+} as const;
 
 /**
  * The company kept for screenshots of lists: only the seed writes there, never a journey, so the

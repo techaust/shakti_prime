@@ -400,6 +400,12 @@ export const ENTITY_TABLES = [
   'vendor_contacts',
   'item_vendors',
   'vendor_quotes',
+  // H1: a company's serials, stock movements and balances, read with inventory.stock.read for the
+  // company; each movement's cost with finance.cost.read (docs/03-roadmap-appendix/phase3.md §5)
+  'serials',
+  'stock_movements',
+  'stock_movement_costs',
+  'stock_balances',
 ] as const;
 
 /**
@@ -460,6 +466,14 @@ export const PLATFORM_TABLES = [
  * `sales.order.confirm` over the order). Asserted in crm-config.test.ts.
  */
 export const CONFIG_TABLES = ['lead_score_rules', 'commission_rules'] as const;
+
+/**
+ * Tables of no company read only by a holder of a permission, in a request with a company, so
+ * neither the shared loops (readable with any context) nor the entity loops (scoped by company)
+ * apply: H1's hubs and bins, read with inventory.stock.read and written with
+ * inventory.stock.adjust for every company. Asserted in stock-ledger.test.ts.
+ */
+export const PERMISSION_SHARED_TABLES = ['warehouses', 'bins'] as const;
 
 /** Every table under RLS. A new business table is added here and to one of the lists above. */
 export const RLS_TABLES = [...SHARED_TABLES, ...ENTITY_TABLES] as const;

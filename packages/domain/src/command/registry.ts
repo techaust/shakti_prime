@@ -149,6 +149,16 @@ import {
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
+// H1 stock ledger
+import {
+  archiveBin,
+  archiveHub,
+  createBin,
+  createHub,
+  updateBin,
+  updateHub,
+} from '../commands/inventory/hubs';
+import { adjustStock, reverseStock, transferStock } from '../commands/inventory/stock';
 import {
   approvePriceList,
   archivePriceList,
@@ -292,6 +302,16 @@ export const commands = Object.freeze({
   [approvePriceList.name]: approvePriceList,
   [archivePriceList.name]: archivePriceList,
   [createItem.name]: createItem,
+  // H1 stock ledger
+  [createHub.name]: createHub,
+  [updateHub.name]: updateHub,
+  [archiveHub.name]: archiveHub,
+  [createBin.name]: createBin,
+  [updateBin.name]: updateBin,
+  [archiveBin.name]: archiveBin,
+  [transferStock.name]: transferStock,
+  [adjustStock.name]: adjustStock,
+  [reverseStock.name]: reverseStock,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
   [createKit.name]: createKit,

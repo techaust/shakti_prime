@@ -12,6 +12,8 @@ import { PlaybookDirectiveStateSchema } from '../playbook';
 import { MessageRequested } from '../api/messaging';
 import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
+import { StockReasonSchema } from '../inventory/enums';
+import { StockQtySchema } from '../inventory/stock';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -265,13 +267,14 @@ const eventCatalogue = {
   },
   'catalogue.item.created': {
     meaning: 'An item was added to the catalogue.',
-    emittedBy: ['catalogue.item.create'],
+    // An items file adds its new items through `catalogue.item.create` (C5).
+    emittedBy: ['catalogue.item.create', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
   'catalogue.item.updated': {
     meaning: "An item's details or specifications changed.",
-    emittedBy: ['catalogue.item.update'],
+    emittedBy: ['catalogue.item.update', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
@@ -280,6 +283,38 @@ const eventCatalogue = {
     emittedBy: ['catalogue.item.archive'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
+  },
+  // H1 stock ledger
+  'inventory.stock.moved': {
+    meaning:
+      'Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held.',
+    emittedBy: [
+      'inventory.stock.transfer',
+      'inventory.stock.adjust',
+      'inventory.stock.reverse',
+      'imports.job.commit_batch',
+    ],
+    subscribed: false,
+    payload: z
+      .object({
+        count: z.number().int().min(1),
+        movements: z
+          .array(
+            z
+              .object({
+                movementId: IdSchema,
+                itemId: IdSchema,
+                fromBinId: IdSchema.nullable(),
+                toBinId: IdSchema.nullable(),
+                qty: StockQtySchema,
+                reason: StockReasonSchema,
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(200),
+      })
+      .strict(),
   },
   'catalogue.kit.created': {
     meaning: 'A kit was added with its components.',

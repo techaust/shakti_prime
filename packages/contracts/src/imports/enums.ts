@@ -6,8 +6,9 @@ import { z } from 'zod';
  */
 
 /**
- * What a job imports: leads, customers (`accounts`) and the PIN code master (`pin_codes`, from the
- * public India Post directory); items and Tally masters arrive with their modules.
+ * What a job imports: leads, customers (`accounts`), the PIN code master (`pin_codes`, from the
+ * public India Post directory) and the catalogue's items (`items`, C5); Tally masters arrive with
+ * their module.
  */
 export const ImportKindSchema = z.enum([
   'leads',
@@ -17,6 +18,8 @@ export const ImportKindSchema = z.enum([
   'tally_masters',
   // U1: the group's vendor master (docs/03-roadmap-appendix/phase3.md §6.3).
   'vendors',
+  // H1 stock ledger: a company's opening stock, posted as one batch (opening_stock_posted).
+  'opening_stock',
 ]);
 export type ImportKind = z.infer<typeof ImportKindSchema>;
 
@@ -27,14 +30,19 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'pin_codes',
   // U1 vendors.
   'vendors',
+  // H1 stock ledger
+  'opening_stock',
+  // C5: the catalogue's items.
+  'items',
 ] as const satisfies readonly ImportKind[];
 export type ImplementedImportKind = (typeof IMPLEMENTED_IMPORT_KINDS)[number];
 
 /**
- * The kinds whose rows are shared by every company (the PIN code master): only a request acting
- * for every active company imports them, as an Executive (docs/03-roadmap-appendix/phase1.md §6.3).
+ * The kinds whose rows are shared by every company (the PIN code master, and the catalogue's items):
+ * only a request acting for every active company imports them, the PIN code master as an Executive
+ * (docs/03-roadmap-appendix/phase1.md §6.3) and items with `catalogue.write` (phase3 §6.1).
  */
-export const GROUP_IMPORT_KINDS = ['pin_codes'] as const satisfies readonly ImportKind[];
+export const GROUP_IMPORT_KINDS = ['pin_codes', 'items'] as const satisfies readonly ImportKind[];
 
 /** True for a kind whose job runs in a request for every company (`GROUP_IMPORT_KINDS`). */
 export function isGroupImportKind(kind: ImportKind): boolean {
@@ -78,6 +86,10 @@ export const ImportCreatedTypeSchema = z.enum([
   // an updated vendor as it is).
   'vendor',
   'vendor_update',
+  // An item an items row added; a row that changed an existing item records nothing.
+  'item',
+  // H1 stock ledger: the opening movement a row posted.
+  'stock_movement',
 ]);
 export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
 
@@ -210,6 +222,46 @@ export const VendorImportFieldSchema = z.enum([
 ]);
 export type VendorImportField = z.infer<typeof VendorImportFieldSchema>;
 
+/**
+ * H1: a row of a company's opening stock: the hub and bin by code, the item by its stock code, the
+ * quantity and its unit cost, and for a tracked item its serial (one row per serial). A `company`
+ * column, when given, must name the job's company.
+ */
+export const OpeningStockImportFieldSchema = z.enum([
+  'company',
+  'hub',
+  'bin',
+  'sku',
+  'qty',
+  'unitCost',
+  'serialNo',
+]);
+export type OpeningStockImportField = z.infer<typeof OpeningStockImportFieldSchema>;
+
+/**
+ * The fields of a catalogue item a file column can fill (phase3 §6.1): its code (the only one every
+ * file needs), name, category, HSN code and units, serial tracking, DCR and ALMM, the warranties,
+ * the barcode and the serial pattern. A row whose code the catalogue has changes that item, and
+ * a blank cell keeps what the item has.
+ */
+export const ItemImportFieldSchema = z.enum([
+  'sku',
+  'itemName',
+  'category',
+  'hsn',
+  'unit',
+  'purchaseUnit',
+  'purchaseUnitFactor',
+  'isSerialTracked',
+  'isDcr',
+  'almmRef',
+  'warrantyMonths',
+  'supplierWarrantyMonths',
+  'barcode',
+  'serialPattern',
+]);
+export type ItemImportField = z.infer<typeof ItemImportFieldSchema>;
+
 /** Every field a file column can fill, whatever the kind. */
 export const ImportFieldSchema = z.enum([
   ...LeadImportFieldSchema.options,
@@ -230,6 +282,14 @@ export const ImportFieldSchema = z.enum([
   'personRole',
   'personPhone',
   'personEmail',
+  // H1 stock ledger
+  'hub',
+  'bin',
+  'qty',
+  'unitCost',
+  'serialNo',
+  // C5: the item fields, 'sku' among them, which opening stock shares.
+  ...ItemImportFieldSchema.options,
 ]);
 export type ImportField = z.infer<typeof ImportFieldSchema>;
 
@@ -239,6 +299,9 @@ export const IMPORT_FIELDS = {
   accounts: AccountImportFieldSchema.options,
   pin_codes: PinCodeImportFieldSchema.options,
   vendors: VendorImportFieldSchema.options,
+  // H1 stock ledger
+  opening_stock: OpeningStockImportFieldSchema.options,
+  items: ItemImportFieldSchema.options,
 } as const satisfies Record<ImplementedImportKind, readonly ImportField[]>;
 /**
  * Why one row cannot be imported, keyed to `imports.rowErrors` in the message catalogue. These
@@ -261,5 +324,32 @@ export const ImportRowErrorCodeSchema = z.enum([
   'referral_code_unknown',
   // U1: the GSTIN is an archived vendor's, which an import does not change.
   'vendor_archived',
+  // H1 opening stock: a hub, bin or stock code the group does not have; an item not sold or not
+  // stocked; a serial on an item without them, none on one with them, a quantity other than 1 for
+  // a serial, a serial already held or given twice; a company other than the job's; opening stock
+  // already entered for the company.
+  'hub_unknown',
+  'bin_unknown',
+  'sku_unknown',
+  'item_not_stockable',
+  'serial_not_tracked',
+  'serial_required',
+  'serial_qty',
+  'serial_taken',
+  'company_mismatch',
+  'opening_stock_posted',
+  // Items (C5): a category, HSN code or unit outside the lists, a serial pattern refused, a
+  // barcode another item or an earlier row has, a category whose required details only the item
+  // sheet takes, a code of an item no longer sold, and a barcode hidden as an identity number.
+  'category_unknown',
+  'hsn_invalid',
+  'unit_unknown',
+  'serial_pattern_invalid',
+  'barcode_taken',
+  'item_details_needed',
+  'item_archived',
+  'barcode_hidden',
+  // An item kept out of stock (a service) that the row would make another category or serial-tracked.
+  'item_not_stocked',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

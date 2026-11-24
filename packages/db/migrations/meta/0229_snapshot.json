@@ -1,5 +1,5 @@
 {
-  "id": "9bc3010e-e027-473f-b828-ad2f32632cf9",
+  "id": "bda62662-beca-427f-a48c-3460668723d8",
   "prevId": "b6fc0ef8-30d8-4cec-9f17-4fc32bc6f8fd",
   "version": "7",
   "dialect": "postgresql",
@@ -7516,7 +7516,7 @@
         },
         "import_rows_created_type_check": {
           "name": "import_rows_created_type_check",
-          "value": "\"import_rows\".\"created_type\" in ('opportunity', 'account', 'account_link', 'pin_code')"
+          "value": "\"import_rows\".\"created_type\" in ('opportunity', 'account', 'account_link', 'pin_code', 'item')"
         },
         "import_rows_row_no_check": {
           "name": "import_rows_row_no_check",
@@ -8554,175 +8554,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.item_vendors": {
-      "name": "item_vendors",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "item_id": {
-          "name": "item_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "vendor_id": {
-          "name": "vendor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "vendor_item_code": {
-          "name": "vendor_item_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_preferred": {
-          "name": "is_preferred",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "item_vendors_one_preferred": {
-          "name": "item_vendors_one_preferred",
-          "columns": [
-            {
-              "expression": "item_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"item_vendors\".\"is_preferred\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "item_vendors_vendor_idx": {
-          "name": "item_vendors_vendor_idx",
-          "columns": [
-            {
-              "expression": "vendor_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "item_vendors_item_id_items_id_fk": {
-          "name": "item_vendors_item_id_items_id_fk",
-          "tableFrom": "item_vendors",
-          "tableTo": "items",
-          "columnsFrom": [
-            "item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "item_vendors_vendor_id_vendors_id_fk": {
-          "name": "item_vendors_vendor_id_vendors_id_fk",
-          "tableFrom": "item_vendors",
-          "tableTo": "vendors",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "item_vendors_created_by_principals_id_fk": {
-          "name": "item_vendors_created_by_principals_id_fk",
-          "tableFrom": "item_vendors",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "item_vendors_updated_by_principals_id_fk": {
-          "name": "item_vendors_updated_by_principals_id_fk",
-          "tableFrom": "item_vendors",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "item_vendors_item_vendor_unique": {
-          "name": "item_vendors_item_vendor_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "item_id",
-            "vendor_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "item_vendors_code_check": {
-          "name": "item_vendors_code_check",
-          "value": "\"item_vendors\".\"vendor_item_code\" is null or length(btrim(\"item_vendors\".\"vendor_item_code\")) between 1 and 60"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.items": {
       "name": "items",
       "schema": "",
@@ -8791,6 +8622,49 @@
           "notNull": true,
           "default": "'{}'::jsonb"
         },
+        "warranty_months": {
+          "name": "warranty_months",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supplier_warranty_months": {
+          "name": "supplier_warranty_months",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "barcode": {
+          "name": "barcode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purchase_unit": {
+          "name": "purchase_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purchase_unit_factor": {
+          "name": "purchase_unit_factor",
+          "type": "numeric(12, 3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "serial_pattern": {
+          "name": "serial_pattern",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_stocked": {
+          "name": "is_stocked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
         "is_active": {
           "name": "is_active",
           "type": "boolean",
@@ -8832,6 +8706,22 @@
         }
       },
       "indexes": {
+        "items_barcode_unique": {
+          "name": "items_barcode_unique",
+          "columns": [
+            {
+              "expression": "barcode",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"items\".\"barcode\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "items_name_trgm_idx": {
           "name": "items_name_trgm_idx",
           "columns": [
@@ -8915,6 +8805,30 @@
         "items_category_check": {
           "name": "items_category_check",
           "value": "\"items\".\"category\" in ('pump', 'motor', 'solar_module', 'controller', 'structure', 'cable', 'pipe', 'inverter', 'battery', 'other')"
+        },
+        "items_warranty_months_check": {
+          "name": "items_warranty_months_check",
+          "value": "(\"items\".\"warranty_months\" is null or \"items\".\"warranty_months\" between 0 and 360) and (\"items\".\"supplier_warranty_months\" is null or \"items\".\"supplier_warranty_months\" between 0 and 360)"
+        },
+        "items_barcode_check": {
+          "name": "items_barcode_check",
+          "value": "\"items\".\"barcode\" ~ '^[!-~]{4,64}$'"
+        },
+        "items_purchase_unit_check": {
+          "name": "items_purchase_unit_check",
+          "value": "\"items\".\"purchase_unit\" in ('nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour')"
+        },
+        "items_purchase_factor_check": {
+          "name": "items_purchase_factor_check",
+          "value": "(\"items\".\"purchase_unit_factor\" is null or \"items\".\"purchase_unit_factor\" >= 1) and (\"items\".\"purchase_unit\" is not null or \"items\".\"purchase_unit_factor\" is null) and (\"items\".\"purchase_unit\" is null or \"items\".\"purchase_unit\" = \"items\".\"unit\" or \"items\".\"purchase_unit_factor\" is not null) and (\"items\".\"purchase_unit\" is distinct from \"items\".\"unit\" or \"items\".\"purchase_unit_factor\" is null or \"items\".\"purchase_unit_factor\" = 1)"
+        },
+        "items_serial_pattern_check": {
+          "name": "items_serial_pattern_check",
+          "value": "\"items\".\"serial_pattern\" is null or (\"items\".\"is_serial_tracked\" and char_length(\"items\".\"serial_pattern\") between 1 and 200)"
+        },
+        "items_stocked_check": {
+          "name": "items_stocked_check",
+          "value": "\"items\".\"is_stocked\" or (not \"items\".\"is_serial_tracked\" and \"items\".\"category\" in ('other'))"
         },
         "items_specs_object_check": {
           "name": "items_specs_object_check",
@@ -18006,656 +17920,6 @@
         "users_status_check": {
           "name": "users_status_check",
           "value": "\"users\".\"status\" in ('invited', 'active', 'suspended', 'offboarded')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.vendor_contacts": {
-      "name": "vendor_contacts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "vendor_id": {
-          "name": "vendor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "phone_e164": {
-          "name": "phone_e164",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "position": {
-          "name": "position",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "vendor_contacts_vendor_id_vendors_id_fk": {
-          "name": "vendor_contacts_vendor_id_vendors_id_fk",
-          "tableFrom": "vendor_contacts",
-          "tableTo": "vendors",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "vendor_contacts_created_by_principals_id_fk": {
-          "name": "vendor_contacts_created_by_principals_id_fk",
-          "tableFrom": "vendor_contacts",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "vendor_contacts_updated_by_principals_id_fk": {
-          "name": "vendor_contacts_updated_by_principals_id_fk",
-          "tableFrom": "vendor_contacts",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "vendor_contacts_vendor_position_unique": {
-          "name": "vendor_contacts_vendor_position_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "vendor_id",
-            "position"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "vendor_contacts_name_check": {
-          "name": "vendor_contacts_name_check",
-          "value": "length(btrim(\"vendor_contacts\".\"name\")) between 2 and 120"
-        },
-        "vendor_contacts_role_check": {
-          "name": "vendor_contacts_role_check",
-          "value": "\"vendor_contacts\".\"role\" is null or length(\"vendor_contacts\".\"role\") <= 80"
-        },
-        "vendor_contacts_phone_check": {
-          "name": "vendor_contacts_phone_check",
-          "value": "\"vendor_contacts\".\"phone_e164\" is null or \"vendor_contacts\".\"phone_e164\" ~ '^\\+[1-9]\\d{6,14}$'"
-        },
-        "vendor_contacts_email_check": {
-          "name": "vendor_contacts_email_check",
-          "value": "\"vendor_contacts\".\"email\" is null or (length(\"vendor_contacts\".\"email\") <= 254 and \"vendor_contacts\".\"email\" ~ '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')"
-        },
-        "vendor_contacts_position_check": {
-          "name": "vendor_contacts_position_check",
-          "value": "\"vendor_contacts\".\"position\" between 1 and 20"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.vendor_quotes": {
-      "name": "vendor_quotes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "vendor_id": {
-          "name": "vendor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "item_id": {
-          "name": "item_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rate": {
-          "name": "rate",
-          "type": "numeric(14, 4)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "moq": {
-          "name": "moq",
-          "type": "numeric(12, 3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lead_time_days": {
-          "name": "lead_time_days",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "valid_from": {
-          "name": "valid_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "valid_until": {
-          "name": "valid_until",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_id": {
-          "name": "file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recorded_by": {
-          "name": "recorded_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "withdrawn_at": {
-          "name": "withdrawn_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "withdrawn_by": {
-          "name": "withdrawn_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "vendor_quotes_item_idx": {
-          "name": "vendor_quotes_item_idx",
-          "columns": [
-            {
-              "expression": "item_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "vendor_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "vendor_quotes_vendor_idx": {
-          "name": "vendor_quotes_vendor_idx",
-          "columns": [
-            {
-              "expression": "vendor_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "valid_until",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "vendor_quotes_entity_idx": {
-          "name": "vendor_quotes_entity_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "vendor_quotes_file_idx": {
-          "name": "vendor_quotes_file_idx",
-          "columns": [
-            {
-              "expression": "file_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "vendor_quotes_vendor_id_vendors_id_fk": {
-          "name": "vendor_quotes_vendor_id_vendors_id_fk",
-          "tableFrom": "vendor_quotes",
-          "tableTo": "vendors",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "vendor_quotes_item_id_items_id_fk": {
-          "name": "vendor_quotes_item_id_items_id_fk",
-          "tableFrom": "vendor_quotes",
-          "tableTo": "items",
-          "columnsFrom": [
-            "item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "vendor_quotes_entity_id_entities_id_fk": {
-          "name": "vendor_quotes_entity_id_entities_id_fk",
-          "tableFrom": "vendor_quotes",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "vendor_quotes_file_id_files_id_fk": {
-          "name": "vendor_quotes_file_id_files_id_fk",
-          "tableFrom": "vendor_quotes",
-          "tableTo": "files",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "vendor_quotes_recorded_by_principals_id_fk": {
-          "name": "vendor_quotes_recorded_by_principals_id_fk",
-          "tableFrom": "vendor_quotes",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "recorded_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "vendor_quotes_withdrawn_by_principals_id_fk": {
-          "name": "vendor_quotes_withdrawn_by_principals_id_fk",
-          "tableFrom": "vendor_quotes",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "withdrawn_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "vendor_quotes_rate_check": {
-          "name": "vendor_quotes_rate_check",
-          "value": "\"vendor_quotes\".\"rate\" > 0"
-        },
-        "vendor_quotes_moq_check": {
-          "name": "vendor_quotes_moq_check",
-          "value": "\"vendor_quotes\".\"moq\" is null or \"vendor_quotes\".\"moq\" > 0"
-        },
-        "vendor_quotes_lead_time_check": {
-          "name": "vendor_quotes_lead_time_check",
-          "value": "\"vendor_quotes\".\"lead_time_days\" is null or \"vendor_quotes\".\"lead_time_days\" between 0 and 365"
-        },
-        "vendor_quotes_validity_check": {
-          "name": "vendor_quotes_validity_check",
-          "value": "\"vendor_quotes\".\"valid_until\" >= \"vendor_quotes\".\"valid_from\""
-        },
-        "vendor_quotes_withdrawn_check": {
-          "name": "vendor_quotes_withdrawn_check",
-          "value": "(\"vendor_quotes\".\"withdrawn_at\" is null) = (\"vendor_quotes\".\"withdrawn_by\" is null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.vendors": {
-      "name": "vendors",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gstin": {
-          "name": "gstin",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "state_code": {
-          "name": "state_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pan": {
-          "name": "pan",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "address_json": {
-          "name": "address_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "payment_terms_days": {
-          "name": "payment_terms_days",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lead_time_days": {
-          "name": "lead_time_days",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "vendors_gstin_unique": {
-          "name": "vendors_gstin_unique",
-          "columns": [
-            {
-              "expression": "gstin",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"vendors\".\"gstin\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "vendors_name_trgm_idx": {
-          "name": "vendors_name_trgm_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
-        "vendors_active_name_idx": {
-          "name": "vendors_active_name_idx",
-          "columns": [
-            {
-              "expression": "is_active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "vendors_created_by_principals_id_fk": {
-          "name": "vendors_created_by_principals_id_fk",
-          "tableFrom": "vendors",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "vendors_updated_by_principals_id_fk": {
-          "name": "vendors_updated_by_principals_id_fk",
-          "tableFrom": "vendors",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "vendors_name_check": {
-          "name": "vendors_name_check",
-          "value": "length(btrim(\"vendors\".\"name\")) between 2 and 160"
-        },
-        "vendors_gstin_check": {
-          "name": "vendors_gstin_check",
-          "value": "\"vendors\".\"gstin\" is null or (\"vendors\".\"gstin\" ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'\n          and \"vendors\".\"state_code\" = left(\"vendors\".\"gstin\", 2))"
-        },
-        "vendors_state_code_check": {
-          "name": "vendors_state_code_check",
-          "value": "\"vendors\".\"state_code\" is null or \"vendors\".\"state_code\" ~ '^[0-9]{2}$'"
-        },
-        "vendors_pan_check": {
-          "name": "vendors_pan_check",
-          "value": "\"vendors\".\"pan\" is null or (\"vendors\".\"pan\" ~ '^[A-Z]{5}[0-9]{4}[A-Z]$'\n          and (\"vendors\".\"gstin\" is null or \"vendors\".\"pan\" = substr(\"vendors\".\"gstin\", 3, 10)))"
-        },
-        "vendors_address_object_check": {
-          "name": "vendors_address_object_check",
-          "value": "jsonb_typeof(\"vendors\".\"address_json\") = 'object'"
-        },
-        "vendors_payment_terms_check": {
-          "name": "vendors_payment_terms_check",
-          "value": "\"vendors\".\"payment_terms_days\" is null or \"vendors\".\"payment_terms_days\" between 0 and 365"
-        },
-        "vendors_lead_time_check": {
-          "name": "vendors_lead_time_check",
-          "value": "\"vendors\".\"lead_time_days\" is null or \"vendors\".\"lead_time_days\" between 0 and 365"
-        },
-        "vendors_notes_check": {
-          "name": "vendors_notes_check",
-          "value": "\"vendors\".\"notes\" is null or length(\"vendors\".\"notes\") <= 2000"
         }
       },
       "isRLSEnabled": false
