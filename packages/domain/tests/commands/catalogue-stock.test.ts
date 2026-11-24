@@ -22,7 +22,10 @@ const tag = newId().slice(-8).toUpperCase();
 let seq = 0;
 const next = () => String((seq += 1));
 const sku = () => `T-${tag}-C5-${next()}`;
-const barcode = () => `BC${tag}${next()}`;
+// A barcode with no digit run of its own: the audit redactor masks a ten-digit run that starts 6 to 9
+// as a phone, and an all-digit tag with the counter can make one.
+const barcodeTag = tag.replace(/\d/g, (digit) => 'GHIJKLMNOP'.charAt(Number(digit)));
+const barcode = () => `BC${barcodeTag}${next()}`;
 
 const cableInput = () => ({
   sku: sku(),
