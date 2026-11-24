@@ -1,23 +1,9 @@
-import {
-  AudioLines,
-  Boxes,
-  Building2,
-  CalendarCheck,
-  Check,
-  Contact,
-  FileText,
-  HardHat,
-  Inbox,
-  IndianRupee,
-  type LucideIcon,
-  PhoneCall,
-  Smartphone,
-} from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Logo } from '../../components/brand/logo';
+import { LineIcon, type LineIconName } from '../../components/landing/line-icon';
 
 /**
  * The public root: what Shakti Prime does across its whole plan, for the staff of the Shakti
@@ -74,19 +60,19 @@ const BOARD = [
 const COMPANIES = ['supreme', 'motorPumps', 'agroSolar', 'rcref'] as const;
 /** The three parts shown with a picture: the ones the staff use most, and the assistants. */
 const FEATURED = [
-  { key: 'leads', icon: PhoneCall },
-  { key: 'quotes', icon: FileText },
-  { key: 'assistants', icon: Inbox },
-] as const satisfies readonly { key: string; icon: LucideIcon }[];
+  { key: 'leads', icon: 'phoneCall' },
+  { key: 'quotes', icon: 'fileText' },
+  { key: 'assistants', icon: 'inbox' },
+] as const satisfies readonly { key: string; icon: LineIconName }[];
 /** The rest of what the system does, across the whole plan. */
 const MORE = [
-  { key: 'customers', icon: Contact },
-  { key: 'stock', icon: Boxes },
-  { key: 'projects', icon: HardHat },
-  { key: 'field', icon: Smartphone },
-  { key: 'finance', icon: IndianRupee },
-  { key: 'team', icon: CalendarCheck },
-] as const satisfies readonly { key: string; icon: LucideIcon }[];
+  { key: 'customers', icon: 'contact' },
+  { key: 'stock', icon: 'boxes' },
+  { key: 'projects', icon: 'hardHat' },
+  { key: 'field', icon: 'smartphone' },
+  { key: 'finance', icon: 'indianRupee' },
+  { key: 'team', icon: 'calendarCheck' },
+] as const satisfies readonly { key: string; icon: LineIconName }[];
 
 const WIDTH = 'mx-auto w-full max-w-detail px-4 md:px-6';
 const SECTION_HEADING = 'text-h1 md:text-display tracking-[-0.01em] text-balance';
@@ -226,7 +212,7 @@ function QueuePicture() {
               i === 0 ? 'bg-accent text-accent-fg' : 'bg-surface-2 text-text-subtle'
             }`}
           >
-            <PhoneCall className="size-3.5" />
+            <LineIcon name="phoneCall" className="size-3.5" />
           </span>
         </span>
       ))}
@@ -250,7 +236,7 @@ async function QuotePicture() {
         <span className="bg-accent block h-2.5 w-16 rounded-full" />
       </span>
       <span className="bg-success-soft text-success text-caption inline-flex items-center gap-1.5 self-end rounded-sm px-2 py-1 font-medium">
-        <Check className="size-3.5" />
+        <LineIcon name="check" className="size-3.5" />
         {orders('state.confirmed')}
       </span>
     </div>
@@ -263,7 +249,7 @@ async function AssistantPicture() {
   return (
     <div className={`${PANEL} gap-3`}>
       <span className="text-caption text-text-muted flex items-center gap-1.5 font-medium">
-        <Inbox className="text-accent-text size-3.5" />
+        <LineIcon name="inbox" className="text-accent-text size-3.5" />
         {nav('inbox')}
       </span>
       <span className="bg-surface border-border flex flex-col gap-2 rounded-md border p-3">
@@ -275,7 +261,7 @@ async function AssistantPicture() {
         </span>
       </span>
       <span className="bg-accent-soft text-accent-text text-caption inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1.5 font-medium">
-        <AudioLines className="size-3.5" />
+        <LineIcon name="audioLines" className="size-3.5" />
         {nav('voice')}
       </span>
     </div>
@@ -290,12 +276,12 @@ const PICTURES = {
 
 /** One thing the system does: its icon, its name and a sentence, spaced the same everywhere. */
 function Feature({
-  icon: Icon,
+  icon,
   heading,
   body,
   large = false,
 }: {
-  icon: LucideIcon;
+  icon: LineIconName;
   heading: ReactNode;
   body: string;
   large?: boolean;
@@ -303,8 +289,8 @@ function Feature({
   return (
     <div className="flex flex-col">
       <div className="flex items-start gap-3 sm:flex-col sm:gap-4">
-        <Icon
-          aria-hidden
+        <LineIcon
+          name={icon}
           className={`text-accent-text size-5 shrink-0 sm:mt-0 ${large ? 'mt-1' : 'mt-0.5'}`}
         />
         <h3 className={`text-balance ${large ? 'text-h2' : 'text-h3'}`}>{heading}</h3>
@@ -388,7 +374,7 @@ export default async function HomePage() {
             <ul className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-x-6 gap-y-3 sm:flex sm:flex-wrap sm:gap-x-8">
               {COMPANIES.map((company) => (
                 <li key={company} className="text-h3 flex items-center gap-2" translate="no">
-                  <Building2 aria-hidden className="text-accent-text size-5 shrink-0" />
+                  <LineIcon name="building" className="text-accent-text size-5 shrink-0" />
                   {t(`companies.${company}`)}
                 </li>
               ))}
