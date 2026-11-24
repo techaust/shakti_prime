@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the notifications worker's push sender |
 | Usage | 5-hour window 0 % at 17:40 UTC when briefed; builder on Opus 5.5 at high effort from start to done (recorded at start and at the report, 23-11-2026) |
-| State | built; the notifications journey still to run on the PC |
-| Next step | the lead's review, and the notifications journey on the PC |
+| State | merged (#283) |
+| Next step | none |
 
 ## Brief
 `web-push` 4.0.0 (published 06-11-2026, past the two-week rule) is a major: the package moved to ESM and to class syntax. The merge workflow never merges a Dependabot major, so the bump comes in this branch, and Dependabot closes #255 itself once it merges.

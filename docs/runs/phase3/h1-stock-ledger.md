@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the stock ledger, its costs and row security |
 | Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (cloud session, 23-11-2026) |
-| State | integrated; pull request open, waiting for the owner's `checks-ok` |
-| Next step | the owner's `checks-ok` (`js-budget.json` and the root `lint` script), then the merge and the hosted migration |
+| State | merged (#287) |
+| Next step | none |
 
 ## Brief
 Build [phase3 §5](../../03-roadmap-appendix/phase3.md#5-the-stock-model) and [§6.2](../../03-roadmap-appendix/phase3.md#62-h1-hubs-bins-and-the-stock-ledger) as written. Every later slice of Phase 3 moves stock through what you build, so its shape matters more than its screens. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
