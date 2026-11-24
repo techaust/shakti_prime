@@ -43,6 +43,10 @@ const fixed = {
   info: { light: '#0369A1', dark: '#38BDF8' },
   'info-soft': { light: '#E0F2FE', dark: '#0C2A3D' },
   rose: { light: '#BE185D', dark: '#F472B6' },
+  /** The Spark S logo's upper half and "Prime": the accent on light, a lighter step on dark. */
+  brand: { light: '#5E6AD2', dark: '#8A91F6' },
+  /** The Spark S logo's lower half: a deeper step than `brand` in each theme. */
+  'brand-deep': { light: '#323C9C', dark: '#5E6AD2' },
 } as const;
 
 type FixedToken = keyof typeof fixed;
@@ -176,6 +180,8 @@ export const scale = {
   radius: { sm: 4, md: 6, lg: 8, xl: 12 },
   fontWeight,
   font: {
+    /** The public landing page's headline from `md` up; below it the page uses `display`. */
+    hero: { size: 48, line: 52, weight: fontWeight.semibold },
     display: { size: 30, line: 36, weight: fontWeight.semibold },
     h1: { size: 24, line: 32, weight: fontWeight.semibold },
     h2: { size: 20, line: 28, weight: fontWeight.semibold },

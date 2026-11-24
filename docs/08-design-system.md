@@ -55,6 +55,8 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 | `--accent-fg` | `#FFFFFF` in both themes (4.7:1 on `#5E6AD2`); in the dark high-contrast variant the lighter accent fill takes the page's near-black `#08090A`, because white on it would fall below the variant's 7:1 | Text on accent fills |
 | `--accent-soft` | Accent at low chroma, near the base, deep enough in dark for `--text-muted` on it to reach AA | Accent tints, selected rows |
 | `--focus` | Accent | Focus ring (2 px, offset 2 px) |
+| `--brand` | Fixed: `#5E6AD2` (the accent) in light, `#8A91F6` in dark | The Spark S logo's upper half and "Prime" (`apps/web/src/components/brand/logo.tsx`, the files in `apps/web/public/brand`); nothing else |
+| `--brand-deep` | Fixed: `#323C9C` in light, `#5E6AD2` in dark | The Spark S logo's lower half, so each theme's logo uses exactly two indigos; nothing else |
 
 ### 2.3 Status
 Status colours are fixed hues, not generated, and pass the same contrast check.
@@ -85,6 +87,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 ## 3. Typography
 | Role | Family | Size / line height | Weight |
 |---|---|---|---|
+| Hero | Inter, display optical size | 48 / 52 | 590 |
 | Display | Inter, display optical size | 30 / 36 | 590 |
 | H1 | Inter, display optical size | 24 / 32 | 590 |
 | H2 | Inter, display optical size | 20 / 28 | 590 |
@@ -136,7 +139,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Caller workspace | Keyboard-first: number keys for dispositions, `N` next lead, `D` dial, `/` search. Phase 1 (built). |
 | Scheduling board | Day/week columns per engineer; conflicts outlined in `--danger`; unassigned queue on the right; map toggle. Phase 4 (planned). |
 | Print templates | Light theme only, entity letterhead, A4 with 15 mm margins, Inter embedded, QR block bottom-right. |
-| Public landing page | The root of the domain: product name, one line on what it does, and a "Staff sign in" button to `/sign-in`, which forwards a signed-in user to `/home`. The page reads no session and follows the visitor's system theme. |
+| Public landing page | The root of the domain, for the group's staff, written to stay true without edits: a header with the logo and "Staff sign in"; a hero (Hero size from `md`, Display below) with the way in and a picture of the leads board drawn from the app's own menu, stage, button and search words, with no invented records; the four companies, each with a company icon; "What you can do in Shakti Prime", the whole plan of blueprint §2 in nine parts, three of them (leads and calling, quotes and orders, the assistants with Talk to Shakti) as cards with a picture from `md`, using the menu's own icons; a closing sign-in; and a footer with the developer's credit, whose copyright year is always the current one (the landing journey masks it). One card style, one icon treatment, and the same primary button wherever "Staff sign in" is the main action. Every "Staff sign in" goes to `/sign-in`, which forwards a signed-in user to `/home`. Server text only, no script; the page reads no session and follows the visitor's theme. |
 
 ### Returning focus from a dialog
 For a dialog opened from a menu item, focus returns to the menu's button (a card's or a row's Actions button). Such a dialog names its places through `returnFocusTo` on `DialogContent` or `SheetContent` with `useFocusTargets` (`packages/ui/src/return-focus.ts`), with a fallback such as the column heading when the button has moved out of sight, so focus never falls to the page. A place that is hidden, disabled, inside an `inert` part of the page or not focusable is passed over (an `aria-disabled` control still counts); when no place takes focus, Radix returns it as it would anyway.

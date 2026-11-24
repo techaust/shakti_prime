@@ -17,7 +17,8 @@ test('the public landing page leads to sign-in', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expectNoAxeViolations(page);
-  await snap(page, 'landing');
+  // The footer's copyright year changes each January, so the picture masks it.
+  await snap(page, 'landing', { mask: [page.locator('[data-year]')] });
   await page.getByRole('link', { name: 'Staff sign in' }).first().click();
   await expect(page).toHaveURL(/\/sign-in$/);
 });
