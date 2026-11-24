@@ -4,14 +4,30 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ## Contents
 
+- [Phase 3](#phase-3): [wave 1](#phase-3-wave-1)
 - [Phase 2](#phase-2): [wave 4](#phase-2-wave-4) · [wave 3](#phase-2-wave-3) · [wave 2](#phase-2-wave-2) · [wave 1](#phase-2-wave-1)
 - [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 6 and the Phase 0–1 audit](#phase-1-wave-6-and-the-phase-01-audit) · [wave 5](#phase-1-wave-5) · [wave 4](#phase-1-wave-4) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
 - [Phase 0](#phase-0): [hosted environments and the close](#phase-0-hosted-environments-and-the-close) · [gap-closing waves](#phase-0-gap-closing-waves) · [completeness pass and tooling](#phase-0-completeness-pass-and-tooling) · [weeks 4 to 8](#phase-0-weeks-4-to-8) · [weeks 1 to 3](#phase-0-weeks-1-to-3) · [production-readiness audit](#phase-0-production-readiness-audit) · [before pull requests](#phase-0-before-pull-requests)
+
+## Phase 3
+
+### Phase 3 wave 1
+
+- **#287** (24-11-2026) H1 hubs, bins and the stock ledger: `warehouses` shared by the group and `bins` with their commands (a godown or factory gets its receiving and dispatch bins, the transit hub one bin per pair of hubs); `stock_movements` and `stock_movement_costs` append-only, `stock_balances` and `serials`, written only by the definer `app.stock_move()`, which locks in a fixed order, keeps a moving average per company and item and runs the `serial` machine; `inventory.stock.transfer`, `.adjust` (gain, loss or damage, with a reason) and `.reverse` (within 7 days), with `inventory.stock.moved`, which never carries a cost; the `opening_stock` import kind, hidden from anyone without `finance.cost.read`, rolled back as one job; `/inventory/stock`, the stock card, `/inventory/hubs`, a serial's page and `/inventory/valuation`; migrations 0230 and 0231
+- **#286** (24-11-2026) C5 catalogue for stock: `items` gains the customer and supplier warranties, a barcode unique where set, the purchase unit and its factor, a serial pattern in a safe part of regular expressions and `is_stocked`, each rule a database check and the same rule in the contract; specifications for cable, pipe, inverter, battery and structure; the `items` import kind from All companies; the item sheet's Stock and warranty section and Import items; migration 0229
+- **#285** (23-11-2026) Five open follow-ups: a test for vendor-looking variables in `.env.example`; the axe check waits until the page is still; `duplicate-scan.test.ts` independent of other runs' rows; the runtime QStash client gets an address when `QSTASH_URL` is blank; `jobs-check.test.ts` runs the outbox purge itself
+- **#284** (24-11-2026) `integrate.sh` lints in four parts (`apps`, `packages`, `tools`, the root files), each within the 6 GB heap, so a whole-repository lint fits the PC's 8 GB
+- **#283** (23-11-2026) `web-push` 4.0.0, the major of Dependabot #255; `push.ts` needed no change
+- **#282** (23-11-2026) `alert-counts.test.ts` passes at every time of day: its voice sessions start no earlier than the day's start in India, with a case for days that began 5 minutes, 3 hours and 2 minutes earlier
+- **#281** (23-11-2026) The Phase 3 design, approved: inventory and procurement in 12 slices and four waves, its eleven questions each decided as the recommended option
+- **#280** (23-11-2026) Development dependencies: `@vitest/coverage-v8`, `turbo`, `vitest` and `fast-check`, minor and patch
+- **#279** (23-11-2026) Production dependencies, 14 minor and patch bumps (`@livekit/agents` 1.10.1, the AWS clients, `@sentry/nextjs`, `better-auth`, `livekit-client`, `lucide-react` among them)
 
 ## Phase 2
 
 ### Phase 2 wave 4
 
+- **#278** (20-11-2026) The day's documents after Phase 2 closed: `CLAUDE.md`, the skills, the agents and the runbooks name each phase's run files as `docs/runs/phase<N>/`; the tele-caller's click-to-dial journeys run one after another
 - **#277** (20-11-2026) Phase 2 closed on its engineering work by the owner's decision: `currentPhase` 3; the run on the Exotel sandbox and the voice latency on dev carried as open follow-ups; the live items are Phase 7's
 - **#276** (20-11-2026) Status, CHANGELOG and decisions after wave 4; the six run files merged; dev and staging through 0228
 - **#275** (20-11-2026) G2 measures, run and recorded under "Measured (G2)" in `docs/04-architecture-appendix/` with each run's raw report: webhooks at 20, 50 and 100 deliveries a second on all six providers, every delivery answered 200 and stored once, p99 well under the 2-second budget; a Lead Ads lead to a caller in at most 515 ms (target 10 s); the dial accepted at p95 201 ms on the simulated provider (target 2 s); the screen-pop by the 3-second poll missed (the poll's own wait; Realtime on dev is the measure); the outbox's batch of 200 against a local stand-in; voice timed on a fake room for the 1,100 ms of §9.3 that need no vendor. The measuring server runs with every vendor credential removed, a hosted run needs `--hosted-run-approved`, and a dial off the PC needs `G2_DIAL_LEAD_PHONE`, never a made-up number.
