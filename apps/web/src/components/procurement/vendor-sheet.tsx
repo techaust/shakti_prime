@@ -236,14 +236,14 @@ export function VendorSheet({
                       </p>
                       {c.phone === null ? null : (
                         <p className="tabular-nums">
-                          <a className="text-accent underline" href={`tel:${c.phone}`}>
+                          <a className="text-accent-text underline" href={`tel:${c.phone}`}>
                             {formatPhone(c.phone)}
                           </a>
                         </p>
                       )}
                       {c.email === null ? null : (
                         <p className="break-all">
-                          <a className="text-accent underline" href={`mailto:${c.email}`}>
+                          <a className="text-accent-text underline" href={`mailto:${c.email}`}>
                             {c.email}
                           </a>
                         </p>

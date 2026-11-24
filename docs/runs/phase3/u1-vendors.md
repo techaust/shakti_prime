@@ -413,3 +413,10 @@ The fix round on the Review of commit 8c3f9912 (seat 2), started from `b82b2aa2`
 - **Migrations:** now 0229 to 0236. The new ones are 0234 (group quote documents), 0235 and 0236 (import undo).
 - **Shared code touched in this round:** `run-command.ts` (L10), `catalogue/item-picker.tsx` (optional `error`), `imports/*`, `commit-job.ts`, `rollback-job.ts`, `preview-job.ts`, `audit.ts` (`restored`), `en.json`, `e2e/setup/procurement.ts`. The `files` matrix rule is in `role-entity-matrix.test.ts`.
 - **Still needs the owner's `checks-ok`:** `js-budget.json`, including the `/procurement` value above.
+
+## Lead's journey run (before integration)
+Lead, 24-11-2026, on the PC, on the branch before `main` is taken in (it waits for H1, so the import kinds of C5, H1 and U1 meet in one merge). The whole journey suite ran once on a fresh database: 597 passed, 21 skipped; only `procurement.spec.ts` failed. Fixed:
+- the Item and Company labels also matched longer labels (the vendor's item code, the preferred checkbox, the company switcher): now exact;
+- the vendor sheet's phone and email links failed axe's contrast in dark (`text-accent`, 4.03 to 1): now `text-accent-text`, as every other link (a product fix);
+- the comparison is items down, vendors across, and earlier runs' vendors quote the same rate for the same item: the rate is asserted once.
+`procurement.spec.ts`: 36 of 36 in desktop-light, desktop-dark and phone. No Linux baseline made yet: they are made after the merge with `main`.

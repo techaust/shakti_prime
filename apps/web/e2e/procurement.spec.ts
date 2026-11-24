@@ -78,7 +78,7 @@ test.describe('as the Inventory Manager of company 1', () => {
 
     await sheet.getByRole('button', { name: 'Add item' }).click();
     const itemForm = page.getByRole('dialog', { name: `An item ${name} supplies` });
-    await itemForm.getByLabel('Item').fill('cable 4');
+    await itemForm.getByLabel('Item', { exact: true }).fill('cable 4');
     await itemForm.getByRole('button', { name: 'Choose Solar cable 4 sq mm' }).click();
     await itemForm.getByLabel('Preferred vendor for this item').check();
     await expectNoAxeViolations(page);
@@ -108,7 +108,9 @@ test.describe('as the Inventory Manager of company 1', () => {
       .or(page.getByRole('list', { name: 'Quotes by item and vendor' }))
       .filter({ visible: true });
     await expect(table.getByText(name)).toBeVisible();
-    await expect(table.getByText('₹64.75')).toBeVisible();
+    // Items down, vendors across: this run's vendor is a column, and earlier runs' vendors quoted
+    // the same rate for the same item, so the rate shows once per run.
+    await expect(table.getByText('₹64.75').first()).toBeVisible();
     await expectNoAxeViolations(page);
   });
 });
@@ -156,7 +158,7 @@ test.describe('as the Inventory Manager of company 1, on the vendor the managers
 
     await sheet.getByRole('button', { name: 'Record quote' }).click();
     const quote = page.getByRole('dialog', { name: `Record a quote from ${name}` });
-    await quote.getByLabel('Item').fill('cable 4');
+    await quote.getByLabel('Item', { exact: true }).fill('cable 4');
     await quote.getByRole('button', { name: 'Choose Solar cable 4 sq mm' }).click();
     await quote.getByLabel('Rate per unit before GST').fill('66');
     await quote.getByLabel('Valid from').fill(dmy(0));
@@ -212,7 +214,7 @@ test.describe('as an Executive acting for every company', () => {
     await sheet.getByRole('button', { name: 'Record quote' }).click();
     const quote = page.getByRole('dialog', { name: `Record a quote from ${name}` });
     await expect(quote.getByLabel('Quoted to')).toHaveValue('null');
-    await quote.getByLabel('Item').fill('cable 4');
+    await quote.getByLabel('Item', { exact: true }).fill('cable 4');
     await quote.getByRole('button', { name: 'Choose Solar cable 4 sq mm' }).click();
     await quote.getByLabel('Rate per unit before GST').fill('68.5');
     await quote.getByLabel('Valid from').fill(dmy(30));
@@ -272,7 +274,7 @@ test.describe('as an Executive', () => {
     await page.goto('/procurement/compare');
     await expect(page.getByRole('heading', { name: 'Compare quotes', level: 1 })).toBeVisible();
     await showCompany(page, 'All companies');
-    const company = await hydrated(page.getByLabel('Company'));
+    const company = await hydrated(page.getByLabel('Company', { exact: true }));
     await company.selectOption(String(SNAPSHOT_COMPANY.entityId));
     const table = page
       .getByRole('region', { name: 'Quotes by item and vendor' })
