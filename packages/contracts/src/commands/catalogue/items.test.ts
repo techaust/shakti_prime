@@ -11,6 +11,91 @@ const pump = {
   specs: { hp: 5, kw: 3.7, phase: 'three', pumpType: 'submersible', outletMm: 65, maxHeadM: 90 },
 };
 
+describe('CreateItemInput stock and warranty (C5)', () => {
+  const cable = {
+    sku: 'CB-4C-2.5',
+    name: 'Cable 4 core 2.5 sq mm',
+    category: 'cable',
+    hsn: '8544',
+    unit: 'metre',
+    specs: {},
+  };
+
+  it('leaves every new field unset by default, and the item in stock', () => {
+    const parsed = CreateItemInput.parse(cable);
+    expect(parsed).toMatchObject({
+      warrantyMonths: null,
+      supplierWarrantyMonths: null,
+      barcode: null,
+      purchaseUnit: null,
+      purchaseUnitFactor: null,
+      serialPattern: null,
+      isStocked: true,
+    });
+  });
+
+  it('holds warranty months from 0 to 360', () => {
+    for (const months of [0, 12, 360]) {
+      expect(CreateItemInput.safeParse({ ...cable, warrantyMonths: months }).success).toBe(true);
+    }
+    for (const months of [-1, 361, 1.5]) {
+      expect(CreateItemInput.safeParse({ ...cable, supplierWarrantyMonths: months }).success).toBe(
+        false,
+      );
+    }
+  });
+
+  it('takes a barcode of 4 to 64 printable characters without spaces', () => {
+    for (const barcode of ['8901234567890', 'AB-12', '~!@#']) {
+      expect(CreateItemInput.safeParse({ ...cable, barcode }).success).toBe(true);
+    }
+    for (const barcode of ['ABC', 'AB 123', 'A'.repeat(65), 'ÄBCD']) {
+      expect(CreateItemInput.safeParse({ ...cable, barcode }).success).toBe(false);
+    }
+  });
+
+  it('needs a factor of at least 1 for a purchase unit other than the stock unit', () => {
+    const coil = { ...cable, purchaseUnit: 'nos', purchaseUnitFactor: '100' };
+    expect(CreateItemInput.safeParse(coil).success).toBe(true);
+    expect(CreateItemInput.safeParse({ ...coil, purchaseUnitFactor: null }).success).toBe(false);
+    expect(CreateItemInput.safeParse({ ...coil, purchaseUnitFactor: '0.5' }).success).toBe(false);
+    expect(CreateItemInput.safeParse({ ...coil, purchaseUnitFactor: '2.1234' }).success).toBe(
+      false,
+    );
+    expect(CreateItemInput.safeParse({ ...coil, purchaseUnit: 'metre' }).success).toBe(false);
+    expect(
+      CreateItemInput.safeParse({ ...coil, purchaseUnit: 'metre', purchaseUnitFactor: '1' })
+        .success,
+    ).toBe(true);
+    expect(
+      CreateItemInput.safeParse({ ...coil, purchaseUnit: 'metre', purchaseUnitFactor: null })
+        .success,
+    ).toBe(true);
+    expect(CreateItemInput.safeParse({ ...cable, purchaseUnitFactor: '10' }).success).toBe(false);
+    expect(CreateItemInput.safeParse({ ...coil, purchaseUnit: 'roll' }).success).toBe(false);
+  });
+
+  it('keeps a serial pattern only on a serial-tracked item, and only one that is safe', () => {
+    const tracked = { ...pump, isSerialTracked: true };
+    expect(CreateItemInput.safeParse({ ...tracked, serialPattern: 'SP[0-9]{8}' }).success).toBe(
+      true,
+    );
+    expect(CreateItemInput.safeParse({ ...pump, serialPattern: 'SP[0-9]{8}' }).success).toBe(false);
+    for (const serialPattern of ['SP[0-9', '[0-9]*', '(a+)+', 'A'.repeat(201)]) {
+      const parsed = CreateItemInput.safeParse({ ...tracked, serialPattern });
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues[0]?.path).toEqual(['serialPattern']);
+    }
+  });
+
+  it('leaves only an Other item without serials out of stock', () => {
+    const labour = { ...cable, category: 'other', unit: 'hour', isStocked: false };
+    expect(CreateItemInput.safeParse(labour).success).toBe(true);
+    expect(CreateItemInput.safeParse({ ...labour, isSerialTracked: true }).success).toBe(false);
+    expect(CreateItemInput.safeParse({ ...cable, isStocked: false }).success).toBe(false);
+  });
+});
+
 describe('CreateItemInput', () => {
   it('takes a pump with its specifications and writes the code in capitals', () => {
     const parsed = CreateItemInput.parse(pump);

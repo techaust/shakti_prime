@@ -14,6 +14,7 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { listItems } from '../../actions/catalogue';
 import { ITEM_CATEGORIES, ITEM_SORT_COLUMNS } from '../../screens/contract-values';
@@ -44,9 +45,12 @@ interface Filters {
 export function ItemsScreen({
   initialPage,
   canWrite,
+  canImport,
 }: {
   initialPage: ItemPageDto;
   canWrite: boolean;
+  /** Offers Import items beside the grid: `catalogue.write` and `imports.write`, for every company. */
+  canImport: boolean;
 }) {
   const t = useTranslations('catalogue');
   const common = useTranslations('common');
@@ -222,15 +226,21 @@ export function ItemsScreen({
           {t('showArchivedItems')}
         </label>
         {canWrite ? (
-          <Button
-            ref={addButton}
-            className="md:ml-auto"
-            onClick={() => {
-              setAdding(true);
-            }}
-          >
-            {t('addItem')}
-          </Button>
+          <div className="flex flex-wrap gap-2 md:ml-auto">
+            {canImport ? (
+              <Button asChild variant="secondary">
+                <Link href="/imports/new?kind=items">{t('importItems')}</Link>
+              </Button>
+            ) : null}
+            <Button
+              ref={addButton}
+              onClick={() => {
+                setAdding(true);
+              }}
+            >
+              {t('addItem')}
+            </Button>
+          </div>
         ) : null}
       </div>
       <FailureMessage failure={failure} />

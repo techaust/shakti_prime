@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { HsnSchema, ItemCategorySchema, ItemUnitSchema } from '../../catalogue/enums';
-import { parseItemSpecs } from '../../catalogue/specs';
+import { serialPatternProblem } from '../../catalogue/serial-pattern';
+import { mayBeUnstocked, parseItemSpecs } from '../../catalogue/specs';
 import { IdSchema } from '../../ids';
 import { QuantitySchema } from '../../tax/engine';
 
@@ -12,6 +13,25 @@ export const SkuSchema = z
   .regex(/^[A-Z0-9][A-Z0-9\-_/.]{0,39}$/);
 
 const ItemName = z.string().trim().min(2).max(120);
+
+/** Months of a warranty: 0 to 30 years. */
+export const WarrantyMonthsSchema = z.number().int().min(0).max(360);
+
+/** A supplier's barcode as a scanner sends it: 4 to 64 printable characters, no spaces. */
+export const BarcodeSchema = z
+  .string()
+  .trim()
+  .regex(/^[!-~]{4,64}$/);
+
+/** Stock units in one purchase unit (`numeric(12,3)`): at least 1, up to three decimals. */
+export const PurchaseUnitFactorSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{1,9}(\.\d{1,3})?$/)
+  .refine((v) => Number(v) >= 1, { message: 'at least 1' });
+
+/** The longest serial pattern an item keeps. */
+export const SERIAL_PATTERN_MAX = 200;
 
 /** The fields of an item a person edits; the create and update inputs share them. */
 const itemFields = {
@@ -26,17 +46,100 @@ const itemFields = {
   /** The module's ALMM listing, for solar modules only. */
   almmRef: z.string().trim().min(1).max(60).optional(),
   specs: z.record(z.string(), z.unknown()),
+  ...stockFields(),
 };
+
+/**
+ * Stock and warranty (phase3 §6.1, C5), each null when not set. The database holds the same rules
+ * (`items_*_check`): months from 0 to 360, a barcode of 4 to 64 printable characters without
+ * spaces, a purchase unit from the unit list with its factor of at least 1, a serial pattern of at
+ * most 200 characters on a serial-tracked item only, and only an Other item left out of stock.
+ */
+function stockFields() {
+  return {
+    warrantyMonths: WarrantyMonthsSchema.nullable().default(null),
+    supplierWarrantyMonths: WarrantyMonthsSchema.nullable().default(null),
+    barcode: BarcodeSchema.nullable().default(null),
+    purchaseUnit: ItemUnitSchema.nullable().default(null),
+    purchaseUnitFactor: PurchaseUnitFactorSchema.nullable().default(null),
+    serialPattern: z.string().trim().min(1).max(SERIAL_PATTERN_MAX).nullable().default(null),
+    isStocked: z.boolean().default(true),
+  };
+}
 
 interface ItemFields {
   category: z.infer<typeof ItemCategorySchema>;
+  unit: z.infer<typeof ItemUnitSchema>;
+  isSerialTracked: boolean;
   isDcr: boolean;
   almmRef?: string | undefined;
   specs: Record<string, unknown>;
+  purchaseUnit: z.infer<typeof ItemUnitSchema> | null;
+  purchaseUnitFactor: string | null;
+  serialPattern: string | null;
+  isStocked: boolean;
+}
+
+/**
+ * The stock rules across fields, as `items_purchase_factor_check`, `items_serial_pattern_check`
+ * and `items_stocked_check` hold them: a factor only with a purchase unit, required when that
+ * unit differs from the stock unit and 1 when it is the same; a pattern that compiles, never
+ * matches an empty serial, and belongs to a serial-tracked item; only an Other item without
+ * serials left out of stock.
+ */
+function checkStock(value: ItemFields, ctx: z.RefinementCtx): void {
+  const { purchaseUnit, purchaseUnitFactor: factor } = value;
+  if (purchaseUnit === null && factor !== null) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'a factor needs a purchase unit',
+      path: ['purchaseUnitFactor'],
+    });
+  }
+  if (purchaseUnit !== null && purchaseUnit !== value.unit && factor === null) {
+    ctx.addIssue({ code: 'custom', message: 'a factor is required', path: ['purchaseUnitFactor'] });
+  }
+  if (
+    purchaseUnit !== null &&
+    purchaseUnit === value.unit &&
+    factor !== null &&
+    Number(factor) !== 1
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'the same unit has a factor of 1',
+      path: ['purchaseUnitFactor'],
+    });
+  }
+  if (value.serialPattern !== null) {
+    if (!value.isSerialTracked) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'a pattern needs serial tracking',
+        path: ['serialPattern'],
+      });
+    }
+    const problem = serialPatternProblem(value.serialPattern);
+    if (problem !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `serial pattern ${problem}`,
+        path: ['serialPattern'],
+      });
+    }
+  }
+  if (!value.isStocked && (!mayBeUnstocked(value.category) || value.isSerialTracked)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'only an Other item without serials',
+      path: ['isStocked'],
+    });
+  }
 }
 
 /** The specifications must fit the category, and DCR and ALMM belong to solar modules. */
 function checkItem(value: ItemFields, ctx: z.RefinementCtx): void {
+  checkStock(value, ctx);
   const parsed = parseItemSpecs(value.category, value.specs);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {

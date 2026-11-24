@@ -60,6 +60,7 @@ import {
   ImportRowStateSchema,
   ItemCategorySchema,
   ItemUnitSchema,
+  NON_STOCK_CATEGORIES,
   LeadChannelSchema,
   OpportunityStateSchema,
   PrincipalKindSchema,
@@ -161,6 +162,9 @@ const PAIRS: Record<string, readonly string[]> = {
   lead_score_rules_factor_check: ScoreFactorSchema.options,
   lead_score_rules_segment_check: SegmentSchema.options,
   items_category_check: ItemCategorySchema.options,
+  // C5: a purchase unit is one of the units; only a category that may be a service leaves stock.
+  items_purchase_unit_check: ItemUnitSchema.options,
+  items_stocked_check: NON_STOCK_CATEGORIES,
   lead_sources_channel_check: LeadChannelSchema.options,
   opportunities_state_check: OpportunityStateSchema.options,
   opportunities_retention_kept_reason_check: LEAD_RETENTION_KEPT_REASONS,
