@@ -25,6 +25,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [agents](#agents)
   - [calls](#calls)
   - [sales](#sales)
+  - [procurement](#procurement)
 - [Payloads](#payloads)
 
 ## Rules
@@ -50,7 +51,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-58 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+63 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -189,6 +190,16 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
 | [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. | `sales.order.cancel` | none |
 | [`sales.commission.accrued`](#salescommissionaccrued) | A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day. | `sales.order.confirm` | none |
+
+### procurement
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`procurement.vendor.created`](#procurementvendorcreated) | A vendor was added to the group’s vendor master. | `procurement.vendor.create`, `imports.job.commit_batch` | none |
+| [`procurement.vendor.updated`](#procurementvendorupdated) | A vendor's details, people or items supplied changed; `part` names which. | `procurement.vendor.update`, `procurement.vendor.contact.set`, `procurement.item_vendor.set`, `imports.job.commit_batch`, `imports.job.rollback` | none |
+| [`procurement.vendor.archived`](#procurementvendorarchived) | A vendor left the active vendor list; its quotes stay on record. | `procurement.vendor.archive` | none |
+| [`procurement.quote.recorded`](#procurementquoterecorded) | A supplier's quote for an item was recorded, for one company or the group; the rate stays in the quote. | `procurement.quote.record` | none |
+| [`procurement.quote.withdrawn`](#procurementquotewithdrawn) | A supplier's quote was withdrawn before it ended. | `procurement.quote.withdraw` | none |
 
 ## Payloads
 
@@ -415,7 +426,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
 | `committedRows` | whole number from 0 |
 | `batches` | whole number from 1 |
 
@@ -423,7 +434,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
 | `committedRows` | whole number from 0 |
 | `failedBatch` | whole number from 1 |
 
@@ -437,14 +448,14 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
 | `rolledBackRows` | whole number from 0 |
 
 ### files.file.uploaded
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript`, `vendor_quote` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
@@ -619,3 +630,34 @@ No fields apart from `v`.
 | `orderId` | id |
 | `partnerId` | id |
 | `ruleId` | id |
+
+### procurement.vendor.created
+
+No fields apart from `v`.
+
+### procurement.vendor.updated
+
+| Field | Type |
+|---|---|
+| `part` | one of `details`, `contacts`, `items` |
+| `itemId` | id (optional) |
+
+### procurement.vendor.archived
+
+No fields apart from `v`.
+
+### procurement.quote.recorded
+
+| Field | Type |
+|---|---|
+| `vendorId` | id |
+| `itemId` | id |
+| `forGroup` | true or false |
+
+### procurement.quote.withdrawn
+
+| Field | Type |
+|---|---|
+| `vendorId` | id |
+| `itemId` | id |
+| `forGroup` | true or false |

@@ -269,6 +269,14 @@ const ACTIONS = {
   'auth.password.change': 'passwordChange',
   'auth.two_factor.enable': 'twoFactorEnable',
   'auth.backup_codes.regenerate': 'backupCodesRegenerate',
+  // U1 vendors and supplier quotes.
+  'procurement.vendor.create': 'vendorCreate',
+  'procurement.vendor.update': 'vendorUpdate',
+  'procurement.vendor.archive': 'vendorArchive',
+  'procurement.vendor.contact.set': 'vendorContactsSet',
+  'procurement.item_vendor.set': 'itemVendorSet',
+  'procurement.quote.record': 'vendorQuoteRecord',
+  'procurement.quote.withdraw': 'vendorQuoteWithdraw',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -345,6 +353,12 @@ const EVENT_NAMES = {
   'sales.order.credit_released': 'orderCreditReleased',
   'sales.order.cancelled': 'orderCancelled',
   'sales.commission.accrued': 'commissionAccrued',
+  // U1 vendors and supplier quotes.
+  'procurement.vendor.created': 'vendorCreated',
+  'procurement.vendor.updated': 'vendorUpdated',
+  'procurement.vendor.archived': 'vendorArchived',
+  'procurement.quote.recorded': 'vendorQuoteRecorded',
+  'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -865,6 +879,18 @@ const FIELD_KINDS = [
   // Whole paise, shown as rupees through the money formatter.
   ['costPaise', 'paise'],
   ['turns', 'number'],
+  // U1 vendors and supplier quotes (never a rate).
+  ['vendorName', 'text'],
+  ['pan', 'text'],
+  ['paymentTermsDays', 'number'],
+  ['leadTimeDays', 'number'],
+  ['vendorContacts', 'listCount'],
+  ['itemSupplied', 'yesNo'],
+  ['vendorItemCode', 'text'],
+  ['preferredVendor', 'yesNo'],
+  ['quoteValidFrom', 'date'],
+  ['restored', 'number'],
+  ['quoteValidUntil', 'date'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

@@ -13,6 +13,7 @@ import {
   type LeadImportMapping,
   type PermissionGrant,
   type PinCodeImportMapping,
+  type VendorImportMapping,
   type OpeningStockImportMapping,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
@@ -132,6 +133,7 @@ export interface KindMappings {
   leads: LeadImportMapping;
   accounts: AccountImportMapping;
   pin_codes: PinCodeImportMapping;
+  vendors: VendorImportMapping;
   // H1 stock ledger
   opening_stock: OpeningStockImportMapping;
   items: ItemImportMapping;
@@ -154,6 +156,19 @@ export function implementedKind(job: JobRow): ImplementedImportKind {
     throw new DomainError('internal', `import jobs of kind ${job.kind} are not implemented`);
   }
   return kind;
+}
+
+/**
+ * U1: a vendor list's rows are written through the procurement commands, so only a holder of
+ * `procurement.po.write` as well as `imports.write` (the Executive) imports one.
+ */
+export function assertVendorImport(principal: { permissions: readonly PermissionGrant[] }): void {
+  if (!hasGrant(principal.permissions, 'procurement.po.write', 'entity')) {
+    throw new DomainError('forbidden', 'a vendor list needs procurement.po.write', {
+      permission: 'procurement.po.write',
+      scope: 'entity',
+    });
+  }
 }
 
 /**

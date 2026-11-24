@@ -25,6 +25,8 @@ import { commitPinCodeBatch } from '../../imports/commit-pin-codes';
 import { commitOpeningStockBatch } from '../../imports/opening-stock';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
+import { keepMappedCells } from '../../imports/vendor-rows';
+import { commitVendorRow } from '../../imports/vendors';
 import { createLead } from '../crm/create-lead';
 import {
   assertContentNotImported,
@@ -32,11 +34,13 @@ import {
   assertGroupImport,
   assertItemImport,
   assertJobCompaniesCovered,
+  assertVendorImport,
   assertNotPurged,
   countRows,
   implementedKind,
   jobState,
   loadJob,
+  parseMappingFor,
   toImportJobDto,
   updateJob,
   type LoadedJob,
@@ -149,6 +153,7 @@ export const commitImportJob = defineCommand({
     assertNotPurged(loaded.job);
     assertJobCompaniesCovered(ctx.entityIds, loaded.job);
     if (implementedKind(loaded.job) === 'pin_codes') await assertGroupImport(ctx);
+    if (implementedKind(loaded.job) === 'vendors') assertVendorImport(ctx.principal);
     if (implementedKind(loaded.job) === 'items') await assertItemImport(ctx);
     // Another job of the same content may have been started beside this one, and committed since.
     const [content] = await ctx.tx
@@ -162,6 +167,11 @@ export const commitImportJob = defineCommand({
       throw new DomainError('validation_failed', 'no valid rows to import', {
         reason: 'import_nothing_to_commit',
       });
+    }
+    // U1 review L9: once a vendor list is committed, its rows keep only the mapped columns' cells.
+    if (implementedKind(loaded.job) === 'vendors') {
+      const mapping = parseMappingFor('vendors', loaded.job.mappingJson);
+      await keepMappedCells(ctx.tx, input.entityId, loaded.job.id, Object.values(mapping.columns));
     }
     const committing = await updateJob(ctx.tx, loaded, {
       state: 'committing',
@@ -278,6 +288,7 @@ export const commitImportBatch = defineCommand({
     const loaded = await refuseDealerRows(ctx, found, kind);
     const job = loaded.job;
     if (kind === 'pin_codes') await assertGroupImport(ctx);
+    if (kind === 'vendors') assertVendorImport(ctx.principal);
     if (kind === 'items') await assertItemImport(ctx);
     const commit = KIND_COMMITS[kind];
     const actor = ctx.principal.id;
@@ -620,6 +631,24 @@ const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
     async oneRow(ctx, rowSp, _jobId, row) {
       const done = await commitPinCodeBatch(ctx, rowSp, [row]);
       return { id: done.created[0]?.id ?? null };
+    },
+  },
+  // U1: a vendor list is short (the group buys from a few hundred suppliers), so each row runs
+  // through the vendor commands; a refused row throws and the batch goes row by row.
+  vendors: {
+    createdType: 'vendor',
+    async setBased(ctx, sp, jobId, rows, keep) {
+      const created: Made[] = [];
+      for (const row of rows) {
+        await keep(sp);
+        const made = await commitVendorRow(ctx, sp, jobId, row);
+        created.push({ rowNo: row.rowNo, id: made.id, type: made.type });
+      }
+      return { created, refused: [] };
+    },
+    async oneRow(ctx, rowSp, jobId, row) {
+      const made = await commitVendorRow(ctx, rowSp, jobId, row);
+      return { id: made.id, type: made.type };
     },
   },
   // H1 stock ledger: every batch of the job posts under the job's reference, so the job is one

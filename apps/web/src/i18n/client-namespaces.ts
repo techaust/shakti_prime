@@ -57,6 +57,8 @@ export const CLIENT_SCOPES = {
     'sizing',
   ],
   '/catalogue': ['catalogue', 'common'],
+  // U1 vendors and supplier quotes.
+  '/procurement': ['common', 'files', 'procurement'],
   // H1 stock ledger
   '/inventory': ['catalogue', 'common', 'inventory'],
   '/converters': ['common', 'converters', 'roles', 'users'],

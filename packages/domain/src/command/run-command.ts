@@ -376,6 +376,21 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
           data,
         );
       }
+      // A stored answer of a company the request no longer covers is not given back: a person who
+      // has lost that company since must not read again what the answer holds (U1 review L10).
+      const answered = claim.response as { entityId?: unknown } | null;
+      if (
+        typeof answered?.entityId === 'number' &&
+        !context.entityIds.includes(answered.entityId)
+      ) {
+        throw tag(
+          new DomainError('forbidden', `${command.name} replayed outside the request's companies`, {
+            entityId: answered.entityId,
+          }),
+          'guard',
+          data,
+        );
+      }
       // Nothing changes on a replay, so it writes no audit row and no event.
       const replay = command.output.safeParse(claim.response);
       if (!replay.success) {

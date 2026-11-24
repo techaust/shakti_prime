@@ -77,6 +77,8 @@ test.describe('as a GM', () => {
       `Harish Saini,${freshMobile()},Kekri`,
     ]);
     await expectNoAxeViolations(page);
+    // The "We read N rows" notice fades on its own; the picture waits for it to close.
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 30_000 });
     await snap(page, 'imports-job', { mask: [page.getByText(/, started /)] });
   });
 

@@ -123,3 +123,5 @@ export * from './templates/index';
 export * from './templates/voice-prompts';
 export * from './notifications';
 export * from './commands/webhooks/inbox';
+// U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3).
+export * from './procurement/index';

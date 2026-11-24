@@ -13,6 +13,7 @@ import {
   ItemImportFieldSchema,
   LeadImportFieldSchema,
   PinCodeImportFieldSchema,
+  VendorImportFieldSchema,
   OpeningStockImportFieldSchema,
   type ImplementedImportKind,
   type LeadImportField,
@@ -106,6 +107,23 @@ export const PinCodeImportMappingSchema = z
 export type PinCodeImportMapping = z.infer<typeof PinCodeImportMappingSchema>;
 
 /**
+ * U1: how the columns of a vendor list fill the vendor master: the vendor's name is required; a
+ * row's person is kept when it has a name.
+ */
+export const VendorImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(VendorImportFieldSchema, ImportColumnSchema),
+    defaults: z.object({}).strict().default({}),
+  })
+  .strict()
+  .refine((m) => m.columns.vendorName !== undefined, {
+    message: 'the vendor name column is required',
+    path: ['columns'],
+  })
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type VendorImportMapping = z.infer<typeof VendorImportMappingSchema>;
+
+/**
  * H1: how the columns of an opening stock file fill a movement: the hub, bin, stock code, quantity
  * and unit cost are required; the serial and the company when the file has them.
  */
@@ -178,6 +196,8 @@ export function importMappingSchemaFor(kind: ImplementedImportKind) {
       return AccountImportMappingSchema;
     case 'pin_codes':
       return PinCodeImportMappingSchema;
+    case 'vendors':
+      return VendorImportMappingSchema;
     // H1 stock ledger
     case 'opening_stock':
       return OpeningStockImportMappingSchema;

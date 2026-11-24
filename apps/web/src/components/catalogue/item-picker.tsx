@@ -2,7 +2,7 @@
 
 import type { ItemDto, ItemPageDto } from '@shakti/contracts';
 import { Button, Field, Input } from '@shakti/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { listItems } from '../../actions/catalogue';
 import { FailureMessage } from '../screens/failure';
 import { useQuery } from '../screens/use-command';
@@ -19,6 +19,7 @@ export function ItemPicker({
   chooseLabel,
   chooseFor,
   exclude = [],
+  error,
   onChoose,
 }: {
   id: string;
@@ -30,6 +31,8 @@ export function ItemPicker({
   /** The button's accessible name for one item, such as "Add Submersible pump 5 HP". */
   chooseFor: (item: ItemDto) => string;
   exclude?: readonly string[];
+  /** A finding about the field, shown in its error slot (U1 review L5). */
+  error?: ReactNode;
   onChoose: (item: ItemDto) => void;
 }) {
   const [q, setQ] = useState('');
@@ -66,7 +69,7 @@ export function ItemPicker({
   const shown = found?.filter((i) => !exclude.includes(i.id));
   return (
     <div className="flex flex-col gap-2">
-      <Field id={id} label={label} helper={helper}>
+      <Field id={id} label={label} helper={helper} error={error}>
         <Input
           type="search"
           autoComplete="off"

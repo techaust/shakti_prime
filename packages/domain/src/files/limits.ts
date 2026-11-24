@@ -53,6 +53,8 @@ export const UPLOAD_LIMITS: Readonly<Partial<Record<FilePurpose, UploadLimit>>> 
   consent_evidence: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
   whatsapp_media: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
   import: { contentTypes: SHEETS, maxBytes: IMPORT_LIMITS.maxFileBytes },
+  // U1: a supplier's quote, as a PDF or a photo of the paper.
+  vendor_quote: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
 };
 
 /** Why an upload is refused before it starts; each has a sentence in the message catalogue. */

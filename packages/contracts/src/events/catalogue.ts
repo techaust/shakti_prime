@@ -765,6 +765,50 @@ const eventCatalogue = {
     subscribed: false,
     payload: z.object({ orderId: IdSchema, partnerId: IdSchema, ruleId: IdSchema }).strict(),
   },
+  // U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3): ids and codes only,
+  // never a rate. A vendor's events are filed under the company the request acts for.
+  'procurement.vendor.created': {
+    meaning: 'A vendor was added to the group’s vendor master.',
+    emittedBy: ['procurement.vendor.create', 'imports.job.commit_batch'],
+    subscribed: false,
+    payload: z.object({}).strict(),
+  },
+  'procurement.vendor.updated': {
+    meaning: "A vendor's details, people or items supplied changed; `part` names which.",
+    emittedBy: [
+      'procurement.vendor.update',
+      'procurement.vendor.contact.set',
+      'procurement.item_vendor.set',
+      'imports.job.commit_batch',
+      'imports.job.rollback',
+    ],
+    subscribed: false,
+    payload: z
+      .object({
+        part: z.enum(['details', 'contacts', 'items']),
+        itemId: IdSchema.optional(),
+      })
+      .strict(),
+  },
+  'procurement.vendor.archived': {
+    meaning: 'A vendor left the active vendor list; its quotes stay on record.',
+    emittedBy: ['procurement.vendor.archive'],
+    subscribed: false,
+    payload: z.object({}).strict(),
+  },
+  'procurement.quote.recorded': {
+    meaning:
+      "A supplier's quote for an item was recorded, for one company or the group; the rate stays in the quote.",
+    emittedBy: ['procurement.quote.record'],
+    subscribed: false,
+    payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
+  'procurement.quote.withdrawn': {
+    meaning: "A supplier's quote was withdrawn before it ended.",
+    emittedBy: ['procurement.quote.withdraw'],
+    subscribed: false,
+    payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 
 export type EventType = keyof typeof eventCatalogue;

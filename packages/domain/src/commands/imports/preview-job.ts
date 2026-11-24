@@ -10,6 +10,7 @@ import {
   type ItemImportMapping,
   type LeadImportMapping,
   type PinCodeImportMapping,
+  type VendorImportMapping,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -19,6 +20,7 @@ import { checkAccountRow, companyNames, foldAccountRows } from '../../imports/ac
 import { assertImportJobMove } from '../../imports/job-state';
 import { checkLeadRow, firstRowByPhone, matchKey, type LeadRowLookups } from '../../imports/leads';
 import { checkPinCodeRow } from '../../imports/pin-codes';
+import { checkVendorRow, vendorsByGstin } from '../../imports/vendors';
 import { previewOpeningStock } from '../../imports/opening-stock-preview';
 import { itemsBySku, skusByBarcode } from '../../imports/commit-items';
 import { planItemRow, readItemRow } from '../../imports/items';
@@ -26,6 +28,7 @@ import {
   assertEntityInScope,
   assertGroupImport,
   assertItemImport,
+  assertVendorImport,
   assertNotPurged,
   implementedKind,
   jobState,
@@ -403,6 +406,41 @@ function previewPinCodes(rows: readonly FileRow[], mapping: PinCodeImportMapping
 }
 
 /**
+ * U1: a vendor list. Each row is checked; a GSTIN listed twice is skipped after its first row, and
+ * a GSTIN of an archived vendor is refused, since an import changes no archived vendor, unless the
+ * rollback of an earlier import archived it, which this import then brings back. A GSTIN already
+ * in the master updates that vendor when the rows are added.
+ */
+async function previewVendors(
+  tx: RequestTx,
+  rows: readonly FileRow[],
+  mapping: VendorImportMapping,
+): Promise<RowFinding[]> {
+  const checks = rows.map((row) => ({ rowNo: row.rowNo, check: checkVendorRow(row.raw, mapping) }));
+  const known = await vendorsByGstin(
+    tx,
+    checks.flatMap(({ check }) => (check.gstin === null ? [] : [check.gstin])),
+  );
+  const first = new Map<string, number>();
+  return checks.map(({ rowNo, check }) => {
+    if (check.state === 'invalid') return invalid(rowNo, check.errors);
+    const vendor = check.gstin === null ? undefined : known.get(check.gstin);
+    if (vendor !== undefined && !vendor.isActive && !vendor.archivedByRollback) {
+      return invalid(rowNo, [{ field: 'gstin', code: 'vendor_archived' }]);
+    }
+    const earlier = check.gstin === null ? undefined : first.get(check.gstin);
+    if (check.gstin !== null && earlier === undefined) first.set(check.gstin, rowNo);
+    return {
+      row_no: rowNo,
+      state: earlier === undefined ? 'valid' : 'skipped',
+      normalised_json: check.input,
+      errors_json: [],
+      dedupe_json: earlier === undefined ? null : { inFileRowNo: earlier, existing: [] },
+    };
+  });
+}
+
+/**
  * The catalogue's items (phase3 §6.1, C5): each row read and checked as the item it makes or
  * changes, against the catalogue as it stands; a code listed again later in the file is skipped;
  * a barcode another item of the catalogue or an earlier row of the file has refuses the row.
@@ -537,6 +575,7 @@ export const previewImportJob = defineCommand({
     }
     const kind = implementedKind(loaded.job);
     if (kind === 'pin_codes') await assertGroupImport(ctx);
+    if (kind === 'vendors') assertVendorImport(ctx.principal);
     if (kind === 'items') await assertItemImport(ctx);
 
     const r = schema.importRows;
@@ -552,30 +591,32 @@ export const previewImportJob = defineCommand({
         ? await previewLeads(ctx, rows, parseMappingFor('leads', mapping), input.entityId)
         : kind === 'accounts'
           ? await previewAccounts(ctx, rows, parseMappingFor('accounts', mapping), input.entityId)
-          : kind === 'pin_codes'
-            ? previewPinCodes(rows, parseMappingFor('pin_codes', mapping))
-            : kind === 'items'
-              ? await previewItems(ctx, rows, parseMappingFor('items', mapping))
-              : // H1 stock ledger
-                (
-                  await previewOpeningStock(
-                    ctx.tx,
-                    rows,
-                    parseMappingFor('opening_stock', mapping),
-                    input.entityId,
-                  )
-                ).map((finding, index): RowFinding => {
-                  const rowNo = rows[index]?.rowNo ?? 0;
-                  return finding.state === 'invalid'
-                    ? invalid(rowNo, finding.errors)
-                    : {
-                        row_no: rowNo,
-                        state: 'valid',
-                        normalised_json: finding.input,
-                        errors_json: [],
-                        dedupe_json: null,
-                      };
-                });
+          : kind === 'vendors'
+            ? await previewVendors(ctx.tx, rows, parseMappingFor('vendors', mapping))
+            : kind === 'pin_codes'
+              ? previewPinCodes(rows, parseMappingFor('pin_codes', mapping))
+              : kind === 'items'
+                ? await previewItems(ctx, rows, parseMappingFor('items', mapping))
+                : // H1 stock ledger
+                  (
+                    await previewOpeningStock(
+                      ctx.tx,
+                      rows,
+                      parseMappingFor('opening_stock', mapping),
+                      input.entityId,
+                    )
+                  ).map((finding, index): RowFinding => {
+                    const rowNo = rows[index]?.rowNo ?? 0;
+                    return finding.state === 'invalid'
+                      ? invalid(rowNo, finding.errors)
+                      : {
+                          row_no: rowNo,
+                          state: 'valid',
+                          normalised_json: finding.input,
+                          errors_json: [],
+                          dedupe_json: null,
+                        };
+                  });
 
     for (let start = 0; start < findings.length; start += CHUNK) {
       const chunk = JSON.stringify(findings.slice(start, start + CHUNK));

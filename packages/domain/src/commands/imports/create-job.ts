@@ -12,6 +12,7 @@ import {
   assertContentNotImported,
   assertEntityInScope,
   assertGroupImport,
+  assertVendorImport,
   assertItemImport,
   toImportJobDto,
 } from './shared';
@@ -62,6 +63,7 @@ export const createImportJob = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     if (input.kind === 'pin_codes') await assertGroupImport(ctx);
+    if (input.kind === 'vendors') assertVendorImport(ctx.principal);
     // H1: an opening stock file carries costs and posts stock, so only a person holding both
     // grants imports one (its rows and file are hidden from anyone without finance.cost.read).
     if (input.kind === 'opening_stock') {

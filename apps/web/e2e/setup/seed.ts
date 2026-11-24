@@ -52,6 +52,8 @@ import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
+// U1 vendors and supplier quotes.
+import { ensureProcurementJourneys } from './procurement';
 import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
@@ -894,6 +896,10 @@ await ensureWhatsAppJourneys(ids.executive ?? '');
 
 progress('the quotes');
 const quotes = await ensureQuoteJourneys(ids.executive ?? '');
+
+// U1: the vendors and quotes of the procurement journeys, after the journeys' items.
+progress('the vendors and their quotes');
+await ensureProcurementJourneys(ids.executive ?? '');
 
 progress('the WhatsApp quotes');
 const whatsappQuotes = await ensureWhatsAppQuoteJourneys(ids.executive ?? '');

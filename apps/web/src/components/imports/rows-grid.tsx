@@ -51,8 +51,10 @@ export function RowsGrid({
   // H1: an opening stock row reads as its stock code and quantity.
   const stock = kind === 'opening_stock';
   const items = kind === 'items';
+  // U1: a vendor list names the vendor and its GSTIN.
+  const vendors = kind === 'vendors';
   // The two columns that name a row: its customer and phone, its post office and PIN, its item and
-  // code, or (H1) its stock code and quantity.
+  // code, its vendor and GSTIN (U1), or (H1) its stock code and quantity.
   const named = stock
     ? ({
         first: 'sku',
@@ -74,12 +76,19 @@ export function RowsGrid({
             firstHeader: t('columns.item'),
             secondHeader: t('columns.sku'),
           } as const)
-        : ({
-            first: 'contactName',
-            second: 'phone',
-            firstHeader: t('columns.name'),
-            secondHeader: t('columns.phone'),
-          } as const);
+        : vendors
+          ? ({
+              first: 'vendorName',
+              second: 'gstin',
+              firstHeader: t('columns.vendor'),
+              secondHeader: t('columns.gstin'),
+            } as const)
+          : ({
+              first: 'contactName',
+              second: 'phone',
+              firstHeader: t('columns.name'),
+              secondHeader: t('columns.phone'),
+            } as const);
 
   function read(next: RowView, after: number | undefined) {
     const state = rowStateOf(next);

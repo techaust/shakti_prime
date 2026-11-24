@@ -78,6 +78,13 @@ const AGENT_CONTROLS: Rule = {
 };
 const INBOX = grant('agents.inbox.act', 'own');
 
+/** U1: the vendor master's readers, and the supplier rates' (docs/03-roadmap-appendix/phase3.md §6.3). */
+const VENDOR_READ: Rule = {
+  kind: 'any',
+  rules: [grant('inventory.stock.read', 'own'), grant('procurement.po.write', 'entity')],
+};
+const RATE_READ = grant('procurement.rate.read', 'entity');
+
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
@@ -107,6 +114,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   call_recording: NEVER,
   // A call's transcript is read with its call, so with the lead (0190).
   call_transcript: LEAD_READ,
+  // U1: a supplier's quote document shows the rate.
+  vendor_quote: RATE_READ,
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({
@@ -216,7 +225,12 @@ const RULES: Record<MatrixTable, TableRule> = {
   files: {
     read: IMPORTS,
     readRow: (row) => fileRead(row.purpose),
-    leak: otherCompany,
+    // A supplier's quote document named by a group quote is read with that quote in any company
+    // (0234, review M2): no leak of another company's file.
+    leak: (e, groupVisible) =>
+      sql`${otherCompany(e, groupVisible)} and not (x.purpose = 'vendor_quote' and exists (
+            select 1 from vendor_quotes q
+             where q.file_id = x.id and q.entity_id is null and q.withdrawn_at is null))`,
   },
   import_mapping_templates: { read: IMPORTS, leak: otherCompany },
   // The import worker (`system:workers`) reads a job of its company to stop it.
@@ -354,6 +368,14 @@ const RULES: Record<MatrixTable, TableRule> = {
     throughLead: LEAD_READ,
     leak: accountOutside('x.account_id'),
   },
+  // U1: the group's vendor master has no company, so no row of it is another company's; it is
+  // read acting in any company with inventory.stock.read or procurement.po.write. A supplier
+  // quote is read only with procurement.rate.read: the group's acting in any company, a company's
+  // acting in that company (docs/03-roadmap-appendix/phase3.md §6.3).
+  vendors: { read: VENDOR_READ, leak: () => sql`false` },
+  vendor_contacts: { read: VENDOR_READ, leak: () => sql`false` },
+  item_vendors: { read: VENDOR_READ, leak: () => sql`false` },
+  vendor_quotes: { read: RATE_READ, group: RATE_READ, leak: otherCompany },
 };
 
 const TABLES = Object.keys(RULES) as MatrixTable[];

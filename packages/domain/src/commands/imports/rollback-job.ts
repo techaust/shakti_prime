@@ -11,11 +11,14 @@ import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { assertImportJobMove } from '../../imports/job-state';
 import { rollbackChunks } from '../../imports/row-key';
+import { restoreVendorUpdates } from '../../imports/vendor-restore';
+import { undoVendorRows } from '../../imports/vendor-rows';
 import { recheckSitePins } from '../../imports/commit-pin-codes';
 import { reverseOpeningStock } from '../../imports/opening-stock';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertVendorImport,
   assertItemImport,
   assertJobCompaniesCovered,
   implementedKind,
@@ -155,7 +158,17 @@ export const rollbackImportJob = defineCommand({
   alsoRequires: [{ permission: 'crm.lead.write', minScope: 'own' }],
   input: RollbackImportJobInput,
   output: ImportJobDto,
-  auditFields: ['state', 'committedRows', 'rolledBackRows', 'archived', 'kept', 'batches'],
+  auditFields: [
+    'state',
+    'committedRows',
+    'rolledBackRows',
+    'archived',
+    'kept',
+    'batches',
+    // U1: the vendors a vendor list's rollback removed, and those it restored (review M4, M5).
+    'removed',
+    'restored',
+  ],
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
@@ -164,6 +177,7 @@ export const rollbackImportJob = defineCommand({
     const job = loaded.job;
     const kind = implementedKind(job);
     if (kind === 'pin_codes') await assertGroupImport(ctx);
+    if (kind === 'vendors') assertVendorImport(ctx.principal);
     if (kind === 'items') await assertItemImport(ctx);
     assertJobCompaniesCovered(ctx.entityIds, job);
     const actor = ctx.principal.id;
@@ -173,16 +187,27 @@ export const rollbackImportJob = defineCommand({
       .select({ rowNo: r.rowNo, createdId: r.createdId, createdType: r.createdType })
       .from(r)
       .where(and(eq(r.jobId, job.id), eq(r.state, 'committed')));
-    // A row linked to an existing customer made nothing to undo.
+    // A row linked to an existing customer, or one that updated an existing vendor (U1), made
+    // nothing to undo.
     const recordOf = new Map(
       committed.map((row) => [
         row.rowNo,
-        row.createdType === 'account_link' ? null : row.createdId,
+        row.createdType === 'account_link' || row.createdType === 'vendor_update'
+          ? null
+          : row.createdId,
       ]),
     );
     const batches: { fromRow: number; toRow: number; rows: number }[] = [];
     let archived = 0;
     let kept = 0;
+    // U1: a vendor list's updated vendors are restored first, then its new vendors undone.
+    let removed = 0;
+    let restored = 0;
+    if (kind === 'vendors') {
+      const done = await restoreVendorUpdates(ctx, ctx.tx, job.id);
+      restored = done.restored;
+      kept += done.kept;
+    }
     for (const chunk of rollbackChunks(
       committed.map((row) => row.rowNo),
       IMPORT_LIMITS.batchSize,
@@ -201,7 +226,12 @@ export const rollbackImportJob = defineCommand({
           : kind === 'leads'
             ? await leadsInUse(ctx.tx, job.id, ids)
             : NONE;
-      if (kind === 'items') {
+      if (kind === 'vendors') {
+        kept += inUse.size;
+        const done = await undoVendorRows(ctx.tx, job.entityId, job.id, ids);
+        removed += done.removed;
+        archived += done.archived;
+      } else if (kind === 'items') {
         const items = await undoItems(ctx, ctx.tx, ids);
         archived += items.archived;
         kept += items.kept;
@@ -232,6 +262,7 @@ export const rollbackImportJob = defineCommand({
         archived,
         kept,
         batches,
+        ...(kind === 'vendors' ? { removed, restored } : {}),
       },
     });
     ctx.emit({

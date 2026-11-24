@@ -16,6 +16,8 @@ export const ImportKindSchema = z.enum([
   'pin_codes',
   'items',
   'tally_masters',
+  // U1: the group's vendor master (docs/03-roadmap-appendix/phase3.md §6.3).
+  'vendors',
   // H1 stock ledger: a company's opening stock, posted as one batch (opening_stock_posted).
   'opening_stock',
 ]);
@@ -26,6 +28,8 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'leads',
   'accounts',
   'pin_codes',
+  // U1 vendors.
+  'vendors',
   // H1 stock ledger
   'opening_stock',
   // C5: the catalogue's items.
@@ -78,6 +82,10 @@ export const ImportCreatedTypeSchema = z.enum([
   'account',
   'account_link',
   'pin_code',
+  // U1: a vendor a row added, or one with the row's GSTIN that the row updated (a rollback leaves
+  // an updated vendor as it is).
+  'vendor',
+  'vendor_update',
   // An item an items row added; a row that changed an existing item records nothing.
   'item',
   // H1 stock ledger: the opening movement a row posted.
@@ -194,6 +202,27 @@ export const PinCodeImportFieldSchema = z.enum(['pin', 'officeName', 'taluk', 'd
 export type PinCodeImportField = z.infer<typeof PinCodeImportFieldSchema>;
 
 /**
+ * U1: the fields of a vendor a file column can fill: its name, GSTIN, PAN, address, payment terms
+ * and lead time in days, and one of its people. A GSTIN already in the vendor master updates that
+ * vendor (docs/03-roadmap-appendix/phase3.md §6.3).
+ */
+export const VendorImportFieldSchema = z.enum([
+  'vendorName',
+  'gstin',
+  'pan',
+  'addressLine',
+  'city',
+  'pin',
+  'paymentTermsDays',
+  'leadTimeDays',
+  'personName',
+  'personRole',
+  'personPhone',
+  'personEmail',
+]);
+export type VendorImportField = z.infer<typeof VendorImportFieldSchema>;
+
+/**
  * H1: a row of a company's opening stock: the hub and bin by code, the item by its stock code, the
  * quantity and its unit cost, and for a tracked item its serial (one row per serial). A `company`
  * column, when given, must name the job's company.
@@ -241,6 +270,18 @@ export const ImportFieldSchema = z.enum([
   'taluk',
   'district',
   'state',
+  // U1 vendors (a vendor's PIN code is the leads' own field).
+  'vendorName',
+  'gstin',
+  'pan',
+  'addressLine',
+  'city',
+  'paymentTermsDays',
+  'leadTimeDays',
+  'personName',
+  'personRole',
+  'personPhone',
+  'personEmail',
   // H1 stock ledger
   'hub',
   'bin',
@@ -257,6 +298,7 @@ export const IMPORT_FIELDS = {
   leads: LeadImportFieldSchema.options,
   accounts: AccountImportFieldSchema.options,
   pin_codes: PinCodeImportFieldSchema.options,
+  vendors: VendorImportFieldSchema.options,
   // H1 stock ledger
   opening_stock: OpeningStockImportFieldSchema.options,
   items: ItemImportFieldSchema.options,
@@ -280,6 +322,8 @@ export const ImportRowErrorCodeSchema = z.enum([
   'dealer_needs_executive',
   // A referral code no active partner of the company has (CRM-09).
   'referral_code_unknown',
+  // U1: the GSTIN is an archived vendor's, which an import does not change.
+  'vendor_archived',
   // H1 opening stock: a hub, bin or stock code the group does not have; an item not sold or not
   // stocked; a serial on an item without them, none on one with them, a quantity other than 1 for
   // a serial, a serial already held or given twice; a company other than the job's; opening stock

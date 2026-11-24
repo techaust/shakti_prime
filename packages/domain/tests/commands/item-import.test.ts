@@ -31,6 +31,9 @@ afterAll(closeDb);
 vi.setConfig({ testTimeout: 60_000 });
 
 const tag = newId().slice(-8).toUpperCase();
+// A barcode with no digit run of its own: the audit redactor masks a ten-digit run that starts 6 to 9
+// as a phone, and an all-digit tag with the counter can make one.
+const barcodeTag = tag.replace(/\d/g, (digit) => 'GHIJKLMNOP'.charAt(Number(digit)));
 let seq = 0;
 const code = (kind: string) => `T-${tag}-IMP-${kind}-${String((seq += 1))}`;
 
@@ -176,7 +179,7 @@ describe('items imports: rows checked, added and changed', () => {
       specs: { cores: 2 },
       warrantyMonths: 6,
     });
-    const otherBarcode = `BC${tag}${String((seq += 1))}`;
+    const otherBarcode = `BC${barcodeTag}${String((seq += 1))}`;
     await run(gm, createItem, {
       sku: code('HOLDER'),
       name: 'Barcode holder',
@@ -187,7 +190,7 @@ describe('items imports: rows checked, added and changed', () => {
       barcode: otherBarcode,
     });
     const fresh = code('NEW');
-    const freshBarcode = `BC${tag}${String((seq += 1))}`;
+    const freshBarcode = `BC${barcodeTag}${String((seq += 1))}`;
     const lines = [
       HEADER,
       // 1: a new cable bought in coils of 100 metres.
@@ -255,7 +258,9 @@ describe('items imports: rows checked, added and changed', () => {
            and aggregate_id = any(${[known.id, after[0]?.createdId ?? known.id]})
          order by created_at`,
     );
-    expect(audits.map((a) => a.command)).toEqual([
+    // The commit audits its update and its create in one transaction, at one created_at, in
+    // either order: compare the commands as a set.
+    expect(audits.map((a) => a.command).sort()).toEqual([
       'catalogue.item.create',
       'catalogue.item.create',
       'catalogue.item.update',
@@ -270,7 +275,7 @@ describe('items imports: rows checked, added and changed', () => {
 
   it('sets aside a row the catalogue no longer takes at commit, and never half-writes its item', async () => {
     const late = code('LATE');
-    const sharedBarcode = `BC${tag}${String((seq += 1))}`;
+    const sharedBarcode = `BC${barcodeTag}${String((seq += 1))}`;
     const kept = code('KEPT');
     const job = await startedJob(
       gm,

@@ -51,11 +51,14 @@ export default async function NewImportPage({
   const stock =
     hasGrant(principal.permissions, 'inventory.stock.adjust', 'entity') &&
     hasGrant(principal.permissions, 'finance.cost.read', 'entity');
+  // U1: a vendor list is written through the procurement commands (procurement.po.write).
+  const vendors = hasGrant(principal.permissions, 'procurement.po.write', 'entity');
   const kinds = IMPLEMENTED_IMPORT_KINDS.filter(
     (kind) =>
       (kind !== 'pin_codes' || group) &&
       (kind !== 'items' || catalogue) &&
-      (kind !== 'opening_stock' || stock),
+      (kind !== 'opening_stock' || stock) &&
+      (kind !== 'vendors' || vendors),
   );
   const asked = (await searchParams).kind;
   const initialKind = kinds.find((k): k is ImplementedImportKind => k === asked);

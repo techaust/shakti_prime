@@ -34,6 +34,8 @@ export const BOS_PREFIXES = [
   '/imports',
   '/price-master',
   '/catalogue',
+  // U1 vendors and supplier quotes.
+  '/procurement',
   '/admin',
   '/settings',
   '/design',

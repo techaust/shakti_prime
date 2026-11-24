@@ -696,6 +696,8 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'leads',
   'accounts',
   'pin_codes',
+  // U1 vendors.
+  'vendors',
   // H1 stock ledger
   'opening_stock',
   // C5: the catalogue's items.
@@ -920,6 +922,8 @@ export const FILE_PURPOSES = [
   'call_recording',
   'whatsapp_media',
   'call_transcript',
+  // U1 vendors and supplier quotes.
+  'vendor_quote',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */

@@ -74,6 +74,19 @@ function grantsOf(role: AgentRoleKey | SystemRoleKey): readonly PermissionGrant[
  * validation. A command added to the registry with a restricted permission fails the first test
  * below until it has an input here.
  */
+/** U1's supplier quote commands, restricted and for people only alike. */
+const U1_QUOTE_INPUTS: Record<string, unknown> = {
+  'procurement.quote.record': {
+    vendorId: newId(),
+    itemId: newId(),
+    entityId: 1,
+    rate: '41.5',
+    validFrom: '2031-04-01',
+    validUntil: '2031-05-01',
+  },
+  'procurement.quote.withdraw': { quoteId: newId() },
+};
+
 const INPUTS: Record<string, unknown> = {
   // A customer's price tier decides every price they are quoted (PRICE-1).
   'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
@@ -325,6 +338,8 @@ const INPUTS: Record<string, unknown> = {
     startsOn: '2031-04-01',
     value: 20,
   },
+  // U1: supplier quotes need procurement.rate.read, which no agent holds.
+  ...U1_QUOTE_INPUTS,
 };
 
 /** The commands only people may call (`peopleOnly`), read from the registry. */
@@ -512,6 +527,13 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     body: 'Thank you for writing to us.',
     draftedByAgentActionId: newId(),
   },
+  // U1: the vendor master and supplier quotes are changed by people only.
+  ...U1_QUOTE_INPUTS,
+  'procurement.vendor.create': { name: 'Rajasthan Cables' },
+  'procurement.vendor.update': { vendorId: newId(), name: 'Rajasthan Cables' },
+  'procurement.vendor.archive': { vendorId: newId() },
+  'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
+  'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
 };
 
 describe('commands for people only', () => {

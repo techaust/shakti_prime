@@ -17,7 +17,7 @@ import { actorsRequired, timestamps } from './columns';
 import { entities } from './entities';
 import { files } from './files';
 
-const KINDS = sql`('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')`;
+const KINDS = sql`('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock', 'vendors')`;
 
 /**
  * A saved column mapping for one kind of file (docs/03-roadmap-appendix/backend-weeks-3-5.md §8), so the next
@@ -175,6 +175,11 @@ export const importRows = pgTable(
     normalisedJson: jsonb('normalised_json'),
     errorsJson: jsonb('errors_json').notNull().default([]),
     dedupeJson: jsonb('dedupe_json'),
+    /**
+     * U1: what a rollback restores of the record the row changed: a vendors row that updated a
+     * vendor keeps the vendor as it was before and the time of its change (review M5).
+     */
+    undoJson: jsonb('undo_json'),
     state: text('state').notNull().default('pending'),
     createdType: text('created_type'),
     createdId: uuid('created_id'),
@@ -195,7 +200,7 @@ export const importRows = pgTable(
     ),
     check(
       'import_rows_created_type_check',
-      sql`${t.createdType} in ('opportunity', 'account', 'account_link', 'pin_code', 'item', 'stock_movement')`,
+      sql`${t.createdType} in ('opportunity', 'account', 'account_link', 'pin_code', 'item', 'stock_movement', 'vendor', 'vendor_update')`,
     ),
     check('import_rows_row_no_check', sql`${t.rowNo} >= 1`),
     check('import_rows_created_check', sql`(${t.createdType} is null) = (${t.createdId} is null)`),
