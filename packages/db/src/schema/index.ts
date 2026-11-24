@@ -68,3 +68,12 @@ export { ingestSources, ingestKeys, leadQualifications } from './lead-ingest';
 export { providerCalls } from './provider-calls';
 export { copilotNotes } from './copilot-notes';
 export { voiceSessions } from './voice-sessions';
+// H1 stock ledger
+export {
+  warehouses,
+  bins,
+  serials,
+  stockMovements,
+  stockMovementCosts,
+  stockBalances,
+} from './stock';

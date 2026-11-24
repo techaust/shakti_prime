@@ -1611,6 +1611,20 @@
       "when": 1795456660384,
       "tag": "0229_c5_catalogue_stock",
       "breakpoints": true
+    },
+    {
+      "idx": 230,
+      "version": "7",
+      "when": 1795461879784,
+      "tag": "0230_h1_stock_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 231,
+      "version": "7",
+      "when": 1795461883481,
+      "tag": "0231_h1_stock_ledger_rls",
+      "breakpoints": true
     }
   ]
 }

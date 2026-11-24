@@ -128,6 +128,13 @@ import {
   UserStatusSchema,
   COST_PERMISSIONS,
   SCOPES,
+  // H1 stock ledger
+  BinKindSchema,
+  EditableBinKindSchema,
+  SerialStateSchema,
+  StockAdjustmentSchema,
+  StockReasonSchema,
+  WarehouseKindSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -249,6 +256,13 @@ import {
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
+  // H1 stock ledger
+  BIN_KINDS as BIN_KINDS_WEB,
+  EDITABLE_BIN_KINDS as EDITABLE_BIN_KINDS_WEB,
+  SERIAL_STATES as SERIAL_STATES_WEB,
+  STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
+  STOCK_REASONS as STOCK_REASONS_WEB,
+  WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -364,6 +378,13 @@ describe('the contract values copied for the browser', () => {
     expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
     expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);
+    // H1 stock ledger
+    expect(WAREHOUSE_KINDS_WEB).toEqual(WarehouseKindSchema.options);
+    expect(BIN_KINDS_WEB).toEqual(BinKindSchema.options);
+    expect(EDITABLE_BIN_KINDS_WEB).toEqual(EditableBinKindSchema.options);
+    expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
+    expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
+    expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

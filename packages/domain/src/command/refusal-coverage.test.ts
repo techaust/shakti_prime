@@ -17,6 +17,20 @@ const root = fileURLToPath(new URL('../../../../', import.meta.url));
 const SUITES = ['packages/domain/tests', 'packages/db/tests', 'apps/web/tests'];
 
 const REVIEWED: Record<string, string> = {
+  // H1 stock ledger
+  'inventory.bin.archive':
+    'Hubs and bins are the group\'s, with no company (docs/03-roadmap-appendix/phase3.md §2, question 1 (a)): written only with `inventory.stock.adjust:all`; the denied cases refuse the Inventory Manager, the GM, Accounts and an agent in inventory.test.ts "are refused to every role without inventory.stock.adjust for every company".',
+  'inventory.bin.create':
+    'Hubs and bins are the group\'s, with no company (docs/03-roadmap-appendix/phase3.md §2, question 1 (a)): written only with `inventory.stock.adjust:all`; the denied cases refuse the Inventory Manager, the GM, Accounts and an agent in inventory.test.ts "are refused to every role without inventory.stock.adjust for every company".',
+  'inventory.bin.update':
+    'Hubs and bins are the group\'s, with no company (docs/03-roadmap-appendix/phase3.md §2, question 1 (a)): written only with `inventory.stock.adjust:all`; the denied cases refuse the Inventory Manager, the GM, Accounts and an agent in inventory.test.ts "are refused to every role without inventory.stock.adjust for every company".',
+  'inventory.hub.archive':
+    'Hubs and bins are the group\'s, with no company (docs/03-roadmap-appendix/phase3.md §2, question 1 (a)): written only with `inventory.stock.adjust:all`; the denied cases refuse the Inventory Manager, the GM, Accounts and an agent in inventory.test.ts "are refused to every role without inventory.stock.adjust for every company".',
+  'inventory.hub.create':
+    'Hubs and bins are the group\'s, with no company (docs/03-roadmap-appendix/phase3.md §2, question 1 (a)): written only with `inventory.stock.adjust:all`; the denied cases refuse the Inventory Manager, the GM, Accounts and an agent in inventory.test.ts "are refused to every role without inventory.stock.adjust for every company".',
+  'inventory.hub.update':
+    'Hubs and bins are the group\'s, with no company (docs/03-roadmap-appendix/phase3.md §2, question 1 (a)): written only with `inventory.stock.adjust:all`; the denied cases refuse the Inventory Manager, the GM, Accounts and an agent in inventory.test.ts "are refused to every role without inventory.stock.adjust for every company".',
+
   'catalogue.item.archive':
     'Catalogue data is shared by every company: the company case is a request for one company, refused with `catalogue_needs_all_companies` in catalogue.test.ts "refuses a GM or an Inventory Manager acting for one company, in every command".',
   'catalogue.item.update':

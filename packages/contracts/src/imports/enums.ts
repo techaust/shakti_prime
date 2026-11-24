@@ -16,6 +16,8 @@ export const ImportKindSchema = z.enum([
   'pin_codes',
   'items',
   'tally_masters',
+  // H1 stock ledger: a company's opening stock, posted as one batch (opening_stock_posted).
+  'opening_stock',
 ]);
 export type ImportKind = z.infer<typeof ImportKindSchema>;
 
@@ -24,6 +26,8 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'leads',
   'accounts',
   'pin_codes',
+  // H1 stock ledger
+  'opening_stock',
   // C5: the catalogue's items.
   'items',
 ] as const satisfies readonly ImportKind[];
@@ -76,6 +80,8 @@ export const ImportCreatedTypeSchema = z.enum([
   'pin_code',
   // An item an items row added; a row that changed an existing item records nothing.
   'item',
+  // H1 stock ledger: the opening movement a row posted.
+  'stock_movement',
 ]);
 export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
 
@@ -188,6 +194,22 @@ export const PinCodeImportFieldSchema = z.enum(['pin', 'officeName', 'taluk', 'd
 export type PinCodeImportField = z.infer<typeof PinCodeImportFieldSchema>;
 
 /**
+ * H1: a row of a company's opening stock: the hub and bin by code, the item by its stock code, the
+ * quantity and its unit cost, and for a tracked item its serial (one row per serial). A `company`
+ * column, when given, must name the job's company.
+ */
+export const OpeningStockImportFieldSchema = z.enum([
+  'company',
+  'hub',
+  'bin',
+  'sku',
+  'qty',
+  'unitCost',
+  'serialNo',
+]);
+export type OpeningStockImportField = z.infer<typeof OpeningStockImportFieldSchema>;
+
+/**
  * The fields of a catalogue item a file column can fill (phase3 §6.1): its code (the only one every
  * file needs), name, category, HSN code and units, serial tracking, DCR and ALMM, the warranties,
  * the barcode and the serial pattern. A row whose code the catalogue has changes that item, and
@@ -219,6 +241,13 @@ export const ImportFieldSchema = z.enum([
   'taluk',
   'district',
   'state',
+  // H1 stock ledger
+  'hub',
+  'bin',
+  'qty',
+  'unitCost',
+  'serialNo',
+  // C5: the item fields, 'sku' among them, which opening stock shares.
   ...ItemImportFieldSchema.options,
 ]);
 export type ImportField = z.infer<typeof ImportFieldSchema>;
@@ -228,6 +257,8 @@ export const IMPORT_FIELDS = {
   leads: LeadImportFieldSchema.options,
   accounts: AccountImportFieldSchema.options,
   pin_codes: PinCodeImportFieldSchema.options,
+  // H1 stock ledger
+  opening_stock: OpeningStockImportFieldSchema.options,
   items: ItemImportFieldSchema.options,
 } as const satisfies Record<ImplementedImportKind, readonly ImportField[]>;
 /**
@@ -249,6 +280,20 @@ export const ImportRowErrorCodeSchema = z.enum([
   'dealer_needs_executive',
   // A referral code no active partner of the company has (CRM-09).
   'referral_code_unknown',
+  // H1 opening stock: a hub, bin or stock code the group does not have; an item not sold or not
+  // stocked; a serial on an item without them, none on one with them, a quantity other than 1 for
+  // a serial, a serial already held or given twice; a company other than the job's; opening stock
+  // already entered for the company.
+  'hub_unknown',
+  'bin_unknown',
+  'sku_unknown',
+  'item_not_stockable',
+  'serial_not_tracked',
+  'serial_required',
+  'serial_qty',
+  'serial_taken',
+  'company_mismatch',
+  'opening_stock_posted',
   // Items (C5): a category, HSN code or unit outside the lists, a serial pattern refused, a
   // barcode another item or an earlier row has, a category whose required details only the item
   // sheet takes, a code of an item no longer sold, and a barcode hidden as an identity number.

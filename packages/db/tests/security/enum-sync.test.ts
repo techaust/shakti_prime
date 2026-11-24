@@ -100,6 +100,13 @@ import {
   LEAD_RETENTION_KEPT_REASONS,
   USER_STATUSES,
   newId,
+  // H1 stock ledger
+  BIN_KINDS,
+  SERIAL_STATES,
+  SERIAL_STATES_IN_BIN,
+  SERIAL_STATES_OUT,
+  STOCK_REASONS,
+  WAREHOUSE_KINDS,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -279,6 +286,17 @@ const PAIRS: Record<string, readonly string[]> = {
   // An inbound call came in on a line a customer calls (T4); a missed call names its lead.
   provider_calls_inbound_check: ['inbound', ...INBOUND_CALL_SERIES, 'missed_call'],
   voice_sessions_mode_check: VOICE_SESSION_MODES,
+  // H1: a hub, its bins, the serials and the ledger. A godown or factory has its site; a transit
+  // bin, and only one, names its pair; a reversal, and only one, names what it reverses; a serial
+  // sits in a bin while the company holds it, in none once it has left, either way in transit.
+  warehouses_kind_check: WAREHOUSE_KINDS,
+  warehouses_site_check: ['transit'],
+  bins_kind_check: BIN_KINDS,
+  bins_pair_check: ['transit'],
+  serials_state_check: SERIAL_STATES,
+  serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
+  stock_movements_reason_check: STOCK_REASONS,
+  stock_movements_reversal_check: ['reversal'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

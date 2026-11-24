@@ -42,6 +42,11 @@ export interface WorkshopDefaults {
   };
   readonly credit: { readonly exposureCountsConfirmedOrders: boolean };
   readonly dispatch: { readonly ewayBillThresholdPaise: bigint };
+  // H1 stock ledger
+  readonly stock: {
+    /** Days after a movement within which a person may reverse it (docs/03-roadmap-appendix/phase3.md §10). */
+    readonly reversalDays: number;
+  };
   readonly crm: {
     readonly dispositions: readonly {
       readonly key: number;
@@ -275,6 +280,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   dispatch: {
     /** BLUEPRINT §8.4: consignment value in paise above which a dispatch needs an e-way bill (₹50,000). */
     ewayBillThresholdPaise: 5_000_000n,
+  },
+  // H1 stock ledger
+  stock: {
+    /** Phase 3 design §10: a movement made in error is reversed within seven days. For STOCK-1. */
+    reversalDays: 7,
   },
   crm: {
     /**

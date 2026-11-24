@@ -112,6 +112,10 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   lead_qualifications: 'x.opportunity_id::text',
   provider_calls: 'x.id::text',
   copilot_notes: 'x.id::text',
+  serials: 'x.id::text',
+  stock_movements: 'x.id::text',
+  stock_movement_costs: 'x.movement_id::text',
+  stock_balances: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -237,6 +241,17 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from knowledge_files where id::text like ${like}`;
       await tx`delete from files where id::text like ${like}`;
       await tx`delete from item_costs where id::text like ${like}`;
+      // H1's ledger is append-only: its triggers are set aside for the fixture's own rows.
+      await tx`alter table stock_movement_costs disable trigger stock_movement_costs_append_only`;
+      await tx`alter table stock_movements disable trigger stock_movements_append_only`;
+      await tx`delete from stock_movement_costs where movement_id::text like ${like}`;
+      await tx`delete from stock_movements where id::text like ${like}`;
+      await tx`alter table stock_movement_costs enable trigger stock_movement_costs_append_only`;
+      await tx`alter table stock_movements enable trigger stock_movements_append_only`;
+      await tx`delete from stock_balances where id::text like ${like}`;
+      await tx`delete from serials where id::text like ${like}`;
+      await tx`delete from bins where id::text like ${like}`;
+      await tx`delete from warehouses where id::text like ${like}`;
       await tx`delete from items where id::text like ${like}`;
       await tx`delete from document_sequences where id::text like ${like}`;
       await tx`delete from customer_merges where id::text like ${like}`;
@@ -377,6 +392,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     lead_qualifications: [],
     provider_calls: [],
     copilot_notes: [],
+    serials: [],
+    stock_movements: [],
+    stock_movement_costs: [],
+    stock_balances: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -412,6 +431,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   // company, so nobody acting in one company reads it.
   const groupVoiceSession = id(0x0014);
   rows.voice_sessions.push({ key: groupVoiceSession, entities: null });
+  // H1: one hub and one bin of the group, which every company's stock rows name.
+  const hub = id(0x0015);
+  const bin = id(0x0016);
   // The fixture's agent rows name an agent no other suite sets, so its settings change nothing.
   const MATRIX_AGENT = 'agent:orchestrator';
   const agentId = AGENT_PRINCIPAL_IDS[MATRIX_AGENT];
@@ -438,6 +460,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         values (${item}, 'FX-MATRIX', 'matrix item', 'pump', '8413', 'nos')`;
       await tx`insert into tax_rates (id, item_id, rate_pct, effective_from, source_ref)
         values (${itemRate}, ${item}, 0.00, '2090-01-01', 'matrix')`;
+      await tx`insert into warehouses (id, code, name, kind, state_code, pin_code, created_by)
+        values (${hub}, 'MX-HUB', 'matrix hub', 'godown', '08', '302001', ${ownerId})`;
+      await tx`insert into bins (id, warehouse_id, code, kind, created_by)
+        values (${bin}, ${hub}, 'MX-BIN', 'storage', ${ownerId})`;
       await tx`insert into pipelines (id, entity_id, key, name, segment)
         values (${groupPipeline}, null, 'matrix-group', 'matrix group pipeline', 'farmer_pumps')`;
       await tx`insert into pipeline_stages (id, pipeline_id, entity_id, key, name, position)
@@ -609,6 +635,22 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
            order by d.position limit 1`;
         await tx`insert into item_costs (id, item_id, entity_id, moving_avg_cost, last_purchase_rate, as_of)
           values (${cost}, ${item}, ${e}, 100.0000, 110.0000, now())`;
+        // H1: one serial, the gain that brought it in with its cost, and the balance it leaves.
+        const serial = per(e, 0x80);
+        const movement = per(e, 0x81);
+        const balance = per(e, 0x82);
+        await tx`insert into serials (id, entity_id, item_id, serial_no, state, bin_id, created_by)
+          values (${serial}, ${e}, ${item}, ${`MX-SERIAL-${e.toString()}`}, 'in_stock', ${bin}, ${ownerId})`;
+        await tx`insert into stock_movements (id, entity_id, item_id, serial_id, to_bin_id, qty, reason, batch_id, moved_by)
+          values (${movement}, ${e}, ${item}, ${serial}, ${bin}, 1, 'adjust_gain', ${movement}, ${ownerId})`;
+        await tx`insert into stock_movement_costs (movement_id, entity_id, unit_cost)
+          values (${movement}, ${e}, 100.0000)`;
+        await tx`insert into stock_balances (id, entity_id, warehouse_id, bin_id, item_id, qty_on_hand)
+          values (${balance}, ${e}, ${hub}, ${bin}, ${item}, 1)`;
+        rows.serials.push({ key: serial, entities: only });
+        rows.stock_movements.push({ key: movement, entities: only });
+        rows.stock_movement_costs.push({ key: movement, entities: only });
+        rows.stock_balances.push({ key: balance, entities: only });
         await tx`insert into document_sequences (id, entity_id, doc_type, fy, prefix)
           values (${sequence}, ${e}, 'challan', '2098-99', ${`MX${e.toString()}/C`})`;
         await tx`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command, outcome)

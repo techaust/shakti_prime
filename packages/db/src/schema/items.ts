@@ -116,7 +116,7 @@ export const pumpCurves = pgTable(
 
 /**
  * Cost side of an item per entity (restricted; docs/05-database.md §4.3). Read and written only with
- * `finance.cost.read`; Phase 3 decides how goods receipts post the moving average.
+ * `finance.cost.read`, written only by the stock ledger's definer `app.stock_move()`.
  */
 export const itemCosts = pgTable(
   'item_costs',
@@ -130,6 +130,11 @@ export const itemCosts = pgTable(
       .references(() => entities.id),
     movingAvgCost: numeric('moving_avg_cost', { precision: 14, scale: 4 }),
     lastPurchaseRate: numeric('last_purchase_rate', { precision: 14, scale: 4 }),
+    /**
+     * The last moving average above zero (STOCK-2, question 2 (a)): what an inbound movement
+     * without a cost takes while the company holds none of the item. Kept by `app.stock_move()`.
+     */
+    lastPositiveAvgCost: numeric('last_positive_avg_cost', { precision: 14, scale: 4 }),
     asOf: timestamp('as_of', { withTimezone: true }),
     ...timestamps,
     ...actors,

@@ -106,6 +106,21 @@ export const PinLookupDto = z
 export type PinLookupDto = z.infer<typeof PinLookupDto>;
 
 /**
+ * H1: one opening stock movement, as the preview resolves a row (the hub, bin and item found by
+ * code) and the commit posts it through `app.stock_move()` with reason `opening`.
+ */
+export const OpeningStockImportRowInput = z
+  .object({
+    binId: z.uuid(),
+    itemId: z.uuid(),
+    qty: z.string().regex(/^\d{1,9}(\.\d{1,3})?$/),
+    unitCost: z.string().regex(/^\d{1,10}(\.\d{1,4})?$/),
+    serialNo: z.string().trim().min(1).max(100).nullable(),
+  })
+  .strict();
+export type OpeningStockImportRowInput = z.infer<typeof OpeningStockImportRowInput>;
+
+/**
  * One checked row of an items file (phase3 §6.1), as the preview stores it and the commit reads
  * it: the item code, and each field the row gives (a blank cell gives nothing). The commit finds
  * the item by its code again: an item the catalogue has takes the fields given over what it has,

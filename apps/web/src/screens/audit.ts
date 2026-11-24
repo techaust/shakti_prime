@@ -133,6 +133,16 @@ const ACTIONS = {
   'catalogue.kit.update': 'kitUpdate',
   'catalogue.kit.archive': 'kitArchive',
   'catalogue.pump_curve.set': 'pumpCurveSet',
+  // H1 stock ledger
+  'inventory.hub.create': 'hubCreate',
+  'inventory.hub.update': 'hubUpdate',
+  'inventory.hub.archive': 'hubArchive',
+  'inventory.bin.create': 'binCreate',
+  'inventory.bin.update': 'binUpdate',
+  'inventory.bin.archive': 'binArchive',
+  'inventory.stock.transfer': 'stockTransfer',
+  'inventory.stock.adjust': 'stockAdjust',
+  'inventory.stock.reverse': 'stockReverse',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -293,6 +303,8 @@ const EVENT_NAMES = {
   'pricing.list.approved': 'priceListApproved',
   'pricing.list.archived': 'priceListArchived',
   'catalogue.item.created': 'itemCreated',
+  // H1 stock ledger
+  'inventory.stock.moved': 'stockMoved',
   'catalogue.item.updated': 'itemUpdated',
   'catalogue.item.archived': 'itemArchived',
   'catalogue.kit.created': 'kitCreated',
@@ -477,6 +489,10 @@ const CODE_GROUPS = [
   'templateOccasion',
   'inboundLine',
   'voiceMode',
+  // H1 stock ledger
+  'hubKind',
+  'binKind',
+  'stockReason',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -637,6 +653,19 @@ const FIELD_KINDS = [
   ['version', 'number'],
   ['prices', 'number'],
   ['approvedAt', 'time'],
+  // Hubs, bins and stock moved by hand (H1)
+  ['hubCode', 'text'],
+  ['hubName', 'text'],
+  ['hubKind', 'hubKind'],
+  ['hubAddress', 'text'],
+  ['hubStateCode', 'text'],
+  ['hubPinCode', 'text'],
+  ['binCode', 'text'],
+  ['binKind', 'binKind'],
+  ['stockReason', 'stockReason'],
+  ['quantity', 'number'],
+  ['serialNo', 'text'],
+  ['adjustNote', 'text'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],

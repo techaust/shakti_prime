@@ -22,6 +22,7 @@ import { commitAccountBatch } from '../../imports/commit-accounts';
 import { commitLeadBatch, RowByRowNeeded, type BatchRow } from '../../imports/commit-leads';
 import { commitItemRow, ItemRowRefused } from '../../imports/commit-items';
 import { commitPinCodeBatch } from '../../imports/commit-pin-codes';
+import { commitOpeningStockBatch } from '../../imports/opening-stock';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
 import { createLead } from '../crm/create-lead';
@@ -619,6 +620,18 @@ const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
     async oneRow(ctx, rowSp, _jobId, row) {
       const done = await commitPinCodeBatch(ctx, rowSp, [row]);
       return { id: done.created[0]?.id ?? null };
+    },
+  },
+  // H1 stock ledger: every batch of the job posts under the job's reference, so the job is one
+  // opening, row by row as well as set-based.
+  opening_stock: {
+    createdType: 'stock_movement',
+    async setBased(ctx, sp, jobId, rows) {
+      return { created: await commitOpeningStockBatch(ctx, sp, jobId, rows), refused: [] };
+    },
+    async oneRow(ctx, rowSp, jobId, row) {
+      const [made] = await commitOpeningStockBatch(ctx, rowSp, jobId, [row]);
+      return { id: made?.id ?? null };
     },
   },
   items: {

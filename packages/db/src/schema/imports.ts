@@ -17,7 +17,7 @@ import { actorsRequired, timestamps } from './columns';
 import { entities } from './entities';
 import { files } from './files';
 
-const KINDS = sql`('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')`;
+const KINDS = sql`('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock')`;
 
 /**
  * A saved column mapping for one kind of file (docs/03-roadmap-appendix/backend-weeks-3-5.md §8), so the next
@@ -195,7 +195,7 @@ export const importRows = pgTable(
     ),
     check(
       'import_rows_created_type_check',
-      sql`${t.createdType} in ('opportunity', 'account', 'account_link', 'pin_code', 'item')`,
+      sql`${t.createdType} in ('opportunity', 'account', 'account_link', 'pin_code', 'item', 'stock_movement')`,
     ),
     check('import_rows_row_no_check', sql`${t.rowNo} >= 1`),
     check('import_rows_created_check', sql`(${t.createdType} is null) = (${t.createdId} is null)`),

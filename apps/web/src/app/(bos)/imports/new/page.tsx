@@ -46,8 +46,16 @@ export default async function NewImportPage({
   });
   const group = hasGrant(principal.permissions, 'imports.write', 'all') && coversAll;
   const catalogue = hasGrant(principal.permissions, 'catalogue.write', 'entity') && coversAll;
+  // Opening stock carries costs and posts through the stock ledger (H1): finance.cost.read and
+  // inventory.stock.adjust, both, as imports.job.create checks.
+  const stock =
+    hasGrant(principal.permissions, 'inventory.stock.adjust', 'entity') &&
+    hasGrant(principal.permissions, 'finance.cost.read', 'entity');
   const kinds = IMPLEMENTED_IMPORT_KINDS.filter(
-    (kind) => (kind !== 'pin_codes' || group) && (kind !== 'items' || catalogue),
+    (kind) =>
+      (kind !== 'pin_codes' || group) &&
+      (kind !== 'items' || catalogue) &&
+      (kind !== 'opening_stock' || stock),
   );
   const asked = (await searchParams).kind;
   const initialKind = kinds.find((k): k is ImplementedImportKind => k === asked);

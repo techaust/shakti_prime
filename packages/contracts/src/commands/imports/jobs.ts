@@ -13,6 +13,7 @@ import {
   ItemImportFieldSchema,
   LeadImportFieldSchema,
   PinCodeImportFieldSchema,
+  OpeningStockImportFieldSchema,
   type ImplementedImportKind,
   type LeadImportField,
 } from '../../imports/enums';
@@ -105,6 +106,31 @@ export const PinCodeImportMappingSchema = z
 export type PinCodeImportMapping = z.infer<typeof PinCodeImportMappingSchema>;
 
 /**
+ * H1: how the columns of an opening stock file fill a movement: the hub, bin, stock code, quantity
+ * and unit cost are required; the serial and the company when the file has them.
+ */
+export const OpeningStockImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(OpeningStockImportFieldSchema, ImportColumnSchema),
+    defaults: z.object({}).strict().default({}),
+  })
+  .strict()
+  .refine(
+    (m) =>
+      m.columns.hub !== undefined &&
+      m.columns.bin !== undefined &&
+      m.columns.sku !== undefined &&
+      m.columns.qty !== undefined &&
+      m.columns.unitCost !== undefined,
+    {
+      message: 'the hub, bin, stock code, quantity and cost columns are required',
+      path: ['columns'],
+    },
+  )
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type OpeningStockImportMapping = z.infer<typeof OpeningStockImportMappingSchema>;
+
+/**
  * How the columns of an items file fill the catalogue (phase3 §6.1): the item code is required, to
  * find or make each item; every other column is taken when the file has it.
  */
@@ -152,6 +178,9 @@ export function importMappingSchemaFor(kind: ImplementedImportKind) {
       return AccountImportMappingSchema;
     case 'pin_codes':
       return PinCodeImportMappingSchema;
+    // H1 stock ledger
+    case 'opening_stock':
+      return OpeningStockImportMappingSchema;
     case 'items':
       return ItemImportMappingSchema;
   }

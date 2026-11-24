@@ -12,6 +12,7 @@ import { defineCommand } from '../../command/define-command';
 import { assertImportJobMove } from '../../imports/job-state';
 import { rollbackChunks } from '../../imports/row-key';
 import { recheckSitePins } from '../../imports/commit-pin-codes';
+import { reverseOpeningStock } from '../../imports/opening-stock';
 import {
   assertEntityInScope,
   assertGroupImport,
@@ -112,6 +113,9 @@ async function undo(
       .returning({ id: a.id });
     return changed.length;
   }
+  // H1 stock ledger: an opening stock job's movements are reversed, refused whole when any of
+  // the stock has moved on since.
+  if (kind === 'opening_stock') return reverseOpeningStock(tx, ids);
   // Items are taken out of sale through their command, never here (`undoItems`).
   if (kind === 'items') throw new DomainError('internal', 'items are undone through undoItems');
   const p = schema.pinCodes;

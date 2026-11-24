@@ -19,6 +19,7 @@ import { checkAccountRow, companyNames, foldAccountRows } from '../../imports/ac
 import { assertImportJobMove } from '../../imports/job-state';
 import { checkLeadRow, firstRowByPhone, matchKey, type LeadRowLookups } from '../../imports/leads';
 import { checkPinCodeRow } from '../../imports/pin-codes';
+import { previewOpeningStock } from '../../imports/opening-stock-preview';
 import { itemsBySku, skusByBarcode } from '../../imports/commit-items';
 import { planItemRow, readItemRow } from '../../imports/items';
 import {
@@ -551,9 +552,30 @@ export const previewImportJob = defineCommand({
         ? await previewLeads(ctx, rows, parseMappingFor('leads', mapping), input.entityId)
         : kind === 'accounts'
           ? await previewAccounts(ctx, rows, parseMappingFor('accounts', mapping), input.entityId)
-          : kind === 'items'
-            ? await previewItems(ctx, rows, parseMappingFor('items', mapping))
-            : previewPinCodes(rows, parseMappingFor('pin_codes', mapping));
+          : kind === 'pin_codes'
+            ? previewPinCodes(rows, parseMappingFor('pin_codes', mapping))
+            : kind === 'items'
+              ? await previewItems(ctx, rows, parseMappingFor('items', mapping))
+              : // H1 stock ledger
+                (
+                  await previewOpeningStock(
+                    ctx.tx,
+                    rows,
+                    parseMappingFor('opening_stock', mapping),
+                    input.entityId,
+                  )
+                ).map((finding, index): RowFinding => {
+                  const rowNo = rows[index]?.rowNo ?? 0;
+                  return finding.state === 'invalid'
+                    ? invalid(rowNo, finding.errors)
+                    : {
+                        row_no: rowNo,
+                        state: 'valid',
+                        normalised_json: finding.input,
+                        errors_json: [],
+                        dedupe_json: null,
+                      };
+                });
 
     for (let start = 0; start < findings.length; start += CHUNK) {
       const chunk = JSON.stringify(findings.slice(start, start + CHUNK));

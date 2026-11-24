@@ -14,6 +14,7 @@ import type {
   ItemImportField,
   LeadImportField,
   PinCodeImportField,
+  OpeningStockImportField,
 } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';
 
@@ -84,6 +85,16 @@ export const PIN_CODE_IMPORT_FIELDS = [
   'state',
 ] as const satisfies readonly PinCodeImportField[];
 
+/** H1: the fields of an opening stock file, in the order the form offers them. */
+export const OPENING_STOCK_IMPORT_FIELDS = [
+  'hub',
+  'bin',
+  'sku',
+  'qty',
+  'unitCost',
+  'serialNo',
+  'company',
+] as const satisfies readonly OpeningStockImportField[];
 /** The item fields of an items file (C5), in the order the form offers them. */
 export const ITEM_IMPORT_FIELDS = [
   'sku',
@@ -107,12 +118,16 @@ export const IMPORT_FIELDS_BY_KIND: Record<ImplementedImportKind, readonly Impor
   leads: LEAD_IMPORT_FIELDS,
   accounts: ACCOUNT_IMPORT_FIELDS,
   pin_codes: PIN_CODE_IMPORT_FIELDS,
+  // H1 stock ledger
+  opening_stock: OPENING_STOCK_IMPORT_FIELDS,
   items: ITEM_IMPORT_FIELDS,
 };
 
 /** A job's kind as the screens treat it; a kind not built yet reads as leads, which it cannot be. */
 export function screenKind(kind: ImportKind): ImplementedImportKind {
-  return kind === 'accounts' || kind === 'pin_codes' || kind === 'items' ? kind : 'leads';
+  return kind === 'accounts' || kind === 'pin_codes' || kind === 'opening_stock' || kind === 'items'
+    ? kind
+    : 'leads';
 }
 
 /** Fields a value chosen on screen can fill for every row whose cell is empty. */
@@ -130,6 +145,7 @@ const DEFAULTABLE_BY_KIND: Record<ImplementedImportKind, readonly DefaultableFie
   leads: DEFAULTABLE_FIELDS,
   accounts: ['accountType', 'preferredLanguage', 'siteType'],
   pin_codes: [],
+  opening_stock: [],
   items: [],
 };
 
@@ -192,6 +208,12 @@ const HEADINGS: Record<ImportField, readonly string[]> = {
   taluk: ['taluk', 'taluka', 'tehsil', 'tahsil', 'subdistrict'],
   district: ['district', 'districtname'],
   state: ['state', 'statename', 'statecode'],
+  // H1 opening stock
+  hub: ['hub', 'hubcode', 'godown', 'warehouse', 'site'],
+  bin: ['bin', 'bincode', 'rack', 'location'],
+  qty: ['qty', 'quantity', 'stock', 'balance', 'closingstock'],
+  unitCost: ['cost', 'unitcost', 'rate', 'costperunit', 'value'],
+  serialNo: ['serial', 'serialno', 'serialnumber', 'slno'],
   sku: ['sku', 'itemcode', 'code', 'productcode', 'partno', 'partnumber', 'stockcode'],
   itemName: ['itemname', 'item', 'name', 'productname', 'product', 'description'],
   category: ['category', 'itemcategory', 'productcategory'],
@@ -299,6 +321,8 @@ const REQUIRED_COLUMNS: Record<ImplementedImportKind, readonly ImportField[]> = 
   leads: ['contactName', 'phone'],
   accounts: ['contactName', 'phone'],
   pin_codes: ['pin', 'officeName', 'district'],
+  // H1 stock ledger
+  opening_stock: ['hub', 'bin', 'sku', 'qty', 'unitCost'],
   items: ['sku'],
 };
 
