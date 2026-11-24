@@ -28,6 +28,70 @@ export interface AxeOptions {
   include?: string;
 }
 
+/** How long `waitUntilStill` waits at most, and for how many frames in a row nothing may move. */
+export const STILL_WAIT = { limitMs: 2_000, stillFrames: 3 } as const;
+
+/**
+ * Runs in the page: resolves once no CSS animation or transition that ends is running and every
+ * notice on show is mounted and fully opaque, for `stillFrames` frames in a row, or after
+ * `limitMs` whatever moves, so it cannot hang a journey. A notice starts its fade a frame or two
+ * after it is marked mounted, so one look at the animations can miss it (`channels.spec.ts`,
+ * STATUS); frames in a row catch most of it, and a notice can sit in the page before its fade has
+ * started, which no look at the animations sees, so its own opacity is read too (p3-fixes
+ * integration). A notice leaving or hidden behind others stays at 0 and is not waited for. An
+ * animation that never ends (a spinner) is left running, and a finished one that holds its last
+ * frame does not count. Self-contained, since Playwright sends its source to the page.
+ */
+export async function waitUntilStill(options: {
+  limitMs: number;
+  stillFrames: number;
+}): Promise<'still' | 'moving'> {
+  const deadline = performance.now() + options.limitMs;
+  // A frame, or 50 ms where the page draws no frames, so the loop always moves on.
+  const nextFrame = () =>
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 50);
+      requestAnimationFrame(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  const noticeFading = () =>
+    Array.from(document.querySelectorAll('[data-sonner-toast]')).some(
+      (notice) =>
+        notice.getAttribute('data-visible') !== 'false' &&
+        notice.getAttribute('data-removed') !== 'true' &&
+        (notice.getAttribute('data-mounted') !== 'true' ||
+          getComputedStyle(notice).opacity !== '1'),
+    );
+  const moving = () =>
+    noticeFading() ||
+    document
+      .getAnimations()
+      .some(
+        (a) =>
+          (a.playState === 'running' || a.pending) &&
+          a.effect?.getComputedTiming().endTime !== Infinity,
+      );
+  let still = 0;
+  while (performance.now() < deadline) {
+    await nextFrame();
+    still = moving() ? 0 : still + 1;
+    if (still >= options.stillFrames) return 'still';
+  }
+  return 'moving';
+}
+
+/**
+ * The failure message for axe's violations. When the page was still moving after the wait, it
+ * says so: a colour measured mid-fade reads as low contrast (p3-fixes review, finding 3).
+ */
+export function violationsMessage(settled: 'still' | 'moving'): string {
+  const message = 'accessibility violations (WCAG 2.1 A and AA)';
+  if (settled === 'still') return message;
+  return `${message}; the page was still moving after ${String(STILL_WAIT.limitMs)} ms, so a colour may have been measured mid-fade`;
+}
+
 /**
  * Fails the test with every WCAG 2.1 A or AA violation axe finds on the page as it stands, and
  * with every button out of line with the box beside it (`expectAligned`, docs/08-design-system.md
@@ -39,25 +103,10 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
       for (const frame of frames) frame.remove();
     });
   }
-  // A notice (a toast) is drawn first in its hidden state and starts fading in a moment later, when
-  // it is marked mounted; until then its fade is not an animation the wait below can see.
-  await expect(page.locator('[data-sonner-toast][data-mounted="false"]')).toHaveCount(0);
-  // A dialog fading in shows its colours blended with the page behind it, which axe would measure
-  // as low contrast; every animation that ends is let finish first (a spinner never ends, so it is
-  // left running).
-  await page.evaluate(() =>
-    Promise.all(
-      document
-        .getAnimations()
-        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
-        .map((a) =>
-          a.finished.then(
-            () => undefined,
-            () => undefined,
-          ),
-        ),
-    ),
-  );
+  // A dialog or a notice fading in shows its colours blended with the page behind it, which axe
+  // would measure as low contrast: wait until the page is still and every notice on show is
+  // mounted and opaque (`waitUntilStill`).
+  const settled = await page.evaluate(waitUntilStill, STILL_WAIT);
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   if (options.include !== undefined) builder = builder.include(options.include);
   // With the frames gone, axe runs in the page alone: its cross-frame step opens a blank page to
@@ -73,6 +122,6 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
     help: v.help,
     targets: v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary ?? ''}`),
   }));
-  expect(summary, 'accessibility violations (WCAG 2.1 A and AA)').toEqual([]);
+  expect(summary, violationsMessage(settled)).toEqual([]);
   await expectAligned(page, options.include);
 }
