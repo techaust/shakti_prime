@@ -6,8 +6,9 @@ import { z } from 'zod';
  */
 
 /**
- * What a job imports: leads, customers (`accounts`) and the PIN code master (`pin_codes`, from the
- * public India Post directory); items and Tally masters arrive with their modules.
+ * What a job imports: leads, customers (`accounts`), the PIN code master (`pin_codes`, from the
+ * public India Post directory) and the catalogue's items (`items`, C5); Tally masters arrive with
+ * their module.
  */
 export const ImportKindSchema = z.enum([
   'leads',
@@ -27,14 +28,17 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'pin_codes',
   // H1 stock ledger
   'opening_stock',
+  // C5: the catalogue's items.
+  'items',
 ] as const satisfies readonly ImportKind[];
 export type ImplementedImportKind = (typeof IMPLEMENTED_IMPORT_KINDS)[number];
 
 /**
- * The kinds whose rows are shared by every company (the PIN code master): only a request acting
- * for every active company imports them, as an Executive (docs/03-roadmap-appendix/phase1.md §6.3).
+ * The kinds whose rows are shared by every company (the PIN code master, and the catalogue's items):
+ * only a request acting for every active company imports them, the PIN code master as an Executive
+ * (docs/03-roadmap-appendix/phase1.md §6.3) and items with `catalogue.write` (phase3 §6.1).
  */
-export const GROUP_IMPORT_KINDS = ['pin_codes'] as const satisfies readonly ImportKind[];
+export const GROUP_IMPORT_KINDS = ['pin_codes', 'items'] as const satisfies readonly ImportKind[];
 
 /** True for a kind whose job runs in a request for every company (`GROUP_IMPORT_KINDS`). */
 export function isGroupImportKind(kind: ImportKind): boolean {
@@ -74,6 +78,8 @@ export const ImportCreatedTypeSchema = z.enum([
   'account',
   'account_link',
   'pin_code',
+  // An item an items row added; a row that changed an existing item records nothing.
+  'item',
   // H1 stock ledger: the opening movement a row posted.
   'stock_movement',
 ]);
@@ -203,6 +209,30 @@ export const OpeningStockImportFieldSchema = z.enum([
 ]);
 export type OpeningStockImportField = z.infer<typeof OpeningStockImportFieldSchema>;
 
+/**
+ * The fields of a catalogue item a file column can fill (phase3 §6.1): its code (the only one every
+ * file needs), name, category, HSN code and units, serial tracking, DCR and ALMM, the warranties,
+ * the barcode and the serial pattern. A row whose code the catalogue has changes that item, and
+ * a blank cell keeps what the item has.
+ */
+export const ItemImportFieldSchema = z.enum([
+  'sku',
+  'itemName',
+  'category',
+  'hsn',
+  'unit',
+  'purchaseUnit',
+  'purchaseUnitFactor',
+  'isSerialTracked',
+  'isDcr',
+  'almmRef',
+  'warrantyMonths',
+  'supplierWarrantyMonths',
+  'barcode',
+  'serialPattern',
+]);
+export type ItemImportField = z.infer<typeof ItemImportFieldSchema>;
+
 /** Every field a file column can fill, whatever the kind. */
 export const ImportFieldSchema = z.enum([
   ...LeadImportFieldSchema.options,
@@ -214,10 +244,11 @@ export const ImportFieldSchema = z.enum([
   // H1 stock ledger
   'hub',
   'bin',
-  'sku',
   'qty',
   'unitCost',
   'serialNo',
+  // C5: the item fields, 'sku' among them, which opening stock shares.
+  ...ItemImportFieldSchema.options,
 ]);
 export type ImportField = z.infer<typeof ImportFieldSchema>;
 
@@ -228,6 +259,7 @@ export const IMPORT_FIELDS = {
   pin_codes: PinCodeImportFieldSchema.options,
   // H1 stock ledger
   opening_stock: OpeningStockImportFieldSchema.options,
+  items: ItemImportFieldSchema.options,
 } as const satisfies Record<ImplementedImportKind, readonly ImportField[]>;
 /**
  * Why one row cannot be imported, keyed to `imports.rowErrors` in the message catalogue. These
@@ -262,5 +294,18 @@ export const ImportRowErrorCodeSchema = z.enum([
   'serial_taken',
   'company_mismatch',
   'opening_stock_posted',
+  // Items (C5): a category, HSN code or unit outside the lists, a serial pattern refused, a
+  // barcode another item or an earlier row has, a category whose required details only the item
+  // sheet takes, a code of an item no longer sold, and a barcode hidden as an identity number.
+  'category_unknown',
+  'hsn_invalid',
+  'unit_unknown',
+  'serial_pattern_invalid',
+  'barcode_taken',
+  'item_details_needed',
+  'item_archived',
+  'barcode_hidden',
+  // An item kept out of stock (a service) that the row would make another category or serial-tracked.
+  'item_not_stocked',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

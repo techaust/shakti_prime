@@ -10,6 +10,7 @@ import {
   ImportFormatSchema,
   ImportKindSchema,
   ImportRowStateSchema,
+  ItemImportFieldSchema,
   LeadImportFieldSchema,
   PinCodeImportFieldSchema,
   OpeningStockImportFieldSchema,
@@ -130,6 +131,23 @@ export const OpeningStockImportMappingSchema = z
 export type OpeningStockImportMapping = z.infer<typeof OpeningStockImportMappingSchema>;
 
 /**
+ * How the columns of an items file fill the catalogue (phase3 §6.1): the item code is required, to
+ * find or make each item; every other column is taken when the file has it.
+ */
+export const ItemImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(ItemImportFieldSchema, ImportColumnSchema),
+    defaults: z.object({}).strict().default({}),
+  })
+  .strict()
+  .refine((m) => m.columns.sku !== undefined, {
+    message: 'the item code column is required',
+    path: ['columns'],
+  })
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type ItemImportMapping = z.infer<typeof ItemImportMappingSchema>;
+
+/**
  * A mapping of any kind, as a job or a template stores it and the screens read it. The command
  * checks it again against the job's own kind (`importMappingSchemaFor`).
  */
@@ -163,6 +181,8 @@ export function importMappingSchemaFor(kind: ImplementedImportKind) {
     // H1 stock ledger
     case 'opening_stock':
       return OpeningStockImportMappingSchema;
+    case 'items':
+      return ItemImportMappingSchema;
   }
 }
 

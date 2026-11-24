@@ -30,6 +30,8 @@ export default async function CataloguePage() {
   const covers = await readCoversAllCompanies();
   const holdsWrite = can('catalogue.write', 'entity');
   const canWrite = holdsWrite && covers.ok && covers.data;
+  // An items file goes through the imports, which need `imports.write` as well (C5).
+  const canImport = canWrite && can('imports.write', 'entity');
   return (
     <Page title={t('title')} description={t('intro')}>
       <CatalogueTabs
@@ -44,7 +46,7 @@ export default async function CataloguePage() {
         </p>
       ) : null}
       {first.ok ? (
-        <ItemsScreen initialPage={first.data} canWrite={canWrite} />
+        <ItemsScreen initialPage={first.data} canWrite={canWrite} canImport={canImport} />
       ) : (
         <FailureMessage failure={firstFailure(first)} />
       )}

@@ -12,6 +12,7 @@ import {
   assertContentNotImported,
   assertEntityInScope,
   assertGroupImport,
+  assertItemImport,
   toImportJobDto,
 } from './shared';
 
@@ -67,6 +68,7 @@ export const createImportJob = defineCommand({
       checkPermission(ctx.principal, 'finance.cost.read', 'entity');
       checkPermission(ctx.principal, 'inventory.stock.adjust', 'entity');
     }
+    if (input.kind === 'items') await assertItemImport(ctx);
     const actor = ctx.principal.id;
 
     const f = schema.files;

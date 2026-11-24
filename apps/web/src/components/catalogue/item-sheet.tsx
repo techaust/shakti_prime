@@ -22,7 +22,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { archiveItem, getItem } from '../../actions/catalogue';
-import { ITEM_SPEC_FIELDS } from '../../screens/contract-values';
+import { ITEM_SPEC_FIELDS } from '../../screens/catalogue-values';
 import { curvePath } from '../../screens/catalogue';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
@@ -169,6 +169,7 @@ export function ItemSheet({
                 ) : null}
               </dl>
             </section>
+            <StockSection item={item} />
             <section aria-labelledby="item-specs" className="flex flex-col gap-2">
               <h3 id="item-specs" className="text-h3">
                 {t('item.specsHeading')}
@@ -238,6 +239,43 @@ export function ItemSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/**
+ * Stock and warranty (C5): whether the item is kept in stock, its warranties, the supplier's
+ * barcode, the unit it is bought in and how much stock one holds, and the shape of its serial
+ * numbers. Every reader of the catalogue sees it; the Edit dialog changes it.
+ */
+function StockSection({ item }: { item: ItemDetailDto }) {
+  const t = useTranslations('catalogue.item');
+  const common = useTranslations('common');
+  const text = useCatalogueText();
+  const months = (value: number | null) =>
+    value === null ? common('notSet') : t('months', { count: value });
+  const bought =
+    item.purchaseUnit === null || item.purchaseUnit === item.unit
+      ? t('purchaseUnitSame')
+      : t('purchaseUnitHolds', {
+          bought: text.quantity(item.purchaseUnit, 1),
+          stocked: text.quantity(item.unit, Number(item.purchaseUnitFactor ?? '1')),
+        });
+  return (
+    <section aria-labelledby="item-stock" className="flex flex-col gap-2">
+      <h3 id="item-stock" className="text-h3">
+        {t('stockHeading')}
+      </h3>
+      <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-4 gap-y-2">
+        <Detail label={t('isStocked')} value={item.isStocked ? common('yes') : common('no')} />
+        <Detail label={t('warrantyMonths')} value={months(item.warrantyMonths)} />
+        <Detail label={t('supplierWarrantyMonths')} value={months(item.supplierWarrantyMonths)} />
+        <Detail label={t('barcode')} value={item.barcode ?? common('notSet')} />
+        <Detail label={t('purchaseUnit')} value={bought} />
+        {item.isSerialTracked ? (
+          <Detail label={t('serialPattern')} value={item.serialPattern ?? t('anySerial')} />
+        ) : null}
+      </dl>
+    </section>
   );
 }
 

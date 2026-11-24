@@ -223,6 +223,8 @@ export {
 export { existingSerialsOf } from './stock/serials';
 export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
 export { setPumpCurve } from './commands/catalogue/pump-curve';
+export { serialMatchesPattern, serialsOutsidePattern } from './catalogue/serial-pattern';
+export type { ItemSerialPattern } from './catalogue/serial-pattern';
 export { setTaxRate } from './commands/tax/set-tax-rate';
 export { setCompositeRule } from './commands/tax/set-composite-rule';
 export { inviteUser } from './commands/admin/invite-user';

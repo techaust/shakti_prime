@@ -9,6 +9,7 @@ import {
   type ImplementedImportKind,
   type ImportJobState,
   type ImportMapping,
+  type ItemImportMapping,
   type LeadImportMapping,
   type PermissionGrant,
   type PinCodeImportMapping,
@@ -133,6 +134,7 @@ export interface KindMappings {
   pin_codes: PinCodeImportMapping;
   // H1 stock ledger
   opening_stock: OpeningStockImportMapping;
+  items: ItemImportMapping;
 }
 
 /** A job's mapping, read back under its own kind's rules; one that no longer fits is a fault. */
@@ -169,6 +171,30 @@ export async function assertGroupImport(ctx: {
   if (!hasGrant(ctx.principal.permissions, 'imports.write', 'all') || covered[0]?.ok !== true) {
     throw new DomainError('forbidden', 'the PIN code master needs every company in scope', {
       reason: 'import_needs_all_companies',
+    });
+  }
+}
+
+/**
+ * The catalogue's items are shared by every company, so an items file is imported only by a holder
+ * of `catalogue.write` in a request for every active company (phase3 §6.1), as the item commands
+ * and the write policies of `items` require: `catalogue_needs_all_companies` otherwise.
+ */
+export async function assertItemImport(ctx: {
+  tx: RequestTx;
+  principal: { permissions: readonly PermissionGrant[] };
+}): Promise<void> {
+  if (!hasGrant(ctx.principal.permissions, 'catalogue.write', 'entity')) {
+    throw new DomainError('forbidden', 'an items file needs catalogue.write', {
+      permission: 'catalogue.write',
+    });
+  }
+  const covered = (await ctx.tx.execute(
+    sql`select app.request_covers_group() as ok`,
+  )) as unknown as { ok: boolean }[];
+  if (covered[0]?.ok !== true) {
+    throw new DomainError('forbidden', 'the catalogue needs every company in scope', {
+      reason: 'catalogue_needs_all_companies',
     });
   }
 }

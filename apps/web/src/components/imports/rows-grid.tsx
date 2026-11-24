@@ -50,6 +50,31 @@ export function RowsGrid({
   const offices = kind === 'pin_codes';
   // H1: an opening stock row reads as its stock code and quantity.
   const stock = kind === 'opening_stock';
+  const items = kind === 'items';
+  // The two columns that name a row: its customer and phone, its post office and PIN, its item and
+  // code, or (H1) its stock code and quantity.
+  const named = stock
+    ? ({ first: 'sku', second: 'qty', firstHeader: fields('sku'), secondHeader: fields('qty') } as const)
+    : offices
+      ? ({
+          first: 'officeName',
+          second: 'pin',
+          firstHeader: t('columns.office'),
+          secondHeader: t('columns.pin'),
+        } as const)
+      : items
+        ? ({
+            first: 'itemName',
+            second: 'sku',
+            firstHeader: t('columns.item'),
+            secondHeader: t('columns.sku'),
+          } as const)
+        : ({
+            first: 'contactName',
+            second: 'phone',
+            firstHeader: t('columns.name'),
+            secondHeader: t('columns.phone'),
+          } as const);
 
   function read(next: RowView, after: number | undefined) {
     const state = rowStateOf(next);
@@ -107,18 +132,15 @@ export function RowsGrid({
     },
     {
       id: 'name',
-      header: stock ? fields('sku') : offices ? t('columns.office') : t('columns.name'),
+      header: named.firstHeader,
       primary: true,
-      cell: (r) =>
-        rowValue(r, job.mapping, stock ? 'sku' : offices ? 'officeName' : 'contactName') ||
-        notRecorded,
+      cell: (r) => rowValue(r, job.mapping, named.first) || notRecorded,
     },
     {
       id: 'phone',
-      header: stock ? fields('qty') : offices ? t('columns.pin') : t('columns.phone'),
-      numeric: true,
-      cell: (r) =>
-        rowValue(r, job.mapping, stock ? 'qty' : offices ? 'pin' : 'phone') || notRecorded,
+      header: named.secondHeader,
+      numeric: !items,
+      cell: (r) => rowValue(r, job.mapping, named.second) || notRecorded,
     },
     {
       id: 'status',

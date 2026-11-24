@@ -16,6 +16,7 @@ import { reverseOpeningStock } from '../../imports/opening-stock';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertItemImport,
   assertJobCompaniesCovered,
   implementedKind,
   jobState,
@@ -115,6 +116,8 @@ async function undo(
   // H1 stock ledger: an opening stock job's movements are reversed, refused whole when any of
   // the stock has moved on since.
   if (kind === 'opening_stock') return reverseOpeningStock(tx, ids);
+  // Items are taken out of sale through their command, never here (`undoItems`).
+  if (kind === 'items') throw new DomainError('internal', 'items are undone through undoItems');
   const p = schema.pinCodes;
   const removed = await tx
     .delete(p)
@@ -141,8 +144,9 @@ async function undo(
  * companies; a customer a row was
  * linked to keeps the companies the row added. The request must act for every company the rows name. The offices a PIN code file
  * added are removed and the sites with their PINs checked again; an office it corrected keeps the
- * correction. A record the caller can no longer change stops the whole rollback, so nothing is
- * half undone.
+ * correction. The items an items file added are taken out of sale, except one a kit still sold
+ * holds; the items it changed keep the change. A record the caller can no longer change stops the
+ * whole rollback, so nothing is half undone.
  */
 export const rollbackImportJob = defineCommand({
   name: 'imports.job.rollback',
@@ -160,6 +164,7 @@ export const rollbackImportJob = defineCommand({
     const job = loaded.job;
     const kind = implementedKind(job);
     if (kind === 'pin_codes') await assertGroupImport(ctx);
+    if (kind === 'items') await assertItemImport(ctx);
     assertJobCompaniesCovered(ctx.entityIds, job);
     const actor = ctx.principal.id;
     const r = schema.importRows;
@@ -196,8 +201,14 @@ export const rollbackImportJob = defineCommand({
           : kind === 'leads'
             ? await leadsInUse(ctx.tx, job.id, ids)
             : NONE;
-      kept += inUse.size;
-      archived += await undo(ctx, ctx.tx, kind, ids, inUse);
+      if (kind === 'items') {
+        const items = await undoItems(ctx, ctx.tx, ids);
+        archived += items.archived;
+        kept += items.kept;
+      } else {
+        kept += inUse.size;
+        archived += await undo(ctx, ctx.tx, kind, ids, inUse);
+      }
       await ctx.tx
         .update(r)
         .set({ state: 'rolled_back', updatedBy: actor })
@@ -233,3 +244,40 @@ export const rollbackImportJob = defineCommand({
     return toImportJobDto(rolledBack);
   },
 });
+
+/**
+ * Takes the items an items file added out of sale (C5), one chunk at a time: the chunk's items
+ * are locked first, so no kit takes one on meanwhile; an item a kit still sold holds is kept, and
+ * one already out of sale is left as it is. The items a file changed keep the change, whose before
+ * and after the Activity log holds. The job's own audit row counts what was archived and kept, as
+ * a leads rollback does, rather than a row per item (a file of thousands of items in one
+ * transaction). The write policies of `items` allow it only in a request for every company.
+ */
+async function undoItems(
+  ctx: CommandContext,
+  tx: RequestTx,
+  ids: readonly string[],
+): Promise<{ archived: number; kept: number }> {
+  if (ids.length === 0) return { archived: 0, kept: 0 };
+  const i = schema.items;
+  const visible = await tx
+    .select({ id: i.id })
+    .from(i)
+    .where(inArray(i.id, [...ids]))
+    .for('update');
+  if (visible.length !== new Set(ids).size) throw blocked();
+  const held = await tx
+    .selectDistinct({ id: schema.kitComponents.itemId })
+    .from(schema.kitComponents)
+    .innerJoin(schema.kits, eq(schema.kits.id, schema.kitComponents.kitId))
+    .where(and(inArray(schema.kitComponents.itemId, [...ids]), isNull(schema.kits.archivedAt)));
+  const inKit = new Set(held.map((h) => h.id));
+  const free = ids.filter((id) => !inKit.has(id));
+  if (free.length === 0) return { archived: 0, kept: inKit.size };
+  const changed = await tx
+    .update(i)
+    .set({ isActive: false, archivedAt: ctx.now, updatedBy: ctx.principal.id })
+    .where(and(inArray(i.id, free), isNull(i.archivedAt)))
+    .returning({ id: i.id });
+  return { archived: changed.length, kept: inKit.size };
+}

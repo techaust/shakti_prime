@@ -195,7 +195,7 @@ export const importRows = pgTable(
     ),
     check(
       'import_rows_created_type_check',
-      sql`${t.createdType} in ('opportunity', 'account', 'account_link', 'pin_code', 'stock_movement')`,
+      sql`${t.createdType} in ('opportunity', 'account', 'account_link', 'pin_code', 'item', 'stock_movement')`,
     ),
     check('import_rows_row_no_check', sql`${t.rowNo} >= 1`),
     check('import_rows_created_check', sql`(${t.createdType} is null) = (${t.createdId} is null)`),

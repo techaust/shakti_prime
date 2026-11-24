@@ -1,7 +1,15 @@
 import { z } from 'zod';
 import { AccountTypeSchema, CustomerLanguageSchema, SiteTypeSchema } from '../../crm/enums';
+import { HsnSchema, ItemCategorySchema, ItemUnitSchema } from '../../catalogue/enums';
 import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
+import {
+  BarcodeSchema,
+  PurchaseUnitFactorSchema,
+  SERIAL_PATTERN_MAX,
+  SkuSchema,
+  WarrantyMonthsSchema,
+} from '../catalogue/items';
 import { GstStateCodeSchema } from '../org/update-entity';
 
 /** The most sites later rows of one customer add to it from one file. */
@@ -111,3 +119,35 @@ export const OpeningStockImportRowInput = z
   })
   .strict();
 export type OpeningStockImportRowInput = z.infer<typeof OpeningStockImportRowInput>;
+
+/**
+ * One checked row of an items file (phase3 §6.1), as the preview stores it and the commit reads
+ * it: the item code, and each field the row gives (a blank cell gives nothing). The commit finds
+ * the item by its code again: an item the catalogue has takes the fields given over what it has,
+ * through `catalogue.item.update`; a new code becomes an item through `catalogue.item.create`.
+ * `existingItemId` records which the preview found, for the screen.
+ */
+export const ItemImportRowInput = z
+  .object({
+    sku: SkuSchema,
+    existingItemId: IdSchema.optional(),
+    given: z
+      .object({
+        name: z.string().trim().min(2).max(120).optional(),
+        category: ItemCategorySchema.optional(),
+        hsn: HsnSchema.optional(),
+        unit: ItemUnitSchema.optional(),
+        purchaseUnit: ItemUnitSchema.optional(),
+        purchaseUnitFactor: PurchaseUnitFactorSchema.optional(),
+        isSerialTracked: z.boolean().optional(),
+        isDcr: z.boolean().optional(),
+        almmRef: z.string().trim().min(1).max(60).optional(),
+        warrantyMonths: WarrantyMonthsSchema.optional(),
+        supplierWarrantyMonths: WarrantyMonthsSchema.optional(),
+        barcode: BarcodeSchema.optional(),
+        serialPattern: z.string().trim().min(1).max(SERIAL_PATTERN_MAX).optional(),
+      })
+      .strict(),
+  })
+  .strict();
+export type ItemImportRowInput = z.infer<typeof ItemImportRowInput>;
