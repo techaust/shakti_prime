@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): catalogue columns and an import, no money or ledger |
 | Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (the builder's own model and effort at start and end: Opus 5.5, high) |
-| State | integrated on the PC; pull request open |
-| Next step | merge on green |
+| State | merged (#286) |
+| Next step | none |
 
 ## Brief
 Build [phase3 §6.1](../../03-roadmap-appendix/phase3.md#61-c5-catalogue-for-stock) as written. Points the design leaves to you, settled here:
