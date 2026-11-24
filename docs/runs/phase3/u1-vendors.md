@@ -6,8 +6,8 @@
 | Runs on | a cloud session of its own; the lead on the PC reviews and integrates (owner, 23-11-2026, for this day) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): supplier rates behind `procurement.rate.read`, row security |
 | Usage | 5-hour window 4 % at 18:00 UTC when briefed; builder on Opus 5.5 at high effort from start to done (the builder's session reports `claude-opus-5-5`, high effort, at the start, at done and at the fixes, 23-11-2026 and 24-11-2026 IST) |
-| State | fixes |
-| Next step | the lead reads the fixes; the `/procurement` budget value (H1), the journeys and Linux baselines on the PC, then integration |
+| State | integrated; pull request open, waiting for the owner's `checks-ok` |
+| Next step | the owner's `checks-ok` (`js-budget.json`), then the merge and the hosted migration (0232 to 0239) |
 
 ## Brief
 Build [phase3 §6.3](../../03-roadmap-appendix/phase3.md#63-u1-vendors-and-supplier-quotes) as written, with question 6 (a): one vendor master for the group. The exit gate's second item is supplier-rate isolation, so the rate rules are the heart of this slice. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
@@ -420,3 +420,11 @@ Lead, 24-11-2026, on the PC, on the branch before `main` is taken in (it waits f
 - the vendor sheet's phone and email links failed axe's contrast in dark (`text-accent`, 4.03 to 1): now `text-accent-text`, as every other link (a product fix);
 - the comparison is items down, vendors across, and earlier runs' vendors quote the same rate for the same item: the rate is asserted once.
 `procurement.spec.ts`: 36 of 36 in desktop-light, desktop-dark and phone. No Linux baseline made yet: they are made after the merge with `main`.
+
+## Integration
+Lead, 24-11-2026, on the PC.
+- **Merge with `main`** (C5 #286 and H1 #287), commit 3e243c17. The import kinds of C5 (`items`), H1 (`opening_stock`) and U1 (`vendors`) meet in the contracts, the schema, the wizard, the rows grid, the new-import page and the preview, commit and rollback commands: each carries all three, and the rollback's branch order is vendors, items, then the rest. The `sameAsRow` finding keeps both its `items` and `vendors` branches.
+- **Migrations** renumbered to 0232 to 0239. After renumbering, 0236's kind and created-type checks were edited to keep C5's `item` and H1's `opening_stock` and `stock_movement`; 0234's purpose check and 0235's `app.file_purpose_grant()` already held `main`'s latest. `pnpm db:generate` reports no changes.
+- **Journeys:** H1 and U1 each added `inventoryManager`; one user is kept (H1's name), used by both `inventory.spec.ts` and `procurement.spec.ts`.
+- **`integrate.sh`** on a fresh database: every step passed. Security suite db 1,785, domain 1,519, web 461; unit tests domain 2,806, web 1,239 (1 skipped), contracts 340, db 161, tokens 146, ui 107, voice 49, voice-agent 23, copy-lint 17; `procurement`, `imports` and `inventory` journeys 66 passed in the three projects; `/procurement` 227.6 kB within its 239.
+- **Baselines** made one project at a time, each on a fresh database (`e2e:snap -- --project=<p> --update-snapshots=changed`): the procurement pictures (three per project) and the screens whose menu mask the Procurement item lengthens (14 per desktop project, 3 on phone). desktop-light 225 passed and 1 flaky, desktop-dark 213 and 3 flaky, phone 215 and 1 flaky. The verification run without updating is CI's on the pull request, not run locally.
