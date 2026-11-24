@@ -305,7 +305,14 @@ export function OutcomePanel({
   const { done, total } = commitProgress(job);
   const kind = screenKind(job.kind);
   // Where the records a finished import added are seen; the PIN code list has no screen of its own.
-  const seeAdded = kind === 'leads' ? '/leads' : kind === 'accounts' ? '/customers' : undefined;
+  const seeAdded =
+    kind === 'leads'
+      ? '/leads'
+      : kind === 'accounts'
+        ? '/customers'
+        : kind === 'items'
+          ? '/catalogue'
+          : undefined;
 
   const title =
     job.state === 'failed'

@@ -54,13 +54,51 @@ export const ControllerSpecsSchema = z
   });
 export type ControllerSpecs = z.infer<typeof ControllerSpecsSchema>;
 
+const shortText = (max: number) => z.string().trim().min(1).max(max);
+
+/**
+ * The specifications stock needs to tell two items of a category apart (phase3 §6.1, C5): each of
+ * them optional, so an item made before them stays valid.
+ */
+export const ConductorSchema = z.enum(['copper', 'aluminium']);
+export type Conductor = z.infer<typeof ConductorSchema>;
+
+export const StructureSpecsSchema = z
+  .object({
+    capacityKwp: measure(0.1, 1000, 2).optional(),
+    material: shortText(40).optional(),
+  })
+  .strict();
+export type StructureSpecs = z.infer<typeof StructureSpecsSchema>;
+
+export const CableSpecsSchema = z
+  .object({
+    cores: measure(1, 61, 0).optional(),
+    sizeMm2: measure(0.5, 1000, 2).optional(),
+    conductor: ConductorSchema.optional(),
+  })
+  .strict();
+export type CableSpecs = z.infer<typeof CableSpecsSchema>;
+
 export const PipeSpecsSchema = z
-  .object({ nominalSizeMm: measure(1, 2000, 0), material: z.string().trim().min(1).max(40) })
+  .object({
+    nominalSizeMm: measure(1, 2000, 0),
+    material: shortText(40),
+    pipeClass: shortText(20).optional(),
+    pieceLengthM: measure(0.1, 1000, 2).optional(),
+  })
   .strict();
 export type PipeSpecs = z.infer<typeof PipeSpecsSchema>;
 
-export const InverterSpecsSchema = z.object({ kw }).strict();
+export const InverterSpecsSchema = z
+  .object({ kw, kva: kw.optional(), phase: PhaseSchema.optional() })
+  .strict();
 export type InverterSpecs = z.infer<typeof InverterSpecsSchema>;
+
+export const BatterySpecsSchema = z
+  .object({ ah: measure(1, 100_000, 0).optional(), voltageV: measure(1, 2000, 1).optional() })
+  .strict();
+export type BatterySpecs = z.infer<typeof BatterySpecsSchema>;
 
 /** Categories with no specifications of their own yet: an empty object. */
 export const NoSpecsSchema = z.object({}).strict();
@@ -70,11 +108,11 @@ export const ITEM_SPEC_SCHEMAS = {
   motor: MotorSpecsSchema,
   solar_module: SolarModuleSpecsSchema,
   controller: ControllerSpecsSchema,
-  structure: NoSpecsSchema,
-  cable: NoSpecsSchema,
+  structure: StructureSpecsSchema,
+  cable: CableSpecsSchema,
   pipe: PipeSpecsSchema,
   inverter: InverterSpecsSchema,
-  battery: NoSpecsSchema,
+  battery: BatterySpecsSchema,
   other: NoSpecsSchema,
 } as const satisfies Record<ItemCategory, z.ZodType>;
 
@@ -91,13 +129,25 @@ export function parseItemSpecs(category: ItemCategory, specs: unknown) {
 }
 
 /**
+ * The categories an item may be left out of stock in (`items.is_stocked` false): a service or
+ * labour is filed under Other. The database's `items_stocked_check` holds the same list.
+ */
+export const NON_STOCK_CATEGORIES = ['other'] as const satisfies readonly ItemCategory[];
+
+/** Whether an item of this category may be a service, which never reaches the stock ledger. */
+export function mayBeUnstocked(category: ItemCategory): boolean {
+  return (NON_STOCK_CATEGORIES as readonly ItemCategory[]).includes(category);
+}
+
+/**
  * How the item form asks for each specification, in the order it shows them. The browser keeps
- * a copy (`apps/web/src/screens/contract-values.ts`) that a test holds equal to this one.
+ * a copy (`apps/web/src/screens/contract-values.ts`) that a test holds equal to this one. A field
+ * marked `optional` may be left blank.
  */
 export type SpecField =
-  | { key: string; kind: 'number'; min: number; max: number; decimals: number }
-  | { key: string; kind: 'choice'; options: readonly string[] }
-  | { key: string; kind: 'text'; maxLength: number };
+  | { key: string; kind: 'number'; min: number; max: number; decimals: number; optional?: true }
+  | { key: string; kind: 'choice'; options: readonly string[]; optional?: true }
+  | { key: string; kind: 'text'; maxLength: number; optional?: true };
 
 const HP: SpecField = { key: 'hp', kind: 'number', min: 0.1, max: 1000, decimals: 2 };
 const KW: SpecField = { key: 'kw', kind: 'number', min: 0.01, max: 10_000, decimals: 2 };
@@ -119,13 +169,29 @@ export const ITEM_SPEC_FIELDS: Readonly<Record<ItemCategory, readonly SpecField[
     { key: 'inputMinV', kind: 'number', min: 1, max: 2000, decimals: 0 },
     { key: 'inputMaxV', kind: 'number', min: 1, max: 2000, decimals: 0 },
   ],
-  structure: [],
-  cable: [],
+  structure: [
+    { key: 'capacityKwp', kind: 'number', min: 0.1, max: 1000, decimals: 2, optional: true },
+    { key: 'material', kind: 'text', maxLength: 40, optional: true },
+  ],
+  cable: [
+    { key: 'cores', kind: 'number', min: 1, max: 61, decimals: 0, optional: true },
+    { key: 'sizeMm2', kind: 'number', min: 0.5, max: 1000, decimals: 2, optional: true },
+    { key: 'conductor', kind: 'choice', options: ConductorSchema.options, optional: true },
+  ],
   pipe: [
     { key: 'nominalSizeMm', kind: 'number', min: 1, max: 2000, decimals: 0 },
     { key: 'material', kind: 'text', maxLength: 40 },
+    { key: 'pipeClass', kind: 'text', maxLength: 20, optional: true },
+    { key: 'pieceLengthM', kind: 'number', min: 0.1, max: 1000, decimals: 2, optional: true },
   ],
-  inverter: [KW],
-  battery: [],
+  inverter: [
+    KW,
+    { key: 'kva', kind: 'number', min: 0.01, max: 10_000, decimals: 2, optional: true },
+    { ...PHASE, optional: true },
+  ],
+  battery: [
+    { key: 'ah', kind: 'number', min: 1, max: 100_000, decimals: 0, optional: true },
+    { key: 'voltageV', kind: 'number', min: 1, max: 2000, decimals: 1, optional: true },
+  ],
   other: [],
 };

@@ -11,6 +11,7 @@ import type {
   ImportRowErrorCode,
   ImportRowState,
   ImportTemplateDto,
+  ItemImportField,
   LeadImportField,
   PinCodeImportField,
 } from '@shakti/contracts';
@@ -83,16 +84,35 @@ export const PIN_CODE_IMPORT_FIELDS = [
   'state',
 ] as const satisfies readonly PinCodeImportField[];
 
+/** The item fields of an items file (C5), in the order the form offers them. */
+export const ITEM_IMPORT_FIELDS = [
+  'sku',
+  'itemName',
+  'category',
+  'hsn',
+  'unit',
+  'purchaseUnit',
+  'purchaseUnitFactor',
+  'isSerialTracked',
+  'isDcr',
+  'almmRef',
+  'warrantyMonths',
+  'supplierWarrantyMonths',
+  'barcode',
+  'serialPattern',
+] as const satisfies readonly ItemImportField[];
+
 /** The fields each kind of file offers. */
 export const IMPORT_FIELDS_BY_KIND: Record<ImplementedImportKind, readonly ImportField[]> = {
   leads: LEAD_IMPORT_FIELDS,
   accounts: ACCOUNT_IMPORT_FIELDS,
   pin_codes: PIN_CODE_IMPORT_FIELDS,
+  items: ITEM_IMPORT_FIELDS,
 };
 
 /** A job's kind as the screens treat it; a kind not built yet reads as leads, which it cannot be. */
 export function screenKind(kind: ImportKind): ImplementedImportKind {
-  return kind === 'accounts' || kind === 'pin_codes' ? kind : 'leads';
+  return kind === 'accounts' || kind === 'pin_codes' || kind === 'items' ? kind : 'leads';
 }
 
 /** Fields a value chosen on screen can fill for every row whose cell is empty. */
@@ -110,6 +130,7 @@ const DEFAULTABLE_BY_KIND: Record<ImplementedImportKind, readonly DefaultableFie
   leads: DEFAULTABLE_FIELDS,
   accounts: ['accountType', 'preferredLanguage', 'siteType'],
   pin_codes: [],
+  items: [],
 };
 
 export function isDefaultable(
@@ -171,6 +192,28 @@ const HEADINGS: Record<ImportField, readonly string[]> = {
   taluk: ['taluk', 'taluka', 'tehsil', 'tahsil', 'subdistrict'],
   district: ['district', 'districtname'],
   state: ['state', 'statename', 'statecode'],
+  sku: ['sku', 'itemcode', 'code', 'productcode', 'partno', 'partnumber', 'stockcode'],
+  itemName: ['itemname', 'item', 'name', 'productname', 'product', 'description'],
+  category: ['category', 'itemcategory', 'productcategory'],
+  hsn: ['hsn', 'hsncode', 'hsnsac'],
+  unit: ['unit', 'uom', 'stockunit', 'units'],
+  purchaseUnit: ['purchaseunit', 'buyingunit', 'purchaseuom'],
+  purchaseUnitFactor: [
+    'purchaseunitfactor',
+    'factor',
+    'conversion',
+    'conversionfactor',
+    'perpurchaseunit',
+  ],
+  // Not "Serial" or "Serial number": price sheets head their row count so, and a column of
+  // serial numbers is no yes or no.
+  isSerialTracked: ['serialtracked', 'serialised', 'serialized'],
+  isDcr: ['dcr'],
+  almmRef: ['almm', 'almmref', 'almmlisting'],
+  warrantyMonths: ['warranty', 'warrantymonths', 'customerwarranty'],
+  supplierWarrantyMonths: ['supplierwarranty', 'supplierwarrantymonths', 'vendorwarranty'],
+  barcode: ['barcode', 'ean', 'upc', 'gtin'],
+  serialPattern: ['serialpattern', 'serialformat'],
 };
 
 /**
@@ -256,6 +299,7 @@ const REQUIRED_COLUMNS: Record<ImplementedImportKind, readonly ImportField[]> = 
   leads: ['contactName', 'phone'],
   accounts: ['contactName', 'phone'],
   pin_codes: ['pin', 'officeName', 'district'],
+  items: ['sku'],
 };
 
 /**
