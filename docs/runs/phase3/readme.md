@@ -4,7 +4,6 @@ One file per slice, `docs/runs/phase3/<slug>.md`, kept as [the Phase 2 run files
 
 ## Slices in flight
 Each run file is on its slice's branch until the slice merges.
-- `u1-vendors`: U1 Vendors and supplier quotes, branch `feat/u1-vendors`.
 - `demo-data-ist-day`: the demo-data test that fails late in the day in India, branch `fix/demo-data-ist-day` (briefed; its seat left no work).
 
 ## Merged
@@ -13,3 +12,4 @@ Each run file is on its slice's branch until the slice merges.
 - [Five open follow-ups](p3-fixes.md) (#285).
 - [C5 Catalogue for stock](c5-catalogue-stock.md) (#286).
 - [H1 Hubs, bins and the stock ledger](h1-stock-ledger.md) (#287).
+- [U1 Vendors and supplier quotes](u1-vendors.md) (#288).
