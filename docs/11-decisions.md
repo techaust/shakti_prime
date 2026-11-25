@@ -17,6 +17,10 @@ The decisions that govern day-to-day work now, each with its row below:
 
 | Date | Decision | Decided by | Applied in |
 |---|---|---|---|
+| 25-11-2026 | The production release that would carry #292 is held for now; dev and staging serve it | Owner | [STATUS](10-status.md#waiting-on-the-owner) |
+| 24-11-2026 | The logo is the Spark S: an S cut by one 62° spark, point-symmetric, in the product's indigo with two indigos per theme (`--brand`, `--brand-deep`), an outlined Inter Bold wordmark with "Prime" in the brand indigo and square i-dots; chosen after three rounds of concepts | Owner | [design system §2.2](08-design-system.md#22-neutrals-and-accent), `apps/web/public/brand`, #292 |
+| 24-11-2026 | The public landing page is the staff front door; it covers the whole project plan with the best parts shown, is final and is never edited, so nothing on it is dated; it stays short; each company gets the same company icon until the group says which company sells what | Owner | [design system §6](08-design-system.md#6-component-patterns), #292 |
+| 24-11-2026 | The landing page's footer carries the developer's credit, "© {year} Shakti Prime. Designed and developed by TecHaust Technologies.", the year current, the name linking to techaust.com in a new tab, on a line of its own; on the landing page only | Owner | #292 |
 | 24-11-2026 | The four seats close at the end of the day; seats run again only on the owner's word for a day | Owner | [hybrid §11](runbooks/hybrid.md#11-seats-on-the-owners-other-accounts) |
 | 24-11-2026 | `apps/web/js-budget.json` gains H1's stock pages, and the root `pnpm lint` runs with an 8 GB heap, which CI's 16 GB runners for a public repository allow (#287) | Owner (`checks-ok`) | #287 |
 | 23-11-2026 | For the night of 23 to 24 November: four cloud sessions on the owner's other Team accounts (seats) take builds, reviews and fix rounds that the lead hands them through the branch `ops/seats`; the lead keeps the journeys, the integration, the pull requests and the hosted steps on the PC | Owner | [hybrid §11](runbooks/hybrid.md#11-seats-on-the-owners-other-accounts) |
