@@ -3,9 +3,12 @@
 // one file for every theme, so it takes the light values, as the print templates do.
 import { colors } from './tokens';
 
-/** The "S" mark, drawn for a 32 × 32 box. */
+/**
+ * The Spark S, drawn for a 32 × 32 box: its small-size cut, in one colour with a wider spark so
+ * the cut still shows at 16 px. The full mark is `apps/web/public/brand/shakti-prime-mark.svg`.
+ */
 const MARK =
-  'M20.8 11.2c-.9-1.2-2.6-1.9-4.6-1.9-2.8 0-4.9 1.4-4.9 3.6 0 2.1 1.6 3 4.6 3.6 2.3.5 3 1 3 1.9 0 1-1.1 1.7-2.9 1.7-1.7 0-3.1-.7-3.9-1.8l-1.7 1.4c1.1 1.6 3.2 2.5 5.6 2.5 3.1 0 5.3-1.5 5.3-3.9 0-2.2-1.6-3.1-4.8-3.7-2.1-.4-2.8-.9-2.8-1.8 0-.9 1-1.5 2.5-1.5 1.4 0 2.6.5 3.3 1.4z';
+  'M24.84 6.82H13.05A5.44 5.44 0 0 0 13.05 17.7H13.91L15.72 14.3H13.05A2.04 2.04 0 0 1 13.05 10.22H23.03ZM7.16 25.18H18.95A5.44 5.44 0 0 0 18.95 14.3H18.09L16.28 17.7H18.95A2.04 2.04 0 0 1 18.95 21.78H8.97Z';
 
 /** The icon's SVG: the mark in the text-on-accent colour on an accent tile. */
 export function renderAppIcon(): string {

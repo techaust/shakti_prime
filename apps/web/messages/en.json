@@ -5,6 +5,73 @@
     "staffSignIn": "Staff sign in",
     "reference": "Reference: {reference}"
   },
+  "landing": {
+    "metaTitle": "Shakti Prime · Every lead, quote and order, in one place",
+    "metaDescription": "One system for the four companies of the Shakti group: leads, calling, quotes, orders, stock, projects, payments and the team.",
+    "previewAlt": "The Shakti Prime logo with the words: every lead, quote and order, in one place.",
+    "heroHeading": "<line>Every lead,</line> <line>quote and order,</line> <line>in one place</line>",
+    "heroLead": "Callers, sales and store staff, engineers and the accounts team work every solar and pump lead from the same records, always up to date.",
+    "inviteNote": "New to the team? Ask your manager for an invitation. It comes by email.",
+    "previewLabel": "The leads board in Shakti Prime, with leads moving from New to Quoted.",
+    "stages": {
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "quoted": "Quoted"
+    },
+    "companiesLabel": "One system for",
+    "companies": {
+      "supreme": "Shakti Supreme",
+      "motorPumps": "Shakti Motor Pumps",
+      "agroSolar": "Agro Solar Hub",
+      "rcref": "RCREF"
+    },
+    "featuresHeading": "What you can do in Shakti Prime",
+    "features": {
+      "leads": {
+        "heading": "Leads and calling",
+        "body": "Leads from ads, WhatsApp and phone calls land in one queue, and callers work through them with scripts and reminders."
+      },
+      "quotes": {
+        "heading": "Quotes and orders",
+        "body": "Quotes are priced from the price list with tax worked out, and become orders in one step."
+      },
+      "assistants": {
+        "heading": "Assistants and <phrase>Talk to Shakti</phrase>",
+        "body": "Assistants follow up on leads and draft replies, which wait in the Agent Inbox for a person to approve. Managers can ask about the business out loud with Talk to Shakti."
+      },
+      "customers": {
+        "heading": "One record per customer",
+        "body": "One customer record shared by the four companies, with every call, note, quote and order on its timeline."
+      },
+      "stock": {
+        "heading": "Stock, buying and dispatch",
+        "body": "Stock in each godown, supplier quotes and purchase orders, and dispatches that leave with their e-way bill."
+      },
+      "projects": {
+        "heading": "Projects and subsidy",
+        "body": "Solar installations from site visit to handover, with every subsidy step and document kept in order."
+      },
+      "field": {
+        "heading": "Field app",
+        "body": "An Android app for engineers: site visits, photos, attendance and expenses, even without a signal."
+      },
+      "finance": {
+        "heading": "Payments and accounts",
+        "body": "Proformas, payments and job costs, matched with Tally so the accounts team works from the same numbers."
+      },
+      "team": {
+        "heading": "Team and pay",
+        "body": "Attendance, leave, incentives and expenses, with the salary sheet ready for the accounts team."
+      }
+    },
+    "closingHeading": "Start your day in Shakti Prime",
+    "closingBody": "Sign in with the email address your invitation came to.",
+    "forgotPassword": "Forgot your password?",
+    "footerNote": "The business system of the Shakti group, Jaipur.",
+    "credit": "© <yearMark>{year}</yearMark> Shakti Prime. Designed and developed by <link>TecHaust Technologies</link>.",
+    "newTab": " (opens in a new tab)"
+  },
   "errors": {
     "knowledge_file_transition_not_allowed": "This file can't do that in its current status. Refresh the page to see where it stands.",
     "knowledge_needs_all_companies": "Choose All companies at the top to change a file for every company.",
