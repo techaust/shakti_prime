@@ -52,6 +52,7 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
 | Files, mail, field encryption, Sentry, print, Realtime, vendor harnesses | `apps/web/src/files`, `src/mail`, `src/crypto`, `src/observability`, `src/print`, `src/realtime`, `src/integrations` |
 | Message catalogue; end-to-end journeys | `apps/web/messages/en.json`; `apps/web/e2e` |
 | UI kit; tokens; copy lint | `packages/ui/src`; `packages/tokens/src`; `tools/copy-lint` |
+| The logo and the brand files; the public landing page's icons | `apps/web/src/components/brand` (the component and its outlines) and `apps/web/public/brand`; `apps/web/src/components/landing` |
 | Voice: the LiveKit Agents worker; the speech and reply adapters it shares with `web` | `apps/voice-agent`; `packages/voice` |
 | AWS stacks (files, the production backup); CI, merge, migrate and release workflows | `infra/aws/files.yaml`, `infra/aws/backups.yaml`; `.github/workflows`, `.github/actions` |
 
