@@ -231,6 +231,15 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'crm.lead.attached': { ordering: 'every', handle: notify },
   // U2: a reorder draft tells the company's order writers.
   'procurement.po.drafted': { ordering: 'every', handle: notify },
+  // U2: the reorder check after a stock issue or loss, debounced per company and item (review
+  // finding 5). H2 also handles this type: the lead joins the two into one handler at the merge.
+  'inventory.stock.moved': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      const { handleStockMovedReorder } = await import('../procurement-reorder');
+      await handleStockMovedReorder(event, ctx);
+    },
+  },
 };
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */

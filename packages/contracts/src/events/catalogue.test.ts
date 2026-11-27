@@ -64,6 +64,8 @@ describe('the event catalogue', () => {
         'crm.opportunity.assigned',
         'crm.opportunity.stage_moved',
         'files.file.uploaded',
+        // U2: the reorder check after a stock issue or loss.
+        'inventory.stock.moved',
         'knowledge.file.index_requested',
         'knowledge.playbook.changed',
         'messaging.button.pressed',

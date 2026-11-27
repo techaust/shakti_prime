@@ -297,7 +297,8 @@ const eventCatalogue = {
       'procurement.grn.post',
       'procurement.grn.reverse',
     ],
-    subscribed: false,
+    // U2: the reorder check after an issue or a loss.
+    subscribed: true,
     payload: z
       .object({
         count: z.number().int().min(1),
