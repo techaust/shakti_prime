@@ -401,3 +401,25 @@ Reviewed `git diff origin/main...feat/j1-projects` at `11c3a2fc` (main at `59736
 - **No re-check:** the lead reads the diff.
 
 ## Integration
+
+### 27-11-2026, Integration prep (cloud VM, worktree `/home/user/shakti-wt/j1-projects`, Postgres 54331): blocked
+- **`main` taken:** `fc42a09f` (#299, Q1 labels; X4 stock reasons before it), by the merge commit `b708ed3e` (slice-integration §5). Conflicts resolved with `merge-union.py` (the e2e seed, `contract-values` and its test, the event catalogue test, `workshop-defaults` and its test, reader parity; each hunk read by hand, and the closing brace of J1's `projects` block put back in both halves of `workshop-defaults.ts`), `merge-json.py` (no key changed on both sides), `merge-copylint.py`, and by hand in `05-database.md` (`main`'s `app.stock_move()` row kept, J1's rows after it). `pnpm install --offline --frozen-lockfile`, then `renumber-migrations.mjs`; `pnpm db:generate`: "No schema changes, nothing to migrate"; `pnpm db:docs` and `machines:docs` regenerated `docs/data/` and `docs/state-machines/` (70 event types, 24 with a worker).
+- **Migrations:** 0240 to 0246 move to 0243 to 0249 (`0243_j1_projects`, `0244_j1_projects_rls`, `0245_j1_status_summary`, `0246_j1_project_customers`, `0247_j1_projects_list_order`, `0248_j1_order_cancelled_notice`, `0249_j1_review_fixes`), journal times after `main`'s last (0242) and rising; `main`'s 0240 to 0242 snapshots unchanged. `05-database.md`'s J1 citations moved to the new numbers (`main`'s 0240 to 0242 citations left as they are).
+- **Redefinitions, each against `main`'s latest:**
+  - `app.platform_only_permissions()` (0244) against 0222: every key kept, plus `projects.draft`. No later `main` migration redefines it.
+  - `app.next_document_no()` (0244) against 0201: every line kept, plus the `project` series (`projects.write:entity`, or the platform's `projects.draft`).
+  - `app.status_summary()` (0245 drops and creates it, 0249 replaces it) against 0201: every branch kept, plus the project branch and its two columns; grants as 0201's (revoked from `public` and `readonly_reporter`, granted to `app_user` and `app_reader`).
+  - `document_sequences_doc_type_check` (0243) against 0007: every type kept, plus `project`.
+  - `notifications_type_check` and `notification_preferences_type_check` (0248) against 0228: every type kept, plus `project_order_cancelled`; `notifications_subject_type_check` (0248) against 0184: every type kept, plus `project`.
+  - Foreign keys: the slice adds keys only on its own four tables and redefines none of `main`'s.
+- **Shared lists:** no key used twice in `en.json`, `copy-lint.config.json`, the journey users, the worker registry or the reader-parity list. The matrix fixture's offset `per(e, 0x90)` is now both Q1's `label_sheet` file and J1's project, in different tables, as `main` already shares 0x19 and 0x82 between a file and another table; left as it is.
+- **Typecheck right after the merge** (through the lock): `Tasks: 10 successful, 10 total`.
+- **Part 1** (`install lint format copylint generated typecheck`): `=== INTEGRATION FAILED`. install, lint (all four parts), copylint ("catalogues and templates are clean"), generated ("No schema changes, nothing to migrate") and typecheck (10 of 10 tasks) passed; **format failed**:
+
+  ```
+  [warn] packages/domain/src/index.ts
+  [warn] Code style issues found in the above file. Run Prettier with --write to fix.
+  ```
+
+  The line is the slice's own, unchanged by the merge: `export { projectStandardMachine, STANDARD_MILESTONES } from './state-machines/machines/project-standard';` (106 characters) fails `prettier --check` at the slice's pre-merge commit `ba4c39ad` too. `pnpm exec prettier --write packages/domain/src/index.ts` splits it over four lines and changes nothing else; not applied, as the fault is outside the merge.
+- **Parts 2 to 4** (`unit`, `security dbverify`, `audit build jsbudget gitleaks`) not run: stopped at part 1's failure, so no unit or security suite counts.
