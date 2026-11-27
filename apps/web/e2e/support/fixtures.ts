@@ -14,6 +14,21 @@ export { snap } from './snap';
 export const test = base.extend({
   context: async ({ context }, provide) => {
     if (process.env.E2E_REAL_TURNSTILE !== '1') await standInForTurnstile(context);
+    if (process.env.FAKE_CLOCK_OFFSET_MS) {
+      await context.addInitScript((offset: number) => {
+        const RealDate = Date;
+        const realNow = RealDate.now.bind(RealDate);
+        function FakeDate(this: unknown, ...args: unknown[]) {
+          if (!new.target) return new RealDate(realNow() + offset).toString();
+          return args.length === 0 ? new RealDate(realNow() + offset) : new (RealDate as any)(...args);
+        }
+        FakeDate.prototype = RealDate.prototype;
+        (FakeDate as any).UTC = RealDate.UTC;
+        (FakeDate as any).parse = RealDate.parse;
+        (FakeDate as any).now = () => realNow() + offset;
+        (globalThis as any).Date = FakeDate;
+      }, Number(process.env.FAKE_CLOCK_OFFSET_MS));
+    }
     await provide(context);
   },
   // `E2E_CPU_THROTTLE=6` slows the browser's own work six times, as a machine short of memory and
