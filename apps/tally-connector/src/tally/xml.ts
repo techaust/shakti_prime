@@ -6,9 +6,10 @@ import { TallyVoucherTypeSchema, type TallyVoucherType } from '@shakti/contracts
  * `ISMODIFY="No"`; the connector never sends an `Import` and never changes Tally's books
  * (CLAUDE.md, "Tally is read-only"). Field names follow Tally's standard voucher, ledger and company
  * objects and are confirmed at the Tally discovery visit (docs/04-architecture-appendix/tally.md).
+ * This is the one reader of Tally's XML in the repository; it replaced the Phase 0 spike's.
  *
- * The web's spike script (`apps/web/scripts/spike/tally-read.ts`) reads Tally with these same
- * functions, so there is one reader of Tally's XML in the repository.
+ * Every voucher read names its period from the books' first day: without one, Tally reads only
+ * the company's current period, and vouchers of earlier years would be left out unseen.
  */
 
 /** A Tally date (`YYYYMMDD`) for a request's period. */
@@ -59,14 +60,9 @@ function alterIdText(value: number, name: string): string {
   return String(value);
 }
 
-/**
- * The AlterID window `(after, upTo]` as a TDL filter. Without `upTo` the window is open above (the
- * spike's full read).
- */
-function rangeFormula(name: string, after: number, upTo: number | undefined): string {
-  const lower = `$ALTERID &gt; ${alterIdText(after, 'after')}`;
-  const formula =
-    upTo === undefined ? lower : `${lower} AND $ALTERID &lt;= ${alterIdText(upTo, 'upTo')}`;
+/** The AlterID window `(after, upTo]` as a TDL filter. */
+function rangeFormula(name: string, after: number, upTo: number): string {
+  const formula = `$ALTERID &gt; ${alterIdText(after, 'after')} AND $ALTERID &lt;= ${alterIdText(upTo, 'upTo')}`;
   return `<SYSTEM TYPE="Formulae" NAME="${name}">${formula}</SYSTEM>`;
 }
 
@@ -97,8 +93,8 @@ export function companyStatusRequest(company: string): string {
 export function vouchersPageRequest(
   company: string,
   after: number,
-  upTo?: number,
-  period?: TallyPeriod,
+  upTo: number,
+  period: TallyPeriod,
 ): string {
   return envelope(
     company,
@@ -128,7 +124,7 @@ export function ledgersPageRequest(
   company: string,
   after: number,
   upTo: number,
-  period?: TallyPeriod,
+  period: TallyPeriod,
 ): string {
   return envelope(
     company,
@@ -149,13 +145,13 @@ export function ledgersPageRequest(
 }
 
 /**
- * Voucher GUIDs (with their date, AlterID and type) of a company, for the daily snapshot. Without a
- * window, every voucher (the spike's single read); the connector reads it in AlterID windows.
+ * Voucher GUIDs (with their date, AlterID and type) of a company with an AlterID in `(after, upTo]`,
+ * for the daily snapshot.
  */
 export function voucherGuidsRequest(
   company: string,
-  window?: { after: number; upTo: number },
-  period?: TallyPeriod,
+  window: { after: number; upTo: number },
+  period: TallyPeriod,
 ): string {
   return envelope(
     company,
@@ -164,12 +160,8 @@ export function voucherGuidsRequest(
       '<COLLECTION NAME="BOSVoucherGuids" ISMODIFY="No"><TYPE>Voucher</TYPE>',
       '<FETCH>GUID, DATE, ALTERID, VOUCHERTYPENAME</FETCH>',
       '<COMPUTE>BOSBASETYPE : $PARENT:VOUCHERTYPE:$VOUCHERTYPENAME</COMPUTE>',
-      ...(window === undefined
-        ? ['</COLLECTION>']
-        : [
-            '<FILTER>BOSInRange</FILTER></COLLECTION>',
-            rangeFormula('BOSInRange', window.after, window.upTo),
-          ]),
+      '<FILTER>BOSInRange</FILTER></COLLECTION>',
+      rangeFormula('BOSInRange', window.after, window.upTo),
     ].join(''),
     period,
   );
@@ -410,9 +402,9 @@ export function parseGuidReadings(xml: string): GuidReading[] {
   });
 }
 
-/** GUIDs from a snapshot answer. */
-export function parseGuidExport(xml: string): string[] {
-  return parseGuidReadings(xml).map((v) => v.guid);
+/** How many objects of a kind (`VOUCHER`, `LEDGER`) an answer holds, read or not. */
+export function objectCount(xml: string, name: string): number {
+  return objects(xml, name).length;
 }
 
 export interface CompanyStatus {

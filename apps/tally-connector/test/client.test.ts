@@ -144,8 +144,41 @@ describe('the BOS client', () => {
     await expect(refused.sendBatch({ body: '{}', idempotencyKey: 'k' })).rejects.toEqual(
       new BosRefused(409, 'conflict', 'cursor_mismatch'),
     );
-    await expect(client([() => json(200, { nonsense: true })]).cursor('C')).rejects.toEqual(
-      new BosUnavailable('bad_answer'),
-    );
+  });
+
+  it('asks again after an answer it cannot read, as after a server error, then gives up', async () => {
+    const calls: Call[] = [];
+    const sleeps: number[] = [];
+    const garbled = () => new Response('{"company":', { status: 200 });
+    const c = client([garbled, () => json(200, { nonsense: true }), garbled], calls, sleeps);
+    await expect(c.cursor('C')).rejects.toEqual(new BosUnavailable('bad_answer'));
+    expect(calls).toHaveLength(3);
+    expect(sleeps).toEqual([100, 200]);
+    await expect(client([garbled, () => json(200, cursor)]).cursor('C')).resolves.toEqual(cursor);
+  });
+
+  it('reads an answer carrying fields a later BOS added, at every level', async () => {
+    const answer = {
+      company: 'C',
+      accepted: { vouchersNew: 1, vouchersChanged: 0, vouchersUnchanged: 0, ledgers: 0 },
+      lastAlterId: 5,
+    };
+    const later = {
+      ...answer,
+      accepted: { ...answer.accepted, vouchersQueuedForAccounts: 2 },
+      warnings: ['a later field'],
+    };
+    await expect(
+      client([() => json(200, later)]).sendBatch({ body: '{}', idempotencyKey: 'k' }),
+    ).resolves.toEqual(answer);
+    const beat = { serverTime: NOW.toISOString(), latestVersion: '0.2.0', updateAvailable: true };
+    await expect(
+      client([() => json(200, { ...beat, releaseNotes: 'x' })]).heartbeat({
+        connectorVersion: '0.1.0',
+        tallyVersion: 'TallyPrime 5.1',
+        companies: [{ name: 'C', lastAlterId: 0, reachable: true }],
+        queueDepth: 0,
+      }),
+    ).resolves.toEqual(beat);
   });
 });

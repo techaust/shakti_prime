@@ -25,6 +25,8 @@ export const COMPANIES: CompanyMapping[] = [
 export const FAST: Settings = {
   ...SETTINGS,
   pageSize: 5,
+  // Fixed windows unless a test widens them.
+  pageSizeMax: 5,
   snapshotPageSize: 7,
   tallyPauseMs: 0,
   tallyTimeoutMs: 1_000,
@@ -34,6 +36,7 @@ export const FAST: Settings = {
   bosRetries: 1,
   bosBackoffMs: 5,
   bosMaxRetryAfterMs: 50,
+  outboxMaxAttempts: 3,
 };
 
 export function tempDir(): { dir: string; remove: () => void } {

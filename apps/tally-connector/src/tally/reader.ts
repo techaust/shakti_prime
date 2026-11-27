@@ -1,10 +1,11 @@
-import { TallyLedger, TallyLedgerBalance, TallyVoucher } from '@shakti/contracts';
+import { TallyLedger, TallyLedgerBalance, TallyRefusedRow, TallyVoucher } from '@shakti/contracts';
 import { errorKind, logId, type Log } from '../log';
 import type { Settings } from '../settings';
 import {
   companyStatusRequest,
   decodeTallyAnswer,
   ledgersPageRequest,
+  objectCount,
   parseCompanyStatus,
   parseGuidReadings,
   parseLedgerExport,
@@ -32,10 +33,15 @@ export type ReaderSettings = Pick<
   | 'tallyBackoffMs'
 >;
 
-/** Tally did not answer, answered an error, or does not have the company open. */
+/**
+ * Tally did not answer, answered an error, or does not have the company open; or the company gives
+ * no usable first day of its books (`no_books_from`), so it cannot be read with a period.
+ */
 export class TallyUnavailable extends Error {
   override name = 'TallyUnavailable';
-  constructor(readonly reason: 'unreachable' | 'company_not_open' | 'tally_error') {
+  constructor(
+    readonly reason: 'unreachable' | 'company_not_open' | 'tally_error' | 'no_books_from',
+  ) {
     super(reason);
   }
 }
@@ -43,8 +49,12 @@ export class TallyUnavailable extends Error {
 export interface Page {
   vouchers: TallyVoucher[];
   ledgers: TallyLedger[];
-  /** Rows Tally gave that the contract cannot carry, by GUID; logged and left out. */
+  /** Rows Tally gave that the contract cannot carry, by GUID and field: the BOS queues them. */
+  refused: TallyRefusedRow[];
+  /** Refused rows whose GUID cannot even be reported; logged only. */
   skipped: number;
+  /** Every voucher and ledger Tally answered with, read or not: what the page cost Tally. */
+  scanned: number;
 }
 
 export interface Snapshot {
@@ -139,23 +149,50 @@ export class TallyReader {
     return status;
   }
 
-  /** From the books' first day to `asOf` (`YYYY-MM-DD`): a ledger's closing balance on that day. */
-  private balancePeriod(status: CompanyStatus, asOf: string): TallyPeriod | undefined {
-    return status.booksFrom === undefined
-      ? undefined
-      : { from: status.booksFrom, to: asOf.replaceAll('-', '') };
+  /**
+   * The books' first day. Without it Tally would read only the company's current period, and a
+   * page would pass over earlier years' vouchers unseen, so the company is not read at all.
+   */
+  private booksFrom(status: CompanyStatus): string {
+    if (status.booksFrom === undefined) throw new TallyUnavailable('no_books_from');
+    return status.booksFrom;
   }
 
-  private period(status: CompanyStatus): TallyPeriod | undefined {
-    return status.booksFrom === undefined
-      ? undefined
-      : { from: status.booksFrom, to: periodTo(this.now()) };
+  /** From the books' first day to `asOf` (`YYYY-MM-DD`): a ledger's closing balance on that day. */
+  private balancePeriod(status: CompanyStatus, asOf: string): TallyPeriod {
+    return { from: this.booksFrom(status), to: asOf.replaceAll('-', '') };
+  }
+
+  private period(status: CompanyStatus): TallyPeriod {
+    return { from: this.booksFrom(status), to: periodTo(this.now()) };
+  }
+
+  /** A row the contract refused: reported to the BOS by GUID and field, and logged by the same. */
+  private refusal(
+    kind: TallyRefusedRow['kind'],
+    row: Record<string, unknown>,
+    issues: readonly { path: readonly PropertyKey[] }[],
+  ): TallyRefusedRow | undefined {
+    const field = issues[0]?.path[0];
+    const reading = TallyRefusedRow.safeParse({
+      kind,
+      guid: row.guid,
+      alterId: row.alterId,
+      field: typeof field === 'string' ? field : 'unknown',
+    });
+    this.options.log.warn(`${kind}_unreadable`, {
+      guid: logId(String(row.guid)),
+      field: logId(typeof field === 'string' ? field : 'unknown'),
+      reported: reading.success,
+    });
+    return reading.success ? reading.data : undefined;
   }
 
   /**
    * Vouchers and party ledgers with an AlterID in `(after, upTo]`, each checked against the
-   * contract. A row the contract refuses is left out and logged by GUID, so one odd voucher cannot
-   * hold up every later one; a GUID twice keeps its highest AlterID.
+   * contract. A row the contract refuses goes in the page's `refused` list by GUID and field, so
+   * one odd voucher cannot hold up every later one and the BOS still learns of it; a GUID twice
+   * keeps its highest AlterID.
    */
   async readPage(
     company: string,
@@ -164,53 +201,51 @@ export class TallyReader {
     upTo: number,
     asOf: string,
   ): Promise<Page> {
-    const voucherXml = await this.ask(
-      vouchersPageRequest(company, after, upTo, this.period(status)),
-    );
-    const ledgerXml = await this.ask(
-      ledgersPageRequest(company, after, upTo, this.balancePeriod(status, asOf)),
-    );
+    const period = this.period(status);
+    const balancePeriod = this.balancePeriod(status, asOf);
+    const voucherXml = await this.ask(vouchersPageRequest(company, after, upTo, period));
+    const ledgerXml = await this.ask(ledgersPageRequest(company, after, upTo, balancePeriod));
+    const refused: TallyRefusedRow[] = [];
     let skipped = 0;
     const inRange = (row: Record<string, unknown>) =>
       typeof row.alterId === 'number' && row.alterId > after && row.alterId <= upTo;
+    const keepLatest = <T extends { guid: string; alterId: number }>(
+      rows: Map<string, T>,
+      row: T,
+    ) => {
+      const seen = rows.get(row.guid);
+      if (seen === undefined || row.alterId > seen.alterId) rows.set(row.guid, row);
+    };
 
     const vouchers = new Map<string, TallyVoucher>();
     for (const row of parseVoucherExport(voucherXml).filter(inRange)) {
       const parsed = TallyVoucher.safeParse(row);
-      if (!parsed.success) {
-        skipped += 1;
-        this.options.log.warn('voucher_unreadable', {
-          guid: logId(String(row.guid)),
-          field: logId(String(parsed.error.issues[0]?.path[0] ?? 'unknown')),
-        });
+      if (parsed.success) {
+        keepLatest(vouchers, parsed.data);
         continue;
       }
-      const seen = vouchers.get(parsed.data.guid);
-      if (seen === undefined || parsed.data.alterId > seen.alterId) {
-        vouchers.set(parsed.data.guid, parsed.data);
-      }
+      const refusal = this.refusal('voucher', row, parsed.error.issues);
+      if (refusal === undefined) skipped += 1;
+      else refused.push(refusal);
     }
     const ledgers = new Map<string, TallyLedger>();
     for (const row of parseLedgerExport(ledgerXml, asOf).filter(inRange)) {
       const parsed = TallyLedger.safeParse(row);
-      if (!parsed.success) {
-        skipped += 1;
-        this.options.log.warn('ledger_unreadable', {
-          guid: logId(String(row.guid)),
-          field: logId(String(parsed.error.issues[0]?.path[0] ?? 'unknown')),
-        });
+      if (parsed.success) {
+        keepLatest(ledgers, parsed.data);
         continue;
       }
-      const seen = ledgers.get(parsed.data.guid);
-      if (seen === undefined || parsed.data.alterId > seen.alterId) {
-        ledgers.set(parsed.data.guid, parsed.data);
-      }
+      const refusal = this.refusal('ledger', row, parsed.error.issues);
+      if (refusal === undefined) skipped += 1;
+      else refused.push(refusal);
     }
     const byAlterId = (a: { alterId: number }, b: { alterId: number }) => a.alterId - b.alterId;
     return {
       vouchers: [...vouchers.values()].sort(byAlterId),
       ledgers: [...ledgers.values()].sort(byAlterId),
+      refused: refused.sort(byAlterId),
       skipped,
+      scanned: objectCount(voucherXml, 'VOUCHER') + objectCount(ledgerXml, 'LEDGER'),
     };
   }
 

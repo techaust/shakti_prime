@@ -137,6 +137,21 @@ export type TallyLedger = z.infer<typeof TallyLedger>;
 
 // --- Routes ---------------------------------------------------------------------------------
 
+/**
+ * Why the connector is not reading a company, reported with the heartbeat: Tally gives no usable
+ * first day of the books (`no_books_from`, so the company is never read without a period), Tally's
+ * counter is below the BOS's cursor (`tally_behind_bos`, a restored backup), or a batch of the
+ * company waits because the BOS refused it or answered what the connector cannot read
+ * (`waiting_on_bos`).
+ */
+export const TALLY_COMPANY_PROBLEMS = [
+  'no_books_from',
+  'tally_behind_bos',
+  'waiting_on_bos',
+] as const;
+export const TallyCompanyProblemSchema = z.enum(TALLY_COMPANY_PROBLEMS);
+export type TallyCompanyProblem = z.infer<typeof TallyCompanyProblemSchema>;
+
 /** `POST /connector/tally/heartbeat`, every 5 minutes; 30 minutes of silence raises an alert. */
 export const ConnectorHeartbeatRequest = z
   .object({
@@ -147,26 +162,60 @@ export const ConnectorHeartbeatRequest = z
         z
           .object({
             name: TallyCompanySchema,
+            /** The BOS's cursor for the company, as the connector last heard it. */
             lastAlterId: AlterIdSchema,
             reachable: z.boolean(),
+            /**
+             * Tally's last AlterID for the company, as read in the connector's last cycle: the lag
+             * is this less `lastAlterId`. Absent until Tally has answered once.
+             */
+            tallyLastAlterId: AlterIdSchema.optional(),
+            problem: TallyCompanyProblemSchema.optional(),
           })
           .strict(),
       )
       .min(1),
     /** Batches waiting in the connector's local SQLite outbox. */
     queueDepth: z.number().int().min(0),
+    /**
+     * Outbox rows set aside in the last 7 days after the BOS refused them, or answered what the
+     * connector cannot read, too many times; each is in the connector's log by key and code.
+     */
+    heldRows: z.number().int().min(0).optional(),
   })
   .strict();
 export type ConnectorHeartbeatRequest = z.infer<typeof ConnectorHeartbeatRequest>;
 
-export const ConnectorHeartbeatResponse = z
+const heartbeatResponseShape = {
+  serverTime: z.iso.datetime(),
+  latestVersion: SemverSchema,
+  updateAvailable: z.boolean(),
+};
+export const ConnectorHeartbeatResponse = z.object(heartbeatResponseShape).strict();
+export type ConnectorHeartbeatResponse = z.infer<typeof ConnectorHeartbeatResponse>;
+
+/** The most vouchers and ledgers one batch carries. */
+export const CONNECTOR_BATCH_MAX_VOUCHERS = 500;
+export const CONNECTOR_BATCH_MAX_LEDGERS = 2000;
+
+/**
+ * A voucher or ledger Tally gave in the batch's range that the contract cannot carry (for example a
+ * cancelled voucher with no ledger lines, or a malformed GSTIN), by GUID and the first field
+ * refused. The BOS queues it for Accounts: its earlier version, if any, is no longer current.
+ */
+export const TallyRefusedRow = z
   .object({
-    serverTime: z.iso.datetime(),
-    latestVersion: SemverSchema,
-    updateAvailable: z.boolean(),
+    kind: z.enum(['voucher', 'ledger']),
+    /** As Tally gave it, which may be the field that was refused. */
+    guid: z.string().trim().min(1).max(100),
+    alterId: AlterIdSchema,
+    field: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_]*$/)
+      .max(60),
   })
   .strict();
-export type ConnectorHeartbeatResponse = z.infer<typeof ConnectorHeartbeatResponse>;
+export type TallyRefusedRow = z.infer<typeof TallyRefusedRow>;
 
 /**
  * `POST /connector/tally/batches` with `Idempotency-Key`. `fromAlterId` must equal the cursor the
@@ -179,8 +228,12 @@ export const ConnectorBatchRequest = z
     entityCode: EntityCodeSchema,
     fromAlterId: AlterIdSchema,
     maxAlterId: AlterIdSchema,
-    vouchers: z.array(TallyVoucher).max(500),
-    ledgers: z.array(TallyLedger).max(2000),
+    vouchers: z.array(TallyVoucher).max(CONNECTOR_BATCH_MAX_VOUCHERS),
+    ledgers: z.array(TallyLedger).max(CONNECTOR_BATCH_MAX_LEDGERS),
+    refused: z
+      .array(TallyRefusedRow)
+      .max(CONNECTOR_BATCH_MAX_VOUCHERS + CONNECTOR_BATCH_MAX_LEDGERS)
+      .optional(),
   })
   .strict()
   .refine((v) => v.maxAlterId >= v.fromAlterId, {
@@ -189,7 +242,7 @@ export const ConnectorBatchRequest = z
   })
   .refine(
     (v) =>
-      [...v.vouchers, ...v.ledgers].every(
+      [...v.vouchers, ...v.ledgers, ...(v.refused ?? [])].every(
         (row) => row.alterId > v.fromAlterId && row.alterId <= v.maxAlterId,
       ),
     { message: 'a row lies outside the batch range', path: ['vouchers'] },
@@ -200,20 +253,19 @@ export const ConnectorBatchRequest = z
   });
 export type ConnectorBatchRequest = z.infer<typeof ConnectorBatchRequest>;
 
+const batchAcceptedShape = {
+  vouchersNew: z.number().int().min(0),
+  vouchersChanged: z.number().int().min(0),
+  vouchersUnchanged: z.number().int().min(0),
+  ledgers: z.number().int().min(0),
+};
+const batchResponseShape = {
+  company: TallyCompanySchema,
+  /** The cursor after this batch; the connector's next `fromAlterId`. */
+  lastAlterId: AlterIdSchema,
+};
 export const ConnectorBatchResponse = z
-  .object({
-    company: TallyCompanySchema,
-    accepted: z
-      .object({
-        vouchersNew: z.number().int().min(0),
-        vouchersChanged: z.number().int().min(0),
-        vouchersUnchanged: z.number().int().min(0),
-        ledgers: z.number().int().min(0),
-      })
-      .strict(),
-    /** The cursor after this batch; the connector's next `fromAlterId`. */
-    lastAlterId: AlterIdSchema,
-  })
+  .object({ ...batchResponseShape, accepted: z.object(batchAcceptedShape).strict() })
   .strict();
 export type ConnectorBatchResponse = z.infer<typeof ConnectorBatchResponse>;
 
@@ -255,30 +307,44 @@ export const ConnectorSnapshotRequest = z
   );
 export type ConnectorSnapshotRequest = z.infer<typeof ConnectorSnapshotRequest>;
 
-export const ConnectorSnapshotResponse = z
-  .object({
-    company: TallyCompanySchema,
-    known: z.number().int().min(0),
-    tombstoned: z.number().int().min(0),
-    /** GUIDs in the snapshot the BOS has not received yet; the connector re-reads them. */
-    missingOnServer: z.array(TallyGuidSchema).max(1000),
-  })
-  .strict();
+const snapshotResponseShape = {
+  company: TallyCompanySchema,
+  known: z.number().int().min(0),
+  tombstoned: z.number().int().min(0),
+  /**
+   * GUIDs in the snapshot the BOS has not received yet. The connector cannot send them again (a
+   * batch carries only rows above the cursor); the BOS reports them for Accounts.
+   */
+  missingOnServer: z.array(TallyGuidSchema).max(1000),
+};
+export const ConnectorSnapshotResponse = z.object(snapshotResponseShape).strict();
 export type ConnectorSnapshotResponse = z.infer<typeof ConnectorSnapshotResponse>;
 
 /** `GET /connector/tally/cursor?company=`. */
 export const ConnectorCursorQuery = z.object({ company: TallyCompanySchema }).strict();
 export type ConnectorCursorQuery = z.infer<typeof ConnectorCursorQuery>;
 
-export const ConnectorCursorResponse = z
-  .object({
-    company: TallyCompanySchema,
-    /** Zero before the first batch: the connector starts a full read. */
-    lastAlterId: AlterIdSchema,
-    updatedAt: z.iso.datetime().nullable(),
-  })
-  .strict();
+const cursorResponseShape = {
+  company: TallyCompanySchema,
+  /** Zero before the first batch: the connector starts a full read. */
+  lastAlterId: AlterIdSchema,
+  updatedAt: z.iso.datetime().nullable(),
+};
+export const ConnectorCursorResponse = z.object(cursorResponseShape).strict();
 export type ConnectorCursorResponse = z.infer<typeof ConnectorCursorResponse>;
+
+/**
+ * How the connector reads the BOS's answers: the response contracts' fields, with a field it does
+ * not know dropped at every level instead of refused. An additive change (docs/06-api.md §7) then
+ * never stops a connector already installed on an office PC, which cannot be updated until it
+ * reads the heartbeat's answer. The BOS's own tests hold its answers to the strict contracts.
+ */
+export const ConnectorAnswers = {
+  cursor: z.object(cursorResponseShape),
+  heartbeat: z.object(heartbeatResponseShape),
+  batch: z.object({ ...batchResponseShape, accepted: z.object(batchAcceptedShape) }),
+  snapshot: z.object(snapshotResponseShape),
+};
 
 /**
  * `GET /connector/release`: the latest release manifest, signed by CI. The connector installs an

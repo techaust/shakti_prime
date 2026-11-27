@@ -8,6 +8,9 @@ import type { AddressInfo } from 'node:net';
  * documented export format: `TYPE` attributes, numbers with a leading space, dates as `YYYYMMDD`,
  * signed amounts. Knobs make it slow, failing, silent or altered.
  *
+ * As Tally does, it reads vouchers only within the request's period (`SVFROMDATE` to `SVTODATE`),
+ * or within the company's current period when the request names none.
+ *
  * It refuses anything but an `Export`, so a test fails if the connector ever asks Tally to change.
  */
 
@@ -25,6 +28,8 @@ export interface FixtureVoucher {
   buyerOrderNo?: string;
   amount: number;
   cancelled?: boolean;
+  /** A voucher Tally gives without ledger lines (as some cancelled vouchers are). */
+  noEntries?: boolean;
 }
 
 export interface FixtureLedger {
@@ -38,7 +43,10 @@ export interface FixtureLedger {
 
 interface Company {
   guid: string;
-  booksFrom: string;
+  /** Undefined for a company whose status gives no `BOOKSFROM`. */
+  booksFrom: string | undefined;
+  /** The period Tally reads when a request names none (`YYYYMMDD`). */
+  currentPeriod: { from: string; to: string };
   alterSeq: number;
   masterSeq: number;
   /** Tally's `$AltVchId` and `$AltMstId`: the last AlterID given to a voucher and to a master. */
@@ -53,7 +61,8 @@ export interface FixtureRequest {
   collection: string;
   company: string;
   tallyRequest: string;
-  /** `SVTODATE`, when the request names a period. */
+  /** `SVFROMDATE` and `SVTODATE`, when the request names a period. */
+  from: string | undefined;
   to: string | undefined;
   after: number | undefined;
   upTo: number | undefined;
@@ -123,14 +132,18 @@ function voucherXml(v: FixtureVoucher, fields: 'full' | 'guid'): string {
     v.buyerOrderNo === undefined
       ? ''
       : ` <BASICBUYERORDERNO TYPE="String">${escape(v.buyerOrderNo)}</BASICBUYERORDERNO>`,
-    ' <ALLLEDGERENTRIES.LIST>',
-    `  <LEDGERNAME TYPE="String">${escape(v.party)}</LEDGERNAME>`,
-    `  <AMOUNT TYPE="Amount">${amount(sign * v.amount)}</AMOUNT>`,
-    ' </ALLLEDGERENTRIES.LIST>',
-    ' <ALLLEDGERENTRIES.LIST>',
-    '  <LEDGERNAME TYPE="String">Sales GST 18%</LEDGERNAME>',
-    `  <AMOUNT TYPE="Amount">${amount(-sign * v.amount)}</AMOUNT>`,
-    ' </ALLLEDGERENTRIES.LIST>',
+    ...(v.noEntries === true
+      ? []
+      : [
+          ' <ALLLEDGERENTRIES.LIST>',
+          `  <LEDGERNAME TYPE="String">${escape(v.party)}</LEDGERNAME>`,
+          `  <AMOUNT TYPE="Amount">${amount(sign * v.amount)}</AMOUNT>`,
+          ' </ALLLEDGERENTRIES.LIST>',
+          ' <ALLLEDGERENTRIES.LIST>',
+          '  <LEDGERNAME TYPE="String">Sales GST 18%</LEDGERNAME>',
+          `  <AMOUNT TYPE="Amount">${amount(-sign * v.amount)}</AMOUNT>`,
+          ' </ALLLEDGERENTRIES.LIST>',
+        ]),
     '</VOUCHER>',
   ]
     .filter((line) => line !== '')
@@ -206,13 +219,18 @@ export class FixtureTally {
   maxInFlight = 0;
   url = '';
 
-  addCompany(name: string, options: { booksFrom?: string; companyGuid?: string } = {}): void {
+  /** `booksFrom: null` makes a company whose status gives no first day of its books. */
+  addCompany(
+    name: string,
+    options: { booksFrom?: string | null; companyGuid?: string } = {},
+  ): void {
     const index = this.companies.size + 1;
     this.companies.set(name, {
       guid:
         options.companyGuid ??
         `5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a${index.toString(16).padStart(2, '0')}`,
-      booksFrom: options.booksFrom ?? '20240401',
+      booksFrom: options.booksFrom === null ? undefined : (options.booksFrom ?? '20240401'),
+      currentPeriod: { from: '20260401', to: '20270331' },
       alterSeq: 0,
       masterSeq: 0,
       altVch: 0,
@@ -227,6 +245,11 @@ export class FixtureTally {
     const company = this.companies.get(name);
     if (company === undefined) throw new Error(`no fixture company ${name}`);
     return company;
+  }
+
+  /** The company's first day of the books, or none (`undefined`) in its status. */
+  setBooksFrom(name: string, booksFrom: string | undefined): void {
+    this.company(name).booksFrom = booksFrom;
   }
 
   /** Closes or opens the company in Tally. */
@@ -296,6 +319,16 @@ export class FixtureTally {
     return created;
   }
 
+  /**
+   * Masters the connector never reads (stock items, other ledgers) altered `count` times: AlterIDs
+   * the pages pass over with nothing to carry.
+   */
+  alterOtherMasters(name: string, count: number): void {
+    const company = this.company(name);
+    company.alterSeq += count;
+    company.altMst = company.alterSeq;
+  }
+
   /** A voucher posted to the ledger: its balance moves, its AlterID does not. */
   setClosing(name: string, guid: string, closing: number): void {
     const ledger = this.company(name).ledgers.get(guid);
@@ -342,6 +375,7 @@ export class FixtureTally {
       collection: /<ID>([^<]*)<\/ID>/.exec(xml)?.[1] ?? '',
       company: unescape(/<SVCURRENTCOMPANY>([^<]*)<\/SVCURRENTCOMPANY>/.exec(xml)?.[1] ?? ''),
       tallyRequest: /<TALLYREQUEST>([^<]*)<\/TALLYREQUEST>/.exec(xml)?.[1] ?? '',
+      from: /<SVFROMDATE[^>]*>([^<]*)<\/SVFROMDATE>/.exec(xml)?.[1],
       to: /<SVTODATE[^>]*>([^<]*)<\/SVTODATE>/.exec(xml)?.[1],
       after: range?.[1] === undefined ? undefined : Number(range[1]),
       upTo: range?.[2] === undefined ? undefined : Number(range[2]),
@@ -390,8 +424,12 @@ export class FixtureTally {
       finish(200, envelope(''));
       return;
     }
+    // Tally reads vouchers within the period asked for, or the company's current period.
+    const from = record.from ?? company.currentPeriod.from;
+    const to = record.to ?? company.currentPeriod.to;
     const vouchers = [...company.vouchers.values()]
       .filter((v) => inRange(v.alterId, record.after, record.upTo))
+      .filter((v) => v.date >= from && v.date <= to)
       .sort((a, b) => a.alterId - b.alterId);
     switch (record.collection) {
       case 'BOSCompanyStatus': {
@@ -401,12 +439,16 @@ export class FixtureTally {
             [
               `<COMPANY NAME="${escape(record.company)}" RESERVEDNAME="">`,
               ` <NAME TYPE="String">${escape(record.company)}</NAME>`,
-              ` <BOOKSFROM TYPE="Date">${company.booksFrom}</BOOKSFROM>`,
+              company.booksFrom === undefined
+                ? ''
+                : ` <BOOKSFROM TYPE="Date">${company.booksFrom}</BOOKSFROM>`,
               ` <ALTVCHID TYPE="Number"> ${String(company.altVch)}</ALTVCHID>`,
               ` <ALTMSTID TYPE="Number"> ${String(company.altMst)}</ALTMSTID>`,
               ` <BOSTALLYVERSION TYPE="String">${this.version}</BOSTALLYVERSION>`,
               '</COMPANY>',
-            ].join('\n'),
+            ]
+              .filter((line) => line !== '')
+              .join('\n'),
           ),
         );
         return;

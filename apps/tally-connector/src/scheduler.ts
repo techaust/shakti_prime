@@ -12,10 +12,31 @@ import type { Syncer } from './sync';
 
 export type SchedulerSettings = Pick<Settings, 'heartbeatEveryMs' | 'readEveryMs'>;
 
+/** The clock and timers the scheduler runs on: the system's, or a test's own. */
+export interface Timers {
+  now(): number;
+  setTimeout(run: () => void, ms: number): unknown;
+  clearTimeout(handle: unknown): void;
+  setInterval(run: () => void, ms: number): unknown;
+  clearInterval(handle: unknown): void;
+}
+
+export const SYSTEM_TIMERS: Timers = {
+  now: () => Date.now(),
+  setTimeout: (run, ms) => setTimeout(run, ms),
+  clearTimeout: (handle) => {
+    clearTimeout(handle as ReturnType<typeof setTimeout>);
+  },
+  setInterval: (run, ms) => setInterval(run, ms),
+  clearInterval: (handle) => {
+    clearInterval(handle as ReturnType<typeof setInterval>);
+  },
+};
+
 export class Scheduler {
   private running = false;
   private loop: Promise<void> | undefined;
-  private beatTimer: ReturnType<typeof setInterval> | undefined;
+  private beatTimer: unknown;
   private beating = false;
   private wake: (() => void) | undefined;
 
@@ -23,7 +44,7 @@ export class Scheduler {
     private readonly syncer: Syncer,
     private readonly settings: SchedulerSettings,
     private readonly log: Log,
-    private readonly now: () => number = Date.now,
+    private readonly timers: Timers = SYSTEM_TIMERS,
   ) {}
 
   start(): void {
@@ -31,7 +52,10 @@ export class Scheduler {
     this.running = true;
     this.log.info('connector_started');
     void this.beat();
-    this.beatTimer = setInterval(() => void this.beat(), this.settings.heartbeatEveryMs);
+    this.beatTimer = this.timers.setInterval(
+      () => void this.beat(),
+      this.settings.heartbeatEveryMs,
+    );
     this.loop = this.run();
   }
 
@@ -47,14 +71,14 @@ export class Scheduler {
 
   private async run(): Promise<void> {
     while (this.running) {
-      const startedAt = this.now();
+      const startedAt = this.timers.now();
       try {
         await this.syncer.cycle();
       } catch (error) {
         this.log.error('cycle_failed', { kind: errorKind(error) });
       }
       if (this.stopped()) break;
-      await this.pause(this.settings.readEveryMs - (this.now() - startedAt));
+      await this.pause(this.settings.readEveryMs - (this.timers.now() - startedAt));
     }
   }
 
@@ -63,11 +87,11 @@ export class Scheduler {
     if (ms <= 0) return Promise.resolve();
     return new Promise((resolve) => {
       const done = () => {
-        clearTimeout(timer);
+        this.timers.clearTimeout(timer);
         this.wake = undefined;
         resolve();
       };
-      const timer = setTimeout(done, ms);
+      const timer = this.timers.setTimeout(done, ms);
       this.wake = done;
     });
   }
@@ -81,7 +105,7 @@ export class Scheduler {
   async stop(): Promise<void> {
     if (!this.running) return;
     this.running = false;
-    if (this.beatTimer !== undefined) clearInterval(this.beatTimer);
+    if (this.beatTimer !== undefined) this.timers.clearInterval(this.beatTimer);
     this.syncer.requestStop();
     this.wake?.();
     await this.loop;

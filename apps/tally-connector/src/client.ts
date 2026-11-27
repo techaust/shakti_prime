@@ -1,13 +1,14 @@
 import {
   API_ENDPOINTS,
   API_HEADERS,
-  ConnectorBatchResponse,
-  ConnectorCursorResponse,
-  ConnectorHeartbeatResponse,
-  ConnectorSnapshotResponse,
+  ConnectorAnswers,
   ErrorEnvelope,
   type ApiEndpointId,
+  type ConnectorBatchResponse,
+  type ConnectorCursorResponse,
   type ConnectorHeartbeatRequest,
+  type ConnectorHeartbeatResponse,
+  type ConnectorSnapshotResponse,
 } from '@shakti/contracts';
 import { errorKind, logId, type Log } from './log';
 import type { Settings } from './settings';
@@ -17,8 +18,10 @@ import { signedHeaders } from './signing';
  * The connector's calls to the BOS (docs/06-api.md §3.5): `cursor`, `batches`, `snapshot` and
  * `heartbeat`, each signed with the connector's key. A batch and a snapshot carry the
  * `Idempotency-Key` stored with them in the outbox, so a resend after a lost answer is applied once.
- * A call that fails on the network, times out or meets a server error is retried briefly with a
- * doubling wait; after that the BOS counts as not answering until the next cycle.
+ * A call that fails on the network, times out, meets a server error or gets an answer it cannot
+ * read is retried briefly with a doubling wait; after that the BOS counts as not answering until
+ * the next cycle. Answers are read through `ConnectorAnswers`, which drops a field the connector
+ * does not know, so a field the BOS adds later never stops an installed connector.
  */
 
 export type ClientSettings = Pick<
@@ -26,7 +29,10 @@ export type ClientSettings = Pick<
   'bosTimeoutMs' | 'bosRetries' | 'bosBackoffMs' | 'bosMaxRetryAfterMs'
 >;
 
-/** The BOS did not answer, or answered with a server error, after the retries. */
+/**
+ * The BOS did not answer, answered with a server error, or answered what the connector cannot read
+ * (`bad_answer`: the BOS is up, so the caller goes on with what does not depend on this call).
+ */
 export class BosUnavailable extends Error {
   override name = 'BosUnavailable';
   constructor(readonly reason: 'network' | 'server' | 'rate_limited' | 'bad_answer') {
@@ -99,24 +105,24 @@ export class BosClient {
   }
 
   cursor(company: string): Promise<ConnectorCursorResponse> {
-    return this.call('connector.cursor', ConnectorCursorResponse, {
+    return this.call('connector.cursor', ConnectorAnswers.cursor, {
       query: new URLSearchParams({ company }),
     });
   }
 
   heartbeat(request: ConnectorHeartbeatRequest): Promise<ConnectorHeartbeatResponse> {
-    return this.call('connector.heartbeat', ConnectorHeartbeatResponse, {
+    return this.call('connector.heartbeat', ConnectorAnswers.heartbeat, {
       body: JSON.stringify(request),
     });
   }
 
   /** Sends a batch from the outbox: its stored body under its stored key. */
   sendBatch(row: { body: string; idempotencyKey: string }): Promise<ConnectorBatchResponse> {
-    return this.call('connector.batches', ConnectorBatchResponse, row);
+    return this.call('connector.batches', ConnectorAnswers.batch, row);
   }
 
   sendSnapshot(row: { body: string; idempotencyKey: string }): Promise<ConnectorSnapshotResponse> {
-    return this.call('connector.snapshot', ConnectorSnapshotResponse, row);
+    return this.call('connector.snapshot', ConnectorAnswers.snapshot, row);
   }
 
   private async call<T>(
@@ -183,10 +189,11 @@ export class BosClient {
     const answer = safeJson(await response.text());
     if (response.ok) {
       const parsed = schema.safeParse(answer);
-      // An answer the contract cannot read is not retried: the same call gets the same answer.
+      // An answer the connector cannot read (cut short, or from a proxy) is asked again, as a
+      // server error is; the caller counts it against the row's attempts.
       return parsed.success
         ? { kind: 'answered', value: parsed.data }
-        : { kind: 'retry', reason: 'bad_answer', wait: 'stop' };
+        : { kind: 'retry', reason: 'bad_answer', wait: 'backoff' };
     }
     if (response.status === 429) {
       const after = retryAfterMs(response.headers.get(API_HEADERS.retryAfter), this.now());

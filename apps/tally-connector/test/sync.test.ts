@@ -248,10 +248,11 @@ describe('the daily snapshot and the heartbeat', () => {
       connectorVersion: '0.1.0',
       tallyVersion: 'TallyPrime 5.1',
       companies: [
-        { name: SS.name, lastAlterId: 1, reachable: true },
+        { name: SS.name, lastAlterId: 1, reachable: true, tallyLastAlterId: 1 },
         { name: SMP.name, lastAlterId: 0, reachable: false },
       ],
       queueDepth: 0,
+      heldRows: 0,
     });
   });
 
@@ -262,5 +263,243 @@ describe('the daily snapshot and the heartbeat', () => {
     await h.syncer.readCompany(SS);
     expect(h.bos.batches).toHaveLength(0);
     expect(h.log.lines.some((l) => l.includes('tally_behind_bos'))).toBe(true);
+  });
+});
+
+describe('a BOS that answers without taking a row', () => {
+  it('holds only that company while it refuses its batch, and the other company goes on', async () => {
+    h = await harness();
+    for (let i = 0; i < 3; i += 1) h.tally.addVoucher(SS.name, { type: 'Sales' });
+    for (let i = 0; i < 2; i += 1) h.tally.addVoucher(SMP.name, { type: 'Receipt' });
+    h.bos.knobs.refuseBatchesOf.set(SS.name, 403);
+
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expect(chain(SMP.name)).toEqual([[0, 2]]);
+    expect(chain(SS.name)).toEqual([]);
+    const [waiting] = h.outbox.pending();
+    expect(waiting).toMatchObject({ company: SS.name, refusals: 1 });
+
+    // Next cycle: the same row is tried again, nothing more of the company is read, and the
+    // other company's new voucher still goes.
+    h.tally.addVoucher(SS.name, { type: 'Sales' });
+    h.tally.addVoucher(SMP.name, { type: 'Receipt' });
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expect(chain(SMP.name)).toEqual([
+      [0, 2],
+      [2, 3],
+    ]);
+    expect(h.outbox.pending()).toEqual([{ ...waiting, attempts: 2, refusals: 2 }]);
+    expect(
+      h.tally.requests.filter((q) => q.company === SS.name && q.collection === 'BOSVouchers'),
+    ).toHaveLength(1);
+    await h.syncer.heartbeat();
+    expect(h.bos.heartbeats.at(-1)?.companies[0]).toEqual({
+      name: SS.name,
+      lastAlterId: 0,
+      reachable: true,
+      tallyLastAlterId: 4,
+      problem: 'waiting_on_bos',
+    });
+
+    // Once the BOS takes it, the company catches up in order.
+    h.bos.knobs.refuseBatchesOf.clear();
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 4);
+    expect(h.bos.batches.find((b) => b.company === SS.name)?.key).toBe(waiting?.idempotencyKey);
+    await h.syncer.heartbeat();
+    expect(h.bos.heartbeats.at(-1)?.companies[0]).toEqual({
+      name: SS.name,
+      lastAlterId: 4,
+      reachable: true,
+      tallyLastAlterId: 4,
+    });
+  });
+
+  it('sets a refused batch aside after its attempts, reports it, and reads again from the cursor', async () => {
+    h = await harness();
+    for (let i = 0; i < 3; i += 1) h.tally.addVoucher(SS.name, { type: 'Sales' });
+    h.bos.knobs.refuseBatchesOf.set(SS.name, 403);
+    for (let i = 0; i < 3; i += 1) await h.syncer.cycle();
+    expect(h.outbox.heldCount()).toBe(1);
+    // The same cycle read the company again from the BOS's cursor, under a new key.
+    const [again] = h.outbox.pending();
+    expect(again).toMatchObject({ company: SS.name, fromAlterId: 0, refusals: 1 });
+    const held = h.log.lines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(held.find((l) => l.event === 'outbox_row_held')).toMatchObject({
+      entity: 'SS',
+      kind: 'batch',
+      code: 'forbidden',
+    });
+    await h.syncer.heartbeat();
+    expect(h.bos.heartbeats.at(-1)?.heldRows).toBe(1);
+
+    h.bos.knobs.refuseBatchesOf.clear();
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 3);
+    expect(h.bos.batches[0]?.key).toBe(again?.idempotencyKey);
+    expect(h.bos.appliedTwice()).toEqual([]);
+    // Set-aside rows go after the days kept, as sent ones do.
+    h.clock.now = new Date(h.clock.now.getTime() + 8 * 24 * 60 * 60_000);
+    await h.syncer.cycle();
+    expect(h.outbox.heldCount()).toBe(0);
+  });
+
+  it('asks again after an answer it cannot read, and goes on with the other company meanwhile', async () => {
+    h = await harness();
+    for (let i = 0; i < 2; i += 1) h.tally.addVoucher(SS.name, { type: 'Sales' });
+    h.tally.addVoucher(SMP.name, { type: 'Receipt' });
+    // One unreadable answer is asked again at once.
+    h.bos.knobs.garbleNext = 1;
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expect(h.bos.calls.slice(0, 2)).toEqual([
+      'GET /api/v1/connector/tally/cursor',
+      'GET /api/v1/connector/tally/cursor',
+    ]);
+    expectContiguous(SS.name, 2);
+    expectContiguous(SMP.name, 1);
+
+    // The BOS applies the next batch, but both answers to it are unreadable: the row waits for
+    // the next cycle and the other company is still read and sent.
+    h.tally.addVoucher(SS.name, { type: 'Sales' });
+    h.tally.addVoucher(SMP.name, { type: 'Receipt' });
+    h.bos.knobs.garbleBatchAnswers = 2;
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SMP.name, 2);
+    expect(h.outbox.pending()).toMatchObject([{ company: SS.name, attempts: 1, refusals: 1 }]);
+    expect(h.log.lines.some((l) => l.includes('bos_answer_unreadable'))).toBe(true);
+
+    // The resend under the same key gets the BOS's stored answer: applied once, marked sent.
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 3);
+    expect(h.outbox.depth()).toBe(0);
+    expect(h.bos.appliedTwice()).toEqual([]);
+
+    // A cursor it cannot read twice over leaves that company for the next cycle only.
+    h.tally.addVoucher(SMP.name, { type: 'Receipt' });
+    h.bos.knobs.garbleNext = 2;
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SMP.name, 3);
+  });
+
+  it('syncs a BOS whose answers carry fields this build does not know', async () => {
+    h = await harness({ now: new Date('2026-11-26T20:31:00Z') });
+    for (let i = 0; i < 7; i += 1) h.tally.addVoucher(SS.name, { type: 'Sales' });
+    h.bos.knobs.extraFields = true;
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 7);
+    expect(h.bos.snapshots).toHaveLength(2);
+    expect(h.outbox.depth()).toBe(0);
+    await expect(h.syncer.heartbeat()).resolves.toBe(true);
+  });
+});
+
+describe('a refused snapshot', () => {
+  it('is tried each cycle up to its attempts, replaced by the next day’s, and never sent beside it', async () => {
+    h = await harness({ companies: [SS], now: new Date('2026-11-26T20:31:00Z') });
+    h.tally.addVoucher(SS.name, { type: 'Sales' });
+    h.bos.knobs.refuseSnapshots = 413;
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 1);
+    const [first] = h.outbox.pending();
+    expect(first).toMatchObject({ kind: 'snapshot', refusals: 1 });
+
+    h.clock.now = new Date('2026-11-27T05:00:00Z');
+    h.tally.addVoucher(SS.name, { type: 'Sales' });
+    await h.syncer.cycle();
+    // Tried again, and the company's batches were not held by it.
+    expect(h.outbox.pending()).toEqual([{ ...first, attempts: 2, refusals: 2 }]);
+    expectContiguous(SS.name, 2);
+
+    // The next day's snapshot replaces the one still waiting: one list goes, not two.
+    h.clock.now = new Date('2026-11-27T20:40:00Z');
+    const sentBefore = h.bos.calls.filter((c) => c.endsWith('/snapshot')).length;
+    await h.syncer.cycle();
+    const pending = h.outbox.pending();
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.id).not.toBe(first?.id);
+    expect(h.bos.calls.filter((c) => c.endsWith('/snapshot')).length - sentBefore).toBe(1);
+    const read = h.log.lines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(read.filter((l) => l.event === 'snapshot_read').at(-1)).toMatchObject({ replaced: 1 });
+
+    // After its attempts it is set aside and counted.
+    await h.syncer.cycle();
+    await h.syncer.cycle();
+    expect(h.outbox.depth()).toBe(0);
+    expect(h.outbox.heldCount()).toBe(1);
+    await h.syncer.heartbeat();
+    expect(h.bos.heartbeats.at(-1)).toMatchObject({ queueDepth: 0, heldRows: 1 });
+  });
+});
+
+describe('a company Tally gives no first day of the books for', () => {
+  it('is never read, says why in the heartbeat, and the other company goes on', async () => {
+    h = await harness();
+    h.tally.setBooksFrom(SS.name, undefined);
+    h.tally.addVoucher(SS.name, { type: 'Sales', date: '20250115' });
+    h.tally.addVoucher(SMP.name, { type: 'Receipt' });
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expect(chain(SS.name)).toEqual([]);
+    expectContiguous(SMP.name, 1);
+    // Only its state was asked (by the read and by the day's snapshot): no voucher or ledger.
+    expect(
+      new Set(h.tally.requests.filter((q) => q.company === SS.name).map((q) => q.collection)),
+    ).toEqual(new Set(['BOSCompanyStatus']));
+    expect(h.log.lines.some((l) => l.includes('company_without_books_from'))).toBe(true);
+    await h.syncer.heartbeat();
+    expect(h.bos.heartbeats.at(-1)?.companies[0]).toEqual({
+      name: SS.name,
+      lastAlterId: 0,
+      reachable: true,
+      tallyLastAlterId: 1,
+      problem: 'no_books_from',
+    });
+
+    h.tally.setBooksFrom(SS.name, '20240401');
+    await h.syncer.cycle();
+    expectContiguous(SS.name, 1);
+    expect(h.bos.applied.filter((a) => a.company === SS.name)).toHaveLength(1);
+  });
+});
+
+describe('adaptive windows', () => {
+  it('widens the window over a stretch of other changes and narrows it over a dense one', async () => {
+    h = await harness({
+      companies: [SS],
+      settings: { pageSize: 5, pageSizeMax: 40, pageGrowBelowRows: 2, pageShrinkAboveRows: 6 },
+    });
+    for (let i = 0; i < 2; i += 1) h.tally.addVoucher(SS.name, { type: 'Sales' });
+    h.tally.alterOtherMasters(SS.name, 120);
+    for (let i = 0; i < 60; i += 1) h.tally.addVoucher(SS.name, { type: 'Receipt' });
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 182);
+    expect(h.bos.applied).toHaveLength(62);
+    // Up from 5 while pages come back nearly empty, capped at 40; halved after each dense page;
+    // the last page ends at Tally's last AlterID. Fixed windows of 5 would take 37 pages.
+    expect(chain(SS.name).map(([from, to]) => to - from)).toEqual([
+      5, 5, 10, 20, 40, 40, 40, 20, 2,
+    ]);
+  });
+
+  it('reads a stretch again in a narrower window when it holds more than a batch carries', async () => {
+    h = await harness({
+      companies: [SS],
+      settings: {
+        pageSize: 100,
+        pageSizeMax: 1000,
+        pageGrowBelowRows: 50,
+        pageShrinkAboveRows: 400,
+      },
+    });
+    for (let i = 0; i < 10; i += 1) h.tally.addVoucher(SS.name, { type: 'Sales' });
+    h.tally.alterOtherMasters(SS.name, 890);
+    for (let i = 0; i < 600; i += 1) h.tally.addVoucher(SS.name, { type: 'Receipt' });
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 1500);
+    expect(h.bos.appliedTwice()).toEqual([]);
+    expect(h.bos.applied).toHaveLength(610);
+    // (700, 1500] held 600 vouchers, over the 500 a batch carries: read again as (700, 1100].
+    expect(chain(SS.name).map(([from, to]) => to - from)).toEqual([100, 200, 400, 400, 400]);
+    const narrowed = h.log.lines.filter((l) => l.includes('page_narrowed'));
+    expect(narrowed).toHaveLength(1);
   });
 });

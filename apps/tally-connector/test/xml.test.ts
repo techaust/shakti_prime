@@ -6,7 +6,7 @@ import {
   decodeTallyAnswer,
   ledgersPageRequest,
   parseCompanyStatus,
-  parseGuidExport,
+  objectCount,
   parseGuidReadings,
   parseLedgerExport,
   parseVoucherExport,
@@ -19,6 +19,7 @@ import {
 const GUID_A = '5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a11';
 const GUID_B = '5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a12';
 const xml = readFileSync(new URL('./fixtures/vouchers-export.xml', import.meta.url), 'utf8');
+const PERIOD = { from: '20240401', to: '20271231' };
 
 describe('the requests sent to Tally', () => {
   it('asks for one AlterID window of vouchers, escaping the company name', () => {
@@ -31,28 +32,30 @@ describe('the requests sent to Tally', () => {
     );
     expect(request).toContain('$ALTERID &gt; 4170 AND $ALTERID &lt;= 4370');
     expect(request).toContain('<SVFROMDATE TYPE="Date">20240401</SVFROMDATE>');
-    expect(vouchersPageRequest('C', 4170)).toContain('$ALTERID &gt; 4170</SYSTEM>');
-    expect(() => vouchersPageRequest('C', -1)).toThrow();
-    expect(() => vouchersPageRequest('C', 0, 1.5)).toThrow();
+    expect(request).toContain('<SVTODATE TYPE="Date">20271231</SVTODATE>');
+    expect(() => vouchersPageRequest('C', -1, 10, PERIOD)).toThrow();
+    expect(() => vouchersPageRequest('C', 0, 1.5, PERIOD)).toThrow();
     expect(() => vouchersPageRequest('C', 0, 10, { from: '2024-04-01', to: '20271231' })).toThrow();
   });
 
   it('asks for party ledgers, the GUID snapshot and the company state the same way', () => {
-    expect(ledgersPageRequest('C', 10, 20)).toContain('$$IsBelongsTo:$$GroupSundryDebtors');
-    expect(ledgersPageRequest('C', 10, 20)).toContain('$ALTERID &gt; 10 AND $ALTERID &lt;= 20');
-    expect(voucherGuidsRequest('C')).toContain(
-      '<FETCH>GUID, DATE, ALTERID, VOUCHERTYPENAME</FETCH>',
+    expect(ledgersPageRequest('C', 10, 20, PERIOD)).toContain('$$IsBelongsTo:$$GroupSundryDebtors');
+    expect(ledgersPageRequest('C', 10, 20, PERIOD)).toContain(
+      '$ALTERID &gt; 10 AND $ALTERID &lt;= 20',
     );
-    expect(voucherGuidsRequest('C', { after: 0, upTo: 5000 })).toContain('$ALTERID &lt;= 5000');
+    const guids = voucherGuidsRequest('C', { after: 0, upTo: 5000 }, PERIOD);
+    expect(guids).toContain('<FETCH>GUID, DATE, ALTERID, VOUCHERTYPENAME</FETCH>');
+    expect(guids).toContain('$ALTERID &lt;= 5000');
+    expect(guids).toContain('<SVFROMDATE TYPE="Date">20240401</SVFROMDATE>');
     expect(companyStatusRequest('C')).toContain('ALTVCHID, ALTMSTID');
   });
 
   it('only ever exports: no request can change Tally', () => {
     const requests = [
       companyStatusRequest('C'),
-      vouchersPageRequest('C', 0, 200),
-      ledgersPageRequest('C', 0, 200),
-      voucherGuidsRequest('C', { after: 0, upTo: 200 }),
+      vouchersPageRequest('C', 0, 200, PERIOD),
+      ledgersPageRequest('C', 0, 200, PERIOD),
+      voucherGuidsRequest('C', { after: 0, upTo: 200 }, PERIOD),
     ];
     for (const request of requests) {
       expect(request).toContain('<TALLYREQUEST>Export</TALLYREQUEST>');
@@ -121,7 +124,8 @@ describe('reading Tally answers', () => {
         ledgers: [],
       }).success,
     ).toBe(true);
-    expect(parseGuidExport(xml)).toHaveLength(3);
+    expect(parseGuidReadings(xml)).toHaveLength(3);
+    expect(objectCount(xml, 'VOUCHER')).toBe(4);
   });
 
   it('maps Tally type names, preferring the parent of a renamed type', () => {

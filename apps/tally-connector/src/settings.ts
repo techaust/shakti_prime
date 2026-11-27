@@ -4,8 +4,17 @@
  * calls retry briefly and otherwise wait for the next cycle. Tests pass smaller values.
  */
 export interface Settings {
-  /** AlterIDs per page: a page holds at most this many vouchers and ledgers. */
+  /**
+   * The smallest window of AlterIDs a page reads, where every read starts: a page holds at most
+   * this many vouchers and ledgers, well inside a batch's limits.
+   */
   pageSize: number;
+  /** The widest window a page grows to, so a stretch of other changes costs Tally fewer reads. */
+  pageSizeMax: number;
+  /** A page with fewer rows than this doubles the next window, up to `pageSizeMax`. */
+  pageGrowBelowRows: number;
+  /** A page with more rows than this halves the next window, down to `pageSize`. */
+  pageShrinkAboveRows: number;
   /** AlterIDs per page of the daily GUID snapshot, which reads three short fields only. */
   snapshotPageSize: number;
   /** The pause between two requests to Tally, whatever the company. */
@@ -28,11 +37,20 @@ export interface Settings {
   snapshotAtIst: { hour: number; minute: number };
   /** Sent batches stay in the outbox this long, matching the BOS's idempotency keys. */
   outboxKeepDays: number;
+  /**
+   * Sends of one outbox row that the BOS answered without taking it (a refusal, or an answer the
+   * connector cannot read) before the row is set aside, logged and counted in the heartbeat. A
+   * send the BOS never answered does not count, so an outage sets nothing aside.
+   */
+  outboxMaxAttempts: number;
   logKeepDays: number;
 }
 
 export const SETTINGS: Settings = {
   pageSize: 200,
+  pageSizeMax: 10_000,
+  pageGrowBelowRows: 50,
+  pageShrinkAboveRows: 400,
   snapshotPageSize: 5_000,
   tallyPauseMs: 1_000,
   tallyTimeoutMs: 60_000,
@@ -46,6 +64,7 @@ export const SETTINGS: Settings = {
   readEveryMs: 2 * 60_000,
   snapshotAtIst: { hour: 2, minute: 0 },
   outboxKeepDays: 7,
+  outboxMaxAttempts: 10,
   logKeepDays: 30,
 };
 

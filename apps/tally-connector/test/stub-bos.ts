@@ -35,6 +35,16 @@ export interface StubKnobs {
    * `after` (a kill then loses only the answer).
    */
   holdBatches: false | 'before' | 'after';
+  /** Batches of these companies are refused with this status (403: the company is not mapped). */
+  refuseBatchesOf: Map<string, number>;
+  /** Snapshots are refused with this status (413: a body over the platform's body limit). */
+  refuseSnapshots: number | undefined;
+  /** The next N answers to any call are a 200 the connector cannot read, before anything applies. */
+  garbleNext: number;
+  /** The next N answers to a batch (a replay too) are a 200 it cannot read, after the BOS applied it. */
+  garbleBatchAnswers: number;
+  /** Every answer carries fields the connector does not know, as a later BOS would. */
+  extraFields: boolean;
 }
 
 interface Stored {
@@ -44,7 +54,16 @@ interface Stored {
 }
 
 export class StubBos {
-  readonly knobs: StubKnobs = { down: false, loseAnswers: 0, holdBatches: false };
+  readonly knobs: StubKnobs = {
+    down: false,
+    loseAnswers: 0,
+    holdBatches: false,
+    refuseBatchesOf: new Map(),
+    refuseSnapshots: undefined,
+    garbleNext: 0,
+    garbleBatchAnswers: 0,
+    extraFields: false,
+  };
   readonly cursors = new Map<string, number>();
   readonly applied: Applied[] = [];
   /** Each accepted batch's range, in the order applied. */
@@ -54,6 +73,8 @@ export class StubBos {
   readonly refusedSignatures: string[] = [];
   /** Every raw body the stub received, to check what leaves the PC. */
   readonly bodies: string[] = [];
+  /** Every call, by method and path, in the order received. */
+  readonly calls: string[] = [];
   private readonly keys = new Map<string, Stored>();
   private readonly held: (() => void)[] = [];
   private readonly heldWaiters: (() => void)[] = [];
@@ -144,7 +165,7 @@ export class StubBos {
     const send = (status: number, answer: unknown) => {
       response
         .writeHead(status, { 'content-type': 'application/json' })
-        .end(JSON.stringify(answer));
+        .end(JSON.stringify(status === 200 ? this.later(answer) : answer));
     };
     const refuse = (status: number, code: string, reason?: string) => {
       send(status, {
@@ -162,6 +183,12 @@ export class StubBos {
       return;
     }
     const url = new URL(pathWithQuery, 'http://stub');
+    this.calls.push(`${request.method ?? ''} ${url.pathname}`);
+    if (this.knobs.garbleNext > 0) {
+      this.knobs.garbleNext -= 1;
+      response.writeHead(200, { 'content-type': 'application/json' }).end('{"company":');
+      return;
+    }
     switch (`${request.method ?? ''} ${url.pathname}`) {
       case 'GET /api/v1/connector/tally/cursor': {
         const company = url.searchParams.get('company') ?? '';
@@ -187,6 +214,12 @@ export class StubBos {
         return;
       }
       case 'POST /api/v1/connector/tally/batches': {
+        const company = (JSON.parse(body) as { company?: string }).company ?? '';
+        const refusal = this.knobs.refuseBatchesOf.get(company);
+        if (refusal !== undefined) {
+          refuse(refusal, 'forbidden');
+          return;
+        }
         const hold = this.knobs.holdBatches;
         if (hold === 'before' && (await this.hold(request)) === 'closed') return;
         const key = String(request.headers['idempotency-key'] ?? '');
@@ -196,10 +229,18 @@ export class StubBos {
           body,
           () => this.applyBatch(body, key),
           hold === 'after',
+          'batch',
         );
         return;
       }
       case 'POST /api/v1/connector/tally/snapshot':
+        if (this.knobs.refuseSnapshots !== undefined) {
+          // The platform's own refusal, before the route: plain text, not the BOS's envelope.
+          response
+            .writeHead(this.knobs.refuseSnapshots, { 'content-type': 'text/plain' })
+            .end('Request Entity Too Large');
+          return;
+        }
         await this.idempotent(request, response, body, () => {
           const parsed = ConnectorSnapshotRequest.safeParse(JSON.parse(body));
           if (!parsed.success)
@@ -252,6 +293,7 @@ export class StubBos {
     body: string,
     apply: () => { status: number; answer: unknown },
     holdAnswer = false,
+    kind: 'batch' | 'snapshot' = 'snapshot',
   ): Promise<void> {
     const key = String(request.headers['idempotency-key'] ?? '');
     const bodyHash = createHash('sha256').update(body).digest('hex');
@@ -278,6 +320,11 @@ export class StubBos {
       if (outcome.status === 200) this.keys.set(key, { bodyHash, ...outcome });
     }
     if (holdAnswer && (await this.hold(request)) === 'closed') return;
+    if (outcome.status === 200 && kind === 'batch' && this.knobs.garbleBatchAnswers > 0) {
+      this.knobs.garbleBatchAnswers -= 1;
+      response.writeHead(200, { 'content-type': 'application/json' }).end('{"company":');
+      return;
+    }
     if (outcome.status === 200 && this.knobs.loseAnswers > 0) {
       this.knobs.loseAnswers -= 1;
       request.socket.destroy();
@@ -285,7 +332,17 @@ export class StubBos {
     }
     response
       .writeHead(outcome.status, { 'content-type': 'application/json' })
-      .end(JSON.stringify(outcome.answer));
+      .end(JSON.stringify(outcome.status === 200 ? this.later(outcome.answer) : outcome.answer));
+  }
+
+  /** With `extraFields`, an answer as a later BOS might give it: new fields at every level. */
+  private later(answer: unknown): unknown {
+    if (!this.knobs.extraFields || typeof answer !== 'object' || answer === null) return answer;
+    const grown: Record<string, unknown> = { ...answer, addedLater: 'a field this build ignores' };
+    if (typeof grown.accepted === 'object' && grown.accepted !== null) {
+      grown.accepted = { ...grown.accepted, vouchersQueuedForAccounts: 0 };
+    }
+    return grown;
   }
 
   private applyBatch(body: string, key: string): { status: number; answer: unknown } {

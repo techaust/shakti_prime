@@ -54,7 +54,9 @@ describe('paging by AlterID', () => {
     expect(page.ledgers.map((l) => [l.alterId, l.gstin, l.closingBalance])).toEqual([
       [7, '08AAAAA0000A1Z5', '-5007.00'],
     ]);
-    expect(page.skipped).toBe(0);
+    expect(page.refused).toEqual([]);
+    // Six vouchers (the journal too) and the ledger came back: what the page cost Tally.
+    expect(page.scanned).toBe(7);
     const asked = tally.requests.filter((q) => q.collection !== 'BOSCompanyStatus');
     expect(asked.map((q) => [q.collection, q.after, q.upTo])).toEqual([
       ['BOSVouchers', 3, 10],
@@ -63,22 +65,70 @@ describe('paging by AlterID', () => {
     expect(tally.requests.every((q) => q.tallyRequest === 'Export')).toBe(true);
   });
 
-  it('leaves out a voucher the contract cannot carry, and logs its GUID only', async () => {
-    tally.addVoucher(COMPANY, { type: 'Sales', gstin: 'NOT-A-GSTIN' });
+  it('reports a voucher the contract cannot carry by GUID and field, and logs no more', async () => {
+    const odd = tally.addVoucher(COMPANY, { type: 'Sales', gstin: 'NOT-A-GSTIN' });
     tally.addVoucher(COMPANY, { type: 'Sales' });
     const log = createMemoryLog();
     const r = new TallyReader({ url: tally.url, settings: FAST, log });
     const status = await r.companyStatus(COMPANY);
     const page = await r.readPage(COMPANY, status, 0, 2, '2026-11-27');
     expect(page.vouchers.map((v) => v.alterId)).toEqual([2]);
-    expect(page.skipped).toBe(1);
+    expect(page.refused).toEqual([
+      { kind: 'voucher', guid: odd.guid, alterId: 1, field: 'partyGstin' },
+    ]);
+    expect(page.skipped).toBe(0);
     expect(log.lines).toHaveLength(1);
     expect(JSON.parse(log.lines[0] ?? '{}')).toMatchObject({
       event: 'voucher_unreadable',
       field: 'partyGstin',
+      reported: true,
     });
     expect(log.lines[0]).not.toContain('NOT-A-GSTIN');
     expect(log.lines[0]).not.toContain('Party');
+  });
+
+  it('reports a cancelled voucher Tally gives without ledger lines, so the BOS hears of it', async () => {
+    const sale = tally.addVoucher(COMPANY, { type: 'Sales' });
+    const cancelled = tally.alterVoucher(COMPANY, sale.guid, { cancelled: true, noEntries: true });
+    const r = reader();
+    const status = await r.companyStatus(COMPANY);
+    const page = await r.readPage(COMPANY, status, 1, 2, '2026-11-27');
+    expect(page.vouchers).toEqual([]);
+    expect(page.refused).toEqual([
+      { kind: 'voucher', guid: sale.guid, alterId: cancelled.alterId, field: 'ledgerEntries' },
+    ]);
+  });
+
+  it('reads every voucher from the books’ first day, not only Tally’s current period', async () => {
+    const earlier = tally.addVoucher(COMPANY, { type: 'Sales', date: '20240715' });
+    const current = tally.addVoucher(COMPANY, { type: 'Receipt', date: '20261015' });
+    const r = reader();
+    const status = await r.companyStatus(COMPANY);
+    const page = await r.readPage(COMPANY, status, 0, 2, '2026-11-27');
+    expect(page.vouchers.map((v) => v.guid)).toEqual([earlier.guid, current.guid]);
+    const asked = tally.requests.find((q) => q.collection === 'BOSVouchers');
+    expect(asked?.from).toBe('20240401');
+    const snapshot = await r.snapshot(COMPANY, '2026-11-27');
+    expect(snapshot.guids).toEqual([earlier.guid, current.guid].sort());
+    expect(snapshot.fromDate).toBe('2024-07-15');
+  });
+
+  it('never reads a company whose status gives no first day of its books', async () => {
+    tally.addCompany('No Books Ltd', { booksFrom: null });
+    tally.addVoucher('No Books Ltd', { type: 'Sales' });
+    const r = reader();
+    const status = await r.companyStatus('No Books Ltd');
+    expect(status.booksFrom).toBeUndefined();
+    await expect(r.readPage('No Books Ltd', status, 0, 1, '2026-11-27')).rejects.toEqual(
+      new TallyUnavailable('no_books_from'),
+    );
+    await expect(r.snapshot('No Books Ltd', '2026-11-27')).rejects.toEqual(
+      new TallyUnavailable('no_books_from'),
+    );
+    expect(tally.requests.map((q) => q.collection)).toEqual([
+      'BOSCompanyStatus',
+      'BOSCompanyStatus',
+    ]);
   });
 
   it('reads the snapshot in windows, and on to the new last AlterID when a voucher is edited meanwhile', async () => {

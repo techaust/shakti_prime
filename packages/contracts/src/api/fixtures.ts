@@ -687,10 +687,22 @@ export const API_FIXTURES: Record<
       connectorVersion: '1.3.2',
       tallyVersion: 'TallyPrime 6.1',
       companies: [
-        { name: 'Shakti Supreme 2026-27', lastAlterId: 48214, reachable: true },
-        { name: 'Agro Solar Hub 2026-27', lastAlterId: 9312, reachable: true },
+        {
+          name: 'Shakti Supreme 2026-27',
+          lastAlterId: 48214,
+          reachable: true,
+          tallyLastAlterId: 48230,
+        },
+        {
+          name: 'Agro Solar Hub 2026-27',
+          lastAlterId: 9312,
+          reachable: true,
+          tallyLastAlterId: 9312,
+          problem: 'waiting_on_bos',
+        },
       ],
-      queueDepth: 0,
+      queueDepth: 1,
+      heldRows: 0,
     },
     response: {
       serverTime: '2026-09-27T05:06:40.000Z',
@@ -716,6 +728,9 @@ export const API_FIXTURES: Record<
           closingBalance: '-7000.00',
           asOf: '2026-09-26',
         },
+      ],
+      refused: [
+        { kind: 'voucher', guid: tallyGuid(0x1a31), alterId: 48218, field: 'ledgerEntries' },
       ],
     },
     response: {
