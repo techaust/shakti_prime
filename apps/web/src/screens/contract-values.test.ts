@@ -139,6 +139,7 @@ import {
   GoodsReceiptStateSchema,
   PurchaseOrderSentViaSchema,
   PurchaseOrderStateSchema,
+  purchaseOrderPdfVersion,
   // Q1 labels
   LABEL_REPRINT_MAX,
   LABEL_SHEET_MAX,
@@ -275,6 +276,7 @@ import {
   GOODS_RECEIPT_STATES as GOODS_RECEIPT_STATES_WEB,
   PURCHASE_ORDER_SENT_VIA as PURCHASE_ORDER_SENT_VIA_WEB,
   PURCHASE_ORDER_STATES as PURCHASE_ORDER_STATES_WEB,
+  PURCHASE_ORDER_PRINTED_STATES,
   // Q1 labels
   LABEL_KINDS as LABEL_KINDS_WEB,
   LABEL_REPRINT_MAX as LABEL_REPRINT_MAX_WEB,
@@ -403,6 +405,12 @@ describe('the contract values copied for the browser', () => {
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
     // U2 purchase orders
     expect(PURCHASE_ORDER_STATES_WEB).toEqual(PurchaseOrderStateSchema.options);
+    // The states the PDF prints in: exactly those the contracts give a version once approved.
+    expect(PURCHASE_ORDER_PRINTED_STATES).toEqual(
+      PurchaseOrderStateSchema.options.filter(
+        (state) => purchaseOrderPdfVersion(state, '2026-11-27T00:00:00.000Z') !== undefined,
+      ),
+    );
     expect(PURCHASE_ORDER_SENT_VIA_WEB).toEqual(PurchaseOrderSentViaSchema.options);
     expect(GOODS_RECEIPT_STATES_WEB).toEqual(GoodsReceiptStateSchema.options);
     // Q1 labels

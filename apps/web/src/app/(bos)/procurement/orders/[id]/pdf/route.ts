@@ -1,27 +1,47 @@
 import { DomainError } from '@shakti/contracts';
-import { executeQuery, getPurchaseOrderPrint } from '@shakti/domain';
+import { executeQuery, getPurchaseOrderPdf, type PurchaseOrderPdfState } from '@shakti/domain';
+import { createTranslator } from 'next-intl';
+import en from '../../../../../../../messages/en.json';
 import { requestMeta } from '../../../../../../actions/support';
 import { currentPrincipal } from '../../../../../../auth/current-principal';
+import { fileStore } from '../../../../../../files/store';
 import { purchaseOrderPdfFileName } from '../../../../../../print/purchase-order-file';
-import { purchaseOrderPdf } from '../../../../../../print/purchase-order-pdf';
-import { purchaseOrderPrints } from '../../../../../../screens/purchase-orders';
 
 export const dynamic = 'force-dynamic';
-/** Chromium's first launch on a cold function, and the page. */
-export const maxDuration = 60;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Seconds before the page asks again while the render worker prints the PDF. */
+const RETRY_SECONDS = 5;
+
+/** The answer while the PDF is not stored yet: a sentence, and the page asks again by itself. */
+function preparing(): Response {
+  const t = createTranslator({ locale: 'en', messages: en, namespace: 'procurement.orderPdf' });
+  return new Response(t('preparing'), {
+    status: 503,
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'retry-after': String(RETRY_SECONDS),
+      refresh: String(RETRY_SECONDS),
+      'cache-control': 'private, no-store',
+    },
+  });
+}
+
 /**
  * `GET /procurement/orders/{id}/pdf`: the purchase order's PDF (docs/03-roadmap-appendix/phase3.md
- * §7.2), printed for the person who asks, from what they may read: the rates, amounts and tax
- * split only for a holder of `procurement.rate.read`, so nobody else's copy carries a value; on the
- * company's letterhead. It prints from the order's approval on (a cancelled one marked so): a
- * draft, an order never approved, or one the person may not read answers 404, a signed-out
- * request 401.
+ * §7.2) as the render worker stored it (ADR 0009, review R2): the vendor's copy with its rates, on
+ * the company's letterhead, of the version the order prints now (as approved, or marked cancelled).
+ * Nothing is printed here. The stored file is read as the person who asks: an order's PDF is a
+ * `purchase_order_pdf` file, which only a holder of `procurement.rate.read` in its company reads,
+ * so anyone else, a draft, an order never approved, or an order the person may not read answers
+ * 404, and a signed-out request 401. While the worker has not stored it yet (the order sheet's
+ * Download PDF asks for it with `procurement.po.pdf.request`) the answer says it is being prepared
+ * and the page asks again a few seconds later. `?download=1` saves the file instead of showing it,
+ * so the order sheet stays open.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
@@ -34,12 +54,12 @@ export async function GET(
   }
   if (principal === undefined) return new Response(null, { status: 401 });
   const { requestId } = await requestMeta();
-  let data;
+  let pdf: PurchaseOrderPdfState;
   try {
-    data = await executeQuery(
+    pdf = await executeQuery(
       principal,
       { requestId },
-      (context) => getPurchaseOrderPrint(context, { purchaseOrderId: id }),
+      (context) => getPurchaseOrderPdf(context, { purchaseOrderId: id }),
       { name: 'procurement.orders.pdf' },
     );
   } catch (e) {
@@ -48,14 +68,18 @@ export async function GET(
     }
     throw e;
   }
-  if (!purchaseOrderPrints(data.order.state, data.order.approvedAt)) {
-    return new Response(null, { status: 404 });
+  const file = pdf.file;
+  const store = fileStore();
+  if (file?.status !== 'ready' || file.deletedAt !== null || store?.bucket !== file.bucket) {
+    return preparing();
   }
-  const pdf = await purchaseOrderPdf(data, requestId);
-  return new Response(pdf, {
+  const bytes = await store.get(file.key);
+  const download = new URL(request.url).searchParams.get('download') === '1';
+  if (bytes === undefined) return preparing();
+  return new Response(new Uint8Array(bytes), {
     headers: {
       'content-type': 'application/pdf',
-      'content-disposition': `inline; filename="${purchaseOrderPdfFileName(data.order.poNo)}"`,
+      'content-disposition': `${download ? 'attachment' : 'inline'}; filename="${purchaseOrderPdfFileName(pdf.poNo)}"`,
       'cache-control': 'private, no-store',
     },
   });

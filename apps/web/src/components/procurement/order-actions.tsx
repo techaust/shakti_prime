@@ -18,13 +18,15 @@ import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import {
   approvePurchaseOrder,
   cancelPurchaseOrder,
   closePurchaseOrder,
+  requestPurchaseOrderPdf,
   sendPurchaseOrder,
 } from '../../actions/purchase-orders';
+import { waitForFile } from '../files/wait-for-file';
 import type { OrderActions as Allowed } from '../../screens/purchase-orders';
 import { FailureMessage } from '../screens/failure';
 import { formText } from '../screens/form-data';
@@ -40,8 +42,8 @@ export interface EmailContact {
 /**
  * What a person may do with the order in its state (`orderActions()`): approve, send by email to
  * one of the vendor's people (the PDF goes by the mailer) or mark sent by hand, receive
- * goods, cancel or close with a reason, change a draft; and download its PDF once it prints (from
- * its approval on). Each command checks
+ * goods, cancel or close with a reason, change a draft; and, for a reader of rates, download its
+ * PDF once it prints (from its approval on), as the render worker stored it. Each command checks
  * again; the screen reloads with what the order now is.
  */
 export function OrderActionsBar({
@@ -65,7 +67,47 @@ export function OrderActionsBar({
   const emailButton = useRef<HTMLButtonElement>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const failure = approve.failure ?? send.failure;
+  const pdf = useCommand(requestPurchaseOrderPdf);
+  const [preparing, setPreparing] = useState(false);
+  const [pdfSlow, setPdfSlow] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const failure = approve.failure ?? send.failure ?? pdf.failure;
+
+  /**
+   * Download PDF: the render worker prints the order's PDF on approval, so it is usually stored
+   * already; if not, the worker is asked now and the sheet waits for the file (in this process
+   * when no queue is configured, so often at once). The download leaves the sheet where it is.
+   */
+  function downloadPdf() {
+    if (pdf.pending || preparing) return;
+    setPdfSlow(false);
+    // The stored file, saved by the browser (the address answers it as a download).
+    const save = () => {
+      const link = document.createElement('a');
+      link.href = `/procurement/orders/${orderId}/pdf?download=1`;
+      link.download = '';
+      link.click();
+    };
+    pdf.run({ purchaseOrderId: orderId }, (answer) => {
+      if (answer.ready) {
+        save();
+        return;
+      }
+      setPreparing(true);
+      void waitForFile(answer.fileId, () => mounted.current).then((outcome) => {
+        if (!mounted.current) return;
+        setPreparing(false);
+        if (outcome === 'ready') save();
+        else setPdfSlow(true);
+      });
+    });
+  }
 
   const done = (message: string) => () => {
     toast.success(message);
@@ -120,10 +162,14 @@ export function OrderActionsBar({
           </Button>
         ) : null}
         {allowed.pdf ? (
-          <Button asChild variant="secondary">
-            <a href={`/procurement/orders/${orderId}/pdf`} target="_blank" rel="noopener">
-              {t('pdf')}
-            </a>
+          <Button
+            variant="secondary"
+            pending={pdf.pending || preparing}
+            onClick={() => {
+              downloadPdf();
+            }}
+          >
+            {t('pdf')}
           </Button>
         ) : null}
         {allowed.cancel ? (
@@ -150,6 +196,11 @@ export function OrderActionsBar({
         ) : null}
       </div>
       {failure === undefined ? null : <FailureMessage failure={failure} />}
+      {pdfSlow ? (
+        <p role="status" className="text-text-muted text-sm">
+          {t('pdfSlow')}
+        </p>
+      ) : null}
       {emailing ? (
         <EmailDialog
           orderId={orderId}

@@ -2038,6 +2038,7 @@
       "purchaseOrderSend": "Purchase order sent",
       "purchaseOrderCancel": "Purchase order cancelled",
       "purchaseOrderClose": "Purchase order closed",
+      "purchaseOrderPdfRequest": "Purchase order PDF asked for",
       "goodsReceiptPost": "Goods received",
       "goodsReceiptReverse": "Goods receipt reversed",
       "reorderRuleSet": "Reorder rule set",
@@ -2518,7 +2519,8 @@
         "proforma": "Proforma invoice",
         "delivery_challan": "Delivery challan",
         "handover_kit": "Handover kit",
-        "company_letterhead_proof": "Proof page of the letterhead"
+        "company_letterhead_proof": "Proof page of the letterhead",
+        "purchase_order": "Purchase order"
       },
       "listSeparator": ", ",
       "channelKind": {
@@ -3680,7 +3682,8 @@
       "call_recording": "Call recording",
       "call_transcript": "Call transcript",
       "vendor_quote": "Supplier quote",
-      "label_sheet": "Labels to print"
+      "label_sheet": "Labels to print",
+      "purchase_order_pdf": "Purchase order PDF"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -6838,6 +6841,9 @@
       "totalsWaiting": "The total shows once every line has its rate and a GST rate.",
       "receipts": "Goods received against this order"
     },
+    "orderPdf": {
+      "preparing": "The PDF of this purchase order is being prepared. This page tries again in a few seconds."
+    },
     "orderActions": {
       "approve": "Approve",
       "approved": "Purchase order {number} approved.",
@@ -6846,6 +6852,7 @@
       "receive": "Receive goods",
       "edit": "Change draft",
       "pdf": "Download PDF",
+      "pdfSlow": "The PDF is taking longer than usual. Try Download PDF again in a minute.",
       "cancel": "Cancel order",
       "close": "Close order",
       "cancelTitle": "Cancel purchase order {number}",

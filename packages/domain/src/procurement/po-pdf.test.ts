@@ -1,6 +1,6 @@
-import { IdSchema, newId } from '@shakti/contracts';
+import { IdSchema, newId, purchaseOrderPdfVersion } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
-import { purchaseOrderPdfFileId, purchaseOrderPdfVersion } from './po-pdf';
+import { purchaseOrderPdfFileId } from './po-pdf';
 
 describe('a purchase order’s PDF', () => {
   it('prints from approval on, the cancelled version once cancelled after approval', () => {

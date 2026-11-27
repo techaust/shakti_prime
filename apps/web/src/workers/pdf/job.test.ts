@@ -1,6 +1,14 @@
 import { newId, PdfRenderJob, type DeliveredEvent } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
-import { LABELS_EVENT, labelsJobOf, RENDER_EVENT, renderEventOf, renderJobOf } from './job';
+import {
+  LABELS_EVENT,
+  labelsJobOf,
+  PO_SENT_EVENT,
+  purchaseOrderSentJobOf,
+  RENDER_EVENT,
+  renderEventOf,
+  renderJobOf,
+} from './job';
 
 function requested(): DeliveredEvent {
   return {
@@ -109,5 +117,64 @@ describe('a sheet of labels and its event (Q1)', () => {
         },
       }),
     ).toThrow(expect.objectContaining({ code: 'not_found' }));
+  });
+});
+
+describe('a purchase order sent and its render job (U2, review R2)', () => {
+  function sentOrder(via: 'email' | 'by_hand'): DeliveredEvent {
+    const contact = newId();
+    return {
+      id: newId(),
+      sequence: '44',
+      type: PO_SENT_EVENT,
+      entityId: 1,
+      aggregateType: 'purchase_order',
+      aggregateId: newId(),
+      payload: {
+        vendorId: newId(),
+        via,
+        vendorContactId: via === 'email' ? contact : null,
+        sentBy: newId(),
+        v: 1,
+      },
+    };
+  }
+
+  it('prints and mails an order sent by email, and stands for the same event again', () => {
+    const event = sentOrder('email');
+    const job = purchaseOrderSentJobOf(event);
+    expect(job).toEqual({
+      eventId: event.id,
+      entityId: 1,
+      target: {
+        kind: 'purchase_order_mail',
+        purchaseOrderId: event.aggregateId,
+        vendorContactId: event.payload.vendorContactId,
+        sentBy: event.payload.sentBy,
+      },
+    });
+    const back = renderEventOf(job);
+    expect(back).toMatchObject({
+      id: event.id,
+      type: PO_SENT_EVENT,
+      entityId: 1,
+      aggregateType: 'purchase_order',
+      aggregateId: event.aggregateId,
+    });
+    expect(purchaseOrderSentJobOf(back)).toEqual(job);
+  });
+
+  it('only prints an order marked sent by hand: its PDF as approved', () => {
+    const event = sentOrder('by_hand');
+    expect(purchaseOrderSentJobOf(event)).toEqual({
+      eventId: event.id,
+      entityId: 1,
+      target: {
+        kind: 'document',
+        documentType: 'purchase_order',
+        documentId: event.aggregateId,
+        version: 1,
+      },
+    });
   });
 });

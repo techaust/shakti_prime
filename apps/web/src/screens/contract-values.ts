@@ -932,6 +932,8 @@ export const FILE_PURPOSES = [
   'vendor_quote',
   // Q1 labels.
   'label_sheet',
+  // U2 purchase orders.
+  'purchase_order_pdf',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */
@@ -975,6 +977,8 @@ export const PDF_DOCUMENT_TYPES = [
   'delivery_challan',
   'handover_kit',
   'company_letterhead_proof',
+  // U2 purchase orders.
+  'purchase_order',
 ] as const satisfies readonly PdfDocumentType[];
 
 export const FILE_SANITISING = [
@@ -1087,6 +1091,19 @@ export const PURCHASE_ORDER_SENT_VIA = [
   'email',
   'by_hand',
 ] as const satisfies readonly PurchaseOrderSentVia[];
+
+/**
+ * The states a purchase order's PDF prints in once the order was approved
+ * (`purchaseOrderPdfVersion` in the contracts): never a draft.
+ */
+export const PURCHASE_ORDER_PRINTED_STATES = [
+  'approved',
+  'sent',
+  'partially_received',
+  'received',
+  'closed',
+  'cancelled',
+] as const satisfies readonly PurchaseOrderState[];
 
 /** A goods receipt's states. */
 export const GOODS_RECEIPT_STATES = [

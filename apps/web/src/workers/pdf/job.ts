@@ -1,4 +1,10 @@
-import { DomainError, EVENT_VERSION, PdfRenderJob, type DeliveredEvent } from '@shakti/contracts';
+import {
+  DomainError,
+  EVENT_VERSION,
+  PdfRenderJob,
+  PO_PDF_AS_APPROVED,
+  type DeliveredEvent,
+} from '@shakti/contracts';
 
 /*
  * A render job and the outbox event it comes from (ADR 0009, docs/06-api.md §3.6), each made from the
@@ -38,11 +44,50 @@ export function labelsJobOf(event: DeliveredEvent): PdfRenderJob {
   });
 }
 
+/** The event a purchase order's sending comes from (U2). */
+export const PO_SENT_EVENT = 'procurement.po.sent';
+
+/**
+ * The job the outbox sends for a `procurement.po.sent` event (U2, review R2): sent by email, the
+ * order's PDF as approved is printed (or found stored) and mailed to the vendor's person named;
+ * marked sent by hand, it is only printed (or found stored), ready to download.
+ */
+export function purchaseOrderSentJobOf(event: DeliveredEvent): PdfRenderJob {
+  const { via, vendorContactId, sentBy } = event.payload;
+  const target =
+    via === 'email' && typeof vendorContactId === 'string'
+      ? {
+          kind: 'purchase_order_mail',
+          purchaseOrderId: event.aggregateId,
+          vendorContactId,
+          sentBy,
+        }
+      : {
+          kind: 'document',
+          documentType: 'purchase_order',
+          documentId: event.aggregateId,
+          version: PO_PDF_AS_APPROVED,
+        };
+  return PdfRenderJob.parse({ eventId: event.id, entityId: event.entityId, target });
+}
+
 /**
  * The event a job stands for, so the render route claims and records the job's id exactly as an
  * event worker does (`deliverEvent`), which reads only its id, type and company here.
  */
 export function renderEventOf(job: PdfRenderJob): DeliveredEvent {
+  if (job.target.kind === 'purchase_order_mail') {
+    const { purchaseOrderId, vendorContactId, sentBy } = job.target;
+    return {
+      id: job.eventId,
+      sequence: '0',
+      type: PO_SENT_EVENT,
+      entityId: job.entityId,
+      aggregateType: 'purchase_order',
+      aggregateId: purchaseOrderId,
+      payload: { via: 'email', vendorContactId, sentBy, v: EVENT_VERSION },
+    };
+  }
   if (job.target.kind === 'labels') {
     const { sheetId, labelKind, size, ids } = job.target;
     if (labelKind === 'package') {

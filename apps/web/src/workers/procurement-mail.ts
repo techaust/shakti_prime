@@ -1,143 +1,145 @@
-import type { DeliveredEvent, Principal } from '@shakti/contracts';
+import type { Principal } from '@shakti/contracts';
 import {
   executeCommand,
   executeQuery,
-  purchaseOrderForMail,
+  getStoredFile,
   notifyEvent,
+  purchaseOrderMailTo,
+  type FileStore,
   type Logger,
   type Mailer,
-  type PurchaseOrderMail,
-  type PurchaseOrderPrintData,
+  type PurchaseOrderMailTo,
 } from '@shakti/domain';
 import { defaultAuthDeps } from '../auth/deps';
 import { mailTranslator } from '../auth/mail-copy';
 import { logger as appLogger } from '../log';
-import { purchaseOrderPdfFileName } from '../print/purchase-order-file';
 import { deliverNoticeBatch } from './notify/deliver-notices';
 
-interface MailRead {
+/** One purchase order sent by email, as its render job carries it, and the PDF stored for it. */
+export interface PurchaseOrderMailJob {
+  eventId: string;
   entityId: number;
   purchaseOrderId: string;
   vendorContactId: string;
   sentBy: string;
+  /** The order's PDF as approved, which the render job has just stored or found stored. */
+  fileId: string;
 }
 
 export interface PurchaseOrderMailDeps {
-  /** The vendor's copy, as the worker (`purchaseOrderForMail`). */
-  read: (input: MailRead) => Promise<PurchaseOrderMail | undefined>;
+  /** Whom to mail, as the worker (`purchaseOrderMailTo`); undefined when nothing is to be mailed. */
+  readTo: (job: PurchaseOrderMailJob) => Promise<PurchaseOrderMailTo | undefined>;
+  /** The stored PDF's name and bytes, read as the worker; undefined when it cannot be had. */
+  readPdf: (job: PurchaseOrderMailJob) => Promise<{ name: string; bytes: Uint8Array } | undefined>;
   mailer: Mailer;
-  /** The order's PDF from its print data (`purchaseOrderPdf`, Chromium). */
-  pdf: (data: PurchaseOrderPrintData, requestId: string) => Promise<Uint8Array>;
   /** Tells the sender, in the notice centre and by push. */
-  tellSender: (input: {
-    entityId: number;
-    eventId: string;
-    purchaseOrderId: string;
-    sentBy: string;
-  }) => Promise<void>;
+  tellSender: (job: PurchaseOrderMailJob) => Promise<void>;
   logger: Logger;
 }
 
-export type PurchaseOrderMailOutcome = 'by_hand' | 'not_mailable' | 'mailed' | 'not_sent';
+export type PurchaseOrderMailOutcome = 'not_mailable' | 'mailed' | 'not_sent';
 
-function defaultDeps(principal: Principal, requestId: string): PurchaseOrderMailDeps {
+/** The mail step's ports, as the render worker of the job's company (`system:workers`). */
+export function purchaseOrderMailDeps(
+  principal: Principal,
+  requestId: string,
+  store: FileStore,
+): PurchaseOrderMailDeps {
+  const scope = (entityId: number) => ({ entityIds: [entityId], requestId });
   return {
-    read: ({ entityId, ...input }) =>
+    // The definer is the worker's, not the reading role's: on app_user, as the media sweep's.
+    readTo: (job) =>
       executeQuery(
         principal,
-        { entityIds: [entityId], requestId },
-        (q) => purchaseOrderForMail(q, input),
-        // The definer is the worker's, not the reading role's: on app_user, as the media sweep's.
-        { name: 'procurement.po.mail', pool: 'app_user' },
+        scope(job.entityId),
+        (q) =>
+          purchaseOrderMailTo(q, {
+            purchaseOrderId: job.purchaseOrderId,
+            vendorContactId: job.vendorContactId,
+            sentBy: job.sentBy,
+          }),
+        { name: 'procurement.po.mail_to', pool: 'app_user' },
       ),
-    mailer: defaultAuthDeps().mailer,
-    pdf: async (data, id) => {
-      // Loaded on first use, so Chromium's driver stays out of every other worker's start.
-      const { purchaseOrderPdf } = await import('../print/purchase-order-pdf');
-      return purchaseOrderPdf(data, id);
-    },
-    tellSender: async (input) => {
-      const batch = await executeCommand(
+    readPdf: async (job) => {
+      const file = await executeQuery(
         principal,
-        { entityIds: [input.entityId], requestId },
-        notifyEvent,
-        { event: 'procurement.po.sent', ...input },
+        scope(job.entityId),
+        (q) => getStoredFile(q, job.fileId),
+        { name: 'procurement.po.mail_pdf' },
       );
+      if (
+        file?.status !== 'ready' ||
+        file.deletedAt !== null ||
+        file.purpose !== 'purchase_order_pdf' ||
+        file.entityId !== job.entityId
+      ) {
+        return undefined;
+      }
+      const bytes = await store.get(file.key);
+      return bytes === undefined ? undefined : { name: file.name, bytes };
+    },
+    mailer: defaultAuthDeps().mailer,
+    tellSender: async (job) => {
+      const batch = await executeCommand(principal, scope(job.entityId), notifyEvent, {
+        event: 'procurement.po.sent',
+        entityId: job.entityId,
+        eventId: job.eventId,
+        purchaseOrderId: job.purchaseOrderId,
+        sentBy: job.sentBy,
+      });
       await deliverNoticeBatch(principal, batch, { requestId });
     },
     logger: appLogger,
   };
 }
 
-const text = (value: unknown): string | undefined =>
-  typeof value === 'string' && value !== '' ? value : undefined;
-
 /**
- * The purchase order mailer (U2, review finding 4), on `procurement.po.sent`: an order sent by
- * email is printed with its rates (the vendor's copy, read through the one narrow definer the
- * worker's platform-only `procurement.po.mail` opens) on the company's letterhead and mailed to
- * the vendor's person named, the sender's own address to reply to. Until an environment's mailer
- * is SES it is logged as every mail is (its recipient and the file's name, never its bytes). An
- * order sent by hand is left alone; one that is no longer sent by email (cancelled since) is not
- * mailed. When the mail cannot go (the person has no address any more, the PDF or the mail
- * fails), the order stays sent and the sender is told once to send the PDF themselves. Each event
- * is handled once by its id, so a repeat does not mail twice.
+ * The purchase order mailer (U2, review findings 4 and R2), the last step of the render job a
+ * `procurement.po.sent` by email becomes: once the job has stored the order's PDF as approved (or
+ * found it stored), the stored file is mailed to the vendor's person named, the sender's own
+ * address to reply to. Until an environment's mailer is SES it is logged as every mail is (its
+ * recipient and the file's name, never its bytes). An order that is no longer sent by email
+ * (cancelled since) is not mailed. When the mail cannot go (the person has no address any more,
+ * the file or the mail fails), the order stays sent and the sender is told once to send the PDF
+ * themselves. Nothing here throws for a mail that did not go, so the job is not run again and the
+ * vendor is never mailed twice; the job's event id is claimed once by the render route.
  */
-export async function handlePurchaseOrderSent(
-  event: DeliveredEvent,
-  ctx: { principal: Principal; requestId: string },
-  deps: PurchaseOrderMailDeps = defaultDeps(ctx.principal, ctx.requestId),
+export async function mailPurchaseOrder(
+  job: PurchaseOrderMailJob,
+  requestId: string,
+  deps: PurchaseOrderMailDeps,
 ): Promise<PurchaseOrderMailOutcome> {
-  const contactId = text(event.payload.vendorContactId);
-  const sentBy = text(event.payload.sentBy);
-  if (event.payload.via !== 'email' || contactId === undefined || sentBy === undefined) {
-    return 'by_hand';
-  }
-  const purchaseOrderId = event.aggregateId;
-  const mail = await deps.read({
-    entityId: event.entityId,
-    purchaseOrderId,
-    vendorContactId: contactId,
-    sentBy,
-  });
+  const { purchaseOrderId } = job;
+  const mail = await deps.readTo(job);
   if (mail === undefined) {
-    deps.logger.log('info', 'procurement.po_mail_skipped', {
-      requestId: ctx.requestId,
-      purchaseOrderId,
-    });
+    deps.logger.log('info', 'procurement.po_mail_skipped', { requestId, purchaseOrderId });
     return 'not_mailable';
   }
   try {
     if (mail.to === null) throw new Error('the vendor’s person has no email address');
-    const { order, company } = mail.print;
-    const content = await deps.pdf(mail.print, ctx.requestId);
+    const pdf = await deps.readPdf(job);
+    if (pdf === undefined) throw new Error('the stored PDF could not be read');
     const t = mailTranslator();
     await deps.mailer.send({
       to: mail.to.email,
-      subject: t('purchaseOrder.subject', { number: order.poNo, company: company.legalName }),
+      subject: t('purchaseOrder.subject', { number: mail.poNo, company: mail.companyName }),
       text: t('purchaseOrder.body', {
         name: mail.to.name,
-        number: order.poNo,
-        company: company.legalName,
+        number: mail.poNo,
+        company: mail.companyName,
       }),
       ...(mail.replyTo === null ? {} : { replyTo: mail.replyTo }),
-      attachments: [
-        {
-          fileName: purchaseOrderPdfFileName(order.poNo),
-          contentType: 'application/pdf',
-          content,
-        },
-      ],
+      attachments: [{ fileName: pdf.name, contentType: 'application/pdf', content: pdf.bytes }],
     });
-    deps.logger.log('info', 'procurement.po_mailed', { requestId: ctx.requestId, purchaseOrderId });
+    deps.logger.log('info', 'procurement.po_mailed', { requestId, purchaseOrderId });
     return 'mailed';
   } catch (error) {
     deps.logger.log('warn', 'procurement.po_mail_failed', {
-      requestId: ctx.requestId,
+      requestId,
       purchaseOrderId,
       error: error instanceof Error ? error.name : 'unknown',
     });
-    await deps.tellSender({ entityId: event.entityId, eventId: event.id, purchaseOrderId, sentBy });
+    await deps.tellSender(job);
     return 'not_sent';
   }
 }

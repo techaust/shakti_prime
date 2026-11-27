@@ -3,10 +3,15 @@
 // lines and, for a reader of supplier rates only, the rates, amounts and the tax split; light
 // theme, 15 mm side margins, Inter embedded. Every amount arrives computed by the domain (the
 // order's rates and the tax engine); this only places them. An order prints from its approval on,
-// dated the day it was approved; a cancelled one prints with "Cancelled" across it.
+// dated the day it was approved; its cancelled version prints with "Cancelled" across it. Only the
+// render worker prints it (ADR 0009), into the order's stored PDF.
+import {
+  PO_PDF_CANCELLED,
+  purchaseOrderPdfVersion,
+  type PurchaseOrderPdfVersion,
+} from '@shakti/contracts';
 import type { PurchaseOrderPrintData } from '@shakti/domain';
 import { formatRate } from '../screens/procurement';
-import { purchaseOrderPrints } from '../screens/purchase-orders';
 import { companyBlock, companyCss, letterheadStrip, type CompanyPrint } from './company';
 import { printCopy } from './copy';
 import { formatAmount, formatDate, formatRupees } from './format';
@@ -53,19 +58,27 @@ const rateText = (rate: string) => formatRate(rate).replace('₹', '');
 /**
  * The PDF of a purchase order, with rates and totals only when the order carries them; the
  * company as the print loader read it (`loadCompanyLetterhead`). Only an order that prints
- * (`purchaseOrderPrints`): a draft or an order never approved is refused before this.
+ * (`purchaseOrderPdfVersion`): a draft or an order never approved is refused, and so is the
+ * cancelled version of an order not cancelled. `version` is the one the order prints now unless
+ * named: version 1 is the order as approved, even once cancelled; version 2 is marked cancelled.
  */
 export function renderPurchaseOrder(
   data: PurchaseOrderPrintData,
   company: CompanyPrint,
   printedOn: string,
+  version?: PurchaseOrderPdfVersion,
 ): PrintDocument {
   const t = printCopy();
   const { order, vendor } = data;
   const approvedAt = order.approvedAt;
-  if (approvedAt === null || !purchaseOrderPrints(order.state, approvedAt)) {
+  const current = purchaseOrderPdfVersion(order.state, approvedAt);
+  if (approvedAt === null || current === undefined) {
     throw new RangeError('a purchase order prints from its approval on');
   }
+  if (version === PO_PDF_CANCELLED && current !== PO_PDF_CANCELLED) {
+    throw new RangeError('only a cancelled order prints marked cancelled');
+  }
+  const cancelled = (version ?? current) === PO_PDF_CANCELLED;
   const rated = 'totals' in order ? order : undefined;
   const states = (code: string) => {
     const key = `states.${code}` as 'states.08';
@@ -86,7 +99,7 @@ export function renderPurchaseOrder(
       </head>
       <body>
         ${
-          order.state === 'cancelled'
+          cancelled
             ? html`<div class="cancelled" role="note">${t('purchaseOrder.cancelled')}</div>`
             : ''
         }

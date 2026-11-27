@@ -148,6 +148,37 @@ export const PurchaseOrderRefDto = z
 export type PurchaseOrderRefDto = z.infer<typeof PurchaseOrderRefDto>;
 
 /**
+ * A purchase order's PDF has two versions: 1, the order as approved, and 2, the same order marked
+ * cancelled once it is cancelled after its approval (docs/03-roadmap-appendix/phase3.md §7.2).
+ */
+export type PurchaseOrderPdfVersion = 1 | 2;
+export const PO_PDF_AS_APPROVED: PurchaseOrderPdfVersion = 1;
+export const PO_PDF_CANCELLED: PurchaseOrderPdfVersion = 2;
+
+/** The states an order prints in once it was approved. */
+const PRINTED_STATES: ReadonlySet<PurchaseOrderState> = new Set([
+  'approved',
+  'sent',
+  'partially_received',
+  'received',
+  'closed',
+  'cancelled',
+]);
+
+/**
+ * The version of the PDF an order in `state`, approved at `approvedAt` (or never), prints now:
+ * none for a draft or an order cancelled before it was approved, so no unapproved order reaches a
+ * vendor; the cancelled version for one cancelled after its approval; else the approved one.
+ */
+export function purchaseOrderPdfVersion(
+  state: PurchaseOrderState,
+  approvedAt: string | Date | null,
+): PurchaseOrderPdfVersion | undefined {
+  if (approvedAt === null || !PRINTED_STATES.has(state)) return undefined;
+  return state === 'cancelled' ? PO_PDF_CANCELLED : PO_PDF_AS_APPROVED;
+}
+
+/**
  * `procurement.po.pdf.request`: a person who reads supplier rates asks for the order's PDF. It
  * answers the file of the order's current version (`fileId`), `ready` when the render worker has
  * stored it already; otherwise the worker is asked to print it and the screen waits for the file.

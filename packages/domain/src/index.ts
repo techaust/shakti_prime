@@ -244,13 +244,7 @@ export {
 export { postGoodsReceipt, reverseGoodsReceipt } from './commands/procurement/receipts';
 export { draftReorders, removeReorderRule, setReorderRule } from './commands/procurement/reorder';
 export { poLineAmount, purchaseOrderTotals, stockUnitCost } from './procurement/po-totals';
-export {
-  PO_PDF_AS_APPROVED,
-  PO_PDF_CANCELLED,
-  purchaseOrderPdfFileId,
-  purchaseOrderPdfVersion,
-  type PurchaseOrderPdfVersion,
-} from './procurement/po-pdf';
+export { purchaseOrderPdfFileId } from './procurement/po-pdf';
 export {
   getPurchaseOrder,
   getPurchaseOrderPdf,

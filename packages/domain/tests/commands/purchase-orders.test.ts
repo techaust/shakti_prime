@@ -773,9 +773,9 @@ describe('procurement.grn.reverse', () => {
     // The issue holds the bin's balance and has not committed yet.
     const issue = asPrincipal(executive, async (context) => {
       await stockMove(context.tx, [lossFromB()]);
-      const [me] = (await context.tx.execute(
-        sql`select pg_backend_pid() as pid`,
-      )) as unknown as { pid: number }[];
+      const [me] = (await context.tx.execute(sql`select pg_backend_pid() as pid`)) as unknown as {
+        pid: number;
+      }[];
       holding(me?.pid ?? 0);
       await gate;
     });
@@ -1034,7 +1034,11 @@ describe('the purchase order’s PDF and its mail (review R2)', () => {
     const po = await run<Ref>(manager, createPurchaseOrder, draft());
     const emitted = memoryOutboxSink();
     await asPrincipal(checker, (context) =>
-      runCommand(approvePurchaseOrder, { context, audit, outbox: emitted }, { purchaseOrderId: po.id }),
+      runCommand(
+        approvePurchaseOrder,
+        { context, audit, outbox: emitted },
+        { purchaseOrderId: po.id },
+      ),
     );
     const cancelled = memoryOutboxSink();
     await asPrincipal(manager, (context) =>

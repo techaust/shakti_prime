@@ -1,5 +1,5 @@
 // The purchase order PDF's structure (U2, review findings 3 and 10), without Chromium: printed only
-// from its approval on and dated then, a cancelled order marked so, rates as the sheet shows them,
+// from its approval on and dated then, its cancelled version marked so, rates as the sheet shows them,
 // the company's letterhead strip and logo, and no value at all for a reader without rates.
 import type { PurchaseOrderDto, PurchaseOrderWithRatesDto } from '@shakti/contracts';
 import type { PurchaseOrderPrintData } from '@shakti/domain';
@@ -111,17 +111,27 @@ describe('the purchase order PDF', () => {
     expect(html).not.toContain('class="cancelled"');
   });
 
-  it('marks a cancelled order across the page', () => {
-    const { html } = renderPurchaseOrder(
-      data(rated('cancelled', '2026-11-03T06:00:00.000Z')),
-      company,
-      '2026-11-27',
+  it('marks a cancelled order across the page, and keeps its version as approved unmarked', () => {
+    const cancelled = data(rated('cancelled', '2026-11-03T06:00:00.000Z'));
+    for (const version of [undefined, 2] as const) {
+      const { html } = renderPurchaseOrder(cancelled, company, '2026-11-27', version);
+      expect(html).toContain('class="cancelled"');
+      expect(html).toContain(`>${en.print.purchaseOrder.cancelled}<`);
+    }
+    expect(renderPurchaseOrder(cancelled, company, '2026-11-27', 1).html).not.toContain(
+      'class="cancelled"',
     );
-    expect(html).toContain('class="cancelled"');
-    expect(html).toContain(`>${en.print.purchaseOrder.cancelled}<`);
   });
 
-  it('never prints a draft or an order cancelled before its approval', () => {
+  it('never prints a draft, an order cancelled before its approval, or a live order as cancelled', () => {
+    expect(() =>
+      renderPurchaseOrder(
+        data(rated('sent', '2026-11-03T06:00:00.000Z')),
+        company,
+        '2026-11-27',
+        2,
+      ),
+    ).toThrow(RangeError);
     expect(() => renderPurchaseOrder(data(rated('draft', null)), company, '2026-11-27')).toThrow(
       RangeError,
     );

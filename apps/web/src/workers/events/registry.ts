@@ -16,7 +16,7 @@ import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
 import { handleBriefEvent, handleCallSummaryEvent } from '../copilot/copilot-event';
 import { handleConciergeEvent } from '../concierge/concierge-event';
-import { labelsJobOf, renderJobOf } from '../pdf/job';
+import { labelsJobOf, purchaseOrderSentJobOf, renderJobOf } from '../pdf/job';
 import { sendJobOf } from '../messaging/job';
 import { whatsappButtonSecret } from '../messaging/button-secret';
 import { recordProbeArrival } from './probe';
@@ -242,13 +242,16 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'crm.lead.attached': { ordering: 'every', handle: notify },
   // U2: a reorder draft tells the company's order writers.
   'procurement.po.drafted': { ordering: 'every', handle: notify },
-  // U2: the purchase order mailer (review finding 4): an order sent by email goes to the vendor's
-  // person with its PDF, or its sender is told to send it themselves.
+  // U2: a purchase order sent (review R2). Hosted, the publisher sends this type to the render
+  // route (`EVENT_JOB_ROUTES`); without a queue it is printed here. Its PDF as approved is printed
+  // or found stored and, sent by email, mailed to the vendor's person, or its sender is told to
+  // send it themselves.
   'procurement.po.sent': {
     ordering: 'every',
     handle: async (event, ctx) => {
-      const { handlePurchaseOrderSent } = await import('../procurement-mail');
-      await handlePurchaseOrderSent(event, ctx);
+      const { renderPdfJob } = await import('../pdf/render-job');
+      const { renderDeps } = await import('../pdf/deps');
+      await renderPdfJob(purchaseOrderSentJobOf(event), renderDeps(ctx.principal, ctx.requestId));
     },
   },
   // U2: the reorder check after a stock issue or loss, debounced per company and item (review

@@ -147,7 +147,12 @@ async function main(): Promise<void> {
   );
   if (first.nextCursor !== null) {
     await explained('orders list, sent, second page (General Manager)', gm, (ctx) =>
-      listPurchaseOrders(ctx, { entityId: 1, state: 'sent', limit: 50, cursor: first.nextCursor ?? '' }),
+      listPurchaseOrders(ctx, {
+        entityId: 1,
+        state: 'sent',
+        limit: 50,
+        cursor: first.nextCursor ?? '',
+      }),
     );
   }
   await explained('order sheet with rates (Inventory Manager)', manager, (ctx) =>

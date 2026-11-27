@@ -1,6 +1,7 @@
 import {
   DomainError,
   hasGrant,
+  PO_PDF_AS_APPROVED,
   type PdfRenderJob,
   type Principal,
   type RenderedFilePurpose,
@@ -28,6 +29,7 @@ import {
 } from '../../print/documents';
 import { istDay } from '../../screens/ist';
 import { pageCount, type PrintRenderer } from '../../print/renderer';
+import type { PurchaseOrderMailDeps } from '../procurement-mail';
 
 /** What a render job is given: the worker principal of its company and the runtime's ports. */
 export interface RenderDeps {
@@ -41,6 +43,8 @@ export interface RenderDeps {
   hosted: boolean;
   now?: () => Date;
   logger?: Logger;
+  /** The purchase order mailer's ports (U2); the worker's own when not given (tests give theirs). */
+  mail?: PurchaseOrderMailDeps;
 }
 
 export interface RenderOutcome {
@@ -122,9 +126,50 @@ function labelsPlan(target: LabelsTarget): RenderPlan {
   };
 }
 
+/** A purchase order sent by email (U2): `kind: 'purchase_order_mail'` of `PdfRenderJob`. */
+type PurchaseOrderMailTarget = Extract<PdfRenderJob['target'], { kind: 'purchase_order_mail' }>;
+
+/**
+ * A purchase order sent by email (U2, review R2): its PDF as approved, printed as the document is
+ * (or found stored, as every job's file is), then mailed with the stored file as the last step
+ * (`mailPurchaseOrder`), which never throws for a mail that did not go.
+ */
+function purchaseOrderMailPlan(
+  job: PdfRenderJob,
+  target: PurchaseOrderMailTarget,
+  deps: RenderDeps,
+): RenderPlan {
+  const document = documentPlan(job, {
+    kind: 'document',
+    documentType: 'purchase_order',
+    documentId: target.purchaseOrderId,
+    version: PO_PDF_AS_APPROVED,
+  });
+  return {
+    ...document,
+    logged: { ...document.logged, mail: 1 },
+    attach: async (fileId, ctx) => {
+      const { mailPurchaseOrder, purchaseOrderMailDeps } = await import('../procurement-mail');
+      await mailPurchaseOrder(
+        {
+          eventId: job.eventId,
+          entityId: job.entityId,
+          purchaseOrderId: target.purchaseOrderId,
+          vendorContactId: target.vendorContactId,
+          sentBy: target.sentBy,
+          fileId,
+        },
+        ctx.requestId,
+        deps.mail ?? purchaseOrderMailDeps(ctx.principal, ctx.requestId, ctx.store),
+      );
+    },
+  };
+}
+
 /**
  * Renders one document or one sheet of labels (ADR 0009, docs/03-roadmap-appendix/phase1.md
- * §6.4, phase3.md §7.4), as the worker principal of the job's company: its registered type loads
+ * §6.4, phase3.md §7.4), or a purchase order sent by email and then mails it (§7.2), as the worker
+ * principal of the job's company: its registered type loads
  * it, its template is printed by Chromium (A4 for a document, the label stock's size for labels),
  * the PDF is stored under its purpose and file id and recorded `ready` with
  * `files.document.record`, then attached to its record where the type has one (a quote's PDF,
@@ -136,7 +181,12 @@ export async function renderPdfJob(job: PdfRenderJob, deps: RenderDeps): Promise
   const log = deps.logger ?? appLogger;
   const started = Date.now();
   const target = job.target;
-  const plan = target.kind === 'document' ? documentPlan(job, target) : labelsPlan(target);
+  const plan =
+    target.kind === 'document'
+      ? documentPlan(job, target)
+      : target.kind === 'labels'
+        ? labelsPlan(target)
+        : purchaseOrderMailPlan(job, target, deps);
   // Only the worker principal prints: nothing is loaded, rendered or stored for anyone else (the
   // record command refuses them too).
   if (!hasGrant(deps.principal.permissions, 'files.process', 'entity')) {

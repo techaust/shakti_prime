@@ -5,12 +5,15 @@
 // command that attaches the PDF to it. A type with no entry here is refused by the worker.
 import {
   DomainError,
+  PO_PDF_AS_APPROVED,
+  PO_PDF_CANCELLED,
   type LabelKind,
   type LabelSize,
   type LabelsForPrintDto,
   type PdfDocumentType,
   type PdfRenderJob,
   type Principal,
+  type PurchaseOrderPdfVersion,
   type RenderedFilePurpose,
 } from '@shakti/contracts';
 import {
@@ -22,10 +25,13 @@ import {
   loadLabelsForPrint,
   loadQuoteForPrint,
   openBankDetails,
+  purchaseOrderForPrint,
+  purchaseOrderPdfFileId,
   retireRenderedFiles,
   type CompanyForPrint,
   type FieldCipher,
   type FileStore,
+  type PurchaseOrderPrintData,
   type QuoteForPrint,
   type StoredFile,
 } from '@shakti/domain';
@@ -35,6 +41,8 @@ import { istDay } from '../screens/ist';
 import { formatDate } from './format';
 import { renderLabelsHtml, type LabelPrint } from './label-template';
 import { renderLetterheadProof, type LetterheadProofPrint } from './letterhead-proof-template';
+import { purchaseOrderPdfFileName } from './purchase-order-file';
+import { renderPurchaseOrder } from './purchase-order-template';
 import { renderQuote, type PrintDocument, type QuotePrint } from './quote-template';
 import { rupeesInWords } from './words';
 
@@ -112,9 +120,8 @@ export async function loadCompanyPrint(ctx: LoadContext): Promise<CompanyPrint> 
 
 /**
  * The buying company of a purchase order as its PDF prints it (U2): the letterhead strip, logo,
- * name, address and GSTIN, read as the worker for that one company, as the quote's are; never the
- * bank account, which an order to a vendor does not carry. The order itself is read by whoever
- * prints it (the person asking, or the mail worker's narrow read), never here.
+ * name, address and GSTIN, read as the render worker for that one company, as the quote's are;
+ * never the bank account, which an order to a vendor does not carry.
  */
 export async function loadCompanyLetterhead(
   ctx: Pick<LoadContext, 'principal' | 'entityId' | 'requestId' | 'store'>,
@@ -322,10 +329,69 @@ function register<D>(type: DocumentType<D>): RegisteredDocument {
   };
 }
 
-/** The registered types: the proof page, and the quote with its record and attach command (S1). */
+// U2 purchase orders
+/** What a purchase order's PDF prints: the vendor's copy, its company and the version it prints. */
+interface PurchaseOrderPrint {
+  data: PurchaseOrderPrintData;
+  company: CompanyPrint;
+  version: PurchaseOrderPdfVersion;
+  printedOn: string;
+}
+
+/** A job's version of a purchase order's PDF; any other number is a type no loader prints. */
+function purchaseOrderVersion(target: DocumentTarget): PurchaseOrderPdfVersion {
+  if (target.version === PO_PDF_AS_APPROVED || target.version === PO_PDF_CANCELLED) {
+    return target.version;
+  }
+  throw new DomainError('not_found', `a purchase order has no version ${target.version}`, {
+    reason: 'document_type_unknown',
+  });
+}
+
+/**
+ * A purchase order (U2, docs/03-roadmap-appendix/phase3.md §7.2, review R2): the vendor's copy
+ * with its rates, read by the worker through its one narrow definer (`purchaseOrderForPrint`,
+ * `procurement.po.print`), on the company's letterhead, never the bank account. It is stored as a
+ * `purchase_order_pdf` file, which only a holder of `procurement.rate.read` opens, under an id
+ * worked out from the order and the version, so approval, sending, cancelling and a person's
+ * request all find or make the same file. A draft, an order never approved or a version it does
+ * not print is refused for good.
+ */
+const purchaseOrderDocument: DocumentType<PurchaseOrderPrint> = {
+  purpose: 'purchase_order_pdf',
+  fileId: (_job, target) => purchaseOrderPdfFileId(target.documentId, purchaseOrderVersion(target)),
+  fileName: (print) => purchaseOrderPdfFileName(print.data.order.poNo),
+  load: async (target, ctx) => {
+    const version = purchaseOrderVersion(target);
+    // The definer is the worker's, not the reading role's: on app_user.
+    const data = await executeQuery(
+      ctx.principal,
+      { entityIds: [ctx.entityId], requestId: ctx.requestId },
+      (q) => purchaseOrderForPrint(q, { purchaseOrderId: target.documentId, version }),
+      { name: 'print.purchase_order.load', pool: 'app_user' },
+    );
+    if (data === undefined) {
+      throw new DomainError('not_found', `purchase order ${target.documentId} does not print`, {
+        reason: 'purchase_order_missing',
+      });
+    }
+    if (data.order.entityId !== ctx.entityId) {
+      throw new DomainError('internal', 'the print loader read another company');
+    }
+    return { data, company: await loadCompanyLetterhead(ctx), version, printedOn: ctx.today };
+  },
+  render: (print) => renderPurchaseOrder(print.data, print.company, print.printedOn, print.version),
+};
+
+/**
+ * The registered types: the proof page, the quote with its record and attach command (S1), and
+ * the purchase order (U2).
+ */
 export const DOCUMENT_TYPES: Partial<Record<PdfDocumentType, RegisteredDocument>> = {
   company_letterhead_proof: register(letterheadProof),
   quote: register(quoteDocument),
+  // U2 purchase orders
+  purchase_order: register(purchaseOrderDocument),
 };
 
 /** The registered type of a job, or undefined for a type no loader prints yet. */

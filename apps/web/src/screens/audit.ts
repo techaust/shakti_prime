@@ -287,6 +287,7 @@ const ACTIONS = {
   'procurement.po.send': 'purchaseOrderSend',
   'procurement.po.cancel': 'purchaseOrderCancel',
   'procurement.po.close': 'purchaseOrderClose',
+  'procurement.po.pdf.request': 'purchaseOrderPdfRequest',
   'procurement.grn.post': 'goodsReceiptPost',
   'procurement.grn.reverse': 'goodsReceiptReverse',
   'procurement.reorder_rule.set': 'reorderRuleSet',

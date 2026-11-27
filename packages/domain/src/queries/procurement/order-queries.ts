@@ -1,6 +1,7 @@
 import {
   DomainError,
   GetPurchaseOrderInput,
+  purchaseOrderPdfVersion,
   RequestPurchaseOrderPdfInput,
   GoodsReceiptPageDto,
   hasGrant,
@@ -15,17 +16,14 @@ import {
   ReorderRuleRowDto,
   type Principal,
   type PurchaseOrderRowDto,
+  type PurchaseOrderPdfVersion,
   type PurchaseOrderState,
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { istCalendarDate } from '../../numbering/financial-year';
-import {
-  purchaseOrderPdfFileId,
-  purchaseOrderPdfVersion,
-  type PurchaseOrderPdfVersion,
-} from '../../procurement/po-pdf';
+import { purchaseOrderPdfFileId } from '../../procurement/po-pdf';
 import { purchaseOrderTotals } from '../../procurement/po-totals';
 import { getStoredFile, type StoredFile } from '../files/file-queries';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
@@ -520,7 +518,8 @@ export async function getPurchaseOrderPdf(
     poNo: order.poNo,
     version,
     fileId,
-    file: file?.purpose === 'purchase_order_pdf' && file.entityId === order.entityId ? file : undefined,
+    file:
+      file?.purpose === 'purchase_order_pdf' && file.entityId === order.entityId ? file : undefined,
   };
 }
 
@@ -615,7 +614,7 @@ export async function purchaseOrderMailTo(
     } | null;
   }[];
   const mail = row?.mail;
-  if (!mail || mail.companyName === null) return undefined;
+  if (typeof mail?.companyName !== 'string') return undefined;
   return {
     poNo: mail.poNo,
     companyName: mail.companyName,

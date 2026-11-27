@@ -58,6 +58,7 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
         hasGrant(grants, 'procurement.po.approve', 'entity') &&
         hasGrant(grants, 'procurement.rate.read', 'entity'),
       canReceive: hasGrant(grants, 'procurement.grn.write', 'entity'),
+      readsRates: hasGrant(grants, 'procurement.rate.read', 'entity'),
     },
     order.approvedAt,
   );

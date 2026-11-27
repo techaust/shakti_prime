@@ -4,6 +4,7 @@
 
 import type { StatusTone } from '@shakti/ui';
 import type { PurchaseOrderState } from '@shakti/contracts';
+import { PURCHASE_ORDER_PRINTED_STATES } from './contract-values';
 
 /** The badge tone of each state. */
 export const ORDER_STATE_TONE: Record<PurchaseOrderState, StatusTone> = {
@@ -21,22 +22,15 @@ export function plainQty(qty: string): string {
   return qty.includes('.') ? qty.replace(/\.?0+$/, '') : qty;
 }
 
-/** The states an order's PDF prints in: from its approval on, a cancelled one marked so. */
-const PRINTED: ReadonlySet<PurchaseOrderState> = new Set([
-  'approved',
-  'sent',
-  'partially_received',
-  'received',
-  'closed',
-  'cancelled',
-]);
+const PRINTED: ReadonlySet<PurchaseOrderState> = new Set(PURCHASE_ORDER_PRINTED_STATES);
 
 /**
  * Whether an order in `state`, approved at `approvedAt` (or never), prints: never a draft, and
- * never an order cancelled before it was approved, so no unapproved order reaches a vendor.
+ * never an order cancelled before it was approved, so no unapproved order reaches a vendor. The
+ * browser's copy of `purchaseOrderPdfVersion` (the contracts), which a test holds to it.
  */
 export function purchaseOrderPrints(state: PurchaseOrderState, approvedAt: string | null): boolean {
-  return PRINTED.has(state) && approvedAt !== null;
+  return approvedAt !== null && PRINTED.has(state);
 }
 
 /** What a person may do with an order in its state, given what they hold. */
@@ -44,6 +38,8 @@ export interface OrderPowers {
   canWrite: boolean;
   canApprove: boolean;
   canReceive: boolean;
+  /** Reads supplier rates (`procurement.rate.read`): the PDF prints them, so only such a reader opens it. */
+  readsRates: boolean;
 }
 
 export interface OrderActions {
@@ -53,7 +49,7 @@ export interface OrderActions {
   receive: boolean;
   cancel: boolean;
   close: boolean;
-  /** Download PDF: only where it prints (`purchaseOrderPrints`). */
+  /** Download PDF: only where it prints (`purchaseOrderPrints`), for a reader of rates. */
   pdf: boolean;
 }
 
@@ -64,7 +60,7 @@ export function orderActions(
   approvedAt: string | null = null,
 ): OrderActions {
   return {
-    pdf: purchaseOrderPrints(state, approvedAt),
+    pdf: purchaseOrderPrints(state, approvedAt) && powers.readsRates,
     edit: state === 'draft' && powers.canWrite,
     approve: state === 'draft' && powers.canApprove,
     send: state === 'approved' && powers.canWrite,

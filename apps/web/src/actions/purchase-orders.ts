@@ -7,6 +7,7 @@ import {
   CreatePurchaseOrderInput,
   PostGoodsReceiptInput,
   RemoveReorderRuleInput,
+  RequestPurchaseOrderPdfInput,
   ReverseGoodsReceiptInput,
   SendPurchaseOrderInput,
   SetReorderRuleInput,
@@ -15,6 +16,7 @@ import {
   type GoodsReceiptRefDto,
   type PurchaseOrderDto,
   type PurchaseOrderPageDto,
+  type PurchaseOrderPdfDto,
   type PurchaseOrderRefDto,
   type PurchaseOrderWithRatesDto,
   type ReceiveGoodsDto,
@@ -35,6 +37,7 @@ import {
   listReorderRules as listReorderRulesQuery,
   postGoodsReceipt as postReceiptCommand,
   removeReorderRule as removeRuleCommand,
+  requestPurchaseOrderPdf as requestPdfCommand,
   reverseGoodsReceipt as reverseReceiptCommand,
   sendPurchaseOrder as sendCommand,
   setReorderRule as setRuleCommand,
@@ -114,6 +117,23 @@ export async function sendPurchaseOrder(
   idempotencyKey?: unknown,
 ): Promise<ActionResult<PurchaseOrderRefDto>> {
   return run('sendPurchaseOrder', SendPurchaseOrderInput, sendCommand, rawInput, idempotencyKey);
+}
+
+/**
+ * Download PDF: the order's PDF of the version it prints now, `ready` once the render worker
+ * stored it; otherwise the worker is asked to print it and the sheet waits for the file.
+ */
+export async function requestPurchaseOrderPdf(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<PurchaseOrderPdfDto>> {
+  return run(
+    'requestPurchaseOrderPdf',
+    RequestPurchaseOrderPdfInput,
+    requestPdfCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }
 
 export async function cancelPurchaseOrder(
