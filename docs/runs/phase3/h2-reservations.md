@@ -5,7 +5,7 @@
 | Branch | `feat/h2-reservations` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock, the ledger's definers, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high, from 14:20 UTC to the early check at 16:15 UTC |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high, from 14:20 UTC to the early check at 16:13 UTC |
 | State | early check |
 | Next step | the lead reads the early check; then the builder continues with the workers and screens |
 
@@ -115,9 +115,9 @@ Built on H1's `app.stock_move()` of 0231: X4 had not merged (`main` at `2d8be80`
 **Checks run (this worktree, its Postgres on 54332, through `heavy.sh`):**
 - `pnpm --filter @shakti/contracts --filter @shakti/db --filter @shakti/domain --filter web typecheck`: exit 0.
 - `pnpm exec eslint --max-warnings 0` over `packages/contracts/src`, `packages/db/src`, `packages/db/tests`, `packages/db/seeds`, `packages/domain/src`, `packages/domain/tests`, `apps/web/src/screens`, `apps/web/src/components/activity`: exit 0.
-- Unit tests: `@shakti/contracts` 340 passed, `@shakti/db` 162 passed, `@shakti/domain` (after the two fixes) passed; `web`: RESULT_WEB.
+- Unit tests: `@shakti/contracts` 340 passed, `@shakti/db` 162 passed, `@shakti/domain` 112 files, 2872 passed (after two fixes: the workshop defaults' approved values and the fill's wrong-company case); `web` 1241 passed, 1 skipped.
 - `pnpm copy-lint`: exit 0.
-- `pnpm test:security`: `@shakti/db` 63 files, 1808 tests passed; `@shakti/domain` 1539 passed, 1 failed (the reader parity list lacked `readLineAvailability`), fixed and rerun alone: RESULT_PARITY; the `web` suite did not run after the domain failure: RESULT_SECURITY_WEB.
+- `pnpm test:security`: `@shakti/db` 63 files, 1808 tests passed; `@shakti/domain` 1539 passed, 1 failed (the reader parity list lacked `readLineAvailability`), fixed and rerun alone: 8 passed; the `web` suite, which turbo skipped after that failure, run alone (`pnpm --filter web test:security`): 39 files, 461 passed.
 - `pnpm db:docs`, `pnpm --filter @shakti/domain machines:docs`: regenerated and committed.
 - Not run yet: `pnpm build`, `js-budget`, the whole-repository `pnpm lint`, journeys (no screen yet).
 
