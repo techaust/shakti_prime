@@ -31,6 +31,14 @@ Review checklist: no request reaches a table except through a definer as the con
 - **Signature:** verify the raw `pathname + search` the request arrived with (a space as `+`), exactly as the connector signs it (TC1's point 5).
 - **Missing GUIDs:** `missingOnServer` cannot be resent below the cursor, so a GUID the snapshot lists and the BOS lacks goes to the review queue as "missing in the BOS" for Accounts (TC1's point 4).
 
+### Brief addendum 2 (the lead, 27-11-2026 20:00 UTC): TC1's fix round changes the contract
+TC1 (`feat/tc1-tally-connector`) adds three things to `packages/contracts/src/api/connector.ts`. TC1 owns that file: take its version when TC1 merges, or copy exactly its additions if you need them before.
+- **`refused` on a batch:** `TallyRefusedRow`, a GUID and the field the contract refused, for a voucher the connector left out of a page. Store each as an `unlinked_vouchers` entry "refused by the connector" for Accounts. The voucher's earlier version, if the BOS has one, is no longer current: mark it so, and keep it out of matching until a later version arrives.
+- **`tallyLastAlterId` per company in the heartbeat:** Tally's own last AlterID. Integration health's lag is `tallyLastAlterId - cursor`.
+- **`heldRows` in the heartbeat:** outbox rows the connector set aside in the last 7 days. Show it on Integration health, and alert when it is above zero.
+
+Each is optional in the contract, so an older connector still parses.
+
 ## How this slice runs
 - **Your role:** you are this slice's builder (or, in a review lane, its reviewer), not the lead. Read `.claude/agents/slice-builder.md` (or `slice-reviewer.md`) and follow it as your rules, with this file as your brief and [the Phase 5 design](../../03-roadmap-appendix/phase5.md) (§1, §3, §4, §5, §10, §13, §14 and your slice's section) as its source. `CLAUDE.md` calls every session the lead; that does not apply to you. Never run the `start-session` or `end-session` skills, open or merge a pull request, push to `main` or `ops/seats`, touch a hosted service or GitHub workflow, delete a branch, force-push, or install a package.
 - **Where:** a seat of the seven-day push (seats protocol v2, `seats/readme.md` on `ops/seats`). Your seat gives you a worktree of this branch with its own Postgres and app port, and its lane prompt names them. Work only there. Put every heavy command through `bash tools/integration/heavy.sh`, and also every lint, typecheck and test while another agent runs in the VM.
