@@ -5,9 +5,9 @@
 | Branch | `feat/h2-reservations` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock, the ledger's definers, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high: 14:20 UTC to the early check at 16:13 UTC, then from 16:30 UTC to done at 17:31 UTC |
-| State | done |
-| Next step | the review; at integration, X4's `app.stock_move()` once it merges (one rule to carry over) |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high: 14:20 UTC to the early check at 16:13 UTC, then from 16:30 UTC to done at 17:31 UTC; the fix round Opus 5.5 at high, 18:05 to 19:58 UTC |
+| State | fixes done |
+| Next step | the reviewer re-checks finding 1's fix; at integration, X4's `app.stock_move()` once it merges (one rule to carry over) |
 
 ## Brief
 Build [phase3 §7.1](../../03-roadmap-appendix/phase3.md#71-h2-reservations-and-availability) as written, with questions 3 (a) and 4 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
@@ -226,6 +226,128 @@ The early check was accepted with decisions 1 to 11 (the lead, 16:30 UTC). `main
 4. **The availability column** shows "Out of stock" for a short line until purchase orders give it a date; then it shows "On order" with the date.
 5. **The builder's preview** is a definer of its own (`app.preview_availability()`) on the lines as typed, since the quote has no id yet.
 6. **A held line's quantities** come from `app.line_availability()`; the dispatched quantity is 0 until D2 changes that definer.
+
+### 27-11-2026, cloud (seat worktree `h2-reservations`, Postgres on 54335): fixes
+All nine findings, as the lead's triage says. Finding 1 first. Skills loaded: none new (the round adds no table and no command).
+
+**Finding 1 (high): one item a fill.**
+- `FillBackordersInput` now takes one `itemId`.
+- `inventory.reservation.fill` runs one `app.fill_backorders()` call. `handleFillEvent()` and the daily scan's catch-up call the command once per item, each in its own transaction.
+- `app.fill_backorders()` locks in the one order: the waiting orders (`for share`, by id), then H1's hubs, bins and balances of the item, then the item's needs of those orders (by id), then their lines (by id). Two fills of items that share a kit line therefore meet the lines in one order.
+- The 0241 header and phase3.md's Built record now say this.
+- Tests in `reservations-concurrency.test.ts`:
+  - two fills of items sharing orders and kit lines, each item's queue in the opposite order, run side by side; the second waits on the first and both reserve;
+  - the review's scenario: a fill of x is held while a cancellation of an order holding x and waiting for y waits on it, and a fill of y queues behind the cancellation; all three commit, with no 40P01.
+- `fill-event.test.ts`: the worker calls the command once per item.
+
+**Finding 2: a need put back on order takes only stock that arrives after it.**
+- New column `reservation_needs.requeued_at`: null for a need queued at confirmation; set by `app.stock_unreserve()` for a lapse or a release by hand; kept for a move.
+- For such a need, `app.fill_backorders()` caps the take at the stock that entered a storage bin after `requeued_at`, less what the need took since. That stock is a movement into a storage bin from no bin or from a bin that is not a storage bin: a receipt put away, a gain, a transfer in through transit. The fill then goes on to the next need rather than stopping.
+- The column is folded into `0240_h2_reservations.sql` and its three snapshots (`db:generate` reports no change). `db:docs` is regenerated.
+- Copy:
+  - the release dialog: "…free for other orders, or to write off. This order then waits … for stock that arrives after now";
+  - the order's hold panel intro;
+  - the reminder push text: "The order would then wait for new stock".
+- Tests (`reservations.test.ts`):
+  - the fill test now shows the lapsed order waiting while the stock its lapse freed stays free, then taking exactly the one unit of a later receipt;
+  - new: a lone order's lapsed hold stays free and the next receipt fills it again; a hold released by hand is written off as damage after the fill ran.
+- The property test's rule is now "no backorder queued at confirmation waits beside free stock". A new rule: a requeued need holds no more than what arrived after it.
+
+**Finding 3: the SQL agrees with atp.ts, which stays the specification.**
+- `atp.ts`:
+  - `BalanceFacts` gains `hubKind` and `inUse`. `itemAvailability()` counts only storage bins in use of godowns and factories in use. That was the SQL's rule; the old spec counted every storage bin.
+  - New `documentAvailability()`. A line with nothing kept in stock answers null, where the old spec answered `Infinity` kits. Demand is summed exactly, in millionths.
+- `app.line_availability()` for a confirmed order now takes a line's status from the line itself: `qty_backordered` 0 is covered, `qty_backordered` ≥ `qty` is short, anything else partly. That is `lineAvailability(qty, qty − backordered)` over whole kits. Before, a kit line holding some components but no whole kit answered "partly covered"; it now answers "short".
+- New `packages/domain/tests/stock/atp-parity.test.ts` (2 tests) uses real bins of every kind, an archived bin, an archived hub and a transit hub:
+  - 60 generated documents (balances, kits with stocked and unstocked parts, item and kit lines with repeats) through `app.free_availability()` (as the table owner, with and without counts) and through `documentAvailability()`: the same rows, statuses and free quantities;
+  - 8 generated confirmed orders: each line's status equals `lineAvailability()` of what it holds.
+- The property test computes a kit line's backorder with `kitAvailability()`.
+
+**Finding 4: the document is measured as a whole.**
+- `app.free_availability()` sums each item's demand over every line that takes it, a kit's components included.
+  - A line is covered when the free stock meets every item it takes.
+  - Otherwise it is partly covered when some of its item is free (for a kit, one whole kit), else short.
+  - Every line of an item answers alike, so the order of lines and repeated items tell nothing.
+- Lines are keyed by their place in the input, so two preview lines with one position no longer merge.
+- This applies to the builder's preview and to a saved quote or draft order alike: one implementation.
+- Tests: `atp.test.ts` (alike whatever the order and repeats, on 1,000 generated documents) and `reservations.test.ts` (a Lead Converter's preview of 5 against 6 free, of 5 + 5, and of a 1-to-10 ladder in both orders).
+- SECURITY §4 says what remains: a status still answers one question a call.
+
+**Finding 5: missing balance rows are inserted before the locks.**
+- New `app.stock_free_rows(entity, items, hubs)` inserts the empty balance row of each item in each storage bin in use of the hubs, in (company, hub, bin, item) order, as H1's definer does. It runs after the hubs and bins are locked and before the balances are, from `app.stock_lock_free()` and from `app.reservation_move()` (the new hub).
+- `stockRefusal()` maps `stock_balances_reserved_on_hand_check` to `reservation_stock_short` (a conflict).
+- Test: `src/stock/move.test.ts` (3).
+- The cost: a balance row per storage bin per item ever reserved. The stock screens already leave out rows with nothing on hand or held.
+
+**Finding 6:** the concurrency tests hold the first transaction open, its locks taken, until `pg_stat_activity` shows the second waiting on it (`holding()` and `waitUntilBlockedBy()`: 50 ms polls, 10 s at most). No fixed pause is left.
+
+**Finding 7:** `inventory.reservation.fill` (`{ entityId, itemId }`) and `.scan` are in the agent sweep's platform jobs.
+
+**Finding 8:** SECURITY §4 names the Lead Converter and the Sales Team Lead, and adds how a document is measured.
+
+**Finding 9: orders confirmed before the migration get their needs.**
+- New `app.backfill_order_needs(orders)`, callable by no request role. 0241 runs it once with null, meaning every confirmed order with no needs.
+- It writes each order's needs as `app.reserve_order()` would, all backordered and queued at the order's confirmation, and syncs the lines' backorders. It reserves nothing: the first fill does that (the next stock event, or that night's catch-up through `app.backordered_items()`).
+- Test: an order marked confirmed three days ago gets three needs queued at its confirmation, no reservation and backorders 2, 1 and 0. A second run changes nothing. The fill then reserves the free unit.
+
+**Tests added or changed this round:**
+- Domain unit tests: `atp.test.ts` 12 (+4), `move.test.ts` 3 (new); `@shakti/domain` src now 113 files, 2879 passed.
+- Web unit: `fill-event.test.ts` 5 (+2).
+- Domain suites:
+  - `reservations.test.ts` 24 (+3);
+  - `reservations-concurrency.test.ts` 6 (+2, the four races rewritten);
+  - `reservations-property.test.ts` 1, with two rules changed and one added;
+  - `atp-parity.test.ts` 2 (new);
+  - `agent-refusals.test.ts`: two platform jobs more.
+- Database suite: `reservations.test.ts` 18 (+3: `app.stock_free_rows`, `app.backfill_order_needs` and `app.free_availability` not callable).
+
+**Checks run** (through `heavy.sh`, this worktree's Postgres on 54335, migrated and seeded fresh at the start):
+- `pnpm typecheck` (whole repository): 10 tasks successful.
+- `pnpm lint` (whole repository, the final check): exit 0.
+- Folder lints: `packages/contracts/src`, `packages/db/src`, `packages/db/tests`, `packages/domain/src`, `packages/domain/tests` and `apps/web/src/workers`, exit 0.
+- Unit tests: domain 2879 passed; web `src/workers/reservations` 5 passed.
+- `pnpm copy-lint`: clean.
+- `pnpm db:generate`: no schema changes. `pnpm db:docs`: regenerated and committed.
+- `pnpm test:security`:
+  - db: 63 files, 1811 passed;
+  - domain: 114 files, 1552 passed;
+  - web: 40 files, 466 passed and 1 failed.
+
+  The failure is `demo-data.test.ts`, which reads the first 200 active items by name. This database holds 225 items that sort before the demo pump. None came from the seed. One full suite run made 143 of them; the other 82 came from my earlier runs of single files, this round's own repeats. On a fresh database, as CI runs it, one run leaves about 143 plus the demo's 9, under 200. The new parity file archives its 5 items when it ends.
+- `pnpm --filter web build`: exit 0. `pnpm --filter web js-budget`: every page within its budget (65 pages).
+- Journeys: not run (no sign-in on a seat). The copy change touches `reservations-order-holds`'s text, and the release dialog has no snapshot.
+
+**The local database and the edited migration.** 0240 to 0242 are not on `main`, so the round edits them in place.
+- My slot's database applied 0241 at `7c2c7dfa`. The later edit (the backfill as a function) was applied with a script that re-runs 0241's `create or replace function`, `revoke` and `grant` statements.
+- I then set `drizzle.__drizzle_migrations`' hash of 0241 to the file's new SHA-256, so `assertAllApplied()` accepts it.
+- The only difference left between this database and a fresh one is the backfill's `select`, a no-op on a database with no confirmed orders.
+- A fresh database at integration runs it all from the files.
+
+**EXPLAIN (ANALYZE, BUFFERS)** (`tests/spike/reservations-explain.ts`, extended: 2,000 items, 50 bins, 10,000 orders, 20,000 needs and 20,000 holds in 3.7 s, all removed after):
+
+| Read | Index used | Time |
+|---|---|---|
+| The stock card's holds of an item, as an Inventory Manager | `reservations_item_idx` | 2.6 ms |
+| The order page's holds | `reservations_order_idx` | 1.2 ms |
+| The stock card's backorders | `reservation_needs_item_idx` | 0.75 ms |
+| The fill's queue | as before | 0.25 ms |
+| The fill's count of stock that arrived after a requeue, over 200,000 movements written and rolled back | `stock_movements_card_idx` (company, item, moved since) | 0.10 ms |
+| The lapse / the reminder | `reservations_expiry_idx` | 0.05 / 0.03 ms |
+| `app.backordered_items()` | a hash join, once a night | 10.2 ms |
+| `app.line_availability()` of a confirmed order | | 6.7 ms |
+| `app.preview_availability()` of 200 lines, the document as a whole | | 13.1 ms |
+
+**Decisions this round took that the triage did not settle:**
+1. **Arrival** is a movement into a storage bin from no bin or from a non-storage bin. A shuffle between storage bins never lets a requeued need take its own freed stock.
+2. **A requeued need's cap** is what arrived since `requeued_at` less what its line took since. The take is counted as active or picked holds made after `requeued_at`, so a move does not count against it.
+3. **The fill locks the needs and lines up front** (by id) after the balances, so two fills never meet two lines in opposite orders.
+4. **`documentAvailability()`'s "partly" for a kit line** means the free stock makes one whole kit. For an item line it means some is free, as before.
+5. **The backfill is a definer** (`app.backfill_order_needs()`), so the suite can test it on one order. The migration runs it for all.
+6. **The release by hand** follows the same rule as a lapse (the triage names both).
+
+**Open, for the lead:**
+- Only the backfill's migration-time run is untested: the test calls the function, not the migration. On hosted data it runs inside the migration's transaction, with confirmed orders locked `for update`.
+- Journeys and the Linux baselines are as before: for the lead at integration.
 
 ## Review
 
