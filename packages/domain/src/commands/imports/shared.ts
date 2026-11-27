@@ -15,6 +15,7 @@ import {
   type PinCodeImportMapping,
   type VendorImportMapping,
   type OpeningStockImportMapping,
+  type InstalledBaseImportMapping,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, gt, inArray, ne, or, sql } from 'drizzle-orm';
@@ -137,6 +138,8 @@ export interface KindMappings {
   // H1 stock ledger
   opening_stock: OpeningStockImportMapping;
   items: ItemImportMapping;
+  // R3 warranty claims
+  installed_base: InstalledBaseImportMapping;
 }
 
 /** A job's mapping, read back under its own kind's rules; one that no longer fits is a fault. */
@@ -166,6 +169,22 @@ export function assertVendorImport(principal: { permissions: readonly Permission
   if (!hasGrant(principal.permissions, 'procurement.po.write', 'entity')) {
     throw new DomainError('forbidden', 'a vendor list needs procurement.po.write', {
       permission: 'procurement.po.write',
+      scope: 'entity',
+    });
+  }
+}
+
+/**
+ * R3: an installed base file enters serials with their customers and warranty, so only a holder
+ * of `inventory.warranty.write` for the company as well as `imports.write` (the Executive) imports
+ * one; `app.installed_base_add()` and `app.installed_base_remove()` check both again.
+ */
+export function assertInstalledBaseImport(principal: {
+  permissions: readonly PermissionGrant[];
+}): void {
+  if (!hasGrant(principal.permissions, 'inventory.warranty.write', 'entity')) {
+    throw new DomainError('forbidden', 'an installed base needs inventory.warranty.write', {
+      permission: 'inventory.warranty.write',
       scope: 'entity',
     });
   }

@@ -2831,7 +2831,8 @@
         "pin_codes": "PIN code list",
         "vendors": "Vendors",
         "opening_stock": "Opening stock",
-        "items": "Catalogue items"
+        "items": "Catalogue items",
+        "installed_base": "Installed base"
       },
       "file": "Spreadsheet file",
       "fileHelper": "A CSV file or an Excel file saved as .xlsx, up to {megabytes} MB and {rows} rows. Put the column headings in the top row.",
@@ -2844,7 +2845,8 @@
         "pin_codes": "The India Post list of post offices and their PIN codes. It fills in the tehsil and district of every site, for all four companies.",
         "vendors": "Each row becomes a vendor of the group. A row with the GSTIN of a vendor already on the list updates that vendor and adds the row’s person to it.",
         "opening_stock": "Each row is stock of this company in one hub and bin at go-live, with its cost; one row per serial number for an item tracked by serial. Opening stock is entered once per company.",
-        "items": "The group's items with their codes, HSN codes, units, warranties and barcodes. A code already in the catalogue changes that item; a new code adds one. Pumps, motors, solar modules, controllers, pipes and inverters need their details, so add new ones of those on the item sheet."
+        "items": "The group's items with their codes, HSN codes, units, warranties and barcodes. A code already in the catalogue changes that item; a new code adds one. Pumps, motors, solar modules, controllers, pipes and inverters need their details, so add new ones of those on the item sheet.",
+        "installed_base": "Each row is a product with a serial number that this company sold earlier, with the customer's mobile number and the delivery date, so a warranty claim can be raised on it. Add the customers first. Stock does not change."
       },
       "chooseCompanyFirst": "Choose the company first, then the file.",
       "checkingLong": "Uploaded. The check is taking a while. Choose Read the file in a moment.",
@@ -2857,7 +2859,7 @@
     },
     "map": {
       "title": "Match the columns",
-      "intro": "{kind, select, leads {Tell us which column of your file holds each detail. The customer name and mobile number must come from the file.} accounts {Tell us which column of your file holds each detail. The customer name and mobile number must come from the file. A Company column, if your file has one, names each customer's company.} items {Tell us which column of your file holds each detail. The item code must come from the file: a code already in the catalogue changes that item, and a new code adds one.} other {Tell us which column of your file holds each detail. The PIN code, post office and district must come from the file.}}",
+      "intro": "{kind, select, leads {Tell us which column of your file holds each detail. The customer name and mobile number must come from the file.} accounts {Tell us which column of your file holds each detail. The customer name and mobile number must come from the file. A Company column, if your file has one, names each customer's company.} installed_base {Tell us which column of your file holds each detail. The stock code, serial number, the customer's mobile number and the delivery date must come from the file.} items {Tell us which column of your file holds each detail. The item code must come from the file: a code already in the catalogue changes that item, and a new code adds one.} other {Tell us which column of your file holds each detail. The PIN code, post office and district must come from the file.}}",
       "template": "Saved column layout",
       "templateNone": "Match the columns myself",
       "templateHelper": "Use a layout you saved from an earlier file.",
@@ -2934,7 +2936,7 @@
       "empty": "No rows to show here.",
       "notRecorded": "Not in the file",
       "remap": "Change the columns",
-      "commit": "{kind, select, leads {{count, plural, one {Add {shown} lead} other {Add {shown} leads}}} accounts {{count, plural, one {Add {shown} customer} other {Add {shown} customers}}} items {{count, plural, one {Add {shown} item} other {Add {shown} items}}} other {{count, plural, one {Add {shown} office} other {Add {shown} offices}}}}",
+      "commit": "{kind, select, leads {{count, plural, one {Add {shown} lead} other {Add {shown} leads}}} accounts {{count, plural, one {Add {shown} customer} other {Add {shown} customers}}} installed_base {{count, plural, one {Add {shown} serial} other {Add {shown} serials}}} items {{count, plural, one {Add {shown} item} other {Add {shown} items}}} other {{count, plural, one {Add {shown} office} other {Add {shown} offices}}}}",
       "commitHelper": "{count, plural, one {{shown} row that needs correcting or is repeated is left out.} other {{shown} rows that need correcting or are repeated are left out.}}"
     },
     "progress": {
@@ -2951,19 +2953,19 @@
       "next": "Undo the import, correct the marked row in your file and add the file again."
     },
     "done": {
-      "title": "{kind, select, leads {Leads added} accounts {Customers added} items {Items added or changed} other {PIN codes added}}",
-      "intro": "{kind, select, leads {{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}} accounts {{count, plural, one {{shown} customer was added from this file, or matched to a customer already in your list.} other {{shown} customers were added from this file, or matched to customers already in your list.}}} items {{count, plural, one {{shown} item was added or changed from this file.} other {{shown} items were added or changed from this file.}}} other {{count, plural, one {{shown} post office was added or corrected from this file.} other {{shown} post offices were added or corrected from this file.}}}}",
+      "title": "{kind, select, leads {Leads added} accounts {Customers added} installed_base {Installed base added} items {Items added or changed} other {PIN codes added}}",
+      "intro": "{kind, select, leads {{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}} accounts {{count, plural, one {{shown} customer was added from this file, or matched to a customer already in your list.} other {{shown} customers were added from this file, or matched to customers already in your list.}}} installed_base {{count, plural, one {{shown} serial was added to its customer from this file.} other {{shown} serials were added to their customers from this file.}}} items {{count, plural, one {{shown} item was added or changed from this file.} other {{shown} items were added or changed from this file.}}} other {{count, plural, one {{shown} post office was added or corrected from this file.} other {{shown} post offices were added or corrected from this file.}}}}",
       "rolledBackTitle": "Import undone",
-      "rolledBackIntro": "{kind, select, leads {The leads from this file were taken back. The customers stay in your customer list.} accounts {The customers from this file were taken back, except any who now have a lead, a recorded consent or another company. Customers it matched to ones already in your list keep the companies it added.} items {The items this file added were taken out of sale, except any that a kit still sold holds. The changes it made to items already in the catalogue stay.} other {The post offices this file added were taken out of the PIN code list. The corrections it made stay.}}",
+      "rolledBackIntro": "{kind, select, leads {The leads from this file were taken back. The customers stay in your customer list.} accounts {The customers from this file were taken back, except any who now have a lead, a recorded consent or another company. Customers it matched to ones already in your list keep the companies it added.} installed_base {The serials from this file were taken back, except any with a warranty claim since. No stock moved.} items {The items this file added were taken out of sale, except any that a kit still sold holds. The changes it made to items already in the catalogue stay.} other {The post offices this file added were taken out of the PIN code list. The corrections it made stay.}}",
       "another": "Start another import",
       "rollback": "Undo this import",
       "viewAdded": "{kind, select, accounts {See the customers} items {See the catalogue} other {See the leads}}"
     },
     "rollbackDialog": {
       "title": "Undo this import?",
-      "intro": "{kind, select, leads {{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.} accounts {{count, plural, one {This takes back the {shown} customer this file added.} other {This takes back the {shown} customers this file added.}} A customer who now has a lead, a recorded consent or another company stays, and customers it matched to ones already in your list keep the companies it added. You can't reverse this.} items {This takes the items this file added out of sale. An item a kit still sold holds stays, and the changes it made to items already in the catalogue stay. You can't reverse this.} other {This takes the post offices this file added out of the PIN code list. The corrections it made to offices already listed stay. You can't reverse this.}}",
+      "intro": "{kind, select, leads {{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.} accounts {{count, plural, one {This takes back the {shown} customer this file added.} other {This takes back the {shown} customers this file added.}} A customer who now has a lead, a recorded consent or another company stays, and customers it matched to ones already in your list keep the companies it added. You can't reverse this.} installed_base {{count, plural, one {This takes back the {shown} serial this file added.} other {This takes back the {shown} serials this file added.}} A serial with a warranty claim since stays with its customer. You can't reverse this.} items {This takes the items this file added out of sale. An item a kit still sold holds stays, and the changes it made to items already in the catalogue stay. You can't reverse this.} other {This takes the post offices this file added out of the PIN code list. The corrections it made to offices already listed stay. You can't reverse this.}}",
       "submit": "Undo import",
-      "done": "{kind, select, leads {The leads from {file} were taken back.} accounts {The customers from {file} were taken back.} items {The items from {file} were taken out of sale.} other {The post offices from {file} were taken out.}}"
+      "done": "{kind, select, leads {The leads from {file} were taken back.} accounts {The customers from {file} were taken back.} installed_base {The serials from {file} were taken back.} items {The items from {file} were taken out of sale.} other {The post offices from {file} were taken out.}}"
     },
     "fields": {
       "contactName": "Customer name",
@@ -3012,7 +3014,9 @@
       "warrantyMonths": "Months of warranty to the customer",
       "supplierWarrantyMonths": "Months of the supplier's warranty",
       "barcode": "Barcode",
-      "serialPattern": "Shape of its serial numbers"
+      "serialPattern": "Shape of its serial numbers",
+      "deliveredOn": "Delivery date",
+      "warrantyUntil": "Warranty until"
     },
     "rowErrors": {
       "required": "This is missing. Fill it in, or choose a value for every row.",
@@ -3046,7 +3050,11 @@
       "item_details_needed": "Items of this category need their details, such as power or size. Add this item on its item sheet instead.",
       "item_archived": "This item is no longer sold, so it can't be changed from a file. Use a new item code.",
       "barcode_hidden": "This barcode looks like an identity number, so it was hidden. Enter it on the item sheet.",
-      "item_not_stocked": "This item is kept out of stock as a service, so it stays in Other and has no serial numbers. Change it on the item sheet if it is now stocked goods."
+      "item_not_stocked": "This item is kept out of stock as a service, so it stays in Other and has no serial numbers. Change it on the item sheet if it is now stocked goods.",
+      "customer_unknown": "No customer of this company has this mobile number. Add the customer first, then import this row again.",
+      "site_unknown": "None of this customer's sites is in this village. Check the village, or leave it empty.",
+      "date_invalid": "This date can't be read, or it is later than today. Write it as DD-MM-YYYY.",
+      "warranty_unknown": "This item has no warranty months in the catalogue. Add a Warranty until column, or set the item's warranty first."
     },
     "reconcile": {
       "title": "What happened to each row",
@@ -3093,7 +3101,11 @@
         "item_details_needed": "The item needs details only its sheet takes",
         "item_archived": "The item is no longer sold",
         "barcode_hidden": "The barcode was hidden as an identity number",
-        "item_not_stocked": "The item is kept out of stock as a service"
+        "item_not_stocked": "The item is kept out of stock as a service",
+        "customer_unknown": "The customer was not found",
+        "site_unknown": "The village was not one of the customer’s sites",
+        "date_invalid": "A date could not be read",
+        "warranty_unknown": "The warranty’s end was not known"
       },
       "csvLine": "What happened",
       "csvRows": "Rows",

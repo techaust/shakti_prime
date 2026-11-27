@@ -23,6 +23,11 @@ import { commitLeadBatch, RowByRowNeeded, type BatchRow } from '../../imports/co
 import { commitItemRow, ItemRowRefused } from '../../imports/commit-items';
 import { commitPinCodeBatch } from '../../imports/commit-pin-codes';
 import { commitOpeningStockBatch } from '../../imports/opening-stock';
+import {
+  commitInstalledBaseBatch,
+  commitInstalledBaseRow,
+  InstalledBaseRowRefused,
+} from '../../imports/installed-base';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
 import { keepMappedCells } from '../../imports/vendor-rows';
@@ -33,6 +38,7 @@ import {
   assertEntityInScope,
   assertGroupImport,
   assertItemImport,
+  assertInstalledBaseImport,
   assertJobCompaniesCovered,
   assertVendorImport,
   assertNotPurged,
@@ -67,6 +73,8 @@ function rowRefusal(error: unknown): ImportRowErrorDto | undefined {
   if (isHeldByColleague(error)) return HELD_BY_COLLEAGUE;
   // An items row the catalogue no longer takes as the preview found it (C5).
   if (error instanceof ItemRowRefused) return error.finding;
+  // R3: an installed base row the database refused (a serial another company holds).
+  if (error instanceof InstalledBaseRowRefused) return error.finding;
   if (error instanceof DomainError && error.details?.reason === 'referral_code_unknown') {
     return { field: 'referralCode', code: 'referral_code_unknown' };
   }
@@ -155,6 +163,9 @@ export const commitImportJob = defineCommand({
     if (implementedKind(loaded.job) === 'pin_codes') await assertGroupImport(ctx);
     if (implementedKind(loaded.job) === 'vendors') assertVendorImport(ctx.principal);
     if (implementedKind(loaded.job) === 'items') await assertItemImport(ctx);
+    if (implementedKind(loaded.job) === 'installed_base') {
+      assertInstalledBaseImport(ctx.principal);
+    }
     // Another job of the same content may have been started beside this one, and committed since.
     const [content] = await ctx.tx
       .select({ id: schema.files.id, sha256: schema.files.sha256 })
@@ -290,6 +301,7 @@ export const commitImportBatch = defineCommand({
     if (kind === 'pin_codes') await assertGroupImport(ctx);
     if (kind === 'vendors') assertVendorImport(ctx.principal);
     if (kind === 'items') await assertItemImport(ctx);
+    if (kind === 'installed_base') assertInstalledBaseImport(ctx.principal);
     const commit = KIND_COMMITS[kind];
     const actor = ctx.principal.id;
     const r = schema.importRows;
@@ -671,5 +683,15 @@ const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
       return Promise.reject(new RowByRowNeeded('items go one by one through the item commands'));
     },
     oneRow: (ctx, rowSp, _jobId, row) => commitItemRow(ctx, rowSp, row),
+  },
+  // R3: the installed base's serials, added by app.installed_base_add() with no stock movement.
+  installed_base: {
+    createdType: 'serial',
+    async setBased(_ctx, sp, jobId, rows) {
+      return { created: await commitInstalledBaseBatch(sp, jobId, rows), refused: [] };
+    },
+    async oneRow(_ctx, rowSp, jobId, row) {
+      return { id: await commitInstalledBaseRow(rowSp, jobId, row) };
+    },
   },
 };

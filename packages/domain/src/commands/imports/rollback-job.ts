@@ -15,11 +15,13 @@ import { restoreVendorUpdates } from '../../imports/vendor-restore';
 import { undoVendorRows } from '../../imports/vendor-rows';
 import { recheckSitePins } from '../../imports/commit-pin-codes';
 import { reverseOpeningStock } from '../../imports/opening-stock';
+import { undoInstalledBase } from '../../imports/installed-base';
 import {
   assertEntityInScope,
   assertGroupImport,
   assertVendorImport,
   assertItemImport,
+  assertInstalledBaseImport,
   assertJobCompaniesCovered,
   implementedKind,
   jobState,
@@ -179,6 +181,7 @@ export const rollbackImportJob = defineCommand({
     if (kind === 'pin_codes') await assertGroupImport(ctx);
     if (kind === 'vendors') assertVendorImport(ctx.principal);
     if (kind === 'items') await assertItemImport(ctx);
+    if (kind === 'installed_base') assertInstalledBaseImport(ctx.principal);
     assertJobCompaniesCovered(ctx.entityIds, job);
     const actor = ctx.principal.id;
     const r = schema.importRows;
@@ -235,6 +238,11 @@ export const rollbackImportJob = defineCommand({
         const items = await undoItems(ctx, ctx.tx, ids);
         archived += items.archived;
         kept += items.kept;
+      } else if (kind === 'installed_base') {
+        // R3: a serial a claim or a movement has used since stays with its customer.
+        const serials = await undoInstalledBase(ctx.tx, job.id, ids);
+        removed += serials.removed;
+        kept += serials.kept;
       } else {
         kept += inUse.size;
         archived += await undo(ctx, ctx.tx, kind, ids, inUse);
@@ -263,6 +271,7 @@ export const rollbackImportJob = defineCommand({
         kept,
         batches,
         ...(kind === 'vendors' ? { removed, restored } : {}),
+        ...(kind === 'installed_base' ? { removed } : {}),
       },
     });
     ctx.emit({

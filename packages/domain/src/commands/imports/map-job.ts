@@ -15,6 +15,7 @@ import {
   assertGroupImport,
   assertVendorImport,
   assertItemImport,
+  assertInstalledBaseImport,
   assertNotPurged,
   implementedKind,
   jobState,
@@ -50,6 +51,7 @@ export const mapImportJob = defineCommand({
     if (kind === 'pin_codes') await assertGroupImport(ctx);
     if (kind === 'vendors') assertVendorImport(ctx.principal);
     if (kind === 'items') await assertItemImport(ctx);
+    if (kind === 'installed_base') assertInstalledBaseImport(ctx.principal);
 
     let mapping: ImportMapping;
     let templateId: string | null = null;

@@ -20,6 +20,8 @@ export const ImportKindSchema = z.enum([
   'vendors',
   // H1 stock ledger: a company's opening stock, posted as one batch (opening_stock_posted).
   'opening_stock',
+  // R3: serials sold before go-live, entered with their customer and warranty, no stock moved.
+  'installed_base',
 ]);
 export type ImportKind = z.infer<typeof ImportKindSchema>;
 
@@ -34,6 +36,8 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'opening_stock',
   // C5: the catalogue's items.
   'items',
+  // R3 warranty claims: the installed base.
+  'installed_base',
 ] as const satisfies readonly ImportKind[];
 export type ImplementedImportKind = (typeof IMPLEMENTED_IMPORT_KINDS)[number];
 
@@ -90,6 +94,8 @@ export const ImportCreatedTypeSchema = z.enum([
   'item',
   // H1 stock ledger: the opening movement a row posted.
   'stock_movement',
+  // R3: a serial of the installed base a row entered.
+  'serial',
 ]);
 export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
 
@@ -239,6 +245,24 @@ export const OpeningStockImportFieldSchema = z.enum([
 export type OpeningStockImportField = z.infer<typeof OpeningStockImportFieldSchema>;
 
 /**
+ * R3: a row of the installed base (docs/03-roadmap-appendix/phase3.md §7.5): a serial the company
+ * sold before go-live, by the item's stock code and the serial number; its customer by mobile
+ * number, a customer of the company already; the site by its village, when the customer has
+ * several; the delivery date, and the warranty's end when it is not the item's months from
+ * delivery. A `company` column, when given, must name the job's company.
+ */
+export const InstalledBaseImportFieldSchema = z.enum([
+  'company',
+  'sku',
+  'serialNo',
+  'phone',
+  'village',
+  'deliveredOn',
+  'warrantyUntil',
+]);
+export type InstalledBaseImportField = z.infer<typeof InstalledBaseImportFieldSchema>;
+
+/**
  * The fields of a catalogue item a file column can fill (phase3 §6.1): its code (the only one every
  * file needs), name, category, HSN code and units, serial tracking, DCR and ALMM, the warranties,
  * the barcode and the serial pattern. A row whose code the catalogue has changes that item, and
@@ -290,6 +314,9 @@ export const ImportFieldSchema = z.enum([
   'serialNo',
   // C5: the item fields, 'sku' among them, which opening stock shares.
   ...ItemImportFieldSchema.options,
+  // R3: the installed base's dates (its other fields are the leads' and opening stock's).
+  'deliveredOn',
+  'warrantyUntil',
 ]);
 export type ImportField = z.infer<typeof ImportFieldSchema>;
 
@@ -302,6 +329,8 @@ export const IMPORT_FIELDS = {
   // H1 stock ledger
   opening_stock: OpeningStockImportFieldSchema.options,
   items: ItemImportFieldSchema.options,
+  // R3 warranty claims
+  installed_base: InstalledBaseImportFieldSchema.options,
 } as const satisfies Record<ImplementedImportKind, readonly ImportField[]>;
 /**
  * Why one row cannot be imported, keyed to `imports.rowErrors` in the message catalogue. These
@@ -351,5 +380,12 @@ export const ImportRowErrorCodeSchema = z.enum([
   'barcode_hidden',
   // An item kept out of stock (a service) that the row would make another category or serial-tracked.
   'item_not_stocked',
+  // R3 installed base: a mobile number no customer of the company has; a village none of the
+  // customer's sites is in, or a blank one for a customer of several sites; a date that is not a
+  // date or lies ahead; no warranty end given for an item without warranty months.
+  'customer_unknown',
+  'site_unknown',
+  'date_invalid',
+  'warranty_unknown',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

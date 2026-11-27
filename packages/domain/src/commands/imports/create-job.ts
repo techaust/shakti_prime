@@ -14,6 +14,7 @@ import {
   assertGroupImport,
   assertVendorImport,
   assertItemImport,
+  assertInstalledBaseImport,
   toImportJobDto,
 } from './shared';
 
@@ -71,6 +72,7 @@ export const createImportJob = defineCommand({
       checkPermission(ctx.principal, 'inventory.stock.adjust', 'entity');
     }
     if (input.kind === 'items') await assertItemImport(ctx);
+    if (input.kind === 'installed_base') assertInstalledBaseImport(ctx.principal);
     const actor = ctx.principal.id;
 
     const f = schema.files;

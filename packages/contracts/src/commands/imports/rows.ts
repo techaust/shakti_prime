@@ -121,6 +121,23 @@ export const OpeningStockImportRowInput = z
 export type OpeningStockImportRowInput = z.infer<typeof OpeningStockImportRowInput>;
 
 /**
+ * R3: one checked row of an installed base file, as the preview stores it and the commit reads it:
+ * the serial of the item, its customer and site, the delivery date and the warranty's end, both
+ * calendar dates in India.
+ */
+export const InstalledBaseImportRowInput = z
+  .object({
+    itemId: z.uuid(),
+    serialNo: z.string().trim().min(1).max(100),
+    accountId: z.uuid(),
+    siteId: z.uuid().nullable(),
+    deliveredOn: z.iso.date(),
+    warrantyUntil: z.iso.date(),
+  })
+  .strict();
+export type InstalledBaseImportRowInput = z.infer<typeof InstalledBaseImportRowInput>;
+
+/**
  * One checked row of an items file (phase3 §6.1), as the preview stores it and the commit reads
  * it: the item code, and each field the row gives (a blank cell gives nothing). The commit finds
  * the item by its code again: an item the catalogue has takes the fields given over what it has,

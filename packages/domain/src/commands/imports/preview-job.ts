@@ -22,12 +22,14 @@ import { checkLeadRow, firstRowByPhone, matchKey, type LeadRowLookups } from '..
 import { checkPinCodeRow } from '../../imports/pin-codes';
 import { checkVendorRow, vendorsByGstin } from '../../imports/vendors';
 import { previewOpeningStock } from '../../imports/opening-stock-preview';
+import { previewInstalledBase } from '../../imports/installed-base';
 import { itemsBySku, skusByBarcode } from '../../imports/commit-items';
 import { planItemRow, readItemRow } from '../../imports/items';
 import {
   assertEntityInScope,
   assertGroupImport,
   assertItemImport,
+  assertInstalledBaseImport,
   assertVendorImport,
   assertNotPurged,
   implementedKind,
@@ -577,6 +579,7 @@ export const previewImportJob = defineCommand({
     if (kind === 'pin_codes') await assertGroupImport(ctx);
     if (kind === 'vendors') assertVendorImport(ctx.principal);
     if (kind === 'items') await assertItemImport(ctx);
+    if (kind === 'installed_base') assertInstalledBaseImport(ctx.principal);
 
     const r = schema.importRows;
     const rows = (await ctx.tx
@@ -597,14 +600,21 @@ export const previewImportJob = defineCommand({
               ? previewPinCodes(rows, parseMappingFor('pin_codes', mapping))
               : kind === 'items'
                 ? await previewItems(ctx, rows, parseMappingFor('items', mapping))
-                : // H1 stock ledger
-                  (
-                    await previewOpeningStock(
-                      ctx.tx,
-                      rows,
-                      parseMappingFor('opening_stock', mapping),
-                      input.entityId,
-                    )
+                : // H1 stock ledger, and R3's installed base
+                  (kind === 'installed_base'
+                    ? await previewInstalledBase(
+                        ctx.tx,
+                        rows,
+                        parseMappingFor('installed_base', mapping),
+                        input.entityId,
+                        ctx.now,
+                      )
+                    : await previewOpeningStock(
+                        ctx.tx,
+                        rows,
+                        parseMappingFor('opening_stock', mapping),
+                        input.entityId,
+                      )
                   ).map((finding, index): RowFinding => {
                     const rowNo = rows[index]?.rowNo ?? 0;
                     return finding.state === 'invalid'

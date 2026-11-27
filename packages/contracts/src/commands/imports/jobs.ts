@@ -15,6 +15,7 @@ import {
   PinCodeImportFieldSchema,
   VendorImportFieldSchema,
   OpeningStockImportFieldSchema,
+  InstalledBaseImportFieldSchema,
   type ImplementedImportKind,
   type LeadImportField,
 } from '../../imports/enums';
@@ -149,6 +150,30 @@ export const OpeningStockImportMappingSchema = z
 export type OpeningStockImportMapping = z.infer<typeof OpeningStockImportMappingSchema>;
 
 /**
+ * R3: how the columns of an installed base file fill a serial: the stock code, serial number,
+ * customer's mobile number and delivery date are required; the rest when the file has them.
+ */
+export const InstalledBaseImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(InstalledBaseImportFieldSchema, ImportColumnSchema),
+    defaults: z.object({}).strict().default({}),
+  })
+  .strict()
+  .refine(
+    (m) =>
+      m.columns.sku !== undefined &&
+      m.columns.serialNo !== undefined &&
+      m.columns.phone !== undefined &&
+      m.columns.deliveredOn !== undefined,
+    {
+      message: 'the stock code, serial, mobile number and delivery date columns are required',
+      path: ['columns'],
+    },
+  )
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type InstalledBaseImportMapping = z.infer<typeof InstalledBaseImportMappingSchema>;
+
+/**
  * How the columns of an items file fill the catalogue (phase3 §6.1): the item code is required, to
  * find or make each item; every other column is taken when the file has it.
  */
@@ -203,6 +228,9 @@ export function importMappingSchemaFor(kind: ImplementedImportKind) {
       return OpeningStockImportMappingSchema;
     case 'items':
       return ItemImportMappingSchema;
+    // R3 warranty claims
+    case 'installed_base':
+      return InstalledBaseImportMappingSchema;
   }
 }
 

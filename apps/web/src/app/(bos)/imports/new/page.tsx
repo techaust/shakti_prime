@@ -53,12 +53,15 @@ export default async function NewImportPage({
     hasGrant(principal.permissions, 'finance.cost.read', 'entity');
   // U1: a vendor list is written through the procurement commands (procurement.po.write).
   const vendors = hasGrant(principal.permissions, 'procurement.po.write', 'entity');
+  // R3: the installed base enters serials with their warranty (inventory.warranty.write).
+  const warranty = hasGrant(principal.permissions, 'inventory.warranty.write', 'entity');
   const kinds = IMPLEMENTED_IMPORT_KINDS.filter(
     (kind) =>
       (kind !== 'pin_codes' || group) &&
       (kind !== 'items' || catalogue) &&
       (kind !== 'opening_stock' || stock) &&
-      (kind !== 'vendors' || vendors),
+      (kind !== 'vendors' || vendors) &&
+      (kind !== 'installed_base' || warranty),
   );
   const asked = (await searchParams).kind;
   const initialKind = kinds.find((k): k is ImplementedImportKind => k === asked);

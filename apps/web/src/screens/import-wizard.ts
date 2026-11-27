@@ -16,6 +16,7 @@ import type {
   PinCodeImportField,
   VendorImportField,
   OpeningStockImportField,
+  InstalledBaseImportField,
 } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';
 
@@ -111,6 +112,16 @@ export const OPENING_STOCK_IMPORT_FIELDS = [
   'serialNo',
   'company',
 ] as const satisfies readonly OpeningStockImportField[];
+/** R3: the fields of an installed base file, in the order the form offers them. */
+export const INSTALLED_BASE_IMPORT_FIELDS = [
+  'sku',
+  'serialNo',
+  'phone',
+  'village',
+  'deliveredOn',
+  'warrantyUntil',
+  'company',
+] as const satisfies readonly InstalledBaseImportField[];
 /** The item fields of an items file (C5), in the order the form offers them. */
 export const ITEM_IMPORT_FIELDS = [
   'sku',
@@ -138,6 +149,8 @@ export const IMPORT_FIELDS_BY_KIND: Record<ImplementedImportKind, readonly Impor
   // H1 stock ledger
   opening_stock: OPENING_STOCK_IMPORT_FIELDS,
   items: ITEM_IMPORT_FIELDS,
+  // R3 warranty claims
+  installed_base: INSTALLED_BASE_IMPORT_FIELDS,
 };
 
 /** A job's kind as the screens treat it; a kind not built yet reads as leads, which it cannot be. */
@@ -146,7 +159,8 @@ export function screenKind(kind: ImportKind): ImplementedImportKind {
     kind === 'pin_codes' ||
     kind === 'opening_stock' ||
     kind === 'items' ||
-    kind === 'vendors'
+    kind === 'vendors' ||
+    kind === 'installed_base'
     ? kind
     : 'leads';
 }
@@ -169,6 +183,7 @@ const DEFAULTABLE_BY_KIND: Record<ImplementedImportKind, readonly DefaultableFie
   vendors: [],
   opening_stock: [],
   items: [],
+  installed_base: [],
 };
 
 export function isDefaultable(
@@ -248,6 +263,24 @@ const HEADINGS: Record<ImportField, readonly string[]> = {
   qty: ['qty', 'quantity', 'stock', 'balance', 'closingstock'],
   unitCost: ['cost', 'unitcost', 'rate', 'costperunit', 'value'],
   serialNo: ['serial', 'serialno', 'serialnumber', 'slno'],
+  // R3: the installed base's dates.
+  deliveredOn: [
+    'deliveredon',
+    'deliverydate',
+    'dateofdelivery',
+    'installedon',
+    'installationdate',
+    'saledate',
+    'dateofsale',
+  ],
+  warrantyUntil: [
+    'warrantyuntil',
+    'warrantyupto',
+    'warrantytill',
+    'warrantyend',
+    'warrantyenddate',
+    'warrantyexpiry',
+  ],
   sku: ['sku', 'itemcode', 'code', 'productcode', 'partno', 'partnumber', 'stockcode'],
   itemName: ['itemname', 'item', 'name', 'productname', 'product', 'description'],
   category: ['category', 'itemcategory', 'productcategory'],
@@ -359,6 +392,8 @@ const REQUIRED_COLUMNS: Record<ImplementedImportKind, readonly ImportField[]> = 
   // H1 stock ledger
   opening_stock: ['hub', 'bin', 'sku', 'qty', 'unitCost'],
   items: ['sku'],
+  // R3 warranty claims
+  installed_base: ['sku', 'serialNo', 'phone', 'deliveredOn'],
 };
 
 /**

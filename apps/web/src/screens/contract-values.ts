@@ -704,6 +704,8 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'opening_stock',
   // C5: the catalogue's items.
   'items',
+  // R3 warranty claims: the installed base.
+  'installed_base',
 ] as const satisfies readonly ImportKind[];
 
 /** The most sites later rows of one customer add to it from one file (`MORE_SITES_MAX`). */
