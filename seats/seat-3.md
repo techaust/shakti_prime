@@ -1,6 +1,6 @@
 seat: 3
-max_agents: 3
-updated: 2026-11-27T14:34Z
+max_agents: 5
+updated: 2026-11-27T14:47Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -66,3 +66,27 @@ run_file: docs/runs/phase5/fn1-proformas.md
 wait_for: report: fn1-proformas done
 done_when: review: fn1-proformas done
 note: Tier A
+
+lane: 36
+role: review
+branch: fix/demo-data-ist-day
+run_file: docs/runs/phase3/demo-data-ist-day.md
+wait_for: report: demo-data-ist-day done
+done_when: review: demo-data-ist-day done
+note: Tier C
+
+lane: 40
+role: build
+branch: feat/hr1-people
+run_file: docs/runs/phase5/hr1-people.md
+wait_for: none
+done_when: report: hr1-people early check
+note: Tier B; stop at the early check. Moved from seat 4 (weekly pacing).
+
+lane: 41
+role: review
+branch: feat/tc1-tally-connector
+run_file: docs/runs/phase5/tc1-tally-connector.md
+wait_for: report: tc1-tally-connector done
+done_when: review: tc1-tally-connector done
+note: Tier A. Attack key handling, read-only requests to Tally, idempotent resend, the outbox across a kill.
