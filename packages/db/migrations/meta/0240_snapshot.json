@@ -18123,7 +18123,8 @@
           "name": "tally_connector_companies_entity_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "entity_id"
+            "entity_id",
+            "tally_company"
           ]
         }
       },

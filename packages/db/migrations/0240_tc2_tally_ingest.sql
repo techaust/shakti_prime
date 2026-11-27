@@ -8,7 +8,7 @@ CREATE TABLE "tally_connector_companies" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_by" uuid NOT NULL,
 	CONSTRAINT "tally_connector_companies_connector_id_tally_company_pk" PRIMARY KEY("connector_id","tally_company"),
-	CONSTRAINT "tally_connector_companies_entity_unique" UNIQUE("entity_id"),
+	CONSTRAINT "tally_connector_companies_entity_unique" UNIQUE("entity_id","tally_company"),
 	CONSTRAINT "tally_connector_companies_name_check" CHECK (char_length("tally_connector_companies"."tally_company") between 1 and 120 and "tally_connector_companies"."tally_company" = btrim("tally_connector_companies"."tally_company"))
 );
 --> statement-breakpoint

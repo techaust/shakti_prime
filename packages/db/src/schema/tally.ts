@@ -88,9 +88,8 @@ export const tallyConnectors = pgTable(
 );
 
 /**
- * A Tally company served by a connector, mapped to one of the group's companies. A company is
- * served by one connector at a time; the connector's heartbeat reports each company's reach and
- * last AlterID here.
+ * A Tally company served by a connector, mapped to one of the group's companies; the connector's
+ * heartbeat reports each company's reach and last AlterID here.
  */
 export const tallyConnectorCompanies = pgTable(
   'tally_connector_companies',
@@ -113,7 +112,9 @@ export const tallyConnectorCompanies = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.connectorId, t.tallyCompany] }),
-    unique('tally_connector_companies_entity_unique').on(t.entityId),
+    // A Tally company (Tally often starts one per financial year) is read by one connector only,
+    // so two cannot move the same cursor; a group company may have several.
+    unique('tally_connector_companies_entity_unique').on(t.entityId, t.tallyCompany),
     check(
       'tally_connector_companies_name_check',
       sql`char_length(${t.tallyCompany}) between 1 and 120 and ${t.tallyCompany} = btrim(${t.tallyCompany})`,

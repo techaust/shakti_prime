@@ -277,6 +277,17 @@ const ACTIONS = {
   'procurement.item_vendor.set': 'itemVendorSet',
   'procurement.quote.record': 'vendorQuoteRecord',
   'procurement.quote.withdraw': 'vendorQuoteWithdraw',
+  // TC2 Tally ingest.
+  'tally.batch.ingest': 'tallyBatchIngest',
+  'tally.snapshot.record': 'tallySnapshotRecord',
+  'tally.snapshot.confirm': 'tallySnapshotConfirm',
+  'tally.heartbeat.record': 'tallyHeartbeatRecord',
+  'tally.connector.register': 'tallyConnectorRegister',
+  'tally.connector.map': 'tallyConnectorMap',
+  'tally.connector.unmap': 'tallyConnectorUnmap',
+  'tally.connector.rotate': 'tallyConnectorRotate',
+  'tally.connector.retire_key': 'tallyConnectorRetireKey',
+  'tally.connector.revoke': 'tallyConnectorRevoke',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -891,6 +902,18 @@ const FIELD_KINDS = [
   ['quoteValidFrom', 'date'],
   ['restored', 'number'],
   ['quoteValidUntil', 'date'],
+  // TC2 Tally ingest: counts and Tally's own names, never an amount.
+  ['lastAlterId', 'number'],
+  ['vouchersNew', 'number'],
+  ['vouchersChanged', 'number'],
+  ['vouchersUnchanged', 'number'],
+  ['ledgers', 'number'],
+  ['guidCount', 'number'],
+  ['tombstoned', 'number'],
+  ['missing', 'number'],
+  ['reappeared', 'number'],
+  ['tallyCompany', 'text'],
+  ['nextKeyHint', 'text'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
