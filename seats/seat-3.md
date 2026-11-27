@@ -82,3 +82,11 @@ run_file: docs/runs/phase3/r3-warranty.md
 wait_for: none
 done_when: report: r3-warranty done
 note: continue. The lead read the early check (27-11 20:05 UTC): accepted, its assumptions included. Take main in now (X4 merged, #298; Q1 may merge soon: take main again if it has), renumber after main's last, and open your three reasons with grant and move rows per X4's comment block (and reversal rows keyed by your reasons where a reversal applies). Settlement by a supplier replacement waits for U2's receipt: if U2 has not merged, leave it and name it. Keep app.next_document_no() carrying every kind main has.
+
+lane: 69
+role: build
+branch: feat/tc2-tally-ingest
+run_file: docs/runs/phase5/tc2-tally-ingest.md
+wait_for: none
+done_when: report: tc2-tally-ingest done
+note: continue. The lead read the early check (27-11 20:10 UTC): accepted with two changes. (1) The signing key: store the connector key itself sealed with the app's field encryption (apps/web/src/crypto; KMS on hosted, as bank_json is), never a hash used as the HMAC key; the connector signs with the key as shown (TC1 unchanged); rotation keeps two sealed keys. (2) Snapshots in parts: accept snapshotId plus part n of m (each under the 4.5 MB function limit), keep parts until the last, diff then; an incomplete snapshot older than a day is dropped. The connector side is TC4's (the lead notes it). Then addendum 2 (refused rows, tallyLastAlterId, heldRows), the admin screens, Integration health, the silence alert. finance.read merges with FN1's at integration.
