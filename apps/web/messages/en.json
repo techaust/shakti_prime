@@ -4058,7 +4058,8 @@
       "notifications": "Notices",
       "platform": "Upkeep",
       "webhooks": "Messages from other systems",
-      "messaging": "WhatsApp"
+      "messaging": "WhatsApp",
+      "tally": "Tally"
     },
     "permissions": {
       "crm_lead_read": "See leads",
