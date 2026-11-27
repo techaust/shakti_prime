@@ -364,9 +364,10 @@ describe('finance.proforma.cancel', () => {
     const input = { entityId: E, proformaId: proforma.id, reason: 'Wrong address' };
     expect(await failure(lc, cancelProforma, input)).toMatchObject({ code: 'forbidden' });
     expect(await failure(accounts1, cancelProforma, input)).toMatchObject({ code: 'forbidden' });
-    expect(
-      await failure(accounts1, cancelProforma, { ...input, entityId: 1 }),
-    ).toMatchObject({ code: 'not_found', reason: 'proforma_missing' });
+    expect(await failure(accounts1, cancelProforma, { ...input, entityId: 1 })).toMatchObject({
+      code: 'not_found',
+      reason: 'proforma_missing',
+    });
     expect(await failure(accounts, cancelProforma, { ...input, reason: ' ' })).toMatchObject({
       code: 'validation_failed',
     });
@@ -398,7 +399,15 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
     const today = istCalendarDate(new Date());
     expect(planned.templateVersion).toBeNull();
     expect(
-      planned.milestones.map((m) => [m.key, m.label, m.percent, m.amount, m.dueRule, m.state, m.dueOn]),
+      planned.milestones.map((m) => [
+        m.key,
+        m.label,
+        m.percent,
+        m.amount,
+        m.dueRule,
+        m.state,
+        m.dueOn,
+      ]),
     ).toEqual([
       ['advance', 'Advance', '50.00', '34105.00', 'on_confirmation', 'due', today],
       ['balance', 'Balance', '50.00', '34104.00', 'before_dispatch', 'pending', null],
@@ -418,20 +427,21 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
     expect(await failure(lc, planMilestonesByHand, { entityId: E, orderId })).toMatchObject({
       code: 'forbidden',
     });
-    expect(await failure(accounts1, planMilestonesByHand, { entityId: E, orderId })).toMatchObject(
-      { code: 'forbidden' },
-    );
-    expect(await failure(accounts1, planMilestonesByHand, { entityId: 1, orderId })).toMatchObject(
-      { code: 'not_found', reason: 'order_missing' },
-    );
+    expect(await failure(accounts1, planMilestonesByHand, { entityId: E, orderId })).toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await failure(accounts1, planMilestonesByHand, { entityId: 1, orderId })).toMatchObject({
+      code: 'not_found',
+      reason: 'order_missing',
+    });
     const draft = await order('draft');
     expect(
       await failure(accounts, planMilestonesByHand, { entityId: E, orderId: draft }),
     ).toMatchObject({ code: 'conflict', reason: 'milestones_order_not_confirmed' });
     // A person never runs the platform's planning.
-    expect(await failure(accounts, planConfirmedMilestones, { entityId: E, orderId })).toMatchObject(
-      { code: 'forbidden' },
-    );
+    expect(
+      await failure(accounts, planConfirmedMilestones, { entityId: E, orderId }),
+    ).toMatchObject({ code: 'forbidden' });
   });
 
   it('plans from the platform on confirmation once, reading nothing it may not, and skips an order no longer confirmed', async () => {
@@ -444,9 +454,7 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
     ).toEqual({ outcome: 'already_planned', count: 0 });
     // The platform reads no milestone itself (no finance.read): a repeat finds them through the
     // definer alone.
-    expect(await asPrincipal(workers(), (ctx) => readOrderMilestones(ctx, E, orderId))).toEqual(
-      [],
-    );
+    expect(await asPrincipal(workers(), (ctx) => readOrderMilestones(ctx, E, orderId))).toEqual([]);
     const seen = await asPrincipal(accounts, (ctx) => readOrderMilestones(ctx, E, orderId));
     expect(seen.map((m) => m.amount)).toEqual(['34105.00', '34104.00']);
     const cancelled = await order('cancelled');
@@ -518,8 +526,8 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
     ]);
     const sum = planned.milestones.reduce((s, m) => s + Math.round(Number(m.amount) * 100), 0);
     expect(sum).toBe(6820900);
-    await asMigrator(
-      (m) => m.begin(async (tx) => {
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
         await withoutTriggers(tx);
         await tx`delete from payment_milestones where sales_order_id = ${orderId}`;
         await tx`delete from payment_milestone_templates where entity_id = ${E}`;

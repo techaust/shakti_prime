@@ -12,10 +12,7 @@ import { defineCommand } from '../../command/define-command';
 import { nextDocumentNo } from '../../numbering/next-document-no';
 import { readProforma } from '../../queries/finance/finance-dto';
 import { transition } from '../../state-machines/define-machine';
-import {
-  proformaMachine,
-  type ProformaMachineState,
-} from '../../state-machines/machines/proforma';
+import { proformaMachine, type ProformaMachineState } from '../../state-machines/machines/proforma';
 import { requireEntity } from '../crm/opportunity-shared';
 
 /** The order a proforma is issued from, as the caller reads it; `order_missing` otherwise. */
@@ -58,12 +55,11 @@ export const issueProforma = defineCommand({
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const order = await readOrder(ctx, input.entityId, input.orderId);
-    const issued = transition(
-      proformaMachine,
-      { state: null, orderState: order.state },
-      'issue',
-      { actor: { kind: 'principal', principal: ctx.principal }, now: ctx.now, params: {} },
-    );
+    const issued = transition(proformaMachine, { state: null, orderState: order.state }, 'issue', {
+      actor: { kind: 'principal', principal: ctx.principal },
+      now: ctx.now,
+      params: {},
+    });
     const p = schema.proformas;
     const [live] = await ctx.tx
       .select({ id: p.id })

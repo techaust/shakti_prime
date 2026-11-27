@@ -7,8 +7,6 @@ import {
   PlanMilestonesInput,
   PlannedMilestonesDto,
   WaiveMilestoneInput,
-  type CalendarDate,
-  type Money,
   type MilestoneStep,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
@@ -40,9 +38,7 @@ const MilestoneFacts = z.object({
   segment: z.string(),
   confirmedOn: z.string().nullable(),
   planned: z.boolean(),
-  template: z
-    .object({ id: z.string(), version: z.number().int(), steps: z.unknown() })
-    .nullable(),
+  template: z.object({ id: z.string(), version: z.number().int(), steps: z.unknown() }).nullable(),
 });
 type MilestoneFacts = z.infer<typeof MilestoneFacts>;
 
@@ -52,7 +48,12 @@ const LoanGate = z
   .nullable();
 
 /** The order states milestones are planned in: confirmed, and not closed or cancelled. */
-const PLANNABLE: readonly string[] = ['confirmed', 'partially_dispatched', 'dispatched', 'invoiced'];
+const PLANNABLE: readonly string[] = [
+  'confirmed',
+  'partially_dispatched',
+  'dispatched',
+  'invoiced',
+];
 
 async function milestoneFacts(ctx: CommandContext, orderId: string): Promise<MilestoneFacts> {
   const [row] = (await ctx.tx.execute(
@@ -140,10 +141,10 @@ async function planOrder(
       : MilestoneStepsSchema.parse(facts.template.steps);
   const gates = await loanGates(ctx, facts.orderId, steps);
   const planned = planMilestones(
-    facts.grandTotal as Money,
+    facts.grandTotal,
     steps,
     {
-      confirmedOn: facts.confirmedOn as CalendarDate | null,
+      confirmedOn: facts.confirmedOn,
       readyToDispatchOn: null,
       installedOn: null,
       invoicedOn: null,

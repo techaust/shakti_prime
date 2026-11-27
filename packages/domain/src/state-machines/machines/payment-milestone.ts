@@ -117,7 +117,8 @@ export const paymentMilestoneMachine = defineMachine<
       effects: [
         {
           key: 'set_waiver',
-          description: 'keep who waived it, when and why (audited); a dispatch no longer waits for it',
+          description:
+            'keep who waived it, when and why (audited); a dispatch no longer waits for it',
         },
       ],
     },

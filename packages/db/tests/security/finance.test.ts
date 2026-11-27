@@ -207,7 +207,9 @@ describe('proformas and proforma_lines', () => {
         }),
       ),
     ).toMatch(/row-level security/);
-    await asPrincipal(accounts, async ({ tx }) => tx.execute(insertProforma(id, orderId, accounts)));
+    await asPrincipal(accounts, async ({ tx }) =>
+      tx.execute(insertProforma(id, orderId, accounts)),
+    );
     expect(
       await failure(asPrincipal(accounts, async ({ tx }) => tx.execute(copyLine(id, orderId)))),
     ).toMatch(/row-level security/);
@@ -243,9 +245,9 @@ describe('proformas and proforma_lines', () => {
     expect(await failure(cancel(accounts, exec.id))).toMatch(/changes only by its cancel/);
     await cancel(accounts, accounts.id);
     expect(await failure(cancel(accounts, accounts.id))).toMatch(/changes only by its cancel/);
-    expect(
-      await failure(asMigrator((m) => m`delete from proformas where id = ${id}`)),
-    ).toMatch(/never removed/);
+    expect(await failure(asMigrator((m) => m`delete from proformas where id = ${id}`))).toMatch(
+      /never removed/,
+    );
     expect(
       await failure(
         asMigrator((m) => m`update proforma_lines set unit_price = 1 where proforma_id = ${id}`),
@@ -329,7 +331,9 @@ describe('payment_milestones and app.record_order_milestones()', () => {
     // do not have, is refused.
     const template = newId();
     await asMigrator(
-      (m) => m`insert into payment_milestone_templates (id, entity_id, segment, version, steps_json, created_by)
+      (
+        m,
+      ) => m`insert into payment_milestone_templates (id, entity_id, segment, version, steps_json, created_by)
                values (${template}, ${E}, 'dealer_wholesale', 1, ${m.json([
                  {
                    key: 'advance',
@@ -382,7 +386,9 @@ describe('payment_milestones and app.record_order_milestones()', () => {
     expect(
       await failure(
         asPrincipal(exec, async ({ tx }) =>
-          tx.execute(sql`update payment_milestones set amount = 1 where sales_order_id = ${orderId}`),
+          tx.execute(
+            sql`update payment_milestones set amount = 1 where sales_order_id = ${orderId}`,
+          ),
         ),
       ),
     ).toMatch(/permission denied/);

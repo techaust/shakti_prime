@@ -102,7 +102,8 @@ export const MilestoneStepsSchema = z
     message: 'the last step is a percentage, which takes what is left',
   })
   .refine(
-    (steps) => steps.reduce((sum, s) => sum + (s.percent === null ? 0 : hundredths(s.percent)), 0) === 10000,
+    (steps) =>
+      steps.reduce((sum, s) => sum + (s.percent === null ? 0 : hundredths(s.percent)), 0) === 10000,
     { message: 'the percentages add up to 100' },
   );
 export type MilestoneSteps = z.infer<typeof MilestoneStepsSchema>;

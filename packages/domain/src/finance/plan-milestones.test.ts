@@ -91,7 +91,12 @@ describe('milestoneDueOn', () => {
       null,
     );
     expect(
-      milestoneDueOn('days_after_invoice', 30, { ...moments, invoicedOn: '2027-01-31' }, '2027-03-02'),
+      milestoneDueOn(
+        'days_after_invoice',
+        30,
+        { ...moments, invoicedOn: '2027-01-31' },
+        '2027-03-02',
+      ),
     ).toBe('2027-03-02');
   });
 });

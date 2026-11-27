@@ -3,7 +3,6 @@ import {
   MilestoneStepsSchema,
   PaymentMilestoneDto,
   ProformaDto,
-  type CalendarDate,
   type MilestoneTemplateDto,
   type QuoteLineDto,
 } from '@shakti/contracts';
@@ -122,10 +121,7 @@ export async function readProforma(
 }
 
 /** A stored milestone as the reads carry it. */
-export function milestoneDto(
-  row: MilestoneRow,
-  waivedByName: string | null,
-): PaymentMilestoneDto {
+export function milestoneDto(row: MilestoneRow, waivedByName: string | null): PaymentMilestoneDto {
   return PaymentMilestoneDto.parse({
     id: row.id,
     entityId: row.entityId,
@@ -140,7 +136,7 @@ export function milestoneDto(
     dueDays: row.dueDays,
     loanGate: row.loanGate,
     state: row.state,
-    dueOn: row.dueOn as CalendarDate | null,
+    dueOn: row.dueOn,
     waivedAt: iso(row.waivedAt),
     waivedByName,
     waiveReason: row.waiveReason,

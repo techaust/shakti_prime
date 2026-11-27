@@ -264,10 +264,7 @@ export const paymentMilestones = pgTable(
     index('payment_milestones_template_idx').on(t.templateId),
     check('payment_milestones_seq_check', sql`${t.seq} between 1 and 10`),
     check('payment_milestones_key_check', sql`${t.key} ~ '^[a-z][a-z0-9_]{0,39}$'`),
-    check(
-      'payment_milestones_label_check',
-      sql`length(btrim(${t.label})) between 2 and 60`,
-    ),
+    check('payment_milestones_label_check', sql`length(btrim(${t.label})) between 2 and 60`),
     check('payment_milestones_percent_check', sql`${t.percent} is null or ${t.percent} > 0`),
     check(
       'payment_milestones_amounts_check',

@@ -72,7 +72,8 @@ export const proformaMachine = defineMachine<
         },
         {
           key: 'number',
-          description: "draw the next number of the company's `proforma` series for the financial year",
+          description:
+            "draw the next number of the company's `proforma` series for the financial year",
         },
       ],
       note: 'One proforma of an order is live at a time; a cancelled one stays beside the next.',

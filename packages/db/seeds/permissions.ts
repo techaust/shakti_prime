@@ -43,7 +43,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'documents.write': 'Add documents',
   'documents.sensitive.read': 'See identity documents',
   // FN1 proformas and payment milestones.
-  'finance.read': 'See proformas, payment milestones and payments',
+  'finance.read': 'See proformas, payments due and payments',
   'finance.proforma.write': 'Create proformas',
   'finance.payment.write': 'Record payments',
   'finance.recon.write': 'Reconcile with Tally',
@@ -101,7 +101,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   // W2 media retention.
   'messaging.media.expire': 'Remove WhatsApp photos and files after the time they are kept',
   // FN1 payment milestones.
-  'finance.milestones.process': 'Plan the payment milestones of a confirmed order',
+  'finance.milestones.process': 'Plan the payments of a confirmed order',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

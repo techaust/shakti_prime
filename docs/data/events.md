@@ -26,6 +26,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [calls](#calls)
   - [sales](#sales)
   - [procurement](#procurement)
+  - [finance](#finance)
 - [Payloads](#payloads)
 
 ## Rules
@@ -51,7 +52,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-63 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+68 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -185,7 +186,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
 | [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, or on WhatsApp by its Accept button and, for a large quote, a code) and became the order `orderId`; `acceptedBy` is the person who recorded it or the platform. The notify worker tells the lead's owner. | `sales.quote.accept`, `sales.quote.accept_remote` | `POST /api/v1/workers/outbox/sales.quote.accepted` (QStash URL group `evt-sales.quote.accepted`) |
 | [`sales.order.created`](#salesordercreated) | A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one. | `sales.quote.accept`, `sales.quote.accept_remote`, `sales.order.create` | none |
-| [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.confirmed` (QStash URL group `evt-sales.order.confirmed`) |
+| [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone and plans the order's payment milestones. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.confirmed` (QStash URL group `evt-sales.order.confirmed`) |
 | [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.credit_held` (QStash URL group `evt-sales.order.credit_held`) |
 | [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
 | [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. | `sales.order.cancel` | none |
@@ -200,6 +201,16 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`procurement.vendor.archived`](#procurementvendorarchived) | A vendor left the active vendor list; its quotes stay on record. | `procurement.vendor.archive` | none |
 | [`procurement.quote.recorded`](#procurementquoterecorded) | A supplier's quote for an item was recorded, for one company or the group; the rate stays in the quote. | `procurement.quote.record` | none |
 | [`procurement.quote.withdrawn`](#procurementquotewithdrawn) | A supplier's quote was withdrawn before it ended. | `procurement.quote.withdraw` | none |
+
+### finance
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`finance.proforma.issued`](#financeproformaissued) | A proforma of a confirmed order was issued with the order's lines and tax copied, and numbered from the company's proforma series. | `finance.proforma.issue` | none |
+| [`finance.proforma.cancelled`](#financeproformacancelled) | A proforma was cancelled with a reason; its number stays used. | `finance.proforma.cancel` | none |
+| [`finance.milestones.planned`](#financemilestonesplanned) | An order's payment milestones were planned from its company's terms for its segment (`templateVersion` null: the named default); `dueCount` of them fell due at once. | `finance.milestone.plan`, `finance.milestone.plan_confirmed` | none |
+| [`finance.milestone.waived`](#financemilestonewaived) | The Executive waived a payment milestone of an order, with a reason. | `finance.milestone.waive` | none |
+| [`finance.terms.published`](#financetermspublished) | An Executive published a new version of a company's payment terms for a segment. | `finance.terms.publish` | none |
 
 ## Payloads
 
@@ -661,3 +672,37 @@ No fields apart from `v`.
 | `vendorId` | id |
 | `itemId` | id |
 | `forGroup` | true or false |
+
+### finance.proforma.issued
+
+| Field | Type |
+|---|---|
+| `orderId` | id |
+| `lineCount` | whole number from 1 |
+
+### finance.proforma.cancelled
+
+| Field | Type |
+|---|---|
+| `orderId` | id |
+
+### finance.milestones.planned
+
+| Field | Type |
+|---|---|
+| `count` | whole number from 1 to 10 |
+| `dueCount` | whole number from 0 to 10 |
+| `templateVersion` | whole number from 1 or null |
+
+### finance.milestone.waived
+
+| Field | Type |
+|---|---|
+| `orderId` | id |
+
+### finance.terms.published
+
+| Field | Type |
+|---|---|
+| `segment` | text from 1 to 40 characters |
+| `version` | whole number from 1 |

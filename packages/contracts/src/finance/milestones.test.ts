@@ -63,6 +63,8 @@ describe('MilestoneStepsSchema', () => {
         { ...step, percent: '100.00', dueRule: 'days_after_invoice', dueDays: null },
       ]).success,
     ).toBe(false);
-    expect(MilestoneStepsSchema.safeParse([{ ...step, key: 'Advance', percent: '100.00' }]).success).toBe(false);
+    expect(
+      MilestoneStepsSchema.safeParse([{ ...step, key: 'Advance', percent: '100.00' }]).success,
+    ).toBe(false);
   });
 });

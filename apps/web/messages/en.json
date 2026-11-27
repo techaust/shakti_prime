@@ -1994,6 +1994,12 @@
       "itemVendorSet": "Items a vendor supplies changed",
       "vendorQuoteRecord": "Supplier quote recorded",
       "vendorQuoteWithdraw": "Supplier quote withdrawn",
+      "proformaIssue": "Proforma issued",
+      "proformaCancel": "Proforma cancelled",
+      "milestonesPlan": "Payments planned by hand",
+      "milestonesPlanConfirmed": "Payments planned on confirmation",
+      "milestoneWaive": "Payment waived",
+      "paymentTermsPublish": "Payment terms published",
       "hubCreate": "Hub added",
       "hubUpdate": "Hub changed",
       "hubArchive": "Hub archived",
@@ -2067,7 +2073,12 @@
       "vendorArchived": "Vendor archived",
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
-      "stockMoved": "Stock moved"
+      "stockMoved": "Stock moved",
+      "proformaIssued": "Proforma issued",
+      "proformaCancelled": "Proforma cancelled",
+      "milestonesPlanned": "Payments planned",
+      "milestoneWaived": "Payment waived",
+      "paymentTermsPublished": "Payment terms published"
     },
     "sheet": {
       "title": "{action}",
@@ -4079,6 +4090,7 @@
       "documents_read": "See documents",
       "documents_write": "Add documents",
       "documents_sensitive_read": "See identity documents",
+      "finance_read": "See proformas, payments due and payments",
       "finance_proforma_write": "Create proformas",
       "finance_payment_write": "Record payments",
       "finance_recon_write": "Match records with Tally",
@@ -4137,7 +4149,8 @@
       "agents_note_write": "Write call briefs and call summaries",
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
       "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
-      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept"
+      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept",
+      "finance_milestones_process": "Plan the payments of a confirmed order"
     },
     "empty": "There are no roles to show.",
     "locked": {

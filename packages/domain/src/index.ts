@@ -937,9 +937,5 @@ export {
   publishPaymentTerms,
   waiveMilestone,
 } from './commands/finance/index';
-export {
-  milestoneDueOn,
-  planMilestones,
-  splitMilestoneAmounts,
-} from './finance/plan-milestones';
+export { milestoneDueOn, planMilestones, splitMilestoneAmounts } from './finance/plan-milestones';
 export type { LoanGateAnswer, MilestoneMoments, PlannedMilestone } from './finance/plan-milestones';

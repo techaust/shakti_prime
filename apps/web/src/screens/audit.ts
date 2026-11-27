@@ -277,6 +277,13 @@ const ACTIONS = {
   'procurement.item_vendor.set': 'itemVendorSet',
   'procurement.quote.record': 'vendorQuoteRecord',
   'procurement.quote.withdraw': 'vendorQuoteWithdraw',
+  // FN1 proformas and payment milestones.
+  'finance.proforma.issue': 'proformaIssue',
+  'finance.proforma.cancel': 'proformaCancel',
+  'finance.milestone.plan': 'milestonesPlan',
+  'finance.milestone.plan_confirmed': 'milestonesPlanConfirmed',
+  'finance.milestone.waive': 'milestoneWaive',
+  'finance.terms.publish': 'paymentTermsPublish',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -359,6 +366,12 @@ const EVENT_NAMES = {
   'procurement.vendor.archived': 'vendorArchived',
   'procurement.quote.recorded': 'vendorQuoteRecorded',
   'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
+  // FN1 proformas and payment milestones.
+  'finance.proforma.issued': 'proformaIssued',
+  'finance.proforma.cancelled': 'proformaCancelled',
+  'finance.milestones.planned': 'milestonesPlanned',
+  'finance.milestone.waived': 'milestoneWaived',
+  'finance.terms.published': 'paymentTermsPublished',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
