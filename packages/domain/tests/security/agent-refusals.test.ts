@@ -534,6 +534,52 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'procurement.vendor.archive': { vendorId: newId() },
   'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
   'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
+  // HR1: the staff list, HR's settings and leave are people's work only.
+  'hr.employee.create': { entityId: 1, name: 'Staff member', joinedOn: '2030-01-01' },
+  'hr.employee.update': {
+    id: newId(),
+    userId: null,
+    name: 'Staff member',
+    phone: null,
+    managerId: null,
+    shiftId: null,
+    office: null,
+    joinedOn: '2030-01-01',
+  },
+  'hr.employee.deactivate': { id: newId(), leftOn: '2031-01-01' },
+  'hr.shift.set': {
+    entityId: 1,
+    name: 'Day',
+    startTime: '09:30',
+    endTime: '18:00',
+    lunchMinutes: 30,
+    graceMinutes: 10,
+    weeklyOffDays: [7],
+  },
+  'hr.holiday.set': { entityId: 1, date: '2031-01-26', name: 'Republic Day' },
+  'hr.leave_type.set': {
+    entityId: 1,
+    name: 'Casual',
+    daysPerYear: 12,
+    carriesForward: false,
+    paid: true,
+  },
+  'hr.leave.request': {
+    employeeId: newId(),
+    leaveTypeId: newId(),
+    fromDate: '2031-03-03',
+    toDate: '2031-03-03',
+  },
+  'hr.leave.approve': { id: newId() },
+  'hr.leave.reject': { id: newId() },
+  'hr.leave.cancel': { id: newId() },
+  'hr.leave.adjust': {
+    employeeId: newId(),
+    leaveTypeId: newId(),
+    kind: 'grant',
+    days: 1,
+    reason: 'Opening balance',
+  },
 };
 
 describe('commands for people only', () => {
