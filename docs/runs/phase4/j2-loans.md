@@ -205,4 +205,16 @@ Tier A. No critical or high finding: nothing blocks the merge. One medium point 
 - **EXPLAIN:** I did not repeat the builder's plans on seeded volume. They are recorded in the report and the indexes match the queries.
 - **Company 2 pictures:** I did not check whether the new General Manager of company 2 changes any existing picture of company 2 (people pickers in the UAT or dealer-credit journeys).
 
+**The lead's triage (27-11-2026):** fix M1, L1, L2, L3, L5, L6 and L7 in the one fix round. L4 is the lead's at the merge.
+- **M1:** a rejected loan keeps its gates pending, with the reason `loan_rejected`, until a person decides.
+  - Either a new loan replaces it, or `crm.loan.gates.waive` (`crm.account.write` at entity scope, a reason, audited) records that the order no longer waits on a loan.
+  - The definer answers `pending` for a rejected loan with no waiver, and `none` after a waiver.
+  - Tests for both paths.
+- **L6:** the Phase 5 design governs. A milestone's loan gate lives on the milestone (FN1's `loan_gate` kind, `sanctioned` or `disbursed`).
+  - Drop `milestones` from `gates_json` and from the definer's answer. `gates_json` holds only `dispatch`.
+  - The answer carries `loanState` (and whether the gates are waived), so FN1 compares its milestone's kind with it.
+  - `crm.loan.gates_released` names the dispatch gate and the loan's new state only.
+- **L1, L2, L3, L5 and L7:** as the review says. For L2, the definer's reader rule follows `customer_loans_read`'s policy exactly.
+- **No re-check:** the lead reads the diff.
+
 ## Integration
