@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 3
-updated: 2026-11-27T22:09Z
+updated: 2026-11-27T23:01Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -122,3 +122,11 @@ run_file: docs/runs/phase3/r3-warranty.md
 wait_for: none
 done_when: report: r3-warranty fixes
 note: the one fix round: findings 1 to 9 and 12 as the lead's triage at the end of the Review section says. Finding 1 (high) first.
+
+lane: 85
+role: fix
+branch: feat/tc2-tally-ingest
+run_file: docs/runs/phase5/tc2-tally-ingest.md
+wait_for: none
+done_when: report: tc2-tally-ingest fixes
+note: the one fix round: M1, M2, M3, M5, L1 to L5, L7, L8 as the lead's triage at the end of the Review section says.
