@@ -57,6 +57,8 @@ import { ensureProcurementJourneys } from './procurement';
 import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
+// F1 field app foundation.
+import { ensureFieldPhones } from './field';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
@@ -66,6 +68,8 @@ import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
   CALLING_NUMBERS,
+  FIELD_PHONES,
+  fieldPhoneOwnerKey,
   E2E_PASSWORD,
   emailFor,
   INBOX_SUGGESTIONS,
@@ -910,6 +914,20 @@ const orders = await ensureOrderJourneys(ids.executive ?? '');
 // H1 stock ledger
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
+
+// F1: the phones of Team members › Phones, one owner per project in company 1.
+progress('the field app phones');
+const phoneOwners = {} as Record<ProjectName, string>;
+for (const project of PROJECTS) {
+  const owner = FIELD_PHONES.owners[project];
+  phoneOwners[project] = await ensureUser(
+    emailFor(fieldPhoneOwnerKey(project)),
+    owner.name,
+    'field_engineer',
+    [1],
+  );
+}
+await ensureFieldPhones(ids.snapshotCaller ?? '', phoneOwners);
 
 progress('the Lead Converter workspace');
 // One converter of company 2 per project, none of them a handover target, each with three leads
