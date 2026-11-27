@@ -116,6 +116,9 @@ export const STOCK_REFUSALS = [
   'stock_serial_exists',
   'stock_serial_unknown',
   'stock_serial_not_in_bin',
+  // X4: a serial in a state its movement does not take, and a delivery's customer not found.
+  'stock_serial_state',
+  'stock_customer_missing',
   'stock_insufficient',
   'opening_stock_posted',
 ] as const;

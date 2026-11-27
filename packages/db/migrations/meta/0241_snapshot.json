@@ -1,6 +1,6 @@
 {
-  "id": "57da7cf0-a8b2-444a-9c8e-f06e114f219b",
-  "prevId": "8d6b8673-9c3c-4342-9720-e58c028a290c",
+  "id": "c4d174eb-ee74-44af-b161-65e438841e52",
+  "prevId": "514419f9-bfd3-46a1-9ed8-722e8b3fa58d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6902,7 +6902,7 @@
       "checkConstraints": {
         "files_purpose_check": {
           "name": "files_purpose_check",
-          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence', 'call_recording', 'whatsapp_media', 'call_transcript', 'vendor_quote', 'label_sheet')"
+          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence', 'call_recording', 'whatsapp_media', 'call_transcript', 'vendor_quote')"
         },
         "files_status_check": {
           "name": "files_status_check",
