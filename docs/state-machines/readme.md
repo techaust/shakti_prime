@@ -28,6 +28,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
 | Knowledge Vault file | **yes** | 5 | 7 | 0 | [knowledge-file.md](knowledge-file.md) |
 | Serial | **yes** | 8 | 18 | 14 | [serial.md](serial.md) |
+| Purchase order | **yes** | 7 | 10 | 0 | [purchase-order.md](purchase-order.md) |
 
 ## Workshop defaults
 
@@ -46,12 +47,15 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `numbering.docCodes.proforma` | PI |
 | `numbering.docCodes.challan` | DC |
 | `numbering.docCodes.purchase_order` | PO |
+| `numbering.docCodes.goods_receipt` | GRN |
 | `numbering.separator` | / |
 | `numbering.serialDigits` | 4 |
 | `pricing.kitPricing` | fixed |
 | `credit.exposureCountsConfirmedOrders` | true |
 | `dispatch.ewayBillThresholdPaise` | 5000000 |
 | `stock.reversalDays` | 7 |
+| `procurement.poApprovalFromRupees` | 200000 |
+| `procurement.overdueAfterDays` | 7 |
 | `crm.dispositions` | key: 1; code: interested; label: Interested; nextAction: callback<br>key: 2; code: call_back_later; label: Call back later; nextAction: callback<br>key: 3; code: not_reachable; label: Not reachable; nextAction: retry<br>key: 4; code: switched_off; label: Switched off; nextAction: retry<br>key: 5; code: wrong_number; label: Wrong number; nextAction: wrong_number<br>key: 6; code: not_interested; label: Not interested; nextAction: not_interested<br>key: 7; code: already_bought; label: Already bought; nextAction: not_interested<br>key: 8; code: qualified; label: Qualified; nextAction: qualified |
 | `crm.scoreBase` | 50 |
 | `crm.scoreRules` | none |

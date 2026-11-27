@@ -295,7 +295,7 @@ async function quoteRates(
 }
 
 /** Refuses a typed or quoted rate from a caller without `procurement.rate.read`. */
-function assertRatesAllowed(ctx: CommandContext, lines: readonly PurchaseOrderLineInput[]): void {
+export function assertRatesAllowed(ctx: CommandContext, lines: readonly PurchaseOrderLineInput[]): void {
   const asks = lines.some((l) => (l.rate !== undefined && l.rate !== null) || l.rateFromQuote === true);
   if (asks && !readsRates(ctx.principal)) {
     throw new DomainError('forbidden', 'a rate needs procurement.rate.read', {

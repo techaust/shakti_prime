@@ -17,6 +17,7 @@ import { nextDocumentNo } from '../../numbering/next-document-no';
 import { readsRates } from '../../queries/procurement/vendor-read';
 import {
   activeVendor,
+  assertRatesAllowed,
   deliveryHub,
   lockOrder,
   ORDER_CONSTRAINT_REASONS,
@@ -83,6 +84,7 @@ export const createPurchaseOrder = defineCommand({
         entityId: input.entityId,
       });
     }
+    assertRatesAllowed(ctx, input.lines);
     const vendor = await activeVendor(ctx, input.vendorId);
     const hub = await deliveryHub(ctx, input.deliverToWarehouseId);
     orderTransition(
@@ -166,6 +168,7 @@ export const updatePurchaseOrder = defineCommand({
   }),
   constraintReasons: ORDER_CONSTRAINT_REASONS,
   async handler(ctx, input) {
+    assertRatesAllowed(ctx, input.lines ?? []);
     const row = await lockOrder(ctx, input.purchaseOrderId);
     const before = await orderLines(ctx, row.id);
     orderTransition(

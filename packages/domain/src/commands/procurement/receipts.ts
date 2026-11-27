@@ -5,7 +5,6 @@ import {
   PostGoodsReceiptInput,
   ReverseGoodsReceiptInput,
   type PurchaseOrderState,
-  type StockReason,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
@@ -14,7 +13,7 @@ import { defineCommand } from '../../command/define-command';
 import { serialMatchesPattern } from '../../catalogue/serial-pattern';
 import { toScaled } from '../../money/paise';
 import { nextDocumentNo } from '../../numbering/next-document-no';
-import { stockMovedPayload } from '../../stock/events';
+import { auditReceiptMovements, emitReceiptMoved } from '../../procurement/receipt-moves';
 import { stockRefusal } from '../../stock/move';
 import {
   lockOrder,
@@ -95,42 +94,6 @@ async function receiptBins(
     receiving: rows.find((r) => r.kind === 'receiving')?.id,
     usable: new Set(rows.map((r) => r.id)),
   };
-}
-
-/** One movement's audit row, as the stock commands write them: never a cost. */
-async function auditMovements(ctx: CommandContext, entityId: number, movementIds: string[]): Promise<void> {
-  if (movementIds.length === 0) return;
-  const rows = (await ctx.tx.execute(sql`
-    select m.id, m.reason, m.qty::text as qty, s.serial_no as "serialNo"
-      from stock_movements m
-      left join serials s on s.id = m.serial_id
-     where m.id = any (${`{${movementIds.join(',')}}`}::uuid[])`)) as unknown as {
-    id: string;
-    reason: StockReason;
-    qty: string;
-    serialNo: string | null;
-  }[];
-  for (const row of rows) {
-    ctx.audit({
-      aggregateType: 'stock_movement',
-      aggregateId: row.id,
-      entityId,
-      before: null,
-      after: { stockReason: row.reason, quantity: Number(row.qty), serialNo: row.serialNo },
-    });
-  }
-}
-
-async function emitMoved(ctx: CommandContext, entityId: number, movementIds: string[]): Promise<void> {
-  const first = movementIds[0];
-  if (first === undefined) return;
-  ctx.emit({
-    type: 'inventory.stock.moved',
-    entityId,
-    aggregateType: 'stock_movement',
-    aggregateId: first,
-    payload: await stockMovedPayload(ctx.tx, movementIds),
-  });
 }
 
 interface CheckedLine {
@@ -370,8 +333,8 @@ export const postGoodsReceipt = defineCommand({
       before: { state: order.state },
       after: { state: to },
     });
-    await auditMovements(ctx, order.entityId, movementIds);
-    await emitMoved(ctx, order.entityId, movementIds);
+    await auditReceiptMovements(ctx, order.entityId, movementIds);
+    await emitReceiptMoved(ctx, order.entityId, movementIds);
     ctx.emit({
       type: 'procurement.receipt.posted',
       entityId: order.entityId,
@@ -408,12 +371,9 @@ export const reverseGoodsReceipt = defineCommand({
   constraintReasons: RECEIPT_CONSTRAINT_REASONS,
   async handler(ctx, input) {
     const r = schema.goodsReceipts;
-    const [receipt] = await ctx.tx
-      .select()
-      .from(r)
-      .where(eq(r.id, input.receiptId))
-      .limit(1)
-      .for('update');
+    // Read before it is locked: a reversed receipt passes no update policy, so a locking read
+    // would not find it.
+    const [receipt] = await ctx.tx.select().from(r).where(eq(r.id, input.receiptId)).limit(1);
     if (!receipt || !ctx.entityIds.includes(receipt.entityId)) {
       throw new DomainError('not_found', `goods receipt ${input.receiptId} is not readable`, {
         reason: 'goods_receipt_missing',
@@ -424,7 +384,18 @@ export const reverseGoodsReceipt = defineCommand({
         reason: 'goods_receipt_reversed',
       });
     }
+    // The order first, then the receipt, as a posting locks them.
     const order = await lockOrder(ctx, receipt.poId);
+    const [held] = await ctx.tx
+      .select({ id: r.id })
+      .from(r)
+      .where(and(eq(r.id, receipt.id), eq(r.state, 'posted')))
+      .for('update');
+    if (!held) {
+      throw new DomainError('conflict', 'the goods receipt was reversed meanwhile', {
+        reason: 'goods_receipt_reversed',
+      });
+    }
     const gl = schema.goodsReceiptLines;
     const receiptLines = await ctx.tx
       .select({ poLineId: gl.poLineId, qty: gl.qty })
@@ -478,8 +449,8 @@ export const reverseGoodsReceipt = defineCommand({
       before: { state: order.state },
       after: { state: to },
     });
-    await auditMovements(ctx, receipt.entityId, movementIds);
-    await emitMoved(ctx, receipt.entityId, movementIds);
+    await auditReceiptMovements(ctx, receipt.entityId, movementIds);
+    await emitReceiptMoved(ctx, receipt.entityId, movementIds);
     ctx.emit({
       type: 'procurement.receipt.reversed',
       entityId: receipt.entityId,

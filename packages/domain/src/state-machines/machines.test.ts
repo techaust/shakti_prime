@@ -15,6 +15,7 @@ import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
 import { projectSuryaGharMachine } from './machines/project-surya-ghar';
+import { PO_APPROVAL_LIMIT_PAISE, purchaseOrderMachine } from './machines/purchase-order';
 import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
 import { serialMachine } from './machines/serial';
@@ -55,6 +56,12 @@ const FIXTURES: Fixture[] = [
   { machine: agentActionMachine, record: {}, params: {} },
   // H1: a serial moves from the bin it is in.
   { machine: serialMachine, record: { binId: SERIAL_BIN }, params: { fromBinId: SERIAL_BIN } },
+  // U2: a complete order below the limit, drafted by someone else; cancel and close give a reason.
+  {
+    machine: purchaseOrderMachine,
+    record: { lineCount: 2, linesComplete: true, grandTotalPaise: 100_000n, draftedBy: newId() },
+    params: { reason: 'The vendor cannot supply' },
+  },
   { machine: inboxItemMachine, record: {}, params: {} },
   { machine: knowledgeFileMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
@@ -352,6 +359,15 @@ interface GuardCase {
   code: string;
   reason: string;
 }
+
+/** An Inventory Manager who approves purchase orders: their own draft is refused (U2). */
+const PO_DRAFTER = holding(
+  [
+    { key: 'procurement.po.approve', scope: 'entity' },
+    { key: 'procurement.rate.read', scope: 'entity' },
+  ],
+  'inventory_manager',
+) as Extract<Actor, { kind: 'principal' }>;
 
 const GUARDS: GuardCase[] = [
   // File upload
@@ -981,6 +997,55 @@ const GUARDS: GuardCase[] = [
     actor: platform,
     code: 'conflict',
     reason: 'voucher_in_snapshot',
+  },
+  // U2 purchase orders: a line, every rate, not one's own draft, and the limit (question 5 (a)).
+  {
+    fixture: 'purchase_order',
+    from: null,
+    event: 'create',
+    record: { lineCount: 0 },
+    code: 'validation_failed',
+    reason: 'po_lines_missing',
+  },
+  {
+    fixture: 'purchase_order',
+    from: 'draft',
+    event: 'approve',
+    record: { linesComplete: false, grandTotalPaise: null },
+    code: 'validation_failed',
+    reason: 'po_lines_incomplete',
+  },
+  {
+    fixture: 'purchase_order',
+    from: 'draft',
+    event: 'approve',
+    record: { draftedBy: PO_DRAFTER.principal.id },
+    actor: PO_DRAFTER,
+    code: 'forbidden',
+    reason: 'po_self_approval',
+  },
+  {
+    fixture: 'purchase_order',
+    from: 'draft',
+    event: 'approve',
+    record: { grandTotalPaise: PO_APPROVAL_LIMIT_PAISE },
+    actor: holding(
+      [
+        { key: 'procurement.po.approve', scope: 'entity' },
+        { key: 'procurement.rate.read', scope: 'entity' },
+      ],
+      'inventory_manager',
+    ),
+    code: 'forbidden',
+    reason: 'po_approval_limit',
+  },
+  {
+    fixture: 'purchase_order',
+    from: 'draft',
+    event: 'cancel',
+    params: { reason: ' ' },
+    code: 'validation_failed',
+    reason: 'transition_reason_missing',
   },
 ];
 
