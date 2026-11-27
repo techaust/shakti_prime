@@ -114,7 +114,7 @@ Closed on its engineering work on 20-11-2026 (the owner's decision): the run on 
 ## 7. Phase 5 — Finance, costing & HR (9–11 weeks)
 **Scope:** proformas and payment milestones; Tally connector with AlterID reads and tombstones; reconciliation and review queue; dealer outstanding sync; stock valuation reconciliation; payment reminders; job costing and project profit; expense approval; attendance, leave, incentives, salary export.
 
-**Plan:** 14 slices in four waves, in [`docs/03-roadmap-appendix/phase5.md`](03-roadmap-appendix/phase5.md) §3, drafted on 27-11-2026 for the owner's approval.
+**Plan:** 14 slices in four waves, in [`docs/03-roadmap-appendix/phase5.md`](03-roadmap-appendix/phase5.md) §3, approved on 27-11-2026 with its eleven questions decided.
 
 **Exit gate:** one full month reconciled with Tally by Accounts for all four companies; connector catch-up test after a simulated 3-day outage.
 

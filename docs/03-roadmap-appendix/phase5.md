@@ -2,7 +2,7 @@
 
 Date: 27-11-2026.
 
-**Status:** drafted for the owner's approval. Its questions are in §2, each with a recommended option. The owner took the recommendations of the push's plan (P5-1 to P5-8) on 27-11-2026, to be confirmed with this document.
+**Status:** approved by the owner on 27-11-2026, with every question of §2 decided as the recommended option.
 
 **How it is built:** slice by slice in the order of §3. Each slice records what it built here in the same pull request. Progress is in [STATUS](../10-status.md).
 
@@ -80,38 +80,40 @@ Date: 27-11-2026.
 - HR-1 to HR-3's rules.
 
 ## 2. Decisions for the owner
-1. **The connector's runtime** (TC1). **Recommended: (a).**
+The owner decided all eleven on 27-11-2026, each the recommended option (a).
+
+1. **The connector's runtime** (TC1). **Decided: (a).**
    - (a) *Recommended:* Node 24 packaged as a single executable, run as a Windows service by WinSW under a least-privilege local account. Its settings and key are encrypted with Windows DPAPI.
    - A CI job on `windows-latest` builds it and runs its tests. That is free while the repository is public, and it is a checks change.
    - (b) A plain Node install with a scheduled task.
-2. **Signed updates** (TC4). **Recommended: (a).**
+2. **Signed updates** (TC4). **Decided: (a).**
    - (a) *Recommended:* each release is built by CI and signed with an Ed25519 key held as a GitHub secret. The connector verifies it against the public key it ships with before swapping, and keeps the last good version to roll back. An Authenticode certificate (about $200–400 a year) can be added later by the owner.
    - (b) Buy the certificate now.
-3. **What the BOS issues** (FN1). **Recommended: (a).**
+3. **What the BOS issues** (FN1). **Decided: (a).**
    - (a) *Recommended:* proformas only. Tax invoices, receipts and credit notes stay in Tally (BLUEPRINT §1).
    - Numbering is `<company code>/PI/<financial year>/<number>`, per company and financial year with no gaps. This is the SALE-1 default shape, replaced by the answer.
-4. **Payments** (TC3, FN3). **Recommended: (a).**
+4. **Payments** (TC3, FN3). **Decided: (a).**
    - (a) *Recommended:* a payment exists only from a Tally receipt voucher. A UPI link or QR in a reminder only invites payment. There is no payment gateway, and the `upi` source of `payments` stays unused.
    - (b) Record UPI payments by hand in the BOS too.
-5. **Auto-linking a voucher** (TC3). **Recommended: (a).**
+5. **Auto-linking a voucher** (TC3). **Decided: (a).**
    - (a) *Recommended:* a voucher links on its own only to a unique match: Buyer Order No. equal to a proforma or order number, else one open order of that customer by GSTIN, else by phone. A receipt also needs an amount at or below the open balance. Anything else waits in the review queue for Accounts (`finance.recon.write`).
-6. **Milestone templates** (FN1). **Recommended: (a).**
+6. **Milestone templates** (FN1). **Decided: (a).**
    - (a) *Recommended:* per company and segment, edited by an Executive and versioned like Phase 4's steps.
    - The named defaults are an advance and a balance, 50 % on confirmation and 50 % before dispatch, matching the order journey recorded on 02-11-2026.
    - A milestone may carry a loan gate read from `app.order_loan_gate()`.
-7. **The attendance selfie** (HR1, F4). **Recommended: (a).**
+7. **The attendance selfie** (HR1, F4). **Decided: (a).**
    - (a) *Recommended:* kept 90 days, never used for face matching (DPDP). Phase 4 decided it.
    - (b) No selfie, geofence only.
-8. **Incentives** (HR3). **Recommended: (a).**
+8. **Incentives** (HR3). **Decided: (a).**
    - (a) *Recommended:* rules as data: slabs per role and metric (R1's targets), and per referral partner. An accrual is made on the event and released only on its confirming event, such as a Tally receipt fully paying the order.
    - The engine ships with no rules until HR-3. The open ₹1 a watt commission question (checklist answers, question 5) becomes the first rule once answered.
-9. **The salary export** (HR4). **Recommended: (a).**
+9. **The salary export** (HR4). **Decided: (a).**
    - (a) *Recommended:* inputs only: days, leave, overtime, released incentives and approved reimbursements, per employee and month. PF, ESI, TDS and pay are the CA's.
    - The export is an `.xlsx` through the existing export path, audited.
-10. **Job costing's revenue** (FN6). **Recommended: (a).**
+10. **Job costing's revenue** (FN6). **Decided: (a).**
     - (a) *Recommended:* the taxable value of the Tally sales vouchers linked to the order or project, without GST. A credit note reduces it.
     - Margin shows only with `finance.cost.read`.
-11. **Dealer outstanding** (TC3). **Recommended: (a).**
+11. **Dealer outstanding** (TC3). **Decided: (a).**
     - (a) *Recommended:* once a company's connector has synced, Tally's ledger balance replaces the manual entry for that company. The manual command is refused there with a reason naming the sync, and stays open for a company without a connector.
 
 ## 3. Slices
