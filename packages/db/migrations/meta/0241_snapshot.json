@@ -1,6 +1,6 @@
 {
-  "id": "eb938cca-5a3e-458b-8dec-ea5e3a420716",
-  "prevId": "d47dd678-7992-4f26-944d-aac7004f519a",
+  "id": "d0cd9326-7058-4e7f-b44c-a4296e440bc3",
+  "prevId": "ba5121e8-98ef-494a-87b7-5f11661baa2e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -18047,6 +18047,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "tally_last_alter_id": {
+          "name": "tally_last_alter_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "problem": {
+          "name": "problem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "reported_at": {
           "name": "reported_at",
           "type": "timestamp with time zone",
@@ -18130,6 +18142,10 @@
       },
       "policies": {},
       "checkConstraints": {
+        "tally_connector_companies_problem_check": {
+          "name": "tally_connector_companies_problem_check",
+          "value": "\"tally_connector_companies\".\"problem\" is null or \"tally_connector_companies\".\"problem\" in ('no_books_from', 'tally_behind_bos', 'waiting_on_bos')"
+        },
         "tally_connector_companies_name_check": {
           "name": "tally_connector_companies_name_check",
           "value": "char_length(\"tally_connector_companies\".\"tally_company\") between 1 and 120 and \"tally_connector_companies\".\"tally_company\" = btrim(\"tally_connector_companies\".\"tally_company\")"
@@ -18153,9 +18169,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "key_hash": {
-          "name": "key_hash",
-          "type": "text",
+        "key_sealed": {
+          "name": "key_sealed",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -18165,9 +18181,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "next_key_hash": {
-          "name": "next_key_hash",
-          "type": "text",
+        "next_key_sealed": {
+          "name": "next_key_sealed",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -18198,6 +18214,24 @@
         "queue_depth": {
           "name": "queue_depth",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "held_rows": {
+          "name": "held_rows",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "held_since": {
+          "name": "held_since",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "held_alerted_at": {
+          "name": "held_alerted_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -18252,23 +18286,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "tally_connectors_key_hash_unique": {
-          "name": "tally_connectors_key_hash_unique",
-          "columns": [
-            {
-              "expression": "key_hash",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "tally_connectors_id_principals_id_fk": {
           "name": "tally_connectors_id_principals_id_fk",
@@ -18331,13 +18349,13 @@
           "name": "tally_connectors_name_check",
           "value": "char_length(\"tally_connectors\".\"name\") between 1 and 80"
         },
-        "tally_connectors_key_hash_check": {
-          "name": "tally_connectors_key_hash_check",
-          "value": "\"tally_connectors\".\"key_hash\" ~ '^[0-9a-f]{64}$'"
-        },
         "tally_connectors_next_key_check": {
           "name": "tally_connectors_next_key_check",
-          "value": "(\"tally_connectors\".\"next_key_hash\" is null) = (\"tally_connectors\".\"next_key_hint\" is null)\n          and (\"tally_connectors\".\"next_key_hash\" is null or \"tally_connectors\".\"next_key_hash\" ~ '^[0-9a-f]{64}$')\n          and \"tally_connectors\".\"next_key_hash\" is distinct from \"tally_connectors\".\"key_hash\""
+          "value": "(\"tally_connectors\".\"next_key_sealed\" is null) = (\"tally_connectors\".\"next_key_hint\" is null)"
+        },
+        "tally_connectors_held_check": {
+          "name": "tally_connectors_held_check",
+          "value": "(\"tally_connectors\".\"held_rows\" is null or \"tally_connectors\".\"held_rows\" >= 0)\n          and (\"tally_connectors\".\"held_since\" is null) = (coalesce(\"tally_connectors\".\"held_rows\", 0) = 0)"
         },
         "tally_connectors_revoked_check": {
           "name": "tally_connectors_revoked_check",
@@ -18781,6 +18799,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "refused_at": {
+          "name": "refused_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -18914,6 +18938,164 @@
       },
       "isRLSEnabled": false
     },
+    "public.tally_refused_rows": {
+      "name": "tally_refused_rows",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tally_company": {
+          "name": "tally_company",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "connector_id": {
+          "name": "connector_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "guid": {
+          "name": "guid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alter_id": {
+          "name": "alter_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field": {
+          "name": "field",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "refused_at": {
+          "name": "refused_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "tally_refused_rows_open_idx": {
+          "name": "tally_refused_rows_open_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "refused_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"tally_refused_rows\".\"resolved_at\" is null",
+          "concurrently": false
+        },
+        "tally_refused_rows_connector_idx": {
+          "name": "tally_refused_rows_connector_idx",
+          "columns": [
+            {
+              "expression": "connector_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "tally_refused_rows_entity_id_entities_id_fk": {
+          "name": "tally_refused_rows_entity_id_entities_id_fk",
+          "tableFrom": "tally_refused_rows",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "tableTo": "entities",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "tally_refused_rows_connector_id_tally_connectors_id_fk": {
+          "name": "tally_refused_rows_connector_id_tally_connectors_id_fk",
+          "tableFrom": "tally_refused_rows",
+          "columnsFrom": [
+            "connector_id"
+          ],
+          "tableTo": "tally_connectors",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tally_refused_rows_guid_unique": {
+          "name": "tally_refused_rows_guid_unique",
+          "columns": [
+            "entity_id",
+            "tally_company",
+            "kind",
+            "guid"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "tally_refused_rows_kind_check": {
+          "name": "tally_refused_rows_kind_check",
+          "value": "\"tally_refused_rows\".\"kind\" in ('voucher', 'ledger')"
+        },
+        "tally_refused_rows_alter_id_check": {
+          "name": "tally_refused_rows_alter_id_check",
+          "value": "\"tally_refused_rows\".\"alter_id\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.tally_snapshots": {
       "name": "tally_snapshots",
       "schema": "",
@@ -18990,6 +19172,33 @@
           "primaryKey": false,
           "notNull": true
         },
+        "parts_of": {
+          "name": "parts_of",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parts": {
+          "name": "parts",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "parts_received": {
+          "name": "parts_received",
+          "type": "smallint[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::smallint[]"
+        },
+        "received_guids": {
+          "name": "received_guids",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
         "held_guids": {
           "name": "held_guids",
           "type": "text[]",
@@ -19025,6 +19234,27 @@
         }
       },
       "indexes": {
+        "tally_snapshots_parts_of_unique": {
+          "name": "tally_snapshots_parts_of_unique",
+          "columns": [
+            {
+              "expression": "connector_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "parts_of",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
         "tally_snapshots_entity_created_idx": {
           "name": "tally_snapshots_entity_created_idx",
           "columns": [
@@ -19140,7 +19370,7 @@
       "checkConstraints": {
         "tally_snapshots_state_check": {
           "name": "tally_snapshots_state_check",
-          "value": "\"tally_snapshots\".\"state\" in ('applied', 'held', 'confirmed', 'superseded')"
+          "value": "\"tally_snapshots\".\"state\" in ('receiving', 'applied', 'held', 'confirmed', 'superseded')"
         },
         "tally_snapshots_counts_check": {
           "name": "tally_snapshots_counts_check",
@@ -19149,6 +19379,14 @@
         "tally_snapshots_confirmed_check": {
           "name": "tally_snapshots_confirmed_check",
           "value": "(\"tally_snapshots\".\"confirmed_at\" is null) = (\"tally_snapshots\".\"confirmed_by\" is null)\n          and (\"tally_snapshots\".\"confirmed_at\" is null) = (\"tally_snapshots\".\"state\" <> 'confirmed')"
+        },
+        "tally_snapshots_receiving_check": {
+          "name": "tally_snapshots_receiving_check",
+          "value": "\"tally_snapshots\".\"state\" = 'receiving' or cardinality(\"tally_snapshots\".\"received_guids\") = 0"
+        },
+        "tally_snapshots_parts_check": {
+          "name": "tally_snapshots_parts_check",
+          "value": "\"tally_snapshots\".\"parts\" between 1 and 20"
         },
         "tally_snapshots_missing_guids_check": {
           "name": "tally_snapshots_missing_guids_check",
@@ -19434,6 +19672,12 @@
         },
         "deleted_at": {
           "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refused_at": {
+          "name": "refused_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false

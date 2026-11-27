@@ -7,11 +7,8 @@ import {
   ConnectorSnapshotRequest,
   ConnectorSnapshotResponse,
   TallyCompanySchema,
-  TallyGuidSchema,
   type TallyVoucherType,
 } from '../../api/connector';
-import { DateOnlySchema } from '../../api/common';
-import { SignedMoneySchema } from '../../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 // TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3, docs/06-api.md §3.5): what a
@@ -41,10 +38,17 @@ export const TALLY_PURCHASE_VOUCHER_TYPES = [
 ] as const satisfies readonly TallyVoucherType[];
 
 /**
- * A daily snapshot: applied at once, held for Accounts when over the limits, confirmed by them,
- * or superseded by a newer snapshot of the company while it waited.
+ * A daily snapshot: receiving while it comes in parts, then applied at once, held for Accounts
+ * when over the limits, confirmed by them, or superseded by a newer snapshot of the company while
+ * it waited.
  */
-export const TALLY_SNAPSHOT_STATES = ['applied', 'held', 'confirmed', 'superseded'] as const;
+export const TALLY_SNAPSHOT_STATES = [
+  'receiving',
+  'applied',
+  'held',
+  'confirmed',
+  'superseded',
+] as const;
 
 /** `tally.batch.ingest`: one batch of a company, its body exactly as the connector signed it. */
 export const TallyBatchIngestInput = z
@@ -59,39 +63,26 @@ export const TallyBatchIngestDto = ConnectorBatchResponse;
 export type TallyBatchIngestDto = z.infer<typeof TallyBatchIngestDto>;
 
 /**
- * A party ledger's closing balance on a date, sent with the daily snapshot: the balance changes
- * when a voucher posts, with no new AlterID, so no batch carries it. TC1 adds the list to the
- * snapshot's contract (`ledgerBalances`); the route takes it from the body until then.
+ * `tally.snapshot.record`: the daily GUID snapshot of a company, with its ledger balances, whole
+ * or one part of it.
  */
-export const TallyLedgerBalance = z
-  .object({
-    guid: TallyGuidSchema,
-    name: z.string().min(1).max(200),
-    closingBalance: SignedMoneySchema,
-    asOf: DateOnlySchema,
-  })
-  .strict();
-export type TallyLedgerBalance = z.infer<typeof TallyLedgerBalance>;
-export const TallyLedgerBalances = z.array(TallyLedgerBalance).max(20_000);
-
-/** `tally.snapshot.record`: the daily GUID snapshot of a company, with its ledger balances. */
 export const TallySnapshotRecordInput = z
   .object({
     entityId: EntityIdSchema,
     snapshot: ConnectorSnapshotRequest,
-    ledgerBalances: TallyLedgerBalances.optional(),
   })
   .strict();
 export type TallySnapshotRecordInput = z.input<typeof TallySnapshotRecordInput>;
 
 /**
- * What the snapshot did: `held` when it would remove more than the limits allow, and waits for
- * Accounts; the connector's answer is the contract's response beside it.
+ * What the snapshot did: `receiving` while parts are still to come, `held` when it would remove
+ * more than the limits allow, and waits for Accounts; the connector's answer is the contract's
+ * response beside it.
  */
 export const TallySnapshotRecordDto = z
   .object({
     snapshotId: IdSchema,
-    state: z.enum(['applied', 'held']),
+    state: z.enum(['receiving', 'applied', 'held']),
     response: ConnectorSnapshotResponse,
   })
   .strict();

@@ -34,11 +34,12 @@ create policy tally_connectors_read on tally_connectors for select to app_user, 
 --> statement-breakpoint
 revoke all on tally_connectors from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
 --> statement-breakpoint
--- The key hashes are never selected by a request role: the routes read them through
--- app.tally_connector_auth().
+-- The sealed keys are never selected by a request role: the routes read the envelopes through
+-- app.tally_connector_auth() and open them with the field cipher.
 grant select (id, name, key_hint, next_key_hint, key_rotated_at, connector_version, tally_version,
-              queue_depth, last_heartbeat_at, silence_alerted_at, revoked_at, revoked_by,
-              created_at, updated_at, created_by, updated_by)
+              queue_depth, held_rows, held_since, held_alerted_at, last_heartbeat_at,
+              silence_alerted_at, revoked_at, revoked_by, created_at, updated_at, created_by,
+              updated_by)
   on tally_connectors to app_user, app_reader;
 --> statement-breakpoint
 
@@ -127,6 +128,20 @@ revoke all on tally_snapshots from public, app_user, app_reader, readonly_report
 grant select on tally_snapshots to app_user, app_reader;
 --> statement-breakpoint
 
+-- Rows the connector could not carry, for Accounts' review queue: read as the mirror is.
+alter table tally_refused_rows enable row level security;
+--> statement-breakpoint
+alter table tally_refused_rows force row level security;
+--> statement-breakpoint
+create policy tally_refused_rows_read on tally_refused_rows for select to app_user, app_reader
+  using ((select app.has_perm('finance.read:entity'))
+         and entity_id = any ((select app.entity_ids())::int[]));
+--> statement-breakpoint
+revoke all on tally_refused_rows from public, app_user, app_reader, readonly_reporter, auth_service, outbox_publisher;
+--> statement-breakpoint
+grant select on tally_refused_rows to app_user, app_reader;
+--> statement-breakpoint
+
 -- Append-only: a tombstone is never removed, and only its reversal time is ever set, once (TC3).
 create or replace function app.tally_voucher_tombstones_guard() returns trigger
   language plpgsql set search_path = '' as $$
@@ -191,12 +206,12 @@ $$;
 revoke execute on function app.tally_require_connector(smallint, text) from public, readonly_reporter;
 --> statement-breakpoint
 
--- 4. A connector's keys and mapped companies, for the routes to verify its signature and build its
---    request. The route asks as the connector named by the request's header, before the signature
+-- 4. A connector's sealed keys and mapped companies, for the routes to open the keys, verify its
+--    signature and build its request. The route asks as the connector named by the request's header, before the signature
 --    is checked, so it answers only the caller's own row and nothing of any other connector; a
 --    revoked or unknown connector has none.
 create or replace function app.tally_connector_auth(p_connector uuid)
-  returns table (key_hash text, next_key_hash text, entity_id smallint, entity_code text,
+  returns table (key_sealed jsonb, next_key_sealed jsonb, entity_id smallint, entity_code text,
                  tally_company text)
   language plpgsql stable security definer set search_path = '' as $$
 #variable_conflict use_column
@@ -207,7 +222,7 @@ begin
     raise exception 'only the connector itself is looked up' using errcode = '42501';
   end if;
   return query
-    select c.key_hash, c.next_key_hash, m.entity_id, e.code, m.tally_company
+    select c.key_sealed, c.next_key_sealed, m.entity_id, e.code, m.tally_company
       from public.tally_connectors c
       left join public.tally_connector_companies m on m.connector_id = c.id
       left join public.entities e on e.id = m.entity_id
@@ -366,7 +381,7 @@ begin
          state = excluded.state,
          state_changed_at = case when v.state = excluded.state then v.state_changed_at
                                  else excluded.state_changed_at end,
-         updated_at = excluded.updated_at,
+         updated_at = excluded.updated_at, refused_at = null,
          deleted_at = case when excluded.state in ('tombstoned', 'reversed')
                            then coalesce(v.deleted_at, excluded.updated_at) end
    where v.alter_id < excluded.alter_id;
@@ -395,11 +410,17 @@ begin
          state = excluded.state,
          state_changed_at = case when v.state = excluded.state then v.state_changed_at
                                  else excluded.state_changed_at end,
-         updated_at = excluded.updated_at,
+         updated_at = excluded.updated_at, refused_at = null,
          deleted_at = case when excluded.state in ('tombstoned', 'reversed')
                            then coalesce(v.deleted_at, excluded.updated_at) end
    where v.alter_id < excluded.alter_id;
   get diagnostics v_n = row_count;
+  -- A later version than one the connector refused is current again.
+  update public.tally_refused_rows f
+     set resolved_at = v_now
+    from jsonb_to_recordset(p_rows) as r(guid text, alter_id bigint)
+   where f.entity_id = p_entity and f.tally_company = p_company and f.kind = 'voucher'
+     and f.guid = r.guid and f.alter_id < r.alter_id and f.resolved_at is null;
   return v_count + v_n;
 end
 $$;
@@ -443,6 +464,11 @@ begin
          as_of = excluded.as_of, updated_at = excluded.updated_at
    where l.alter_id < excluded.alter_id;
   get diagnostics v_n = row_count;
+  update public.tally_refused_rows f
+     set resolved_at = v_now
+    from jsonb_to_recordset(p_rows) as r(guid text, alter_id bigint)
+   where f.entity_id = p_entity and f.tally_company = p_company and f.kind = 'ledger'
+     and f.guid = r.guid and f.alter_id < r.alter_id and f.resolved_at is null;
   return v_n;
 end
 $$;
@@ -450,6 +476,47 @@ $$;
 revoke execute on function app.tally_ledgers_write(smallint, text, jsonb) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.tally_ledgers_write(smallint, text, jsonb) to app_user;
+--> statement-breakpoint
+
+-- 8b. Rows of a batch's range the connector could not carry (the contract refused a field): each
+--     kept once per GUID, the latest refusal, for Accounts' review queue as "refused by the
+--     connector"; a stored voucher older than the refused version is no longer current
+--     (`refused_at`) until a later version arrives.
+create or replace function app.tally_refused_write(p_entity smallint, p_company text, p_rows jsonb)
+  returns integer
+  language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_now timestamptz := pg_catalog.now();
+  v_n integer;
+begin
+  perform app.tally_require_connector(p_entity, p_company);
+  if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) > 2500 then
+    raise exception 'the rows are not a batch' using errcode = '23514';
+  end if;
+  insert into public.tally_refused_rows as f
+    (id, entity_id, tally_company, connector_id, kind, guid, alter_id, field, refused_at)
+  select r.id, p_entity, p_company, app.user_id(), r.kind, r.guid, r.alter_id, r.field, v_now
+    from jsonb_to_recordset(p_rows) as r(id uuid, kind text, guid text, alter_id bigint, field text)
+  on conflict (entity_id, tally_company, kind, guid) do update
+     set alter_id = excluded.alter_id, field = excluded.field, connector_id = excluded.connector_id,
+         refused_at = excluded.refused_at, resolved_at = null
+   where f.alter_id < excluded.alter_id or f.resolved_at is not null;
+  get diagnostics v_n = row_count;
+  update public.tally_vouchers v set refused_at = v_now, updated_at = v_now
+    from jsonb_to_recordset(p_rows) as r(kind text, guid text, alter_id bigint)
+   where r.kind = 'voucher' and v.guid = r.guid and v.entity_id = p_entity
+     and v.tally_company = p_company and v.alter_id < r.alter_id;
+  update public.tally_purchase_vouchers v set refused_at = v_now, updated_at = v_now
+    from jsonb_to_recordset(p_rows) as r(kind text, guid text, alter_id bigint)
+   where r.kind = 'voucher' and v.guid = r.guid and v.entity_id = p_entity
+     and v.tally_company = p_company and v.alter_id < r.alter_id;
+  return v_n;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.tally_refused_write(smallint, text, jsonb) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.tally_refused_write(smallint, text, jsonb) to app_user;
 --> statement-breakpoint
 
 -- 8a. Party ledger balances sent with the daily snapshot: a ledger's closing balance changes when a
@@ -497,7 +564,19 @@ begin
     raise exception 'a snapshot starts applied or held' using errcode = '23514';
   end if;
   update public.tally_snapshots s set state = 'superseded', held_guids = '{}'
-   where s.entity_id = p_entity and s.tally_company = p_company and s.state = 'held';
+   where s.entity_id = p_entity and s.tally_company = p_company and s.state = 'held'
+     and s.id <> p_id;
+  -- A snapshot sent in parts already has its row, receiving: it is completed in place.
+  update public.tally_snapshots s
+     set guid_count = p_guid_count, live = p_live, tombstoned = p_tombstoned,
+         missing = p_missing, reappeared = p_reappeared, state = p_state,
+         held_guids = coalesce(p_held_guids, '{}'), missing_guids = coalesce(p_missing_guids, '{}'),
+         received_guids = '{}'
+   where s.id = p_id and s.state = 'receiving' and s.connector_id = app.user_id()
+     and s.entity_id = p_entity and s.tally_company = p_company;
+  if found then
+    return;
+  end if;
   insert into public.tally_snapshots
     (id, entity_id, tally_company, connector_id, as_of, from_date, guid_count, live, tombstoned,
      missing, reappeared, state, held_guids, missing_guids)
@@ -510,6 +589,63 @@ $$;
 revoke execute on function app.tally_snapshot_write(uuid, smallint, text, timestamptz, date, integer, integer, integer, integer, integer, text, text[], text[]) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.tally_snapshot_write(uuid, smallint, text, timestamptz, date, integer, integer, integer, integer, integer, text, text[], text[]) to app_user;
+--> statement-breakpoint
+
+-- 9a. One part of a snapshot sent in parts (each call under a function's 4.5 MB): the parts are
+--     kept on the snapshot's row, receiving, until the last arrives; a part sent again is taken
+--     once. Answers the snapshot's row id, whether every part is in, and then every GUID. A
+--     company's snapshot still receiving a day after it began is dropped first.
+create or replace function app.tally_snapshot_part(
+  p_new_id uuid, p_entity smallint, p_company text, p_as_of timestamptz, p_from_date date,
+  p_parts_of uuid, p_part smallint, p_parts smallint, p_guids text[])
+  returns table (snapshot_id uuid, complete boolean, guids text[])
+  language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_snap public.tally_snapshots;
+begin
+  perform app.tally_require_connector(p_entity, p_company);
+  if p_part < 1 or p_part > p_parts or p_parts > 20 then
+    raise exception 'a part beyond the snapshot' using errcode = '23514';
+  end if;
+  delete from public.tally_snapshots s
+   where s.entity_id = p_entity and s.tally_company = p_company and s.state = 'receiving'
+     and s.created_at < pg_catalog.now() - interval '1 day';
+  insert into public.tally_snapshots
+    (id, entity_id, tally_company, connector_id, as_of, from_date, guid_count, live, tombstoned,
+     missing, reappeared, state, parts_of, parts)
+  values (p_new_id, p_entity, p_company, app.user_id(), p_as_of, p_from_date, 0, 0, 0, 0, 0,
+          'receiving', p_parts_of, p_parts)
+  on conflict (connector_id, parts_of) do nothing;
+  select * into v_snap from public.tally_snapshots s
+   where s.connector_id = app.user_id() and s.parts_of = p_parts_of
+     for update;
+  if v_snap.entity_id <> p_entity or v_snap.tally_company <> p_company or v_snap.parts <> p_parts
+     or v_snap.as_of <> p_as_of or v_snap.from_date <> p_from_date then
+    raise exception 'a part of another snapshot'
+      using errcode = '23514', constraint = 'tally_snapshots_parts_check';
+  end if;
+  if v_snap.state <> 'receiving' then
+    -- Every part was in already: the snapshot was compared once.
+    return query select v_snap.id, false, '{}'::text[];
+    return;
+  end if;
+  if not (p_part = any (v_snap.parts_received)) then
+    update public.tally_snapshots s
+       set parts_received = s.parts_received || p_part,
+           received_guids = s.received_guids || coalesce(p_guids, '{}')
+     where s.id = v_snap.id
+    returning * into v_snap;
+  end if;
+  return query
+    select v_snap.id, cardinality(v_snap.parts_received) = v_snap.parts,
+           case when cardinality(v_snap.parts_received) = v_snap.parts
+                then v_snap.received_guids else '{}'::text[] end;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.tally_snapshot_part(uuid, smallint, text, timestamptz, date, uuid, smallint, smallint, text[]) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.tally_snapshot_part(uuid, smallint, text, timestamptz, date, uuid, smallint, smallint, text[]) to app_user;
 --> statement-breakpoint
 
 -- 10. A held snapshot, for the person confirming it: its company and the GUIDs it would remove.
@@ -605,11 +741,15 @@ revoke execute on function app.tally_tombstone(uuid, text[], uuid[]) from public
 grant execute on function app.tally_tombstone(uuid, text[], uuid[]) to app_user;
 --> statement-breakpoint
 
--- 12. The heartbeat: the connector's version, Tally's, its outbox depth and, for each company it
---     names that is mapped to it, whether Tally answered and its last AlterID. A name not mapped
---     is left out. Answers how many mapped companies it named.
+-- 12. The heartbeat: the connector's version, Tally's, its outbox depth and the rows it set aside
+--     (`held_since` marks the start of a stretch with any, for one alert per stretch), and for each
+--     company it names that is mapped to it, whether Tally answered, the cursor it last heard,
+--     Tally's own last AlterID and why it is not reading the company. A name not mapped is left
+--     out; a field an older connector does not send stays as it was. Answers how many mapped
+--     companies it named.
 create or replace function app.tally_heartbeat_write(p_version text, p_tally_version text,
-                                                     p_queue_depth integer, p_companies jsonb)
+                                                     p_queue_depth integer, p_held_rows integer,
+                                                     p_companies jsonb)
   returns integer
   language plpgsql volatile security definer set search_path = '' as $$
 declare
@@ -622,26 +762,84 @@ begin
   end if;
   update public.tally_connectors c
      set connector_version = p_version, tally_version = p_tally_version,
-         queue_depth = p_queue_depth, last_heartbeat_at = v_now, updated_by = app.user_id()
+         queue_depth = p_queue_depth, last_heartbeat_at = v_now, updated_by = app.user_id(),
+         held_rows = coalesce(p_held_rows, c.held_rows),
+         held_since = case when coalesce(p_held_rows, c.held_rows, 0) = 0 then null
+                           else coalesce(c.held_since, v_now) end
    where c.id = app.user_id();
   update public.tally_connector_companies m
-     set reachable = r.reachable, reported_alter_id = r.last_alter_id, reported_at = v_now
-    from jsonb_to_recordset(p_companies) as r(name text, last_alter_id bigint, reachable boolean)
+     set reachable = r.reachable, reported_alter_id = r.last_alter_id, reported_at = v_now,
+         tally_last_alter_id = coalesce(r.tally_last_alter_id, m.tally_last_alter_id),
+         problem = r.problem
+    from jsonb_to_recordset(p_companies)
+           as r(name text, last_alter_id bigint, reachable boolean, tally_last_alter_id bigint,
+                problem text)
    where m.connector_id = app.user_id() and m.tally_company = r.name;
   get diagnostics v_n = row_count;
   return v_n;
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.tally_heartbeat_write(text, text, integer, jsonb) from public, readonly_reporter;
+revoke execute on function app.tally_heartbeat_write(text, text, integer, integer, jsonb) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.tally_heartbeat_write(text, text, integer, jsonb) to app_user;
+grant execute on function app.tally_heartbeat_write(text, text, integer, integer, jsonb) to app_user;
+--> statement-breakpoint
+
+-- 12a. The hourly jobs check (`system:workers`, platform.jobs.check:all): every live connector's
+--      last heartbeat and held rows with when each alert last went out, for the silence and
+--      held-rows alerts; and the record that an alert went out. Nothing of any company.
+create or replace function app.tally_connector_alerts()
+  returns table (connector_id uuid, last_heartbeat_at timestamptz, silence_alerted_at timestamptz,
+                 held_rows integer, held_since timestamptz, held_alerted_at timestamptz,
+                 created_at timestamptz)
+  language plpgsql stable security definer set search_path = '' as $$
+#variable_conflict use_column
+begin
+  if app.user_id() is null or not app.has_perm('platform.jobs.check:all') then
+    raise exception 'platform.jobs.check is required' using errcode = '42501';
+  end if;
+  return query
+    select c.id, c.last_heartbeat_at, c.silence_alerted_at, c.held_rows, c.held_since,
+           c.held_alerted_at, c.created_at
+      from public.tally_connectors c
+     where c.revoked_at is null
+     order by c.id;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.tally_connector_alerts() from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.tally_connector_alerts() to app_user, app_reader;
+--> statement-breakpoint
+create or replace function app.tally_connector_alerted(p_connector uuid, p_kind text)
+  returns boolean
+  language plpgsql volatile security definer set search_path = '' as $$
+begin
+  if app.user_id() is null or not app.has_perm('platform.jobs.check:all') then
+    raise exception 'platform.jobs.check is required' using errcode = '42501';
+  end if;
+  if p_kind = 'silent' then
+    update public.tally_connectors c set silence_alerted_at = pg_catalog.now()
+     where c.id = p_connector and c.revoked_at is null;
+  elsif p_kind = 'rows_held' then
+    update public.tally_connectors c set held_alerted_at = pg_catalog.now()
+     where c.id = p_connector and c.revoked_at is null;
+  else
+    raise exception 'no such alert' using errcode = '23514';
+  end if;
+  return found;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.tally_connector_alerted(uuid, text) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.tally_connector_alerted(uuid, text) to app_user;
 --> statement-breakpoint
 
 -- 13. Admin › Integrations › Tally (admin.integrations.write, an Executive in person): register a
 --     connector as a principal of its own, map and unmap companies of the request, rotate a key
 --     (both valid until the old one is retired) and revoke the connector, which frees its
---     companies. Only a key's SHA-256 is ever written.
+--     companies. A key is written only sealed by the field cipher.
 create or replace function app.tally_require_admin() returns void
   language plpgsql stable security definer set search_path = '' as $$
 begin
@@ -653,7 +851,7 @@ $$;
 --> statement-breakpoint
 revoke execute on function app.tally_require_admin() from public, readonly_reporter;
 --> statement-breakpoint
-create or replace function app.tally_connector_register(p_id uuid, p_name text, p_key_hash text,
+create or replace function app.tally_connector_register(p_id uuid, p_name text, p_key_sealed jsonb,
                                                         p_key_hint text)
   returns void
   language plpgsql volatile security definer set search_path = '' as $$
@@ -661,14 +859,14 @@ begin
   perform app.tally_require_admin();
   insert into public.principals (id, kind, display_name, created_by, updated_by)
     values (p_id, 'system', p_name, app.user_id(), app.user_id());
-  insert into public.tally_connectors (id, name, key_hash, key_hint, created_by, updated_by)
-    values (p_id, p_name, p_key_hash, p_key_hint, app.user_id(), app.user_id());
+  insert into public.tally_connectors (id, name, key_sealed, key_hint, created_by, updated_by)
+    values (p_id, p_name, p_key_sealed, p_key_hint, app.user_id(), app.user_id());
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.tally_connector_register(uuid, text, text, text) from public, readonly_reporter;
+revoke execute on function app.tally_connector_register(uuid, text, jsonb, text) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.tally_connector_register(uuid, text, text, text) to app_user;
+grant execute on function app.tally_connector_register(uuid, text, jsonb, text) to app_user;
 --> statement-breakpoint
 create or replace function app.tally_connector_map(p_connector uuid, p_company text, p_entity smallint)
   returns void
@@ -713,14 +911,14 @@ revoke execute on function app.tally_connector_unmap(uuid, smallint) from public
 --> statement-breakpoint
 grant execute on function app.tally_connector_unmap(uuid, smallint) to app_user;
 --> statement-breakpoint
-create or replace function app.tally_connector_rotate(p_connector uuid, p_next_hash text,
+create or replace function app.tally_connector_rotate(p_connector uuid, p_next_sealed jsonb,
                                                       p_next_hint text)
   returns void
   language plpgsql volatile security definer set search_path = '' as $$
 begin
   perform app.tally_require_admin();
   update public.tally_connectors c
-     set next_key_hash = p_next_hash, next_key_hint = p_next_hint, updated_by = app.user_id()
+     set next_key_sealed = p_next_sealed, next_key_hint = p_next_hint, updated_by = app.user_id()
    where c.id = p_connector and c.revoked_at is null;
   if not found then
     raise exception 'the connector is revoked'
@@ -729,18 +927,18 @@ begin
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.tally_connector_rotate(uuid, text, text) from public, readonly_reporter;
+revoke execute on function app.tally_connector_rotate(uuid, jsonb, text) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.tally_connector_rotate(uuid, text, text) to app_user;
+grant execute on function app.tally_connector_rotate(uuid, jsonb, text) to app_user;
 --> statement-breakpoint
 create or replace function app.tally_connector_retire_key(p_connector uuid) returns void
   language plpgsql volatile security definer set search_path = '' as $$
 begin
   perform app.tally_require_admin();
   update public.tally_connectors c
-     set key_hash = c.next_key_hash, key_hint = c.next_key_hint, next_key_hash = null,
+     set key_sealed = c.next_key_sealed, key_hint = c.next_key_hint, next_key_sealed = null,
          next_key_hint = null, key_rotated_at = pg_catalog.now(), updated_by = app.user_id()
-   where c.id = p_connector and c.revoked_at is null and c.next_key_hash is not null;
+   where c.id = p_connector and c.revoked_at is null and c.next_key_sealed is not null;
   if not found then
     raise exception 'no new key waits'
       using errcode = '40001', constraint = 'tally_connector_no_next_key';
@@ -757,7 +955,7 @@ create or replace function app.tally_connector_revoke(p_connector uuid) returns 
 begin
   perform app.tally_require_admin();
   update public.tally_connectors c
-     set revoked_at = pg_catalog.now(), revoked_by = app.user_id(), next_key_hash = null,
+     set revoked_at = pg_catalog.now(), revoked_by = app.user_id(), next_key_sealed = null,
          next_key_hint = null, updated_by = app.user_id()
    where c.id = p_connector and c.revoked_at is null;
   if not found then

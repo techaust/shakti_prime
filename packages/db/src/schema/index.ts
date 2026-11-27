@@ -89,4 +89,5 @@ export {
   tallyLedgers,
   tallySnapshots,
   tallyVoucherTombstones,
+  tallyRefusedRows,
 } from './tally';

@@ -34,9 +34,11 @@ const VOUCHER_STATES = sql`('received', 'linked', 'unlinked', 'tombstoned', 'rev
 
 /**
  * A connector: a principal of its own (`connector:tally:<id>`, role `system:tally_connector`) with
- * two key hashes during a rotation. Only the SHA-256 of a key is kept, and no request role selects
- * it: the routes read it through `app.tally_connector_auth()`. Registered, rotated and revoked by
- * an Executive (`admin.integrations.write`); its heartbeat columns are the connector's.
+ * its key, and during a rotation the next one, sealed by the field cipher (KMS on a hosted
+ * environment, as a company's bank account is). No request role selects a sealed key: the routes
+ * read the envelopes through `app.tally_connector_auth()` and open them to check a signature.
+ * Registered, rotated and revoked by an Executive (`admin.integrations.write`); its heartbeat
+ * columns are the connector's.
  */
 export const tallyConnectors = pgTable(
   'tally_connectors',
@@ -45,15 +47,20 @@ export const tallyConnectors = pgTable(
       .primaryKey()
       .references(() => principals.id),
     name: text('name').notNull(),
-    keyHash: text('key_hash').notNull(),
+    keySealed: jsonb('key_sealed').notNull(),
     /** The last four characters of the key, to tell keys apart on screen. */
     keyHint: text('key_hint').notNull(),
-    nextKeyHash: text('next_key_hash'),
+    nextKeySealed: jsonb('next_key_sealed'),
     nextKeyHint: text('next_key_hint'),
     keyRotatedAt: timestamp('key_rotated_at', { withTimezone: true }),
     connectorVersion: text('connector_version'),
     tallyVersion: text('tally_version'),
     queueDepth: integer('queue_depth'),
+    /** Outbox rows the connector set aside in the last 7 days, and since when it has held any. */
+    heldRows: integer('held_rows'),
+    heldSince: timestamp('held_since', { withTimezone: true }),
+    /** When the held-rows alert last went out; one per stretch of held rows. */
+    heldAlertedAt: timestamp('held_alerted_at', { withTimezone: true }),
     lastHeartbeatAt: timestamp('last_heartbeat_at', { withTimezone: true }),
     /** When the silence alert last went out; one per silence (`shouldAlertSilence`). */
     silenceAlertedAt: timestamp('silence_alerted_at', { withTimezone: true }),
@@ -68,12 +75,14 @@ export const tallyConnectors = pgTable(
   },
   (t) => [
     check('tally_connectors_name_check', sql`char_length(${t.name}) between 1 and 80`),
-    check('tally_connectors_key_hash_check', sql`${t.keyHash} ~ '^[0-9a-f]{64}$'`),
     check(
       'tally_connectors_next_key_check',
-      sql`(${t.nextKeyHash} is null) = (${t.nextKeyHint} is null)
-          and (${t.nextKeyHash} is null or ${t.nextKeyHash} ~ '^[0-9a-f]{64}$')
-          and ${t.nextKeyHash} is distinct from ${t.keyHash}`,
+      sql`(${t.nextKeySealed} is null) = (${t.nextKeyHint} is null)`,
+    ),
+    check(
+      'tally_connectors_held_check',
+      sql`(${t.heldRows} is null or ${t.heldRows} >= 0)
+          and (${t.heldSince} is null) = (coalesce(${t.heldRows}, 0) = 0)`,
     ),
     check(
       'tally_connectors_revoked_check',
@@ -83,7 +92,6 @@ export const tallyConnectors = pgTable(
       'tally_connectors_queue_depth_check',
       sql`${t.queueDepth} is null or ${t.queueDepth} >= 0`,
     ),
-    uniqueIndex('tally_connectors_key_hash_unique').on(t.keyHash),
   ],
 );
 
@@ -104,6 +112,10 @@ export const tallyConnectorCompanies = pgTable(
       .references(() => entities.id),
     reachable: boolean('reachable'),
     reportedAlterId: bigint('reported_alter_id', { mode: 'number' }),
+    /** Tally's own last AlterID for the company, from the heartbeat: the lag is this less the cursor. */
+    tallyLastAlterId: bigint('tally_last_alter_id', { mode: 'number' }),
+    /** Why the connector is not reading the company, from the heartbeat. */
+    problem: text('problem'),
     reportedAt: timestamp('reported_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     createdBy: uuid('created_by')
@@ -115,6 +127,10 @@ export const tallyConnectorCompanies = pgTable(
     // A Tally company (Tally often starts one per financial year) is read by one connector only,
     // so two cannot move the same cursor; a group company may have several.
     unique('tally_connector_companies_entity_unique').on(t.entityId, t.tallyCompany),
+    check(
+      'tally_connector_companies_problem_check',
+      sql`${t.problem} is null or ${t.problem} in ('no_books_from', 'tally_behind_bos', 'waiting_on_bos')`,
+    ),
     check(
       'tally_connector_companies_name_check',
       sql`char_length(${t.tallyCompany}) between 1 and 120 and ${t.tallyCompany} = btrim(${t.tallyCompany})`,
@@ -179,6 +195,11 @@ function voucherColumns() {
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
     /** Set with the tombstone: gone from Tally's daily snapshot. */
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    /**
+     * Set when the connector refused a later version of the voucher (`tally_refused_rows`): this
+     * reading is no longer current and stays out of matching until a later version arrives.
+     */
+    refusedAt: timestamp('refused_at', { withTimezone: true }),
   };
 }
 
@@ -268,6 +289,20 @@ export const tallySnapshots = pgTable(
     missing: integer('missing').notNull(),
     reappeared: integer('reappeared').notNull(),
     state: text('state').notNull(),
+    /**
+     * A snapshot sent in parts: the connector's id for it, how many parts it has, those received
+     * so far and their GUIDs, kept until the last part arrives (`receiving`) and emptied then.
+     */
+    partsOf: uuid('parts_of'),
+    parts: smallint('parts').notNull().default(1),
+    partsReceived: smallint('parts_received')
+      .array()
+      .notNull()
+      .default(sql`'{}'::smallint[]`),
+    receivedGuids: text('received_guids')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     /** A held snapshot's GUIDs that would become tombstones; emptied once decided. */
     heldGuids: text('held_guids')
       .array()
@@ -289,7 +324,7 @@ export const tallySnapshots = pgTable(
   (t) => [
     check(
       'tally_snapshots_state_check',
-      sql`${t.state} in ('applied', 'held', 'confirmed', 'superseded')`,
+      sql`${t.state} in ('receiving', 'applied', 'held', 'confirmed', 'superseded')`,
     ),
     check(
       'tally_snapshots_counts_check',
@@ -301,6 +336,12 @@ export const tallySnapshots = pgTable(
       sql`(${t.confirmedAt} is null) = (${t.confirmedBy} is null)
           and (${t.confirmedAt} is null) = (${t.state} <> 'confirmed')`,
     ),
+    check(
+      'tally_snapshots_receiving_check',
+      sql`${t.state} = 'receiving' or cardinality(${t.receivedGuids}) = 0`,
+    ),
+    check('tally_snapshots_parts_check', sql`${t.parts} between 1 and 20`),
+    uniqueIndex('tally_snapshots_parts_of_unique').on(t.connectorId, t.partsOf),
     check('tally_snapshots_missing_guids_check', sql`cardinality(${t.missingGuids}) <= 1000`),
     check(
       'tally_snapshots_held_check',
@@ -346,5 +387,39 @@ export const tallyVoucherTombstones = pgTable(
     index('tally_voucher_tombstones_entity_detected_idx').on(t.entityId, t.detectedAt.desc()),
     index('tally_voucher_tombstones_guid_idx').on(t.voucherGuid),
     index('tally_voucher_tombstones_snapshot_idx').on(t.snapshotId),
+  ],
+);
+
+/**
+ * A voucher or ledger the connector read but the contract could not carry (a batch's `refused`),
+ * by GUID and the first field refused, for Accounts' review queue as "refused by the connector".
+ * One row per GUID, the latest refusal; resolved when a later version of the GUID arrives.
+ */
+export const tallyRefusedRows = pgTable(
+  'tally_refused_rows',
+  {
+    id: uuid('id').primaryKey(),
+    entityId: smallint('entity_id')
+      .notNull()
+      .references(() => entities.id),
+    tallyCompany: text('tally_company').notNull(),
+    connectorId: uuid('connector_id')
+      .notNull()
+      .references(() => tallyConnectors.id),
+    kind: text('kind').notNull(),
+    guid: text('guid').notNull(),
+    alterId: bigint('alter_id', { mode: 'number' }).notNull(),
+    field: text('field').notNull(),
+    refusedAt: timestamp('refused_at', { withTimezone: true }).notNull(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (t) => [
+    unique('tally_refused_rows_guid_unique').on(t.entityId, t.tallyCompany, t.kind, t.guid),
+    check('tally_refused_rows_kind_check', sql`${t.kind} in ('voucher', 'ledger')`),
+    check('tally_refused_rows_alter_id_check', sql`${t.alterId} >= 0`),
+    index('tally_refused_rows_open_idx')
+      .on(t.entityId, t.refusedAt.desc())
+      .where(sql`${t.resolvedAt} is null`),
+    index('tally_refused_rows_connector_idx').on(t.connectorId),
   ],
 );
