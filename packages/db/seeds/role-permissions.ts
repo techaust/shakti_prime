@@ -187,6 +187,15 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     accounts: 'entity',
   },
   'documents.sensitive.read': { ...EXEC, project_manager: 'entity', accounts: 'entity' },
+  // TC2 (FN1 adds the same row; the lead merges the two): the design's finance.read
+  // (docs/03-roadmap-appendix/phase5.md §4).
+  'finance.read': {
+    ...EXEC,
+    general_manager: 'entity',
+    sales_team_lead: 'team',
+    tele_caller_lc: 'own',
+    accounts: 'entity',
+  },
   'finance.proforma.write': { ...EXEC, accounts: 'entity' },
   'finance.payment.write': { ...EXEC, accounts: 'entity' },
   'finance.recon.write': { ...EXEC, accounts: 'entity' },
@@ -346,6 +355,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // W2: the platform's removal of WhatsApp files past the retention period; no person's role holds
   // it (SECURITY §3.3).
   'messaging.media.expire': {},
+  // TC2: a Tally connector's own calls; no person's role holds it (SECURITY §3.3).
+  'tally.connector.sync': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

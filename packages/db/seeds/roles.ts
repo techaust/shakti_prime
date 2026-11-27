@@ -92,6 +92,12 @@ export const ROLE_SEED: readonly { id: string; key: RoleKey; name: string }[] = 
     key: 'system:workers',
     name: 'Event workers',
   },
+  // TC2: the role every Tally connector's principal acts in.
+  {
+    id: '01990000-0000-7000-8000-000000000490',
+    key: 'system:tally_connector',
+    name: 'Tally connectors',
+  },
 ];
 
 export function roleId(key: RoleKey): string {

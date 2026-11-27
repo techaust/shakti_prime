@@ -29,7 +29,12 @@ export const AGENT_ROLE_KEYS = [
  * The system principal the event workers act as (docs/07-security.md §3.3): fixed grants, only what
  * its jobs need, never a cost, admin, audit, integrations or sensitive-document permission.
  */
-export const SYSTEM_ROLE_KEYS = ['system:workers'] as const;
+export const SYSTEM_ROLE_KEYS = [
+  'system:workers',
+  // TC2: every Tally connector's principal (`connector:tally:<id>`, its own `principals` row) acts
+  // in this role, holding nothing but its routes (docs/03-roadmap-appendix/phase5.md §4).
+  'system:tally_connector',
+] as const;
 
 export const ROLE_KEYS = [...STAFF_ROLE_KEYS, ...AGENT_ROLE_KEYS, ...SYSTEM_ROLE_KEYS] as const;
 

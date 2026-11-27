@@ -83,4 +83,8 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // stored keys still belong to a file through definers, and reads no message by a person's rule.
     { key: 'messaging.media.expire', scope: 'all' },
   ],
+  // TC2: a Tally connector reads its cursor and writes its vouchers, ledgers, snapshots and
+  // heartbeats through definers, for the companies mapped to it only (the principal's companies);
+  // it reads no table.
+  'system:tally_connector': [{ key: 'tally.connector.sync', scope: 'entity' }],
 };

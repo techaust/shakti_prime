@@ -45,6 +45,9 @@ export const PERMISSION_KEYS = [
   'documents.read',
   'documents.write',
   'documents.sensitive.read',
+  // TC2 (FN1 adds the same key; the lead merges the two): proformas, milestones, payments and the
+  // Tally mirror of a company, never a cost (docs/03-roadmap-appendix/phase5.md §4).
+  'finance.read',
   'finance.proforma.write',
   'finance.payment.write',
   'finance.recon.write',
@@ -157,6 +160,10 @@ export const PERMISSION_KEYS = [
   // removed and asks which stored keys still belong to a file through narrow definers, nothing
   // more.
   'messaging.media.expire',
+  // TC2: a Tally connector's own calls (docs/03-roadmap-appendix/phase5.md §6.3): held only by a
+  // connector's principal, which reads its cursor and writes its vouchers, ledgers, snapshots and
+  // heartbeats through narrow definers, for the companies mapped to it, and reads no table.
+  'tally.connector.sync',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -243,6 +250,8 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'voice.session.record',
   // W2 media retention.
   'messaging.media.expire',
+  // TC2 Tally connector.
+  'tally.connector.sync',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -356,6 +365,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'documents.read': ['own', 'entity', 'all'],
   'documents.write': ['own', 'entity', 'all'],
   'documents.sensitive.read': ['entity', 'all'],
+  // TC2 (and FN1).
+  'finance.read': ['own', 'team', 'entity', 'all'],
   'finance.proforma.write': ['entity', 'all'],
   'finance.payment.write': ['entity', 'all'],
   'finance.recon.write': ['entity', 'all'],
@@ -413,6 +424,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'voice.session.record': ['all'],
   // W2 media retention.
   'messaging.media.expire': ['all'],
+  // TC2: a connector acts for the companies mapped to it, never for every company.
+  'tally.connector.sync': ['entity'],
 };
 
 export function permissionModule(key: PermissionKey): string {

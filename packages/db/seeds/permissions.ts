@@ -42,6 +42,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'documents.read': 'See documents',
   'documents.write': 'Add documents',
   'documents.sensitive.read': 'See identity documents',
+  // TC2 (and FN1).
+  'finance.read': 'See proformas, payments and the Tally records',
   'finance.proforma.write': 'Create proformas',
   'finance.payment.write': 'Record payments',
   'finance.recon.write': 'Reconcile with Tally',
@@ -98,6 +100,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'voice.session.record': 'Record how long a Talk to Shakti session lasted and what it cost',
   // W2 media retention.
   'messaging.media.expire': 'Remove WhatsApp photos and files after the time they are kept',
+  // TC2 Tally connector.
+  'tally.connector.sync': 'Send records from Tally',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

@@ -79,3 +79,14 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §5, §6.3).
+export {
+  tallyConnectors,
+  tallyConnectorCompanies,
+  tallyCursors,
+  tallyVouchers,
+  tallyPurchaseVouchers,
+  tallyLedgers,
+  tallySnapshots,
+  tallyVoucherTombstones,
+} from './tally';

@@ -5,7 +5,7 @@
 | Branch | `feat/tc2-tally-ingest` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an authenticated machine path, supplier rates, financial data, row security |
-| Usage | briefed 27-11-2026 |
+| Usage | briefed 27-11-2026; builder Opus 5.5 at high, started 27-11-2026 |
 | State | briefed |
 | Next step | the builder |
 
