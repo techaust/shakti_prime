@@ -21,7 +21,7 @@ import {
   type ProjectState,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, count, desc, eq, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import {
@@ -107,7 +107,10 @@ const ROW_COLUMNS = {
   flow: schema.projects.flow,
   state: schema.projects.state,
   updatedAt: schema.projects.updatedAt,
-  ownerName: schema.principals.displayName,
+  // A scalar read per listed row, not a join the planner may loop over the scanned rows.
+  ownerName: sql<
+    string | null
+  >`(select o.display_name from ${schema.principals} o where o.id = ${schema.projects.ownerId})`,
   step: sql<{ key: string; title: string | null } | null>`${currentStep(schema.projects.id)}`,
 };
 
@@ -152,16 +155,20 @@ async function toRows(ctx: ProjectReadContext, rows: readonly ListedRow[]) {
  * `/projects` (docs/03-roadmap-appendix/phase4.md §6.1): one company's projects the caller reads,
  * newest change first, by state, owner, segment and current step, a keyset page at a time on
  * `projects_entity_state_updated_idx`. A caller reading at `own` scope only (a Field Engineer, a
- * Lead Converter) is led by their own projects: those they own (`projects_owner_idx`) and those
- * they are on (`project_assignments_person_idx`), so the `own` predicate runs for those rows only,
- * not for every project of the company.
+ * Lead Converter) is led by their own projects, found first (`ownProjectIds()`) and named by id in
+ * the list's query: an index condition runs ahead of the row policy, whose `own` predicate
+ * (`app.project_is_mine()`, once per row) then runs for those rows only, not for every project of
+ * the company (tests/spike/projects-explain.ts).
  */
 export async function listProjects(
   ctx: ProjectReadContext,
   rawInput: unknown,
 ): Promise<ProjectPageDto> {
   const input = parseQueryInput(ListProjectsInput, rawInput, 'projects.project.list');
-  const rows = (await projectListQuery(ctx, input)) as ListedRow[];
+  const only = hasGrant(ctx.principal.permissions, 'projects.read', 'entity')
+    ? undefined
+    : await ownProjectIds(ctx, input.entityId);
+  const rows = (await projectListQuery(ctx, { ...input, only })) as ListedRow[];
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return ProjectPageDto.parse({
@@ -174,6 +181,30 @@ export async function listProjects(
         : { value: (last as ListedRow & { sortValue: string }).sortValue, id: last.id },
     ),
   });
+}
+
+/**
+ * The projects of a company a caller owns or is on (`projects_owner_idx`,
+ * `project_assignments_person_idx`), each read under the policies; at most 1,000.
+ */
+export async function ownProjectIds(ctx: ProjectReadContext, entityId: number): Promise<string[]> {
+  checkProjectRead(ctx);
+  requireCompany(ctx, entityId);
+  const p = schema.projects;
+  const a = schema.projectAssignments;
+  const me = ctx.principal.id;
+  const rows = await ctx.tx
+    .select({ id: p.id })
+    .from(p)
+    .where(and(eq(p.entityId, entityId), eq(p.ownerId, me)))
+    .union(
+      ctx.tx
+        .select({ id: a.projectId })
+        .from(a)
+        .where(and(eq(a.entityId, entityId), eq(a.personId, me))),
+    )
+    .limit(1000);
+  return rows.map((r) => r.id);
 }
 
 /**
@@ -190,19 +221,17 @@ export function projectListQuery(
     step?: string | undefined;
     cursor?: string | undefined;
     limit: number;
+    /** A caller reading at `own` scope only: their own projects' ids (`ownProjectIds()`). */
+    only?: readonly string[] | undefined;
   },
 ) {
   checkProjectRead(ctx);
   requireCompany(ctx, input.entityId);
   const p = schema.projects;
-  const a = schema.projectAssignments;
   const order = projectOrder();
-  const me = ctx.principal.id;
-  const ownOnly = !hasGrant(ctx.principal.permissions, 'projects.read', 'entity');
   return ctx.tx
     .select({ ...ROW_COLUMNS, sortValue: sortText(order) })
     .from(p)
-    .leftJoin(schema.principals, eq(schema.principals.id, p.ownerId))
     .where(
       and(
         eq(p.entityId, input.entityId),
@@ -212,12 +241,9 @@ export function projectListQuery(
         input.step === undefined
           ? undefined
           : sql`(${currentStep(p.id)}) ->> 'key' = ${input.step}`,
-        ownOnly
-          ? or(
-              eq(p.ownerId, me),
-              inArray(p.id, ctx.tx.select({ id: a.projectId }).from(a).where(eq(a.personId, me))),
-            )
-          : undefined,
+        input.only === undefined
+          ? undefined
+          : sql`${p.id} = any(${`{${input.only.join(',')}}`}::uuid[])`,
         afterCursor(order, input.cursor),
       ),
     )
@@ -312,7 +338,6 @@ export async function accountProjects(
   const rows = (await ctx.tx
     .select(ROW_COLUMNS)
     .from(p)
-    .leftJoin(schema.principals, eq(schema.principals.id, p.ownerId))
     .where(and(eq(p.accountId, input.accountId), eq(p.entityId, input.entityId)))
     .orderBy(desc(p.createdAt), desc(p.id))
     .limit(20)) as ListedRow[];

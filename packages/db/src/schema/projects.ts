@@ -116,8 +116,11 @@ export const projects = pgTable(
       .where(sql`${t.state} <> 'cancelled'`),
     // Every project of an order, for drafting's once-per-order check and the order page.
     index('projects_sales_order_idx').on(t.salesOrderId),
-    // The list's default order by state, and Account 360's projects of a customer.
-    index('projects_entity_state_updated_idx').on(t.entityId, t.state, t.updatedAt.desc(), t.id),
+    // `/projects` newest change first, of a company and of one state, each read backwards
+    // (tests/spike/projects-explain.ts).
+    index('projects_entity_updated_idx').on(t.entityId, t.updatedAt, t.id),
+    index('projects_entity_state_updated_idx').on(t.entityId, t.state, t.updatedAt, t.id),
+    // Account 360's projects of a customer.
     index('projects_account_idx').on(t.accountId),
     index('projects_owner_idx').on(t.ownerId),
     check('projects_segment_check', sql`${t.segment} in ${INSTALL_SEGMENTS}`),
