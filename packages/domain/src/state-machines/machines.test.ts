@@ -11,6 +11,7 @@ import { agentActionMachine } from './machines/agent-action';
 import { fileUploadMachine } from './machines/file-upload';
 import { inboxItemMachine } from './machines/inbox-item';
 import { knowledgeFileMachine } from './machines/knowledge-file';
+import { leaveRequestMachine } from './machines/leave-request';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -56,6 +57,12 @@ const FIXTURES: Fixture[] = [
   // H1: a serial moves from the bin it is in.
   { machine: serialMachine, record: { binId: SERIAL_BIN }, params: { fromBinId: SERIAL_BIN } },
   { machine: inboxItemMachine, record: {}, params: {} },
+  // HR1: someone else's leave, which the caller asked for.
+  {
+    machine: leaveRequestMachine,
+    record: { employeeUserId: newId(), callerAsked: true },
+    params: {},
+  },
   { machine: knowledgeFileMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
   { machine: duplicateCandidateMachine, record: {}, params: {} },

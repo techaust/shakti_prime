@@ -14,6 +14,7 @@ import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 import { StockReasonSchema } from '../inventory/enums';
 import { StockQtySchema } from '../inventory/stock';
+import { CalendarDateSchema } from '../tax/engine';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -313,6 +314,22 @@ const eventCatalogue = {
           )
           .min(1)
           .max(200),
+      })
+      .strict(),
+  },
+  // HR1 people and leave: the seam where J5's unavailability takes approved leave
+  // (docs/03-roadmap-appendix/phase5.md §14).
+  'hr.leave.approved': {
+    meaning:
+      "A person's leave was approved: the request, the person on the staff and the first and last day, both included.",
+    emittedBy: ['hr.leave.approve'],
+    subscribed: false,
+    payload: z
+      .object({
+        leaveRequestId: IdSchema,
+        employeeId: IdSchema,
+        fromDate: CalendarDateSchema,
+        toDate: CalendarDateSchema,
       })
       .strict(),
   },

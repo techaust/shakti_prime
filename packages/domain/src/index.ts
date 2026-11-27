@@ -928,3 +928,14 @@ export {
   recordQuality,
   tierLimit,
 } from './messaging/budget';
+// HR1 people and leave
+export { createEmployee, deactivateEmployee, updateEmployee } from './commands/hr/employees';
+export {
+  adjustLeave,
+  approveLeave,
+  cancelLeave,
+  rejectLeave,
+  requestLeave,
+} from './commands/hr/leave';
+export { setHoliday, setLeaveType, setShift } from './commands/hr/settings';
+export { countLeaveDays, isoWeekday } from './hr/leave-days';

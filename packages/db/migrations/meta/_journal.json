@@ -1681,6 +1681,20 @@
       "when": 1795463436305,
       "tag": "0239_u1_import_undo_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1795791399821,
+      "tag": "0240_hr1_people",
+      "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1795791409614,
+      "tag": "0241_hr1_people_rls",
+      "breakpoints": true
     }
   ]
 }

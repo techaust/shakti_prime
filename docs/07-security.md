@@ -157,6 +157,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `finance.expense.approve` | all | entity (manager step) | team | – | – | – | – | entity | – | entity | – |
 | `finance.expense.verify` | all | – | – | – | – | – | – | – | – | entity | – |
 | `hr.employee.write` / `.attendance.manage` / `.leave.approve` / `.incentive.manage` | all | entity (leave) | team (leave) | – | – | – | – | – | – | – | all |
+| `hr.leave.request` | own | own | own | own | own | own | own | own | own | own | own |
 | `hr.export` | all | – | – | – | – | – | – | – | – | all | all |
 | `knowledge.vault.read.staff` | all | all | all | all | all | all | all | all | all | all | all |
 | `knowledge.vault.read.management` | all | all | – | – | – | – | – | – | – | all | – |

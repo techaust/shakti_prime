@@ -30,6 +30,17 @@ describe('workshop defaults', () => {
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       // H1 stock ledger
       stock: { reversalDays: 7 },
+      // HR1 people and leave: HR-1's answer of 02-11-2026.
+      hr: {
+        workdayStart: '09:30',
+        workdayEnd: '18:00',
+        lunchMinutes: 30,
+        workingDaysPerMonth: 26,
+        graceMinutes: 10,
+        halfDayUnderHours: 4,
+        leaveTypes: [],
+        holidays: [],
+      },
       crm: {
         dispositions: [
           { key: 1, code: 'interested', label: 'Interested', nextAction: 'callback' },

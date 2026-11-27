@@ -203,6 +203,16 @@ import { setTaxRate } from '../commands/tax/set-tax-rate';
 import { archiveVendor, createVendor, updateVendor } from '../commands/procurement/vendors';
 import { setItemVendor, setVendorContacts } from '../commands/procurement/vendor-links';
 import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/quotes';
+// HR1 people and leave.
+import { createEmployee, deactivateEmployee, updateEmployee } from '../commands/hr/employees';
+import {
+  adjustLeave,
+  approveLeave,
+  cancelLeave,
+  rejectLeave,
+  requestLeave,
+} from '../commands/hr/leave';
+import { setHoliday, setLeaveType, setShift } from '../commands/hr/settings';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -423,6 +433,18 @@ export const commands = Object.freeze({
   [setItemVendor.name]: setItemVendor,
   [recordVendorQuote.name]: recordVendorQuote,
   [withdrawVendorQuote.name]: withdrawVendorQuote,
+  // HR1 people and leave (docs/03-roadmap-appendix/phase5.md §5).
+  [createEmployee.name]: createEmployee,
+  [updateEmployee.name]: updateEmployee,
+  [deactivateEmployee.name]: deactivateEmployee,
+  [setShift.name]: setShift,
+  [setHoliday.name]: setHoliday,
+  [setLeaveType.name]: setLeaveType,
+  [requestLeave.name]: requestLeave,
+  [approveLeave.name]: approveLeave,
+  [rejectLeave.name]: rejectLeave,
+  [cancelLeave.name]: cancelLeave,
+  [adjustLeave.name]: adjustLeave,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

@@ -8,6 +8,7 @@ import { expenseClaimMachine } from './machines/expense-claim';
 import { fileUploadMachine } from './machines/file-upload';
 import { inboxItemMachine } from './machines/inbox-item';
 import { knowledgeFileMachine } from './machines/knowledge-file';
+import { leaveRequestMachine } from './machines/leave-request';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -46,6 +47,8 @@ export const MACHINES: readonly AnyMachine[] = [
   knowledgeFileMachine,
   // H1 stock ledger
   serialMachine,
+  // HR1 people and leave
+  leaveRequestMachine,
 ];
 
 /**
@@ -66,6 +69,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'playbook_directive',
   // H1 stock ledger
   'serial',
+  // HR1 people and leave
+  'leave_request',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */

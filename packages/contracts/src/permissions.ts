@@ -55,6 +55,9 @@ export const PERMISSION_KEYS = [
   'hr.employee.write',
   'hr.attendance.manage',
   'hr.leave.approve',
+  // HR1: a person asks for their own leave (docs/03-roadmap-appendix/phase5.md §5), as every staff
+  // role submits its own expense claims.
+  'hr.leave.request',
   'hr.incentive.manage',
   'hr.export',
   'knowledge.vault.read.staff',
@@ -366,6 +369,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'hr.employee.write': ['all'],
   'hr.attendance.manage': ['all'],
   'hr.leave.approve': ['team', 'entity', 'all'],
+  // HR1 people and leave.
+  'hr.leave.request': ['own'],
   'hr.incentive.manage': ['all'],
   'hr.export': ['all'],
   'knowledge.vault.read.staff': ['all'],

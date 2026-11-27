@@ -47,6 +47,22 @@ export interface WorkshopDefaults {
     /** Days after a movement within which a person may reverse it (docs/03-roadmap-appendix/phase3.md §10). */
     readonly reversalDays: number;
   };
+  // HR1 people and leave
+  readonly hr: {
+    /** The working day in IST, `HH:MM`, which a new shift starts from on the Shifts screen. */
+    readonly workdayStart: string;
+    readonly workdayEnd: string;
+    readonly lunchMinutes: number;
+    /** Working days in a month, for the CA's monthly sheet (HR4). */
+    readonly workingDaysPerMonth: number;
+    /** Minutes after the shift's start before a person counts as late. */
+    readonly graceMinutes: number;
+    /** A day with fewer hours worked than this counts as half a day (HR2). */
+    readonly halfDayUnderHours: number;
+    /** Leave types and holidays: none until HR-2 answers. */
+    readonly leaveTypes: readonly [];
+    readonly holidays: readonly [];
+  };
   readonly crm: {
     readonly dispositions: readonly {
       readonly key: number;
@@ -285,6 +301,17 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   stock: {
     /** Phase 3 design §10: a movement made in error is reversed within seven days. For STOCK-1. */
     reversalDays: 7,
+  },
+  // HR1 people and leave: HR-1's answer of 02-11-2026 (docs/03-roadmap-appendix/phase5.md §10).
+  hr: {
+    workdayStart: '09:30',
+    workdayEnd: '18:00',
+    lunchMinutes: 30,
+    workingDaysPerMonth: 26,
+    graceMinutes: 10,
+    halfDayUnderHours: 4,
+    leaveTypes: [],
+    holidays: [],
   },
   crm: {
     /**

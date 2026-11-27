@@ -28,6 +28,10 @@ export * from './catalogue/specs';
 export * from './inventory/enums';
 export * from './inventory/stock';
 export * from './catalogue/serial-pattern';
+// HR1 people and leave
+export * from './hr/enums';
+export * from './hr/people';
+export * from './hr/leave';
 export * from './numbering/document-no';
 export * from './tax/engine';
 export * from './dto/entity';

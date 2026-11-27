@@ -28,6 +28,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
 | Knowledge Vault file | **yes** | 5 | 7 | 0 | [knowledge-file.md](knowledge-file.md) |
 | Serial | **yes** | 8 | 18 | 14 | [serial.md](serial.md) |
+| Leave request | **yes** | 4 | 4 | 0 | [leave-request.md](leave-request.md) |
 
 ## Workshop defaults
 
@@ -52,6 +53,14 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `credit.exposureCountsConfirmedOrders` | true |
 | `dispatch.ewayBillThresholdPaise` | 5000000 |
 | `stock.reversalDays` | 7 |
+| `hr.workdayStart` | 09:30 |
+| `hr.workdayEnd` | 18:00 |
+| `hr.lunchMinutes` | 30 |
+| `hr.workingDaysPerMonth` | 26 |
+| `hr.graceMinutes` | 10 |
+| `hr.halfDayUnderHours` | 4 |
+| `hr.leaveTypes` | none |
+| `hr.holidays` | none |
 | `crm.dispositions` | key: 1; code: interested; label: Interested; nextAction: callback<br>key: 2; code: call_back_later; label: Call back later; nextAction: callback<br>key: 3; code: not_reachable; label: Not reachable; nextAction: retry<br>key: 4; code: switched_off; label: Switched off; nextAction: retry<br>key: 5; code: wrong_number; label: Wrong number; nextAction: wrong_number<br>key: 6; code: not_interested; label: Not interested; nextAction: not_interested<br>key: 7; code: already_bought; label: Already bought; nextAction: not_interested<br>key: 8; code: qualified; label: Qualified; nextAction: qualified |
 | `crm.scoreBase` | 50 |
 | `crm.scoreRules` | none |

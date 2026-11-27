@@ -220,6 +220,20 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     sales_team_lead: 'team',
     hr_admin: 'all',
   },
+  // HR1 people and leave: every staff role asks for its own leave.
+  'hr.leave.request': {
+    executive: 'own',
+    general_manager: 'own',
+    sales_team_lead: 'own',
+    tele_caller_cc: 'own',
+    tele_caller_lc: 'own',
+    store_manager: 'own',
+    inventory_manager: 'own',
+    project_manager: 'own',
+    field_engineer: 'own',
+    accounts: 'own',
+    hr_admin: 'own',
+  },
   'hr.incentive.manage': { ...EXEC, hr_admin: 'all' },
   'hr.export': { ...EXEC, accounts: 'all', hr_admin: 'all' },
   'knowledge.vault.read.staff': {

@@ -52,6 +52,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'hr.employee.write': 'Maintain employee records',
   'hr.attendance.manage': 'Manage attendance',
   'hr.leave.approve': 'Approve leave',
+  // HR1 people and leave.
+  'hr.leave.request': 'Ask for their own leave',
   'hr.incentive.manage': 'Manage incentives',
   'hr.export': 'Export salary and incentive sheets',
   'knowledge.vault.read.staff': 'Search staff knowledge',

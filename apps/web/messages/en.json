@@ -4073,6 +4073,7 @@
       "hr_employee_write": "Keep employee records",
       "hr_attendance_manage": "Manage attendance",
       "hr_leave_approve": "Approve leave",
+      "hr_leave_request": "Ask for their own leave",
       "hr_incentive_manage": "Manage incentives",
       "hr_export": "Download salary and incentive sheets",
       "knowledge_vault_read_staff": "Search staff knowledge",

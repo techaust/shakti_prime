@@ -79,3 +79,5 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// HR1 people and leave (docs/03-roadmap-appendix/phase5.md §5).
+export { shifts, holidays, leaveTypes, employees, leaveRequests, leaveBalances } from './hr';
