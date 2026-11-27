@@ -5,9 +5,9 @@
 | Branch | `feat/f1-field-foundation` on GitHub, from `main` after the approved design (#295), with the lead's commit adding `apps/field/package.json` and the lockfile |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): authentication, tokens, device revocation |
-| Usage | briefed 27-11-2026; built by the slice builder on Opus 5.5 at high effort (27-11-2026, early check and done) |
-| State | done |
-| Next step | review, then integration (Linux baselines of `field-phones.spec.ts` on a fresh database) |
+| Usage | briefed 27-11-2026; built by the slice builder on Opus 5.5 at high effort (27-11-2026, early check and done; the fix round, 27-11-2026, Opus 5.5 at high) |
+| State | fixes done |
+| Next step | the reviewer re-checks finding 1's fix (`cf117266`), then integration on a fresh database (the journey and the Linux baselines of `field-phones.spec.ts`) |
 
 ## Brief
 Build [phase4 §6.4](../../03-roadmap-appendix/phase4.md#64-f1-field-app-foundation-and-mobile-sign-in) as written, with question 7 (a): ADR 0012 accepted. Change its status line to "Accepted (27-11-2026, Phase 4 design)", with one correction if you find one (WatermelonDB uses its own SQLite adapter, not expo-sqlite: say which the app uses). Follow [AGENTS §5](../../../AGENTS.md#5-domain-commands) and [AGENTS §6](../../../AGENTS.md#6-database-changes). Points the design leaves to you, settled here:
@@ -194,6 +194,65 @@ The fix round wires them in, beside the review's findings:
 - the lazy-globals workaround removed if Jest 30.5 makes it unneeded.
 
 Also explain `pnpm peers check`'s missing `expo`, `react` and `react-native` peers of `expo-sqlite`, which were already there before these packages.
+
+### 27-11-2026, cloud worktree of the lead's VM: fixes
+Every finding the lead marked to fix (1, 2, 3, 5, 6, 7, 8), finding 4 recorded, and the six packages wired in. Skills loaded: none (`add-command` and `add-table` do not apply: no new command or table; this session lists no other skill the brief names).
+
+**Finding 1 (critical), `cf117266`.** `resolveMobilePrincipal(userId, deviceId, deps)` now builds the cache's session part itself, `mobile:<installation>:<person>` (`mobileCacheSession()`), and uses a cached entry only when `cached.principal.id === userId`. The three callers (token, refresh, bearer) pass the installation id, never a prebuilt key. Tests in `mobile-auth.test.ts`, *people who share one installation*: (a) A calls `/me`, B signs in on A's installation at once, B's token claims and `/me` and bearer principal are B's (role, companies, leads equal to B's own resolution), then A signs in again with B's entry still cached and is A again, leads included; (b) someone copies the `sid` out of A's access token and signs in with it: their token, `/me` and principal are their own. Both tests failed against the old code (B's token carried A's `field_engineer` role; the intruder's too) and pass now.
+
+**Finding 2, `02733c1e`.**
+- Domain: `revokeUserSessions()` (the one helper the three commands use: `admin.user.role.set`, `admin.user.suspend`, `admin.user.two_factor.reset`) also signs every live phone of the person out in the same transaction, with the sessions' reason and `revoked_by` the acting person.
+- Auth: `authDeviceStore.signOutEverywhere(userId, reason, now)`, called from Better Auth's `onPasswordReset` (the forgotten-password link) and from the after hook of `/change-password` when `revokeOtherSessions` is true (the only way the website changes a password).
+- `MOBILE_ACCOUNT_CHANGE_REASONS` (`password_changed`, `role_changed`, `suspended`, `totp_reset`, typed as a subset of the session reasons) join `MOBILE_DEVICE_REVOKE_REASONS`; the check constraint is widened (migration 0243, `NOT VALID` as DATA-5 requires); Team members › Phones shows them in the sessions' words.
+- Migration 0244 adds two policies on `mobile_devices` that mirror `sessions_read` and `sessions_update` (0014, 0056): a holder of `admin.users.write:all` reads the phones' columns without a secret and signs out the phones of a person with no role outside the request's companies. Without them an Executive whose role was customised to drop `field.device.revoke` would end the sessions and leave the phones signed in without a word.
+- Tests: `mobile-auth.test.ts` *a person's phones are signed out with their website sessions* (5: a password change, a reset by link, an authenticator reset, a role change and a suspension, the last three by an Executive without `field.device.revoke`; each checks the row's reason and that `/me` and a refresh answer `device_revoked`); `mobile-devices.test.ts` one more (the account-change policy, and its company rule). The test *a suspended person is refused* now sets the status directly, since the command now signs the phone out first; it keeps the `account_suspended` branch covered.
+- SECURITY §2: the sessions line and the authenticator reset name the phones.
+
+**Finding 3, `f731f1d0`.** The session keeps the access token with the time to stop using it: fifteen minutes (`TOKEN_LIFETIMES.mobileAccess`) from when it arrived, on the phone's clock, less a minute (`REFRESH_BEFORE_EXPIRY_MS`). `accessToken()`, `/me` and sign-out use it only before then and refresh otherwise. A bearer refusal with no reason (`unauthorized`) is answered by one refresh and one more try (`withBearer()`); only a second refusal signs the phone out, now with its own sentence (`errors.unauthorized`, field catalogue). Sign-out goes through the same path, so an old token is refreshed and the server's row ends. Tests: the minute before expiry, the retry, the second refusal, sign-out after 16 minutes.
+
+**Finding 5, `2cce8480`.** `fieldVersionProblems()` (in `mobile-version.ts`) reports a `FIELD_MIN_APP_VERSION` or `FIELD_LATEST_APP_VERSION` that is set but not three numbers; `productionConfigProblems()` lists it. Test in `deps.test.ts`.
+
+**Finding 6, `f731f1d0`.** `phoneDetails()` (`src/config.ts`) reads `Platform.constants.Model` and `Release` (the Android version, falling back to `Platform.Version`), cut to the server's 80 and 20 characters, and a sign-in sends them. Test: the sign-in body carries them.
+
+**Finding 7, `f731f1d0`.** `SessionProvider` listens to `AppState`; the session notes when the app went to the background and, back after 5 minutes or more (`LOCK_AFTER_BACKGROUND_MS`), goes to `locked` (the PIN or fingerprint), keeping the sign-in. Test: 4 min 59 s stays open, 5 min locks, the PIN opens it. Phase4 §6.4's *Built* says so.
+
+**Finding 8, `2cce8480`.** The `MobileAccessClaims` comment says the phone's row is read on every call and the role and companies in the token are informative only; `auth.mobile.revoke` and `me` list `integration_unavailable` in `endpoints.ts` and API §3.1.
+
+**Finding 4: recorded** in SECURITY §2 as a known limit (accepted 27-11-2026), with the reason.
+
+**The six packages, `f731f1d0`.**
+- `expo-crypto`: the installation id is `Crypto.randomUUID()` (no `Math.random`); the PIN is kept as `v1:<16-byte salt>:<SHA-256 of salt and PIN>` in hex (`getRandomBytes`, `digestStringAsync`), compared in full; the store answers `hasPin()` and `pinMatches()`, never the PIN. A kept value in another form never matches. Jest mocks the module with Node's crypto.
+- `@sentry/react-native`: `src/observability/sentry.ts` starts it once from the app's frame, only when the build names `EXPO_PUBLIC_SENTRY_DSN` (and `EXPO_PUBLIC_SENTRY_ENVIRONMENT` if set), with no screenshot, view hierarchy, replay, failed-request capture or traces, and `sendDefaultPii` left at its default, off. `src/observability/sentry-scrub.ts` follows the web's rules with the contracts' `redactText` (`@shakti/contracts/masking`): the request to its method and path, the person to their id, no tags, the phone's name dropped, any field named as a token, the password, the PIN, a code, the installation id, headers or a body dropped, every other text scrubbed (bearer and signed tokens, email addresses, phone numbers to their last four digits, identity numbers), frames without their variables. Tests: an event and a breadcrumb full of secrets come out clean; the start sends nothing without a DSN and scrubs with one.
+- `expo-system-ui`: in `app.json`'s plugins; prebuild no longer warns, and writes `expo_system_ui_user_interface_style` = `automatic`.
+- `react-native-reanimated` and `react-native-worklets`: direct now, so autolinking includes them; nothing to wire (NativeWind's Babel preset loads the plugin).
+- `jest` 30.5.2: the lazy-globals workaround (`src/test/lazy-globals.ts`, `after-env.ts` and the `setupFilesAfterEnv` line) is removed; all suites pass without it.
+- **`pnpm peers check`'s missing peers of `expo-sqlite`:** `drizzle-orm` declares `expo-sqlite` as an optional peer, and since `apps/field` brought `expo-sqlite` into the workspace pnpm links it to every `drizzle-orm` it resolves. `packages/domain`'s `drizzle-orm` (lockfile importer `packages/domain`: `drizzle-orm@0.45.4(…)(expo-sqlite@58.0.17)(…)`) gets it in a package without `expo`, `react` or `react-native`, so `expo-sqlite`'s own peers are unmet there. Nothing on the server loads `expo-sqlite` (only `drizzle-orm/expo-sqlite` would), so it is harmless, and typecheck is clean across the packages. It dates from the lead's first commit that added `apps/field`. A lockfile fix (for example `peerDependencyRules.ignoreMissing` for `expo-sqlite`'s peers, or `pnpm dedupe`) is the lead's.
+
+**Also fixed (not in the review).**
+- `apps/web/scripts/measures/safety.test.ts` failed: the early check's `MOBILE_JWT_PRIVATE_KEY` and `MOBILE_JWT_PUBLIC_KEY` in `.env.example` were in neither of the measures' lists. They join `KEPT_LOOKALIKES.appKeys` (the app's own keys, sent to no one), `5be84daa`. That file is G2's; the change is one block under a comment naming F1.
+- `migration-rules.test.ts` (DATA-5) refused 0243's widened check written whole; it is `NOT VALID` now, `e9b34c9c`.
+
+**Tests added in this round.** `mobile-auth.test.ts`: 7 (2 shared installation, 5 account changes), 29 in all; `mobile-devices.test.ts`: 1 (8 in all); `deps.test.ts`: 1; `apps/field`: 9 (session 5, token store 1, Sentry scrub 2, Sentry start 1), 30 in 7 files.
+
+**Checks.**
+- `pnpm test:security` on 54333 (migrated with 0243 and 0244 as first written): db 64 files, 1,802 passed; domain 112 files, 1,530 passed; web 40 files, 490 passed.
+- `pnpm typecheck` (whole repository): 11 tasks successful. `pnpm lint` (whole repository, `--max-warnings 0`): clean. `pnpm format:check`: clean. `pnpm copy-lint`: clean. `pnpm build`: passed. `pnpm --filter web js-budget`: "Every page is within its budget (65 pages)". `pnpm db:docs` regenerated (the reasons check).
+- Unit tests (`turbo run test --force`): tokens 146, copy-lint 17, ui 107, voice 49, voice-agent 23, field 30, contracts 340, db 162 (after the `NOT VALID` fix), domain 2,809, web 1,241 passed and 1 skipped with the measures test failing, which passes after `5be84daa` (`scripts/measures`: 25 passed).
+- `expo config` resolves; `expo prebuild --platform android --no-install` generated the project (package, biometric permission, no backup, the system UI style) and I removed it. Gradle not run.
+- **Journey not run in this round:** `e2e:seed` refuses this database because 0243 changed on disk after it ran here (the `NOT VALID`). **A fresh database is needed** for `field-phones.spec.ts`; the lead's integration uses one. The phones sheet changed only by four reason labels.
+
+**`EXPLAIN (ANALYZE)` under RLS** (86 phones), as an Executive holding `admin.users.write` but not `field.device.revoke`, so the new policy is the one that admits:
+- The phones list (`listMobileDevices`' statement): Bitmap Index Scan on `mobile_devices_user_device_unique`, the policies as one-time InitPlans with the company subplan never run; 0.20 ms.
+- The sign-out in `revokeUserSessions`: BitmapAnd of `mobile_devices_user_device_unique` and the partial `mobile_devices_live_device_idx`, the scope subplans (`user_roles_outside_request`) never run once no live row matches; 4.1 ms.
+
+**Decisions the triage did not settle (for the lead).**
+- A role change signs the phones out too, because it runs through `revokeUserSessions()` and ends the website sessions (SECURITY §2's "a role change revokes sessions").
+- The two new policies let `admin.users.write:all` read and sign out phones under the sessions' company rule, also for `app_reader` (read only), so the reader parity holds for an Executive without `field.device.revoke`.
+- `revoked_by` is the acting Executive on the command paths and empty on the password paths (the person themselves, through the auth module).
+- The access token's expiry is counted from its arrival on the phone's own clock with the contract's lifetime, not from `accessTokenExpiresAt`, which a phone whose clock runs ahead would read as already past (a refresh on every call, then the refresh cap).
+- A bare `unauthorized` after the retry signs the phone out with a new sentence, "Your sign-in on this phone has ended. Please sign in again." (field catalogue), rather than "Something went wrong on our side".
+- Sentry's Expo config plugin (`@sentry/react-native/expo`) is not added: it uploads source maps, which nothing here does. The DSN and environment come from `EXPO_PUBLIC_SENTRY_DSN` and `EXPO_PUBLIC_SENTRY_ENVIRONMENT` per EAS profile; none is set in `eas.json` yet (the owner's Sentry project).
+- The local database still holds 0243 as first applied (a valid check); a fresh database gets it `NOT VALID`, as the import kinds' checks already are.
 
 ## Review
 
