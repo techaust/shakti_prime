@@ -205,6 +205,7 @@ import { setItemVendor, setVendorContacts } from '../commands/procurement/vendor
 import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/quotes';
 // FN1 proformas and payment milestones.
 import {
+  attachProformaPdf,
   cancelProforma,
   issueProforma,
   planConfirmedMilestones,
@@ -439,6 +440,7 @@ export const commands = Object.freeze({
   [planConfirmedMilestones.name]: planConfirmedMilestones,
   [waiveMilestone.name]: waiveMilestone,
   [publishPaymentTerms.name]: publishPaymentTerms,
+  [attachProformaPdf.name]: attachProformaPdf,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

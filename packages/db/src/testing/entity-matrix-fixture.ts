@@ -583,6 +583,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['print_proof', per(e, 0x19), 'application/pdf'],
           // U1: a supplier's quote document, read with procurement.rate.read.
           ['vendor_quote', per(e, 0x82), 'application/pdf'],
+          // FN1: a proforma's PDF, read with finance.read.
+          ['proforma_pdf', per(e, 0x94), 'application/pdf'],
         ] as const;
         // The company's vault file (staff knowledge) on its vault upload, with one chunk.
         const vaultFile = per(e, 0x42);

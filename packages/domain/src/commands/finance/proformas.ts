@@ -156,6 +156,14 @@ export const issueProforma = defineCommand({
       aggregateId: id,
       payload: { orderId: order.id, lineCount: lines.length },
     });
+    // The render worker prints it on the company's letterhead and attaches the PDF.
+    ctx.emit({
+      type: 'print.document.requested',
+      entityId: order.entityId,
+      aggregateType: 'proforma',
+      aggregateId: id,
+      payload: { documentType: 'proforma', documentId: id, version: 1 },
+    });
     return readProforma(ctx, order.entityId, order.id, id);
   },
 });

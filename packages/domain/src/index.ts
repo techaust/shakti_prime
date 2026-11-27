@@ -930,6 +930,7 @@ export {
 } from './messaging/budget';
 // FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
 export {
+  attachProformaPdf,
   cancelProforma,
   issueProforma,
   planConfirmedMilestones,
@@ -950,3 +951,4 @@ export type {
   PlannedMilestone,
 } from './finance/plan-milestones';
 export { listPaymentTerms, readOrderPayments } from './queries/finance/order-payments';
+export { loadProformaForPrint, type ProformaForPrint } from './queries/finance/proforma-print';

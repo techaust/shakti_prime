@@ -61,6 +61,10 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
     write: needs('procurement.rate.read', 'entity'),
     read: 'procurement.rate.read',
   },
+  // FN1: a proforma's PDF prints the company's bank account and UPI ID: rendered by the worker,
+  // read with finance.read (a holder for the company reads every one; a narrower holder reads it
+  // with the proforma, `files_proforma_pdf_read`).
+  proforma_pdf: { write: needs('files.process', 'entity'), read: 'finance.read' },
 };
 
 /** The answer `app.file_purpose_grant(purpose, access)` gives, in its own shape. */

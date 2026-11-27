@@ -464,7 +464,13 @@ const eventCatalogue = {
   'print.document.requested': {
     meaning:
       'A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF.',
-    emittedBy: ['print.proof.request', 'sales.quote.create', 'sales.quote.requote'],
+    emittedBy: [
+      'print.proof.request',
+      'sales.quote.create',
+      'sales.quote.requote',
+      // FN1: a proforma's PDF.
+      'finance.proforma.issue',
+    ],
     subscribed: true,
     payload: z
       .object({

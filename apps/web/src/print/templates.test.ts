@@ -5,12 +5,13 @@ import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import { bankBlock, companyBlock, imageSource } from './company';
 import { printCopy } from './copy';
-import { spikeCompany, spikeLabels, spikeQuote } from './fixtures/spike-documents';
+import { spikeCompany, spikeLabels, spikeProforma, spikeQuote } from './fixtures/spike-documents';
 import { formatRupees } from './format';
 import { escapeHtml, html, trusted } from './html';
 import { renderLabelsHtml } from './label-template';
 import { renderLetterheadProof } from './letterhead-proof-template';
 import { qrMatrix, qrSvg } from './qr';
+import { renderProforma } from './proforma-template';
 import { renderQuote } from './quote-template';
 import { baseCss, lightColor } from './styles';
 
@@ -112,6 +113,52 @@ describe('quotation template', () => {
     const quote = spikeQuote(1);
     const { html: page } = await renderQuote(quote);
     expect(page).toContain(await qrSvg(quote.link));
+  });
+});
+
+describe('proforma template (FN1)', () => {
+  it('prints the proforma with its order, the tax split, the total in words and the payments', () => {
+    const proforma = spikeProforma();
+    const { html: page, options } = renderProforma(proforma);
+    expect(page).toContain(en.print.proforma.title);
+    expect(page).toContain(proforma.number);
+    expect(page).toContain(proforma.orderNumber);
+    expect(page).toContain('29-09-2026');
+    expect(page).toContain(formatRupees(proforma.totals.total));
+    expect(page).toContain(proforma.totals.totalInWords);
+    for (const tax of proforma.totals.taxes) expect(page).toContain(formatRupees(tax.amount));
+    for (const line of proforma.lines) {
+      expect(page).toContain(escapeHtml(line.description));
+      expect(page).toContain(line.hsn);
+    }
+    for (const payment of proforma.payments) expect(page).toContain(payment.label);
+    expect(page).toContain(escapeHtml(en.print.proforma.note));
+    expect(page).not.toContain(en.print.proforma.cancelled);
+    expect(options.format).toBe('A4');
+    expect(options.margin).toMatchObject({ left: '15mm', right: '15mm' });
+    expect(options.footerTemplate).toContain(proforma.number);
+  });
+
+  it('prints the bank account and the UPI ID, and neither when none is recorded', () => {
+    const proforma = spikeProforma();
+    const { html: page } = renderProforma(proforma);
+    expect(page).toContain(en.print.company.bankHeading);
+    expect(page).toContain(proforma.upiId ?? '');
+    const bare = renderProforma({
+      ...proforma,
+      upiId: null,
+      company: { ...proforma.company, bank: null },
+    });
+    expect(bare.html).not.toContain(en.print.company.bankHeading);
+    expect(bare.html).not.toContain(en.print.proforma.payHeading);
+  });
+
+  it('marks a cancelled proforma, and escapes a customer name instead of running it', () => {
+    const proforma = spikeProforma();
+    proforma.customer.name = '<img src=x onerror=alert(1)>';
+    const { html: page } = renderProforma({ ...proforma, cancelled: true });
+    expect(page).toContain(en.print.proforma.cancelled);
+    expect(page).not.toContain('<img src=x');
   });
 });
 

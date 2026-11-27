@@ -11,16 +11,19 @@ import {
   type RenderedFilePurpose,
 } from '@shakti/contracts';
 import {
+  attachProformaPdf,
   attachQuotePdf,
   executeCommand,
   executeQuery,
   loadCompanyForPrint,
+  loadProformaForPrint,
   loadQuoteForPrint,
   openBankDetails,
   retireRenderedFiles,
   type CompanyForPrint,
   type FieldCipher,
   type FileStore,
+  type ProformaForPrint,
   type QuoteForPrint,
   type StoredFile,
 } from '@shakti/domain';
@@ -29,6 +32,7 @@ import { printCopy, type PrintCopy } from './copy';
 import { istDay } from '../screens/ist';
 import { formatDate } from './format';
 import { renderLetterheadProof, type LetterheadProofPrint } from './letterhead-proof-template';
+import { renderProforma, type ProformaPrint } from './proforma-template';
 import { renderQuote, type PrintDocument, type QuotePrint } from './quote-template';
 import { rupeesInWords } from './words';
 
@@ -166,7 +170,7 @@ const letterheadProof: DocumentType<LetterheadProofPrint> = {
 };
 
 /** A quote's site as the customer block prints it: the street, the village and the district. */
-function siteLines(site: QuoteForPrint['site']): string[] {
+function siteLines(site: QuoteForPrint['site'] | ProformaForPrint['site']): string[] {
   if (site === null) return [];
   const join = (parts: (string | null)[]) =>
     parts.filter((p): p is string => p !== null && p !== '').join(', ');
@@ -178,7 +182,10 @@ function siteLines(site: QuoteForPrint['site']): string[] {
 }
 
 /** A GST rate as the line prints it: its own rate, or the goods and services rates of a split. */
-function lineRate(line: QuoteForPrint['lines'][number], t: PrintCopy): string {
+function lineRate(
+  line: QuoteForPrint['lines'][number] | ProformaForPrint['lines'][number],
+  t: PrintCopy,
+): string {
   if (line.taxRatePct !== null) return t('quote.gstRate', { rate: Number(line.taxRatePct) });
   return t('quote.gstComposite', {
     goods: Number(line.goodsRatePct ?? '0'),
@@ -273,6 +280,116 @@ const quoteDocument: DocumentType<QuotePrint> = {
   },
 };
 
+/** The printed GST heads of a document: CGST and SGST within the state, IGST across states. */
+function taxHeads(doc: {
+  supplyKind: 'intra' | 'inter';
+  cgst: string;
+  sgst: string;
+  igst: string;
+}): QuotePrint['totals']['taxes'] {
+  return doc.supplyKind === 'intra'
+    ? [
+        { tax: 'CGST', amount: doc.cgst },
+        { tax: 'SGST', amount: doc.sgst },
+      ]
+    : [{ tax: 'IGST', amount: doc.igst }];
+}
+
+/**
+ * A proforma as the proforma template prints it (docs/03-roadmap-appendix/phase5.md §6.1): the
+ * amounts exactly as the proforma holds them, copied from its order; this only places and words
+ * them, with the order's payments and the company's UPI ID.
+ */
+export function proformaPrintOf(
+  proforma: ProformaForPrint,
+  company: CompanyPrint,
+  upiId: string | null,
+): ProformaPrint {
+  const t = printCopy();
+  const stateKey = `states.${proforma.placeOfSupplyState}` as 'states.08';
+  return {
+    company,
+    upiId,
+    number: proforma.proformaNo,
+    date: istDay(new Date(proforma.createdAt)),
+    orderNumber: proforma.soNo,
+    cancelled: proforma.state === 'cancelled',
+    customer: {
+      name: proforma.customerName,
+      addressLines: siteLines(proforma.site),
+      ...(proforma.customerGstin === null ? {} : { gstin: proforma.customerGstin }),
+      placeOfSupply: t.has(stateKey)
+        ? t('quote.placeOfSupplyState', {
+            state: t(stateKey),
+            code: proforma.placeOfSupplyState,
+          })
+        : proforma.placeOfSupplyState,
+    },
+    lines: proforma.lines.map((line) => ({
+      description: line.description,
+      detail: line.sku,
+      hsn: line.hsn ?? '',
+      quantity: plainQty(line.qty),
+      unit: t(`quote.units.${line.unit}`),
+      rate: line.unitPrice,
+      gstRate: lineRate(line, t),
+      amount: line.taxableValue,
+    })),
+    totals: {
+      taxable: proforma.subtotal,
+      taxes: taxHeads(proforma),
+      rounding: proforma.roundOff,
+      total: proforma.grandTotal,
+      totalInWords: rupeesInWords(proforma.grandTotal, t),
+    },
+    payments: proforma.milestones
+      .filter((m) => m.state !== 'waived')
+      .map((m) => ({
+        label: m.label,
+        due: t(`proforma.dueRule.${m.dueRule}`, { days: m.dueDays ?? 0 }),
+        amount: m.amount,
+      })),
+    preparedBy: proforma.preparedBy ?? '',
+  };
+}
+
+const proformaDocument: DocumentType<ProformaPrint> = {
+  purpose: 'proforma_pdf',
+  // One file per request to print: a delivery that runs again finds the file it recorded.
+  fileId: (job) => job.eventId,
+  fileName: (data) =>
+    printCopy()('proforma.fileName', { number: data.number.replaceAll('/', '-') }),
+  load: async (target, ctx) => {
+    const scope = { entityIds: [ctx.entityId], requestId: ctx.requestId };
+    const proforma = await executeQuery(
+      ctx.principal,
+      scope,
+      (q) => loadProformaForPrint(q, target.documentId),
+      { name: 'print.proforma.load' },
+    );
+    if (proforma.entityId !== ctx.entityId) {
+      throw new DomainError('internal', 'the print loader read another company');
+    }
+    const read: CompanyForPrint = await executeQuery(
+      ctx.principal,
+      scope,
+      (q) => loadCompanyForPrint(q, ctx.entityId),
+      { name: 'print.company.load' },
+    );
+    return proformaPrintOf(proforma, await companyPrintOf(read, ctx), read.entity.upiId);
+  },
+  render: (data) => renderProforma(data),
+  attach: async (target, fileId, ctx) => {
+    await executeCommand(
+      ctx.principal,
+      { entityIds: [ctx.entityId], requestId: ctx.requestId },
+      attachProformaPdf,
+      { entityId: ctx.entityId, proformaId: target.documentId, fileId },
+      { hosted: ctx.hosted },
+    );
+  },
+};
+
 /** A registered type, its data type hidden: what the worker calls. */
 export interface RegisteredDocument {
   purpose: RenderedFilePurpose;
@@ -297,10 +414,15 @@ function register<D>(type: DocumentType<D>): RegisteredDocument {
   };
 }
 
-/** The registered types: the proof page, and the quote with its record and attach command (S1). */
+/**
+ * The registered types: the proof page, the quote with its record and attach command (S1), and
+ * the proforma with its own (FN1).
+ */
 export const DOCUMENT_TYPES: Partial<Record<PdfDocumentType, RegisteredDocument>> = {
   company_letterhead_proof: register(letterheadProof),
   quote: register(quoteDocument),
+  // FN1: a proforma, with its record and attach command.
+  proforma: register(proformaDocument),
 };
 
 /** The registered type of a job, or undefined for a type no loader prints yet. */

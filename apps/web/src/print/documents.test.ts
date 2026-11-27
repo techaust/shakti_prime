@@ -10,7 +10,8 @@ import {
 } from '@shakti/domain';
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { companyPrintOf, DOCUMENT_TYPES, documentType } from './documents';
+import { companyPrintOf, DOCUMENT_TYPES, documentType, proformaPrintOf } from './documents';
+import { spikeCompany } from './fixtures/spike-documents';
 
 const cipher = envelopeCipher(localKeyProvider(randomBytes(32).toString('base64')));
 const ACCOUNT = {
@@ -179,9 +180,113 @@ describe('the document registry', () => {
     expect(registered?.fileId(job, job.target)).toBe(documentId);
   });
 
-  it('prints the proof page and the quote, and has no loader yet for any other document', () => {
-    expect(Object.keys(DOCUMENT_TYPES)).toEqual(['company_letterhead_proof', 'quote']);
+  it('prints the proof page, the quote and the proforma, and has no loader yet for any other document', () => {
+    expect(Object.keys(DOCUMENT_TYPES)).toEqual(['company_letterhead_proof', 'quote', 'proforma']);
     expect(documentType('quote')?.purpose).toBe('quote_pdf');
+    expect(documentType('proforma')?.purpose).toBe('proforma_pdf');
     expect(documentType('delivery_challan')).toBeUndefined();
+  });
+});
+
+describe('a proforma as the template prints it (FN1)', () => {
+  const read = {
+    id: newId(),
+    entityId: 3,
+    proformaNo: 'ASH/PI/2026-27/0001',
+    state: 'issued' as const,
+    createdAt: '2026-09-28T20:00:00.000Z',
+    soNo: 'ASH/SO/2026-27/0007',
+    placeOfSupplyState: '08',
+    supplyKind: 'intra' as const,
+    subtotal: '1000.00',
+    cgst: '90.00',
+    sgst: '90.00',
+    igst: '0.00',
+    roundOff: '0.00',
+    grandTotal: '1180.00',
+    customerName: 'A customer',
+    customerGstin: null,
+    site: null,
+    preparedBy: 'Accounts',
+    lines: [
+      {
+        position: 1,
+        sku: 'SKU-1',
+        description: 'An item',
+        unit: 'nos' as const,
+        qty: '2.000',
+        unitPrice: '500.00',
+        hsn: '8413',
+        taxRatePct: '18.00',
+        goodsRatePct: null,
+        servicesRatePct: null,
+        taxableValue: '1000.00',
+        cgst: '90.00',
+        sgst: '90.00',
+        igst: '0.00',
+      },
+    ],
+    milestones: [
+      {
+        label: 'Advance',
+        amount: '590.00',
+        dueRule: 'on_confirmation' as const,
+        dueDays: null,
+        state: 'due' as const,
+      },
+      {
+        label: 'Waived',
+        amount: '100.00',
+        dueRule: 'on_installation' as const,
+        dueDays: null,
+        state: 'waived' as const,
+      },
+      {
+        label: 'Balance',
+        amount: '490.00',
+        dueRule: 'days_after_invoice' as const,
+        dueDays: 30,
+        state: 'pending' as const,
+      },
+    ],
+  };
+
+  it('places the amounts as the proforma holds them, its date in India, and the payments not waived', () => {
+    const printed = proformaPrintOf(read, spikeCompany(), 'company@upi');
+    expect(printed).toMatchObject({
+      number: read.proformaNo,
+      orderNumber: read.soNo,
+      date: '2026-09-29',
+      upiId: 'company@upi',
+      cancelled: false,
+      totals: {
+        taxable: '1000.00',
+        taxes: [
+          { tax: 'CGST', amount: '90.00' },
+          { tax: 'SGST', amount: '90.00' },
+        ],
+        rounding: '0.00',
+        total: '1180.00',
+      },
+    });
+    expect(printed.lines[0]).toMatchObject({
+      quantity: '2',
+      rate: '500.00',
+      amount: '1000.00',
+      hsn: '8413',
+    });
+    expect(printed.payments).toEqual([
+      { label: 'Advance', due: 'On confirmation', amount: '590.00' },
+      { label: 'Balance', due: '30 days after the invoice', amount: '490.00' },
+    ]);
+  });
+
+  it('prints IGST alone across states', () => {
+    const printed = proformaPrintOf(
+      { ...read, supplyKind: 'inter', cgst: '0.00', sgst: '0.00', igst: '180.00' },
+      spikeCompany(),
+      null,
+    );
+    expect(printed.totals.taxes).toEqual([{ tax: 'IGST', amount: '180.00' }]);
   });
 });

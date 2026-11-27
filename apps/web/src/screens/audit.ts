@@ -284,6 +284,7 @@ const ACTIONS = {
   'finance.milestone.plan_confirmed': 'milestonesPlanConfirmed',
   'finance.milestone.waive': 'milestoneWaive',
   'finance.terms.publish': 'paymentTermsPublish',
+  'finance.proforma.pdf.attach': 'proformaPdfAttach',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';

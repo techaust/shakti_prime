@@ -381,6 +381,7 @@
     "quote_kit_tax_missing": "This kit can only be quoted as supply and installation for rooftop or project work. Quote its items one by one instead.",
     "quote_missing": "We couldn't find this quote. It may belong to another company or a colleague's lead.",
     "quote_pdf_mismatch": "This quote already has its document. Refresh the page to see it.",
+    "proforma_pdf_mismatch": "This proforma already has its document. Refresh the page to see it.",
     "agent_spend_cap_reached": "This agent has reached its spending limit for today. It starts again tomorrow, or an Executive can raise the limit.",
     "agent_action_unknown": "Agents cannot take this kind of action.",
     "agent_action_not_open": "This agent cannot take this kind of action.",
@@ -2002,6 +2003,7 @@
       "milestonesPlanConfirmed": "Payments planned on confirmation",
       "milestoneWaive": "Payment waived",
       "paymentTermsPublish": "Payment terms published",
+      "proformaPdfAttach": "Proforma document attached",
       "hubCreate": "Hub added",
       "hubUpdate": "Hub changed",
       "hubArchive": "Hub archived",
@@ -2620,6 +2622,31 @@
     }
   },
   "print": {
+    "proforma": {
+      "title": "Proforma invoice",
+      "number": "Proforma number",
+      "date": "Date",
+      "order": "Order number",
+      "for": "Proforma for",
+      "cancelled": "Cancelled",
+      "upi": "UPI ID",
+      "payHeading": "Pay by UPI",
+      "schedule": "Payments",
+      "scheduleColumns": {
+        "payment": "Payment",
+        "due": "When it is due",
+        "amount": "Amount (₹)"
+      },
+      "note": "This proforma asks for payment. It is not a tax invoice; the tax invoice follows from our accounts.",
+      "noteReference": "Please quote the proforma number {number} with your payment.",
+      "fileName": "Proforma {number}.pdf",
+      "dueRule": {
+        "on_confirmation": "On confirmation",
+        "before_dispatch": "Before dispatch",
+        "on_installation": "On installation",
+        "days_after_invoice": "{days, plural, one {# day} other {# days}} after the invoice"
+      }
+    },
     "quote": {
       "title": "Quotation",
       "number": "Quotation number",
@@ -3581,7 +3608,8 @@
       "whatsapp_media": "File sent on WhatsApp",
       "call_recording": "Call recording",
       "call_transcript": "Call transcript",
-      "vendor_quote": "Supplier quote"
+      "vendor_quote": "Supplier quote",
+      "proforma_pdf": "Proforma"
     },
     "types": {
       "jpeg": "JPEG picture",

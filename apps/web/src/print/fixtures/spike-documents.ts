@@ -6,6 +6,7 @@
 // from the Price Master snapshot and the tax engine in packages/domain.
 import type { CompanyPrint, PrintImage } from '../company';
 import type { LabelPrint } from '../label-template';
+import type { ProformaPrint } from '../proforma-template';
 import type { QuoteLinePrint, QuotePrint } from '../quote-template';
 
 interface Product {
@@ -220,6 +221,53 @@ export function spikeQuote(sites = 1): QuotePrint & { link: string } {
     ],
     preparedBy: 'Priya Sharma',
     link: `https://shaktiprime.com/q/${sites > 1 ? 'ASH2627000418' : 'ASH2627000412'}`,
+  };
+}
+
+/** FN1: the spike quotation as a proforma of its order, with an advance and a balance. */
+export function spikeProforma(): ProformaPrint {
+  const quote = spikeQuote(1);
+  const advance = Math.round(Number(quote.totals.total) / 2);
+  const balance = Number(quote.totals.total) - advance;
+  return {
+    company: quote.company,
+    upiId: 'agrosolarhub@sbi',
+    number: 'ASH/PI/2026-27/0001',
+    date: '2026-09-29',
+    orderNumber: 'ASH/SO/2026-27/0007',
+    cancelled: false,
+    customer: {
+      name: quote.customer.name,
+      addressLines: quote.customer.addressLines,
+      placeOfSupply: quote.customer.placeOfSupply,
+    },
+    lines: quote.lines,
+    totals: {
+      ...quote.totals,
+      taxes: [
+        {
+          tax: 'CGST',
+          amount: money(
+            quote.totals.taxes
+              .filter((x) => x.tax === 'CGST')
+              .reduce((sum, x) => sum + Math.round(Number(x.amount) * 100), 0),
+          ),
+        },
+        {
+          tax: 'SGST',
+          amount: money(
+            quote.totals.taxes
+              .filter((x) => x.tax === 'SGST')
+              .reduce((sum, x) => sum + Math.round(Number(x.amount) * 100), 0),
+          ),
+        },
+      ],
+    },
+    payments: [
+      { label: 'Advance', due: 'On confirmation', amount: money(advance * 100) },
+      { label: 'Balance', due: 'Before dispatch', amount: money(balance * 100) },
+    ],
+    preparedBy: 'Priya Sharma',
   };
 }
 

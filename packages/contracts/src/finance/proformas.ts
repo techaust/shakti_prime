@@ -78,3 +78,12 @@ export const OrderPaymentsDto = z
   })
   .strict();
 export type OrderPaymentsDto = z.infer<typeof OrderPaymentsDto>;
+
+/** `finance.proforma.pdf.attach` (the render worker): the PDF it printed, to its proforma. */
+export const AttachProformaPdfInput = z
+  .object({ entityId: EntityIdSchema, proformaId: IdSchema, fileId: IdSchema })
+  .strict();
+export type AttachProformaPdfInput = z.input<typeof AttachProformaPdfInput>;
+
+export const ProformaPdfDto = z.object({ proformaId: IdSchema, pdfFileId: IdSchema }).strict();
+export type ProformaPdfDto = z.infer<typeof ProformaPdfDto>;

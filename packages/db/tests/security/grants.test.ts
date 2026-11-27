@@ -534,6 +534,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // Which recordings on a timeline page its reader may play (T3, 0171).
       'app.playable_recordings(uuid[])',
+      // FN1: the proforma print loader of the render worker.
+      'app.proforma_for_print(uuid)',
       // The quote print loader of the render worker (0110).
       'app.quote_for_print(uuid)',
       // The ⌘K search's candidate quotes (0110).

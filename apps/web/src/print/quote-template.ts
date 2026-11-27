@@ -67,9 +67,11 @@ export interface PrintDocument {
   options: PdfOptions;
 }
 
-const MARGIN = { top: '15mm', right: '15mm', bottom: '18mm', left: '15mm' };
+/** The A4 margins of a document; the proforma shares them (FN1). */
+export const MARGIN = { top: '15mm', right: '15mm', bottom: '18mm', left: '15mm' };
 
-const css = `
+/** The document's own styles; the proforma shares them (FN1). */
+export const documentCss = `
 .letterhead{display:flex;justify-content:space-between;gap:24px;padding-bottom:12px;border-bottom:2px solid var(--accent);}
 .meta p,.party p{margin:0;}
 .meta{text-align:right;}
@@ -123,7 +125,8 @@ function footer(quote: QuotePrint): string {
   </div>`.value;
 }
 
-function lineRow(line: QuoteLinePrint, index: number): Html {
+/** One priced line of a quotation or a proforma (FN1). */
+export function lineRow(line: QuoteLinePrint, index: number): Html {
   return html`<tr>
     <td class="num">${index + 1}</td>
     <td>${line.description}${line.detail ? html`<div class="detail">${line.detail}</div>` : ''}</td>
@@ -151,7 +154,7 @@ export async function renderQuote(
         />
         <title>${t('quote.title')} ${quote.number}</title>
         <style>
-          ${trusted(baseCss(options))}${trusted(companyCss)}${trusted(css)}
+          ${trusted(baseCss(options))}${trusted(companyCss)}${trusted(documentCss)}
         </style>
       </head>
       <body>

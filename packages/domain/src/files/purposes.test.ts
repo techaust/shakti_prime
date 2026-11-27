@@ -21,6 +21,7 @@ describe('file purposes', () => {
         'knowledge',
         'letterhead',
         'print_proof',
+        'proforma_pdf',
         'quote_pdf',
         'signed_quote',
         'vendor_quote',

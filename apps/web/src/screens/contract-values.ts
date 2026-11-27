@@ -928,6 +928,8 @@ export const FILE_PURPOSES = [
   'call_transcript',
   // U1 vendors and supplier quotes.
   'vendor_quote',
+  // FN1: a proforma's PDF.
+  'proforma_pdf',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */
