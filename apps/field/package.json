@@ -1,0 +1,47 @@
+{
+  "name": "@shakti/field",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Android field app (Expo development build, WatermelonDB, offline sync); ADR 0012, Phase 4 design",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start --dev-client",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --ci"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "58.0.17",
+    "@nozbe/watermelondb": "0.28.0",
+    "@shakti/contracts": "workspace:*",
+    "@shakti/tokens": "workspace:*",
+    "expo": "58.0.25",
+    "expo-camera": "58.0.14",
+    "expo-constants": "58.0.16",
+    "expo-dev-client": "58.0.20",
+    "expo-image-manipulator": "58.0.16",
+    "expo-linking": "58.0.17",
+    "expo-local-authentication": "58.0.3",
+    "expo-location": "58.0.22",
+    "expo-notifications": "58.1.9",
+    "expo-router": "58.0.31",
+    "expo-secure-store": "58.0.3",
+    "expo-sqlite": "58.0.17",
+    "expo-status-bar": "58.0.5",
+    "nativewind": "4.2.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "5.11.1",
+    "react-native-screens": "4.30.1"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-decorators": "7.28.6",
+    "@testing-library/react-native": "14.1.0",
+    "@types/react": "19.3.0",
+    "babel-preset-expo": "58.0.25",
+    "jest": "30.2.0",
+    "jest-expo": "58.0.14",
+    "tailwindcss": "3.4.19",
+    "typescript": "~5.9.3"
+  }
+}
