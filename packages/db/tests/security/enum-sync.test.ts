@@ -76,6 +76,11 @@ import {
   SizingKindSchema,
   StageKindSchema,
   SubsidySchemeSchema,
+  // J1 projects
+  MilestoneStateSchema,
+  ProjectFlowSchema,
+  ProjectSegmentSchema,
+  ProjectStateSchema,
   SupplyKindSchema,
   TaskKindSchema,
   TaskStateSchema,
@@ -297,6 +302,19 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // J1: a project, its steps and its checklists. A PM Surya Ghar project follows the subsidy flow;
+  // one on hold or cancelled says why; a step done says when, one skipped why.
+  project_flow_templates_segment_check: ProjectSegmentSchema.options,
+  projects_segment_check: ProjectSegmentSchema.options,
+  projects_scheme_check: SubsidySchemeSchema.options,
+  projects_flow_check: ProjectFlowSchema.options,
+  projects_flow_scheme_check: ['surya_ghar', 'pm_surya_ghar'],
+  projects_state_check: ProjectStateSchema.options,
+  projects_hold_reason_check: ['on_hold'],
+  projects_cancel_reason_check: ['cancelled'],
+  project_milestones_state_check: MilestoneStateSchema.options,
+  project_milestones_done_check: ['done'],
+  project_milestones_skip_check: ['skipped'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

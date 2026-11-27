@@ -121,6 +121,11 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  // J1 projects
+  projects: 'x.id::text',
+  project_assignments: 'x.id::text',
+  project_milestones: 'x.id::text',
+  project_flow_templates: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -181,6 +186,14 @@ export async function removeEntityMatrixFixture(): Promise<void> {
   await asMigrator((m) =>
     m.begin(async (tx) => {
       // Orders and their commission first: they name a quote, a lead and a commission rule.
+      // J1: a project names its order and its checklist; published checklists never change, so
+      // their trigger is set aside for the fixture's own rows.
+      await tx`delete from project_assignments where id::text like ${like}`;
+      await tx`delete from project_milestones where id::text like ${like}`;
+      await tx`delete from projects where id::text like ${like}`;
+      await tx`alter table project_flow_templates disable trigger project_flow_templates_append_only`;
+      await tx`delete from project_flow_templates where id::text like ${like}`;
+      await tx`alter table project_flow_templates enable trigger project_flow_templates_append_only`;
       await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
       await tx`delete from commission_accruals where id::text like ${like}`;
       await tx`alter table commission_accruals enable trigger commission_accruals_guard`;
@@ -411,6 +424,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    // J1 projects
+    projects: [],
+    project_assignments: [],
+    project_milestones: [],
+    project_flow_templates: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -810,6 +828,22 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
                    commission_rule_id, basis, rate, measure, amount, created_by)
           values (${commission}, ${e}, ${account}, ${opportunity}, ${leadOrder}, ${commissionRule}, 'fixed',
                   1.00, 1, 1.00, ${ownerId})`;
+        // J1: the owner's project of the lead's order, with one step, a second person on it, and
+        // a checklist of a version no suite publishes.
+        const project = per(e, 0x90);
+        const projectTemplate = per(e, 0x91);
+        const projectStep = per(e, 0x92);
+        const projectPerson = per(e, 0x93);
+        await tx`insert into project_flow_templates (id, entity_id, segment, version, steps_json, published_by)
+          values (${projectTemplate}, ${e}, 'commercial_epc', 9000, '[{"key": "survey", "title": "matrix step", "requires": []}]'::jsonb, ${ownerId})`;
+        await tx`insert into projects (id, entity_id, project_no, fy, sales_order_id, account_id, site_id, segment,
+                   scheme, flow, template_version_id, owner_id, created_by)
+          values (${project}, ${e}, ${`MX${e.toString()}/PRJ/2098-99/0001`}, '2098-99', ${leadOrder}, ${account},
+                  ${site}, 'commercial_epc', 'none', 'standard', ${projectTemplate}, ${ownerId}, ${ownerId})`;
+        await tx`insert into project_milestones (id, entity_id, project_id, position, key, title)
+          values (${projectStep}, ${e}, ${project}, 1, 'survey', 'matrix step')`;
+        await tx`insert into project_assignments (id, entity_id, project_id, person_id, created_by)
+          values (${projectPerson}, ${e}, ${project}, ${otherUserId}, ${ownerId})`;
         await tx`insert into accounts (id, type, name, created_by) values (${twin}, 'farm', ${`matrix account ${e}`}, ${ownerId})`;
         await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
           values (${twinLink}, ${twin}, ${e}, ${ownerId}, ${team}, ${ownerId})`;
@@ -862,6 +896,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.dealer_terms.push({ key: terms, entities: only, leadIn: only });
         rows.dealer_outstanding.push({ key: outstanding, entities: only, leadIn: only });
         rows.commission_accruals.push({ key: commission, entities: only });
+        rows.projects.push({ key: project, entities: only });
+        rows.project_assignments.push({ key: projectPerson, entities: only });
+        rows.project_milestones.push({ key: projectStep, entities: only });
+        rows.project_flow_templates.push({ key: projectTemplate, entities: only });
         rows.consents.push({ key: consent, entities: only, leadIn: only });
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });

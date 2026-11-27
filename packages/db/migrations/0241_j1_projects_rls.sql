@@ -208,15 +208,17 @@ grant insert on project_flow_templates to app_user;
 --    state, customer and site, its lead's pipeline segment, its quote's scheme, the company's code
 --    for the number, how many projects the order ever had and the one not cancelled. No row when
 --    the order is not of the company. The platform reads no order by a person's rule (ADR 0020),
---    and a Project Manager makes a project of any order of the company.
+--    and a Project Manager makes a project of any order of the company; an agent, whatever it
+--    holds, makes none (app.request_is_person()).
 create or replace function app.project_order_facts(p_entity smallint, p_order uuid)
   returns table (order_state text, account_id uuid, site_id uuid, segment text, scheme text,
                  entity_code text, projects integer, live_project_id uuid)
   language plpgsql stable security definer set search_path = '' as $$
 begin
   if app.user_id() is null
-     or not (app.has_perm('projects.draft:entity') or app.has_perm('projects.write:entity')) then
-    raise exception 'projects.draft or projects.write is required' using errcode = '42501';
+     or not (app.has_perm('projects.draft:entity')
+             or (app.has_perm('projects.write:entity') and app.request_is_person())) then
+    raise exception 'projects.draft, or projects.write as a person, is required' using errcode = '42501';
   end if;
   if not (p_entity = any (coalesce(app.entity_ids(), '{}'::int[]))) then
     raise exception 'the company is outside the request' using errcode = '42501';
@@ -261,8 +263,9 @@ declare
   v_count integer := 0;
 begin
   if app.user_id() is null
-     or not (app.has_perm('projects.draft:entity') or app.has_perm('projects.write:entity')) then
-    raise exception 'projects.draft or projects.write is required' using errcode = '42501';
+     or not (app.has_perm('projects.draft:entity')
+             or (app.has_perm('projects.write:entity') and app.request_is_person())) then
+    raise exception 'projects.draft, or projects.write as a person, is required' using errcode = '42501';
   end if;
   if not (p_entity = any (coalesce(app.entity_ids(), '{}'::int[]))) then
     raise exception 'the company is outside the request' using errcode = '42501';
