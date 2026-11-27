@@ -1074,6 +1074,13 @@ export const CUSTOMER_LOAN_STATES = [
   'rejected',
 ] as const satisfies readonly CustomerLoanState[];
 
+/** The states in which a loan is its order's one active loan. */
+export const ACTIVE_LOAN_STATE_VALUES = [
+  'applied',
+  'sanctioned',
+  'disbursed',
+] as const satisfies readonly CustomerLoanState[];
+
 /** What an order's dispatch waits for on its loan. */
 export const LOAN_DISPATCH_GATES = [
   'disbursed',
