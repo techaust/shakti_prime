@@ -5,9 +5,9 @@
 | Branch | `feat/tc1-tally-connector` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): a service on the client's PC holding a signing key, financial data |
-| Usage | briefed 27-11-2026; built on Opus 5.5 at high (start and early check, 27-11-2026) |
-| State | early check |
-| Next step | the lead reads the early check |
+| Usage | briefed 27-11-2026; built on Opus 5.5 at high (start, early check and done, 27-11-2026) |
+| State | done |
+| Next step | the review |
 
 ## Brief
 Build [phase5 §6.2](../../03-roadmap-appendix/phase5.md#62-tc1-the-tally-connector) as written, with question 1 (a), and ADR 0013 (change its status to "Accepted (27-11-2026, Phase 5 design)"). The BOS side's rules, contracts and signing already exist; read `docs/04-architecture-appendix/tally.md`, `packages/domain/src/tally/sync-rules.ts`, `packages/contracts/src/api/connector.ts` and `apps/web/src/integrations/tally/` first. Points settled here:
@@ -120,6 +120,28 @@ Shared registration points take one line or one block each, kept together under 
 14. **For the lead:** `build-sea.ts` reaches esbuild through tsx (a root development tool) with `createRequire`, under an `eslint-disable no-restricted-syntax` with its reason, because the workspace may not add a package. Adding `esbuild` as a development dependency of the workspace would remove the exception.
 15. **For the lead:** `eslint.config.mjs` has no fence block for `apps/tally-connector` like `apps/voice-agent`'s; `test/fences.test.ts` enforces the same rule from the connector's own files. A block in the ESLint config (a checks change) would make it a lint error too.
 16. Skills: the brief names none for this slice; none loaded.
+
+### 27-11-2026, done (seat, worktree `tc1-tally-connector`, from `a3d52758`)
+The lead's three points after the early check:
+- **(a) Dealer balances with the snapshot.** `packages/contracts/src/api/connector.ts`: `TallyLedgerBalance` (party ledger GUID, name, signed closing balance, as of) and an optional `ledgerBalances` on `ConnectorSnapshotRequest` (at most 50,000, each GUID once, refused otherwise with "a ledger appears twice"); the recorded example in `fixtures.ts` carries one; `docs/06-api.md` §3.5's snapshot row names it. The connector reads every Sundry Debtors ledger in the same AlterID windows as the GUIDs (with `SVTODATE` the snapshot's India day, so the closing balance is that day's), the newest reading of each GUID kept, through the same read-on-until-still loop, and sends them with each daily snapshot; a balance moved by a posting without a new AlterID is read as it stands. Batch ledgers now ask for the same period, so their balances are the day's too. The log names the count only.
+- **(b) esbuild.** `packaging/build-sea.ts` imports `build` from `esbuild` (the lead's development dependency, 0.28.2); the `createRequire` and both `eslint-disable` comments are gone.
+- **(c) The fence.** `eslint.config.mjs`, under a `TC1 the Tally connector` comment: `apps/tally-connector/src` imports only `@shakti/contracts`, `node:` modules and its own files, and nothing by a relative path into another app or package; `apps/tally-connector/packaging` imports only `esbuild`, `postject` and `node:` modules. Tests stay outside, as the voice agent's do. `apps/web/src/lint-fences.test.ts` gains the case (allowed and refused imports for both folders). A checks change: the owner's `checks-ok`, with the Windows job's.
+
+**Tests added since the early check:** connector 51 (50 pass on Linux, 1 Windows only): `reader.test.ts` +1 (every Sundry Debtors balance as at the day across windows, one moved without an AlterID; each ledger read names `SVTODATE`), `sync.test.ts` (the snapshot case now checks the balance sent and that the log holds neither the dealer's name nor the figure). Web: `tally.test.ts` 11 (+1: balances read, a ledger twice refused, a numeric balance and a bad date named); `lint-fences.test.ts` 17 (+1).
+
+**Final checks** (all through the lock, from the commit before this report):
+- `pnpm typecheck`: 11 tasks successful.
+- `pnpm exec turbo run test --filter=@shakti/tally-connector --filter=@shakti/contracts --force`: connector 11 files, 50 passed, 1 skipped; contracts 25 files, 340 passed.
+- `pnpm --filter web exec vitest run`: 167 files, 1,241 passed, 1 skipped.
+- `node apps/tally-connector/packaging/build-sea.ts`: built with esbuild imported directly; the executable answers `0.1.0`.
+- `pnpm build`, then `pnpm --filter web js-budget`: every page within its budget (65 pages).
+- `pnpm lint` (whole repository): clean. `pnpm format:check`: clean.
+- `tools/integration/check-doc-links.py`: only the run file's own `ORPHAN` line, as before this slice.
+- No schema, policy, command, query, `en.json` or screen: no security suite, copy-lint, `db:docs`, journeys or `EXPLAIN`.
+
+**Review checklist:** the key lives in one private field, never in a log line (`logId` withholds anything not id-shaped), a printout, the outbox or a plain file outside development (DPAPI on Windows; plain only off Windows with `TALLY_CONNECTOR_DEV=1`); every Tally request is an `Export` with `ISMODIFY="No"` (tested on the requests, the fixture refuses anything else, and `fences.test.ts` scans the source); a resend carries the stored body and key and is applied once (lost answer, kill before and after the BOS applied it, outage); the outbox survives a kill (a child process killed and restarted); throttling holds (never two requests in flight, the pause between each).
+
+**Still waiting:** the first Windows run of `.github/workflows/tally-connector.yml` and the owner's `checks-ok` for it and the ESLint change; the discovery visit's check of the TDL names (`tally.md` step 3). For TC2: `ledgerBalances` is the dealer-outstanding source (question 11); the snapshot's `missingOnServer` and the raw `pathname + search` signing are as the early check says (assumptions 4 and 5).
 
 ## Review
 
