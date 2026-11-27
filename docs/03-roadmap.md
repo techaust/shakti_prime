@@ -119,10 +119,14 @@ Closed on its engineering work on 20-11-2026 (the owner's decision): the run on 
 ## 8. Phase 6 — AI brain & autonomy (7–9 weeks)
 **Scope:** Sizing & Quote, Project Orchestrator and Chief of Staff agents; voice Command mode; autonomy promotions per action type with eval thresholds.
 
+**Plan:** 7 slices in three waves, in [`docs/03-roadmap-appendix/phase6.md`](03-roadmap-appendix/phase6.md) §3, drafted on 27-11-2026 for the owner's approval.
+
 **Exit gate:** eval thresholds met per action type; ≥ 95% unedited over ≥ 200 cases before any Automatic promotion; Executive sign-off recorded.
 
 ## 9. Phase 7 — Hardening & rollout (4–5 weeks)
 **Scope:** load test at 10k leads/day and 100 concurrent users; external security review and pentest; DR restore drill; DPDP readiness review; runbooks and onboarding guide; role-wise training and in-app help; go-live.
+
+**Plan:** 7 slices, in [`docs/03-roadmap-appendix/phase7.md`](03-roadmap-appendix/phase7.md) §3, drafted on 27-11-2026 for the owner's approval.
 
 **Exit gate:** go-live sign-off by the Executives; open findings closed or accepted in writing.
 
