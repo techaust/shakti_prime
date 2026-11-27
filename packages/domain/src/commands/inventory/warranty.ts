@@ -530,10 +530,6 @@ export const replaceWarranty = defineCommand({
   input: ReplaceWarrantyInput,
   output: WarrantyClaimChangedDto,
   auditFields: CLAIM_AUDIT_FIELDS,
-  unmaskedFields: [
-    // A serial number as the maker prints it, which may be a long run of digits.
-    'replacementSerialNo',
-  ],
   constraintReasons: CLAIM_RACES,
   async handler(ctx, input) {
     const claim = await lockClaim(ctx, input.entityId, input.claimId);
@@ -617,10 +613,6 @@ export const raiseWarrantyRma = defineCommand({
   input: RaiseWarrantyRmaInput,
   output: WarrantyClaimChangedDto,
   auditFields: [...CLAIM_AUDIT_FIELDS, 'supplierRmaRef'],
-  unmaskedFields: [
-    // The supplier's own return reference, which may be a long run of digits.
-    'supplierRmaRef',
-  ],
   async handler(ctx, input) {
     const claim = await lockClaim(ctx, input.entityId, input.claimId);
     const to = fire(ctx, recordOf(claim, { supplierRmaRef: input.supplierRmaRef }), 'rma.raise');

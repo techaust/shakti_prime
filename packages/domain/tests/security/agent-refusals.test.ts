@@ -398,6 +398,18 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     settlement: 'credit',
     creditAmount: '100.00',
   },
+  'inventory.warranty.replace': {
+    entityId: 1,
+    claimId: newId(),
+    fromBinId: newId(),
+    replacementSerialNo: 'REFUSED-1',
+  },
+  'inventory.warranty.rma_raise': {
+    entityId: 1,
+    claimId: newId(),
+    vendorId: newId(),
+    supplierRmaRef: 'REFUSED',
+  },
   // Q1 labels: printing a sheet of labels is a person's work at the hub.
   'inventory.label.print': { entityId: 1, labelKind: 'bin', ids: [newId()] },
   'inventory.label.reprint': {

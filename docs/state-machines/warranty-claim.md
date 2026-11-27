@@ -25,8 +25,8 @@ Items marked *proposed* are not named in the governing documents; they were chos
 |---|---|---|---|---|---|
 | `raise` | (new) → `raised` | `inventory.warranty.write` at entity scope or wider | – | – | `inventory.warranty.raised` |
 | `serial.identify` | `raised` → `serial_identified` | `inventory.warranty.write` at entity scope or wider | the failed serial is given; the serial's warranty runs to today or later (IST) | `set_serial`: record the failed serial on the claim | `inventory.warranty.serial_identified` |
-| `replace` | `serial_identified` → `replacement_issued` | `inventory.warranty.write` at entity scope or wider | the replacement serial is recorded | `issue_stock`: the replacement serial leaves stock to the customer (`warranty_replacement`, at the moving average); `cost_entry`: the replacement's cost on the claim's restricted costs; the job cost entry of type `warranty` waits for Phase 5 (question 10 (a)) | – |
-| `rma.raise` | `replacement_issued` → `rma_raised` | `procurement.po.write` at entity scope or wider | the supplier's RMA reference is recorded | – | – |
+| `replace` | `serial_identified` → `replacement_issued` | `inventory.warranty.write` at entity scope or wider | the replacement serial is recorded | `issue_stock`: the replacement serial leaves stock to the customer (`warranty_replacement`, at the moving average); `cost_entry`: the replacement's cost on the claim's restricted costs; the job cost entry of type `warranty` waits for Phase 5 (question 10 (a)) | `inventory.warranty.replaced` |
+| `rma.raise` | `replacement_issued` → `rma_raised` | `procurement.po.write` at entity scope or wider | the supplier's RMA reference is recorded | `return_supplier`: the failed serial leaves its quarantine bin for its supplier (`return_supplier`), back from the customer first if it is not yet | `inventory.warranty.rma_raised` |
 | `settle` | `rma_raised` → `closed` | `procurement.grn.write` at entity scope or wider | supplier credit or a supplier replacement is received | `adjust_cost`: the supplier's credit on the claim's restricted costs, or its replacement serial received into stock; Phase 5 offsets the job cost entry with it | `inventory.warranty.closed` |
 | `reject` *(proposed)* | `raised`, `serial_identified` → `rejected` | `inventory.warranty.write` at entity scope or wider | a reason is given | – | `inventory.warranty.rejected` |
 
@@ -36,6 +36,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 
 - `raise`: From Account 360, or from the serial reported, whose customer the claim takes.
 - `serial.identify`: The serial is the company's, with the claim's customer; out of warranty it is refused with its date, and the claim is rejected.
+- `replace`: The failed serial comes back into a quarantine bin as faulty in the same step, or with the RMA.
 
 ## Diagram
 
