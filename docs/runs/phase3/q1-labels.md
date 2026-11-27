@@ -175,7 +175,7 @@ Reviewed `git diff origin/main...feat/q1-labels` at `7cb4036a` (`main` at `59736
 
 **Runs here**
 - `bash tools/integration/heavy.sh pnpm test:security` on Postgres 54332, a fresh database migrated and seeded by the suite: db 1785 passed (62 files), domain 1534 passed (111 files), web 466 passed (40 files); 4 of 4 tasks, exit 0.
-- Web unit tests `src/print/labels.test.ts`, `src/workers/pdf/job.test.ts`, `src/print/templates.test.ts` and `src/screens`: 273 passed (33 files).
+- Web unit tests `src/print/labels.test.ts`, `src/workers/pdf/job.test.ts`, `src/print/templates.test.ts` and `src/screens`: 273 passed (33 files). Domain unit tests `src/labels`, `src/workshop-defaults.test.ts` and `src/command/registry.test.ts`: 13 passed (3 files).
 
 **Not run or not checked here**
 - Journeys: I ran none (this session cannot sign in). By reading their specs: `e2e/labels.spec.ts` (the hub's bin labels; the serial's reprint with a reason, axe, the two dialog snapshots and focus return; jsQR at 203 dpi and the 500-label time, on desktop light only), the three new label pages in `e2e/print.spec.ts`, and `e2e/inventory.spec.ts` `stock-hubs`, which changes because the Executive now sees the label buttons. Also by reading: the labels seed adds one serial per project to bin JA-01 of the Journey godown in company 1. That touches no snapshot company, so `stock-list`, `stock-card` and `stock-valuation` are unchanged.
