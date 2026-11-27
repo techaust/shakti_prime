@@ -584,7 +584,11 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
 
 describe('commands for people only', () => {
   it('are found in the registry, each with a valid input here', () => {
-    expect(PEOPLE_ONLY.map((c) => c.name)).toEqual(Object.keys(PEOPLE_ONLY_INPUTS).sort());
+    // Both lists in the registry's order (localeCompare), which puts `hr.leave_type.set` before
+    // `hr.leave.adjust` where a plain sort would not.
+    expect(PEOPLE_ONLY.map((c) => c.name)).toEqual(
+      Object.keys(PEOPLE_ONLY_INPUTS).sort((a, b) => a.localeCompare(b)),
+    );
     for (const command of PEOPLE_ONLY) {
       expect({
         command: command.name,
