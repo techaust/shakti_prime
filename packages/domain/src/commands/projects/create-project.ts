@@ -85,15 +85,15 @@ interface NewProject {
  * Makes the project (the `project_standard` machine's `create` and `copy_checklist`): its number
  * from the company's series, then `app.create_project()`, which locks the order and copies the
  * checklist. Both run in a savepoint, so a number drawn for an order that turned out to have its
- * project already goes back to the series. Undefined when it had one.
+ * project already goes back to the series. Undefined when it had one; the command emits
+ * `projects.project.drafted` for a project made.
  */
 async function makeProject(ctx: CommandContext, p: NewProject): Promise<string | undefined> {
-  transition(
-    projectStandardMachine,
-    { state: null, milestones: [] },
-    'create',
-    { actor: p.actor, now: ctx.now, params: {} },
-  );
+  transition(projectStandardMachine, { state: null, milestones: [] }, 'create', {
+    actor: p.actor,
+    now: ctx.now,
+    params: {},
+  });
   const id = newId();
   const flow = flowOf(p.scheme);
   try {
@@ -109,9 +109,17 @@ async function makeProject(ctx: CommandContext, p: NewProject): Promise<string |
               from app.create_project(${id}::uuid, ${p.entityId}::smallint, ${p.orderId}::uuid,
                                       ${number.formatted}, ${number.fy}, ${p.segment}, ${p.scheme},
                                       ${p.ownerId}::uuid, ${DEFAULT_STEPS}::jsonb, ${p.oncePerOrder})`,
-      )) as unknown as { created: boolean; template_version_id: string | null; milestones: number }[];
+      )) as unknown as {
+        created: boolean;
+        template_version_id: string | null;
+        milestones: number;
+      }[];
       if (result?.created !== true) throw new AlreadyDrafted();
-      return { projectNo: number.formatted, templateVersionId: result.template_version_id, milestones: result.milestones };
+      return {
+        projectNo: number.formatted,
+        templateVersionId: result.template_version_id,
+        milestones: result.milestones,
+      };
     });
     ctx.audit({
       aggregateType: 'project',
@@ -127,13 +135,6 @@ async function makeProject(ctx: CommandContext, p: NewProject): Promise<string |
         templateVersionId: made.templateVersionId,
         milestones: made.milestones,
       },
-    });
-    ctx.emit({
-      type: 'projects.project.drafted',
-      entityId: p.entityId,
-      aggregateType: 'project',
-      aggregateId: id,
-      payload: { salesOrderId: p.orderId, accountId: p.facts.accountId },
     });
     return id;
   } catch (error) {
@@ -172,7 +173,7 @@ export const draftProject = defineCommand({
     requireEntity(ctx, input.entityId);
     const facts = await orderFacts(ctx, input.entityId, input.orderId);
     const decision = draftDecision(facts);
-    if (!decision.draft) return { outcome: 'skipped' as const, reason: decision.reason };
+    if (!decision.draft) return { outcome: 'skipped' as const, because: decision.because };
     if (facts === undefined) throw new DomainError('internal', 'a draft needs its order');
     const projectId = await makeProject(ctx, {
       entityId: input.entityId,
@@ -184,9 +185,17 @@ export const draftProject = defineCommand({
       ownerId: null,
       oncePerOrder: true,
     });
-    return projectId === undefined
-      ? { outcome: 'skipped' as const, reason: 'already_drafted' as const }
-      : { outcome: 'drafted' as const, projectId };
+    if (projectId === undefined) {
+      return { outcome: 'skipped' as const, because: 'already_drafted' as const };
+    }
+    ctx.emit({
+      type: 'projects.project.drafted',
+      entityId: input.entityId,
+      aggregateType: 'project',
+      aggregateId: projectId,
+      payload: { salesOrderId: input.orderId, accountId: facts.accountId },
+    });
+    return { outcome: 'drafted' as const, projectId };
   },
 });
 
@@ -237,6 +246,13 @@ export const createProject = defineCommand({
       oncePerOrder: false,
     });
     if (projectId === undefined) throw new DomainError('internal', 'the project was not made');
+    ctx.emit({
+      type: 'projects.project.drafted',
+      entityId: input.entityId,
+      aggregateType: 'project',
+      aggregateId: projectId,
+      payload: { salesOrderId: input.orderId, accountId: facts.accountId },
+    });
     return readProject(ctx.tx, input.entityId, projectId);
   },
 });

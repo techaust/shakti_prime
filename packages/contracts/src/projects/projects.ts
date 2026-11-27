@@ -82,21 +82,17 @@ export const CreateProjectInput = z
 export type CreateProjectInput = z.input<typeof CreateProjectInput>;
 
 /** `projects.project.draft`: the platform's project for an order just confirmed. */
-export const DraftProjectInput = z
-  .object({ entityId: EntityIdSchema, orderId: IdSchema })
-  .strict();
+export const DraftProjectInput = z.object({ entityId: EntityIdSchema, orderId: IdSchema }).strict();
 export type DraftProjectInput = z.input<typeof DraftProjectInput>;
 
 export const DraftProjectDto = z.discriminatedUnion('outcome', [
   z.object({ outcome: z.literal('drafted'), projectId: IdSchema }).strict(),
-  z.object({ outcome: z.literal('skipped'), reason: DraftSkipReasonSchema }).strict(),
+  z.object({ outcome: z.literal('skipped'), because: DraftSkipReasonSchema }).strict(),
 ]);
 export type DraftProjectDto = z.infer<typeof DraftProjectDto>;
 
 /** A project of a company: `projects.project.resume` and `.complete`. */
-export const ProjectRefInput = z
-  .object({ entityId: EntityIdSchema, projectId: IdSchema })
-  .strict();
+export const ProjectRefInput = z.object({ entityId: EntityIdSchema, projectId: IdSchema }).strict();
 export type ProjectRefInput = z.input<typeof ProjectRefInput>;
 
 /** `projects.project.hold` and `.cancel`: a project and why, in the person's words. */

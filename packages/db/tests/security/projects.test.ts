@@ -3,13 +3,7 @@
 // (app.project_is_mine()); its steps and people are read with it; the company's checklists by any
 // holder of projects.read. Every read runs on both pools, app_user and app_reader, for every role
 // acting in every company; the writes run as app_user under real row security.
-import {
-  hasGrant,
-  newId,
-  type Principal,
-  ROLE_KEYS,
-  type RoleKey,
-} from '@shakti/contracts';
+import { hasGrant, newId, type Principal, ROLE_KEYS, type RoleKey } from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { withRequestContext } from '../../src/context';
@@ -43,7 +37,12 @@ const stepB = (e: number): string => id(0x0400 | e);
 const assignmentA = (e: number): string => id(0x0500 | e);
 const templateOf = (e: number): string => id(0x0600 | e);
 
-const TABLES = ['projects', 'project_milestones', 'project_assignments', 'project_flow_templates'] as const;
+const TABLES = [
+  'projects',
+  'project_milestones',
+  'project_assignments',
+  'project_flow_templates',
+] as const;
 type Table = (typeof TABLES)[number];
 
 async function removeFixture(): Promise<void> {
@@ -61,8 +60,9 @@ async function removeFixture(): Promise<void> {
 
 /** The matrix fixture's orders of a company: its lead's and its dealer's. */
 async function ordersOf(e: number): Promise<{ lead: string; dealer: string }> {
-  const rows = await asMigrator((m) =>
-    m<{ id: string; quote_id: string | null }[]>`
+  const rows = await asMigrator(
+    (m) =>
+      m<{ id: string; quote_id: string | null }[]>`
       select id::text as id, quote_id from sales_orders
        where entity_id = ${e} and id::text like ${`${ENTITY_MATRIX_FIXTURE_PREFIX}%`}`,
   );
@@ -201,7 +201,7 @@ describe('every role acting in one company reads only its projects, on both pool
   });
 });
 
-describe("the `own` scope: a project the caller owns or is assigned to (app.project_is_mine())", () => {
+describe('the `own` scope: a project the caller owns or is assigned to (app.project_is_mine())', () => {
   it('a Field Engineer reads only the project they are on, its steps and its people', async () => {
     for (const pool of POOLS) {
       expect(await visible(actingAs('field_engineer', 1), 'projects', pool)).toEqual([projectA(1)]);
@@ -362,16 +362,18 @@ describe('writes', () => {
 
 describe('the definers that make a project (ADR 0020)', () => {
   const facts = (who: Principal, order: string) =>
-    attempt(
-      who,
-      sql`select * from app.project_order_facts(1::smallint, ${order}::uuid)`,
-    );
+    attempt(who, sql`select * from app.project_order_facts(1::smallint, ${order}::uuid)`);
 
   it('read an order only for the platform drafting or a holder of projects.write for the company', async () => {
     const { dealer } = await ordersOf(1);
     expect(await facts(principalFor('system:workers', [1]), dealer)).toBe(1);
     expect(await facts(actingAs('project_manager', 1, MANAGER), dealer)).toBe(1);
-    for (const role of ['field_engineer', 'tele_caller_lc', 'accounts', 'agent:orchestrator'] as const) {
+    for (const role of [
+      'field_engineer',
+      'tele_caller_lc',
+      'accounts',
+      'agent:orchestrator',
+    ] as const) {
       expect({ role, code: codeOf(await facts(actingAs(role, 1), dealer)) }).toEqual({
         role,
         code: '42501',
@@ -389,13 +391,26 @@ describe('the definers that make a project (ADR 0020)', () => {
         sql`select * from app.create_project(${newId()}::uuid, 1::smallint, ${dealer}::uuid, 'X', '2098-99',
                                              'farmer_pumps', 'none', null, '[]'::jsonb, true)`,
       );
-    for (const role of ['field_engineer', 'tele_caller_lc', 'accounts', 'agent:orchestrator'] as const) {
-      expect({ role, code: codeOf(await make(actingAs(role, 1))) }).toEqual({ role, code: '42501' });
+    for (const role of [
+      'field_engineer',
+      'tele_caller_lc',
+      'accounts',
+      'agent:orchestrator',
+    ] as const) {
+      expect({ role, code: codeOf(await make(actingAs(role, 1))) }).toEqual({
+        role,
+        code: '42501',
+      });
     }
   });
 
   it('keep projects.draft for the platform alone', async () => {
-    const [row] = await withoutContext<{ listed: boolean; staff: boolean; agent: boolean; system: boolean }>(sql`
+    const [row] = await withoutContext<{
+      listed: boolean;
+      staff: boolean;
+      agent: boolean;
+      system: boolean;
+    }>(sql`
       select 'projects.draft' = any (app.platform_only_permissions()) as listed,
              app.role_may_hold('project_manager', 'projects.draft') as staff,
              app.role_may_hold('agent:orchestrator', 'projects.draft') as agent,
@@ -405,10 +420,13 @@ describe('the definers that make a project (ADR 0020)', () => {
   });
 
   it('answer no missing document for any step until J3 lists them', async () => {
-    const rows = await withRequestContext(actingAs('field_engineer', 1), {}, async ({ tx }) =>
-      (await tx.execute(
-        sql`select * from app.project_missing_documents(${projectA(1)}::uuid, 'survey')`,
-      )) as unknown as unknown[],
+    const rows = await withRequestContext(
+      actingAs('field_engineer', 1),
+      {},
+      async ({ tx }) =>
+        (await tx.execute(
+          sql`select * from app.project_missing_documents(${projectA(1)}::uuid, 'survey')`,
+        )) as unknown as unknown[],
     );
     expect(rows).toEqual([]);
   });

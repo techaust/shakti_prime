@@ -4175,7 +4175,8 @@
       "agents_note_write": "Write call briefs and call summaries",
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
       "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
-      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept"
+      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept",
+      "projects_draft": "Start a project when an order that needs installing is confirmed"
     },
     "empty": "There are no roles to show.",
     "locked": {

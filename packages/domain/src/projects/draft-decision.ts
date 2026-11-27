@@ -46,7 +46,7 @@ export function flowOf(scheme: SubsidyScheme): ProjectFlow {
 
 export type DraftDecision =
   | { draft: true; segment: ProjectSegment; scheme: SubsidyScheme; flow: ProjectFlow }
-  | { draft: false; reason: DraftSkipReason };
+  | { draft: false; because: DraftSkipReason };
 
 /**
  * Whether the platform drafts a project for a confirmed order (docs/03-roadmap-appendix/phase4.md
@@ -56,12 +56,12 @@ export type DraftDecision =
  */
 export function draftDecision(facts: OrderFacts | undefined): DraftDecision {
   if (facts === undefined || !orderConfirmed(facts.orderState)) {
-    return { draft: false, reason: 'order_not_confirmed' };
+    return { draft: false, because: 'order_not_confirmed' };
   }
-  if (facts.projects > 0) return { draft: false, reason: 'already_drafted' };
+  if (facts.projects > 0) return { draft: false, because: 'already_drafted' };
   const segment = installSegment(facts.segment);
-  if (segment === null) return { draft: false, reason: 'not_install_segment' };
-  if (facts.siteId === null) return { draft: false, reason: 'no_site' };
+  if (segment === null) return { draft: false, because: 'not_install_segment' };
+  if (facts.siteId === null) return { draft: false, because: 'no_site' };
   const scheme = schemeOf(facts);
   return { draft: true, segment, scheme, flow: flowOf(scheme) };
 }

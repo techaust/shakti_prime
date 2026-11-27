@@ -7,10 +7,7 @@ type ProjectRow = typeof schema.projects.$inferSelect;
 type MilestoneRow = typeof schema.projectMilestones.$inferSelect;
 
 /** A project's steps in checklist order, as the caller reads them. */
-export async function readMilestones(
-  tx: RequestTx,
-  projectId: string,
-): Promise<MilestoneRow[]> {
+export async function readMilestones(tx: RequestTx, projectId: string): Promise<MilestoneRow[]> {
   return tx
     .select()
     .from(schema.projectMilestones)

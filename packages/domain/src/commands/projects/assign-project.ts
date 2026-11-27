@@ -22,7 +22,9 @@ export const assignProject = defineCommand({
   auditFields: ['ownerId', 'assigneeIds'],
   async handler(ctx, input) {
     const row = await lockProject(ctx, input.entityId, input.projectId);
-    const people = [...new Set([...(input.ownerId === null ? [] : [input.ownerId]), ...input.assigneeIds])];
+    const people = [
+      ...new Set([...(input.ownerId === null ? [] : [input.ownerId]), ...input.assigneeIds]),
+    ];
     if (people.length > 0) {
       const r = schema.userEntityRoles;
       const found = await ctx.tx

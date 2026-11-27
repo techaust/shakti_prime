@@ -14,7 +14,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Quote | **yes** | 6 | 7 | 0 | [quote.md](quote.md) |
 | Sales order | **yes** | 7 | 9 | 1 | [sales-order.md](sales-order.md) |
 | Dispatch | no | 5 | 6 | 4 | [dispatch.md](dispatch.md) |
-| Project, standard install flow | no | 4 | 6 | 9 | [project-standard.md](project-standard.md) |
+| Project, standard install flow | **yes** | 4 | 6 | 9 | [project-standard.md](project-standard.md) |
 | Project, PM Surya Ghar flow | no | 12 | 13 | 3 | [project-surya-ghar.md](project-surya-ghar.md) |
 | Subsidy gate | no | 4 | 5 | 9 | [subsidy-gate.md](subsidy-gate.md) |
 | Customer loan | no | 4 | 4 | 1 | [customer-loan.md](customer-loan.md) |
@@ -46,12 +46,14 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `numbering.docCodes.proforma` | PI |
 | `numbering.docCodes.challan` | DC |
 | `numbering.docCodes.purchase_order` | PO |
+| `numbering.docCodes.project` | PRJ |
 | `numbering.separator` | / |
 | `numbering.serialDigits` | 4 |
 | `pricing.kitPricing` | fixed |
 | `credit.exposureCountsConfirmedOrders` | true |
 | `dispatch.ewayBillThresholdPaise` | 5000000 |
 | `stock.reversalDays` | 7 |
+| `projects.standardSteps` | survey, dispatch, install, commission, handover |
 | `crm.dispositions` | key: 1; code: interested; label: Interested; nextAction: callback<br>key: 2; code: call_back_later; label: Call back later; nextAction: callback<br>key: 3; code: not_reachable; label: Not reachable; nextAction: retry<br>key: 4; code: switched_off; label: Switched off; nextAction: retry<br>key: 5; code: wrong_number; label: Wrong number; nextAction: wrong_number<br>key: 6; code: not_interested; label: Not interested; nextAction: not_interested<br>key: 7; code: already_bought; label: Already bought; nextAction: not_interested<br>key: 8; code: qualified; label: Qualified; nextAction: qualified |
 | `crm.scoreBase` | 50 |
 | `crm.scoreRules` | none |
@@ -106,3 +108,4 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `retention.whatsappMediaYears` | 3 |
 | `retention.askDays` | 90 |
 | `retention.callRecordingMonths` | 12 |
+| `retention.projectYears` | 8 |

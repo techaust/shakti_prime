@@ -114,19 +114,15 @@ const MOVE_AUDIT_FIELDS = ['projectState', 'holdReason', 'cancelReason'] as cons
 
 type MoveEvent = 'hold' | 'resume' | 'complete' | 'cancel';
 
-const EMITS: Record<MoveEvent, 'projects.project.held' | 'projects.project.completed' | 'projects.project.cancelled' | null> = {
-  hold: 'projects.project.held',
-  resume: null,
-  complete: 'projects.project.completed',
-  cancel: 'projects.project.cancelled',
-};
-
-/** Fires a whole-project event and writes the new state with its reason. */
+/**
+ * Fires a whole-project event and writes the new state with its reason; the command emits the
+ * machine's event, if any, and answers the project.
+ */
 async function moveProject(
   ctx: CommandContext,
   input: { entityId: number; projectId: string; reason?: string },
   event: MoveEvent,
-): Promise<ProjectDto> {
+): Promise<ProjectRow> {
   const row: ProjectRow = await lockProject(ctx, input.entityId, input.projectId);
   requireStandardFlow(row);
   const steps = event === 'complete' ? await readMilestones(ctx.tx, row.id) : [];
@@ -151,17 +147,7 @@ async function moveProject(
     before: { projectState: row.state, holdReason: row.holdReason, cancelReason: row.cancelReason },
     after: { projectState: moved.to, holdReason, cancelReason },
   });
-  const type = EMITS[event];
-  if (type !== null) {
-    ctx.emit({
-      type,
-      entityId: row.entityId,
-      aggregateType: 'project',
-      aggregateId: row.id,
-      payload: { accountId: row.accountId },
-    });
-  }
-  return readProject(ctx.tx, row.entityId, row.id);
+  return row;
 }
 
 /** `projects.project.hold`: an active project waits, with the reason (a Project Manager's call). */
@@ -173,7 +159,17 @@ export const holdProject = defineCommand({
   input: ProjectReasonInput,
   output: ProjectDto,
   auditFields: [...MOVE_AUDIT_FIELDS],
-  handler: (ctx, input) => moveProject(ctx, input, 'hold'),
+  async handler(ctx, input) {
+    const row = await moveProject(ctx, input, 'hold');
+    ctx.emit({
+      type: 'projects.project.held',
+      entityId: row.entityId,
+      aggregateType: 'project',
+      aggregateId: row.id,
+      payload: { accountId: row.accountId },
+    });
+    return readProject(ctx.tx, row.entityId, row.id);
+  },
 });
 
 /** `projects.project.resume`: a project on hold goes on; its hold reason is cleared. */
@@ -185,7 +181,10 @@ export const resumeProject = defineCommand({
   input: ProjectRefInput,
   output: ProjectDto,
   auditFields: [...MOVE_AUDIT_FIELDS],
-  handler: (ctx, input) => moveProject(ctx, input, 'resume'),
+  async handler(ctx, input) {
+    const row = await moveProject(ctx, input, 'resume');
+    return readProject(ctx.tx, row.entityId, row.id);
+  },
 });
 
 /**
@@ -200,7 +199,17 @@ export const completeProject = defineCommand({
   input: ProjectRefInput,
   output: ProjectDto,
   auditFields: [...MOVE_AUDIT_FIELDS],
-  handler: (ctx, input) => moveProject(ctx, input, 'complete'),
+  async handler(ctx, input) {
+    const row = await moveProject(ctx, input, 'complete');
+    ctx.emit({
+      type: 'projects.project.completed',
+      entityId: row.entityId,
+      aggregateType: 'project',
+      aggregateId: row.id,
+      payload: { accountId: row.accountId },
+    });
+    return readProject(ctx.tx, row.entityId, row.id);
+  },
 });
 
 /**
@@ -215,5 +224,15 @@ export const cancelProject = defineCommand({
   input: ProjectReasonInput,
   output: ProjectDto,
   auditFields: [...MOVE_AUDIT_FIELDS],
-  handler: (ctx, input) => moveProject(ctx, input, 'cancel'),
+  async handler(ctx, input) {
+    const row = await moveProject(ctx, input, 'cancel');
+    ctx.emit({
+      type: 'projects.project.cancelled',
+      entityId: row.entityId,
+      aggregateType: 'project',
+      aggregateId: row.id,
+      payload: { accountId: row.accountId },
+    });
+    return readProject(ctx.tx, row.entityId, row.id);
+  },
 });

@@ -150,7 +150,11 @@ export const projectStandardMachine = defineMachine<
           description: 'send the handover kit on WhatsApp (J11)',
           proposed: true,
         },
-        { key: 'register_warranty', description: 'register warranty per serial (J11)', proposed: true },
+        {
+          key: 'register_warranty',
+          description: 'register warranty per serial (J11)',
+          proposed: true,
+        },
       ],
       emits: 'projects.project.completed',
       proposed: true,
