@@ -5,9 +5,9 @@
 | Branch | `feat/tc1-tally-connector` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): a service on the client's PC holding a signing key, financial data |
-| Usage | briefed 27-11-2026 |
-| State | briefed |
-| Next step | the builder |
+| Usage | briefed 27-11-2026; built on Opus 5.5 at high (start and early check, 27-11-2026) |
+| State | early check |
+| Next step | the lead reads the early check |
 
 ## Brief
 Build [phase5 §6.2](../../03-roadmap-appendix/phase5.md#62-tc1-the-tally-connector) as written, with question 1 (a), and ADR 0013 (change its status to "Accepted (27-11-2026, Phase 5 design)"). The BOS side's rules, contracts and signing already exist; read `docs/04-architecture-appendix/tally.md`, `packages/domain/src/tally/sync-rules.ts`, `packages/contracts/src/api/connector.ts` and `apps/web/src/integrations/tally/` first. Points settled here:
@@ -67,6 +67,59 @@ Phase 3's waves 2 and 3 and Phase 4's waves 1 and 2 run at the same time.
 Shared registration points take one line or one block each, kept together under a comment naming your slice; the lead merges them. They are `en.json`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event catalogue and worker registry, `MACHINES_IN_USE`, the file purposes, the print registry, the testing lists and the retention list, `nav.ts`, `turbo.json` and `.env.example`.
 
 ## Report
+
+### 27-11-2026, early check (seat, worktree `tc1-tally-connector`)
+**Built** (the reader, outbox, client, scheduler, setup and packaging; no schema, migration, command or screen):
+- `apps/tally-connector/src/`: `tally/xml.ts` (moved from `apps/web/src/integrations/tally/tally-xml.ts` with `voucherTypeOf`, then grown: AlterID windows `(after, upTo]`, party ledgers, the company's state, the voucher type's parent for renamed types, UTF-16 answers, Tally's error answers), `tally/reader.ts`, `outbox.ts` (`node:sqlite`, WAL, `synchronous = FULL`), `client.ts`, `signing.ts`, `sync.ts`, `scheduler.ts`, `config.ts`, `dpapi.ts`, `setup.ts`, `log.ts`, `messages.ts`, `settings.ts` (the named settings), `main.ts` (`setup`, `run`, `version`); `tsconfig.json`; `README.md` (parts and the office-PC install steps).
+- `apps/tally-connector/test/`: `fixture-tally.ts` (Tally-shaped XML by AlterID window from the spike's recording, knobs for slowness, 500s, silence, UTF-16, closed companies, edits and deletions; refuses anything but an `Export`), `stub-bos.ts` (verifies every signature, cursor per company, `cursor_mismatch`, idempotency store with replay and `idempotency_mismatch`, records every applied voucher version; knobs for down, lost answers, holding a batch before or after applying), `harness.ts`, `child-connector.ts`.
+- Packaging: `packaging/build-sea.ts` (esbuild bundle to one CommonJS file, SEA blob from `packaging/sea-config.json`, `postject` inject, then checks the executable answers its version), `packaging/postject.d.ts`, `packaging/winsw/shakti-tally-connector-service.xml`, and the CI job `.github/workflows/tally-connector.yml` (windows-latest: typecheck, tests with the real DPAPI, WinSW 2.12.0 refused unless its SHA-256 is the pinned one, the executable, WinSW reading its XML, the folder as an artifact). Built and run on Linux here: a 128 MB executable that answers `0.1.0`, refuses to start without settings, and with a dev settings file starts, logs, retries and stops on Ctrl+C.
+- The move of `tally-xml.ts`: **the web imports it from the connector**. The spike script (`apps/web/scripts/spike/tally-read.ts`) imports `../../../tally-connector/src/tally/xml` by path; no ESLint fence forbids it (only `apps/voice-agent` has a relative-path fence), it is a local script outside `next build`, and the web keeps no copy. `payloads.ts` loses `voucherTypeOf`; the XML tests moved to the connector. If the lead reads AGENTS §3's "apps → packages" as forbidding even a script, the alternative is a web copy of the four functions the spike calls.
+- ADR 0013's status is "Accepted (27-11-2026, Phase 5 design)". `docs/04-architecture-appendix/tally.md` names the reader's new place (two lines).
+
+**Tests** (vitest, Node; `pnpm --filter @shakti/tally-connector test`): 11 files, 50 tests, 49 pass on Linux and 1 runs on Windows only (the real DPAPI round trip).
+- `xml.test.ts` 10: windows and escaping, exports only (no `Import`, `ISMODIFY="No"`), the recorded fixture into the contract, renamed types, ledgers, company state, snapshot types, UTF-16, error answers.
+- `reader.test.ts` 7: paging by AlterID (vouchers and ledgers in one window, each once, in order); a voucher the contract refuses left out and logged by GUID and field only; the snapshot in windows read on to the new last AlterID when a voucher is edited mid-read; **throttling** (two companies and a snapshot at once: never two requests in flight, the pause between each); timeouts and retries with a doubling wait; unavailable after the retries, a closed company not retried; UTF-16.
+- `sync.test.ts` 10: pages marked sent on the answer and a quiet second cycle; what leaves the PC parses as the contract and the log holds no name, amount or key; **a lost answer** retried at once under the same key, and resent next cycle under the same key and body, applied once; `cursor_mismatch` sets queued pages aside and re-reads; **a 3-day outage** (BOS down, Tally adding, editing and deleting vouchers in two companies, a cycle and heartbeat every 3 hours): caught up contiguous, oldest change first, every voucher at its latest AlterID, nothing applied twice, one snapshot a day without the deleted voucher; pages queued when the BOS fell over mid-catch-up resent after a restart; the snapshot after 02:00 India time once a day with `asOf` 5 minutes before the read; the heartbeat from the last cycle without asking Tally; Tally behind the BOS waits for a person.
+- `outbox-kill.test.ts` 2: **a connector process killed mid-batch** (held before the BOS applied it, and after) and restarted on the same file sends the same key and the BOS applies the page once.
+- `client.test.ts` 5: **signing vectors** equal to the ones `apps/web/src/integrations/tally/tally.test.ts` now verifies with `verifyConnectorRequest` (a batch, and a cursor read with its query); the key absent from `JSON.stringify` and `util.inspect`; the same key and body on every attempt; `Retry-After`; no retry of a refusal.
+- `config.test.ts` 4, `log.test.ts` 2, `setup.test.ts` 2, `scheduler.test.ts` 2, `fences.test.ts` 3 (imports only `@shakti/contracts`, `node:` and its own files; no import request to Tally; no `console`).
+- Web: `tally.test.ts` 10 (+1 signing vectors, −3 moved).
+
+**Checks:**
+- `pnpm --filter @shakti/tally-connector typecheck`: clean; `pnpm --filter web typecheck`: clean (exit 0).
+- `pnpm exec eslint apps/tally-connector apps/web/src/integrations/tally apps/web/scripts/spike/tally-read.ts --max-warnings 0`: clean.
+- `pnpm exec turbo run test typecheck --filter=@shakti/tally-connector --force`: 2 tasks successful, 49 passed, 1 skipped.
+- `pnpm --filter web exec vitest run src/integrations/tally`: 10 passed.
+- `node apps/tally-connector/packaging/build-sea.ts`: built and answered `0.1.0` (Linux).
+- Prettier: clean on every file touched.
+- `pnpm typecheck` (through the lock): 11 tasks successful.
+- `pnpm --filter web exec vitest run`: 167 files, 1,239 passed, 1 skipped.
+- `pnpm build`, then `pnpm --filter web js-budget`: built; every page within its budget (65 pages).
+- `tools/integration/check-doc-links.py`: one finding, `ORPHAN docs/runs/phase5/tc1-tally-connector.md`, the same before this slice's changes (the run file is not linked from an index yet).
+- The whole-repository `pnpm lint` is left for the final check at done.
+- No schema, policy, command, query, `en.json` or screen: no security suite, copy-lint, `db:docs`, journeys or `EXPLAIN` (no list or search).
+
+**What waits:**
+- The first Windows run of `.github/workflows/tally-connector.yml` (read on the pull request); it is a checks change, so the owner's `checks-ok`. It runs only when the connector, the contracts, the lockfile, `.node-version` or itself change.
+- The live checks of the discovery visit: the TDL names the connector relies on beyond the spike's (`ALTVCHID`, `ALTMSTID`, `BOOKSFROM`, `$$SysInfo:Version`, `$PARENT:VOUCHERTYPE:$VOUCHERTYPENAME`, `$$IsBelongsTo:$$GroupSundryDebtors`, `LEDGSTREGDETAILS.LIST`), now listed in `tally.md` step 3.
+
+**Decisions the brief did not settle (Assumptions):**
+1. Pages are AlterID windows `(cursor, cursor + 200]` up to the company's last AlterID (`max($AltVchId, $AltMstId)`), so a page holds at most 200 rows; vouchers and party ledgers share the window, as the contract's one range per batch requires (Tally gives vouchers and masters AlterIDs from one counter; the visit confirms it). An empty window is still sent, to move the cursor.
+2. Ledgers read are those under Sundry Debtors (dealer outstanding), not banks, expenses or suppliers.
+3. **For TC2/TC3:** a ledger's closing balance changes when a voucher posts, without a new AlterID, and the contract refuses a ledger at or below the cursor, so the connector cannot send a fresh balance for an unaltered ledger. Dealer outstanding (question 11) needs either balances computed from vouchers or a contract change (a ledger-balance push outside the cursor range).
+4. **For TC2:** `missingOnServer` is logged by count only; the contract refuses any row at or below the cursor, so the connector cannot resend those vouchers. The snapshot lists only the voucher types the BOS reads, so a journal is never "missing".
+5. **For TC2:** the signature covers the path and query exactly as sent (`URLSearchParams`, a space as `+`); the route must verify the raw `pathname + search` it received.
+6. A voucher the contract refuses (a malformed GSTIN, a number over 60 characters, no ledger lines) is left out of its page and logged by GUID and field name, so one odd voucher cannot stop every later one. It reaches the BOS only as a snapshot GUID.
+7. On `cursor_mismatch` (an answer lost longer than the BOS keeps its keys, or a cursor reset) the company's pending batches are set aside and Tally is read again from the BOS's cursor in the same cycle. Another refusal (400, 401, 403) holds that company's batches pending, logged, tried each cycle; the other companies go on.
+8. Reads happen only while the BOS answers: during an outage nothing is queued, and the catch-up reads each voucher once at its latest version. The outbox holds only pages read but not yet answered.
+9. The snapshot runs on the first cycle at or after 02:00 India time on a day without one, per company, so a PC that was off at 02:00 sends it when it comes back. `asOf` is the read's start less the 5-minute skew; `fromDate` is the earliest voucher date read.
+10. Settings: DPAPI `CurrentUser` scope with fixed entropy, through Windows PowerShell 5.1 from its full path, the secret only on standard input as Base64. The setup is run under the service's account (`runas`), and WinSW's `install /p` sets that account, so the service opens the file. On Windows a plain file is always refused; off Windows only with `TALLY_CONNECTOR_DEV=1`, which also allows an http BOS. `TALLY_URL` is an environment value (default `http://localhost:9000`, set in the WinSW XML), not a setting.
+11. The setup's and the service's few sentences live in `src/messages.ts`, in the design system's plain English: the connector cannot read the web's `en.json` and has no copy-lint of its own.
+12. The log admits only numbers, booleans and id-shaped strings through `logId()` (GUIDs, company codes, error codes, field names); anything else is written as `withheld`. Errors are logged by reason, code or class name, never their message. Files rotate by India day and are kept 30 days.
+13. `CONNECTOR_VERSION` is `0.1.0` in `src/settings.ts`; TC4's release sets it.
+14. **For the lead:** `build-sea.ts` reaches esbuild through tsx (a root development tool) with `createRequire`, under an `eslint-disable no-restricted-syntax` with its reason, because the workspace may not add a package. Adding `esbuild` as a development dependency of the workspace would remove the exception.
+15. **For the lead:** `eslint.config.mjs` has no fence block for `apps/tally-connector` like `apps/voice-agent`'s; `test/fences.test.ts` enforces the same rule from the connector's own files. A block in the ESLint config (a checks change) would make it a lint error too.
+16. Skills: the brief names none for this slice; none loaded.
 
 ## Review
 
