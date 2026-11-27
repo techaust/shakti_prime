@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 2
-updated: 2026-11-27T18:26Z
+updated: 2026-11-27T19:30Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -74,3 +74,11 @@ run_file: docs/runs/phase3/q1-labels.md
 wait_for: none
 done_when: report: q1-labels fixes
 note: the one fix round: M1, M2, L1 to L4 as the lead's triage at the end of the Review section says.
+
+lane: 67
+role: fix
+branch: feat/j1-projects
+run_file: docs/runs/phase4/j1-projects.md
+wait_for: none
+done_when: report: j1-projects fixes
+note: the one fix round: all nine findings as the lead's triage at the end of the Review section says.
