@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T23:09Z
+updated: 2026-11-27T23:57Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -186,3 +186,19 @@ run_file: docs/runs/phase5/fn1-proformas.md
 wait_for: none
 done_when: report: fn1-proformas fixes
 note: the one fix round, as the lead's triage at the end of the Review section says: take main in first, then 1 and 2 (high), then 3 to 11.
+
+lane: 88
+role: prep
+branch: feat/h2-reservations
+run_file: docs/runs/phase3/h2-reservations.md
+wait_for: none
+done_when: report: h2-reservations prepped
+note: prep for the lead's integration: readme's prep prompt. Critical: H2's app.stock_move() redefinition must be X4's 0240 body (on main) plus H2's one rule; diff it against 0240 line by line and say so. Also diff app.platform_only_permissions() and the notification checks against main's latest.
+
+lane: 89
+role: prep
+branch: feat/u2-purchase-orders
+run_file: docs/runs/phase3/u2-purchase-orders.md
+wait_for: none
+done_when: report: u2-purchase-orders prepped
+note: prep for the lead's integration: readme's prep prompt (after H2's: one prep at a time). Diff app.next_document_no(), document_sequences_doc_type_check, app.platform_only_permissions(), app.file_purpose_grant() and files_purpose_check against main's latest (Q1's label_sheet must stay).
