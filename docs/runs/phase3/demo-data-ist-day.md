@@ -105,7 +105,7 @@ Reviewer, 27-11-2026, in the lead's cloud VM (worktree `demo-data-ist-day`, Post
   This confirms the builder's finding that no price-list read takes its date from the database.
 - **Brief item 2.** The builder's list matches what I found. `apps/web/tests/list-actions.test.ts`, `whatsapp-quotes.test.ts` and `pdf-render.test.ts` insert lists with fixed dates (2026-04-01, 2090-01-01). No web file other than `demo-data` makes a shared list, so `retailList()` cannot pick another file's list.
 - **The builder's "also seen" 1.** `catalogueFixture()` deletes its own lists, then inserts a shared Retail list as version 1 (`packages/db/src/testing/catalogue-fixture.ts:49`, `:75`), against `price_lists_tier_entity_version_unique` (`0007_catalogue_core.sql:136`). This is as described, and outside this slice.
-- **Checks:** `pnpm exec eslint --max-warnings 0 apps/web/tests/demo-data.test.ts`: clean. `pnpm --filter web typecheck`: clean. Both ran through the lock. The branch merges with `origin/main` (148 commits ahead of it) without conflict; `main` changed no file the helper reads except `dto/catalogue.ts`, by additions.
+- **Checks:** `pnpm exec eslint --max-warnings 0 apps/web/tests/demo-data.test.ts`: clean. `pnpm --filter web typecheck`: clean. Both ran through the lock. The branch merges with `origin/main` (the branch is 148 commits behind it) without conflict; `main` changed no file the helper reads except `dto/catalogue.ts`, by additions.
 - **Not applicable:** isolation, definers, commands, races and money, the web layer, copy, layout, `EXPLAIN` and documents. No table, command, query, page or document changed.
 
 ### Not run
