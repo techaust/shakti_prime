@@ -6,7 +6,7 @@
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): authentication, tokens, device revocation |
 | Usage | briefed 27-11-2026; built by the slice builder on Opus 5.5 at high effort (27-11-2026, early check and done; the fix rounds 1 and 2, 27-11-2026, Opus 5.5 at high) |
-| State | fixes 2 done |
+| State | prepped for integration (main `bdf82df4` taken in, every `integrate.sh` part but e2e passed on 54340) |
 | Next step | the lead reads the second round's diff (`5fd64d1f..`), then integration on a fresh database (the journey and the Linux baselines of `field-phones.spec.ts`) |
 
 ## Brief
@@ -411,3 +411,24 @@ Findings 9 and 11 of the re-check, as the lead's triage asks; finding 10 recorde
 - **No further re-check:** the lead reads this diff.
 
 ## Integration
+
+### Integration prep (27-11-2026, cloud worktree of the lead's VM, the slice builder on Opus 5.5 at high)
+- **Main taken in:** `origin/main` at `bdf82df4` (#298, X4 stock reasons, migration 0240); Q1 was not on `main` yet. Merge commit `25866cce`, made as [slice-integration §5](../../runbooks/slice-integration.md#5-take-main-into-the-slice) says: `git merge --no-commit origin/main` from `669f38a8`, `pnpm install --offline --frozen-lockfile` (lockfile up to date, nothing added), `renumber-migrations.mjs origin/main 669f38a8`, `pnpm db:generate` ("No schema changes, nothing to migrate"), `pnpm db:docs`.
+- **Conflicts:** only generated files: `packages/db/migrations/meta/_journal.json` and `0240_snapshot.json` (the script restored `main`'s; journal entries 0 to 240 and the 0240 snapshot and SQL equal `main`'s byte for byte, the snapshot chain 0240 to 0246 links by `prevId`), and `docs/data/data-dictionary.md` and `erd.md` (regenerated). `apps/web/messages/en.json` merged with no marker; the JSON three-way merge from the merge base gives the same file, with no key changed on both sides.
+- **Migrations' new numbers** (SQL verbatim from `669f38a8`, journal times after X4's `1795789276331`): 0240 → **0241** `f1_field_foundation`, 0241 → **0242** `f1_field_foundation_rls`, 0242 → **0243** `f1_refresh_grace`, 0243 → **0244** `f1_account_phones`, 0244 → **0245** `f1_account_phones_rls`, 0245 → **0246** `f1_enrolment_phones`. DATABASE §6.1 and §6.10 now cite them (`mobile_devices` Built (0241), the retry window 0243; `feature_flags` Built (0241)); the reports above keep the numbers they were written with.
+- **Redefinitions checked against `main`'s latest:**
+  - The slice's six migrations create or replace no function at all; they call `app.set_updated_at()` (0000), `app.user_id()` (0000), `app.has_perm()` (0000), `app.entity_ids()` (0012) and `app.user_roles_outside_request()` (0074), none of which X4 touches.
+  - `app.platform_only_permissions()`: not redefined; `main`'s latest stands (0222). `field.device.revoke` and `admin.flags.write` are person permissions, not platform-only.
+  - `notifications_type_check`: not redefined; `main`'s latest stands (0228). The slice adds no notification type.
+  - `app.file_purpose_grant()`: not redefined; `main`'s latest stands (0235). The slice adds no file purpose.
+  - Check constraints: only the slice's own tables (`mobile_devices_previous_hash_check`, `mobile_devices_rotation_pair_check`, and `mobile_devices_revoked_reason_check`, whose 0246 text is 0244's plus `totp_enrolled`, both `NOT VALID`).
+  - Foreign keys: only from the slice's own tables, to `users`, `principals` and `entities`, which X4 does not alter. X4's only redefinition, `app.stock_move()`, is outside the slice.
+- **Shared lists, a key used twice:** since the merge base `main` changed none of the lists the slice appends to (`permissions.ts` in contracts and seeds, `role-permissions.ts`, `testing/index.ts`, the registry, `workshop-defaults.ts`, `e2e/support/users.ts`, `turbo.json`, `.env.example`, `copy-lint.config.json`). Each key the slice added appears once in its list (`field.device.revoke` twice in the contracts file: the key list and its scopes); no duplicate journey user `key` (14) or e-mail; no duplicate key in either `en.json` or the copy-lint config; no duplicate in `.env.example` or `turbo.json`'s env lists.
+- **Typecheck at once** (`pnpm typecheck` through the lock, after the merge, before the long checks): 11 of 11 tasks successful.
+- **`integrate.sh` on a fresh Postgres on 54340, in four parts through the lock** (`urls_not_on_54340=0` each time; never the e2e step):
+  - `install lint format copylint generated typecheck`: every step rc=0; `=== INTEGRATION PARTIAL (install lint format copylint generated typecheck)`.
+  - `unit`: rc=0; `=== INTEGRATION PARTIAL (unit)`. Tests: domain 2,809, web 1,242 passed and 1 skipped (the OCR-language case without `OCR_LANG_PATH`, as on `main`), contracts 340, db 162, tokens 146, ui 107, voice 49, voice-agent 23, copy-lint 17; field (jest) 7 suites, 31 tests.
+  - `security dbverify`: rc=0 both; `=== INTEGRATION PARTIAL (security dbverify)`. Security suite: db 66 files, 1,877 passed; domain 112 files, 1,530 passed; web 40 files, 491 passed. `db:verify`: "every migration is applied as it is on disk".
+  - `audit build jsbudget gitleaks`: rc=0 each; `=== INTEGRATION PARTIAL (audit build jsbudget gitleaks)`. Audit: 3 moderate, all on the reviewed ignore list (the slice adds none); build 2 of 2 tasks with `.env` aside (put back); JavaScript budget: every page within its budget (65 pages); gitleaks: 31 commits scanned, no leaks found.
+- **Fixed in the merge:** nothing broke; the only edits are the two citation lines in DATABASE and the regenerated data documents.
+- **Left for the lead:** the e2e step (`field-phones.spec.ts`, which needs a fresh database) and the Linux baselines; if Q1 (0241, 0242) merges first, the slice takes `main` again and moves to 0243 to 0248.
