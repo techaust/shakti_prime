@@ -135,6 +135,10 @@ import {
   StockAdjustmentSchema,
   StockReasonSchema,
   WarehouseKindSchema,
+  // HR1 people and leave
+  IsoWeekdaySchema,
+  LeaveMovementKindSchema,
+  LeaveRequestStateSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -263,6 +267,10 @@ import {
   STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
   STOCK_REASONS as STOCK_REASONS_WEB,
   WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
+  // HR1 people and leave
+  ISO_WEEKDAYS,
+  LEAVE_MOVEMENT_KINDS as LEAVE_MOVEMENT_KINDS_WEB,
+  LEAVE_REQUEST_STATES as LEAVE_REQUEST_STATES_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -385,6 +393,13 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // HR1 people and leave
+    expect(LEAVE_REQUEST_STATES_WEB).toEqual(LeaveRequestStateSchema.options);
+    expect(LEAVE_MOVEMENT_KINDS_WEB).toEqual(LeaveMovementKindSchema.options);
+    for (const day of ISO_WEEKDAYS) expect(IsoWeekdaySchema.safeParse(day).success).toBe(true);
+    expect(IsoWeekdaySchema.safeParse(0).success || IsoWeekdaySchema.safeParse(8).success).toBe(
+      false,
+    );
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

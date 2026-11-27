@@ -277,6 +277,18 @@ const ACTIONS = {
   'procurement.item_vendor.set': 'itemVendorSet',
   'procurement.quote.record': 'vendorQuoteRecord',
   'procurement.quote.withdraw': 'vendorQuoteWithdraw',
+  // HR1 people and leave.
+  'hr.employee.create': 'employeeCreate',
+  'hr.employee.update': 'employeeUpdate',
+  'hr.employee.deactivate': 'employeeDeactivate',
+  'hr.shift.set': 'shiftSet',
+  'hr.holiday.set': 'holidaySet',
+  'hr.leave_type.set': 'leaveTypeSet',
+  'hr.leave.request': 'leaveRequest',
+  'hr.leave.approve': 'leaveApprove',
+  'hr.leave.reject': 'leaveReject',
+  'hr.leave.cancel': 'leaveCancel',
+  'hr.leave.adjust': 'leaveAdjust',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -313,6 +325,8 @@ const EVENT_NAMES = {
   'catalogue.item.created': 'itemCreated',
   // H1 stock ledger
   'inventory.stock.moved': 'stockMoved',
+  // HR1 people and leave
+  'hr.leave.approved': 'leaveApproved',
   'catalogue.item.updated': 'itemUpdated',
   'catalogue.item.archived': 'itemArchived',
   'catalogue.kit.created': 'kitCreated',
@@ -507,9 +521,16 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // HR1 people and leave
+  'leaveState',
+  'leaveMovementKind',
+  'weekday',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
+
+/** HR1: a shift's days off as the audit trail records them, the ISO day numbers as text. */
+export const WEEKDAY_CODES = ['1', '2', '3', '4', '5', '6', '7'] as const;
 
 /** How a sign-in went, as the sign-in hook records it (`apps/web/src/auth/create-auth.ts`). */
 export const SIGN_IN_DETAILS = ['locked', 'inactive', 'code_required', 'complete'] as const;
@@ -891,6 +912,31 @@ const FIELD_KINDS = [
   ['quoteValidFrom', 'date'],
   ['restored', 'number'],
   ['quoteValidUntil', 'date'],
+  // HR1 people, shifts, holidays and leave (never a phone number)
+  ['employeeName', 'text'],
+  ['phoneOnRecord', 'yesNo'],
+  ['office', 'text'],
+  ['joinedOn', 'date'],
+  ['active', 'yesNo'],
+  ['leftOn', 'date'],
+  ['shiftName', 'text'],
+  ['startTime', 'text'],
+  ['endTime', 'text'],
+  ['lunchMinutes', 'number'],
+  ['graceMinutes', 'number'],
+  ['weeklyOffDays', 'weekdays'],
+  ['holidayDate', 'date'],
+  ['holidayName', 'text'],
+  ['leaveTypeName', 'text'],
+  ['daysPerYear', 'number'],
+  ['carriesForward', 'yesNo'],
+  ['paid', 'yesNo'],
+  ['fromDate', 'date'],
+  ['toDate', 'date'],
+  ['leaveDays', 'number'],
+  ['decisionNote', 'text'],
+  ['movementKind', 'leaveMovementKind'],
+  ['adjustReason', 'text'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
@@ -910,6 +956,8 @@ const STATE_GROUP_OF: ReadonlyMap<string, CodeGroup> = new Map<string, CodeGroup
   ['import_job', 'importState'],
   ['quote', 'quoteState'],
   ['sales_order', 'orderState'],
+  // HR1 people and leave
+  ['leave_request', 'leaveState'],
 ]);
 
 /** Every field with a name on screen, in the order the sheet lists them. */
@@ -1051,6 +1099,10 @@ function known(field: FieldKey, value: unknown, aggregateType: string | null): C
   if (kind === 'sizingReasons' && Array.isArray(value)) {
     const values = value.filter((v): v is string => typeof v === 'string');
     return values.length === 0 ? EMPTY : { kind: 'codes', group: 'sizingReason', values };
+  }
+  if (kind === 'weekdays' && Array.isArray(value)) {
+    const values = value.filter((v): v is string => typeof v === 'string');
+    return values.length === 0 ? EMPTY : { kind: 'codes', group: 'weekday', values };
   }
   if (kind === 'listCount') {
     return Array.isArray(value) ? { kind: 'number', value: value.length } : EMPTY;

@@ -14,6 +14,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [Pricing](#pricing)
   - [Catalogue](#catalogue)
   - [inventory](#inventory)
+  - [hr](#hr)
   - [Sign-in](#sign-in)
   - [Administration](#administration)
   - [Imports](#imports)
@@ -51,7 +52,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-63 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+64 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -101,6 +102,12 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch` | none |
+
+### hr
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`hr.leave.approved`](#hrleaveapproved) | A person's leave was approved: the request, the person on the staff and the first and last day, both included. | `hr.leave.approve` | none |
 
 ### Sign-in
 
@@ -351,6 +358,15 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 |---|---|
 | `count` | whole number from 1 |
 | `movements` | list of object with `movementId`, `itemId`, `fromBinId`, `toBinId`, `qty`, `reason`, at least 1 |
+
+### hr.leave.approved
+
+| Field | Type |
+|---|---|
+| `leaveRequestId` | id |
+| `employeeId` | id |
+| `fromDate` | text matching `^\d{4}-\d{2}-\d{2}$` |
+| `toDate` | text matching `^\d{4}-\d{2}-\d{2}$` |
 
 ### catalogue.kit.created
 

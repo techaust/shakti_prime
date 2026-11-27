@@ -120,7 +120,7 @@ async function checkManager(
       .from(e)
       .where(eq(e.id, next))
       .limit(1);
-    if (first && (!row || row.entityId !== entityId || !row.active)) {
+    if (first && !(row?.entityId === entityId && row.active)) {
       throw new DomainError('validation_failed', `manager ${managerId} is not on the staff`, {
         reason: 'employee_manager_missing',
       });

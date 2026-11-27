@@ -1,4 +1,7 @@
 import type {
+  // HR1 people and leave
+  LeaveMovementKind,
+  LeaveRequestState,
   // H1 stock ledger
   BinKind,
   EditableBinKind,
@@ -1061,3 +1064,22 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// HR1 people and leave
+/** The states of a leave request, in the order the machine moves through them. */
+export const LEAVE_REQUEST_STATES = [
+  'requested',
+  'approved',
+  'rejected',
+  'cancelled',
+] as const satisfies readonly LeaveRequestState[];
+
+/** The movements of a leave balance. */
+export const LEAVE_MOVEMENT_KINDS = [
+  'grant',
+  'use',
+  'adjust',
+] as const satisfies readonly LeaveMovementKind[];
+
+/** The ISO days of the week, Monday (1) to Sunday (7). */
+export const ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;

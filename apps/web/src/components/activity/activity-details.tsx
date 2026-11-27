@@ -25,6 +25,7 @@ import {
   type ChangeRow,
   type ChangeValue,
   type CodeGroup,
+  WEEKDAY_CODES,
 } from '../../screens/audit';
 import {
   COMMISSION_BASES,
@@ -104,6 +105,9 @@ import {
   BIN_KINDS,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // HR1 people and leave
+  LEAVE_MOVEMENT_KINDS,
+  LEAVE_REQUEST_STATES,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
@@ -614,6 +618,17 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(BIN_KINDS, value) ? t(`values.binKind.${value}`) : wordsOf(value);
       case 'stockReason':
         return oneOf(STOCK_REASONS, value) ? t(`values.stockReason.${value}`) : wordsOf(value);
+      // HR1 people and leave
+      case 'leaveState':
+        return oneOf(LEAVE_REQUEST_STATES, value)
+          ? t(`values.leaveState.${value}`)
+          : wordsOf(value);
+      case 'leaveMovementKind':
+        return oneOf(LEAVE_MOVEMENT_KINDS, value)
+          ? t(`values.leaveMovementKind.${value}`)
+          : wordsOf(value);
+      case 'weekday':
+        return oneOf(WEEKDAY_CODES, value) ? t(`values.weekday.${value}`) : wordsOf(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':

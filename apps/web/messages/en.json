@@ -564,7 +564,33 @@
     "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
-    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it."
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "employee_missing": "This person is no longer on the staff list. Refresh the page to see the current list.",
+    "employee_inactive": "This person has left, so their details and leave can no longer be changed.",
+    "employee_user_not_in_company": "This sign-in has no role in this company. Give the person a role here first, then link them.",
+    "employee_user_taken": "This person already has a staff record in this company.",
+    "employee_shift_missing": "This shift is not one of this company's shifts in use. Choose another shift.",
+    "employee_manager_missing": "The chosen manager is not on this company's staff. Choose another manager.",
+    "employee_manager_cycle": "This manager reports to the person, so they cannot be their manager. Choose another manager.",
+    "employee_left_before_joining": "The leaving date is before the joining date. Check both dates.",
+    "shift_missing": "This shift is no longer on the list. Refresh the page to see the current shifts.",
+    "shift_name_taken": "A shift with this name already exists. Choose another name.",
+    "hr_setting_company_fixed": "The company of this setting cannot be changed. Add a new one for the other company instead.",
+    "holiday_changed_meanwhile": "Someone changed this holiday at the same time. Refresh the page and try again.",
+    "leave_type_missing": "This leave type is not offered for this person. Choose another leave type.",
+    "leave_type_name_taken": "A leave type with this name already exists. Choose another name.",
+    "leave_for_someone_else": "You can ask for leave only for yourself. HR can ask for leave for someone else.",
+    "leave_dates_invalid": "One of the dates is not a real date. Check the first and last day.",
+    "leave_dates_backwards": "The last day is before the first day. Check the dates.",
+    "leave_span_too_long": "Leave can cover at most a year at a time. Split it into shorter spells.",
+    "leave_no_working_days": "These days are all days off or holidays, so no leave is needed.",
+    "leave_overlaps": "This person already has leave waiting or approved on some of these days. Change the dates.",
+    "leave_request_missing": "This leave is no longer on the list. Refresh the page to see the current leave.",
+    "leave_outside_scope": "You can decide leave only for the people you manage.",
+    "leave_request_decided": "This leave was already decided. Refresh the page to see it.",
+    "leave_own_decision": "You cannot decide your own leave. Someone else must approve it.",
+    "leave_cancel_not_yours": "Only the person who asked for this leave can take it back.",
+    "leave_request_transition_not_allowed": "This leave was already decided or taken back. Refresh the page to see it."
   },
   "auth": {
     "signIn": {
@@ -1991,7 +2017,18 @@
       "binArchive": "Bin archived",
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
-      "stockReverse": "Stock movement reversed"
+      "stockReverse": "Stock movement reversed",
+      "employeeCreate": "Person added to the staff",
+      "employeeUpdate": "Staff details changed",
+      "employeeDeactivate": "Person marked as left",
+      "shiftSet": "Shift saved",
+      "holidaySet": "Holiday list changed",
+      "leaveTypeSet": "Leave type saved",
+      "leaveRequest": "Leave asked for",
+      "leaveApprove": "Leave approved",
+      "leaveReject": "Leave turned down",
+      "leaveCancel": "Leave taken back",
+      "leaveAdjust": "Leave balance changed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2056,7 +2093,8 @@
       "vendorArchived": "Vendor archived",
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
-      "stockMoved": "Stock moved"
+      "stockMoved": "Stock moved",
+      "leaveApproved": "Leave approved"
     },
     "sheet": {
       "title": "{action}",
@@ -2400,7 +2438,31 @@
       "purchaseUnit": "Unit it is bought in",
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
-      "isStocked": "Kept in stock"
+      "isStocked": "Kept in stock",
+      "employeeName": "Name",
+      "phoneOnRecord": "Phone number on record",
+      "office": "Office",
+      "joinedOn": "Joined on",
+      "active": "On the staff",
+      "leftOn": "Left on",
+      "shiftName": "Shift name",
+      "startTime": "Starts at",
+      "endTime": "Ends at",
+      "lunchMinutes": "Lunch break in minutes",
+      "graceMinutes": "Minutes allowed before late",
+      "weeklyOffDays": "Weekly days off",
+      "holidayDate": "Holiday date",
+      "holidayName": "Holiday",
+      "leaveTypeName": "Leave type",
+      "daysPerYear": "Days a year",
+      "carriesForward": "Unused days carry over",
+      "paid": "Paid leave",
+      "fromDate": "First day",
+      "toDate": "Last day",
+      "leaveDays": "Days",
+      "decisionNote": "Note on the decision",
+      "movementKind": "Change to the balance",
+      "adjustReason": "Why the balance changed"
     },
     "values": {
       "percent": "{value}%",
@@ -2587,6 +2649,26 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "leaveState": {
+        "requested": "Waiting for approval",
+        "approved": "Approved",
+        "rejected": "Turned down",
+        "cancelled": "Taken back"
+      },
+      "leaveMovementKind": {
+        "grant": "Days given",
+        "use": "Days taken",
+        "adjust": "Correction"
+      },
+      "weekday": {
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
       }
     }
   },
