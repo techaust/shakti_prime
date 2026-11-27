@@ -5,7 +5,7 @@
 // paise only so the rendered documents read consistently. In the product every amount comes
 // from the Price Master snapshot and the tax engine in packages/domain.
 import type { CompanyPrint, PrintImage } from '../company';
-import type { LabelPrint } from '../label-template';
+import type { BinLabelPrint, PackageLabelPrint, SerialLabelPrint } from '../label-template';
 import type { ProformaPrint } from '../proforma-template';
 import type { QuoteLinePrint, QuotePrint } from '../quote-template';
 
@@ -271,16 +271,48 @@ export function spikeProforma(): ProformaPrint {
   };
 }
 
-/** `count` labels for pump controllers with consecutive serial numbers. */
-export function spikeLabels(count: number): LabelPrint[] {
-  return Array.from({ length: count }, (_, i) => {
-    const serial = `ASH26C${String(i + 1).padStart(6, '0')}`;
-    return {
-      entityName: 'Agro Solar Hub',
-      itemName: 'Pump controller with remote monitoring, 7.5 HP',
-      itemCode: 'ASH-PC-075',
-      serial,
-      qrPayload: `https://shaktiprime.com/s/${serial}`,
-    };
-  });
+/**
+ * A fixed record id for the labels' fixtures: UUID version 7, numbered from 1. The payloads are
+ * written out as `labelPayload()` of @shakti/domain writes them, which this module does not load
+ * (the journeys' runner imports it); `labels.test.ts` reads each one back with the domain's parser.
+ */
+function fixtureId(n: number): string {
+  return `01960000-0000-7000-8000-${String(n).padStart(12, '0')}`;
+}
+
+/** `count` serial labels for pump controllers with consecutive serial numbers. */
+export function spikeLabels(count: number): SerialLabelPrint[] {
+  return Array.from({ length: count }, (_, i) => ({
+    kind: 'serial',
+    qrPayload: `SP1:S:${fixtureId(i + 1)}`,
+    companyName: 'Agro Solar Hub',
+    itemName: 'Pump controller with remote monitoring, 7.5 HP',
+    sku: 'ASH-PC-075',
+    serialNo: `ASH26C${String(i + 1).padStart(6, '0')}`,
+  }));
+}
+
+/** `count` bin labels of one rack at the Jaipur godown. */
+export function spikeBinLabels(count: number): BinLabelPrint[] {
+  return Array.from({ length: count }, (_, i) => ({
+    kind: 'bin',
+    qrPayload: `SP1:B:${fixtureId(1000 + i + 1)}`,
+    hubName: 'Jaipur godown',
+    hubCode: 'JPR',
+    binCode: `R04-S${String(i + 1).padStart(2, '0')}`,
+  }));
+}
+
+/** The packages of one dispatch, for the package label dispatch prints (D2). */
+export function spikePackageLabels(count: number): PackageLabelPrint[] {
+  return Array.from({ length: count }, (_, i) => ({
+    kind: 'package',
+    qrPayload: `SP1:P:${fixtureId(2000 + i + 1)}`,
+    hubName: 'Jaipur godown',
+    dispatchNo: 'ASH/DC/2026-27/000127',
+    packageNo: i + 1,
+    packageCount: count,
+    customerName: 'Ramesh Kumar Meena',
+    place: 'Village Rampura, Chomu',
+  }));
 }

@@ -74,10 +74,15 @@ test.describe('the print templates (ADR 0009), light only', () => {
     await snap(tab, 'print-proof');
   });
 
-  for (const size of ['50x25', '100x50'] as const) {
-    test(`the QR label, ${size} mm`, async ({ page: tab }) => {
-      await show(tab, printPage(`label-${size}`), LABELS[size]);
-      await snap(tab, `print-label-${size}`);
+  // Q1: each label kind on its stock (WORKSHOP_DEFAULTS.labels).
+  for (const [kind, size] of [
+    ['serial', '50x25'],
+    ['bin', '50x25'],
+    ['package', '100x50'],
+  ] as const) {
+    test(`the ${kind} label, ${size} mm`, async ({ page: tab }) => {
+      await show(tab, printPage(`label-${kind}`), LABELS[size]);
+      await snap(tab, `print-label-${kind}`);
     });
   }
 });

@@ -61,6 +61,8 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
     write: needs('procurement.rate.read', 'entity'),
     read: 'procurement.rate.read',
   },
+  // Q1: a sheet of QR labels, printed by the render worker and opened by whoever handles stock.
+  label_sheet: { write: needs('files.process', 'entity'), read: 'inventory.stock.move' },
   // FN1: a proforma's PDF prints the company's bank account and UPI ID: rendered by the worker,
   // read with finance.read (a holder for the company reads every one; a narrower holder reads it
   // with the proforma, `files_proforma_pdf_read`).

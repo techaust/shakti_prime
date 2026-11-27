@@ -213,6 +213,10 @@ export {
   updateHub,
 } from './commands/inventory/hubs';
 export { adjustStock, reverseStock, transferStock } from './commands/inventory/stock';
+// Q1 labels
+export { printLabels, reprintLabels } from './commands/inventory/labels';
+export { loadLabelsForPrint, resolveScannedCode } from './queries/inventory/labels';
+export { labelPayload, parseLabelPayload, type ParsedLabel } from './labels/payload';
 export { listHubs } from './queries/inventory/hubs';
 export {
   getSerial,

@@ -143,6 +143,9 @@ const ACTIONS = {
   'inventory.stock.transfer': 'stockTransfer',
   'inventory.stock.adjust': 'stockAdjust',
   'inventory.stock.reverse': 'stockReverse',
+  // Q1 labels
+  'inventory.label.print': 'labelPrint',
+  'inventory.label.reprint': 'labelReprint',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -340,6 +343,8 @@ const EVENT_NAMES = {
   'platform.probe.requested': 'deliveryCheckRequested',
   'files.file.uploaded': 'fileUploaded',
   'print.document.requested': 'documentRequested',
+  // Q1 labels
+  'print.labels.requested': 'labelsRequested',
   'sales.quote.created': 'quoteCreated',
   'sales.quote.sent': 'quoteSent',
   'sales.quote.superseded': 'quoteSuperseded',
@@ -521,6 +526,8 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // Q1 labels
+  'labelKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -694,6 +701,10 @@ const FIELD_KINDS = [
   ['quantity', 'number'],
   ['serialNo', 'text'],
   ['adjustNote', 'text'],
+  // QR labels printed (Q1)
+  ['labelKind', 'labelKind'],
+  ['labelCount', 'number'],
+  ['labelNote', 'text'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],

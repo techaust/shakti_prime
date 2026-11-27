@@ -5,7 +5,8 @@
 -- holder (a Lead Converter, a Sales Lead) reads it with the proforma that names it. The worker
 -- reads a proforma and attaches its PDF only through the two definers below.
 
--- 1. app.file_purpose_grant(): its latest definition (0235) with the one purpose added;
+-- 1. app.file_purpose_grant(): its latest definition (Q1's, with label_sheet) with the one purpose
+--    added;
 --    packages/domain/src/files/purposes.ts mirrors it and a test compares the two.
 create or replace function app.file_purpose_grant(p_purpose text, p_access text) returns text
 language sql immutable parallel safe set search_path = '' as $$
@@ -20,6 +21,7 @@ language sql immutable parallel safe set search_path = '' as $$
       when 'knowledge' then 'knowledge.vault.write:all'
       when 'consent_evidence' then 'crm.account.write:own'
       when 'vendor_quote' then 'procurement.rate.read:entity'
+      when 'label_sheet' then 'files.process:entity'
       when 'proforma_pdf' then 'files.process:entity'
     end
     when 'read' then case p_purpose
@@ -31,6 +33,7 @@ language sql immutable parallel safe set search_path = '' as $$
       when 'print_proof' then 'admin.entities.write'
       when 'consent_evidence' then 'crm.account.write'
       when 'vendor_quote' then 'procurement.rate.read'
+      when 'label_sheet' then 'inventory.stock.move'
       when 'proforma_pdf' then 'finance.read'
     end
   end

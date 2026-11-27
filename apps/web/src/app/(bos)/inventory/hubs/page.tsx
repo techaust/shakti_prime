@@ -20,10 +20,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Inventory › Hubs and bins (docs/03-roadmap-appendix/phase3.md §5): the group's hubs with their
- * bins; an Executive adds, edits and archives them.
+ * bins; an Executive adds, edits and archives them, and a stock handler prints their labels (Q1).
  */
 export default async function HubsPage() {
-  const { principal } = await screenAccess(navRequires('inventory-hubs'));
+  const { principal, activeEntityId } = await screenAccess(navRequires('inventory-hubs'));
   const t = await getTranslations('inventory.hubs');
   const hubs = await listHubs({});
   return (
@@ -32,6 +32,12 @@ export default async function HubsPage() {
         <HubsScreen
           initial={hubs.data}
           canEdit={hasGrant(principal.permissions, 'inventory.stock.adjust', 'all')}
+          labelsFor={
+            // A bin is the group's: its labels are asked for in the company the caller acts in.
+            hasGrant(principal.permissions, 'inventory.stock.move', 'entity')
+              ? (activeEntityId ?? principal.entityIds[0] ?? null)
+              : null
+          }
         />
       ) : (
         <FailureMessage failure={firstFailure(hubs)} />

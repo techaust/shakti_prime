@@ -41,6 +41,8 @@ const WRITE: Partial<Record<FilePurpose, { key: PermissionKey; scope: Scope }>> 
   consent_evidence: { key: 'crm.account.write', scope: 'own' },
   // U1: a supplier's quote document.
   vendor_quote: { key: 'procurement.rate.read', scope: 'entity' },
+  // Q1: a sheet of QR labels, stored by the render worker.
+  label_sheet: { key: 'files.process', scope: 'entity' },
   // FN1: a proforma's PDF.
   proforma_pdf: { key: 'files.process', scope: 'entity' },
 };
@@ -59,6 +61,8 @@ const READ: Partial<Record<FilePurpose, PermissionKey | 'company'>> = {
   consent_evidence: 'crm.account.write',
   // U1: a supplier's quote document.
   vendor_quote: 'procurement.rate.read',
+  // Q1: a sheet of QR labels.
+  label_sheet: 'inventory.stock.move',
   // FN1: a proforma's PDF.
   proforma_pdf: 'finance.read',
 };

@@ -523,6 +523,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.ingest_key_find(text)',
       'app.ingest_source_token(uuid)',
       'app.ingest_source(text,text)',
+      // Q1: what a sheet of QR labels prints, read by the render worker.
+      'app.labels_for_print(text,uuid[])',
       'app.lead_search_ids(text,boolean,text,integer)',
       // The ⌘K and /orders search's candidate orders (RPT-03).
       // FN1: whether a reader reads an order's money (the proforma and milestone policies), the

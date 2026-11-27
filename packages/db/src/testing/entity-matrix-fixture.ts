@@ -583,8 +583,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['print_proof', per(e, 0x19), 'application/pdf'],
           // U1: a supplier's quote document, read with procurement.rate.read.
           ['vendor_quote', per(e, 0x82), 'application/pdf'],
+          // Q1: a sheet of QR labels, read with inventory.stock.move.
+          ['label_sheet', per(e, 0x90), 'application/pdf'],
           // FN1: a proforma's PDF, read with finance.read.
-          ['proforma_pdf', per(e, 0x94), 'application/pdf'],
+          ['proforma_pdf', per(e, 0xa4), 'application/pdf'],
         ] as const;
         // The company's vault file (staff knowledge) on its vault upload, with one chunk.
         const vaultFile = per(e, 0x42);
@@ -640,10 +642,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const commission = per(e, 0x38);
         // FN1: a proforma of the lead's order with its line, a milestone of it, and the company's
         // payment terms for a segment.
-        const proforma = per(e, 0x90);
-        const proformaLine = per(e, 0x91);
-        const milestone = per(e, 0x92);
-        const paymentTerms = per(e, 0x93);
+        const proforma = per(e, 0xa0);
+        const proformaLine = per(e, 0xa1);
+        const milestone = per(e, 0xa2);
+        const paymentTerms = per(e, 0xa3);
         // A second customer of the company with the first one's name, put forward as its
         // duplicate and merged into it: the candidate needs both customers, the merge the first.
         const twin = per(e, 0x22);

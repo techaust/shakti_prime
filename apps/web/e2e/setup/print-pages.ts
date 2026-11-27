@@ -5,9 +5,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrintImage } from '../../src/print/company';
+import { WORKSHOP_DEFAULTS } from '@shakti/domain';
 import {
+  spikeBinLabels,
   spikeCompany,
   spikeLabels,
+  spikePackageLabels,
   spikeProforma,
   spikeQuote,
 } from '../../src/print/fixtures/spike-documents';
@@ -19,7 +22,14 @@ import { solidPng } from '../support/png';
 
 /** Where the pages go; `print.spec.ts` reads them by these names. */
 export const PRINT_PAGES_DIR = join(import.meta.dirname, '..', '.print');
-export const PRINT_PAGES = ['quote', 'proof', 'label-50x25', 'label-100x50', 'proforma'] as const;
+export const PRINT_PAGES = [
+  'quote',
+  'proof',
+  'label-serial',
+  'label-bin',
+  'label-package',
+  'proforma',
+] as const;
 
 const picture = (width: number, height: number, colour: [number, number, number]): PrintImage => ({
   contentType: 'image/png',
@@ -34,8 +44,16 @@ export async function writePrintPages(): Promise<void> {
   const pages: Record<(typeof PRINT_PAGES)[number], string> = {
     quote: (await renderQuote({ ...spikeQuote(1), company })).html,
     proof: renderLetterheadProof({ company, printedOn: '2026-10-04' }).html,
-    'label-50x25': await renderLabelsHtml(spikeLabels(1), '50x25'),
-    'label-100x50': await renderLabelsHtml(spikeLabels(1), '100x50'),
+    // Q1: each label kind on the stock its workshop default names.
+    'label-serial': await renderLabelsHtml(
+      spikeLabels(1),
+      WORKSHOP_DEFAULTS.labels.sizeByKind.serial,
+    ),
+    'label-bin': await renderLabelsHtml(spikeBinLabels(1), WORKSHOP_DEFAULTS.labels.sizeByKind.bin),
+    'label-package': await renderLabelsHtml(
+      spikePackageLabels(1),
+      WORKSHOP_DEFAULTS.labels.sizeByKind.package,
+    ),
     // FN1: the proforma, on the same letterhead.
     proforma: renderProforma({ ...spikeProforma(), company }).html,
   };

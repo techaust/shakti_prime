@@ -41,6 +41,8 @@ export const FILE_PURPOSES = [
   // U1: a supplier's quote document, read only with procurement.rate.read
   // (docs/03-roadmap-appendix/phase3.md §6.3).
   'vendor_quote',
+  // Q1: a sheet of QR labels the render worker printed (docs/03-roadmap-appendix/phase3.md §7.4).
+  'label_sheet',
   // FN1: a proforma's PDF, rendered by the platform and read with the proforma
   // (docs/03-roadmap-appendix/phase5.md §6.1).
   'proforma_pdf',

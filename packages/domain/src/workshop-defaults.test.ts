@@ -30,6 +30,8 @@ describe('workshop defaults', () => {
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       // H1 stock ledger
       stock: { reversalDays: 7 },
+      // Q1 labels
+      labels: { sizeByKind: { serial: '50x25', bin: '50x25', package: '100x50' } },
       // FN1 payment milestones
       finance: {
         milestoneSteps: [

@@ -1,18 +1,41 @@
 'use client';
 
 import type { SerialDto } from '@shakti/contracts';
-import { Button } from '@shakti/ui';
+import { Button, type ReturnFocusTo } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useRef, useState } from 'react';
 import { formatDate } from '../../screens/format';
 import { stockCardHref } from '../../screens/inventory';
 import { Page } from '../shell/page';
 import { MovementsTable } from './movements-table';
 import { useSerialStateText } from './use-inventory-text';
 
-/** A serial: where it is, its warranty dates and every movement, newest first. */
-export function SerialScreen({ serial, company }: { serial: SerialDto; company: string }) {
+// Loaded when a label is asked for, so the page's own script stays inside its budget.
+const LabelsDialog = dynamic(() => import('./labels-dialog').then((m) => m.LabelsDialog));
+
+/**
+ * A serial: where it is, its warranty dates and every movement, newest first. A stock handler
+ * (`inventory.stock.move` for the company) prints its label (Q1): a first one, for a serial that
+ * came in without a receipt, or one again, with why.
+ */
+export function SerialScreen({
+  serial,
+  company,
+  canPrint,
+}: {
+  serial: SerialDto;
+  company: string;
+  canPrint: boolean;
+}) {
   const t = useTranslations('inventory.serial');
+  const labels = useTranslations('inventory.labels');
+  const [printing, setPrinting] = useState<
+    { mode: 'print' | 'reprint'; returnFocusTo: ReturnFocusTo } | undefined
+  >();
+  const printButton = useRef<HTMLButtonElement>(null);
+  const reprintButton = useRef<HTMLButtonElement>(null);
   const state = useSerialStateText();
   const facts: [string, string][] = [
     [t('item'), `${serial.item.name} (${serial.item.sku})`],
@@ -41,9 +64,33 @@ export function SerialScreen({ serial, company }: { serial: SerialDto; company: 
       description={t('intro')}
       width="detail"
       actions={
-        <Button asChild variant="secondary">
-          <Link href={stockCardHref(serial.entityId, serial.item.id)}>{t('card')}</Link>
-        </Button>
+        <>
+          {canPrint ? (
+            <>
+              <Button
+                ref={printButton}
+                variant="secondary"
+                onClick={() => {
+                  setPrinting({ mode: 'print', returnFocusTo: () => [printButton.current] });
+                }}
+              >
+                {labels('firstLabel')}
+              </Button>
+              <Button
+                ref={reprintButton}
+                variant="secondary"
+                onClick={() => {
+                  setPrinting({ mode: 'reprint', returnFocusTo: () => [reprintButton.current] });
+                }}
+              >
+                {labels('reprintLabel')}
+              </Button>
+            </>
+          ) : null}
+          <Button asChild variant="secondary">
+            <Link href={stockCardHref(serial.entityId, serial.item.id)}>{t('card')}</Link>
+          </Button>
+        </>
       }
     >
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -60,6 +107,26 @@ export function SerialScreen({ serial, company }: { serial: SerialDto; company: 
         </h2>
         <MovementsTable entityId={serial.entityId} movements={serial.movements} />
       </section>
+      {printing === undefined ? null : (
+        <LabelsDialog
+          mode={printing.mode}
+          entityId={serial.entityId}
+          labelKind="serial"
+          ids={[serial.id]}
+          title={
+            printing.mode === 'print'
+              ? labels('printSerialTitle', { serial: serial.serialNo })
+              : labels('reprintSerialTitle', { serial: serial.serialNo })
+          }
+          intro={
+            printing.mode === 'print' ? labels('printSerialIntro') : labels('reprintSerialIntro')
+          }
+          returnFocusTo={printing.returnFocusTo}
+          onClose={() => {
+            setPrinting(undefined);
+          }}
+        />
+      )}
     </Page>
   );
 }
