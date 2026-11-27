@@ -16,6 +16,8 @@ describe('file purposes', () => {
     expect([...UPLOADABLE_PURPOSES].sort()).toEqual(
       [
         'consent_evidence',
+        // J3: a customer's document, for a customer the uploader may file for.
+        'customer_document',
         'entity_logo',
         'import',
         'knowledge',
@@ -46,6 +48,7 @@ describe('file purposes', () => {
       [
         'admin.entities.write',
         'crm.account.write',
+        'documents.write',
         'files.process',
         'imports.write',
         'knowledge.vault.write',
@@ -63,5 +66,9 @@ describe('file purposes', () => {
     // A vault file is read with its vault entry, by sensitivity (files_knowledge_read), never by
     // the general rule.
     expect(filePurposeGrant('knowledge', 'read')).toBeNull();
+    // J3: a customer document is uploaded with documents.write and read with its document, a
+    // sensitive one only with documents.sensitive.read (files_customer_document_read).
+    expect(filePurposeGrant('customer_document', 'write')).toBe('documents.write:own');
+    expect(filePurposeGrant('customer_document', 'read')).toBeNull();
   });
 });

@@ -1121,5 +1121,18 @@ export const DOCUMENT_STEP_KEYS = {
 
 /** Every step of any flow, each with its label in the catalogue. */
 export const DOCUMENT_STEPS = [
-  ...new Set<string>([...DOCUMENT_STEP_KEYS.standard, ...DOCUMENT_STEP_KEYS.surya_ghar]),
-] as readonly string[];
+  'survey',
+  'dispatch',
+  'install',
+  'commission',
+  'handover',
+  'load_enhancement',
+  'portal_registration',
+  'feasibility',
+  'agreement',
+  'material',
+  'installation',
+  'qc',
+  'net_metering',
+  'dbt_tracking',
+] as const;

@@ -534,6 +534,42 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'procurement.vendor.archive': { vendorId: newId() },
   'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
   'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
+  // J3: a person files, unfiles and opens a customer's documents, and an Executive sets the
+  // requirements; the classifier's filing (J7) is the platform's own command.
+  'documents.document.file': {
+    entityId: 1,
+    accountId: newId(),
+    fileId: newId(),
+    kind: 'identity_proof',
+    requirementKey: 'identity_proof',
+  },
+  'documents.document.unfile': {
+    entityId: 1,
+    documentId: newId(),
+    reason: 'Filed against the wrong step',
+  },
+  'documents.document.view': { entityId: 1, documentId: newId() },
+  // Only people upload a file, whatever purpose an agent's grants would name (J3).
+  'files.upload.begin': {
+    entityId: 1,
+    purpose: 'customer_document',
+    name: 'Refused upload.pdf',
+    contentType: 'application/pdf',
+    size: 10,
+    sha256: 'a'.repeat(64),
+    bucket: 'local',
+    accountId: newId(),
+  },
+  'documents.requirement.set': {
+    entityId: 1,
+    flow: 'standard',
+    stepKey: 'survey',
+    requirementKey: 'electricity_bill',
+    mandatory: true,
+    acceptedKinds: ['electricity_bill'],
+    position: 1,
+    active: true,
+  },
 };
 
 describe('commands for people only', () => {
@@ -888,6 +924,8 @@ describe('agent principals cannot upload a file of any purpose', () => {
               size: 10,
               sha256: 'a'.repeat(64),
               bucket: 'local',
+              // J3: a customer document names its customer.
+              ...(purpose === 'customer_document' ? { accountId: newId() } : {}),
             },
           ),
         ).then(

@@ -116,7 +116,7 @@ export async function openFile(
     const file = await executeQuery(principal, { requestId }, (ctx) => getStoredFile(ctx, fileId), {
       name: 'openFile',
     });
-    // A customer document opens only through its document (`documents.view`), so the opening of
+    // A customer document opens only through its document (`documents.document.view`), so the opening of
     // an identity or bank paper is audited (J3, DATABASE §4.3).
     if (
       file?.status !== 'ready' ||

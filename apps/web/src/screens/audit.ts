@@ -278,9 +278,9 @@ const ACTIONS = {
   'procurement.quote.record': 'vendorQuoteRecord',
   'procurement.quote.withdraw': 'vendorQuoteWithdraw',
   // J3 customer documents and requirements.
-  'documents.file': 'documentFile',
-  'documents.unfile': 'documentUnfile',
-  'documents.view': 'documentView',
+  'documents.document.file': 'documentFile',
+  'documents.document.unfile': 'documentUnfile',
+  'documents.document.view': 'documentView',
   'documents.requirement.set': 'documentRequirementSet',
 } as const;
 

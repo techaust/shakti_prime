@@ -39,7 +39,9 @@ function run<T = DocumentDto>(
 }
 
 /** The domain error's code and reason a command failed with. */
-async function refusal(promise: Promise<unknown>): Promise<{ code: string; reason?: string }> {
+async function refusal(
+  promise: Promise<unknown>,
+): Promise<{ code: string; reason?: string | undefined }> {
   try {
     await promise;
   } catch (e) {
@@ -96,7 +98,7 @@ beforeAll(async () => {
 });
 afterAll(closeDb);
 
-describe('documents.file', () => {
+describe('documents.document.file', () => {
   it('files an identity paper as sensitive and keeps only its last four digits', async () => {
     const file = await upload(manager);
     const filed = await run(manager, fileDocument, {
@@ -123,7 +125,7 @@ describe('documents.file', () => {
     const [row] = await asMigrator(
       (m) => m<{ after: Record<string, unknown> }[]>`
         select after_json as after from audit_logs
-         where aggregate_id = ${filed.id} and command = 'documents.file'`,
+         where aggregate_id = ${filed.id} and command = 'documents.document.file'`,
     );
     expect(row?.after).toMatchObject({ documentKind: 'identity_proof', identityNumbers: 1 });
     expect(JSON.stringify(row?.after)).not.toContain('0123');
@@ -277,7 +279,31 @@ describe('documents.file', () => {
   });
 });
 
-describe('documents.unfile and documents.view', () => {
+describe('documents.document.unfile and documents.document.view', () => {
+  it('are denied without the grant, and refused in a company outside the request', async () => {
+    const file = await upload(manager);
+    const filed = await run(manager, fileDocument, {
+      entityId: 1,
+      accountId: account,
+      fileId: file,
+      kind: 'electricity_bill',
+      requirementKey: 'electricity_bill',
+    });
+    const unfile = { entityId: 1, documentId: filed.id, reason: 'Filed against the wrong step' };
+    const view = { entityId: 1, documentId: filed.id };
+    expect(await refusal(run(inventory, unfileDocument, unfile))).toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await refusal(run(inventory, viewDocument, view))).toMatchObject({ code: 'forbidden' });
+    // The Executive acting for company 2 only: company 1 is outside the request.
+    expect(await refusal(run(executive, unfileDocument, unfile, [2]))).toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await refusal(run(executive, viewDocument, view, [2]))).toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
   it('unfiles with a reason, once, and the identity document goes with it', async () => {
     const file = await upload(manager);
     const filed = await run(manager, fileDocument, {
@@ -353,7 +379,7 @@ describe('documents.unfile and documents.view', () => {
     const views = await asMigrator(
       (m) => m<{ aggregate_id: string }[]>`
         select aggregate_id from audit_logs
-         where command = 'documents.view' and aggregate_id in (${identity.id}, ${bill.id})`,
+         where command = 'documents.document.view' and aggregate_id in (${identity.id}, ${bill.id})`,
     );
     expect(views.map((v) => v.aggregate_id)).toEqual([identity.id]);
   });
@@ -371,7 +397,7 @@ describe('documents.requirement.set and the completeness check', () => {
     const input = {
       entityId: 1,
       flow: 'standard',
-      stepKey: 'handover',
+      stepKey: 'dispatch',
       requirementKey: 'agreement',
       mandatory: true,
       acceptedKinds: ['agreement'],
@@ -383,7 +409,7 @@ describe('documents.requirement.set and the completeness check', () => {
     });
     const set = await run(executive, setDocumentRequirement, input);
     expect(set).toMatchObject({
-      stepKey: 'handover',
+      stepKey: 'dispatch',
       requirementKey: 'agreement',
       mandatory: true,
     });
@@ -394,7 +420,7 @@ describe('documents.requirement.set and the completeness check', () => {
           accountId: customer,
           projectId: null,
           flow: 'standard',
-          stepKey: 'handover',
+          stepKey: 'dispatch',
         }),
       );
     expect(await missing()).toEqual(['agreement']);
@@ -402,6 +428,28 @@ describe('documents.requirement.set and the completeness check', () => {
     expect(await missing()).toEqual([]);
     // Back on for the next run of the suites, which shares the database.
     await run(executive, setDocumentRequirement, { ...input, mandatory: false });
+  });
+
+  it('is refused in a company outside the request', async () => {
+    expect(
+      await refusal(
+        run(
+          executive,
+          setDocumentRequirement,
+          {
+            entityId: 1,
+            flow: 'standard',
+            stepKey: 'survey',
+            requirementKey: 'electricity_bill',
+            mandatory: true,
+            acceptedKinds: ['electricity_bill'],
+            position: 1,
+            active: true,
+          },
+          [2],
+        ),
+      ),
+    ).toMatchObject({ code: 'forbidden' });
   });
 
   it('refuses a step that is not of the flow', async () => {

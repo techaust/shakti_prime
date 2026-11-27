@@ -98,7 +98,7 @@ export const LastFourSchema = z.string().regex(/^[0-9]{4}$/);
 export const UnfileReasonSchema = z.string().trim().min(3).max(300);
 
 /**
- * `documents.file`: a checked `customer_document` file, uploaded for this customer, filed against
+ * `documents.document.file`: a checked `customer_document` file, uploaded for this customer, filed against
  * one of the customer's requirements (or none, as a loose document of a kind).
  */
 export const FileDocumentInput = z
@@ -112,13 +112,13 @@ export const FileDocumentInput = z
   .strict();
 export type FileDocumentInput = z.infer<typeof FileDocumentInput>;
 
-/** `documents.unfile`: the document leaves its requirement, with the reason; the row stays. */
+/** `documents.document.unfile`: the document leaves its requirement, with the reason; the row stays. */
 export const UnfileDocumentInput = z
   .object({ entityId: EntityIdSchema, documentId: IdSchema, reason: UnfileReasonSchema })
   .strict();
 export type UnfileDocumentInput = z.infer<typeof UnfileDocumentInput>;
 
-/** `documents.view`: opening a document's masked copy, audited (DATABASE §4.3). */
+/** `documents.document.view`: opening a document's masked copy, audited (DATABASE §4.3). */
 export const ViewDocumentInput = z
   .object({ entityId: EntityIdSchema, documentId: IdSchema })
   .strict();

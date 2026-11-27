@@ -24,6 +24,9 @@ export function customerDocumentName(name: string): string {
 export const beginUpload = defineCommand({
   name: 'files.upload.begin',
   permission: uploadPermission,
+  // Only people upload: an agent holding a purpose's permission (the Concierge's documents.write
+  // for J7) still never begins an upload (SECURITY §3.3).
+  peopleOnly: true,
   input: BeginUploadInput,
   output: UploadSlotDto,
   auditFields: ['fileStatus', 'purpose', 'contentType', 'size'],

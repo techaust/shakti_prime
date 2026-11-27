@@ -630,7 +630,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'documentFlow':
         return oneOf(DOCUMENT_FLOWS, value) ? documents(`flow.${value}`) : wordsOf(value);
       case 'documentStep':
-        return DOCUMENT_STEPS.includes(value) ? documents(`step.${value}`) : wordsOf(value);
+        return oneOf(DOCUMENT_STEPS, value) ? documents(`step.${value}`) : wordsOf(value);
       case 'documentState':
         return value === 'filed' || value === 'unfiled'
           ? documents(`state.${value}`)

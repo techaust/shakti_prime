@@ -14,11 +14,11 @@ import {
   type IdentityDocumentKind,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { readDocument, toDocumentDto, toRequirementDto } from '../../queries/documents/documents';
-import { lockFile, scanResultOf, type FileRow } from '../files/shared';
+import { scanResultOf, type FileRow } from '../files/shared';
 import { assertEntityInScope } from '../imports/shared';
 
 /*
@@ -47,7 +47,15 @@ function scannedClean(ctx: CommandContext, file: FileRow): boolean {
  * it is not filed, or with a document of it they may read (`files_customer_document_read`).
  */
 async function fileToFile(ctx: CommandContext, input: FileDocumentInput): Promise<FileRow> {
-  const file = await lockFile(ctx, input.fileId, 'customer_document');
+  // Read, not held: the file's update policies are the checks' and its uploader's while pending,
+  // so a lock would not find it; the unique index on a filed file settles two filings at once.
+  const f = schema.files;
+  const [file] = await ctx.tx.select().from(f).where(eq(f.id, input.fileId)).limit(1);
+  if (file?.purpose !== 'customer_document') {
+    throw new DomainError('not_found', `file ${input.fileId} is not visible`, {
+      reason: 'file_missing',
+    });
+  }
   if (file.entityId !== input.entityId || file.deletedAt !== null) {
     throw new DomainError('not_found', `file ${input.fileId} is not in the company`, {
       reason: 'file_missing',
@@ -106,13 +114,13 @@ async function assertKindAccepted(ctx: CommandContext, input: FileDocumentInput)
 }
 
 /**
- * `documents.file`: files a checked customer document against the customer it was uploaded for,
+ * `documents.document.file`: files a checked customer document against the customer it was uploaded for,
  * on a requirement or as a loose document of its kind. An identity or bank paper is sensitive:
  * only a holder of `documents.sensitive.read` files one, and its number's last four digits, which
  * the masking step kept, become its identity document (SECURITY §5).
  */
 export const fileDocument = defineCommand({
-  name: 'documents.file',
+  name: 'documents.document.file',
   permission: 'documents.write',
   minScope: 'own',
   peopleOnly: true,
@@ -208,12 +216,12 @@ export const fileDocument = defineCommand({
 });
 
 /**
- * `documents.unfile`: a document leaves its requirement, with the reason (a misfiled paper); the
+ * `documents.document.unfile`: a document leaves its requirement, with the reason (a misfiled paper); the
  * row stays as the record, and its identity document is no longer read. An unfiled document stays
  * unfiled; its file may be filed again.
  */
 export const unfileDocument = defineCommand({
-  name: 'documents.unfile',
+  name: 'documents.document.unfile',
   permission: 'documents.write',
   minScope: 'own',
   peopleOnly: true,
@@ -223,30 +231,29 @@ export const unfileDocument = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const d = schema.documents;
+    // Read, then changed only while still filed: an unfiled row passes no update policy, so a
+    // lock taken with the read would hide it rather than say it is already unfiled.
     const [row] = await ctx.tx
       .select()
       .from(d)
       .where(and(eq(d.id, input.documentId), eq(d.entityId, input.entityId)))
-      .limit(1)
-      .for('update');
+      .limit(1);
     if (!row) {
       throw new DomainError('not_found', `document ${input.documentId} is not readable`, {
         reason: 'document_missing',
       });
     }
-    if (row.unfiledAt !== null) {
+    const [updated] =
+      row.unfiledAt === null
+        ? await ctx.tx
+            .update(d)
+            .set({ unfiledAt: ctx.now, unfiledBy: ctx.principal.id, unfiledReason: input.reason })
+            .where(and(eq(d.id, row.id), isNull(d.unfiledAt)))
+            .returning()
+        : [];
+    if (!updated) {
       throw new DomainError('conflict', `document ${row.id} is already unfiled`, {
         reason: 'document_already_unfiled',
-      });
-    }
-    const [updated] = await ctx.tx
-      .update(d)
-      .set({ unfiledAt: ctx.now, unfiledBy: ctx.principal.id, unfiledReason: input.reason })
-      .where(eq(d.id, row.id))
-      .returning();
-    if (!updated) {
-      throw new DomainError('not_found', `document ${row.id} is not yours to unfile`, {
-        reason: 'document_missing',
       });
     }
     ctx.audit({
@@ -262,11 +269,11 @@ export const unfileDocument = defineCommand({
 });
 
 /**
- * `documents.view`: opening a document's masked copy. Opening a sensitive one is audited
+ * `documents.document.view`: opening a document's masked copy. Opening a sensitive one is audited
  * (DATABASE §4.3); the screen then signs a short-lived address for the file.
  */
 export const viewDocument = defineCommand({
-  name: 'documents.view',
+  name: 'documents.document.view',
   permission: 'documents.read',
   minScope: 'own',
   peopleOnly: true,
