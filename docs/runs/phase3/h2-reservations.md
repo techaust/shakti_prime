@@ -5,9 +5,9 @@
 | Branch | `feat/h2-reservations` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock, the ledger's definers, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high, from 14:20 UTC to the early check at 16:13 UTC |
-| State | early check |
-| Next step | the lead reads the early check; then the builder continues with the workers and screens |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high: 14:20 UTC to the early check at 16:13 UTC, then from 16:30 UTC to done at 17:31 UTC |
+| State | done |
+| Next step | the review; at integration, X4's `app.stock_move()` once it merges (one rule to carry over) |
 
 ## Brief
 Build [phase3 §7.1](../../03-roadmap-appendix/phase3.md#71-h2-reservations-and-availability) as written, with questions 3 (a) and 4 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
@@ -137,6 +137,95 @@ Built on H1's `app.stock_move()` of 0231: X4 had not merged (`main` at `2d8be80`
 11. **An opening-stock rollback** over a bin that holds reserved stock is refused (`stock_reserved_insufficient`) until the holds are released or moved.
 
 **Unfinished, for the next lane:** the workers (the `inventory.stock.moved` subscription and the freed-stock events to `inventory.reservation.fill`; the daily scan's schedule; the notification of `inventory.reservation.expiring` to the order's owner and the Inventory Manager); a cancelled order's freed stock to the fill (the cancel emits no reservation event yet); the hub form's PIN codes and `inventory.hub.create`/`.update` taking them; the screens (availability on the quote builder and the order page, the order page's reservations with Extend, Release and Move, backorders on the stock card); journeys; EXPLAIN; phase3.md's Built record.
+
+### 27-11-2026, cloud (the lead's VM, worktree `h2-reservations`, port 54332): done
+The early check was accepted with decisions 1 to 11 (the lead, 16:30 UTC). `main` taken in at `59736c7` (documents only). **X4 has not merged** (`main`'s last migration is still 0239), so the one `app.stock_move()` rule stays on H1's 0231 body: compared with 0231, the redefinition in `0241_h2_reservations_rls` changes only the `v_reserved` declaration, the balance read taking `qty_reserved` too, and the `stock_reserved_insufficient` check after `stock_insufficient`. When X4 merges, that check goes into X4's body at the same place (pass 2, the bin a line leaves), and the reason grants and serial rows X4 moved into tables stay untouched.
+
+**Built since the early check:**
+- **The cancellation's freed stock:** `app.release_order_reservations()` now answers each released reservation with its item, and `sales.order.cancel` emits `inventory.reservation.released` for each (added to the event's `emittedBy`).
+- **The fill worker** (`apps/web/src/workers/reservations/fill-event.ts`): `inventory.stock.moved` (the items moved into a bin) and `inventory.reservation.released`, `.moved` and `.lapsed` run `inventory.reservation.fill` as `system:workers` of the event's company, in its own transaction. The five types are now `subscribed: true`.
+- **The reminder notice:** `reservation_expiring` (`NOTICE_TYPES`, migration `0242_h2_reservation_notice` widening both type checks `NOT VALID`); `inventory.reservation.expiring` goes to the notify route. `app.notice_reservation_people()` tells the order's owner and every active Inventory Manager of the company while the order is open. The link opens the order.
+- **The daily scan** (`/workers/reservations/scan`, schedule `reservation-scan` at 18:50 UTC, `ReservationScanWorkerBody` and `...Response`, `apps/web/src/workers/reservation-scan.ts`):
+  - per company, `inventory.reservation.scan` batch by batch;
+  - then a catch-up `inventory.reservation.fill` over `app.backordered_items()`, so a fill an event missed (more than 200 movements in a batch, a delivery lost for good) happens the same day.
+- **The hub's PIN codes:** `pinCodes` on `inventory.hub.create` (default none) and `.update` (left out, kept), checked as six-digit codes, each once, at most 2,000; on `HubDto`; audited (`hubPinCodes`); the hub form's "PIN codes this hub serves first" field (not for the transit hub).
+- **Availability:** `app.free_availability()` is the one implementation behind `app.line_availability()` and `app.preview_availability()`, the quote builder's lines before save (at most 200). `app.line_availability()` also answers the dispatched quantity of a confirmed order's lines (0 until D2). The queries are `readLineAvailability` and `previewLineAvailability`. Each answers in two shapes; the shape for a holder of only `sales.quote.create` is selected without the count columns.
+- **Lists:** `listReservations` (an order's or an item's active holds) and `listItemBackorders` (an item's backorders in queue order). Both need `inventory.stock.read` for the company and read through row security; the order's number and line show only when the reader may read the order.
+- **Screens:**
+  - A Stock column on the quote builder's worked-out lines, the quote page and the order page (`QuoteLinesTable` takes an optional `availability`). It shows "In stock", "Partly in stock" or "Out of stock" ("On order" with the expected date once purchase orders exist). A reader of stock also sees free stock, or held, waiting and dispatched quantities.
+  - The order page's "Stock held for orders", loaded after the page, and the same panel on the item's stock card, with Extend (the Inventory Manager's or the General Manager's grant), Move and Release for `inventory.stock.adjust`.
+  - The stock card's "Orders waiting for this item".
+  - The order page reads again after a confirmation or a cancellation, so its stock shows at once.
+  - The copy is in a namespace of its own (`holds`), sent with `/orders`, `/quotes`, `/converting` and `/inventory`.
+- **Server actions** in `apps/web/src/actions/reservations.ts`.
+- **Journeys** in `apps/web/e2e/reservations.spec.ts`, seeded by `e2e/setup/reservations.ts`, all with axe checks:
+  - the General Manager confirms an order, its stock is held and each line shows what it holds;
+  - the Inventory Manager finds a hold on the item's stock card and extends it once;
+  - a Lead Converter reads an order's lines (a status, no count) and finds `/inventory/stock` closed.
+  - Three element snapshots: `reservations-order-holds`, `reservations-extend-dialog` and `reservations-converter-lines`.
+- **Docs:**
+  - phase3.md §7.1's Built (H2) record;
+  - DATABASE §4.1 and §6.5 (the new definers, `pin_codes`, `release_order_reservations()`'s answer);
+  - SECURITY §3.3 (the scan's definers and the reminder);
+  - API §3.6 (the scan route), ARCHITECTURE §6 (the schedule);
+  - `db:docs` and `machines:docs` regenerated.
+
+**Tests added since the early check:**
+- **Domain:**
+  - `reservations.test.ts`, now 21 cases: the two list queries (a Lead Converter and another company refused), the builder's preview (a status for the Lead Converter, the free stock for the Inventory Manager, a Field Engineer refused), the reminder notice (the owner and the company's Inventory Manager once, not another company's, a person refused), the cancellation's freed holds sent to the fill, and the hub's PIN codes (kept, left alone, cleared, refused).
+  - `reader-parity.test.ts`, which covers `listReservations` and `listItemBackorders`.
+- **Web:**
+  - `src/workers/reservations/fill-event.test.ts` (3: the items of each event);
+  - `tests/reservation-scan.test.ts` (6: the route's refusals, a signed run done, a run out of time);
+  - `check-ins.test.ts` and `qstash-schedules.test.ts` with the new schedule, `qstash.test.ts` with the new notifying event.
+- **Database:** `grants.test.ts` (`app.preview_availability()` among the reader's definers); the data docs test now names `surplus_pool` and `dispatch_lines` as the planned tables, since `reservations` is built.
+
+**Checks run (through `heavy.sh`, this worktree's Postgres on 54332):**
+- `pnpm --filter @shakti/contracts --filter @shakti/db --filter @shakti/domain --filter web typecheck`: exit 0.
+- `pnpm lint` (the whole repository, the final check): exit 0.
+- Unit tests:
+  - contracts 340, db 162 and domain 2872, all passed;
+  - web 1245 with 1 skipped, the rest passed after the namespace, unused-key and schedule-count fixes.
+- `pnpm copy-lint`: exit 0. New button keys registered: `extend`, `extendSubmit`, `releaseSubmit`.
+- `pnpm --filter web build`: exit 0. `pnpm --filter web js-budget`: every page within its budget (65 pages), once the order page's hold panel loads after the page.
+- `pnpm test:security`, in one go: db 63 files, 1807 passed and 1 failed; turbo then stopped. I ran the domain and web suites after it:
+  - domain: 113 files, 1545 passed;
+  - web: 40 files, 465 passed and 2 failed.
+
+  None of the three failures comes from H2:
+  - `alert-counts.test.ts`: its fixed `agent_configs` row for the Co-pilot in company 3 met the one the journeys' seed wrote at 17:04 on this database.
+  - `demo-data.test.ts`: the retail list now holds more than the 200 prices the test reads, after the journeys' and suites' items. It also fails alone.
+  - `outbox-route.test.ts` (the current key): another file's publisher took its row. It passes alone (12 tests).
+
+  On a fresh database, as CI runs it, none of the three meets another suite's or the journeys' rows. I could not recreate the database here (no `fresh-db.sh` in a builder lane).
+- Journeys (`pnpm --filter web e2e:seed`, then `playwright test reservations.spec.ts inventory.spec.ts orders.spec.ts quotes.spec.ts --ignore-snapshots`, the app on 3032): **77 passed, 1 failed**. All nine reservation runs passed (three tests on desktop light, desktop dark and phone). The orders and quotes journeys passed with the new column.
+  - The failure is H1's Executive stock journey on the phone: it timed out on `/inventory/hubs`, which on this used database lists hundreds of hubs the security suites made. The two desktop runs passed.
+  - Screenshots were ignored; the Linux baselines for the three new snapshots (and the order and quote screens, which now carry the Stock column) are the lead's at integration.
+- EXPLAIN (ANALYZE, BUFFERS), from `pnpm --filter @shakti/domain exec tsx tests/spike/reservations-explain.ts`. It writes 2,000 items, 50 bins, 10,000 confirmed orders, 20,000 needs and 20,000 reservations in company 1, in 4.0 s, then removes them.
+
+  | Read | Index used | Time |
+  |---|---|---|
+  | The stock card's holds of an item, under row security as an Inventory Manager | `reservations_item_idx` | 2.8 ms |
+  | The order page's holds | `reservations_order_idx` | 1.3 ms |
+  | The stock card's backorders | `reservation_needs_item_idx` | 1.1 ms |
+  | The fill's queue (inside `app.fill_backorders()`) | `reservation_needs_item_idx`, then the orders by key | 0.33 ms |
+  | The lapse (inside `app.lapse_reservations()`) | `reservations_expiry_idx` | 0.04 ms |
+  | The reminder (inside `app.reservation_reminders()`) | `reservations_expiry_idx` | 0.03 ms |
+  | The daily items waited for (inside `app.backordered_items()`) | a hash join over the company's needs, once a night | 11.1 ms |
+  | `app.line_availability()` of a confirmed order | | 5.5 ms |
+
+**For the lead and the owner:**
+- Migrations `0240_h2_reservations`, `0241_h2_reservations_rls` and `0242_h2_reservation_notice` follow 0239. Renumber them after X4 and the other wave-2 slices, and re-apply the `app.stock_move()` rule onto X4's body (above).
+- The hosted environments need the QStash schedule `reservation-scan-<environment>` ([DEPLOY §1](../../runbooks/deploy.md) step 6) once this is on them. The five newly subscribed event types (`inventory.stock.moved` and `inventory.reservation.released`, `.moved`, `.lapsed`, `.expiring`) need their URL groups `evt-<type>` as every subscribed type does; `inventory.reservation.expiring` goes to the notify route.
+- A customised Lead Converter role keeps `inventory.stock.read` until an Executive takes it off in Admin › Roles (SECURITY §4).
+
+**Decisions taken since the early check, which the brief did not settle:**
+1. **The reminder** goes to the company's people whose role is the Inventory Manager's (by role key, so the Executive, who holds every grant, is not told of every hold), and to the order's owner: the lead's owner, or the maker of an order without a lead.
+2. **The cancellation emits `inventory.reservation.released`**, one per freed hold, rather than a new event type.
+3. **The daily scan also fills** every item open orders wait for, so the fill never depends on one event's delivery.
+4. **The availability column** shows "Out of stock" for a short line until purchase orders give it a date; then it shows "On order" with the date.
+5. **The builder's preview** is a definer of its own (`app.preview_availability()`) on the lines as typed, since the quote has no id yet.
+6. **A held line's quantities** come from `app.line_availability()`; the dispatched quantity is 0 until D2 changes that definer.
 
 ## Review
 
