@@ -220,6 +220,12 @@ export {
   rejectWarrantyClaim,
   settleWarrantyClaim,
 } from './commands/inventory/warranty';
+export {
+  getWarrantyClaim,
+  listClaimSerials,
+  listWarrantyClaims,
+  readWarrantyClaimCosts,
+} from './queries/inventory/warranty';
 export { listHubs } from './queries/inventory/hubs';
 export {
   getSerial,

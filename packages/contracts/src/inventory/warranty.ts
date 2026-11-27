@@ -116,9 +116,10 @@ export const WarrantyClaimDto = z
     state: WarrantyClaimStateSchema,
     stateChangedAt: z.string(),
     createdAt: z.string(),
-    account: z.object({ id: IdSchema, name: z.string() }).strict(),
+    /** The customer's name is null for a viewer who may not read that customer. */
+    account: z.object({ id: IdSchema, name: z.string().nullable() }).strict(),
     site: z
-      .object({ id: IdSchema, village: z.string().nullable(), type: z.string() })
+      .object({ id: IdSchema, village: z.string().nullable(), type: z.string().nullable() })
       .strict()
       .nullable(),
     item: z.object({ id: IdSchema, sku: z.string(), name: z.string() }).strict().nullable(),
@@ -169,3 +170,24 @@ export const WarrantyClaimCostsDto = z
   })
   .strict();
 export type WarrantyClaimCostsDto = z.infer<typeof WarrantyClaimCostsDto>;
+
+/** The customer's serials delivered by the company, for a claim to identify one. */
+export const ListClaimSerialsInput = z
+  .object({ entityId: EntityIdSchema, accountId: IdSchema })
+  .strict();
+export type ListClaimSerialsInput = z.input<typeof ListClaimSerialsInput>;
+
+export const ClaimSerialDto = z
+  .object({
+    id: IdSchema,
+    serialNo: z.string(),
+    item: z.object({ id: IdSchema, sku: z.string(), name: z.string() }).strict(),
+    warrantyUntil: z.string().nullable(),
+    /** The serial's open claim, if it has one. */
+    openClaimId: IdSchema.nullable(),
+  })
+  .strict();
+export type ClaimSerialDto = z.infer<typeof ClaimSerialDto>;
+
+export const ClaimSerialListDto = z.object({ serials: z.array(ClaimSerialDto) }).strict();
+export type ClaimSerialListDto = z.infer<typeof ClaimSerialListDto>;
