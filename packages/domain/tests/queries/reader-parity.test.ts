@@ -137,6 +137,12 @@ import {
   listStockBalances,
   readStockValuation,
 } from '../../src/queries/inventory/stock';
+// H3 stock counts
+import {
+  getStockCountReview,
+  getStockCountSheet,
+  listStockCounts,
+} from '../../src/queries/inventory/counts';
 import {
   accountSalesOrders,
   getSalesOrder,
@@ -375,6 +381,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // H3 stock counts
+  listStockCounts: (ctx) => listStockCounts(ctx, { entityId: 1, limit: 20 }),
+  getStockCountSheet: (ctx) => getStockCountSheet(ctx, { countId: newId() }),
+  getStockCountReview: (ctx) => getStockCountReview(ctx, { countId: newId() }),
 };
 
 /**
