@@ -5,9 +5,9 @@
 | Branch | `feat/h2-reservations` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock, the ledger's definers, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high: 14:20 UTC to the early check at 16:13 UTC, then from 16:30 UTC to done at 17:31 UTC; the fix round Opus 5.5 at high, 18:05 to 19:58 UTC |
-| State | fixes done |
-| Next step | the reviewer re-checks finding 1's fix; at integration, X4's `app.stock_move()` once it merges (one rule to carry over) |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high: 14:20 UTC to the early check at 16:13 UTC, then from 16:30 UTC to done at 17:31 UTC; the fix round Opus 5.5 at high, 18:05 to 19:58 UTC; fix round 2 the same, 20:05 to 20:50 UTC |
+| State | fixes 2 done |
+| Next step | the lead reads the round-2 diff (no further re-check); at integration, X4's `app.stock_move()` once it merges (one rule to carry over) |
 
 ## Brief
 Build [phase3 §7.1](../../03-roadmap-appendix/phase3.md#71-h2-reservations-and-availability) as written, with questions 3 (a) and 4 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
@@ -348,6 +348,48 @@ All nine findings, as the lead's triage says. Finding 1 first. Skills loaded: no
 **Open, for the lead:**
 - Only the backfill's migration-time run is untested: the test calls the function, not the migration. On hosted data it runs inside the migration's transaction, with confirmed orders locked `for update`.
 - Journeys and the Linux baselines are as before: for the lead at integration.
+
+### 27-11-2026, cloud (seat worktree `h2-reservations`, Postgres on 54333): fixes 2
+The re-check's findings 10, 11 and 12, as the lead's triage says. The database was brand new: migrated and seeded first.
+
+**Finding 10: the re-queued needs of an item share one pool.**
+- New column `reservations.from_arrivals` (boolean, default false), folded into `0240_h2_reservations.sql` and its three snapshots; `db:generate` reports no change and `db:docs` is regenerated. `app.stock_reserve()` takes a sixth argument `p_from_arrivals`, false for confirmation and for a move.
+- `app.fill_backorders()`, after its locks:
+  - `v_since` is the oldest `requeued_at` among the item's waiting needs in open orders.
+  - The pool is the stock that entered a storage bin after `v_since` (from no bin or a non-storage bin, as before), less every `from_arrivals` reservation of the item made after `v_since`, whatever its state now.
+  - The needs then go in queue order. A re-queued need takes at most what is left of the pool, its reservations are marked `from_arrivals`, and the pool falls by what it took. A need queued at confirmation takes free stock as before.
+- So each arrived unit is given to at most one re-queued need, and lapse-freed stock is never in the pool. A unit given after `v_since` counts against the pool even if it arrived before, so the pool is never more than what is truly new (it can be less: see "Open").
+- Tests:
+  - `reservations.test.ts`: two lone orders' holds lapse, older first; one unit arrives; only the older order is filled, the newer still waits and the two freed units stay free (new, 25 cases).
+  - `reservations-property.test.ts`:
+    - the random run's rule is now per item: everything the fill gave re-queued needs is no more than what arrived after the item's first re-queue (tracked across steps);
+    - a new property: 6 seeded rounds, 2 to 4 orders hold all of a fresh item and every hold lapses, then 1 to 4 arrivals of 1 to 3 units, each followed by a fill or not. After each, the orders together hold no more than arrived, and no order holds anything while an order before it in the queue waits; after the last fill they hold min(arrived, needed). Each round's item is archived after.
+  - The single-order cases are kept.
+
+**Finding 11:** SECURITY §4 now says "one question per item a call (up to 200 items in the builder's preview), and for a kit line also whether the free stock makes one whole kit".
+
+**Finding 12:** the concurrency file's header now says what the two fill races prove (the arrangement completes) and what they cannot (fail on the old several-items-a-transaction shape), and names the guard: the contract. The two test names say "complete" instead of "never deadlock". A new case checks that `FillBackordersInput` refuses `itemIds`, alone or beside `itemId`.
+
+**Docs:** DATABASE §4.1 (the fill's pool) and §6.5 (`requeued_at`, `from_arrivals`), phase3.md's Built record, `docs/data`.
+
+**Checks run** (through `heavy.sh`, Postgres on 54333):
+- `pnpm typecheck` (whole repository): 10 tasks successful.
+- `pnpm lint` (whole repository): exit 0.
+- `eslint --fix` over `packages/db/src`, `packages/db/tests` and `packages/domain/tests`: no change.
+- The slice's suites first: domain `tests/stock` and `tests/commands/reservations.test.ts`, 7 files, 64 passed; db `reservations.test.ts` and `grants.test.ts`, 238 passed.
+- `pnpm test:security`: db 63 files, 1811 passed; domain 114 files, 1555 passed; web 40 files, 466 passed and 1 failed (`demo-data.test.ts`).
+  - This database had 202 active items sorting before the demo pump: 139 from the full run and 63 from my earlier run of the slice's suites.
+  - I archived the items that earlier run made (75 rows, created 20:19 to 20:21) and ran `demo-data.test.ts` alone: 9 passed. On a fresh database, as CI runs it, the run passes, as the re-check found.
+- Not run again: `pnpm build` and `js-budget` (no page changed) and `copy-lint` (no copy changed). Journeys: no sign-in on a seat.
+
+**EXPLAIN:** the pool reads the same movement sum as round 1's arrival count (`stock_movements_card_idx`, 0.10 ms over 200,000 movements). It now runs once a fill instead of once a need. The reservations sum reads `reservations_item_idx` (company, item).
+
+**Decisions this round took:**
+1. **A marker column, not a time comparison.** A reservation's later fate (lapsed, released, moved) or its need's later re-queue cannot hide a unit the pool already gave.
+2. **A move's new reservation is not a pool take** (`from_arrivals` false). It moves a hold the order already had.
+
+**Open, for the lead:**
+- The pool can be smaller than the true new stock. Say need A (re-queued at 1) takes a unit that arrived at 2, after need B was re-queued at 3. Once A is filled, B's pool starts at 3 and still counts A's take, so B waits for one more arrival than it strictly needs. That errs towards keeping stock free, never towards giving lapse-freed stock.
 
 ## Review
 
