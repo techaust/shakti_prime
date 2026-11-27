@@ -209,6 +209,15 @@ The owner decided all eleven on 27-11-2026, each the recommended option (a).
 - **Screens:** the order page's Payments tab (milestones, proformas, payments as they arrive); Settings › Payment terms (Executive).
 - **Acceptance:** FIN-01's criteria.
 
+**Built (FN1):**
+- Tables `proformas`, `proforma_lines`, `payment_milestone_templates` and `payment_milestones` (DATABASE §6.7), with row security, guards and grants as DATABASE §6.7 and §4.1 give them; the file purpose `proforma_pdf`.
+- `finance.read` (SECURITY §3.2) and the platform-only `finance.milestones.process` (SECURITY §3.3).
+- The `proforma` and `payment_milestone` machines (`docs/state-machines/`); `planMilestones()`, `splitMilestoneAmounts()`, `milestoneDueOn()` and `milestoneLoanAnswer()` in `packages/domain/src/finance`; the named default terms `WORKSHOP_DEFAULTS.finance.milestoneSteps`.
+- Commands `finance.proforma.issue`, `.cancel` and `.pdf.attach`, `finance.milestone.plan`, `.plan_confirmed` (the platform, on `sales.order.confirmed`) and `.waive`, and `finance.terms.publish`; the events `finance.proforma.issued`, `.cancelled`, `finance.milestones.planned`, `finance.milestone.waived` and `finance.terms.published`.
+- `app.order_dispatch_payment_gate()` for D2's `depart` guard (`payment_milestone_open`); `app.order_loan_gate()` read for a loan-gated step.
+- The proforma PDF in the print registry (`apps/web/src/print/proforma-template.ts`): the letterhead, lines with HSN, the tax split, the total in words, the order's payments, the bank account and the UPI ID.
+- Screens: the order page's Payments tab and Settings › Payment terms (`/settings/payment-terms`).
+
 ### 6.2 TC1 The Tally connector
 - **`apps/tally-connector`**, in Node 24 and TypeScript:
   - reads Tally's XML server (port 9000) per mapped company, using the spike reader as its start;
