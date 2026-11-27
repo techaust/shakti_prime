@@ -619,6 +619,27 @@ describe('procurement.grn.reverse', () => {
     ).rejects.toMatchObject({ details: { reason: 'goods_receipt_reversed' } });
   });
 
+  it('takes a tracked receipt back out and receives the same serials again', async () => {
+    const po = await sentOrder([{ itemId: f.pump, qty: '2', rate: '1500' }]);
+    const lines = await lineIds(po.id);
+    const numbers = [`V-${f.tag}-1`, `V-${f.tag}-2`];
+    const receipt = await run<ReceiptRef>(manager, postGoodsReceipt, {
+      purchaseOrderId: po.id,
+      lines: [{ poLineId: lines[f.pump], qty: '2', serialNos: numbers }],
+    });
+    await run(manager, reverseGoodsReceipt, { receiptId: receipt.id, reason: 'Wrong order' });
+    expect(await serialOf(f.pump, numbers[0] ?? '')).toMatchObject({
+      state: 'scrapped',
+      binId: null,
+    });
+    const again = await run<ReceiptRef>(manager, postGoodsReceipt, {
+      purchaseOrderId: po.id,
+      lines: [{ poLineId: lines[f.pump], qty: '2', serialNos: numbers }],
+    });
+    expect(again).toMatchObject({ purchaseOrderState: 'received', movementCount: 2 });
+    expect(await serialOf(f.pump, numbers[1] ?? '')).toMatchObject({ state: 'in_stock' });
+  });
+
   it('refuses a reversal once the receipt’s stock has moved on', async () => {
     const po = await sentOrder([{ itemId: f.cable, qty: '4', rate: '50' }]);
     const lines = await lineIds(po.id);
@@ -773,7 +794,13 @@ describe('reorder rules and procurement.reorder.draft', () => {
         runCommand(
           notifyEvent,
           { context, audit, outbox },
-          { event: 'procurement.po.drafted', entityId: 3, eventId: newId(), purchaseOrderId, fromReorder },
+          {
+            event: 'procurement.po.drafted',
+            entityId: 3,
+            eventId: newId(),
+            purchaseOrderId,
+            fromReorder,
+          },
         ),
       );
     const firstOrder = out.purchaseOrderIds[0] ?? '';
@@ -785,7 +812,9 @@ describe('reorder rules and procurement.reorder.draft', () => {
         select user_id, type, subject_type from notifications
          where subject_id = ${firstOrder} and user_id in (${writer.id}, ${caller.id})`,
     );
-    expect(told).toEqual([{ user_id: writer.id, type: 'reorder_drafted', subject_type: 'purchase_order' }]);
+    expect(told).toEqual([
+      { user_id: writer.id, type: 'reorder_drafted', subject_type: 'purchase_order' },
+    ]);
     // What is now on order covers the rules: a second run drafts nothing.
     const again = (await asPrincipal(workers, (context) =>
       runCommand(draftReorders, { context, audit, outbox }, { entityId: 3 }),

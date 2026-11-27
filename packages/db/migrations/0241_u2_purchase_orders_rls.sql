@@ -469,10 +469,11 @@ grant select on reorder_rules, purchase_orders, po_lines, po_line_rates, goods_r
 --     line (per serial for a tracked item) through app.stock_move() at that rate per stock unit,
 --     which revalues the moving average (question 2 (a)). `p_serials` maps each tracked line's id
 --     to its serial numbers: exactly the line's quantity of them, each once. A number the item
---     already has, in any company, is refused (goods_receipt_serial_taken); the ledger makes each
---     new serial in stock (the `receipt` move row), and this then records its vendor, its receipt
---     line and its supplier warranty from the date received in India. Answers the movement ids,
---     never a rate.
+--     already has is refused (goods_receipt_serial_taken), unless it is this company's serial out
+--     of stock (`scrapped`) because the receipt it came in on was reversed: it comes in again. The
+--     ledger makes each new serial, or brings the returning one back, in stock (the `receipt` move
+--     row: creates, or from `scrapped`), and this then records its vendor, its receipt line and its
+--     supplier warranty from the date received in India. Answers the movement ids, never a rate.
 create or replace function app.goods_receipt_post(p_receipt_id uuid, p_serials jsonb)
   returns uuid[]
   language plpgsql volatile security definer set search_path = '' as $$
@@ -553,7 +554,12 @@ begin
     for v_no in select pg_catalog.btrim(e) from pg_catalog.jsonb_array_elements_text(v_nos) e loop
       if exists (select 1 from public.serials s
                   where s.item_id = v_line.item_id
-                    and pg_catalog.lower(s.serial_no) = pg_catalog.lower(v_no)) then
+                    and pg_catalog.lower(s.serial_no) = pg_catalog.lower(v_no)
+                    and not (s.entity_id = v_receipt.entity_id and s.state = 'scrapped'
+                             and exists (select 1 from public.goods_receipt_lines gl
+                                           join public.goods_receipts gr on gr.id = gl.receipt_id
+                                          where gl.id = s.receipt_line_id
+                                            and gr.state = 'reversed'))) then
         raise exception 'the serial is already recorded for the item'
           using errcode = 'check_violation', constraint = 'goods_receipt_serial_taken',
                 detail = pg_catalog.jsonb_build_object('serialNo', v_no)::text;
