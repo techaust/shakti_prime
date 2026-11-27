@@ -146,6 +146,9 @@ import {
 import { loadSalesOrderBuilder, previewSalesOrder } from '../../src/queries/sales/order-facts';
 import { loadQuoteBuilder, previewQuote } from '../../src/queries/sales/quote-builder';
 import { loadQuoteForPrint } from '../../src/queries/sales/quote-print';
+// FN1 proformas and payment milestones.
+import { listPaymentTerms, readOrderPayments } from '../../src/queries/finance/order-payments';
+import { loadProformaForPrint } from '../../src/queries/finance/proforma-print';
 import { listSavedViews } from '../../src/queries/profile/saved-views';
 import { readTaxSettings } from '../../src/queries/tax/tax-settings';
 import {
@@ -338,6 +341,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   loadQuoteBuilder: (ctx) =>
     loadQuoteBuilder(ctx, { entityId: 1, opportunityId: newId() }, QUOTES_AT),
   loadQuoteForPrint: (ctx) => loadQuoteForPrint(ctx, newId()),
+  // FN1: an order's Payments tab, a company's payment terms and a proforma's print loader.
+  readOrderPayments: (ctx) => readOrderPayments(ctx, { entityId: 1, orderId: newId() }),
+  listPaymentTerms: (ctx) => listPaymentTerms(ctx, { entityId: 1 }),
+  loadProformaForPrint: (ctx) => loadProformaForPrint(ctx, newId()),
   listPriceTierOptions: (ctx) => listPriceTierOptions(ctx),
   listSalesOrders: (ctx) => listSalesOrders(ctx, { limit: 20 }),
   searchSalesOrders: (ctx) => searchSalesOrders(ctx, { q: 'SO/2026', limit: 8 }),
