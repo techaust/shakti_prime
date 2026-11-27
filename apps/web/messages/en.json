@@ -1656,7 +1656,8 @@
       "reactivate": "Reactivate",
       "resetAuthenticator": "Reset authenticator app",
       "liftLock": "Lift sign-in lock",
-      "moveLeads": "Move all leads"
+      "moveLeads": "Move all leads",
+      "phones": "Phones"
     },
     "rolesField": {
       "legend": "Role in each company",
@@ -1727,6 +1728,26 @@
         "totp_reset": "Authenticator app reset",
         "absolute_expiry": "Signed in for seven days",
         "timedOut": "Not used for a while"
+      }
+    },
+    "phones": {
+      "title": "Phones of {name}",
+      "intro": "The phones this person has signed in to the field app on, newest first. Sign out one that is lost, stolen or no longer theirs.",
+      "empty": "This person has not signed in to the field app yet.",
+      "phone": "Android phone",
+      "signedIn": "Signed in",
+      "signedOut": "Signed out",
+      "started": "Signed in {time}",
+      "lastUsed": "Last used {time}",
+      "version": "App version {version}",
+      "endedAt": "Signed out {time}",
+      "signOut": "Sign out",
+      "signOutLabel": "Sign out {phone}",
+      "done": "That phone is signed out. The app asks for the email and password the next time it is opened.",
+      "reason": {
+        "signed_out": "Signed out on the phone",
+        "revoked": "Signed out from the website",
+        "refresh_reused": "Signed out for safety"
       }
     },
     "moveLeadsDialog": {
