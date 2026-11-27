@@ -372,4 +372,17 @@ Re-checked the fix round `cbf48815..a98c26f7` on `feat/u2-purchase-orders`. `888
 - U2 now merges second, so brief point 7 is U2's: wire Q1's `parseLabelPayload()` into the scan field's `resolve`.
 - `apps/web/js-budget.json` and `tools/copy-lint/copy-lint.config.json` changed, so the owner's `checks-ok` is still needed.
 
+**The lead's triage of the re-check (27-11-2026):** a second round, because R1 and R2 are high. Fix R1, R2, R3, R4, R5, R7 and R8. R6 goes away with R2.
+- **R1:** make CI's unit job pass. That covers SECURITY §3.2's key cell (a note goes outside the cell the oracle reads), the DATABASE rows the data documents compare, and the mail worker's test. Run `pnpm test` (the whole repository, through the lock) before the report.
+- **R2:** the purchase order PDF goes through the render worker, as ADR 0009 and the quote and label sheets do. Never Chromium in a request route.
+  - Approving, sending or asking to download an order enqueues a render job.
+  - The worker renders the PDF into a stored file. Its file purpose is restricted: written by `files.process`, read with `procurement.rate.read`, so the rates in the PDF follow the grant.
+  - The download route serves the stored file, or answers that it is being prepared.
+  - The email worker attaches the stored file.
+  - No person-facing route runs as `system:workers`.
+  - Tests through the route, the worker and the mail, as Q1's `label-render.test.ts` does.
+- **R3:** a DATABASE §4.1 row for each definer.
+- **R4, R5, R7, R8:** as the review says.
+- **The reviewer re-checks the fix diff.**
+
 ## Integration
