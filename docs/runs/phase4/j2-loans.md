@@ -5,9 +5,9 @@
 | Branch | `feat/j2-loans` on GitHub, from `main` after the approved design (#295) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): money and gates on dispatch and payments |
-| Usage | briefed 27-11-2026; built on Opus 5.5 at high (start of the build lane, 27-11-2026) |
-| State | early check reported |
-| Next step | the lead reads the early-check diff, then the builder continues with the screens |
+| Usage | briefed 27-11-2026; built on Opus 5.5 at high (early check and lane 45, 27-11-2026) |
+| State | built, report done |
+| Next step | the review, then integration (fresh database, Linux baselines, `checks-ok` for `js-budget.json`) |
 
 ## Brief
 Build [phase4 §6.2](../../03-roadmap-appendix/phase4.md#62-j2-customer-loans) as written. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -97,6 +97,47 @@ Skills loaded: `add-table`, `add-command`. Commits: `3d1b90d5` (wip), `878fa02e`
 - **The journey's actor:** the brief's journey has an Accounts person record a loan through sanction and disbursal, but SECURITY §3.2 gives Accounts no `crm.account.write`, and the design (§6.2) and the machine put every loan command on `crm.account.write`. Without a matrix change, Accounts can read loans and gate answers but not record them. Either the owner adds `crm.account.write` (or a new loan permission) for Accounts, or the journey uses a General Manager or Project Manager. I will write the journey with a General Manager unless the lead says otherwise.
 - **`notify_owner` on rejection:** `crm.loan.rejected` carries the order's lead, but no worker tells the lead's owner yet. Wiring it means a notice type (the `notifications_type_check` list), the notify command and worker registry, and its sentence. I plan it for the screens lane unless the lead wants it elsewhere.
 - Module documents (DATABASE §6 line, SECURITY §3.2 notes, API, the design's Built record) are written with the screens.
+
+### 27-11-2026, done (lane 45, cloud worktree `/home/user/shakti-wt/j2-loans`, Postgres on 54333, app on 3033)
+Built on the early check the lead accepted (decisions 1 to 7). Commits `3cf4d1bc` to `fdc10594`.
+
+**Built**
+- **`notify_owner`:** `crm.loan.rejected` now carries `rejectedBy` and is subscribed; the notify worker (`notify-event.ts`, `events/registry.ts`, `qstash.ts`) runs `notifications.event.notify`, which asks the new definer `app.notice_loan_owner(entity, loan)` (`notifications.send`, `search_path = ''`) for the owner of the order's live lead, else the owner of the customer's relationship in the company, and writes one `loan_rejected` notice per loan (subject the order, link to the order page), never to the person who recorded the turn-down. The notice type widens `notifications_type_check` and `notification_preferences_type_check` (generated migration, both `NOT VALID`); copy in `notifications.types` and `pushAlerts`. Migrations `0242_j2_loan_rejected_notice.sql`, `0243_j2_loan_rejected_notice_owner.sql`.
+- **Reads** (`packages/domain/src/queries/crm/loans.ts`): `getOrderLoans()` (the order's loans newest first, the gate answer, the company's active lenders, `canWrite` as the policies decide it), `listAccountLoans()` (at most 50, newest first, with the order's number when the caller reads the order), `listLenders()`; contracts `OrderLoansInput/Dto`, `AccountLoansInput`, `AccountLoanRowDto`, `ListLendersInput`.
+- **Actions** `apps/web/src/actions/loans.ts`: the three reads through `executeQuery()` and the six commands through `executeCommand()`, each in a request narrowed to the record's company.
+- **Screens:**
+  - The Loan tab below the order page's lines (`components/loans/order-loan-panel.tsx`, dialogs in `loan-dialogs.tsx`, loaded on first use): the dispatch gate's answer as a badge, the active loan (lender, amounts, dispatch gate, dates, reference, status), Record a loan / Record sanction / Record payout / Record turn-down for a person who may write the customer, and the earlier turned-down loans with their reasons. The order page passes the tab as children of `OrderScreen` (one prop).
+  - Account 360's Loans (`components/loans/account-loans.tsx`), one block in `account-screen.tsx`.
+  - Settings › Lenders (`/settings/lenders`, menu item `settings-lenders`, `admin.entities.write:all`): one company at a time, add, rename, switch off and on (`lenders-screen.tsx`, `lender-dialog.tsx` loaded on first use).
+  - **The project page's Loan tab** (J1 has not merged): one line for J1's frame, `<OrderLoanPanel initial={…} />` fed by `getOrderLoans({ entityId, orderId })` for the project's order.
+- **Journeys** `apps/web/e2e/loans.spec.ts` with the seed `e2e/setup/loans.ts` (per project a dealer of the journeys' company and a fresh draft order each run, so company 3's lists stay as other pictures hold them) and a new signed-in role `journeyManager` (General Manager of company 2, with an authenticator): the GM records a typed-name loan, its sanction and its payout, and the gate badge goes from none to waiting to released; Account 360 lists it; the Executive adds a lender in Settings › Lenders and switches it off. Axe on every step; pictures `order-loan-paid-out` (the Loan tab alone, after the toasts leave) and `lenders-add` (the dialog alone).
+- **Documents:** DATABASE §6.2 (`customer_loans` Built, `lenders`), the two definers in the definer table and `loan_rejected` in `notifications`; SECURITY (customer loans paragraph); the design's Built record under §6.2; `docs/data/*` and `docs/state-machines/*` regenerated; copy-lint's button keys (`recordLoan`, `recordSanction`, `recordPayout`, `recordTurnDown`, `switchOff`, `switchOn`, `renameLender`); `js-budget.json` (`/settings/lenders` 203 kB; `/catalogue` raised by 1 kB for the shell's new menu entry, measured 245.1 kB).
+
+**Tests added in this lane**
+- `packages/domain/tests/commands/notifications.test.ts`: 2 (the owner told once, not when they recorded it; refused to a person and to the worker of another company).
+- `packages/domain/tests/commands/loans.test.ts`: 2 more (the Loan tab read for GM, Accounts, the owner, another caller and another company; Account 360's loans and the lenders), 15 cases and 17 tests in the file.
+- Reader parity covers `getOrderLoans`, `listAccountLoans`, `listLenders`; the catalogue test lists `crm.loan.rejected` as subscribed; contract values `ACTIVE_LOAN_STATE_VALUES`, `CUSTOMER_LOAN_STATES`, `LOAN_DISPATCH_GATES` equal the contracts.
+- Journeys: 2 per project (6).
+
+**Checks**
+- `pnpm typecheck` and `pnpm lint` (whole repository, through the lock): `Tasks: 10 successful`, eslint clean.
+- Unit: domain 110 files, 2810 passed; contracts 25 files, 340 passed; web 167 files, 1241 passed, 1 skipped. `pnpm copy-lint`: clean. `pnpm db:docs`, `machines:docs`: regenerated and committed.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within its budget (66 pages); `/orders/[entityId]/[orderId]` 214.8 kB of 223, `/customers/[accountId]` 201.3 of 205, `/settings/lenders` 193.1.
+- Journeys (through the lock, on this slot's database, native Chromium, not the Playwright image): `loans.spec.ts` 6 of 6 passed. With `orders`, `customers`, `notifications` and `access`: 89 passed, 18 failed, 2 skipped, and every failure is `toHaveScreenshot` (36 of 36 errors), `access.spec` included, which this slice does not touch: this VM is not the Linux Playwright image. No picture was committed.
+- `pnpm test:security` before the journeys (early check): all green. After the journeys' seed had run on this database: db 1811 of 1812 (`alert-counts.test.ts` hit `agent_configs_scope_unique` on a Co-pilot setting of company 3 the e2e seed wrote), domain 111 files 1538 passed, web 460 of 461 (`demo-data.test.ts` read a retail price the seed's price lists changed). Both are the aged database CLAUDE.md warns of, in files this slice does not touch; a clean run needs a fresh database, which I did not make (no `docker`, no `fresh-db.sh`).
+- `EXPLAIN (ANALYZE)` on the reader pool with 5,000 orders and loans over 500 customers of company 4 (removed afterwards): the Loan tab `Index Scan Backward using customer_loans_order_idx`, 0.45 ms; Account 360's loans `Index Scan Backward using customer_loans_account_idx` with the policy's `account_entities_account_entity_key` probe, 0.61 ms as the owner at own scope and 0.35 ms as a GM with the order join on `sales_orders_pkey`; `app.order_loan_gate()` 4.6 ms; the lenders list a seq scan over the company's few rows, 0.09 ms.
+
+**For the lead at integration**
+- `apps/web/js-budget.json` changed (a new page and the 1 kB raise): the pull request waits for the owner's `checks-ok`.
+- New Linux baselines: `loans.spec.ts` (`order-loan-paid-out`, `lenders-add`), and remade ones for `orders.spec.ts` `order-page` (the snapshot order now shows its empty Loan tab) and `customers.spec.ts` `customer-account` (Account 360 now shows Loans).
+- Migrations 0240 to 0243 to renumber after `main`'s last. 0242 redefines `notifications_type_check` and `notification_preferences_type_check` with `loan_rejected`: if another slice merged first and widened them, keep both values. 0240 adds `sales_orders_id_entity_account_unique` before the loan's foreign key, and the order matters.
+- The run file is reported as an orphan by `check-doc-links.py` (no `docs/runs/phase4` index on the branch yet).
+- The project page's Loan tab: the one line above, for J1's frame.
+
+**Assumptions**
+- "The Loan tab" on the order page is a titled section below the lines, as the order page has no tabs; it is the same component J1's project page takes as its tab.
+- The new journey role `journeyManager` (GM of company 2) keeps the loan journey off the snapshot company's lists; Accounts records no loan (lead's decision); who does in the client's team is a client question.
+- On Account 360 a loan shows its sanctioned amount once sanctioned, else the amount applied for.
 
 ## Review
 
