@@ -35,6 +35,9 @@ const ids = {
   receipt: newId(),
   receiptLine: newId(),
   dispatchBin: newId(),
+  // A second hub of the group, with a receiving bin (review R8).
+  otherHub: newId(),
+  otherHubBin: newId(),
   otherItem: newId(),
 };
 
@@ -91,9 +94,12 @@ beforeAll(async () => {
     m.begin(async (tx) => {
       await tx`insert into warehouses (id, code, name, kind, state_code, pin_code, created_by)
         values (${ids.hub}, ${`PO${tag}`}, ${`po test hub ${tag}`}, 'godown', '08', '302001', ${drafter.id})`;
+      await tx`insert into warehouses (id, code, name, kind, state_code, pin_code, created_by)
+        values (${ids.otherHub}, ${`PQ${tag}`}, ${`po test hub two ${tag}`}, 'godown', '08', '302001', ${drafter.id})`;
       await tx`insert into bins (id, warehouse_id, code, kind, created_by)
         values (${ids.bin}, ${ids.hub}, 'RCV', 'receiving', ${drafter.id}),
-               (${ids.dispatchBin}, ${ids.hub}, 'DSP', 'dispatch', ${drafter.id})`;
+               (${ids.dispatchBin}, ${ids.hub}, 'DSP', 'dispatch', ${drafter.id}),
+               (${ids.otherHubBin}, ${ids.otherHub}, 'RCV', 'receiving', ${drafter.id})`;
       await tx`insert into items (id, sku, name, category, hsn, unit)
         values (${ids.item}, ${`PO-${tag}`}, ${`po test item ${tag}`}, 'cable', '8544', 'metre'),
                (${ids.otherItem}, ${`PO2-${tag}`}, ${`po test item two ${tag}`}, 'cable', '8544', 'metre')`;
@@ -309,9 +315,10 @@ describe('the receipt and reorder definers', () => {
      */
     async function post(
       order: string,
-      line: Partial<Record<'poLine' | 'item' | 'bin' | 'qty' | 'stockQty', string>>,
+      line: Partial<Record<'poLine' | 'item' | 'bin' | 'qty' | 'stockQty' | 'hub', string>>,
     ): Promise<number | { code?: string; constraint?: string }> {
       const row = {
+        hub: ids.hub,
         poLine: ids.line,
         item: ids.item,
         bin: ids.bin,
@@ -325,7 +332,7 @@ describe('the receipt and reorder definers', () => {
           await tx.execute(sql`
             insert into goods_receipts (id, entity_id, grn_no, po_id, warehouse_id, received_at,
                                         received_by, created_by)
-            values (${receipt}, 1, ${`T${tag}/GRN/${receipt.slice(-6)}`}, ${order}, ${ids.hub}, now(),
+            values (${receipt}, 1, ${`T${tag}/GRN/${receipt.slice(-6)}`}, ${order}, ${row.hub}, now(),
                     ${drafter.id}, ${drafter.id})`);
           await tx.execute(sql`
             insert into goods_receipt_lines (id, receipt_id, entity_id, po_line_id, item_id, bin_id,
@@ -361,6 +368,14 @@ describe('the receipt and reorder definers', () => {
     // A bin goods are not received into.
     expect(await post(ids.order, { bin: ids.dispatchBin })).toEqual(
       refused('goods_receipt_bin_unusable'),
+    );
+    // A receiving bin of another hub (review R8).
+    expect(await post(ids.order, { bin: ids.otherHubBin })).toEqual(
+      refused('goods_receipt_bin_unusable'),
+    );
+    // A receipt at a hub the order does not deliver to, into that hub's own bin (review R8).
+    expect(await post(ids.order, { hub: ids.otherHub, bin: ids.otherHubBin })).toEqual(
+      refused('purchase_order_not_open'),
     );
     // An order not yet sent.
     expect(await post(ids.draft, { poLine: ids.draftLine })).toEqual(

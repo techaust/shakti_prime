@@ -759,8 +759,8 @@ describe('procurement.grn.reverse', () => {
 
   it('holds a reversal behind an issue in progress from its bin, then refuses it', async () => {
     const receipt = await receivedIntoB();
-    let holding!: () => void;
-    const held = new Promise<void>((resolve) => {
+    let holding!: (pid: number) => void;
+    const held = new Promise<number>((resolve) => {
       holding = resolve;
     });
     let release!: () => void;
@@ -770,21 +770,34 @@ describe('procurement.grn.reverse', () => {
     // The issue holds the bin's balance and has not committed yet.
     const issue = asPrincipal(executive, async (context) => {
       await stockMove(context.tx, [lossFromB()]);
-      holding();
+      const [me] = (await context.tx.execute(
+        sql`select pg_backend_pid() as pid`,
+      )) as unknown as { pid: number }[];
+      holding(me?.pid ?? 0);
       await gate;
     });
-    await held;
+    const issuer = await held;
+    let settled = false;
     const reversal = run(manager, reverseGoodsReceipt, {
       receiptId: receipt.id,
       reason: 'Wrong order',
-    }).then(
-      () => 'reversed',
-      (e: unknown) => e,
-    );
-    // Long enough for the reversal to reach the balance's lock and wait there.
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    release();
-    await issue;
+    })
+      .then(
+        () => 'reversed',
+        (e: unknown) => e,
+      )
+      .finally(() => {
+        settled = true;
+      });
+    try {
+      // The reversal waits on a lock the issue holds (read from pg_stat_activity, review R5), so
+      // a reversal that never waits fails here on any machine.
+      await waitForLockWait(issuer);
+      expect(settled).toBe(false);
+    } finally {
+      release();
+      await issue;
+    }
     expect(await reversal).toMatchObject({ details: { reason: 'goods_receipt_moved_on' } });
     const [kept] = await asMigrator(
       (m) => m<{ state: string }[]>`select state from goods_receipts where id = ${receipt.id}`,
@@ -792,6 +805,26 @@ describe('procurement.grn.reverse', () => {
     expect(kept?.state).toBe('posted');
   });
 });
+
+/** Polls until a backend other than `holder` waits on a lock it holds; fails after 10 s. */
+async function waitForLockWait(holder: number): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  await asMigrator(async (m) => {
+    for (;;) {
+      const [row] = await m<{ waiting: number }[]>`
+        select count(*)::int as waiting
+          from pg_stat_activity
+         where pid <> ${holder}
+           and wait_event_type = 'Lock'
+           and ${holder} = any (pg_blocking_pids(pid))`;
+      if ((row?.waiting ?? 0) > 0) return;
+      if (Date.now() > deadline) {
+        throw new Error('the reversal did not wait on the issue within 10 seconds');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  });
+}
 
 describe('reorder rules and procurement.reorder.draft', () => {
   it('sets and removes a rule, refused without procurement.po.write and in another company', async () => {

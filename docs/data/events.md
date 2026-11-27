@@ -51,7 +51,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-64 types, 22 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+71 types, 25 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -100,7 +100,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch` | none |
+| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch`, `procurement.grn.post`, `procurement.grn.reverse` | `POST /api/v1/workers/outbox/inventory.stock.moved` (QStash URL group `evt-inventory.stock.moved`) |
 
 ### Sign-in
 
@@ -201,6 +201,13 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`procurement.vendor.archived`](#procurementvendorarchived) | A vendor left the active vendor list; its quotes stay on record. | `procurement.vendor.archive` | none |
 | [`procurement.quote.recorded`](#procurementquoterecorded) | A supplier's quote for an item was recorded, for one company or the group; the rate stays in the quote. | `procurement.quote.record` | none |
 | [`procurement.quote.withdrawn`](#procurementquotewithdrawn) | A supplier's quote was withdrawn before it ended. | `procurement.quote.withdraw` | none |
+| [`procurement.po.drafted`](#procurementpodrafted) | A purchase order was drafted, by a person or by the reorder job (`source`), with its number of lines. | `procurement.po.create`, `procurement.reorder.draft` | `POST /api/v1/workers/outbox/procurement.po.drafted` (QStash URL group `evt-procurement.po.drafted`) |
+| [`procurement.po.approved`](#procurementpoapproved) | A purchase order was approved and may be sent to the vendor. | `procurement.po.approve` | none |
+| [`procurement.po.sent`](#procurementposent) | A purchase order was sent to its vendor: by email (`email`, to the person named; the mailer then mails its PDF, and tells the sender when it cannot), or marked sent by hand. | `procurement.po.send` | `POST /api/v1/workers/outbox/procurement.po.sent` (QStash URL group `evt-procurement.po.sent`) |
+| [`procurement.po.cancelled`](#procurementpocancelled) | A purchase order was cancelled before any goods came in. | `procurement.po.cancel` | none |
+| [`procurement.po.closed`](#procurementpoclosed) | A purchase order was closed, with what was still to come short-closed. | `procurement.po.close` | none |
+| [`procurement.receipt.posted`](#procurementreceiptposted) | Goods came in against a purchase order: the receipt, its number of lines and whether the order is now fully received. | `procurement.grn.post` | none |
+| [`procurement.receipt.reversed`](#procurementreceiptreversed) | A goods receipt was reversed whole and its goods taken back out of stock. | `procurement.grn.reverse` | none |
 
 ## Payloads
 
@@ -671,3 +678,53 @@ No fields apart from `v`.
 | `vendorId` | id |
 | `itemId` | id |
 | `forGroup` | true or false |
+
+### procurement.po.drafted
+
+| Field | Type |
+|---|---|
+| `source` | one of `manual`, `reorder` |
+| `vendorId` | id |
+| `lineCount` | whole number from 1 |
+
+### procurement.po.approved
+
+| Field | Type |
+|---|---|
+| `vendorId` | id |
+
+### procurement.po.sent
+
+| Field | Type |
+|---|---|
+| `vendorId` | id |
+| `via` | one of `email`, `by_hand` |
+| `vendorContactId` | id or null |
+| `sentBy` | id |
+
+### procurement.po.cancelled
+
+| Field | Type |
+|---|---|
+| `vendorId` | id |
+
+### procurement.po.closed
+
+| Field | Type |
+|---|---|
+| `vendorId` | id |
+| `shortClosed` | true or false |
+
+### procurement.receipt.posted
+
+| Field | Type |
+|---|---|
+| `purchaseOrderId` | id |
+| `lineCount` | whole number from 1 |
+| `fullyReceived` | true or false |
+
+### procurement.receipt.reversed
+
+| Field | Type |
+|---|---|
+| `purchaseOrderId` | id |

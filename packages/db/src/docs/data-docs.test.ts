@@ -69,7 +69,7 @@ describe('the ERD and data dictionary (docs/data)', () => {
     const planned = docs.erd.slice(docs.erd.indexOf('## Planned tables'));
     expect(planned).toContain('### Inventory and logistics');
     expect(planned).toContain('  reservations {');
-    expect(planned).toContain('  po_lines }o--|| purchase_orders : "po_id"');
+    expect(planned).toContain('  surplus_pool }o--|| projects : "project_id"');
     // A planned table points at a built one too.
     expect(planned).toContain('  reservations }o--|| sales_order_lines : "so_line_id"');
     expect(planned).toContain('  customer_loans }o--|| accounts : "account_id"');

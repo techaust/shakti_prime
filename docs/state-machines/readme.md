@@ -28,6 +28,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
 | Knowledge Vault file | **yes** | 5 | 7 | 0 | [knowledge-file.md](knowledge-file.md) |
 | Serial | **yes** | 8 | 18 | 14 | [serial.md](serial.md) |
+| Purchase order | **yes** | 7 | 10 | 0 | [purchase-order.md](purchase-order.md) |
 
 ## Workshop defaults
 
@@ -46,12 +47,15 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `numbering.docCodes.proforma` | PI |
 | `numbering.docCodes.challan` | DC |
 | `numbering.docCodes.purchase_order` | PO |
+| `numbering.docCodes.goods_receipt` | GRN |
 | `numbering.separator` | / |
 | `numbering.serialDigits` | 4 |
 | `pricing.kitPricing` | fixed |
 | `credit.exposureCountsConfirmedOrders` | true |
 | `dispatch.ewayBillThresholdPaise` | 5000000 |
 | `stock.reversalDays` | 7 |
+| `procurement.poApprovalFromRupees` | 200000 |
+| `procurement.overdueAfterDays` | 7 |
 | `labels.sizeByKind.serial` | 50x25 |
 | `labels.sizeByKind.bin` | 50x25 |
 | `labels.sizeByKind.package` | 100x50 |

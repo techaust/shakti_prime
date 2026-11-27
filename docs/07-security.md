@@ -146,7 +146,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `inventory.warranty.write` | all | – | – | – | – | – | entity | – | – | – | – |
 | `procurement.po.write` / `.grn.write` | all | – | – | – | – | – | entity | – | – | – | – |
 | `procurement.rate.read` | all | – | – | – | – | – | entity | – | – | entity | – |
-| `procurement.po.approve` (the Inventory Manager below `WORKSHOP_DEFAULTS.procurement.poApprovalFromRupees` on the grand total with GST; nobody approves an order they drafted, unless an Executive) | all | – | – | – | – | – | entity | – | – | – | – |
+| `procurement.po.approve` | all | – | – | – | – | – | entity | – | – | – | – |
 | `projects.read` / `.write` | all | entity | – | – | own (read) | – | – | entity | own | entity (read) | – |
 | `projects.gate.approve` / `.qc.signoff` | all | entity | – | – | – | – | – | entity | – | – | – |
 | `projects.schedule.write` | all | entity | – | – | – | – | – | entity | – | – | – |
@@ -202,6 +202,8 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `procurement.po.mail` | – | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
+
+`procurement.po.approve` is limited beyond its scope: the Inventory Manager approves a purchase order whose grand total with GST is below `WORKSHOP_DEFAULTS.procurement.poApprovalFromRupees`, and nobody approves an order they drafted, unless an Executive.
 
 #### Shared rows (ADR 0016)
 GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) and the catalogue (`items`, `kits`, `kit_components`, `pump_curves`) carry no company, so `tax.rates.write` and `catalogue.write` change them only in a request that acts for every active company, as shared price lists are written.

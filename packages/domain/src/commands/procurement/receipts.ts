@@ -59,8 +59,8 @@ const RECEIPT_CONSTRAINT_REASONS = {
   goods_receipt_line_unknown: 'goods_receipt_line_unknown',
   goods_receipt_over_order: 'goods_receipt_over_order',
   goods_receipt_bin_unusable: 'goods_receipt_bin_unusable',
-  // Two receipts of one new serial at once, on two orders: the second meets the unique index.
-  serials_item_serial_no_unique: 'goods_receipt_serial_taken',
+  // Two receipts of one new serial at once, on two orders: the second meets
+  // serials_item_serial_no_unique, which the ledger's own mapping answers (`stock_serial_exists`).
 } as const;
 
 const RECEIVING_KINDS: readonly string[] = ['receiving', 'storage', 'quarantine'];
