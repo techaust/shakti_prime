@@ -5,9 +5,9 @@
 | Branch | `feat/r3-warranty` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock out, costs behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account, 27-11-2026 (start and end of the blocked run); builder Opus 5.5 at high, 27-11-2026 (start of the second run, lane 7's replacement) |
-| State | building: everything but the ledger steps, which wait for X4 |
-| Next step | the builder |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account, 27-11-2026 (start and end of the blocked run); builder Opus 5.5 at high, 27-11-2026 (start and end of the second run, lane 7's replacement, resumed after the VM restart) |
+| State | early check: everything but the ledger steps is built; X4 has merged, `main` not yet taken in |
+| Next step | the lead reads the early check, then the builder takes `main` in and adds the ledger steps |
 
 ## Brief
 Build [phase3 §7.5](../../03-roadmap-appendix/phase3.md#75-r3-warranty-claims-and-supplier-returns) as written, with question 10 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -106,6 +106,57 @@ The reason opening also waits for X4 to merge, as the brief foresees.
 
 ### The lead's answer (27-11-2026 14:35 UTC)
 Option (a): X4 now moves the serial rules into data (`app.stock_reason_serial_moves`) and writes the customer fields of a line going `with_customer` (X4's brief points 5 to 9). Your ledger steps open three reasons, each with a grant row and a move row in your own migration once X4 has merged: `warranty_replacement` out `in_stock` → `with_customer` (`inventory.warranty.write:entity`), `return_customer` in `with_customer` → `faulty` into a quarantine bin (`inventory.warranty.write:entity`), `return_supplier` out `faulty` → `with_supplier` (`procurement.po.write:entity`, as phase3 §14 gives `rma.raise`). The replacement serial carries the failed serial's `warranty_until` (an assumption recorded for the client, phase3 §12 question 10). Build now everything you listed as not affected; take `main` in once X4 has merged and add the ledger steps; if X4 has not merged when only they remain, stop at `report: r3-warranty early check` naming them.
+
+### 27-11-2026, seat (worktree `r3-warranty`, Postgres 54333): early check
+
+**Stage.** Everything the ledger does not affect is built and checked; the ledger steps remain. X4 has merged into `main` since (`bdf82df4`, PR #298), but this branch has **not** taken `main` in: the coordinator's lane said to stop at this report. The next lane takes `main` in and adds the ledger steps listed below. Skills loaded: `add-table`, `add-command` (Context7 is not available in this session; library APIs were read from the installed packages).
+
+**Built:**
+- Schema: `packages/db/src/schema/warranty.ts` (`warranty_claims`; `warranty_claim_costs`, restricted), `document-sequences.ts` (`warranty_claim`), `imports.ts` (kind `installed_base`, created type `serial`). Migrations `0240_r3_warranty_claims.sql` (generated; the widened checks `NOT VALID`), `0241_r3_warranty_claims_rls.sql` (row security, column grants, `app.warranty_claims_guard()`, the cost gate, `app.warranty_claim_record_credit()`, `app.next_document_no()` redefined from 0201 plus one line for `warranty_claim`), `0242_r3_installed_base_rls.sql` (`serials_account_idx`, `app.installed_base_add()`, `app.installed_base_remove()`). The lead renumbers them after X4's.
+- Restricted columns: the house pattern named is H1's side table (`stock_movement_costs`): `warranty_claim_costs` (`claim_id` with a composite foreign key to the claim, `replacement_cost`, `supplier_credit_amount`), `cost_gate` on `finance.cost.read`, no write grant to any request role, written only by definers.
+- Contracts: `packages/contracts/src/inventory/warranty.ts`; events `inventory.warranty.raised`, `.serial_identified`, `.rejected`, `.closed` (ids only); the installed base in `imports/enums.ts`, `commands/imports/jobs.ts`, `rows.ts`; `warranty_claim` in `numbering/document-no.ts`.
+- Domain: `commands/inventory/warranty.ts` (`inventory.warranty.raise`, `.identify_serial`, `.reject`, `.settle` by the supplier's credit, `procurement.grn.write`), the registry; `queries/inventory/warranty.ts` (`listWarrantyClaims`, `getWarrantyClaim`, `listClaimSerials`, `readWarrantyClaimCosts`); `imports/installed-base.ts` wired into create, map, preview, commit and rollback; `warranty/dates.ts` (`parseSheetDate`, `warrantyUntilFrom`); the `warranty_claim` machine in `MACHINES_IN_USE` (stored, events, scopes; `cost_entry` marked as kept on the restricted costs until Phase 5); `WORKSHOP_DEFAULTS.numbering.docCodes.warranty_claim` = `WC`.
+- Web: `actions/warranty.ts`; Inventory › Warranty claims (`/inventory/warranty`, by state) and the claim sheet (`/inventory/warranty/[id]`: steps, Identify the serial, Reject the claim, Record the credit, Costs only for `finance.cost.read`); Raise a warranty claim on Account 360 and on a serial's page (a serial `with_customer`); the installed base in the import wizard; a `warranty` message namespace for `/inventory` and `/customers`; Activity log labels; `js-budget.json` entries for the two pages.
+- Journeys: `apps/web/e2e/warranty.spec.ts`, its seed `e2e/setup/warranty.ts` and `WARRANTY_JOURNEY` in `e2e/support/users.ts`.
+- Documents: DATABASE §4.1 (the three definers), §4.3, §6.5 (`warranty_claims`, `warranty_claim_costs`, `serials`); phase3 §7.5 "Built (R3)"; `docs/state-machines` and `docs/data` regenerated; the workshop pack's SALE-1 names warranty claims.
+
+**Tests added:**
+- `packages/db/tests/security/warranty.test.ts`: 22 cases: no context; each of the 11 staff roles on both pools (claims with `inventory.stock.read` or `inventory.warranty.write`, costs with `finance.cost.read`); another company; no agent reads a cost; grants and column grants; raised only with the grant as the caller; steps only by their grants, final once rejected; no direct cost write even for an Executive; the credit definer's grants, refusals and write-once; the series' grant. Plus the matrix fixture rows and rules, `NARROWER` and three `enum-sync` pairs.
+- `packages/domain/tests/commands/warranty.test.ts`: 12: denied, wrong company and happy path for all four commands; the IST refusal (in warranty at 23:30 IST on its last day, 18:00 UTC; refused at 00:30 IST the next day, 19:00 UTC on the same UTC date, with `warrantyUntil` in the details); no credit in the answer, the audit row or the event.
+- `packages/domain/tests/queries/warranty.test.ts` 4; `tests/commands/import-installed-base.test.ts` 3 (every refusal, a serial another company holds refused at commit, no stock movement, the rollback keeps a claimed serial); `src/warranty/dates.test.ts` 20; `apps/web/src/screens/warranty.test.ts` 2. The agent refusal sweep and the reader parity cover the new commands and queries.
+
+**Checks:**
+- On `3d431854`, before the VM restart: `pnpm typecheck` 10 successful; `pnpm lint` (whole repository) clean; `pnpm copy-lint` clean; unit tests domain 2827 passed, contracts 340, db 161, web 1243 passed and 1 skipped; `pnpm test:security` db 1815 passed, domain 1538 passed, web 461 passed; `pnpm build` passed; `pnpm --filter web js-budget` every page within its budget except the two new pages, which had none.
+- After the restart (`0c0bee15`, the database migrated and seeded afresh; one index added and the list query reworked): typecheck and lint of the changed packages clean; db unit 161 passed; db security (warranty, enum-sync, grants, role × company matrix) 339 passed; domain (the warranty commands, queries, installed base, reader parity) 27 passed; `db:docs` regenerated.
+- **`apps/web/js-budget.json` changes** (`/inventory/warranty` 250 kB, measured 237.3; `/inventory/warranty/[id]` 216 kB, measured 205.5): a checks file, so the pull request needs the owner's `checks-ok`.
+
+**EXPLAIN (ANALYZE)** (`packages/domain/tests/spike/warranty-explain.ts`; 20,003 claims, all in company 4, each with its own customer and serial; as an Inventory Manager of company 4 under the policies):
+- The list first read joined every claim before the sort (219 ms). It now finds the page on the claims alone in a materialised step and joins only those 51 rows, with a new index `warranty_claims_entity_created_idx`: all states, first page: Seq Scan on `warranty_claims` (20,003 rows, the whole table being company 4's) → top-N heapsort → Limit 51, **11.2 ms**; second page **8.3 ms**; one state (rejected, 6,667 rows) **7.0 ms**. The per-state counts: Seq Scan and group, 6.7 to 8.6 ms. With several companies the planner takes the index; here the one company holds the whole table.
+- The claim sheet: Index Scan on `warranty_claims_pkey`, **0.56 ms**.
+- The customer's 200 delivered serials: Index Scan on `serials_account_idx`, each open claim by `warranty_claims_open_serial_unique`, **0.63 ms**.
+
+**Waiting for the ledger (next lane, after taking `main` in):**
+- `inventory.warranty.replace`: the grant and move rows for `warranty_replacement` (out, `in_stock` → `with_customer`, `inventory.warranty.write:entity`) with their grant test; the replacement issued through `app.stock_move()` at the moving average, carrying the failed serial's `warranty_until`; a definer that copies the movement's cost to `warranty_claim_costs.replacement_cost`.
+- The failed serial's return: `return_customer` (in, `with_customer` → `faulty`, into a quarantine bin, `inventory.warranty.write:entity`, `ref_type` `warranty_claim`).
+- `inventory.warranty.rma_raise`: `return_supplier` (out, `faulty` → `with_supplier`, `procurement.po.write:entity`), with the vendor and the reference (`supplierRmaRef` in `unmaskedFields`).
+- `.settle` by a supplier's replacement waits for U2's `receipt`.
+- The journey "the Inventory Manager takes a claim through replace, RMA and settle": today it settles a claim the seed leaves with the supplier.
+
+**Journeys not run:** journeys cannot sign in on a seat. The specs and their seed are written; the lead runs them and makes the Linux baselines (`warranty-raise-dialog`, `warranty-identify-dialog`, `warranty-settle-dialog`, `warranty-claim-closed-gm`).
+
+**Assumptions:**
+- A claim names one item; its failed, replacement and supplier serials are all of that item (composite foreign keys).
+- Claims are read with `inventory.stock.read` or `inventory.warranty.write` for the company; a reader who may not read the customer sees the claim without the name.
+- `replace` in the machine is given to `inventory.warranty.write` (the reason's grant in the lead's answer), not `inventory.stock.move`.
+- One open claim per serial. A claim raised on a serial keeps it until identified; identification may pick another of the customer's serials.
+- After settlement the failed serial stays `with_supplier`: the serial machine's `settle` (`with_supplier` → `scrapped`) has no movement to carry it, and only the ledger writes a serial's state.
+- The warranty's end from delivery is the day before the same date the given months later (12 months from 10-03-2026 runs to 09-03-2027; `warrantyUntilFrom()`, for D2 to reuse), for the client to confirm with phase3 §12 question 10.
+- The installed base finds the customer by mobile number among the company's customers (they are imported first), the site by its village (the only site when the cell is blank), reads dates as DD-MM-YYYY or a workbook date, and takes a Warranty until column over the item's months. Only an Executive imports it today (`imports.write` and `inventory.warranty.write`). The item's serial pattern is not applied to old serials.
+- The installed base's two definers are the only writers of `serials` besides `app.stock_move()`; they insert and delete, never change a state or bin.
+- `warranty_expired` names the date on screen from the serial chosen (an action result carries no details); the domain error carries `warrantyUntil`.
+- No Account 360 timeline row for a claim (a new `activities` type would widen a shared check).
+
+**For the lead at integration:** the migrations renumber after X4's. `app.next_document_no()` is redefined here from 0201, and U2 adds `goods_receipt` to it, so whichever comes later must hold both lines, and `document_sequences_doc_type_check` both values. `import_jobs_kind_check`, `import_mapping_templates_kind_check` and `import_rows_created_type_check` are widened here and may be by other slices too.
 
 ## Review
 
