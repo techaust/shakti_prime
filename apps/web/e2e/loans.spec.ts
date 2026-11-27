@@ -69,6 +69,10 @@ test.describe("as a General Manager, a customer's loan on an order", () => {
     await expect(loan.getByText('The loan lets the dispatch go')).toBeVisible();
     await expect(loan.getByRole('button', { name: 'Record a loan' })).toHaveCount(0);
     await expectNoAxeViolations(page);
+    // The picture waits for the toasts to leave, so it never holds one. A toast waits while the
+    // pointer is over it, so the pointer moves off first.
+    await page.mouse.move(0, 0);
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 30_000 });
     await snap(page, 'order-loan-paid-out', { element: loan });
 
     // Account 360 lists the loan with its order.
