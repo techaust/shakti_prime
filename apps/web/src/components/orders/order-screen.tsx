@@ -23,6 +23,7 @@ import {
   toast,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode, type SyntheticEvent } from 'react';
@@ -32,12 +33,16 @@ import { customerHref } from '../../screens/customers';
 import { formatCount, formatDateTime, formatRupees } from '../../screens/format';
 import { ORDER_STATE_TONE } from '../../screens/orders';
 import { quoteHref } from '../../screens/quotes';
-import { ReservationsPanel } from '../inventory/reservations-panel';
 import { QuoteLinesTable, QuoteTotals } from '../quotes/quote-tables';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';
 import { Page } from '../shell/page';
+
+// H2: the held stock and its dialogs load only for a reader of stock, after the page.
+const ReservationsPanel = dynamic(() =>
+  import('../inventory/reservations-panel').then((m) => m.ReservationsPanel),
+);
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
