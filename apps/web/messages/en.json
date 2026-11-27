@@ -6873,6 +6873,26 @@
       "supplierWarrantyUntil": "Supplier's warranty until",
       "notSet": "Not set",
       "movements": "Movements"
+    },
+    "labels": {
+      "printLabels": "Print labels for {name}",
+      "newLabel": "New label for {bin}",
+      "reprintLabel": "Print the label again",
+      "printHubTitle": "Bin labels for {name}",
+      "printHubIntro": "{count, plural, one {One label} other {# labels}}, one for each bin of this hub. Open the sheet when it is ready and print it on the hub's label printer.",
+      "reprintBinTitle": "New label for bin {bin}",
+      "reprintBinIntro": "A new label for this bin of {hub}. Say why it needs one; the reason is kept with the bin's history.",
+      "reprintSerialTitle": "New label for {serial}",
+      "reprintSerialIntro": "A new label for this serial number. Say why it needs one; the reason is kept with the serial's history.",
+      "note": "Why it needs a new label",
+      "noteHelper": "Such as a torn, faded or lost label. 3 to 300 characters.",
+      "noteInvalid": "Say why in 3 to 300 characters.",
+      "printSubmit": "Print labels",
+      "reprintSubmit": "Print the label",
+      "working": "Printing {count, plural, one {the label} other {# labels}}. This takes a few seconds.",
+      "ready": "{count, plural, one {The label is} other {The labels are}} ready to print.",
+      "slow": "The labels are taking longer than usual. Close this and try again in a minute.",
+      "openLabels": "Open the labels"
     }
   }
 }

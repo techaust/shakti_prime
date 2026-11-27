@@ -33,21 +33,39 @@ import { EDITABLE_BIN_KINDS, WAREHOUSE_KINDS } from '../../screens/contract-valu
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
+import { LabelsDialog } from './labels-dialog';
 import { useBinKindText, useHubKindText } from './use-inventory-text';
 
 type Open =
   | { kind: 'hub'; hub: HubDto | undefined }
   | { kind: 'bin'; hub: HubDto; bin: BinDto | undefined }
   | { kind: 'archiveHub'; hub: HubDto }
-  | { kind: 'archiveBin'; bin: BinDto };
+  | { kind: 'archiveBin'; bin: BinDto }
+  // Q1 labels
+  | { kind: 'printHub'; hub: HubDto; bins: BinDto[] }
+  | { kind: 'reprintBin'; hub: HubDto; bin: BinDto };
+
+/** Bins that carry a label: every bin of a godown or factory; a transit bin is no place on a rack. */
+const labelled = (hub: HubDto) => hub.bins.filter((b) => b.kind !== 'transit');
 
 /**
  * `/inventory/hubs` (docs/03-roadmap-appendix/phase3.md §5): the group's hubs and their bins. An
  * Executive (`inventory.stock.adjust` for every company) adds and edits hubs and bins and
- * archives one that holds no stock; everyone else reads them.
+ * archives one that holds no stock; everyone else reads them. A stock handler
+ * (`inventory.stock.move` for the company, Q1) prints a hub's bin labels and a bin's again.
  */
-export function HubsScreen({ initial, canEdit }: { initial: HubListDto; canEdit: boolean }) {
+export function HubsScreen({
+  initial,
+  canEdit,
+  labelsFor,
+}: {
+  initial: HubListDto;
+  canEdit: boolean;
+  /** The company labels are printed in, when the caller may print them. */
+  labelsFor: number | null;
+}) {
   const t = useTranslations('inventory.hubs');
+  const labels = useTranslations('inventory.labels');
   const hubKind = useHubKindText();
   const binKind = useBinKindText();
   const [hubs, setHubs] = useState(initial.hubs);
@@ -82,7 +100,7 @@ export function HubsScreen({ initial, canEdit }: { initial: HubListDto; canEdit:
       { id: 'code', header: t('columns.bin'), primary: true, cell: (b) => b.code },
       { id: 'kind', header: t('columns.kind'), cell: (b) => binKind(b.kind) },
     ];
-    if (canEdit) {
+    if (canEdit || labelsFor !== null) {
       columns.push({
         id: 'actions',
         header: <span className="sr-only">{t('columns.actions')}</span>,
@@ -90,16 +108,29 @@ export function HubsScreen({ initial, canEdit }: { initial: HubListDto; canEdit:
         cell: (b) =>
           b.kind === 'transit' ? null : (
             <span className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={(e) => {
-                  ask({ kind: 'bin', hub, bin: b }, e.currentTarget);
-                }}
-              >
-                {t('editBin', { bin: b.code })}
-              </Button>
-              {b.kind === 'receiving' || b.kind === 'dispatch' ? null : (
+              {labelsFor === null ? null : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(e) => {
+                    ask({ kind: 'reprintBin', hub, bin: b }, e.currentTarget);
+                  }}
+                >
+                  {labels('newLabel', { bin: b.code })}
+                </Button>
+              )}
+              {canEdit ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(e) => {
+                    ask({ kind: 'bin', hub, bin: b }, e.currentTarget);
+                  }}
+                >
+                  {t('editBin', { bin: b.code })}
+                </Button>
+              ) : null}
+              {!canEdit || b.kind === 'receiving' || b.kind === 'dispatch' ? null : (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -150,6 +181,17 @@ export function HubsScreen({ initial, canEdit }: { initial: HubListDto; canEdit:
                   : t('hubLine', { kind: hubKind(hub.kind), address: hub.address })}
               </span>
             </div>
+            {labelsFor === null || labelled(hub).length === 0 ? null : (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={(e) => {
+                  ask({ kind: 'printHub', hub, bins: labelled(hub) }, e.currentTarget);
+                }}
+              >
+                {labels('printLabels', { name: hub.name })}
+              </Button>
+            )}
             {canEdit ? (
               <span className="flex flex-wrap gap-2">
                 <Button
@@ -193,7 +235,32 @@ export function HubsScreen({ initial, canEdit }: { initial: HubListDto; canEdit:
           />
         </section>
       ))}
-      {open === undefined ? null : (
+      {open === undefined || labelsFor === null ? null : open.what.kind === 'printHub' ? (
+        <LabelsDialog
+          mode="print"
+          entityId={labelsFor}
+          labelKind="bin"
+          ids={open.what.bins.map((b) => b.id)}
+          title={labels('printHubTitle', { name: open.what.hub.name })}
+          intro={labels('printHubIntro', { count: open.what.bins.length })}
+          returnFocusTo={open.returnFocusTo}
+          onClose={close}
+        />
+      ) : open.what.kind === 'reprintBin' ? (
+        <LabelsDialog
+          mode="reprint"
+          entityId={labelsFor}
+          labelKind="bin"
+          ids={[open.what.bin.id]}
+          title={labels('reprintBinTitle', { bin: open.what.bin.code })}
+          intro={labels('reprintBinIntro', { hub: open.what.hub.name })}
+          returnFocusTo={open.returnFocusTo}
+          onClose={close}
+        />
+      ) : null}
+      {open === undefined ||
+      open.what.kind === 'printHub' ||
+      open.what.kind === 'reprintBin' ? null : (
         <Frame returnFocusTo={open.returnFocusTo} onClose={close}>
           {open.what.kind === 'hub' ? (
             <HubForm hub={open.what.hub} onClose={close} onSaved={saved} />

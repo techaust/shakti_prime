@@ -1,18 +1,34 @@
 'use client';
 
 import type { SerialDto } from '@shakti/contracts';
-import { Button } from '@shakti/ui';
+import { Button, type ReturnFocusTo } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { useRef, useState } from 'react';
 import { formatDate } from '../../screens/format';
 import { stockCardHref } from '../../screens/inventory';
 import { Page } from '../shell/page';
+import { LabelsDialog } from './labels-dialog';
 import { MovementsTable } from './movements-table';
 import { useSerialStateText } from './use-inventory-text';
 
-/** A serial: where it is, its warranty dates and every movement, newest first. */
-export function SerialScreen({ serial, company }: { serial: SerialDto; company: string }) {
+/**
+ * A serial: where it is, its warranty dates and every movement, newest first. A stock handler
+ * (`inventory.stock.move` for the company) prints its label again, with why (Q1).
+ */
+export function SerialScreen({
+  serial,
+  company,
+  canReprint,
+}: {
+  serial: SerialDto;
+  company: string;
+  canReprint: boolean;
+}) {
   const t = useTranslations('inventory.serial');
+  const labels = useTranslations('inventory.labels');
+  const [reprinting, setReprinting] = useState<{ returnFocusTo: ReturnFocusTo } | undefined>();
+  const reprintButton = useRef<HTMLButtonElement>(null);
   const state = useSerialStateText();
   const facts: [string, string][] = [
     [t('item'), `${serial.item.name} (${serial.item.sku})`],
@@ -41,9 +57,22 @@ export function SerialScreen({ serial, company }: { serial: SerialDto; company: 
       description={t('intro')}
       width="detail"
       actions={
-        <Button asChild variant="secondary">
-          <Link href={stockCardHref(serial.entityId, serial.item.id)}>{t('card')}</Link>
-        </Button>
+        <>
+          {canReprint ? (
+            <Button
+              ref={reprintButton}
+              variant="secondary"
+              onClick={() => {
+                setReprinting({ returnFocusTo: () => [reprintButton.current] });
+              }}
+            >
+              {labels('reprintLabel')}
+            </Button>
+          ) : null}
+          <Button asChild variant="secondary">
+            <Link href={stockCardHref(serial.entityId, serial.item.id)}>{t('card')}</Link>
+          </Button>
+        </>
       }
     >
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -60,6 +89,20 @@ export function SerialScreen({ serial, company }: { serial: SerialDto; company: 
         </h2>
         <MovementsTable entityId={serial.entityId} movements={serial.movements} />
       </section>
+      {reprinting === undefined ? null : (
+        <LabelsDialog
+          mode="reprint"
+          entityId={serial.entityId}
+          labelKind="serial"
+          ids={[serial.id]}
+          title={labels('reprintSerialTitle', { serial: serial.serialNo })}
+          intro={labels('reprintSerialIntro')}
+          returnFocusTo={reprinting.returnFocusTo}
+          onClose={() => {
+            setReprinting(undefined);
+          }}
+        />
+      )}
     </Page>
   );
 }
