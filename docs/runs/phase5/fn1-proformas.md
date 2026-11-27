@@ -5,9 +5,9 @@
 | Branch | `feat/fn1-proformas` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): money, document numbering, tax snapshots |
-| Usage | briefed 27-11-2026; built by Opus 5.5 at high on the seat's own account (start, early check and done, 27-11-2026) |
-| State | done |
-| Next step | the review; at integration, J2's `app.order_loan_gate()` replaces the stand-in (below) |
+| Usage | briefed 27-11-2026; built by Opus 5.5 at high on the seat's own account (start, early check, done and the fix round, 27-11-2026) |
+| State | fixes |
+| Next step | the reviewer re-checks findings 1 and 2's diff; at integration, J2's `app.order_loan_gate()` replaces the stand-in and its loan events subscribe `finance.milestone.refresh` |
 
 ## Brief
 Build [phase5 §5](../../03-roadmap-appendix/phase5.md#5-the-money-model) (its proformas and milestones) and [§6.1](../../03-roadmap-appendix/phase5.md#61-fn1-proformas-and-payment-milestones) as written, with questions 3 (a) and 6 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -141,6 +141,56 @@ The lead accepted the early check (decisions 1 to 8). **J2 was not on `origin/ma
 10. A proforma's PDF is its own purpose, read with `finance.read` (it prints the bank account and UPI ID); the proforma prints the order's payments, waived ones left out, and the UPI ID as text (no QR code: FN3's reminders carry the UPI link).
 11. Settings › Payment terms shows the standard terms where a company has published none, and the editor starts from them; a payment's key is made from its name, never shown.
 12. The journeys' orders are written as orders hold them and confirmed through the command, so the planning on confirmation is the platform's own; Accounts' order loses its proformas at each seed, so the journey issues one each run.
+
+### 27-11-2026, seat (worktree `fn1-proformas`, Postgres 54331 fresh, app 3031): fixes
+**`main` taken in** (merge commit efac0893: X4, Q1 and the day's documents, `05f7ce3b`). My migrations moved to **0243 to 0246**, renumbered with `renumber-migrations.mjs`; `drizzle-kit generate` then reported no changes. The fix round adds **0247** (generated: the order's plan-failure columns, a payment's `cancelled` state, the `payments_not_planned` notice, each check `NOT VALID`) and **0248** (definers). Against `main`'s latest I checked every object both sides redefine: `files_purpose_check` and `app.file_purpose_grant()` (Q1 also changes them; see finding 1); `app.platform_only_permissions()` (`main` did not change it after 0222); my tables' keys and checks (X4 and Q1 touch neither). **J2 is still not on `origin/main`** (`05f7ce3b` at the end), so the stand-in `app.order_loan_gate()` stays (0244 §8). Finding 2 is left for the lead at integration.
+
+**Findings:**
+1. **Fixed.** 0245 rebuilds `files_purpose_check` from Q1's 0241, and 0246 rebuilds `app.file_purpose_grant()` from Q1's 0242. Both keep `label_sheet` and add `proforma_pdf`. The schema, contracts, `purposes.ts`, `limits.ts`, the matrix fixture (FN1's ids moved to `0xa0`–`0xa4`, since Q1 took `0x90`), `files.test.ts` and the `files` row of DATABASE §6.10 now list both purposes. `purposes.test.ts` and `files.test.ts` pass.
+2. **Open, for the lead (J2 not on `main`).** At integration, redefine `app.order_loan_gate()` from J2's latest, with `or app.has_perm('finance.milestones.process:all')` in its first check and in `v_operations`. Then drop the stand-in block (0244 §8) and renumber against J2's migrations. If it is not done, the planning no longer loses the order (finding 3): the refusal (42501) is recorded on the order as `forbidden`, Accounts are told, and the dispatch waits until they plan it by hand.
+3. **Fixed as triaged.** A plan the platform tries runs in a savepoint. If the terms' fixed amounts pass the total, or a loan gate refuses the platform, `app.record_order_milestone_failure()` records why on the order (`sales_orders.payment_plan_failure`, `payment_plan_failed_at`; written only by definers). The command answers `failed`, and `finance.milestones.plan_failed` makes the notify worker tell the people with `finance.payment.write` for the company (`app.notice_finance_people()`, new notice type `payments_not_planned`, linked to the order). The Payments tab says why and offers Plan payments. A later plan clears the failure.
+
+   `app.order_dispatch_payment_gate()` now also answers `open` for a confirmed order with no payments when its plan failed, or when its terms hold a payment before dispatch (the company's current terms for the segment, or the standard terms where it has none). A plan by hand from terms whose fixed amounts still pass the total is refused, with the sentence that asks for an Executive to change them. The test then publishes new terms, plans by hand, and sees the failure cleared and the gate `clear`.
+4. **Fixed, with the subscription for the lead.** `finance.milestone.refresh` (platform) reads the order's waiting payments (`app.order_waiting_milestones()`) and the loan gate. It brings due each one whose rule's moment has come and whose loan no longer holds it, through the machine's `fall_due` and `app.milestones_fall_due()`. Its worker is `handleOrderLoanMoved` (`apps/web/src/workers/finance/order-followups.ts`). J2's event types are not in `main`'s catalogue, so the registry lines cannot exist yet. **At integration, add one line each in `EVENT_WORKERS`** for `crm.loan.sanctioned`, `crm.loan.disbursed` and `crm.loan.gates_released`: `{ ordering: 'every', handle: (event, ctx) => import('../finance/order-followups').then((m) => m.handleOrderLoanMoved(event, ctx)) }`. Also mark them `subscribed: true` in the catalogue and its test, and give each a QStash URL group.
+5. **Fixed.** Cancelling a proforma, by a person or by the platform, asks for its PDF again (`print.document.requested`, version 2), and the template prints "Cancelled". `app.attach_proforma_pdf()` now takes, for a cancelled proforma, one more file recorded at or after the cancel. The tab offers a cancelled proforma's PDF only once that copy is attached (`readOrderProformas`); until then it shows nothing.
+6. **Fixed.** `sales.order.cancelled` is now subscribed. Its worker runs `finance.order.settle_cancelled` (platform, `app.cancel_order_finance()`), which:
+   - cancels the order's live proforma with the order's own reason, in the platform's name, and prints it again;
+   - moves its payments still waiting for money to a new state `cancelled` (machine `payment_milestone`, `cancel`, platform only).
+
+   A repeat changes nothing. phase5 §6.1 records it, with FN3's follow-up to chase only open orders. **For the lead:** `evt-sales.order.cancelled` and `evt-finance.milestones.plan_failed` need their QStash URL groups on the hosted environments.
+7. **Fixed.** The terms screen uses the app's segment names ("Home rooftop solar", "Commercial solar projects"), and so does the journey.
+8. **Fixed in DATABASE §4.1.** With no terms the rows are the named default, which only the domain holds, and the definer checks their sum, state and company, not each step.
+9. **Fixed.** `finance.terms.defaultTerms` reads "its orders follow the standard terms below". phase5 §10 records "Advance" and "Balance" as workshop data, stored on milestones and printed.
+10. **Fixed.** The rate-change and terms tests register their cleanup first (`onTestFinished`), so a failed assertion no longer leaves company 4's rates or terms behind.
+11. **Fixed.** The order page shows the tab's failure in its place, unless it is `forbidden`.
+
+**Tests added or changed:**
+- `packages/domain/tests/commands/finance.test.ts`, now 26:
+  - the platform's refused plan: recorded, the event, the tab's failure and an `open` gate; a repeat; new terms, a plan by hand, and the failure cleared;
+  - the gate holding an unplanned confirmed order and not a draft;
+  - the cancel follow-up: refused to a person and outside the company, nothing for a confirmed order, then the proforma and payments cancelled once, with the PDF printed again;
+  - a cancelled proforma's PDF offered only after the cancelled copy;
+  - the refresh: refused to a person and outside the company; a held payment brought due once and the other left waiting;
+  - the notice to Accounts and not to a tele-caller.
+- `packages/db/tests/security/finance.test.ts`, now 16:
+  - the five follow-up definers refused to Accounts;
+  - a failure recorded only on a confirmed unplanned order, an unknown reason refused, and the failure cleared by a plan;
+  - no request writing the failure columns;
+  - the cancelled PDF's replacement rule.
+- Also updated: `enum-sync` (`sales_orders_payment_plan_failure_check`, the paid check's values), the catalogue's subscribed list, `screens/finance.test.ts`, `contract-values`, the audit names and labels.
+
+**Checks (through the lock, on the fresh slot database, migrated and seeded):**
+- `pnpm test:security`, one workspace at a time: db 65 files, 1892 passed; domain 112 files, 1562 passed; web 40 files, 466 passed (`demo-data.test.ts` passes on this fresh database).
+- `pnpm lint` (whole repository): clean after two fixes. `pnpm typecheck`: 10 of 10.
+- Unit tests: domain 2883, web 1270 and 1 skipped, contracts 343, db 163. `pnpm copy-lint`: clean.
+- `pnpm build`: passed. `js-budget`: passed (the order page 216.3 kB of 223, Payment terms 197.9 of 208).
+- `db:docs` and `machines:docs`: regenerated.
+- Journeys, run here after the suites: `e2e/finance.spec.ts` on the three projects and the proforma print page gave 25 passed and 2 skipped (the print page is light only), with axe. The local screenshots were removed; **no Linux baseline is made**.
+
+**Decisions:**
+13. The failure is kept as two columns on `sales_orders` (written only by definers; no request role may update them), not a table of its own.
+14. A cancelled order's waiting payments get a sixth state, `cancelled`. The paid check keeps an amount paid before the cancel.
+15. The standard terms count as holding a payment before dispatch, so an order confirmed before FN1's deploy waits at dispatch until Accounts plan it. D2 is not built, so no order is dispatched before then.
 
 ## Review
 Slice-reviewer, 27-11-2026, cloud session, on 4be92fcb (`git diff origin/main...feat/fn1-proformas`), Tier A. Run in the VM on the slot's Postgres (54331, migrated and seeded by the suite), through `heavy.sh`:
