@@ -90,7 +90,11 @@ export function ReorderRules({
                   size="sm"
                   variant="ghost"
                   pending={remove.pending}
-                  onClick={() => remove.run({ ruleId: rule.id }, () => refresh())}
+                  onClick={() => {
+                    remove.run({ ruleId: rule.id }, () => {
+                      refresh();
+                    });
+                  }}
                   aria-label={t('removeLabel', { hub: rule.hubName })}
                 >
                   {t('remove')}
@@ -103,21 +107,21 @@ export function ReorderRules({
       {canWrite ? (
         <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
           <div className="grid gap-3 sm:grid-cols-3">
-          <Field id="rule-hub" label={t('hub')}>
-            <Select name="warehouseId" defaultValue={hubs[0]?.id ?? ''}>
-              {hubs.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field id="rule-level" label={t('level', { unit })}>
-            <Input name="reorderLevel" inputMode="decimal" required />
-          </Field>
-          <Field id="rule-qty" label={t('qty', { unit })}>
-            <Input name="reorderQty" inputMode="decimal" required />
-          </Field>
+            <Field id="rule-hub" label={t('hub')}>
+              <Select name="warehouseId" defaultValue={hubs[0]?.id ?? ''}>
+                {hubs.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="rule-level" label={t('level', { unit })}>
+              <Input name="reorderLevel" inputMode="decimal" required />
+            </Field>
+            <Field id="rule-qty" label={t('qty', { unit })}>
+              <Input name="reorderQty" inputMode="decimal" required />
+            </Field>
           </div>
           <div>
             <Button type="submit" pending={save.pending}>

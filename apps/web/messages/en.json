@@ -4158,6 +4158,7 @@
       "procurement_po_write": "Create purchase orders",
       "procurement_grn_write": "Record goods received",
       "procurement_rate_read": "See supplier rates",
+      "procurement_po_approve": "Approve purchase orders",
       "projects_read": "See projects",
       "projects_write": "Update projects",
       "projects_gate_approve": "Approve subsidy and project steps",
@@ -4224,7 +4225,8 @@
       "agents_note_write": "Write call briefs and call summaries",
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
       "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
-      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept"
+      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept",
+      "procurement_reorder_draft": "Draft purchase orders when stock falls below its reorder level"
     },
     "empty": "There are no roles to show.",
     "locked": {

@@ -68,7 +68,9 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
       actions={
         <Button asChild variant="secondary">
           <Link
-            href={`/procurement/orders?company=${String(order.entityId)}&state=${order.state}` as Route}
+            href={
+              `/procurement/orders?company=${String(order.entityId)}&state=${order.state}` as Route
+            }
           >
             {t('orderSheet.back')}
           </Link>

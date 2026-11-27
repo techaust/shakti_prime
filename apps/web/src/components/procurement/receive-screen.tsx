@@ -126,15 +126,25 @@ export function ReceiveScreen({ data }: { data: ReceiveGoodsDto }) {
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field id={`receive-qty-${line.id}`} label={t('qty', { unit: units(line.purchaseUnit) })}>
+                <Field
+                  id={`receive-qty-${line.id}`}
+                  label={t('qty', { unit: units(line.purchaseUnit) })}
+                >
                   <Input
                     inputMode="decimal"
                     value={entry.qty}
-                    onChange={(e) => setEntry(line.id, { qty: e.target.value })}
+                    onChange={(e) => {
+                      setEntry(line.id, { qty: e.target.value });
+                    }}
                   />
                 </Field>
                 <Field id={`receive-bin-${line.id}`} label={t('bin')}>
-                  <Select value={entry.binId} onChange={(e) => setEntry(line.id, { binId: e.target.value })}>
+                  <Select
+                    value={entry.binId}
+                    onChange={(e) => {
+                      setEntry(line.id, { binId: e.target.value });
+                    }}
+                  >
                     {bins.map((b) => (
                       <option key={b.id} value={b.id}>
                         {t(`binKinds.${b.kind}`, { code: b.code })}
@@ -149,7 +159,9 @@ export function ReceiveScreen({ data }: { data: ReceiveGoodsDto }) {
                   label={t('serials')}
                   helper={count === undefined ? t('wholeUnits') : t('serialsHelper', { count })}
                   codes={entry.serials}
-                  onCodesChange={(serials) => setEntry(line.id, { serials })}
+                  onCodesChange={(serials) => {
+                    setEntry(line.id, { serials });
+                  }}
                   resolve={resolvers[line.id] ?? newSerialResolver(null)}
                   {...(count === undefined ? {} : { expected: count })}
                 />
@@ -168,7 +180,12 @@ export function ReceiveScreen({ data }: { data: ReceiveGoodsDto }) {
         <Button type="submit" pending={post.pending}>
           {t('submit')}
         </Button>
-        <Button variant="secondary" onClick={() => router.back()}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            router.back();
+          }}
+        >
           {t('back')}
         </Button>
       </div>

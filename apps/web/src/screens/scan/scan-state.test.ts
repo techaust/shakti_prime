@@ -11,7 +11,10 @@ describe('the scan field’s rules', () => {
 
   it('takes a new code and keeps the count', async () => {
     const one = await scanOnce([], 'SN-1', any, 2);
-    expect(one).toEqual({ codes: ['SN-1'], outcome: { kind: 'taken', code: 'SN-1', known: false, label: undefined } });
+    expect(one).toEqual({
+      codes: ['SN-1'],
+      outcome: { kind: 'taken', code: 'SN-1', known: false, label: undefined },
+    });
     const two = await scanOnce(one.codes, 'SN-2', any, 2);
     expect(two.codes).toEqual(['SN-1', 'SN-2']);
   });

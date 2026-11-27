@@ -23,9 +23,7 @@ export function ProcurementTabs({
   receipts?: string | undefined;
 }) {
   const tabs = [
-    ...(orders === undefined
-      ? []
-      : [{ key: 'orders', href: '/procurement/orders', text: orders }]),
+    ...(orders === undefined ? [] : [{ key: 'orders', href: '/procurement/orders', text: orders }]),
     ...(receipts === undefined
       ? []
       : [{ key: 'receipts', href: '/procurement/receipts', text: receipts }]),

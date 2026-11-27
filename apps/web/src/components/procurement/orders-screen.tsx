@@ -5,14 +5,7 @@ import type {
   PurchaseOrderRowDto,
   PurchaseOrderState,
 } from '@shakti/contracts';
-import {
-  Button,
-  cn,
-  DataGrid,
-  EmptyState,
-  StatusBadge,
-  type DataGridColumn,
-} from '@shakti/ui';
+import { Button, cn, DataGrid, EmptyState, StatusBadge, type DataGridColumn } from '@shakti/ui';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -89,7 +82,13 @@ export function OrdersScreen({
         </span>
       ),
     },
-    { id: 'lines', header: t('columns.lines'), numeric: true, align: 'end', cell: (o) => o.lineCount },
+    {
+      id: 'lines',
+      header: t('columns.lines'),
+      numeric: true,
+      align: 'end',
+      cell: (o) => o.lineCount,
+    },
     {
       id: 'source',
       header: t('columns.source'),
@@ -136,7 +135,12 @@ export function OrdersScreen({
                   href={`/procurement/orders/${o.id}` as Route}
                   className="text-accent-text underline-offset-4 hover:underline"
                 >
-                  {t('alertLine', { number: o.poNo, vendor: o.vendorName, hub: o.hubName, lines: o.lineCount })}
+                  {t('alertLine', {
+                    number: o.poNo,
+                    vendor: o.vendorName,
+                    hub: o.hubName,
+                    lines: o.lineCount,
+                  })}
                 </Link>
               </li>
             ))}

@@ -3,7 +3,6 @@
 // rates, amounts and the tax split; light theme, 15 mm side margins, Inter embedded. Every amount
 // arrives computed by the domain (the order's rates and the tax engine); this only places them.
 import type { PurchaseOrderPrintData } from '@shakti/domain';
-import type { PurchaseOrderWithRatesDto } from '@shakti/contracts';
 import { companyBlock, companyCss, type CompanyPrint } from './company';
 import { printCopy } from './copy';
 import { formatAmount, formatDate, formatRupees } from './format';
@@ -49,11 +48,13 @@ function rateText(rate: string): string {
 }
 
 /** The PDF of a purchase order, with rates and totals only when the order carries them. */
-export function renderPurchaseOrder(data: PurchaseOrderPrintData, printedOn: string): PrintDocument {
+export function renderPurchaseOrder(
+  data: PurchaseOrderPrintData,
+  printedOn: string,
+): PrintDocument {
   const t = printCopy();
   const { order, vendor } = data;
-  const withRates = 'totals' in order;
-  const rated = withRates ? (order as PurchaseOrderWithRatesDto) : undefined;
+  const rated = 'totals' in order ? order : undefined;
   const company: CompanyPrint = {
     ...data.company,
     logo: null,
@@ -130,17 +131,27 @@ export function renderPurchaseOrder(data: PurchaseOrderPrintData, printedOn: str
               const rate = rated?.lines.find((l) => l.id === line.id);
               return html`<tr>
                 <td class="num">${index + 1}</td>
-                <td>${line.itemName}<div class="detail">${line.sku}</div></td>
+                <td>
+                  ${line.itemName}
+                  <div class="detail">${line.sku}</div>
+                </td>
                 <td>${line.hsn}</td>
-                <td class="num">${plainQty(line.qty)} ${t(`quote.units.${line.purchaseUnit}` as 'quote.units.nos')}</td>
+                <td class="num">
+                  ${plainQty(line.qty)}
+                  ${t(`quote.units.${line.purchaseUnit}` as 'quote.units.nos')}
+                </td>
                 <td class="num">
                   ${line.taxRatePct === null ? '' : t('quote.gstRate', { rate: Number(line.taxRatePct) })}
                 </td>
                 ${
                   rated === undefined
                     ? ''
-                    : html`<td class="num">${rate?.unitRate == null ? '' : rateText(rate.unitRate)}</td>
-                        <td class="num">${rate?.amount == null ? '' : formatAmount(rate.amount)}</td>`
+                    : html`<td class="num">
+                          ${rate?.unitRate == null ? '' : rateText(rate.unitRate)}
+                        </td>
+                        <td class="num">
+                          ${rate?.amount == null ? '' : formatAmount(rate.amount)}
+                        </td>`
                 }
               </tr>`;
             })}
@@ -192,7 +203,10 @@ export function renderPurchaseOrder(data: PurchaseOrderPrintData, printedOn: str
     <style>
       ${trusted(interFontFaces().split('\n')[0] ?? '')}
     </style>
-    <span>${company.brandName} · ${order.poNo} · ${t('purchaseOrder.printed', { date: formatDate(printedOn) })}</span>
+    <span
+      >${company.brandName} · ${order.poNo} ·
+      ${t('purchaseOrder.printed', { date: formatDate(printedOn) })}</span
+    >
   </div>`.value;
   return {
     html: page.value,

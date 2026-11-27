@@ -71,7 +71,9 @@ export function OrderForm({
     if (vendorId === '') return;
     loadItems(
       () => getVendor({ vendorId }),
-      (sheet) => setItems(sheet.items),
+      (sheet) => {
+        setItems(sheet.items);
+      },
     );
   }, [vendorId, loadItems]);
 
@@ -118,7 +120,9 @@ export function OrderForm({
     }));
     const done = (ref: PurchaseOrderRefDto) => {
       toast.success(
-        orderId === undefined ? t('created', { number: ref.poNo }) : t('saved', { number: ref.poNo }),
+        orderId === undefined
+          ? t('created', { number: ref.poNo })
+          : t('saved', { number: ref.poNo }),
       );
       router.push(`/procurement/orders/${ref.id}` as Route);
     };
@@ -200,13 +204,18 @@ export function OrderForm({
           <p className="text-text-muted text-sm">{t('noItems')}</p>
         ) : (
           <Field id="order-add-item" label={t('addItem')}>
-            <Select value="" onChange={(e) => addLine(e.target.value)}>
+            <Select
+              value=""
+              onChange={(e) => {
+                addLine(e.target.value);
+              }}
+            >
               <option value="">{t('chooseItem')}</option>
               {items
                 .filter((i) => !lines.some((l) => l.itemId === i.itemId))
                 .map((i) => (
                   <option key={i.itemId} value={i.itemId}>
-                    {i.itemName} ({i.sku})
+                    {`${i.itemName} (${i.sku})`}
                   </option>
                 ))}
             </Select>
@@ -218,12 +227,16 @@ export function OrderForm({
               key={line.key}
               className="border-border grid gap-3 rounded-lg border p-3 sm:grid-cols-[2fr_1fr_1fr_auto]"
             >
-              <p className="self-center font-medium">{itemName(line.itemId) || t('lineItem', { n: index + 1 })}</p>
+              <p className="self-center font-medium">
+                {itemName(line.itemId) || t('lineItem', { n: index + 1 })}
+              </p>
               <Field id={`line-qty-${line.key}`} label={t('qty')}>
                 <Input
                   inputMode="decimal"
                   value={line.qty}
-                  onChange={(e) => setLine(line.key, { qty: e.target.value })}
+                  onChange={(e) => {
+                    setLine(line.key, { qty: e.target.value });
+                  }}
                 />
               </Field>
               {canRate ? (
@@ -242,7 +255,9 @@ export function OrderForm({
                     inputMode="decimal"
                     value={line.rate}
                     disabled={line.fromQuote}
-                    onChange={(e) => setLine(line.key, { rate: e.target.value })}
+                    onChange={(e) => {
+                      setLine(line.key, { rate: e.target.value });
+                    }}
                   />
                 </Field>
               ) : (
@@ -254,7 +269,9 @@ export function OrderForm({
                     <input
                       type="checkbox"
                       checked={line.fromQuote}
-                      onChange={(e) => setLine(line.key, { fromQuote: e.target.checked, rate: '' })}
+                      onChange={(e) => {
+                        setLine(line.key, { fromQuote: e.target.checked, rate: '' });
+                      }}
                     />
                     {t('useQuote')}
                   </label>
@@ -262,7 +279,9 @@ export function OrderForm({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setLines((current) => current.filter((l) => l.key !== line.key))}
+                  onClick={() => {
+                    setLines((current) => current.filter((l) => l.key !== line.key));
+                  }}
                   aria-label={t('removeLine', { item: itemName(line.itemId) })}
                 >
                   {t('remove')}
@@ -282,7 +301,12 @@ export function OrderForm({
         <Button type="submit" pending={command.pending}>
           {orderId === undefined ? t('createSubmit') : t('saveSubmit')}
         </Button>
-        <Button variant="secondary" onClick={() => router.back()}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            router.back();
+          }}
+        >
           {t('back')}
         </Button>
       </div>

@@ -74,21 +74,39 @@ export async function createPurchaseOrder(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<PurchaseOrderRefDto>> {
-  return run('createPurchaseOrder', CreatePurchaseOrderInput, createCommand, rawInput, idempotencyKey);
+  return run(
+    'createPurchaseOrder',
+    CreatePurchaseOrderInput,
+    createCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }
 
 export async function updatePurchaseOrder(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<PurchaseOrderRefDto>> {
-  return run('updatePurchaseOrder', UpdatePurchaseOrderInput, updateCommand, rawInput, idempotencyKey);
+  return run(
+    'updatePurchaseOrder',
+    UpdatePurchaseOrderInput,
+    updateCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }
 
 export async function approvePurchaseOrder(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<PurchaseOrderRefDto>> {
-  return run('approvePurchaseOrder', ApprovePurchaseOrderInput, approveCommand, rawInput, idempotencyKey);
+  return run(
+    'approvePurchaseOrder',
+    ApprovePurchaseOrderInput,
+    approveCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }
 
 export async function sendPurchaseOrder(
@@ -102,7 +120,13 @@ export async function cancelPurchaseOrder(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<PurchaseOrderRefDto>> {
-  return run('cancelPurchaseOrder', CancelPurchaseOrderInput, cancelCommand, rawInput, idempotencyKey);
+  return run(
+    'cancelPurchaseOrder',
+    CancelPurchaseOrderInput,
+    cancelCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }
 
 export async function closePurchaseOrder(
@@ -116,7 +140,13 @@ export async function postGoodsReceipt(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<GoodsReceiptRefDto>> {
-  return run('postGoodsReceipt', PostGoodsReceiptInput, postReceiptCommand, rawInput, idempotencyKey);
+  return run(
+    'postGoodsReceipt',
+    PostGoodsReceiptInput,
+    postReceiptCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }
 
 export async function reverseGoodsReceipt(
@@ -143,7 +173,13 @@ export async function removeReorderRule(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<ReorderRuleDto>> {
-  return run('removeReorderRule', RemoveReorderRuleInput, removeRuleCommand, rawInput, idempotencyKey);
+  return run(
+    'removeReorderRule',
+    RemoveReorderRuleInput,
+    removeRuleCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }
 
 /** Procurement › Orders: a page of a company's orders in one state, with the reorder alerts. */

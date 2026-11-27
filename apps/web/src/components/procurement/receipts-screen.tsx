@@ -94,11 +94,24 @@ export function ReceiptsList({
     {
       id: 'received',
       header: t('columns.received'),
-      cell: (r) => `${formatDateTime(r.receivedAt)}${r.receivedByName === null ? '' : ` · ${r.receivedByName}`}`,
+      cell: (r) =>
+        `${formatDateTime(r.receivedAt)}${r.receivedByName === null ? '' : ` · ${r.receivedByName}`}`,
     },
     { id: 'invoice', header: t('columns.invoice'), cell: (r) => r.vendorInvoiceNo ?? '' },
-    { id: 'lines', header: t('columns.lines'), numeric: true, align: 'end', cell: (r) => r.lineCount },
-    { id: 'serials', header: t('columns.serials'), numeric: true, align: 'end', cell: (r) => r.serialCount },
+    {
+      id: 'lines',
+      header: t('columns.lines'),
+      numeric: true,
+      align: 'end',
+      cell: (r) => r.lineCount,
+    },
+    {
+      id: 'serials',
+      header: t('columns.serials'),
+      numeric: true,
+      align: 'end',
+      cell: (r) => r.serialCount,
+    },
     {
       id: 'state',
       header: t('columns.state'),
@@ -110,7 +123,9 @@ export function ReceiptsList({
             ref={buttons.ref(r.id)}
             size="sm"
             variant="secondary"
-            onClick={() => setReversing(r)}
+            onClick={() => {
+              setReversing(r);
+            }}
             aria-label={t('reverseLabel', { number: r.grnNo })}
           >
             {t('reverse')}
@@ -140,11 +155,15 @@ export function ReceiptsList({
         <ReverseDialog
           receipt={reversing}
           returnFocusTo={() => [buttons.get(reversing.id)]}
-          onClose={() => setReversing(undefined)}
+          onClose={() => {
+            setReversing(undefined);
+          }}
           onDone={() => {
             const id = reversing.id;
             setReversing(undefined);
-            setRows((current) => current.map((r) => (r.id === id ? { ...r, state: 'reversed' } : r)));
+            setRows((current) =>
+              current.map((r) => (r.id === id ? { ...r, state: 'reversed' } : r)),
+            );
             router.refresh();
           }}
         />

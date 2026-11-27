@@ -55,7 +55,9 @@ export function ScanField({
   const cameraButton = useRef<HTMLButtonElement>(null);
   // The codes as last handed back, so a fast scanner's second code builds on the first.
   const latest = useRef<readonly string[]>(codes);
-  latest.current = codes;
+  useEffect(() => {
+    latest.current = codes;
+  }, [codes]);
 
   async function take(raw: string) {
     const result = await scanOnce(latest.current, raw, resolve, expected);
@@ -96,7 +98,9 @@ export function ScanField({
           <Button
             ref={cameraButton}
             variant="secondary"
-            onClick={() => setCamera(true)}
+            onClick={() => {
+              setCamera(true);
+            }}
             disabled={disabled}
             aria-label={t('camera')}
           >
@@ -108,7 +112,9 @@ export function ScanField({
         <Input
           ref={input}
           value={typed}
-          onChange={(e) => setTyped(e.target.value)}
+          onChange={(e) => {
+            setTyped(e.target.value);
+          }}
           onKeyDown={onKeyDown}
           autoComplete="off"
           autoCapitalize="off"
@@ -139,7 +145,9 @@ export function ScanField({
                 variant="ghost"
                 size="icon"
                 className="size-7"
-                onClick={() => remove(code)}
+                onClick={() => {
+                  remove(code);
+                }}
                 aria-label={t('remove', { code })}
                 disabled={disabled}
               >
@@ -152,7 +160,9 @@ export function ScanField({
       {camera ? (
         <CameraDialog
           returnFocusTo={() => [cameraButton.current, input.current]}
-          onClose={() => setCamera(false)}
+          onClose={() => {
+            setCamera(false);
+          }}
           onCode={(code) => void take(code)}
         />
       ) : null}
@@ -215,7 +225,9 @@ function CameraDialog({
   const [problem, setProblem] = useState<'denied' | 'none' | undefined>();
   const [qrOnly, setQrOnly] = useState(false);
   const onCodeRef = useRef(onCode);
-  onCodeRef.current = onCode;
+  useEffect(() => {
+    onCodeRef.current = onCode;
+  }, [onCode]);
 
   useEffect(() => {
     let stream: MediaStream | undefined;
@@ -225,7 +237,7 @@ function CameraDialog({
     const canvas = document.createElement('canvas');
 
     async function start() {
-      if (navigator.mediaDevices?.getUserMedia === undefined) {
+      if (!('mediaDevices' in navigator)) {
         setProblem('none');
         return;
       }

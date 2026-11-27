@@ -22,7 +22,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** A draft purchase order changed by a person who writes orders in its company. */
-export default async function EditPurchaseOrderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditPurchaseOrderPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { access } = await screenAccess(navRequires('procurement'));
   const { id } = await params;
   if (!UUID.test(id)) notFound();
@@ -39,9 +43,11 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
       <OrderForm
         entityId={order.entityId}
         orderId={order.id}
-        vendors={vendors.some((v) => v.id === order.vendorId)
-          ? vendors
-          : [...vendors, { id: order.vendorId, name: order.vendorName }]}
+        vendors={
+          vendors.some((v) => v.id === order.vendorId)
+            ? vendors
+            : [...vendors, { id: order.vendorId, name: order.vendorName }]
+        }
         hubs={hubs}
         canRate={hasGrant(grants, 'procurement.rate.read', 'entity')}
         initial={{

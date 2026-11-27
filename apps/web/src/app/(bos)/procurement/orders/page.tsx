@@ -19,7 +19,10 @@ import { orderCompanies, orderTabs } from '../companies';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return screenTitle(navRequires('procurement'), (await getTranslations('procurement'))('orders.title'));
+  return screenTitle(
+    navRequires('procurement'),
+    (await getTranslations('procurement'))('orders.title'),
+  );
 }
 
 /**

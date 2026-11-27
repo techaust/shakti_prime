@@ -205,6 +205,13 @@ interface LineRow extends Record<string, unknown> {
   taxRatePct: string | null;
 }
 
+/** A line as every reader's DTO carries it: the tax rate's id stays on the server. */
+function withoutTaxRate(line: LineRow): Omit<LineRow, 'taxRateId'> {
+  const copy: Partial<LineRow> = { ...line };
+  delete copy.taxRateId;
+  return copy;
+}
+
 const iso = (value: Date | string | null): string | null =>
   value === null ? null : new Date(value).toISOString();
 
@@ -251,7 +258,7 @@ async function readOrder(
     sentAt: iso(row.sentAt),
     createdAt: iso(row.createdAt),
     overdue: purchaseOrderOverdue(row.state, row.expectedAt, now),
-    lines: lines.map(({ taxRateId: _taxRateId, ...line }) => line),
+    lines: lines.map(withoutTaxRate),
   });
   return { order, lines };
 }

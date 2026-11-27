@@ -16,7 +16,11 @@ export function hasRates(
  * server. Rates, amounts and the tax split are printed only when the order arrived with them,
  * which `getPurchaseOrder` does only for a holder of `procurement.rate.read`.
  */
-export async function OrderSheet({ order }: { order: PurchaseOrderDto | PurchaseOrderWithRatesDto }) {
+export async function OrderSheet({
+  order,
+}: {
+  order: PurchaseOrderDto | PurchaseOrderWithRatesDto;
+}) {
   const t = await getTranslations('procurement.orderSheet');
   const states = await getTranslations('procurement.orderStates');
   const units = await getTranslations('catalogue.units');
@@ -29,10 +33,9 @@ export async function OrderSheet({ order }: { order: PurchaseOrderDto | Purchase
     [t('draftedBy'), order.draftedByName ?? t('platform')],
     ...(order.approvedAt === null
       ? []
-      : ([[t('approvedBy'), `${order.approvedByName ?? ''} · ${formatDateTime(order.approvedAt)}`]] as [
-          string,
-          string,
-        ][])),
+      : ([
+          [t('approvedBy'), `${order.approvedByName ?? ''} · ${formatDateTime(order.approvedAt)}`],
+        ] as [string, string][])),
     ...(order.sentAt === null
       ? []
       : ([
@@ -41,8 +44,12 @@ export async function OrderSheet({ order }: { order: PurchaseOrderDto | Purchase
             `${formatDateTime(order.sentAt)} · ${order.sentVia === 'email' ? t('byEmail') : t('byHand')}`,
           ],
         ] as [string, string][])),
-    ...(order.cancelReason === null ? [] : ([[t('cancelReason'), order.cancelReason]] as [string, string][])),
-    ...(order.closeReason === null ? [] : ([[t('closeReason'), order.closeReason]] as [string, string][])),
+    ...(order.cancelReason === null
+      ? []
+      : ([[t('cancelReason'), order.cancelReason]] as [string, string][])),
+    ...(order.closeReason === null
+      ? []
+      : ([[t('closeReason'), order.closeReason]] as [string, string][])),
     ...(order.notes === null ? [] : ([[t('notes'), order.notes]] as [string, string][])),
   ];
   return (
@@ -93,9 +100,7 @@ export async function OrderSheet({ order }: { order: PurchaseOrderDto | Purchase
           </thead>
           <tbody>
             {order.lines.map((line) => {
-              const rate = withRates
-                ? (order as PurchaseOrderWithRatesDto).lines.find((l) => l.id === line.id)
-                : undefined;
+              const rate = withRates ? order.lines.find((l) => l.id === line.id) : undefined;
               return (
                 <tr key={line.id} className="border-border border-t">
                   <td className="px-3 py-2">
@@ -151,7 +156,9 @@ export async function OrderSheet({ order }: { order: PurchaseOrderDto | Purchase
           <dt className="text-text-muted">{t('roundOff')}</dt>
           <dd className="text-right tabular-nums">{order.totals.roundOff}</dd>
           <dt className="font-medium">{t('grandTotal')}</dt>
-          <dd className="text-right font-medium tabular-nums">{formatRupees(order.totals.grandTotal)}</dd>
+          <dd className="text-right font-medium tabular-nums">
+            {formatRupees(order.totals.grandTotal)}
+          </dd>
         </dl>
       ) : withRates ? (
         <p className="text-text-muted text-sm">{t('totalsWaiting')}</p>

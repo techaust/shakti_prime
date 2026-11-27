@@ -1,6 +1,5 @@
 'use client';
 
-import type { PurchaseOrderRefDto } from '@shakti/contracts';
 import {
   Button,
   Dialog,
@@ -53,7 +52,7 @@ export function OrderActionsBar({
   const closeButton = useRef<HTMLButtonElement>(null);
   const failure = approve.failure ?? send.failure;
 
-  const done = (message: string) => (_ref: PurchaseOrderRefDto) => {
+  const done = (message: string) => () => {
     toast.success(message);
     router.refresh();
   };
@@ -64,9 +63,9 @@ export function OrderActionsBar({
         {allowed.approve ? (
           <Button
             pending={approve.pending}
-            onClick={() =>
-              approve.run({ purchaseOrderId: orderId }, done(t('approved', { number: poNo })))
-            }
+            onClick={() => {
+              approve.run({ purchaseOrderId: orderId }, done(t('approved', { number: poNo })));
+            }}
           >
             {t('approve')}
           </Button>
@@ -74,12 +73,12 @@ export function OrderActionsBar({
         {allowed.send ? (
           <Button
             pending={send.pending}
-            onClick={() =>
+            onClick={() => {
               send.run(
                 { purchaseOrderId: orderId, via: 'by_hand' },
                 done(t('sent', { number: poNo })),
-              )
-            }
+              );
+            }}
           >
             {t('markSent')}
           </Button>
@@ -100,12 +99,24 @@ export function OrderActionsBar({
           </a>
         </Button>
         {allowed.cancel ? (
-          <Button ref={cancelButton} variant="secondary" onClick={() => setReasonFor('cancel')}>
+          <Button
+            ref={cancelButton}
+            variant="secondary"
+            onClick={() => {
+              setReasonFor('cancel');
+            }}
+          >
             {t('cancel')}
           </Button>
         ) : null}
         {allowed.close ? (
-          <Button ref={closeButton} variant="secondary" onClick={() => setReasonFor('close')}>
+          <Button
+            ref={closeButton}
+            variant="secondary"
+            onClick={() => {
+              setReasonFor('close');
+            }}
+          >
             {t('close')}
           </Button>
         ) : null}
@@ -116,8 +127,12 @@ export function OrderActionsBar({
           kind={reasonFor}
           orderId={orderId}
           poNo={poNo}
-          returnFocusTo={() => [reasonFor === 'cancel' ? cancelButton.current : closeButton.current]}
-          onClose={() => setReasonFor(undefined)}
+          returnFocusTo={() => [
+            reasonFor === 'cancel' ? cancelButton.current : closeButton.current,
+          ]}
+          onClose={() => {
+            setReasonFor(undefined);
+          }}
           onDone={() => {
             setReasonFor(undefined);
             router.refresh();
@@ -187,7 +202,11 @@ function ReasonDialog({
             <Button variant="secondary" onClick={onClose}>
               {common('cancel')}
             </Button>
-            <Button type="submit" variant={kind === 'cancel' ? 'danger' : 'primary'} pending={command.pending}>
+            <Button
+              type="submit"
+              variant={kind === 'cancel' ? 'danger' : 'primary'}
+              pending={command.pending}
+            >
               {kind === 'cancel' ? t('cancelConfirm') : t('closeConfirm')}
             </Button>
           </DialogFooter>
