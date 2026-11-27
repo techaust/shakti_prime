@@ -218,8 +218,24 @@ export const ConnectorBatchResponse = z
 export type ConnectorBatchResponse = z.infer<typeof ConnectorBatchResponse>;
 
 /**
+ * A party ledger's closing balance on the snapshot's day. A balance moves when a voucher posts,
+ * without a new AlterID on the ledger, so batches cannot carry it; the daily snapshot does
+ * (dealer outstanding, docs/03-roadmap-appendix/phase5.md §2 question 11). Signed as Tally gives it.
+ */
+export const TallyLedgerBalance = z
+  .object({
+    guid: TallyGuidSchema,
+    name: z.string().min(1).max(200),
+    closingBalance: SignedMoneySchema,
+    asOf: DateOnlySchema,
+  })
+  .strict();
+export type TallyLedgerBalance = z.infer<typeof TallyLedgerBalance>;
+
+/**
  * `POST /connector/tally/snapshot`, daily: every voucher GUID Tally holds for the company up to
- * `asOf`. A GUID the BOS holds that is missing here becomes a tombstone for review.
+ * `asOf`. A GUID the BOS holds that is missing here becomes a tombstone for review. With it, the
+ * closing balance of every party ledger under Sundry Debtors, each GUID once.
  */
 export const ConnectorSnapshotRequest = z
   .object({
@@ -228,8 +244,15 @@ export const ConnectorSnapshotRequest = z
     asOf: z.iso.datetime(),
     fromDate: DateOnlySchema,
     voucherGuids: z.array(TallyGuidSchema).max(500_000),
+    ledgerBalances: z.array(TallyLedgerBalance).max(50_000).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) =>
+      v.ledgerBalances === undefined ||
+      new Set(v.ledgerBalances.map((l) => l.guid)).size === v.ledgerBalances.length,
+    { message: 'a ledger appears twice', path: ['ledgerBalances'] },
+  );
 export type ConnectorSnapshotRequest = z.infer<typeof ConnectorSnapshotRequest>;
 
 export const ConnectorSnapshotResponse = z

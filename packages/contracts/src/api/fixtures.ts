@@ -731,6 +731,14 @@ export const API_FIXTURES: Record<
       asOf: '2026-09-26T20:30:00.000Z',
       fromDate: '2026-04-01',
       voucherGuids: [tallyGuid(0x1a2b), tallyGuid(0x1a2c), tallyGuid(0x1a30)],
+      ledgerBalances: [
+        {
+          guid: tallyGuid(0x0b01),
+          name: 'Kisan Agro Traders',
+          closingBalance: '-76500.00',
+          asOf: '2026-09-27',
+        },
+      ],
     },
     response: {
       company: 'Shakti Supreme 2026-27',

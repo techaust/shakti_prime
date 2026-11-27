@@ -98,7 +98,7 @@ describe('paging by AlterID', () => {
       }
       return count;
     };
-    const snapshot = await r.snapshot(COMPANY);
+    const snapshot = await r.snapshot(COMPANY, '2026-11-27');
     expect(snapshot.guids).toHaveLength(14);
     expect(snapshot.guids).toContain(vouchers[1]?.guid);
     expect(snapshot.guids).not.toContain(vouchers[3]?.guid);
@@ -111,6 +111,36 @@ describe('paging by AlterID', () => {
       [7, 14],
       [14, 15],
       [15, 16],
+    ]);
+  });
+});
+
+describe('the party ledger balances with the snapshot', () => {
+  it('reads every Sundry Debtors balance as at the day, a balance moved without an AlterID too', async () => {
+    tally.addVoucher(COMPANY, { type: 'Sales' });
+    const dealer = tally.addLedger(COMPANY, { name: 'Kisan Agro Traders', closing: -1000 });
+    for (let i = 0; i < 9; i += 1) tally.addVoucher(COMPANY, { type: 'Receipt' });
+    const other = tally.addLedger(COMPANY, { gstin: '08AAAAA0000A1Z5' });
+    // A sale posts to the first dealer after its master was last altered.
+    tally.setClosing(COMPANY, dealer.guid, -26000);
+    const r = reader({ snapshotPageSize: 4 });
+    const snapshot = await r.snapshot(COMPANY, '2026-11-27');
+    expect(snapshot.ledgerBalances).toEqual(
+      [
+        {
+          guid: dealer.guid,
+          name: 'Kisan Agro Traders',
+          closingBalance: '-26000.00',
+          asOf: '2026-11-27',
+        },
+        { guid: other.guid, name: other.name, closingBalance: '-5012.00', asOf: '2026-11-27' },
+      ].sort((a, b) => (a.guid < b.guid ? -1 : 1)),
+    );
+    const ledgerReads = tally.requests.filter((q) => q.collection === 'BOSLedgers');
+    expect(ledgerReads.map((q) => [q.after, q.upTo, q.to])).toEqual([
+      [0, 4, '20261127'],
+      [4, 8, '20261127'],
+      [8, 12, '20261127'],
     ]);
   });
 });
@@ -131,7 +161,7 @@ describe('throttling', () => {
     await Promise.all([
       r.readPage(COMPANY, a, 0, 3, '2026-11-27'),
       r.readPage('Shakti Motor Pumps', b, 0, 3, '2026-11-27'),
-      r.snapshot(COMPANY),
+      r.snapshot(COMPANY, '2026-11-27'),
     ]);
     expect(tally.maxInFlight).toBe(1);
     const times = tally.requests.map((q) => [q.startedAt, q.endedAt ?? 0]);

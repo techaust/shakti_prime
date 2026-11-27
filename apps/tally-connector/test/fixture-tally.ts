@@ -53,6 +53,8 @@ export interface FixtureRequest {
   collection: string;
   company: string;
   tallyRequest: string;
+  /** `SVTODATE`, when the request names a period. */
+  to: string | undefined;
   after: number | undefined;
   upTo: number | undefined;
   startedAt: number;
@@ -294,6 +296,13 @@ export class FixtureTally {
     return created;
   }
 
+  /** A voucher posted to the ledger: its balance moves, its AlterID does not. */
+  setClosing(name: string, guid: string, closing: number): void {
+    const ledger = this.company(name).ledgers.get(guid);
+    if (ledger === undefined) throw new Error('no such ledger');
+    ledger.closing = closing;
+  }
+
   vouchersOf(name: string): FixtureVoucher[] {
     return [...this.company(name).vouchers.values()].sort((a, b) => a.alterId - b.alterId);
   }
@@ -333,6 +342,7 @@ export class FixtureTally {
       collection: /<ID>([^<]*)<\/ID>/.exec(xml)?.[1] ?? '',
       company: unescape(/<SVCURRENTCOMPANY>([^<]*)<\/SVCURRENTCOMPANY>/.exec(xml)?.[1] ?? ''),
       tallyRequest: /<TALLYREQUEST>([^<]*)<\/TALLYREQUEST>/.exec(xml)?.[1] ?? '',
+      to: /<SVTODATE[^>]*>([^<]*)<\/SVTODATE>/.exec(xml)?.[1],
       after: range?.[1] === undefined ? undefined : Number(range[1]),
       upTo: range?.[2] === undefined ? undefined : Number(range[2]),
       startedAt: Date.now(),

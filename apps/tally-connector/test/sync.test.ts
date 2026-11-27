@@ -200,11 +200,13 @@ describe('a three-day outage', () => {
 });
 
 describe('the daily snapshot and the heartbeat', () => {
-  it('sends the snapshot after 02:00 India time once a day, with asOf before the read began', async () => {
+  it('sends the snapshot and the dealer balances after 02:00 India time once a day, with asOf before the read began', async () => {
     h = await harness({ now: new Date('2026-11-26T20:00:00Z') }); // 01:30 in India
     h.tally.addVoucher(SS.name, { type: 'Sales', date: '20250115' });
     h.tally.addVoucher(SS.name, { type: 'Journal' });
+    const dealer = h.tally.addLedger(SS.name, { name: 'Kisan Agro Traders' });
     await h.syncer.cycle();
+    h.tally.setClosing(SS.name, dealer.guid, -76500);
     expect(h.bos.snapshots).toHaveLength(0);
 
     h.clock.now = new Date('2026-11-26T20:31:00Z'); // 02:01
@@ -216,7 +218,16 @@ describe('the daily snapshot and the heartbeat', () => {
       asOf: '2026-11-26T20:26:00.000Z',
       fromDate: '2025-01-15',
       voucherGuids: [h.tally.vouchersOf(SS.name)[0]?.guid],
+      ledgerBalances: [
+        {
+          guid: dealer.guid,
+          name: 'Kisan Agro Traders',
+          closingBalance: '-76500.00',
+          asOf: '2026-11-27',
+        },
+      ],
     });
+    expect(h.log.lines.join('\n')).not.toMatch(/Kisan|76500/);
     h.clock.now = new Date('2026-11-27T05:00:00Z');
     await h.syncer.cycle();
     expect(h.bos.snapshots).toHaveLength(2);

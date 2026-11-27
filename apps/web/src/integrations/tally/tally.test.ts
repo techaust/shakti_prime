@@ -229,6 +229,41 @@ describe('payloads (the published connector contract)', () => {
       problems: ['asOf', 'voucherGuids[0]', 'voucherGuids[1]'],
     });
   });
+
+  // TC1: the dealers' closing balances travel with the daily snapshot.
+  it('reads the party ledger balances of a snapshot, each ledger once', () => {
+    const balance = {
+      guid: GUID_A,
+      name: 'Kisan Agro Traders',
+      closingBalance: '-76500.00',
+      asOf: '2026-09-28',
+    };
+    const snapshot = {
+      company: 'C',
+      entityCode: 'SS',
+      asOf: '2026-09-28T00:00:00Z',
+      fromDate: '2026-04-01',
+      voucherGuids: [GUID_B],
+      ledgerBalances: [balance],
+    };
+    expect(parseSnapshot(snapshot)).toMatchObject({
+      ok: true,
+      value: { ledgerBalances: [balance] },
+    });
+    expect(parseSnapshot({ ...snapshot, ledgerBalances: [balance, balance] })).toEqual({
+      ok: false,
+      problems: ['ledgerBalances: a ledger appears twice'],
+    });
+    expect(
+      parseSnapshot({
+        ...snapshot,
+        ledgerBalances: [{ ...balance, closingBalance: -76500, asOf: 'today' }],
+      }),
+    ).toEqual({
+      ok: false,
+      problems: ['ledgerBalances[0].closingBalance', 'ledgerBalances[0].asOf'],
+    });
+  });
 });
 
 describe('the fixture through the sync rules', () => {

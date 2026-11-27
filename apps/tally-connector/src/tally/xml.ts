@@ -121,9 +121,15 @@ export function vouchersPageRequest(
 
 /**
  * Party ledgers (under Sundry Debtors) with an AlterID in `(after, upTo]`: their balances serve
- * dealer outstanding. Other ledgers (banks, expenses, suppliers) are not read.
+ * dealer outstanding. Other ledgers (banks, expenses, suppliers) are not read. The closing balance
+ * is as at the period's last day.
  */
-export function ledgersPageRequest(company: string, after: number, upTo: number): string {
+export function ledgersPageRequest(
+  company: string,
+  after: number,
+  upTo: number,
+  period?: TallyPeriod,
+): string {
   return envelope(
     company,
     'BOSLedgers',
@@ -138,6 +144,7 @@ export function ledgersPageRequest(company: string, after: number, upTo: number)
       rangeFormula('BOSInRange', after, upTo),
       '<SYSTEM TYPE="Formulae" NAME="BOSPartyLedger">$$IsBelongsTo:$$GroupSundryDebtors</SYSTEM>',
     ].join(''),
+    period,
   );
 }
 

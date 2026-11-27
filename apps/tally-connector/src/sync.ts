@@ -254,7 +254,8 @@ export class Syncer {
   }
 
   /**
-   * Reads every voucher GUID the company holds and sends them. `asOf` is when the read began, less
+   * Reads every voucher GUID the company holds, with every party ledger's closing balance for the
+   * day (dealer outstanding), and sends them. `asOf` is when the read began, less
    * the clock difference the BOS accepts, so a voucher the BOS stored while the read ran is never
    * judged against a snapshot that could not hold it.
    */
@@ -264,7 +265,7 @@ export class Syncer {
     const entity = this.entity(company.name);
     let snapshot;
     try {
-      snapshot = await reader.snapshot(company.name);
+      snapshot = await reader.snapshot(company.name, istClock(startedAt).date);
     } catch (error) {
       if (!(error instanceof TallyUnavailable)) throw error;
       this.companyState(company.name).reachable = false;
@@ -278,6 +279,7 @@ export class Syncer {
       asOf: asOf.toISOString(),
       fromDate: snapshot.fromDate ?? istClock(startedAt).date,
       voucherGuids: snapshot.guids,
+      ledgerBalances: snapshot.ledgerBalances,
     };
     if (!ConnectorSnapshotRequest.safeParse(body).success) {
       log.error('snapshot_unreadable', { entity, guids: snapshot.guids.length });
@@ -289,7 +291,12 @@ export class Syncer {
       body: JSON.stringify(body),
     });
     outbox.setState(`${SNAPSHOT_STATE}${company.name}`, istClock(startedAt).date);
-    log.info('snapshot_read', { entity, outbox: row.id, guids: snapshot.guids.length });
+    log.info('snapshot_read', {
+      entity,
+      outbox: row.id,
+      guids: snapshot.guids.length,
+      ledgers: snapshot.ledgerBalances.length,
+    });
     const sent = await this.send(row);
     return sent === 'sent' ? 'caught_up' : sent;
   }

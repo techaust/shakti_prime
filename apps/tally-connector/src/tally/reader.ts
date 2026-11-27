@@ -1,4 +1,4 @@
-import { TallyLedger, TallyVoucher } from '@shakti/contracts';
+import { TallyLedger, TallyLedgerBalance, TallyVoucher } from '@shakti/contracts';
 import { errorKind, logId, type Log } from '../log';
 import type { Settings } from '../settings';
 import {
@@ -49,6 +49,8 @@ export interface Page {
 
 export interface Snapshot {
   guids: string[];
+  /** Every party ledger's closing balance as at the snapshot's day, each GUID once. */
+  ledgerBalances: TallyLedgerBalance[];
   /** The earliest voucher date in the snapshot, or `undefined` for a company with no vouchers. */
   fromDate: string | undefined;
 }
@@ -137,6 +139,13 @@ export class TallyReader {
     return status;
   }
 
+  /** From the books' first day to `asOf` (`YYYY-MM-DD`): a ledger's closing balance on that day. */
+  private balancePeriod(status: CompanyStatus, asOf: string): TallyPeriod | undefined {
+    return status.booksFrom === undefined
+      ? undefined
+      : { from: status.booksFrom, to: asOf.replaceAll('-', '') };
+  }
+
   private period(status: CompanyStatus): TallyPeriod | undefined {
     return status.booksFrom === undefined
       ? undefined
@@ -158,7 +167,9 @@ export class TallyReader {
     const voucherXml = await this.ask(
       vouchersPageRequest(company, after, upTo, this.period(status)),
     );
-    const ledgerXml = await this.ask(ledgersPageRequest(company, after, upTo));
+    const ledgerXml = await this.ask(
+      ledgersPageRequest(company, after, upTo, this.balancePeriod(status, asOf)),
+    );
     let skipped = 0;
     const inRange = (row: Record<string, unknown>) =>
       typeof row.alterId === 'number' && row.alterId > after && row.alterId <= upTo;
@@ -204,12 +215,14 @@ export class TallyReader {
   }
 
   /**
-   * Every GUID of a voucher the BOS reads that the company holds, read in AlterID windows of `snapshotPageSize`. A voucher
-   * altered while the windows are read moves above the last one, so the read goes on to the
-   * company's new last AlterID until it stops moving: no voucher is left out for being edited.
+   * Every GUID of a voucher the BOS reads that the company holds, and every party ledger's closing
+   * balance as at `asOf` (`YYYY-MM-DD`), read in AlterID windows of `snapshotPageSize`. A voucher or
+   * ledger altered while the windows are read moves above the last one, so the read goes on to the
+   * company's new last AlterID until it stops moving: nothing is left out for being edited.
    */
-  async snapshot(company: string): Promise<Snapshot> {
+  async snapshot(company: string, asOf: string): Promise<Snapshot> {
     const guids = new Set<string>();
+    const balances = new Map<string, { alterId: number; balance: TallyLedgerBalance }>();
     let fromDate: string | undefined;
     let status = await this.companyStatus(company);
     let after = 0;
@@ -227,12 +240,40 @@ export class TallyReader {
             fromDate = reading.date;
           }
         }
+        const ledgerXml = await this.ask(
+          ledgersPageRequest(company, after, upTo, this.balancePeriod(status, asOf)),
+        );
+        for (const row of parseLedgerExport(ledgerXml, asOf)) {
+          const parsed = TallyLedgerBalance.safeParse({
+            guid: row.guid,
+            name: row.name,
+            closingBalance: row.closingBalance,
+            asOf: row.asOf,
+          });
+          if (!parsed.success || typeof row.alterId !== 'number') {
+            this.options.log.warn('ledger_unreadable', {
+              guid: logId(String(row.guid)),
+              field: logId(String(parsed.error?.issues[0]?.path[0] ?? 'alterId')),
+            });
+            continue;
+          }
+          const seen = balances.get(parsed.data.guid);
+          if (seen === undefined || row.alterId > seen.alterId) {
+            balances.set(parsed.data.guid, { alterId: row.alterId, balance: parsed.data });
+          }
+        }
         after = upTo;
       }
       const latest = await this.companyStatus(company);
       if (latest.lastAlterId <= status.lastAlterId) break;
       status = latest;
     }
-    return { guids: [...guids].sort(), fromDate };
+    return {
+      guids: [...guids].sort(),
+      ledgerBalances: [...balances.values()]
+        .map((b) => b.balance)
+        .sort((a, b) => (a.guid < b.guid ? -1 : 1)),
+      fromDate,
+    };
   }
 }
