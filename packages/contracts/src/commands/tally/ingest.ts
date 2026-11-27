@@ -129,3 +129,17 @@ export type TallyCursorQuery = z.infer<typeof TallyCursorQuery>;
 
 export const TallyCursorDto = ConnectorCursorResponse;
 export type TallyCursorDto = z.infer<typeof TallyCursorDto>;
+
+/** The two alerts the hourly jobs check raises about a connector, each once per stretch. */
+export const TALLY_CONNECTOR_ALERTS = ['silent', 'rows_held'] as const;
+export const TallyConnectorAlertSchema = z.enum(TALLY_CONNECTOR_ALERTS);
+export type TallyConnectorAlert = z.infer<typeof TallyConnectorAlertSchema>;
+
+/** `tally.connector.record_alert`: the jobs check sent an alert about a connector. */
+export const RecordTallyAlertInput = z
+  .object({ connectorId: IdSchema, alert: TallyConnectorAlertSchema })
+  .strict();
+export type RecordTallyAlertInput = z.input<typeof RecordTallyAlertInput>;
+
+export const RecordTallyAlertDto = z.object({ recorded: z.boolean() }).strict();
+export type RecordTallyAlertDto = z.infer<typeof RecordTallyAlertDto>;

@@ -288,6 +288,7 @@ const ACTIONS = {
   'tally.connector.rotate': 'tallyConnectorRotate',
   'tally.connector.retire_key': 'tallyConnectorRetireKey',
   'tally.connector.revoke': 'tallyConnectorRevoke',
+  'tally.connector.record_alert': 'tallyConnectorRecordAlert',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -518,6 +519,9 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // TC2 Tally ingest
+  'tallyAlert',
+  'tallySnapshotState',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -914,6 +918,8 @@ const FIELD_KINDS = [
   ['reappeared', 'number'],
   ['tallyCompany', 'text'],
   ['nextKeyHint', 'text'],
+  ['refused', 'number'],
+  ['alert', 'tallyAlert'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
@@ -933,6 +939,7 @@ const STATE_GROUP_OF: ReadonlyMap<string, CodeGroup> = new Map<string, CodeGroup
   ['import_job', 'importState'],
   ['quote', 'quoteState'],
   ['sales_order', 'orderState'],
+  ['tally_snapshot', 'tallySnapshotState'],
 ]);
 
 /** Every field with a name on screen, in the order the sheet lists them. */

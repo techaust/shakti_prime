@@ -1,4 +1,7 @@
 import type {
+  // TC2 Tally ingest
+  TallyCompanyProblem,
+  TallyConnectorAlert,
   // H1 stock ledger
   BinKind,
   EditableBinKind,
@@ -1061,3 +1064,26 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// TC2 Tally ingest.
+/** Why a connector is not reading a Tally company, from its heartbeat. */
+export const TALLY_COMPANY_PROBLEMS = [
+  'no_books_from',
+  'tally_behind_bos',
+  'waiting_on_bos',
+] as const satisfies readonly TallyCompanyProblem[];
+
+/** The alerts the jobs check raises about a connector. */
+export const TALLY_CONNECTOR_ALERTS = [
+  'silent',
+  'rows_held',
+] as const satisfies readonly TallyConnectorAlert[];
+
+/** A daily Tally snapshot's states. */
+export const TALLY_SNAPSHOT_STATES = [
+  'receiving',
+  'applied',
+  'held',
+  'confirmed',
+  'superseded',
+] as const;

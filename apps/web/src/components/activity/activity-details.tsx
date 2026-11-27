@@ -103,6 +103,8 @@ import {
   // H1 stock ledger
   BIN_KINDS,
   STOCK_REASONS,
+  TALLY_CONNECTOR_ALERTS,
+  TALLY_SNAPSHOT_STATES,
   WAREHOUSE_KINDS,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
@@ -614,6 +616,12 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(BIN_KINDS, value) ? t(`values.binKind.${value}`) : wordsOf(value);
       case 'stockReason':
         return oneOf(STOCK_REASONS, value) ? t(`values.stockReason.${value}`) : wordsOf(value);
+      case 'tallyAlert':
+        return oneOf(TALLY_CONNECTOR_ALERTS, value) ? t(`values.tallyAlert.${value}`) : wordsOf(value);
+      case 'tallySnapshotState':
+        return oneOf(TALLY_SNAPSHOT_STATES, value)
+          ? t(`values.tallySnapshotState.${value}`)
+          : wordsOf(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':

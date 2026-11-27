@@ -1,6 +1,7 @@
 import { DomainError, TallyCursorDto, type TallyCursorQuery } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { sql } from 'drizzle-orm';
+import { FieldEnvelopeSchema, type FieldEnvelope } from '../../privacy/field-cipher';
 
 // TC2: the two reads a connector's routes make (docs/06-api.md §3.5), each through its definer as
 // the connector's own principal, which reads no table.
@@ -16,14 +17,14 @@ export interface TallyConnectorCompany {
 
 /** What the routes need to verify a connector's signature and scope its request. */
 export interface TallyConnectorAuth {
-  /** The SHA-256 of the current key and, during a rotation, of the next: the HMAC keys. */
-  signingKeys: string[];
+  /** The current key sealed and, during a rotation, the next: opened with `openConnectorKeys()`. */
+  sealedKeys: FieldEnvelope[];
   companies: TallyConnectorCompany[];
 }
 
 interface AuthRow {
-  key_hash: string;
-  next_key_hash: string | null;
+  key_sealed: unknown;
+  next_key_sealed: unknown;
   entity_id: number | null;
   entity_code: string | null;
   tally_company: string | null;
@@ -38,7 +39,7 @@ export async function findTallyConnector(
   connectorId: string,
 ): Promise<TallyConnectorAuth | undefined> {
   const rows = (await ctx.tx.execute(sql`
-    select key_hash, next_key_hash, entity_id, entity_code, tally_company
+    select key_sealed, next_key_sealed, entity_id, entity_code, tally_company
       from app.tally_connector_auth(${connectorId}::uuid)`)) as unknown as AuthRow[];
   const [first] = rows;
   if (first === undefined) return undefined;
@@ -52,7 +53,10 @@ export async function findTallyConnector(
     });
   }
   return {
-    signingKeys: [first.key_hash, ...(first.next_key_hash === null ? [] : [first.next_key_hash])],
+    sealedKeys: [
+      FieldEnvelopeSchema.parse(first.key_sealed),
+      ...(first.next_key_sealed === null ? [] : [FieldEnvelopeSchema.parse(first.next_key_sealed)]),
+    ],
     companies,
   };
 }

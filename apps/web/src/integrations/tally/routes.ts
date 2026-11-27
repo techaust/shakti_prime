@@ -4,18 +4,20 @@ import {
   IdempotencyKeySchema,
   IdSchema,
   isDomainError,
-  TallyLedgerBalances,
   type ErrorCode,
 } from '@shakti/contracts';
 import {
   executeCommand,
   executeQuery,
   findTallyConnector,
+  openConnectorKeys,
   ingestTallyBatch,
   readTallyCursor,
   recordTallyHeartbeat,
   recordTallySnapshot,
   type ExecuteOptions,
+  type FieldCipher,
+  type FieldEnvelope,
   type TallyConnectorAuth,
   type TallyConnectorCompany,
 } from '@shakti/domain';
@@ -42,12 +44,17 @@ import { CONNECTOR_HEADERS, verifyConnectorRequest } from './signature';
 
 /** A batch: 500 vouchers and 2,000 ledgers with their entries. */
 export const TALLY_BATCH_MAX_BYTES = 4 * 1024 * 1024;
-/** A snapshot: up to 500,000 GUIDs of about 50 characters each. */
-export const TALLY_SNAPSHOT_MAX_BYTES = 32 * 1024 * 1024;
+/**
+ * A snapshot, or one part of one: a function takes at most 4.5 MB (Vercel), so a larger snapshot
+ * comes in parts (`part`), about 80,000 GUIDs each.
+ */
+export const TALLY_SNAPSHOT_MAX_BYTES = 4_500_000;
 const HEARTBEAT_MAX_BYTES = 16 * 1024;
 
 export interface TallyRouteDeps {
   now: () => Date;
+  /** The field cipher that opens the connectors' sealed keys; undefined when the runtime has none. */
+  cipher: () => FieldCipher | undefined;
   options: (meta: { client: { ip: string | null; device: string | null } }) => ExecuteOptions;
 }
 
@@ -63,6 +70,30 @@ function answer(body: unknown, requestId: string): Response {
   return Response.json(body, {
     headers: { 'cache-control': 'no-store', 'x-request-id': requestId },
   });
+}
+
+/**
+ * Opened keys, kept a few minutes per sealed value so a connector's every call does not ask the
+ * key service again; a rotated or retired key is a new sealed value and is opened afresh. Only in
+ * this process's memory, never logged.
+ */
+const opened = new Map<string, { keys: string[]; until: number }>();
+const OPENED_FOR_MS = 5 * 60_000;
+const OPENED_MAX = 50;
+
+async function openedKeys(
+  cipher: FieldCipher,
+  connectorId: string,
+  sealed: readonly FieldEnvelope[],
+): Promise<string[]> {
+  const cacheKey = `${connectorId}:${sealed.map((s) => s.ciphertext).join(':')}`;
+  const now = Date.now();
+  const hit = opened.get(cacheKey);
+  if (hit !== undefined && hit.until > now) return hit.keys;
+  const keys = await openConnectorKeys(cipher, connectorId, sealed);
+  if (opened.size >= OPENED_MAX) opened.clear();
+  opened.set(cacheKey, { keys, until: now + OPENED_FOR_MS });
+  return keys;
 }
 
 /** Reads the body within its cap and checks the signature of the connector the header names. */
@@ -92,6 +123,17 @@ async function verified(
     logger.log('error', 'tally.connector_lookup_failed', { requestId, error });
     return { ok: false, response: fail('internal', requestId) };
   }
+  const cipher = deps.cipher();
+  if (cipher === undefined) {
+    return { ok: false, response: fail('integration_unavailable', requestId) };
+  }
+  let keys: readonly string[] = [];
+  try {
+    keys = auth === undefined ? [] : await openedKeys(cipher, named.data, auth.sealedKeys);
+  } catch (error) {
+    logger.log('error', 'tally.connector_key_unopened', { requestId, connectorId: named.data, error });
+    return { ok: false, response: fail('internal', requestId) };
+  }
   const url = new URL(request.url);
   const verdict = verifyConnectorRequest(
     {
@@ -100,7 +142,7 @@ async function verified(
       headers: request.headers,
       body,
     },
-    (id) => (id === named.data && auth !== undefined ? auth.signingKeys : []),
+    (id) => (id === named.data ? keys : []),
     deps.now(),
   );
   if (!verdict.ok || auth === undefined) {
@@ -215,15 +257,8 @@ export async function tallySnapshotRoute(
   if (!check.ok) return check.response;
   const idempotency = idempotencyOf(request);
   if (!idempotency.ok) return fail('validation_failed', requestId);
-  // The party ledgers' balances travel with the snapshot (TC1 adds them to its contract); they
-  // are read on their own, so a snapshot that carries them parses either way.
-  const body = parsedJson(check.body);
-  const { ledgerBalances: rawBalances, ...rest } =
-    typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
-  const parsed = parseSnapshot(typeof body === 'object' && body !== null ? rest : body);
-  const balances =
-    rawBalances === undefined ? undefined : TallyLedgerBalances.safeParse(rawBalances);
-  if (!parsed.ok || balances?.success === false) return fail('validation_failed', requestId);
+  const parsed = parseSnapshot(parsedJson(check.body));
+  if (!parsed.ok) return fail('validation_failed', requestId);
   const snapshot = parsed.value;
   const company = mappedCompany(check.auth, snapshot.company, snapshot.entityCode);
   if (company === undefined) return fail('forbidden', requestId, 'tally_company_not_mapped');
@@ -235,11 +270,7 @@ export async function tallySnapshotRoute(
       ),
       { entityIds: [company.entityId], requestId },
       recordTallySnapshot,
-      {
-        entityId: company.entityId,
-        snapshot,
-        ...(balances === undefined ? {} : { ledgerBalances: balances.data }),
-      },
+      { entityId: company.entityId, snapshot },
       {
         ...deps.options({ client: clientMeta(request.headers) }),
         ...(idempotency.key === undefined ? {} : { idempotencyKey: idempotency.key }),
@@ -284,4 +315,16 @@ export async function tallyHeartbeatRoute(
   } catch (error) {
     return failed(error, requestId, 'tally.heartbeat_failed');
   }
+}
+
+/**
+ * `GET /api/v1/connector/tally/release`: the signed release manifest for the connector's
+ * self-update. The BOS publishes none until TC4, so a verified connector is answered that there
+ * is no release (`not_found`), and keeps the version it runs.
+ */
+export async function tallyReleaseRoute(request: Request, deps: TallyRouteDeps): Promise<Response> {
+  const requestId = incomingRequestId(request.headers);
+  const check = await verified(request, requestId, HEARTBEAT_MAX_BYTES, deps);
+  if (!check.ok) return check.response;
+  return fail('not_found', requestId, 'tally_no_release');
 }

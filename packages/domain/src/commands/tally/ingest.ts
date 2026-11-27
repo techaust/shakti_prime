@@ -9,6 +9,9 @@ import {
   TallySnapshotConfirmInput,
   TallySnapshotRecordDto,
   TallySnapshotRecordInput,
+  RecordTallyAlertDto,
+  RecordTallyAlertInput,
+  type TallyLedgerBalance,
   type TallyVoucher,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
@@ -119,7 +122,14 @@ export const ingestTallyBatch = defineCommand({
   minScope: 'entity',
   input: TallyBatchIngestInput,
   output: TallyBatchIngestDto,
-  auditFields: ['lastAlterId', 'vouchersNew', 'vouchersChanged', 'vouchersUnchanged', 'ledgers'],
+  auditFields: [
+    'lastAlterId',
+    'vouchersNew',
+    'vouchersChanged',
+    'vouchersUnchanged',
+    'ledgers',
+    'refused',
+  ],
   // A batch holds party names and amounts; the audit row keeps its range and sizes only.
   auditInput: (input) => ({
     entityId: input.entityId,
@@ -128,6 +138,7 @@ export const ingestTallyBatch = defineCommand({
     maxAlterId: input.batch.maxAlterId,
     vouchers: input.batch.vouchers.length,
     ledgers: input.batch.ledgers.length,
+    refused: input.batch.refused?.length ?? 0,
   }),
   constraintReasons: {
     tally_vouchers_guid_unique: 'tally_voucher_other_company',
@@ -230,6 +241,22 @@ export const ingestTallyBatch = defineCommand({
           )}::jsonb) as n`)) as unknown as { n: number }[];
       ledgers = written?.n ?? 0;
     }
+    // Rows of the range the connector could not carry wait for Accounts, and a stored earlier
+    // version of each is no longer current.
+    const refusedRows = batch.refused ?? [];
+    if (refusedRows.length > 0) {
+      await ctx.tx.execute(sql`
+        select app.tally_refused_write(${input.entityId}::smallint, ${batch.company}::text,
+          ${JSON.stringify(
+            refusedRows.map((r) => ({
+              id: newId(),
+              kind: r.kind,
+              guid: r.guid,
+              alter_id: r.alterId,
+              field: r.field,
+            })),
+          )}::jsonb)`);
+    }
     const lastAlterId = checked.outcome.cursor;
     await ctx.tx.execute(sql`
       select app.tally_cursor_move(${input.entityId}::smallint, ${batch.company}::text,
@@ -240,11 +267,30 @@ export const ingestTallyBatch = defineCommand({
       aggregateId: cursor.id,
       entityId: input.entityId,
       before: { lastAlterId: at },
-      after: { lastAlterId, ...accepted },
+      after: { lastAlterId, ...accepted, refused: refusedRows.length },
     });
     return { company: batch.company, accepted, lastAlterId };
   },
 });
+
+/**
+ * The party ledgers' closing balances sent with a snapshot (or a part of it): a known ledger of
+ * the company takes a later balance; an unknown GUID waits for its batch. Answers how many changed.
+ */
+async function writeBalances(
+  ctx: CommandContext,
+  entityId: number,
+  snapshot: { company: string; ledgerBalances?: readonly TallyLedgerBalance[] | undefined },
+): Promise<number> {
+  const balances = snapshot.ledgerBalances ?? [];
+  if (balances.length === 0) return 0;
+  const [changed] = (await ctx.tx.execute(sql`
+    select app.tally_ledger_balances_write(${entityId}::smallint, ${snapshot.company}::text,
+      ${JSON.stringify(
+        balances.map((b) => ({ guid: b.guid, closing_balance: b.closingBalance, as_of: b.asOf })),
+      )}::jsonb) as n`)) as unknown as { n: number }[];
+  return changed?.n ?? 0;
+}
 
 /** The GUIDs a snapshot over the limits would remove, for the person who confirms it. */
 const NO_LIMITS = { maxShare: 1, alwaysAllow: Number.MAX_SAFE_INTEGER } as const;
@@ -299,12 +345,47 @@ export const recordTallySnapshot = defineCommand({
     asOf: input.snapshot.asOf,
     fromDate: input.snapshot.fromDate,
     guids: input.snapshot.voucherGuids.length,
-    ledgerBalances: input.ledgerBalances?.length ?? 0,
+    ledgerBalances: input.snapshot.ledgerBalances?.length ?? 0,
+    part: input.snapshot.part ?? null,
   }),
+  constraintReasons: { tally_snapshots_parts_check: 'tally_snapshot_part_mismatch' },
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const { snapshot } = input;
     const asOf = new Date(snapshot.asOf);
+    const ledgers = await writeBalances(ctx, input.entityId, snapshot);
+    // A snapshot in parts is kept until its last part; then every part's GUIDs are compared.
+    let id = newId();
+    let voucherGuids = snapshot.voucherGuids;
+    if (snapshot.part !== undefined) {
+      const [part] = (await ctx.tx.execute(sql`
+        select snapshot_id, complete, guids
+          from app.tally_snapshot_part(${id}::uuid, ${input.entityId}::smallint,
+            ${snapshot.company}::text, ${snapshot.asOf}::timestamptz, ${snapshot.fromDate}::date,
+            ${snapshot.part.snapshotId}::uuid, ${snapshot.part.part}::smallint,
+            ${snapshot.part.parts}::smallint,
+            ${textArray(snapshot.voucherGuids)}::text[])`)) as unknown as {
+        snapshot_id: string;
+        complete: boolean;
+        guids: string[];
+      }[];
+      if (part === undefined) throw new DomainError('internal', 'the part answered nothing');
+      id = part.snapshot_id;
+      if (!part.complete) {
+        ctx.audit({
+          aggregateType: 'tally_snapshot',
+          aggregateId: id,
+          entityId: input.entityId,
+          after: { ledgers, state: 'receiving', guidCount: snapshot.voucherGuids.length },
+        });
+        return {
+          snapshotId: id,
+          state: 'receiving' as const,
+          response: { company: snapshot.company, known: 0, tombstoned: 0, missingOnServer: [] },
+        };
+      }
+      voucherGuids = part.guids;
+    }
     const stored = (await knownVouchers(ctx, input.entityId, snapshot.company, null)).filter(
       // A voucher dated before the snapshot's first date is not in its list by design.
       (v) => v.voucher_date >= snapshot.fromDate,
@@ -314,7 +395,7 @@ export const recordTallySnapshot = defineCommand({
       receivedAt: new Date(v.received_at),
       tombstoned: v.state === 'tombstoned' || v.state === 'reversed',
     }));
-    const list = { voucherGuids: snapshot.voucherGuids, asOf };
+    const list = { voucherGuids, asOf };
     const checked = diffSnapshot(storedVouchers, list, DEFAULT_SNAPSHOT_LIMITS);
     // Over the limits, the same diff without them names the GUIDs the person would confirm.
     const unlimited = checked.ok ? checked : diffSnapshot(storedVouchers, list, NO_LIMITS);
@@ -323,8 +404,7 @@ export const recordTallySnapshot = defineCommand({
     const { tombstones, missing, reappeared } = unlimited.diff;
     const state: 'applied' | 'held' = checked.ok ? 'applied' : 'held';
     const live = storedVouchers.filter((v) => !v.tombstoned).length;
-    const id = newId();
-    const guidCount = new Set(snapshot.voucherGuids).size;
+    const guidCount = new Set(voucherGuids).size;
     await ctx.tx.execute(sql`
       select app.tally_snapshot_write(${id}::uuid, ${input.entityId}::smallint,
         ${snapshot.company}::text, ${snapshot.asOf}::timestamptz, ${snapshot.fromDate}::date,
@@ -342,20 +422,6 @@ export const recordTallySnapshot = defineCommand({
         tombstones.map((guid) => ({ guid, state: states.get(guid) ?? 'received' })),
         CONNECTOR,
       );
-    }
-    let ledgers = 0;
-    if (input.ledgerBalances !== undefined && input.ledgerBalances.length > 0) {
-      const [changed] = (await ctx.tx.execute(sql`
-        select app.tally_ledger_balances_write(${input.entityId}::smallint,
-          ${snapshot.company}::text,
-          ${JSON.stringify(
-            input.ledgerBalances.map((b) => ({
-              guid: b.guid,
-              closing_balance: b.closingBalance,
-              as_of: b.asOf,
-            })),
-          )}::jsonb) as n`)) as unknown as { n: number }[];
-      ledgers = changed?.n ?? 0;
     }
     ctx.audit({
       aggregateType: 'tally_snapshot',
@@ -458,13 +524,47 @@ export const recordTallyHeartbeat = defineCommand({
     const [row] = (await ctx.tx.execute(sql`
       select app.tally_heartbeat_write(${heartbeat.connectorVersion}::text,
         ${heartbeat.tallyVersion}::text, ${heartbeat.queueDepth}::integer,
+        ${heartbeat.heldRows ?? null}::integer,
         ${JSON.stringify(
           heartbeat.companies.map((c) => ({
             name: c.name,
             last_alter_id: c.lastAlterId,
             reachable: c.reachable,
+            tally_last_alter_id: c.tallyLastAlterId ?? null,
+            problem: c.problem ?? null,
           })),
         )}::jsonb) as n`)) as unknown as { n: number }[];
     return { companies: row?.n ?? 0 };
+  },
+});
+
+/**
+ * `tally.connector.record_alert`: the hourly jobs check (`system:workers`, `platform.jobs.check`)
+ * sent an alert about a connector, silent for thirty minutes or holding rows it could not send,
+ * and records when, so each goes out once per stretch (`shouldAlertSilence`). Through one definer;
+ * it reads nothing of any company.
+ */
+export const recordTallyAlert = defineCommand({
+  name: 'tally.connector.record_alert',
+  permission: 'platform.jobs.check',
+  minScope: 'all',
+  input: RecordTallyAlertInput,
+  output: RecordTallyAlertDto,
+  auditFields: ['alert'],
+  async handler(ctx, input) {
+    const [row] = (await ctx.tx.execute(sql`
+      select app.tally_connector_alerted(${input.connectorId}::uuid, ${input.alert}::text) as ok`)) as unknown as {
+      ok: boolean;
+    }[];
+    const recorded = row?.ok === true;
+    if (recorded) {
+      ctx.audit({
+        aggregateType: 'tally_connector',
+        aggregateId: input.connectorId,
+        entityId: null,
+        after: { alert: input.alert },
+      });
+    }
+    return { recorded };
   },
 });

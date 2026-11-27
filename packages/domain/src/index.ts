@@ -932,6 +932,7 @@ export {
 export {
   confirmTallySnapshot,
   ingestTallyBatch,
+  recordTallyAlert,
   recordTallyHeartbeat,
   recordTallySnapshot,
 } from './commands/tally/ingest';
@@ -950,4 +951,9 @@ export {
   type TallyConnectorAuth,
   type TallyConnectorCompany,
 } from './queries/tally/connector';
-export { connectorSigningKey, newConnectorKey } from './tally/connector-key';
+export {
+  connectorKeyContext,
+  newConnectorKey,
+  openConnectorKeys,
+  sealConnectorKey,
+} from './tally/connector-key';

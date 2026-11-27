@@ -540,6 +540,8 @@
     "tally_company_already_mapped": "This company is already linked to a Tally company. Remove that link first.",
     "tally_connector_revoked": "This connector has been turned off. Register a new connector instead.",
     "tally_connector_no_next_key": "There is no new key waiting. Make a new key first.",
+    "tally_no_release": "There is no new version of the Tally connector yet. Keep the one you have.",
+    "tally_snapshot_part_mismatch": "This part of the daily Tally check does not match the parts before it. The connector will send the check again.",
     "stock_batch_empty": "Nothing was given to move. Add a quantity and try again.",
     "stock_batch_too_large": "That is too much to move at once. Split it into smaller parts and try again.",
     "stock_reason_not_open": "Stock can't be moved this way yet. Use an adjustment or a move between bins.",
@@ -2006,6 +2008,7 @@
       "tallyConnectorRotate": "New Tally connector key made",
       "tallyConnectorRetireKey": "Old Tally connector key turned off",
       "tallyConnectorRevoke": "Tally connector turned off",
+      "tallyConnectorRecordAlert": "Alert sent about a Tally connector",
       "hubCreate": "Hub added",
       "hubUpdate": "Hub changed",
       "hubArchive": "Hub archived",
@@ -2415,6 +2418,8 @@
       "reappeared": "Records back in Tally",
       "tallyCompany": "Tally company",
       "nextKeyHint": "New key ends with",
+      "refused": "Tally records the connector could not send",
+      "alert": "Alert",
       "restored": "Vendors put back as they were",
       "hubCode": "Hub code",
       "hubName": "Hub name",
@@ -2621,6 +2626,17 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "tallyAlert": {
+        "silent": "Tally connector stopped checking in",
+        "rows_held": "Tally connector holding records it could not send"
+      },
+      "tallySnapshotState": {
+        "receiving": "Arriving in parts",
+        "applied": "Checked",
+        "held": "Waiting for Accounts",
+        "confirmed": "Confirmed by Accounts",
+        "superseded": "Replaced by a newer check"
       }
     }
   },

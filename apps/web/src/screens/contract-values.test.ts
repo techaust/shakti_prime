@@ -134,6 +134,9 @@ import {
   SerialStateSchema,
   StockAdjustmentSchema,
   StockReasonSchema,
+  TALLY_COMPANY_PROBLEMS,
+  TALLY_CONNECTOR_ALERTS,
+  TALLY_SNAPSHOT_STATES,
   WarehouseKindSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
@@ -263,6 +266,10 @@ import {
   STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
   STOCK_REASONS as STOCK_REASONS_WEB,
   WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
+  // TC2 Tally ingest
+  TALLY_COMPANY_PROBLEMS as TALLY_COMPANY_PROBLEMS_WEB,
+  TALLY_CONNECTOR_ALERTS as TALLY_CONNECTOR_ALERTS_WEB,
+  TALLY_SNAPSHOT_STATES as TALLY_SNAPSHOT_STATES_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -385,6 +392,10 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // TC2 Tally ingest
+    expect(TALLY_COMPANY_PROBLEMS_WEB).toEqual(TALLY_COMPANY_PROBLEMS);
+    expect(TALLY_CONNECTOR_ALERTS_WEB).toEqual(TALLY_CONNECTOR_ALERTS);
+    expect(TALLY_SNAPSHOT_STATES_WEB).toEqual(TALLY_SNAPSHOT_STATES);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

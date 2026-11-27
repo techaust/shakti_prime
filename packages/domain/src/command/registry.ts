@@ -207,6 +207,7 @@ import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/
 import {
   confirmTallySnapshot,
   ingestTallyBatch,
+  recordTallyAlert,
   recordTallyHeartbeat,
   recordTallySnapshot,
 } from '../commands/tally/ingest';
@@ -443,6 +444,7 @@ export const commands = Object.freeze({
   [recordTallySnapshot.name]: recordTallySnapshot,
   [confirmTallySnapshot.name]: confirmTallySnapshot,
   [recordTallyHeartbeat.name]: recordTallyHeartbeat,
+  [recordTallyAlert.name]: recordTallyAlert,
   [registerTallyConnector.name]: registerTallyConnector,
   [mapTallyCompany.name]: mapTallyCompany,
   [unmapTallyCompany.name]: unmapTallyCompany,
