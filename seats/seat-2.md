@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T15:36Z
+updated: 2026-11-27T16:00Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -98,3 +98,11 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: none
 done_when: report: u2-purchase-orders done
 note: continue. The lead read the early check (27-11 15:50 UTC): accepted, the seven-table design and the decisions included. Receipt reversal: X4 gains a reversible flag per reason (its addendum 2); your opening migration also sets receipt's reversible true. Build the screens, the PDF and the scan field now; take main in and add the opening once X4 has merged; if X4 has not merged when only that remains, report done with it named, and the lead adds it at integration.
+
+lane: 47
+role: build
+branch: feat/tc1-tally-connector
+run_file: docs/runs/phase5/tc1-tally-connector.md
+wait_for: none
+done_when: report: tc1-tally-connector done
+note: continue. The lead read the early check (27-11 16:10 UTC): accepted, assumptions 1 to 13 and 16 included; the spike script may import the reader by path. Now (a) add an optional ledgerBalances list (party ledger GUID, name, closing balance, as of) to the snapshot contract in packages/contracts/src/api/connector.ts and send the Sundry Debtors closing balances with each daily snapshot (dealer outstanding, your point 3); (b) the lead added esbuild as a dev dependency: drop the eslint-disable and import it normally (point 14); (c) add the fence block for apps/tally-connector to eslint.config.mjs like apps/voice-agent's (point 15, a checks change the owner labels). Then the final checks and report done.
