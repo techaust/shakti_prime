@@ -77,7 +77,7 @@ export function ReservationsPanel({
   extendAuthority: ExtendAuthority | null;
   canAdjust: boolean;
 }) {
-  const t = useTranslations('inventory.reservations');
+  const t = useTranslations('holds.reservations');
   const [list, setList] = useState(initial);
   const [open, setOpen] = useState<Open | undefined>();
   const { load, failure } = useQuery<ReservationListDto>();
@@ -238,7 +238,7 @@ function ChangeDialog({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const t = useTranslations('inventory.reservations');
+  const t = useTranslations('holds.reservations');
   const common = useTranslations('common');
   const extend = useCommand(extendReservation);
   const release = useCommand(releaseReservation);
@@ -247,6 +247,11 @@ function ChangeDialog({
   const { fieldError, formFailure } = useFieldFailure(current.failure, ['reason', 'hubId']);
   const [problem, setProblem] = useState<'reason' | 'hub' | undefined>();
   const { row } = open;
+  const copy = {
+    extend: { title: t('extendTitle'), intro: t('extendIntro'), submit: t('extendSubmit') },
+    release: { title: t('releaseTitle'), intro: t('releaseIntro'), submit: t('releaseSubmit') },
+    move: { title: t('moveTitle'), intro: t('moveIntro'), submit: t('moveSubmit') },
+  }[open.change];
   const otherHubs = hubs.filter(
     (h) => h.id !== row.hubId && h.kind !== 'transit' && h.archivedAt === null,
   );
@@ -295,9 +300,9 @@ function ChangeDialog({
       <DialogContent closeLabel={common('close')} returnFocusTo={open.returnFocusTo}>
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           <DialogHeader>
-            <DialogTitle>{t(`${open.change}Title`)}</DialogTitle>
+            <DialogTitle>{copy.title}</DialogTitle>
             <DialogDescription>
-              {t(`${open.change}Intro`)}{' '}
+              {copy.intro}{' '}
               <span className="tabular-nums">
                 {`${row.itemName} · ${plainQuantity(row.qty)} · `}
                 <time dateTime={row.expiresAt}>{formatDateTime(row.expiresAt)}</time>
@@ -339,7 +344,7 @@ function ChangeDialog({
               variant={open.change === 'release' ? 'danger' : 'primary'}
               pending={current.pending}
             >
-              {t(`${open.change}Submit`)}
+              {copy.submit}
             </Button>
           </DialogFooter>
         </form>
@@ -353,8 +358,8 @@ function ChangeDialog({
  * first confirmed first, a hold that ended waiting behind those already waiting.
  */
 export function BackordersPanel({ list }: { list: BackorderListDto }) {
-  const t = useTranslations('inventory.backorders');
-  const holds = useTranslations('inventory.reservations');
+  const t = useTranslations('holds.backorders');
+  const holds = useTranslations('holds.reservations');
   const columns: DataGridColumn<BackorderRowDto>[] = [
     {
       id: 'order',

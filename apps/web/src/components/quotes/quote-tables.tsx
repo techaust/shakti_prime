@@ -32,7 +32,7 @@ export function QuoteLinesTable({
   availability?: LineAvailabilityDto | undefined;
 }) {
   const t = useTranslations('quotes.page');
-  const stock = useTranslations('inventory.availability');
+  const stock = useTranslations('holds.availability');
   const byPosition = availabilityByPosition(availability);
   const shown = availability !== undefined;
   const gst = (line: QuoteLineDto) =>
@@ -127,7 +127,7 @@ function QuoteLinesWide({
   availability: ReadonlyMap<number, LineAvailability> | undefined;
 }) {
   const t = useTranslations('quotes.page');
-  const stock = useTranslations('inventory.availability');
+  const stock = useTranslations('holds.availability');
   return (
     // A wide table scrolls in a narrow window: the region takes focus, so the keyboard can scroll it.
     <div

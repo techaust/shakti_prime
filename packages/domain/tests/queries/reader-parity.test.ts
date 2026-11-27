@@ -138,10 +138,7 @@ import {
   readStockValuation,
 } from '../../src/queries/inventory/stock';
 // H2 reservations and availability
-import {
-  previewLineAvailability,
-  readLineAvailability,
-} from '../../src/queries/inventory/availability';
+import { readLineAvailability } from '../../src/queries/inventory/availability';
 import { listItemBackorders, listReservations } from '../../src/queries/inventory/reservations';
 import {
   accountSalesOrders,
@@ -384,11 +381,6 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   // H2 reservations and availability
   readLineAvailability: (ctx) =>
     readLineAvailability(ctx, { entityId: 1, kind: 'quote', id: newId() }),
-  previewLineAvailability: (ctx) =>
-    previewLineAvailability(ctx, {
-      entityId: 1,
-      lines: [{ position: 1, itemId: newId(), qty: '1' }],
-    }),
   listReservations: (ctx) => listReservations(ctx, { entityId: 1, itemId: newId() }),
   listItemBackorders: (ctx) => listItemBackorders(ctx, { entityId: 1, itemId: newId() }),
 };

@@ -261,10 +261,10 @@ describe('the stock lists of reservations and backorders', () => {
       hubId: s.hub,
       binCode: 'A1',
       extended: false,
-      // The Inventory Manager reads no lead's order: its number and line stay hidden.
-      soNo: null,
-      linePosition: null,
+      // A customer's own order is read with the customer, which the Inventory Manager reads.
+      linePosition: 1,
     });
+    expect(held.items[0]?.soNo).not.toBeNull();
     const byItem = await asPrincipal(gm, (ctx) =>
       listReservations(ctx, { entityId: E, itemId: item }),
     );

@@ -33,7 +33,7 @@ function hasCounts(line: LineAvailability): line is LineStockDto {
  * stock on a quote or a draft order; held, waiting and dispatched on a confirmed order.
  */
 export function AvailabilityValue({ line }: { line: LineAvailability | undefined }) {
-  const t = useTranslations('inventory.availability');
+  const t = useTranslations('holds.availability');
   if (line === undefined) return <span className="text-text-muted">{t('none')}</span>;
   const label =
     line.status === 'short' && line.expectedOn !== null ? t('onOrder') : t(`status.${line.status}`);

@@ -6902,7 +6902,9 @@
       "supplierWarrantyUntil": "Supplier's warranty until",
       "notSet": "Not set",
       "movements": "Movements"
-    },
+    }
+  },
+  "holds": {
     "availability": {
       "column": "Stock",
       "none": "Not kept in stock",

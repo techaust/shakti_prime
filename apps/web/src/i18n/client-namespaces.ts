@@ -60,7 +60,7 @@ export const CLIENT_SCOPES = {
   // U1 vendors and supplier quotes.
   '/procurement': ['common', 'files', 'procurement'],
   // H1 stock ledger
-  '/inventory': ['catalogue', 'common', 'inventory'],
+  '/inventory': ['catalogue', 'common', 'holds', 'inventory'],
   '/converters': ['common', 'converters', 'roles', 'users'],
   '/converting': [
     'agents',
@@ -68,6 +68,7 @@ export const CLIENT_SCOPES = {
     'common',
     'converting',
     'customers',
+    'holds',
     'leads',
     'messaging',
     'qualification',
@@ -96,9 +97,9 @@ export const CLIENT_SCOPES = {
   '/knowledge': ['common', 'files', 'knowledge', 'playbook'],
   '/leads': ['common', 'leads', 'pinLookup', 'qualification'],
   '/messages': ['messaging'],
-  '/orders': ['common', 'orders', 'quotes'],
+  '/orders': ['common', 'holds', 'orders', 'quotes'],
   '/price-master': ['catalogue', 'common', 'priceMaster'],
-  '/quotes': ['common', 'files', 'orders', 'quotes'],
+  '/quotes': ['common', 'files', 'holds', 'orders', 'quotes'],
   '/settings': [
     'activity',
     'common',
