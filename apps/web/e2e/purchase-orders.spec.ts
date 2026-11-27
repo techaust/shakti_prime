@@ -17,10 +17,11 @@ import {
 } from './support/users';
 
 // U2 purchase orders and goods receipt (docs/03-roadmap-appendix/phase3.md §7.2). The Inventory
-// Manager of company 1 drafts an order with its rate and sees its tax split, then receives the
-// project's own sent order of two serial-tracked pumps by scanning their serials; the snapshot
-// company's approved order is the order sheet's screenshot, with rates for its Executive and with
-// none anywhere for its General Manager. Serials carry the project and the run's time, since a
+// Manager of company 1 drafts an order with its rate and sees its tax split, sends the project's own
+// approved order by email to the supplier's person, then receives the project's own sent order of
+// two serial-tracked pumps by scanning their serials; the snapshot company's approved order is the
+// order sheet's screenshot, with rates and its PDF for its Executive and with none anywhere for its
+// General Manager. Serials carry the project and the run's time, since a
 // serial is unique for its item.
 
 /** The run's two serials the pump's pattern (JP-0000) takes, new on each run and project. */
@@ -60,7 +61,7 @@ test.describe('as the Inventory Manager of company 1', () => {
     await expect(page.getByText('₹7,250.00').first()).toBeVisible();
     await expect(page.getByText('₹8,555.00')).toBeVisible();
     // A draft never prints: no Download PDF, and its PDF address answers not found.
-    await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Download PDF' })).toHaveCount(0);
     const draftPdf = await page.request.get(`${new URL(page.url()).pathname}/pdf`);
     expect(draftPdf.status()).toBe(404);
     // Nobody approves an order they drafted, unless they are an Executive.
@@ -68,6 +69,28 @@ test.describe('as the Inventory Manager of company 1', () => {
     await expect(
       page.getByText('You drafted this purchase order, so someone else must approve it.'),
     ).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+
+  test('sends an approved order by email to the supplier’s person', async ({ page }) => {
+    const number = PURCHASE_ORDER_JOURNEY.emailNo[projectName()];
+    await page.goto(`/procurement/orders/${PURCHASE_ORDER_IDS.emailOrders[projectName()]}`);
+    await expect(page.getByRole('heading', { name: `Purchase order ${number}` })).toBeVisible();
+    await (await hydrated(page.getByRole('button', { name: 'Send by email' }))).click();
+    const dialog = page.getByRole('dialog', { name: `Email purchase order ${number}` });
+    await expect(dialog).toBeVisible();
+    const { name, email } = PURCHASE_ORDER_JOURNEY.emailContact;
+    await expect(dialog.getByLabel('Send to')).toHaveValue(PURCHASE_ORDER_IDS.emailContact);
+    await expect(dialog.getByRole('option', { name: `${name} (${email})` })).toHaveCount(1);
+    await expectNoAxeViolations(page);
+    await snap(page, 'purchase-order-email-dialog');
+    await dialog.getByRole('button', { name: 'Send email' }).click();
+    await expect(
+      page.getByText(`Purchase order ${number} sent. Its PDF is on its way by email.`),
+    ).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText('Sent', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Send by email' })).toHaveCount(0);
     await expectNoAxeViolations(page);
   });
 
@@ -124,6 +147,13 @@ test.describe('as the Executive of the snapshot company', () => {
     await expect(page.getByText('₹24,869.00')).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'purchase-order-sheet');
+    // Download PDF asks the render worker for the PDF (here, in the app's own process) and saves
+    // the stored file once it is there.
+    const download = page.waitForEvent('download');
+    await (await hydrated(page.getByRole('button', { name: 'Download PDF' }))).click();
+    expect((await download).suggestedFilename()).toBe(
+      `Purchase order ${PURCHASE_ORDER_JOURNEY.snapshotNo.replaceAll('/', '-')}.pdf`,
+    );
     const pdf = await page.request.get(
       `/procurement/orders/${PURCHASE_ORDER_IDS.snapshotOrder}/pdf`,
     );
@@ -151,6 +181,12 @@ test.describe('as the General Manager of the snapshot company', () => {
     await expect(page.getByText('₹')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Mark sent' })).toHaveCount(0);
+    // The PDF prints the rates, so it is neither offered nor served to the General Manager.
+    await expect(page.getByRole('button', { name: 'Download PDF' })).toHaveCount(0);
+    const pdf = await page.request.get(
+      `/procurement/orders/${PURCHASE_ORDER_IDS.snapshotOrder}/pdf`,
+    );
+    expect(pdf.status()).toBe(404);
     await expectNoAxeViolations(page);
     await snap(page, 'purchase-order-sheet-no-rates');
 

@@ -1,9 +1,10 @@
 // U2's journey fixtures (`e2e/purchase-orders.spec.ts`), written by the seed on the host as the
 // table owner, after the vendors and the stock journeys: a pump tracked by serial that the
 // journeys' cables vendor supplies, with its GST rate; per project, a purchase order of company 1
-// for two pumps, approved and sent by the Executive, for the Inventory Manager to receive; and, in
-// the snapshot company, one approved order with fixed ids and dates for the order sheet's
-// screenshots. Every rate here is a test value for the journeys alone, never a client figure.
+// for two pumps, approved and sent by the Executive, for the Inventory Manager to receive, and one
+// pump, approved, for the Inventory Manager to send by email to a supplier of this file's own
+// (named so the vendor list's searched screenshots never show it); and, in the snapshot company,
+// one approved order with fixed ids and dates for the order sheet's screenshots. Every rate here is a test value for the journeys alone, never a client figure.
 import { asMigrator } from '@shakti/db/testing';
 import {
   PROJECTS,
@@ -59,6 +60,36 @@ export async function ensurePurchaseOrderJourneys(executiveId: string): Promise<
           on conflict (id) do nothing`;
         await tx`insert into po_line_rates (po_line_id, entity_id, unit_rate, amount, created_by)
           values (${ids.lines[project]}, ${STOCK_JOURNEY.entityId}, 15000, 30000.00, ${executiveId})
+          on conflict (po_line_id) do nothing`;
+      }
+
+      // The supplier the orders sent by email go to, with its person's email address.
+      await tx`insert into vendors (id, name, address_json, created_by, created_at, updated_at)
+        values (${ids.emailVendor}, ${PURCHASE_ORDER_JOURNEY.emailVendor},
+                ${tx.json({ city: 'Jaipur' })}, ${executiveId}, ${SEEDED_AT}, ${SEEDED_AT})
+        on conflict (id) do nothing`;
+      await tx`insert into vendor_contacts (id, vendor_id, name, role, email, position, created_by, created_at, updated_at)
+        values (${ids.emailContact}, ${ids.emailVendor}, ${PURCHASE_ORDER_JOURNEY.emailContact.name},
+                'Orders', ${PURCHASE_ORDER_JOURNEY.emailContact.email}, 1, ${executiveId},
+                ${SEEDED_AT}, ${SEEDED_AT})
+        on conflict (id) do nothing`;
+      // Per project: one pump ordered in company 1 and approved by the Executive, to send by email.
+      for (const project of PROJECTS) {
+        const order = ids.emailOrders[project];
+        await tx`insert into purchase_orders (id, entity_id, po_no, vendor_id, deliver_to_warehouse_id,
+                   state, source, drafted_by, approved_by, approved_at,
+                   vendor_state_code, place_of_supply_state_code, created_by, created_at, updated_at)
+          values (${order}, ${STOCK_JOURNEY.entityId}, ${PURCHASE_ORDER_JOURNEY.emailNo[project]},
+                  ${ids.emailVendor}, ${hub.id}, 'approved', 'manual', ${executiveId},
+                  ${executiveId}, ${SEEDED_AT}, '08', '08', ${executiveId}, ${SEEDED_AT}, ${SEEDED_AT})
+          on conflict (id) do nothing`;
+        await tx`insert into po_lines (id, po_id, entity_id, line_no, item_id, qty, purchase_unit,
+                   unit_factor, hsn, tax_rate_id, tax_rate_pct, created_by, created_at, updated_at)
+          values (${ids.emailLines[project]}, ${order}, ${STOCK_JOURNEY.entityId}, 1, ${ids.pump}, 1,
+                  'nos', 1, '8413', ${ids.pumpRate}, 12.00, ${executiveId}, ${SEEDED_AT}, ${SEEDED_AT})
+          on conflict (id) do nothing`;
+        await tx`insert into po_line_rates (po_line_id, entity_id, unit_rate, amount, created_by)
+          values (${ids.emailLines[project]}, ${STOCK_JOURNEY.entityId}, 15000, 15000.00, ${executiveId})
           on conflict (po_line_id) do nothing`;
       }
 

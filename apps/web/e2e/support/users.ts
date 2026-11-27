@@ -549,6 +549,15 @@ export const PURCHASE_ORDER_JOURNEY = {
     phone: 'JRN/PO/2026-27/0103',
   },
   snapshotNo: 'SNP/PO/2026-27/0001',
+  /** Per project, an approved order the Inventory Manager sends by email (review R7). */
+  emailNo: {
+    'desktop-light': 'JRN/PO/2026-27/0111',
+    'desktop-dark': 'JRN/PO/2026-27/0112',
+    phone: 'JRN/PO/2026-27/0113',
+  },
+  /** The supplier those orders go to, and its person with an email address. */
+  emailVendor: 'Journey pump supplier',
+  emailContact: { name: 'Orders desk', email: 'orders@pump-supplier.example.in' },
 } as const;
 
 const poId = (n: number) => `0199e2e0-0000-7000-8000-00000000f${n.toString(16).padStart(3, '0')}`;
@@ -562,4 +571,8 @@ export const PURCHASE_ORDER_IDS = {
   snapshotLine: poId(0x011),
   orders: { 'desktop-light': poId(0x020), 'desktop-dark': poId(0x021), phone: poId(0x022) },
   lines: { 'desktop-light': poId(0x030), 'desktop-dark': poId(0x031), phone: poId(0x032) },
+  emailVendor: poId(0x004),
+  emailContact: poId(0x005),
+  emailOrders: { 'desktop-light': poId(0x040), 'desktop-dark': poId(0x041), phone: poId(0x042) },
+  emailLines: { 'desktop-light': poId(0x050), 'desktop-dark': poId(0x051), phone: poId(0x052) },
 } as const;
