@@ -1,3 +1,4 @@
+import { hasGrant } from '@shakti/contracts';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -44,7 +45,11 @@ export default async function SerialPage({
   if (!serial.ok && serial.error === 'stock_serial_unknown') notFound();
   const t = await getTranslations('inventory.serial');
   return serial.ok ? (
-    <SerialScreen serial={serial.data} company={companyNames(access)[entityId] ?? ''} />
+    <SerialScreen
+      serial={serial.data}
+      company={companyNames(access)[entityId] ?? ''}
+      canRaiseClaim={hasGrant(principal.permissions, 'inventory.warranty.write', 'entity')}
+    />
   ) : (
     <Page title={t('title')} width="detail">
       <FailureMessage failure={firstFailure(serial)} />

@@ -316,6 +316,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
       { key: 'finance.cost.read', scope: 'entity' },
     ],
   },
+  // R3: Inventory › Warranty claims (docs/03-roadmap-appendix/phase3.md §7.5).
+  {
+    id: 'inventory-warranty',
+    href: '/inventory/warranty',
+    label: 'inventoryWarranty',
+    icon: ShieldCheck,
+    group: 'work',
+    // listWarrantyClaims reads a company's claims with inventory.stock.read for the company (or
+    // inventory.warranty.write, which every holder of the first that raises claims also holds).
+    requires: [{ key: 'inventory.stock.read', scope: 'entity' }],
+  },
   {
     id: 'imports',
     href: '/imports',

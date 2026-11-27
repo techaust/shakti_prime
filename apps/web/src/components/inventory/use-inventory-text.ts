@@ -7,6 +7,7 @@ import {
   SERIAL_STATES,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  WARRANTY_CLAIM_STATES,
 } from '../../screens/contract-values';
 
 function oneOf<T extends string>(values: readonly T[], value: string): value is T {
@@ -35,4 +36,10 @@ export function useReasonText() {
 export function useSerialStateText() {
   const t = useTranslations('inventory.serialStates');
   return (state: string) => (oneOf(SERIAL_STATES, state) ? t(state) : wordsOf(state));
+}
+
+/** Where a warranty claim stands, in words (R3). */
+export function useClaimStateText() {
+  const t = useTranslations('warranty.states');
+  return (state: string) => (oneOf(WARRANTY_CLAIM_STATES, state) ? t(state) : wordsOf(state));
 }

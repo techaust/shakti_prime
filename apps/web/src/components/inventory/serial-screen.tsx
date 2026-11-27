@@ -8,10 +8,20 @@ import { formatDate } from '../../screens/format';
 import { stockCardHref } from '../../screens/inventory';
 import { Page } from '../shell/page';
 import { MovementsTable } from './movements-table';
+import { RaiseClaimButton } from './raise-claim-button';
 import { useSerialStateText } from './use-inventory-text';
 
 /** A serial: where it is, its warranty dates and every movement, newest first. */
-export function SerialScreen({ serial, company }: { serial: SerialDto; company: string }) {
+export function SerialScreen({
+  serial,
+  company,
+  canRaiseClaim = false,
+}: {
+  serial: SerialDto;
+  company: string;
+  /** R3: the caller raises warranty claims, and the serial is with its customer. */
+  canRaiseClaim?: boolean;
+}) {
   const t = useTranslations('inventory.serial');
   const state = useSerialStateText();
   const facts: [string, string][] = [
@@ -41,9 +51,17 @@ export function SerialScreen({ serial, company }: { serial: SerialDto; company: 
       description={t('intro')}
       width="detail"
       actions={
-        <Button asChild variant="secondary">
-          <Link href={stockCardHref(serial.entityId, serial.item.id)}>{t('card')}</Link>
-        </Button>
+        <>
+          {canRaiseClaim && serial.state === 'with_customer' ? (
+            <RaiseClaimButton
+              entityId={serial.entityId}
+              on={{ kind: 'serial', serialId: serial.id, serialNo: serial.serialNo }}
+            />
+          ) : null}
+          <Button asChild variant="secondary">
+            <Link href={stockCardHref(serial.entityId, serial.item.id)}>{t('card')}</Link>
+          </Button>
+        </>
       }
     >
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">

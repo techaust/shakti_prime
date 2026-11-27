@@ -676,7 +676,8 @@
     "procurement": "Procurement",
     "inventoryStock": "Stock",
     "inventoryHubs": "Hubs and bins",
-    "inventoryValuation": "Stock valuation"
+    "inventoryValuation": "Stock valuation",
+    "inventoryWarranty": "Warranty claims"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -776,7 +777,8 @@
       "procurement": "See the vendors the group buys from, their people, items and quotes.",
       "inventoryStock": "See what each hub and bin holds, and adjust or move stock.",
       "inventoryHubs": "See the hubs and their bins, and set them up.",
-      "inventoryValuation": "See what the stock is worth at a date."
+      "inventoryValuation": "See what the stock is worth at a date.",
+      "inventoryWarranty": "See warranty claims by where they stand, and take each to its next step."
     },
     "progress": {
       "period": {
@@ -6897,6 +6899,114 @@
       "supplierWarrantyUntil": "Supplier's warranty until",
       "notSet": "Not set",
       "movements": "Movements"
+    }
+  },
+  "warranty": {
+    "title": "Warranty claims",
+    "intro": "A company's warranty claims, from the customer's report to the supplier's settlement. Raise a claim from the customer's page or the serial's page.",
+    "caption": "Warranty claims, newest first",
+    "empty": "No warranty claims here.",
+    "companiesLabel": "Company",
+    "statesLabel": "Show claims",
+    "allStates": "All ({shown})",
+    "stateCount": "{state} ({shown})",
+    "columns": {
+      "claim": "Claim",
+      "customer": "Customer",
+      "product": "Product",
+      "fault": "Fault reported",
+      "state": "Status"
+    },
+    "customerHidden": "A customer you do not look after",
+    "notIdentified": "Not identified yet",
+    "raise": "Raise a warranty claim",
+    "back": "All claims",
+    "identify": "Identify the serial",
+    "reject": "Reject the claim",
+    "settle": "Record the credit",
+    "sheetTitle": "Warranty claim {claim}",
+    "raisedOn": "Raised on {date} for {company}",
+    "fields": {
+      "customer": "Customer",
+      "site": "Site",
+      "product": "Product",
+      "serial": "Faulty serial",
+      "fault": "Fault reported",
+      "replacement": "Replacement given",
+      "supplier": "Supplier",
+      "settlement": "Settled by",
+      "rejectedReason": "Why it was rejected"
+    },
+    "noSite": "No site named",
+    "siteWithoutVillage": "Site without a village",
+    "noWarrantyDate": "No warranty date",
+    "warrantyUntil": "Warranty until {date}",
+    "supplierRef": "{vendor}, their return reference {ref}",
+    "settlements": {
+      "credit": "Credit from the supplier",
+      "replacement": "Replacement from the supplier"
+    },
+    "steps": {
+      "title": "Steps",
+      "raised": "Claim raised",
+      "serial_identified": "Faulty serial identified, in warranty",
+      "replacement_issued": "Replacement given from stock",
+      "rma_raised": "Faulty item sent back to the supplier",
+      "closed": "Supplier's credit or replacement received"
+    },
+    "stepStatus": {
+      "done": "Done",
+      "current": "Next"
+    },
+    "costs": {
+      "title": "Costs",
+      "replacement": "Replacement's cost",
+      "credit": "Supplier's credit",
+      "none": "Not recorded"
+    },
+    "states": {
+      "raised": "Raised",
+      "serial_identified": "Serial identified",
+      "replacement_issued": "Replacement given",
+      "rma_raised": "With the supplier",
+      "closed": "Closed",
+      "rejected": "Rejected"
+    },
+    "dialogs": {
+      "raiseTitle": "Raise a warranty claim",
+      "raiseCustomerIntro": "Write down the fault as the customer describes it. You identify the serial next, from what was delivered to them.",
+      "raiseSerialIntro": "The claim is raised on serial {serial}, for the customer it was delivered to. Write down the fault as the customer describes it.",
+      "site": "Site",
+      "noSite": "No particular site",
+      "siteWithoutVillage": "Site without a village",
+      "fault": "Fault reported",
+      "faultHelper": "What stopped working, and since when.",
+      "faultInvalid": "Describe the fault in 3 to 1,000 characters.",
+      "raiseSubmit": "Raise the claim",
+      "raised": "Claim {claim} raised.",
+      "identifyTitle": "Identify the faulty serial",
+      "identifyIntro": "Choose the serial that failed, from those delivered to this customer. A serial out of warranty can't be claimed.",
+      "serial": "Serial",
+      "serialOption": "{serial}, {item}",
+      "warrantyUntil": "Warranty until {date}",
+      "noWarrantyDate": "This serial has no warranty date.",
+      "expiredOn": "The warranty on this serial ended on {date}. Reject the claim, or offer a paid repair.",
+      "noSerials": "No serial of this company is with this customer. Reject the claim if the product was not ours.",
+      "identifySubmit": "Identify",
+      "identified": "Serial identified.",
+      "rejectTitle": "Reject the claim",
+      "rejectIntro": "Say why: out of warranty, or not a fault. The claim can't be reopened.",
+      "rejectReason": "Why it is rejected",
+      "rejectReasonInvalid": "Give the reason in 3 to 300 characters.",
+      "rejectSubmit": "Reject",
+      "rejected": "Claim rejected.",
+      "settleTitle": "Record the supplier's credit",
+      "settleIntro": "The supplier's credit note closes the claim. The amount is kept with the claim's costs, which only people who see costs can read.",
+      "credit": "Credit amount in rupees",
+      "creditHelper": "As on the credit note, for example 16250.50.",
+      "creditInvalid": "Enter an amount above zero, in rupees and paise.",
+      "settleSubmit": "Close the claim",
+      "settled": "Claim closed with the credit."
     }
   }
 }

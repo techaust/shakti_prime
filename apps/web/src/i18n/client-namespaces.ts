@@ -60,7 +60,8 @@ export const CLIENT_SCOPES = {
   // U1 vendors and supplier quotes.
   '/procurement': ['common', 'files', 'procurement'],
   // H1 stock ledger
-  '/inventory': ['catalogue', 'common', 'inventory'],
+  // R3: the warranty claims' screens, and Raise a claim on a serial's page.
+  '/inventory': ['catalogue', 'common', 'inventory', 'warranty'],
   '/converters': ['common', 'converters', 'roles', 'users'],
   '/converting': [
     'agents',
@@ -86,6 +87,8 @@ export const CLIENT_SCOPES = {
     'qualification',
     'quotes',
     'sizing',
+    // R3: Raise a warranty claim on Account 360.
+    'warranty',
   ],
   '/dealer-credit': ['common', 'dealerCredit'],
   '/design': ['common', 'leads'],

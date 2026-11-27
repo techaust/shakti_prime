@@ -1,3 +1,4 @@
+import { hasGrant } from '@shakti/contracts';
 import { UPLOAD_LIMITS } from '@shakti/domain';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -38,7 +39,7 @@ export default async function AccountPage({
   params: Promise<{ accountId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { access } = await screenAccess(navRequires('customers'));
+  const { principal, access } = await screenAccess(navRequires('customers'));
   const [{ accountId }, query] = await Promise.all([params, searchParams]);
   if (!UUID.test(accountId)) notFound();
   const entityId = companyParam(query.company);
@@ -58,6 +59,7 @@ export default async function AccountPage({
       companies={companyNames(access)}
       {...(view.data.canEdit ? { proofLimit: proofLimit() } : {})}
       duplicates={duplicates?.ok === true ? duplicates.data : undefined}
+      canRaiseClaim={hasGrant(principal.permissions, 'inventory.warranty.write', 'entity')}
     />
   ) : (
     <Page title={t('title')}>

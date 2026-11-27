@@ -39,6 +39,7 @@ import { settle } from '../screens/settle';
 import { useCommand, useQuery, type CommandFailure } from '../screens/use-command';
 import { TimelineRow } from './timeline-row';
 import type { CustomerDialogKind } from './customer-dialogs';
+import { RaiseClaimButton } from '../inventory/raise-claim-button';
 
 // The dialogs and the sizing panel load on first use, so the page ships only what it shows.
 const CustomerDialog = dynamic(() => import('./customer-dialogs').then((m) => m.CustomerDialog));
@@ -102,6 +103,7 @@ export function AccountScreen({
   companies,
   proofLimit,
   duplicates,
+  canRaiseClaim = false,
 }: {
   initial: Account360Dto;
   companies: Record<number, string>;
@@ -109,6 +111,8 @@ export function AccountScreen({
   proofLimit?: UploadLimitView;
   /** The customer's duplicate cards and the merges into it, when it has any. */
   duplicates?: AccountDuplicatesDto | undefined;
+  /** R3: the caller raises warranty claims for the company shown (`inventory.warranty.write`). */
+  canRaiseClaim?: boolean;
 }) {
   const t = useTranslations('customers');
   const leadsT = useTranslations('leads');
@@ -151,6 +155,12 @@ export function AccountScreen({
           <Button asChild variant="secondary">
             <Link href="/customers">{t('account.back')}</Link>
           </Button>
+          {canRaiseClaim ? (
+            <RaiseClaimButton
+              entityId={view.entityId}
+              on={{ kind: 'customer', accountId: view.account.id, sites: view.sites }}
+            />
+          ) : null}
           {view.canSetTier ? (
             <Button
               variant="secondary"
