@@ -211,6 +211,7 @@ import {
   cancelPurchaseOrder,
   closePurchaseOrder,
   createPurchaseOrder,
+  requestPurchaseOrderPdf,
   sendPurchaseOrder,
   updatePurchaseOrder,
 } from '../commands/procurement/orders';
@@ -446,6 +447,7 @@ export const commands = Object.freeze({
   [sendPurchaseOrder.name]: sendPurchaseOrder,
   [cancelPurchaseOrder.name]: cancelPurchaseOrder,
   [closePurchaseOrder.name]: closePurchaseOrder,
+  [requestPurchaseOrderPdf.name]: requestPurchaseOrderPdf,
   [postGoodsReceipt.name]: postGoodsReceipt,
   [reverseGoodsReceipt.name]: reverseGoodsReceipt,
   [setReorderRule.name]: setReorderRule,

@@ -63,6 +63,12 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   },
   // Q1: a sheet of QR labels, printed by the render worker and opened by whoever handles stock.
   label_sheet: { write: needs('files.process', 'entity'), read: 'inventory.stock.move' },
+  // U2: a purchase order's PDF prints its rates, so it is stored by the render worker alone and
+  // read only with procurement.rate.read, as a supplier's quote document is.
+  purchase_order_pdf: {
+    write: needs('files.process', 'entity'),
+    read: 'procurement.rate.read',
+  },
 };
 
 /** The answer `app.file_purpose_grant(purpose, access)` gives, in its own shape. */

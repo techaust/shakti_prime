@@ -5,7 +5,9 @@ import {
   CreatePurchaseOrderInput,
   DomainError,
   newId,
+  PurchaseOrderPdfDto,
   PurchaseOrderRefDto,
+  RequestPurchaseOrderPdfInput,
   SendPurchaseOrderInput,
   UpdatePurchaseOrderInput,
 } from '@shakti/contracts';
@@ -14,6 +16,12 @@ import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { nextDocumentNo } from '../../numbering/next-document-no';
+import {
+  PO_PDF_AS_APPROVED,
+  PO_PDF_CANCELLED,
+  type PurchaseOrderPdfVersion,
+} from '../../procurement/po-pdf';
+import { getPurchaseOrderPdf } from '../../queries/procurement/order-queries';
 import { readsRates } from '../../queries/procurement/vendor-read';
 import {
   activeVendor,
@@ -58,6 +66,25 @@ async function entityCode(ctx: CommandContext, entityId: number): Promise<string
     .limit(1);
   if (!row) throw new DomainError('forbidden', 'entity outside the request scope', { entityId });
   return row.code;
+}
+
+/**
+ * Asks the render worker for an order's PDF of one version (ADR 0009, review R2): it prints the
+ * order with its rates on the company's letterhead and stores it as a `purchase_order_pdf` file
+ * whose id comes from the order and the version, so a second request finds the same file.
+ */
+function requestOrderPdf(
+  ctx: CommandContext,
+  row: { id: string; entityId: number },
+  version: PurchaseOrderPdfVersion,
+): void {
+  ctx.emit({
+    type: 'print.document.requested',
+    entityId: row.entityId,
+    aggregateType: 'purchase_order',
+    aggregateId: row.id,
+    payload: { documentType: 'purchase_order', documentId: row.id, version },
+  });
 }
 
 /** `procurement.po.create`: a draft purchase order, numbered from the company's series. */
@@ -285,15 +312,18 @@ export const approvePurchaseOrder = defineCommand({
       aggregateId: row.id,
       payload: { vendorId: row.vendorId },
     });
+    // The PDF is printed as soon as the order is approved, ready to download or mail.
+    requestOrderPdf(ctx, row, PO_PDF_AS_APPROVED);
     return orderRef(row, to);
   },
 });
 
 /**
  * `procurement.po.send`: by email to one of the vendor's people with an email address, or marked
- * sent by hand. By email, the order is sent at once and the mailer on `procurement.po.sent` prints
- * its PDF with its rates and mails it to that person, the sender's address to reply to; when it
- * cannot, the order stays sent and the sender is told to send the PDF themselves.
+ * sent by hand. The order is sent at once; the render worker takes `procurement.po.sent`, prints the
+ * PDF as approved (or finds it stored) and, by email, mails it to that person, the sender's address
+ * to reply to; when it cannot, the order stays sent and the sender is told to send the PDF
+ * themselves.
  */
 export const sendPurchaseOrder = defineCommand({
   name: 'procurement.po.send',
@@ -376,6 +406,8 @@ export const cancelPurchaseOrder = defineCommand({
       aggregateId: row.id,
       payload: { vendorId: row.vendorId },
     });
+    // An order cancelled after its approval prints again, marked cancelled; a draft never printed.
+    if (row.approvedAt !== null) requestOrderPdf(ctx, row, PO_PDF_CANCELLED);
     return orderRef(row, to);
   },
 });
@@ -411,5 +443,36 @@ export const closePurchaseOrder = defineCommand({
       payload: { vendorId: row.vendorId, shortClosed: row.state === 'partially_received' },
     });
     return orderRef(row, to);
+  },
+});
+
+/**
+ * `procurement.po.pdf.request`: a person who reads supplier rates asks for an order's PDF (review
+ * R2). It answers the file of the version the order prints now, `ready` once the render worker
+ * stored it; otherwise it asks the worker to print it, and the screen waits for that file. A
+ * draft, an order never approved, or one the person may not read is `not_found`. Nothing changes,
+ * so nothing is audited.
+ */
+export const requestPurchaseOrderPdf = defineCommand({
+  name: 'procurement.po.pdf.request',
+  permission: 'procurement.rate.read',
+  minScope: 'entity',
+  peopleOnly: true,
+  input: RequestPurchaseOrderPdfInput,
+  output: PurchaseOrderPdfDto,
+  auditFields: [],
+  auditWhen: 'changed',
+  async handler(ctx, input) {
+    const pdf = await getPurchaseOrderPdf(ctx, input);
+    const ready = pdf.file?.status === 'ready' && pdf.file.deletedAt === null;
+    if (!ready) {
+      requestOrderPdf(ctx, { id: pdf.purchaseOrderId, entityId: pdf.entityId }, pdf.version);
+    }
+    return {
+      purchaseOrderId: pdf.purchaseOrderId,
+      entityId: pdf.entityId,
+      fileId: pdf.fileId,
+      ready,
+    };
   },
 });

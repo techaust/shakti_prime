@@ -1,6 +1,7 @@
 import {
   DomainError,
   GetPurchaseOrderInput,
+  RequestPurchaseOrderPdfInput,
   GoodsReceiptPageDto,
   hasGrant,
   ListGoodsReceiptsInput,
@@ -14,12 +15,19 @@ import {
   ReorderRuleRowDto,
   type Principal,
   type PurchaseOrderRowDto,
+  type PurchaseOrderState,
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { istCalendarDate } from '../../numbering/financial-year';
+import {
+  purchaseOrderPdfFileId,
+  purchaseOrderPdfVersion,
+  type PurchaseOrderPdfVersion,
+} from '../../procurement/po-pdf';
 import { purchaseOrderTotals } from '../../procurement/po-totals';
+import { getStoredFile, type StoredFile } from '../files/file-queries';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 import { readsRates } from './vendor-read';
@@ -427,31 +435,6 @@ export interface PurchaseOrderPrintData {
   vendor: { name: string; gstin: string | null; addressLines: string[] };
 }
 
-/**
- * The purchase order PDF's data, read as the person who asked for it: the order through
- * `getPurchaseOrder`, so its rates and totals are there only for a holder of
- * `procurement.rate.read`; the buying company's name, address and GSTIN; the vendor's.
- */
-export async function getPurchaseOrderPrint(
-  ctx: QueryContext,
-  rawInput: unknown,
-  now: Date = new Date(),
-): Promise<PurchaseOrderPrintData> {
-  const order = await getPurchaseOrder(ctx, rawInput, now);
-  const [company] = (await ctx.tx.execute(sql`
-    select legal_name as "legalName", brand_name as "brandName", gstin,
-           address_line1 as "line1", address_line2 as "line2", city, pin
-      from entities where id = ${order.entityId}`)) as unknown as CompanyRow[];
-  const [vendor] = (await ctx.tx.execute(sql`
-    select name, gstin, address_json as address from vendors where id = ${order.vendorId}`)) as unknown as VendorRow[];
-  if (company === undefined || vendor === undefined) {
-    throw new DomainError('not_found', 'the order’s company or vendor is not readable', {
-      reason: 'purchase_order_missing',
-    });
-  }
-  return printDataOf(order, company, vendor);
-}
-
 interface CompanyRow {
   legalName: string;
   brandName: string;
@@ -499,10 +482,109 @@ function printDataOf(
   };
 }
 
-/** What the mailer sends: the vendor's copy, to whom, and the address replies go to. */
-export interface PurchaseOrderMail {
-  /** The order with its rates and totals: the vendor's copy. */
-  print: PurchaseOrderPrintData & { order: PurchaseOrderWithRatesDto };
+/**
+ * What a person who reads supplier rates finds of an order's PDF (U2, review R2): the version the
+ * order prints now (`purchaseOrderPdfVersion`) and that version's file, once the render worker has
+ * stored it. Read as the person: the order under its own policies, the file under `files_read`,
+ * which shows a `purchase_order_pdf` file only with `procurement.rate.read` in its company. A
+ * person without that grant, an order they may not read, a draft or an order never approved
+ * answers `not_found`, so nobody else learns whether it exists.
+ */
+export async function getPurchaseOrderPdf(
+  ctx: QueryContext,
+  rawInput: unknown,
+): Promise<PurchaseOrderPdfState> {
+  const input = parseQueryInput(RequestPurchaseOrderPdfInput, rawInput, 'procurement.orders.pdf');
+  const missing = () =>
+    new DomainError('not_found', `purchase order ${input.purchaseOrderId} has no PDF to read`, {
+      reason: 'purchase_order_missing',
+    });
+  if (!readsRates(ctx.principal)) throw missing();
+  const [order] = (await ctx.tx.execute(sql`
+    select id, entity_id as "entityId", po_no as "poNo", state, approved_at as "approvedAt"
+      from purchase_orders where id = ${input.purchaseOrderId}`)) as unknown as {
+    id: string;
+    entityId: number;
+    poNo: string;
+    state: PurchaseOrderState;
+    approvedAt: Date | string | null;
+  }[];
+  if (order === undefined || !ctx.entityIds.includes(order.entityId)) throw missing();
+  const version = purchaseOrderPdfVersion(order.state, order.approvedAt);
+  if (version === undefined) throw missing();
+  const fileId = purchaseOrderPdfFileId(order.id, version);
+  const file = await getStoredFile(ctx, fileId);
+  return {
+    purchaseOrderId: order.id,
+    entityId: order.entityId,
+    poNo: order.poNo,
+    version,
+    fileId,
+    file: file?.purpose === 'purchase_order_pdf' && file.entityId === order.entityId ? file : undefined,
+  };
+}
+
+/** An order's PDF as a person finds it: the current version's file id, and the file once stored. */
+export interface PurchaseOrderPdfState {
+  purchaseOrderId: string;
+  entityId: number;
+  poNo: string;
+  version: PurchaseOrderPdfVersion;
+  fileId: string;
+  /** The stored file, when the worker has recorded it (`ready`), else undefined. */
+  file: StoredFile | undefined;
+}
+
+function assertPrinter(ctx: QueryContext): void {
+  if (!hasGrant(ctx.principal.permissions, 'procurement.po.print', 'all')) {
+    throw new DomainError('forbidden', `${ctx.principal.roleKey} prints no purchase order`, {
+      permission: 'procurement.po.print',
+      scope: 'all',
+    });
+  }
+}
+
+/**
+ * What the purchase order PDF prints (U2, review R2), read by the render worker as
+ * `system:workers` holding the platform-only `procurement.po.print` and no person's grant: through
+ * `app.purchase_order_for_print()` only, one approved order of the worker's company with its rates
+ * and amounts (the vendor's copy), the buying company and the vendor. Version 1 prints for every
+ * approved order, version 2 only for one cancelled since. Undefined for a draft, an order never
+ * approved or a version it does not print. Read on `app_user` (`pool: 'app_user'`): `app_reader`
+ * may not run the definer.
+ */
+export async function purchaseOrderForPrint(
+  ctx: QueryContext,
+  input: { purchaseOrderId: string; version: PurchaseOrderPdfVersion },
+  now: Date = new Date(),
+): Promise<(PurchaseOrderPrintData & { order: PurchaseOrderWithRatesDto }) | undefined> {
+  assertPrinter(ctx);
+  const [row] = (await ctx.tx.execute(sql`
+    select app.purchase_order_for_print(${input.purchaseOrderId}::uuid,
+                                        ${input.version}::int) as print`)) as unknown as {
+    print: {
+      order: SheetRow;
+      lines: LineRow[];
+      rates: RateRow[];
+      company: CompanyRow | null;
+      vendor: VendorRow | null;
+    } | null;
+  }[];
+  const print = row?.print;
+  const company = print?.company;
+  const vendor = print?.vendor;
+  if (!print || !company || !vendor || !ctx.entityIds.includes(print.order.entityId)) {
+    return undefined;
+  }
+  const order = withRates(orderDtoOf(print.order, print.lines, now), print.lines, print.rates);
+  return { ...printDataOf(order, company, vendor), order };
+}
+
+/** Whom the mailer sends an order to, and the address replies go to; no rate. */
+export interface PurchaseOrderMailTo {
+  poNo: string;
+  /** The buying company's legal name, for the subject and the body. */
+  companyName: string;
   /** The vendor's person named on sending, while they still have an email address. */
   to: { name: string; email: string } | null;
   /** The sender's own address. */
@@ -510,47 +592,33 @@ export interface PurchaseOrderMail {
 }
 
 /**
- * The purchase order mailer's read (U2, review finding 4), as `system:workers` holding the
- * platform-only `procurement.po.mail` and no person's grant: through `app.purchase_order_for_mail()`
- * only, one order of the worker's company that a person sent by email, with its rates for the
- * vendor's copy, the vendor's person and the sender's address. Undefined for an order that is not
- * that (never approved, sent by hand, cancelled since), so nothing is mailed. Read on `app_user`
- * (`pool: 'app_user'`): `app_reader` may not run the definer, as no worker definer of its kind.
+ * The purchase order mailer's read (U2, review finding 4), as the render worker after it stored
+ * the PDF: through `app.purchase_order_mail_to()` only, for one order of the worker's company that
+ * a person sent by email and that is still sent, received or closed, its number, the company's
+ * name, the vendor's person and the sender's address. Undefined for an order that is not that (sent
+ * by hand, cancelled since), so nothing is mailed. On `app_user`, as `purchaseOrderForPrint`.
  */
-export async function purchaseOrderForMail(
+export async function purchaseOrderMailTo(
   ctx: QueryContext,
   input: { purchaseOrderId: string; vendorContactId: string; sentBy: string },
-  now: Date = new Date(),
-): Promise<PurchaseOrderMail | undefined> {
-  if (!hasGrant(ctx.principal.permissions, 'procurement.po.mail', 'all')) {
-    throw new DomainError('forbidden', `${ctx.principal.roleKey} mails no purchase order`, {
-      permission: 'procurement.po.mail',
-      scope: 'all',
-    });
-  }
+): Promise<PurchaseOrderMailTo | undefined> {
+  assertPrinter(ctx);
   const [row] = (await ctx.tx.execute(sql`
-    select app.purchase_order_for_mail(${input.purchaseOrderId}::uuid,
-                                       ${input.vendorContactId}::uuid,
-                                       ${input.sentBy}::uuid) as mail`)) as unknown as {
+    select app.purchase_order_mail_to(${input.purchaseOrderId}::uuid,
+                                      ${input.vendorContactId}::uuid,
+                                      ${input.sentBy}::uuid) as mail`)) as unknown as {
     mail: {
-      order: SheetRow;
-      lines: LineRow[];
-      rates: RateRow[];
-      company: CompanyRow | null;
-      vendor: VendorRow | null;
+      poNo: string;
+      companyName: string | null;
       contact: { name: string; email: string } | null;
       replyTo: string | null;
     } | null;
   }[];
   const mail = row?.mail;
-  const company = mail?.company;
-  const vendor = mail?.vendor;
-  if (!mail || !company || !vendor || !ctx.entityIds.includes(mail.order.entityId)) {
-    return undefined;
-  }
-  const order = withRates(orderDtoOf(mail.order, mail.lines, now), mail.lines, mail.rates);
+  if (!mail || mail.companyName === null) return undefined;
   return {
-    print: { ...printDataOf(order, company, vendor), order },
+    poNo: mail.poNo,
+    companyName: mail.companyName,
     to: mail.contact,
     replyTo: mail.replyTo,
   };

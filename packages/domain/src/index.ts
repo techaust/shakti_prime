@@ -237,6 +237,7 @@ export {
   cancelPurchaseOrder,
   closePurchaseOrder,
   createPurchaseOrder,
+  requestPurchaseOrderPdf,
   sendPurchaseOrder,
   updatePurchaseOrder,
 } from './commands/procurement/orders';
@@ -244,9 +245,17 @@ export { postGoodsReceipt, reverseGoodsReceipt } from './commands/procurement/re
 export { draftReorders, removeReorderRule, setReorderRule } from './commands/procurement/reorder';
 export { poLineAmount, purchaseOrderTotals, stockUnitCost } from './procurement/po-totals';
 export {
+  PO_PDF_AS_APPROVED,
+  PO_PDF_CANCELLED,
+  purchaseOrderPdfFileId,
+  purchaseOrderPdfVersion,
+  type PurchaseOrderPdfVersion,
+} from './procurement/po-pdf';
+export {
   getPurchaseOrder,
-  getPurchaseOrderPrint,
-  purchaseOrderForMail,
+  getPurchaseOrderPdf,
+  purchaseOrderForPrint,
+  purchaseOrderMailTo,
   getReceiveGoods,
   listGoodsReceipts,
   listPurchaseOrders,
@@ -254,7 +263,11 @@ export {
   purchaseOrderOverdue,
   readsOrders,
 } from './queries/procurement/order-queries';
-export type { PurchaseOrderMail, PurchaseOrderPrintData } from './queries/procurement/order-queries';
+export type {
+  PurchaseOrderMailTo,
+  PurchaseOrderPdfState,
+  PurchaseOrderPrintData,
+} from './queries/procurement/order-queries';
 export { readQuoteComparison, getVendor, listVendors } from './queries/procurement/vendor-queries';
 export { readsRates, readsVendors } from './queries/procurement/vendor-read';
 export { serialMatchesPattern, serialsOutsidePattern } from './catalogue/serial-pattern';

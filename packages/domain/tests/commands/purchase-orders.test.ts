@@ -20,6 +20,7 @@ import {
   cancelPurchaseOrder,
   closePurchaseOrder,
   createPurchaseOrder,
+  requestPurchaseOrderPdf,
   sendPurchaseOrder,
   updatePurchaseOrder,
 } from '../../src/commands/procurement/orders';
@@ -32,13 +33,15 @@ import {
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import {
   getPurchaseOrder,
-  purchaseOrderForMail,
-  getPurchaseOrderPrint,
+  getPurchaseOrderPdf,
+  purchaseOrderForPrint,
+  purchaseOrderMailTo,
   listGoodsReceipts,
   listPurchaseOrders,
   purchaseOrderOverdue,
 } from '../../src/queries/procurement/order-queries';
 import { notifyEvent } from '../../src/commands/notifications/notify';
+import { purchaseOrderPdfFileId } from '../../src/procurement/po-pdf';
 import { stockMove } from '../../src/stock/move';
 import {
   averageOf,
@@ -984,7 +987,7 @@ describe('reorder rules and procurement.reorder.draft', () => {
   });
 });
 
-describe('the purchase order mailer’s read (review finding 4)', () => {
+describe('the purchase order’s PDF and its mail (review R2)', () => {
   // A real person sends: their address is the email's reply-to, and they are the one told.
   let buyer: { id: string; email: string };
   let buyerAsPrincipal: Principal;
@@ -992,21 +995,34 @@ describe('the purchase order mailer’s read (review finding 4)', () => {
     buyer = await createTestUser([{ entityId: 1, roleKey: 'inventory_manager' }]);
     buyerAsPrincipal = principalFor('inventory_manager', [1], { id: buyer.id });
   });
-  const mailWorker = (entityIds: number[]) =>
+  const renderWorker = (entityIds: number[]) =>
     principalFor('system:workers', entityIds, { id: SYSTEM_WORKERS_PRINCIPAL_ID });
-  const readMail = (who: Principal, purchaseOrderId: string) =>
+  const readPrint = (who: Principal, purchaseOrderId: string, version: 1 | 2) =>
+    asPrincipal(who, (context) => purchaseOrderForPrint(context, { purchaseOrderId, version }));
+  const readMailTo = (who: Principal, purchaseOrderId: string) =>
     asPrincipal(who, (context) =>
-      purchaseOrderForMail(context, {
+      purchaseOrderMailTo(context, {
         purchaseOrderId,
         vendorContactId: contact,
         sentBy: buyer.id,
       }),
     );
+  const askPdf = (who: Principal, purchaseOrderId: string) => {
+    const emitted = memoryOutboxSink();
+    return asPrincipal(who, (context) =>
+      runCommand(requestPurchaseOrderPdf, { context, audit, outbox: emitted }, { purchaseOrderId }),
+    ).then((answer) => ({ answer, emitted: emitted.records }));
+  };
+
+  /** An approved order of 10 metres at ₹100. */
+  async function approved(): Promise<Ref> {
+    const po = await run<Ref>(manager, createPurchaseOrder, draft());
+    return run<Ref>(checker, approvePurchaseOrder, { purchaseOrderId: po.id });
+  }
 
   /** An approved order of 10 metres at ₹100, sent `via`. */
   async function sentVia(via: 'email' | 'by_hand'): Promise<Ref> {
-    const po = await run<Ref>(manager, createPurchaseOrder, draft());
-    await run(checker, approvePurchaseOrder, { purchaseOrderId: po.id });
+    const po = await approved();
     return run<Ref>(buyerAsPrincipal, sendPurchaseOrder, {
       purchaseOrderId: po.id,
       via,
@@ -1014,43 +1030,163 @@ describe('the purchase order mailer’s read (review finding 4)', () => {
     });
   }
 
-  it('gives the worker an order sent by email with its rates, the vendor’s person and the sender’s address', async () => {
-    const po = await sentVia('email');
-    const mail = await readMail(mailWorker([1]), po.id);
-    expect(mail?.to).toEqual({ name: 'Sales desk', email: 'sales@example.com' });
-    expect(mail?.replyTo).toBe(buyer.email);
-    expect(mail?.print.order).toMatchObject({ id: po.id, state: 'sent', sentVia: 'email' });
-    expect(mail?.print.order.lines).toEqual([
-      expect.objectContaining({ itemId: f.cable, unitRate: '100.0000', amount: '1000.00' }),
+  it('asks the render worker for the PDF on approval, and for the cancelled one on cancelling', async () => {
+    const po = await run<Ref>(manager, createPurchaseOrder, draft());
+    const emitted = memoryOutboxSink();
+    await asPrincipal(checker, (context) =>
+      runCommand(approvePurchaseOrder, { context, audit, outbox: emitted }, { purchaseOrderId: po.id }),
+    );
+    const cancelled = memoryOutboxSink();
+    await asPrincipal(manager, (context) =>
+      runCommand(
+        cancelPurchaseOrder,
+        { context, audit, outbox: cancelled },
+        { purchaseOrderId: po.id, reason: 'Vendor out of stock' },
+      ),
+    );
+    const print = (version: number) => ({
+      type: 'print.document.requested',
+      entityId: 1,
+      aggregateType: 'purchase_order',
+      aggregateId: po.id,
+      payload: { documentType: 'purchase_order', documentId: po.id, version, v: 1 },
+    });
+    expect(emitted.records).toEqual([
+      expect.objectContaining({ type: 'procurement.po.approved' }),
+      expect.objectContaining(print(1)),
     ]);
-    expect(mail?.print.order.totals?.subtotal).toBe('1000.00');
-    expect(mail?.print.vendor.name).toBe(`PO vendor ${f.tag}`);
-    // Another company's worker, an order sent by hand, an order cancelled since: nothing to mail.
-    expect(await readMail(mailWorker([2]), po.id)).toBeUndefined();
-    expect(await readMail(mailWorker([1]), (await sentVia('by_hand')).id)).toBeUndefined();
-    const cancelled = await sentVia('email');
-    await run(manager, cancelPurchaseOrder, { purchaseOrderId: cancelled.id, reason: 'Twice' });
-    expect(await readMail(mailWorker([1]), cancelled.id)).toBeUndefined();
+    expect(cancelled.records).toEqual([
+      expect.objectContaining({ type: 'procurement.po.cancelled' }),
+      expect.objectContaining(print(2)),
+    ]);
+    // A draft cancelled before approval never printed, so nothing is asked for.
+    const neverApproved = await run<Ref>(manager, createPurchaseOrder, draft());
+    const none = memoryOutboxSink();
+    await asPrincipal(manager, (context) =>
+      runCommand(
+        cancelPurchaseOrder,
+        { context, audit, outbox: none },
+        { purchaseOrderId: neverApproved.id, reason: 'Not needed' },
+      ),
+    );
+    expect(none.records.map((e) => e.type)).toEqual(['procurement.po.cancelled']);
   });
 
-  it('is the platform’s only: no person reads through it, an Executive included', async () => {
+  it('gives the render worker an approved order with its rates, by version', async () => {
+    const po = await approved();
+    const print = await readPrint(renderWorker([1]), po.id, 1);
+    expect(print?.order).toMatchObject({ id: po.id, state: 'approved' });
+    expect(print?.order.lines).toEqual([
+      expect.objectContaining({ itemId: f.cable, unitRate: '100.0000', amount: '1000.00' }),
+    ]);
+    expect(print?.order.totals?.subtotal).toBe('1000.00');
+    expect(print?.vendor.name).toBe(`PO vendor ${f.tag}`);
+    expect(print?.company.legalName).toBeTruthy();
+    // Not cancelled: no cancelled version. Another company's worker, a draft: nothing.
+    expect(await readPrint(renderWorker([1]), po.id, 2)).toBeUndefined();
+    expect(await readPrint(renderWorker([2]), po.id, 1)).toBeUndefined();
+    const draftOrder = await run<Ref>(manager, createPurchaseOrder, draft());
+    expect(await readPrint(renderWorker([1]), draftOrder.id, 1)).toBeUndefined();
+    // Cancelled after approval: both versions print, the order as approved and marked cancelled.
+    await run(manager, cancelPurchaseOrder, { purchaseOrderId: po.id, reason: 'Twice' });
+    expect((await readPrint(renderWorker([1]), po.id, 1))?.order.state).toBe('cancelled');
+    expect((await readPrint(renderWorker([1]), po.id, 2))?.order.state).toBe('cancelled');
+  });
+
+  it('gives the worker whom to mail an order sent by email, and no rate', async () => {
+    const po = await sentVia('email');
+    const mail = await readMailTo(renderWorker([1]), po.id);
+    expect(mail).toEqual({
+      poNo: po.poNo,
+      companyName: expect.any(String) as unknown,
+      to: { name: 'Sales desk', email: 'sales@example.com' },
+      replyTo: buyer.email,
+    });
+    // Another company's worker, an order sent by hand, an order cancelled since: nothing to mail.
+    expect(await readMailTo(renderWorker([2]), po.id)).toBeUndefined();
+    expect(await readMailTo(renderWorker([1]), (await sentVia('by_hand')).id)).toBeUndefined();
+    const cancelled = await sentVia('email');
+    await run(manager, cancelPurchaseOrder, { purchaseOrderId: cancelled.id, reason: 'Twice' });
+    expect(await readMailTo(renderWorker([1]), cancelled.id)).toBeUndefined();
+  });
+
+  it('is the platform’s only: no person reads through either definer, an Executive included', async () => {
     const po = await sentVia('email');
     for (const who of [executive, manager, principalFor('agent:chief', [1])]) {
-      await expect(readMail(who, po.id)).rejects.toMatchObject({ code: 'forbidden' });
+      await expect(readPrint(who, po.id, 1)).rejects.toMatchObject({ code: 'forbidden' });
+      await expect(readMailTo(who, po.id)).rejects.toMatchObject({ code: 'forbidden' });
+      for (const call of [
+        sql`select app.purchase_order_for_print(${po.id}::uuid, 1)`,
+        sql`select app.purchase_order_mail_to(${po.id}::uuid, ${contact}::uuid, ${buyer.id}::uuid)`,
+      ]) {
+        await expect(asPrincipal(who, ({ tx }) => tx.execute(call))).rejects.toMatchObject({
+          cause: { code: '42501' },
+        });
+      }
+    }
+  });
+
+  it('procurement.po.pdf.request: the current version’s file, asked for until it is stored', async () => {
+    const po = await approved();
+    const fileId = purchaseOrderPdfFileId(po.id, 1);
+    const first = await askPdf(manager, po.id);
+    expect(first.answer).toEqual({ purchaseOrderId: po.id, entityId: 1, fileId, ready: false });
+    expect(first.emitted).toEqual([
+      expect.objectContaining({
+        type: 'print.document.requested',
+        aggregateId: po.id,
+        payload: { documentType: 'purchase_order', documentId: po.id, version: 1, v: 1 },
+      }),
+    ]);
+    // Once the worker stored it, the file is answered and nothing more is asked.
+    await asMigrator(
+      (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size,
+                                  sha256, status, created_by)
+               values (${fileId}, 1, 'purchase_order_pdf', 'local', ${`1/purchase_order_pdf/${fileId}.pdf`},
+                       ${`${po.poNo.replaceAll('/', '-')}.pdf`}, 'application/pdf', 10,
+                       ${'0'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
+    );
+    const again = await askPdf(manager, po.id);
+    expect(again.answer).toMatchObject({ fileId, ready: true });
+    expect(again.emitted).toEqual([]);
+    // Cancelled: the cancelled version, which is not stored yet.
+    await run(manager, cancelPurchaseOrder, { purchaseOrderId: po.id, reason: 'Twice' });
+    expect((await askPdf(manager, po.id)).answer).toMatchObject({
+      fileId: purchaseOrderPdfFileId(po.id, 2),
+      ready: false,
+    });
+  });
+
+  it('procurement.po.pdf.request: refused without rates, in another company and for a draft', async () => {
+    const po = await approved();
+    for (const role of ['general_manager', 'store_manager'] as const) {
+      await expect(askPdf(principalFor(role, [1]), po.id)).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    await expect(askPdf(principalFor('inventory_manager', [2]), po.id)).rejects.toMatchObject({
+      code: 'not_found',
+      details: { reason: 'purchase_order_missing' },
+    });
+    const draftOrder = await run<Ref>(manager, createPurchaseOrder, draft());
+    await expect(askPdf(manager, draftOrder.id)).rejects.toMatchObject({
+      code: 'not_found',
+      details: { reason: 'purchase_order_missing' },
+    });
+    // The person's read of the stored file follows procurement.rate.read too.
+    for (const role of ['general_manager', 'store_manager'] as const) {
       await expect(
-        asPrincipal(who, ({ tx }) =>
-          tx.execute(
-            sql`select app.purchase_order_for_mail(${po.id}::uuid, ${contact}::uuid, ${buyer.id}::uuid)`,
-          ),
+        asPrincipal(principalFor(role, [1]), (context) =>
+          getPurchaseOrderPdf(context, { purchaseOrderId: po.id }),
         ),
-      ).rejects.toMatchObject({ cause: { code: '42501' } });
+      ).rejects.toMatchObject({ code: 'not_found' });
     }
   });
 
   it('tells the sender once when the email did not go', async () => {
     const po = await sentVia('email');
     for (let i = 0; i < 2; i += 1) {
-      await asPrincipal(mailWorker([1]), (context) =>
+      await asPrincipal(renderWorker([1]), (context) =>
         runCommand(
           notifyEvent,
           { context, audit, outbox },
@@ -1087,10 +1223,6 @@ describe('the order and receipt reads', () => {
       );
       expect(order.poNo).toBe(po.poNo);
       expect(JSON.stringify(order)).not.toMatch(/unitRate|amount|totals|1000|100\.0000/);
-      const print = await asPrincipal(principalFor(role, [1]), (context) =>
-        getPurchaseOrderPrint(context, { purchaseOrderId: po.id }),
-      );
-      expect('totals' in print.order).toBe(false);
     }
     const rated = await asPrincipal(manager, (context) =>
       getPurchaseOrder(context, { purchaseOrderId: po.id }),

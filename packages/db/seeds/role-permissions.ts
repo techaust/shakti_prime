@@ -350,7 +350,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'messaging.media.expire': {},
   // U2: the platform's reorder drafts; no person's role holds it (SECURITY §3.3).
   'procurement.reorder.draft': {},
-  'procurement.po.mail': {},
+  'procurement.po.print': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

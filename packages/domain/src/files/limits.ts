@@ -57,6 +57,8 @@ export const UPLOAD_LIMITS: Readonly<Partial<Record<FilePurpose, UploadLimit>>> 
   vendor_quote: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
   // Q1: a sheet of up to 500 labels (about 1.3 MB at 50 × 25 mm).
   label_sheet: { contentTypes: ['application/pdf'], maxBytes: 10 * MB },
+  // U2: a purchase order of up to 200 lines on the letterhead (well under 2 MB).
+  purchase_order_pdf: { contentTypes: ['application/pdf'], maxBytes: 10 * MB },
 };
 
 /** Why an upload is refused before it starts; each has a sentence in the message catalogue. */

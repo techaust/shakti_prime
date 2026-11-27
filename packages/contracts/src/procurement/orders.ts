@@ -148,6 +148,24 @@ export const PurchaseOrderRefDto = z
 export type PurchaseOrderRefDto = z.infer<typeof PurchaseOrderRefDto>;
 
 /**
+ * `procurement.po.pdf.request`: a person who reads supplier rates asks for the order's PDF. It
+ * answers the file of the order's current version (`fileId`), `ready` when the render worker has
+ * stored it already; otherwise the worker is asked to print it and the screen waits for the file.
+ */
+export const RequestPurchaseOrderPdfInput = z.object({ purchaseOrderId: IdSchema }).strict();
+export type RequestPurchaseOrderPdfInput = z.infer<typeof RequestPurchaseOrderPdfInput>;
+
+export const PurchaseOrderPdfDto = z
+  .object({
+    purchaseOrderId: IdSchema,
+    entityId: EntityIdSchema,
+    fileId: IdSchema,
+    ready: z.boolean(),
+  })
+  .strict();
+export type PurchaseOrderPdfDto = z.infer<typeof PurchaseOrderPdfDto>;
+
+/**
  * `procurement.grn.post`: goods received against a sent purchase order, line by line, in the
  * line's purchase unit, into a bin of the order's hub (its receiving bin when none is named); a
  * serial-tracked item's serials, scanned or typed, exactly as many as the stock units received.

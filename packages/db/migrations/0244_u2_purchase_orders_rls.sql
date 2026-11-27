@@ -14,7 +14,7 @@
 -- reading it. The reorder job (system:workers, the platform-only procurement.reorder.draft) reads
 -- and drafts through two definers of its own, never with a person's grant.
 
--- 1. procurement.reorder.draft and procurement.po.mail (the purchase order mailer) are
+-- 1. procurement.reorder.draft and procurement.po.print (the purchase order's PDF and its mail) are
 --    platform-only, like the other workers' grants: the nineteen keys of 0222 (with W2's
 --    messaging.media.expire), kept, and these two.
 create or replace function app.platform_only_permissions() returns text[]
@@ -26,8 +26,8 @@ create or replace function app.platform_only_permissions() returns text[]
                'calls.process', 'crm.ingest.run', 'messaging.process',
                'voice.session.record', 'sales.quote.accept.remote',
                'messaging.media.expire',
-               -- U2 reorder drafts and the purchase order mailer
-               'procurement.reorder.draft', 'procurement.po.mail']::text[]
+               -- U2 reorder drafts and the purchase order's PDF and mail
+               'procurement.reorder.draft', 'procurement.po.print']::text[]
 $$;
 --> statement-breakpoint
 

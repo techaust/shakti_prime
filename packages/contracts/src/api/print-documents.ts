@@ -11,6 +11,8 @@ export const PDF_DOCUMENT_TYPES = [
   'delivery_challan',
   'handover_kit',
   'company_letterhead_proof',
+  // U2: a purchase order, printed from its approval on with its rates (the vendor's copy).
+  'purchase_order',
 ] as const;
 export const PdfDocumentTypeSchema = z.enum(PDF_DOCUMENT_TYPES);
 export type PdfDocumentType = z.infer<typeof PdfDocumentTypeSchema>;

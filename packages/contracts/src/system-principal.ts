@@ -86,9 +86,10 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // stock and open purchase orders and drafts purchase orders with no rate through two definers,
     // and reads no rate, cost or stock row by a person's rule.
     { key: 'procurement.reorder.draft', scope: 'all' },
-    // U2: the purchase order mailer (`procurement.po.mail`): it reads one order sent by email,
-    // with its rates for the vendor's copy, through one definer, and reads no order, rate or
-    // vendor by a person's rule.
-    { key: 'procurement.po.mail', scope: 'all' },
+    // U2: the purchase order's PDF and its mail (`procurement.po.print`): the render worker reads
+    // one approved order with its rates for the vendor's copy through one definer, and the
+    // vendor's person and the sender's address of an order sent by email through another; it
+    // reads no order, rate or vendor by a person's rule.
+    { key: 'procurement.po.print', scope: 'all' },
   ],
 };

@@ -4252,7 +4252,7 @@
       "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
       "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept",
       "procurement_reorder_draft": "Draft purchase orders when stock falls below its reorder level",
-      "procurement_po_mail": "Email a purchase order to its vendor"
+      "procurement_po_print": "Print a purchase order for its vendor and email it"
     },
     "empty": "There are no roles to show.",
     "locked": {

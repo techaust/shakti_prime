@@ -469,7 +469,16 @@ const eventCatalogue = {
   'print.document.requested': {
     meaning:
       'A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF.',
-    emittedBy: ['print.proof.request', 'sales.quote.create', 'sales.quote.requote'],
+    emittedBy: [
+      'print.proof.request',
+      'sales.quote.create',
+      'sales.quote.requote',
+      // U2: a purchase order's PDF, on approval, on cancelling an approved order, and when a
+      // person asks for it before the worker stored it.
+      'procurement.po.approve',
+      'procurement.po.cancel',
+      'procurement.po.pdf.request',
+    ],
     subscribed: true,
     payload: z
       .object({
@@ -857,7 +866,7 @@ const eventCatalogue = {
   },
   'procurement.po.sent': {
     meaning:
-      'A purchase order was sent to its vendor: by email (`email`, to the person named; the mailer then mails its PDF, and tells the sender when it cannot), or marked sent by hand.',
+      'A purchase order was sent to its vendor: by email (`email`, to the person named), or marked sent by hand. The render worker prints its PDF as approved, or finds it stored, and by email mails it, telling the sender when it cannot.',
     emittedBy: ['procurement.po.send'],
     // U2: the purchase order mailer.
     subscribed: true,

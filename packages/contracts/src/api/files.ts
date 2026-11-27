@@ -43,6 +43,9 @@ export const FILE_PURPOSES = [
   'vendor_quote',
   // Q1: a sheet of QR labels the render worker printed (docs/03-roadmap-appendix/phase3.md §7.4).
   'label_sheet',
+  // U2: a purchase order's PDF the render worker printed with its rates, read only with
+  // procurement.rate.read (docs/03-roadmap-appendix/phase3.md §7.2).
+  'purchase_order_pdf',
 ] as const;
 export const FilePurposeSchema = z.enum(FILE_PURPOSES);
 export type FilePurpose = z.infer<typeof FilePurposeSchema>;

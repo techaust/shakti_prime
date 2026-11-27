@@ -146,9 +146,11 @@ export type MessagingSendResult = z.infer<typeof MessagingSendResult>;
 export { PDF_DOCUMENT_TYPES, PdfDocumentTypeSchema, type PdfDocumentType } from './print-documents';
 
 /**
- * `POST /workers/pdf/render`: one document at a given version, or one sheet of labels. The template
- * reads the document's DTO; money and tax arrive computed and are only formatted. `eventId` is the
- * `print.document.requested` event the job comes from and its idempotency key: a job already
+ * `POST /workers/pdf/render`: one document at a given version, one sheet of labels, or a purchase
+ * order's PDF to print and mail (U2). The template reads the document's DTO; money and tax arrive
+ * computed and are only formatted. `eventId` is the event the job comes from
+ * (`print.document.requested`, `print.labels.requested` or `procurement.po.sent`) and its
+ * idempotency key: a job already
  * rendered answers `duplicate`, and a job QStash gives up on comes back as that event's dead
  * letter on Integration Health. `entityId` is the selling company, whose details alone it prints.
  */
@@ -173,6 +175,19 @@ export const PdfRenderJob = z
           labelKind: LabelKindSchema,
           size: LabelSizeSchema,
           ids: z.array(IdSchema).min(1).max(LABEL_SHEET_MAX),
+        })
+        .strict(),
+      z
+        .object({
+          /**
+           * U2: a purchase order sent by email (`procurement.po.sent`): its PDF as approved is
+           * printed (or found, when stored already) and mailed to the vendor's person named, the
+           * sender's address to reply to.
+           */
+          kind: z.literal('purchase_order_mail'),
+          purchaseOrderId: IdSchema,
+          vendorContactId: IdSchema,
+          sentBy: IdSchema,
         })
         .strict(),
     ]),
