@@ -171,6 +171,8 @@ import {
   updateHub,
 } from '../commands/inventory/hubs';
 import { adjustStock, reverseStock, transferStock } from '../commands/inventory/stock';
+// Q1 labels
+import { printLabels, reprintLabels } from '../commands/inventory/labels';
 import {
   approvePriceList,
   archivePriceList,
@@ -324,6 +326,9 @@ export const commands = Object.freeze({
   [transferStock.name]: transferStock,
   [adjustStock.name]: adjustStock,
   [reverseStock.name]: reverseStock,
+  // Q1 labels
+  [printLabels.name]: printLabels,
+  [reprintLabels.name]: reprintLabels,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
   [createKit.name]: createKit,

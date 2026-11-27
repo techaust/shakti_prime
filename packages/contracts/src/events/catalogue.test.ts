@@ -75,6 +75,8 @@ describe('the event catalogue', () => {
         // J1: a project kept for its cancelled order, told to its Project Manager.
         'projects.project.order_cancelled',
         'sales.order.cancelled',
+        // A sheet of QR labels (Q1).
+        'print.labels.requested',
         'sales.order.confirmed',
         'sales.order.credit_held',
         'sales.quote.accepted',
