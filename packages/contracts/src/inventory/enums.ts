@@ -70,8 +70,8 @@ export const StockReasonSchema = z.enum(STOCK_REASONS);
 export type StockReason = z.infer<typeof StockReasonSchema>;
 
 /**
- * The reasons `app.stock_move()` accepts in H1, each with the grant it needs; every other reason is
- * refused until the slice that opens it (`stock_reason_not_open`).
+ * The reasons `app.stock_move()` accepts (`app.stock_reason_grants`), each with the grant it needs;
+ * every other reason is refused until the slice that opens it (`stock_reason_not_open`).
  */
 export const OPEN_STOCK_REASONS = {
   opening: 'inventory.stock.adjust',
@@ -81,6 +81,8 @@ export const OPEN_STOCK_REASONS = {
   count: 'inventory.stock.adjust',
   reversal: 'inventory.stock.adjust',
   transfer: 'inventory.stock.move',
+  // U2: a goods receipt, posted and reversed by its own commands (procurement.grn.post, .reverse).
+  receipt: 'procurement.grn.write',
 } as const satisfies Partial<Record<StockReason, string>>;
 
 /**

@@ -55,6 +55,12 @@ const RECEIPT_CONSTRAINT_REASONS = {
   goods_receipt_serials_count: 'goods_receipt_serial_missing',
   goods_receipt_serial_taken: 'goods_receipt_serial_taken',
   goods_receipts_entity_no_unique: 'goods_receipt_number_taken',
+  // app.goods_receipt_post() checks every row again against the order (review finding 2).
+  goods_receipt_line_unknown: 'goods_receipt_line_unknown',
+  goods_receipt_over_order: 'goods_receipt_over_order',
+  goods_receipt_bin_unusable: 'goods_receipt_bin_unusable',
+  // Two receipts of one new serial at once, on two orders: the second meets the unique index.
+  serials_item_serial_no_unique: 'goods_receipt_serial_taken',
 } as const;
 
 const RECEIVING_KINDS: readonly string[] = ['receiving', 'storage', 'quarantine'];

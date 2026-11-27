@@ -112,12 +112,14 @@ const H1_MOVES: MoveRow[] = [
   },
 ];
 
-/** The rows the wave 2 slices name (each writes its own); here only in a rolled-back transaction. */
+/**
+ * The rows the wave 2 slices name (each writes its own); here only in a rolled-back transaction.
+ * U2's receipt is open for real (its own migration): its rows are U2_MOVES.
+ */
 const WAVE2_GRANTS = [
   ['warranty_replacement', 'inventory.stock.adjust:entity'],
   ['return_customer', 'inventory.stock.adjust:entity'],
   ['return_supplier', 'inventory.stock.adjust:entity'],
-  ['receipt', 'inventory.stock.adjust:entity'],
 ] as const;
 const WAVE2_MOVES: MoveRow[] = [
   {
@@ -141,7 +143,29 @@ const WAVE2_MOVES: MoveRow[] = [
     creates: false,
     to_state: 'with_supplier',
   },
-  { reason: 'receipt', direction: 'in', from_states: [], creates: true, to_state: 'in_stock' },
+];
+
+/**
+ * U2's opening of `receipt` (u2-purchase-orders, brief addendum 2): into a bin, a new serial or one
+ * whose receipt was reversed; the reversal of a receipt, keyed by it, scraps the serial.
+ */
+const U2_MOVES: (MoveRow & { reverses_reason: string })[] = [
+  {
+    reason: 'receipt',
+    direction: 'in',
+    reverses_reason: '',
+    from_states: ['scrapped'],
+    creates: true,
+    to_state: 'in_stock',
+  },
+  {
+    reason: 'reversal',
+    direction: 'out',
+    reverses_reason: 'receipt',
+    from_states: ['in_stock'],
+    creates: false,
+    to_state: 'scrapped',
+  },
 ];
 
 const LONG_AGO = '2020-01-01T00:00:00Z';
@@ -366,6 +390,18 @@ describe('app.stock_reason_moves, the directions and serial rules', () => {
       }));
     // H1's reversal rows are keyed by no reason: they serve a reversal of any reason.
     expect(h1).toEqual(H1_MOVES.map((m) => ({ ...m, reverses_reason: '' })));
+    // U2's, as its opening wrote them, beside a grant row that is reversible.
+    const u2 = rows
+      .filter((r) => r.opened_by === 'u2-purchase-orders')
+      .map((r) => ({
+        reason: r.reason,
+        direction: r.direction,
+        reverses_reason: r.reverses_reason,
+        from_states: r.from_states,
+        creates: r.creates,
+        to_state: r.to_state,
+      }));
+    expect(u2).toEqual(U2_MOVES);
   });
 
   it('refuses a row the ledger could never post', async () => {
@@ -696,11 +732,7 @@ describe('every line takes only a direction its reason has a row for', () => {
       const f = await fixture(tx);
       const { inStock } = await serials(tx, f);
       await posted(tx, [cableStock(f)]);
-      // A receipt opened as U2 names it: into a bin only.
-      await tx`insert into app.stock_reason_grants (reason, permission, reversible, opened_by)
-        values ('receipt', 'inventory.stock.adjust:entity', true, 'x4-stock-reasons')`;
-      await tx`insert into app.stock_reason_moves (reason, direction, from_states, creates, to_state, opened_by)
-        values ('receipt', 'in', '{}', true, 'in_stock', 'x4-stock-reasons')`;
+      // U2's receipt, as its opening wrote it: into a bin only.
       await posted(tx, [
         { reason: 'receipt', entity_id: 1, item_id: f.cable, qty: '4', ...binsFor(f, 'in') },
       ]);
@@ -736,12 +768,10 @@ describe('which reasons a reversal reverses (addendum 2)', () => {
   it('a reason its grant row marks reversible, and no other', async () => {
     await rolledBack(async (tx) => {
       const f = await fixture(tx);
-      // A reason a later slice opens as reversible (U2's receipt), and one it opens as not.
+      // A reason a later slice opened as reversible (U2's receipt), and one opened as not.
       await tx`insert into app.stock_reason_grants (reason, permission, reversible, opened_by) values
-        ('receipt', 'inventory.stock.adjust:entity', true, 'x4-stock-reasons'),
         ('surplus_in', 'inventory.stock.adjust:entity', false, 'x4-stock-reasons')`;
       await tx`insert into app.stock_reason_moves (reason, direction, from_states, creates, to_state, opened_by) values
-        ('receipt', 'in', '{}', true, 'in_stock', 'x4-stock-reasons'),
         ('surplus_in', 'in', '{scrapped}', false, 'in_stock', 'x4-stock-reasons')`;
       const into = (reason: string): Line => ({
         reason,
@@ -811,13 +841,10 @@ describe('a reversal is described by the reason it reverses', () => {
   it('an opened reason with its own reversal row: reversed with that reason’s grant, by that row', async () => {
     await rolledBack(async (tx) => {
       const f = await fixture(tx);
-      // A receipt whose reversal sends the goods back to their supplier, under the receipt's grant.
-      await tx`insert into app.stock_reason_grants (reason, permission, reversible, opened_by)
-        values ('receipt', 'procurement.grn.write:entity', true, 'x4-stock-reasons')`;
-      await tx`insert into app.stock_reason_moves
-          (reason, direction, reverses_reason, from_states, creates, to_state, opened_by) values
-        ('receipt', 'in', '', '{}', true, 'in_stock', 'x4-stock-reasons'),
-        ('reversal', 'out', 'receipt', '{in_stock}', false, 'with_supplier', 'x4-stock-reasons')`;
+      // U2's receipt, under its own grant; its reversal row here sends the goods back to their
+      // supplier (U2's scraps them), so the case shows the serial moved by that row and no other.
+      await tx`update app.stock_reason_moves set to_state = 'with_supplier'
+        where reason = 'reversal' and reverses_reason = 'receipt' and direction = 'out'`;
       const receive = (item: Line): Line => ({
         reason: 'receipt',
         entity_id: 1,
@@ -966,7 +993,7 @@ describe('the rows the wave 2 slices name, and a delivery’s customer on a line
     });
   });
 
-  it('a receipt makes only new serials', async () => {
+  it('a receipt makes new serials and takes back a scrapped one, never one in stock', async () => {
     await rolledBack(async (tx) => {
       const f = await fixture(tx);
       await openWave2(tx);
@@ -981,7 +1008,9 @@ describe('the rows the wave 2 slices name, and a delivery’s customer on a line
         bin: f.binB,
       });
       expect(await post(tx, [receive(inStock)])).toEqual(refused('stock_serial_exists'));
-      expect(await post(tx, [receive(scrapped)])).toEqual(refused('stock_serial_exists'));
+      // U2's row takes a scrapped serial back (a reversed receipt's, which U2's definer checks).
+      await posted(tx, [receive(scrapped)]);
+      expect(await serial(tx, f.pump, scrapped)).toMatchObject({ state: 'in_stock', bin: f.binB });
     });
   });
 

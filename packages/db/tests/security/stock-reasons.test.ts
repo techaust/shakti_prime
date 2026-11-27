@@ -125,6 +125,18 @@ describe('app.stock_reason_grants, the registry', () => {
     ).toEqual(H1_REVERSIBLE);
   });
 
+  it('holds U2’s receipt: procurement.grn.write in the company, reversible', () => {
+    // Its grant walk, role by role, is the one below; its moves are in stock-reason-moves.
+    expect(grants.filter((g) => g.opened_by === 'u2-purchase-orders')).toEqual([
+      {
+        reason: 'receipt',
+        permission: 'procurement.grn.write:entity',
+        reversible: true,
+        opened_by: 'u2-purchase-orders',
+      },
+    ]);
+  });
+
   it('opens exactly the reasons the contracts open, each with a catalogue key and one of its scopes', () => {
     expect(
       Object.fromEntries(grants.map((g) => [g.reason, splitPermission(g.permission).key])),

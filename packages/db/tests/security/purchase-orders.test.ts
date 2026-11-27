@@ -34,6 +34,8 @@ const ids = {
   draftLine: newId(),
   receipt: newId(),
   receiptLine: newId(),
+  dispatchBin: newId(),
+  otherItem: newId(),
 };
 
 type Pool = 'app_user' | 'app_reader';
@@ -90,9 +92,11 @@ beforeAll(async () => {
       await tx`insert into warehouses (id, code, name, kind, state_code, pin_code, created_by)
         values (${ids.hub}, ${`PO${tag}`}, ${`po test hub ${tag}`}, 'godown', '08', '302001', ${drafter.id})`;
       await tx`insert into bins (id, warehouse_id, code, kind, created_by)
-        values (${ids.bin}, ${ids.hub}, 'RCV', 'receiving', ${drafter.id})`;
+        values (${ids.bin}, ${ids.hub}, 'RCV', 'receiving', ${drafter.id}),
+               (${ids.dispatchBin}, ${ids.hub}, 'DSP', 'dispatch', ${drafter.id})`;
       await tx`insert into items (id, sku, name, category, hsn, unit)
-        values (${ids.item}, ${`PO-${tag}`}, ${`po test item ${tag}`}, 'cable', '8544', 'metre')`;
+        values (${ids.item}, ${`PO-${tag}`}, ${`po test item ${tag}`}, 'cable', '8544', 'metre'),
+               (${ids.otherItem}, ${`PO2-${tag}`}, ${`po test item two ${tag}`}, 'cable', '8544', 'metre')`;
       await tx`insert into vendors (id, name, created_by) values (${ids.vendor}, ${`po test vendor ${tag}`}, ${drafter.id})`;
       await tx`insert into purchase_orders (id, entity_id, po_no, vendor_id, deliver_to_warehouse_id, state, drafted_by,
                                             approved_by, approved_at, sent_at, sent_via, place_of_supply_state_code, created_by)
@@ -125,7 +129,8 @@ afterAll(async () => {
       await tx`delete from goods_receipts where id = ${ids.receipt}`;
       await tx`delete from po_lines where po_id in (${ids.order}, ${ids.draft})`;
       await tx`delete from purchase_orders where id in (${ids.order}, ${ids.draft})`;
-      await tx`update items set archived_at = now(), is_active = false where id = ${ids.item}`;
+      await tx`update items set archived_at = now(), is_active = false
+                 where id in (${ids.item}, ${ids.otherItem})`;
     }),
   );
   await closeDb();
@@ -295,6 +300,72 @@ describe('the receipt and reorder definers', () => {
     expect(
       await attempt(drafter, sql`select app.goods_receipt_post(${ids.receipt}::uuid, '{}'::jsonb)`),
     ).toMatchObject({ constraint: 'goods_receipt_posted' });
+  });
+
+  it('post only rows that match the order, whoever wrote them (review finding 2)', async () => {
+    /**
+     * A receipt of `order` with one line written by hand under row security (as a path other than
+     * the command might), posted at once by the drafter; rolled back by its refusal.
+     */
+    async function post(
+      order: string,
+      line: Partial<Record<'poLine' | 'item' | 'bin' | 'qty' | 'stockQty', string>>,
+    ): Promise<number | { code?: string; constraint?: string }> {
+      const row = {
+        poLine: ids.line,
+        item: ids.item,
+        bin: ids.bin,
+        qty: '1',
+        stockQty: '1',
+        ...line,
+      };
+      const receipt = newId();
+      try {
+        return await withRequestContext(drafter, {}, async ({ tx }) => {
+          await tx.execute(sql`
+            insert into goods_receipts (id, entity_id, grn_no, po_id, warehouse_id, received_at,
+                                        received_by, created_by)
+            values (${receipt}, 1, ${`T${tag}/GRN/${receipt.slice(-6)}`}, ${order}, ${ids.hub}, now(),
+                    ${drafter.id}, ${drafter.id})`);
+          await tx.execute(sql`
+            insert into goods_receipt_lines (id, receipt_id, entity_id, po_line_id, item_id, bin_id,
+                                             qty, stock_qty, is_serial_tracked, created_by)
+            values (${newId()}, ${receipt}, 1, ${row.poLine}, ${row.item}, ${row.bin}, ${row.qty},
+                    ${row.stockQty}, false, ${drafter.id})`);
+          await tx.execute(sql`select app.goods_receipt_post(${receipt}::uuid, '{}'::jsonb)`);
+          throw new Error('the receipt was posted');
+        });
+      } catch (e) {
+        const cause = e instanceof Error && e.cause instanceof Error ? e.cause : e;
+        const c = cause as { code?: unknown; constraint_name?: unknown; message?: unknown };
+        if (typeof c.code !== 'string') throw e;
+        return {
+          code: c.code,
+          ...(typeof c.constraint_name === 'string' ? { constraint: c.constraint_name } : {}),
+        };
+      }
+    }
+    const refused = (constraint: string) => ({ code: '23514', constraint });
+    // Another order's line; a line for another item; a stock quantity that is not qty × factor.
+    expect(await post(ids.order, { poLine: ids.draftLine })).toEqual(
+      refused('goods_receipt_line_unknown'),
+    );
+    expect(await post(ids.order, { item: ids.otherItem })).toEqual(
+      refused('goods_receipt_line_unknown'),
+    );
+    expect(await post(ids.order, { stockQty: '5' })).toEqual(refused('goods_receipt_line_unknown'));
+    // More than the order line still expects (10 ordered, none received).
+    expect(await post(ids.order, { qty: '11', stockQty: '11' })).toEqual(
+      refused('goods_receipt_over_order'),
+    );
+    // A bin goods are not received into.
+    expect(await post(ids.order, { bin: ids.dispatchBin })).toEqual(
+      refused('goods_receipt_bin_unusable'),
+    );
+    // An order not yet sent.
+    expect(await post(ids.draft, { poLine: ids.draftLine })).toEqual(
+      refused('purchase_order_not_open'),
+    );
   });
 
   it('refuse the reorder job’s reads and drafts to every person, an Executive included', async () => {

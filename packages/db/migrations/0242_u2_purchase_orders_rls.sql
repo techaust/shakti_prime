@@ -467,7 +467,12 @@ grant select on reorder_rules, purchase_orders, po_lines, po_line_rates, goods_r
 --     are already written by the caller under row security; this reads each purchase order line's
 --     rate (restricted), keeps it as the receipt line's rate, and posts one `receipt` movement per
 --     line (per serial for a tracked item) through app.stock_move() at that rate per stock unit,
---     which revalues the moving average (question 2 (a)). `p_serials` maps each tracked line's id
+--     which revalues the moving average (question 2 (a)). It trusts no row it is given: the order
+--     is sent or partially received and delivers to the receipt's hub; each line is a line of that
+--     order, for its item, in the company, with its stock quantity the quantity times the order
+--     line's unit factor, within what the order line still expects (all the receipt's lines of an
+--     order line together; the command raises qty_received after this), into a receiving, storage
+--     or quarantine bin of the hub in use. `p_serials` maps each tracked line's id
 --     to its serial numbers: exactly the line's quantity of them, each once. A number the item
 --     already has is refused (goods_receipt_serial_taken), unless it is this company's serial out
 --     of stock (`scrapped`) because the receipt it came in on was reversed: it comes in again. The
@@ -491,14 +496,21 @@ begin
   if v_actor is null or not app.has_perm('procurement.grn.write:entity') then
     raise exception 'procurement.grn.write is required to post a goods receipt' using errcode = '42501';
   end if;
-  select r.id, r.entity_id, r.state, r.received_at, p.vendor_id
+  -- The order, then the receipt, as the command locks them.
+  select r.id, r.entity_id, r.state, r.received_at, r.po_id, r.warehouse_id, p.vendor_id,
+         p.state as po_state, p.deliver_to_warehouse_id
     into v_receipt
     from public.goods_receipts r
     join public.purchase_orders p on p.id = r.po_id and p.entity_id = r.entity_id
    where r.id = p_receipt_id
-     for update of r;
+     for update of p, r;
   if not found or not (v_receipt.entity_id = any (coalesce(app.entity_ids(), '{}'::int[]))) then
     raise exception 'goods receipt % is outside the request', p_receipt_id using errcode = '42501';
+  end if;
+  if v_receipt.po_state not in ('sent', 'partially_received')
+     or v_receipt.warehouse_id is distinct from v_receipt.deliver_to_warehouse_id then
+    raise exception 'the purchase order is not open for goods'
+      using errcode = 'check_violation', constraint = 'purchase_order_not_open';
   end if;
   if v_receipt.state <> 'posted'
      or exists (select 1 from public.goods_receipt_line_rates x
@@ -513,14 +525,40 @@ begin
   end if;
 
   for v_line in
-    select l.id, l.item_id, l.bin_id, l.stock_qty, l.is_serial_tracked, l.po_line_id,
-           pl.unit_factor, i.is_serial_tracked as item_tracked
+    select l.id, l.entity_id, l.item_id, l.bin_id, l.qty, l.stock_qty, l.is_serial_tracked,
+           l.po_line_id, pl.po_id, pl.entity_id as po_line_entity_id, pl.item_id as po_item_id,
+           pl.unit_factor, pl.qty - pl.qty_received as open_qty,
+           sum(l.qty) over (partition by l.po_line_id) as receipt_qty,
+           b.warehouse_id as bin_hub, b.kind as bin_kind, b.archived_at as bin_archived_at,
+           i.is_serial_tracked as item_tracked
       from public.goods_receipt_lines l
-      join public.po_lines pl on pl.id = l.po_line_id and pl.entity_id = l.entity_id
+      left join public.po_lines pl on pl.id = l.po_line_id
+      left join public.bins b on b.id = l.bin_id
       join public.items i on i.id = l.item_id
      where l.receipt_id = p_receipt_id
      order by l.id
   loop
+    if v_line.po_id is distinct from v_receipt.po_id
+       or v_line.entity_id <> v_receipt.entity_id
+       or v_line.po_line_entity_id is distinct from v_receipt.entity_id
+       or v_line.po_item_id is distinct from v_line.item_id
+       or v_line.stock_qty <> pg_catalog.round(v_line.qty * v_line.unit_factor, 3) then
+      raise exception 'the receipt line is not a line of the order'
+        using errcode = 'check_violation', constraint = 'goods_receipt_line_unknown',
+              detail = pg_catalog.jsonb_build_object('itemId', v_line.item_id)::text;
+    end if;
+    if v_line.receipt_qty > v_line.open_qty then
+      raise exception 'more than the order still expects'
+        using errcode = 'check_violation', constraint = 'goods_receipt_over_order',
+              detail = pg_catalog.jsonb_build_object('itemId', v_line.item_id)::text;
+    end if;
+    if v_line.bin_hub is distinct from v_receipt.warehouse_id
+       or v_line.bin_kind not in ('receiving', 'storage', 'quarantine')
+       or v_line.bin_archived_at is not null then
+      raise exception 'the bin is not one goods are received into at the hub'
+        using errcode = 'check_violation', constraint = 'goods_receipt_bin_unusable',
+              detail = pg_catalog.jsonb_build_object('itemId', v_line.item_id)::text;
+    end if;
     if v_line.is_serial_tracked is distinct from v_line.item_tracked then
       raise exception 'the item changed its serial tracking'
         using errcode = 'check_violation', constraint = 'goods_receipt_serials_count';
@@ -605,6 +643,13 @@ grant execute on function app.goods_receipt_post(uuid, jsonb) to app_user;
 --     item has left the line's bin since the receipt, which still holds the line's quantity free
 --     of reservations. Each receipt movement is reversed through app.stock_move(), which takes the
 --     receipt's own cost back out of the moving average. Answers the movement ids.
+--     "Since" is by the order movements were written, never by moved_at (a transaction's start, so
+--     an issue whose transaction began before the receipt's and wrote after it would look older):
+--     the receipt's bins and their balances (and its serials) are locked first, in the order every
+--     stock path takes them, so a movement out of them either committed before and is read here, or
+--     waits for this reversal; and a movement written after the receipt's has a later uuid v7 id,
+--     since the ledger takes its id only once it holds the balance's lock. One written in the same
+--     millisecond counts as since, so the doubt refuses the reversal rather than allowing it.
 create or replace function app.goods_receipt_unpost(p_receipt_id uuid)
   returns uuid[]
   language plpgsql volatile security definer set search_path = '' as $$
@@ -625,8 +670,35 @@ begin
     raise exception 'the goods receipt is already reversed'
       using errcode = 'check_violation', constraint = 'goods_receipt_reversed';
   end if;
+  -- The locks first, in app.stock_move()'s order (hubs, bins, balances, serials), so the checks
+  -- below read every movement out of the receipt's bins that committed before them.
+  perform 1 from public.warehouses w
+   where w.id in (select b.warehouse_id from public.bins b
+                   where b.id in (select m.to_bin_id from public.stock_movements m
+                                   where m.ref_type = 'goods_receipt' and m.ref_id = p_receipt_id
+                                     and m.reason = 'receipt'))
+   order by w.id
+   for share;
+  perform 1 from public.bins b
+   where b.id in (select m.to_bin_id from public.stock_movements m
+                   where m.ref_type = 'goods_receipt' and m.ref_id = p_receipt_id
+                     and m.reason = 'receipt')
+   order by b.id
+   for share;
+  perform 1 from public.stock_balances b
+   where (b.entity_id, b.bin_id, b.item_id) in (
+           select m.entity_id, m.to_bin_id, m.item_id from public.stock_movements m
+            where m.ref_type = 'goods_receipt' and m.ref_id = p_receipt_id and m.reason = 'receipt')
+   order by b.entity_id, b.warehouse_id, b.bin_id, b.item_id
+   for update;
+  perform 1 from public.serials s
+   where s.id in (select m.serial_id from public.stock_movements m
+                   where m.ref_type = 'goods_receipt' and m.ref_id = p_receipt_id
+                     and m.reason = 'receipt' and m.serial_id is not null)
+   order by s.id
+   for update;
   for v_move in
-    select m.id, m.entity_id, m.item_id, m.serial_id, m.to_bin_id, m.qty, m.moved_at, m.batch_id
+    select m.id, m.entity_id, m.item_id, m.serial_id, m.to_bin_id, m.qty, m.batch_id
       from public.stock_movements m
      where m.ref_type = 'goods_receipt' and m.ref_id = p_receipt_id and m.reason = 'receipt'
      order by m.id
@@ -641,7 +713,8 @@ begin
                         and s.bin_id = v_move.to_bin_id)
          or exists (select 1 from public.stock_movements x
                      where x.serial_id = v_move.serial_id and x.id <> v_move.id
-                       and x.moved_at >= v_move.moved_at) then
+                       and (x.id > v_move.id
+                            or pg_catalog.left(x.id::text, 13) = pg_catalog.left(v_move.id::text, 13))) then
         raise exception 'a serial of the receipt has moved on'
           using errcode = 'check_violation', constraint = 'goods_receipt_moved_on',
                 detail = pg_catalog.jsonb_build_object('itemId', v_move.item_id)::text;
@@ -649,7 +722,8 @@ begin
     elsif exists (select 1 from public.stock_movements x
                    where x.entity_id = v_move.entity_id and x.item_id = v_move.item_id
                      and x.from_bin_id = v_move.to_bin_id and x.batch_id <> v_move.batch_id
-                     and x.moved_at >= v_move.moved_at)
+                     and (x.id > v_move.id
+                          or pg_catalog.left(x.id::text, 13) = pg_catalog.left(v_move.id::text, 13)))
        or not exists (select 1 from public.stock_balances b
                        where b.entity_id = v_move.entity_id and b.bin_id = v_move.to_bin_id
                          and b.item_id = v_move.item_id

@@ -108,7 +108,6 @@ describe('grants, per reason, from the request', () => {
 
   it('refuses every reason a later slice opens', async () => {
     for (const reason of [
-      'receipt',
       'pick',
       'issue',
       'return_customer',
@@ -570,11 +569,12 @@ describe('reversals', () => {
     ).rejects.toMatchObject({
       details: { reason: 'stock_movement_missing' },
     });
-    // A receipt, as U2 will post it.
+    // A movement of a reason no slice has opened as reversible, as a later slice may post it (U2's
+    // receipt is reversible at the ledger; its own document, procurement.grn.reverse, reverses it).
     const receipt = newId();
     await asMigrator(async (m) => {
       await m`insert into stock_movements (id, entity_id, item_id, to_bin_id, qty, reason, batch_id, moved_by)
-        values (${receipt}, 1, ${f.cable}, ${f.receiving}, 1, 'receipt', ${receipt}, ${exec.id})`;
+        values (${receipt}, 1, ${f.cable}, ${f.receiving}, 1, 'surplus_in', ${receipt}, ${exec.id})`;
       await m`insert into stock_movement_costs (movement_id, entity_id, unit_cost) values (${receipt}, 1, 1)`;
       await m`insert into stock_balances (id, entity_id, warehouse_id, bin_id, item_id, qty_on_hand)
         values (${newId()}, 1, ${f.hub}, ${f.receiving}, ${f.cable}, 1)

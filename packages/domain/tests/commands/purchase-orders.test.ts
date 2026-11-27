@@ -10,6 +10,7 @@ import {
   createTestUser,
   principalFor,
 } from '@shakti/db/testing';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -665,16 +666,129 @@ describe('procurement.grn.reverse', () => {
   });
 
   it('is refused without procurement.grn.write, and in another company', async () => {
-    const receiptId = newId();
+    // A real receipt of company 2 (review finding 7).
+    const po = await sentOrder([{ itemId: f.cable, qty: '2', rate: '30' }], 2);
+    const lines = await lineIds(po.id);
+    const { id: receiptId } = await run<ReceiptRef>(manager, postGoodsReceipt, {
+      purchaseOrderId: po.id,
+      lines: [{ poLineId: lines[f.cable], qty: '2' }],
+    });
     for (const role of ['general_manager', 'store_manager', 'agent:chief'] as const) {
       await expect(
-        run(principalFor(role, [1]), reverseGoodsReceipt, { receiptId, reason: 'x' }),
+        run(principalFor(role, [2]), reverseGoodsReceipt, { receiptId, reason: 'x' }),
       ).rejects.toMatchObject({ code: 'forbidden' });
     }
-    // A receipt of another company is not there to reverse.
+    // Company 1's Inventory Manager does not find company 2's receipt to reverse.
     await expect(
       run(managerOne, reverseGoodsReceipt, { receiptId, reason: 'x' }),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'goods_receipt_missing' } });
+    const [kept] = await asMigrator(
+      (m) => m<{ state: string }[]>`select state from goods_receipts where id = ${receiptId}`,
+    );
+    expect(kept?.state).toBe('posted');
+  });
+
+  /** A sent order of 4 metres of cable for company 3, received into bin B. */
+  async function receivedIntoB(): Promise<ReceiptRef> {
+    const po = await sentOrder([{ itemId: f.cable, qty: '4', rate: '50' }], 3);
+    const lines = await lineIds(po.id);
+    return run<ReceiptRef>(manager, postGoodsReceipt, {
+      purchaseOrderId: po.id,
+      lines: [{ poLineId: lines[f.cable], qty: '4', binId: f.binB }],
+    });
+  }
+  /** One metre of company 3's cable lost out of bin B. */
+  const lossFromB = () => ({
+    reason: 'adjust_loss' as const,
+    entityId: 3,
+    itemId: f.cable,
+    fromBinId: f.binB,
+    qty: '1',
+    note: 'Cut length found short',
+  });
+
+  it('refuses a reversal after an issue whose transaction began before the receipt (review finding 6)', async () => {
+    // Stock enough in the bin that the receipt's quantity stays there after the issue: only the
+    // issue's being after the receipt refuses the reversal.
+    await asPrincipal(executive, (context) =>
+      stockMove(context.tx, [
+        {
+          reason: 'adjust_gain',
+          entityId: 3,
+          itemId: f.cable,
+          toBinId: f.binB,
+          qty: '5',
+          unitCost: '50.0000',
+        },
+      ]),
+    );
+    let begun!: () => void;
+    const started = new Promise<void>((resolve) => {
+      begun = resolve;
+    });
+    let go!: () => void;
+    const received = new Promise<void>((resolve) => {
+      go = resolve;
+    });
+    // The issue's transaction starts (and so its moved_at is fixed) before the receipt exists.
+    const issue = asPrincipal(executive, async (context) => {
+      await context.tx.execute(sql`select 1`);
+      begun();
+      await received;
+      await stockMove(context.tx, [lossFromB()]);
+    });
+    await started;
+    const receipt = await receivedIntoB();
+    go();
+    await issue;
+    const moves = await asMigrator(
+      (m) => m<{ reason: string; earlier: boolean }[]>`
+        select m.reason, m.moved_at < (select r.moved_at from stock_movements r
+                                        where r.ref_id = ${receipt.id} and r.reason = 'receipt') as earlier
+          from stock_movements m
+         where m.entity_id = 3 and m.item_id = ${f.cable} and m.from_bin_id = ${f.binB}
+         order by m.id desc limit 1`,
+    );
+    // Older by moved_at, written after: the reversal must see it.
+    expect(moves).toEqual([{ reason: 'adjust_loss', earlier: true }]);
+    await expect(
+      run(manager, reverseGoodsReceipt, { receiptId: receipt.id, reason: 'Wrong order' }),
+    ).rejects.toMatchObject({ details: { reason: 'goods_receipt_moved_on' } });
+  });
+
+  it('holds a reversal behind an issue in progress from its bin, then refuses it', async () => {
+    const receipt = await receivedIntoB();
+    let holding!: () => void;
+    const held = new Promise<void>((resolve) => {
+      holding = resolve;
+    });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // The issue holds the bin's balance and has not committed yet.
+    const issue = asPrincipal(executive, async (context) => {
+      await stockMove(context.tx, [lossFromB()]);
+      holding();
+      await gate;
+    });
+    await held;
+    const reversal = run(manager, reverseGoodsReceipt, {
+      receiptId: receipt.id,
+      reason: 'Wrong order',
+    }).then(
+      () => 'reversed',
+      (e: unknown) => e,
+    );
+    // Long enough for the reversal to reach the balance's lock and wait there.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    release();
+    await issue;
+    expect(await reversal).toMatchObject({ details: { reason: 'goods_receipt_moved_on' } });
+    const [kept] = await asMigrator(
+      (m) => m<{ state: string }[]>`select state from goods_receipts where id = ${receipt.id}`,
+    );
+    expect(kept?.state).toBe('posted');
   });
 });
 
