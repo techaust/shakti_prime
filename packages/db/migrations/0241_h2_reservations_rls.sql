@@ -1511,30 +1511,51 @@ revoke execute on function app.backordered_items(smallint, integer) from public,
 grant execute on function app.backordered_items(smallint, integer) to app_user;
 --> statement-breakpoint
 
--- 23. Orders confirmed before reservations existed: each gets its needs as app.reserve_order()
---     writes them (an item line's item, a kit line's components at the kit's quantities now;
---     nothing for what is kept out of stock), all backordered and queued at the order's
---     confirmation, so the first fill (the next stock arriving, or the daily scan's catch-up over
---     app.backordered_items()) reserves them in order of confirmation. Nothing is reserved here.
-insert into public.reservation_needs (id, entity_id, sales_order_id, sales_order_line_id, item_id,
-                                      qty_needed, qty_backordered, queued_at)
-select app.uuid_v7(), x.entity_id, x.sales_order_id, x.line_id, x.item_id, x.qty, x.qty, x.confirmed_at
-  from (select so.entity_id, so.id as sales_order_id, so.confirmed_at, l.id as line_id, l.position,
-               l.item_id, l.qty
-          from public.sales_orders so
-          join public.sales_order_lines l on l.sales_order_id = so.id
-          join public.items i on i.id = l.item_id and i.is_stocked
-         where so.state = 'confirmed' and l.item_id is not null
-        union all
-        select so.entity_id, so.id, so.confirmed_at, l.id, l.position, kc.item_id, l.qty * kc.qty
-          from public.sales_orders so
-          join public.sales_order_lines l on l.sales_order_id = so.id
-          join public.kit_components kc on kc.kit_id = l.kit_id
-          join public.items i on i.id = kc.item_id and i.is_stocked
-         where so.state = 'confirmed' and l.kit_id is not null) x
- where not exists (select 1 from public.reservation_needs n where n.sales_order_id = x.sales_order_id)
- order by x.confirmed_at, x.sales_order_id, x.position, x.item_id;
+-- 23. app.backfill_order_needs(orders): orders confirmed before reservations existed (the given
+--     ones, or every one when null) get their needs as app.reserve_order() writes them (an item
+--     line's item, a kit line's components at the kit's quantities now; nothing for what is kept
+--     out of stock), all backordered and queued at the order's confirmation, so the first fill
+--     (the next stock arriving, or the daily scan's catch-up over app.backordered_items())
+--     reserves them in order of confirmation. Nothing is reserved here, and an order that has
+--     needs is left alone. Run once below, by this migration; no request role may call it.
+--     Answers how many orders it gave needs.
+create or replace function app.backfill_order_needs(p_orders uuid[])
+  returns integer
+  language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_orders uuid[];
+begin
+  v_orders := array(
+    select so.id from public.sales_orders so
+     where so.state = 'confirmed'
+       and (p_orders is null or so.id = any (p_orders))
+       and not exists (select 1 from public.reservation_needs n where n.sales_order_id = so.id)
+     order by so.id
+       for update);
+  insert into public.reservation_needs (id, entity_id, sales_order_id, sales_order_line_id,
+                                        item_id, qty_needed, qty_backordered, queued_at)
+  select app.uuid_v7(), x.entity_id, x.sales_order_id, x.line_id, x.item_id, x.qty, x.qty,
+         x.confirmed_at
+    from (select so.entity_id, so.id as sales_order_id, so.confirmed_at, l.id as line_id,
+                 l.position, l.item_id, l.qty
+            from public.sales_orders so
+            join public.sales_order_lines l on l.sales_order_id = so.id
+            join public.items i on i.id = l.item_id and i.is_stocked
+           where so.id = any (v_orders) and l.item_id is not null
+          union all
+          select so.entity_id, so.id, so.confirmed_at, l.id, l.position, kc.item_id, l.qty * kc.qty
+            from public.sales_orders so
+            join public.sales_order_lines l on l.sales_order_id = so.id
+            join public.kit_components kc on kc.kit_id = l.kit_id
+            join public.items i on i.id = kc.item_id and i.is_stocked
+           where so.id = any (v_orders) and l.kit_id is not null) x
+   order by x.confirmed_at, x.sales_order_id, x.position, x.item_id;
+  perform app.sync_line_backorders(
+    array(select l.id from public.sales_order_lines l where l.sales_order_id = any (v_orders)));
+  return pg_catalog.cardinality(v_orders);
+end
+$$;
 --> statement-breakpoint
-select app.sync_line_backorders(array(
-  select distinct n.sales_order_line_id from public.reservation_needs n
-   where n.qty_backordered > 0));
+revoke execute on function app.backfill_order_needs(uuid[]) from public, readonly_reporter, app_user, app_reader;
+--> statement-breakpoint
+select app.backfill_order_needs(null);

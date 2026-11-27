@@ -16,6 +16,7 @@ import { cancelSalesOrder } from '../../src/commands/sales/cancel-order';
 import { confirmSalesOrder } from '../../src/commands/sales/confirm-order';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { seededGenerator } from '../../src/seeded-generator';
+import { kitAvailability } from '../../src/stock/atp';
 import { stockMove } from '../../src/stock/move';
 import { draftOrder, reservationFixture, type ReservationFixture } from './reservation-fixture';
 import { stockFixture, type StockFixture } from './stock-fixture';
@@ -27,8 +28,11 @@ afterAll(closeDb);
  * confirmations, cancellations, lapses, releases, gains, losses and fills, every bin's
  * `qty_reserved` equals its active reservations and never exceeds what it holds; every need of an
  * open order is its reservations plus its backorder, and a cancelled order holds and waits for
- * nothing; each line's backorder is what its needs leave; and once the fill has run, no backorder
- * of an item waits while some of it is free.
+ * nothing; each line's backorder is what its needs leave (a kit line's, the kits its holds do not
+ * make whole, as atp.ts's `kitAvailability()` counts them); once the fill has run, no backorder
+ * queued at its order's confirmation waits while some of its item is free; and a need put back on
+ * order by a lapse or a release by hand holds no more than the stock that entered a storage bin
+ * after it.
  */
 
 const E = 2;
@@ -129,14 +133,17 @@ async function violations(orders: readonly string[]): Promise<Violation[]> {
       const qty = Number(l.qty);
       let expected = 0;
       if (list.length > 0 && list.some((n) => n.short > 0)) {
-        expected =
-          l.kit_id === null
-            ? (list[0]?.short ?? 0)
-            : qty -
-              Math.min(
-                qty,
-                Math.floor(Math.min(...list.map((n) => ((n.needed - n.short) * qty) / n.needed))),
-              );
+        if (l.kit_id === null) {
+          expected = list[0]?.short ?? 0;
+        } else {
+          // Each component per kit, and what of it is held, in thousandths.
+          const parts = list.map((n, i) => ({
+            itemId: String(i),
+            perKit: Math.round((n.needed * 1000) / qty),
+          }));
+          const held = new Map(list.map((n, i) => [String(i), Math.round((n.needed - n.short) * 1000)]));
+          expected = qty - Math.min(qty, kitAvailability(parts, held).kits);
+        }
       }
       if (Math.abs(Number(l.qty_backordered) - expected) > 0.0005) {
         found.push({ rule: 'a line’s backorder is what its needs leave', row: l });
@@ -149,10 +156,31 @@ async function violations(orders: readonly string[]): Promise<Violation[]> {
                where b.entity_id = ${E} and b.item_id = n.item_id) as free
         from reservation_needs n join sales_orders so on so.id = n.sales_order_id
        where n.sales_order_id = any (${orders}::uuid[]) and so.state = 'confirmed'
-         and n.qty_backordered > 0
+         and n.qty_backordered > 0 and n.requeued_at is null
        group by n.item_id`;
     for (const w of waiting) {
-      if (Number(w.free) > 0) found.push({ rule: 'no backorder waits beside free stock', row: w });
+      if (Number(w.free) > 0) {
+        found.push({ rule: 'no backorder queued at confirmation waits beside free stock', row: w });
+      }
+    }
+    const requeued = await m`
+      select n.id, n.requeued_at,
+             coalesce((select sum(r.qty) from reservations r
+                        where r.sales_order_line_id = n.sales_order_line_id and r.item_id = n.item_id
+                          and r.state in ('active', 'picked') and r.created_at > n.requeued_at), 0)
+               as taken,
+             coalesce((select sum(mv.qty) from stock_movements mv
+                         join bins tb on tb.id = mv.to_bin_id and tb.kind = 'storage'
+                         left join bins fb on fb.id = mv.from_bin_id
+                        where mv.entity_id = ${E} and mv.item_id = n.item_id
+                          and mv.moved_at > n.requeued_at
+                          and (fb.id is null or fb.kind <> 'storage')), 0) as arrived
+        from reservation_needs n
+       where n.sales_order_id = any (${orders}::uuid[]) and n.requeued_at is not null`;
+    for (const n of requeued) {
+      if (Number(n.taken) > Number(n.arrived)) {
+        found.push({ rule: 'a need back on order holds only stock that arrived after it', row: n });
+      }
     }
     return found;
   });

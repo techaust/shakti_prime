@@ -1055,6 +1055,9 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       removed: 0,
       failed: 0,
     },
+    // H2: the backorder fill and the daily reservation scan, the platform's alone.
+    'inventory.reservation.fill': { entityId: 1, itemId: newId() },
+    'inventory.reservation.scan': { entityId: 1 },
   };
 
   it('the Concierge holds exactly its own-scope grants: no cost, price, sales or platform-only grant', () => {

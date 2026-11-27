@@ -314,6 +314,26 @@ describe('the stock lists of reservations and backorders', () => {
       asPrincipal(field, (ctx) => previewLineAvailability(ctx, { entityId: E, lines })),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
+
+  it('measure an item over every line that takes it, so repeats and order tell no count', async () => {
+    const item = await freshItem();
+    await gain(s.binB, item, '6');
+    const preview = async (qtys: string[]) => {
+      const out = await asPrincipal(lc, (ctx) =>
+        previewLineAvailability(ctx, {
+          entityId: E,
+          lines: qtys.map((qty, i) => ({ position: i + 1, itemId: item, qty })),
+        }),
+      );
+      return out.lines.map((l) => l.status);
+    };
+    expect(await preview(['5'])).toEqual(['covered']);
+    expect(await preview(['5', '5'])).toEqual(['partly_covered', 'partly_covered']);
+    // The same item at 1 to 10 on ten lines: every line alike, by the total.
+    const ladder = Array.from({ length: 10 }, (_, i) => String(i + 1));
+    expect(new Set(await preview(ladder))).toEqual(new Set(['partly_covered']));
+    expect(new Set(await preview([...ladder].reverse()))).toEqual(new Set(['partly_covered']));
+  });
 });
 
 describe('a hub’s PIN codes', () => {
@@ -609,11 +629,91 @@ describe('the platform’s jobs', () => {
     expect(await backordersOf(first.orderId)).toEqual(['2.000']);
     await run(workers(), fillBackorders, { entityId: E, itemId: pump });
     expect(await backordersOf(second.orderId)).toEqual(['0.000']);
-    // The lapsed order waits behind it, and takes what is left.
-    expect(await backordersOf(first.orderId)).toEqual(['1.000']);
-    expect(await balanceOf(E, s.binA, pump)).toEqual({ onHand: '3.000', reserved: '3.000' });
+    // The lapsed order waits behind it for stock that arrives after its lapse: what its own lapse
+    // freed stays free.
+    expect(await backordersOf(first.orderId)).toEqual(['2.000']);
+    expect(await balanceOf(E, s.binA, pump)).toEqual({ onHand: '3.000', reserved: '2.000' });
     const lapsed = await eventsOf(first.orderId);
     expect(lapsed.map((e) => e.type)).toContain('inventory.reservation.lapsed');
+    // A receipt of one: the lapsed order takes that one, and the one its lapse freed stays free.
+    await gain(s.binA, pump, '1');
+    await run(workers(), fillBackorders, { entityId: E, itemId: pump });
+    expect(await backordersOf(first.orderId)).toEqual(['1.000']);
+    expect(await balanceOf(E, s.binA, pump)).toEqual({ onHand: '4.000', reserved: '3.000' });
+  });
+
+  it('leave a lone order’s lapsed or released hold free until new stock arrives', async () => {
+    // A lapse: the stock stays free, and the next receipt fills the order again.
+    const lapsing = await heldOrder();
+    await asMigrator(
+      (m) => m`update reservations set expires_at = now() - interval '1 minute'
+                where id = ${lapsing.reservationId}`,
+    );
+    await run(workers(), scanReservations, { entityId: E });
+    await run(workers(), fillBackorders, { entityId: E, itemId: lapsing.item });
+    expect(await backordersOf(lapsing.orderId)).toEqual(['1.000']);
+    expect(await balanceOf(E, s.binA, lapsing.item)).toEqual({
+      onHand: '1.000',
+      reserved: '0.000',
+    });
+    await gain(s.binB, lapsing.item, '1');
+    await run(workers(), fillBackorders, { entityId: E, itemId: lapsing.item });
+    expect(await backordersOf(lapsing.orderId)).toEqual(['0.000']);
+    const held = (await reservationsOf(lapsing.orderId)).filter((r) => r.state === 'active');
+    expect(held.map((r) => r.qty)).toEqual(['1.000']);
+
+    // A release by hand: the freed stock can be written off before or after the fill runs.
+    const released = await heldOrder();
+    await run(manager, releaseReservation, {
+      entityId: E,
+      reservationId: released.reservationId,
+      reason: 'Damaged in the store',
+    });
+    await run(workers(), fillBackorders, { entityId: E, itemId: released.item });
+    expect(await backordersOf(released.orderId)).toEqual(['1.000']);
+    await asPrincipal(manager, ({ tx }) =>
+      stockMove(tx, [
+        { reason: 'damage', entityId: E, itemId: released.item, fromBinId: s.binA, qty: '1' },
+      ]),
+    );
+    expect(await balanceOf(E, s.binA, released.item)).toEqual({
+      onHand: '0.000',
+      reserved: '0.000',
+    });
+  });
+
+  it('give orders confirmed before reservations existed their needs, queued at confirmation, which the fill reserves', async () => {
+    const item = await freshItem();
+    await gain(s.binB, item, '1');
+    const { orderId } = await draftOrder(f, lc.id, [
+      { itemId: item, qty: '2' },
+      { kitId: f.kit, qty: '1' },
+      { itemId: f.service, qty: '1' },
+    ]);
+    await asMigrator(
+      (m) => m`update sales_orders set state = 'confirmed', confirmed_at = now() - interval '3 days',
+                 confirmed_by = ${lc.id} where id = ${orderId}`,
+    );
+    const backfill = () =>
+      asMigrator(
+        (m) => m<{ n: number }[]>`select app.backfill_order_needs(${[orderId]}::uuid[]) as n`,
+      );
+    expect((await backfill())[0]?.n).toBe(1);
+    // Once only: an order with needs is left alone.
+    expect((await backfill())[0]?.n).toBe(0);
+    const needs = await asMigrator(
+      (m) => m<{ item_id: string; backordered: string; at_confirmation: boolean }[]>`
+        select n.item_id, n.qty_backordered::text as backordered,
+               n.queued_at = so.confirmed_at as at_confirmation
+          from reservation_needs n join sales_orders so on so.id = n.sales_order_id
+         where n.sales_order_id = ${orderId}`,
+    );
+    expect(needs).toHaveLength(3);
+    expect(needs.every((n) => n.at_confirmation)).toBe(true);
+    expect(await reservationsOf(orderId)).toEqual([]);
+    expect(await backordersOf(orderId)).toEqual(['2.000', '1.000', '0.000']);
+    await run(workers(), fillBackorders, { entityId: E, itemId: item });
+    expect(await backordersOf(orderId)).toEqual(['1.000', '1.000', '0.000']);
   });
 
   it('remind the order’s owner once, the reminder days before it lapses', async () => {

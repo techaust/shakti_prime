@@ -5576,7 +5576,7 @@
     },
     "reservation_expiring": {
       "title": "Held stock is released soon",
-      "body": "Stock set aside for an order is released soon unless someone extends the hold. Tap to open the order."
+      "body": "Stock set aside for an order is released soon unless someone extends the hold. The order would then wait for new stock. Tap to open the order."
     }
   },
   "orders": {
@@ -6922,7 +6922,7 @@
     },
     "reservations": {
       "heading": "Stock held for orders",
-      "orderIntro": "Stock set aside for this order, held until the date shown. A hold can be extended once.",
+      "orderIntro": "Stock set aside for this order, held until the date shown. A hold can be extended once. When a hold ends, its stock is free and the order waits for stock that arrives later.",
       "itemIntro": "Stock of this item set aside for orders, soonest to end first.",
       "caption": "Stock held for orders",
       "empty": "No stock is held.",
@@ -6947,7 +6947,7 @@
       "extendTitle": "Extend this hold",
       "extendIntro": "The stock stays set aside for one more hold period. A hold can be extended only once.",
       "releaseTitle": "Release this hold",
-      "releaseIntro": "The stock becomes free for other orders, and this order waits for stock again behind the orders already waiting.",
+      "releaseIntro": "The stock becomes free for other orders, or to write off. This order then waits behind the orders already waiting, for stock that arrives after now.",
       "moveTitle": "Hold the stock in another hub",
       "moveIntro": "The same quantity is set aside from the other hub's free stock, until the same date. If that hub has too little, nothing changes.",
       "reason": "Reason",
