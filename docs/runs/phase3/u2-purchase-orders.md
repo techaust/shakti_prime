@@ -45,6 +45,14 @@ Review checklist: no rate or amount in any DTO, PDF, export, event, audit value,
 ### Brief addendum (the lead, 27-11-2026 14:35 UTC)
 X4 now also moves the serial rules of `app.stock_move()` into a table (`app.stock_reason_serial_moves`, X4's brief point 5): today the definer creates a serial only for `opening` and `adjust_gain`, so a receipt of new serials is refused with `stock_serial_unknown`. Open `receipt` with two inserts in your own migration once X4 has merged: the grant row (`procurement.grn.write:entity`) and the move row `receipt` / `in` / creates / `in_stock`. Never redefine `app.stock_move()`. Build everything else first; if X4 has not merged when only this remains, stop at the early check and say so.
 
+### Brief addendum 2 (the lead, 27-11-2026 17:00 UTC): from X4's review
+X4's fix round keys reversal move rows by the reason reversed, and a reversal takes the reversed reason's permission, so `procurement.grn.reverse` needs `procurement.grn.write` only. Your opening migration therefore adds:
+- the grant row `receipt` → `procurement.grn.write:entity`, `reversible` true;
+- the move row `receipt` / `in` / creates, with `from_states '{scrapped}'` so a serial whose receipt was reversed can be received again (X4's review, finding 4);
+- the reversal move row (`reversal`, `out`, `reverses_reason` `receipt`, from `in_stock` → `scrapped`).
+
+Read X4's final comment block for the exact columns once it merges.
+
 ## How this slice runs
 - **Your role:** you are this slice's builder (or, in a review lane, its reviewer), not the lead. Read `.claude/agents/slice-builder.md` (or `slice-reviewer.md`) and follow it as your rules, with this file as your brief and [the Phase 3 design](../../03-roadmap-appendix/phase3.md) (§1, §4, §5, §10, §13 and your slice's section) as its source. `CLAUDE.md` calls every session the lead; that does not apply to you. Never run the `start-session` or `end-session` skills, open or merge a pull request, push to `main` or `ops/seats`, touch a hosted service or GitHub workflow, delete a branch, force-push, or install a package.
 - **Where:** a seat of the seven-day push (seats protocol v2, `seats/readme.md` on `ops/seats`). Your seat gives you a worktree of this branch with its own Postgres and app port, and its lane prompt names them. Work only there. Put every heavy command through `bash tools/integration/heavy.sh`, and also every lint, typecheck and test while another agent runs in the VM.
