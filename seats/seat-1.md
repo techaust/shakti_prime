@@ -1,15 +1,15 @@
 seat: 1
 max_agents: 3
-updated: 2026-11-27T14:26Z
+updated: 2026-11-27T14:29Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
-lane: 1
+lane: 25
 role: build
 branch: feat/x4-stock-reasons
 run_file: docs/runs/phase3/x4-stock-reasons.md
 wait_for: none
 done_when: report: x4-stock-reasons done
-note: first priority: U2 and R3 open their ledger reasons through this registry. Tier A but no early check: the slice is the schema change; report done.
+note: replaces lane 1: the brief has an addendum (serial moves as data, points 5 to 9); read the whole run file again. First priority. No early check.
 
 lane: 2
 role: build

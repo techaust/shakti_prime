@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 3
-updated: 2026-11-27T14:26Z
+updated: 2026-11-27T14:29Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -11,13 +11,13 @@ wait_for: none
 done_when: report: h3-stock-counts early check
 note: Tier A; stop at the early check.
 
-lane: 7
+lane: 26
 role: build
 branch: feat/r3-warranty
 run_file: docs/runs/phase3/r3-warranty.md
 wait_for: none
 done_when: report: r3-warranty early check
-note: Tier A; stop at the early check.
+note: replaces lane 7: the lead answered your blocked report (option (a)) at the end of the Report section; build what is not affected now, the ledger steps after X4 merges.
 
 lane: 12
 role: review
