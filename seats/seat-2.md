@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T17:50Z
+updated: 2026-11-27T18:45Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -122,3 +122,11 @@ run_file: docs/runs/phase3/h2-reservations.md
 wait_for: report: h2-reservations fixes
 done_when: review: h2-reservations re-check done
 note: re-check of the fix diff only (the review found a high): confirm the nine fixes with their tests, especially the lock order (1) and the lapse (2); commit review: h2-reservations re-check done.
+
+lane: 62
+role: fix
+branch: feat/j2-loans
+run_file: docs/runs/phase4/j2-loans.md
+wait_for: none
+done_when: report: j2-loans fixes
+note: the one fix round: M1, L1, L2, L3, L5, L6, L7 as the lead's triage at the end of the Review section says.
