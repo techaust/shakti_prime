@@ -261,4 +261,21 @@ Reviewed `feat/u2-purchase-orders` at `185adabd` against `origin/main` `59736c74
 
 **Not checked.** The journeys (`apps/web/e2e/purchase-orders.spec.ts`, 12 in three projects) were not run: a seat cannot sign in, and the receive journey also needs the `receipt` opening. No screenshot baselines exist yet, so the layout check is not done. The web suite, `pnpm build`, `js-budget` and the whole-repository lint were not run again (the builder's runs are in the report). `apps/web/js-budget.json` and `tools/copy-lint/copy-lint.config.json` changed, so the pull request needs the owner's `checks-ok`.
 
+**The lead's triage (27-11-2026):** the fix round starts once X4 has merged: take `main` in first. Fix 1 to 7, 9 and 10.
+- **1:** the opening migration per brief addendum 2 and X4's final comment block. Then run the receipt and reversal tests against the real definer.
+- **2:** `app.goods_receipt_post()` validates every row against the order:
+  - the order is `sent` or `partially_received`;
+  - each line belongs to the receipt's order and item;
+  - `stock_qty = qty × unit_factor`;
+  - the quantity is within what is still open;
+  - the bin is a storage or receiving bin of the receipt's hub.
+- **3:** the PDF prints only from `approved` on. A cancelled order prints with "Cancelled" across it, and the date is the approval date.
+- **4:** build the email: a worker on `procurement.po.sent` with `via: 'email'` renders the PDF and sends it through the mailer to the vendor contact named, with the company's reply-to. Until the mailer is `ses` on an environment, it logs as every mail does. A failed send leaves the order sent, with a notice to the sender to send it by hand.
+- **5:** the reorder check also runs on `inventory.stock.moved` for issues and losses: one line in the event worker registry, under a U2 comment beside H2's. Debounce it per company and item.
+- **6:** close the race. Lock the receipt's balance rows `for update` before reading the movements since, or compare by commit order rather than `moved_at`. State the approach in the report, and test it with a concurrent issue.
+- **7, 9, 10:** as the review says. Use the letterhead, as the quote PDF does.
+- **8:** not changed. Recorded as a question for the CA's golden set; the lead adds it to the follow-ups.
+
+**Finding 1 is high, so the reviewer re-checks the fix diff.**
+
 ## Integration
