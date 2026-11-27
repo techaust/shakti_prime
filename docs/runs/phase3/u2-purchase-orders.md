@@ -5,9 +5,9 @@
 | Branch | `feat/u2-purchase-orders` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): supplier rates, stock in, the moving average, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; built on the seat by Opus 5.5 at high effort (start and early check) |
-| State | early check (the `receipt` opening waits for X4) |
-| Next step | the lead reads the early check; X4 merges; the builder continues |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; built on the seat by Opus 5.5 at high effort (start, early check and done) |
+| State | done, but for the `receipt` opening, which waits for X4's merge |
+| Next step | review; the lead adds the opening migration at integration once X4 has merged |
 
 ## Brief
 Build [phase3 §7.2](../../03-roadmap-appendix/phase3.md#72-u2-purchase-orders-and-goods-receipt) as written, with questions 2 (a), 5 (a) and 8 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -177,6 +177,58 @@ with its grant test.
 **Not yet built (after the early check):** the notice to the Inventory Manager on a reorder draft and the daily and on-issue triggers (workers), the mailer and PDF for `send`, the queries and DTOs for the screens, the scan field, the purchase order PDF template, the screens and journeys, `EXPLAIN (ANALYZE)` evidence for the lists, docs/06-api.md.
 
 **Shared registration points touched** (each under a U2 comment): permission catalogue and seed, `SYSTEM_MATRIX`, `WORKSHOP_DEFAULTS`, event catalogue, machine registry, testing lists, `en.json`. Migration redefinitions to recheck at the merge: `app.platform_only_permissions()` (H2 adds `inventory.reservations.process`), `app.next_document_no()` and `document_sequences_doc_type_check` (R3 adds `warranty_claim`).
+
+### 27-11-2026, seat (done)
+Built on the seat in `/home/user/shakti-wt/u2-purchase-orders` (Postgres 54331, app 3031), from the early check as pushed, after the lead's note (the seven tables and the decisions accepted; X4 gains a reversible flag) and brief addendum 2. Skills loaded: `add-table`, `add-command` (early check); `vercel-react-best-practices`, `web-design-guidelines` were not loaded in this lane, so the screens follow the existing procurement and inventory screens' patterns instead.
+
+**Not done, named for the lead: the `receipt` opening.** X4 is reviewed (`review: x4-stock-reasons done`) but not on `main`, so I could not take `main` in. Once it has merged, the opening is one custom migration of this slice, written as X4's final comment block says (check its columns then), with the grant test, the move-row tests, `OPEN_STOCK_REASONS` in the contracts and the reason taken out of the domain ledger test's list of reasons later slices open:
+```sql
+insert into app.stock_reason_grants (reason, permission, reversible, opened_by)
+  values ('receipt', 'procurement.grn.write:entity', true, 'u2-purchase-orders') on conflict (reason) do nothing;
+insert into app.stock_reason_serial_moves (reason, direction, from_states, creates, to_state, opened_by)
+  values ('receipt', 'in', '{scrapped}', true, 'in_stock', 'u2-purchase-orders') on conflict (reason, direction) do nothing;
+-- the reversal of a receipt (X4's fix round keys reversal rows by the reason reversed):
+-- ('reversal', 'out', reverses_reason 'receipt', from '{in_stock}' to 'scrapped')
+```
+Until then five command tests fail on `stock_reason_not_open` (below). With the opening simulated in the slot database (`app.stock_move()` patched by hand to grant `receipt`, let it create serials or take one back from `scrapped`, and reverse it; restored byte for byte afterwards, never committed) all 29 command tests pass.
+
+**Built in this lane (files).**
+- Reads `packages/domain/src/queries/procurement/order-queries.ts`: `listPurchaseOrders` (one state, keyset on `(created_at, id)`, the company's unopened reorder drafts on top, a count per state), `getPurchaseOrder` (`PurchaseOrderDto` for everyone; `PurchaseOrderWithRatesDto` with each line's rate and amount and the tax split by the engine only for `procurement.rate.read`), `getReceiveGoods`, `listGoodsReceipts`, `listReorderRules`, `getPurchaseOrderPrint`, `purchaseOrderOverdue` (open, a week past the expected date in India). Contracts for them in `packages/contracts/src/procurement/orders.ts`.
+- Actions `apps/web/src/actions/purchase-orders.ts`.
+- The scan field `apps/web/src/screens/scan/scan-field.tsx` and its rules `scan-state.ts`: one input for a handheld scanner (types and presses Enter) or the camera (the browser's `BarcodeDetector` where it exists, else the installed `jsqr`, QR only, loaded when the camera opens); it says at once whether a code was taken, is known, is a repeat, is unknown or has the wrong shape, and keeps the count against the expected number. It takes `resolve(code)`, so Q1's `parseLabelPayload()` plugs in as a resolver; `newSerialResolver(pattern)` is the receipt's. Its words are the `scan` catalogue, added to the `/procurement` client scope (`/inventory` adds it when D2 or H3 use it).
+- Screens under `apps/web/src/app/(bos)/procurement/`: `orders` (by state, the reorder drafts on top, a company switch), `orders/new`, `orders/[id]` (the order sheet, server-rendered, its actions by state and grant, its receipts), `orders/[id]/edit`, `orders/[id]/receive` (line by line, bins of the hub, serials by scan), `orders/[id]/pdf` (route), `receipts` (with Reverse and its reason). Components in `apps/web/src/components/procurement/` (`orders-screen`, `order-sheet`, `order-actions`, `order-form`, `receive-screen`, `receipts-screen`, `reorder-rules`); helpers `apps/web/src/screens/purchase-orders.ts`. The procurement tabs gain Purchase orders and Goods received for whoever reads a company's orders. Reorder rules sit on the item's stock card (one block in H1's page, under a U2 comment).
+- The purchase order PDF `apps/web/src/print/purchase-order-template.ts` (A4, light, the buying company's block, the vendor, deliver to and place of supply, lines, and only for a holder of `procurement.rate.read` the rate, amount and tax split; otherwise a line saying rates are withheld).
+- The daily reorder check: `apps/web/src/workers/procurement-reorder.ts`, route `/api/v1/workers/procurement/reorder`, schedule `procurement-reorder` at 00:30 UTC (06:00 IST), contracts `ReorderWorkerBody` and `ReorderWorkerResponse`.
+- The notice of a reorder draft: notice type `reorder_drafted`, subject `purchase_order`, `procurement.po.drafted` subscribed to the notify worker; migrations `0242_u2_reorder_notice.sql` (generated, the widened checks `NOT VALID`) and `0243_u2_reorder_notice_rls.sql` (`app.notice_reorder_people()`: the company's people whose role there holds `procurement.po.write`, for a reorder draft no person has written). The bell links to the order.
+- `0241`'s receipt definer now takes back a serial of the company whose receipt was reversed (addendum 2); a serial of another company, or one still held, stays refused.
+- Copy: `en.json` (`procurement.*`, `scan`, `inventory.reorderRules`, `print.purchaseOrder`, the notice and push texts, the two permission names in the role editor); button keys in `tools/copy-lint/copy-lint.config.json`. Budgets in `apps/web/js-budget.json` for the six new pages; `/catalogue` raised by 1 kB (measured 245.1 kB against 245: the shell's notice link). Both are checks files: the pull request needs the owner's `checks-ok`.
+- Journeys `apps/web/e2e/purchase-orders.spec.ts` with their seed `apps/web/e2e/setup/purchase-orders.ts` and fixtures in `support/users.ts`: the Inventory Manager drafts an order with its rate and sees the tax split and the self-approval refusal, and receives the project's sent order of two pumps by scanning (a wrong-shape code, a repeat and a missing serial refused); the snapshot company's Executive sees the sheet with rates and gets the PDF; its General Manager sees the list and the sheet with no `₹` anywhere and no Approve or Mark sent. Axe on each screen; screenshots `purchase-order-sheet`, `purchase-orders-list`, `purchase-order-sheet-no-rates`.
+- Documents: DATABASE §4.3 and §6.5 (early check), API §3.6 (the worker) and §4 (the PDF route), the Phase 3 design's "Built (U2)" record, `pnpm db:docs` and `machines:docs` regenerated.
+
+**Tests added in this lane:** command file now 29 cases (the reads: no value for the General Manager or the Store Manager on the sheet or the print, a rate reader's totals, another company not found, a caller refused; the list by state with the reorder drafts; overdue in IST; the reorder notice to the company's order writer only, once; a reversed receipt's serials received again); reader parity for the six reads on both pools; `scan-state.test.ts` 6; the schedule, check-in and subscription tests follow the new job and event.
+
+**Checks run (this lane).**
+- `pnpm build` (no `.env` URL): passed. `pnpm --filter web js-budget`: every page within its budget (71 pages); new pages 194.1 to 231.3 kB.
+- `pnpm test:security` one package at a time: db 63 files, 1826 passed; domain 111 files, 1543 passed and 5 failed (the five receipt tests on `stock_reason_not_open`, waiting for the opening); web 39 files, 461 passed.
+- Unit: web 159 files, 1164 passed (1 skipped); domain 112 files, 2924 passed; contracts 25 files, 340 passed.
+- `pnpm copy-lint`: clean. `pnpm --filter web e2e:seed`: passed. `playwright test --list e2e/purchase-orders.spec.ts`: 12 journeys in three projects found. **The journeys themselves were not run** (they cannot sign in on a seat); the lead runs them and makes the Linux baselines.
+- Whole-repository `pnpm lint` (through the lock): no problems; `pnpm typecheck`: 10 of 10 tasks successful. Prettier clean on every changed file.
+
+**`EXPLAIN (ANALYZE)` under row security** (`packages/domain/tests/spike/po-explain.ts`, 60,026 orders with two lines and their rates, 25,716 receipts, as a General Manager and an Inventory Manager of company 1):
+- Orders list, `sent`, first page: Bitmap Index Scan on `purchase_orders_entity_state_idx` (`entity_id`, `state`), 2,150 rows, top-N sort, line counts by `po_lines_po_line_no_unique`, 5.1 ms; second page with the keyset in the index condition, 3.1 ms; the reorder drafts 1.8 ms; the counts per state 6.2 ms.
+- Order sheet with rates: every statement on a primary key or `po_lines_po_line_no_unique`, 0.09 ms, 0.09 ms, 0.06 ms.
+- Receipts list: Index Scan Backward on `goods_receipts_entity_received_idx`, Limit 51, 0.5 ms.
+
+**Decisions taken in this lane.**
+- The PDF is printed on request for the person who asks (`/procurement/orders/{id}/pdf`, read as them), not by the render worker: the worker principal must never read a rate, and this way the rates print exactly for a holder of `procurement.rate.read`. The template lives beside the others in `apps/web/src/print`; it is not an entry of `DOCUMENT_TYPES`, whose loaders run as the worker. The company block prints the name, address and GSTIN; the logo and letterhead images are left out, since a person's request does not read the company's files.
+- **Sending by email is not built.** The mailer sends text only (`apps/web/src/mail/ses-mailer.ts`, no attachment), and a worker could not print the rates. `procurement.po.send` takes `via: 'email'` and records it with the event, but the sheet offers only Mark sent, with Download PDF beside it. An attachment-capable mailer and the vendor's copy are a decision for the lead.
+- **The reorder check on each issue is not wired.** `inventory.stock.moved` has no worker on `main`, and H2 subscribes its own to it; two slices registering one type would clash. `runReorder({ entityId })` runs one company, so the line for whichever of H2 and U2 merges second is: on `inventory.stock.moved` with a movement leaving a storage bin, `runReorder({ entityId: event.entityId, requestId })`. The daily run covers it meanwhile.
+- The order list is by state (one state at a time, `draft` first), the reorder drafts no person has opened on top of every state; receipts are listed newest first per company and per order on its sheet.
+- The receive screen proposes what is still to come on every open line, in the receiving bin; a tracked line's scan field expects quantity × unit factor serials and the screen refuses to save until each is scanned; the server checks again.
+- The order form lists only the items the chosen vendor supplies (U1's links); an item it does not yet supply is added on the vendor's page first.
+- A reorder draft's notice goes to everyone whose role in the company holds `procurement.po.write` (the Inventory Manager, and the Executive), once per order, and not once a person has written the draft.
+
+**Review checklist, checked:** no rate or amount in any DTO without `procurement.rate.read` (the reads' tests), nor in any event, audit value, notice (ids only) or error (the sentences name no figure); the PDF prints rates only for a rate reader; the General Manager and the Store Manager read orders and receipts without values on both pools and the screens show none (journey); every serial accounted for at receipt (refused one short, one extra, repeated, off-pattern or taken); a reversal refused once stock or a serial moved on; the moving average equals the hand calculation (175.0000 and back to 50.0000, under the simulated opening).
 
 ## Review
 
