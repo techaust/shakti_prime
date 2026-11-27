@@ -1,29 +1,52 @@
 -- X4 the stock ledger's reason registry (docs/runs/phase3/x4-stock-reasons.md): which permission
--- each movement reason of app.stock_move() needs now lives in data, in app.stock_reason_grants,
--- so a slice opens a reason with one insert and never redefines the ledger's write path.
+-- each movement reason of app.stock_move() needs, and how a serial may move on each reason and
+-- direction, now live in data (app.stock_reason_grants and app.stock_reason_serial_moves), so a
+-- slice opens a reason with inserts and never redefines the ledger's write path.
 --
--- HOW A LATER SLICE OPENS A REASON. In that slice's own custom migration write exactly one
--- statement, and nothing else about app.stock_move():
+-- HOW A LATER SLICE OPENS A REASON. In that slice's own custom migration, write these inserts and
+-- nothing else about app.stock_move():
 --
 --   insert into app.stock_reason_grants (reason, permission, opened_by)
 --     values ('<reason>', '<permission key>:<scope>', '<your slice>')
 --     on conflict (reason) do nothing;
 --
--- <reason> is one of the ledger's fifteen (stock_movements_reason_check); <permission key>:<scope>
--- is a key of the permission catalogue with one of its scopes, written exactly as app.has_perm()
--- reads the request's settings (H1's are 'inventory.stock.adjust:entity' and
--- 'inventory.stock.move:entity'); <your slice> is the run file's slug, for example
--- 'u2-purchase-orders'. Then, in the same slice: add the reason's grant test (the roles that
--- may and may not post it) beside H1's in the ledger suite; take the reason out of the list in
--- the domain ledger test 'refuses every reason a later slice opens'; and add it to
--- OPEN_STOCK_REASONS in the contracts, which the registry's test holds equal to this table. The
--- registry's test walks every row of the table, so the new row's grant is checked there too.
--- A reason with no row stays refused with stock_reason_not_open. Never redefine app.stock_move() to open a reason, and never update or
--- delete another slice's row: a later full redefinition would silently drop an earlier slice's
--- reason, which is why the mapping left the function.
+-- and, when the reason moves a serial-tracked item, one row per direction it moves one in:
+--
+--   insert into app.stock_reason_serial_moves
+--       (reason, direction, from_states, creates, to_state, opened_by)
+--     values ('<reason>', '<in | out | transfer>', '{<state>, ...}', <creates>, '<state>', '<your slice>')
+--     on conflict (reason, direction) do nothing;
+--
+-- <reason> is one of the ledger's fifteen (stock_movements_reason_check). <permission key>:<scope>
+-- is a key of the permission catalogue with one of its scopes, written as app.has_perm() reads the
+-- request's settings (H1's are 'inventory.stock.adjust:entity' and 'inventory.stock.move:entity').
+-- <your slice> is the run file's slug. A line's direction follows its bins: `in` has only a target
+-- bin, `out` only a source bin, `transfer` both. <from_states> are the serial states a serial
+-- already known may move from; <creates> is true when a serial number not yet known makes a new
+-- serial (`in` only; from_states may then be empty, so only a new serial is accepted); <to_state>
+-- is the state the serial goes to, and its bin follows serials_bin_check (the line's target bin,
+-- none for with_customer, with_supplier and scrapped). Only a row whose to_state is with_customer
+-- takes a line's account_id, site_id, delivered_at and warranty_until. The table's checks refuse a
+-- row the ledger could never post.
+--
+-- The wave 2 rows, each written by its own slice, not here:
+--   r3-warranty         ('warranty_replacement', 'out', '{in_stock}', false, 'with_customer')
+--                       ('return_customer', 'in', '{with_customer}', false, 'faulty')
+--                       ('return_supplier', 'out', '{faulty}', false, 'with_supplier')
+--   u2-purchase-orders  ('receipt', 'in', '{}', true, 'in_stock')
+--
+-- Then, in the same slice: add the reason's grant test (the roles that may and may not post it) and
+-- a test of each serial move row beside H1's in the ledger suite; take the reason out of the list
+-- in the domain ledger test 'refuses every reason a later slice opens'; and add it to
+-- OPEN_STOCK_REASONS in the contracts, which the registry's test holds equal to the grant table.
+-- A reason with no grant row stays refused with stock_reason_not_open; a serial-tracked line whose
+-- reason and direction have no move row is refused with stock_serial_state. Never redefine
+-- app.stock_move() to open a reason, and never update or delete another slice's row: a later full
+-- redefinition would silently drop an earlier slice's reason, which is why the rules left the
+-- function.
 
--- 1. The registry: one row per open reason, read only by app.stock_move() as its owner. It holds
---    no company and no personal data, and no request role, reporting or agent reads or writes it.
+-- 1. The grants: one row per open reason, read only by app.stock_move() as its owner. It holds no
+--    company and no personal data, and no request role, reporting or agent reads or writes it.
 create table app.stock_reason_grants (
   reason text primary key,
   permission text not null,
@@ -51,10 +74,98 @@ insert into app.stock_reason_grants (reason, permission, opened_by) values
   ('transfer', 'inventory.stock.move:entity', 'h1-stock-ledger');
 --> statement-breakpoint
 
--- 3. app.stock_move(), as H1 wrote it, with one change: the case that named each reason's
---    permission is now a read of app.stock_reason_grants. Every other line, the lock order and
---    every refusal included, is H1's; a reason with no row leaves v_perm null and is refused with
---    stock_reason_not_open, as before.
+-- 3. The serial moves: per open reason and direction, the states a serial may come from, whether a
+--    new serial number makes a serial, and the state it goes to. Same grants as the grants table
+--    (none). The checks keep a row postable: an `in` line names no source bin, so its serial comes
+--    from a state outside every bin and goes to one in a bin (or in transit); an `out` or
+--    `transfer` line takes the serial from its source bin, so it comes from a state in a bin (or in
+--    transit); an `out` line leaves every bin of the company, a `transfer` line stays in one.
+create table app.stock_reason_serial_moves (
+  reason text not null references app.stock_reason_grants (reason),
+  direction text not null,
+  from_states text[] not null default '{}',
+  creates boolean not null default false,
+  to_state text not null,
+  opened_by text not null,
+  primary key (reason, direction),
+  constraint stock_reason_serial_moves_direction_check check (direction in ('in', 'out', 'transfer')),
+  constraint stock_reason_serial_moves_states_check check (
+    to_state in ('in_stock', 'reserved', 'picked', 'in_transit', 'with_customer', 'faulty',
+                 'with_supplier', 'scrapped')
+    and from_states <@ array['in_stock', 'reserved', 'picked', 'in_transit', 'with_customer',
+                             'faulty', 'with_supplier', 'scrapped']::text[]
+    and pg_catalog.array_position(from_states, null) is null),
+  constraint stock_reason_serial_moves_creates_check check (
+    (creates and direction = 'in') or (not creates and pg_catalog.cardinality(from_states) > 0)),
+  constraint stock_reason_serial_moves_bin_check check (
+    (direction = 'in'
+     and to_state in ('in_stock', 'reserved', 'picked', 'faulty', 'in_transit')
+     and not from_states && array['in_stock', 'reserved', 'picked', 'faulty']::text[])
+    or (direction = 'transfer'
+        and to_state in ('in_stock', 'reserved', 'picked', 'faulty', 'in_transit')
+        and not from_states && array['with_customer', 'with_supplier', 'scrapped']::text[])
+    or (direction = 'out'
+        and to_state in ('with_customer', 'with_supplier', 'scrapped', 'in_transit')
+        and not from_states && array['with_customer', 'with_supplier', 'scrapped']::text[])),
+  constraint stock_reason_serial_moves_opened_by_check
+    check (opened_by ~ '^[a-z0-9][a-z0-9-]*$' and char_length(opened_by) <= 60)
+);
+--> statement-breakpoint
+revoke all on app.stock_reason_serial_moves from public, app_user, app_reader, readonly_reporter;
+--> statement-breakpoint
+
+-- 4. H1's serial rules, exactly as its serial block had them: a serial number not yet known makes
+--    a serial only on opening and adjust_gain (0231's `v_reason in ('opening', 'adjust_gain')`);
+--    into a bin, a serial comes back only from scrapped and goes in_stock (`v_serial.state <>
+--    'scrapped'` refused, then `set state = 'in_stock', bin_id = v_line.to_bin`); out of a bin it
+--    leaves in_stock (`v_serial.state <> 'in_stock'` refused) and is scrapped with no bin
+--    (`set state = 'scrapped', bin_id = null`); between two bins it stays in_stock in the target
+--    bin (`set bin_id = v_line.to_bin`). The directions are each reason's in 0231: opening and
+--    adjust_gain in; adjust_loss and damage out; count in or out; transfer between two bins; a
+--    reversal the opposite of the movement it reverses, so all three.
+insert into app.stock_reason_serial_moves (reason, direction, from_states, creates, to_state, opened_by) values
+  ('opening', 'in', '{scrapped}', true, 'in_stock', 'h1-stock-ledger'),
+  ('adjust_gain', 'in', '{scrapped}', true, 'in_stock', 'h1-stock-ledger'),
+  ('adjust_loss', 'out', '{in_stock}', false, 'scrapped', 'h1-stock-ledger'),
+  ('damage', 'out', '{in_stock}', false, 'scrapped', 'h1-stock-ledger'),
+  ('count', 'in', '{scrapped}', false, 'in_stock', 'h1-stock-ledger'),
+  ('count', 'out', '{in_stock}', false, 'scrapped', 'h1-stock-ledger'),
+  ('transfer', 'transfer', '{in_stock}', false, 'in_stock', 'h1-stock-ledger'),
+  ('reversal', 'in', '{scrapped}', false, 'in_stock', 'h1-stock-ledger'),
+  ('reversal', 'out', '{in_stock}', false, 'scrapped', 'h1-stock-ledger'),
+  ('reversal', 'transfer', '{in_stock}', false, 'in_stock', 'h1-stock-ledger');
+--> statement-breakpoint
+
+-- 5. A batch line also carries its serial move row and the customer fields of a delivery.
+alter type app.stock_line
+  add attribute move_from text[],
+  add attribute move_creates boolean,
+  add attribute move_to text,
+  add attribute account_id uuid,
+  add attribute site_id uuid,
+  add attribute delivered_at timestamptz,
+  add attribute warranty_until date;
+--> statement-breakpoint
+
+-- 6. app.stock_move(), as H1 wrote it, with three changes and nothing else (the lock order and
+--    every other refusal are H1's):
+--    a. the case that named each reason's permission is a read of app.stock_reason_grants; a reason
+--       with no row leaves v_perm null and is refused with stock_reason_not_open, as before;
+--    b. the serial block reads app.stock_reason_serial_moves: a tracked line whose reason and
+--       direction have no row is refused with stock_serial_state; a row that creates is what lets
+--       a new serial number in (stock_serial_exists or stock_serial_unknown as before otherwise);
+--       a serial comes only from the row's states and goes to its state, its bin following
+--       serials_bin_check, and state_changed_at moving only when the state does. Into a bin, a
+--       serial from another state is refused as before (stock_serial_not_in_bin on a reversal,
+--       stock_serial_exists on a row that creates or for a serial in a bin) or, from a state out of
+--       every bin, with stock_serial_state; out of a bin, a serial not in the line's source bin is
+--       refused with stock_serial_not_in_bin as before, and one there in another state with
+--       stock_serial_state;
+--    c. a line's optional account_id, site_id, delivered_at and warranty_until are taken only on a
+--       line whose move row goes to with_customer (stock_movement_shape on any other, and for a
+--       site without its customer), checked against the request's companies (the customer linked
+--       to one of them, the site the customer's: stock_customer_missing), and written to the
+--       serial as given.
 create or replace function app.stock_move(p_movements jsonb)
   returns uuid[]
   language plpgsql volatile security definer set search_path = '' as $$
@@ -129,6 +240,10 @@ begin
     v_line.ref_type := nullif(pg_catalog.btrim(v_el ->> 'ref_type'), '');
     v_line.note := nullif(pg_catalog.btrim(v_el ->> 'note'), '');
     v_line.ref_id := (v_el ->> 'ref_id')::uuid;
+    v_line.account_id := (v_el ->> 'account_id')::uuid;
+    v_line.site_id := (v_el ->> 'site_id')::uuid;
+    v_line.delivered_at := (v_el ->> 'delivered_at')::timestamptz;
+    v_line.warranty_until := (v_el ->> 'warranty_until')::date;
     if (v_line.ref_type is null) <> (v_line.ref_id is null)
        or pg_catalog.char_length(coalesce(v_line.ref_type, '')) > 40
        or pg_catalog.char_length(coalesce(v_line.note, '')) > 300 then
@@ -250,6 +365,17 @@ begin
         perform app.stock_refuse('stock_serial_required',
           pg_catalog.jsonb_build_object('line', v_ord, 'itemId', v_line.item_id, 'sku', v_sku));
       end if;
+      -- How a serial moves on this reason and direction: refused when it moves none this way.
+      select m.from_states, m.creates, m.to_state
+        into v_line.move_from, v_line.move_creates, v_line.move_to
+        from app.stock_reason_serial_moves m
+       where m.reason = v_reason
+         and m.direction = case when v_line.from_bin is null then 'in'
+                                when v_line.to_bin is null then 'out' else 'transfer' end;
+      if not found then
+        perform app.stock_refuse('stock_serial_state',
+          pg_catalog.jsonb_build_object('line', v_ord, 'itemId', v_line.item_id, 'sku', v_sku));
+      end if;
       if v_line.serial_id is null then
         select s.id, s.entity_id into v_serial from public.serials s
          where s.item_id = v_line.item_id and pg_catalog.lower(s.serial_no) = pg_catalog.lower(v_line.serial_no);
@@ -257,12 +383,12 @@ begin
           if v_serial.entity_id <> v_line.entity_id then
             -- Another company's serial is never named to this one: its number is taken for a new
             -- serial, and unknown to a movement of one.
-            perform app.stock_refuse(case when v_reason in ('opening', 'adjust_gain')
+            perform app.stock_refuse(case when v_line.move_creates
                                           then 'stock_serial_exists' else 'stock_serial_unknown' end,
               pg_catalog.jsonb_build_object('line', v_ord, 'serialNo', v_line.serial_no));
           end if;
           v_line.serial_id := v_serial.id;
-        elsif not (v_reason in ('opening', 'adjust_gain')) then
+        elsif not v_line.move_creates then
           perform app.stock_refuse('stock_serial_unknown',
             pg_catalog.jsonb_build_object('line', v_ord, 'serialNo', v_line.serial_no));
         end if;
@@ -275,6 +401,24 @@ begin
       end if;
       if v_line.serial_id is not null then
         v_serial_ids := v_serial_ids || v_line.serial_id;
+      end if;
+    end if;
+
+    -- A delivery's customer: only on a line whose serial goes to a customer, and one the request's
+    -- companies know, with a site of that customer.
+    if v_line.account_id is not null or v_line.site_id is not null
+       or v_line.delivered_at is not null or v_line.warranty_until is not null then
+      if v_line.move_to is distinct from 'with_customer'
+         or (v_line.site_id is not null and v_line.account_id is null) then
+        perform app.stock_refuse('stock_movement_shape', pg_catalog.jsonb_build_object('line', v_ord));
+      end if;
+      if (v_line.account_id is not null
+          and not exists (select 1 from public.account_entities ae
+                           where ae.account_id = v_line.account_id and ae.entity_id = any (v_entities)))
+         or (v_line.site_id is not null
+             and not exists (select 1 from public.customer_sites s
+                              where s.id = v_line.site_id and s.account_id = v_line.account_id)) then
+        perform app.stock_refuse('stock_customer_missing', pg_catalog.jsonb_build_object('line', v_ord));
       end if;
     end if;
     v_lines := v_lines || v_line;
@@ -359,40 +503,49 @@ begin
     -- The serial follows its movement.
     if v_line.tracked then
       if v_line.serial_id is null then
-        -- A new serial (opening or adjust_gain); a race on its number meets the unique index.
+        -- A new serial (a move row that creates); a race on its number meets the unique index.
         insert into public.serials (id, entity_id, item_id, serial_no, state, bin_id, created_by)
-        values (app.uuid_v7(), v_line.entity_id, v_line.item_id, v_line.serial_no, 'in_stock',
+        values (app.uuid_v7(), v_line.entity_id, v_line.item_id, v_line.serial_no, v_line.move_to,
                 v_line.to_bin, v_actor)
         returning id into v_line.serial_id;
       else
         select s.state, s.bin_id, s.serial_no into v_serial from public.serials s where s.id = v_line.serial_id;
         if v_line.from_bin is null then
-          -- Into a bin: a serial that left the company's stock comes back.
-          if v_serial.state <> 'scrapped' then
+          -- Into a bin: a serial comes back only from the move row's states.
+          if not (v_serial.state = any (v_line.move_from)) then
             perform app.stock_refuse(case when v_line.reason = 'reversal' then 'stock_serial_not_in_bin'
-                                          else 'stock_serial_exists' end,
+                                          when v_line.move_creates or v_serial.bin_id is not null
+                                            then 'stock_serial_exists'
+                                          else 'stock_serial_state' end,
               pg_catalog.jsonb_build_object('line', v_line.ord, 'serialNo', v_serial.serial_no));
           end if;
-          update public.serials
-             set state = 'in_stock', bin_id = v_line.to_bin, state_changed_at = pg_catalog.now(),
-                 updated_by = v_actor
-           where id = v_line.serial_id;
         else
-          if v_serial.state <> 'in_stock' or v_serial.bin_id is distinct from v_line.from_bin then
+          if v_serial.bin_id is distinct from v_line.from_bin then
             perform app.stock_refuse('stock_serial_not_in_bin',
               pg_catalog.jsonb_build_object('line', v_line.ord, 'serialNo', v_serial.serial_no,
                                             'binId', v_line.from_bin));
           end if;
-          if v_line.to_bin is null then
-            update public.serials
-               set state = 'scrapped', bin_id = null, state_changed_at = pg_catalog.now(),
-                   updated_by = v_actor
-             where id = v_line.serial_id;
-          else
-            update public.serials set bin_id = v_line.to_bin, updated_by = v_actor
-             where id = v_line.serial_id;
+          if not (v_serial.state = any (v_line.move_from)) then
+            perform app.stock_refuse('stock_serial_state',
+              pg_catalog.jsonb_build_object('line', v_line.ord, 'serialNo', v_serial.serial_no,
+                                            'binId', v_line.from_bin));
           end if;
         end if;
+        -- To the move row's state; its bin as serials_bin_check has it, and a delivery's customer.
+        update public.serials
+           set state = v_line.move_to,
+               bin_id = case when v_line.move_to in ('with_customer', 'with_supplier', 'scrapped')
+                             then null else v_line.to_bin end,
+               state_changed_at = case when state = v_line.move_to then state_changed_at
+                                       else pg_catalog.now() end,
+               account_id = case when v_line.move_to = 'with_customer' then v_line.account_id else account_id end,
+               site_id = case when v_line.move_to = 'with_customer' then v_line.site_id else site_id end,
+               delivered_at = case when v_line.move_to = 'with_customer' then v_line.delivered_at
+                                   else delivered_at end,
+               warranty_until = case when v_line.move_to = 'with_customer' then v_line.warranty_until
+                                     else warranty_until end,
+               updated_by = v_actor
+         where id = v_line.serial_id;
       end if;
     end if;
 

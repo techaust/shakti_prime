@@ -548,6 +548,8 @@
     "stock_serial_exists": "That serial number is already in stock. Check the number and try again.",
     "stock_serial_unknown": "We couldn't find that serial number for this item. Check the number and try again.",
     "stock_serial_not_in_bin": "That serial number is not in the bin you chose. Check where it is and try again.",
+    "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
+    "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
     "stock_insufficient": "There isn't enough of this item in that bin. Check the stock and enter a smaller quantity.",
     "opening_stock_posted": "Opening stock has already been entered for this company. Reverse the earlier entry first if it was wrong.",
     "serial_transition_not_allowed": "This serial number can't be moved that way from where it is now. Refresh the page to see where it stands.",
