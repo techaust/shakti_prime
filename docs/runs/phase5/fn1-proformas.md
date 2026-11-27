@@ -28,6 +28,12 @@ Do not touch: dispatch (D2), loans (J2), Tally (TC2, TC3).
 
 Review checklist: no recomputed price or tax; gapless numbers; milestone sums exact to the rupee; `finance.read` scopes; the bank envelope read only through its definer.
 
+### Brief addendum (the lead, 27-11-2026 19:00 UTC): the loan gate on a milestone
+From J2's review: a milestone's loan gate lives on the milestone (`loan_gate`: `none`, `sanctioned`, `disbursed`), as phase5 §5 says.
+- `app.order_loan_gate()` answers the order's `loanState` and whether its gates are waived. J2 no longer keeps milestone gates in `gates_json`.
+- A milestone with a `sanctioned` gate is met once the loan is sanctioned or disbursed. A `disbursed` gate is met once the loan is disbursed. With no loan, or with the gates waived, there is no gate.
+- A rejected loan without a waiver keeps the milestone pending.
+
 ## How this slice runs
 - **Your role:** you are this slice's builder (or, in a review lane, its reviewer), not the lead. Read `.claude/agents/slice-builder.md` (or `slice-reviewer.md`) and follow it as your rules, with this file as your brief and [the Phase 5 design](../../03-roadmap-appendix/phase5.md) (§1, §3, §4, §5, §10, §13, §14 and your slice's section) as its source. `CLAUDE.md` calls every session the lead; that does not apply to you. Never run the `start-session` or `end-session` skills, open or merge a pull request, push to `main` or `ops/seats`, touch a hosted service or GitHub workflow, delete a branch, force-push, or install a package.
 - **Where:** a seat of the seven-day push (seats protocol v2, `seats/readme.md` on `ops/seats`). Your seat gives you a worktree of this branch with its own Postgres and app port, and its lane prompt names them. Work only there. Put every heavy command through `bash tools/integration/heavy.sh`, and also every lint, typecheck and test while another agent runs in the VM.
