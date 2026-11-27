@@ -21,8 +21,9 @@ const ID_SHAPES = [
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:-[0-9a-f]{1,8})?$/i,
   // A company code (`SS`, `RCREF`).
   /^[A-Z]{2,10}$/,
-  // An error code or reason (`cursor_mismatch`, `ECONNREFUSED`, `TimeoutError`).
-  /^[a-z][a-z0-9_]{0,59}$/,
+  // An error code, reason or field name (`cursor_mismatch`, `partyGstin`, `ECONNREFUSED`,
+  // `TimeoutError`).
+  /^[a-z][A-Za-z0-9_]{0,59}$/,
   /^[A-Z][A-Z0-9_]{0,59}$/,
   /^[A-Z][A-Za-z]{0,59}Error$/,
 ];

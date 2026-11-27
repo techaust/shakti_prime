@@ -141,11 +141,15 @@ export class Syncer {
    */
   async drain(): Promise<{ outcome: 'drained' | 'bos_unavailable'; held: Set<string> }> {
     const held = new Set<string>();
+    // Batches set aside in this pass: the company is read again from the BOS's cursor.
+    const setAside = new Set<string>();
     for (const row of this.options.outbox.pending()) {
-      if (held.has(row.company) && row.kind === 'batch') continue;
+      if (row.kind === 'batch' && (held.has(row.company) || setAside.has(row.company))) continue;
       const sent = await this.send(row);
       if (sent === 'bos_unavailable') return { outcome: 'bos_unavailable', held };
-      if (sent !== 'sent' && row.kind === 'batch') held.add(row.company);
+      if (row.kind !== 'batch') continue;
+      if (sent === 'refused') held.add(row.company);
+      if (sent === 'superseded') setAside.add(row.company);
     }
     return { outcome: 'drained', held };
   }
