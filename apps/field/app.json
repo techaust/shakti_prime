@@ -10,18 +10,12 @@
     "android": {
       "package": "com.shaktiprime.field",
       "versionCode": 1,
-      "allowBackup": false,
-      "permissions": ["USE_BIOMETRIC", "USE_FINGERPRINT"]
+      "allowBackup": false
     },
-    "plugins": [
-      "expo-router",
-      "expo-secure-store",
-      [
-        "expo-local-authentication",
-        { "faceIDPermission": "Shakti Field uses your fingerprint or face to open the app." }
-      ]
-    ],
-    "experiments": { "typedRoutes": false },
+    "plugins": ["expo-router", "expo-secure-store", "expo-local-authentication"],
+    "experiments": {
+      "typedRoutes": false
+    },
     "extra": {
       "apiBaseUrl": "https://shaktiprime.com/api/v1"
     }

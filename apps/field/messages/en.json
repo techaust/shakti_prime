@@ -64,7 +64,7 @@
     "device_revoked": "This phone was signed out. Please sign in again.",
     "rate_limited": "Too many tries. Wait a few minutes before you try again.",
     "offline": "No internet connection. Check your signal and try again.",
-    "unavailable": "Signing in isn't working right now. Try again in a few minutes.",
+    "integration_unavailable": "Signing in isn't working right now. Try again in a few minutes.",
     "validation_failed": "Check the email and password and try again.",
     "unexpected": "Something went wrong on our side. Try again in a few minutes."
   }
