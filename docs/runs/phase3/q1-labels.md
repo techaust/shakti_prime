@@ -5,8 +5,8 @@
 | Branch | `feat/q1-labels` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): print templates, an audited reprint |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder on Opus 5.5 at high, the seat's own account (started 27-11-2026) |
-| State | early check |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder on Opus 5.5 at high, the seat's own account (started and finished 27-11-2026) |
+| State | done |
 | Next step | the builder |
 
 ## Brief
@@ -97,6 +97,52 @@ Skills loaded: `add-command`. Tier B: stopped here for the lead's read of the di
 4. The QR carries `SP1:<letter>:<id>` and nothing else; the parser trims what a scanner adds and reads the prefix in any case. `unknown` covers our prefix with another version, letter or a bad id; anything else is `not_ours`.
 5. Package labels: template, fixture and snapshot only; the loader, the resolver and the commands refuse or answer `unknown` for packages until D2 adds its table.
 6. Label sheets are kept as files; no retirement of old sheets (they hold no secret).
+
+### Done, 27-11-2026, seat (cloud VM worktree `/home/user/shakti-wt/q1-labels`, Postgres 54331, app 3031)
+The lead accepted the early check with assumptions 1 to 6. Built after it from `4d64605a`. U2 is not on `main` (checked at 16:00 UTC; `main` is at `59736c74`, documents only), so the receipt is not wired, and `app.file_purpose_grant()` stays one redefinition carrying `main`'s latest lines (0235) plus `label_sheet`.
+
+**Built (files):**
+- Actions `apps/web/src/actions/labels.ts`: `printLabels`, `reprintLabels` (a request narrowed to the company named) and `resolveScannedCode(code)` (the caller's request).
+- `apps/web/src/components/inventory/labels-dialog.tsx`: one dialog for Print labels and New label. A reprint first asks why (3 to 300 characters). The dialog then waits for the sheet's file and offers Open the labels. It is loaded on demand from the two screens, which kept `/inventory/serials/[id]` inside its JavaScript budget.
+- `apps/web/src/components/files/wait-for-file.ts`: the proof dialog's file wait, moved out of `proof-dialog.tsx` so both dialogs share it.
+- `/inventory/hubs` (`hubs-screen.tsx` and its page): Print labels for <hub>, which prints every bin of a godown or factory, and New label for <bin> on each bin row. Both are shown only with `inventory.stock.move` for a company. Transit bins get no label.
+- The serial page (`serial-screen.tsx` and its page): Print the label again.
+- Copy under `inventory.labels`; six button keys added to `tools/copy-lint/copy-lint.config.json`.
+- Documents: the Built (Q1) record in phase3.md §7.4, the render route row in API §3.6, `files.process` and a Labels line in SECURITY.
+- Journeys: `apps/web/e2e/labels.spec.ts`, with its seed `e2e/setup/labels.ts` (one serial-tracked item and serial per project in the stock journey's first bin, wired into `seed.ts`) and `LABEL_JOURNEY` in `e2e/support/users.ts`. The spec exports `loadCatalogueAsModule` from `e2e/support/quote-pdf.ts`.
+
+**For U2:** the scan field's `resolve` prop is `resolveScannedCode` from `apps/web/src/actions/labels.ts`. It answers `ActionResult<ScannedCodeDto>`: `serial` (id, company, item, SKU, number, state, bin), `bin` (id, hub, codes, kind), `unknown` or `not_ours`. Print labels on a receipt is one call of `printLabels({ entityId, labelKind: 'serial', ids: <the receipt's serial ids> })` in a `LabelsDialog` with `mode="print"`.
+
+**Journeys** (run here through the lock after `pnpm build` and `e2e:seed`, with `labels.spec.ts`, `print.spec.ts` and `inventory.spec.ts`; they signed in on this VM):
+- **Passed:**
+  - Every `labels.spec.ts` test in all three projects. The Inventory Manager prints the Journey godown's 4 bin labels and opens the PDF. The Inventory Manager prints a serial's label again: the dialog refuses an empty reason, then prints and opens the PDF. Focus returns to the button each time. Axe passed at every step.
+  - On desktop light, every kind's whole label printed by Chromium at 203 dpi reads back with jsQR, and a sheet of 500 prints in under the 20 s limit (about 1 s measured). Both tests are skipped on the other two projects by design.
+- **Failed only on screenshots (10 tests, 20 comparisons with retries):** each failure is a `toHaveScreenshot` mismatch against the Linux image's baselines, which this VM is not.
+  - Most are pages this slice does not change: the quotation, the real quotation, the proof page, the phone proof dialog and the stock valuation.
+  - `stock-hubs` is also expected to change, since the Executive now sees the label buttons.
+- **Baselines the lead makes in the Linux image:** `labels-hub-dialog` and `labels-reprint-dialog` for the three projects; `print-label-serial`, `print-label-bin` and `print-label-package` (desktop light); a new `stock-hubs`; and the `/design` preview, whose label changed in the early check. I deleted the baselines this VM wrote and committed none. On this VM the reprint dialog's picture shows a small magenta box at its left edge: a masked time cell of the page behind the dialog.
+
+**Checks before this report:**
+- `pnpm typecheck`: 10 successful.
+- `pnpm test`: 10 successful; web 1255 passed, 1 skipped; domain 2811.
+- `pnpm lint` (whole repository, the final check): clean.
+- `pnpm copy-lint`: clean.
+- `pnpm build`: passed.
+- `pnpm --filter web js-budget`: every page within budget (65 pages); `/inventory/serials/[id]` 238.2 of 242 kB, `/inventory/hubs` 242.1 of 246 kB.
+- `pnpm test:security`: not run again. Since its full run at the early check (db 1785, domain 1534, web 466) no schema, policy, definer, command or query has changed; only actions, screens, journeys and documents.
+- `EXPLAIN (ANALYZE)`: none, since no list or search was added. The resolver and the worker's read go by primary key.
+
+**Review checklist:**
+- Every payload decodes: the unit test, the e2e test and the 16 Chromium renders all read back.
+- An unknown or foreign code says so and opens nothing: the resolver answers `unknown` or `not_ours`. The screen side waits for U2's scan field.
+- The resolver obeys row security: tested for another company's serial, an archived bin and a caller without `inventory.stock.read`.
+- The reprint is audited on each serial or bin with the kind, the count and the note.
+- The batch fits the budget: about 1 s against the route's 60 s.
+
+**Decisions after the early check:**
+1. The hub's Print labels prints every live bin of a godown or factory except transit bins; a hub whose bins are all transit shows no button. A bin's single label is New label for <bin>, a reprint with why. The first print of a newly added bin is the hub's Print labels.
+2. On the hubs page, labels are asked for in the company the caller acts in (the active company, else their first), since a bin belongs to the group.
+3. The labels dialog is loaded on demand, as the companies screen's dialogs are, which kept the serial page inside its budget without changing `js-budget.json`.
 
 ## Review
 
