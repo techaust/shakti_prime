@@ -106,6 +106,8 @@ import {
   SERIAL_STATES_IN_BIN,
   SERIAL_STATES_OUT,
   STOCK_REASONS,
+  RESERVATION_RELEASE_KINDS,
+  RESERVATION_STATES,
   WAREHOUSE_KINDS,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
@@ -297,6 +299,11 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // H2: a reservation's state and how a released one ended; a released one, and only one, says
+  // how, and only a person's release or a cancellation says why.
+  reservations_state_check: RESERVATION_STATES,
+  reservations_release_kind_check: RESERVATION_RELEASE_KINDS,
+  reservations_released_check: ['released', 'by_hand', 'order_cancelled'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

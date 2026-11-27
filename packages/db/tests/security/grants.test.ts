@@ -197,6 +197,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // H2: needs and reservations are written only by the reservation definers, as the table
+    // owner (reservations.test.ts).
+    reservation_needs: { i: false, u: false },
+    reservations: { i: false, u: false },
   };
 
   /**

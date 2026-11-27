@@ -13,6 +13,7 @@ import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
 import { projectSuryaGharMachine } from './machines/project-surya-ghar';
 import { quoteMachine } from './machines/quote';
+import { reservationMachine } from './machines/reservation';
 import { salesOrderMachine } from './machines/sales-order';
 import { serialMachine } from './machines/serial';
 import { subsidyGateMachine } from './machines/subsidy-gate';
@@ -46,6 +47,8 @@ export const MACHINES: readonly AnyMachine[] = [
   knowledgeFileMachine,
   // H1 stock ledger
   serialMachine,
+  // H2 reservations
+  reservationMachine,
 ];
 
 /**
@@ -66,6 +69,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'playbook_directive',
   // H1 stock ledger
   'serial',
+  // H2 reservations
+  'reservation',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */

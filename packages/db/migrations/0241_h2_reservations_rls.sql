@@ -52,6 +52,32 @@ create policy sales_order_lines_insert on sales_order_lines for insert to app_us
                  and so.created_at = now()));
 --> statement-breakpoint
 
+-- 3b. Order lines stay append-only (0117), with one exception: qty_backordered, which only the
+--     reservation definers write (no request role may update a line). The trigger keeps its name.
+create or replace function app.sales_order_lines_append_only() returns trigger
+  language plpgsql set search_path = '' as $$
+declare
+  v_kept public.sales_order_lines;
+begin
+  if tg_op = 'UPDATE' then
+    v_kept := new;
+    v_kept.qty_backordered := old.qty_backordered;
+    if v_kept is not distinct from old then
+      return new;
+    end if;
+  end if;
+  raise exception '% is append-only', tg_table_name using errcode = 'insufficient_privilege';
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.sales_order_lines_append_only() from public, readonly_reporter;
+--> statement-breakpoint
+drop trigger sales_order_lines_append_only on sales_order_lines;
+--> statement-breakpoint
+create trigger sales_order_lines_append_only before update or delete on sales_order_lines
+  for each row execute function app.sales_order_lines_append_only();
+--> statement-breakpoint
+
 -- 4. The platform-only permissions, with H2's inventory.reservations.process (main's latest list,
 --    0222, and the new key).
 create or replace function app.platform_only_permissions() returns text[]
@@ -1167,8 +1193,8 @@ grant execute on function app.reservation_move(uuid, uuid) to app_user;
 --     the quantities; or who holds sales.quote.create and reads the document's lead (or a
 --     dealer's order's customer), with the status and the date and every quantity null.
 create or replace function app.line_availability(p_kind text, p_id uuid)
-  returns table (line_id uuid, status text, expected_on date, qty_free numeric,
-                 qty_reserved numeric, qty_backordered numeric)
+  returns table (line_id uuid, line_position integer, status text, expected_on date,
+                 qty_free numeric, qty_reserved numeric, qty_backordered numeric)
   language plpgsql stable security definer set search_path = '' as $$
 declare
   v_entity smallint;
@@ -1214,7 +1240,7 @@ begin
 
   if p_kind = 'order' and v_state <> 'draft' then
     return query
-      select l.id,
+      select l.id, l.position,
              case when sum(n.qty_backordered) = 0 then 'covered'
                   when sum(n.qty_needed - n.qty_backordered) = 0 then 'short'
                   else 'partly_covered' end,
@@ -1262,7 +1288,7 @@ begin
              min(f.qty) as item_free
         from parts p join free f on f.part_id = p.part_id
        group by p.line_id, p.position, p.qty)
-    select pl.line_id,
+    select pl.line_id, pl.position,
            case when (case when pl.is_kit then pl.kits else pl.item_free end) >= pl.qty then 'covered'
                 when (case when pl.is_kit then pl.kits else pl.item_free end) > 0 then 'partly_covered'
                 else 'short' end,

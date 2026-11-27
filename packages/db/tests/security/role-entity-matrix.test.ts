@@ -216,6 +216,9 @@ const RULES: Record<MatrixTable, TableRule> = {
   stock_movements: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   stock_movement_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   stock_balances: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
+  // H2: a company's order needs and reservations with inventory.stock.read for the company.
+  reservation_needs: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
+  reservations: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
   audit_logs: {
     read: grant('audit.read', 'entity'),

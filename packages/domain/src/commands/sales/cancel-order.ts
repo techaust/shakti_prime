@@ -7,7 +7,9 @@ import { readSalesOrder, salesOrderRecordOf } from '../../queries/sales/order-dt
 import { ORDER_AUDIT_FIELDS } from '../../sales/save-order';
 import { transition } from '../../state-machines/define-machine';
 import { quoteMachine } from '../../state-machines/machines/quote';
+import { reservationMachine } from '../../state-machines/machines/reservation';
 import { salesOrderMachine } from '../../state-machines/machines/sales-order';
+import { releaseOrderReservations } from '../../stock/reserve';
 import { lockSalesOrder, writeSalesOrder } from './order-shared';
 import { lockQuote, quoteRecordOf } from './quote-shared';
 
@@ -57,7 +59,8 @@ async function withdrawAcceptedQuote(
  * order (DOM-5): the audit row keeps the rule it was held for. The order's accepted quote is
  * withdrawn with the reason, so the lead may take another sale (DOM-4); the lead of a confirmed
  * order stays won, since the opportunity machine has no move out of won, and its next confirmed
- * order earns its own commission, the cancelled one's being cancelled. People only.
+ * order earns its own commission, the cancelled one's being cancelled. A confirmed order's
+ * reservations are released with the reason and nothing of it stays backordered (H2). People only.
  */
 export const cancelSalesOrder = defineCommand({
   name: 'sales.order.cancel',
@@ -90,6 +93,16 @@ export const cancelSalesOrder = defineCommand({
       creditHoldReason: null,
       creditHoldJson: null,
     });
+    if (cancelled.from === 'confirmed') {
+      // H2: the machine's `release_reservations`: every active reservation released with the
+      // reason, nothing left backordered.
+      transition(reservationMachine, { state: 'active', extendedAt: null }, 'order_cancel', {
+        actor: { kind: 'principal', principal: ctx.principal },
+        now: ctx.now,
+        params: { reason: input.reason },
+      });
+      await releaseOrderReservations(ctx.tx, row.id, input.reason);
+    }
     if (row.quoteId !== null && row.opportunityId !== null) {
       await withdrawAcceptedQuote(ctx, row.entityId, row.quoteId, input.reason);
       ctx.emit({

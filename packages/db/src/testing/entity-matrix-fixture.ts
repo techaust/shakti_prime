@@ -121,6 +121,8 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  reservation_needs: 'x.id::text',
+  reservations: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -188,6 +190,9 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`alter table dealer_terms disable trigger dealer_terms_append_only`;
       await tx`alter table dealer_outstanding disable trigger dealer_outstanding_append_only`;
       await tx`alter table sales_order_lines disable trigger sales_order_lines_append_only`;
+      // H2: a reservation and its need name the order, its line, the bin and the item.
+      await tx`delete from reservations where id::text like ${like}`;
+      await tx`delete from reservation_needs where id::text like ${like}`;
       await tx`delete from dealer_terms where id::text like ${like}`;
       await tx`delete from dealer_outstanding where id::text like ${like}`;
       await tx`delete from sales_order_lines where id::text like ${like}`;
@@ -411,6 +416,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    reservation_needs: [],
+    reservations: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -799,6 +806,19 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
                   '8413', ${itemRate}, 0.00, 0, 0, 0, 0, 0),
                  (${dealerOrderLine}, ${e}, ${dealerOrder}, 1, ${item}, 'FX-MATRIX', 'matrix item', 'nos', 1, 0,
                   '8413', ${itemRate}, 0.00, 0, 0, 0, 0, 0)`;
+        // H2: the lead's order needs the item, and held it in the group's bin until a person
+        // released it (released, so the bin's reserved quantity stays as the ledger left it).
+        const need = per(e, 0x90);
+        const reservation = per(e, 0x91);
+        await tx`insert into reservation_needs (id, entity_id, sales_order_id, sales_order_line_id, item_id,
+                   qty_needed, qty_backordered, queued_at)
+          values (${need}, ${e}, ${leadOrder}, ${leadOrderLine}, ${item}, 1, 1, now())`;
+        await tx`insert into reservations (id, entity_id, sales_order_id, sales_order_line_id, item_id,
+                   warehouse_id, bin_id, qty, state, expires_at, release_kind, released_reason, created_by)
+          values (${reservation}, ${e}, ${leadOrder}, ${leadOrderLine}, ${item}, ${hub}, ${bin}, 1,
+                  'released', now(), 'by_hand', 'matrix release', ${ownerId})`;
+        rows.reservation_needs.push({ key: need, entities: only });
+        rows.reservations.push({ key: reservation, entities: only });
         await tx`insert into dealer_terms (id, entity_id, account_id, credit_limit, credit_days, created_by)
           values (${terms}, ${e}, ${account}, 1.00, 1, ${ownerId})`;
         await tx`insert into dealer_outstanding (id, entity_id, account_id, outstanding, as_of, entered_by)

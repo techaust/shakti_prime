@@ -316,6 +316,75 @@ const eventCatalogue = {
       })
       .strict(),
   },
+  // H2 reservations and availability
+  'inventory.reservation.filled': {
+    meaning:
+      "Stock that arrived went to backorders of an item in a company, in order of confirmation: the orders that took some (up to 200) and how many they were; never a quantity.",
+    emittedBy: ['inventory.reservation.fill'],
+    subscribed: false,
+    payload: z
+      .object({
+        itemId: IdSchema,
+        count: z.number().int().min(1),
+        salesOrderIds: z.array(IdSchema).min(1).max(200),
+      })
+      .strict(),
+  },
+  'inventory.reservation.extended': {
+    meaning: "A person held an order's reservation longer, once, with a reason.",
+    emittedBy: ['inventory.reservation.extend'],
+    subscribed: false,
+    payload: z.object({ reservationId: IdSchema, salesOrderId: IdSchema }).strict(),
+  },
+  'inventory.reservation.released': {
+    meaning:
+      "A person freed an order's reservation of an item by hand, with a reason; it is back on order, and the item's free stock goes to the backorders in the queue.",
+    emittedBy: ['inventory.reservation.release'],
+    subscribed: false,
+    payload: z
+      .object({ reservationId: IdSchema, salesOrderId: IdSchema, itemId: IdSchema })
+      .strict(),
+  },
+  'inventory.reservation.moved': {
+    meaning: "A person reserved an order's stock from another hub instead: the old reservation, the hub and the new reservations.",
+    emittedBy: ['inventory.reservation.move'],
+    subscribed: false,
+    payload: z
+      .object({
+        reservationId: IdSchema,
+        salesOrderId: IdSchema,
+        itemId: IdSchema,
+        hubId: IdSchema,
+        reservationIds: z.array(IdSchema).min(1).max(200),
+      })
+      .strict(),
+  },
+  'inventory.reservation.lapsed': {
+    meaning:
+      "The daily scan lapsed an order's reservations whose hold ran out: their stock is free and goes to the backorders of those items in the queue, and the order's quantity is back on order.",
+    emittedBy: ['inventory.reservation.scan'],
+    subscribed: false,
+    payload: z
+      .object({
+        salesOrderId: IdSchema,
+        reservationIds: z.array(IdSchema).min(1).max(200),
+        itemIds: z.array(IdSchema).min(1).max(200),
+      })
+      .strict(),
+  },
+  'inventory.reservation.expiring': {
+    meaning: "An order's reservations lapse on `expiresAt`: the order's owner (`ownerId`) and the company's Inventory Manager are told before.",
+    emittedBy: ['inventory.reservation.scan'],
+    subscribed: false,
+    payload: z
+      .object({
+        salesOrderId: IdSchema,
+        ownerId: IdSchema,
+        expiresAt: z.iso.datetime(),
+        reservationIds: z.array(IdSchema).min(1).max(200),
+      })
+      .strict(),
+  },
   'catalogue.kit.created': {
     meaning: 'A kit was added with its components.',
     emittedBy: ['catalogue.kit.create'],

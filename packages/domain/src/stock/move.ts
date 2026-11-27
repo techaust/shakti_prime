@@ -1,6 +1,8 @@
 import {
   DomainError,
+  RESERVATION_REFUSALS,
   STOCK_REFUSALS,
+  type ReservationRefusal,
   type StockReason,
   type StockRefusal,
 } from '@shakti/contracts';
@@ -48,13 +50,19 @@ export interface StockReversalLine {
 export type StockMoveLine = StockMovementLine | StockReversalLine;
 
 /** The refusals a person can act on as a state of the stock, rather than a mistake in the input. */
-const CONFLICTS: ReadonlySet<StockRefusal> = new Set<StockRefusal>([
+const CONFLICTS: ReadonlySet<string> = new Set<StockRefusal | ReservationRefusal>([
   'stock_insufficient',
   'stock_serial_not_in_bin',
   'stock_serial_exists',
   'stock_already_reversed',
   'opening_stock_posted',
   'stock_bin_archived',
+  // H2: what the bins hold for orders, and a reservation's own state.
+  'stock_reserved_insufficient',
+  'reservation_stock_short',
+  'reservation_order_reserved',
+  'reservation_not_active',
+  'reservation_already_extended',
 ]);
 
 /** The two unique indexes a concurrent batch can meet, with the refusal each one means. */
@@ -66,7 +74,7 @@ const RACES: Readonly<Record<string, StockRefusal>> = {
 /** The facts a refusal may carry to a screen: ids, codes and the batch line, never a cost. */
 const FACTS = ['line', 'itemId', 'sku', 'binId', 'binCode', 'serialNo', 'entityId'] as const;
 
-const REFUSALS: ReadonlySet<string> = new Set(STOCK_REFUSALS);
+const REFUSALS: ReadonlySet<string> = new Set([...STOCK_REFUSALS, ...RESERVATION_REFUSALS]);
 
 interface PgFailure {
   code?: unknown;
@@ -96,7 +104,7 @@ function facts(detail: unknown): Record<string, unknown> {
 }
 
 /**
- * The ledger's refusal as a domain error with its catalogue reason and the facts it names, or
+ * The ledger's refusal (or a reservation definer's, H2) as a domain error with its catalogue reason and the facts it names, or
  * undefined for any other failure (which the runner translates as usual).
  */
 export function stockRefusal(e: unknown): DomainError | undefined {
@@ -105,8 +113,10 @@ export function stockRefusal(e: unknown): DomainError | undefined {
   const constraint =
     typeof failure.constraint_name === 'string' ? failure.constraint_name : undefined;
   if (constraint === undefined) return undefined;
-  let reason: StockRefusal | undefined;
-  if (failure.code === '23514' && REFUSALS.has(constraint)) reason = constraint as StockRefusal;
+  let reason: StockRefusal | ReservationRefusal | undefined;
+  if (failure.code === '23514' && REFUSALS.has(constraint)) {
+    reason = constraint as StockRefusal | ReservationRefusal;
+  }
   else if (failure.code === '23505') reason = RACES[constraint];
   if (reason === undefined) return undefined;
   return new DomainError(

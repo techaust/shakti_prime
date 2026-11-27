@@ -13,7 +13,9 @@ import { accrueCommission, numericMoney } from '../../sales/commission-accrual';
 import { creditCheck, type CreditFacts } from '../../sales/credit-check';
 import { ORDER_AUDIT_FIELDS } from '../../sales/save-order';
 import { transition } from '../../state-machines/define-machine';
+import { reservationMachine } from '../../state-machines/machines/reservation';
 import { salesOrderMachine } from '../../state-machines/machines/sales-order';
+import { reserveOrder } from '../../stock/reserve';
 import { reopenOpportunity } from '../crm/reopen-opportunity';
 import { winOpportunity } from '../crm/win-opportunity';
 import { lockSalesOrder, writeSalesOrder, type SalesOrderRow } from './order-shared';
@@ -100,7 +102,8 @@ async function winLead(ctx: CommandContext, row: SalesOrderRow): Promise<void> {
  * `sales.order.credit_held` lets the Executive and the person who made the order know. An
  * Executive's release lets the next confirmation pass the block once. A customer who is not a
  * dealer passes. Confirming an order of a lead wins the lead and records its referral partner's
- * commission. People only.
+ * commission, and reserves each line's free stock, what is short becoming a backorder (H2,
+ * `app.reserve_order()`). People only.
  */
 export const confirmSalesOrder = defineCommand({
   name: 'sales.order.confirm',
@@ -177,6 +180,15 @@ export const confirmSalesOrder = defineCommand({
         released: check.released,
       },
     });
+    // H2: each line's free stock is reserved at once, what is short backordered (question 3 (a),
+    // the machine's `request_reservations`). Nothing of it reaches the answer or the audit row:
+    // the person confirming may hold only `sales.quote.create`, and sees a line's status alone.
+    transition(reservationMachine, { state: null, extendedAt: null }, 'reserve', {
+      actor,
+      now: ctx.now,
+      params: {},
+    });
+    await reserveOrder(ctx.tx, row.id, ctx.now);
     await winLead(ctx, row);
     await accrueCommission(ctx, row);
     return {

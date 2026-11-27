@@ -102,7 +102,6 @@ export const ReservationScanDto = z
     entityId: EntityIdSchema,
     lapsed: z.number().int().min(0),
     reminded: z.number().int().min(0),
-    filled: z.number().int().min(0),
     /** More were due than one run takes; the next run carries on. */
     more: z.boolean(),
   })
@@ -123,6 +122,7 @@ export type ReadLineAvailabilityInput = z.input<typeof ReadLineAvailabilityInput
 export const LineStatusDto = z
   .object({
     lineId: IdSchema,
+    position: z.number().int().min(1),
     status: AvailabilityStatusSchema,
     /** When open purchase orders would cover the line (IST date), if known. */
     expectedOn: z.iso.date().nullable(),

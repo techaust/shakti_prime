@@ -46,6 +46,11 @@ export interface WorkshopDefaults {
   readonly stock: {
     /** Days after a movement within which a person may reverse it (docs/03-roadmap-appendix/phase3.md §10). */
     readonly reversalDays: number;
+    // H2 reservations
+    /** Days a reservation holds stock for an order (STOCK-4). */
+    readonly reservationHoldDays: number;
+    /** Days before a reservation lapses that its order's owner and the Inventory Manager are told. */
+    readonly reservationReminderDays: number;
   };
   readonly crm: {
     readonly dispositions: readonly {
@@ -285,6 +290,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   stock: {
     /** Phase 3 design §10: a movement made in error is reversed within seven days. For STOCK-1. */
     reversalDays: 7,
+    // H2 reservations
+    /** Phase 3 design §2 question 3 (a), §10: a reservation holds 15 days. For STOCK-4. */
+    reservationHoldDays: 15,
+    /** Phase 3 design §2 question 3 (a), §10: told 2 days before it lapses. For STOCK-4. */
+    reservationReminderDays: 2,
   },
   crm: {
     /**

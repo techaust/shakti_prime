@@ -221,6 +221,18 @@ export {
   readStockValuation,
 } from './queries/inventory/stock';
 export { existingSerialsOf } from './stock/serials';
+// H2 reservations and availability
+export {
+  extendReservation,
+  moveReservation,
+  releaseReservation,
+} from './commands/inventory/reservations';
+export {
+  fillBackorders,
+  scanReservations,
+  RESERVATION_BATCH,
+} from './commands/inventory/reservations-jobs';
+export { readLineAvailability, readsStockCounts } from './queries/inventory/availability';
 export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
 export { setPumpCurve } from './commands/catalogue/pump-curve';
 // U1 vendors and supplier quotes.

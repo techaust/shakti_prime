@@ -406,6 +406,10 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // H2: a company's order needs and reservations, read with inventory.stock.read for the company
+  // (docs/03-roadmap-appendix/phase3.md §7.1)
+  'reservation_needs',
+  'reservations',
 ] as const;
 
 /**

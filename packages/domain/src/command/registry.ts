@@ -159,6 +159,13 @@ import {
   updateHub,
 } from '../commands/inventory/hubs';
 import { adjustStock, reverseStock, transferStock } from '../commands/inventory/stock';
+// H2 reservations
+import {
+  extendReservation,
+  moveReservation,
+  releaseReservation,
+} from '../commands/inventory/reservations';
+import { fillBackorders, scanReservations } from '../commands/inventory/reservations-jobs';
 import {
   approvePriceList,
   archivePriceList,
@@ -312,6 +319,12 @@ export const commands = Object.freeze({
   [transferStock.name]: transferStock,
   [adjustStock.name]: adjustStock,
   [reverseStock.name]: reverseStock,
+  // H2 reservations
+  [extendReservation.name]: extendReservation,
+  [releaseReservation.name]: releaseReservation,
+  [moveReservation.name]: moveReservation,
+  [fillBackorders.name]: fillBackorders,
+  [scanReservations.name]: scanReservations,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
   [createKit.name]: createKit,
