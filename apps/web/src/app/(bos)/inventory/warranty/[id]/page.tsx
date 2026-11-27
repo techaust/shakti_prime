@@ -39,9 +39,8 @@ export default async function WarrantyClaimPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { principal, access, activeEntityId } = await screenAccess(
-    navRequires('inventory-warranty'),
-  );
+  const screen = await screenAccess(navRequires('inventory-warranty'));
+  const { principal, access, activeEntityId } = screen;
   const { id } = await params;
   const asked = companyParam((await searchParams).company);
   const entityId = asked ?? activeEntityId ?? principal.entityIds[0];

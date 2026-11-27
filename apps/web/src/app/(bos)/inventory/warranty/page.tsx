@@ -30,9 +30,8 @@ export default async function WarrantyPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { principal, access, activeEntityId } = await screenAccess(
-    navRequires('inventory-warranty'),
-  );
+  const screen = await screenAccess(navRequires('inventory-warranty'));
+  const { principal, access, activeEntityId } = screen;
   const query = await searchParams;
   const asked = companyParam(query.company);
   if (asked !== undefined && !principal.entityIds.includes(asked)) notFound();

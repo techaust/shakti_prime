@@ -7003,7 +7003,7 @@
       "settleTitle": "Record the supplier's credit",
       "settleIntro": "The supplier's credit note closes the claim. The amount is kept with the claim's costs, which only people who see costs can read.",
       "credit": "Credit amount in rupees",
-      "creditHelper": "As on the credit note, for example 16250.50.",
+      "creditHelper": "As on the credit note, in rupees and paise.",
       "creditInvalid": "Enter an amount above zero, in rupees and paise.",
       "settleSubmit": "Close the claim",
       "settled": "Claim closed with the credit."

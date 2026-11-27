@@ -430,7 +430,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
 | `committedRows` | whole number from 0 |
 | `batches` | whole number from 1 |
 
@@ -438,7 +438,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
 | `committedRows` | whole number from 0 |
 | `failedBatch` | whole number from 1 |
 
@@ -452,7 +452,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
 | `rolledBackRows` | whole number from 0 |
 
 ### files.file.uploaded

@@ -181,21 +181,18 @@ export function WarrantyClaimScreen({
         <h2 id="claim-steps" className="text-lg font-semibold">
           {t('steps.title')}
         </h2>
-        <ol className="flex flex-col gap-1">
-          {CLAIM_STEPS.map((step, index) => {
+        <ol className="flex list-decimal flex-col gap-1 ps-6">
+          {CLAIM_STEPS.map((step) => {
             const status = claimStepStatus(step, claim.state);
             return (
               <li
                 key={step}
                 aria-current={status === 'current' ? 'step' : undefined}
-                className="flex gap-2"
+                className={status === 'next' ? 'text-text-muted' : undefined}
               >
-                <span className="text-text-muted w-5 text-right">{index + 1}.</span>
-                <span className={status === 'next' ? 'text-text-muted' : undefined}>
-                  {t(`steps.${step}`)}
-                </span>
+                <span>{t(`steps.${step}`)}</span>
                 {status === 'next' ? null : (
-                  <span className="text-text-muted text-sm">{t(`stepStatus.${status}`)}</span>
+                  <span className="text-text-muted ms-2 text-sm">{t(`stepStatus.${status}`)}</span>
                 )}
               </li>
             );
