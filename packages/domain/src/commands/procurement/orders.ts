@@ -445,7 +445,11 @@ export const requestPurchaseOrderPdf = defineCommand({
     const pdf = await getPurchaseOrderPdf(ctx, input);
     const ready = pdf.file?.status === 'ready' && pdf.file.deletedAt === null;
     if (!ready) {
-      requestPurchaseOrderPrint(ctx, { id: pdf.purchaseOrderId, entityId: pdf.entityId }, pdf.version);
+      requestPurchaseOrderPrint(
+        ctx,
+        { id: pdf.purchaseOrderId, entityId: pdf.entityId },
+        pdf.version,
+      );
     }
     return {
       purchaseOrderId: pdf.purchaseOrderId,
