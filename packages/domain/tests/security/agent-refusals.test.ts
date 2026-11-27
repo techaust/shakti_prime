@@ -1235,6 +1235,8 @@ describe('a voice session (SECURITY §3.4)', () => {
         'knowledge.ask.record',
         // A Teach session the person let be recorded files its audio in the vault (§7.5).
         'knowledge.file.add',
+        // ... and uploads that recording first (§7.5); no agent begins an upload (J3).
+        'files.upload.begin',
       ].sort(),
     );
     for (const command of PEOPLE_ONLY.filter((c) => c.voiceSession !== true)) {
