@@ -107,6 +107,8 @@ Closed on its engineering work on 20-11-2026 (the owner's decision): the run on 
 ## 6. Phase 4 — Projects & field (11–13 weeks)
 **Scope:** standard and PM Surya Ghar flows; subsidy gates; document vault with masked WhatsApp filing; DISCOM packs; QC; scheduling board with Concierge site-visit booking; handover kit; CMC register; customer loans; Android app with offline sync, attendance and expense capture (Expo tooling confirmed at phase start).
 
+**Plan:** 17 slices in four waves, in [`docs/03-roadmap-appendix/phase4.md`](03-roadmap-appendix/phase4.md) §3, approved on 27-11-2026 with its twelve questions decided.
+
 **Exit gate:** pilot with 2–3 engineers on live jobs for two weeks; sync conflict cases exercised; staged rollout via EAS.
 
 ## 7. Phase 5 — Finance, costing & HR (9–11 weeks)
