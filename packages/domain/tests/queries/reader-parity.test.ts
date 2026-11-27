@@ -58,6 +58,13 @@ import {
   listVendors,
   readQuoteComparison,
 } from '../../src/queries/procurement/vendor-queries';
+// J3 customer documents and requirements.
+import {
+  listCustomerDocuments,
+  listDocumentRequirements,
+  missingDocuments,
+  readDocument,
+} from '../../src/queries/documents/documents';
 import { listSizingPumps } from '../../src/queries/catalogue/list-sizing-pumps';
 import {
   dialNumber,
@@ -229,6 +236,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getVendor: (ctx) => getVendor(ctx, { vendorId: newId() }),
   // The comparison of company 1, judged on one day on both pools (review L11).
   readQuoteComparison: (ctx) => readQuoteComparison(ctx, { entityId: 1 }, QUOTES_AT),
+  // J3: a customer's documents, one document and the company's requirements.
+  listCustomerDocuments: (ctx) => listCustomerDocuments(ctx, { entityId: 1, accountId: newId() }),
+  readDocument: (ctx) => readDocument(ctx.tx, newId()),
+  listDocumentRequirements: (ctx) => listDocumentRequirements(ctx, { entityId: 1 }),
   listBoardLeads: (ctx) => listBoardLeads(ctx, { pipelineKey: PIPELINE }),
   listBoardStageLeads: (ctx) =>
     listBoardStageLeads(ctx, { pipelineKey: PIPELINE, stageId: STAGE, cursor: 'bm8' }),
@@ -382,6 +393,15 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
  * pools for every caller.
  */
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
+  // J3: the completeness check a step's guard asks (app.documents_missing()).
+  missingDocuments: (ctx) =>
+    missingDocuments(ctx.tx, {
+      entityId: 1,
+      accountId: newId(),
+      projectId: null,
+      flow: 'standard',
+      stepKey: 'survey',
+    }),
   // The approved Playbook, the agents' and Ask's one read of it (K2).
   approvedPlaybook: (ctx) => approvedPlaybook(ctx, {}),
   // Ask's cited records' words and an item's cost side (B1), on real records.
