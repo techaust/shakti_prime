@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T19:07Z
+updated: 2026-11-27T19:30Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -138,3 +138,11 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: none
 done_when: report: u2-purchase-orders fixes
 note: the one fix round, as the lead's triage at the end of the Review section says. X4 merged (#298, main bdf82df4): take main in first (a merge commit; your migrations move after 0240 with journal times after main's; node tools/integration/renumber-migrations.mjs origin/main <your pre-merge sha> after pnpm install), then the receipt opening per addendum 2 and X4's final comment block.
+
+lane: 65
+role: fix
+branch: feat/tc1-tally-connector
+run_file: docs/runs/phase5/tc1-tally-connector.md
+wait_for: none
+done_when: report: tc1-tally-connector fixes
+note: the one fix round: all ten findings as the lead's triage at the end of the Review section says. Finding 1 (high) first.

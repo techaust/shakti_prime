@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T19:07Z
+updated: 2026-11-27T19:30Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -122,3 +122,11 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: report: u2-purchase-orders fixes
 done_when: review: u2-purchase-orders re-check done
 note: re-check of the fix diff only (the review found a high): the receipt opening against X4's registry with the receipt and reversal tests on the real definer, and fixes 2 to 7, 9, 10 with tests.
+
+lane: 66
+role: review
+branch: feat/tc1-tally-connector
+run_file: docs/runs/phase5/tc1-tally-connector.md
+wait_for: report: tc1-tally-connector fixes
+done_when: review: tc1-tally-connector re-check done
+note: re-check of the fix diff only (the review found a high): findings 1 to 10 fixed with tests, especially the drain under a bad answer and the attempt limit.
