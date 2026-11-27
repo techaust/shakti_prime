@@ -40,12 +40,10 @@ export async function runTallyAlerts(options: {
   let alerted = 0;
   const record = async (connectorId: string, alert: 'silent' | 'rows_held') => {
     try {
-      await executeCommand(
-        workers,
-        { entityIds: [], requestId: newId() },
-        recordTallyAlert,
-        { connectorId, alert },
-      );
+      await executeCommand(workers, { entityIds: [], requestId: newId() }, recordTallyAlert, {
+        connectorId,
+        alert,
+      });
     } catch (error) {
       // Not recorded: the next check tells it again, which beats not telling.
       logger.log('warn', 'tally.alert_not_recorded', { requestId, connectorId, alert, error });

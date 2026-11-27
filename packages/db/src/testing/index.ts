@@ -417,6 +417,7 @@ export const ENTITY_TABLES = [
   'tally_ledgers',
   'tally_snapshots',
   'tally_voucher_tombstones',
+  'tally_refused_rows',
 ] as const;
 
 /**

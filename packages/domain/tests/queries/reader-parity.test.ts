@@ -12,7 +12,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { removeAskData, seedAskData, type AskData } from '../fixtures/ask-data';
 import { executeQuery } from '../../src/command/execute';
 import { readTallyConnector } from '../../src/commands/tally/connectors';
-import { findTallyConnector, readTallyCursor } from '../../src/queries/tally/connector';
+import {
+  findTallyConnector,
+  listHeldTallySnapshots,
+  listTallyConnectors,
+  readTallyConnectorAlerts,
+  readTallyConnectorHealth,
+  readTallyCursor,
+} from '../../src/queries/tally/connector';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { loadShadowReport } from '../../src/queries/agents/shadow-report';
@@ -381,6 +388,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   // the Executive sees it.
   readTallyCursor: (ctx) => readTallyCursor(ctx, { entityId: 1, company: 'Parity company' }),
   readTallyConnector: (ctx) => readTallyConnector(ctx, newId()),
+  readTallyConnectorAlerts: (ctx) => readTallyConnectorAlerts(ctx),
+  readTallyConnectorHealth: (ctx) => readTallyConnectorHealth(ctx, QUOTES_AT),
+  listTallyConnectors: (ctx) => listTallyConnectors(ctx),
+  listHeldTallySnapshots: (ctx) => listHeldTallySnapshots(ctx),
 };
 
 /**

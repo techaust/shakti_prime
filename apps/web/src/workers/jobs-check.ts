@@ -99,7 +99,12 @@ export async function runJobsCheck(options: JobsCheckOptions): Promise<JobsCheck
     alerted += (await runTallyAlerts({ requestId, alerts, now })).alerted;
   } catch (error) {
     tallyFailed = true;
-    logger.log('warn', 'jobs.problem', { requestId, job: TALLY_ALERTS_JOB, state: 'failed', error });
+    logger.log('warn', 'jobs.problem', {
+      requestId,
+      job: TALLY_ALERTS_JOB,
+      state: 'failed',
+      error,
+    });
     await tell(TALLY_ALERTS_JOB, 'failed', istCalendarDate(now));
   }
   // G2's Phase 2 alerts (g2-alerts), after the jobs' own. A fault in them never fails this check,

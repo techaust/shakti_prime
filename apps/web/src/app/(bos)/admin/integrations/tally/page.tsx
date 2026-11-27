@@ -8,7 +8,10 @@ import { companyNames, screenAccess, screenTitle } from '../../../../../screens/
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return screenTitle(navRequires('admin-tally'), (await getTranslations('tallyConnectors'))('title'));
+  return screenTitle(
+    navRequires('admin-tally'),
+    (await getTranslations('tallyConnectors'))('title'),
+  );
 }
 
 /**

@@ -10,6 +10,8 @@ const AADHAAR = '234567890124';
 const MOBILE_91 = '919876543216';
 /** A SHA-256 in hexadecimal with a valid Aadhaar number among its digits. */
 const HEX = `ab${AADHAAR}${'c'.repeat(50)}`;
+/** A Tally connector's key (43 base64url characters) with a valid Aadhaar number among them. */
+const TALLY_KEY = `ab${AADHAAR}${'c'.repeat(29)}`;
 
 interface ZodNode {
   _zod: { def: { type: string } & Record<string, unknown> };
@@ -151,8 +153,8 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   // A cell of a phone column, which the command's own masking keeps as the phone it is.
   'imports.job.create': { rows: MOBILE_91 },
   // TC2: a connector key's hash.
-  'tally.connector.register': { keyHash: HEX },
-  'tally.connector.rotate': { keyHash: HEX },
+  'tally.connector.register': { key: TALLY_KEY },
+  'tally.connector.rotate': { key: TALLY_KEY },
 };
 
 /** What a person might type into a text field: never valid in a field left whole. */

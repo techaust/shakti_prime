@@ -26,8 +26,9 @@ import {
 const RUN = newId().slice(-8);
 const COMPANY_1 = `TC2 ${RUN} one`;
 const COMPANY_2 = `TC2 ${RUN} two`;
-const HASH = 'b'.repeat(64);
-const NEXT_HASH = 'c'.repeat(64);
+// Stand-ins for sealed keys: the database stores the envelope and never opens it.
+const SEALED = { v: 1, keyId: 'local', ciphertext: 'current' };
+const NEXT_SEALED = { v: 1, keyId: 'local', ciphertext: 'next' };
 
 const connector = newId();
 const revoked = newId();
@@ -42,6 +43,7 @@ const TALLY_TABLES = [
   'tally_ledgers',
   'tally_snapshots',
   'tally_voucher_tombstones',
+  'tally_refused_rows',
 ] as const;
 
 /** A connector's principal, as the routes build it. */
@@ -111,10 +113,10 @@ beforeAll(async () => {
     ] as const) {
       await m`insert into principals (id, kind, display_name) values (${id}, 'system', ${name})`;
     }
-    await m`insert into tally_connectors (id, name, key_hash, key_hint, next_key_hash, next_key_hint, created_by)
-      values (${connector}, 'tally test connector', ${HASH}, 'ab12', ${NEXT_HASH}, 'cd34', ${owner})`;
-    await m`insert into tally_connectors (id, name, key_hash, key_hint, revoked_at, revoked_by, created_by)
-      values (${revoked}, 'tally test revoked', ${'d'.repeat(64)}, 'ef56', now(), ${owner}, ${owner})`;
+    await m`insert into tally_connectors (id, name, key_sealed, key_hint, next_key_sealed, next_key_hint, created_by)
+      values (${connector}, 'tally test connector', ${m.json(SEALED)}, 'ab12', ${m.json(NEXT_SEALED)}, 'cd34', ${owner})`;
+    await m`insert into tally_connectors (id, name, key_sealed, key_hint, revoked_at, revoked_by, created_by)
+      values (${revoked}, 'tally test revoked', ${m.json(SEALED)}, 'ef56', now(), ${owner}, ${owner})`;
     await m`insert into tally_connector_companies (connector_id, tally_company, entity_id, created_by) values
       (${connector}, ${COMPANY_1}, 1, ${owner}), (${connector}, ${COMPANY_2}, 2, ${owner}),
       (${revoked}, ${`${COMPANY_1} old`}, 1, ${owner})`;
@@ -129,6 +131,8 @@ afterAll(async () => {
     await m`delete from tally_vouchers where connector_id in (${connector}, ${revoked})`;
     await m`delete from tally_purchase_vouchers where connector_id in (${connector}, ${revoked})`;
     await m`delete from tally_cursors where connector_id in (${connector}, ${revoked})`;
+    await m`delete from tally_refused_rows where connector_id in (${connector}, ${revoked})`;
+    await m`delete from tally_snapshots where connector_id in (${connector}, ${revoked}) and state = 'receiving'`;
     await m`delete from tally_connector_companies where connector_id in (${connector}, ${revoked})`;
     await m`delete from tally_connectors where id in (${connector}, ${revoked})`;
     await m`delete from principals where id in (${connector}, ${revoked}, ${owner})`;
@@ -136,7 +140,7 @@ afterAll(async () => {
   await closeDb();
 });
 
-describe('the connectors: an Executive reads them, never their keys', () => {
+describe('the connectors: an Executive reads them, never their sealed keys', () => {
   it.each(CONNECTOR_TABLES)('%s returns no row without a request context', async (table) => {
     const [row] = await withoutContext<{ n: number }>(
       sql`select count(*)::int as n from ${sql.identifier(table)}`,
@@ -170,12 +174,12 @@ describe('the connectors: an Executive reads them, never their keys', () => {
     },
   );
 
-  it('no request role may select a key hash, or write a connector directly', async () => {
+  it('no request role may select a sealed key, or write a connector directly', async () => {
     const [row] = await withoutContext<Record<string, boolean>>(sql`
-      select has_column_privilege('app_user', 'tally_connectors', 'key_hash', 'SELECT') as uh,
-             has_column_privilege('app_user', 'tally_connectors', 'next_key_hash', 'SELECT') as un,
-             has_column_privilege('app_reader', 'tally_connectors', 'key_hash', 'SELECT') as rh,
-             has_column_privilege('app_reader', 'tally_connectors', 'next_key_hash', 'SELECT') as rn,
+      select has_column_privilege('app_user', 'tally_connectors', 'key_sealed', 'SELECT') as uh,
+             has_column_privilege('app_user', 'tally_connectors', 'next_key_sealed', 'SELECT') as un,
+             has_column_privilege('app_reader', 'tally_connectors', 'key_sealed', 'SELECT') as rh,
+             has_column_privilege('app_reader', 'tally_connectors', 'next_key_sealed', 'SELECT') as rn,
              has_column_privilege('app_user', 'tally_connectors', 'key_hint', 'SELECT') as hint,
              has_table_privilege('app_user', 'tally_connectors', 'INSERT, UPDATE, DELETE') as w,
              has_table_privilege('app_reader', 'tally_connectors', 'INSERT, UPDATE, DELETE') as rw,
@@ -193,7 +197,7 @@ describe('the connectors: an Executive reads them, never their keys', () => {
     });
     expect(
       await failure(
-        run(principalFor('executive', [1]), [1], sql`select key_hash from tally_connectors`),
+        run(principalFor('executive', [1]), [1], sql`select key_sealed from tally_connectors`),
       ),
     ).toBe('42501');
   });
@@ -255,13 +259,13 @@ describe('a connector principal reads no table', () => {
 describe('the connector definers check the connector and its mapping', () => {
   it('a connector reads its own keys and companies, and nobody else’s', async () => {
     const self = connectorPrincipal(connector, []);
-    const rows = await run<{ key_hash: string; next_key_hash: string; entity_id: number }>(
+    const rows = await run<{ key_sealed: unknown; next_key_sealed: unknown; entity_id: number }>(
       self,
       [],
-      sql`select key_hash, next_key_hash, entity_id from app.tally_connector_auth(${connector}::uuid) order by entity_id`,
+      sql`select key_sealed, next_key_sealed, entity_id from app.tally_connector_auth(${connector}::uuid) order by entity_id`,
     );
     expect(rows.map((r) => r.entity_id)).toEqual([1, 2]);
-    expect(rows[0]).toMatchObject({ key_hash: HASH, next_key_hash: NEXT_HASH });
+    expect(rows[0]).toMatchObject({ key_sealed: SEALED, next_key_sealed: NEXT_SEALED });
     expect(
       await failure(run(self, [], sql`select * from app.tally_connector_auth(${revoked}::uuid)`)),
     ).toBe('42501');
@@ -472,5 +476,167 @@ describe('tombstones are append-only', () => {
       await m`alter table tally_voucher_tombstones enable trigger tally_voucher_tombstones_append_only`;
       await m`delete from tally_snapshots where id = ${snapshot}`;
     });
+  });
+});
+
+describe('refused rows, snapshot parts, the heartbeat and the alerts, through their definers', () => {
+  it('a refused later version marks the stored one not current until a later version arrives', async () => {
+    const self = connectorPrincipal(connector, [1, 2]);
+    await run(self, [1], write(1, COMPANY_1, [voucher(40, 'sales', 41)]));
+    const refused = [
+      { id: newId(), kind: 'voucher', guid: guid(40), alter_id: 45, field: 'partyGstin' },
+    ];
+    await run(
+      self,
+      [1],
+      sql`select app.tally_refused_write(1::smallint, ${COMPANY_1}::text, ${JSON.stringify(refused)}::jsonb)`,
+    );
+    const state = () =>
+      asMigrator(
+        (m) => m<{ refused: boolean; resolved: boolean | null }[]>`
+          select v.refused_at is not null as refused,
+                 (select f.resolved_at is not null from tally_refused_rows f
+                   where f.guid = v.guid and f.entity_id = 1) as resolved
+            from tally_vouchers v where v.guid = ${guid(40)}`,
+      );
+    expect((await state())[0]).toEqual({ refused: true, resolved: false });
+    await run(self, [1], write(1, COMPANY_1, [voucher(40, 'sales', 50)]));
+    expect((await state())[0]).toEqual({ refused: false, resolved: true });
+    // Only the connector writes them, and a person reads them with finance.read.
+    expect(
+      await failure(
+        run(
+          principalFor('accounts', [1]),
+          [1],
+          sql`select app.tally_refused_write(1::smallint, ${COMPANY_1}::text, '[]'::jsonb)`,
+        ),
+      ),
+    ).toBe('42501');
+  });
+
+  it("keeps a snapshot's parts until the last, each part once, and refuses a part of another", async () => {
+    const self = connectorPrincipal(connector, [1, 2]);
+    const partsOf = newId();
+    const asOf = '2026-11-20T00:00:00.000Z';
+    const part = (n: number, guids: string[], parts = 2, at = asOf) =>
+      run<{ snapshot_id: string; complete: boolean; guids: string[] }>(
+        self,
+        [2],
+        sql`select snapshot_id, complete, guids from app.tally_snapshot_part(${newId()}::uuid,
+              2::smallint, ${COMPANY_2}::text, ${at}::timestamptz, '2026-04-01'::date,
+              ${partsOf}::uuid, ${n}::smallint, ${parts}::smallint,
+              ${`{${guids.join(',')}}`}::text[])`,
+      );
+    const [first] = await part(1, [guid(60), guid(61)]);
+    expect(first).toMatchObject({ complete: false, guids: [] });
+    const [again] = await part(1, [guid(60), guid(61)]);
+    expect(again?.snapshot_id).toBe(first?.snapshot_id);
+    expect(await failure(part(2, [guid(62)], 3))).toBe('23514');
+    expect(await failure(part(2, [guid(62)], 2, '2026-11-21T00:00:00.000Z'))).toBe('23514');
+    const [last] = await part(2, [guid(62)]);
+    expect(last?.complete).toBe(true);
+    expect([...(last?.guids ?? [])].sort()).toEqual([guid(60), guid(61), guid(62)].sort());
+  });
+
+  it('drops a snapshot still receiving a day after it began', async () => {
+    const self = connectorPrincipal(connector, [1, 2]);
+    const stale = newId();
+    const begin = (partsOf: string) =>
+      run<{ snapshot_id: string }>(
+        self,
+        [2],
+        sql`select snapshot_id from app.tally_snapshot_part(${newId()}::uuid, 2::smallint,
+              ${COMPANY_2}::text, now(), '2026-04-01'::date, ${partsOf}::uuid, 1::smallint,
+              2::smallint, '{}'::text[])`,
+      );
+    const [old] = await begin(stale);
+    await asMigrator(
+      (m) =>
+        m`update tally_snapshots set created_at = now() - interval '25 hours' where id = ${old?.snapshot_id ?? ''}`,
+    );
+    await begin(newId());
+    const [left] = await asMigrator(
+      (m) =>
+        m<
+          { n: number }[]
+        >`select count(*)::int as n from tally_snapshots where id = ${old?.snapshot_id ?? ''}`,
+    );
+    expect(left?.n).toBe(0);
+  });
+
+  it("records held rows with when the stretch began, and the companies' Tally counters", async () => {
+    const self = connectorPrincipal(connector, [1, 2]);
+    const beat = (held: number | null) =>
+      run(
+        self,
+        [1, 2],
+        sql`select app.tally_heartbeat_write('1.0.0', 'TallyPrime', 0, ${held}::integer,
+              ${JSON.stringify([
+                {
+                  name: COMPANY_1,
+                  last_alter_id: 10,
+                  reachable: true,
+                  tally_last_alter_id: 25,
+                  problem: 'waiting_on_bos',
+                },
+              ])}::jsonb)`,
+      );
+    const read = () =>
+      asMigrator(
+        (m) => m<{ held_rows: number | null; held: boolean; tla: string; problem: string }[]>`
+          select c.held_rows, c.held_since is not null as held, m.tally_last_alter_id as tla, m.problem
+            from tally_connectors c join tally_connector_companies m on m.connector_id = c.id
+           where c.id = ${connector} and m.tally_company = ${COMPANY_1}`,
+      );
+    await beat(3);
+    expect((await read())[0]).toEqual({
+      held_rows: 3,
+      held: true,
+      tla: '25',
+      problem: 'waiting_on_bos',
+    });
+    // An older connector sends no count: what was recorded stays.
+    await beat(null);
+    expect((await read())[0]).toMatchObject({ held_rows: 3, held: true });
+    await beat(0);
+    expect((await read())[0]).toMatchObject({ held_rows: 0, held: false });
+  });
+
+  it('lets only the jobs check read the alert facts and record an alert', async () => {
+    const workers = principalFor('system:workers', []);
+    const rows = await run<{ connector_id: string }>(
+      workers,
+      [],
+      sql`select connector_id from app.tally_connector_alerts()`,
+      true,
+    );
+    expect(rows.map((r) => r.connector_id)).toContain(connector);
+    expect(rows.map((r) => r.connector_id)).not.toContain(revoked);
+    const [ok] = await run<{ ok: boolean }>(
+      workers,
+      [],
+      sql`select app.tally_connector_alerted(${connector}::uuid, 'silent') as ok`,
+    );
+    expect(ok?.ok).toBe(true);
+    for (const principal of [
+      principalFor('executive', [1]),
+      connectorPrincipal(connector, [1]),
+      principalFor('agent:chief', [1]),
+    ]) {
+      expect(
+        await failure(run(principal, [1], sql`select * from app.tally_connector_alerts()`)),
+        principal.roleKey,
+      ).toBe('42501');
+      expect(
+        await failure(
+          run(
+            principal,
+            [1],
+            sql`select app.tally_connector_alerted(${connector}::uuid, 'silent')`,
+          ),
+        ),
+        principal.roleKey,
+      ).toBe('42501');
+    }
   });
 });

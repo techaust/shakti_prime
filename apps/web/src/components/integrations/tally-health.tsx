@@ -1,7 +1,13 @@
 'use client';
 
 import type { ConnectorHealth } from '@shakti/contracts';
-import { DataGrid, EmptyState, StatusBadge, type DataGridColumn, type StatusTone } from '@shakti/ui';
+import {
+  DataGrid,
+  EmptyState,
+  StatusBadge,
+  type DataGridColumn,
+  type StatusTone,
+} from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { formatCount } from '../../screens/format';
 import { DateTime } from '../date-time';

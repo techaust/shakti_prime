@@ -97,6 +97,8 @@ const REVIEWED: Record<string, string> = {
     "A connector's key belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) retires it; the input names no company, and the refusal sweep refuses every agent and system principal.",
   'tally.connector.revoke':
     'A connector belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) revokes it; the input names no company, and the refusal sweep refuses every agent and system principal.',
+  'tally.connector.record_alert':
+    'The jobs check records an alert about a connector, which belongs to no company: it runs as `system:workers` with no company (`platform.jobs.check:all`), and the denied case refuses an Executive in tally.test.ts "is the jobs check\'s alone".',
   'tally.heartbeat.record':
     'A heartbeat names no company: it reports for every company mapped to the connector, and a name not mapped is left out by `app.tally_heartbeat_write()`; the denied cases refuse a person and a revoked connector in tally.test.ts "records the connector\'s report for its mapped companies only" and "unmaps a company, then revokes the connector".',
 };

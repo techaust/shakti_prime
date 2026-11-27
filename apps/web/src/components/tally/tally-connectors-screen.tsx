@@ -1,16 +1,7 @@
 'use client';
 
 import type { TallyConnectorDto } from '@shakti/contracts';
-import {
-  Button,
-  EmptyState,
-  Field,
-  Input,
-  Select,
-  Skeleton,
-  StatusBadge,
-  toast,
-} from '@shakti/ui';
+import { Button, EmptyState, Field, Input, Select, Skeleton, StatusBadge, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useState, type SyntheticEvent } from 'react';
 import {
@@ -143,9 +134,7 @@ function KeyShownOnce({ shown, onDone }: { shown: ShownKey; onDone: () => void }
   return (
     <div role="status" className="border-border bg-card flex flex-col gap-2 rounded-md border p-4">
       <p className="font-semibold">
-        {shown.rotated
-          ? t('keyRotated', { name: shown.name })
-          : t('keyMade', { name: shown.name })}
+        {shown.rotated ? t('keyRotated', { name: shown.name }) : t('keyMade', { name: shown.name })}
       </p>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm">
         <dt className="text-text-muted">{t('connectorNumber')}</dt>

@@ -108,6 +108,7 @@ import {
   STOCK_REASONS,
   WAREHOUSE_KINDS,
   // TC2 Tally ingest
+  TALLY_COMPANY_PROBLEMS,
   TALLY_PURCHASE_VOUCHER_TYPES,
   TALLY_SALES_VOUCHER_TYPES,
   TALLY_SNAPSHOT_STATES,
@@ -314,6 +315,9 @@ const PAIRS: Record<string, readonly string[]> = {
   tally_snapshots_state_check: TALLY_SNAPSHOT_STATES,
   tally_snapshots_held_check: ['held'],
   tally_voucher_tombstones_type_check: TALLY_VOUCHER_TYPES,
+  tally_snapshots_receiving_check: ['receiving'],
+  tally_connector_companies_problem_check: TALLY_COMPANY_PROBLEMS,
+  tally_refused_rows_kind_check: ['voucher', 'ledger'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

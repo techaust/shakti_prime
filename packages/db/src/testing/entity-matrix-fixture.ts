@@ -129,6 +129,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   tally_ledgers: 'x.id::text',
   tally_snapshots: 'x.id::text',
   tally_voucher_tombstones: 'x.id::text',
+  tally_refused_rows: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -258,6 +259,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from tally_voucher_tombstones where id::text like ${like}`;
       await tx`alter table tally_voucher_tombstones enable trigger tally_voucher_tombstones_append_only`;
       await tx`delete from tally_snapshots where id::text like ${like}`;
+      await tx`delete from tally_refused_rows where id::text like ${like}`;
       await tx`delete from tally_vouchers where id::text like ${like}`;
       await tx`delete from tally_purchase_vouchers where id::text like ${like}`;
       await tx`delete from tally_ledgers where id::text like ${like}`;
@@ -439,6 +441,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     tally_ledgers: [],
     tally_snapshots: [],
     tally_voucher_tombstones: [],
+    tally_refused_rows: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -1002,8 +1005,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       // cursor, a sale, a purchase, a ledger, a snapshot and a tombstone in each company.
       const connector = id(0x0701);
       await tx`insert into principals (id, kind, display_name) values (${connector}, 'system', 'matrix connector')`;
-      await tx`insert into tally_connectors (id, name, key_hash, key_hint, created_by)
-        values (${connector}, 'matrix connector', ${'a'.repeat(64)}, 'mx01', ${ownerId})`;
+      await tx`insert into tally_connectors (id, name, key_sealed, key_hint, created_by)
+        values (${connector}, 'matrix connector', ${tx.json({ v: 1 })}, 'mx01', ${ownerId})`;
       for (const e of ALL_ENTITY_IDS) {
         const company = `MX Tally ${e.toString()}`;
         const guid = (n: number) =>
@@ -1014,6 +1017,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const ledger = per(e, 0x93);
         const snapshot = per(e, 0x94);
         const tombstone = per(e, 0x95);
+        const refused = per(e, 0x96);
         await tx`insert into tally_connector_companies (connector_id, tally_company, entity_id, created_by)
           values (${connector}, ${company}, ${e}, ${ownerId})`;
         await tx`insert into tally_cursors (id, entity_id, tally_company, last_alter_id, connector_id)
@@ -1037,7 +1041,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${snapshot}, ${e}, ${company}, ${connector}, now(), '2090-01-01', 2, 2, 1, 0, 0, 'applied')`;
         await tx`insert into tally_voucher_tombstones (id, entity_id, voucher_guid, voucher_type, snapshot_id, detected_at)
           values (${tombstone}, ${e}, ${guid(4)}, 'sales', ${snapshot}, now())`;
+        await tx`insert into tally_refused_rows (id, entity_id, tally_company, connector_id, kind, guid, alter_id, field, refused_at)
+          values (${refused}, ${e}, ${company}, ${connector}, 'voucher', ${guid(5)}, 9, 'partyGstin', now())`;
         const only = [e];
+        rows.tally_refused_rows.push({ key: refused, entities: only });
         rows.tally_connector_companies.push({ key: `${connector}/${company}`, entities: only });
         rows.tally_cursors.push({ key: cursor, entities: only });
         rows.tally_vouchers.push({ key: sale, entities: only });

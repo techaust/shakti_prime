@@ -1,6 +1,7 @@
 import {
   newId,
   SYSTEM_MATRIX,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
   type Principal,
   type TallyConnectorDto,
   type TallyLedger,
@@ -21,11 +22,17 @@ import {
 import {
   confirmTallySnapshot,
   ingestTallyBatch,
+  recordTallyAlert,
   recordTallyHeartbeat,
   recordTallySnapshot,
 } from '../../src/commands/tally/ingest';
 import { findTallyConnector, readTallyCursor } from '../../src/queries/tally/connector';
-import { connectorSigningKey, newConnectorKey } from '../../src/tally/connector-key';
+import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
+import { newConnectorKey, openConnectorKeys } from '../../src/tally/connector-key';
+
+/** The local field cipher a developer's machine and CI seal with (a test phrase's bytes). */
+const cipher = envelopeCipher(localKeyProvider(Buffer.alloc(32, 11).toString('base64')));
+const sealing = { fieldCipher: cipher };
 
 // TC2 Tally ingest on real Postgres (docs/03-roadmap-appendix/phase5.md §6.3, §13): an Executive
 // registers and maps a connector; the connector's batches move the cursor forward once each, a
@@ -41,6 +48,7 @@ const SPARE = `TC2 ${RUN} Agro Solar`;
 let exec: Principal;
 let accounts: Principal;
 let connector: TallyConnectorDto;
+let firstKey: string;
 
 const guidBase = newId();
 const guid = (n: number): string => `${guidBase}-${n.toString(16)}`;
@@ -109,11 +117,14 @@ beforeAll(async () => {
   exec = await createTestPrincipal('executive', [1, 2, 3, 4]);
   accounts = await createTestPrincipal('accounts', [1]);
   const key = newConnectorKey();
-  connector = await executeCommand(exec, { entityIds: [1, 2, 3, 4] }, registerTallyConnector, {
-    name: `TC2 test ${RUN}`,
-    keyHash: key.keyHash,
-    keyHint: key.keyHint,
-  });
+  firstKey = key.key;
+  connector = await executeCommand(
+    exec,
+    { entityIds: [1, 2, 3, 4] },
+    registerTallyConnector,
+    { name: `TC2 test ${RUN}`, key: key.key },
+    sealing,
+  );
   connector = await executeCommand(exec, { entityIds: [1, 2, 3, 4] }, mapTallyCompany, {
     connectorId: connector.id,
     tallyCompany: COMPANY,
@@ -131,7 +142,27 @@ afterAll(async () => {
 });
 
 describe('Admin › Integrations › Tally', () => {
-  it('registers a connector by its key’s hash and maps a company', () => {
+  it('registers a connector with its key sealed, never in the clear, and maps a company', async () => {
+    const [row] = await asMigrator(
+      (m) => m<{ sealed: string }[]>`
+        select key_sealed::text as sealed from tally_connectors where id = ${connector.id}`,
+    );
+    expect(row?.sealed).not.toContain(firstKey);
+    const auth = await withRequestContext(connectorPrincipal([]), { entityIds: [] }, (ctx) =>
+      findTallyConnector(ctx, connector.id),
+    );
+    expect(await openConnectorKeys(cipher, connector.id, auth?.sealedKeys ?? [])).toEqual([
+      firstKey,
+    ]);
+    // Sealed for its own connector: it does not open as another's.
+    await expect(openConnectorKeys(cipher, newId(), auth?.sealedKeys ?? [])).rejects.toThrow();
+    const [audit] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from audit_logs
+         where command = 'tally.connector.register' and aggregate_id = ${connector.id}
+           and (input_json::text like ${`%${firstKey}%`} or after_json::text like ${`%${firstKey}%`})`,
+    );
+    expect(audit?.n).toBe(0);
     expect(connector.companies).toEqual([
       expect.objectContaining({ tallyCompany: COMPANY, entityId: 1, reachable: null }),
     ]);
@@ -143,11 +174,13 @@ describe('Admin › Integrations › Tally', () => {
     for (const who of [accounts, principalFor('agent:chief', [1])]) {
       expect(
         await failure(
-          executeCommand(who, { entityIds: [1] }, registerTallyConnector, {
-            name: 'refused',
-            keyHash: key.keyHash,
-            keyHint: key.keyHint,
-          }),
+          executeCommand(
+            who,
+            { entityIds: [1] },
+            registerTallyConnector,
+            { name: 'refused', key: key.key },
+            sealing,
+          ),
         ),
       ).toMatchObject({ code: 'forbidden' });
     }
@@ -174,19 +207,34 @@ describe('Admin › Integrations › Tally', () => {
     ).toMatchObject({ code: 'conflict', reason: 'tally_company_already_mapped' });
   });
 
+  it('refuses to keep a key on a runtime with no field cipher', async () => {
+    expect(
+      await failure(
+        executeCommand(exec, { entityIds: [1] }, registerTallyConnector, {
+          name: 'no cipher',
+          key: newConnectorKey().key,
+        }),
+      ),
+    ).toMatchObject({ code: 'integration_unavailable' });
+  });
+
   it('rotates: both keys verify until the old one is retired', async () => {
     const next = newConnectorKey();
-    const rotated = await executeCommand(exec, { entityIds: [1] }, rotateTallyConnectorKey, {
-      connectorId: connector.id,
-      keyHash: next.keyHash,
-      keyHint: next.keyHint,
-    });
+    const rotated = await executeCommand(
+      exec,
+      { entityIds: [1] },
+      rotateTallyConnectorKey,
+      { connectorId: connector.id, key: next.key },
+      sealing,
+    );
     expect(rotated.nextKeyHint).toBe(next.keyHint);
     const during = await withRequestContext(connectorPrincipal([]), { entityIds: [] }, (ctx) =>
       findTallyConnector(ctx, connector.id),
     );
-    expect(during?.signingKeys).toHaveLength(2);
-    expect(during?.signingKeys).toContain(connectorSigningKey(next.key));
+    expect(await openConnectorKeys(cipher, connector.id, during?.sealedKeys ?? [])).toEqual([
+      firstKey,
+      next.key,
+    ]);
     const retired = await executeCommand(exec, { entityIds: [1] }, retireTallyConnectorKey, {
       connectorId: connector.id,
     });
@@ -194,7 +242,9 @@ describe('Admin › Integrations › Tally', () => {
     const after = await withRequestContext(connectorPrincipal([]), { entityIds: [] }, (ctx) =>
       findTallyConnector(ctx, connector.id),
     );
-    expect(after?.signingKeys).toEqual([next.keyHash]);
+    expect(await openConnectorKeys(cipher, connector.id, after?.sealedKeys ?? [])).toEqual([
+      next.key,
+    ]);
     expect(
       await failure(
         executeCommand(exec, { entityIds: [1] }, retireTallyConnectorKey, {
@@ -343,17 +393,17 @@ describe('tally.snapshot.record and tally.snapshot.confirm', () => {
           asOf: asOf(),
           fromDate: '2026-04-01',
           voucherGuids: [guid(1), guid(2), guid(50)],
+          ledgerBalances: [
+            {
+              guid: guid(100),
+              name: 'Kisan Agro Traders',
+              closingBalance: '-7000.00',
+              asOf: '2026-09-28',
+            },
+            // A ledger no batch has brought yet waits for its batch.
+            { guid: guid(101), name: 'Unknown party', closingBalance: '10.00', asOf: '2026-09-28' },
+          ],
         },
-        ledgerBalances: [
-          {
-            guid: guid(100),
-            name: 'Kisan Agro Traders',
-            closingBalance: '-7000.00',
-            asOf: '2026-09-28',
-          },
-          // A ledger no batch has brought yet waits for its batch.
-          { guid: guid(101), name: 'Unknown party', closingBalance: '10.00', asOf: '2026-09-28' },
-        ],
       },
     );
     expect(out.state).toBe('applied');
@@ -450,6 +500,45 @@ describe('tally.snapshot.record and tally.snapshot.confirm', () => {
   });
 });
 
+describe('refused rows on a batch', () => {
+  it('queues each for Accounts and takes the stored version out of matching until a later one', async () => {
+    const cursor = await withRequestContext(connectorPrincipal(), { entityIds: [1] }, (ctx) =>
+      readTallyCursor(ctx, { entityId: 1, company: COMPANY }),
+    );
+    const from = cursor.lastAlterId;
+    await executeCommand(
+      connectorPrincipal(),
+      { entityIds: [1] },
+      ingestTallyBatch,
+      {
+        ...batch(from, from + 5, []),
+        batch: {
+          ...batch(from, from + 5, []).batch,
+          refused: [{ kind: 'voucher', guid: guid(1), alterId: from + 3, field: 'partyGstin' }],
+        },
+      },
+      { idempotencyKey: newId() },
+    );
+    const read = () =>
+      asMigrator(
+        (m) => m<{ refused: boolean; open: number }[]>`
+          select v.refused_at is not null as refused,
+                 (select count(*)::int from tally_refused_rows f
+                   where f.guid = v.guid and f.entity_id = 1 and f.resolved_at is null) as open
+            from tally_vouchers v where v.guid = ${guid(1)}`,
+      );
+    expect((await read())[0]).toEqual({ refused: true, open: 1 });
+    await executeCommand(
+      connectorPrincipal(),
+      { entityIds: [1] },
+      ingestTallyBatch,
+      batch(from + 5, from + 6, [{ ...voucher(1, from + 6), voucherNo: 'TC2/1 again' }]),
+      { idempotencyKey: newId() },
+    );
+    expect((await read())[0]).toEqual({ refused: false, open: 0 });
+  });
+});
+
 describe('tally.heartbeat.record', () => {
   it('records the connector’s report for its mapped companies only', async () => {
     const out = await executeCommand(
@@ -461,10 +550,11 @@ describe('tally.heartbeat.record', () => {
           connectorVersion: '1.0.0',
           tallyVersion: 'TallyPrime 5.1',
           companies: [
-            { name: COMPANY, lastAlterId: 61, reachable: true },
+            { name: COMPANY, lastAlterId: 61, reachable: true, tallyLastAlterId: 70 },
             { name: SPARE, lastAlterId: 3, reachable: false },
           ],
           queueDepth: 2,
+          heldRows: 1,
         },
       },
     );
@@ -542,5 +632,122 @@ describe('unmap and revoke', () => {
         }),
       ),
     ).toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('a snapshot in parts', () => {
+  it('waits for every part, compares them together once, and drops none twice', async () => {
+    const key = newConnectorKey();
+    const own = await executeCommand(
+      exec,
+      { entityIds: [2] },
+      registerTallyConnector,
+      { name: `TC2 parts ${RUN}`, key: key.key },
+      sealing,
+    );
+    const company = `TC2 ${RUN} parts`;
+    await executeCommand(exec, { entityIds: [2] }, mapTallyCompany, {
+      connectorId: own.id,
+      tallyCompany: company,
+      entityId: 2,
+    });
+    const self: Principal = { ...connectorPrincipal([2]), id: own.id };
+    await executeCommand(
+      self,
+      { entityIds: [2] },
+      ingestTallyBatch,
+      {
+        entityId: 2,
+        batch: {
+          company,
+          entityCode: 'SMP',
+          fromAlterId: 0,
+          maxAlterId: 5,
+          vouchers: [voucher(300, 1), voucher(301, 2), voucher(302, 3)],
+          ledgers: [],
+        },
+      },
+      { idempotencyKey: newId() },
+    );
+    const snapshotId = newId();
+    const at = new Date(Date.now() + 60_000).toISOString();
+    const send = (part: number, guids: string[]) =>
+      executeCommand(self, { entityIds: [2] }, recordTallySnapshot, {
+        entityId: 2,
+        snapshot: {
+          company,
+          entityCode: 'SMP',
+          asOf: at,
+          fromDate: '2026-04-01',
+          voucherGuids: guids,
+          part: { snapshotId, part, parts: 2 },
+        },
+      });
+    const first = await send(1, [guid(300)]);
+    expect(first.state).toBe('receiving');
+    expect(await stateOf('tally_vouchers', guid(302))).toBe('received');
+    const last = await send(2, [guid(301)]);
+    expect(last.snapshotId).toBe(first.snapshotId);
+    expect(last).toMatchObject({ state: 'applied', response: { known: 2, tombstoned: 1 } });
+    expect(await stateOf('tally_vouchers', guid(302))).toBe('tombstoned');
+    const [row] = await asMigrator(
+      (m) => m<{ state: string; guid_count: number; received: number }[]>`
+        select state, guid_count, cardinality(received_guids) as received
+          from tally_snapshots where id = ${last.snapshotId}`,
+    );
+    expect(row).toEqual({ state: 'applied', guid_count: 2, received: 0 });
+    // A part of another shape is refused.
+    expect(
+      await failure(
+        executeCommand(self, { entityIds: [2] }, recordTallySnapshot, {
+          entityId: 2,
+          snapshot: {
+            company,
+            entityCode: 'SMP',
+            asOf: at,
+            fromDate: '2026-04-01',
+            voucherGuids: [],
+            part: { snapshotId, part: 2, parts: 3 },
+          },
+        }),
+      ),
+    ).toMatchObject({ code: 'validation_failed', reason: 'tally_snapshot_part_mismatch' });
+    await executeCommand(exec, { entityIds: [2] }, revokeTallyConnector, { connectorId: own.id });
+  });
+});
+
+describe('tally.connector.record_alert', () => {
+  it("is the jobs check's alone, and records when the alert went out", async () => {
+    const workers: Principal = {
+      ...principalFor('system:workers', []),
+      id: SYSTEM_WORKERS_PRINCIPAL_ID,
+    };
+    expect(
+      await failure(
+        executeCommand(exec, { entityIds: [1] }, recordTallyAlert, {
+          connectorId: connector.id,
+          alert: 'silent',
+        }),
+      ),
+    ).toMatchObject({ code: 'forbidden' });
+    const key = newConnectorKey();
+    const other = await executeCommand(
+      exec,
+      { entityIds: [1] },
+      registerTallyConnector,
+      { name: `TC2 alert ${RUN}`, key: key.key },
+      sealing,
+    );
+    const out = await executeCommand(workers, { entityIds: [] }, recordTallyAlert, {
+      connectorId: other.id,
+      alert: 'rows_held',
+    });
+    expect(out).toEqual({ recorded: true });
+    const [row] = await asMigrator(
+      (m) => m<{ alerted: boolean }[]>`
+        select held_alerted_at is not null as alerted from tally_connectors where id = ${other.id}`,
+    );
+    expect(row?.alerted).toBe(true);
+    await executeCommand(exec, { entityIds: [1] }, revokeTallyConnector, { connectorId: other.id });
   });
 });

@@ -397,6 +397,7 @@ const RULES: Record<MatrixTable, TableRule> = {
   tally_ledgers: { read: FINANCE_READ, leak: otherCompany },
   tally_snapshots: { read: FINANCE_READ, leak: otherCompany },
   tally_voucher_tombstones: { read: FINANCE_READ, leak: otherCompany },
+  tally_refused_rows: { read: FINANCE_READ, leak: otherCompany },
 };
 
 const TABLES = Object.keys(RULES) as MatrixTable[];

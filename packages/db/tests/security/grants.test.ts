@@ -209,6 +209,7 @@ describe('app_user role (docs/05-database.md §3)', () => {
     tally_ledgers: { i: false, u: false },
     tally_snapshots: { i: false, u: false },
     tally_voucher_tombstones: { i: false, u: false },
+    tally_refused_rows: { i: false, u: false },
   };
 
   /**
@@ -552,6 +553,7 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.status_summary(uuid)',
       // TC2: a Tally connector's own keys and companies, its cursor, and the stored vouchers a
       // snapshot or a batch is compared with, which its routes read as queries.
+      'app.tally_connector_alerts()',
       'app.tally_connector_auth(uuid)',
       'app.tally_cursor(smallint,text)',
       'app.tally_vouchers_known(smallint,text,text[])',

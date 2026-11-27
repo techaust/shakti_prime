@@ -1,7 +1,8 @@
 import { newId, type Principal } from '@shakti/contracts';
 import { asMigrator, closeDb, createTestPrincipal } from '@shakti/db/testing';
 import {
-  connectorSigningKey,
+  envelopeCipher,
+  localKeyProvider,
   executeCommand,
   mapTallyCompany,
   newConnectorKey,
@@ -15,6 +16,7 @@ import {
   tallyBatchRoute,
   tallyCursorRoute,
   tallyHeartbeatRoute,
+  tallyReleaseRoute,
   tallySnapshotRoute,
   type TallyRouteDeps,
 } from '../src/integrations/tally/routes';
@@ -36,7 +38,13 @@ let exec: Principal;
 let connectorId: string;
 let key: ReturnType<typeof newConnectorKey>;
 
-const deps = (now: Date = NOW): TallyRouteDeps => ({ now: () => now, options: () => ({}) });
+/** The local field cipher the connectors' keys are sealed with here (a test phrase's bytes). */
+const cipher = envelopeCipher(localKeyProvider(Buffer.alloc(32, 13).toString('base64')));
+const deps = (now: Date = NOW): TallyRouteDeps => ({
+  now: () => now,
+  cipher: () => cipher,
+  options: () => ({}),
+});
 const guidBase = newId();
 const guid = (n: number): string => `${guidBase}-${n.toString(16)}`;
 
@@ -55,7 +63,7 @@ function signed(
   const body = options.body === undefined ? '' : JSON.stringify(options.body);
   const timestamp = String(Math.floor((options.at ?? NOW).getTime() / 1000));
   const signature = signConnectorRequest(
-    connectorSigningKey(options.secret ?? key.key),
+    options.secret ?? key.key,
     method,
     pathWithQuery,
     timestamp,
@@ -117,11 +125,13 @@ const reasonOf = (body: Record<string, unknown>) =>
 beforeAll(async () => {
   exec = await createTestPrincipal('executive', [1, 2, 3, 4]);
   key = newConnectorKey();
-  const registered = await executeCommand(exec, { entityIds: [1] }, registerTallyConnector, {
-    name: `TC2 web ${RUN}`,
-    keyHash: key.keyHash,
-    keyHint: key.keyHint,
-  });
+  const registered = await executeCommand(
+    exec,
+    { entityIds: [1] },
+    registerTallyConnector,
+    { name: `TC2 web ${RUN}`, key: key.key },
+    { fieldCipher: cipher },
+  );
   connectorId = registered.id;
   await executeCommand(exec, { entityIds: [1] }, mapTallyCompany, {
     connectorId,
@@ -199,11 +209,13 @@ describe('the connector’s signature', () => {
 
   it('verifies under both keys during a rotation, and only the new one once the old is retired', async () => {
     const next = newConnectorKey();
-    await executeCommand(exec, { entityIds: [1] }, rotateTallyConnectorKey, {
-      connectorId,
-      keyHash: next.keyHash,
-      keyHint: next.keyHint,
-    });
+    await executeCommand(
+      exec,
+      { entityIds: [1] },
+      rotateTallyConnectorKey,
+      { connectorId, key: next.key },
+      { fieldCipher: cipher },
+    );
     for (const secret of [key.key, next.key]) {
       const response = await tallyCursorRoute(signed('GET', cursorPath(), { secret }), deps());
       expect(response.status).toBe(200);
@@ -312,6 +324,29 @@ describe('the batch route', () => {
       deps(),
     );
     expect(response.status).toBe(400);
+  });
+});
+
+describe('the release route and a runtime with no cipher', () => {
+  it('answers a verified connector that there is no release yet', async () => {
+    const { status, body } = await json(
+      await tallyReleaseRoute(signed('GET', `${BASE}/release`), deps()),
+    );
+    expect(status).toBe(404);
+    expect(reasonOf(body)).toBe('tally_no_release');
+    const unsigned = await tallyReleaseRoute(
+      signed('GET', `${BASE}/release`, { connector: newId() }),
+      deps(),
+    );
+    expect(unsigned.status).toBe(401);
+  });
+
+  it('answers unavailable when the keys cannot be opened on this runtime', async () => {
+    const response = await tallyCursorRoute(signed('GET', cursorPath()), {
+      ...deps(),
+      cipher: () => undefined,
+    });
+    expect(response.status).toBe(503);
   });
 });
 

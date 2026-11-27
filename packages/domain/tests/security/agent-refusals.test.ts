@@ -89,14 +89,10 @@ const U1_QUOTE_INPUTS: Record<string, unknown> = {
 
 /** TC2: Admin › Integrations › Tally, an Executive's alone (admin.integrations.write). */
 const TC2_CONNECTOR_INPUTS: Record<string, unknown> = {
-  'tally.connector.register': {
-    name: 'Refused connector',
-    keyHash: 'b'.repeat(64),
-    keyHint: 'abcd',
-  },
+  'tally.connector.register': { name: 'Refused connector', key: 'k'.repeat(43) },
   'tally.connector.map': { connectorId: newId(), tallyCompany: 'Refused company', entityId: 1 },
   'tally.connector.unmap': { connectorId: newId(), entityId: 1 },
-  'tally.connector.rotate': { connectorId: newId(), keyHash: 'c'.repeat(64), keyHint: 'efgh' },
+  'tally.connector.rotate': { connectorId: newId(), key: 'k'.repeat(43) },
   'tally.connector.retire_key': { connectorId: newId() },
   'tally.connector.revoke': { connectorId: newId() },
 };
@@ -960,6 +956,7 @@ describe("agent principals cannot run the platform's own work: the file checks, 
         queueDepth: 0,
       },
     },
+    'tally.connector.record_alert': { connectorId: newId(), alert: 'silent' },
     'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },

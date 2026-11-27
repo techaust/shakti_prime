@@ -131,7 +131,11 @@ async function verified(
   try {
     keys = auth === undefined ? [] : await openedKeys(cipher, named.data, auth.sealedKeys);
   } catch (error) {
-    logger.log('error', 'tally.connector_key_unopened', { requestId, connectorId: named.data, error });
+    logger.log('error', 'tally.connector_key_unopened', {
+      requestId,
+      connectorId: named.data,
+      error,
+    });
     return { ok: false, response: fail('internal', requestId) };
   }
   const url = new URL(request.url);

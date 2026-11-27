@@ -128,7 +128,9 @@ export async function readTallyConnectorAlerts(ctx: Ctx): Promise<TallyConnector
 }
 
 /** Whether a stretch of held rows has had no alert yet. */
-export function shouldAlertHeldRows(facts: Pick<TallyConnectorAlertFacts, 'heldSince' | 'heldAlertedAt'>): boolean {
+export function shouldAlertHeldRows(
+  facts: Pick<TallyConnectorAlertFacts, 'heldSince' | 'heldAlertedAt'>,
+): boolean {
   return (
     facts.heldSince !== undefined &&
     (facts.heldAlertedAt === undefined || facts.heldAlertedAt < facts.heldSince)
