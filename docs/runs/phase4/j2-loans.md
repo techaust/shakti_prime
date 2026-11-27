@@ -141,4 +141,68 @@ Built on the early check the lead accepted (decisions 1 to 7). Commits `3cf4d1bc
 
 ## Review
 
+### 27-11-2026, slice reviewer (seat, cloud worktree `/home/user/shakti-wt/j2-loans`, Postgres on 54332), reviewed at `d3c644b2`
+Tier A. No critical or high finding: nothing blocks the merge. One medium point needs the lead's decision before J8 reads the gate. The low findings can be follow-ups, but L1 and L4 are one-line fixes.
+
+| # | Severity | Where | What is wrong | Failure scenario | Fix | Status |
+|---|---|---|---|---|---|---|
+| M1 | medium | `packages/db/migrations/0241_j2_customer_loans_rls.sql`, `app.order_loan_gate()` (the "order's one active loan" select); `loans-reject.ts` | A turn-down lifts the dispatch hold. The definer counts only an applied, sanctioned or disbursed loan, so once a loan is rejected it answers `dispatch: 'none'`, not `pending`. No `gates_released` event is raised and no decision records this. PRD CRM-08 says "a gated dispatch or milestone cannot be released until the loan reaches the configured state". The run file's decisions and the design's Built record do not say that a rejection releases the hold. | An order of ₹3 lakh waits on disbursal. The lender turns the loan down, or a store manager with `crm.account.write:own` records a turn-down with any reason. J8's guard then reads `none` and lets the material leave with no loan and no payment. The security test asserts this behaviour ("none once rejected"). | The lead or owner decides. Either the order's newest rejected loan keeps the gate `pending` until a new loan or an explicit release by a General Manager (say, a new loan with dispatch `none`), or a turn-down releases the hold by design. In the second case, record it as a decision, in the design's Built record and in DATABASE, so J8 knows to pair the gate with its payment check. | confirmed |
+| L1 | low | `packages/db/migrations/0240_j2_customer_loans.sql`, `customer_loans_gates_dispatch_check` and `customer_loans_gates_check` | The table check on the gates fails open. `gates_json ->> 'dispatch' in (…)` is null when the key is missing, so `{}` passes (checked on this database: `('{}'::jsonb ->> 'dispatch') in (…)` is null). Milestone values are not checked at all. The definer then answers `none` for a missing dispatch key and for an unknown milestone value. | Today only `crm.loan.create` inserts, and the contract always fills `dispatch`, so no live path exists. A later import, definer or data fix that writes `{}` would silently drop the hold. | `coalesce(gates_json ->> 'dispatch', '') in ('disbursed', 'sanctioned', 'none')`, plus a check that every milestone value is `sanctioned` or `disbursed` (or make the definer answer `pending` for anything it does not know). | confirmed |
+| L2 | low | `packages/domain/src/queries/crm/loans.ts`, `getOrderLoans()` → `orderLoanGate()`; the definer's reader branch | The definer's reader rule is narrower than the loan read policy. The definer uses `scope_ok('crm.account.read', owner, team)`. `customer_loans_read` goes through `account_entities_read`, which also lets a person read the customer through their own lead. The definer returns null, `orderLoanGate()` throws `order_missing`, and the order page drops the whole Loan tab without a word. | A Lead Converter's lead is handed over while another person holds the customer's relationship (`held_by_other`). The converter opens their order and sees no Loan tab. Account 360 lists the same loan for them. | Let `getOrderLoans()` return the loans with no gate (a nullable `gate`) when the definer answers null, or align the definer's reader branch with `account_entities_read`. | confirmed (code path read; not reproduced) |
+| L3 | low | `packages/db/tests/security/customer-loans.test.ts:383` | The merge test proves less than the Built record claims. It moves an applied loan with a direct `update sales_orders` as the migrator. The guard's merge exception for a disbursed or rejected loan (`to_jsonb(new) - array['account_id', …]`) is not exercised, and neither is the real chained cascade through `app.merge_customers()` (lead → order → loan). | A later change to the guard or to the merge definer could refuse every merge of a customer with a paid-out loan, and no test would fail. | Add a case: a disbursed loan on a lead's order, moved by `app.merge_customers()` and back by `app.unmerge_customers()`. | confirmed |
+| L4 | low | `docs/05-database.md:243-244, 539-540` | The two definer rows cite `J2` in the Migration column, and the two table rows say "Built (J2)". Every other row gives the migration number. | The rows stay unnumbered after the merge. | At the renumbering, write the final numbers (the RLS migration, and the notice-owner one). | confirmed |
+| L5 | low | `apps/web/e2e/support/users.ts:110` | The new `journeyManager` takes the display name "Mahesh Kumawat", which `storeManager` already has (company 1). | A team lead acting in companies 1 and 2, or the Executive's Team members list, shows two people with the same name. Any later `getByText('Mahesh Kumawat')` matches two. | Give the journeys' General Manager a name of their own. | confirmed |
+| L6 | low | `app.order_loan_gate()` milestones vs the Phase 5 design (`main`, phase5.md, lines 103, 176 and 207) | The two slices disagree on where a milestone's loan gate lives. Phase 5 puts it on the milestone (`payment_milestones.loan_gate`) and waits until the definer "answers met". J2 keeps it in the loan's `gates_json.milestones` by key, and no screen or command sets it. A milestone whose key the loan does not name gets no answer at all, so it would wait forever. | Phase 5 builds a loan-gated milestone, the loan names no milestones, and the milestone never becomes due. | Note it for the Phase 5 slice: either the definer takes the milestone's own gate as an argument, or Phase 5 writes its keys into the loan. Nothing to change in J2 now. | confirmed (interface note) |
+| L7 | low | `customer_loans_update` policy; `loans-sanction.ts`, `loans-disburse.ts`, `loans-reject.ts` | The Built record says a loan is "written … on an order the person reads that is not cancelled", but only the insert checks this. A sanction, payout or turn-down still goes through on a cancelled order. The tab hides the buttons (`canWrite`), but a direct call to the server action is not refused. | Someone records a payout on a cancelled order through the action, and it raises `gates_released` for an order that will never be dispatched. | Refuse a sanction or payout on a cancelled order (a `loan_order_cancelled` check in the commands), or change the Built record and DATABASE to say the check applies when a loan is recorded. | confirmed |
+
+**Checked and sound**
+- **Data isolation**
+  - Both tables are in `ENTITY_TABLES` with a matrix fixture row per company and rules: `lenders` CONTEXT; `customer_loans` ACCOUNT_READ through the lead, and thread-bound for agents.
+  - Row security is enabled and forced on both. Every policy reads `app.entity_ids()` and `app.user_id()`, which are null without settings, so they deny.
+  - `app_reader` is on both select policies and on the definer. The loan is scoped through `account_entities`, and its company and customer are pinned to the order by the composite key.
+  - No delete grant. The column grants match the moves, and `gates_json`, `amount`, the lender and the customer cannot be updated (security test).
+- **Definers**
+  - `app.order_loan_gate()` and `app.notice_loan_owner()` each check their permission in the body, set `search_path = ''` and revoke execute from `public` and `readonly_reporter`.
+  - The gate answers ids and states only, never an amount or a lender.
+  - The trigger function `app.guard_customer_loan()` is revoked as well.
+- **Commands**
+  - All six commands are `peopleOnly`, each with `auditFields` labelled in `activity.fields` and one `ctx.audit()`.
+  - Their events come from the catalogue and carry ids and states only; the turn-down reason, amounts and lender stay out of them.
+  - Denied, wrong-company and happy-path tests exist for each.
+  - Lender inputs are in `INPUTS`, loan inputs in `CUSTOMER_INPUTS`, and all are in `PEOPLE_ONLY_INPUTS`.
+  - `unmaskedFields` covers only the reference, and the reference is restricted to a code.
+  - No cost permission is touched.
+- **Races and money**
+  - One active loan per order: the check, then the partial unique index with `constraintReasons`, tested twice under concurrency (database and domain).
+  - Moves lock the loan `for update`, and the guard trigger holds the machine in the table.
+  - Amounts are `MoneySchema` strings, above zero, compared in paise by the guard, and stored as `numeric(14,2)`.
+  - No price, discount or tax is involved.
+- **Gate answer from one definer:** `releasedGates()` diffs two answers of `app.order_loan_gate()`, the tab's badge shows its answer, and nothing else decides a gate.
+- **Web layer**
+  - Reads go through `executeQuery()` with a name and writes through `executeCommand()`, each narrowed to the record's company.
+  - `screenAccess(navRequires('settings-lenders'))` guards the new page.
+  - Browser code imports only types from the contracts; values come from `contract-values.ts`.
+  - The dialogs load on first use.
+  - The idempotency key is per form (`useCommand`).
+  - Nothing runs at import time.
+- **Copy:** every string is in `en.json`, plain, with the button keys added to copy-lint and the error reasons mapped.
+- **Notice**
+  - `loan_rejected` widens both type checks, `NOT VALID` as before. It is deduplicated once per loan, never told to the person who recorded the turn-down, and links to the order.
+  - Merge note: 0242 redefines the two notice checks, so keep any value another slice adds.
+- **Documents:** SECURITY's paragraph, DATABASE's rows (apart from L4), the design's Built record (apart from L7), and the regenerated `docs/data` and `docs/state-machines` (the staleness tests pass).
+- **Suites (this review):** on this slot's fresh database, through the lock, after `pnpm db:migrate` and `pnpm db:seed`, `pnpm test:security` gave:
+  - db: 63 files, 1812 passed;
+  - domain: 111 files, 1538 passed;
+  - web: 39 files, 461 passed;
+  - `Tasks: 4 successful, 4 total`.
+
+  This clears the two aged-database failures the builder reported.
+
+**Not checked**
+- **Journeys:** `apps/web/e2e/loans.spec.ts` was not run, because a seat cannot sign in. I read both tests: the General Manager records loan, sanction and payout with axe at each step and the picture `order-loan-paid-out`; the Executive adds and switches off a lender with the picture `lenders-add`. I also did not run the remade `orders.spec.ts` `order-page` and `customers.spec.ts` `customer-account` pictures.
+- **Layout:** no Linux baselines exist yet, so I looked at no screenshot. The lead looks at the four pictures at integration (light, dark, phone).
+- **Not re-run:** `pnpm build`, `js-budget`, the whole-repository lint and typecheck, and the unit suites; the builder's results are in the report. `js-budget.json` changed, so the pull request needs the owner's `checks-ok`.
+- **EXPLAIN:** I did not repeat the builder's plans on seeded volume. They are recorded in the report and the indexes match the queries.
+- **Company 2 pictures:** I did not check whether the new General Manager of company 2 changes any existing picture of company 2 (people pickers in the UAT or dealer-credit journeys).
+
 ## Integration
