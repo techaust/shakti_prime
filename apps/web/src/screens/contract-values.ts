@@ -103,6 +103,9 @@ import type {
   UserSort,
   UserStatus,
   VoiceSessionMode,
+  // H2 reservations
+  AvailabilityStatus,
+  ReservationState,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -1061,3 +1064,19 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// H2 reservations and availability
+/** The states of a reservation. */
+export const RESERVATION_STATES = [
+  'active',
+  'picked',
+  'released',
+  'lapsed',
+] as const satisfies readonly ReservationState[];
+
+/** A line's availability: in stock, partly in stock, or on order. */
+export const AVAILABILITY_STATUSES = [
+  'covered',
+  'partly_covered',
+  'short',
+] as const satisfies readonly AvailabilityStatus[];

@@ -116,8 +116,7 @@ export function stockRefusal(e: unknown): DomainError | undefined {
   let reason: StockRefusal | ReservationRefusal | undefined;
   if (failure.code === '23514' && REFUSALS.has(constraint)) {
     reason = constraint as StockRefusal | ReservationRefusal;
-  }
-  else if (failure.code === '23505') reason = RACES[constraint];
+  } else if (failure.code === '23505') reason = RACES[constraint];
   if (reason === undefined) return undefined;
   return new DomainError(
     CONFLICTS.has(reason) ? 'conflict' : 'validation_failed',

@@ -551,6 +551,19 @@
     "stock_insufficient": "There isn't enough of this item in that bin. Check the stock and enter a smaller quantity.",
     "opening_stock_posted": "Opening stock has already been entered for this company. Reverse the earlier entry first if it was wrong.",
     "serial_transition_not_allowed": "This serial number can't be moved that way from where it is now. Refresh the page to see where it stands.",
+    "stock_reserved_insufficient": "Part of this item in that bin is set aside for orders. Release or move those holds first, or enter a smaller quantity.",
+    "reservation_expiry_invalid": "The hold must end after today. Check the date and try again.",
+    "reservation_need_missing": "We couldn't find what this order line needs. Refresh the page and try again.",
+    "reservation_stock_short": "That hub doesn't have enough free stock of this item. Choose another hub, or wait for stock to arrive.",
+    "reservation_order_not_open": "Stock can only be set aside for a confirmed order.",
+    "reservation_order_reserved": "Stock has already been set aside for this order.",
+    "reservation_order_not_cancelled": "Holds are only released this way when the order is cancelled.",
+    "reservation_missing": "We couldn't find that hold. Refresh the page to see the current holds.",
+    "reservation_not_active": "This hold has already ended. Refresh the page to see the current holds.",
+    "reservation_already_extended": "This hold has already been extended once. Release it, or let it end on its date.",
+    "reservation_move_same_hub": "The stock is already held in that hub. Choose a different hub.",
+    "reservation_hub_missing": "That hub is no longer in use. Choose another hub.",
+    "reservation_transition_not_allowed": "This hold can't be changed that way now. Refresh the page to see where it stands.",
     "hub_code_taken": "Another hub already uses that code. Choose a different code.",
     "hub_site_missing": "A godown or factory needs its state code and PIN code.",
     "hub_holds_stock": "This hub still holds stock. Move or adjust the stock out of its bins first.",
@@ -1991,7 +2004,12 @@
       "binArchive": "Bin archived",
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
-      "stockReverse": "Stock movement reversed"
+      "stockReverse": "Stock movement reversed",
+      "reservationExtend": "Stock hold extended",
+      "reservationRelease": "Stock hold released",
+      "reservationMove": "Stock hold moved to another hub",
+      "reservationFill": "Stock set aside for waiting orders",
+      "reservationScan": "Ended stock holds checked"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2394,6 +2412,13 @@
       "quantity": "Quantity",
       "serialNo": "Serial number",
       "adjustNote": "Reason given",
+      "reservationState": "Hold",
+      "expiresAt": "Held until",
+      "extendReason": "Why it was extended",
+      "releaseReason": "Why it was released",
+      "filled": "Orders that got stock",
+      "lapsed": "Holds that ended",
+      "reminded": "Reminders sent",
       "warrantyMonths": "Months of warranty to the customer",
       "supplierWarrantyMonths": "Months of the supplier's warranty",
       "barcode": "Barcode",
@@ -2587,6 +2612,12 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "reservationState": {
+        "active": "Held",
+        "picked": "Picked",
+        "released": "Released",
+        "lapsed": "Ended"
       }
     }
   },

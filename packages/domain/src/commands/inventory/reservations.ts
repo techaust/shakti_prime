@@ -80,8 +80,7 @@ export const extendReservation = defineCommand({
   name: 'inventory.reservation.extend',
   permission: {
     keys: ['inventory.stock.adjust', 'sales.order.cancel'],
-    of: (input: ExtendReservationInput) =>
-      EXTEND_BY[input.authority as ExtendAuthority] ?? null,
+    of: (input: ExtendReservationInput) => EXTEND_BY[input.authority as ExtendAuthority] ?? null,
   },
   peopleOnly: true,
   input: ExtendReservationInput,

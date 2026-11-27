@@ -143,6 +143,12 @@ const ACTIONS = {
   'inventory.stock.transfer': 'stockTransfer',
   'inventory.stock.adjust': 'stockAdjust',
   'inventory.stock.reverse': 'stockReverse',
+  // H2 reservations
+  'inventory.reservation.extend': 'reservationExtend',
+  'inventory.reservation.release': 'reservationRelease',
+  'inventory.reservation.move': 'reservationMove',
+  'inventory.reservation.fill': 'reservationFill',
+  'inventory.reservation.scan': 'reservationScan',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -507,6 +513,8 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // H2 reservations
+  'reservationState',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -680,6 +688,14 @@ const FIELD_KINDS = [
   ['quantity', 'number'],
   ['serialNo', 'text'],
   ['adjustNote', 'text'],
+  // Reservations (H2)
+  ['reservationState', 'reservationState'],
+  ['expiresAt', 'time'],
+  ['extendReason', 'text'],
+  ['releaseReason', 'text'],
+  ['filled', 'number'],
+  ['lapsed', 'number'],
+  ['reminded', 'number'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],

@@ -128,7 +128,9 @@ describe('lineAvailability', () => {
         expectedOn: `2026-12-${String(r.int(1, 28)).padStart(2, '0')}`,
       }));
       const { status, expectedOn } = lineAvailability(qty, available, purchases);
-      expect(status).toBe(available >= qty ? 'covered' : available > 0 ? 'partly_covered' : 'short');
+      expect(status).toBe(
+        available >= qty ? 'covered' : available > 0 ? 'partly_covered' : 'short',
+      );
       if (status === 'covered') expect(expectedOn).toBeNull();
       if (expectedOn !== null) {
         const due = purchases.filter((p) => p.expectedOn <= expectedOn);

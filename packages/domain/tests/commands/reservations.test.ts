@@ -182,7 +182,9 @@ describe('availability on an order', () => {
     const draft = await read(lc);
     expect(draft).toEqual({
       withCounts: false,
-      lines: [{ lineId: expect.any(String), position: 1, status: 'partly_covered', expectedOn: null }],
+      lines: [
+        { lineId: expect.any(String), position: 1, status: 'partly_covered', expectedOn: null },
+      ],
     });
     for (const line of draft.lines) {
       expect(Object.keys(line).sort()).toEqual(['expectedOn', 'lineId', 'position', 'status']);
@@ -255,7 +257,9 @@ describe('app.stock_move() keeps what a bin holds for orders', () => {
     expect(await balanceOf(E, s.binB, item)).toEqual({ onHand: '2.000', reserved: '1.000' });
     const loss = (qty: string) =>
       asPrincipal(manager, ({ tx }) =>
-        stockMove(tx, [{ reason: 'adjust_loss', entityId: E, itemId: item, fromBinId: s.binB, qty }]),
+        stockMove(tx, [
+          { reason: 'adjust_loss', entityId: E, itemId: item, fromBinId: s.binB, qty },
+        ]),
       );
     await expect(loss('2')).rejects.toMatchObject({
       code: 'conflict',
@@ -332,7 +336,10 @@ describe('inventory.reservation.extend', () => {
         authority: 'stock',
         reason: 'Again',
       }),
-    ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'reservation_already_extended' } });
+    ).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'reservation_already_extended' },
+    });
     const second = await heldOrder();
     await run(gm, extendReservation, {
       entityId: E,
@@ -398,9 +405,9 @@ describe('inventory.reservation.move', () => {
       code: 'conflict',
       details: { reason: 'reservation_stock_short' },
     });
-    await expect(
-      run(manager, moveReservation, { ...input, hubId: s.hub }),
-    ).rejects.toMatchObject({ details: { reason: 'reservation_move_same_hub' } });
+    await expect(run(manager, moveReservation, { ...input, hubId: s.hub })).rejects.toMatchObject({
+      details: { reason: 'reservation_move_same_hub' },
+    });
     expect((await balanceOf(E, s.binA, item)).reserved).toBe('1.000');
     await gain(s.otherBin, item, '1');
     const out = await run<{ reservationIds: string[] }>(manager, moveReservation, input);
@@ -478,7 +485,9 @@ describe('the platform’s jobs', () => {
     const { orderId, reservationId } = await heldOrder();
     const soon = WORKSHOP_DEFAULTS.stock.reservationReminderDays * 86_400_000 - 3_600_000;
     await asMigrator(
-      (m) => m`update reservations set expires_at = now() + ${`${String(soon)} milliseconds`}::interval
+      (
+        m,
+      ) => m`update reservations set expires_at = now() + ${`${String(soon)} milliseconds`}::interval
                 where id = ${reservationId}`,
     );
     const first = await run<{ reminded: number }>(workers(), scanReservations, { entityId: E });

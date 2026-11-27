@@ -105,6 +105,9 @@ async function removeOrderRows(): Promise<void> {
       await tx`delete from commission_accruals where sales_order_id in (${orders})`;
       await tx`delete from commission_rules where id in (${ids.rulePercent}, ${ids.rulePerKw},
         ${ids.ruleFuture}, ${ids.ruleEnded}, ${ids.ruleDefault})`;
+      // H2: confirmed orders' needs and any reservations (no stock of these items, so none held).
+      await tx`delete from reservations where sales_order_id in (${orders})`;
+      await tx`delete from reservation_needs where sales_order_id in (${orders})`;
       await tx`delete from sales_order_lines where sales_order_id in (${orders})`;
       await tx`delete from sales_orders where price_list_id = ${ids.list}`;
       const dealers = tx`select id from accounts where tier_id = ${ids.tier} and type = 'dealer'`;

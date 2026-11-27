@@ -3,14 +3,7 @@ import { allOf, defineMachine, reasonGiven, type Guard } from '../define-machine
 
 export type { ReservationState };
 export type ReservationEvent =
-  | 'reserve'
-  | 'fill'
-  | 'extend'
-  | 'release'
-  | 'order_cancel'
-  | 'move'
-  | 'lapse'
-  | 'pick';
+  'reserve' | 'fill' | 'extend' | 'release' | 'order_cancel' | 'move' | 'lapse' | 'pick';
 
 export interface ReservationRecord {
   state: ReservationState | null;

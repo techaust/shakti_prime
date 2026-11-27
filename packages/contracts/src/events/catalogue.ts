@@ -319,7 +319,7 @@ const eventCatalogue = {
   // H2 reservations and availability
   'inventory.reservation.filled': {
     meaning:
-      "Stock that arrived went to backorders of an item in a company, in order of confirmation: the orders that took some (up to 200) and how many they were; never a quantity.",
+      'Stock that arrived went to backorders of an item in a company, in order of confirmation: the orders that took some (up to 200) and how many they were; never a quantity.',
     emittedBy: ['inventory.reservation.fill'],
     subscribed: false,
     payload: z
@@ -346,7 +346,8 @@ const eventCatalogue = {
       .strict(),
   },
   'inventory.reservation.moved': {
-    meaning: "A person reserved an order's stock from another hub instead: the old reservation, the hub and the new reservations.",
+    meaning:
+      "A person reserved an order's stock from another hub instead: the old reservation, the hub and the new reservations.",
     emittedBy: ['inventory.reservation.move'],
     subscribed: false,
     payload: z
@@ -373,7 +374,8 @@ const eventCatalogue = {
       .strict(),
   },
   'inventory.reservation.expiring': {
-    meaning: "An order's reservations lapse on `expiresAt`: the order's owner (`ownerId`) and the company's Inventory Manager are told before.",
+    meaning:
+      "An order's reservations lapse on `expiresAt`: the order's owner (`ownerId`) and the company's Inventory Manager are told before.",
     emittedBy: ['inventory.reservation.scan'],
     subscribed: false,
     payload: z

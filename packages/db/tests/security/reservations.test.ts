@@ -7,7 +7,13 @@ import {
 } from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
-import { asMigrator, asPrincipal, closeDb, principalFor, withoutContext } from '../../src/testing/index';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  principalFor,
+  withoutContext,
+} from '../../src/testing/index';
 
 afterAll(closeDb);
 
@@ -84,9 +90,13 @@ describe('the reservation tables', () => {
     );
     if (!line) return;
     await expect(
-      asMigrator((m) => m`update sales_order_lines set description = 'changed' where id = ${line.id}`),
+      asMigrator(
+        (m) => m`update sales_order_lines set description = 'changed' where id = ${line.id}`,
+      ),
     ).rejects.toMatchObject({ code: '42501' });
-    await expect(asMigrator((m) => m`delete from sales_order_lines where id = ${line.id}`)).rejects.toMatchObject({
+    await expect(
+      asMigrator((m) => m`delete from sales_order_lines where id = ${line.id}`),
+    ).rejects.toMatchObject({
       code: '42501',
     });
     // A backorder past the line's quantity is refused by the line's check.
@@ -100,9 +110,18 @@ describe('the reservation tables', () => {
 
 describe('the definers beneath the reservation paths', () => {
   it.each([
-    ['app.stock_reserve', sql`select app.stock_reserve(${id}::uuid, 1, '{}'::uuid[], false, ${later}::timestamptz)`],
-    ['app.stock_unreserve', sql`select * from app.stock_unreserve('{}'::uuid[], 'lapsed', null, null)`],
-    ['app.stock_lock_free', sql`select app.stock_lock_free(1::smallint, '{}'::uuid[], '{}'::uuid[])`],
+    [
+      'app.stock_reserve',
+      sql`select app.stock_reserve(${id}::uuid, 1, '{}'::uuid[], false, ${later}::timestamptz)`,
+    ],
+    [
+      'app.stock_unreserve',
+      sql`select * from app.stock_unreserve('{}'::uuid[], 'lapsed', null, null)`,
+    ],
+    [
+      'app.stock_lock_free',
+      sql`select app.stock_lock_free(1::smallint, '{}'::uuid[], '{}'::uuid[])`,
+    ],
     ['app.sync_line_backorders', sql`select app.sync_line_backorders('{}'::uuid[])`],
     ['app.order_hubs', sql`select app.order_hubs(${id}::uuid)`],
     ['app.reservation_for_change', sql`select * from app.reservation_for_change(${id}::uuid)`],
@@ -117,7 +136,10 @@ describe('a person’s reservation definers check the grant in their body', () =
   it('confirmation’s reservations need sales.order.confirm on the order', async () => {
     for (const roleKey of ['inventory_manager', 'accounts', 'field_engineer'] as const) {
       const failed = await failure(
-        rows(principalFor(roleKey, [1]), sql`select * from app.reserve_order(${id}::uuid, ${later}::timestamptz)`),
+        rows(
+          principalFor(roleKey, [1]),
+          sql`select * from app.reserve_order(${id}::uuid, ${later}::timestamptz)`,
+        ),
       );
       expect(failed.message, roleKey).toMatch(/sales.order.confirm on the order is required/);
     }
@@ -126,7 +148,10 @@ describe('a person’s reservation definers check the grant in their body', () =
   it('a cancellation’s release needs sales.order.cancel', async () => {
     for (const roleKey of ['tele_caller_lc', 'inventory_manager', 'sales_team_lead'] as const) {
       const failed = await failure(
-        rows(principalFor(roleKey, [1]), sql`select app.release_order_reservations(${id}::uuid, 'why')`),
+        rows(
+          principalFor(roleKey, [1]),
+          sql`select app.release_order_reservations(${id}::uuid, 'why')`,
+        ),
       );
       expect(failed.message, roleKey).toMatch(/sales.order.cancel for the company is required/);
     }
@@ -135,23 +160,31 @@ describe('a person’s reservation definers check the grant in their body', () =
   it('release and move need inventory.stock.adjust; extend it or sales.order.cancel', async () => {
     for (const roleKey of ['tele_caller_lc', 'general_manager', 'store_manager'] as const) {
       const who = principalFor(roleKey, [1]);
-      expect((await failure(rows(who, sql`select app.reservation_release(${id}::uuid, 'why')`))).message).toMatch(
-        /inventory.stock.adjust is required/,
-      );
-      expect((await failure(rows(who, sql`select app.reservation_move(${id}::uuid, ${id}::uuid)`))).message).toMatch(
-        /inventory.stock.adjust is required/,
-      );
+      expect(
+        (await failure(rows(who, sql`select app.reservation_release(${id}::uuid, 'why')`))).message,
+      ).toMatch(/inventory.stock.adjust is required/);
+      expect(
+        (await failure(rows(who, sql`select app.reservation_move(${id}::uuid, ${id}::uuid)`)))
+          .message,
+      ).toMatch(/inventory.stock.adjust is required/);
     }
     for (const roleKey of ['tele_caller_lc', 'store_manager', 'accounts'] as const) {
       const who = principalFor(roleKey, [1]);
       expect(
-        (await failure(rows(who, sql`select app.reservation_extend(${id}::uuid, 15, 'why')`))).message,
+        (await failure(rows(who, sql`select app.reservation_extend(${id}::uuid, 15, 'why')`)))
+          .message,
       ).toMatch(/inventory.stock.adjust or sales.order.cancel is required/);
     }
     // The General Manager reaches the extension, and finds no reservation of that id.
     expect(
-      (await failure(rows(principalFor('general_manager', [1]), sql`select app.reservation_extend(${id}::uuid, 15, 'why')`)))
-        .message,
+      (
+        await failure(
+          rows(
+            principalFor('general_manager', [1]),
+            sql`select app.reservation_extend(${id}::uuid, 15, 'why')`,
+          ),
+        )
+      ).message,
     ).toMatch(/reservation_missing/);
   });
 });
@@ -164,7 +197,11 @@ describe('inventory.reservations.process is the platform’s alone', () => {
     expect(list?.keys).toContain('inventory.reservations.process');
     // The keys before it stay platform-only.
     expect(list?.keys).toEqual(
-      expect.arrayContaining(['messaging.media.expire', 'voice.session.record', 'sales.quote.expire']),
+      expect.arrayContaining([
+        'messaging.media.expire',
+        'voice.session.record',
+        'sales.quote.expire',
+      ]),
     );
     const holders = await asMigrator(
       (m) => m<{ key: string }[]>`
@@ -199,13 +236,22 @@ describe('availability on a document', () => {
   it('is refused to a caller who reads neither stock nor quotes, and for an unknown kind', async () => {
     for (const roleKey of ['field_engineer', 'hr_admin', 'tele_caller_cc'] as const) {
       const failed = await failure(
-        rows(principalFor(roleKey, [1]), sql`select * from app.line_availability('quote', ${id}::uuid)`),
+        rows(
+          principalFor(roleKey, [1]),
+          sql`select * from app.line_availability('quote', ${id}::uuid)`,
+        ),
       );
       expect(failed.code, roleKey).toBe('42501');
     }
     expect(
-      (await failure(rows(principalFor('executive', [1]), sql`select * from app.line_availability('invoice', ${id}::uuid)`)))
-        .code,
+      (
+        await failure(
+          rows(
+            principalFor('executive', [1]),
+            sql`select * from app.line_availability('invoice', ${id}::uuid)`,
+          ),
+        )
+      ).code,
     ).toBe('22023');
   });
 });

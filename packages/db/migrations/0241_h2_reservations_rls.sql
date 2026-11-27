@@ -605,8 +605,8 @@ revoke execute on function app.sync_line_backorders(uuid[]) from public, readonl
 --    reserved) of the company's storage bins, hub by hub in the order given and, within a hub, the
 --    bin with the most free first; each bin taken is one active reservation until `expires_at`,
 --    and its quantity is added to the bin's `qty_reserved`. The need's backorder falls by what was
---    taken. With `whole`, anything short of `qty` refuses the call (reservation_stock_short).
---    Answers the quantity reserved. Locks as stock_lock_free() does, then the need. Called by the
+--    taken, and its line's backorder with it. With `whole`, anything short of `qty` refuses the
+--    call (reservation_stock_short). Answers the quantity reserved. Locks as stock_lock_free() does, then the need. Called by the
 --    definers below only, each of which has checked the caller's grant.
 create or replace function app.stock_reserve(p_need uuid, p_qty numeric, p_hubs uuid[],
                                              p_whole boolean, p_expires_at timestamptz)
@@ -669,6 +669,7 @@ begin
   end if;
   if v_got > 0 then
     update public.reservation_needs set qty_backordered = qty_backordered - v_got where id = p_need;
+    perform app.sync_line_backorders(array[v_need.sales_order_line_id]);
   end if;
   return v_got;
 end
@@ -688,6 +689,7 @@ revoke execute on function app.stock_reserve(uuid, numeric, uuid[], boolean, tim
 create or replace function app.stock_unreserve(p_ids uuid[], p_state text, p_kind text, p_reason text)
   returns table (reservation_id uuid, sales_order_id uuid, item_id uuid, qty numeric)
   language plpgsql volatile security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   v_actor uuid := app.user_id();
   v_res record;
@@ -762,6 +764,7 @@ create or replace function app.reserve_order(p_order uuid, p_expires_at timestam
   returns table (need_id uuid, sales_order_line_id uuid, item_id uuid, qty_reserved numeric,
                  qty_backordered numeric)
   language plpgsql volatile security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   v_order record;
   v_hubs uuid[];
@@ -883,6 +886,7 @@ create or replace function app.fill_backorders(p_entity smallint, p_item uuid,
                                                p_expires_at timestamptz, p_limit integer)
   returns table (need_id uuid, sales_order_id uuid, qty_reserved numeric)
   language plpgsql volatile security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   v_orders uuid[];
   v_hubs uuid[];
@@ -929,8 +933,6 @@ begin
     v_got := app.stock_reserve(v_need.id, v_need.qty_backordered,
                                app.order_hubs(v_need.sales_order_id), false, p_expires_at);
     if v_got > 0 then
-      perform app.sync_line_backorders(
-        array(select n.sales_order_line_id from public.reservation_needs n where n.id = v_need.id));
       need_id := v_need.id;
       sales_order_id := v_need.sales_order_id;
       qty_reserved := v_got;
@@ -954,6 +956,7 @@ grant execute on function app.fill_backorders(smallint, uuid, timestamptz, integ
 create or replace function app.lapse_reservations(p_entity smallint, p_limit integer)
   returns table (reservation_id uuid, sales_order_id uuid, item_id uuid)
   language plpgsql volatile security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   v_ids uuid[];
 begin
@@ -999,6 +1002,7 @@ create or replace function app.reservation_reminders(p_entity smallint, p_before
                                                      p_limit integer)
   returns table (reservation_id uuid, sales_order_id uuid, owner_id uuid, expires_at timestamptz)
   language plpgsql volatile security definer set search_path = '' as $$
+#variable_conflict use_column
 begin
   if app.user_id() is null or not app.has_perm('inventory.reservations.process:all') then
     raise exception 'inventory.reservations.process is required' using errcode = '42501';
@@ -1038,6 +1042,7 @@ create or replace function app.reservation_for_change(p_id uuid)
                  item_id uuid, warehouse_id uuid, bin_id uuid, qty numeric, state text,
                  expires_at timestamptz, extended_at timestamptz)
   language plpgsql volatile security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   v_order uuid;
   v_entity smallint;
@@ -1196,6 +1201,7 @@ create or replace function app.line_availability(p_kind text, p_id uuid)
   returns table (line_id uuid, line_position integer, status text, expected_on date,
                  qty_free numeric, qty_reserved numeric, qty_backordered numeric)
   language plpgsql stable security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   v_entity smallint;
   v_state text;

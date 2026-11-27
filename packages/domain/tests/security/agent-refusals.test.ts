@@ -384,6 +384,19 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     note: 'Refused gain',
   },
   'inventory.stock.reverse': { entityId: 1, movementId: newId() },
+  // H2: a reservation is extended, released or moved by a person.
+  'inventory.reservation.extend': {
+    entityId: 1,
+    reservationId: newId(),
+    authority: 'stock',
+    reason: 'Refused for agents',
+  },
+  'inventory.reservation.release': {
+    entityId: 1,
+    reservationId: newId(),
+    reason: 'Refused for agents',
+  },
+  'inventory.reservation.move': { entityId: 1, reservationId: newId(), hubId: newId() },
   // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
   ...Object.fromEntries(
     [

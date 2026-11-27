@@ -134,6 +134,9 @@ import {
   SerialStateSchema,
   StockAdjustmentSchema,
   StockReasonSchema,
+  // H2 reservations
+  AvailabilityStatusSchema,
+  ReservationStateSchema,
   WarehouseKindSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
@@ -263,6 +266,9 @@ import {
   STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
   STOCK_REASONS as STOCK_REASONS_WEB,
   WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
+  // H2 reservations
+  AVAILABILITY_STATUSES as AVAILABILITY_STATUSES_WEB,
+  RESERVATION_STATES as RESERVATION_STATES_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -385,6 +391,9 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // H2 reservations
+    expect(RESERVATION_STATES_WEB).toEqual(ReservationStateSchema.options);
+    expect(AVAILABILITY_STATUSES_WEB).toEqual(AvailabilityStatusSchema.options);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);
