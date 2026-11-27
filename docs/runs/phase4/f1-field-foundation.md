@@ -369,4 +369,11 @@ Every finding the lead marked to fix (1, 2, 3, 5, 6, 7, 8), finding 4 recorded, 
 - `EXPLAIN` figures for the new policies: taken from the builder's report.
 - The Android Gradle build with the native Sentry, reanimated and worklets modules: unproved until the native build job runs.
 
+**The lead's triage of the re-check (27-11-2026):**
+- **9 (medium) and 11 (low): fix in a short second round.**
+  - **9:** the field app's scrub uses the same rules as the web. Import the shared redaction from where the fences allow: `@shakti/contracts`' masking, or move `redact()` there if it is pure. Never keep a second copy. A test: a ten-digit number, and each identity key the web hides, scrubbed in an event.
+  - **11:** a change to a role's permissions and an authenticator enrolment also sign the person's phones out, through `signOutEverywhere()`, with a test each.
+- **10: accepted and recorded in SECURITY §2.** Native crash events skip the JavaScript scrub. The app puts nothing in the Sentry scope (no user, tags, extra or contexts), and breadcrumbs are scrubbed before they are kept.
+- **No further re-check:** the lead reads this diff.
+
 ## Integration
