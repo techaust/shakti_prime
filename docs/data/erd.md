@@ -463,6 +463,14 @@ erDiagram
     timestamptz created_at
     timestamptz updated_at
   }
+  lenders {
+    uuid id PK
+    smallint entity_id FK
+    text name
+    boolean is_active
+    timestamptz created_at
+    timestamptz updated_at
+  }
   opportunities {
     uuid id PK
     smallint entity_id FK
@@ -735,6 +743,7 @@ erDiagram
   lead_qualifications }o--|| entities : "entity_id"
   lead_qualifications }o--|| opportunities : "opportunity_id, entity_id"
   lead_score_rules }o--o| entities : "entity_id"
+  lenders }o--|| entities : "entity_id"
   opportunities }o--|| accounts : "account_id"
   opportunities }o--|| entities : "entity_id"
   opportunities }o--o| principals : "owner_id"
@@ -1752,21 +1761,6 @@ erDiagram
   targets }o--|| entities : "entity_id"
   targets }o--|| principals : "set_by"
   targets }o--|| teams : "team_id"
-```
-
-## Other
-
-```mermaid
-erDiagram
-  lenders {
-    uuid id PK
-    smallint entity_id FK
-    text name
-    boolean is_active
-    timestamptz created_at
-    timestamptz updated_at
-  }
-  lenders }o--|| entities : "entity_id"
 ```
 
 ## Planned tables

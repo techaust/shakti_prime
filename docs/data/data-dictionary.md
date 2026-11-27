@@ -6,14 +6,13 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - **Org:** [`document_sequences`](#document_sequences), [`entities`](#entities), [`entity_channels`](#entity_channels), [`permissions`](#permissions), [`principals`](#principals), [`role_permissions`](#role_permissions), [`roles`](#roles), [`teams`](#teams)
 - **Identity:** [`auth_accounts`](#auth_accounts), [`auth_verifications`](#auth_verifications), [`sessions`](#sessions), [`user_entity_roles`](#user_entity_roles), [`user_two_factor`](#user_two_factor), [`users`](#users)
-- **CRM:** [`account_contacts`](#account_contacts), [`account_entities`](#account_entities), [`accounts`](#accounts), [`activities`](#activities), [`call_dispositions`](#call_dispositions), [`caller_profiles`](#caller_profiles), [`calls`](#calls), [`commission_accruals`](#commission_accruals), [`commission_rules`](#commission_rules), [`consents`](#consents), [`contact_phones`](#contact_phones), [`contacts`](#contacts), [`customer_loans`](#customer_loans), [`customer_merges`](#customer_merges), [`customer_sites`](#customer_sites), [`duplicate_candidates`](#duplicate_candidates), [`ingest_keys`](#ingest_keys), [`ingest_sources`](#ingest_sources), [`lead_qualifications`](#lead_qualifications), [`lead_score_rules`](#lead_score_rules), [`lead_sources`](#lead_sources), [`opportunities`](#opportunities), [`opportunity_tags`](#opportunity_tags), [`pin_codes`](#pin_codes), [`pipeline_stages`](#pipeline_stages), [`pipelines`](#pipelines), [`provider_calls`](#provider_calls), [`referral_partners`](#referral_partners), [`sizings`](#sizings), [`tags`](#tags), [`tasks`](#tasks), [`whatsapp_message_keys`](#whatsapp_message_keys), [`whatsapp_messages`](#whatsapp_messages), [`whatsapp_milestone_sends`](#whatsapp_milestone_sends), [`whatsapp_milestones`](#whatsapp_milestones), [`whatsapp_templates`](#whatsapp_templates), [`whatsapp_threads`](#whatsapp_threads)
+- **CRM:** [`account_contacts`](#account_contacts), [`account_entities`](#account_entities), [`accounts`](#accounts), [`activities`](#activities), [`call_dispositions`](#call_dispositions), [`caller_profiles`](#caller_profiles), [`calls`](#calls), [`commission_accruals`](#commission_accruals), [`commission_rules`](#commission_rules), [`consents`](#consents), [`contact_phones`](#contact_phones), [`contacts`](#contacts), [`customer_loans`](#customer_loans), [`customer_merges`](#customer_merges), [`customer_sites`](#customer_sites), [`duplicate_candidates`](#duplicate_candidates), [`ingest_keys`](#ingest_keys), [`ingest_sources`](#ingest_sources), [`lead_qualifications`](#lead_qualifications), [`lead_score_rules`](#lead_score_rules), [`lead_sources`](#lead_sources), [`lenders`](#lenders), [`opportunities`](#opportunities), [`opportunity_tags`](#opportunity_tags), [`pin_codes`](#pin_codes), [`pipeline_stages`](#pipeline_stages), [`pipelines`](#pipelines), [`provider_calls`](#provider_calls), [`referral_partners`](#referral_partners), [`sizings`](#sizings), [`tags`](#tags), [`tasks`](#tasks), [`whatsapp_message_keys`](#whatsapp_message_keys), [`whatsapp_messages`](#whatsapp_messages), [`whatsapp_milestone_sends`](#whatsapp_milestone_sends), [`whatsapp_milestones`](#whatsapp_milestones), [`whatsapp_templates`](#whatsapp_templates), [`whatsapp_threads`](#whatsapp_threads)
 - **Catalogue, pricing and tax:** [`composite_supply_rules`](#composite_supply_rules), [`item_costs`](#item_costs), [`items`](#items), [`kit_components`](#kit_components), [`kits`](#kits), [`price_change_log`](#price_change_log), [`price_list_items`](#price_list_items), [`price_lists`](#price_lists), [`price_tiers`](#price_tiers), [`pump_curves`](#pump_curves), [`tax_rates`](#tax_rates)
 - **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`notification_preferences`](#notification_preferences), [`notifications`](#notifications), [`outbox_events`](#outbox_events), [`push_subscriptions`](#push_subscriptions), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views), [`webhook_inbox`](#webhook_inbox)
 - **AI and voice:** [`agent_actions`](#agent_actions), [`agent_configs`](#agent_configs), [`agent_evals`](#agent_evals), [`agent_runs`](#agent_runs), [`ask_conversations`](#ask_conversations), [`ask_messages`](#ask_messages), [`copilot_notes`](#copilot_notes), [`inbox_items`](#inbox_items), [`knowledge_chunks`](#knowledge_chunks), [`knowledge_files`](#knowledge_files), [`playbook_conflict_checks`](#playbook_conflict_checks), [`playbook_directives`](#playbook_directives), [`voice_sessions`](#voice_sessions)
 - **Inventory and logistics:** [`bins`](#bins), [`item_vendors`](#item_vendors), [`serials`](#serials), [`stock_balances`](#stock_balances), [`stock_movement_costs`](#stock_movement_costs), [`stock_movements`](#stock_movements), [`vendor_contacts`](#vendor_contacts), [`vendor_quotes`](#vendor_quotes), [`vendors`](#vendors), [`warehouses`](#warehouses)
 - **Finance and costing:** [`dealer_outstanding`](#dealer_outstanding)
 - **Sales:** [`dealer_terms`](#dealer_terms), [`quote_lines`](#quote_lines), [`quote_versions`](#quote_versions), [`quotes`](#quotes), [`sales_order_lines`](#sales_order_lines), [`sales_orders`](#sales_orders), [`targets`](#targets)
-- **Other:** [`lenders`](#lenders)
 - [Planned tables](#planned-tables)
 
 ## Org
@@ -1241,7 +1240,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### customer_loans
 
-**Catalogue entry** (05-database.md §6.2): `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json`
+**Catalogue entry** (05-database.md §6.2; created in J2): `entity_id`, `account_id`, `sales_order_id` (composite key to the order's `(id, entity_id, account_id)`, `ON UPDATE CASCADE`, so a loan keeps its order's company and customer and follows the order through a customer merge), `lender_id` (composite key to a lender of the company's `(id, entity_id)`) or `lender_name` (typed once while the company has no active lender; exactly one of the two), `amount` (applied for, above zero), `state` (`applied`, `sanctioned`, `disbursed`, `rejected`; the `customer-loan` machine), `state_changed_at`, `sanctioned_amount` and `sanctioned_at` (set together, at the sanction, never changed), `disbursed_at` (only a disbursed loan), `reference` (the lender's own, a code of 1 to 60 characters), `rejected_reason` (only a rejected loan, 1 to 300 characters), `gates_json` (`{ dispatch: 'disbursed' | 'sanctioned' | 'none', milestones?: { key: 'sanctioned' | 'disbursed' } }`, `LoanGatesSchema`, dispatch on disbursal by default); one active loan per order (`customer_loans_active_unique`, a partial unique index over applied, sanctioned and disbursed); read with the customer's relationship in the loan's company (`account_entities`, as `dealer_terms`), by `app_user` and `app_reader`; inserted as applied by its maker with `crm.account.write` over that relationship on an order they read that is not cancelled, naming an active lender of the company or a typed name only while it has none; afterwards a person changes only the state, the sanction, the disbursal, the reference and the reason (column grants), and `app.guard_customer_loan()` holds the machine's moves; no delete; `app.order_loan_gate()` answers its gates
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1761,6 +1760,53 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `lead_sources_insert` (insert, to public): with check `(select app.has_perm('admin.entities.write:all'))`
 - `lead_sources_read` (select, to public): using `(select app.user_id()) is not null`
 - `lead_sources_update` (update, to public): using `(select app.has_perm('admin.entities.write:all'))`; with check `(select app.has_perm('admin.entities.write:all'))`
+
+### lenders
+
+**Catalogue entry** (05-database.md §6.2; created in J2): `entity_id`, `name` (2 to 120 characters, unique per company whatever its case), `is_active`; a company's banks and schemes, empty until the client names them (phase4 §12 question 6); read by every principal acting in the company; added, renamed and switched off or on by the Executive (`crm.lender.create`, `.update`, `admin.entities.write:all`); never deleted
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `entity_id` | smallint | no |  | → `entities.id` |
+| `name` | text | no |  |  |
+| `is_active` | boolean | no | `true` |  |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `updated_at` | timestamp with time zone | no | `now()` |  |
+| `created_by` | uuid | no |  | → `principals.id` |
+| `updated_by` | uuid | yes |  | → `principals.id` |
+
+**Primary key**
+
+- (`id`)
+
+**Unique constraints**
+
+- `lenders_id_entity_unique`: (`id`, `entity_id`)
+
+**Foreign keys**
+
+- `lenders_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
+- `lenders_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+- `lenders_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
+
+**Check constraints**
+
+- `lenders_name_check`: `length(btrim("lenders"."name")) between 2 and 120`
+
+**Indexes**
+
+- `lenders_entity_name_unique` (btree, unique): `entity_id, lower(btrim("name"))`
+
+**Triggers**
+
+- `set_updated_at`: before update, runs `app.set_updated_at()`
+
+**Row-level security:** enabled and forced; 3 policies.
+
+- `lenders_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('admin.entities.write:all')) and created_by = (select app.user_id())`
+- `lenders_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[])`
+- `lenders_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('admin.entities.write:all'))`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('admin.entities.write:all')) and updated_by = (select app.user_id())`
 
 ### opportunities
 
@@ -3566,7 +3612,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### notifications
 
-**Catalogue entry** (05-database.md §6.10; created in 0118, 0228): `user_id`, `entity_id`, `type` (`lead_assigned`, `duplicate_found`, `call_due`, `quote_expiring`, `first_call_late`, `enquiry_routed`, `order_credit_held`, `whatsapp_reply_waiting`, `quote_accepted`, `whatsapp_quote_expired`, `whatsapp_quote_not_sent`, `missed_call`: a missed call on a lead of the person's, once per call, T4; `enquiry_attached`: an enquiry joined a lead of the person's in nurture that they did not add, once per enquiry; 0184, 0202, 0204, 0195), `subject_type` (`opportunity`, `duplicate_candidate`, `task`, `quote`, `inbox_item`, `sales_order`, `whatsapp_thread`), `subject_id`, `payload_json` (the ids the notice's link is made from: `accountId`, `opportunityId`, `quoteId`; never a name, a number or free text), `dedupe_key` (the reason it was told, unique per person, so a repeated delivery or scan makes one notice), `created_at`, `read_at`, `channel_sent_json` (`inApp`, and `push`: `sent`, `held`, `off`, `none`, `failed` or `pending`); a person's own, in the request's companies; written only by the notify worker (§4.4)
+**Catalogue entry** (05-database.md §6.10; created in 0118, 0228): `user_id`, `entity_id`, `type` (`lead_assigned`, `duplicate_found`, `call_due`, `quote_expiring`, `first_call_late`, `enquiry_routed`, `order_credit_held`, `whatsapp_reply_waiting`, `quote_accepted`, `whatsapp_quote_expired`, `whatsapp_quote_not_sent`, `missed_call`: a missed call on a lead of the person's, once per call, T4; `enquiry_attached`: an enquiry joined a lead of the person's in nurture that they did not add, once per enquiry; `loan_rejected`: a lender turned down a loan of the person's customer, once per loan, J2; 0184, 0202, 0204, 0195), `subject_type` (`opportunity`, `duplicate_candidate`, `task`, `quote`, `inbox_item`, `sales_order`, `whatsapp_thread`), `subject_id`, `payload_json` (the ids the notice's link is made from: `accountId`, `opportunityId`, `quoteId`; never a name, a number or free text), `dedupe_key` (the reason it was told, unique per person, so a repeated delivery or scan makes one notice), `created_at`, `read_at`, `channel_sent_json` (`inApp`, and `push`: `sent`, `held`, `off`, `none`, `failed` or `pending`); a person's own, in the request's companies; written only by the notify worker (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5682,55 +5728,6 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `targets_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and set_by = (select app.user_id()) and exists (select 1 from principals p where p.id = targets.set_by and p.kind = 'user') and ((select app.has_perm('sales.targets.write:all')) or (select app.has_perm('sales.targets.write:entity')) or ((select app.has_perm('sales.targets.write:team')) and team_id = (select app.team_id()))) and ((scope = 'caller' and app.target_caller_ok(targets.subject_id, targets.entity_id, targets.team_id)) or (scope = 'team' and exists (select 1 from teams t where t.id = targets.subject_id and (t.entity_id is null or t.entity_id = targets.entity_id))))`
 - `targets_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((scope = 'caller' and subject_id = (select app.user_id())) or (scope = 'team' and subject_id = (select app.team_id())) or (select app.has_perm('sales.targets.write:entity')) or (select app.has_perm('sales.targets.write:all')) or ((select app.has_perm('sales.targets.write:team')) and scope = 'caller' and app.target_caller_in_team(subject_id, entity_id, (select app.team_id()))))`
-
-## Other
-
-### lenders
-
-**Catalogue entry:** none in 05-database.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `entity_id` | smallint | no |  | → `entities.id` |
-| `name` | text | no |  |  |
-| `is_active` | boolean | no | `true` |  |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `updated_at` | timestamp with time zone | no | `now()` |  |
-| `created_by` | uuid | no |  | → `principals.id` |
-| `updated_by` | uuid | yes |  | → `principals.id` |
-
-**Primary key**
-
-- (`id`)
-
-**Unique constraints**
-
-- `lenders_id_entity_unique`: (`id`, `entity_id`)
-
-**Foreign keys**
-
-- `lenders_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
-- `lenders_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
-- `lenders_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
-
-**Check constraints**
-
-- `lenders_name_check`: `length(btrim("lenders"."name")) between 2 and 120`
-
-**Indexes**
-
-- `lenders_entity_name_unique` (btree, unique): `entity_id, lower(btrim("name"))`
-
-**Triggers**
-
-- `set_updated_at`: before update, runs `app.set_updated_at()`
-
-**Row-level security:** enabled and forced; 3 policies.
-
-- `lenders_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('admin.entities.write:all')) and created_by = (select app.user_id())`
-- `lenders_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[])`
-- `lenders_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('admin.entities.write:all'))`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('admin.entities.write:all')) and updated_by = (select app.user_id())`
 
 ## Planned tables
 
