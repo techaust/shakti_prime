@@ -155,7 +155,13 @@ export const API_ENDPOINTS = {
     request: MobileTokenRequest,
     response: MobileTokenResponse,
     // The field app's key pair not set here (F1).
-    errors: ['validation_failed', 'unauthorized', 'forbidden', 'rate_limited', 'integration_unavailable'],
+    errors: [
+      'validation_failed',
+      'unauthorized',
+      'forbidden',
+      'rate_limited',
+      'integration_unavailable',
+    ],
   },
   'auth.mobile.refresh': {
     method: 'POST',
@@ -164,7 +170,13 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MobileRefreshRequest,
     response: MobileRefreshResponse,
-    errors: ['validation_failed', 'unauthorized', 'forbidden', 'rate_limited', 'integration_unavailable'],
+    errors: [
+      'validation_failed',
+      'unauthorized',
+      'forbidden',
+      'rate_limited',
+      'integration_unavailable',
+    ],
   },
   'auth.mobile.revoke': {
     method: 'POST',
