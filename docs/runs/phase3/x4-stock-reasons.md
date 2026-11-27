@@ -326,3 +326,19 @@ Not run: the domain and web security suites as a whole, typecheck, lint, `pnpm b
 - **No re-review:** no finding is high or critical. The lead reads the fix diff.
 
 ## Integration
+
+### The lead, 27-11-2026, cloud session (slot 9: Postgres 54339)
+- **Main taken in** by a merge commit (the push's documents and the Phase 4 to 7 designs). The migration stays `0240`: `main`'s last is still `0239`, so nothing was renumbered. Review findings 5 and 6 are done: DATABASE §4.1 gives `0231, 0240`, §6.5 says Built (0240), phase3 §6.2 has X4's Built line, and `pnpm db:docs` was rerun.
+- **The fix diff** (`e5ca90b9`, `9a2fcb3d`), read by the lead:
+  - Finding 1: the customer is linked to the line's company.
+  - Finding 2: `app.stock_reason_moves` gives every line's (reason, direction), tracked or not, and the hard-coded shape check is gone.
+  - Finding 3: reversal rows are keyed by the reversed reason, falling back to H1's rows. A keyed reversal takes the reversed reason's permission.
+  - H1's behaviour is unchanged (its suites pass).
+- **`integrate.sh`** ran in four parts on a fresh Postgres on 54340:
+  - install, lint, format, copy lint, generated and typecheck: pass;
+  - unit: pass (domain 2,806; web 1,241, 1 skipped; contracts 340; db 161; tokens 146; ui 107; voice 49; voice-agent 23; copy-lint 17);
+  - security: pass (db 1,860; domain 1,519; web 461), and `db:verify` passed;
+  - audit, build with `.env` aside, js-budget and gitleaks: pass.
+  - The e2e part (`inventory.spec.ts`) ran on the VM's host. Its functional steps passed. Six screenshot comparisons differed there (`stock-valuation` and `stock-list` in each project), which is host font rendering, which slice-integration §10 says does not count.
+- **Linux image:** `e2e:snap -- e2e/inventory.spec.ts` on a fresh database (`fresh-db.sh`, migrate, seed, build): 30 passed, every screenshot matching. No baseline changes, since the slice has no screen.
+- **No checks files are changed,** so no `checks-ok` is needed.
