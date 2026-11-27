@@ -19,6 +19,8 @@ import { actorsRequired, archivable, timestamps } from './columns';
 import { entities } from './entities';
 import { items } from './items';
 import { principals } from './principals';
+import { goodsReceiptLines } from './procurement';
+import { vendors } from './vendors';
 
 /** A quantity in the item's stock unit (docs/03-roadmap-appendix/phase3.md §5). */
 const quantity = (name: string) => numeric(name, { precision: 12, scale: 3 });
@@ -126,10 +128,10 @@ export const serials = pgTable(
     binId: uuid('bin_id').references(() => bins.id),
     accountId: uuid('account_id').references(() => accounts.id),
     siteId: uuid('site_id').references(() => customerSites.id),
-    /** The supplier (U1's vendors); the foreign key arrives with that table. */
-    vendorId: uuid('vendor_id'),
-    /** The goods receipt line it came in on (U2); the foreign key arrives with that table. */
-    receiptLineId: uuid('receipt_line_id'),
+    /** The supplier (U1's vendors), set when the serial comes in on a goods receipt (U2). */
+    vendorId: uuid('vendor_id').references((): AnyPgColumn => vendors.id),
+    /** The goods receipt line it came in on (U2). */
+    receiptLineId: uuid('receipt_line_id').references((): AnyPgColumn => goodsReceiptLines.id),
     deliveredAt: timestamp('delivered_at', { withTimezone: true }),
     warrantyUntil: date('warranty_until'),
     supplierWarrantyUntil: date('supplier_warranty_until'),
@@ -156,6 +158,10 @@ export const serials = pgTable(
           or ${t.state} = 'in_transit'`,
     ),
     index('serials_entity_item_idx').on(t.entityId, t.itemId),
+    // A goods receipt's serials, for its reversal (U2).
+    index('serials_receipt_line_idx')
+      .on(t.receiptLineId)
+      .where(sql`${t.receiptLineId} is not null`),
     index('serials_bin_idx')
       .on(t.binId)
       .where(sql`${t.binId} is not null`),

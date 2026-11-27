@@ -79,3 +79,13 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// U2 purchase orders and goods receipt (docs/03-roadmap-appendix/phase3.md §7.2).
+export {
+  reorderRules,
+  purchaseOrders,
+  poLines,
+  poLineRates,
+  goodsReceipts,
+  goodsReceiptLines,
+  goodsReceiptLineRates,
+} from './procurement';

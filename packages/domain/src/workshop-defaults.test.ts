@@ -21,6 +21,8 @@ describe('workshop defaults', () => {
           proforma: 'PI',
           challan: 'DC',
           purchase_order: 'PO',
+          // U2 goods receipts.
+          goods_receipt: 'GRN',
         },
         separator: '/',
         serialDigits: 4,
@@ -30,6 +32,8 @@ describe('workshop defaults', () => {
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       // H1 stock ledger
       stock: { reversalDays: 7 },
+      // U2 purchase orders
+      procurement: { poApprovalFromRupees: 200_000, overdueAfterDays: 7 },
       crm: {
         dispositions: [
           { key: 1, code: 'interested', label: 'Interested', nextAction: 'callback' },

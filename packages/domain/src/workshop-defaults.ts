@@ -47,6 +47,13 @@ export interface WorkshopDefaults {
     /** Days after a movement within which a person may reverse it (docs/03-roadmap-appendix/phase3.md §10). */
     readonly reversalDays: number;
   };
+  // U2 purchase orders
+  readonly procurement: {
+    /** The Inventory Manager approves a purchase order whose grand total is below this (rupees). */
+    readonly poApprovalFromRupees: number;
+    /** Days after its expected date when an open purchase order is overdue. */
+    readonly overdueAfterDays: number;
+  };
   readonly crm: {
     readonly dispositions: readonly {
       readonly key: number;
@@ -255,6 +262,8 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
       proforma: 'PI',
       challan: 'DC',
       purchase_order: 'PO',
+      // U2 goods receipts.
+      goods_receipt: 'GRN',
     },
     separator: '/',
     serialDigits: 4,
@@ -285,6 +294,17 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   stock: {
     /** Phase 3 design §10: a movement made in error is reversed within seven days. For STOCK-1. */
     reversalDays: 7,
+  },
+  // U2 purchase orders
+  procurement: {
+    /**
+     * Phase 3 design §2 question 5 (a), for the client's question 8 (who approves purchase orders
+     * and up to what amount): the Inventory Manager approves an order whose grand total including
+     * GST is below this many rupees; the Executive approves any amount.
+     */
+    poApprovalFromRupees: 200_000,
+    /** Phase 3 design §10: an order is overdue this many days after its expected date. */
+    overdueAfterDays: 7,
   },
   crm: {
     /**
