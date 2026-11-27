@@ -5,9 +5,9 @@
 | Branch | `feat/f1-field-foundation` on GitHub, from `main` after the approved design (#295), with the lead's commit adding `apps/field/package.json` and the lockfile |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): authentication, tokens, device revocation |
-| Usage | briefed 27-11-2026; built by the slice builder on Opus 5.5 at high effort (27-11-2026, early check) |
-| State | early check |
-| Next step | the lead reads the early check, then the builder continues with the app, the CI job and the phones screen |
+| Usage | briefed 27-11-2026; built by the slice builder on Opus 5.5 at high effort (27-11-2026, early check and done) |
+| State | done |
+| Next step | review, then integration (Linux baselines of `field-phones.spec.ts` on a fresh database) |
 
 ## Brief
 Build [phase4 §6.4](../../03-roadmap-appendix/phase4.md#64-f1-field-app-foundation-and-mobile-sign-in) as written, with question 7 (a): ADR 0012 accepted. Change its status line to "Accepted (27-11-2026, Phase 4 design)", with one correction if you find one (WatermelonDB uses its own SQLite adapter, not expo-sqlite: say which the app uses). Follow [AGENTS §5](../../../AGENTS.md#5-domain-commands) and [AGENTS §6](../../../AGENTS.md#6-database-changes). Points the design leaves to you, settled here:
@@ -124,6 +124,57 @@ Shared registration points take one line or one block each, kept together under 
 - `feature_flags` went into `CONFIG_TABLES` (it starts empty), which required the table-level update grant the generic test asserts.
 
 **Still to build after the early check:** `apps/field` (scaffold, tokens, screens, the copy catalogue and its copy-lint config, jest-expo tests), the native build CI job, Admin › Team members › phones with Revoke and its journey,. The `.env.example` generator note is already in. Sentry for React Native is in the design but its package is not in the approved list: I will name it in the final report rather than add it.
+
+### 27-11-2026, cloud worktree of the lead's VM: done
+**The lead's change to the early check: a lost refresh answer.** `mobile_devices` gains `previous_refresh_token_hash` and `refresh_rotated_at` (migration 0242). A rotation's new refresh token is not random but derived: an HMAC-SHA256 of the presented token under a key taken from the field app's private key (`nextRefreshToken()`, key `sha256("shakti-field-refresh\n" + d)`), so the server keeps no token and needs no encryption. The token the last rotation replaced, presented again within 120 seconds, is checked against the stored new hash and answered with that rotation's refresh token (same expiry) and a fresh access token; the row does not change. After 120 seconds, or for any older token, it is reuse as before. So two refreshes sent at once now both get the same refresh token, and the family never forks. A key pair rotation ends the retry window for the last rotation only. Tests: a lost answer then the retry at 90 s (same pair, the family goes on), the same retry after 121 s (`refresh_reused`, the family ended), two refreshes at once (both 200, one refresh token), a token two rotations back (reuse at once).
+
+**Built since the early check (files).**
+- `apps/field`: `app.json` (package `com.shaktiprime.field`, plugins expo-router, expo-secure-store, expo-local-authentication), `eas.json` (development profile, debug APK, no account id, the dev API address), `tsconfig.json` (extends `tsconfig.base.json`), `babel.config.js` (Expo's preset with NativeWind's JSX source, `nativewind/babel`, the legacy decorators plugin), `metro.config.js` (`withNativeWind`), `tailwind.config.js` (every colour `var(--<token>)`, spacing, radii and type sizes from `@shakti/tokens`; loaded by Tailwind's jiti, so it imports the tokens' TypeScript), `global.css`, `jest.config.js`, `.gitignore` (the generated `android/`).
+- `apps/field/messages/en.json`, read through `src/i18n.ts` (values and one plural form).
+- `src/theme.tsx`: the CSS variables set from `resolve('light' | 'dark')` by the phone's setting (`useColorScheme`). `src/config.ts`: the API address (`EXPO_PUBLIC_API_BASE_URL`, else app.json's) and the version.
+- `src/auth/token-store.ts` (expo-secure-store, `WHEN_UNLOCKED_THIS_DEVICE_ONLY`: refresh token, installation id, PIN and its tries, the person's name and email; the access token in memory only), `api.ts` (every call sends `X-App-Version`; answers the server's reason, or `offline`), `session.ts` (signed out, locked, ready or the update gate; one refresh at a time; five wrong PINs sign the phone out; offline after unlock works on the stored person), `session-context.tsx` (provider, the fingerprint adapter).
+- Screens `src/screens/*` and routes `app/_layout.tsx` (the gate, then Today and Settings tabs), `app/index.tsx`, `app/settings.tsx`.
+- Tests and test set-up under `src/test`.
+- CI: `.github/workflows/ci.yml`, the *What changed* job's new `field` output and the job *Field app native build* (prebuild, `./gradlew assembleDebug` with Java 17, the APK kept 7 days); not a required check.
+- Copy lint: `tools/copy-lint/copy-lint.config.json` reads `apps/field/messages`, and `biometric` and `signingOut` join the button keys (a checks file, named for the owner's `checks-ok` with `ci.yml` and `turbo.json`).
+- Web: `apps/web/src/actions/field.ts`, `components/users/phones-sheet.tsx`, the Phones item and sheet in `users-screen.tsx`, the permission passed from `admin/users/page.tsx`; copy under `users.phones` and `users.menu.phones`.
+- Journey: `apps/web/e2e/field-phones.spec.ts`, fixtures `e2e/setup/field.ts` and `FIELD_PHONES` in `e2e/support/users.ts`, one block in `seed.ts`.
+- Documents: phase4 §6.4 *Built*, TESTING §6 (the new job), API, SECURITY and DATABASE for the retry window; `machines:docs` regenerated (the readme lists `WORKSHOP_DEFAULTS.field`).
+
+**Tests added since the early check.**
+- `apps/field` (jest-expo, 21 tests in 5 files):
+  - the token store (3);
+  - the session (8: sign-in to PIN, the code asked, unlock offline, five wrong PINs, signed out by the server, the update gate, one refresh for three callers, sign-out);
+  - the API client (2);
+  - the copy helper (2);
+  - the screens (6: sign-in and its code and refusals, the notice after a sign-out, choosing and confirming the PIN, the PIN's tries and the fingerprint, the update gate opening the Play Store).
+- `mobile-auth.test.ts` now has 22 tests (the retry window, above). `mobile-devices.test.ts` also proves the previous hash is not readable by `app_user`.
+- Journey: `field-phones.spec.ts`, 2 tests per project: the phones of Geeta Kumari with axe and a snapshot; an Executive signs a project's phone owner's phone out.
+
+**Checks.**
+- `pnpm test:security` on 54333:
+  - db: 64 files, 1,801 passed; domain: 112 files, 1,530 passed.
+  - web: 40 files, 482 of 483 passed. `outbox-route.test.ts` failed once because outbox rows the journey seed had left were claimed in its batch; that file alone passed afterwards (12 of 12).
+  - An earlier run in this round failed `alert-counts.test.ts` on an `agent_configs` row the journey seed writes (`0199e2e0-…a002`). I deleted that row from the local database and the next run passed it.
+  - Both clashes come from running the journeys on the suites' database. A fresh database avoids them; the lead's integration uses one.
+- `pnpm typecheck`, `pnpm lint` and `pnpm format:check`, whole repository: clean.
+- `pnpm test` (all workspaces): only `docs/state-machines/readme.md` was stale; I regenerated it, and the domain unit tests then passed (111 files, 2,809).
+- `pnpm copy-lint`: clean. `pnpm build`: passed. `pnpm --filter web js-budget`: "Every page is within its budget (65 pages)".
+- Journeys: `e2e:seed`, then `playwright test field-phones.spec.ts` in this VM: 21 passed (15 sign-in setups and 6 journey tests, across desktop-light, desktop-dark and phone). The screenshots it wrote were not committed: the database was not fresh (the picture showed a suites' "test user" row), so the lead makes the three Linux baselines of `team-member-phones` at integration.
+- `expo config` resolves the app; `expo prebuild --platform android --no-install` generated the Android project (package, scheme, biometric permission, no backup) and I removed it. Gradle was not run; the CI job is unproved until its first run.
+
+**For the lead and the owner.**
+- **Sentry for React Native:** the package is `@sentry/react-native`. The newest version at least two weeks old today is **8.35.0** (released 12-11-2026); its peers include `expo`, `expo-router` and `@react-navigation/native`. Not added.
+- **Packages the lead may want to add** (not installed):
+  - `expo-system-ui` (**58.0.7**, 28-10-2026): prebuild warns that `userInterfaceStyle` needs it on Android. The app's colours follow `useColorScheme()` either way.
+  - `@types/jest`, or making `@jest/globals` resolvable: the app's tests are typed by a small declaration of my own (`src/test/jest-globals.d.ts`).
+- **Jest version:** `jest` is pinned at 30.2.0, but jest-expo 58 handles Expo's lazy globals only from Jest 30.4. Without a fix every test file fails at teardown, so `src/test/lazy-globals.ts` makes those globals non-enumerable. A Jest bump to 30.4 or later would remove the need.
+- **Reanimated:** NativeWind's Babel preset loads `react-native-reanimated/plugin`, which resolves only because pnpm installed `react-native-reanimated` 4.8.0 as a peer of `react-native-css-interop`. It is not a direct dependency, so native autolinking may leave it out of the APK. The first native build will show whether it needs adding. WatermelonDB is installed but not wired (F2 owns the app's database); its native module compiles in the first CI run too.
+- **Who can open Phones:** only Executives can, because Team members needs `admin.users.write`. A GM or Project Manager holds `field.device.revoke` at entity scope but has no screen to use it from. Say if they should get one (a page under Projects, or Team members opened to them).
+- **API address in `eas.json`:** the development profile points at `https://shakti-prime-dev.vercel.app/api/v1`, and production defaults to `https://shaktiprime.com/api/v1` (API §1).
+- **Installation id:** it comes from `crypto.getRandomValues` where the runtime has it, else `Math.random`. It is an identifier, not a secret: knowing it lets someone sign the phone out, never in.
+- **PIN storage:** the PIN is kept in expo-secure-store as typed (Keystore-sealed); no hashing package is approved.
+- **`AGENTS.md` §3** still marks `apps/field` as planned; that line is the lead's.
 
 ## Review
 
