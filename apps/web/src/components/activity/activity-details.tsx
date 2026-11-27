@@ -104,12 +104,14 @@ import {
   BIN_KINDS,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
-  // J3 customer documents and requirements
+} from '../../screens/contract-values';
+// J3 customer documents and requirements
+import {
   DOCUMENT_FLOWS,
   DOCUMENT_KINDS,
   DOCUMENT_REQUIREMENT_KEYS,
   DOCUMENT_STEPS,
-} from '../../screens/contract-values';
+} from '../../screens/document-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
 import { LEAD_IMPORT_FIELDS } from '../../screens/import-wizard';
