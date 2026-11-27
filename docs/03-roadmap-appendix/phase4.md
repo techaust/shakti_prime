@@ -2,7 +2,7 @@
 
 Date: 27-11-2026.
 
-**Status:** drafted for the owner's approval. Its questions are put in §2 with a recommended option each. The owner took the recommendations with the push's plan on 27-11-2026, to be confirmed with this document.
+**Status:** approved by the owner on 27-11-2026, with every question of §2 decided as the recommended option.
 
 **How it is built:** slice by slice, in the order of §3. Each slice records what it built here in the same pull request, as the earlier designs do. Progress is in [STATUS](../10-status.md).
 
@@ -69,37 +69,37 @@ Date: 27-11-2026.
 Each slice is built and tested now on seeded data. Its live step is a row of §11.
 
 ## 2. Decisions for the owner
-The owner took every recommendation with the push's plan on 27-11-2026 (questions P4-1 to P4-12 there); this section records them for confirmation with this document.
+The owner decided all twelve on 27-11-2026, each the recommended option (a), and approved the package list of question 12.
 
-1. **When a project is made** (J1). **Recommended: (a).**
+1. **When a project is made** (J1). **Decided: (a).**
    - (a) *Recommended:* a project is drafted on the confirmation of an order whose opportunity's pipeline segment needs installation (`farmer_pumps`, `residential_rooftop` or `commercial_epc`, never `dealer_wholesale`) and which names a site. The segment and the scheme are snapshotted onto the project. A Project Manager or General Manager can also create one by hand for any confirmed order.
    - (b) By hand only.
-2. **Changing the steps** (J1). **Recommended: (a).**
+2. **Changing the steps** (J1). **Decided: (a).**
    - (a) *Recommended:* templates are per company and segment, edited by an Executive, and versioned. A project copies the version current at its creation and keeps it (the machine's `copy_checklist`).
    - (b) Edits apply to running projects.
-3. **Government portals and the DISCOM** (J4). **Recommended: (a).**
+3. **Government portals and the DISCOM** (J4). **Decided: (a).**
    - (a) *Recommended:* portal and DISCOM steps are recorded by hand: application numbers, statuses, dates and the documents received. There is no portal API and no scraping.
-4. **DISCOM packs** (J10). **Recommended: (a).**
+4. **DISCOM packs** (J10). **Decided: (a).**
    - (a) *Recommended:* generic SLD, earthing and structural-declaration templates, filled from the project's records with no field typed again (PRJ-03), until the client sends each DISCOM's format.
    - (b) Wait for the formats.
-5. **DCR and ALMM** (J8). **Recommended: (a).**
+5. **DCR and ALMM** (J8). **Decided: (a).**
    - (a) *Recommended:* the item's DCR flag and ALMM reference (C5) say a model qualifies. The serial carries its DCR certificate number, typed or scanned at receipt. A subsidy project's material is refused at dispatch and at `material.delivered` for a serial missing either.
    - (b) Per item only.
-6. **Travel time and the map** (J5). **Recommended: (a).**
+6. **Travel time and the map** (J5). **Decided: (a).**
    - (a) *Recommended:* travel time is the straight-line distance between sites × a road factor ÷ an average speed, plus a buffer (named defaults, PROJ-4), with no routing service. The map is MapLibre behind a flag, with a key-based tile vendor on dev and staging only. The production tile account is chosen by the owner in the final phase. Sites without coordinates show in the list by village.
    - (b) No map in Phase 4.
-7. **The field app** (F1 to F5). **Recommended: (a).**
+7. **The field app** (F1 to F5). **Decided: (a).**
    - (a) *Recommended:* ADR 0012 accepted as written: an Expo development build, WatermelonDB on expo-sqlite and 5 days offline. Field engineers sign in once on a device with their email and password (and the authenticator where their role needs it). The device holds a rotating, device-bound refresh token in the Android Keystore. The app opens with a 4-digit PIN or the phone's biometric. A device is revoked from the web.
-8. **Attendance and expenses in the app** (F4). **Recommended: (a).**
+8. **Attendance and expenses in the app** (F4). **Decided: (a).**
    - (a) *Recommended:* captured in Phase 4 on the tables DATABASE plans: `attendance_events`, `expense_claims` and `expense_lines`, through the `expense-claim` machine's `create` and `submit`. Approval, regularisation and the export are Phase 5.
    - (b) Both wait for Phase 5.
-9. **The classification threshold** (J7). **Recommended: (a).**
+9. **The classification threshold** (J7). **Decided: (a).**
    - (a) *Recommended:* 0.85 as a named default (PROJ-3). Below it, or on a customer mismatch, the file waits for a person. For the first two weeks of live use every file waits (the workshop's trial), behind one setting.
-10. **Labour and contractors** (J6). **Recommended: (a).**
+10. **Labour and contractors** (J6). **Decided: (a).**
     - (a) *Recommended:* contractors are a `kind` of vendor (U1's master). Labour and contractor charges are cost lines on the project behind `finance.cost.read`, written by holders of `projects.write` with that grant.
-11. **CMC** (J11). **Recommended: (a).**
+11. **CMC** (J11). **Decided: (a).**
     - (a) *Recommended:* a CMC record is created at the handover of a PM Surya Ghar project, for 5 years by default, with a reminder to the General Manager each year and a status report.
-12. **New packages** (F1, J5). **Recommended: (a).**
+12. **New packages** (F1, J5). **Decided: (a).**
     - (a) *Recommended:* the owner approves this list, each pinned to an exact version at least two weeks old, installed by the lead in the slice that first needs it:
       - `expo`, `react-native`, `expo-router`, `expo-sqlite`, `expo-secure-store`, `expo-local-authentication`, `expo-camera`, `expo-location`, `expo-image-manipulator`, `expo-notifications`;
       - `@nozbe/watermelondb`, `nativewind`;
