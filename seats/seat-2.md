@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T20:29Z
+updated: 2026-11-27T22:25Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -170,3 +170,11 @@ run_file: docs/runs/phase4/j1-projects.md
 wait_for: none
 done_when: report: j1-projects prepped
 note: prep for the lead's integration: readme's prep prompt (one prep at a time on this seat: it starts after TC1's). Diff against main's latest: app.platform_only_permissions(), app.next_document_no(), notifications_type_check and notification_preferences_type_check, app.status_summary(), document_sequences_doc_type_check.
+
+lane: 83
+role: fix
+branch: feat/u2-purchase-orders
+run_file: docs/runs/phase3/u2-purchase-orders.md
+wait_for: none
+done_when: report: u2-purchase-orders fixes 2
+note: a second round for the re-check's R1, R2, R3, R4, R5, R7, R8 as the lead's triage at the end of the Review section says (R2: the PDF through the render worker). Report as report: u2-purchase-orders fixes 2.

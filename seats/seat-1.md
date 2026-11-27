@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T22:09Z
+updated: 2026-11-27T22:25Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -170,3 +170,11 @@ run_file: docs/runs/phase3/r3-warranty.md
 wait_for: report: r3-warranty fixes
 done_when: review: r3-warranty re-check done
 note: re-check of the fix diff only (the review found a high): findings 1 to 9 and 12 fixed with tests; the db unit tests pass.
+
+lane: 84
+role: review
+branch: feat/u2-purchase-orders
+run_file: docs/runs/phase3/u2-purchase-orders.md
+wait_for: report: u2-purchase-orders fixes 2
+done_when: review: u2-purchase-orders re-check 2 done
+note: re-check of the second round only: R1 (CI's unit job passes), R2 (no Chromium in a request route; the PDF and mail through the render worker; rates by grant), R3, R4, R5, R7, R8.
