@@ -107,6 +107,9 @@ import {
   SERIAL_STATES_OUT,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // HR1 people and leave
+  LEAVE_MOVEMENT_KINDS,
+  LEAVE_REQUEST_STATES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -297,6 +300,12 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // HR1: a request's state, decided outside `requested`; a balance's movements, `use` and only
+  // `use` from an approval, every other one with its reason.
+  leave_requests_state_check: LEAVE_REQUEST_STATES,
+  leave_requests_decided_check: ['requested'],
+  leave_balances_kind_check: LEAVE_MOVEMENT_KINDS,
+  leave_balances_source_check: ['use', 'use'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

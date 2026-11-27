@@ -406,6 +406,15 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // HR1: a company's people, read by themselves, by HR, and by the approvers of their leave in
+  // scope; their leave requests and balance movements, read with them; shifts, holidays and leave
+  // types of a company or of the group, read acting in any company (docs/03-roadmap-appendix/phase5.md §5)
+  'employees',
+  'leave_requests',
+  'leave_balances',
+  'shifts',
+  'holidays',
+  'leave_types',
 ] as const;
 
 /**

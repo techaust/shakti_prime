@@ -121,6 +121,13 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  // HR1 people and leave.
+  employees: 'x.id::text',
+  leave_requests: 'x.id::text',
+  leave_balances: 'x.id::text',
+  shifts: 'x.id::text',
+  holidays: 'x.id::text',
+  leave_types: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -157,6 +164,11 @@ export interface MatrixRow {
    * `messaging.send` for the whole company (the table's `readRow`).
    */
   unmatched?: true;
+  /**
+   * HR1: whose an employee row (or a leave request or balance movement of one) is: the actor's
+   * own, someone the actor manages, or someone nobody in the fixture manages.
+   */
+  hr?: 'own' | 'managed' | 'unmanaged';
 }
 
 export interface EntityMatrixFixture {
@@ -185,6 +197,15 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from commission_accruals where id::text like ${like}`;
       await tx`alter table commission_accruals enable trigger commission_accruals_guard`;
       await tx`delete from commission_rules where id::text like ${like}`;
+      // HR1: a balance's movements are append-only; requests and movements name their employee.
+      await tx`alter table leave_balances disable trigger leave_balances_append_only`;
+      await tx`delete from leave_balances where id::text like ${like}`;
+      await tx`alter table leave_balances enable trigger leave_balances_append_only`;
+      await tx`delete from leave_requests where id::text like ${like}`;
+      await tx`delete from employees where id::text like ${like}`;
+      await tx`delete from leave_types where id::text like ${like}`;
+      await tx`delete from holidays where id::text like ${like}`;
+      await tx`delete from shifts where id::text like ${like}`;
       await tx`alter table dealer_terms disable trigger dealer_terms_append_only`;
       await tx`alter table dealer_outstanding disable trigger dealer_outstanding_append_only`;
       await tx`alter table sales_order_lines disable trigger sales_order_lines_append_only`;
@@ -411,6 +432,13 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    // HR1 people and leave.
+    employees: [],
+    leave_requests: [],
+    leave_balances: [],
+    shifts: [],
+    holidays: [],
+    leave_types: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -969,6 +997,65 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       rows.vendor_contacts.push({ key: vendorContact, entities: everyCompany });
       rows.item_vendors.push({ key: itemVendor, entities: everyCompany });
       rows.vendor_quotes.push({ key: groupQuote, entities: null });
+
+      // HR1: a shift, a holiday and a leave type of the group and of each company; in each
+      // company the owner's own employee record, a second person's whose manager the owner is, and
+      // someone with no sign-in managed by nobody, each with a leave request and a movement.
+      const groupShift = id(0x0701);
+      const groupHoliday = id(0x0702);
+      const groupLeaveType = id(0x0703);
+      await tx`insert into shifts (id, entity_id, name, start_time, end_time, lunch_min, grace_min, weekly_off_days, created_by)
+        values (${groupShift}, null, 'matrix group shift', '09:30', '18:00', 30, 10, '{7}', ${ownerId})`;
+      await tx`insert into holidays (id, entity_id, on_date, name, created_by)
+        values (${groupHoliday}, null, '2098-01-26', 'matrix group holiday', ${ownerId})`;
+      await tx`insert into leave_types (id, entity_id, name, days_per_year, carries_forward, is_paid, created_by)
+        values (${groupLeaveType}, null, 'matrix group leave', 12, false, true, ${ownerId})`;
+      rows.shifts.push({ key: groupShift, entities: null });
+      rows.holidays.push({ key: groupHoliday, entities: null });
+      rows.leave_types.push({ key: groupLeaveType, entities: null });
+      for (const e of ALL_ENTITY_IDS) {
+        const only = [e];
+        const [shiftE, holidayE, typeE] = [per(e, 0x90), per(e, 0x91), per(e, 0x92)];
+        const [own, managed, unmanaged] = [per(e, 0x93), per(e, 0x94), per(e, 0x95)];
+        const [ownAsk, managedAsk, unmanagedAsk] = [per(e, 0x96), per(e, 0x97), per(e, 0x98)];
+        const [ownMove, managedMove, unmanagedMove] = [per(e, 0x99), per(e, 0x9a), per(e, 0x9b)];
+        await tx`insert into shifts (id, entity_id, name, start_time, end_time, lunch_min, grace_min, weekly_off_days, created_by)
+          values (${shiftE}, ${e}, 'matrix shift', '09:30', '18:00', 30, 10, '{7}', ${ownerId})`;
+        await tx`insert into holidays (id, entity_id, on_date, name, created_by)
+          values (${holidayE}, ${e}, '2098-08-15', 'matrix holiday', ${ownerId})`;
+        await tx`insert into leave_types (id, entity_id, name, days_per_year, carries_forward, is_paid, created_by)
+          values (${typeE}, ${e}, 'matrix leave', 6, true, false, ${ownerId})`;
+        await tx`insert into employees (id, entity_id, user_id, name, manager_id, shift_id, joined_on, created_by) values
+          (${own}, ${e}, ${ownerId}, 'matrix own employee', null, ${shiftE}, '2090-01-01', ${ownerId}),
+          (${managed}, ${e}, ${otherUserId}, 'matrix managed employee', ${own}, ${groupShift}, '2090-01-01', ${ownerId}),
+          (${unmanaged}, ${e}, null, 'matrix unmanaged employee', null, null, '2090-01-01', ${ownerId})`;
+        await tx`insert into leave_requests (id, entity_id, employee_id, leave_type_id, from_date, to_date, days, state, requested_by, decided_by, decided_at) values
+          (${ownAsk}, ${e}, ${own}, ${typeE}, '2098-02-02', '2098-02-02', 1, 'requested', ${ownerId}, null, null),
+          (${managedAsk}, ${e}, ${managed}, ${groupLeaveType}, '2098-02-02', '2098-02-02', 1, 'approved', ${otherUserId}, ${ownerId}, now()),
+          (${unmanagedAsk}, ${e}, ${unmanaged}, ${typeE}, '2098-02-02', '2098-02-02', 1, 'requested', ${ownerId}, null, null)`;
+        await tx`insert into leave_balances (id, entity_id, employee_id, leave_type_id, kind, days, leave_request_id, reason, created_by) values
+          (${ownMove}, ${e}, ${own}, ${typeE}, 'grant', 6, null, 'matrix grant', ${ownerId}),
+          (${managedMove}, ${e}, ${managed}, ${groupLeaveType}, 'use', -1, ${managedAsk}, null, ${ownerId}),
+          (${unmanagedMove}, ${e}, ${unmanaged}, ${typeE}, 'adjust', 1, null, 'matrix adjust', ${ownerId})`;
+        rows.shifts.push({ key: shiftE, entities: only });
+        rows.holidays.push({ key: holidayE, entities: only });
+        rows.leave_types.push({ key: typeE, entities: only });
+        rows.employees.push(
+          { key: own, entities: only, hr: 'own' },
+          { key: managed, entities: only, hr: 'managed' },
+          { key: unmanaged, entities: only, hr: 'unmanaged' },
+        );
+        rows.leave_requests.push(
+          { key: ownAsk, entities: only, hr: 'own' },
+          { key: managedAsk, entities: only, hr: 'managed' },
+          { key: unmanagedAsk, entities: only, hr: 'unmanaged' },
+        );
+        rows.leave_balances.push(
+          { key: ownMove, entities: only, hr: 'own' },
+          { key: managedMove, entities: only, hr: 'managed' },
+          { key: unmanagedMove, entities: only, hr: 'unmanaged' },
+        );
+      }
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.
       const team1 = teamIds[1] ?? '';

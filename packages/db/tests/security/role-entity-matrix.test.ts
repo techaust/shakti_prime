@@ -85,6 +85,21 @@ const VENDOR_READ: Rule = {
 };
 const RATE_READ = grant('procurement.rate.read', 'entity');
 
+/**
+ * HR1: an employee row, and the leave requests and balance movements read with it: the person's
+ * own whatever their role; someone they manage with hr.leave.approve at team scope; anyone of the
+ * company with it for the company, or with hr.employee.write (docs/03-roadmap-appendix/phase5.md §5).
+ */
+const HR_ROW = (row: MatrixRow): Rule =>
+  row.hr === 'managed'
+    ? { kind: 'any', rules: [grant('hr.employee.write', 'all'), grant('hr.leave.approve', 'team')] }
+    : row.hr === 'unmanaged'
+      ? {
+          kind: 'any',
+          rules: [grant('hr.employee.write', 'all'), grant('hr.leave.approve', 'entity')],
+        }
+      : CONTEXT;
+
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
@@ -217,6 +232,14 @@ const RULES: Record<MatrixTable, TableRule> = {
   stock_movement_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   stock_balances: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
+  // HR1: people and their leave by HR_ROW; shifts, holidays and leave types of the company and the
+  // group, read by every principal acting in some company.
+  employees: { read: CONTEXT, readRow: HR_ROW, leak: otherCompany },
+  leave_requests: { read: CONTEXT, readRow: HR_ROW, leak: otherCompany },
+  leave_balances: { read: CONTEXT, readRow: HR_ROW, leak: otherCompany },
+  shifts: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  holidays: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  leave_types: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   audit_logs: {
     read: grant('audit.read', 'entity'),
     group: grant('audit.read', 'all'),

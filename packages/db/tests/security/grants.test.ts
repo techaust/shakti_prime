@@ -197,6 +197,14 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // HR1: every update is column by column, so a row keeps its company and person; a holiday
+    // comes off the list by its removal; a balance's movements are append-only.
+    employees: { i: true, u: false },
+    shifts: { i: true, u: false },
+    holidays: { i: true, u: false, d: true },
+    leave_types: { i: true, u: false },
+    leave_requests: { i: true, u: false },
+    leave_balances: { i: true, u: false },
   };
 
   /**
@@ -511,6 +519,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.dial_facts(uuid,uuid)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
+      // HR1: whether an employee's manager is the caller, for the employees policy.
+      'app.hr_manages(uuid)',
       // The ingest lookups of a form, its sealed Page token and a website key, which the lead
       // handlers and the website route ask as queries (I1).
       'app.ingest_key_find(text)',
