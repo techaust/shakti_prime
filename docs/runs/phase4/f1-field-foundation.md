@@ -312,4 +312,61 @@ Every finding the lead marked to fix (1, 2, 3, 5, 6, 7, 8), finding 4 recorded, 
 - **4: accepted and recorded.** The reuse rule depends on it, and the installation id is exposed only to whoever already holds the phone's token. Record it in SECURITY §2 as a known limit.
 - **Finding 1 is critical, so the reviewer re-checks the fix diff.**
 
+### 27-11-2026, slice reviewer (Opus 5.5, high), re-check of `d7ef81af..184c6e9e`
+**Verdict: not blocked.** Every finding marked to fix is fixed with tests, and finding 4 is recorded. The fix round brings one medium and two low findings, none blocking.
+
+**The first review's findings:**
+
+| # | Status | Evidence |
+|---|---|---|
+| 1 (critical) | fixed | `mobile-bearer.ts:85-108`: the key is `mobile:<installation>:<person>` (`mobileCacheSession()`), and a cached entry is used only when `cached.principal.id === userId`. All three callers pass the installation id (`mobile-routes.ts:210`, `:311`, `mobile-bearer.ts:167`). The version counter is per person, so `invalidate()` still reaches the phones' entries. Two tests on real Postgres (*people who share one installation*): one for two people in turn, checking claims, `/me`, the bearer principal and the leads row security shows; one for an intruder who sends a copied `sid`. Neither helper bumps the version counter, so on the old code both people's keys were `principal:mobile:<id>:all:0`, and both tests would have failed there. |
+| 2 (high) | fixed | `revokeUserSessions()` (`shared.ts:123-140`) signs every live phone out in the command's transaction, with `revoked_by` set. That covers role set, suspend and authenticator reset. `onPasswordReset` and the `/change-password` after hook (`revokeOtherSessions === true`, which the website's only caller, `actions/auth.ts:254`, always sends) call `authDeviceStore.signOutEverywhere()`. Migration 0244 mirrors `sessions_read` and `sessions_update` (0014, 0056) exactly, plus `revoked_at is not null` in the check. 0243 widens the reasons check `NOT VALID`; on this database it is `convalidated = f`. There is one test per path: five in `mobile-auth.test.ts`, the last three run by an Executive without `field.device.revoke`, each checking the row's reason and that `/me` and a refresh are refused. `mobile-devices.test.ts` has the policy test, with its company rule and the entity-scope denial. See finding 11 for two paths that are left out. |
+| 3 | fixed | `session.ts`: `currentToken()` uses the token only until 15 minutes after it arrived, less one minute, on the phone's clock. `withBearer()` refreshes once on a bare `unauthorized` and tries again, and only a second refusal signs the phone out (`errors.unauthorized`, field catalogue). `signOut()` goes through `withBearer()`. Tests cover the minute before expiry, the retry, the second refusal, and sign-out after 16 minutes (revoke sent with the refreshed token). |
+| 4 | recorded | SECURITY §2, Mobile, *Known limit (accepted, 27-11-2026)*. |
+| 5 | fixed | `fieldVersionProblems()` (`mobile-version.ts:43`) is listed in `productionConfigProblems()` (`deps.ts:176`), with a test in `deps.test.ts`. |
+| 6 | fixed | `phoneDetails()` (`config.ts`) sends `Platform.constants.Model` and `Release` (falling back to `Platform.Version`), cut to the contract's 80 and 20 characters. A test checks the sign-in body. |
+| 7 | fixed | `SessionProvider` listens to `AppState`; `cameToForeground()` locks a `ready` session after 5 minutes or more away. Tests: 4 min 59 s stays open, 5 min locks, and the PIN opens it. `ready` always has a PIN, because the fingerprint is offered only at the `enter` step, so the lock never falls back to "choose a PIN". |
+| 8 | fixed | The `MobileAccessClaims` comment is corrected. `integration_unavailable` is in `endpoints.ts` for `auth.mobile.revoke` and `me`, and in API §3.1. |
+
+**The packages:**
+- **`expo-crypto`:** `Crypto.randomUUID()` makes the installation id, with no `Math.random`. The PIN is kept as `v1:<salt>:<SHA-256>` and compared in full. Neither the store nor the session ever reads the PIN back.
+- **`@sentry/react-native`:** it starts only with a DSN, sends no screenshot, view hierarchy, replay, failed requests or traces, and leaves `sendDefaultPii` off. `beforeSend`, `beforeSendTransaction` and `beforeBreadcrumb` all scrub. Nothing in `apps/field` calls `Sentry.setUser`, `setExtra`, `setContext`, `setTag` or `console.*`, so today no token, phone or identity number reaches Sentry. Two gaps remain against the web's rules: findings 9 and 10.
+- **`expo-system-ui`:** in the plugins.
+- **`react-native-reanimated` and `react-native-worklets`:** now direct dependencies.
+- **Jest 30.5.2:** the lazy-globals workaround is removed.
+- **`@sentry/cli`:** its download script is off in `allowBuilds`.
+
+**New findings:**
+
+| # | Severity | Where | What is wrong | Failure scenario | Fix | Status |
+|---|---|---|---|---|---|---|
+| 9 | medium | `apps/field/src/observability/sentry-scrub.ts:23-41`, `:61-75` (`SECRET_KEYS`, `scrubFields`) | The scrub does not follow the web's field rules. The web uses `redact()` from `@shakti/domain/redaction`, which `apps/field` may not import. Two gaps follow. **Numbers:** `scrubFields` returns a number untouched (`if (!isObject(value)) return value`), but the web hides any number of ten digits or more (`scrubValue`). **Identity keys:** `SECRET_KEYS` matches only exact names. It lacks most of `IDENTITY_KEYS` (`aadhaarnumber`, `aadhaarno`, `uid`, `pannumber`, `panno`, `accountno`, `bankaccountnumber`, `ifsccode`). A PAN such as `ABCDE1234F` has no long run of digits, so `redactText` leaves it whole. The tests pass strings only. | A later field screen (F2 onwards, customers and the OCR'd documents) records `extra: { mobile: 9876543210, panNumber: 'ABCDE1234F' }`, or a breadcrumb with that `data`. Both values reach Sentry whole, against SECURITY §5 and the owner's condition for the package. | Move `IDENTITY_KEYS` and the ten-digit number rule (`scrubValue`) from `packages/domain/src/ports/redaction.ts` into `@shakti/contracts/masking` beside `redactText`. Use them in `scrubFields`, and mask fields named `phone`, `mobile`, `whatsapp` or `email` to their last four characters, as the web does. Add test cases for a number value and for `panNumber`, `aadhaarNumber` and `accountNo`. | confirmed (code read) |
+| 10 | low | `apps/field/src/observability/sentry.ts:5-11`, `sentry-scrub.ts:4-11` | The comments say every event passes through the scrub. Native Android crash and ANR events do not. `@sentry/react-native`'s `wrapper.js:162` strips `beforeSend` and `beforeBreadcrumb` from the native options, and `RNSentryStart.updateWithReactFinals` runs only a native `beforeSend`. Native events carry the scope the SDK copies from JS: user, tags, extra, contexts and breadcrumbs (already scrubbed by `beforeBreadcrumb`). | A later slice calls `Sentry.setUser({ email })` or `setContext('customer', …)`. A native crash then sends it unscrubbed. Nothing does this today. | Correct the two comments and state the rule: the field app sets nothing on Sentry's scope. Hold it with a check, for example a lint `no-restricted-syntax` on `Sentry.set*` in `apps/field`. Or set `enableNdkScopeSync: false`. | confirmed (SDK source read) |
+| 11 | low | `docs/07-security.md` §2 (Sessions); `packages/domain/src/commands/admin/set-role-permissions.ts:263-290` (`revokeHolderSessions`); `apps/web/src/auth/session-principal.ts:185` (`totp_enrolled`) | SECURITY §2 now says "Every change that ends a person's sessions … signs their field app phones out". Two paths end website sessions but leave phones signed in: changing a role's permissions (`admin.role.permissions.set`) and a person enrolling an authenticator app. Grants do not go stale: the bearer resolves grants on every call, and `setRolePermissions` invalidates every holder's principal cache. | A reader of SECURITY §2, or the CA's audit, believes a role edit signs the role's phones out. It does not. | Either sign the holders' phones out in `revokeHolderSessions` under the same policy, or reword the sentence to name only the paths that do it. The second is a one-line edit. | confirmed (code read) |
+
+**Checked and sound in the fix diff:**
+- The 0244 policies grant nothing beyond the sessions' own rules. The read policy reads only through `app_user`'s and `app_reader`'s column grants, with no secret column. The update policy cannot sign a phone back in, and with `admin.users.write` at entity scope it updates 0 rows (tested). `app.user_roles_outside_request` is the existing definer the sessions policy already calls.
+- `signOutEverywhere()` runs as `auth_service`, after a password change that worked (`!failed`, `actorId` set) or a reset. On an invitation's first password it finds nothing to sign out.
+- The old test *a suspended person is refused* still covers the `account_suspended` branch, because it sets the status directly.
+- The measures (`KEPT_LOOKALIKES.appKeys`) only add the field app's key pair, under a comment naming F1.
+- Copy: four new labels on the Phones sheet in `en.json`, and one field sentence; `pnpm copy-lint` is clean.
+- **For the lead:** the branch changes `pnpm-workspace.yaml` (`allowBuilds`, `7ce40cdf`), so its pull request merges only after the owner adds `checks-ok`.
+
+**Tests I ran** on the slice's database (54331, migrated and seeded first), through the lock:
+- `apps/web/tests/mobile-auth.test.ts`: 29/29.
+- db `mobile-devices`, `app-reader`, `enum-sync` and `role-entity-matrix`: 112/112.
+- domain `admin-two-factor`, `admin-users` and `audit-trail`: 31/31.
+- web `deps.test.ts` and `scripts/measures`: 66/66.
+- web `auth` and `actions` (security config): 75/75.
+- `apps/field` jest: 30/30.
+- `pnpm copy-lint`: clean.
+- `@shakti/field` typecheck: clean.
+- eslint (`--max-warnings 0`) on `apps/field/src`, `apps/field/app`, `apps/web/src/auth`, `packages/domain/src/commands/admin` and `packages/contracts/src/commands/field`: clean.
+
+**Not checked:**
+- The journey `field-phones.spec.ts`: this session cannot sign in, so I read it only. The builder did not run it either, because its database had 0243 as first written. It needs a fresh database at integration, and the Linux baselines are the lead's.
+- Not re-run; I relied on the builder's report: the whole-repository `pnpm lint`, `typecheck`, `build`, `js-budget` and the full `pnpm test:security`.
+- `EXPLAIN` figures for the new policies: taken from the builder's report.
+- The Android Gradle build with the native Sentry, reanimated and worklets modules: unproved until the native build job runs.
+
 ## Integration
