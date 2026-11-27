@@ -297,10 +297,11 @@ export const recordTallySnapshot = defineCommand({
   minScope: 'entity',
   input: TallySnapshotRecordInput,
   output: TallySnapshotRecordDto,
-  auditFields: ['state', 'guidCount', 'tombstoned', 'missing', 'reappeared'],
+  auditFields: ['state', 'guidCount', 'tombstoned', 'missing', 'reappeared', 'ledgers'],
   unmaskedFields: [
     // Tally's GUIDs, matched whole.
     'snapshot.voucherGuids',
+    'ledgerBalances.guid',
   ],
   auditInput: (input) => ({
     entityId: input.entityId,
@@ -308,6 +309,7 @@ export const recordTallySnapshot = defineCommand({
     asOf: input.snapshot.asOf,
     fromDate: input.snapshot.fromDate,
     guids: input.snapshot.voucherGuids.length,
+    ledgerBalances: input.ledgerBalances?.length ?? 0,
   }),
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
@@ -339,7 +341,8 @@ export const recordTallySnapshot = defineCommand({
         ${guidCount}::integer, ${live}::integer,
         ${state === 'applied' ? tombstones.length : 0}::integer, ${missing.length}::integer,
         ${reappeared.length}::integer, ${state}::text,
-        ${textArray(state === 'held' ? tombstones : [])}::text[])`);
+        ${textArray(state === 'held' ? tombstones : [])}::text[],
+        ${textArray(missing.slice(0, MISSING_SHOWN))}::text[])`);
     let tombstoned = 0;
     if (state === 'applied' && tombstones.length > 0) {
       const states = new Map(stored.map((v) => [v.guid, v.state]));
@@ -350,11 +353,26 @@ export const recordTallySnapshot = defineCommand({
         CONNECTOR,
       );
     }
+    let ledgers = 0;
+    if (input.ledgerBalances !== undefined && input.ledgerBalances.length > 0) {
+      const [changed] = (await ctx.tx.execute(sql`
+        select app.tally_ledger_balances_write(${input.entityId}::smallint,
+          ${snapshot.company}::text,
+          ${JSON.stringify(
+            input.ledgerBalances.map((b) => ({
+              guid: b.guid,
+              closing_balance: b.closingBalance,
+              as_of: b.asOf,
+            })),
+          )}::jsonb) as n`)) as unknown as { n: number }[];
+      ledgers = changed?.n ?? 0;
+    }
     ctx.audit({
       aggregateType: 'tally_snapshot',
       aggregateId: id,
       entityId: input.entityId,
       after: {
+        ledgers,
         state,
         guidCount,
         tombstoned: state === 'held' ? tombstones.length : tombstoned,

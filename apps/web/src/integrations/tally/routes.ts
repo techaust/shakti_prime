@@ -4,6 +4,7 @@ import {
   IdempotencyKeySchema,
   IdSchema,
   isDomainError,
+  TallyLedgerBalances,
   type ErrorCode,
 } from '@shakti/contracts';
 import {
@@ -31,7 +32,8 @@ import { CONNECTOR_HEADERS, verifyConnectorRequest } from './signature';
  * The Tally connector's routes (docs/06-api.md §3.5, docs/03-roadmap-appendix/phase5.md §6.3). In
  * order, before anything is written: a body within the route's cap; the connector the header names,
  * found as that connector (unknown or revoked: 401); its signature under its current key or, during
- * a rotation, its next one, with a timestamp within five minutes (401); the contract (400); the
+ * a rotation, its next one, over the path and query exactly as they arrived (a space as `+`, as
+ * the connector's `URLSearchParams` writes it), with a timestamp within five minutes (401); the contract (400); the
  * Tally company mapped to it, under the company code the body names (403). Then one command or
  * query runs as the connector's own principal in that one company; it reaches no table but
  * through the definers that check the connector and its mapping again. Nothing is ever sent back
@@ -213,8 +215,15 @@ export async function tallySnapshotRoute(
   if (!check.ok) return check.response;
   const idempotency = idempotencyOf(request);
   if (!idempotency.ok) return fail('validation_failed', requestId);
-  const parsed = parseSnapshot(parsedJson(check.body));
-  if (!parsed.ok) return fail('validation_failed', requestId);
+  // The party ledgers' balances travel with the snapshot (TC1 adds them to its contract); they
+  // are read on their own, so a snapshot that carries them parses either way.
+  const body = parsedJson(check.body);
+  const { ledgerBalances: rawBalances, ...rest } =
+    typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+  const parsed = parseSnapshot(typeof body === 'object' && body !== null ? rest : body);
+  const balances =
+    rawBalances === undefined ? undefined : TallyLedgerBalances.safeParse(rawBalances);
+  if (!parsed.ok || balances?.success === false) return fail('validation_failed', requestId);
   const snapshot = parsed.value;
   const company = mappedCompany(check.auth, snapshot.company, snapshot.entityCode);
   if (company === undefined) return fail('forbidden', requestId, 'tally_company_not_mapped');
@@ -226,7 +235,11 @@ export async function tallySnapshotRoute(
       ),
       { entityIds: [company.entityId], requestId },
       recordTallySnapshot,
-      { entityId: company.entityId, snapshot },
+      {
+        entityId: company.entityId,
+        snapshot,
+        ...(balances === undefined ? {} : { ledgerBalances: balances.data }),
+      },
       {
         ...deps.options({ client: clientMeta(request.headers) }),
         ...(idempotency.key === undefined ? {} : { idempotencyKey: idempotency.key }),

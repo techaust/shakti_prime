@@ -113,6 +113,7 @@ CREATE TABLE "tally_snapshots" (
 	"reappeared" integer NOT NULL,
 	"state" text NOT NULL,
 	"held_guids" text[] DEFAULT '{}'::text[] NOT NULL,
+	"missing_guids" text[] DEFAULT '{}'::text[] NOT NULL,
 	"confirmed_at" timestamp with time zone,
 	"confirmed_by" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -122,6 +123,7 @@ CREATE TABLE "tally_snapshots" (
           and "tally_snapshots"."reappeared" >= 0),
 	CONSTRAINT "tally_snapshots_confirmed_check" CHECK (("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."confirmed_by" is null)
           and ("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."state" <> 'confirmed')),
+	CONSTRAINT "tally_snapshots_missing_guids_check" CHECK (cardinality("tally_snapshots"."missing_guids") <= 1000),
 	CONSTRAINT "tally_snapshots_held_check" CHECK ("tally_snapshots"."state" = 'held' or cardinality("tally_snapshots"."held_guids") = 0)
 );
 --> statement-breakpoint

@@ -273,6 +273,15 @@ export const tallySnapshots = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /**
+     * GUIDs Tally holds that the BOS never received (the first thousand; `missing` counts them
+     * all). The cursor has passed them, so the connector cannot send them again: they wait in the
+     * review queue as missing in the BOS for Accounts.
+     */
+    missingGuids: text('missing_guids')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     confirmedBy: uuid('confirmed_by').references(() => principals.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -292,6 +301,7 @@ export const tallySnapshots = pgTable(
       sql`(${t.confirmedAt} is null) = (${t.confirmedBy} is null)
           and (${t.confirmedAt} is null) = (${t.state} <> 'confirmed')`,
     ),
+    check('tally_snapshots_missing_guids_check', sql`cardinality(${t.missingGuids}) <= 1000`),
     check(
       'tally_snapshots_held_check',
       sql`${t.state} = 'held' or cardinality(${t.heldGuids}) = 0`,

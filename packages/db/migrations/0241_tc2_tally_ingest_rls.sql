@@ -452,12 +452,43 @@ revoke execute on function app.tally_ledgers_write(smallint, text, jsonb) from p
 grant execute on function app.tally_ledgers_write(smallint, text, jsonb) to app_user;
 --> statement-breakpoint
 
--- 9. A daily snapshot's summary, written by the company's connector; a newer snapshot supersedes
---    the company's held ones, so a person confirms only the latest picture.
+-- 8a. Party ledger balances sent with the daily snapshot: a ledger's closing balance changes when a
+--     voucher posts, with no new AlterID, so the batches never carry it. Each known ledger of the
+--     company takes the balance with its date, unless it already holds a later one; an unknown
+--     GUID waits for its batch. Answers how many changed.
+create or replace function app.tally_ledger_balances_write(p_entity smallint, p_company text,
+                                                           p_rows jsonb)
+  returns integer
+  language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_n integer;
+begin
+  perform app.tally_require_connector(p_entity, p_company);
+  if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) > 20000 then
+    raise exception 'the balances are not a list' using errcode = '23514';
+  end if;
+  update public.tally_ledgers l
+     set closing_balance = r.closing_balance, as_of = r.as_of, updated_at = pg_catalog.now()
+    from jsonb_to_recordset(p_rows) as r(guid text, closing_balance numeric, as_of date)
+   where l.guid = r.guid and l.entity_id = p_entity and l.tally_company = p_company
+     and l.as_of <= r.as_of;
+  get diagnostics v_n = row_count;
+  return v_n;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.tally_ledger_balances_write(smallint, text, jsonb) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.tally_ledger_balances_write(smallint, text, jsonb) to app_user;
+--> statement-breakpoint
+
+-- 9. A daily snapshot's summary, written by the company's connector, with the GUIDs Tally holds
+--    and the BOS lacks (the review queue's "missing in the BOS"); a newer snapshot supersedes the
+--    company's held ones, so a person confirms only the latest picture.
 create or replace function app.tally_snapshot_write(
   p_id uuid, p_entity smallint, p_company text, p_as_of timestamptz, p_from_date date,
   p_guid_count integer, p_live integer, p_tombstoned integer, p_missing integer,
-  p_reappeared integer, p_state text, p_held_guids text[])
+  p_reappeared integer, p_state text, p_held_guids text[], p_missing_guids text[])
   returns void
   language plpgsql volatile security definer set search_path = '' as $$
 begin
@@ -469,15 +500,16 @@ begin
    where s.entity_id = p_entity and s.tally_company = p_company and s.state = 'held';
   insert into public.tally_snapshots
     (id, entity_id, tally_company, connector_id, as_of, from_date, guid_count, live, tombstoned,
-     missing, reappeared, state, held_guids)
+     missing, reappeared, state, held_guids, missing_guids)
   values (p_id, p_entity, p_company, app.user_id(), p_as_of, p_from_date, p_guid_count, p_live,
-          p_tombstoned, p_missing, p_reappeared, p_state, coalesce(p_held_guids, '{}'));
+          p_tombstoned, p_missing, p_reappeared, p_state, coalesce(p_held_guids, '{}'),
+          coalesce(p_missing_guids, '{}'));
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.tally_snapshot_write(uuid, smallint, text, timestamptz, date, integer, integer, integer, integer, integer, text, text[]) from public, readonly_reporter;
+revoke execute on function app.tally_snapshot_write(uuid, smallint, text, timestamptz, date, integer, integer, integer, integer, integer, text, text[], text[]) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.tally_snapshot_write(uuid, smallint, text, timestamptz, date, integer, integer, integer, integer, integer, text, text[]) to app_user;
+grant execute on function app.tally_snapshot_write(uuid, smallint, text, timestamptz, date, integer, integer, integer, integer, integer, text, text[], text[]) to app_user;
 --> statement-breakpoint
 
 -- 10. A held snapshot, for the person confirming it: its company and the GUIDs it would remove.

@@ -150,6 +150,14 @@ describe('the connector’s signature', () => {
     expect(body).toEqual({ company: COMPANY, lastAlterId: 0, updatedAt: null });
   });
 
+  it('verifies the query as it arrived, a space written as +', async () => {
+    const path = `${BASE}/cursor?${new URLSearchParams({ company: COMPANY }).toString()}`;
+    expect(path).toContain('+');
+    const { status, body } = await json(await tallyCursorRoute(signed('GET', path), deps()));
+    expect(status).toBe(200);
+    expect(body.company).toBe(COMPANY);
+  });
+
   it('accepts a timestamp within five minutes either way, and refuses one beyond', async () => {
     for (const [offsetSeconds, status] of [
       [-290, 200],
@@ -318,6 +326,14 @@ describe('the snapshot and heartbeat routes', () => {
             asOf: new Date(NOW.getTime() + 60_000).toISOString(),
             fromDate: '2026-04-01',
             voucherGuids: [guid(1), guid(70)],
+            ledgerBalances: [
+              {
+                guid: guid(90),
+                name: 'Kisan Agro Traders',
+                closingBalance: '-2500.00',
+                asOf: '2026-09-27',
+              },
+            ],
           },
         }),
         deps(),

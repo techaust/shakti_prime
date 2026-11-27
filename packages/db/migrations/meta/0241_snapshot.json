@@ -1,6 +1,6 @@
 {
-  "id": "1b1ad0e6-f833-404a-aad4-4db914babfbb",
-  "prevId": "d8bb0a4e-cc19-4e3e-9d40-ca591ea07850",
+  "id": "eb938cca-5a3e-458b-8dec-ea5e3a420716",
+  "prevId": "d47dd678-7992-4f26-944d-aac7004f519a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -18997,6 +18997,13 @@
           "notNull": true,
           "default": "'{}'::text[]"
         },
+        "missing_guids": {
+          "name": "missing_guids",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
         "confirmed_at": {
           "name": "confirmed_at",
           "type": "timestamp with time zone",
@@ -19142,6 +19149,10 @@
         "tally_snapshots_confirmed_check": {
           "name": "tally_snapshots_confirmed_check",
           "value": "(\"tally_snapshots\".\"confirmed_at\" is null) = (\"tally_snapshots\".\"confirmed_by\" is null)\n          and (\"tally_snapshots\".\"confirmed_at\" is null) = (\"tally_snapshots\".\"state\" <> 'confirmed')"
+        },
+        "tally_snapshots_missing_guids_check": {
+          "name": "tally_snapshots_missing_guids_check",
+          "value": "cardinality(\"tally_snapshots\".\"missing_guids\") <= 1000"
         },
         "tally_snapshots_held_check": {
           "name": "tally_snapshots_held_check",

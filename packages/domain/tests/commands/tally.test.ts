@@ -344,6 +344,16 @@ describe('tally.snapshot.record and tally.snapshot.confirm', () => {
           fromDate: '2026-04-01',
           voucherGuids: [guid(1), guid(2), guid(50)],
         },
+        ledgerBalances: [
+          {
+            guid: guid(100),
+            name: 'Kisan Agro Traders',
+            closingBalance: '-7000.00',
+            asOf: '2026-09-28',
+          },
+          // A ledger no batch has brought yet waits for its batch.
+          { guid: guid(101), name: 'Unknown party', closingBalance: '10.00', asOf: '2026-09-28' },
+        ],
       },
     );
     expect(out.state).toBe('applied');
@@ -359,6 +369,16 @@ describe('tally.snapshot.record and tally.snapshot.confirm', () => {
         where voucher_guid = ${guid(3)} and snapshot_id = ${out.snapshotId}`,
     );
     expect(tomb?.n).toBe(1);
+    const [snap] = await asMigrator(
+      (m) => m<{ missing_guids: string[] }[]>`
+        select missing_guids from tally_snapshots where id = ${out.snapshotId}`,
+    );
+    expect(snap?.missing_guids).toEqual([guid(50)]);
+    const [ledger] = await asMigrator(
+      (m) => m<{ closing_balance: string; as_of: string }[]>`
+        select closing_balance, as_of::text as as_of from tally_ledgers where guid = ${guid(100)}`,
+    );
+    expect(ledger).toEqual({ closing_balance: '-7000.00', as_of: '2026-09-28' });
   });
 
   it('holds a snapshot over the limits for Accounts, who confirm it once', async () => {

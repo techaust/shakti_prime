@@ -7,8 +7,11 @@ import {
   ConnectorSnapshotRequest,
   ConnectorSnapshotResponse,
   TallyCompanySchema,
+  TallyGuidSchema,
   type TallyVoucherType,
 } from '../../api/connector';
+import { DateOnlySchema } from '../../api/common';
+import { SignedMoneySchema } from '../../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 // TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3, docs/06-api.md §3.5): what a
@@ -55,11 +58,28 @@ export type TallyBatchIngestInput = z.input<typeof TallyBatchIngestInput>;
 export const TallyBatchIngestDto = ConnectorBatchResponse;
 export type TallyBatchIngestDto = z.infer<typeof TallyBatchIngestDto>;
 
-/** `tally.snapshot.record`: the daily GUID snapshot of a company. */
+/**
+ * A party ledger's closing balance on a date, sent with the daily snapshot: the balance changes
+ * when a voucher posts, with no new AlterID, so no batch carries it. TC1 adds the list to the
+ * snapshot's contract (`ledgerBalances`); the route takes it from the body until then.
+ */
+export const TallyLedgerBalance = z
+  .object({
+    guid: TallyGuidSchema,
+    name: z.string().min(1).max(200),
+    closingBalance: SignedMoneySchema,
+    asOf: DateOnlySchema,
+  })
+  .strict();
+export type TallyLedgerBalance = z.infer<typeof TallyLedgerBalance>;
+export const TallyLedgerBalances = z.array(TallyLedgerBalance).max(20_000);
+
+/** `tally.snapshot.record`: the daily GUID snapshot of a company, with its ledger balances. */
 export const TallySnapshotRecordInput = z
   .object({
     entityId: EntityIdSchema,
     snapshot: ConnectorSnapshotRequest,
+    ledgerBalances: TallyLedgerBalances.optional(),
   })
   .strict();
 export type TallySnapshotRecordInput = z.input<typeof TallySnapshotRecordInput>;
