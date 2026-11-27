@@ -277,6 +277,16 @@ const ACTIONS = {
   'procurement.item_vendor.set': 'itemVendorSet',
   'procurement.quote.record': 'vendorQuoteRecord',
   'procurement.quote.withdraw': 'vendorQuoteWithdraw',
+  // J1 projects
+  'projects.project.draft': 'projectDraft',
+  'projects.project.create': 'projectCreate',
+  'projects.milestone.complete': 'milestoneComplete',
+  'projects.project.hold': 'projectHold',
+  'projects.project.resume': 'projectResume',
+  'projects.project.complete': 'projectComplete',
+  'projects.project.cancel': 'projectCancel',
+  'projects.project.assign': 'projectAssign',
+  'projects.template.publish': 'projectStepsPublish',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -359,6 +369,12 @@ const EVENT_NAMES = {
   'procurement.vendor.archived': 'vendorArchived',
   'procurement.quote.recorded': 'vendorQuoteRecorded',
   'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
+  // J1 projects
+  'projects.project.drafted': 'projectDrafted',
+  'projects.project.milestone_completed': 'milestoneCompleted',
+  'projects.project.held': 'projectHeld',
+  'projects.project.completed': 'projectCompleted',
+  'projects.project.cancelled': 'projectCancelled',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -503,6 +519,11 @@ const CODE_GROUPS = [
   'templateOccasion',
   'inboundLine',
   'voiceMode',
+  // J1 projects
+  'projectState',
+  'projectFlow',
+  'milestoneState',
+  'subsidyScheme',
   // H1 stock ledger
   'hubKind',
   'binKind',
@@ -891,6 +912,19 @@ const FIELD_KINDS = [
   ['quoteValidFrom', 'date'],
   ['restored', 'number'],
   ['quoteValidUntil', 'date'],
+  // J1 projects: who is on a project is counted, never named by id.
+  ['projectNo', 'text'],
+  ['projectState', 'projectState'],
+  ['scheme', 'subsidyScheme'],
+  ['flow', 'projectFlow'],
+  ['templateVersionId', 'recorded'],
+  ['milestones', 'number'],
+  ['holdReason', 'text'],
+  ['milestoneKey', 'text'],
+  ['milestoneState', 'milestoneState'],
+  ['ownerId', 'recorded'],
+  ['assigneeIds', 'listCount'],
+  ['steps', 'listCount'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

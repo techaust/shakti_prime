@@ -12,6 +12,7 @@ import { handleFileUploaded } from '../files/handle-file-uploaded';
 import { indexJobOf } from '../knowledge/job';
 import { discardVaultMasker, maskingConfigured, vaultMasker } from '../ocr/vault-masker';
 import { handleHandoverEvent } from '../handover/handover-event';
+import { handleProjectDraft } from '../projects/draft-event';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
 import { handleBriefEvent, handleCallSummaryEvent } from '../copilot/copilot-event';
@@ -187,9 +188,12 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       await handleQuoteSent(event, ctx);
     },
   },
+  // J1: a confirmed order that needs installing also gets its project (docs/03-roadmap-appendix/
+  // phase4.md §6.1), drafted first, since it waits on no outside service; once per order.
   'sales.order.confirmed': {
     ordering: 'every',
     handle: async (event, ctx) => {
+      await handleProjectDraft(event, ctx);
       const { handleOrderConfirmed } = await import('../messaging/milestones');
       await handleOrderConfirmed(event, ctx);
     },

@@ -104,6 +104,11 @@ import {
   BIN_KINDS,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // J1 projects
+  MILESTONE_STATES,
+  PROJECT_FLOWS,
+  PROJECT_STATES,
+  SUBSIDY_SCHEMES,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
@@ -608,6 +613,17 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return catalogue.category(value);
       case 'itemUnit':
         return catalogue.unit(value);
+      // J1 projects
+      case 'projectState':
+        return oneOf(PROJECT_STATES, value) ? t(`values.projectState.${value}`) : wordsOf(value);
+      case 'projectFlow':
+        return oneOf(PROJECT_FLOWS, value) ? t(`values.projectFlow.${value}`) : wordsOf(value);
+      case 'milestoneState':
+        return oneOf(MILESTONE_STATES, value)
+          ? t(`values.milestoneState.${value}`)
+          : wordsOf(value);
+      case 'subsidyScheme':
+        return oneOf(SUBSIDY_SCHEMES, value) ? t(`values.subsidyScheme.${value}`) : wordsOf(value);
       case 'hubKind':
         return oneOf(WAREHOUSE_KINDS, value) ? t(`values.hubKind.${value}`) : wordsOf(value);
       case 'binKind':

@@ -21,6 +21,7 @@ describe('workshop defaults', () => {
           proforma: 'PI',
           challan: 'DC',
           purchase_order: 'PO',
+          project: 'PRJ',
         },
         separator: '/',
         serialDigits: 4,
@@ -30,6 +31,8 @@ describe('workshop defaults', () => {
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       // H1 stock ledger
       stock: { reversalDays: 7 },
+      // J1 projects
+      projects: { standardSteps: ['survey', 'dispatch', 'install', 'commission', 'handover'] },
       crm: {
         dispositions: [
           { key: 1, code: 'interested', label: 'Interested', nextAction: 'callback' },
@@ -210,6 +213,7 @@ describe('workshop defaults', () => {
         whatsappMediaYears: 3,
         askDays: 90,
         callRecordingMonths: 12,
+        projectYears: 8,
       },
     });
   });

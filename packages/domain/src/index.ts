@@ -928,3 +928,14 @@ export {
   recordQuality,
   tierLimit,
 } from './messaging/budget';
+// J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §6.1).
+export { createProject, draftProject } from './commands/projects/create-project';
+export {
+  cancelProject,
+  completeMilestone,
+  completeProject,
+  holdProject,
+  resumeProject,
+} from './commands/projects/move-project';
+export { assignProject } from './commands/projects/assign-project';
+export { publishProjectTemplate } from './commands/projects/publish-template';

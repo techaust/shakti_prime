@@ -1,4 +1,9 @@
 import type {
+  // J1 projects
+  MilestoneState,
+  ProjectFlow,
+  ProjectSegment,
+  ProjectState,
   // H1 stock ledger
   BinKind,
   EditableBinKind,
@@ -1061,3 +1066,29 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// J1 projects
+/** A project's states, in the order the list's filter offers them. */
+export const PROJECT_STATES = [
+  'active',
+  'on_hold',
+  'completed',
+  'cancelled',
+] as const satisfies readonly ProjectState[];
+
+/** The flows a project follows. */
+export const PROJECT_FLOWS = ['standard', 'surya_ghar'] as const satisfies readonly ProjectFlow[];
+
+/** The segments a project is made for. */
+export const PROJECT_SEGMENTS = [
+  'farmer_pumps',
+  'residential_rooftop',
+  'commercial_epc',
+] as const satisfies readonly ProjectSegment[];
+
+/** A step's states. */
+export const MILESTONE_STATES = [
+  'open',
+  'done',
+  'skipped',
+] as const satisfies readonly MilestoneState[];

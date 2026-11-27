@@ -564,7 +564,15 @@
     "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
-    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it."
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "project_missing": "We couldn't find this project. It may belong to another company, or you may not be on it.",
+    "project_exists": "This order already has a project. Open it from the order page.",
+    "project_order_not_confirmed": "Only a confirmed order can have a project. Confirm the order first.",
+    "project_segment_missing": "Choose the business line for this project before you start it.",
+    "project_subsidy_flow": "This project follows the PM Surya Ghar subsidy steps, so it can't be changed here.",
+    "milestone_missing": "We couldn't find this step on the project. Refresh the page to see its steps.",
+    "project_person_outside": "Everyone on a project must work for its company. Choose people from this company.",
+    "project_template_changed": "Someone published these steps a moment ago. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -1991,7 +1999,16 @@
       "binArchive": "Bin archived",
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
-      "stockReverse": "Stock movement reversed"
+      "stockReverse": "Stock movement reversed",
+      "projectDraft": "Project started from an order",
+      "projectCreate": "Project started",
+      "milestoneComplete": "Project step done",
+      "projectHold": "Project put on hold",
+      "projectResume": "Project resumed",
+      "projectComplete": "Project completed",
+      "projectCancel": "Project cancelled",
+      "projectAssign": "Project people changed",
+      "projectStepsPublish": "Project steps published"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2056,7 +2073,12 @@
       "vendorArchived": "Vendor archived",
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
-      "stockMoved": "Stock moved"
+      "stockMoved": "Stock moved",
+      "projectDrafted": "Project started",
+      "milestoneCompleted": "Project step done",
+      "projectHeld": "Project put on hold",
+      "projectCompleted": "Project completed",
+      "projectCancelled": "Project cancelled"
     },
     "sheet": {
       "title": "{action}",
@@ -2400,7 +2422,19 @@
       "purchaseUnit": "Unit it is bought in",
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
-      "isStocked": "Kept in stock"
+      "isStocked": "Kept in stock",
+      "projectNo": "Project number",
+      "projectState": "Project status",
+      "scheme": "Subsidy scheme",
+      "flow": "Steps followed",
+      "templateVersionId": "From the published steps",
+      "milestones": "Steps",
+      "holdReason": "Why it is on hold",
+      "milestoneKey": "Step",
+      "milestoneState": "Step status",
+      "ownerId": "Project manager named",
+      "assigneeIds": "People on the project",
+      "steps": "Steps"
     },
     "values": {
       "percent": "{value}%",
@@ -2587,6 +2621,26 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "projectState": {
+        "active": "In progress",
+        "on_hold": "On hold",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "projectFlow": {
+        "standard": "Standard steps",
+        "surya_ghar": "PM Surya Ghar subsidy steps"
+      },
+      "milestoneState": {
+        "open": "To do",
+        "done": "Done",
+        "skipped": "Skipped"
+      },
+      "subsidyScheme": {
+        "none": "No subsidy",
+        "pm_surya_ghar": "PM Surya Ghar",
+        "pm_kusum": "PM-KUSUM"
       }
     }
   },

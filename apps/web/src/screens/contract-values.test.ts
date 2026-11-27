@@ -135,6 +135,11 @@ import {
   StockAdjustmentSchema,
   StockReasonSchema,
   WarehouseKindSchema,
+  // J1 projects
+  MilestoneStateSchema,
+  ProjectFlowSchema,
+  ProjectSegmentSchema,
+  ProjectStateSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -263,6 +268,11 @@ import {
   STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
   STOCK_REASONS as STOCK_REASONS_WEB,
   WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
+  // J1 projects
+  MILESTONE_STATES,
+  PROJECT_FLOWS,
+  PROJECT_SEGMENTS,
+  PROJECT_STATES,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -385,6 +395,11 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // J1 projects
+    expect(PROJECT_STATES).toEqual(ProjectStateSchema.options);
+    expect(PROJECT_FLOWS).toEqual(ProjectFlowSchema.options);
+    expect(PROJECT_SEGMENTS).toEqual(ProjectSegmentSchema.options);
+    expect(MILESTONE_STATES).toEqual(MilestoneStateSchema.options);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

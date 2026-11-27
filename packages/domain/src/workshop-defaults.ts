@@ -11,6 +11,7 @@ import {
   type SubsidyScheme,
   type SupplySource,
 } from '@shakti/contracts';
+import { STANDARD_MILESTONES } from './state-machines/machines/project-standard';
 
 export interface WorkshopDefaults {
   readonly tax: {
@@ -46,6 +47,15 @@ export interface WorkshopDefaults {
   readonly stock: {
     /** Days after a movement within which a person may reverse it (docs/03-roadmap-appendix/phase3.md §10). */
     readonly reversalDays: number;
+  };
+  // J1 projects
+  readonly projects: {
+    /**
+     * The steps a standard project copies when its company has published no checklist for its
+     * segment (docs/03-roadmap-appendix/phase4.md §10, PROJ-2), by key; the screens name each from
+     * the message catalogue (`projects.defaultSteps.*`).
+     */
+    readonly standardSteps: readonly string[];
   };
   readonly crm: {
     readonly dispositions: readonly {
@@ -101,6 +111,11 @@ export interface WorkshopDefaults {
      * call and its file's row (BLUEPRINT §7.9, docs/03-roadmap-appendix/phase2.md §6.3). At least 1.
      */
     readonly callRecordingMonths: number;
+    /**
+     * J1: years a project, its checklist and the people on it are kept after it was completed or
+     * cancelled (BLUEPRINT §7.9 keeps financial records and sales orders 8 years); then archived.
+     */
+    readonly projectYears: number;
   };
 }
 
@@ -255,6 +270,8 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
       proforma: 'PI',
       challan: 'DC',
       purchase_order: 'PO',
+      // J1: the design's own code for a project (docs/03-roadmap-appendix/phase4.md §5).
+      project: 'PRJ',
     },
     separator: '/',
     serialDigits: 4,
@@ -285,6 +302,15 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   stock: {
     /** Phase 3 design §10: a movement made in error is reversed within seven days. For STOCK-1. */
     reversalDays: 7,
+  },
+  // J1 projects
+  projects: {
+    /**
+     * Phase 4 design §10 (PROJ-2): survey, dispatch, install, commission and handover
+     * (BLUEPRINT §8.5), until the client gives the steps per segment; an Executive publishes the
+     * company's own on Settings › Project steps.
+     */
+    standardSteps: STANDARD_MILESTONES,
   },
   crm: {
     /**
@@ -562,5 +588,10 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * (phase 2 design §13, question 10).
      */
     callRecordingMonths: 12,
+    /**
+     * J1: a project is kept as its order is, 8 years after it ended (BLUEPRINT §7.9's financial
+     * records and sales orders), a named default pending the CA (phase 4 design §5).
+     */
+    projectYears: 8,
   },
 };
