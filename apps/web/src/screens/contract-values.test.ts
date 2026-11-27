@@ -128,6 +128,10 @@ import {
   UserStatusSchema,
   COST_PERMISSIONS,
   SCOPES,
+  // H3 stock counts
+  StockCountLineStateSchema,
+  StockCountScopeSchema,
+  StockCountStateSchema,
   // H1 stock ledger
   BinKindSchema,
   EditableBinKindSchema,
@@ -256,6 +260,10 @@ import {
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
+  // H3 stock counts
+  STOCK_COUNT_LINE_STATES,
+  STOCK_COUNT_SCOPES,
+  STOCK_COUNT_STATES,
   // H1 stock ledger
   BIN_KINDS as BIN_KINDS_WEB,
   EDITABLE_BIN_KINDS as EDITABLE_BIN_KINDS_WEB,
@@ -385,6 +393,10 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // H3 stock counts
+    expect(STOCK_COUNT_STATES).toEqual(StockCountStateSchema.options);
+    expect(STOCK_COUNT_SCOPES).toEqual(StockCountScopeSchema.options);
+    expect(STOCK_COUNT_LINE_STATES).toEqual(StockCountLineStateSchema.options);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

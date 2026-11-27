@@ -1,4 +1,8 @@
 import type {
+  // H3 stock counts
+  StockCountLineState,
+  StockCountScope,
+  StockCountState,
   // H1 stock ledger
   BinKind,
   EditableBinKind,
@@ -1061,3 +1065,23 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// H3 stock counts
+/** A stock count's states (the `stock-count` machine), in the order a count moves. */
+export const STOCK_COUNT_STATES = [
+  'open',
+  'counting',
+  'review',
+  'posted',
+  'cancelled',
+] as const satisfies readonly StockCountState[];
+
+/** What a count covers. */
+export const STOCK_COUNT_SCOPES = ['hub', 'bins', 'items'] as const satisfies readonly StockCountScope[];
+
+/** Where an item in a bin stands for its counter. */
+export const STOCK_COUNT_LINE_STATES = [
+  'to_count',
+  'counted',
+  'recount',
+] as const satisfies readonly StockCountLineState[];

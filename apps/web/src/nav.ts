@@ -305,6 +305,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Hubs and bins are read with inventory.stock.read; changes need it for every company.
     requires: [{ key: 'inventory.stock.read', scope: 'entity' }],
   },
+  // H3 stock counts: Inventory › Stock counts.
+  {
+    id: 'inventory-counts',
+    href: '/inventory/counts',
+    label: 'inventoryCounts',
+    icon: Warehouse,
+    group: 'work',
+    // listStockCounts reads a company's counts with inventory.stock.read (or .move) for the
+    // company; counting needs .move and the review .adjust, which their screens ask for.
+    requires: [{ key: 'inventory.stock.read', scope: 'entity' }],
+  },
   {
     id: 'inventory-valuation',
     href: '/inventory/valuation',
