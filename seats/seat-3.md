@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 5
-updated: 2026-11-27T15:13Z
+updated: 2026-11-27T16:54Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -90,3 +90,11 @@ run_file: docs/runs/phase3/calling-hours-clock.md
 wait_for: none
 done_when: report: calling-hours-clock done
 note: moved from seat 2 (lane 5 made no commit in an hour). A fix: no early check. Commit every 20 minutes even while reproducing; now (after 20:30 IST) is inside the failing window, so reproduce first.
+
+lane: 52
+role: build
+branch: feat/h3-stock-counts
+run_file: docs/runs/phase3/h3-stock-counts.md
+wait_for: none
+done_when: report: h3-stock-counts done
+note: continue. The lead read the early check (27-11 17:05 UTC): accepted, decisions 1 to 7 included. Go on to the screens (list, the one-hand counting screen, the review), the count sheet and the journeys; a plain input for serials until U2's scan field merges.
