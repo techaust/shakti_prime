@@ -11,6 +11,14 @@ wait_for: none
 done_when: report: x4-stock-reasons fixes
 note: the one fix round: findings 1, 2 and 3 as the lead's triage under the Review table says. First priority on this seat: U2 and R3 wait on X4.
 
+lane: 13
+role: review
+branch: feat/q1-labels
+run_file: docs/runs/phase3/q1-labels.md
+wait_for: report: q1-labels done
+done_when: review: q1-labels done
+note: Tier B
+
 lane: 55
 role: review
 branch: feat/u2-purchase-orders
@@ -58,14 +66,6 @@ run_file: docs/runs/phase3/demo-data-ist-day.md
 wait_for: none
 done_when: report: demo-data-ist-day done
 note: read the run file's last report first: the failure shows only after 18:30 UTC (00:00 IST). Prepare before then; run the whole web security suite (pnpm --filter web test:security) inside the window, keep the failing assertion's text, and fix what it names. Tier C, no early check.
-
-lane: 13
-role: review
-branch: feat/q1-labels
-run_file: docs/runs/phase3/q1-labels.md
-wait_for: report: q1-labels done
-done_when: review: q1-labels done
-note: Tier B
 
 lane: 21
 role: review
