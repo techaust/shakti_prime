@@ -282,7 +282,7 @@ export const paymentMilestones = pgTable(
     ),
     check(
       'payment_milestones_state_check',
-      sql`${t.state} in ('pending', 'due', 'part_paid', 'paid', 'waived')`,
+      sql`${t.state} in ('pending', 'due', 'part_paid', 'paid', 'waived', 'cancelled')`,
     ),
     // What is paid matches the state: nothing while it waits or is due, part of it, or all of it.
     check(

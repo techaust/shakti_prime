@@ -39,7 +39,7 @@ export default async function OrderPage({ params }: { params: Promise<Params> })
     notFound();
   }
   // The order and its Payments tab (FN1) are read at once; a caller without finance.read sees the
-  // order without the tab.
+  // order without the tab, and the tab's own failure is shown in its place.
   const [order, payments] = await Promise.all([
     getOrder({ entityId, orderId }),
     getOrderPayments({ entityId, orderId }),
@@ -52,7 +52,12 @@ export default async function OrderPage({ params }: { params: Promise<Params> })
       initial={order.data}
       company={companyNames(access)[order.data.entityId] ?? ''}
     >
-      {payments.ok ? <OrderPaymentsPanel initial={payments.data} /> : null}
+      {payments.ok ? (
+        <OrderPaymentsPanel initial={payments.data} />
+      ) : payments.error === 'forbidden' ? null : (
+        // A reader without finance.read sees no tab; any other failure says so (review finding 11).
+        <FailureMessage failure={firstFailure(payments)} />
+      )}
     </OrderScreen>
   ) : (
     <Page

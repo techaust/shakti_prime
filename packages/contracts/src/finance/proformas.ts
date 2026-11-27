@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { QuoteLineDto, QuoteTotalsDto } from '../dto/quote';
 import { EntityIdSchema, IdSchema } from '../ids';
-import { DispatchPaymentGateSchema, PaymentMilestoneDto } from './milestones';
+import {
+  DispatchPaymentGateSchema,
+  PaymentMilestoneDto,
+  PaymentPlanFailureSchema,
+} from './milestones';
 import { StateCodeSchema, SupplyKindSchema } from '../tax/engine';
 
 /**
@@ -71,6 +75,8 @@ export const OrderPaymentsDto = z
     proformas: z.array(ProformaDto),
     /** `open` while a before-dispatch payment is neither paid nor waived. */
     dispatchGate: DispatchPaymentGateSchema,
+    /** Why the platform could not plan its payments, while they are not planned. */
+    planFailure: PaymentPlanFailureSchema.nullable(),
     canIssue: z.boolean(),
     canCancelProforma: z.boolean(),
     canPlan: z.boolean(),

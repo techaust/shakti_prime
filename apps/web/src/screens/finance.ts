@@ -11,6 +11,7 @@ export const MILESTONE_STATE_TONE: Record<PaymentMilestoneState, StatusTone> = {
   part_paid: 'info',
   paid: 'success',
   waived: 'neutral',
+  cancelled: 'neutral',
 };
 
 /** How each state of a proforma reads as a badge. */

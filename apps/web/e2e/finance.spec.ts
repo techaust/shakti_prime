@@ -111,7 +111,7 @@ test.describe('as an Executive, Settings › Payment terms', () => {
     await page.getByLabel('Company', { exact: true }).selectOption({ label: 'RCREF' });
     await page
       .getByLabel('Kind of order', { exact: true })
-      .selectOption({ label: 'Commercial EPC' });
+      .selectOption({ label: 'Commercial solar projects' });
     await expect(rows(page, 'Payments of these terms').getByText('Advance')).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'finance-payment-terms', {

@@ -5433,7 +5433,8 @@
       "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
-      "enquiry_attached": "A customer of your lead in nurture asked again"
+      "enquiry_attached": "A customer of your lead in nurture asked again",
+      "payments_not_planned": "An order's payments could not be planned"
     },
     "settings": {
       "title": "Notification settings",
@@ -5612,6 +5613,10 @@
     "enquiry_attached": {
       "title": "A customer asked again",
       "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
+    },
+    "payments_not_planned": {
+      "title": "Payments not planned",
+      "body": "A confirmed order's payments could not be planned from its payment terms, so it cannot be dispatched yet. Tap to open the order and plan them."
     }
   },
   "orders": {
@@ -6498,6 +6503,10 @@
       "percent": "{percent} %",
       "waitsForLoan": "{rule}, once the loan is {state, select, sanctioned {sanctioned} other {paid out}}",
       "waivedBy": "Waived by {name}: {reason}",
+      "planFailed": {
+        "milestone_amounts_exceed_total": "This order's payments could not be planned: the fixed amounts in its payment terms add up to more than its total. It cannot be dispatched until its payments are planned. Ask an Executive to change the payment terms, then plan them here.",
+        "forbidden": "This order's payments could not be planned when it was confirmed. It cannot be dispatched until its payments are planned. Plan them here."
+      },
       "cancelledBy": "Cancelled by {name}: {reason}",
       "columns": {
         "payment": "Payment",
@@ -6519,7 +6528,8 @@
       "due": "Due",
       "part_paid": "Part paid",
       "paid": "Paid",
-      "waived": "Waived"
+      "waived": "Waived",
+      "cancelled": "Cancelled"
     },
     "proformaState": {
       "issued": "Issued",
@@ -6557,7 +6567,7 @@
       "segment": "Kind of order",
       "current": "Current terms",
       "version": "Version {version}, published {date} by {name}",
-      "defaultTerms": "This company has published no terms for this kind of order, so orders follow the standard terms: half on confirmation and half before dispatch.",
+      "defaultTerms": "This company has published no terms for this kind of order, so its orders follow the standard terms below.",
       "history": "Earlier versions",
       "noHistory": "There are no earlier versions.",
       "edit": "Change terms",
@@ -6577,8 +6587,8 @@
       "removeNamed": "Remove payment {number}",
       "segments": {
         "farmer_pumps": "Farmer pumps",
-        "residential_rooftop": "Residential rooftop",
-        "commercial_epc": "Commercial EPC",
+        "residential_rooftop": "Home rooftop solar",
+        "commercial_epc": "Commercial solar projects",
         "dealer_wholesale": "Dealers and wholesale"
       },
       "dueRules": {

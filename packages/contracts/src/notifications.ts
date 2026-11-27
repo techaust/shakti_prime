@@ -41,6 +41,8 @@ const Count = z.number().int().min(0);
  *   (docs/03-roadmap-appendix/phase2.md §7.4).
  * - `enquiry_attached`: a customer of your lead in nurture asked again, and the enquiry joined
  *   that lead instead of making a new one (CRM-03; not when you added it yourself).
+ * - `payments_not_planned`: the platform could not plan a confirmed order's payments, for the
+ *   people who plan them by hand in its company (FN1).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -57,6 +59,8 @@ export const NOTICE_TYPES = [
   'missed_call',
   // p2-fixes (I1 re-check N2).
   'enquiry_attached',
+  // FN1: the platform could not plan a confirmed order's payments.
+  'payments_not_planned',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -275,6 +279,8 @@ export const NOTICE_EVENT_TYPES = [
   'calls.missed.recorded',
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead.
   'crm.lead.attached',
+  // FN1: an order's payments the platform could not plan.
+  'finance.milestones.plan_failed',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -368,6 +374,15 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       opportunityId: IdSchema,
       nurtured: z.boolean(),
       attachedBy: IdSchema.nullable(),
+    })
+    .strict(),
+  // FN1: a confirmed order's payments the platform could not plan, for Accounts of its company.
+  z
+    .object({
+      event: z.literal('finance.milestones.plan_failed'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      orderId: IdSchema,
     })
     .strict(),
   z

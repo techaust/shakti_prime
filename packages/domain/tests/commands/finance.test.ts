@@ -15,11 +15,12 @@ import {
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  createTestUser,
   principalFor,
   tierId,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { failureOf, runCommand } from '../../src/command/run-command';
@@ -27,11 +28,14 @@ import {
   attachProformaPdf,
   cancelProforma,
   issueProforma,
+  refreshMilestones,
+  settleCancelledOrder,
   planConfirmedMilestones,
   planMilestonesByHand,
   publishPaymentTerms,
   waiveMilestone,
 } from '../../src/commands/finance/index';
+import { notifyEvent } from '../../src/commands/notifications/notify';
 import { istCalendarDate } from '../../src/numbering/financial-year';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { readOrderMilestones, readOrderProformas } from '../../src/queries/finance/finance-dto';
@@ -71,6 +75,18 @@ const madeBy = new Set<string>();
 /** Triggers off for the rest of this migrator transaction only, so test rows can be removed. */
 const withoutTriggers = (tx: (strings: TemplateStringsArray) => PromiseLike<unknown>) =>
   tx`set local session_replication_role = replica`;
+
+/** Removes company 4's payment terms and the milestones planned from them, whatever a test left. */
+async function removeTerms(): Promise<void> {
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      await withoutTriggers(tx);
+      await tx`delete from payment_milestones where template_id in
+                 (select id from payment_milestone_templates where entity_id = ${E})`;
+      await tx`delete from payment_milestone_templates where entity_id = ${E}`;
+    }),
+  );
+}
 
 async function removeFinanceRows(): Promise<void> {
   await asMigrator((m) =>
@@ -309,6 +325,16 @@ describe('finance.proforma.issue (FIN-01)', () => {
     // The module's GST rate and its stored row change after the order was made.
     const today = istCalendarDate(new Date());
     const yesterday = istCalendarDate(new Date(Date.now() - 86_400_000));
+    // Put back whatever the assertions below do (review finding 10).
+    onTestFinished(() =>
+      asMigrator((m) =>
+        m.begin(async (tx) => {
+          await withoutTriggers(tx);
+          await tx`delete from tax_rates where id = ${ids.rateLater}`;
+          await tx`update tax_rates set effective_to = null where id = ${ids.rateModule}`;
+        }),
+      ),
+    );
     await asMigrator((m) =>
       m.begin(async (tx) => {
         await tx`update tax_rates set effective_to = ${yesterday} where id = ${ids.rateModule}`;
@@ -326,13 +352,6 @@ describe('finance.proforma.issue (FIN-01)', () => {
     expect(after.totals).toEqual(before.totals);
     expect(after.lines[0]).toMatchObject({ taxRateId: ids.rateModule, taxRatePct: '12.00' });
     expect(await proformaLines(after.id)).toEqual(await orderLines(orderId));
-    await asMigrator((m) =>
-      m.begin(async (tx) => {
-        await withoutTriggers(tx);
-        await tx`delete from tax_rates where id = ${ids.rateLater}`;
-        await tx`update tax_rates set effective_to = null where id = ${ids.rateModule}`;
-      }),
-    );
   });
 
   it('numbers 20 proformas issued at once with no gap, a refused issue giving its number back', async () => {
@@ -395,6 +414,8 @@ describe('finance.proforma.cancel', () => {
       'finance.proforma.issued',
       'print.document.requested',
       'finance.proforma.cancelled',
+      // Printed again with "Cancelled" across it.
+      'print.document.requested',
     ]);
   });
 });
@@ -510,6 +531,7 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
         loanGate: 'disbursed',
       },
     ];
+    onTestFinished(removeTerms);
     const v1 = await run<MilestoneTemplateDto>(exec, publishPaymentTerms, {
       entityId: E,
       segment: 'dealer_wholesale',
@@ -536,16 +558,10 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
     ]);
     const sum = planned.milestones.reduce((s, m) => s + Math.round(Number(m.amount) * 100), 0);
     expect(sum).toBe(6820900);
-    await asMigrator((m) =>
-      m.begin(async (tx) => {
-        await withoutTriggers(tx);
-        await tx`delete from payment_milestones where sales_order_id = ${orderId}`;
-        await tx`delete from payment_milestone_templates where entity_id = ${E}`;
-      }),
-    );
   });
 
-  it('refuses terms whose fixed amounts pass the order total', async () => {
+  it('refuses terms whose fixed amounts pass the order total by hand; the platform records it, tells Accounts and holds the dispatch', async () => {
+    onTestFinished(removeTerms);
     await run(exec, publishPaymentTerms, {
       entityId: E,
       segment: 'dealer_wholesale',
@@ -575,12 +591,61 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
       code: 'validation_failed',
       reason: 'milestone_amounts_exceed_total',
     });
-    await asMigrator((m) =>
-      m.begin(async (tx) => {
-        await withoutTriggers(tx);
-        await tx`delete from payment_milestone_templates where entity_id = ${E}`;
-      }),
+    // The platform's plan on confirmation is not lost (review finding 3): recorded on the order,
+    // told to Accounts, and the dispatch waits.
+    expect(
+      await run<PlanConfirmedOutcome>(workers(), planConfirmedMilestones, { entityId: E, orderId }),
+    ).toEqual({ outcome: 'failed', count: 0 });
+    expect(await eventsOf(orderId)).toContainEqual({
+      type: 'finance.milestones.plan_failed',
+      payload: { reason: 'milestone_amounts_exceed_total', v: 1 },
+    });
+    const tab = await asPrincipal(accounts, (ctx) =>
+      readOrderPayments(ctx, { entityId: E, orderId }),
     );
+    expect(tab).toMatchObject({
+      planFailure: 'milestone_amounts_exceed_total',
+      dispatchGate: 'open',
+      canPlan: true,
+    });
+    // A repeat records nothing new.
+    expect(
+      await run<PlanConfirmedOutcome>(workers(), planConfirmedMilestones, { entityId: E, orderId }),
+    ).toEqual({ outcome: 'failed', count: 0 });
+    // The Executive changes the terms, Accounts plan the order by hand, and the failure is gone.
+    await run(exec, publishPaymentTerms, {
+      entityId: E,
+      segment: 'dealer_wholesale',
+      steps: [
+        {
+          key: 'whole',
+          label: 'Whole amount',
+          percent: '100.00',
+          amount: null,
+          dueRule: 'on_confirmation',
+          dueDays: null,
+          loanGate: 'none',
+        },
+      ],
+    });
+    await run(accounts, planMilestonesByHand, { entityId: E, orderId });
+    const after = await asPrincipal(accounts, (ctx) =>
+      readOrderPayments(ctx, { entityId: E, orderId }),
+    );
+    expect(after).toMatchObject({ planFailure: null, dispatchGate: 'clear', canPlan: false });
+  });
+
+  it('holds the dispatch of a confirmed order with no payments planned yet, under the standard terms', async () => {
+    const orderId = await order();
+    const tab = await asPrincipal(accounts, (ctx) =>
+      readOrderPayments(ctx, { entityId: E, orderId }),
+    );
+    expect(tab).toMatchObject({ milestones: [], planFailure: null, dispatchGate: 'open' });
+    const draft = await order('draft');
+    const forDraft = await asPrincipal(accounts, (ctx) =>
+      readOrderPayments(ctx, { entityId: E, orderId: draft }),
+    );
+    expect(forDraft.dispatchGate).toBe('clear');
   });
 });
 
@@ -762,7 +827,8 @@ describe('the Payments tab and Settings › Payment terms reads', () => {
       asPrincipal(p, (ctx) => readOrderPayments(ctx, { entityId: E, orderId }));
     const forAccounts = await tab(accounts);
     expect(forAccounts).toMatchObject({
-      dispatchGate: 'clear',
+      // Confirmed with no payments planned: its dispatch waits (review finding 3).
+      dispatchGate: 'open',
       canIssue: false,
       canCancelProforma: true,
       canPlan: true,
@@ -785,5 +851,137 @@ describe('the Payments tab and Settings › Payment terms reads', () => {
     await expect(
       asPrincipal(accounts, (ctx) => listPaymentTerms(ctx, { entityId: E })),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('the platform’s follow-ups of an order (the review of 27-11-2026)', () => {
+  it('cancels a cancelled order’s live proforma and waiting payments, once, and prints the proforma again', async () => {
+    const orderId = await order();
+    const proforma = await run<ProformaDto>(accounts, issueProforma, { entityId: E, orderId });
+    await run(workers(), planConfirmedMilestones, { entityId: E, orderId });
+    // A person refuses nothing here: only the platform settles it, and only in its own company.
+    expect(await failure(accounts, settleCancelledOrder, { entityId: E, orderId })).toMatchObject({
+      code: 'forbidden',
+    });
+    const workers1 = { ...workers(), entityIds: [1] };
+    // The worker acting for company 1: company 4 is outside the request.
+    expect(await failure(workers1, settleCancelledOrder, { entityId: E, orderId })).toMatchObject({
+      code: 'forbidden',
+    });
+    // Still confirmed: nothing to settle.
+    expect(await run(workers(), settleCancelledOrder, { entityId: E, orderId })).toEqual({
+      proformaId: null,
+      milestones: 0,
+    });
+    await asMigrator(
+      (m) => m`update sales_orders set state = 'cancelled', cancel_reason = 'The customer withdrew'
+                where id = ${orderId}`,
+    );
+    expect(await run(workers(), settleCancelledOrder, { entityId: E, orderId })).toEqual({
+      proformaId: proforma.id,
+      milestones: 2,
+    });
+    expect(await run(workers(), settleCancelledOrder, { entityId: E, orderId })).toEqual({
+      proformaId: null,
+      milestones: 0,
+    });
+    const [after] = await asPrincipal(accounts, (ctx) => readOrderProformas(ctx, E, orderId));
+    expect(after).toMatchObject({ state: 'cancelled', cancelReason: 'The customer withdrew' });
+    const milestones = await asPrincipal(accounts, (ctx) => readOrderMilestones(ctx, E, orderId));
+    expect(milestones.map((m) => m.state)).toEqual(['cancelled', 'cancelled']);
+    expect((await eventsOf(proforma.id)).map((e) => e.type)).toEqual([
+      'finance.proforma.issued',
+      'print.document.requested',
+      'finance.proforma.cancelled',
+      'print.document.requested',
+    ]);
+  });
+
+  it('offers a cancelled proforma’s PDF only once it is printed “Cancelled”', async () => {
+    const orderId = await order();
+    const proforma = await run<ProformaDto>(accounts, issueProforma, { entityId: E, orderId });
+    await run(workers(), attachProformaPdf, {
+      entityId: E,
+      proformaId: proforma.id,
+      fileId: await renderedFile(),
+    });
+    await run(accounts, cancelProforma, {
+      entityId: E,
+      proformaId: proforma.id,
+      reason: 'Wrong address',
+    });
+    const read = async () =>
+      (await asPrincipal(accounts, (ctx) => readOrderProformas(ctx, E, orderId)))[0]?.pdfFileId;
+    expect(await read()).toBeNull();
+    const reprint = await renderedFile();
+    await run(workers(), attachProformaPdf, {
+      entityId: E,
+      proformaId: proforma.id,
+      fileId: reprint,
+    });
+    expect(await read()).toBe(reprint);
+  });
+
+  it('brings a waiting payment due once its loan no longer holds it, and leaves the others waiting', async () => {
+    const orderId = await order();
+    const [owner] = await asMigrator(
+      (m) => m<{ created_by: string }[]>`select created_by from sales_orders where id = ${orderId}`,
+    );
+    const held = newId();
+    const balance = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into payment_milestones (id, entity_id, sales_order_id, seq, key, label, percent,
+                 amount, due_rule, loan_gate, state, created_by) values
+               (${held}, ${E}, ${orderId}, 1, 'advance', 'Advance', 50, 34105.00, 'on_confirmation',
+                'sanctioned', 'pending', ${owner?.created_by ?? ''}),
+               (${balance}, ${E}, ${orderId}, 2, 'balance', 'Balance', 50, 34104.00, 'before_dispatch',
+                'none', 'pending', ${owner?.created_by ?? ''})`,
+    );
+    expect(await failure(accounts, refreshMilestones, { entityId: E, orderId })).toMatchObject({
+      code: 'forbidden',
+    });
+    // The worker acting for company 1: company 4 is outside the request.
+    expect(
+      await failure({ ...workers(), entityIds: [1] }, refreshMilestones, { entityId: E, orderId }),
+    ).toMatchObject({ code: 'forbidden' });
+    // The loan stand-in answers that the order has no loan, so nothing holds the advance.
+    expect(await run(workers(), refreshMilestones, { entityId: E, orderId })).toEqual({
+      fellDue: 1,
+    });
+    expect(await run(workers(), refreshMilestones, { entityId: E, orderId })).toEqual({
+      fellDue: 0,
+    });
+    const milestones = await asPrincipal(accounts, (ctx) => readOrderMilestones(ctx, E, orderId));
+    expect(milestones.map((m) => [m.key, m.state, m.dueOn])).toEqual([
+      ['advance', 'due', istCalendarDate(new Date())],
+      ['balance', 'pending', null],
+    ]);
+  });
+
+  it('tells the company’s Accounts that an order’s payments could not be planned', async () => {
+    const orderId = await order();
+    const person = await createTestUser([{ entityId: E, roleKey: 'accounts' }]);
+    const other = await createTestUser([{ entityId: E, roleKey: 'tele_caller_cc' }]);
+    await asMigrator(
+      (
+        m,
+      ) => m`update sales_orders set payment_plan_failure = 'forbidden', payment_plan_failed_at = now()
+                where id = ${orderId}`,
+    );
+    const batch = await run<{ notices: unknown[] }>(workers(), notifyEvent, {
+      event: 'finance.milestones.plan_failed',
+      entityId: E,
+      eventId: newId(),
+      orderId,
+    });
+    expect(batch.notices.length).toBeGreaterThanOrEqual(1);
+    const told = await asMigrator(
+      (m) => m<{ user_id: string }[]>`select user_id from notifications
+                                       where type = 'payments_not_planned' and subject_id = ${orderId}`,
+    );
+    expect(told.map((r) => r.user_id)).toContain(person.id);
+    expect(told.map((r) => r.user_id)).not.toContain(other.id);
   });
 });

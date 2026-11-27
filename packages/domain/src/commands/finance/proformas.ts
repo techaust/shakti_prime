@@ -233,6 +233,14 @@ export const cancelProforma = defineCommand({
       aggregateId: row.id,
       payload: { orderId: row.salesOrderId },
     });
+    // Printed again with "Cancelled" across it, so the copy people open says so (review finding 5).
+    ctx.emit({
+      type: 'print.document.requested',
+      entityId: row.entityId,
+      aggregateType: 'proforma',
+      aggregateId: row.id,
+      payload: { documentType: 'proforma', documentId: row.id, version: 2 },
+    });
     return readProforma(ctx, row.entityId, row.salesOrderId, row.id);
   },
 });

@@ -217,6 +217,8 @@ The owner decided all eleven on 27-11-2026, each the recommended option (a).
 - `app.order_dispatch_payment_gate()` for D2's `depart` guard (`payment_milestone_open`); `app.order_loan_gate()` read for a loan-gated step.
 - The proforma PDF in the print registry (`apps/web/src/print/proforma-template.ts`): the letterhead, lines with HSN, the tax split, the total in words, the order's payments, the bank account and the UPI ID.
 - Screens: the order page's Payments tab and Settings › Payment terms (`/settings/payment-terms`).
+- After the review: a platform plan that fails is recorded on the order (`sales_orders.payment_plan_failure`), Accounts are told (`payments_not_planned`) and the dispatch's payment gate holds the order until it is planned; a cancelled order's live proforma and waiting milestones are cancelled with it (`finance.order.settle_cancelled` on `sales.order.cancelled`); a cancelled proforma's PDF is printed again with "Cancelled" across it; a held milestone falls due when its loan moves (`finance.milestone.refresh`, subscribed to J2's loan events at the merge with J2).
+- **Follow-ups:** FN3's reminders chase only the milestones of open orders (a cancelled order's are `cancelled`).
 
 ### 6.2 TC1 The Tally connector
 - **`apps/tally-connector`**, in Node 24 and TypeScript:
@@ -336,7 +338,7 @@ The owner decided all eleven on 27-11-2026, each the recommended option (a).
 
 ## 10. Workshop defaults
 - **`finance`:**
-  - milestones 50 % on confirmation and 50 % before dispatch;
+  - milestones 50 % on confirmation and 50 % before dispatch, named "Advance" and "Balance" (workshop data like the call outcomes: the names are stored on each order's milestones and printed on its proforma, and Settings › Payment terms shows them as the standard terms);
   - reminders on the due date, after 3 days and after 7 days;
   - ageing buckets 30, 60 and 90 days;
   - the snapshot limits of `DEFAULT_SNAPSHOT_LIMITS`;

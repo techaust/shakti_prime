@@ -471,6 +471,9 @@ const eventCatalogue = {
       'sales.quote.requote',
       // FN1: a proforma's PDF.
       'finance.proforma.issue',
+      // FN1: a cancelled proforma's PDF, printed again with "Cancelled" across it.
+      'finance.proforma.cancel',
+      'finance.order.settle_cancelled',
     ],
     subscribed: true,
     payload: z
@@ -774,9 +777,10 @@ const eventCatalogue = {
   },
   'sales.order.cancelled': {
     meaning:
-      "A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it.",
+      "A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. The platform cancels its live proforma and its waiting payments.",
     emittedBy: ['sales.order.cancel'],
-    subscribed: false,
+    // FN1: the platform cancels the order's live proforma and its waiting payments.
+    subscribed: true,
     payload: z
       .object({
         accountId: IdSchema,
@@ -846,7 +850,7 @@ const eventCatalogue = {
   },
   'finance.proforma.cancelled': {
     meaning: 'A proforma was cancelled with a reason; its number stays used.',
-    emittedBy: ['finance.proforma.cancel'],
+    emittedBy: ['finance.proforma.cancel', 'finance.order.settle_cancelled'],
     subscribed: false,
     payload: z.object({ orderId: IdSchema }).strict(),
   },
@@ -862,6 +866,13 @@ const eventCatalogue = {
         templateVersion: z.number().int().min(1).nullable(),
       })
       .strict(),
+  },
+  'finance.milestones.plan_failed': {
+    meaning:
+      "The platform could not plan a confirmed order's payments (`reason`: the terms' fixed amounts pass its total, or a loan's gate could not be read); Accounts are told, and its dispatch waits until they are planned.",
+    emittedBy: ['finance.milestone.plan_confirmed'],
+    subscribed: true,
+    payload: z.object({ reason: z.enum(['milestone_amounts_exceed_total', 'forbidden']) }).strict(),
   },
   'finance.milestone.waived': {
     meaning: 'The Executive waived a payment milestone of an order, with a reason.',

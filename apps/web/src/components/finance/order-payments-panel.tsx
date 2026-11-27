@@ -86,7 +86,7 @@ export function OrderPaymentsPanel({ initial }: { initial: OrderPaymentsDto }) {
           ) : null}
         </div>
       </div>
-      {view.milestones.length === 0 ? null : (
+      {view.milestones.length === 0 && view.dispatchGate === 'clear' ? null : (
         <p>
           <StatusBadge tone={view.dispatchGate === 'open' ? 'warning' : 'success'}>
             {view.dispatchGate === 'open' ? t('tab.dispatchOpen') : t('tab.dispatchClear')}
@@ -94,6 +94,11 @@ export function OrderPaymentsPanel({ initial }: { initial: OrderPaymentsDto }) {
         </p>
       )}
       <FailureMessage failure={issue.failure ?? plan.failure ?? pdf.failure ?? failure} />
+      {view.planFailure === null ? null : (
+        <p role="status" className="border-warning bg-warning-soft rounded-lg border p-3">
+          {t(`tab.planFailed.${view.planFailure}`)}
+        </p>
+      )}
 
       {view.milestones.length === 0 ? (
         <p className="text-text-muted">

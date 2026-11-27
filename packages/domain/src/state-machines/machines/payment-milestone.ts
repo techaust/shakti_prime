@@ -7,9 +7,10 @@ export const PAYMENT_MILESTONE_MACHINE_STATES = [
   'part_paid',
   'paid',
   'waived',
+  'cancelled',
 ] as const;
 export type PaymentMilestoneMachineState = (typeof PAYMENT_MILESTONE_MACHINE_STATES)[number];
-export type PaymentMilestoneEvent = 'plan' | 'fall_due' | 'pay_part' | 'pay' | 'waive';
+export type PaymentMilestoneEvent = 'plan' | 'fall_due' | 'pay_part' | 'pay' | 'waive' | 'cancel';
 
 /** What the milestone commands preload for the guards. */
 export interface PaymentMilestoneRecord {
@@ -55,10 +56,11 @@ export const paymentMilestoneMachine = defineMachine<
   ],
   states: PAYMENT_MILESTONE_MACHINE_STATES,
   initial: 'pending',
-  terminal: ['paid', 'waived'],
+  terminal: ['paid', 'waived', 'cancelled'],
   stateNotes: {
     pending: 'Waits for its due rule, or for a customer loan that holds it back.',
     part_paid: 'Tally receipts paid part of it (TC3).',
+    cancelled: 'Its order was cancelled while it still waited for money.',
   },
   stored: { table: 'payment_milestones', stateColumn: 'state' },
   transitions: [
@@ -87,7 +89,7 @@ export const paymentMilestoneMachine = defineMachine<
       system: true,
       guard: fallsDue,
       effects: [{ key: 'set_due_on', description: 'record the day it fell due (IST)' }],
-      note: 'An on-confirmation milestone falls due as it is planned; the dispatch (D2), the installation and the Tally invoice (TC3) bring the others due.',
+      note: "An on-confirmation milestone falls due as it is planned, or when the order's loan reaches the state it waits for (`finance.milestone.refresh` on the loan's events); the dispatch (D2), the installation and the Tally invoice (TC3) bring the others due.",
     },
     {
       from: ['pending', 'due', 'part_paid'],
@@ -121,6 +123,15 @@ export const paymentMilestoneMachine = defineMachine<
             'keep who waived it, when and why (audited); a dispatch no longer waits for it',
         },
       ],
+    },
+    {
+      from: ['pending', 'due', 'part_paid'],
+      event: 'cancel',
+      to: 'cancelled',
+      permission: null,
+      system: true,
+      note: 'The platform, when its order is cancelled (`finance.order.settle_cancelled` on `sales.order.cancelled`).',
+      proposed: true,
     },
   ],
 });

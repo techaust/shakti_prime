@@ -84,10 +84,17 @@ export const proformaMachine = defineMachine<
       to: 'cancelled',
       permission: 'finance.proforma.write',
       scope: 'entity',
+      // The platform too, when the proforma's order is cancelled (`finance.order.settle_cancelled`).
+      system: true,
       guard: reasonGiven(),
       emits: 'finance.proforma.cancelled',
       effects: [
         { key: 'keep_number', description: 'the number stays used; the series never reuses it' },
+        {
+          key: 'reprint',
+          description:
+            'the PDF is printed again with "Cancelled" across it, and replaces the live one',
+        },
       ],
     },
   ],

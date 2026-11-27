@@ -31,8 +31,18 @@ export const MILESTONE_LOAN_GATES = ['none', 'sanctioned', 'disbursed'] as const
 export const MilestoneLoanGateSchema = z.enum(MILESTONE_LOAN_GATES);
 export type MilestoneLoanGate = z.infer<typeof MilestoneLoanGateSchema>;
 
-/** The `payment-milestone` machine's states (`payment_milestones.state`). */
-export const PAYMENT_MILESTONE_STATES = ['pending', 'due', 'part_paid', 'paid', 'waived'] as const;
+/**
+ * The `payment-milestone` machine's states (`payment_milestones.state`); `cancelled` when its
+ * order was cancelled while it still waited for money.
+ */
+export const PAYMENT_MILESTONE_STATES = [
+  'pending',
+  'due',
+  'part_paid',
+  'paid',
+  'waived',
+  'cancelled',
+] as const;
 export const PaymentMilestoneStateSchema = z.enum(PAYMENT_MILESTONE_STATES);
 export type PaymentMilestoneState = z.infer<typeof PaymentMilestoneStateSchema>;
 
@@ -185,7 +195,7 @@ export type PlannedMilestonesDto = z.infer<typeof PlannedMilestonesDto>;
 /** What the platform's planning answers: what it did, never the amounts (it reads no order). */
 export const PlanConfirmedOutcome = z
   .object({
-    outcome: z.enum(['planned', 'already_planned', 'not_confirmed']),
+    outcome: z.enum(['planned', 'already_planned', 'not_confirmed', 'failed']),
     count: z.number().int().min(0).max(10),
   })
   .strict();
@@ -199,6 +209,30 @@ export type PlanConfirmedOutcome = z.infer<typeof PlanConfirmedOutcome>;
 export const DISPATCH_PAYMENT_GATES = ['clear', 'open'] as const;
 export const DispatchPaymentGateSchema = z.enum(DISPATCH_PAYMENT_GATES);
 export type DispatchPaymentGate = z.infer<typeof DispatchPaymentGateSchema>;
+
+/**
+ * Why the platform could not plan an order's payments (`sales_orders.payment_plan_failure`): the
+ * terms' fixed amounts pass the order's total, or a customer loan's gate could not be read.
+ */
+export const PAYMENT_PLAN_FAILURES = ['milestone_amounts_exceed_total', 'forbidden'] as const;
+export const PaymentPlanFailureSchema = z.enum(PAYMENT_PLAN_FAILURES);
+export type PaymentPlanFailure = z.infer<typeof PaymentPlanFailureSchema>;
+
+/** The platform's follow-ups of one order: its cancellation, or its loan's move. */
+export const OrderRefInput = z.object({ entityId: EntityIdSchema, orderId: IdSchema }).strict();
+export type OrderRefInput = z.input<typeof OrderRefInput>;
+
+/** What `finance.order.settle_cancelled` did: the proforma cancelled, if any, and the payments. */
+export const SettleCancelledOrderOutcome = z
+  .object({ proformaId: IdSchema.nullable(), milestones: z.number().int().min(0).max(10) })
+  .strict();
+export type SettleCancelledOrderOutcome = z.infer<typeof SettleCancelledOrderOutcome>;
+
+/** What `finance.milestone.refresh` did: how many waiting payments fell due. */
+export const RefreshMilestonesOutcome = z
+  .object({ fellDue: z.number().int().min(0).max(10) })
+  .strict();
+export type RefreshMilestonesOutcome = z.infer<typeof RefreshMilestonesOutcome>;
 
 /** The order page's Payments tab: one order of a company. */
 export const OrderPaymentsInput = z

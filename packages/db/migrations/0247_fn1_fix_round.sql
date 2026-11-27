@@ -1,0 +1,10 @@
+ALTER TABLE "notification_preferences" DROP CONSTRAINT "notification_preferences_type_check";--> statement-breakpoint
+ALTER TABLE "notifications" DROP CONSTRAINT "notifications_type_check";--> statement-breakpoint
+ALTER TABLE "payment_milestones" DROP CONSTRAINT "payment_milestones_state_check";--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD COLUMN "payment_plan_failure" text;--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD COLUMN "payment_plan_failed_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "notification_preferences" ADD CONSTRAINT "notification_preferences_type_check" CHECK ("notification_preferences"."type" is null or "notification_preferences"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached', 'payments_not_planned')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_type_check" CHECK ("notifications"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached', 'payments_not_planned')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "payment_milestones" ADD CONSTRAINT "payment_milestones_state_check" CHECK ("payment_milestones"."state" in ('pending', 'due', 'part_paid', 'paid', 'waived', 'cancelled')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "sales_orders" ADD CONSTRAINT "sales_orders_payment_plan_failure_check" CHECK (("sales_orders"."payment_plan_failure" is null) = ("sales_orders"."payment_plan_failed_at" is null)
+       and ("sales_orders"."payment_plan_failure" is null or "sales_orders"."payment_plan_failure" in ('milestone_amounts_exceed_total', 'forbidden'))) NOT VALID;

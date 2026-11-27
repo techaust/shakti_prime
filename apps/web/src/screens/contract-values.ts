@@ -1101,6 +1101,7 @@ export const PAYMENT_MILESTONE_STATES = [
   'part_paid',
   'paid',
   'waived',
+  'cancelled',
 ] as const satisfies readonly PaymentMilestoneState[];
 /** The states of a payment still waiting for money, which the Executive may waive. */
 export const OPEN_MILESTONE_STATES = [

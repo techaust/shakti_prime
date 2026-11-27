@@ -8,6 +8,7 @@ import {
   PlannedMilestonesDto,
   WaiveMilestoneInput,
   type MilestoneStep,
+  type PaymentPlanFailure,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq, sql } from 'drizzle-orm';
@@ -200,6 +201,26 @@ async function planOrder(
 const PLAN_AUDIT_FIELDS = ['label', 'milestoneAmount', 'state', 'dueOn'];
 
 /**
+ * Why a plan the platform tried was refused, when it is one it records on the order: the terms'
+ * fixed amounts pass the order's total, or the order's loan gate refused the platform (SQLSTATE
+ * 42501, a loan definer that does not answer it). Anything else is thrown again.
+ */
+function planFailureOf(error: unknown): PaymentPlanFailure | undefined {
+  if (
+    error instanceof DomainError &&
+    error.code === 'validation_failed' &&
+    error.details?.reason === 'milestone_amounts_exceed_total'
+  ) {
+    return 'milestone_amounts_exceed_total';
+  }
+  for (let e: unknown = error, depth = 0; e !== null && e !== undefined && depth < 5; depth += 1) {
+    if (typeof e === 'object' && 'code' in e && e.code === '42501') return 'forbidden';
+    e = typeof e === 'object' && 'cause' in e ? e.cause : undefined;
+  }
+  return undefined;
+}
+
+/**
  * `finance.milestone.plan`: Accounts plan a confirmed order's milestones by hand, where the
  * platform has not (an order confirmed before the terms existed, or a planning that failed).
  * `milestones_already_planned` once it has them. People only.
@@ -264,7 +285,7 @@ export const planConfirmedMilestones = defineCommand({
   minScope: 'entity',
   input: PlanMilestonesInput,
   output: PlanConfirmedOutcome,
-  auditFields: PLAN_AUDIT_FIELDS,
+  auditFields: [...PLAN_AUDIT_FIELDS, 'paymentPlanFailure'],
   auditWhen: 'changed',
   constraintReasons: {
     payment_milestones_order_seq_unique: 'milestones_already_planned',
@@ -275,10 +296,36 @@ export const planConfirmedMilestones = defineCommand({
     const facts = await milestoneFacts(ctx, input.orderId);
     if (facts.planned) return { outcome: 'already_planned' as const, count: 0 };
     if (!PLANNABLE.includes(facts.state)) return { outcome: 'not_confirmed' as const, count: 0 };
-    const result = await planOrder(ctx, facts, {
-      kind: 'system',
-      job: 'finance.milestone.plan_confirmed',
-    });
+    let result: PlanResult;
+    try {
+      // In a savepoint, so a refused plan leaves the transaction usable to record why.
+      result = await ctx.savepoint(() =>
+        planOrder(ctx, facts, { kind: 'system', job: 'finance.milestone.plan_confirmed' }),
+      );
+    } catch (error) {
+      const reason = planFailureOf(error);
+      if (reason === undefined) throw error;
+      // Kept on the order, Accounts told, and its dispatch held until they plan it by hand: a
+      // delivered event is not delivered again, so the failure must not be lost.
+      const [row] = (await ctx.tx.execute(
+        sql`select app.record_order_milestone_failure(${facts.orderId}::uuid, ${reason}) as recorded`,
+      )) as unknown as { recorded: boolean }[];
+      if (row?.recorded !== true) return { outcome: 'not_confirmed' as const, count: 0 };
+      ctx.audit({
+        aggregateType: 'sales_order',
+        aggregateId: facts.orderId,
+        entityId: facts.entityId,
+        after: { paymentPlanFailure: reason },
+      });
+      ctx.emit({
+        type: 'finance.milestones.plan_failed',
+        entityId: facts.entityId,
+        aggregateType: 'sales_order',
+        aggregateId: facts.orderId,
+        payload: { reason },
+      });
+      return { outcome: 'failed' as const, count: 0 };
+    }
     ctx.emit({
       type: 'finance.milestones.planned',
       entityId: facts.entityId,

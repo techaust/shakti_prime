@@ -36,6 +36,8 @@ export function noticeHref(notice: NoticeLinkFacts): Route {
     case 'enquiry_routed':
       return '/inbox';
     case 'order_credit_held':
+    // FN1: the order whose payments are to be planned, where its Payments tab is.
+    case 'payments_not_planned':
       return orderHref(notice.entityId, notice.subjectId);
     case 'whatsapp_reply_waiting':
       return messagesHref(notice.entityId, notice.subjectId);

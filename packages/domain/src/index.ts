@@ -936,6 +936,8 @@ export {
 export {
   attachProformaPdf,
   cancelProforma,
+  refreshMilestones,
+  settleCancelledOrder,
   issueProforma,
   planConfirmedMilestones,
   planMilestonesByHand,

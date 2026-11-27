@@ -43,6 +43,9 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
       };
     case 'sales.order.credit_held':
       return { ...base, event: 'sales.order.credit_held', orderId: event.aggregateId };
+    // FN1: an order's payments the platform could not plan.
+    case 'finance.milestones.plan_failed':
+      return { ...base, event: 'finance.milestones.plan_failed', orderId: event.aggregateId };
     case 'sales.quote.accepted':
       return {
         ...base,

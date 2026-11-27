@@ -32,7 +32,9 @@ describe('payment terms on screen', () => {
 
   it('lets only a payment still waiting for money be waived', () => {
     expect(
-      ['pending', 'due', 'part_paid', 'paid', 'waived'].map((s) => milestoneOpen(s as 'due')),
-    ).toEqual([true, true, true, false, false]);
+      ['pending', 'due', 'part_paid', 'paid', 'waived', 'cancelled'].map((s) =>
+        milestoneOpen(s as 'due'),
+      ),
+    ).toEqual([true, true, true, false, false, false]);
   });
 });

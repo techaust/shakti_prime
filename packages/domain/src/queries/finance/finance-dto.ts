@@ -33,6 +33,21 @@ function proformaLineDto(line: ProformaLineRow): QuoteLineDto {
 
 const iso = (at: Date | null): string | null => (at === null ? null : at.toISOString());
 
+/**
+ * The PDF a proforma's reader may open: the live one, or, once cancelled, only one printed at or
+ * after the cancel, which says "Cancelled" across it (review finding 5); null while it is printed.
+ */
+function currentPdf(row: {
+  state: string;
+  pdfFileId: string | null;
+  pdfAt: Date | null;
+  cancelledAt: Date | null;
+}): string | null {
+  if (row.pdfFileId === null || row.pdfAt === null) return null;
+  if (row.state !== 'cancelled') return row.pdfFileId;
+  return row.cancelledAt !== null && row.pdfAt >= row.cancelledAt ? row.pdfFileId : null;
+}
+
 /** An order's proformas, newest first, as the caller reads them (finance.read over the order). */
 export async function readOrderProformas(
   ctx: FinanceReadContext,
@@ -44,6 +59,7 @@ export async function readOrderProformas(
   const p = schema.proformas;
   const so = schema.salesOrders;
   const issuer = alias(schema.principals, 'issuer');
+  const f = schema.files;
   const canceller = alias(schema.principals, 'canceller');
   const rows = await ctx.tx
     .select({
@@ -51,11 +67,13 @@ export async function readOrderProformas(
       soNo: so.soNo,
       issuedByName: issuer.displayName,
       cancelledByName: canceller.displayName,
+      pdfAt: f.createdAt,
     })
     .from(p)
     .innerJoin(so, eq(so.id, p.salesOrderId))
     .leftJoin(issuer, eq(issuer.id, p.createdBy))
     .leftJoin(canceller, eq(canceller.id, p.cancelledBy))
+    .leftJoin(f, eq(f.id, p.pdfFileId))
     .where(
       and(
         eq(p.salesOrderId, orderId),
@@ -94,7 +112,7 @@ export async function readOrderProformas(
         },
         issuedAt: row.createdAt.toISOString(),
         issuedByName: row.issuedByName,
-        pdfFileId: row.pdfFileId,
+        pdfFileId: currentPdf(row),
         cancelledAt: iso(row.cancelledAt),
         cancelledByName: row.cancelledByName,
         cancelReason: row.cancelReason,

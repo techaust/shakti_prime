@@ -183,6 +183,22 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         },
       ];
     }
+    case 'finance.milestones.plan_failed': {
+      // FN1: the people who plan an order's payments by hand in its company, while the failure
+      // stands; one notice per failure.
+      const people = (await ctx.tx.execute(
+        sql`select user_id, account_id
+              from app.notice_finance_people(${input.entityId}::smallint, ${input.orderId}::uuid)`,
+      )) as unknown as { user_id: string; account_id: string }[];
+      return people.map((p) => ({
+        userId: p.user_id,
+        type: 'payments_not_planned',
+        subjectType: 'sales_order',
+        subjectId: input.orderId,
+        payload: { accountId: p.account_id },
+        dedupeKey: `payments_not_planned:${input.eventId}`,
+      }));
+    }
     case 'calls.missed.recorded': {
       // The owner of the lead the missed call made or joined, while the lead is still theirs; one
       // notice per call however often the event is delivered.

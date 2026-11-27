@@ -93,6 +93,8 @@ export const EVENT_JOB_ROUTES: Readonly<
   'calls.missed.recorded': { path: NOTIFY_PATH, body: (event) => event },
   // p2-fixes (I1 re-check N2).
   'crm.lead.attached': { path: NOTIFY_PATH, body: (event) => event },
+  // FN1: an order's payments the platform could not plan.
+  'finance.milestones.plan_failed': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

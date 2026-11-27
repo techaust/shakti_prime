@@ -38,7 +38,7 @@ export async function readOrderPayments(
   }
   const so = schema.salesOrders;
   const [order] = await ctx.tx
-    .select({ state: so.state })
+    .select({ state: so.state, planFailure: so.paymentPlanFailure })
     .from(so)
     .where(and(eq(so.id, input.orderId), eq(so.entityId, input.entityId)))
     .limit(1);
@@ -62,6 +62,7 @@ export async function readOrderPayments(
     milestones,
     proformas,
     dispatchGate: DispatchPaymentGateSchema.parse(gateRows[0]?.gate ?? 'clear'),
+    planFailure: milestones.length === 0 ? order.planFailure : null,
     canIssue: confirmed && !live && hasGrant(grants, 'finance.proforma.write', 'entity'),
     canCancelProforma: live && hasGrant(grants, 'finance.proforma.write', 'entity'),
     canPlan:

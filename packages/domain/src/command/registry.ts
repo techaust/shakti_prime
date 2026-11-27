@@ -209,6 +209,8 @@ import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/
 import {
   attachProformaPdf,
   cancelProforma,
+  refreshMilestones,
+  settleCancelledOrder,
   issueProforma,
   planConfirmedMilestones,
   planMilestonesByHand,
@@ -446,6 +448,8 @@ export const commands = Object.freeze({
   [waiveMilestone.name]: waiveMilestone,
   [publishPaymentTerms.name]: publishPaymentTerms,
   [attachProformaPdf.name]: attachProformaPdf,
+  [settleCancelledOrder.name]: settleCancelledOrder,
+  [refreshMilestones.name]: refreshMilestones,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

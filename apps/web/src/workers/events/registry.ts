@@ -240,6 +240,16 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'crm.duplicate.found': { ordering: 'every', handle: notify },
   'crm.enquiry.routed': { ordering: 'every', handle: notify },
   'sales.order.credit_held': { ordering: 'every', handle: notify },
+  // FN1: a confirmed order's payments the platform could not plan, told to Accounts.
+  'finance.milestones.plan_failed': { ordering: 'every', handle: notify },
+  // FN1: a cancelled order's live proforma and waiting payments are cancelled with it.
+  'sales.order.cancelled': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      const { handleOrderCancelledFinance } = await import('../finance/order-followups');
+      await handleOrderCancelledFinance(event, ctx);
+    },
+  },
   'sales.quote.accepted': { ordering: 'every', handle: notify },
   // A missed call's callback, told to the lead's owner (docs/03-roadmap-appendix/phase2.md §7.4).
   'calls.missed.recorded': { ordering: 'every', handle: notify },

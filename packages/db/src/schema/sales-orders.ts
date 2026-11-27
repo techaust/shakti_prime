@@ -97,6 +97,13 @@ export const salesOrders = pgTable(
     creditReleaseReason: text('credit_release_reason'),
     creditReleasedAt: timestamp('credit_released_at', { withTimezone: true }),
     cancelReason: text('cancel_reason'),
+    /**
+     * FN1: why the platform could not plan the order's payments on confirmation (the reason code,
+     * `milestone_amounts_exceed_total` or `forbidden`), and when; cleared once they are planned.
+     * Written only by `app.record_order_milestone_failure()` and `app.record_order_milestones()`.
+     */
+    paymentPlanFailure: text('payment_plan_failure'),
+    paymentPlanFailedAt: timestamp('payment_plan_failed_at', { withTimezone: true }),
     ...timestamps,
     ...actorsRequired,
   },
@@ -176,6 +183,12 @@ export const salesOrders = pgTable(
       'sales_orders_cancel_reason_check',
       sql`(${t.state} = 'cancelled') = (${t.cancelReason} is not null)
        and (${t.cancelReason} is null or length(btrim(${t.cancelReason})) between 1 and 300)`,
+    ),
+    // FN1: a failed plan names its reason and time together.
+    check(
+      'sales_orders_payment_plan_failure_check',
+      sql`(${t.paymentPlanFailure} is null) = (${t.paymentPlanFailedAt} is null)
+       and (${t.paymentPlanFailure} is null or ${t.paymentPlanFailure} in ('milestone_amounts_exceed_total', 'forbidden'))`,
     ),
     // `/orders` pages newest first, for one company or every company of the request: read
     // backwards, these serve the list's plain `order by created_at desc, id desc`.
