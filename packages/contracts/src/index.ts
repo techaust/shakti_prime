@@ -32,6 +32,7 @@ export * from './catalogue/serial-pattern';
 export * from './hr/enums';
 export * from './hr/people';
 export * from './hr/leave';
+export * from './hr/screens';
 export * from './numbering/document-no';
 export * from './tax/engine';
 export * from './dto/entity';

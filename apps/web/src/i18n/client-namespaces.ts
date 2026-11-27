@@ -61,6 +61,8 @@ export const CLIENT_SCOPES = {
   '/procurement': ['common', 'files', 'procurement'],
   // H1 stock ledger
   '/inventory': ['catalogue', 'common', 'inventory'],
+  // HR1 people and leave
+  '/hr': ['common', 'hr'],
   '/converters': ['common', 'converters', 'roles', 'users'],
   '/converting': [
     'agents',

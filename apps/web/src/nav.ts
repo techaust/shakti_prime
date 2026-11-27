@@ -6,6 +6,12 @@ import {
   Boxes,
   Calculator,
   Building2,
+  // HR1 people and leave
+  CalendarDays,
+  CalendarRange,
+  Clock,
+  IdCard,
+  ListChecks,
   Cable,
   Combine,
   Contact,
@@ -316,6 +322,26 @@ export const NAV_ITEMS: readonly NavItem[] = [
       { key: 'finance.cost.read', scope: 'entity' },
     ],
   },
+  // HR1 people and leave (docs/03-roadmap-appendix/phase5.md §5): HR › People and Leave.
+  {
+    id: 'hr-people',
+    href: '/hr/people',
+    label: 'hrPeople',
+    icon: IdCard,
+    group: 'work',
+    // listEmployees: HR and the Executive read everyone, the GM their company, a team lead the
+    // people they manage; every holder of hr.leave.approve holds it at team scope or wider.
+    requires: [{ key: 'hr.leave.approve', scope: 'team' }],
+  },
+  {
+    id: 'hr-leave',
+    href: '/hr/leave',
+    label: 'hrLeave',
+    icon: CalendarDays,
+    group: 'work',
+    // Every staff role asks for its own leave; approvers decide theirs on the same screen.
+    requires: [{ key: 'hr.leave.request', scope: 'own' }],
+  },
   {
     id: 'imports',
     href: '/imports',
@@ -402,6 +428,31 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // tax.rate.set and tax.composite.set; a change also needs a request for every company.
     requires: [{ key: 'tax.rates.write', scope: 'entity' }],
+  },
+  // HR1: HR's settings, written with hr.employee.write for every company.
+  {
+    id: 'hr-shifts',
+    href: '/hr/shifts',
+    label: 'hrShifts',
+    icon: Clock,
+    group: 'admin',
+    requires: [{ key: 'hr.employee.write', scope: 'all' }],
+  },
+  {
+    id: 'hr-holidays',
+    href: '/hr/holidays',
+    label: 'hrHolidays',
+    icon: CalendarRange,
+    group: 'admin',
+    requires: [{ key: 'hr.employee.write', scope: 'all' }],
+  },
+  {
+    id: 'hr-leave-types',
+    href: '/hr/leave-types',
+    label: 'hrLeaveTypes',
+    icon: ListChecks,
+    group: 'admin',
+    requires: [{ key: 'hr.employee.write', scope: 'all' }],
   },
   {
     id: 'settings-whatsapp-templates',

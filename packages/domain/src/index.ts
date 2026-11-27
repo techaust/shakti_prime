@@ -938,3 +938,12 @@ export {
   requestLeave,
 } from './commands/hr/leave';
 export { setHoliday, setLeaveType, setShift } from './commands/hr/settings';
+export {
+  getEmployee,
+  getHrChoices,
+  getLeaveScreen,
+  listEmployees,
+  listHolidays,
+  listLeaveTypes,
+  listShifts,
+} from './queries/hr/hr';
