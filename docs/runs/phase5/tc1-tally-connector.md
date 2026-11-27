@@ -5,9 +5,9 @@
 | Branch | `feat/tc1-tally-connector` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): a service on the client's PC holding a signing key, financial data |
-| Usage | briefed 27-11-2026; built on Opus 5.5 at high (start, early check and done, 27-11-2026) |
-| State | done |
-| Next step | the review |
+| Usage | briefed 27-11-2026; built on Opus 5.5 at high (start, early check and done, 27-11-2026); fix round on Opus 5.5 at high (start and end, 27-11-2026) |
+| State | fixes done |
+| Next step | the reviewer re-checks the fix diff of finding 1 (the lead's triage); the lead commits TC2's addendum |
 
 ## Brief
 Build [phase5 §6.2](../../03-roadmap-appendix/phase5.md#62-tc1-the-tally-connector) as written, with question 1 (a), and ADR 0013 (change its status to "Accepted (27-11-2026, Phase 5 design)"). The BOS side's rules, contracts and signing already exist; read `docs/04-architecture-appendix/tally.md`, `packages/domain/src/tally/sync-rules.ts`, `packages/contracts/src/api/connector.ts` and `apps/web/src/integrations/tally/` first. Points settled here:
@@ -142,6 +142,65 @@ The lead's three points after the early check:
 **Review checklist:** the key lives in one private field, never in a log line (`logId` withholds anything not id-shaped), a printout, the outbox or a plain file outside development (DPAPI on Windows; plain only off Windows with `TALLY_CONNECTOR_DEV=1`); every Tally request is an `Export` with `ISMODIFY="No"` (tested on the requests, the fixture refuses anything else, and `fences.test.ts` scans the source); a resend carries the stored body and key and is applied once (lost answer, kill before and after the BOS applied it, outage); the outbox survives a kill (a child process killed and restarted); throttling holds (never two requests in flight, the pause between each).
 
 **Still waiting:** the first Windows run of `.github/workflows/tally-connector.yml` and the owner's `checks-ok` for it and the ESLint change; the discovery visit's check of the TDL names (`tally.md` step 3). For TC2: `ledgerBalances` is the dealer-outstanding source (question 11); the snapshot's `missingOnServer` and the raw `pathname + search` signing are as the early check says (assumptions 4 and 5).
+
+### 27-11-2026, fixes (seat, worktree `tc1-tally-connector`, from `57f6ed7e`)
+All ten review findings, as the lead's triage says. Commits `e26207a7` (code and tests), `577a75a5` (documents), `e922482c` (the outbox's layout number and its test). Skills: none named by the brief; none loaded.
+
+**Finding 1 (high), an answer the connector cannot read:**
+- `packages/contracts/src/api/connector.ts`: `ConnectorAnswers` (`cursor`, `heartbeat`, `batch`, `snapshot`), built from the same field shapes as the strict response schemas but without `.strict()`, so a field the connector does not know is dropped at every level (`accepted` included). The strict schemas are unchanged for the BOS's own tests.
+- `src/client.ts` reads every answer through `ConnectorAnswers`; a 2xx that still does not parse is retried in the call with the doubling wait, as a 5xx is, then thrown as `BosUnavailable('bad_answer')`.
+- `src/sync.ts`: `bad_answer` no longer stops anything. On a row it counts against the row's attempts like a refusal; the drain goes on past it (only the same company's later batches wait, in order; snapshots and other companies go on); on the cursor call it skips that company for the cycle. The drain stops only when the BOS does not answer at all.
+- Tests: the review's reproduction (a batch answer with an extra top-level and nested field, and a heartbeat answer with one) in `client.test.ts`; an unreadable answer retried then given up; in `sync.test.ts` a whole sync against a BOS whose every answer carries new fields, and a batch the BOS applied whose answers were unreadable (row pending, the other company sent, the resend answered from the BOS's store, applied once), and a cursor unreadable twice skipping only that company; contracts: the lenient readings against the strict ones.
+
+**Finding 2, rows tried for ever:** `outboxMaxAttempts` (10) in `src/settings.ts`; the outbox counts `refusals` (answers that did not take the row; a send the BOS never answered does not count, so an outage sets nothing aside). Past the limit a row is `held`, logged `outbox_row_held` with its outbox id, key and code, and counted in the heartbeat's new `heldRows`; `prune()` removes held rows with the sent ones after 7 days. A new day's snapshot supersedes the company's older pending one, and the drain does not send an old snapshot when the next is due that cycle. Tests: a 413 snapshot (plain text, as the platform answers) over two cycles and two days, replaced and sent once, then held and counted; a refused batch held after its attempts and the company read again from the cursor under a new key; the outbox's own `noteRefusal`, `hold`, `supersedeSnapshots` and pruning.
+
+**Finding 3, no `BOOKSFROM`:** the reader's period now requires the books' first day and throws `TallyUnavailable('no_books_from')`; the XML builders take the period as required, so no voucher, ledger or GUID request can go out without one. The sync logs `company_without_books_from`, reports `problem: 'no_books_from'` in the heartbeat and goes on with the other companies. The fixture Tally now filters vouchers by `SVFROMDATE`/`SVTODATE`, or by the company's current period (2026-04-01 to 2027-03-31) when a request names none, and can omit `BOOKSFROM`. Tests: an earlier-year voucher read with the period (reader and snapshot), a company without `BOOKSFROM` never read (only its status asked) and read once it has one.
+
+**Finding 4, refused vouchers:** `ConnectorBatchRequest.refused` (optional, `TallyRefusedRow`: `kind` voucher or ledger, `guid` as Tally gave it up to 100 characters, `alterId` inside the batch range, `field`); the reader puts every row the contract refuses there and logs it by GUID and field only. Fixture: a voucher Tally gives without ledger lines (`noEntries`); test: a sale cancelled that way reaches the BOS in `refused` with field `ledgerEntries`. Contract tests and the recorded fixture carry the field. The addendum for TC2 is below.
+
+**Finding 5, the lag:** the heartbeat's companies gain `tallyLastAlterId` (Tally's last AlterID from the cycle's company status, which already reads `ALTVCHID`/`ALTMSTID` cheaply) and `problem` (`no_books_from`, `tally_behind_bos`, `waiting_on_bos`). A company whose batches wait still has its status read each cycle, so the lag stays current; the heartbeat still never asks Tally itself. Tests: the refused-company case shows `lastAlterId: 0`, `tallyLastAlterId: 4`, `problem: 'waiting_on_bos'`, then both at 4 with no problem.
+
+**Finding 6, documents:** `Built (TC1)` in phase5 §6.2; TESTING §6 names `.github/workflows/tally-connector.yml`; ARCHITECTURE's app table and ADR 0013 (Accepted, and out of the Proposed list at line 370); AGENTS §3 (not planned, its dependency direction, its fence); `missingOnServer`'s comment and tally.md's "listed for a resend"; the web test names `client.test.ts`; API §3.5 rows and §7 for the new fields and `ConnectorAnswers`; the connector's README.
+
+**Finding 7:** `sync.test.ts` "holds only that company while it refuses its batch, and the other company goes on" (403 for company A: A's row pending and tried again next cycle, no further page of A read, B sent both cycles, A caught up in order under the stored key once the BOS takes it), and the `bad_answer` cases above.
+
+**Finding 8:** `Scheduler` takes a `Timers` (clock and timers, `SYSTEM_TIMERS` by default); `scheduler.test.ts` runs on a test clock that moves only when told, with exact times (beats at 0, 30, 60, 90 ms before the first cycle ends; cycles at 0, 120, 240, 360; quick cycles at 0, 150, 300; a stop during the wait with no time passing and no timer left).
+
+**Finding 9, adaptive windows:** `pageSize` 200 is the smallest window, `pageSizeMax` 10,000, `pageGrowBelowRows` 50, `pageShrinkAboveRows` 400 (named settings). The rule counts every voucher and ledger Tally answered with (`page.scanned`, journals too, as that is Tally's cost). A window holding more than a batch carries (500 vouchers or 2,000 ledgers) is read again at half before anything is sent. Tests: a sparse fixture (2 vouchers, 120 AlterIDs of other masters, 60 receipts) paged as 5, 5, 10, 20, 40, 40, 40, 20, 2 instead of 37 fixed pages; 600 vouchers in one window read again narrower (100, 200, 400, 400, 400), nothing twice.
+
+**Finding 10:** `apps/web/scripts/spike/tally-read.ts` and the web's `spike:tally` script are removed (a `package.json` scripts change, so a checks change: the owner's `checks-ok`, with the workflow's and the ESLint fence's); the README row and TESTING §2's list lose it; tally.md says the connector's reader, fixture and tests supersede the spike, and its visit steps now run the connector itself. `parseGuidExport` and the open-ended request forms that only the spike used are gone. The recorded export stays at `apps/tally-connector/test/fixtures/vouchers-export.xml`.
+
+**Tests:** connector 11 files, 65 tests (64 pass on Linux, 1 on Windows only, the real DPAPI round trip), 14 more than at done: `sync.test.ts` 18 (+8), `reader.test.ts` 11 (+3), `client.test.ts` 7 (+2), `outbox.test.ts` 4 (+1), `scheduler.test.ts` 2 (rewritten on a test clock), `xml.test.ts` 10 (updated for the required period). Contracts 344 (+4 in `connector.test.ts`). Web `tally.test.ts` and `lint-fences.test.ts` 28 (unchanged).
+
+**Checks** (all through the lock, from `e922482c`):
+- `pnpm typecheck`: 11 tasks successful.
+- `pnpm exec turbo run test --filter=@shakti/tally-connector --filter=@shakti/contracts --force`: connector 11 files, 64 passed, 1 skipped; contracts 25 files, 344 passed.
+- `pnpm --filter web exec vitest run src/integrations/tally src/lint-fences.test.ts`: 2 files, 28 passed.
+- `node apps/tally-connector/packaging/build-sea.ts`: built; the executable answers `0.1.0`.
+- `pnpm lint` (whole repository): clean. `pnpm format:check`: clean.
+- `pnpm build`, then `pnpm --filter web js-budget`: every page within its budget (65 pages).
+- `tools/integration/check-doc-links.py`: the run file's own `ORPHAN` line, as before, and one `PATH` line for `docs/04-architecture.md:73,95,360`, which the Review section's table cites with line numbers (the review's text, left as written).
+- No schema, policy, command, query, `en.json` or screen: no security suite, copy-lint, `db:docs`, journeys or `EXPLAIN`.
+
+**Review checklist:** the key is still only in the client's private field and the sealed settings; the new log lines (`outbox_row_held`, `bos_answer_unreadable`, `company_without_books_from`, `page_narrowed`, `voucher_unreadable` with `reported`) hold ids, codes and counts only, and the sync test's no-name, no-amount, no-key check still passes; every request to Tally is still an `Export` with `ISMODIFY="No"` and now always names a period (except the company status); a resend carries the stored body and key (the unreadable-answer and refusal cases end applied once); the outbox's kill test is unchanged and passes; throttling is unchanged and passes.
+
+**Decisions the triage did not settle:**
+1. A refusal and an unreadable answer count the same towards `outboxMaxAttempts`; a network failure, a 5xx or a 429 does not count. The limit is 10 (about 20 minutes of cycles for a batch).
+2. A batch set aside does not hold the company's next batch: the BOS either applied it (an unreadable answer) or answers the next one `cursor_mismatch`, which sets them all aside and reads again from its cursor. A company the BOS keeps refusing is therefore read again from its cursor about every `outboxMaxAttempts` cycles, each time adding one held row; `heldRows` growing is the signal, and the rows go after 7 days.
+3. `problem` and `tallyLastAlterId` are optional fields on each heartbeat company (additive), and `lastAlterId` stays the BOS's cursor. `waiting_on_bos` covers a refused batch, an unreadable answer and a batch waiting behind one.
+4. `TallyRefusedRow.guid` is a string up to 100 characters, not `TallyGuidSchema`, so a row refused for its GUID is still reported; a row whose GUID or AlterID cannot be reported at all is counted as `skipped` and logged only. Ledgers the contract refuses go in the list too (`kind: 'ledger'`).
+5. `TallyVoucher.ledgerEntries` keeps `.min(1)`: the triage asked for the `refused` list, not the relaxation the review offered. Whether a cancelled voucher without ledger lines should instead pass as a voucher is the lead's call with TC2.
+6. The outbox file gains a `refusals` column and a `held` state; no connector is installed yet, so there is no upgrade step. The file now carries `PRAGMA user_version = 1` so a later release (TC4) can upgrade an installed one.
+7. Not done from the review's own fix column, as the triage did not ask: a pause proportional to the last request's time (finding 9), and treating an unreadable 2xx as delivered (finding 1).
+
+**For the lead: TC2's addendum** (to commit into `docs/runs/phase5/tc2-tally-ingest.md`):
+> From TC1's fix round (27-11-2026), in `packages/contracts/src/api/connector.ts`:
+> 1. `ConnectorBatchRequest.refused` (optional): the rows of the batch's range the contract cannot carry, each `{ kind: 'voucher' | 'ledger', guid, alterId, field }`, inside `(fromAlterId, maxAlterId]`. The cursor still moves to `maxAlterId`. Queue each for Accounts: a voucher refused at an AlterID above the version the BOS holds means that version is no longer current (for example a sale cancelled in Tally that comes without ledger lines).
+> 2. `ConnectorHeartbeatRequest`: per company the optional `tallyLastAlterId` (the lag is `tallyLastAlterId − lastAlterId`) and `problem` (`no_books_from`, `tally_behind_bos`, `waiting_on_bos`), and the optional `heldRows`. Store them with the heartbeat for Integration health (TC4).
+> 3. The connector reads answers through `ConnectorAnswers`, which drop unknown fields: an optional answer field can be added later without breaking an installed connector. The routes still answer the strict response schemas.
+> 4. A snapshot the BOS refuses (any 4xx) is tried up to 10 times and then set aside. So `snapshot_would_remove_too_much` should be a 200 with the snapshot held for Accounts, not a refusal. Vercel refuses a body over 4.5 MB (about 90,000 GUIDs); decide gzip (`Content-Encoding: gzip`) or a snapshot in parts before a company grows that large.
+> 5. `missingOnServer` is logged by count only: the connector cannot send rows at or below the cursor again, so the BOS lists them for Accounts.
+> 6. The signature covers the raw `pathname + search` as received (TC1's assumption 5).
 
 ## Review
 
