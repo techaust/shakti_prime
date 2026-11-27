@@ -258,14 +258,22 @@ describe('proformas and proforma_lines', () => {
 
 describe('payment_milestone_templates', () => {
   it('are published by the Executive alone and never changed', async () => {
+    // The next version of the company's terms for the segment, whatever an earlier run left.
+    const [latest] = await asMigrator(
+      (m) => m<
+        { v: number }[]
+      >`select coalesce(max(version), 0)::int as v from payment_milestone_templates
+                                 where entity_id = ${E} and segment = 'commercial_epc'`,
+    );
+    const next = (latest?.v ?? 0) + 1;
     const insert = (by: Principal, version: number) =>
       asPrincipal(by, async ({ tx }) =>
         tx.execute(sql`insert into payment_milestone_templates (id, entity_id, segment, version, steps_json, created_by)
                        values (${newId()}, ${E}, 'commercial_epc', ${version}, '[{}]'::jsonb, ${by.id})`),
       );
-    expect(await failure(insert(accounts, 1))).toMatch(/row-level security/);
-    await insert(exec, 1);
-    expect(await failure(insert(exec, 1))).toMatch(/payment_milestone_templates_version_unique/);
+    expect(await failure(insert(accounts, next))).toMatch(/row-level security/);
+    await insert(exec, next);
+    expect(await failure(insert(exec, next))).toMatch(/payment_milestone_templates_version_unique/);
     expect(
       await failure(
         asMigrator(
@@ -277,7 +285,8 @@ describe('payment_milestone_templates', () => {
     const count = (by: Principal) =>
       one<{ n: number }>(
         by,
-        sql`select count(*)::int as n from payment_milestone_templates where segment = 'commercial_epc'`,
+        sql`select count(*)::int as n from payment_milestone_templates
+             where segment = 'commercial_epc' and version = ${next}`,
       );
     expect((await count(accounts))?.n).toBe(1);
     expect((await count(lc))?.n).toBe(1);

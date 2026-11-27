@@ -41,6 +41,8 @@ const WRITE: Partial<Record<FilePurpose, { key: PermissionKey; scope: Scope }>> 
   consent_evidence: { key: 'crm.account.write', scope: 'own' },
   // U1: a supplier's quote document.
   vendor_quote: { key: 'procurement.rate.read', scope: 'entity' },
+  // FN1: a proforma's PDF.
+  proforma_pdf: { key: 'files.process', scope: 'entity' },
 };
 /**
  * A vault upload is read with its vault file by sensitivity, or by its uploader while they hold
@@ -57,6 +59,8 @@ const READ: Partial<Record<FilePurpose, PermissionKey | 'company'>> = {
   consent_evidence: 'crm.account.write',
   // U1: a supplier's quote document.
   vendor_quote: 'procurement.rate.read',
+  // FN1: a proforma's PDF.
+  proforma_pdf: 'finance.read',
 };
 
 const WORKER_GRANTS = [{ key: 'files.process' as const, scope: 'all' as const }];
@@ -146,6 +150,8 @@ describe('a file is read by its purpose (0062)', () => {
         'consent_evidence@1',
         'entity_logo@1',
         'letterhead@1',
+        // FN1: a Lead Converter reads her own proforma PDFs (finance.read at own scope).
+        'proforma_pdf@1',
         'quote_pdf@1',
         'signed_quote@1',
       ].sort(),
