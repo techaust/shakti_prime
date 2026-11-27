@@ -176,6 +176,25 @@ Shared registration points take one line or one block each, kept together under 
 - **PIN storage:** the PIN is kept in expo-secure-store as typed (Keystore-sealed); no hashing package is approved.
 - **`AGENTS.md` §3** still marks `apps/field` as planned; that line is the lead's.
 
+### The lead (27-11-2026): the packages the report named, approved by the owner
+The owner approved six packages on 27-11-2026, and the lead installed them on this branch:
+- `@sentry/react-native` 8.28.0 (Expo SDK 58's listed version);
+- `expo-crypto` 58.0.8;
+- `expo-system-ui` 58.0.7;
+- `react-native-reanimated` 4.7.1 and `react-native-worklets` 0.13.0 as direct dependencies;
+- `jest` 30.5.2.
+
+`@sentry/cli`'s download script is set off in `allowBuilds`, because nothing here uploads source maps.
+
+The fix round wires them in, beside the review's findings:
+- the installation id from `expo-crypto` (no `Math.random` fallback);
+- the PIN kept as a salted SHA-256 in secure storage, never as typed;
+- Sentry for React Native with the web's scrubbing rules (`beforeSend` dropping tokens, phone numbers and identity numbers, as `apps/web/src/observability` does);
+- `expo-system-ui` in the plugins;
+- the lazy-globals workaround removed if Jest 30.5 makes it unneeded.
+
+Also explain `pnpm peers check`'s missing `expo`, `react` and `react-native` peers of `expo-sqlite`, which were already there before these packages.
+
 ## Review
 
 ## Integration
