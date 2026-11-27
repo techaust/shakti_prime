@@ -79,3 +79,5 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// H3 stock counts
+export { stockCounts, stockCountLines } from './stock-counts';

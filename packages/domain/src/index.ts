@@ -221,6 +221,20 @@ export {
   readStockValuation,
 } from './queries/inventory/stock';
 export { existingSerialsOf } from './stock/serials';
+// H3 stock counts
+export {
+  cancelStockCount,
+  recordStockCount,
+  recountStockCount,
+  startStockCount,
+  submitStockCount,
+} from './commands/inventory/counts';
+export { postStockCount } from './commands/inventory/counts-post';
+export {
+  getStockCountReview,
+  getStockCountSheet,
+  listStockCounts,
+} from './queries/inventory/counts';
 export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
 export { setPumpCurve } from './commands/catalogue/pump-curve';
 // U1 vendors and supplier quotes.

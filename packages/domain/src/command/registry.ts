@@ -159,6 +159,15 @@ import {
   updateHub,
 } from '../commands/inventory/hubs';
 import { adjustStock, reverseStock, transferStock } from '../commands/inventory/stock';
+// H3 stock counts
+import {
+  cancelStockCount,
+  recordStockCount,
+  recountStockCount,
+  startStockCount,
+  submitStockCount,
+} from '../commands/inventory/counts';
+import { postStockCount } from '../commands/inventory/counts-post';
 import {
   approvePriceList,
   archivePriceList,
@@ -312,6 +321,13 @@ export const commands = Object.freeze({
   [transferStock.name]: transferStock,
   [adjustStock.name]: adjustStock,
   [reverseStock.name]: reverseStock,
+  // H3 stock counts
+  [startStockCount.name]: startStockCount,
+  [recordStockCount.name]: recordStockCount,
+  [recountStockCount.name]: recountStockCount,
+  [submitStockCount.name]: submitStockCount,
+  [postStockCount.name]: postStockCount,
+  [cancelStockCount.name]: cancelStockCount,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
   [createKit.name]: createKit,

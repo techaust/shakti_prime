@@ -27,6 +27,8 @@ export * from './catalogue/specs';
 // H1 stock ledger
 export * from './inventory/enums';
 export * from './inventory/stock';
+// H3 stock counts
+export * from './inventory/counts';
 export * from './catalogue/serial-pattern';
 export * from './numbering/document-no';
 export * from './tax/engine';
