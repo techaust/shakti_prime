@@ -116,8 +116,9 @@ export const warrantyClaims = pgTable(
     uniqueIndex('warranty_claims_open_serial_unique')
       .on(t.serialId)
       .where(sql`${t.serialId} is not null and ${t.state} not in ('closed', 'rejected')`),
-    // The list by state, newest first.
+    // The list by state, and of every state, newest first.
     index('warranty_claims_list_idx').on(t.entityId, t.state, t.createdAt.desc(), t.id.desc()),
+    index('warranty_claims_entity_created_idx').on(t.entityId, t.createdAt.desc(), t.id.desc()),
     index('warranty_claims_account_idx').on(t.accountId),
     index('warranty_claims_serial_idx')
       .on(t.serialId)

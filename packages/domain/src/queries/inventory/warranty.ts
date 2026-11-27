@@ -139,12 +139,18 @@ export async function listWarrantyClaims(
     const [at, id] = decodeCursor(ListCursor, input.cursor);
     where.push(sql`(c.created_at, c.id) < (${at}::timestamptz, ${id}::uuid)`);
   }
+  // The page is found on the claims alone (by `warranty_claims_entity_created_idx`, or
+  // `warranty_claims_list_idx` for one state), and only its rows join their customer and the rest.
   const rows = (await ctx.tx.execute(sql`
+    with page as materialized (
+      select c.* from warranty_claims c
+       where ${sql.join(where, sql` and `)}
+       order by c.created_at desc, c.id desc
+       limit ${input.limit + 1}
+    )
     select ${CLAIM_SELECT}
-      from warranty_claims c ${CLAIM_JOINS}
-     where ${sql.join(where, sql` and `)}
-     order by c.created_at desc, c.id desc
-     limit ${input.limit + 1}`)) as unknown as ClaimRow[];
+      from page c ${CLAIM_JOINS}
+     order by c.created_at desc, c.id desc`)) as unknown as ClaimRow[];
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   const tallies = (await ctx.tx.execute(sql`

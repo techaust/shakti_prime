@@ -1,6 +1,6 @@
 {
-  "id": "d1cd1489-4ae4-4f25-ad20-f0fe2ffb1852",
-  "prevId": "9a585fdd-8b1d-42b3-b8f4-4ed648e9df48",
+  "id": "2f5f81b5-7de4-4a88-879d-8287de311ad7",
+  "prevId": "18a7cc4a-e0b0-48e2-accd-0bccb088422f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7375,7 +7375,7 @@
       "checkConstraints": {
         "import_jobs_kind_check": {
           "name": "import_jobs_kind_check",
-          "value": "\"import_jobs\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock', 'vendors')"
+          "value": "\"import_jobs\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock', 'vendors', 'installed_base')"
         },
         "import_jobs_state_check": {
           "name": "import_jobs_state_check",
@@ -7535,7 +7535,7 @@
       "checkConstraints": {
         "import_mapping_templates_kind_check": {
           "name": "import_mapping_templates_kind_check",
-          "value": "\"import_mapping_templates\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock', 'vendors')"
+          "value": "\"import_mapping_templates\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock', 'vendors', 'installed_base')"
         }
       },
       "isRLSEnabled": false
@@ -7763,7 +7763,7 @@
         },
         "import_rows_created_type_check": {
           "name": "import_rows_created_type_check",
-          "value": "\"import_rows\".\"created_type\" in ('opportunity', 'account', 'account_link', 'pin_code', 'item', 'stock_movement', 'vendor', 'vendor_update')"
+          "value": "\"import_rows\".\"created_type\" in ('opportunity', 'account', 'account_link', 'pin_code', 'item', 'stock_movement', 'vendor', 'vendor_update', 'serial')"
         },
         "import_rows_row_no_check": {
           "name": "import_rows_row_no_check",
@@ -20639,6 +20639,33 @@
             },
             {
               "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "warranty_claims_entity_created_idx": {
+          "name": "warranty_claims_entity_created_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

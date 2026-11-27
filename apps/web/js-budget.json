@@ -221,6 +221,14 @@
       "maxKb": 250,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the valuation grid by hub and category with its company and date. Measured 238.0 kB on 23-11-2026, plus 5 %."
     },
+    "/inventory/warranty": {
+      "maxKb": 250,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the warranty claims grid with its company and state filters (R3). Measured 237.3 kB on 27-11-2026, plus 5 %."
+    },
+    "/inventory/warranty/[id]": {
+      "maxKb": 216,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the warranty claim sheet with its steps; the identify, reject and credit dialogs load when first opened (R3). Measured 205.5 kB on 27-11-2026, plus 5 %."
+    },
     "/orders": {
       "maxKb": 241,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the orders grid with its number search and status filter. Measured 228.6 kB on 13-10-2026, plus 5 %."

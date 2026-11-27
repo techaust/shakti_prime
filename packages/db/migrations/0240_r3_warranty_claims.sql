@@ -51,6 +51,9 @@ CREATE TABLE "warranty_claims" (
 );
 --> statement-breakpoint
 ALTER TABLE "document_sequences" DROP CONSTRAINT "document_sequences_doc_type_check";--> statement-breakpoint
+ALTER TABLE "import_jobs" DROP CONSTRAINT "import_jobs_kind_check";--> statement-breakpoint
+ALTER TABLE "import_mapping_templates" DROP CONSTRAINT "import_mapping_templates_kind_check";--> statement-breakpoint
+ALTER TABLE "import_rows" DROP CONSTRAINT "import_rows_created_type_check";--> statement-breakpoint
 ALTER TABLE "warranty_claim_costs" ADD CONSTRAINT "warranty_claim_costs_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "warranty_claim_costs" ADD CONSTRAINT "warranty_claim_costs_claim_fk" FOREIGN KEY ("claim_id","entity_id") REFERENCES "public"."warranty_claims"("id","entity_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "warranty_claims" ADD CONSTRAINT "warranty_claims_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -65,10 +68,14 @@ ALTER TABLE "warranty_claims" ADD CONSTRAINT "warranty_claims_replacement_serial
 ALTER TABLE "warranty_claims" ADD CONSTRAINT "warranty_claims_supplier_serial_fk" FOREIGN KEY ("supplier_serial_id","entity_id","item_id") REFERENCES "public"."serials"("id","entity_id","item_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "warranty_claims_open_serial_unique" ON "warranty_claims" USING btree ("serial_id") WHERE "warranty_claims"."serial_id" is not null and "warranty_claims"."state" not in ('closed', 'rejected');--> statement-breakpoint
 CREATE INDEX "warranty_claims_list_idx" ON "warranty_claims" USING btree ("entity_id","state","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "warranty_claims_entity_created_idx" ON "warranty_claims" USING btree ("entity_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "warranty_claims_account_idx" ON "warranty_claims" USING btree ("account_id");--> statement-breakpoint
 CREATE INDEX "warranty_claims_serial_idx" ON "warranty_claims" USING btree ("serial_id") WHERE "warranty_claims"."serial_id" is not null;--> statement-breakpoint
 CREATE INDEX "warranty_claims_replacement_serial_idx" ON "warranty_claims" USING btree ("replacement_serial_id") WHERE "warranty_claims"."replacement_serial_id" is not null;--> statement-breakpoint
 CREATE INDEX "warranty_claims_supplier_serial_idx" ON "warranty_claims" USING btree ("supplier_serial_id") WHERE "warranty_claims"."supplier_serial_id" is not null;--> statement-breakpoint
 CREATE INDEX "warranty_claims_vendor_idx" ON "warranty_claims" USING btree ("vendor_id") WHERE "warranty_claims"."vendor_id" is not null;--> statement-breakpoint
 CREATE INDEX "warranty_claims_site_idx" ON "warranty_claims" USING btree ("site_id") WHERE "warranty_claims"."site_id" is not null;--> statement-breakpoint
-ALTER TABLE "document_sequences" ADD CONSTRAINT "document_sequences_doc_type_check" CHECK ("document_sequences"."doc_type" in ('quote', 'sales_order', 'proforma', 'challan', 'purchase_order', 'warranty_claim')) NOT VALID;
+ALTER TABLE "document_sequences" ADD CONSTRAINT "document_sequences_doc_type_check" CHECK ("document_sequences"."doc_type" in ('quote', 'sales_order', 'proforma', 'challan', 'purchase_order', 'warranty_claim')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "import_jobs" ADD CONSTRAINT "import_jobs_kind_check" CHECK ("import_jobs"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock', 'vendors', 'installed_base')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "import_mapping_templates" ADD CONSTRAINT "import_mapping_templates_kind_check" CHECK ("import_mapping_templates"."kind" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters', 'opening_stock', 'vendors', 'installed_base')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "import_rows" ADD CONSTRAINT "import_rows_created_type_check" CHECK ("import_rows"."created_type" in ('opportunity', 'account', 'account_link', 'pin_code', 'item', 'stock_movement', 'vendor', 'vendor_update', 'serial')) NOT VALID;
