@@ -25,6 +25,8 @@ export const LEAD_RESCORE_PATH = '/api/v1/workers/crm/rescore';
 export const DUPLICATE_SCAN_PATH = '/api/v1/workers/crm/duplicates';
 /** Where the daily schedule calls the quote expiry worker (docs/03-roadmap-appendix/phase1.md §7.3). */
 export const QUOTE_EXPIRE_PATH = '/api/v1/workers/quotes/expire';
+/** U2: the daily reorder check (`procurement.reorder.draft`). */
+export const PROCUREMENT_REORDER_PATH = '/api/v1/workers/procurement/reorder';
 
 /** Where the nightly schedule calls the anonymisation of old unqualified leads (BLUEPRINT §7.9). */
 export const LEAD_ANONYMISE_PATH = '/api/v1/workers/crm/anonymise';
@@ -88,6 +90,8 @@ export const EVENT_JOB_ROUTES: Readonly<
   'calls.missed.recorded': { path: NOTIFY_PATH, body: (event) => event },
   // p2-fixes (I1 re-check N2).
   'crm.lead.attached': { path: NOTIFY_PATH, body: (event) => event },
+  // U2 reorder drafts.
+  'procurement.po.drafted': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

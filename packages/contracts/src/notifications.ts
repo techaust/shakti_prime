@@ -41,6 +41,8 @@ const Count = z.number().int().min(0);
  *   (docs/03-roadmap-appendix/phase2.md §7.4).
  * - `enquiry_attached`: a customer of your lead in nurture asked again, and the enquiry joined
  *   that lead instead of making a new one (CRM-03; not when you added it yourself).
+ * - `reorder_drafted`: stock fell below its reorder level and the reorder check drafted a purchase
+ *   order of your company, for the people who write its purchase orders to add the rates (U2).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -57,6 +59,8 @@ export const NOTICE_TYPES = [
   'missed_call',
   // p2-fixes (I1 re-check N2).
   'enquiry_attached',
+  // U2 reorder drafts.
+  'reorder_drafted',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -70,6 +74,8 @@ export const NOTICE_SUBJECT_TYPES = [
   'inbox_item',
   'sales_order',
   'whatsapp_thread',
+  // U2 reorder drafts.
+  'purchase_order',
 ] as const;
 export const NoticeSubjectTypeSchema = z.enum(NOTICE_SUBJECT_TYPES);
 export type NoticeSubjectType = z.infer<typeof NoticeSubjectTypeSchema>;
@@ -275,6 +281,8 @@ export const NOTICE_EVENT_TYPES = [
   'calls.missed.recorded',
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead.
   'crm.lead.attached',
+  // U2: a purchase order the reorder check drafted.
+  'procurement.po.drafted',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -368,6 +376,16 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       opportunityId: IdSchema,
       nurtured: z.boolean(),
       attachedBy: IdSchema.nullable(),
+    })
+    .strict(),
+  // U2: a purchase order the reorder check drafted: the company's order writers are told.
+  z
+    .object({
+      event: z.literal('procurement.po.drafted'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      purchaseOrderId: IdSchema,
+      fromReorder: z.boolean(),
     })
     .strict(),
   z

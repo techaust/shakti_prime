@@ -183,6 +183,22 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         },
       ];
     }
+    case 'procurement.po.drafted': {
+      // U2: the people who write the company's purchase orders, for a reorder draft still waiting
+      // for its rates; once an order.
+      if (!input.fromReorder) return [];
+      const people = (await ctx.tx.execute(
+        sql`select user_id from app.notice_reorder_people(${input.entityId}::smallint, ${input.purchaseOrderId}::uuid)`,
+      )) as unknown as { user_id: string }[];
+      return people.map((p) => ({
+        userId: p.user_id,
+        type: 'reorder_drafted',
+        subjectType: 'purchase_order',
+        subjectId: input.purchaseOrderId,
+        payload: {},
+        dedupeKey: `reorder_drafted:${input.purchaseOrderId}`,
+      }));
+    }
     case 'calls.missed.recorded': {
       // The owner of the lead the missed call made or joined, while the lead is still theirs; one
       // notice per call however often the event is delivered.

@@ -21,6 +21,9 @@ export const JOB_SCHEDULES = {
   'jobs-check': '41 * * * *',
   // Every minute: a delivery whose publish failed waits at most a minute or two (phase 2 §5.1).
   'webhook-sweep': '* * * * *',
+  // U2: half past midnight UTC, six in the morning in India, before the stores open: the night's
+  // receipts and issues are in when the reorder check drafts the day's purchase orders.
+  'procurement-reorder': '30 0 * * *',
 } as const;
 
 export type ScheduledRoute = keyof typeof JOB_SCHEDULES;

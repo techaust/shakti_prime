@@ -50,6 +50,13 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
         quoteId: event.aggregateId,
         acceptedBy: String(p.acceptedBy),
       };
+    case 'procurement.po.drafted':
+      return {
+        ...base,
+        event: 'procurement.po.drafted',
+        purchaseOrderId: event.aggregateId,
+        fromReorder: p.source === 'reorder',
+      };
     case 'crm.lead.attached':
       return {
         ...base,

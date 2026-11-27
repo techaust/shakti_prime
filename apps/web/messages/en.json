@@ -5459,7 +5459,8 @@
       "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
-      "enquiry_attached": "A customer of your lead in nurture asked again"
+      "enquiry_attached": "A customer of your lead in nurture asked again",
+      "reorder_drafted": "Stock is low: a purchase order was drafted"
     },
     "settings": {
       "title": "Notification settings",
@@ -5638,6 +5639,10 @@
     "enquiry_attached": {
       "title": "A customer asked again",
       "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
+    },
+    "reorder_drafted": {
+      "title": "Stock is low",
+      "body": "A purchase order was drafted from the reorder rules. Add the rates and send it for approval. Tap to open it."
     }
   },
   "orders": {

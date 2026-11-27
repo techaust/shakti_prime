@@ -818,7 +818,7 @@ const eventCatalogue = {
     meaning:
       'A purchase order was drafted, by a person or by the reorder job (`source`), with its number of lines.',
     emittedBy: ['procurement.po.create', 'procurement.reorder.draft'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         source: z.enum(['manual', 'reorder']),

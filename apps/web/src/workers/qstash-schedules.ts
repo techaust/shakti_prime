@@ -8,6 +8,7 @@ import {
   OUTBOX_PUBLISH_PATH,
   QUOTE_EXPIRE_PATH,
   WEBHOOK_SWEEP_PATH,
+  PROCUREMENT_REORDER_PATH,
 } from './qstash';
 import { JOB_SCHEDULES, type ScheduledRoute } from './schedules';
 
@@ -57,6 +58,8 @@ const ROUTES: Record<ScheduledRoute, { path: string; retries: number; timeout: n
   'notification-scan': { path: NOTIFICATION_SCAN_PATH, retries: 0, timeout: 60 },
   'jobs-check': { path: JOBS_CHECK_PATH, retries: 0, timeout: 30 },
   'webhook-sweep': { path: WEBHOOK_SWEEP_PATH, retries: 0, timeout: 30 },
+  // U2 reorder drafts.
+  'procurement-reorder': { path: PROCUREMENT_REORDER_PATH, retries: 3, timeout: 60 },
 };
 
 /**

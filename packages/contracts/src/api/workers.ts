@@ -114,6 +114,20 @@ export const QuoteExpireWorkerResponse = z
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
 
 /**
+ * U2: the daily reorder check (`procurement.reorder.draft`, docs/03-roadmap-appendix/phase3.md
+ * §7.2), called by the QStash schedule `procurement-reorder-<environment>` with an empty body: every
+ * company in turn, as `system:workers`.
+ */
+export const ReorderWorkerBody = z.object({}).strict();
+export type ReorderWorkerBody = z.infer<typeof ReorderWorkerBody>;
+
+/** What one reorder run did: the companies it checked and the orders it drafted. */
+export const ReorderWorkerResponse = z
+  .object({ companies: Count, drafted: Count, itemsWithoutVendor: Count, done: z.boolean() })
+  .strict();
+export type ReorderWorkerResponse = z.infer<typeof ReorderWorkerResponse>;
+
+/**
  * The nightly anonymisation of unqualified leads idle for the retention period
  * (`crm.lead.anonymise`, BLUEPRINT §7.9), called by the QStash schedule
  * `lead-anonymise-<environment>` with an empty body: every company in turn, each batch in its own

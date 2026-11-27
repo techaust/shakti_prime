@@ -18,6 +18,7 @@ describe('the QStash schedules of an environment', () => {
       'notification-scan-production',
       'jobs-check-production',
       'webhook-sweep-production',
+      'procurement-reorder-production',
     ]);
     for (const schedule of schedules) {
       expect(schedule.destination).toMatch(/^https:\/\/shaktiprime\.com\/api\/v1\/workers\//);
@@ -52,6 +53,7 @@ describe('the QStash schedules of an environment', () => {
       'notification-scan': 0,
       'jobs-check': 0,
       'webhook-sweep': 0,
+      'procurement-reorder': 3,
     });
   });
 

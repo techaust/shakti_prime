@@ -7,6 +7,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  createTestUser,
   principalFor,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -35,6 +36,7 @@ import {
   listPurchaseOrders,
   purchaseOrderOverdue,
 } from '../../src/queries/procurement/order-queries';
+import { notifyEvent } from '../../src/commands/notifications/notify';
 import { stockMove } from '../../src/stock/move';
 import {
   averageOf,
@@ -763,6 +765,27 @@ describe('reorder rules and procurement.reorder.draft', () => {
     expect(emitted.records.map((e) => e.payload)).toEqual(
       expect.arrayContaining([expect.objectContaining({ source: 'reorder' })]),
     );
+    // The company's order writers are told of a reorder draft, once; a person's order tells nobody.
+    const writer = await createTestUser([{ entityId: 3, roleKey: 'inventory_manager' }]);
+    const caller = await createTestUser([{ entityId: 3, roleKey: 'tele_caller_cc' }]);
+    const notify = (purchaseOrderId: string, fromReorder: boolean) =>
+      asPrincipal(workers, (context) =>
+        runCommand(
+          notifyEvent,
+          { context, audit, outbox },
+          { event: 'procurement.po.drafted', entityId: 3, eventId: newId(), purchaseOrderId, fromReorder },
+        ),
+      );
+    const firstOrder = out.purchaseOrderIds[0] ?? '';
+    await notify(firstOrder, true);
+    await notify(firstOrder, true);
+    await notify(firstOrder, false);
+    const told = await asMigrator(
+      (m) => m<{ user_id: string; type: string; subject_type: string }[]>`
+        select user_id, type, subject_type from notifications
+         where subject_id = ${firstOrder} and user_id in (${writer.id}, ${caller.id})`,
+    );
+    expect(told).toEqual([{ user_id: writer.id, type: 'reorder_drafted', subject_type: 'purchase_order' }]);
     // What is now on order covers the rules: a second run drafts nothing.
     const again = (await asPrincipal(workers, (context) =>
       runCommand(draftReorders, { context, audit, outbox }, { entityId: 3 }),

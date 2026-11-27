@@ -1695,6 +1695,20 @@
       "when": 1795789674904,
       "tag": "0241_u2_purchase_orders_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1795796868672,
+      "tag": "0242_u2_reorder_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1795796886098,
+      "tag": "0243_u2_reorder_notice_rls",
+      "breakpoints": true
     }
   ]
 }
