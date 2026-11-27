@@ -10,7 +10,7 @@ import { istClock } from './settings';
  */
 
 declare const logIdBrand: unique symbol;
-/** A string checked to have the shape of an id: a GUID, a UUID, a company code or an error code. */
+/** A string checked to have the shape of an id: a GUID, a company code, an error code or a name in code. */
 export type LogId = string & { readonly [logIdBrand]: true };
 
 export type LogValue = number | boolean | LogId | null;
@@ -21,11 +21,9 @@ const ID_SHAPES = [
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:-[0-9a-f]{1,8})?$/i,
   // A company code (`SS`, `RCREF`).
   /^[A-Z]{2,10}$/,
-  // An error code, reason or field name (`cursor_mismatch`, `partyGstin`, `ECONNREFUSED`,
-  // `TimeoutError`).
+  // An error code, reason or field name (`cursor_mismatch`, `partyGstin`, `ECONNREFUSED`).
   /^[a-z][A-Za-z0-9_]{0,59}$/,
   /^[A-Z][A-Z0-9_]{0,59}$/,
-  /^[A-Z][A-Za-z]{0,59}Error$/,
 ];
 
 /** The value when it has an id's shape, else the word `withheld`, so a slip never logs data. */
@@ -33,16 +31,19 @@ export function logId(value: string): LogId {
   return (ID_SHAPES.some((shape) => shape.test(value)) ? value : 'withheld') as LogId;
 }
 
-/** An error's kind for a log line: its code or class name, never its message. */
+/**
+ * An error's kind for a log line: the connector's own reason, the system's code or the error's
+ * class name, never its message.
+ */
 export function errorKind(error: unknown): LogId {
-  if (error instanceof Error) {
-    const code = (error as { code?: unknown }).code;
-    if (typeof code === 'string') return logId(code);
-    const causeCode = (error.cause as { code?: unknown } | undefined)?.code;
-    if (typeof causeCode === 'string') return logId(causeCode);
-    return logId(error.name);
-  }
-  return logId('unknown');
+  if (!(error instanceof Error)) return logId('unknown');
+  const { reason, code } = error as { reason?: unknown; code?: unknown };
+  if (typeof reason === 'string') return logId(reason);
+  if (typeof code === 'string') return logId(code);
+  const causeCode = (error.cause as { code?: unknown } | undefined)?.code;
+  if (typeof causeCode === 'string') return logId(causeCode);
+  // A class name (`TypeError`, `BosUnavailable`) is code, not data.
+  return (/^[A-Z][A-Za-z]{0,59}$/.test(error.name) ? error.name : 'withheld') as LogId;
 }
 
 export interface Log {

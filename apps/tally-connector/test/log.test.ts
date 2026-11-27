@@ -30,6 +30,10 @@ describe('the log', () => {
     expect(errorKind(failed)).toBe('ECONNRESET');
     expect(errorKind(new TypeError('fetch failed to Kisan Agro'))).toBe('TypeError');
     expect(errorKind('Kisan')).toBe('unknown');
+    expect(errorKind(Object.assign(new Error('x'), { reason: 'company_not_open' }))).toBe(
+      'company_not_open',
+    );
+    expect(errorKind(Object.assign(new Error('x'), { name: 'Kisan Agro' }))).toBe('withheld');
   });
 
   it('writes a file per India day and keeps the last thirty days', () => {

@@ -123,7 +123,7 @@ describe('throttling', () => {
       tally.addVoucher('Shakti Motor Pumps', { type: 'Receipt' });
     }
     tally.knobs.delayMs = 20;
-    const r = reader({ tallyPauseMs: 40 });
+    const r = reader({ tallyPauseMs: 60 });
     const [a, b] = await Promise.all([
       r.companyStatus(COMPANY),
       r.companyStatus('Shakti Motor Pumps'),
@@ -137,8 +137,8 @@ describe('throttling', () => {
     const times = tally.requests.map((q) => [q.startedAt, q.endedAt ?? 0]);
     for (let i = 1; i < times.length; i += 1) {
       const gap = (times[i]?.[0] ?? 0) - (times[i - 1]?.[1] ?? 0);
-      // Timer granularity: a few milliseconds either way.
-      expect(gap).toBeGreaterThanOrEqual(35);
+      // Timers are coarser on Windows: well under the pause, well over nothing.
+      expect(gap).toBeGreaterThanOrEqual(40);
     }
   });
 });
