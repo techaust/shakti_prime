@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T21:45Z
+updated: 2026-11-27T22:09Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -162,3 +162,11 @@ run_file: docs/runs/phase3/demo-data-ist-day.md
 wait_for: none
 done_when: report: demo-data-ist-day prepped
 note: prep for the lead's integration: readme's prep prompt. A test-only slice with no migration: take main in and run every integrate.sh part but e2e.
+
+lane: 82
+role: review
+branch: feat/r3-warranty
+run_file: docs/runs/phase3/r3-warranty.md
+wait_for: report: r3-warranty fixes
+done_when: review: r3-warranty re-check done
+note: re-check of the fix diff only (the review found a high): findings 1 to 9 and 12 fixed with tests; the db unit tests pass.

@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 3
-updated: 2026-11-27T21:35Z
+updated: 2026-11-27T22:09Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -114,3 +114,11 @@ run_file: docs/runs/phase3/calling-hours-clock.md
 wait_for: none
 done_when: report: calling-hours-clock fixes
 note: the one fix round: M1, L1, L2, L3 as the lead's triage at the end of the Review section says; record M2 as the lead named it.
+
+lane: 81
+role: fix
+branch: feat/r3-warranty
+run_file: docs/runs/phase3/r3-warranty.md
+wait_for: none
+done_when: report: r3-warranty fixes
+note: the one fix round: findings 1 to 9 and 12 as the lead's triage at the end of the Review section says. Finding 1 (high) first.
