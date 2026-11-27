@@ -217,6 +217,12 @@ describe('a connector principal reads no table', () => {
   );
 
   it('reads no customer, lead, order, cost, rate, file or audit row of its companies', async () => {
+    // A company's logo and letterhead are read by every principal acting in it (0062), as the
+    // role × company matrix shows for every role; no other file is.
+    const query = (table: string): SQL =>
+      table === 'files'
+        ? sql`select count(*)::int as n from files where purpose not in ('entity_logo', 'letterhead')`
+        : sql`select count(*)::int as n from ${sql.identifier(table)}`;
     const self = connectorPrincipal(connector, [1, 2]);
     for (const table of [
       'accounts',
@@ -230,11 +236,7 @@ describe('a connector principal reads no table', () => {
       'audit_logs',
       'dealer_outstanding',
     ]) {
-      const rows = await run<{ n: number }>(
-        self,
-        [1, 2],
-        sql`select count(*)::int as n from ${sql.identifier(table)}`,
-      );
+      const rows = await run<{ n: number }>(self, [1, 2], query(table));
       expect({ table, n: rows[0]?.n }).toEqual({ table, n: 0 });
     }
   });

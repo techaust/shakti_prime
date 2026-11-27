@@ -104,7 +104,7 @@ Roles are permission templates that Executives can edit; the set of roles is fix
   - every `admin.*` permission and `integrations.dlq.replay`: the Executive role only (`EXECUTIVE_ONLY_PERMISSIONS`);
   - `finance.cost.read`: Executive and Accounts only; `procurement.rate.read`: Executive, Inventory Manager and Accounts only (`COST_PERMISSION_HOLDERS`);
   - agent-only permissions (`AGENT_ONLY_PERMISSIONS`: `agents.note.write`): an agent role only, so the editor never lists them;
-  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`, `knowledge.index`, `crm.handover.run`, `crm.retention.run`, `platform.jobs.check`, `crm.dnd.record`, `webhooks.process`, `knowledge.playbook.check`, `calls.process`, `crm.ingest.run`, `messaging.process`, `voice.session.record`, `sales.quote.accept.remote`, `messaging.media.expire`): a system role only.
+  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`, `knowledge.index`, `crm.handover.run`, `crm.retention.run`, `platform.jobs.check`, `crm.dnd.record`, `webhooks.process`, `knowledge.playbook.check`, `calls.process`, `crm.ingest.run`, `messaging.process`, `voice.session.record`, `sales.quote.accept.remote`, `messaging.media.expire`, `tally.connector.sync`): a system role only.
 - The command refuses any other holder (`permission_not_for_role`, `permission_platform_only`), the trigger `role_permissions_holder_guard` refuses it in the database, the seed included, and the editor shows such a permission locked with its reason.
 - Each permission is offered only at the scopes it honours (`PERMISSION_SCOPES`, the scopes the matrix in §3.2 uses for it: `admin.*` all companies, the cost permissions a company or all; `scope_not_offered`).
 - The Executive role always keeps `admin.roles.write:all` and `admin.users.write:all` (`EXECUTIVE_KEPT_GRANTS`, `executive_keeps_admin`), which a deferred constraint trigger also checks at the end of every transaction, so the group cannot lock itself out.
@@ -151,6 +151,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `projects.schedule.write` | all | entity | – | – | – | – | – | entity | – | – | – |
 | `documents.read` / `.write` | all | entity | – | – | own | own | – | entity | own | entity | – |
 | `documents.sensitive.read` | all | – | – | – | – | – | – | entity | – | entity | – |
+| `finance.read` | all | entity | team | – | own | – | – | – | – | entity | – |
 | `finance.proforma.write` / `.payment.write` / `.recon.write` | all | – | – | – | – | – | – | – | – | entity | – |
 | `finance.cost.read` | all | – | – | – | – | – | – | – | – | entity | – |
 | `finance.expense.submit` | own | own | own | own | own | own | own | own | own | own | own |
@@ -197,6 +198,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `voice.session.record` | – | – | – | – | – | – | – | – | – | – | – |
 | `sales.quote.accept.remote` | – | – | – | – | – | – | – | – | – | – | – |
 | `messaging.media.expire` | – | – | – | – | – | – | – | – | – | – | – |
+| `tally.connector.sync` | – | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
 
@@ -312,6 +314,8 @@ The duplicates and merges ([phase 1 design §7.4](03-roadmap-appendix/phase1.md#
 | `messaging.media.expire` | The WhatsApp media retention job ([phase 2 design §11](03-roadmap-appendix/phase2.md#11-workshop-defaults), BLUEPRINT §7.9): it reads one company's media messages older than `WORKSHOP_DEFAULTS.retention.whatsappMediaYears` whose file is still kept through `app.whatsapp_media_due()`, records what it removed through `app.whatsapp_expire_media()` (which checks each message's age and that no other record uses its file under lock, marks the file deleted and writes the message's summary once), asks which keys under the company's WhatsApp folder still belong to a file through `app.whatsapp_media_keys_kept()` and records each sweep through `app.whatsapp_media_orphans_record()`; it reads no message's text and no customer row, and the bytes are deleted from the store by the job itself |
 
 The delivery check's worker writes no row.
+
+**A Tally connector's principal** (`connector:tally:<id>`, TC2, [phase 5 design §6.3](03-roadmap-appendix/phase5.md#63-tc2-tally-ingest-on-the-bos)) is a `principals` row of kind `system` made when an Executive registers the connector, acting in the role `system:tally_connector`, whose one grant (`SYSTEM_MATRIX`) is the platform-only `tally.connector.sync` at scope `all`. A route builds it only after the request's HMAC verified under the connector's current or next key (the SHA-256 of the key shown once, which is all the BOS keeps), with the companies mapped to the connector as its companies and the one company the call names as the request's. It reads no table: every read and write goes through definers that check the grant, the role, a live connector of the caller's own id and, for a company, its mapping (`app.tally_require_connector()`; `app.tally_connector_auth()`, `app.tally_cursor()`, `app.tally_cursor_lock()`, `app.tally_cursor_move()`, `app.tally_vouchers_known()`, `app.tally_vouchers_write()`, `app.tally_ledgers_write()`, `app.tally_ledger_balances_write()`, `app.tally_snapshot_write()`, `app.tally_tombstone()`, `app.tally_heartbeat_write()`). A company not mapped to it answers `forbidden`; a revoked connector is found by nobody.
 
 What no agent principal holds or does:
 - No agent principal holds `procurement.rate.read`, `finance.cost.read`, `documents.sensitive.read`, `knowledge.vault.read.exec`, any admin permission, `crm.config.write`, or the human controls (`agents.inbox.act`, `agents.autonomy.write`, `agents.killswitch`, `knowledge.playbook.draft`, `knowledge.playbook.approve`, `sales.credit.release`), `sales.credit.write`, the dealer credit Accounts enter, or `sales.targets.write`, the targets people are held to.

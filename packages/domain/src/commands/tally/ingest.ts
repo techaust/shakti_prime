@@ -418,7 +418,7 @@ export const confirmTallySnapshot = defineCommand({
       state: string;
       held_guids: string[];
     }[];
-    if (held === undefined || held.entity_id !== input.entityId) {
+    if (held?.entity_id !== input.entityId) {
       throw new DomainError('not_found', 'no such snapshot', { reason: 'tally_snapshot_missing' });
     }
     if (held.state !== 'held') {
