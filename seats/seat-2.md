@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T18:45Z
+updated: 2026-11-27T19:07Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -130,3 +130,11 @@ run_file: docs/runs/phase4/j2-loans.md
 wait_for: none
 done_when: report: j2-loans fixes
 note: the one fix round: M1, L1, L2, L3, L5, L6, L7 as the lead's triage at the end of the Review section says.
+
+lane: 63
+role: fix
+branch: feat/u2-purchase-orders
+run_file: docs/runs/phase3/u2-purchase-orders.md
+wait_for: none
+done_when: report: u2-purchase-orders fixes
+note: the one fix round, as the lead's triage at the end of the Review section says. X4 merged (#298, main bdf82df4): take main in first (a merge commit; your migrations move after 0240 with journal times after main's; node tools/integration/renumber-migrations.mjs origin/main <your pre-merge sha> after pnpm install), then the receipt opening per addendum 2 and X4's final comment block.

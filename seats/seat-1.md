@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T17:50Z
+updated: 2026-11-27T19:07Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -114,3 +114,11 @@ run_file: docs/runs/phase3/h2-reservations.md
 wait_for: none
 done_when: report: h2-reservations done
 note: continue. The lead read the early check (27-11 16:30 UTC): accepted, decisions 1 to 11 included (no is_default column; the PIN list then code order stands until the client answers). Build the unfinished list (workers, the cancel freeing stock to the fill, the hub PIN codes, the screens, journeys, EXPLAIN, the Built record). When X4 has merged, take main in and re-apply your one app.stock_move() rule onto X4's latest body (X4 moves the grant mapping and the serial block into tables); diff your redefinition against main's latest and say so in the report.
+
+lane: 64
+role: review
+branch: feat/u2-purchase-orders
+run_file: docs/runs/phase3/u2-purchase-orders.md
+wait_for: report: u2-purchase-orders fixes
+done_when: review: u2-purchase-orders re-check done
+note: re-check of the fix diff only (the review found a high): the receipt opening against X4's registry with the receipt and reversal tests on the real definer, and fixes 2 to 7, 9, 10 with tests.
