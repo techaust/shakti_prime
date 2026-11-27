@@ -437,6 +437,24 @@ export interface OrderJourneySeed {
   snapshotOrderNo: string;
 }
 
+/**
+ * FN1: per project, the dealers of company 1 whose confirmed orders the finance journeys open
+ * (`e2e/setup/finance.ts`): one for Accounts' proforma, one for the Lead Converter's view.
+ */
+export const FINANCE_DEALERS: Record<ProjectName, { accounts: string; converter: string }> = {
+  'desktop-light': { accounts: 'Marwar Solar Traders', converter: 'Aravali Pump House' },
+  'desktop-dark': { accounts: 'Thar Energy Mart', converter: 'Hadoti Solar Point' },
+  phone: { accounts: 'Mewar Agro Solar', converter: 'Dhundhar Pump Centre' },
+};
+
+export interface FinanceJourneySeed {
+  entityId: number;
+  orders: Record<
+    ProjectName,
+    { accounts: { orderId: string; soNo: string }; converter: { orderId: string; soNo: string } }
+  >;
+}
+
 export function emailFor(key: string): string {
   return `e2e-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}@shakti.test`;
 }
@@ -464,6 +482,8 @@ export interface SeededUsers {
   whatsappQuotes: WhatsAppQuoteSeed;
   /** The order journeys' fixtures. */
   orders: OrderJourneySeed;
+  /** FN1: the finance journeys' confirmed orders. */
+  finance: FinanceJourneySeed;
   /** The UAT journeys' fixtures. */
   uat: UatJourneySeed;
   /**

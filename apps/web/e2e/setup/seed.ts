@@ -49,6 +49,7 @@ import { ensureConvertingJourneys } from './converting';
 import { ensureConciergeJourneys } from './concierge';
 import { ensureCopilotJourneys } from './copilot';
 import { deliverWaitingEvents } from './deliver-waiting';
+import { ensureFinanceJourneys } from './finance';
 import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
@@ -907,6 +908,10 @@ const whatsappQuotes = await ensureWhatsAppQuoteJourneys(ids.executive ?? '');
 progress('the orders and dealers');
 const orders = await ensureOrderJourneys(ids.executive ?? '');
 
+// FN1: the finance journeys' confirmed orders, whose payments the platform plans on delivery.
+progress('the finance journeys');
+const finance = await ensureFinanceJourneys(ids.executive ?? '', ids.converter ?? '');
+
 // H1 stock ledger
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
@@ -1131,6 +1136,7 @@ const seeded: SeededUsers = {
   quotes,
   whatsappQuotes,
   orders,
+  finance,
   uat,
   recordings,
 };

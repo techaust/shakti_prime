@@ -5,15 +5,21 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrintImage } from '../../src/print/company';
-import { spikeCompany, spikeLabels, spikeQuote } from '../../src/print/fixtures/spike-documents';
+import {
+  spikeCompany,
+  spikeLabels,
+  spikeProforma,
+  spikeQuote,
+} from '../../src/print/fixtures/spike-documents';
 import { renderLabelsHtml } from '../../src/print/label-template';
 import { renderLetterheadProof } from '../../src/print/letterhead-proof-template';
+import { renderProforma } from '../../src/print/proforma-template';
 import { renderQuote } from '../../src/print/quote-template';
 import { solidPng } from '../support/png';
 
 /** Where the pages go; `print.spec.ts` reads them by these names. */
 export const PRINT_PAGES_DIR = join(import.meta.dirname, '..', '.print');
-export const PRINT_PAGES = ['quote', 'proof', 'label-50x25', 'label-100x50'] as const;
+export const PRINT_PAGES = ['quote', 'proof', 'label-50x25', 'label-100x50', 'proforma'] as const;
 
 const picture = (width: number, height: number, colour: [number, number, number]): PrintImage => ({
   contentType: 'image/png',
@@ -30,6 +36,8 @@ export async function writePrintPages(): Promise<void> {
     proof: renderLetterheadProof({ company, printedOn: '2026-10-04' }).html,
     'label-50x25': await renderLabelsHtml(spikeLabels(1), '50x25'),
     'label-100x50': await renderLabelsHtml(spikeLabels(1), '100x50'),
+    // FN1: the proforma, on the same letterhead.
+    proforma: renderProforma({ ...spikeProforma(), company }).html,
   };
   mkdirSync(PRINT_PAGES_DIR, { recursive: true });
   for (const name of PRINT_PAGES) writeFileSync(join(PRINT_PAGES_DIR, `${name}.html`), pages[name]);

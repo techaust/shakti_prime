@@ -58,6 +58,16 @@ test.describe('the print templates (ADR 0009), light only', () => {
     });
   });
 
+  test('the proforma, with the bank account, the UPI ID and the payments (FN1)', async ({
+    page: tab,
+  }) => {
+    await show(tab, printPage('proforma'), A4);
+    await expect(tab.getByRole('heading', { name: 'Proforma invoice' })).toBeVisible();
+    await expect(tab.getByText(/^Rupees .* only$/)).toBeVisible();
+    await expect(tab.getByText('UPI ID: agrosolarhub@sbi')).toBeVisible();
+    await snap(tab, 'print-proforma');
+  });
+
   test('the company proof page', async ({ page: tab }) => {
     await show(tab, printPage('proof'), A4);
     await expect(tab.getByRole('heading', { name: 'Proof page' })).toBeVisible();
