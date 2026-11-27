@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T20:13Z
+updated: 2026-11-27T21:05Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -146,3 +146,11 @@ run_file: docs/runs/phase3/h2-reservations.md
 wait_for: none
 done_when: report: h2-reservations fixes 2
 note: a short second round for the re-check's findings 10, 11 and 12, as the lead's triage at the end of the Review section says; report as report: h2-reservations fixes 2.
+
+lane: 78
+role: fix
+branch: fix/demo-data-ist-day
+run_file: docs/runs/phase3/demo-data-ist-day.md
+wait_for: none
+done_when: report: demo-data-ist-day fixes
+note: the one fix round: the review's finding 1 (the same single-page read in packages/domain/tests/queries/catalogue-queries.test.ts:173; page through with the cursor as your fix does). Also take main in (a merge commit). Small.
