@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 2
-updated: 2026-11-27T17:24Z
+updated: 2026-11-27T18:26Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -58,3 +58,11 @@ run_file: docs/runs/phase4/f1-field-foundation.md
 wait_for: none
 done_when: report: f1-field-foundation fixes
 note: the one fix round, as the lead's triage under the Review table says (findings 1, 2, 3, 5, 6, 7, 8 and the six packages the lead installed). Finding 1 is critical: first.
+
+lane: 60
+role: fix
+branch: feat/f1-field-foundation
+run_file: docs/runs/phase4/f1-field-foundation.md
+wait_for: none
+done_when: report: f1-field-foundation fixes 2
+note: a short second round for the re-check's findings 9 and 11, as the lead's triage at the end of the Review section says; report as report: f1-field-foundation fixes 2.
