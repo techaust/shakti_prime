@@ -354,6 +354,7 @@ describe('crm.loan.sanction, .disburse and .reject', () => {
         opportunityId: null,
         fromState: 'applied',
         state: 'rejected',
+        rejectedBy: caller.id,
         v: 1,
       },
     });

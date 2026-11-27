@@ -1695,6 +1695,20 @@
       "when": 1795789987756,
       "tag": "0241_j2_customer_loans_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1795792875141,
+      "tag": "0242_j2_loan_rejected_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1795792882017,
+      "tag": "0243_j2_loan_rejected_notice_owner",
+      "breakpoints": true
     }
   ]
 }

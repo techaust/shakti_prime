@@ -5379,7 +5379,8 @@
       "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
-      "enquiry_attached": "A customer of your lead in nurture asked again"
+      "enquiry_attached": "A customer of your lead in nurture asked again",
+      "loan_rejected": "A lender turned down a loan for your customer"
     },
     "settings": {
       "title": "Notification settings",
@@ -5558,6 +5559,10 @@
     "enquiry_attached": {
       "title": "A customer asked again",
       "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
+    },
+    "loan_rejected": {
+      "title": "A loan was turned down",
+      "body": "The lender turned down your customer's loan for an order. Tap to open the order and offer another way to pay."
     }
   },
   "orders": {

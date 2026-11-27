@@ -51,7 +51,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-68 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+68 types, 22 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -77,7 +77,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`crm.loan.created`](#crmloancreated) | A customer's loan was applied for on an order, with what it holds back. | `crm.loan.create` | none |
 | [`crm.loan.sanctioned`](#crmloansanctioned) | The lender sanctioned a customer's loan for an amount. | `crm.loan.sanction` | none |
 | [`crm.loan.disbursed`](#crmloandisbursed) | The lender paid out a customer's sanctioned loan. | `crm.loan.disburse` | none |
-| [`crm.loan.rejected`](#crmloanrejected) | The lender turned down a customer's loan; the lead's owner, if the order has a lead, is told so another route can be offered. | `crm.loan.reject` | none |
+| [`crm.loan.rejected`](#crmloanrejected) | The lender turned down a customer's loan; the owner of the order's lead, or of the customer where the order has none, is told so another route can be offered. | `crm.loan.reject` | `POST /api/v1/workers/outbox/crm.loan.rejected` (QStash URL group `evt-crm.loan.rejected`) |
 | [`crm.loan.gates_released`](#crmloangates_released) | A customer's loan reached the state its gates wait for: `dispatch` says the order's dispatch may leave, `milestones` names the payment milestones released. | `crm.loan.sanction`, `crm.loan.disburse` | none |
 
 ### Pricing
@@ -700,6 +700,7 @@ No fields apart from `v`.
 | `opportunityId` | id or null |
 | `fromState` | one of `applied`, `sanctioned` |
 | `state` | always `rejected` |
+| `rejectedBy` | id |
 
 ### crm.loan.gates_released
 

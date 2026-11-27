@@ -10,8 +10,9 @@ import { LOAN_AUDIT_FIELDS, lockCustomerLoan, writeCustomerLoan } from './loans-
 /**
  * `crm.loan.reject` (docs/03-roadmap-appendix/phase4.md §6.2): the lender turned down an applied or
  * sanctioned loan, with the reason they gave. The loan stops holding the order back, and the order
- * may take another loan. `crm.loan.rejected` carries the order's lead, so its owner can be told and
- * offer another route (`notify_owner`). People only.
+ * may take another loan. `crm.loan.rejected` brings the notify worker, which tells the owner of the
+ * order's lead, or of the customer where the order has none, so they offer another route
+ * (`notify_owner`). People only.
  */
 export const rejectCustomerLoan = defineCommand({
   name: 'crm.loan.reject',
@@ -60,6 +61,7 @@ export const rejectCustomerLoan = defineCommand({
         opportunityId: order?.opportunityId ?? null,
         fromState: rejected.from,
         state: 'rejected',
+        rejectedBy: ctx.principal.id,
       },
     });
     return readCustomerLoan(ctx, row.entityId, row.id);

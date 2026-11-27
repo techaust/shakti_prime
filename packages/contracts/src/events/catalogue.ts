@@ -838,9 +838,10 @@ const eventCatalogue = {
   },
   'crm.loan.rejected': {
     meaning:
-      "The lender turned down a customer's loan; the lead's owner, if the order has a lead, is told so another route can be offered.",
+      "The lender turned down a customer's loan; the owner of the order's lead, or of the customer where the order has none, is told so another route can be offered.",
     emittedBy: ['crm.loan.reject'],
-    subscribed: false,
+    // The notify worker tells the owner (the machine's `notify_owner`).
+    subscribed: true,
     payload: z
       .object({
         accountId: IdSchema,
@@ -848,6 +849,7 @@ const eventCatalogue = {
         opportunityId: IdSchema.nullable(),
         fromState: z.enum(['applied', 'sanctioned']),
         state: z.literal('rejected'),
+        rejectedBy: IdSchema,
       })
       .strict(),
   },
