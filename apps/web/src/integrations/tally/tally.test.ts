@@ -96,7 +96,7 @@ describe('connector request signing', () => {
     }
   });
 
-  // The same vectors are signed by the connector in apps/tally-connector/test/signing.test.ts, so a
+  // The same vectors are signed by the connector in apps/tally-connector/test/client.test.ts, so a
   // change on either side fails one of the two.
   it('verifies what the connector signs, a batch and a cursor read with its query', () => {
     const vectors = [
