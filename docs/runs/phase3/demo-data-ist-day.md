@@ -86,3 +86,28 @@ This is the same assertion I1's review recorded on an aged database (`phase2/i1-
 - I renumbered three archived lists on this slot's database by hand, as above, so that the db suite could run after the demo test without a fresh database.
 
 **Uncertain:** I could not read H1's own failing assertion: its report gives only the date explanation. My conclusion that H1 saw the same paging failure rests on two things. The reproduction above has the same shape (the whole suite rerun on an ageing database, passing first and then failing). And the same assertion text was recorded on aged databases in Phase 2.
+
+## Review
+Reviewer, 27-11-2026, in the lead's cloud VM (worktree `demo-data-ist-day`, Postgres 54332, on 3b0415b1). Tier C. Verdict: **no critical or high finding; the slice can merge.** The diff is one test helper, `pricedOn()` in `apps/web/tests/demo-data.test.ts`, plus this file.
+
+### Findings
+| # | Severity | Where | What is wrong | Failure scenario | Fix | Status |
+|---|---|---|---|---|---|---|
+| 1 | low | `packages/domain/tests/queries/catalogue-queries.test.ts:173` | The same single-page read this slice fixes: `listKitPrices(…, { limit: 200 })` with no cursor, then a filter by the run's tag. Not in this slice's files. | Once the shared database holds more than 200 active kits, the run's kit (its name starts with a random tag) can fall past the first page and the case fails as `demo-data` did. Kits grow by about one a whole-suite run (6 on this database after its runs, 10 on the builder's after five), so this is far off. | Page with the cursor, as `screen-lists.test.ts` `allPrices()` does. A follow-up, not a merge blocker. | plausible |
+
+### Checked and sound
+- **The cause.** I read the code path end to end. `listPrices` orders the active items by name (`keysetOrder`, default `item` ascending) and returns at most 200 rows. The demo pump is named `Submersible pump 3 HP <tag> (demo)`, so it sorts late. On this slot's database, with 250 extra active items added by hand, the live demo pumps ranked 263 and 264 by name: `main`'s one-page `pricedOn()` cannot see them, so it gives `expected undefined to be '31000.00'`, the assertion I1's review recorded. The loader's own `listedPrices()` (`apps/web/scripts/demo-data-loader.ts:604`) already pages; the new helper matches it, and it resets the cursor between the two loops correctly (the first loop ends at `undefined`). `cursor: undefined` passes the strict `ListPricesInput`/`ListKitPricesInput` (an optional key).
+- **No production code reads a price list by the UTC date.** The loader dates its lists with `istCalendarDate(new Date())` (line 632). `listPriceLists()` and `priceListState()` compare with `istCalendarDate(now)`. Quotes take their list through `livePriceList(…, istCalendarDate(now))` (`quote-builder.ts:48`, `quote-facts.ts:441`). The `toISOString().slice(0, 10)` reads in `packages/domain/src` and `apps/web/src` are date arithmetic on dates already in India's day, or the workers' run names the builder lists. No migration reads `current_date` for price lists. On this database the demo lists got `effective_from` 2026-11-28 while the UTC date was the 27th, so the loader writes the day in India.
+- **The window, with both clocks real.** At 20:17 UTC (01:47 IST) on the fresh database, `demo-data.test.ts`: 9 of 9 passed. At 20:48 UTC (02:18 IST), on the database aged with 262 active items sorting before the demo pump: 9 of 9 passed.
+- **The process clock, by a preload, not an edit.** I ran the file with a `--require` preload that moves the process clock (`NODE_OPTIONS`), with the database's clock left real (02:2x IST on 28-11):
+  - process at 23:30 IST on 27-11 (`2026-11-27T18:00:00Z`): 9 of 9 passed. The list it made took effect on 2026-11-27, a day behind the database's day in India.
+  - process at 00:30 IST on 29-11 (`2026-11-28T19:00:00Z`): 9 of 9 passed. The list it made took effect on 2026-11-29, a day ahead of the database's.
+  This confirms the builder's finding that no price-list read takes its date from the database.
+- **Brief item 2.** The builder's list matches what I found. `apps/web/tests/list-actions.test.ts`, `whatsapp-quotes.test.ts` and `pdf-render.test.ts` insert lists with fixed dates (2026-04-01, 2090-01-01). No web file other than `demo-data` makes a shared list, so `retailList()` cannot pick another file's list.
+- **The builder's "also seen" 1.** `catalogueFixture()` deletes its own lists, then inserts a shared Retail list as version 1 (`packages/db/src/testing/catalogue-fixture.ts:49`, `:75`), against `price_lists_tier_entity_version_unique` (`0007_catalogue_core.sql:136`). This is as described, and outside this slice.
+- **Checks:** `pnpm exec eslint --max-warnings 0 apps/web/tests/demo-data.test.ts`: clean. `pnpm --filter web typecheck`: clean. Both ran through the lock. The branch merges with `origin/main` (148 commits ahead of it) without conflict; `main` changed no file the helper reads except `dto/catalogue.ts`, by additions.
+- **Not applicable:** isolation, definers, commands, races and money, the web layer, copy, layout, `EXPLAIN` and documents. No table, command, query, page or document changed.
+
+### Not run
+- The whole `pnpm test:security`, the db and domain suites, and the journeys. No journey reads this test or its helper, and none was run.
+- **This slot's database is now aged and should not be reused for the suites.** It holds 250 items `REVIEW-AGED-*` that I added. It holds two demo sets left live by two runs that failed on my own first rows (ids that were not UUIDv7; the rows are corrected). It holds shared Retail lists versions 1 to 6, all archived, so a db suite run on 54332 would stop on `catalogueFixture()`'s version 1, as the builder's "also seen" 1 says.
