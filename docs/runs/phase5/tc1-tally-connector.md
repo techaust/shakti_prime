@@ -305,4 +305,9 @@ All ten findings are fixed, and each has a test. Finding 1, the high, is closed,
 
 **Not checked:** the `windows-latest` job, `build-sea.ts`, `pnpm build`, `js-budget` and the whole-repository `pnpm lint`, which the builder reports clean. No security suite was run, since there is no schema, policy or command change. The slice has no screen and no journey, so no journey was run.
 
+**The lead's triage of the re-check (27-11-2026):** a medium is fixed before the merge (slice-integration §4), so there is a short second round for 11 and 12.
+- **11:** `tooMany` counts `refused` too, and a page over any of the contract's caps halves its window and is read again, never sent.
+- **12:** a test where a refused or unreadable row sits before a later row and the drain sends the later one. Another takes an unreadable answer up to the attempt limit and on to `heldRows`.
+- **No further re-check:** the lead reads the diff.
+
 ## Integration
