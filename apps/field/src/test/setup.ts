@@ -1,7 +1,6 @@
-import { hideLazyGlobals } from './lazy-globals';
-
 // The native modules the screens and stores use, mocked for jest-expo: the secure store as an
 // in-memory map per test, the fingerprint check as never available unless a test says otherwise.
+// Jest 30.5 leaves Expo's lazy globals alone at teardown, so no workaround is needed for them.
 jest.mock('expo-secure-store', () => {
   const values = new Map<string, string>();
   return {
@@ -19,6 +18,27 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+/** The part of Node's crypto the expo-crypto mock uses. */
+interface MockNodeCrypto {
+  randomUUID(): string;
+  randomBytes(count: number): Uint8Array;
+  createHash(algorithm: string): { update(data: string): { digest(encoding: 'hex'): string } };
+}
+
+// expo-crypto's native module, with Node's own random source and SHA-256 in its place.
+jest.mock('expo-crypto', () => {
+  const node = jest.requireActual('node:crypto') as MockNodeCrypto;
+  return {
+    CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+    CryptoEncoding: { HEX: 'hex' },
+    randomUUID: jest.fn(() => node.randomUUID()),
+    getRandomBytes: jest.fn((count: number) => new Uint8Array(node.randomBytes(count))),
+    digestStringAsync: jest.fn((_algorithm: string, data: string) =>
+      Promise.resolve(node.createHash('sha256').update(data).digest('hex')),
+    ),
+  };
+});
+
 jest.mock('expo-local-authentication', () => ({
   hasHardwareAsync: jest.fn(() => Promise.resolve(false)),
   isEnrolledAsync: jest.fn(() => Promise.resolve(false)),
@@ -29,8 +49,6 @@ jest.mock('expo-constants', () => ({
   __esModule: true,
   default: { expoConfig: { version: '1.0.0', extra: { apiBaseUrl: 'https://bos.test/api/v1' } } },
 }));
-
-hideLazyGlobals();
 
 jest.mock(
   'react-native-safe-area-context',

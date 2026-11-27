@@ -12,7 +12,7 @@
       "versionCode": 1,
       "allowBackup": false
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-local-authentication"],
+    "plugins": ["expo-router", "expo-secure-store", "expo-local-authentication", "expo-system-ui"],
     "experiments": {
       "typedRoutes": false
     },

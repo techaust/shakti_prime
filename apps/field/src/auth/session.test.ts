@@ -1,11 +1,31 @@
 import * as SecureStore from 'expo-secure-store';
 import { fakeApi, me, no, ok, tokenPair } from '../test/fake-api';
 import type { Api } from './api';
-import { createSession, PIN_TRIES } from './session';
+import {
+  createSession,
+  LOCK_AFTER_BACKGROUND_MS,
+  PIN_TRIES,
+  REFRESH_BEFORE_EXPIRY_MS,
+  type SessionOptions,
+} from './session';
 import { tokenStore } from './token-store';
 
 const values = (SecureStore as unknown as { __values: Map<string, string> }).__values;
-const session = (api: ReturnType<typeof fakeApi>) => createSession(api as unknown as Api);
+const session = (api: ReturnType<typeof fakeApi>, options?: SessionOptions) =>
+  createSession(api as unknown as Api, undefined, options);
+
+/** A phone's clock the test moves by hand. */
+function phoneClock() {
+  let at = Date.parse('2026-11-27T10:00:00.000Z');
+  return {
+    now: () => at,
+    pass: (ms: number) => {
+      at += ms;
+    },
+  };
+}
+
+const ACCESS_MS = 15 * 60 * 1000;
 
 beforeEach(() => {
   values.clear();
@@ -27,6 +47,7 @@ describe('the session', () => {
       device: { deviceId: string; appVersion: string };
     };
     expect(sent.device).toMatchObject({ platform: 'android', appVersion: '1.0.0' });
+    expect(Object.keys(sent.device)).not.toContain('model');
     await s.choosePin('2468');
     expect(s.getState()).toEqual({
       status: 'ready',
@@ -117,5 +138,92 @@ describe('the session', () => {
     await s.signOut();
     expect(api.revoke).toHaveBeenCalledWith(tokenPair(1).accessToken);
     expect(s.getState()).toEqual({ status: 'signedOut' });
+  });
+
+  it('names the phone’s model and Android version at sign-in, so its owner’s phones differ', async () => {
+    const api = fakeApi();
+    const s = session(api, { phone: () => ({ model: 'Galaxy M14', osVersion: '14' }) });
+    await s.signIn('rakesh.meena@shaktisupreme.in', 'monsoon pump 2026 river');
+    expect(api.signIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        device: expect.objectContaining({ model: 'Galaxy M14', osVersion: '14' }),
+      }),
+    );
+  });
+
+  it('uses the access token while it has more than a minute left, and refreshes it before then', async () => {
+    const clock = phoneClock();
+    const api = fakeApi();
+    const s = session(api, { now: clock.now });
+    await s.signIn('rakesh.meena@shaktisupreme.in', 'monsoon pump 2026 river');
+    clock.pass(ACCESS_MS - REFRESH_BEFORE_EXPIRY_MS - 1000);
+    expect(await s.accessToken()).toBe(tokenPair(1).accessToken);
+    expect(api.refresh).not.toHaveBeenCalled();
+    clock.pass(1000);
+    expect(await s.accessToken()).toBe(tokenPair(2).accessToken);
+    expect(api.refresh).toHaveBeenCalledTimes(1);
+    // The new token counts its own fifteen minutes from when it arrived.
+    clock.pass(ACCESS_MS - REFRESH_BEFORE_EXPIRY_MS - 1000);
+    expect(await s.accessToken()).toBe(tokenPair(2).accessToken);
+    expect(api.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes once and tries again when a call is refused with no reason, before signing out', async () => {
+    const clock = phoneClock();
+    const meCall = jest
+      .fn()
+      .mockImplementation((token: string) =>
+        token === tokenPair(1).accessToken ? no('unauthorized') : ok(me()),
+      );
+    const api = fakeApi({ me: meCall });
+    const s = session(api, { now: clock.now });
+    await s.signIn('rakesh.meena@shaktisupreme.in', 'monsoon pump 2026 river');
+    await s.choosePin('2468');
+    expect(api.refresh).toHaveBeenCalledTimes(1);
+    expect(meCall.mock.calls.map((c) => c[0])).toEqual([
+      tokenPair(1).accessToken,
+      tokenPair(2).accessToken,
+    ]);
+    expect(s.getState()).toMatchObject({ status: 'ready', offline: false });
+
+    // Refused again after the refresh: the phone's sign-in has ended.
+    const refusedTwice = session(fakeApi({ me: jest.fn(() => no('unauthorized')) }));
+    await refusedTwice.signIn('rakesh.meena@shaktisupreme.in', 'monsoon pump 2026 river');
+    await refusedTwice.choosePin('2468');
+    expect(refusedTwice.getState()).toEqual({
+      status: 'signedOut',
+      notice: 'errors.unauthorized',
+    });
+  });
+
+  it('refreshes before signing out with an old token, so the server ends the phone’s sign-in', async () => {
+    const clock = phoneClock();
+    const api = fakeApi();
+    const s = session(api, { now: clock.now });
+    await s.signIn('rakesh.meena@shaktisupreme.in', 'monsoon pump 2026 river');
+    clock.pass(ACCESS_MS + 60_000);
+    await s.signOut();
+    expect(api.refresh).toHaveBeenCalledTimes(1);
+    expect(api.revoke).toHaveBeenCalledWith(tokenPair(2).accessToken);
+    expect(s.getState()).toEqual({ status: 'signedOut' });
+    expect(await tokenStore.refreshToken()).toBeNull();
+  });
+
+  it('asks for the PIN again after five minutes in the background, not after less', async () => {
+    const clock = phoneClock();
+    const s = session(fakeApi(), { now: clock.now });
+    await s.signIn('rakesh.meena@shaktisupreme.in', 'monsoon pump 2026 river');
+    await s.choosePin('2468');
+    expect(s.getState()).toMatchObject({ status: 'ready' });
+    s.wentToBackground();
+    clock.pass(LOCK_AFTER_BACKGROUND_MS - 1000);
+    await s.cameToForeground();
+    expect(s.getState()).toMatchObject({ status: 'ready' });
+    s.wentToBackground();
+    clock.pass(LOCK_AFTER_BACKGROUND_MS);
+    await s.cameToForeground();
+    expect(s.getState()).toEqual({ status: 'locked', hasPin: true });
+    expect(await s.unlockWithPin('2468')).toBeUndefined();
+    expect(s.getState()).toMatchObject({ status: 'ready' });
   });
 });

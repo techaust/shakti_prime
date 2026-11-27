@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 import { createApi } from './api';
 import { createSession, type Biometrics, type Session, type SessionState } from './session';
 
@@ -31,6 +32,16 @@ export function SessionProvider({ children, session }: { children: ReactNode; se
   const [value] = useState(() => session ?? createSession(createApi()));
   useEffect(() => {
     if (value.getState().status === 'loading') void value.start();
+  }, [value]);
+  // Back from five minutes or more in the background, the app asks for the PIN or fingerprint.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void value.cameToForeground();
+      else if (next === 'background') value.wentToBackground();
+    });
+    return () => {
+      subscription.remove();
+    };
   }, [value]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

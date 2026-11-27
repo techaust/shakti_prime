@@ -4,7 +4,6 @@
 module.exports = {
   preset: 'jest-expo/android',
   setupFiles: ['./src/test/setup.ts'],
-  setupFilesAfterEnv: ['./src/test/after-env.ts'],
   testMatch: ['<rootDir>/src/**/*.test.{ts,tsx}'],
   transformIgnorePatterns: [
     'node_modules/(?!(\\.pnpm|((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|expo-router|nativewind|react-native-css-interop|uuid|zod))',

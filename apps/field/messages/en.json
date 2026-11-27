@@ -62,6 +62,7 @@
     "refresh_expired": "You've been away for a while. Please sign in again.",
     "refresh_reused": "For your safety this phone was signed out. Please sign in again.",
     "device_revoked": "This phone was signed out. Please sign in again.",
+    "unauthorized": "Your sign-in on this phone has ended. Please sign in again.",
     "rate_limited": "Too many tries. Wait a few minutes before you try again.",
     "offline": "No internet connection. Check your signal and try again.",
     "integration_unavailable": "Signing in isn't working right now. Try again in a few minutes.",

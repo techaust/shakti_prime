@@ -1,8 +1,13 @@
-import { compareSemver, type MeResponse } from '@shakti/contracts';
-import { appVersion } from '../config';
+import {
+  compareSemver,
+  TOKEN_LIFETIMES,
+  type MeResponse,
+  type MobileTokenResponse,
+} from '@shakti/contracts';
+import { appVersion, phoneDetails, type PhoneDetails } from '../config';
 import type { MessageKey } from '../i18n';
 import { errorKey } from '../i18n';
-import type { Api } from './api';
+import type { Api, ApiResult } from './api';
 import { tokenStore, type StoredPerson } from './token-store';
 
 /**
@@ -19,6 +24,17 @@ export type SessionState =
 
 /** Wrong PINs before the phone is signed out. */
 export const PIN_TRIES = 5;
+
+/** Time in the background after which the app asks for the PIN or fingerprint again. */
+export const LOCK_AFTER_BACKGROUND_MS = 5 * 60 * 1000;
+
+/**
+ * How long before its expiry the access token is replaced: a call made with a token about to end
+ * would be refused on the way. The expiry is counted on the phone's own clock from when the token
+ * arrived, with the lifetime the server gives every access token, since a phone's clock may be
+ * minutes away from the server's.
+ */
+export const REFRESH_BEFORE_EXPIRY_MS = 60 * 1000;
 
 /** Reasons that end the phone's sign-in: the person signs in again with their password. */
 const SIGNED_OUT = new Set([
@@ -39,11 +55,29 @@ export interface Biometrics {
 
 type Store = typeof tokenStore;
 
-export function createSession(api: Api, store: Store = tokenStore) {
+export interface SessionOptions {
+  /** The phone's clock, in milliseconds. */
+  now?: () => number;
+  /** The phone's model and Android version, sent with a sign-in so Team members can tell phones apart. */
+  phone?: () => PhoneDetails;
+}
+
+export function createSession(api: Api, store: Store = tokenStore, options: SessionOptions = {}) {
+  const now = options.now ?? (() => Date.now());
+  const phone = options.phone ?? phoneDetails;
   let state: SessionState = { status: 'loading' };
-  let accessToken: string | undefined;
+  /** The access token in memory only, with the time on this phone's clock it stops being used. */
+  let access: { token: string; useUntil: number } | undefined;
   let refreshing: Promise<string | undefined> | undefined;
+  let backgroundSince: number | undefined;
   const listeners = new Set<() => void>();
+
+  const keepAccess = (pair: MobileTokenResponse) => {
+    access = {
+      token: pair.accessToken,
+      useUntil: now() + TOKEN_LIFETIMES.mobileAccess * 1000 - REFRESH_BEFORE_EXPIRY_MS,
+    };
+  };
 
   const setState = (next: SessionState) => {
     state = next;
@@ -51,7 +85,7 @@ export function createSession(api: Api, store: Store = tokenStore) {
   };
 
   async function signOutHere(notice?: MessageKey): Promise<void> {
-    accessToken = undefined;
+    access = undefined;
     await store.clear();
     setState(notice === undefined ? { status: 'signedOut' } : { status: 'signedOut', notice });
   }
@@ -81,8 +115,8 @@ export function createSession(api: Api, store: Store = tokenStore) {
           return undefined;
         }
         await store.saveRefreshToken(answer.data.refreshToken);
-        accessToken = answer.data.accessToken;
-        return accessToken;
+        keepAccess(answer.data);
+        return answer.data.accessToken;
       } finally {
         refreshing = undefined;
       }
@@ -90,10 +124,33 @@ export function createSession(api: Api, store: Store = tokenStore) {
     return refreshing;
   }
 
+  /** The access token while it has more than a minute left, else a new one. */
+  function currentToken(): Promise<string | undefined> {
+    return access !== undefined && now() < access.useUntil
+      ? Promise.resolve(access.token)
+      : refresh();
+  }
+
+  /**
+   * A bearer call with a token that has time left. A refusal with no reason (the token ended
+   * sooner than this phone's clock said) is answered by one refresh and one more try before
+   * anything else; only a second refusal signs the phone out.
+   */
+  async function withBearer<T>(
+    send: (token: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T> | undefined> {
+    const token = await currentToken();
+    if (token === undefined) return undefined;
+    const answer = await send(token);
+    if (answer.ok || answer.reason !== 'unauthorized') return answer;
+    access = undefined;
+    const fresh = await refresh();
+    return fresh === undefined ? undefined : send(fresh);
+  }
+
   async function readMe(): Promise<MeResponse | 'offline' | 'refused'> {
-    const token = accessToken ?? (await refresh());
-    if (token === undefined) return state.status === 'locked' ? 'offline' : 'refused';
-    const answer = await api.me(token);
+    const answer = await withBearer((token) => api.me(token));
+    if (answer === undefined) return state.status === 'locked' ? 'offline' : 'refused';
     if (answer.ok) return answer.data;
     if (await refused(answer.reason)) return 'refused';
     return 'offline';
@@ -128,7 +185,7 @@ export function createSession(api: Api, store: Store = tokenStore) {
         setState({ status: 'signedOut' });
         return;
       }
-      setState({ status: 'locked', hasPin: (await store.pin()) !== null });
+      setState({ status: 'locked', hasPin: await store.hasPin() });
     },
 
     async signIn(email: string, password: string, totpCode?: string): Promise<SignInOutcome> {
@@ -136,7 +193,12 @@ export function createSession(api: Api, store: Store = tokenStore) {
         email,
         password,
         ...(totpCode === undefined || totpCode === '' ? {} : { totpCode }),
-        device: { deviceId: await store.deviceId(), platform: 'android', appVersion: appVersion() },
+        device: {
+          deviceId: await store.deviceId(),
+          platform: 'android',
+          ...phone(),
+          appVersion: appVersion(),
+        },
       });
       if (!answer.ok) {
         if (answer.reason === 'app_update_required') {
@@ -151,7 +213,7 @@ export function createSession(api: Api, store: Store = tokenStore) {
       }
       await store.clear();
       await store.saveRefreshToken(answer.data.refreshToken);
-      accessToken = answer.data.accessToken;
+      keepAccess(answer.data);
       setState({ status: 'locked', hasPin: false });
       return { ok: true };
     },
@@ -163,7 +225,7 @@ export function createSession(api: Api, store: Store = tokenStore) {
 
     /** The PIN typed; answers the tries left after a wrong one, or none when it opened. */
     async unlockWithPin(pin: string): Promise<{ triesLeft: number } | undefined> {
-      if (pin === (await store.pin())) {
+      if (await store.pinMatches(pin)) {
         await store.savePinTries(0);
         await opened();
         return undefined;
@@ -183,15 +245,31 @@ export function createSession(api: Api, store: Store = tokenStore) {
       return true;
     },
 
-    /** Signs this phone out at the server when it can, and here always. */
+    /**
+     * Signs this phone out at the server when it can, and here always. A token with little time
+     * left is refreshed first, so the server's row is ended rather than the call refused.
+     */
     async signOut(): Promise<void> {
-      const token = accessToken ?? (await refresh());
-      if (token !== undefined) await api.revoke(token);
+      await withBearer((token) => api.revoke(token));
       await signOutHere();
     },
 
-    /** The access token for a call, refreshed when there is none. */
-    accessToken: () => (accessToken === undefined ? refresh() : Promise.resolve(accessToken)),
+    /** The access token for a call: the one in memory while it has time left, else a new one. */
+    accessToken: currentToken,
+
+    /** The app went to the background (React Native's `AppState`). */
+    wentToBackground(): void {
+      backgroundSince ??= now();
+    },
+
+    /** The app came back: after five minutes away, the PIN or fingerprint is asked again. */
+    async cameToForeground(): Promise<void> {
+      const since = backgroundSince;
+      backgroundSince = undefined;
+      if (since === undefined || now() - since < LOCK_AFTER_BACKGROUND_MS) return;
+      if (state.status !== 'ready') return;
+      setState({ status: 'locked', hasPin: await store.hasPin() });
+    },
   };
 }
 

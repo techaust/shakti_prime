@@ -102,7 +102,8 @@ describe('the unlock screen', () => {
     await waitFor(() => {
       expect(session.getState()).toMatchObject({ status: 'ready' });
     });
-    expect(await tokenStore.pin()).toBe('2468');
+    expect(await tokenStore.pinMatches('2468')).toBe(true);
+    expect([...values.values()]).not.toContain('2468');
   });
 
   it('opens with the PIN, counts the tries left, and offers the fingerprint when the phone has one', async () => {

@@ -7,7 +7,10 @@ import { t } from '../src/i18n';
 import { SignInScreen } from '../src/screens/sign-in-screen';
 import { UnlockScreen } from '../src/screens/unlock-screen';
 import { UpdateScreen } from '../src/screens/update-screen';
+import { startSentry } from '../src/observability/sentry';
 import { ThemeRoot } from '../src/theme';
+
+startSentry();
 
 /**
  * The app's frame: the theme, the session and the gate. Until the person is signed in, has opened
