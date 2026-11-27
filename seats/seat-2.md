@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T19:30Z
+updated: 2026-11-27T20:16Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -146,3 +146,11 @@ run_file: docs/runs/phase5/tc1-tally-connector.md
 wait_for: none
 done_when: report: tc1-tally-connector fixes
 note: the one fix round: all ten findings as the lead's triage at the end of the Review section says. Finding 1 (high) first.
+
+lane: 73
+role: fix
+branch: feat/tc1-tally-connector
+run_file: docs/runs/phase5/tc1-tally-connector.md
+wait_for: none
+done_when: report: tc1-tally-connector fixes 2
+note: a short second round for the re-check's findings 11 and 12, as the lead's triage at the end of the Review section says; report as report: tc1-tally-connector fixes 2.
