@@ -1,14 +1,18 @@
-import { redactText } from '@shakti/contracts/masking';
+import { normaliseKey, redact, redactText } from '@shakti/contracts/masking';
 
 /**
  * What leaves the field app for Sentry (docs/07-security.md §5), by the web's rules
- * (`apps/web/src/observability/sentry-scrub.ts`): every event and breadcrumb passes through here in
- * `beforeSend`, `beforeSendTransaction` and `beforeBreadcrumb`. A request keeps its method and
- * path only; the person, their id only; a field named as a secret (any token, the password, the
- * PIN, an authenticator or backup code, the installation id, headers and bodies) is dropped; every other text is scrubbed as the logs are
- * (`redactText`: links, bearer and signed tokens, email and UPI addresses, phone numbers to their
- * last four digits, identity numbers whole); stack frames lose their local variables. Pure
- * functions over the event's plain shape, so they are tested without the SDK.
+ * (`apps/web/src/observability/sentry-scrub.ts`): every event, transaction and breadcrumb the
+ * JavaScript side sends passes through here in `beforeSend`, `beforeSendTransaction` and
+ * `beforeBreadcrumb`. A request keeps its method and path only; the person, their id only; every
+ * field goes through the logs' own redaction (`redact` of `@shakti/contracts/masking`: secret and
+ * identity fields hidden, a number of ten digits or more hidden, text scrubbed of links, tokens,
+ * email and UPI addresses, phone numbers to their last four digits and identity numbers whole),
+ * after the fields only a phone carries (its PIN, codes, installation id, headers and bodies) are
+ * dropped; stack frames lose their local variables. A native Android crash skips these functions
+ * and carries the scope the SDK copies from JavaScript, so the app sets nothing on Sentry's scope
+ * (SECURITY §2, Mobile). Pure functions over the event's plain shape, so they are tested without
+ * the SDK.
  */
 
 type Loose = Record<string, unknown>;
@@ -16,15 +20,14 @@ type Loose = Record<string, unknown>;
 const isObject = (value: unknown): value is Loose =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** A field name without case or separators. */
-const normalise = (key: string): string => key.toLowerCase().replace(/[_-]/g, '');
-
-/** Fields that never leave the phone, compared without case or separators. */
-const SECRET_KEYS: ReadonlySet<string> = new Set([
+/**
+ * Fields that never leave the phone beyond those `redact` hides itself, compared without case or
+ * separators: the PIN and an authenticator or backup code (which `redact` would keep as codes),
+ * the installation id, and request headers and bodies.
+ */
+const PHONE_SECRET_KEYS: ReadonlySet<string> = new Set([
   'authorization',
   'cookie',
-  'password',
-  'secret',
   'pin',
   'totpcode',
   'backupcode',
@@ -33,17 +36,9 @@ const SECRET_KEYS: ReadonlySet<string> = new Set([
   'sid',
   'headers',
   'body',
-  'aadhaar',
-  'aadhar',
-  'pan',
-  'accountnumber',
-  'ifsc',
 ]);
 
-const isSecretKey = (key: string): boolean => {
-  const k = normalise(key);
-  return SECRET_KEYS.has(k) || k.endsWith('token');
-};
+const isPhoneSecretKey = (key: string): boolean => PHONE_SECRET_KEYS.has(normaliseKey(key));
 
 /** Fields whose value is an address or a path: their query string and fragment are cut. */
 const ADDRESS_KEY = /path|url|uri|target|href|^from$|^to$/i;
@@ -57,21 +52,25 @@ export function withoutQuery(url: string): string {
 const scrubText = (value: unknown): unknown =>
   typeof value === 'string' ? redactText(withoutQuery(value)) : value;
 
-/** Any value as the logs keep it: secret fields dropped, text scrubbed, at most six levels deep. */
-export function scrubFields(value: unknown, depth = 0): unknown {
+/** A copy without the phone's own secret fields, and with every address cut to its path. */
+function withoutPhoneSecrets(value: unknown, depth = 0): unknown {
   if (depth > 6) return '[deep]';
-  if (typeof value === 'string') return redactText(value);
-  if (Array.isArray(value)) return value.slice(0, 50).map((v) => scrubFields(v, depth + 1));
+  if (Array.isArray(value)) return value.map((v) => withoutPhoneSecrets(v, depth + 1));
   if (!isObject(value)) return value;
   const out: Loose = {};
   for (const [key, field] of Object.entries(value)) {
-    if (isSecretKey(key)) continue;
+    if (isPhoneSecretKey(key)) continue;
     out[key] =
       typeof field === 'string' && ADDRESS_KEY.test(key)
-        ? redactText(withoutQuery(field))
-        : scrubFields(field, depth + 1);
+        ? withoutQuery(field)
+        : withoutPhoneSecrets(field, depth + 1);
   }
   return out;
+}
+
+/** Any value as the web's Sentry and the logs keep it, without the phone's own secrets. */
+export function scrubFields(value: unknown): unknown {
+  return redact(withoutPhoneSecrets(value));
 }
 
 function scrubFrame(frame: unknown): unknown {

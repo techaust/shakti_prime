@@ -1,3 +1,4 @@
+import { IDENTITY_KEYS } from '@shakti/contracts/masking';
 import { scrubBreadcrumb, scrubEvent, scrubFields } from './sentry-scrub';
 
 const JWT = 'eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ4In0.c2lnbmF0dXJlLXNoYXBl';
@@ -63,5 +64,40 @@ describe('what the field app sends to Sentry', () => {
       data: { url: 'https://shaktiprime.com/api/v1/me' },
     });
     expect(scrubFields(['9876543210'])).toEqual(['3210'.padStart(10, '*')]);
+  });
+
+  it('hides a number of ten digits or more and every identity field, as the web does', () => {
+    const PAN = 'ABCDE1234F';
+    const identity = Object.fromEntries([...IDENTITY_KEYS].map((key) => [key, PAN]));
+    const spelled = {
+      panNumber: PAN,
+      aadhaarNumber: '2345 6789 0123',
+      accountNo: '50100234567890',
+      bank_account_number: '50100234567890',
+      ifscCode: 'HDFC0001234',
+      uid: PAN,
+    };
+    const event = scrubEvent({
+      extra: { mobile: 9876543210, customer: { ...identity, ...spelled }, visits: 3 },
+      contexts: { lead: { whatsapp: 919876543210, documents: [spelled] } },
+      breadcrumbs: [{ message: 'saved', data: { phone: 9876543210, ...spelled } }],
+      spans: [{ description: 'save', data: { pan: PAN, mobile: 9876543210 } }],
+    });
+    const text = JSON.stringify(event);
+    for (const hidden of [PAN, '9876543210', '2345 6789 0123', '50100234567890', 'HDFC0001234']) {
+      expect(text).not.toContain(hidden);
+    }
+    expect(event.extra).toMatchObject({ mobile: '[number]', visits: 3 });
+    expect(event.contexts).toMatchObject({ lead: { whatsapp: '[number]' } });
+    for (const key of IDENTITY_KEYS) {
+      expect(event.extra).toMatchObject({ customer: { [key]: '[redacted]' } });
+    }
+    expect(event.breadcrumbs[0]?.data).toMatchObject({
+      phone: '[number]',
+      panNumber: '[redacted]',
+      aadhaarNumber: '[redacted]',
+      accountNo: '[redacted]',
+      ifscCode: '[redacted]',
+    });
   });
 });

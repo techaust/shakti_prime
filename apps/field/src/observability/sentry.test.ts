@@ -24,7 +24,7 @@ describe('starting Sentry', () => {
       release: 'shakti-field@1.0.0',
     });
     expect(options.beforeSend({ extra: { refreshToken: 'r'.repeat(43) } })).toEqual({
-      extra: {},
+      extra: { refreshToken: '[redacted]' },
     });
     // Started once only.
     expect(startSentry({ dsn: 'https://key@o1.ingest.sentry.io/2' })).toBe(true);

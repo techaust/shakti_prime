@@ -1,6 +1,6 @@
 import { findPersonalNumbers, replaceNumbers } from './number-shapes';
 
-// The text scrub of the logs and the audit trail (`@shakti/domain/redaction` keeps the field rules
+// The text scrub of the logs and the audit trail (`./redaction.ts` keeps the field rules
 // around it), here because `maskForModel()` ends with it and the voice worker masks with that
 // (SECURITY §3.4). No Node API: the edge runtime and the browser's error reporting use it too.
 

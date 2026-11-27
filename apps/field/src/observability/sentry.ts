@@ -5,9 +5,13 @@ import { scrubBreadcrumb, scrubEvent } from './sentry-scrub';
 /**
  * Sentry for the field app (docs/07-security.md §5), started once from the app's frame. It runs
  * only in a build that names a DSN (`EXPO_PUBLIC_SENTRY_DSN`, set per EAS profile); without one
- * nothing is sent. Every event, transaction and breadcrumb passes through the same scrubbing as
- * the website's (`sentry-scrub.ts`), the SDK sends no personal data of its own (`sendDefaultPii` off by default), and no
- * screenshot, view hierarchy, session replay, console log or failed request body is attached.
+ * nothing is sent. Every event, transaction and breadcrumb the JavaScript side sends passes
+ * through the same scrubbing as the website's (`sentry-scrub.ts`), the SDK sends no personal data
+ * of its own (`sendDefaultPii` off by default), and no screenshot, view hierarchy, session replay,
+ * console log or failed request body is attached. A native Android crash skips the scrub and
+ * carries the scope the SDK copies from JavaScript, so the app sets nothing on Sentry's scope (no
+ * user, tags, extra or contexts); its breadcrumbs are scrubbed before they are kept (SECURITY §2,
+ * Mobile).
  */
 let started = false;
 
