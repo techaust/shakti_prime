@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T22:25Z
+updated: 2026-11-27T23:09Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -178,3 +178,11 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: report: u2-purchase-orders fixes 2
 done_when: review: u2-purchase-orders re-check 2 done
 note: re-check of the second round only: R1 (CI's unit job passes), R2 (no Chromium in a request route; the PDF and mail through the render worker; rates by grant), R3, R4, R5, R7, R8.
+
+lane: 86
+role: fix
+branch: feat/fn1-proformas
+run_file: docs/runs/phase5/fn1-proformas.md
+wait_for: none
+done_when: report: fn1-proformas fixes
+note: the one fix round, as the lead's triage at the end of the Review section says: take main in first, then 1 and 2 (high), then 3 to 11.

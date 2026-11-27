@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T22:25Z
+updated: 2026-11-27T23:09Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -178,3 +178,11 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: none
 done_when: report: u2-purchase-orders fixes 2
 note: a second round for the re-check's R1, R2, R3, R4, R5, R7, R8 as the lead's triage at the end of the Review section says (R2: the PDF through the render worker). Report as report: u2-purchase-orders fixes 2.
+
+lane: 87
+role: review
+branch: feat/fn1-proformas
+run_file: docs/runs/phase5/fn1-proformas.md
+wait_for: report: fn1-proformas fixes
+done_when: review: fn1-proformas re-check done
+note: re-check of the fix diff only (the review found two highs): the redefinitions against main's latest (label_sheet kept; the loan gate answering the platform), and 3 to 11 with tests.
