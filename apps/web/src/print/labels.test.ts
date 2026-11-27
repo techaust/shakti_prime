@@ -6,6 +6,7 @@ import en from '../../messages/en.json';
 import { labelPrintsOf } from './documents';
 import { spikeBinLabels, spikeLabels, spikePackageLabels } from './fixtures/spike-documents';
 import { renderLabelsHtml, type LabelPrint } from './label-template';
+import { QUIET_ZONE, qrMatrix } from './qr';
 
 /**
  * INV-07 (docs/03-roadmap-appendix/phase3.md §7.4): every label's QR code, as the template prints
@@ -46,18 +47,20 @@ function modulesOf(svg: string): { size: number; dark: Set<string> } {
   return { size, dark };
 }
 
-/** The code as RGBA pixels, 6 to a module, with the four-module quiet zone a scanner needs. */
+/**
+ * The code as RGBA pixels, 6 to a module, exactly as drawn: the quiet zone round it is only the
+ * one the label's own picture holds, so a code drawn without one is not helped to a read.
+ */
 function decode(svg: string): string | undefined {
   const { size, dark } = modulesOf(svg);
   const scale = 6;
-  const quiet = 4;
-  const width = (size + 2 * quiet) * scale;
+  const width = size * scale;
   const pixels = new Uint8ClampedArray(width * width * 4).fill(255);
   for (const cell of dark) {
     const [mx, my] = cell.split(',').map(Number) as [number, number];
     for (let py = 0; py < scale; py += 1) {
       for (let px = 0; px < scale; px += 1) {
-        const at = (((my + quiet) * scale + py) * width + (mx + quiet) * scale + px) * 4;
+        const at = ((my * scale + py) * width + mx * scale + px) * 4;
         pixels[at] = 17;
         pixels[at + 1] = 17;
         pixels[at + 2] = 17;
@@ -83,6 +86,20 @@ describe('every label’s QR code decodes back to its payload (INV-07)', () => {
           const read = decode(codes[i] ?? '');
           expect(read).toBe(label.qrPayload);
           expect(parseLabelPayload(read ?? '')).toMatchObject({ kind: 'label', labelKind: kind });
+        }
+      });
+
+      it(`a ${kind} label at ${size} mm keeps four light modules round its code`, async () => {
+        const codes = svgsOf(await renderLabelsHtml(labels, size));
+        for (const [i, label] of labels.entries()) {
+          const { size: drawn, dark } = modulesOf(codes[i] ?? '');
+          expect(drawn).toBe(qrMatrix(label.qrPayload).length + 2 * QUIET_ZONE);
+          const inside = (n: number) => n >= QUIET_ZONE && n < drawn - QUIET_ZONE;
+          const outside = [...dark].filter((cell) => {
+            const [x, y] = cell.split(',').map(Number) as [number, number];
+            return !inside(x) || !inside(y);
+          });
+          expect(outside).toEqual([]);
         }
       });
     }

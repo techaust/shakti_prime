@@ -5,7 +5,7 @@
 import type { LabelSize } from '@shakti/contracts';
 import { printCopy } from './copy';
 import { html, trusted, type Html } from './html';
-import { qrSvg } from './qr';
+import { QUIET_ZONE, qrSvg } from './qr';
 import { baseCss, type TemplateOptions } from './styles';
 
 /** A serial's label: its company, item, SKU and serial number. */
@@ -49,11 +49,16 @@ export const LABEL_STOCK: Record<LabelSize, { widthMm: number; heightMm: number 
 
 // Label text is set in points for the printed size; the smallest is 6.5 pt (about 2.3 mm
 // cap height), readable on a 203 dpi thermal print.
+//
+// The code's picture holds its own four-module quiet zone, so it sits at the label's edge with no
+// padding on that side. Every payload is 42 characters, a version 3 code of 29 modules, 37 with
+// the quiet zone: on 50 × 25 mm stock the picture is 23 mm, a module about 0.62 mm (5 dots of a
+// 203 dpi printer) and the code 18 mm; on 100 × 50 mm it is 46 mm, a module about 1.24 mm.
 const css: Record<LabelSize, string> = {
   '50x25': `
 @page{size:50mm 25mm;margin:0;}
-.label{width:50mm;height:25mm;padding:1.5mm;display:flex;gap:1.5mm;align-items:center;overflow:hidden;break-after:page;}
-.label .qr svg{width:21mm;height:21mm;display:block;}
+.label{width:50mm;height:25mm;padding:1mm 1.5mm 1mm 0;display:flex;gap:0.5mm;align-items:center;overflow:hidden;break-after:page;}
+.label .qr svg{width:23mm;height:23mm;display:block;}
 .label .text{min-width:0;display:flex;flex-direction:column;gap:0.5mm;}
 .label .over{font-size:6.5pt;line-height:7.5pt;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .label .name{font-size:7pt;line-height:8.5pt;font-weight:590;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
@@ -64,8 +69,8 @@ const css: Record<LabelSize, string> = {
 `,
   '100x50': `
 @page{size:100mm 50mm;margin:0;}
-.label{width:100mm;height:50mm;padding:3mm;display:flex;gap:3mm;align-items:center;overflow:hidden;break-after:page;}
-.label .qr svg{width:40mm;height:40mm;display:block;}
+.label{width:100mm;height:50mm;padding:2mm 3mm 2mm 0;display:flex;gap:1mm;align-items:center;overflow:hidden;break-after:page;}
+.label .qr svg{width:46mm;height:46mm;display:block;}
 .label .text{min-width:0;display:flex;flex-direction:column;gap:1.5mm;}
 .label .over{font-size:8pt;line-height:10pt;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .label .name{font-size:11pt;line-height:13pt;font-weight:590;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
@@ -110,7 +115,7 @@ export async function renderLabelsHtml(
   size: LabelSize,
   options: TemplateOptions = {},
 ): Promise<string> {
-  const codes = await Promise.all(labels.map((l) => qrSvg(l.qrPayload)));
+  const codes = await Promise.all(labels.map((l) => qrSvg(l.qrPayload, QUIET_ZONE)));
   return html`<!doctype html>
     <html lang="en">
       <head>

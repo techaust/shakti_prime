@@ -306,8 +306,10 @@ describe('Print labels, from the command to the sheet a person opens', () => {
     expect(await fileRow(sheet.sheetId)).toMatchObject({ purpose: 'label_sheet', status: 'ready' });
     expect(state.sheets[0]?.html).toContain(`LS-${tag}-1`);
     // The code carries the serial's id alone.
-    const { qrSvg } = await import('../src/print/qr');
-    expect(state.sheets[0]?.html).toContain(await qrSvg(labelPayload('serial', f.serialA)));
+    const { QUIET_ZONE, qrSvg } = await import('../src/print/qr');
+    expect(state.sheets[0]?.html).toContain(
+      await qrSvg(labelPayload('serial', f.serialA), QUIET_ZONE),
+    );
 
     const read = (who: Principal) =>
       executeQuery(who, {}, (ctx) => getFile(ctx, sheet.sheetId), { name: 'labels.test' });
