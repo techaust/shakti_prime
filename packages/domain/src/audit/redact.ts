@@ -172,6 +172,10 @@ export const AUTH_EVENT_FIELDS: Readonly<Record<AuthAuditEvent, readonly string[
   'auth.password.change': ['revokeOtherSessions'],
   'auth.two_factor.enable': [],
   'auth.backup_codes.regenerate': [],
+  // F1: the phone's installation id and the app's version, never a token or its hash.
+  'auth.mobile.sign_in': ['deviceId', 'appVersion', 'detail'],
+  'auth.mobile.sign_out': ['deviceId'],
+  'auth.mobile.refresh_reused': ['deviceId'],
 };
 
 /** The allow-listed fields of an auth event, masked like any other audit input. */

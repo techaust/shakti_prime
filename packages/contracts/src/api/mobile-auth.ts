@@ -116,6 +116,9 @@ export const MOBILE_AUTH_REASONS = [
   'totp_invalid',
   'account_locked',
   'account_suspended',
+  // A role that needs an authenticator app whose app is not set up yet: it is set up on the
+  // website first, since the field app never shows the setup code.
+  'totp_setup_required',
   'refresh_expired',
   'refresh_reused',
   'device_revoked',

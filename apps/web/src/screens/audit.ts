@@ -269,6 +269,12 @@ const ACTIONS = {
   'auth.password.change': 'passwordChange',
   'auth.two_factor.enable': 'twoFactorEnable',
   'auth.backup_codes.regenerate': 'backupCodesRegenerate',
+  // F1 field app foundation.
+  'auth.mobile.sign_in': 'mobileSignIn',
+  'auth.mobile.sign_out': 'mobileSignOut',
+  'auth.mobile.refresh_reused': 'mobileRefreshReused',
+  'field.device.revoke': 'mobileDeviceRevoke',
+  'admin.flag.set': 'featureFlagSet',
   // U1 vendors and supplier quotes.
   'procurement.vendor.create': 'vendorCreate',
   'procurement.vendor.update': 'vendorUpdate',
@@ -891,6 +897,8 @@ const FIELD_KINDS = [
   ['quoteValidFrom', 'date'],
   ['restored', 'number'],
   ['quoteValidUntil', 'date'],
+  // F1 field app foundation: the app's version at sign-in.
+  ['appVersion', 'text'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

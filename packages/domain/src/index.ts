@@ -20,6 +20,8 @@ export { deliveryDeduplicationId, memoryEventPublisher } from './ports/event-pub
 export { canonicalJson, inputHash } from './idempotency/hash';
 export { databaseIdempotencyStore, memoryIdempotencyStore } from './idempotency/store';
 export type { IdempotencyClaim, IdempotencyStore } from './idempotency/store';
+// F1: the Redis front of idempotency_keys for the field app's mutations.
+export { IDEMPOTENCY_FRONT_SECONDS } from './idempotency/front';
 export type { EventPublisher, PublishResult } from './ports/event-publisher';
 export { commands, getCommand } from './command/registry';
 export { executeCommand, executeQuery } from './command/execute';
@@ -240,6 +242,16 @@ export { suspendUser, reactivateUser } from './commands/admin/user-status';
 export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
 export { clearSignInLock } from './commands/admin/clear-sign-in-lock';
+// F1 field app foundation.
+export { setFeatureFlag } from './commands/admin/set-feature-flag';
+export { revokeMobileDevice } from './commands/field/revoke-device';
+export { listMobileDevices } from './queries/field/devices';
+export {
+  readFeatureFlags,
+  resolveFeatureFlags,
+  type FeatureFlagRow,
+} from './queries/field/feature-flags';
+export { fieldAppProfile } from './queries/field/me';
 export { replayDeadLetter } from './commands/integrations/replay-dead-letter';
 export { runDeliveryProbe } from './commands/platform/run-probe';
 export { requestPrintProof } from './commands/print/request-proof';

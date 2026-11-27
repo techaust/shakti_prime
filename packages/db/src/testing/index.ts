@@ -418,6 +418,9 @@ export const AUTH_TABLES = [
   'auth_accounts',
   'auth_verifications',
   'user_two_factor',
+  // F1: the field app's phones; app_user reads their columns without a secret and signs one out
+  // (mobile-devices.test.ts).
+  'mobile_devices',
 ] as const;
 
 /**
@@ -465,7 +468,13 @@ export const PLATFORM_TABLES = [
  * confirming an order reaches a rule only through the definers of 0117, which check
  * `sales.order.confirm` over the order). Asserted in crm-config.test.ts.
  */
-export const CONFIG_TABLES = ['lead_score_rules', 'commission_rules'] as const;
+export const CONFIG_TABLES = [
+  'lead_score_rules',
+  'commission_rules',
+  // F1: feature flags start empty; read with any context, written with admin.flags.write
+  // (feature-flags.test.ts).
+  'feature_flags',
+] as const;
 
 /**
  * Tables of no company read only by a holder of a permission, in a request with a company, so

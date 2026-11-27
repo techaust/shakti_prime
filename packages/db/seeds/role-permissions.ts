@@ -168,6 +168,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'projects.gate.approve': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'projects.qc.signoff': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'projects.schedule.write': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
+  // F1 (phase4 §4).
+  'field.device.revoke': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'documents.read': {
     ...EXEC,
     general_manager: 'entity',
