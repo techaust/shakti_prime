@@ -167,14 +167,18 @@ async function checks(fileId: string, masker: () => Promise<DocumentMasker>) {
   throw new Error('the checks did not finish');
 }
 
-function file(fileId: string, kind: 'identity_proof' | 'electricity_bill', account = customer) {
+function file(
+  fileId: string,
+  kind: 'identity_proof' | 'electricity_bill',
+  account = customer,
+): Promise<DocumentDto> {
   return executeCommand(
     manager,
     { entityIds: [1] },
     fileDocument,
     { entityId: 1, accountId: account, fileId, kind, requirementKey: kind },
     options,
-  ) as Promise<DocumentDto>;
+  );
 }
 
 /** The digits OCR reads off a kept picture: what a model would be shown of it. */

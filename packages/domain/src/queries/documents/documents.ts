@@ -105,8 +105,8 @@ export async function readDocument(tx: Tx, documentId: string): Promise<Document
   const d = schema.documents;
   const [row] = await tx.select().from(d).where(eq(d.id, documentId)).limit(1);
   if (!row) return undefined;
-  const lastFour = row.sensitive ? await lastFourByDocument(tx, [row.id]) : new Map();
-  return toDocumentDto(row, lastFour.get(row.id));
+  const lastFour = row.sensitive ? (await lastFourByDocument(tx, [row.id])).get(row.id) : [];
+  return toDocumentDto(row, lastFour);
 }
 
 /** A company's requirements, of one flow or every flow, in step and position order. */

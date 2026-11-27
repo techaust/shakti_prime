@@ -25,6 +25,8 @@ export const CLIENT_SCOPES = {
     'catalogue',
     'common',
     'customers',
+    // J3: the Activity log names a customer document's kind, requirement and step.
+    'documents',
     'duplicates',
     'files',
     'imports',

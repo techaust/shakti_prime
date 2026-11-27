@@ -5,9 +5,9 @@
 | Branch | `feat/j3-documents` on GitHub, from `main` after the approved design (#295) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): identity documents, masking, sensitive files, row security |
-| Usage | briefed 27-11-2026 |
-| State | briefed |
-| Next step | the builder |
+| Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high (a seat's own account; worktree j3-documents, Postgres 54332, app 3032) |
+| State | early check |
+| Next step | the lead reads the early-check diff, then continues the builder for the screens |
 
 ## Brief
 Build [phase4 §6.3](../../03-roadmap-appendix/phase4.md#63-j3-customer-documents-and-requirements) as written. SECURITY §5 and §11 items 7 and 8 are the heart of this slice. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
