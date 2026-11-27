@@ -12,12 +12,14 @@ import {
   FileText,
   FileUp,
   Handshake,
+  HardHat,
   House,
   Inbox,
   Layers,
   IndianRupee,
   Library,
   MessageCircle,
+  ListChecks,
   ListTodo,
   MessageCircleQuestion,
   MessageSquareText,
@@ -305,6 +307,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Hubs and bins are read with inventory.stock.read; changes need it for every company.
     requires: [{ key: 'inventory.stock.read', scope: 'entity' }],
   },
+  // J1 projects: the company's projects, or an engineer's and a Lead Converter's own.
+  {
+    id: 'projects',
+    href: '/projects',
+    label: 'projects',
+    icon: HardHat,
+    group: 'work',
+    requires: [{ key: 'projects.read', scope: 'own' }],
+  },
   {
     id: 'inventory-valuation',
     href: '/inventory/valuation',
@@ -411,6 +422,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // messaging.milestone.set (docs/03-roadmap-appendix/phase2.md §7.1)
     requires: [{ key: 'messaging.templates.write', scope: 'all' }],
+  },
+  // J1: the steps new projects follow, published by the Executive (projects.template.publish).
+  {
+    id: 'settings-project-steps',
+    href: '/settings/project-steps',
+    label: 'settingsProjectSteps',
+    icon: ListChecks,
+    group: 'admin',
+    requires: [{ key: 'projects.write', scope: 'all' }],
   },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];

@@ -96,8 +96,10 @@ export const CLIENT_SCOPES = {
   '/knowledge': ['common', 'files', 'knowledge', 'playbook'],
   '/leads': ['common', 'leads', 'pinLookup', 'qualification'],
   '/messages': ['messaging'],
-  '/orders': ['common', 'orders', 'quotes'],
+  '/orders': ['common', 'orders', 'projects', 'quotes'],
   '/price-master': ['catalogue', 'common', 'priceMaster'],
+  // J1 projects
+  '/projects': ['common', 'projects'],
   '/quotes': ['common', 'files', 'orders', 'quotes'],
   '/settings': [
     'activity',
@@ -107,6 +109,8 @@ export const CLIENT_SCOPES = {
     'leadSources',
     'pipelineSettings',
     'profile',
+    'projectSteps',
+    'projects',
     'taxSettings',
     'whatsappTemplates',
   ],

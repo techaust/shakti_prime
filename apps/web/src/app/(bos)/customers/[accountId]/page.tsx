@@ -1,10 +1,13 @@
+import { hasGrant } from '@shakti/contracts';
 import { UPLOAD_LIMITS } from '@shakti/domain';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { loadAccount360 } from '../../../../actions/crm';
 import { listAccountDuplicates } from '../../../../actions/duplicates';
+import { accountProjects } from '../../../../actions/projects';
 import { AccountScreen } from '../../../../components/customers/account-screen';
+import { AccountProjects } from '../../../../components/projects/account-projects';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
 import { navRequires } from '../../../../nav';
@@ -38,7 +41,7 @@ export default async function AccountPage({
   params: Promise<{ accountId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { access } = await screenAccess(navRequires('customers'));
+  const { access, principal } = await screenAccess(navRequires('customers'));
   const [{ accountId }, query] = await Promise.all([params, searchParams]);
   if (!UUID.test(accountId)) notFound();
   const entityId = companyParam(query.company);
@@ -51,6 +54,11 @@ export default async function AccountPage({
   const duplicates = view.ok
     ? await listAccountDuplicates({ entityId: view.data.entityId, accountId })
     : undefined;
+  // J1: the customer's projects in that company, for a caller who reads projects.
+  const projects =
+    view.ok && hasGrant(principal.permissions, 'projects.read', 'own')
+      ? await accountProjects({ entityId: view.data.entityId, accountId })
+      : undefined;
   const t = await getTranslations('customers');
   return view.ok ? (
     <AccountScreen
@@ -58,6 +66,7 @@ export default async function AccountPage({
       companies={companyNames(access)}
       {...(view.data.canEdit ? { proofLimit: proofLimit() } : {})}
       duplicates={duplicates?.ok === true ? duplicates.data : undefined}
+      projects={projects?.ok === true ? <AccountProjects projects={projects.data} /> : undefined}
     />
   ) : (
     <Page title={t('title')}>

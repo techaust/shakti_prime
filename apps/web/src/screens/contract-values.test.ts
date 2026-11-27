@@ -269,6 +269,7 @@ import {
   STOCK_REASONS as STOCK_REASONS_WEB,
   WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
   // J1 projects
+  DEFAULT_PROJECT_STEPS,
   MILESTONE_STATES,
   PROJECT_FLOWS,
   PROJECT_SEGMENTS,
@@ -289,6 +290,8 @@ import {
   VOICE_STATE_VALUES,
   VOICE_TOPIC,
 } from './voice-values';
+// J1: the standard steps, as the workshop defaults hold them.
+import { WORKSHOP_DEFAULTS } from '@shakti/domain';
 
 describe('the contract values copied for the browser', () => {
   it('list every code of their schema, in the same order', () => {
@@ -400,6 +403,7 @@ describe('the contract values copied for the browser', () => {
     expect(PROJECT_FLOWS).toEqual(ProjectFlowSchema.options);
     expect(PROJECT_SEGMENTS).toEqual(ProjectSegmentSchema.options);
     expect(MILESTONE_STATES).toEqual(MilestoneStateSchema.options);
+    expect(DEFAULT_PROJECT_STEPS).toEqual(WORKSHOP_DEFAULTS.projects.standardSteps);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

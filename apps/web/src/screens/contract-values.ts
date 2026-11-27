@@ -1092,3 +1092,12 @@ export const MILESTONE_STATES = [
   'done',
   'skipped',
 ] as const satisfies readonly MilestoneState[];
+
+/** The standard steps a project copies when its company published none (`WORKSHOP_DEFAULTS`). */
+export const DEFAULT_PROJECT_STEPS = [
+  'survey',
+  'dispatch',
+  'install',
+  'commission',
+  'handover',
+] as const;

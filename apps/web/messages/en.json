@@ -679,7 +679,9 @@
     "procurement": "Procurement",
     "inventoryStock": "Stock",
     "inventoryHubs": "Hubs and bins",
-    "inventoryValuation": "Stock valuation"
+    "inventoryValuation": "Stock valuation",
+    "projects": "Projects",
+    "settingsProjectSteps": "Project steps"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -779,7 +781,9 @@
       "procurement": "See the vendors the group buys from, their people, items and quotes.",
       "inventoryStock": "See what each hub and bin holds, and adjust or move stock.",
       "inventoryHubs": "See the hubs and their bins, and set them up.",
-      "inventoryValuation": "See what the stock is worth at a date."
+      "inventoryValuation": "See what the stock is worth at a date.",
+      "projects": "Installation projects and where each one stands",
+      "settingsProjectSteps": "The steps new projects follow"
     },
     "progress": {
       "period": {
@@ -6926,5 +6930,158 @@
       "notSet": "Not set",
       "movements": "Movements"
     }
+  },
+  "projects": {
+    "title": "Projects",
+    "intro": "Installation work started from confirmed orders, with where each project stands.",
+    "caption": "Projects",
+    "empty": "No projects match. A project starts when an order that needs installing is confirmed.",
+    "emptyOwn": "No projects for you yet. A project shows here once you are named on it.",
+    "noCustomer": "Customer details removed",
+    "noStep": "All steps done",
+    "columns": {
+      "project": "Project",
+      "customer": "Customer",
+      "segment": "Business line",
+      "step": "Current step",
+      "owner": "Project manager",
+      "state": "Status",
+      "updated": "Last change"
+    },
+    "filters": {
+      "label": "Filter projects",
+      "company": "Company",
+      "state": "Status",
+      "anyState": "Any status",
+      "segment": "Business line",
+      "anySegment": "Any business line",
+      "owner": "Project manager",
+      "anyOwner": "Anyone",
+      "step": "Current step",
+      "anyStep": "Any step",
+      "apply": "Show projects",
+      "clearFilters": "Clear filters"
+    },
+    "states": {
+      "active": "In progress",
+      "on_hold": "On hold",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "segments": {
+      "farmer_pumps": "Farmer pumps",
+      "residential_rooftop": "Home rooftop solar",
+      "commercial_epc": "Commercial solar projects"
+    },
+    "schemes": {
+      "none": "No subsidy",
+      "pm_surya_ghar": "PM Surya Ghar",
+      "pm_kusum": "PM-KUSUM"
+    },
+    "defaultSteps": {
+      "survey": "Site survey",
+      "dispatch": "Material dispatched",
+      "install": "Installation",
+      "commission": "Commissioning",
+      "handover": "Handover"
+    },
+    "page": {
+      "back": "All projects",
+      "place": "{village}, {district}",
+      "segment": "Business line",
+      "scheme": "Subsidy scheme",
+      "owner": "Project manager",
+      "ownerNone": "Not named yet",
+      "people": "People on this project",
+      "peopleNone": "Nobody named yet",
+      "holdReason": "On hold because: {reason}",
+      "cancelReason": "Cancelled because: {reason}",
+      "suryaGhar": "This project follows the PM Surya Ghar subsidy steps, which are tracked apart from this checklist.",
+      "orderLabel": "Order"
+    },
+    "tabs": {
+      "label": "Project sections",
+      "milestones": "Steps"
+    },
+    "milestones": {
+      "intro": "Each step is marked done in order.",
+      "done": "Done on {date} by {name}",
+      "doneNoName": "Done on {date}",
+      "skipped": "Skipped",
+      "open": "To do",
+      "next": "Next step",
+      "markDone": "Mark done",
+      "markedDone": "Step marked done",
+      "missing": "Collect these documents first: {documents}",
+      "empty": "This project has no steps.",
+      "doneBadge": "Done"
+    },
+    "actions": {
+      "hold": "Put on hold",
+      "resume": "Resume",
+      "complete": "Complete project",
+      "cancel": "Cancel project",
+      "assign": "Change people",
+      "resumed": "Project resumed",
+      "held": "Project put on hold",
+      "completed": "Project completed",
+      "cancelled": "Project cancelled",
+      "assigned": "People saved"
+    },
+    "dialogs": {
+      "holdTitle": "Put {projectNo} on hold",
+      "holdIntro": "Say why the work is waiting. Everyone on the project sees it.",
+      "reason": "Reason",
+      "reasonHelper": "Up to 300 characters.",
+      "reasonMissing": "Write the reason.",
+      "holdSubmit": "Put on hold",
+      "cancelTitle": "Cancel {projectNo}",
+      "cancelIntro": "A cancelled project can't be opened again. Its order can get a new project.",
+      "cancelSubmit": "Cancel project",
+      "completeTitle": "Complete {projectNo}",
+      "completeIntro": "Every step is done. Completing the project closes it.",
+      "completeSubmit": "Complete project",
+      "assignTitle": "People on {projectNo}",
+      "assignIntro": "Name the project manager and the people who work on this project. Each person sees it in their list.",
+      "owner": "Project manager",
+      "ownerNone": "Nobody yet",
+      "people": "People on the project",
+      "assignSubmit": "Save people",
+      "keep": "Keep the project"
+    },
+    "account": {
+      "sectionTitle": "Projects",
+      "empty": "No projects with this company yet."
+    },
+    "order": {
+      "link": "Project {projectNo}",
+      "startProject": "Start project",
+      "startTitle": "Start a project for {soNo}",
+      "startIntro": "The project copies this company's current steps for its business line, and you become its project manager.",
+      "segment": "Business line",
+      "segmentFromLead": "The lead's business line",
+      "startSubmit": "Start project",
+      "started": "Project started"
+    }
+  },
+  "projectSteps": {
+    "title": "Project steps",
+    "intro": "The steps each new project follows, for each business line. A new version changes new projects only; running projects keep the steps they started with.",
+    "company": "Company",
+    "version": "Version {version}, published on {date}",
+    "none": "Nothing published yet. New projects follow the standard steps: site survey, material dispatched, installation, commissioning and handover.",
+    "edit": "Change steps",
+    "editTitle": "Steps for {segment}",
+    "editIntro": "Name each step in the order the work is done. Publishing makes these the steps of every new project of this business line.",
+    "stepName": "Step {number}",
+    "add": "Add a step",
+    "remove": "Remove",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "publish": "Publish steps",
+    "published": "Steps published",
+    "nameMissing": "Give every step a name.",
+    "tooMany": "A project can have at most 30 steps.",
+    "tooFew": "Keep at least one step."
   }
 }

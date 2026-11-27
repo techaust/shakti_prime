@@ -102,6 +102,7 @@ export function AccountScreen({
   companies,
   proofLimit,
   duplicates,
+  projects,
 }: {
   initial: Account360Dto;
   companies: Record<number, string>;
@@ -109,6 +110,8 @@ export function AccountScreen({
   proofLimit?: UploadLimitView;
   /** The customer's duplicate cards and the merges into it, when it has any. */
   duplicates?: AccountDuplicatesDto | undefined;
+  /** J1: the customer's projects in this company, for a caller who reads projects. */
+  projects?: ReactNode;
 }) {
   const t = useTranslations('customers');
   const leadsT = useTranslations('leads');
@@ -252,6 +255,7 @@ export function AccountScreen({
           <WhatsAppChats entityId={view.entityId} accountId={view.account.id} />
           <Quotes view={view} />
           <Orders view={view} />
+          {projects}
           <Tasks
             view={view}
             onAdd={() => {

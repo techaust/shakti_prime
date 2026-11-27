@@ -77,7 +77,16 @@ type ReasonAction = (
  * page then says why in plain words), release a hold (the Executive, with a reason), or cancel it
  * (the General Manager and the Executive, with a reason).
  */
-export function OrderScreen({ initial, company }: { initial: SalesOrderDto; company: string }) {
+export function OrderScreen({
+  initial,
+  company,
+  project,
+}: {
+  initial: SalesOrderDto;
+  company: string;
+  /** J1: the order's project, its link or Start project, from the page. */
+  project?: ReactNode;
+}) {
   const t = useTranslations('orders');
   const [order, setOrder] = useState(initial);
   const [asking, setAsking] = useState<'release' | 'cancel' | undefined>();
@@ -103,6 +112,7 @@ export function OrderScreen({ initial, company }: { initial: SalesOrderDto; comp
           >
             {order.customerName}
           </Link>
+          {project}
         </span>
       }
       actions={
