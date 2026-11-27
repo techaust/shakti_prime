@@ -213,4 +213,17 @@ Not run: the domain and web security suites as a whole, typecheck, lint, `pnpm b
 - **Migration:** 0240 follows `main`'s last (0239, still the last on `main`); its journal time is later; its snapshot is 0239's with a new id chained to it. The generated documents are regenerated.
 - **Tests:** they assert exact codes and refusals, and run in rolled-back transactions; there are no sleeps, and nothing is skipped or weakened.
 
+**The lead's triage (27-11-2026):**
+- **To fix in the one fix round: 1, 2 and 3.**
+  - **1:** the customer is linked to the line's company (`ae.entity_id = v_line.entity_id`). The test at 802 is flipped, and DATABASE says so.
+  - **2:** direction comes from data for every line. `app.stock_reason_serial_moves` becomes the registry of allowed (reason, direction) pairs for every line, tracked or not. A line whose reason and direction have no row is refused with `stock_movement_shape`. The states and `creates` apply only to serial-tracked lines. Remove Pass 1's hard-coded direction check; H1's seeded rows already give 0231's directions. Add a test per H1 reason and direction, and one for an opened reason posted in a direction it has no row for. Rename the table only if the name now misleads (`app.stock_reason_moves`), and say so.
+  - **3:** a reversal is described by the reason it reverses.
+    - Add `reverses_reason text not null default ''` to the move rows' key (`''` = any reason, H1's rows). A reversal line looks up its row by (`reversal`, direction, the reversed movement's reason) first, then (`reversal`, direction, `''`).
+    - A reversal's permission is the reversed reason's grant row's permission, and that reason must be `reversible`. The `reversal` grant row's permission then applies only where H1's seed keeps it as the fallback.
+    - Update the comment block: a slice that opens a reversible reason adds its reversal move rows keyed by its own reason.
+    - Tests: H1's reversals unchanged; an opened reason's reversal taking that reason's permission and its own move row.
+- **4:** goes to U2, as an addendum on its run file.
+- **5 and 6:** the lead's, at the merge.
+- **No re-review:** no finding is high or critical. The lead reads the fix diff.
+
 ## Integration
