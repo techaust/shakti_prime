@@ -197,6 +197,17 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // U2: a reorder rule, an order and its lines change only their own columns (column grants,
+    // the order's guard); a draft's lines and their rates are replaced as a set; a receipt is
+    // written once and changes only to reversed; its lines are written once and their rates only
+    // by app.goods_receipt_post() (purchase-orders.test.ts).
+    reorder_rules: { i: true, u: false, d: true },
+    purchase_orders: { i: true, u: false },
+    po_lines: { i: true, u: false, d: true },
+    po_line_rates: { i: true, u: false, d: true },
+    goods_receipts: { i: true, u: false },
+    goods_receipt_lines: { i: true, u: false },
+    goods_receipt_line_rates: { i: false, u: false },
   };
 
   /**

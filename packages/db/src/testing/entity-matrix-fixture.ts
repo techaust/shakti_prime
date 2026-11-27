@@ -121,6 +121,14 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  // U2 purchase orders and goods receipt.
+  reorder_rules: 'x.id::text',
+  purchase_orders: 'x.id::text',
+  po_lines: 'x.id::text',
+  po_line_rates: 'x.po_line_id::text',
+  goods_receipts: 'x.id::text',
+  goods_receipt_lines: 'x.id::text',
+  goods_receipt_line_rates: 'x.receipt_line_id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -245,6 +253,17 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from knowledge_chunks where id::text like ${like}`;
       await tx`delete from knowledge_files where id::text like ${like}`;
       await tx`delete from files where id::text like ${like}`;
+      // U2: the receipts and orders name the vendor, the hub, the bin and the matrix item; a
+      // receipt line's rate is written once, so its trigger is set aside for the fixture's rows.
+      await tx`alter table goods_receipt_line_rates disable trigger goods_receipt_line_rates_append_only`;
+      await tx`delete from goods_receipt_line_rates where receipt_line_id::text like ${like}`;
+      await tx`alter table goods_receipt_line_rates enable trigger goods_receipt_line_rates_append_only`;
+      await tx`delete from goods_receipt_lines where id::text like ${like}`;
+      await tx`delete from goods_receipts where id::text like ${like}`;
+      await tx`delete from po_line_rates where po_line_id::text like ${like}`;
+      await tx`delete from po_lines where id::text like ${like}`;
+      await tx`delete from purchase_orders where id::text like ${like}`;
+      await tx`delete from reorder_rules where id::text like ${like}`;
       // U1: the quotes, links and contacts name the vendor and the matrix item.
       await tx`delete from vendor_quotes where id::text like ${like}`;
       await tx`delete from item_vendors where id::text like ${like}`;
@@ -411,6 +430,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    // U2 purchase orders and goods receipt.
+    reorder_rules: [],
+    purchase_orders: [],
+    po_lines: [],
+    po_line_rates: [],
+    goods_receipts: [],
+    goods_receipt_lines: [],
+    goods_receipt_line_rates: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -969,6 +996,40 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       rows.vendor_contacts.push({ key: vendorContact, entities: everyCompany });
       rows.item_vendors.push({ key: itemVendor, entities: everyCompany });
       rows.vendor_quotes.push({ key: groupQuote, entities: null });
+
+      // U2: per company a reorder rule, a sent purchase order with one line and its rate, and a
+      // goods receipt of it with its line and rate.
+      for (const e of ALL_ENTITY_IDS) {
+        const rule = per(e, 0x90);
+        const order = per(e, 0x91);
+        const orderLine = per(e, 0x92);
+        const receipt = per(e, 0x93);
+        const receiptLine = per(e, 0x94);
+        const only = [e];
+        await tx`insert into reorder_rules (id, entity_id, item_id, warehouse_id, reorder_level, reorder_qty, created_by)
+          values (${rule}, ${e}, ${item}, ${hub}, 1, 2, ${ownerId})`;
+        await tx`insert into purchase_orders (id, entity_id, po_no, vendor_id, deliver_to_warehouse_id, state, drafted_by,
+                                              approved_by, approved_at, sent_at, sent_via, place_of_supply_state_code, created_by)
+          values (${order}, ${e}, ${`MX${e.toString()}/PO/2098-99/0001`}, ${vendor}, ${hub}, 'partially_received', ${ownerId},
+                  ${ownerId}, now(), now(), 'by_hand', '08', ${ownerId})`;
+        await tx`insert into po_lines (id, po_id, entity_id, line_no, item_id, qty, purchase_unit, unit_factor, qty_received, hsn, created_by)
+          values (${orderLine}, ${order}, ${e}, 1, ${item}, 2, 'nos', 1, 1, '8413', ${ownerId})`;
+        await tx`insert into po_line_rates (po_line_id, entity_id, unit_rate, amount, created_by)
+          values (${orderLine}, ${e}, 95.0000, 190.00, ${ownerId})`;
+        await tx`insert into goods_receipts (id, entity_id, grn_no, po_id, warehouse_id, received_at, received_by, created_by)
+          values (${receipt}, ${e}, ${`MX${e.toString()}/GRN/2098-99/0001`}, ${order}, ${hub}, now(), ${ownerId}, ${ownerId})`;
+        await tx`insert into goods_receipt_lines (id, receipt_id, entity_id, po_line_id, item_id, bin_id, qty, stock_qty, is_serial_tracked, created_by)
+          values (${receiptLine}, ${receipt}, ${e}, ${orderLine}, ${item}, ${bin}, 1, 1, false, ${ownerId})`;
+        await tx`insert into goods_receipt_line_rates (receipt_line_id, entity_id, unit_rate)
+          values (${receiptLine}, ${e}, 95.0000)`;
+        rows.reorder_rules.push({ key: rule, entities: only });
+        rows.purchase_orders.push({ key: order, entities: only });
+        rows.po_lines.push({ key: orderLine, entities: only });
+        rows.po_line_rates.push({ key: orderLine, entities: only });
+        rows.goods_receipts.push({ key: receipt, entities: only });
+        rows.goods_receipt_lines.push({ key: receiptLine, entities: only });
+        rows.goods_receipt_line_rates.push({ key: receiptLine, entities: only });
+      }
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.
       const team1 = teamIds[1] ?? '';

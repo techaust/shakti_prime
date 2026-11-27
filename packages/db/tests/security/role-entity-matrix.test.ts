@@ -85,6 +85,17 @@ const VENDOR_READ: Rule = {
 };
 const RATE_READ = grant('procurement.rate.read', 'entity');
 
+/** A company's purchase orders and reorder rules (U2): its stock readers and order writers. */
+const ORDER_READ: Rule = {
+  kind: 'any',
+  rules: [grant('inventory.stock.read', 'entity'), grant('procurement.po.write', 'entity')],
+};
+/** A company's goods receipts (U2): as its orders, and whoever posts them. */
+const RECEIPT_READ: Rule = {
+  kind: 'any',
+  rules: [ORDER_READ, grant('procurement.grn.write', 'entity')],
+};
+
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
@@ -376,6 +387,16 @@ const RULES: Record<MatrixTable, TableRule> = {
   vendor_contacts: { read: VENDOR_READ, leak: () => sql`false` },
   item_vendors: { read: VENDOR_READ, leak: () => sql`false` },
   vendor_quotes: { read: RATE_READ, group: RATE_READ, leak: otherCompany },
+  // U2: a company's reorder rules, orders and receipts with inventory.stock.read or
+  // procurement.po.write for the company (receipts also with procurement.grn.write); the rates
+  // of their lines only with procurement.rate.read (docs/03-roadmap-appendix/phase3.md §7.2).
+  reorder_rules: { read: ORDER_READ, leak: otherCompany },
+  purchase_orders: { read: ORDER_READ, leak: otherCompany },
+  po_lines: { read: ORDER_READ, leak: otherCompany },
+  po_line_rates: { read: RATE_READ, leak: otherCompany },
+  goods_receipts: { read: RECEIPT_READ, leak: otherCompany },
+  goods_receipt_lines: { read: RECEIPT_READ, leak: otherCompany },
+  goods_receipt_line_rates: { read: RATE_READ, leak: otherCompany },
 };
 
 const TABLES = Object.keys(RULES) as MatrixTable[];

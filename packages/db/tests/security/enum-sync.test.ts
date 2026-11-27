@@ -107,6 +107,10 @@ import {
   SERIAL_STATES_OUT,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  GOODS_RECEIPT_STATES,
+  PURCHASE_ORDER_SENT_VIA,
+  PURCHASE_ORDER_SOURCES,
+  PURCHASE_ORDER_STATES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -297,6 +301,18 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // U2: an order's state, source and way of sending; an order is approved past its draft (or
+  // cancelled before), carries its sending once sent, its reason once cancelled or closed; a
+  // receipt's state and its reversal.
+  purchase_orders_state_check: PURCHASE_ORDER_STATES,
+  purchase_orders_source_check: PURCHASE_ORDER_SOURCES,
+  purchase_orders_sent_via_check: PURCHASE_ORDER_SENT_VIA,
+  purchase_orders_approved_check: ['draft', 'cancelled'],
+  purchase_orders_sent_check: ['sent', 'partially_received', 'received'],
+  purchase_orders_cancel_check: ['cancelled'],
+  purchase_orders_close_check: ['closed'],
+  goods_receipts_state_check: GOODS_RECEIPT_STATES,
+  goods_receipts_reversed_check: ['reversed'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

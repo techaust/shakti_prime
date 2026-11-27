@@ -406,6 +406,16 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // U2: a company's reorder rules, purchase orders and goods receipts, read with
+  // inventory.stock.read or procurement.po.write (receipts also with procurement.grn.write); the
+  // rates of their lines only with procurement.rate.read (docs/03-roadmap-appendix/phase3.md §7.2)
+  'reorder_rules',
+  'purchase_orders',
+  'po_lines',
+  'po_line_rates',
+  'goods_receipts',
+  'goods_receipt_lines',
+  'goods_receipt_line_rates',
 ] as const;
 
 /**
