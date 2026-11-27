@@ -263,4 +263,46 @@ Tier A, adversarial; the lead's lane: key handling, read-only requests to Tally,
 - **10:** retire `apps/web/scripts/spike/tally-read.ts` and its `spike:tally` script. The connector's reader and tests supersede the Phase 0 spike: say so in `tally.md`, and keep the recorded fixture under the connector.
 - **Finding 1 is high, so the reviewer re-checks the fix diff.**
 
+### 27-11-2026, re-check (seat, worktree `tc1-tally-connector`, `81798fb9..600ce381`)
+All ten findings are fixed, and each has a test. Finding 1, the high, is closed, so nothing blocks the merge. The fix round brings in one new medium (11) and one low (12), which become follow-ups.
+
+| # | Finding | Status | Evidence |
+|---|---|---|---|
+| 1 | Strict answers stop every company | Fixed, tested | `ConnectorAnswers` (`z.object` without `.strict()`, which strips unknown keys, nested `accepted` included) is used for all four calls. A 2xx that does not parse is retried with backoff, then thrown as `bad_answer`. In `send()`, `bad_answer` counts as a refusal, and the drain continues past it. On the cursor call it skips only that company. Tests: `client.test.ts` (extra fields at both levels, plus retry then give up), `sync.test.ts` (`extraFields` across a whole cycle with the snapshot and the heartbeat; an applied batch with unreadable answers resent under its key and applied once; a cursor unreadable twice), and `connector.test.ts` (lenient against strict). |
+| 2 | Refused rows tried for ever | Fixed, tested | `refusals` column, `outboxMaxAttempts` 10, `held` state, `heldRows`, `prune()` removes held rows, and `supersedeSnapshots()` keeps one pending snapshot per company. The drain does not send a snapshot when a new one is due. Tested with a plain-text 413 over two days, and with a 403 batch held and read again from the cursor under a new key. |
+| 3 | Read without `BOOKSFROM` | Fixed, tested | The period is now a required argument of every voucher, ledger and GUID builder, and `booksFrom()` throws `no_books_from`. The fixture filters vouchers by `SVFROMDATE`/`SVTODATE` (or by the current period), so an earlier-year voucher is now visible to the tests. |
+| 4 | Refused vouchers invisible | Fixed, tested | `ConnectorBatchRequest.refused`: range-checked by the refine, with a `field` regex. The reader reports a cancelled voucher without entries with field `ledgerEntries`. The log keeps GUID and field only. |
+| 5 | Heartbeat lag always zero | Fixed, tested | `tallyLastAlterId` and `problem` are filled from the cycle's status read. `refreshTally()` keeps the figure current while a company waits. Exact heartbeat objects are asserted. |
+| 6 | Documents | Fixed | Built (TC1), TESTING §6, ARCHITECTURE's table and ADR list, AGENTS §3 and its fence, the `missingOnServer` comment, tally.md, API §3.5 and §7, and the web test comment. No reference to `spike:tally`, `tally-read` or `parseGuidExport` remains outside the run files. |
+| 7 | Refusal path untested | Fixed, tested | The 403 test asserts the row, the refusal count, that no further page is read, that the other company goes on, and catch-up under the stored key. See finding 12 for the remaining gap. |
+| 8 | Real-time scheduler test | Fixed, tested | `Timers` is injected, and the test clock asserts exact beat and cycle times plus zero timers left after stop. |
+| 9 | Fixed windows | Fixed, tested | `nextWindow()` uses `page.scanned`. A window over a batch's limits is read again narrower. Window chains are asserted exactly. |
+| 10 | Spike's app-to-app import | Fixed | The script and the `spike:tally` script are removed. This changes `apps/web/package.json` scripts, which is a checks change and needs the owner's `checks-ok`. |
+
+**New findings from the fix round:**
+
+| # | Severity | Where | What is wrong | Failure scenario | Fix | Status |
+|---|---|---|---|---|---|---|
+| 11 | Medium | `apps/tally-connector/src/sync.ts:307-310` (`tooMany`) and `325-327` (`batch_unreadable`) | `tooMany` counts vouchers and ledgers but not `refused`. The contract caps `refused` at 2,500, and a widened window can hold more refused rows than that. Such a page fails `ConnectorBatchRequest`. It is logged `batch_unreadable` and returns `refused`, and the window is never narrowed. No `problem` is set. Before the fix these rows were `skipped` and the batch still went. | After a sparse stretch the window grows to 3,200 or more. Accounts then bulk-imports 2,600 ledgers (or vouchers) that the contract refuses. Every cycle re-reads the same window (two full Tally scans), logs `batch_unreadable` and stops the company for good. The heartbeat shows no `problem`, only the lag. Reproduced with a scratch test against the harness: `pageSize` 100, `pageSizeMax` 10,000, 3,100 other masters, then 2,600 `noEntries` vouchers. Result: chain `[0,100] … [1500,3100]`, `batch_unreadable` on both cycles, `page_narrowed` 0, heartbeat `{lastAlterId: 3100, tallyLastAlterId: 5701}` with no problem. | Count `page.refused.length > CONNECTOR_BATCH_MAX_VOUCHERS + CONNECTOR_BATCH_MAX_LEDGERS` in `tooMany`, set `state.problem` on `batch_unreadable`, and add the case to `sync.test.ts`. | Confirmed (path); plausible (trigger) |
+| 12 | Low | `apps/tally-connector/test/sync.test.ts` (the 403, unreadable-answer and snapshot cases) | In every new case the drain meets the refused or unreadable row as the only pending row. Nothing in the suite proves the drain goes on past such a row to a later one, the behaviour the triage asked for. No suite test takes an unreadable answer up to the attempt limit either: held rows are reached only by 403 and 413. The code is right: scratch tests passed for two companies' pending rows with the first refused (403), the same with the first unreadable, and a captive proxy (every batch answer unreadable for six cycles, then cleared), which ended held 2 with chain `[0,5],[5,7],[7,8]` and nothing applied twice. | A later change to `drain()` that stops after a refused or unreadable row passes the suite, because the company loop hides it: both companies are skipped by `hasPendingBatches`. This brings back the stall finding 1 was about. | Add the first two scratch cases to `sync.test.ts`: refuse company A's batch and garble company B's answers, then assert B is sent from the drain in the next cycle. Also take an unreadable answer to `outboxMaxAttempts`. | Confirmed (by reading; behaviour checked) |
+
+**Checked and sound in the fix diff:**
+- Cursor recovery after a hold:
+  - A held batch never loses data. The company is read again from the BOS's cursor, so a hold after an unreadable answer (the BOS applied it) moves on, and a hold after a real refusal reads the same range again under a new key.
+  - Only one batch per company is pending in normal running, because `readCompany` returns on the first unsent page.
+- Additive contracts:
+  - `refused`, `tallyLastAlterId`, `problem` and `heldRows` are optional, and `problem` is an enum.
+  - The strict response schemas are unchanged for the BOS's tests.
+  - The key stays out of every new log line, which carries ids, codes and counts only.
+  - Every Tally request is still an export with `ISMODIFY="No"`, and every read except the company status names a period.
+- The outbox's new columns and state, and `PRAGMA user_version = 1`, are fine, since no connector is installed yet. The kill test is unchanged and passes.
+- Re-run here, all through the lock:
+  - `turbo run test --filter=@shakti/tally-connector --filter=@shakti/contracts --force`: connector 11 files, 64 passed, 1 skipped (Windows DPAPI); contracts 25 files, 344 passed.
+  - `pnpm typecheck`: 11 of 11 tasks.
+  - `eslint --max-warnings 0 apps/tally-connector packages/contracts/src/api`: clean.
+  - `web` `src/integrations/tally` and `lint-fences.test.ts`: 2 files, 28 passed.
+  - The scratch tests for findings 11 and 12 (four cases) ran outside the repository and changed no file in it.
+
+**Not checked:** the `windows-latest` job, `build-sea.ts`, `pnpm build`, `js-budget` and the whole-repository `pnpm lint`, which the builder reports clean. No security suite was run, since there is no schema, policy or command change. The slice has no screen and no journey, so no journey was run.
+
 ## Integration
