@@ -5,7 +5,9 @@
 // them partly backordered) and 20,000 active reservations held far in the future, then prints
 // `EXPLAIN (ANALYZE, BUFFERS)` of the stock card's hold and backorder lists and the order page's
 // hold list under the policies as an Inventory Manager, of the statements the fill and the daily
-// scan run inside their definers, as the table owner, and the time of `app.line_availability()`.
+// scan run inside their definers, as the table owner (the fill's count of stock that arrived after a
+// need went back on order over 200,000 movements written in a transaction that is rolled back), and
+// the time of `app.line_availability()` and of the builder's preview of 200 lines.
 // Everything it wrote is removed at the end. Local database only (prepareDatabase refuses any
 // other host). Not part of CI; it lives under tests/ for the testing helpers.
 import { newId, type Principal } from '@shakti/contracts';
@@ -197,12 +199,65 @@ async function main(): Promise<void> {
     );
   });
 
+  // The stock that entered a storage bin after a need went back on order: 200,000 movements of the
+  // volume items into the volume bins over a year, written and rolled back.
+  const ROLLED_BACK = 'rolled back';
+  await asMigrator((m) =>
+    m
+      .begin(async (tx) => {
+        await tx`with i as (select id, row_number() over (order by id) as n from items
+                             where sku like ${`${PREFIX}${hub.slice(-6)}-%`}),
+                      b as (select id, row_number() over (order by id) as n from bins
+                             where warehouse_id = ${hub})
+                 insert into stock_movements (id, entity_id, item_id, to_bin_id, qty, reason, batch_id,
+                                              moved_at, moved_by)
+                 select app.uuid_v7(), ${E}, i.id, b.id, 1, 'adjust_gain', app.uuid_v7(),
+                        now() - (g || ' minutes')::interval, ${owner.id}
+                   from generate_series(1, 200000) g
+                   join i on i.n = 1 + (g % ${ITEMS})
+                   join b on b.n = 1 + (g % ${BINS})`;
+        await tx`analyze stock_movements`;
+        print(
+          'the fill: stock that arrived after a need went back on order (inside app.fill_backorders())',
+          await tx.unsafe(
+            `explain (analyze, buffers, costs off)
+             select coalesce(sum(m.qty), 0)
+               from stock_movements m
+               join bins tb on tb.id = m.to_bin_id and tb.kind = 'storage'
+               left join bins fb on fb.id = m.from_bin_id
+              where m.entity_id = $1 and m.item_id = $2
+                and m.moved_at > now() - interval '7 days'
+                and (fb.id is null or fb.kind <> 'storage')`,
+            [E, sample.itemId],
+          ),
+        );
+        throw new Error(ROLLED_BACK);
+      })
+      .catch((e: unknown) => {
+        if (!(e instanceof Error && e.message === ROLLED_BACK)) throw e;
+      }),
+  );
+
   const t0 = performance.now();
   await asPrincipal(manager, (ctx) =>
     ctx.tx.execute(sql`select * from app.line_availability('order', ${sample.orderId}::uuid)`),
   );
   process.stdout.write(
     `\n=== app.line_availability() of a confirmed order: ${(performance.now() - t0).toFixed(1)} ms ===\n`,
+  );
+  const items = await asMigrator(
+    (m) => m<{ id: string }[]>`
+      select id from items where sku like ${`${PREFIX}${hub.slice(-6)}-%`} order by id limit 200`,
+  );
+  const lines = JSON.stringify(
+    items.map((it, i) => ({ line_id: null, position: i + 1, item_id: it.id, kit_id: null, qty: '3' })),
+  );
+  const t1 = performance.now();
+  await asPrincipal(manager, (ctx) =>
+    ctx.tx.execute(sql`select * from app.preview_availability(${E}::smallint, ${lines}::jsonb)`),
+  );
+  process.stdout.write(
+    `\n=== app.preview_availability() of 200 lines: ${(performance.now() - t1).toFixed(1)} ms ===\n`,
   );
 
   // Everything written goes: the orders take their lines, needs and reservations with them.

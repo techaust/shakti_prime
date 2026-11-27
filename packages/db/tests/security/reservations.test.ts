@@ -122,9 +122,18 @@ describe('the definers beneath the reservation paths', () => {
       'app.stock_lock_free',
       sql`select app.stock_lock_free(1::smallint, '{}'::uuid[], '{}'::uuid[])`,
     ],
+    [
+      'app.stock_free_rows',
+      sql`select app.stock_free_rows(1::smallint, '{}'::uuid[], '{}'::uuid[])`,
+    ],
     ['app.sync_line_backorders', sql`select app.sync_line_backorders('{}'::uuid[])`],
+    ['app.backfill_order_needs', sql`select app.backfill_order_needs('{}'::uuid[])`],
     ['app.order_hubs', sql`select app.order_hubs(${id}::uuid)`],
     ['app.reservation_for_change', sql`select * from app.reservation_for_change(${id}::uuid)`],
+    [
+      'app.free_availability',
+      sql`select * from app.free_availability(1::smallint, '[]'::jsonb, false)`,
+    ],
   ])('%s is not callable by a request role', async (_name, statement) => {
     const failed = await failure(rows(principalFor('executive', [1]), statement));
     expect(failed.code).toBe('42501');
