@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 3
-updated: 2026-11-27T18:28Z
+updated: 2026-11-27T20:09Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -74,3 +74,11 @@ run_file: docs/runs/phase3/h3-stock-counts.md
 wait_for: none
 done_when: report: h3-stock-counts done
 note: continue. The lead read the early check (27-11 17:05 UTC): accepted, decisions 1 to 7 included. Go on to the screens (list, the one-hand counting screen, the review), the count sheet and the journeys; a plain input for serials until U2's scan field merges.
+
+lane: 68
+role: build
+branch: feat/r3-warranty
+run_file: docs/runs/phase3/r3-warranty.md
+wait_for: none
+done_when: report: r3-warranty done
+note: continue. The lead read the early check (27-11 20:05 UTC): accepted, its assumptions included. Take main in now (X4 merged, #298; Q1 may merge soon: take main again if it has), renumber after main's last, and open your three reasons with grant and move rows per X4's comment block (and reversal rows keyed by your reasons where a reversal applies). Settlement by a supplier replacement waits for U2's receipt: if U2 has not merged, leave it and name it. Keep app.next_document_no() carrying every kind main has.
