@@ -5,8 +5,8 @@
 | Branch | `feat/tc2-tally-ingest` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an authenticated machine path, supplier rates, financial data, row security |
-| Usage | briefed 27-11-2026; builder Opus 5.5 at high, started 27-11-2026; early check 27-11-2026 (Opus 5.5 at high) |
-| State | early check |
+| Usage | briefed 27-11-2026; builder Opus 5.5 at high, started 27-11-2026; early check 27-11-2026, done 27-11-2026 (Opus 5.5 at high) |
+| State | done |
 | Next step | the builder |
 
 ## Brief
@@ -117,6 +117,95 @@ Shared registration points take one line or one block each, kept together under 
 **Brief addendum 2 (TC1's `refused` rows on a batch, `tallyLastAlterId` and `heldRows` in the heartbeat):** arrived during the checks; not built. TC1's contract additions are not on this branch, so they come with the screens: the refused rows stored for the review queue with the earlier version marked not current, the heartbeat's two fields on the connector and Integration health (lag = `tallyLastAlterId` − cursor, an alert above zero held rows).
 
 **Not yet built (after this check):** Admin › Integrations › Tally (register, key shown once, map, rotate, retire, revoke; the snapshot held for Accounts), Integration health's connector row (`connectorHealth`), the silence alert in the jobs check (`shouldAlertSilence`, Sentry, `silence_alerted_at`), `/release`, server actions, journeys, API §3.5 text, `EXPLAIN (ANALYZE)` for the screen's lists.
+
+**Skills loaded:** `add-table`, `add-command`.
+
+### 27-11-2026, done (seat, worktree `tc2-tally-ingest`, Postgres 54331)
+**The lead's two changes to the early check:**
+- **Keys sealed, not hashed.** A connector's key is made on the server, shown once and kept only sealed by the field cipher (KMS on a hosted environment, `FIELD_ENCRYPTION_KEY` locally, as `entities.bank_json` is) in `tally_connectors.key_sealed` and, during a rotation, `next_key_sealed`. The seal is bound to the connector's row (company 0: a connector belongs to no company), so a sealed key copied to another connector does not open. The route opens the keys (kept 5 minutes per sealed value in the process) and verifies with the key as shown, so TC1 signs as it does. A runtime with no cipher answers `integration_unavailable`. `connectorSigningKey()` and every key hash are gone.
+- **Snapshots in parts.** `ConnectorSnapshotRequest.part` (`snapshotId`, `part`, `parts`, at most `SNAPSHOT_MAX_PARTS` 20) and a route cap of 4.5 MB. Parts are kept on the snapshot's row (`receiving`, `parts_received`, `received_guids`, `app.tally_snapshot_part()`), each part once. A part whose company, size, `asOf` or `fromDate` differs is refused (`tally_snapshot_part_mismatch`). The whole snapshot is compared when the last part arrives, and that row is completed in place. A snapshot still receiving a day after it began is dropped when the company's next part arrives. An intermediate part is answered with zeros.
+
+**Addendum 2:**
+- I took TC1's `connector.ts` whole from `feat/tc1-tally-connector` (its `TallyRefusedRow`, `refused`, `tallyLastAlterId`, `problem`, `heldRows`, `ledgerBalances`, the response shapes) and added `part` to the snapshot.
+- Refused rows land in `tally_refused_rows` (one per GUID, the latest; resolved when a later version arrives), and the stored earlier version gets `refused_at` (not current) until a later version clears it.
+- The heartbeat records `tally_last_alter_id`, `problem`, `held_rows` and `held_since`; an older connector's missing fields leave what was recorded.
+- Integration health shows lag (`tallyLastAlterId` less the cursor), records waiting and set aside, and why a company is not read. Held rows raise `tally.connector.rows_held` once per stretch.
+- The early check's route split for `ledgerBalances` is gone: the field is TC1's contract now.
+
+**Built since the early check:**
+- **Admin › Integrations › Tally** (`/admin/integrations/tally`, `admin.integrations.write`): set up a connector (its number and key shown once), link a Tally company to one of the group's companies, unlink it, make a new key, turn the old one off, turn the connector off. Files: `apps/web/src/components/tally/tally-connectors-screen.tsx` and the page.
+- **Tally checks** (`/tally-checks`, `finance.recon.write`): the held snapshots of the caller's companies, each with Confirm (`tally.snapshot.confirm`). Files: `apps/web/src/components/tally/tally-checks-screen.tsx`, the page and its layout. It is a page of its own because Accounts cannot open an admin page: the menu needs every grant it lists.
+- **Integration health:** the Tally section (`apps/web/src/components/integrations/tally-health.tsx`) from `readTallyConnectorHealth()`. `ConnectorHealth` now carries the connector's name, `health` (`connectorHealth()`), `heldRows`, `reachable`, `lag` and `problem`, and its version is nullable.
+- **The alerts:** `apps/web/src/workers/tally-alerts.ts`, run by the hourly jobs check as `system:workers`.
+  - `tally.connector.silent` goes out once per silence (`shouldAlertSilence`); `tally.connector.rows_held` once per stretch (`shouldAlertHeldRows`). Each names the connector by id with counts only, through Sentry (`ALERT_NAMES`).
+  - Each sent alert is recorded by the new command `tally.connector.record_alert` (`platform.jobs.check`, through `app.tally_connector_alerted()`). A fault in these alerts is told once a day as `tally-alerts` and never fails the check.
+- **`/release`:** `GET /api/v1/connector/tally/release` answers a verified connector `not_found` (`tally_no_release`) until TC4. The endpoint catalogue's `connector.release` path is now `/connector/tally/release`, and API §3.5, ADR 0013 and the design's §9.2 say so.
+- **Server actions:** `apps/web/src/actions/tally.ts` (list, register and rotate with the key made there and answered once, map, unmap, retire, revoke, the held snapshots, confirm).
+- **Menu and scopes:** `nav.ts` gains `admin-tally` and `tally-checks`; also the BOS route list, the message scopes and the copy-lint button keys.
+- **Documents:** API §3.5 and Integration health, DATABASE §6.7 (the new and changed columns, `tally_refused_rows`), SECURITY (the connector principal's paragraph, the jobs check's grant row), the design's "Built (TC2)" record; `db:docs` and `machines:docs` regenerated.
+
+**Tests:**
+- `packages/db/tests/security/tally.test.ts` (78 cases with its per-role tables). New since the early check:
+  - sealed keys never selectable;
+  - a refused later version marks the stored one not current, until a later version clears it;
+  - parts kept, each once, a mismatched part refused, an incomplete snapshot dropped after a day;
+  - held rows and the companies' Tally counters through the heartbeat;
+  - the alert definers only for the jobs check (an Executive, a connector and an agent refused).
+- The role × company matrix covers `tally_refused_rows`.
+- `packages/domain/tests/commands/tally.test.ts` (18 cases). New since the early check:
+  - the key sealed and never in the clear (neither in the table nor in the audit row);
+  - it does not open as another connector's;
+  - registering refused with no cipher;
+  - rotation opens both keys, then only the new;
+  - refused rows queued and resolved;
+  - a snapshot in two parts compared once, with a mismatched part refused;
+  - the heartbeat's held rows and Tally counter;
+  - `tally.connector.record_alert` refused to an Executive.
+- `apps/web/tests/tally-connector.test.ts` (16 cases): the earlier cases on sealed keys, plus the release route (404 for a verified connector, 401 for an unknown one) and 503 with no cipher.
+- `apps/web/tests/tally-alerts.test.ts` (2 cases, new): a connector that never checked in raises nothing; a silence and held rows raise once each, then again after the next stretch.
+- Updated: the refusal sweep (`tally.connector.record_alert` in `CHECKS`), the masking exemption for `key` (an example the masker would change), refusal coverage (four commands with no company reviewed), reader parity (five reads), `contract-values`, `enum-sync`, `grants`, the API fixture.
+- Journey `apps/web/e2e/tally.spec.ts`: an Executive sets up a connector and walks through its key, link, rotation, unlink and turn-off; Integration health's Tally section; Accounts' empty Tally checks, with a screenshot `tally-checks-empty`; Accounts kept out of the connectors. **Not run:** journeys cannot sign in on a seat; the lead runs them and makes the Linux baseline.
+
+**`EXPLAIN (ANALYZE)` under RLS** (as `app_user` with an Executive's settings, on this worktree's database after the suite):
+- `listTallyConnectors`: Seq Scan on `tally_connectors` (5 rows; at most a handful in practice), top-N sort, 0.06 ms.
+- `listHeldTallySnapshots`: Index Scan using `tally_snapshots_held_idx`, 0.05 ms.
+- `readTallyConnectorHealth`: Seq Scan on `tally_connectors`, Bitmap Index Scan on `tally_connector_companies_connector_id_tally_company_pk`, Index Scan on `tally_cursors_company_unique`, 0.05 ms.
+- The snapshot diff's read (`app.tally_vouchers_known`, run as the table owner): a Seq Scan at 37 rows; at scale `tally_vouchers_entity_state_idx` (`entity_id`, `tally_company`, `state`) serves it.
+
+**Checks** (each through `tools/integration/heavy.sh`):
+- `pnpm exec turbo run typecheck`: 10 tasks successful.
+- `pnpm lint` (the whole repository, the final check): clean.
+- `pnpm copy-lint`: clean.
+- Unit tests (`turbo run test --force`):
+  - contracts 340 passed, after the release endpoint's `not_found` was added: the round before had one failure, the catalogue missing that code;
+  - db 163 passed;
+  - domain 2,809 passed;
+  - web 1,242 passed, 1 skipped.
+- Security suite (`turbo run test:security --concurrency=1`, on this worktree's database, migrated and seeded fresh after the VM moved it to 54331):
+  - db 63 files, 1,912 passed (`tally.test.ts` 78 with its role cases);
+  - domain 111 files, 1,540 passed (`tally.test.ts` 18);
+  - web 41 files, 479 passed (`tally-connector.test.ts` 16, `tally-alerts.test.ts` 2).
+- `pnpm build`: compiled.
+- `pnpm --filter web js-budget`: every page within its budget (67 pages), after the budget changes below.
+  - **`apps/web/js-budget.json` changed, a checks change that needs the owner's `checks-ok`.** The two new pages got their budgets (`/admin/integrations/tally` 205 kB, `/tally-checks` 237 kB, each measured plus 5 %).
+  - `/catalogue` (245.1 of 245 kB) and `/admin/integrations` (241.0 of 241 kB) were raised by 1 kB each for the shell's two new menu entries (and the Tally section on Integration health), as H1 did for its menu entries.
+- `pnpm db:docs` and `pnpm --filter @shakti/domain machines:docs`: regenerated and committed.
+- Not run: the journeys (`apps/web/e2e/tally.spec.ts`, written; a seat cannot sign in) and their Linux screenshot `tally-checks-empty`.
+
+**Assumptions (calls the brief and the lead's notes did not settle):**
+- A connector's seal context is company 0, column `key`, row the connector's id, so retiring the old key moves the next one into `key_sealed` without sealing it again.
+- The route caps a snapshot or part at 4.5 MB (Vercel's limit); the connector's splitting is TC4's.
+- The tombstoning of a held snapshot happens when Accounts confirm it.
+- Accounts confirm held snapshots on a Tally checks page of their own (`finance.recon.write`); Executives hold that grant too.
+- The jobs check's `platform.jobs.check` also reads the connectors' alert facts and records an alert, rather than a new platform grant.
+- Refused rows and the GUIDs a snapshot lacks are stored for TC3's review queue; TC2 shows neither on screen.
+
+**For the lead at integration:**
+- `finance.read` merges with FN1's catalogue and seed rows.
+- `connector.ts` is TC1's file as of `a3d52758` plus `part` and `SNAPSHOT_MAX_PARTS`; take TC1's latest and keep `part`.
+- `endpoints.ts`'s `connector.release` path changed to `/connector/tally/release`; TC1's client, if it reads that path, follows.
+- Migrations `0240`/`0241` are numbered after this branch's base; `main` now has `0242`, so they are renumbered at the merge.
+- The Tally checks page needs its Linux baseline.
 
 **Skills loaded:** `add-table`, `add-command`.
 
