@@ -6,8 +6,8 @@
 | Runs on | a seat session (taking its work from `ops/seats`); the lead on the PC reviews and integrates (owner, 23-11-2026) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): a test, or the code under it if the code is wrong |
 | Usage | builder on Opus 5.5 at high effort; built in the lead's cloud VM on Opus 5.5 at high effort (27-11-2026) |
-| State | built; the builder's report is below |
-| Next step | the lead's review |
+| State | fix round done; the builder's fix entry is in the Report section |
+| Next step | the lead's integration |
 
 ## Brief
 `apps/web/tests/demo-data.test.ts` fails in the web security suite between 18:30 and 24:00 UTC (00:00 to 05:30 in India), as H1's builder recorded twice on 23-11-2026: the demo data's price lists take effect "today in India", which is still tomorrow's date in UTC in that window, and something reads them by the UTC date. The alert-counts case had the same kind of fault (#282).
@@ -86,6 +86,15 @@ This is the same assertion I1's review recorded on an aged database (`phase2/i1-
 - I renumbered three archived lists on this slot's database by hand, as above, so that the db suite could run after the demo test without a fresh database.
 
 **Uncertain:** I could not read H1's own failing assertion: its report gives only the date explanation. My conclusion that H1 saw the same paging failure rests on two things. The reproduction above has the same shape (the whole suite rerun on an ageing database, passing first and then failing). And the same assertion text was recorded on aged databases in Phase 2.
+
+### 27-11-2026, fix round, builder in the lead's cloud VM (worktree `demo-data-ist-day`, Postgres 54332, a new database)
+- **Finding 1, fixed (5ad4cc71).** `packages/domain/tests/queries/catalogue-queries.test.ts`: the case "lists the kits still sold with their price on one list…" now reads every page of `listKitPrices` with the cursor, as `pricedOn()` does, before it filters by the run's tag. No other change.
+- **`main` taken in by a merge commit** (d1d31962). There were no conflicts, and the lockfile was unchanged, so I did not install.
+- **Checks**, all through `heavy.sh`, after `pnpm db:migrate` and `pnpm db:seed` on the new database:
+  - `pnpm --filter @shakti/domain typecheck` and `pnpm --filter web typecheck`: clean.
+  - `pnpm exec eslint packages/domain/tests/queries apps/web/tests --max-warnings 0`: clean.
+  - Security suite, one workspace at a time in this order: db 64 files, 1,860 passed; domain 111 files, 1,535 passed; web 40 files, 466 passed (`demo-data.test.ts` among them).
+  - `catalogue-queries.test.ts` alone, afterwards: 7 of 7 passed.
 
 ## Review
 Reviewer, 27-11-2026, in the lead's cloud VM (worktree `demo-data-ist-day`, Postgres 54332, on 3b0415b1). Tier C. Verdict: **no critical or high finding; the slice can merge.** The diff is one test helper, `pricedOn()` in `apps/web/tests/demo-data.test.ts`, plus this file.
