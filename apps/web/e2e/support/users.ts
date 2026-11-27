@@ -160,6 +160,44 @@ export const STOCK_JOURNEY = {
 } as const;
 
 /**
+ * R3's warranty journeys (warranty.spec.ts), written by the seed (`e2e/setup/warranty.ts`): per
+ * project, in company 1, a customer with a site and two delivered serials of a pump, one in
+ * warranty and one whose warranty ended, on which the Inventory Manager raises, identifies and
+ * rejects a claim from Account 360; a claim already with the supplier, made again by each seed,
+ * which the Inventory Manager settles with a credit; and a closed claim with its costs, made once,
+ * which the General Manager opens without its costs and Accounts with them. Every date, amount
+ * and number is a test value for these journeys alone.
+ */
+export const WARRANTY_JOURNEY = {
+  entityId: 1,
+  /** The day the expired serial's warranty ended. */
+  expiredOn: '2025-01-31',
+  /** The in-warranty serial's end, far ahead so a run never reaches it. */
+  validUntil: '2099-12-31',
+  /** The closed claim's costs, which only a holder of finance.cost.read sees. */
+  closedCosts: { replacement: '18500.00', credit: '16250.50' },
+  projects: {
+    'desktop-light': { tag: 'DL', village: 'Chomu', farm: 'Journey warranty farm, light' },
+    'desktop-dark': { tag: 'DD', village: 'Bassi', farm: 'Journey warranty farm, dark' },
+    phone: { tag: 'PH', village: 'Sanganer', farm: 'Journey warranty farm, phone' },
+  },
+} as const;
+
+/** The pump, the serials and the seeded claims' numbers of one project's warranty journey. */
+export function warrantyJourneyOf(project: ProjectName) {
+  const { tag, village, farm } = WARRANTY_JOURNEY.projects[project];
+  return {
+    farm,
+    village,
+    sku: `JRN-WTY-${tag}`,
+    pump: `Journey pump ${tag}`,
+    validSerial: `JWS-${tag}-OK`,
+    expiredSerial: `JWS-${tag}-OLD`,
+    closedClaimNo: `JRN/WC/${tag}/CLOSED`,
+  };
+}
+
+/**
  * The company kept for screenshots of lists: only the seed writes there, never a journey, so the
  * leads list and board, the team, the Activity log and the imports show the same rows every run
  * and only times are masked. A security suite run on the same database may add rows there; CI

@@ -209,6 +209,14 @@ Settled here for every slice, subject to questions 1 to 3:
 - **Screens:** `/inventory/warranty` (claims by state), the claim sheet with its steps, Raise a claim from Account 360 and from a serial's page.
 - **Acceptance:** INV-08's first criterion through every state; a serial out of warranty is refused at identification with its date; the replacement's cost is visible only with `finance.cost.read`.
 
+**Built (R3):**
+- Table `warranty_claims` (DATABASE §6.5) with row security by company: read with `inventory.stock.read` or `inventory.warranty.write`, raised with `inventory.warranty.write`, moved on by each step's grant through the step columns only, final once closed or rejected; its costs in the restricted side table `warranty_claim_costs` (the house pattern of `stock_movement_costs`, `finance.cost.read`), written only by definers; the series kind `warranty_claim` (code `WC`, `WORKSHOP_DEFAULTS.numbering.docCodes`).
+- The `warranty_claim` machine in use (`replace` given to `inventory.warranty.write`, as the reason's grant); the commands `inventory.warranty.raise`, `.identify_serial` (in warranty while `warranty_until` is today or later in India, refused with the date), `.reject` and `.settle` by the supplier's credit (`procurement.grn.write`, through `app.warranty_claim_record_credit()`, the amount kept out of the answer, the audit row and the event); the events `inventory.warranty.raised`, `.serial_identified`, `.rejected` and `.closed`, ids only.
+- The queries `listWarrantyClaims` (keyset on the time raised), `getWarrantyClaim`, `listClaimSerials` and `readWarrantyClaimCosts` (`finance.cost.read`).
+- The import kind `installed_base`: stock code, serial, the customer's mobile number, the site's village, the delivery date and, when not the item's warranty months from delivery, the warranty's end; refused row by row; entered through `app.installed_base_add()` as `with_customer` with no stock movement; undone through `app.installed_base_remove()`, which keeps a serial a claim or a movement has used.
+- Screens: Inventory › Warranty claims (`/inventory/warranty`, by state), the claim sheet with its steps and its costs for `finance.cost.read` only, Raise a warranty claim on Account 360 and on a serial's page; the journeys in `apps/web/e2e/warranty.spec.ts`.
+- Waiting for X4's reason registry (`app.stock_reason_grants`, `app.stock_reason_serial_moves`): `.replace` (the replacement issued as `warranty_replacement`, the failed serial back into quarantine as `return_customer`), `.rma_raise` (`return_supplier` out of quarantine) and the replacement's cost; `.settle` by a supplier's replacement waits for U2's `receipt`.
+
 ## 8. Wave 3
 
 ### 8.1 D2 Dispatch, challans and the e-way bill gate
