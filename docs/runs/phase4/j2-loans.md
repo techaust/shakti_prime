@@ -80,7 +80,7 @@ Skills loaded: `add-table`, `add-command`. Commits: `3d1b90d5` (wip), `878fa02e`
 
 **Checks**
 - `pnpm test:security` (through the lock, on 54333): db 63 files, 1812 passed; domain 111 files, 1534 passed; web 39 files, 461 passed; `Tasks: 4 successful, 4 total`.
-- `pnpm --filter @shakti/domain exec vitest run src`: 110 files, 2810 passed. `pnpm --filter web exec vitest run`: 167 files, 1241 passed, 1 skipped after the namespace fix (the one failure in the first run, `/admin` client namespaces, is fixed and that file passed on its own rerun).
+- `pnpm --filter @shakti/domain exec vitest run src`: 110 files, 2810 passed. `pnpm --filter web exec vitest run`: 167 files, 1240 passed, 1 skipped, 1 failed (`/admin` client namespaces lacked `loans`); after the fix `src/i18n`, `errors-catalogue` and `audit` were rerun alone (5 files, 59 passed), and the whole web suite was not run again.
 - `typecheck` of `@shakti/contracts`, `@shakti/db`, `@shakti/domain` and `web`: clean. `eslint --max-warnings 0` on `packages/db`, `packages/contracts`, `packages/domain/src` and the touched test files, `apps/web/src/screens`, `apps/web/src/components/activity`, `apps/web/src/i18n`: clean. `pnpm copy-lint`: clean. `pnpm db:docs` and `machines:docs`: regenerated.
 - Not run yet (screens lane): the whole-repository `pnpm lint`, `pnpm build`, `js-budget`, journeys. `EXPLAIN (ANALYZE)`: the suites leave both tables empty, so plans now show only empty seq scans and the definer at 1.5 ms; the list queries come with the screens, and their plans will be taken on seeded volume then.
 
