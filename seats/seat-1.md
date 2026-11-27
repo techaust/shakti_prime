@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T20:11Z
+updated: 2026-11-27T20:13Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -138,3 +138,11 @@ run_file: docs/runs/phase5/fn1-proformas.md
 wait_for: none
 done_when: report: fn1-proformas done
 note: continue. The lead read the early check (27-11 20:20 UTC): accepted, decisions 1 to 8 included. J2 merges first (tonight): when it has, take main in and redefine app.order_loan_gate() from J2's latest with finance.milestones.process:all answering (your integration note), and drop the stub. Then the screens, the PDF and the journeys.
+
+lane: 71
+role: fix
+branch: feat/h2-reservations
+run_file: docs/runs/phase3/h2-reservations.md
+wait_for: none
+done_when: report: h2-reservations fixes 2
+note: a short second round for the re-check's findings 10, 11 and 12, as the lead's triage at the end of the Review section says; report as report: h2-reservations fixes 2.
