@@ -207,11 +207,7 @@ export async function mobileTokenRoute(request: Request, deps: MobileRouteDeps):
           : undefined;
       return refused(refuse('unauthorized', checked.reason, retry), requestId);
     }
-    const resolved = await resolveMobilePrincipal(
-      checked.userId,
-      `mobile:${body.device.deviceId}`,
-      deps,
-    );
+    const resolved = await resolveMobilePrincipal(checked.userId, body.device.deviceId, deps);
     if ('kind' in resolved) return refused(resolved, requestId);
 
     const now = (deps.now ?? (() => new Date()))();
@@ -312,11 +308,7 @@ export async function mobileRefreshRoute(
       return refused(refuse('unauthorized', 'refresh_expired'), requestId);
     }
 
-    const resolved = await resolveMobilePrincipal(
-      outcome.userId,
-      `mobile:${outcome.deviceId}`,
-      deps,
-    );
+    const resolved = await resolveMobilePrincipal(outcome.userId, outcome.deviceId, deps);
     if ('kind' in resolved) {
       // A person who may no longer act keeps no phone signed in; they sign in again once they may.
       await deps.devices.signOut(outcome.userId, outcome.deviceId, 'signed_out', now);

@@ -17,6 +17,7 @@ import {
   memoryKeyValue,
   memoryLogger,
   memoryMailer,
+  resolvePrincipalFromGrants,
   revokeMobileDevice,
   setFeatureFlag,
   suspendUser,
@@ -663,6 +664,114 @@ describe('row security under a mobile bearer', () => {
       );
     expect(await companies(found.caller.principal)).toEqual(await companies(session));
     expect(await leads(found.caller.principal)).toEqual(await leads(session));
+  });
+});
+
+describe('people who share one installation', () => {
+  /** The caller behind an access token, as every bearer route finds it. */
+  async function callerOf(accessToken: string) {
+    const found = await mobileCaller(
+      new Request(`${ISSUER}/api/v1/me`, { headers: bearer(accessToken) }),
+      { keyValue, devices: authDeviceStore, grants: loadUserGrants, env, now: () => clock },
+    );
+    if (found.kind !== 'ok') throw new Error('the bearer was refused');
+    return found.caller;
+  }
+
+  const visibleLeads = (principal: Principal) =>
+    executeQuery(
+      principal,
+      { entityIds: principal.entityIds },
+      ({ tx }) => tx.execute(sql`select id from opportunities order by id`),
+      { name: 'visibleLeads' },
+    );
+
+  /** The claims an access token carries, read without checking it (the routes check it). */
+  interface Claims {
+    sub: string;
+    sid: string;
+    bos_role: string;
+    entity_ids: number[];
+  }
+  function claimsOf(accessToken: string): Claims {
+    const payload = accessToken.split('.')[1] ?? '';
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Claims;
+  }
+
+  const signInOn = async (email: string, phone: ReturnType<typeof device>) =>
+    pair(
+      await mobileTokenRoute(
+        post('/auth/mobile/token', { email, password: PASSWORD, device: phone }),
+        deps(),
+      ),
+    );
+
+  it('gives each person who signs in on it in turn their own principal and leads', async () => {
+    const first = await engineerOnPhone([{ entityId: 1, roleKey: 'field_engineer' }]);
+    const second = await person([{ entityId: 2, roleKey: 'store_manager' }]);
+    // The first person's calls fill the cache; the second signs in on the same phone at once.
+    expect((await me(first.tokens.accessToken)).status).toBe(200);
+    const firstAsCaller = await callerOf(first.tokens.accessToken);
+    const secondTokens = await signInOn(second.email, first.phone);
+    expect(claimsOf(secondTokens.accessToken)).toMatchObject({
+      sub: second.id,
+      bos_role: 'store_manager',
+      entity_ids: [2],
+    });
+    const secondMe = MeResponse.parse(await (await me(secondTokens.accessToken)).json());
+    expect(secondMe.principal.id).toBe(second.id);
+    expect(secondMe.roles.map((r) => [r.entityId, r.roleKey])).toEqual([[2, 'store_manager']]);
+    const secondAsCaller = await callerOf(secondTokens.accessToken);
+    expect(secondAsCaller.principal).toMatchObject({
+      id: second.id,
+      roleKey: 'store_manager',
+      entityIds: [2],
+    });
+
+    // The first person signs in again on the same phone a moment later, with the second's entry
+    // still cached, and is themselves again.
+    clock = new Date(clock.getTime() + 5000);
+    const firstAgain = await signInOn(first.user.email, first.phone);
+    expect(claimsOf(firstAgain.accessToken)).toMatchObject({
+      sub: first.user.id,
+      bos_role: 'field_engineer',
+      entity_ids: [1],
+    });
+    const firstAgainAsCaller = await callerOf(firstAgain.accessToken);
+    expect(firstAgainAsCaller.principal).toEqual(firstAsCaller.principal);
+    expect(await visibleLeads(firstAgainAsCaller.principal)).toEqual(
+      await visibleLeads(firstAsCaller.principal),
+    );
+    const secondResolved = resolvePrincipalFromGrants(second.id, await loadUserGrants(second.id));
+    if (secondResolved.kind !== 'principal') throw new Error('the second person did not resolve');
+    expect(secondAsCaller.principal).toEqual(secondResolved.principal);
+    expect(await visibleLeads(secondAsCaller.principal)).toEqual(
+      await visibleLeads(secondResolved.principal),
+    );
+  });
+
+  it('never gives a person who sends someone else’s installation id that person’s principal', async () => {
+    const { user, phone, tokens } = await engineerOnPhone([
+      { entityId: 1, roleKey: 'field_engineer' },
+      { entityId: 3, roleKey: 'field_engineer' },
+    ]);
+    expect((await me(tokens.accessToken)).status).toBe(200);
+    // Someone with an account of their own copies the installation id out of an access token.
+    const intruder = await person([{ entityId: 2, roleKey: 'tele_caller_cc' }]);
+    const { sid } = claimsOf(tokens.accessToken);
+    expect(sid).toBe(phone.deviceId);
+    const theirs = await signInOn(intruder.email, { ...device(), deviceId: sid });
+    expect(claimsOf(theirs.accessToken)).toMatchObject({
+      sub: intruder.id,
+      bos_role: 'tele_caller_cc',
+      entity_ids: [2],
+    });
+    const caller = await callerOf(theirs.accessToken);
+    expect(caller.principal.id).toBe(intruder.id);
+    expect(caller.principal.id).not.toBe(user.id);
+    expect(caller.principal.entityIds).toEqual([2]);
+    const body = MeResponse.parse(await (await me(theirs.accessToken)).json());
+    expect(body.principal.id).toBe(intruder.id);
   });
 });
 

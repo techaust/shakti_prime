@@ -81,19 +81,28 @@ export async function signingSetup(
   return { keys, issuer };
 }
 
+/** The principal cache's session part for one person on one installation. */
+export const mobileCacheSession = (userId: string, deviceId: string): string =>
+  `mobile:${deviceId}:${userId}`;
+
 /**
  * The person as their grants resolve now, or why they may not act: a suspended person is refused,
  * and so is one whose role needs an authenticator app they have not set up (on the website).
+ *
+ * The cache entry is keyed by the installation and the person together: people who share a phone
+ * share its installation id, and an id is no secret (it is the `sid` claim of every access token),
+ * so a key of the installation alone would hand one person's principal to the next. An entry that
+ * names anyone else is never used.
  */
 export async function resolveMobilePrincipal(
   userId: string,
-  cacheSession: string,
+  deviceId: string,
   deps: Pick<BearerDeps, 'keyValue' | 'grants'>,
 ): Promise<{ principal: Principal; access: UserAccess } | Refusal> {
   const cache = principalCache(deps.keyValue);
-  const key = await cache.keyFor(userId, cacheSession, undefined);
+  const key = await cache.keyFor(userId, mobileCacheSession(userId, deviceId), undefined);
   const cached = await cache.read(key);
-  if (cached) return cached;
+  if (cached?.principal.id === userId) return cached;
   const outcome = resolvePrincipalFromGrants(userId, await deps.grants(userId));
   if (outcome.kind === 'inactive') return refuse('forbidden', 'account_suspended');
   if (outcome.kind === 'totp_required') return refuse('forbidden', 'totp_setup_required');
@@ -155,7 +164,7 @@ export async function mobileCaller(
     if (over !== undefined) return over;
   }
 
-  const resolved = await resolveMobilePrincipal(claims.sub, `mobile:${claims.sid}`, deps);
+  const resolved = await resolveMobilePrincipal(claims.sub, claims.sid, deps);
   if ('kind' in resolved) return resolved;
   return { kind: 'ok', caller: { ...resolved, claims } };
 }
