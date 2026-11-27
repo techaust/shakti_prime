@@ -331,4 +331,14 @@ Reviewed `git diff origin/main...feat/j1-projects` at `11c3a2fc` (main at `59736
 - **The Linux baselines** (`project-page`, `project-hold-dialog`, `projects-engineer`, `project-page-engineer` and `project-steps`, each in light, dark and phone): they do not exist yet, so the layout check waits for them at integration.
 - **`pnpm build` and `js-budget`:** not re-run.
 
+**The lead's triage (27-11-2026): fix all nine in the one fix round.**
+- **1:** the owners read uses `ownProjectIds()`, as the list does. Re-take its `EXPLAIN` at volume.
+- **2:** a worker on `sales.order.cancelled`, as `system:workers` with the platform-only `projects.draft`, cancels the order's drafted project when no step is done, with the reason "order cancelled". When a step is done, it leaves the project and notifies its owner.
+  - `app.status_summary()` also leaves out a project whose order is cancelled.
+  - Tests for both branches. Redefine `status_summary` from `main`'s latest.
+- **3:** `app.projects_guard()` refuses a change of `state`, `hold_reason` or `cancel_reason` unless the caller holds `projects.write:entity` (or is the workers principal, for 2). A step's `state`, `done_at` and `done_by` change only through `milestone.complete`'s path: an `own` writer may only mark a step of their own project done, in order. Tests: an engineer's direct update refused.
+- **4:** honour the chosen segment, or hide the choice when the lead's segment decides it. Say which.
+- **5 to 9:** as the review says.
+- **No re-check:** the lead reads the diff.
+
 ## Integration
