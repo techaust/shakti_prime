@@ -32,6 +32,15 @@ import {
 } from '../../src/commands/projects/move-project';
 import { publishProjectTemplate } from '../../src/commands/projects/publish-template';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import {
+  accountProjects,
+  getProject,
+  listProjectFilters,
+  listProjectPeople,
+  listProjects,
+  listProjectTemplates,
+  orderProject,
+} from '../../src/queries/projects/list-projects';
 import { readProject } from '../../src/queries/projects/project-dto';
 import { WORKSHOP_DEFAULTS } from '../../src/workshop-defaults';
 
@@ -571,5 +580,136 @@ describe('every project command is refused without its grant, and for another co
       });
     }
     expect((await projectsOf(order)).map((p) => p.state)).toEqual(['active']);
+  });
+});
+
+describe('the project reads: the list, the page, Account 360, the order link, checklists and people', () => {
+  let held: string;
+  let mine: string;
+  let mineOrder: string;
+
+  beforeAll(async () => {
+    held = await draftedId(await makeOrder({ segment: 'commercial_epc' }));
+    await run(manager, holdProject, { entityId: E, projectId: held, reason: 'roof repair' });
+    mineOrder = await makeOrder({ segment: 'farmer_pumps' });
+    mine = await draftedId(mineOrder);
+    await run(manager, assignProject, {
+      entityId: E,
+      projectId: mine,
+      ownerId: manager.id,
+      assigneeIds: [strangerEngineer.id],
+    });
+  });
+
+  const list = (who: Principal, input: Record<string, unknown> = {}) =>
+    asPrincipal(who, (ctx) => listProjects(ctx, { entityId: E, limit: 100, ...input }));
+
+  it('a manager lists the company by state, segment, owner and current step, newest change first', async () => {
+    const all = await list(manager);
+    expect(all.items.map((r) => r.id)).toEqual(expect.arrayContaining([held, mine]));
+    const times = all.items.map((r) => r.updatedAt);
+    expect([...times].sort().reverse()).toEqual(times);
+    expect((await list(manager, { state: 'on_hold' })).items.map((r) => r.id)).toContain(held);
+    expect(
+      (await list(manager, { state: 'on_hold' })).items.every((r) => r.state === 'on_hold'),
+    ).toBe(true);
+    expect(
+      (await list(manager, { segment: 'commercial_epc' })).items.every(
+        (r) => r.segment === 'commercial_epc',
+      ),
+    ).toBe(true);
+    expect((await list(manager, { ownerId: manager.id })).items.map((r) => r.id)).toContain(mine);
+    const atSurvey = await list(manager, { step: 'survey' });
+    expect(atSurvey.items.map((r) => r.id)).toContain(mine);
+    expect(atSurvey.items.every((r) => r.stepKey === 'survey')).toBe(true);
+    const row = all.items.find((r) => r.id === mine);
+    expect(row).toMatchObject({
+      customerName: 'projects suite customer',
+      village: 'projects suite village',
+      stepKey: 'survey',
+      stepTitle: null,
+      ownerName: 'projects project_manager',
+    });
+  });
+
+  it('pages by its cursor without repeating a project', async () => {
+    const seen: string[] = [];
+    let cursor: string | null | undefined;
+    do {
+      const page = await list(manager, { limit: 2, ...(cursor ? { cursor } : {}) });
+      seen.push(...page.items.map((r) => r.id));
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen).toEqual((await list(manager)).items.map((r) => r.id));
+  });
+
+  it('an engineer lists and opens only the project they are on, with its customer and village', async () => {
+    const page = await list(strangerEngineer);
+    expect(page.items.map((r) => r.id)).toEqual([mine]);
+    expect(page.items[0]).toMatchObject({ customerName: 'projects suite customer' });
+    const view = await asPrincipal(strangerEngineer, (ctx) =>
+      getProject(ctx, { entityId: E, projectId: mine }),
+    );
+    expect(view).toMatchObject({
+      customerName: 'projects suite customer',
+      village: 'projects suite village',
+    });
+    expect(view.people.map((p) => p.id).sort()).toEqual([manager.id, strangerEngineer.id].sort());
+    await expect(
+      asPrincipal(strangerEngineer, (ctx) => getProject(ctx, { entityId: E, projectId: held })),
+    ).rejects.toMatchObject({ code: 'not_found' });
+    // A list of another company is refused.
+    await expect(
+      asPrincipal(strangerEngineer, (ctx) => listProjects(ctx, { entityId: OTHER, limit: 10 })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it("Account 360 lists the customer's projects, and the order page links its project", async () => {
+    const view = await asPrincipal(manager, (ctx) =>
+      getProject(ctx, { entityId: E, projectId: mine }),
+    );
+    expect(view.soNo).toMatch(/^PS\/SO\//);
+    const rows = await asPrincipal(manager, (ctx) =>
+      accountProjects(ctx, { entityId: E, accountId: view.project.accountId }),
+    );
+    expect(rows.map((r) => r.id)).toEqual([mine]);
+    expect(
+      await asPrincipal(manager, (ctx) => orderProject(ctx, { entityId: E, orderId: mineOrder })),
+    ).toMatchObject({ id: mine, state: 'active' });
+    // A seller without projects.read sees no link; an order without a project has none.
+    expect(
+      await asPrincipal(principalFor('tele_caller_cc', [E]), (ctx) =>
+        orderProject(ctx, { entityId: E, orderId: mineOrder }),
+      ),
+    ).toBeNull();
+    const bare = await makeOrder({ segment: 'farmer_pumps', state: 'draft' });
+    expect(
+      await asPrincipal(manager, (ctx) => orderProject(ctx, { entityId: E, orderId: bare })),
+    ).toBeNull();
+  });
+
+  it('reads the checklists, the filter choices and the people a manager may name', async () => {
+    const templates = await asPrincipal(engineer, (ctx) =>
+      listProjectTemplates(ctx, { entityId: E }),
+    );
+    expect(templates.segments.map((s) => s.segment)).toEqual([
+      'farmer_pumps',
+      'residential_rooftop',
+      'commercial_epc',
+    ]);
+    const rooftop = templates.segments.find((s) => s.segment === 'residential_rooftop');
+    expect(rooftop?.versions).toBeGreaterThanOrEqual(2);
+    expect(rooftop?.current?.steps.map((s) => s.key)).toEqual(['survey', 'net_meter', 'install']);
+    const filters = await asPrincipal(manager, (ctx) => listProjectFilters(ctx, { entityId: E }));
+    expect(filters.owners.map((o) => o.id)).toContain(manager.id);
+    expect(filters.steps).toEqual(expect.arrayContaining(['survey', 'net_meter', 'handover']));
+    const people = await asPrincipal(manager, (ctx) => listProjectPeople(ctx, { entityId: E }));
+    expect(people.people.map((p) => p.id)).toEqual(
+      expect.arrayContaining([engineer.id, strangerEngineer.id]),
+    );
+    await expect(
+      asPrincipal(engineer, (ctx) => listProjectPeople(ctx, { entityId: E })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });

@@ -939,3 +939,13 @@ export {
 } from './commands/projects/move-project';
 export { assignProject } from './commands/projects/assign-project';
 export { publishProjectTemplate } from './commands/projects/publish-template';
+export {
+  accountProjects,
+  getProject,
+  listProjectFilters,
+  listProjectPeople,
+  listProjects,
+  listProjectTemplates,
+  orderProject,
+  projectListQuery,
+} from './queries/projects/list-projects';

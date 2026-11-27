@@ -529,8 +529,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // Which recordings on a timeline page its reader may play (T3, 0171).
       'app.playable_recordings(uuid[])',
-      // J1: the `own` predicate the project read policies ask, and the documents a step still
-      // needs, which the project page shows.
+      // J1: the customer and village of the projects a caller reads, the `own` predicate the
+      // project read policies ask, and the documents a step still needs.
+      'app.project_customers(uuid[])',
       'app.project_is_mine(uuid)',
       'app.project_missing_documents(uuid,text)',
       // The quote print loader of the render worker (0110).

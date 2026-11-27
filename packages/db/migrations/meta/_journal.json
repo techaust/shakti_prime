@@ -1702,6 +1702,13 @@
       "when": 1795795960259,
       "tag": "0242_j1_status_summary",
       "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1795796600615,
+      "tag": "0243_j1_project_customers",
+      "breakpoints": true
     }
   ]
 }
