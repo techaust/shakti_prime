@@ -219,6 +219,9 @@ importers:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
+      esbuild:
+        specifier: 0.18.20
+        version: 0.18.20
       postject:
         specifier: 1.0.0-alpha.6
         version: 1.0.0-alpha.6
