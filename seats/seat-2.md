@@ -49,7 +49,7 @@ branch: feat/tc1-tally-connector
 run_file: docs/runs/phase5/tc1-tally-connector.md
 wait_for: none
 done_when: report: tc1-tally-connector early check
-note: Tier A; stop at the early check. Install nothing: packaging waits for the owner's yes.
+note: Tier A; stop at the early check. The owner approved postject and WinSW: see the brief addendum; install nothing yourself.
 
 lane: 34
 role: review
