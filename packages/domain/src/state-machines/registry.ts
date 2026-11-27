@@ -18,6 +18,9 @@ import { serialMachine } from './machines/serial';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
 import { taskMachine } from './machines/task';
+// FN1 proformas and payment milestones
+import { paymentMilestoneMachine } from './machines/payment-milestone';
+import { proformaMachine } from './machines/proforma';
 import { warrantyClaimMachine } from './machines/warranty-claim';
 
 /**
@@ -46,6 +49,9 @@ export const MACHINES: readonly AnyMachine[] = [
   knowledgeFileMachine,
   // H1 stock ledger
   serialMachine,
+  // FN1 proformas and payment milestones
+  proformaMachine,
+  paymentMilestoneMachine,
 ];
 
 /**
@@ -66,6 +72,9 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'playbook_directive',
   // H1 stock ledger
   'serial',
+  // FN1 proformas and payment milestones
+  'proforma',
+  'payment_milestone',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */

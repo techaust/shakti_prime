@@ -41,7 +41,7 @@ export const ProformaDto = z
     entityId: EntityIdSchema,
     proformaNo: z.string(),
     orderId: IdSchema,
-    accountId: IdSchema,
+    soNo: z.string(),
     state: ProformaStateSchema,
     placeOfSupplyState: StateCodeSchema,
     supplyKind: SupplyKindSchema,

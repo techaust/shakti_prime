@@ -891,6 +891,12 @@ const FIELD_KINDS = [
   ['quoteValidFrom', 'date'],
   ['restored', 'number'],
   ['quoteValidUntil', 'date'],
+  // FN1 proformas and payment milestones
+  ['proformaNo', 'text'],
+  ['milestoneAmount', 'money'],
+  ['dueOn', 'date'],
+  ['waiveReason', 'text'],
+  ['stepCount', 'number'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

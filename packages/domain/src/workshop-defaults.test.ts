@@ -30,6 +30,29 @@ describe('workshop defaults', () => {
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       // H1 stock ledger
       stock: { reversalDays: 7 },
+      // FN1 payment milestones
+      finance: {
+        milestoneSteps: [
+          {
+            key: 'advance',
+            label: 'Advance',
+            percent: '50.00',
+            amount: null,
+            dueRule: 'on_confirmation',
+            dueDays: null,
+            loanGate: 'none',
+          },
+          {
+            key: 'balance',
+            label: 'Balance',
+            percent: '50.00',
+            amount: null,
+            dueRule: 'before_dispatch',
+            dueDays: null,
+            loanGate: 'none',
+          },
+        ],
+      },
       crm: {
         dispositions: [
           { key: 1, code: 'interested', label: 'Interested', nextAction: 'callback' },

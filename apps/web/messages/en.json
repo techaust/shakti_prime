@@ -564,7 +564,18 @@
     "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
-    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it."
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "proforma_transition_not_allowed": "This proforma can't do that in its current status. Refresh the page to see where it stands.",
+    "proforma_order_not_confirmed": "A proforma is made only for a confirmed order. Confirm the order first.",
+    "proforma_already_issued": "This order already has a proforma. Cancel it first if a new one is needed.",
+    "proforma_missing": "We couldn't find this proforma. It may belong to another company or a colleague's customer.",
+    "payment_milestone_transition_not_allowed": "This payment can't do that in its current status. Refresh the page to see where it stands.",
+    "milestone_not_due": "This payment is not due yet.",
+    "milestone_missing": "We couldn't find this payment. It may belong to another company or a colleague's customer.",
+    "milestones_already_planned": "This order's payments are already planned. Refresh the page to see them.",
+    "milestones_order_not_confirmed": "Payments are planned only for a confirmed order. Confirm the order first.",
+    "milestone_amounts_exceed_total": "The fixed amounts in the payment terms add up to more than this order's total. Ask an Executive to change the payment terms for this kind of order.",
+    "payment_milestone_open": "This order can't leave yet: a payment due before dispatch is not in. Wait for it to be paid, or ask an Executive to waive it."
   },
   "auth": {
     "signIn": {
@@ -2381,6 +2392,11 @@
       "preferredVendor": "Preferred vendor",
       "quoteValidFrom": "Quote valid from",
       "quoteValidUntil": "Quote valid until",
+      "proformaNo": "Proforma number",
+      "milestoneAmount": "Amount to pay",
+      "dueOn": "Due on",
+      "waiveReason": "Why it was waived",
+      "stepCount": "Payment steps",
       "restored": "Vendors put back as they were",
       "hubCode": "Hub code",
       "hubName": "Hub name",

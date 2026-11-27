@@ -203,6 +203,15 @@ import { setTaxRate } from '../commands/tax/set-tax-rate';
 import { archiveVendor, createVendor, updateVendor } from '../commands/procurement/vendors';
 import { setItemVendor, setVendorContacts } from '../commands/procurement/vendor-links';
 import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/quotes';
+// FN1 proformas and payment milestones.
+import {
+  cancelProforma,
+  issueProforma,
+  planConfirmedMilestones,
+  planMilestonesByHand,
+  publishPaymentTerms,
+  waiveMilestone,
+} from '../commands/finance/index';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -423,6 +432,13 @@ export const commands = Object.freeze({
   [setItemVendor.name]: setItemVendor,
   [recordVendorQuote.name]: recordVendorQuote,
   [withdrawVendorQuote.name]: withdrawVendorQuote,
+  // FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
+  [issueProforma.name]: issueProforma,
+  [cancelProforma.name]: cancelProforma,
+  [planMilestonesByHand.name]: planMilestonesByHand,
+  [planConfirmedMilestones.name]: planConfirmedMilestones,
+  [waiveMilestone.name]: waiveMilestone,
+  [publishPaymentTerms.name]: publishPaymentTerms,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

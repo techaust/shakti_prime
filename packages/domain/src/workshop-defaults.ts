@@ -1,4 +1,5 @@
 import {
+  type MilestoneStep,
   WORKSHOP_DISPOSITIONS,
   WORKSHOP_LOCK_HOURS,
   type AccountType,
@@ -46,6 +47,14 @@ export interface WorkshopDefaults {
   readonly stock: {
     /** Days after a movement within which a person may reverse it (docs/03-roadmap-appendix/phase3.md §10). */
     readonly reversalDays: number;
+  };
+  // FN1 payment milestones
+  readonly finance: {
+    /**
+     * The payment terms an order is planned from when its company has published none for its
+     * segment (Settings › Payment terms).
+     */
+    readonly milestoneSteps: readonly MilestoneStep[];
   };
   readonly crm: {
     readonly dispositions: readonly {
@@ -285,6 +294,35 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   stock: {
     /** Phase 3 design §10: a movement made in error is reversed within seven days. For STOCK-1. */
     reversalDays: 7,
+  },
+  // FN1 payment milestones
+  finance: {
+    /**
+     * Phase 5 design question 6 (a) and §10, the order journey recorded on 02-11-2026: an advance
+     * and a balance, half on confirmation and half before dispatch, with no loan gate. Workshop
+     * question 3 of the final phase (the CA and Accounts) confirms or changes them, per company and
+     * segment, in Settings › Payment terms.
+     */
+    milestoneSteps: [
+      {
+        key: 'advance',
+        label: 'Advance',
+        percent: '50.00',
+        amount: null,
+        dueRule: 'on_confirmation',
+        dueDays: null,
+        loanGate: 'none',
+      },
+      {
+        key: 'balance',
+        label: 'Balance',
+        percent: '50.00',
+        amount: null,
+        dueRule: 'before_dispatch',
+        dueDays: null,
+        loanGate: 'none',
+      },
+    ],
   },
   crm: {
     /**

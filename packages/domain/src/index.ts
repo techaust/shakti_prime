@@ -928,3 +928,18 @@ export {
   recordQuality,
   tierLimit,
 } from './messaging/budget';
+// FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
+export {
+  cancelProforma,
+  issueProforma,
+  planConfirmedMilestones,
+  planMilestonesByHand,
+  publishPaymentTerms,
+  waiveMilestone,
+} from './commands/finance/index';
+export {
+  milestoneDueOn,
+  planMilestones,
+  splitMilestoneAmounts,
+} from './finance/plan-milestones';
+export type { LoanGateAnswer, MilestoneMoments, PlannedMilestone } from './finance/plan-milestones';

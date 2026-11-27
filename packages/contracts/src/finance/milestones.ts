@@ -181,6 +181,15 @@ export const PlannedMilestonesDto = z
   .strict();
 export type PlannedMilestonesDto = z.infer<typeof PlannedMilestonesDto>;
 
+/** What the platform's planning answers: what it did, never the amounts (it reads no order). */
+export const PlanConfirmedOutcome = z
+  .object({
+    outcome: z.enum(['planned', 'already_planned', 'not_confirmed']),
+    count: z.number().int().min(0).max(10),
+  })
+  .strict();
+export type PlanConfirmedOutcome = z.infer<typeof PlanConfirmedOutcome>;
+
 /**
  * Whether an order may leave on dispatch as far as its payments go (`app.order_dispatch_payment_gate()`):
  * `open` while a `before_dispatch` milestone is neither paid nor waived (D2's `depart` refuses with

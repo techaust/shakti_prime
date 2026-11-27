@@ -190,8 +190,13 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'sales.order.confirmed': {
     ordering: 'every',
     handle: async (event, ctx) => {
+      // The customer's message, and (FN1) the order's payment milestones: each runs whatever the
+      // other answered, and both are safe to repeat, so a failure of either is delivered again.
       const { handleOrderConfirmed } = await import('../messaging/milestones');
-      await handleOrderConfirmed(event, ctx);
+      const { handleOrderConfirmedMilestones } = await import('../finance/plan-milestones');
+      const message = await Promise.allSettled([handleOrderConfirmed(event, ctx)]);
+      await handleOrderConfirmedMilestones(event, ctx);
+      if (message[0].status === 'rejected') throw message[0].reason;
     },
   },
   // A quote's Accept or Talk to us pressed on WhatsApp (§7.1): checked and answered by the

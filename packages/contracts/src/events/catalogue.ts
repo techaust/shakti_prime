@@ -713,7 +713,7 @@ const eventCatalogue = {
   },
   'sales.order.confirmed': {
     meaning:
-      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone.',
+      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone and plans the order\'s payment milestones.',
     emittedBy: ['sales.order.confirm'],
     subscribed: true,
     payload: z
@@ -808,6 +808,45 @@ const eventCatalogue = {
     emittedBy: ['procurement.quote.withdraw'],
     subscribed: false,
     payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
+  // FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
+  'finance.proforma.issued': {
+    meaning:
+      "A proforma of a confirmed order was issued with the order's lines and tax copied, and numbered from the company's proforma series.",
+    emittedBy: ['finance.proforma.issue'],
+    subscribed: false,
+    payload: z.object({ orderId: IdSchema, lineCount: z.number().int().min(1) }).strict(),
+  },
+  'finance.proforma.cancelled': {
+    meaning: 'A proforma was cancelled with a reason; its number stays used.',
+    emittedBy: ['finance.proforma.cancel'],
+    subscribed: false,
+    payload: z.object({ orderId: IdSchema }).strict(),
+  },
+  'finance.milestones.planned': {
+    meaning:
+      "An order's payment milestones were planned from its company's terms for its segment (`templateVersion` null: the named default); `dueCount` of them fell due at once.",
+    emittedBy: ['finance.milestone.plan', 'finance.milestone.plan_confirmed'],
+    subscribed: false,
+    payload: z
+      .object({
+        count: z.number().int().min(1).max(10),
+        dueCount: z.number().int().min(0).max(10),
+        templateVersion: z.number().int().min(1).nullable(),
+      })
+      .strict(),
+  },
+  'finance.milestone.waived': {
+    meaning: 'The Executive waived a payment milestone of an order, with a reason.',
+    emittedBy: ['finance.milestone.waive'],
+    subscribed: false,
+    payload: z.object({ orderId: IdSchema }).strict(),
+  },
+  'finance.terms.published': {
+    meaning: "An Executive published a new version of a company's payment terms for a segment.",
+    emittedBy: ['finance.terms.publish'],
+    subscribed: false,
+    payload: z.object({ segment: Code, version: z.number().int().min(1) }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 
