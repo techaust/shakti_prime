@@ -1,5 +1,6 @@
 import type { PurchaseOrderPdfVersion } from '@shakti/contracts';
 import { createHash } from 'node:crypto';
+import type { CommandContext } from '../command/context';
 
 /*
  * A purchase order's PDF (docs/03-roadmap-appendix/phase3.md §7.2, ADR 0009): the render worker
@@ -32,4 +33,23 @@ export function purchaseOrderPdfFileId(
     `${variant}${hash.slice(4, 7)}`,
     hash.slice(7, 19),
   ].join('-');
+}
+
+/**
+ * Asks the render worker for an order's PDF of one version (ADR 0009, review R2), from a command:
+ * it prints the order with its rates on the company's letterhead and stores it as a
+ * `purchase_order_pdf` file under `purchaseOrderPdfFileId`, so a second request finds that file.
+ */
+export function requestPurchaseOrderPrint(
+  ctx: Pick<CommandContext, 'emit'>,
+  order: { id: string; entityId: number },
+  version: PurchaseOrderPdfVersion,
+): void {
+  ctx.emit({
+    type: 'print.document.requested',
+    entityId: order.entityId,
+    aggregateType: 'purchase_order',
+    aggregateId: order.id,
+    payload: { documentType: 'purchase_order', documentId: order.id, version },
+  });
 }

@@ -143,7 +143,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote`, `procurement.po.approve`, `procurement.po.cancel`, `procurement.po.pdf.request` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
 | [`print.labels.requested`](#printlabelsrequested) | A sheet of QR labels is to be printed: the render worker reads the serials or bins, prints the labels at the stock size and stores the PDF. | `inventory.label.print`, `inventory.label.reprint` | `POST /api/v1/workers/outbox/print.labels.requested` (QStash URL group `evt-print.labels.requested`) |
 
 ### knowledge
@@ -203,7 +203,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`procurement.quote.withdrawn`](#procurementquotewithdrawn) | A supplier's quote was withdrawn before it ended. | `procurement.quote.withdraw` | none |
 | [`procurement.po.drafted`](#procurementpodrafted) | A purchase order was drafted, by a person or by the reorder job (`source`), with its number of lines. | `procurement.po.create`, `procurement.reorder.draft` | `POST /api/v1/workers/outbox/procurement.po.drafted` (QStash URL group `evt-procurement.po.drafted`) |
 | [`procurement.po.approved`](#procurementpoapproved) | A purchase order was approved and may be sent to the vendor. | `procurement.po.approve` | none |
-| [`procurement.po.sent`](#procurementposent) | A purchase order was sent to its vendor: by email (`email`, to the person named; the mailer then mails its PDF, and tells the sender when it cannot), or marked sent by hand. | `procurement.po.send` | `POST /api/v1/workers/outbox/procurement.po.sent` (QStash URL group `evt-procurement.po.sent`) |
+| [`procurement.po.sent`](#procurementposent) | A purchase order was sent to its vendor: by email (`email`, to the person named), or marked sent by hand. The render worker prints its PDF as approved, or finds it stored, and by email mails it, telling the sender when it cannot. | `procurement.po.send` | `POST /api/v1/workers/outbox/procurement.po.sent` (QStash URL group `evt-procurement.po.sent`) |
 | [`procurement.po.cancelled`](#procurementpocancelled) | A purchase order was cancelled before any goods came in. | `procurement.po.cancel` | none |
 | [`procurement.po.closed`](#procurementpoclosed) | A purchase order was closed, with what was still to come short-closed. | `procurement.po.close` | none |
 | [`procurement.receipt.posted`](#procurementreceiptposted) | Goods came in against a purchase order: the receipt, its number of lines and whether the order is now fully received. | `procurement.grn.post` | none |
@@ -463,14 +463,14 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript`, `vendor_quote`, `label_sheet` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript`, `vendor_quote`, `label_sheet`, `purchase_order_pdf` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
 
 | Field | Type |
 |---|---|
-| `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof` |
+| `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof`, `purchase_order` |
 | `documentId` | id |
 | `version` | whole number from 1 |
 

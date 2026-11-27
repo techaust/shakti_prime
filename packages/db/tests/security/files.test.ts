@@ -43,6 +43,8 @@ const WRITE: Partial<Record<FilePurpose, { key: PermissionKey; scope: Scope }>> 
   vendor_quote: { key: 'procurement.rate.read', scope: 'entity' },
   // Q1: a sheet of QR labels, stored by the render worker.
   label_sheet: { key: 'files.process', scope: 'entity' },
+  // U2: a purchase order's PDF, stored by the render worker.
+  purchase_order_pdf: { key: 'files.process', scope: 'entity' },
 };
 /**
  * A vault upload is read with its vault file by sensitivity, or by its uploader while they hold
@@ -61,6 +63,8 @@ const READ: Partial<Record<FilePurpose, PermissionKey | 'company'>> = {
   vendor_quote: 'procurement.rate.read',
   // Q1: a sheet of QR labels.
   label_sheet: 'inventory.stock.move',
+  // U2: a purchase order's PDF prints its rates.
+  purchase_order_pdf: 'procurement.rate.read',
 };
 
 const WORKER_GRANTS = [{ key: 'files.process' as const, scope: 'all' as const }];

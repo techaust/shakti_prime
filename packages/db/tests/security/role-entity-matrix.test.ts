@@ -129,6 +129,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   vendor_quote: RATE_READ,
   // Q1: a sheet of QR labels, read by the stock handlers who print them.
   label_sheet: grant('inventory.stock.move', 'own'),
+  // U2: a purchase order's PDF prints its rates.
+  purchase_order_pdf: RATE_READ,
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({

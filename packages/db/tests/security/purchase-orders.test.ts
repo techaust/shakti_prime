@@ -383,12 +383,15 @@ describe('the receipt and reorder definers', () => {
     );
   });
 
-  it('refuse the reorder job’s reads and drafts, and the mailer’s read, to every person, an Executive included', async () => {
+  it('refuse the reorder job’s reads and drafts, and the PDF’s and the mail’s reads, to every person, an Executive included', async () => {
     for (const who of [executive, drafter, principalFor('agent:sizing', [1])]) {
+      expect(
+        await attempt(who, sql`select app.purchase_order_for_print(${ids.order}::uuid, 1)`),
+      ).toMatchObject({ code: '42501' });
       expect(
         await attempt(
           who,
-          sql`select app.purchase_order_for_mail(${ids.order}::uuid, ${newId()}::uuid, ${who.id}::uuid)`,
+          sql`select app.purchase_order_mail_to(${ids.order}::uuid, ${newId()}::uuid, ${who.id}::uuid)`,
         ),
       ).toMatchObject({ code: '42501' });
       expect(
@@ -414,8 +417,9 @@ describe('the receipt and reorder definers', () => {
         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'app'
          and p.proname in ('goods_receipt_post', 'goods_receipt_unpost', 'reorder_shortfalls',
-                           'reorder_draft_po', 'purchase_order_for_mail')`);
-    expect(rows).toHaveLength(5);
+                           'reorder_draft_po', 'purchase_order_for_print',
+                           'purchase_order_mail_to')`);
+    expect(rows).toHaveLength(6);
     for (const row of rows) expect(row, row.fn).toMatchObject({ reporter: false, reader: false });
   });
 });

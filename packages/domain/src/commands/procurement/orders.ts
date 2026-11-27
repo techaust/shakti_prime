@@ -12,13 +12,13 @@ import {
   RequestPurchaseOrderPdfInput,
   SendPurchaseOrderInput,
   UpdatePurchaseOrderInput,
-  type PurchaseOrderPdfVersion,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { nextDocumentNo } from '../../numbering/next-document-no';
+import { requestPurchaseOrderPrint } from '../../procurement/po-pdf';
 import { getPurchaseOrderPdf } from '../../queries/procurement/order-queries';
 import { readsRates } from '../../queries/procurement/vendor-read';
 import {
@@ -64,25 +64,6 @@ async function entityCode(ctx: CommandContext, entityId: number): Promise<string
     .limit(1);
   if (!row) throw new DomainError('forbidden', 'entity outside the request scope', { entityId });
   return row.code;
-}
-
-/**
- * Asks the render worker for an order's PDF of one version (ADR 0009, review R2): it prints the
- * order with its rates on the company's letterhead and stores it as a `purchase_order_pdf` file
- * whose id comes from the order and the version, so a second request finds the same file.
- */
-function requestOrderPdf(
-  ctx: CommandContext,
-  row: { id: string; entityId: number },
-  version: PurchaseOrderPdfVersion,
-): void {
-  ctx.emit({
-    type: 'print.document.requested',
-    entityId: row.entityId,
-    aggregateType: 'purchase_order',
-    aggregateId: row.id,
-    payload: { documentType: 'purchase_order', documentId: row.id, version },
-  });
 }
 
 /** `procurement.po.create`: a draft purchase order, numbered from the company's series. */
@@ -311,7 +292,7 @@ export const approvePurchaseOrder = defineCommand({
       payload: { vendorId: row.vendorId },
     });
     // The PDF is printed as soon as the order is approved, ready to download or mail.
-    requestOrderPdf(ctx, row, PO_PDF_AS_APPROVED);
+    requestPurchaseOrderPrint(ctx, row, PO_PDF_AS_APPROVED);
     return orderRef(row, to);
   },
 });
@@ -405,7 +386,7 @@ export const cancelPurchaseOrder = defineCommand({
       payload: { vendorId: row.vendorId },
     });
     // An order cancelled after its approval prints again, marked cancelled; a draft never printed.
-    if (row.approvedAt !== null) requestOrderPdf(ctx, row, PO_PDF_CANCELLED);
+    if (row.approvedAt !== null) requestPurchaseOrderPrint(ctx, row, PO_PDF_CANCELLED);
     return orderRef(row, to);
   },
 });
@@ -464,7 +445,7 @@ export const requestPurchaseOrderPdf = defineCommand({
     const pdf = await getPurchaseOrderPdf(ctx, input);
     const ready = pdf.file?.status === 'ready' && pdf.file.deletedAt === null;
     if (!ready) {
-      requestOrderPdf(ctx, { id: pdf.purchaseOrderId, entityId: pdf.entityId }, pdf.version);
+      requestPurchaseOrderPrint(ctx, { id: pdf.purchaseOrderId, entityId: pdf.entityId }, pdf.version);
     }
     return {
       purchaseOrderId: pdf.purchaseOrderId,
