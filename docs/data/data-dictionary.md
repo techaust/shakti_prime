@@ -1427,7 +1427,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### identity_documents
 
-**Catalogue entry** (05-database.md §6.2): `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists
+**Catalogue entry** (05-database.md §6.2; created in 0240): `entity_id`, `account_id`, `document_id` (the sensitive document it belongs to), `kind` (`aadhaar`, `pan`, `bank_proof`), `last4` (four digits, checked), `masked_file_id` (the document's masked file); no column can hold more of a number; written once by `documents.document.file` from the last four digits the masking step kept on the file, read only with `documents.sensitive.read` and only while its document stays filed; no update or delete grant (0241)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5669,7 +5669,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### document_requirements
 
-**Catalogue entry** (05-database.md §6.6): `entity_id null`, `segment`, `flow_template_id null`, `gate null`, `code`, `name`, `is_mandatory`, `accepted_classifications`; the requirement templates a project's completeness gates check, so a gate cannot close with a mandatory document missing
+**Catalogue entry** (05-database.md §6.6; created in 0240): `entity_id`, `flow` (`standard`, `surya_ghar`), `step_key`, `requirement_key`, `mandatory`, `accepted_kinds`, `position`, `active`; unique `(entity_id, flow, step_key, requirement_key)`; seeded per company from `WORKSHOP_DEFAULTS.documents.requirements` (keys only, a missing row added, none changed); read by every principal acting in the company; added or changed only with `documents.write:all` (`documents.requirement.set`), never deleted; `app.documents_missing()` answers a step's mandatory keys not yet filed (0241)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5721,7 +5721,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### documents
 
-**Catalogue entry** (05-database.md §6.6): `entity_id`, `project_id` or `account_id`, `requirement_code null`, `file_id`, `classification`, `confidence`, `confirmed_by`; filed only against the customer who sent the file
+**Catalogue entry** (05-database.md §6.6; created in 0240): `entity_id`, `account_id`, `project_id` (null; its foreign key to `projects` comes with J1), `requirement_key` (null for a loose document), `kind`, `file_id` (a masked, clean `customer_document` of the company, uploaded for this customer), `sensitive` (always true for `identity_proof` and `bank_proof`), `filed_by_kind` (`person` or `classifier`), `filed_by`, `confidence` (the classifier's only), `filed_at`, `unfiled_at`, `unfiled_by`, `unfiled_reason`; one live filing per file; read by `documents.read` per scope (`own`: the customer's owner in the company) and a sensitive row only with `documents.sensitive.read`; filed and unfiled by `documents.write` per scope, a sensitive one only with `documents.sensitive.read`; only the unfiling columns change, once (0241)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
