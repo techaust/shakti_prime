@@ -245,4 +245,15 @@ Not run: typecheck, the whole-repository lint, `pnpm build`, `js-budget` and `co
 - **Web:** reads through `executeQuery()` with names, writes through `executeCommand()`, `screenAccess(navRequires())` on both pages, types-only imports from `@shakti/contracts` in browser code, one idempotency key per form, every string in `en.json`.
 - **Tests:** exact codes and states asserted, no sleeps, nothing skipped; the ledger test's list of refused reasons loses exactly the three reasons opened here.
 
+**The lead's triage (27-11-2026):** fix 1 to 9 and 12 in the one fix round.
+- **1:** run `pnpm db:docs` after the last edit of DATABASE, and run the db unit tests.
+- **3:** the guard holds each step's columns to its own command's grant and step.
+- **7:** refuse a warranty end before the delivery date.
+- **8:** "Back with us now" needs a quarantine bin. Without one, the dialog says so and offers "Not back yet".
+- **9:** snapshots of `/inventory/warranty`, the identify dialog and the rest named.
+- **12:** keep the cursor's microseconds (text, not `Date`).
+- **10:** the lead's, at the merge.
+- **11:** resolved by H2, which takes `inventory.stock.read` off the Lead Converter (the owner's decision of 27-11-2026). Nothing to do here.
+- **Finding 1 is high, so the reviewer re-checks the fix diff.**
+
 ## Integration
