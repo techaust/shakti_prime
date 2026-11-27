@@ -333,3 +333,17 @@ All ten findings are fixed, and each has a test. Finding 1, the high, is closed,
 - **No further re-check:** the lead reads the diff.
 
 ## Integration
+
+### 27-11-2026, Integration prep (cloud, worktree `tc1-tally-connector`)
+- **Main taken in:** `origin/main` at `bdf82df4` (#298, X4 stock reasons), by the merge commit `bc5463f0` over the slice's `2d9bf6c3`. No conflict: `merge-union.py`, `merge-json.py` and `merge-copylint.py` had nothing to resolve. `pnpm install --offline --frozen-lockfile` up to date.
+- **Migrations:** the slice has none, so `renumber-migrations.mjs origin/main 2d9bf6c3` printed "no branch-only migrations" and nothing moved. `main`'s last stays `0240_x4_stock_reasons`. `pnpm db:generate`: "No schema changes, nothing to migrate". `pnpm db:docs` left `docs/data/` unchanged.
+- **Redefinitions (§10, Merging with main):** none to check, because the slice's migrations redefine no function, check constraint or foreign key. `main` changed only `en.json`, `packages/contracts/src/inventory/enums.ts`, `packages/domain/src/stock/move.ts`, migration 0240 and two security tests, and the slice touches none of them. Nothing on `main` refers to the files the slice removed from `apps/web` (`tally-xml.ts`, `payloads.ts`, `scripts/spike/tally-read.ts`).
+- **Shared lists:** no key is used twice in `apps/web/messages/en.json`, `tools/copy-lint/copy-lint.config.json` or the migration journal (checked with a duplicate-key JSON load).
+- **Typecheck right after the merge:** `pnpm typecheck` through the lock: `Tasks: 11 successful, 11 total`.
+- **integrate.sh in parts** (fresh Postgres on 54340, `urls_not_on_54340=0`; no e2e):
+  - `install lint format copylint generated typecheck`: every step `rc=0`, `=== INTEGRATION PARTIAL (install lint format copylint generated typecheck)`.
+  - `unit`: `rc=0`, 11 of 11 tasks, 0 cached, `=== INTEGRATION PARTIAL (unit)`. Counts: tokens 146, copy-lint 17, ui 107, voice 49, voice-agent 23, contracts 344, db 161, tally-connector 68 passed and 1 skipped (69; the Windows-only DPAPI case), domain 2,806, web 1,241 passed and 1 skipped (1,242).
+  - `security dbverify`: `rc=0`, `=== INTEGRATION PARTIAL (security dbverify)`. Counts: db 1,860 (64 files), domain 1,519 (110 files), web 461 (39 files). `db:verify`: "every migration is applied as it is on disk".
+  - `audit build jsbudget gitleaks`: `rc=0`, `=== INTEGRATION PARTIAL (audit build jsbudget gitleaks)`. Audit: 3 moderate, already reviewed and ignored. Budget: "Every page is within its budget (65 pages)". Gitleaks: 24 commits scanned, no leaks found.
+- **The connector workspace's own checks** (through the lock): `pnpm --filter @shakti/tally-connector test` gave 11 files, 68 passed and 1 skipped (69). Its `typecheck` and `eslint apps/tally-connector --max-warnings 0` were clean.
+- **Fixes:** none were needed, and the merge broke nothing.
