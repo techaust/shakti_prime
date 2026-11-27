@@ -1529,6 +1529,42 @@ erDiagram
     uuid entered_by FK
     timestamptz created_at
   }
+  tally_connector_companies {
+    uuid connector_id PK, FK
+    text tally_company PK
+    smallint entity_id FK
+    boolean reachable "null"
+    bigint reported_alter_id "null"
+    timestamptz reported_at "null"
+    timestamptz created_at
+  }
+  tally_connectors {
+    uuid id PK, FK
+    text name
+    text key_hash
+    text key_hint
+    text next_key_hash "null"
+    text next_key_hint "null"
+    timestamptz key_rotated_at "null"
+    text connector_version "null"
+    text tally_version "null"
+    integer queue_depth "null"
+    timestamptz last_heartbeat_at "null"
+    timestamptz silence_alerted_at "null"
+    timestamptz revoked_at "null"
+    uuid revoked_by FK "null"
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  tally_cursors {
+    uuid id PK
+    smallint entity_id FK
+    text tally_company
+    bigint last_alter_id
+    uuid connector_id FK
+    timestamptz created_at
+    timestamptz updated_at
+  }
   tally_ledgers {
     uuid id PK
     smallint entity_id FK
@@ -1569,6 +1605,25 @@ erDiagram
     timestamptz updated_at
     timestamptz deleted_at "null"
   }
+  tally_snapshots {
+    uuid id PK
+    smallint entity_id FK
+    text tally_company
+    uuid connector_id FK
+    timestamptz as_of
+    date from_date
+    integer guid_count
+    integer live
+    integer tombstoned
+    integer missing
+    integer reappeared
+    text state
+    text held_guids "array"
+    text missing_guids "array"
+    timestamptz confirmed_at "null"
+    uuid confirmed_by FK "null"
+    timestamptz created_at
+  }
   tally_voucher_tombstones {
     uuid id PK
     smallint entity_id FK
@@ -1605,10 +1660,19 @@ erDiagram
   dealer_outstanding }o--|| accounts : "account_id"
   dealer_outstanding }o--|| principals : "entered_by"
   dealer_outstanding }o--|| entities : "entity_id"
+  tally_connector_companies }o--|| tally_connectors : "connector_id"
+  tally_connector_companies }o--|| entities : "entity_id"
+  tally_connectors ||--|| principals : "id"
+  tally_connectors }o--o| principals : "revoked_by"
+  tally_cursors }o--|| tally_connectors : "connector_id"
+  tally_cursors }o--|| entities : "entity_id"
   tally_ledgers }o--|| tally_connectors : "connector_id"
   tally_ledgers }o--|| entities : "entity_id"
   tally_purchase_vouchers }o--|| tally_connectors : "connector_id"
   tally_purchase_vouchers }o--|| entities : "entity_id"
+  tally_snapshots }o--o| principals : "confirmed_by"
+  tally_snapshots }o--|| tally_connectors : "connector_id"
+  tally_snapshots }o--|| entities : "entity_id"
   tally_voucher_tombstones }o--|| entities : "entity_id"
   tally_voucher_tombstones }o--|| tally_snapshots : "snapshot_id, entity_id"
   tally_vouchers }o--|| tally_connectors : "connector_id"
@@ -1810,76 +1874,6 @@ erDiagram
   targets }o--|| entities : "entity_id"
   targets }o--|| principals : "set_by"
   targets }o--|| teams : "team_id"
-```
-
-## Other
-
-```mermaid
-erDiagram
-  tally_connector_companies {
-    uuid connector_id PK, FK
-    text tally_company PK
-    smallint entity_id FK
-    boolean reachable "null"
-    bigint reported_alter_id "null"
-    timestamptz reported_at "null"
-    timestamptz created_at
-  }
-  tally_connectors {
-    uuid id PK, FK
-    text name
-    text key_hash
-    text key_hint
-    text next_key_hash "null"
-    text next_key_hint "null"
-    timestamptz key_rotated_at "null"
-    text connector_version "null"
-    text tally_version "null"
-    integer queue_depth "null"
-    timestamptz last_heartbeat_at "null"
-    timestamptz silence_alerted_at "null"
-    timestamptz revoked_at "null"
-    uuid revoked_by FK "null"
-    timestamptz created_at
-    timestamptz updated_at
-  }
-  tally_cursors {
-    uuid id PK
-    smallint entity_id FK
-    text tally_company
-    bigint last_alter_id
-    uuid connector_id FK
-    timestamptz created_at
-    timestamptz updated_at
-  }
-  tally_snapshots {
-    uuid id PK
-    smallint entity_id FK
-    text tally_company
-    uuid connector_id FK
-    timestamptz as_of
-    date from_date
-    integer guid_count
-    integer live
-    integer tombstoned
-    integer missing
-    integer reappeared
-    text state
-    text held_guids "array"
-    text missing_guids "array"
-    timestamptz confirmed_at "null"
-    uuid confirmed_by FK "null"
-    timestamptz created_at
-  }
-  tally_connector_companies }o--|| tally_connectors : "connector_id"
-  tally_connector_companies }o--|| entities : "entity_id"
-  tally_connectors ||--|| principals : "id"
-  tally_connectors }o--o| principals : "revoked_by"
-  tally_cursors }o--|| tally_connectors : "connector_id"
-  tally_cursors }o--|| entities : "entity_id"
-  tally_snapshots }o--o| principals : "confirmed_by"
-  tally_snapshots }o--|| tally_connectors : "connector_id"
-  tally_snapshots }o--|| entities : "entity_id"
 ```
 
 ## Planned tables

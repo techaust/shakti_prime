@@ -11,9 +11,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`notification_preferences`](#notification_preferences), [`notifications`](#notifications), [`outbox_events`](#outbox_events), [`push_subscriptions`](#push_subscriptions), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views), [`webhook_inbox`](#webhook_inbox)
 - **AI and voice:** [`agent_actions`](#agent_actions), [`agent_configs`](#agent_configs), [`agent_evals`](#agent_evals), [`agent_runs`](#agent_runs), [`ask_conversations`](#ask_conversations), [`ask_messages`](#ask_messages), [`copilot_notes`](#copilot_notes), [`inbox_items`](#inbox_items), [`knowledge_chunks`](#knowledge_chunks), [`knowledge_files`](#knowledge_files), [`playbook_conflict_checks`](#playbook_conflict_checks), [`playbook_directives`](#playbook_directives), [`voice_sessions`](#voice_sessions)
 - **Inventory and logistics:** [`bins`](#bins), [`item_vendors`](#item_vendors), [`serials`](#serials), [`stock_balances`](#stock_balances), [`stock_movement_costs`](#stock_movement_costs), [`stock_movements`](#stock_movements), [`vendor_contacts`](#vendor_contacts), [`vendor_quotes`](#vendor_quotes), [`vendors`](#vendors), [`warehouses`](#warehouses)
-- **Finance and costing:** [`dealer_outstanding`](#dealer_outstanding), [`tally_ledgers`](#tally_ledgers), [`tally_purchase_vouchers`](#tally_purchase_vouchers), [`tally_voucher_tombstones`](#tally_voucher_tombstones), [`tally_vouchers`](#tally_vouchers)
+- **Finance and costing:** [`dealer_outstanding`](#dealer_outstanding), [`tally_connector_companies`](#tally_connector_companies), [`tally_connectors`](#tally_connectors), [`tally_cursors`](#tally_cursors), [`tally_ledgers`](#tally_ledgers), [`tally_purchase_vouchers`](#tally_purchase_vouchers), [`tally_snapshots`](#tally_snapshots), [`tally_voucher_tombstones`](#tally_voucher_tombstones), [`tally_vouchers`](#tally_vouchers)
 - **Sales:** [`dealer_terms`](#dealer_terms), [`quote_lines`](#quote_lines), [`quote_versions`](#quote_versions), [`quotes`](#quotes), [`sales_order_lines`](#sales_order_lines), [`sales_orders`](#sales_orders), [`targets`](#targets)
-- **Other:** [`tally_connector_companies`](#tally_connector_companies), [`tally_connectors`](#tally_connectors), [`tally_cursors`](#tally_cursors), [`tally_snapshots`](#tally_snapshots)
 - [Planned tables](#planned-tables)
 
 ## Org
@@ -5118,9 +5117,141 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `dealer_outstanding_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('sales.credit.write:entity')) and entered_by = (select app.user_id()) and exists (select 1 from account_entities ae join accounts a on a.id = ae.account_id where ae.account_id = dealer_outstanding.account_id and ae.entity_id = dealer_outstanding.entity_id and a.type = 'dealer' and a.archived_at is null)`
 - `dealer_outstanding_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('sales.credit.write:entity')) or exists (select 1 from account_entities ae where ae.account_id = dealer_outstanding.account_id and ae.entity_id = dealer_outstanding.entity_id))`
 
+### tally_connector_companies
+
+**Catalogue entry** (05-database.md §6.7; created in 0240): `connector_id`, `tally_company` (Tally's own name, key with the connector), `entity_id` (unique with `tally_company`, so a Tally company is read by one connector and a company may have several, one per financial year), `reachable`, `reported_alter_id`, `reported_at` (the heartbeat's); read with `finance.read:entity` or by an Executive; written only by the admin definers
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `connector_id` | uuid | no |  | PK → `tally_connectors.id` |
+| `tally_company` | text | no |  | PK |
+| `entity_id` | smallint | no |  | → `entities.id` |
+| `reachable` | boolean | yes |  |  |
+| `reported_alter_id` | bigint | yes |  |  |
+| `reported_at` | timestamp with time zone | yes |  |  |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `created_by` | uuid | no |  | → `principals.id` |
+
+**Primary key**
+
+- (`connector_id`, `tally_company`)
+
+**Unique constraints**
+
+- `tally_connector_companies_entity_unique`: (`entity_id`, `tally_company`)
+
+**Foreign keys**
+
+- `tally_connector_companies_connector_id_tally_connectors_id_fk`: (`connector_id`) → `tally_connectors` (`id`)
+- `tally_connector_companies_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
+- `tally_connector_companies_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+
+**Check constraints**
+
+- `tally_connector_companies_name_check`: `char_length("tally_connector_companies"."tally_company") between 1 and 120 and "tally_connector_companies"."tally_company" = btrim("tally_connector_companies"."tally_company")`
+
+**Row-level security:** enabled and forced; 1 policy.
+
+- `tally_connector_companies_read` (select, to app_user, app_reader): using `((select app.has_perm('admin.integrations.write:all')) or (select app.has_perm('finance.read:entity'))) and entity_id = any ((select app.entity_ids())::int[])`
+
+### tally_connectors
+
+**Catalogue entry** (05-database.md §6.7; created in 0240): `id` (the connector's own `principals` row, kind `system`, role `system:tally_connector`), `name`, `key_hash` and `next_key_hash` (the SHA-256 of the current key and, during a rotation, of the next; unique; no request role selects either, the routes read them through `app.tally_connector_auth()`), `key_hint`, `next_key_hint`, `key_rotated_at`, `connector_version`, `tally_version`, `queue_depth`, `last_heartbeat_at`, `silence_alerted_at`, `revoked_at` and `revoked_by`; no company; read by an Executive (`admin.integrations.write:all`) in a request with a company; written only by the Admin › Integrations › Tally definers and the heartbeat's (TC2, 0241)
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK → `principals.id` |
+| `name` | text | no |  |  |
+| `key_hash` | text | no |  |  |
+| `key_hint` | text | no |  |  |
+| `next_key_hash` | text | yes |  |  |
+| `next_key_hint` | text | yes |  |  |
+| `key_rotated_at` | timestamp with time zone | yes |  |  |
+| `connector_version` | text | yes |  |  |
+| `tally_version` | text | yes |  |  |
+| `queue_depth` | integer | yes |  |  |
+| `last_heartbeat_at` | timestamp with time zone | yes |  |  |
+| `silence_alerted_at` | timestamp with time zone | yes |  |  |
+| `revoked_at` | timestamp with time zone | yes |  |  |
+| `revoked_by` | uuid | yes |  | → `principals.id` |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `updated_at` | timestamp with time zone | no | `now()` |  |
+| `created_by` | uuid | no |  | → `principals.id` |
+| `updated_by` | uuid | yes |  | → `principals.id` |
+
+**Primary key**
+
+- (`id`)
+
+**Foreign keys**
+
+- `tally_connectors_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
+- `tally_connectors_id_principals_id_fk`: (`id`) → `principals` (`id`)
+- `tally_connectors_revoked_by_principals_id_fk`: (`revoked_by`) → `principals` (`id`)
+- `tally_connectors_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
+
+**Check constraints**
+
+- `tally_connectors_key_hash_check`: `"tally_connectors"."key_hash" ~ '^[0-9a-f]{64}$'`
+- `tally_connectors_name_check`: `char_length("tally_connectors"."name") between 1 and 80`
+- `tally_connectors_next_key_check`: `("tally_connectors"."next_key_hash" is null) = ("tally_connectors"."next_key_hint" is null) and ("tally_connectors"."next_key_hash" is null or "tally_connectors"."next_key_hash" ~ '^[0-9a-f]{64}$') and "tally_connectors"."next_key_hash" is distinct from "tally_connectors"."key_hash"`
+- `tally_connectors_queue_depth_check`: `"tally_connectors"."queue_depth" is null or "tally_connectors"."queue_depth" >= 0`
+- `tally_connectors_revoked_check`: `("tally_connectors"."revoked_at" is null) = ("tally_connectors"."revoked_by" is null)`
+
+**Indexes**
+
+- `tally_connectors_key_hash_unique` (btree, unique): `key_hash`
+
+**Triggers**
+
+- `set_updated_at`: before update, runs `app.set_updated_at()`
+
+**Row-level security:** enabled and forced; 1 policy.
+
+- `tally_connectors_read` (select, to app_user, app_reader): using `(select app.has_perm('admin.integrations.write:all')) and cardinality((select app.entity_ids())) > 0`
+
+### tally_cursors
+
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company` (unique together), `last_alter_id` (moves forward only, `app.tally_cursor_move()`), `connector_id`; read as `tally_connector_companies`; written only by the batch's definers
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `entity_id` | smallint | no |  | → `entities.id` |
+| `tally_company` | text | no |  |  |
+| `last_alter_id` | bigint | no | `0` |  |
+| `connector_id` | uuid | no |  | → `tally_connectors.id` |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `updated_at` | timestamp with time zone | no | `now()` |  |
+
+**Primary key**
+
+- (`id`)
+
+**Unique constraints**
+
+- `tally_cursors_company_unique`: (`entity_id`, `tally_company`)
+
+**Foreign keys**
+
+- `tally_cursors_connector_id_tally_connectors_id_fk`: (`connector_id`) → `tally_connectors` (`id`)
+- `tally_cursors_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+
+**Check constraints**
+
+- `tally_cursors_alter_id_check`: `"tally_cursors"."last_alter_id" >= 0`
+
+**Indexes**
+
+- `tally_cursors_connector_idx` (btree): `connector_id`
+
+**Row-level security:** enabled and forced; 1 policy.
+
+- `tally_cursors_read` (select, to app_user, app_reader): using `((select app.has_perm('admin.integrations.write:all')) or (select app.has_perm('finance.read:entity'))) and entity_id = any ((select app.entity_ids())::int[])`
+
 ### tally_ledgers
 
-**Catalogue entry** (05-database.md §6.7): `tally_company`, `name`, `group`, `closing_balance`, `as_of`
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `guid` (unique), `alter_id`, `name`, `parent` (Tally's group), `gstin`, `opening_balance`, `closing_balance` and `as_of` (a later balance sent with the daily snapshot replaces an earlier one, `app.tally_ledger_balances_write()`); read with `finance.read:entity`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5164,7 +5295,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tally_purchase_vouchers
 
-**Catalogue entry** (05-database.md §6.7; restricted): same shape for `purchase` and `debit_note`
+**Catalogue entry** (05-database.md §6.7; created in 0240; restricted): the same shape for `purchase` and `debit_note`; read with `finance.read:entity` and `procurement.rate.read:entity` together; the reporting role holds no grant
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5218,9 +5349,65 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `tally_purchase_vouchers_read` (select, to app_user, app_reader): using `(select app.has_perm('finance.read:entity')) and (select app.has_perm('procurement.rate.read:entity')) and entity_id = any ((select app.entity_ids())::int[])`
 
+### tally_snapshots
+
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `as_of`, `from_date`, `guid_count`, `live`, `tombstoned`, `missing`, `reappeared`, `state` (`applied`, `held` over `diffSnapshot`'s limits until Accounts confirm it with `finance.recon.write`, `confirmed`, `superseded` by a newer snapshot), `held_guids` (only while held), `missing_guids` (the first thousand GUIDs Tally holds and the BOS lacks, for the review queue), `confirmed_at` and `confirmed_by`; read with `finance.read:entity`
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `entity_id` | smallint | no |  | → `entities.id` |
+| `tally_company` | text | no |  |  |
+| `connector_id` | uuid | no |  | → `tally_connectors.id` |
+| `as_of` | timestamp with time zone | no |  |  |
+| `from_date` | date | no |  |  |
+| `guid_count` | integer | no |  |  |
+| `live` | integer | no |  |  |
+| `tombstoned` | integer | no |  |  |
+| `missing` | integer | no |  |  |
+| `reappeared` | integer | no |  |  |
+| `state` | text | no |  |  |
+| `held_guids` | text[] | no | `'{}'::text[]` |  |
+| `missing_guids` | text[] | no | `'{}'::text[]` |  |
+| `confirmed_at` | timestamp with time zone | yes |  |  |
+| `confirmed_by` | uuid | yes |  | → `principals.id` |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+
+**Primary key**
+
+- (`id`)
+
+**Unique constraints**
+
+- `tally_snapshots_id_entity_unique`: (`id`, `entity_id`)
+
+**Foreign keys**
+
+- `tally_snapshots_confirmed_by_principals_id_fk`: (`confirmed_by`) → `principals` (`id`)
+- `tally_snapshots_connector_id_tally_connectors_id_fk`: (`connector_id`) → `tally_connectors` (`id`)
+- `tally_snapshots_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+
+**Check constraints**
+
+- `tally_snapshots_confirmed_check`: `("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."confirmed_by" is null) and ("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."state" <> 'confirmed')`
+- `tally_snapshots_counts_check`: `"tally_snapshots"."guid_count" >= 0 and "tally_snapshots"."live" >= 0 and "tally_snapshots"."tombstoned" >= 0 and "tally_snapshots"."missing" >= 0 and "tally_snapshots"."reappeared" >= 0`
+- `tally_snapshots_held_check`: `"tally_snapshots"."state" = 'held' or cardinality("tally_snapshots"."held_guids") = 0`
+- `tally_snapshots_missing_guids_check`: `cardinality("tally_snapshots"."missing_guids") <= 1000`
+- `tally_snapshots_state_check`: `"tally_snapshots"."state" in ('applied', 'held', 'confirmed', 'superseded')`
+
+**Indexes**
+
+- `tally_snapshots_connector_idx` (btree): `connector_id`
+- `tally_snapshots_entity_created_idx` (btree): `entity_id, created_at desc`
+- `tally_snapshots_held_idx` (btree): `entity_id, tally_company` where `"tally_snapshots"."state" = 'held'`
+
+**Row-level security:** enabled and forced; 1 policy.
+
+- `tally_snapshots_read` (select, to app_user, app_reader): using `(select app.has_perm('finance.read:entity')) and entity_id = any ((select app.entity_ids())::int[])`
+
 ### tally_voucher_tombstones
 
-**Catalogue entry** (05-database.md §6.7; append-only): `voucher_guid`, `detected_at`, `reversal_applied_at`
+**Catalogue entry** (05-database.md §6.7; created in 0240; append-only): `entity_id`, `voucher_guid`, `voucher_type`, `snapshot_id` (composite key with `entity_id`), `detected_at`, `reversal_applied_at` (set once, by TC3; the guard refuses any other change and any delete); read with `finance.read:entity`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5261,7 +5448,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tally_vouchers
 
-**Catalogue entry** (05-database.md §6.7): `entity_id`, `tally_company`, `guid`, `alter_id`, `type` (`sales`, `receipt`, `credit_note`), `date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `payload_json`, `deleted_at`
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `guid` (unique), `alter_id` (the newest wins), `type` (`sales`, `receipt`, `credit_note`), `type_name`, `voucher_no`, `voucher_date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `is_cancelled`, `is_optional`, `payload_json` (the ledger and inventory entries), `state` and `state_changed_at` (the `tally-voucher` machine), `received_at`, `deleted_at` (set exactly when tombstoned or reversed); read with `finance.read:entity`; written only by the connector's definers and the snapshot's tombstones
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5808,196 +5995,6 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `targets_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and set_by = (select app.user_id()) and exists (select 1 from principals p where p.id = targets.set_by and p.kind = 'user') and ((select app.has_perm('sales.targets.write:all')) or (select app.has_perm('sales.targets.write:entity')) or ((select app.has_perm('sales.targets.write:team')) and team_id = (select app.team_id()))) and ((scope = 'caller' and app.target_caller_ok(targets.subject_id, targets.entity_id, targets.team_id)) or (scope = 'team' and exists (select 1 from teams t where t.id = targets.subject_id and (t.entity_id is null or t.entity_id = targets.entity_id))))`
 - `targets_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((scope = 'caller' and subject_id = (select app.user_id())) or (scope = 'team' and subject_id = (select app.team_id())) or (select app.has_perm('sales.targets.write:entity')) or (select app.has_perm('sales.targets.write:all')) or ((select app.has_perm('sales.targets.write:team')) and scope = 'caller' and app.target_caller_in_team(subject_id, entity_id, (select app.team_id()))))`
-
-## Other
-
-### tally_connector_companies
-
-**Catalogue entry:** none in 05-database.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `connector_id` | uuid | no |  | PK → `tally_connectors.id` |
-| `tally_company` | text | no |  | PK |
-| `entity_id` | smallint | no |  | → `entities.id` |
-| `reachable` | boolean | yes |  |  |
-| `reported_alter_id` | bigint | yes |  |  |
-| `reported_at` | timestamp with time zone | yes |  |  |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `created_by` | uuid | no |  | → `principals.id` |
-
-**Primary key**
-
-- (`connector_id`, `tally_company`)
-
-**Unique constraints**
-
-- `tally_connector_companies_entity_unique`: (`entity_id`, `tally_company`)
-
-**Foreign keys**
-
-- `tally_connector_companies_connector_id_tally_connectors_id_fk`: (`connector_id`) → `tally_connectors` (`id`)
-- `tally_connector_companies_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
-- `tally_connector_companies_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
-
-**Check constraints**
-
-- `tally_connector_companies_name_check`: `char_length("tally_connector_companies"."tally_company") between 1 and 120 and "tally_connector_companies"."tally_company" = btrim("tally_connector_companies"."tally_company")`
-
-**Row-level security:** enabled and forced; 1 policy.
-
-- `tally_connector_companies_read` (select, to app_user, app_reader): using `((select app.has_perm('admin.integrations.write:all')) or (select app.has_perm('finance.read:entity'))) and entity_id = any ((select app.entity_ids())::int[])`
-
-### tally_connectors
-
-**Catalogue entry:** none in 05-database.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK → `principals.id` |
-| `name` | text | no |  |  |
-| `key_hash` | text | no |  |  |
-| `key_hint` | text | no |  |  |
-| `next_key_hash` | text | yes |  |  |
-| `next_key_hint` | text | yes |  |  |
-| `key_rotated_at` | timestamp with time zone | yes |  |  |
-| `connector_version` | text | yes |  |  |
-| `tally_version` | text | yes |  |  |
-| `queue_depth` | integer | yes |  |  |
-| `last_heartbeat_at` | timestamp with time zone | yes |  |  |
-| `silence_alerted_at` | timestamp with time zone | yes |  |  |
-| `revoked_at` | timestamp with time zone | yes |  |  |
-| `revoked_by` | uuid | yes |  | → `principals.id` |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `updated_at` | timestamp with time zone | no | `now()` |  |
-| `created_by` | uuid | no |  | → `principals.id` |
-| `updated_by` | uuid | yes |  | → `principals.id` |
-
-**Primary key**
-
-- (`id`)
-
-**Foreign keys**
-
-- `tally_connectors_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
-- `tally_connectors_id_principals_id_fk`: (`id`) → `principals` (`id`)
-- `tally_connectors_revoked_by_principals_id_fk`: (`revoked_by`) → `principals` (`id`)
-- `tally_connectors_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
-
-**Check constraints**
-
-- `tally_connectors_key_hash_check`: `"tally_connectors"."key_hash" ~ '^[0-9a-f]{64}$'`
-- `tally_connectors_name_check`: `char_length("tally_connectors"."name") between 1 and 80`
-- `tally_connectors_next_key_check`: `("tally_connectors"."next_key_hash" is null) = ("tally_connectors"."next_key_hint" is null) and ("tally_connectors"."next_key_hash" is null or "tally_connectors"."next_key_hash" ~ '^[0-9a-f]{64}$') and "tally_connectors"."next_key_hash" is distinct from "tally_connectors"."key_hash"`
-- `tally_connectors_queue_depth_check`: `"tally_connectors"."queue_depth" is null or "tally_connectors"."queue_depth" >= 0`
-- `tally_connectors_revoked_check`: `("tally_connectors"."revoked_at" is null) = ("tally_connectors"."revoked_by" is null)`
-
-**Indexes**
-
-- `tally_connectors_key_hash_unique` (btree, unique): `key_hash`
-
-**Triggers**
-
-- `set_updated_at`: before update, runs `app.set_updated_at()`
-
-**Row-level security:** enabled and forced; 1 policy.
-
-- `tally_connectors_read` (select, to app_user, app_reader): using `(select app.has_perm('admin.integrations.write:all')) and cardinality((select app.entity_ids())) > 0`
-
-### tally_cursors
-
-**Catalogue entry:** none in 05-database.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `entity_id` | smallint | no |  | → `entities.id` |
-| `tally_company` | text | no |  |  |
-| `last_alter_id` | bigint | no | `0` |  |
-| `connector_id` | uuid | no |  | → `tally_connectors.id` |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `updated_at` | timestamp with time zone | no | `now()` |  |
-
-**Primary key**
-
-- (`id`)
-
-**Unique constraints**
-
-- `tally_cursors_company_unique`: (`entity_id`, `tally_company`)
-
-**Foreign keys**
-
-- `tally_cursors_connector_id_tally_connectors_id_fk`: (`connector_id`) → `tally_connectors` (`id`)
-- `tally_cursors_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
-
-**Check constraints**
-
-- `tally_cursors_alter_id_check`: `"tally_cursors"."last_alter_id" >= 0`
-
-**Indexes**
-
-- `tally_cursors_connector_idx` (btree): `connector_id`
-
-**Row-level security:** enabled and forced; 1 policy.
-
-- `tally_cursors_read` (select, to app_user, app_reader): using `((select app.has_perm('admin.integrations.write:all')) or (select app.has_perm('finance.read:entity'))) and entity_id = any ((select app.entity_ids())::int[])`
-
-### tally_snapshots
-
-**Catalogue entry:** none in 05-database.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `entity_id` | smallint | no |  | → `entities.id` |
-| `tally_company` | text | no |  |  |
-| `connector_id` | uuid | no |  | → `tally_connectors.id` |
-| `as_of` | timestamp with time zone | no |  |  |
-| `from_date` | date | no |  |  |
-| `guid_count` | integer | no |  |  |
-| `live` | integer | no |  |  |
-| `tombstoned` | integer | no |  |  |
-| `missing` | integer | no |  |  |
-| `reappeared` | integer | no |  |  |
-| `state` | text | no |  |  |
-| `held_guids` | text[] | no | `'{}'::text[]` |  |
-| `missing_guids` | text[] | no | `'{}'::text[]` |  |
-| `confirmed_at` | timestamp with time zone | yes |  |  |
-| `confirmed_by` | uuid | yes |  | → `principals.id` |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-
-**Primary key**
-
-- (`id`)
-
-**Unique constraints**
-
-- `tally_snapshots_id_entity_unique`: (`id`, `entity_id`)
-
-**Foreign keys**
-
-- `tally_snapshots_confirmed_by_principals_id_fk`: (`confirmed_by`) → `principals` (`id`)
-- `tally_snapshots_connector_id_tally_connectors_id_fk`: (`connector_id`) → `tally_connectors` (`id`)
-- `tally_snapshots_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
-
-**Check constraints**
-
-- `tally_snapshots_confirmed_check`: `("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."confirmed_by" is null) and ("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."state" <> 'confirmed')`
-- `tally_snapshots_counts_check`: `"tally_snapshots"."guid_count" >= 0 and "tally_snapshots"."live" >= 0 and "tally_snapshots"."tombstoned" >= 0 and "tally_snapshots"."missing" >= 0 and "tally_snapshots"."reappeared" >= 0`
-- `tally_snapshots_held_check`: `"tally_snapshots"."state" = 'held' or cardinality("tally_snapshots"."held_guids") = 0`
-- `tally_snapshots_missing_guids_check`: `cardinality("tally_snapshots"."missing_guids") <= 1000`
-- `tally_snapshots_state_check`: `"tally_snapshots"."state" in ('applied', 'held', 'confirmed', 'superseded')`
-
-**Indexes**
-
-- `tally_snapshots_connector_idx` (btree): `connector_id`
-- `tally_snapshots_entity_created_idx` (btree): `entity_id, created_at desc`
-- `tally_snapshots_held_idx` (btree): `entity_id, tally_company` where `"tally_snapshots"."state" = 'held'`
-
-**Row-level security:** enabled and forced; 1 policy.
-
-- `tally_snapshots_read` (select, to app_user, app_reader): using `(select app.has_perm('finance.read:entity')) and entity_id = any ((select app.entity_ids())::int[])`
 
 ## Planned tables
 
