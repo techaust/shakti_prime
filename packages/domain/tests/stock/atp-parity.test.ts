@@ -20,7 +20,14 @@ import {
 import { draftOrder, reservationFixture, type ReservationFixture } from './reservation-fixture';
 import { stockFixture, type StockFixture } from './stock-fixture';
 
-afterAll(closeDb);
+afterAll(async () => {
+  // The items go out of the catalogue's lists once the file is done (the suites never clean the
+  // shared tables, and other files read the first 200 active items).
+  await asMigrator(
+    (m) => m`update items set archived_at = now() where id = any (${[...stocked, service]}::uuid[])`,
+  );
+  await closeDb();
+});
 
 /**
  * atp.ts is the specification of availability (docs/03-roadmap-appendix/phase3.md §7.1): on
