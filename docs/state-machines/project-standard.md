@@ -26,7 +26,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `hold` *(proposed)* | `active` → `on_hold` | `projects.write` at entity scope or wider | a reason is given | – | `projects.project.held` |
 | `resume` *(proposed)* | `on_hold` → `active` | `projects.write` at entity scope or wider | – | – | – |
 | `complete` *(proposed)* | `active` → `completed` | `projects.write` at entity scope or wider | every milestone is done | `handover_kit` *(proposed)*: send the handover kit on WhatsApp (J11); `register_warranty` *(proposed)*: register warranty per serial (J11) | `projects.project.completed` |
-| `cancel` *(proposed)* | `active`, `on_hold` → `cancelled` | `projects.write` at entity scope or wider | a reason is given | – | `projects.project.cancelled` |
+| `cancel` *(proposed)* | `active`, `on_hold` → `cancelled` | `projects.write` at entity scope or wider or the platform | a reason is given | – | `projects.project.cancelled` |
 
 Any other event, or an event from a state not listed for it, answers `conflict` with reason `project_standard_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `projects.state` and the time to `projects.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
@@ -34,6 +34,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 
 - `create`: The platform drafts the project from a confirmed sales order of an install segment with a site (`projects.draft`); a Project Manager or General Manager makes one by hand for any confirmed order.
 - `milestone.complete`: A Field Engineer completes the steps of a project they are on (`own`).
+- `cancel`: The platform cancels the project of a cancelled order while none of its steps is done (`projects.draft`, on `sales.order.cancelled`); with a step done it keeps the project and tells its Project Manager.
 
 ## Diagram
 

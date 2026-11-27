@@ -52,7 +52,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-68 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+69 types, 23 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -189,7 +189,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone and drafts the project of an order that needs installing. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.confirmed` (QStash URL group `evt-sales.order.confirmed`) |
 | [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.credit_held` (QStash URL group `evt-sales.order.credit_held`) |
 | [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
-| [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. | `sales.order.cancel` | none |
+| [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. Its project (J1) is cancelled by the platform while none of its steps is done, else kept and its Project Manager told. | `sales.order.cancel` | `POST /api/v1/workers/outbox/sales.order.cancelled` (QStash URL group `evt-sales.order.cancelled`) |
 | [`sales.commission.accrued`](#salescommissionaccrued) | A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day. | `sales.order.confirm` | none |
 
 ### procurement
@@ -210,7 +210,8 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`projects.project.milestone_completed`](#projectsprojectmilestone_completed) | A step of a project's checklist was done, in order. | `projects.milestone.complete` | none |
 | [`projects.project.held`](#projectsprojectheld) | A project was put on hold; the reason stays on the project. | `projects.project.hold` | none |
 | [`projects.project.completed`](#projectsprojectcompleted) | A project was completed with every step of its checklist done. | `projects.project.complete` | none |
-| [`projects.project.cancelled`](#projectsprojectcancelled) | A project was cancelled; the reason stays on the project. | `projects.project.cancel` | none |
+| [`projects.project.cancelled`](#projectsprojectcancelled) | A project was cancelled, by a Project Manager or by the platform because its order was cancelled before any step was done; the reason stays on the project. | `projects.project.cancel`, `projects.project.cancel_for_order` | none |
+| [`projects.project.order_cancelled`](#projectsprojectorder_cancelled) | The order of a project was cancelled after a step of the project was done, so the platform kept the project; the notify worker tells its owner, or the Project Managers of its company when it has none. | `projects.project.cancel_for_order` | `POST /api/v1/workers/outbox/projects.project.order_cancelled` (QStash URL group `evt-projects.project.order_cancelled`) |
 
 ## Payloads
 
@@ -704,3 +705,10 @@ No fields apart from `v`.
 | Field | Type |
 |---|---|
 | `accountId` | id |
+
+### projects.project.order_cancelled
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
