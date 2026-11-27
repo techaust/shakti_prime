@@ -5,9 +5,9 @@
 | Branch | `feat/r3-warranty` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock out, costs behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account, 27-11-2026 (start and end of the blocked run); builder Opus 5.5 at high, 27-11-2026 (start and end of the second run, lane 7's replacement, resumed after the VM restart) |
-| State | early check: everything but the ledger steps is built; X4 has merged, `main` not yet taken in |
-| Next step | the lead reads the early check, then the builder takes `main` in and adds the ledger steps |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account, 27-11-2026 (start and end of the blocked run); builder Opus 5.5 at high, 27-11-2026 (start and end of the second run, lane 7's replacement, resumed after the VM restart); builder Opus 5.5 at high, 27-11-2026 (start and end of lane 68, past the early check) |
+| State | done: every step built, X4 and Q1 taken in; settlement by a supplier's replacement waits for U2 |
+| Next step | the lead reviews and integrates; the owner's `checks-ok` for `js-budget.json` |
 
 ## Brief
 Build [phase3 §7.5](../../03-roadmap-appendix/phase3.md#75-r3-warranty-claims-and-supplier-returns) as written, with question 10 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -157,6 +157,61 @@ Option (a): X4 now moves the serial rules into data (`app.stock_reason_serial_mo
 - No Account 360 timeline row for a claim (a new `activities` type would widen a shared check).
 
 **For the lead at integration:** the migrations renumber after X4's. `app.next_document_no()` is redefined here from 0201, and U2 adds `goods_receipt` to it, so whichever comes later must hold both lines, and `document_sequences_doc_type_check` both values. `import_jobs_kind_check`, `import_mapping_templates_kind_check` and `import_rows_created_type_check` are widened here and may be by other slices too.
+
+### 27-11-2026, seat (worktree `r3-warranty`, Postgres 54332): done
+
+**Main taken in** by a merge commit (`ec487b48`, X4 #298 and Q1 #299): my migrations move to `0243_r3_warranty_claims`, `0244_r3_warranty_claims_rls`, `0245_r3_installed_base_rls`, and the ledger steps add `0246_r3_warranty_ledger`. `pnpm db:generate` reports no changes. Checked against `main`: `app.next_document_no()` is redefined only by 0201 and this branch, so mine carries every kind `main` has plus `warranty_claim`. `import_jobs_kind_check`, `import_mapping_templates_kind_check`, `import_rows_created_type_check` and `document_sequences_doc_type_check` match the schema. Conflicts resolved: the registries, `en.json` (`merge-json.py`, none conflicting), `copy-lint.config.json`, Q1's serial page (both the label buttons and Raise a warranty claim), and DATABASE §4.1. U2 has not merged.
+
+**Built in this lane:**
+- `0246_r3_warranty_ledger.sql`, written to X4's comment block (no redefinition of `app.stock_move()`):
+  - grant rows `warranty_replacement` and `return_customer` (`inventory.warranty.write:entity`) and `return_supplier` (`procurement.po.write:entity`), none reversible;
+  - move rows `warranty_replacement` out `in_stock` → `with_customer`, `return_customer` in `with_customer` → `faulty`, `return_supplier` out `faulty` → `with_supplier`;
+  - the definer `app.warranty_claim_record_cost(claim, movement)`, which keeps the replacement movement's unit cost (to the paisa) once on `warranty_claim_costs` and answers nothing.
+- **No reversal rows:** none of the three reasons is reversible. A claim's steps undo nothing, and a wrong movement is corrected by an adjustment.
+- `OPEN_STOCK_REASONS` in the contracts, which X4's registry test holds equal to the grant table. The reasons are out of the ledger test's "refuses every reason a later slice opens".
+- `StockMovementLine` gains the optional `accountId`, `siteId`, `deliveredAt` and `warrantyUntil` that X4's definer takes on a line to a customer (`packages/domain/src/stock/move.ts`).
+- `inventory.warranty.replace` (`inventory.warranty.write`):
+  - issues the replacement (by its scanned or typed number, from a bin) through `app.stock_move()` as `warranty_replacement` at the moving average;
+  - gives it the claim's customer and site, today's delivery and the failed serial's `warranty_until`;
+  - when the failed serial is back already, takes it into a quarantine bin as `return_customer` (`faulty`) in the same batch;
+  - keeps the cost through the definer.
+- `inventory.warranty.rma_raise` (`procurement.po.write`) sends the failed serial to an active vendor with their return reference (`return_supplier`). If the serial is still with the customer, it first brings it back into the quarantine bin named (`warranty_faulty_not_back` without one; `warranty_quarantine_bin` for a bin of another kind).
+- Each step fires the serial machine (`replace`, `return_faulty`, `rma_raise`) and posts through `postStockMoves()`: audit rows and `inventory.stock.moved` carry no cost.
+- Events `inventory.warranty.replaced` and `inventory.warranty.rma_raised`.
+- Screens: Give a replacement (bin, serial number, faulty item back or not, quarantine bin) and Send to the supplier (vendor, reference, quarantine bin when the faulty item is not back) on the claim sheet.
+- Journey: `apps/web/e2e/warranty.spec.ts` now takes a claim through every step. Its seed adds a quarantine bin `JQ-01` to the stock journeys' godown, the pump's costed stock, and a fresh in-warranty serial whenever a run has used the last.
+- Documents: DATABASE §4.1 (`app.warranty_claim_record_cost()`), §6.5 (the registry's R3 rows, `warranty_claim_costs`); phase3 §7.5 "Built (R3)"; `docs/state-machines`, `docs/data` regenerated.
+
+**Tests added in this lane:**
+- `packages/domain/tests/commands/warranty.test.ts` gains 3 cases (15 in all):
+  - denied (GM, Store Manager, Accounts) and wrong company for both commands, and no RMA before a replacement;
+  - one claim end to end, raise → identify → replace with the failed serial back → RMA → credit. It checks the serials' states, bins, customer and warranty, both movements referring to the claim, and the cost `12000.00` read only by Accounts (not the Inventory Manager or the GM). The cost appears in no answer, audit row or event;
+  - the failed serial brought back with the RMA, only into quarantine, and refused when not back or for an unknown vendor.
+- `packages/db/tests/security/warranty.test.ts` gains 2 cases: the three grant and move rows exactly; the cost definer's grants and refusals. X4's own suite checks each of my rows role by role ("every row gives exactly its permission").
+- The agent refusal sweep holds inputs for both new commands.
+
+**Checks, on `e6056ac8` plus the budget change, through the lock:**
+- `pnpm lint` (whole repository): exit 0.
+- `pnpm typecheck`: 10 successful.
+- `pnpm copy-lint`: clean.
+- Unit tests: domain 2832 passed; web 1180 passed, 1 skipped.
+- `pnpm test:security`: db 1892 passed, domain 1557 passed, web 466 passed.
+- `pnpm build`: passed.
+- `pnpm --filter web js-budget`: passes once `/catalogue` is raised from 245 to 246 kB (measured 245.1 with the Warranty claims menu entry in the shell). The warranty pages measure 237.4 and 205.7 kB.
+- `pnpm --filter web e2e:seed`: passed (14 roles, 3 projects).
+- **`apps/web/js-budget.json` changes** (the two warranty pages and `/catalogue`): the pull request needs the owner's `checks-ok`.
+
+**EXPLAIN (ANALYZE):** the queries are unchanged since the early check (its figures above stand).
+
+**Journeys not run:** journeys cannot sign in on a seat. `warranty.spec.ts` is written and its seed ran; the lead runs it and makes the Linux baselines (`warranty-raise-dialog`, `warranty-replace-dialog`, `warranty-settle-dialog`, `warranty-claim-closed-gm`).
+
+**Still waiting:** `.settle` by a supplier's replacement waits for U2's `receipt` (U2 has not merged). The column `supplier_serial_id` and the `replacement` settlement are in the table and its checks; the command takes only a credit until then.
+
+**Assumptions added in this lane:**
+- The faulty item's return enters quarantine at the moving average (the ledger's default for an inbound line without a cost) and leaves for the supplier at it, so the two net to nothing in the valuation.
+- The serial machine's `replace` asks `inventory.stock.move` (H1's machine, not changed here). Every holder of `inventory.warranty.write` (Executive, Inventory Manager) holds it.
+- A replacement's and an RMA reference's numbers are free text, so they are masked like any other input text (as H1's serial numbers are), not listed in `unmaskedFields`.
+- The RMA dialog offers the first 200 active vendors by name.
 
 ## Review
 
