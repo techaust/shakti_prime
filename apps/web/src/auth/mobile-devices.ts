@@ -75,9 +75,10 @@ export interface DeviceStore {
   ): Promise<boolean>;
   standing(userId: string, deviceId: string): Promise<DeviceStanding>;
   /**
-   * Signs every phone of the person out when their password changes or is reset, as their website
-   * sessions end (SECURITY §2); answers how many were signed in. The commands that end sessions
-   * (`revokeUserSessions` in the domain) sign the phones out in their own transaction.
+   * Signs every phone of the person out when their password changes or is reset, or when they set
+   * up an authenticator app, as their website sessions end (SECURITY §2); answers how many were
+   * signed in. The commands that end sessions (`revokeUserSessions` and `signOutPhones` in the
+   * domain) sign the phones out in their own transaction.
    */
   signOutEverywhere(userId: string, reason: MobileAccountChangeReason, now: Date): Promise<number>;
 }

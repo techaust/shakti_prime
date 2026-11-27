@@ -217,6 +217,24 @@ export async function createTestUser(
 }
 
 /**
+ * A phone signed in to the field app for the person (`mobile_devices`), as the auth module writes
+ * it, with a random token hash; answers the row's id.
+ */
+export async function createTestMobileDevice(userId: string): Promise<string> {
+  const id = newId();
+  const hash = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(
+    '',
+  );
+  await asMigrator(
+    (m) => m`insert into mobile_devices (id, user_id, device_id, name, app_version,
+               refresh_token_hash, refresh_family_id, refresh_expires_at, signed_in_at)
+             values (${id}, ${userId}, ${newId()}, 'Galaxy M14', '1.0.0', ${hash}, ${newId()},
+                     now() + interval '30 days', now())`,
+  );
+  return id;
+}
+
+/**
  * An import file that came through the pre-signed upload and passed its checks (`ready`), as
  * `imports.job.create` takes it, written with the migrator connection. The bytes themselves are
  * not stored (a caller that needs them puts them in a store under `key` itself): the command reads

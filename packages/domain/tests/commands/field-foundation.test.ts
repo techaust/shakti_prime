@@ -3,6 +3,7 @@ import {
   asMigrator,
   asPrincipal,
   closeDb,
+  createTestMobileDevice,
   createTestPrincipal,
   createTestUser,
 } from '@shakti/db/testing';
@@ -21,21 +22,6 @@ import { readFeatureFlags } from '../../src/queries/field/feature-flags';
 afterAll(closeDb);
 
 const flagKey = () => `test.flag_${newId().slice(-8).replaceAll('-', '')}`;
-
-/** A signed-in phone of a person, as the auth module writes it. */
-async function phone(userId: string): Promise<string> {
-  const id = newId();
-  const hash = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(
-    '',
-  );
-  await asMigrator(
-    (m) => m`insert into mobile_devices (id, user_id, device_id, name, app_version,
-               refresh_token_hash, refresh_family_id, refresh_expires_at, signed_in_at)
-             values (${id}, ${userId}, ${newId()}, 'Galaxy M14', '1.0.0', ${hash}, ${newId()},
-                     now() + interval '30 days', now())`,
-  );
-  return id;
-}
 
 async function auditRows(aggregateId: string): Promise<{ command: string; outcome: string }[]> {
   return asMigrator(
@@ -110,7 +96,7 @@ describe('admin.flag.set', () => {
 describe('field.device.revoke', () => {
   it('is refused without field.device.revoke: forbidden for a tele-caller and a field engineer', async () => {
     const person = await createTestUser([{ entityId: 1, roleKey: 'field_engineer' }]);
-    const id = await phone(person.id);
+    const id = await createTestMobileDevice(person.id);
     for (const roleKey of ['tele_caller_cc', 'field_engineer'] as const) {
       const principal = await createTestPrincipal(roleKey, [1]);
       await expect(
@@ -123,7 +109,7 @@ describe('field.device.revoke', () => {
 
   it('cannot reach the phone of a person who works only in another company', async () => {
     const elsewhere = await createTestUser([{ entityId: 2, roleKey: 'field_engineer' }]);
-    const id = await phone(elsewhere.id);
+    const id = await createTestMobileDevice(elsewhere.id);
     const gm = await createTestPrincipal('general_manager', [1]);
     await expect(
       asPrincipal(gm, (context) =>
@@ -139,7 +125,7 @@ describe('field.device.revoke', () => {
 
   it('signs the phone of a person of the company out, once, and lists it as signed out', async () => {
     const person = await createTestUser([{ entityId: 1, roleKey: 'field_engineer' }]);
-    const id = await phone(person.id);
+    const id = await createTestMobileDevice(person.id);
     const pm = await createTestPrincipal('project_manager', [1]);
     const result = await asPrincipal(pm, (context) =>
       runCommand(revokeMobileDevice, { context, audit, outbox }, { id }),

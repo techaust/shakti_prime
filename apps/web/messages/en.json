@@ -1751,7 +1751,8 @@
         "password_changed": "Password changed",
         "role_changed": "Roles changed",
         "suspended": "Suspended",
-        "totp_reset": "Authenticator app reset"
+        "totp_reset": "Authenticator app reset",
+        "totp_enrolled": "Authenticator app set up"
       }
     },
     "moveLeadsDialog": {

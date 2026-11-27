@@ -16,6 +16,7 @@ export const MOBILE_ACCOUNT_CHANGE_REASONS = [
   'role_changed',
   'suspended',
   'totp_reset',
+  'totp_enrolled',
 ] as const satisfies readonly SessionRevokeReason[];
 export type MobileAccountChangeReason = (typeof MOBILE_ACCOUNT_CHANGE_REASONS)[number];
 

@@ -91,7 +91,7 @@ export const mobileDevices = pgTable(
     ),
     check(
       'mobile_devices_revoked_reason_check',
-      sql`${t.revokedReason} in ('signed_out', 'revoked', 'refresh_reused', 'password_changed', 'role_changed', 'suspended', 'totp_reset')`,
+      sql`${t.revokedReason} in ('signed_out', 'revoked', 'refresh_reused', 'password_changed', 'role_changed', 'suspended', 'totp_reset', 'totp_enrolled')`,
     ),
     check(
       'mobile_devices_revoked_pair_check',

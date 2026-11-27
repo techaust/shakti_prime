@@ -46,6 +46,7 @@ import {
 } from '../src/auth/mobile-routes';
 import { refreshTokenHash } from '../src/auth/mobile-tokens';
 import {
+  finishEnrolment,
   invalidatePrincipal,
   requirePrincipal,
   resolveSessionPrincipal,
@@ -173,16 +174,20 @@ function totpCode(secretBase32: string, at: Date): string {
   return String(value).padStart(6, '0');
 }
 
-/** An Executive with an authenticator app; answers the secret for making codes. */
-async function enrolledExecutive() {
-  const user = await person([{ entityId: 1, roleKey: 'executive' }]);
-  const web = new Headers({ [TURNSTILE_HEADER]: 'ok', 'x-forwarded-for': '10.6.0.2' });
+/**
+ * Sets up an authenticator app for the person on the website; answers the secret for making
+ * codes, the session as it stood before (`before`) and the headers the verification set
+ * (`issued`), which `finishEnrolment()` takes.
+ */
+async function enrolAuthenticator(user: { email: string }) {
+  const web = new Headers({ [TURNSTILE_HEADER]: 'ok', 'x-forwarded-for': nextAddress() });
   const first = await auth.api.signInEmail({
     body: { email: user.email, password: PASSWORD },
     headers: web,
     returnHeaders: true,
   });
   web.set('cookie', cookieHeader(first.headers));
+  const before = await resolveSessionPrincipal(web, undefined, { auth, keyValue, now: () => clock });
   const enrol = await auth.api.enableTwoFactor({
     body: { password: PASSWORD, method: 'totp' },
     headers: web,
@@ -191,10 +196,18 @@ async function enrolledExecutive() {
   const secret = new URL(enrol.totpURI).searchParams.get('secret') ?? '';
   const intoStep = Date.now() % 30_000;
   if (intoStep > 27_000) await new Promise((done) => setTimeout(done, 30_100 - intoStep));
-  await auth.api.verifyTOTP({
+  const verified = await auth.api.verifyTOTP({
     body: { code: totpCode(secret, new Date(Date.now() - 30_000)) },
     headers: web,
+    returnHeaders: true,
   });
+  return { secret, before, issued: verified.headers };
+}
+
+/** An Executive with an authenticator app; answers the secret for making codes. */
+async function enrolledExecutive() {
+  const user = await person([{ entityId: 1, roleKey: 'executive' }]);
+  const { secret } = await enrolAuthenticator(user);
   return { user, secret };
 }
 
@@ -647,6 +660,13 @@ describe('a person’s phones are signed out with their website sessions', () =>
       headers: new Headers({ 'x-forwarded-for': nextAddress() }),
     });
     await expectSignedOut(signedIn, 'password_changed');
+  });
+
+  it('when they set up an authenticator app', async () => {
+    const signedIn = await engineerOnPhone();
+    const { before, issued } = await enrolAuthenticator(signedIn.user);
+    await finishEnrolment(before, issued, keyValue);
+    await expectSignedOut(signedIn, 'totp_enrolled');
   });
 
   it('when an Executive resets their authenticator app, without field.device.revoke', async () => {
