@@ -174,4 +174,15 @@ Not run: the journeys (`e2e/finance.spec.ts`: Accounts' payments and proforma, t
 - **Web.** Reads go through named `executeQuery()`, writes through `executeCommand()`; `/settings/payment-terms` uses `screenAccess(navRequires())`; client components import only types from `@shakti/contracts`; nothing connects at import time.
 - **Planning races.** The hand plan and the platform race on `payment_milestones_order_seq_unique`, mapped to `milestones_already_planned`; a redelivery then answers `already_planned`. Concurrent publishes meet `payment_milestone_templates_version_unique` (`concurrent_change`).
 
+**The lead's triage (27-11-2026):** fix all eleven in the one fix round.
+- **First, take `main` in** (X4, Q1 and the day's documents; J2 if #300 has merged by then).
+- **1:** rebuild `files_purpose_check` and `app.file_purpose_grant()` from `main`'s latest, which is Q1's 0241 and 0242: every purpose, `label_sheet` included, plus the proforma's.
+- **2:** if J2 is on `main`, redefine `app.order_loan_gate()` from J2's latest with `finance.milestones.process:all` answering, and drop the stand-in. If J2 is not on `main`, keep the stand-in, say so in the report, and the lead does it at integration.
+- **3:** a failed plan is recorded on the order with its reason, and Accounts is notified, so they can plan it by hand. The dispatch gate answers `open` for an order with no plan whose segment's terms hold anything before dispatch.
+- **4:** the loan's events move a held milestone `pending → due` through `fall_due`. Subscribe to J2's `crm.loan.gates_released`, or its state events, with one line in the worker registry.
+- **5:** cancelling re-renders the proforma's PDF with "Cancelled" across it. Allow the cancelled version's file. The tab marks it.
+- **6:** on `sales.order.cancelled`, cancel the live proforma, and move its open milestones to a `cancelled` state, with a test.
+- **7 to 11:** as the review says. For 7, use the app's own segment names. For 9, the copy reads the steps from the data, never restating them.
+- **Findings 1 and 2 are high, so the reviewer re-checks the fix diff.**
+
 ## Integration
