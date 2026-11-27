@@ -569,6 +569,7 @@
     "loan_missing": "We couldn't find this loan. It may belong to another company or a colleague's customer.",
     "loan_order_cancelled": "This order is cancelled, so its loan can't be recorded or moved on.",
     "loan_gates_not_held": "This order is not waiting for this loan any more. Refresh the page to see where it stands.",
+    "loan_rejected": "The lender turned down this order's loan, so its dispatch still waits. Record a new loan, or record that the order no longer waits for one.",
     "loan_lender_missing": "This lender is no longer on the company's list. Choose another lender.",
     "loan_lender_from_list": "Choose the lender from the list. Ask an Executive to add a lender that is missing.",
     "lender_name_taken": "This company already has a lender with this name.",
