@@ -193,4 +193,15 @@ Tier A, adversarial; the lead's lane: key handling, read-only requests to Tally,
 - Real Tally shapes (`BOOKSFROM`, cancelled vouchers, the AlterID counter shared by masters and vouchers) wait for the discovery visit.
 - **Journeys:** the slice has no screen and no journey, so there was none to run (sign-in is not possible on this seat in any case).
 
+**The lead's triage (27-11-2026): fix all ten in the one fix round.**
+- **1:** a 2xx that does not parse is retried in the call, as a 5xx is, and then counted against an attempt limit. The drain never stops behind one row: it moves on to the company's later rows only when they are independent (snapshots, heartbeats). Batches keep their order, and after the limit a batch is held and reported as below.
+- **2:** an attempt limit per row (named settings). A row past it is set aside, logged by GUID and code, and counted in the heartbeat as `heldRows`. `prune()` removes set-aside rows after 7 days.
+- **3:** a missing or malformed `BOOKSFROM` stops the company with a clear log line and a heartbeat state. It is never read without a period.
+- **4:** a voucher the contract refuses goes in a `refused` list on the batch (GUID and field name), so the BOS queues it for Accounts. Add the optional field to the batch contract in `connector.ts`, and tell TC2 through its run file as an addendum (the lead commits it).
+- **5:** the heartbeat carries Tally's last AlterID per company, read cheaply (`$$MaxAlterID` or the export's top), so the lag is real.
+- **6, 7 and 8:** as the review says. For 8, inject the clock and the timer.
+- **9:** adaptive windows. Double the window after a page with fewer than 50 rows, halve it after one over 400, keeping it between 200 and 10,000 AlterIDs. Test it on a sparse fixture.
+- **10:** retire `apps/web/scripts/spike/tally-read.ts` and its `spike:tally` script. The connector's reader and tests supersede the Phase 0 spike: say so in `tally.md`, and keep the recorded fixture under the connector.
+- **Finding 1 is high, so the reviewer re-checks the fix diff.**
+
 ## Integration
