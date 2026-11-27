@@ -431,3 +431,56 @@ describe('the definers that make a project (ADR 0020)', () => {
     expect(rows).toEqual([]);
   });
 });
+
+describe('app.status_summary() adds the customer’s own projects with their current step (WA-03)', () => {
+  it('lists the chat’s customer’s projects not cancelled, with the first open step, in the chat’s company only', async () => {
+    const threads = await asMigrator(
+      (m) =>
+        m<{ id: string }[]>`
+        select t.id::text as id from whatsapp_threads t
+          join projects p on p.account_id = t.account_id and p.entity_id = t.entity_id
+         where t.entity_id = 1 and p.id = ${projectA(1)}`,
+    );
+    const thread = threads[0]?.id;
+    if (thread === undefined) throw new Error('no fixture chat');
+    const workers = principalFor('system:workers', [1]);
+    const lines = await withRequestContext(
+      workers,
+      {},
+      async ({ tx }) =>
+        (await tx.execute(
+          sql`select kind, ref, state, step_key, step_title from app.status_summary(${thread}::uuid)
+             where kind = 'project'`,
+        )) as unknown as { ref: string; state: string; step_key: string | null }[],
+    );
+    const mine = lines.filter((l) => l.ref.startsWith('PS1/'));
+    // Project A is active at its survey step; project B is cancelled and left out.
+    expect(mine).toEqual([
+      {
+        kind: 'project',
+        ref: 'PS1/PRJ/2098-99/0001',
+        state: 'active',
+        step_key: 'survey',
+        step_title: 'projects suite step',
+      },
+    ]);
+    expect(
+      await withRequestContext(
+        principalFor('system:workers', [2]),
+        {},
+        async ({ tx }) =>
+          (await tx.execute(
+            sql`select * from app.status_summary(${thread}::uuid)`,
+          )) as unknown as unknown[],
+      ),
+    ).toEqual([]);
+    expect(
+      codeOf(
+        await attempt(
+          actingAs('project_manager', 1, MANAGER),
+          sql`select * from app.status_summary(${thread}::uuid)`,
+        ),
+      ),
+    ).toBe('42501');
+  });
+});

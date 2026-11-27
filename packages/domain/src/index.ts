@@ -552,7 +552,7 @@ export { salesOrderMachine } from './state-machines/machines/sales-order';
 export type { SalesOrderParams, SalesOrderRecord } from './state-machines/machines/sales-order';
 export { dispatchMachine, needsEwayBill } from './state-machines/machines/dispatch';
 export type { DispatchParams, DispatchRecord } from './state-machines/machines/dispatch';
-export { projectStandardMachine } from './state-machines/machines/project-standard';
+export { projectStandardMachine, STANDARD_MILESTONES } from './state-machines/machines/project-standard';
 export { projectSuryaGharMachine } from './state-machines/machines/project-surya-ghar';
 export { subsidyGateMachine } from './state-machines/machines/subsidy-gate';
 export { customerLoanMachine } from './state-machines/machines/customer-loan';

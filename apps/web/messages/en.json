@@ -6364,8 +6364,8 @@
     "codeWrong": "That code does not match. You can try {left, plural, one {once more} other {# more times}}.",
     "codeLocked": "That code did not match {tries} times. Press Accept on the quote again for a new code.",
     "codeExpired": "That code is no longer valid. Press Accept on the quote again for a new code.",
-    "statusHeading": "Your quotes and orders with us:",
-    "statusNone": "We found no quotes or orders for this number. Write your question here and our team will help.",
+    "statusHeading": "Your quotes, orders and projects with us:",
+    "statusNone": "We found no quotes, orders or projects for this number. Write your question here and our team will help.",
     "statusQuoteOpen": "Quote {ref}: {state}, {total}, valid until {date}",
     "statusQuote": "Quote {ref}: {state}, {total}",
     "statusOrder": "Order {ref}: {state}, {total}",
@@ -6383,6 +6383,21 @@
       "invoiced": "invoiced",
       "closed": "complete",
       "cancelled": "cancelled"
+    },
+    "statusProject": "Project {ref}: {state}",
+    "statusProjectStep": "Project {ref}: {state}, next step {step}",
+    "unknownStep": "the next step",
+    "projectStates": {
+      "active": "in progress",
+      "on_hold": "on hold",
+      "completed": "complete"
+    },
+    "defaultSteps": {
+      "survey": "site survey",
+      "dispatch": "dispatch of the material",
+      "install": "installation",
+      "commission": "commissioning",
+      "handover": "handover"
     }
   },
   "voice": {
