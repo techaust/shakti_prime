@@ -98,6 +98,8 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `sizing.maxPipeVelocityMps` | 2 |
 | `sizing.sanctionedLoadRatio` | 1 |
 | `sizing.dcrSchemes` | pm_surya_ghar, pm_kusum |
+| `field.offlineDays` | 5 |
+| `field.minimumAppVersion` | 1.0.0 |
 | `retention.unqualifiedLeadMonths` | 24 |
 | `retention.importReconciliationDays` | 30 |
 | `retention.importFileOpenDays` | 7 |
