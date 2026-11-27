@@ -137,6 +137,14 @@ import {
   listStockBalances,
   readStockValuation,
 } from '../../src/queries/inventory/stock';
+// R3 warranty claims
+import {
+  getWarrantyClaim,
+  listClaimSerials,
+  listWarrantyClaims,
+  readWarrantyClaimCosts,
+} from '../../src/queries/inventory/warranty';
+
 import {
   accountSalesOrders,
   getSalesOrder,
@@ -210,6 +218,10 @@ const CIPHER = envelopeCipher(localKeyProvider(randomBytes(32).toString('base64'
 
 /** The moment the quote reads are asked at, so both pools judge validity alike. */
 const QUOTES_AT = new Date('2026-10-05T06:00:00Z');
+
+/** R3: a claim and a customer no company has, the same on both pools. */
+const NO_CLAIM = newId();
+const NO_CUSTOMER = newId();
 
 const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listUsers: (ctx) => listUsers(ctx, { limit: 20 }),
@@ -375,6 +387,11 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // R3 warranty claims
+  listWarrantyClaims: (ctx) => listWarrantyClaims(ctx, { entityId: 1, limit: 20 }),
+  getWarrantyClaim: (ctx) => getWarrantyClaim(ctx, { entityId: 1, claimId: NO_CLAIM }),
+  listClaimSerials: (ctx) => listClaimSerials(ctx, { entityId: 1, accountId: NO_CUSTOMER }),
+  readWarrantyClaimCosts: (ctx) => readWarrantyClaimCosts(ctx, { entityId: 1, claimId: NO_CLAIM }),
 };
 
 /**

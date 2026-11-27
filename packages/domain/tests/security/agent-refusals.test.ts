@@ -384,6 +384,20 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     note: 'Refused gain',
   },
   'inventory.stock.reverse': { entityId: 1, movementId: newId() },
+  // R3 warranty claims
+  'inventory.warranty.raise': {
+    entityId: 1,
+    accountId: newId(),
+    reportedFault: 'Refused claim',
+  },
+  'inventory.warranty.identify_serial': { entityId: 1, claimId: newId(), serialId: newId() },
+  'inventory.warranty.reject': { entityId: 1, claimId: newId(), rejectedReason: 'Refused' },
+  'inventory.warranty.settle': {
+    entityId: 1,
+    claimId: newId(),
+    settlement: 'credit',
+    creditAmount: '100.00',
+  },
   // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
   ...Object.fromEntries(
     [
