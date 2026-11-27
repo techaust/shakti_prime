@@ -41,6 +41,9 @@ const Count = z.number().int().min(0);
  *   (docs/03-roadmap-appendix/phase2.md §7.4).
  * - `enquiry_attached`: a customer of your lead in nurture asked again, and the enquiry joined
  *   that lead instead of making a new one (CRM-03; not when you added it yourself).
+ * - `project_order_cancelled`: the order of a project you run was cancelled after work on it was
+ *   recorded, so the project was left for you to close (J1; its Project Managers when nobody runs
+ *   it).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -57,6 +60,8 @@ export const NOTICE_TYPES = [
   'missed_call',
   // p2-fixes (I1 re-check N2).
   'enquiry_attached',
+  // J1: a project kept for a cancelled order.
+  'project_order_cancelled',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -70,6 +75,8 @@ export const NOTICE_SUBJECT_TYPES = [
   'inbox_item',
   'sales_order',
   'whatsapp_thread',
+  // J1.
+  'project',
 ] as const;
 export const NoticeSubjectTypeSchema = z.enum(NOTICE_SUBJECT_TYPES);
 export type NoticeSubjectType = z.infer<typeof NoticeSubjectTypeSchema>;
@@ -275,6 +282,8 @@ export const NOTICE_EVENT_TYPES = [
   'calls.missed.recorded',
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead.
   'crm.lead.attached',
+  // J1: a project kept for a cancelled order.
+  'projects.project.order_cancelled',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -378,6 +387,15 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       providerCallId: IdSchema,
       opportunityId: IdSchema,
       ownerId: IdSchema.nullable(),
+    })
+    .strict(),
+  // J1: a project kept for its cancelled order: its owner is told, else its Project Managers.
+  z
+    .object({
+      event: z.literal('projects.project.order_cancelled'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      projectId: IdSchema,
     })
     .strict(),
 ]);

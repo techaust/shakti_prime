@@ -938,6 +938,7 @@ export {
   resumeProject,
 } from './commands/projects/move-project';
 export { assignProject } from './commands/projects/assign-project';
+export { cancelForOrder } from './commands/projects/cancel-for-order';
 export { publishProjectTemplate } from './commands/projects/publish-template';
 export {
   accountProjects,

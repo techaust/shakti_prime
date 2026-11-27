@@ -99,7 +99,10 @@ export function ProjectsScreen({
         'owner',
         choices.owners.map((o) => o.id),
       ),
-      step: pick('step', choices.steps),
+      step: pick(
+        'step',
+        choices.steps.map((s) => s.key),
+      ),
     });
   }
 
@@ -132,7 +135,11 @@ export function ProjectsScreen({
       id: 'step',
       header: t('columns.step'),
       cell: (r) =>
-        r.stepKey === null ? t('noStep') : stepName({ key: r.stepKey, title: r.stepTitle }),
+        r.flow === 'surya_ghar'
+          ? t('suryaGharStep')
+          : r.stepKey === null
+            ? t('noStep')
+            : stepName({ key: r.stepKey, title: r.stepTitle }),
     },
     {
       id: 'owner',
@@ -202,9 +209,9 @@ export function ProjectsScreen({
           <Field id="projects-step" label={t('filters.step')}>
             <Select name="step" defaultValue={filters.step ?? ''}>
               <option value="">{t('filters.anyStep')}</option>
-              {choices.steps.map((key) => (
-                <option key={key} value={key}>
-                  {stepName({ key, title: null })}
+              {choices.steps.map((step) => (
+                <option key={step.key} value={step.key}>
+                  {stepName(step)}
                 </option>
               ))}
             </Select>

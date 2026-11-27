@@ -88,6 +88,8 @@ export const EVENT_JOB_ROUTES: Readonly<
   'calls.missed.recorded': { path: NOTIFY_PATH, body: (event) => event },
   // p2-fixes (I1 re-check N2).
   'crm.lead.attached': { path: NOTIFY_PATH, body: (event) => event },
+  // J1: a project kept for its cancelled order.
+  'projects.project.order_cancelled': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

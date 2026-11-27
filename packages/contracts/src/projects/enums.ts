@@ -40,3 +40,9 @@ export const DraftSkipReasonSchema = z.enum([
   'order_not_confirmed',
 ]);
 export type DraftSkipReason = z.infer<typeof DraftSkipReasonSchema>;
+
+/**
+ * The cancel reason the platform records on the project of a cancelled order
+ * (`projects.project.cancel_for_order`); the screens show it in words from the catalogue.
+ */
+export const PROJECT_ORDER_CANCELLED_REASON = 'order_cancelled';

@@ -1,4 +1,4 @@
-import { hasGrant, type ProjectViewDto } from '@shakti/contracts';
+import { hasGrant, PROJECT_ORDER_CANCELLED_REASON, type ProjectViewDto } from '@shakti/contracts';
 import { Button, StatusBadge } from '@shakti/ui';
 import type { Metadata, Route } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -193,7 +193,9 @@ export default async function ProjectPage({
       )}
       {project.cancelReason === null ? null : (
         <p role="status" className="text-text-muted">
-          {t('page.cancelReason', { reason: project.cancelReason })}
+          {project.cancelReason === PROJECT_ORDER_CANCELLED_REASON
+            ? t('page.cancelledWithOrder')
+            : t('page.cancelReason', { reason: project.cancelReason })}
         </p>
       )}
       {project.flow === 'surya_ghar' ? (

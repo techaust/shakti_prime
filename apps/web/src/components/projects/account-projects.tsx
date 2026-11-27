@@ -15,8 +15,10 @@ import { wordsOf } from '../../screens/audit';
 export async function AccountProjects({ projects }: { projects: readonly ProjectRowDto[] }) {
   const t = await getTranslations('projects');
   const step = (r: ProjectRowDto) =>
-    r.stepKey === null
-      ? t('noStep')
+    r.flow === 'surya_ghar'
+      ? t('suryaGharStep')
+      : r.stepKey === null
+        ? t('noStep')
       : (r.stepTitle ??
         (isOneOf(DEFAULT_PROJECT_STEPS, r.stepKey)
           ? t(`defaultSteps.${r.stepKey}`)

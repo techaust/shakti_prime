@@ -13,6 +13,7 @@ import { indexJobOf } from '../knowledge/job';
 import { discardVaultMasker, maskingConfigured, vaultMasker } from '../ocr/vault-masker';
 import { handleHandoverEvent } from '../handover/handover-event';
 import { handleProjectDraft } from '../projects/draft-event';
+import { handleOrderCancelled } from '../projects/order-cancelled-event';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
 import { handleBriefEvent, handleCallSummaryEvent } from '../copilot/copilot-event';
@@ -198,6 +199,14 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       await handleOrderConfirmed(event, ctx);
     },
   },
+  // J1: a cancelled order's project is cancelled while none of its steps is done, else kept and
+  // its Project Manager told (`projects.project.order_cancelled`, a notice).
+  'sales.order.cancelled': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await handleOrderCancelled(event, ctx);
+    },
+  },
   // A quote's Accept or Talk to us pressed on WhatsApp (§7.1): checked and answered by the
   // platform; one acceptance makes one order however often it arrives.
   'messaging.button.pressed': {
@@ -233,6 +242,8 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'calls.missed.recorded': { ordering: 'every', handle: notify },
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead, told to its owner.
   'crm.lead.attached': { ordering: 'every', handle: notify },
+  // J1: a project kept for its cancelled order, told to its owner or the Project Managers.
+  'projects.project.order_cancelled': { ordering: 'every', handle: notify },
 };
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */

@@ -747,9 +747,9 @@ const eventCatalogue = {
   },
   'sales.order.cancelled': {
     meaning:
-      "A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it.",
+      "A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. Its project (J1) is cancelled by the platform while none of its steps is done, else kept and its Project Manager told.",
     emittedBy: ['sales.order.cancel'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         accountId: IdSchema,
@@ -836,10 +836,18 @@ const eventCatalogue = {
     payload: z.object({ accountId: IdSchema }).strict(),
   },
   'projects.project.cancelled': {
-    meaning: 'A project was cancelled; the reason stays on the project.',
-    emittedBy: ['projects.project.cancel'],
+    meaning:
+      'A project was cancelled, by a Project Manager or by the platform because its order was cancelled before any step was done; the reason stays on the project.',
+    emittedBy: ['projects.project.cancel', 'projects.project.cancel_for_order'],
     subscribed: false,
     payload: z.object({ accountId: IdSchema }).strict(),
+  },
+  'projects.project.order_cancelled': {
+    meaning:
+      'The order of a project was cancelled after a step of the project was done, so the platform kept the project; the notify worker tells its owner, or the Project Managers of its company when it has none.',
+    emittedBy: ['projects.project.cancel_for_order'],
+    subscribed: true,
+    payload: z.object({ accountId: IdSchema, salesOrderId: IdSchema }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 

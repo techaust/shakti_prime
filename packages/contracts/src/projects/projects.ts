@@ -69,8 +69,8 @@ export type ProjectTemplateDto = z.infer<typeof ProjectTemplateDto>;
 
 /**
  * `projects.project.create`: a Project Manager's or General Manager's project for a confirmed
- * order. The segment is the order's lead's; `segment` is needed only when that is no install
- * segment (a dealer's order has none).
+ * order. The segment is the one named, else the order's lead's; `segment` is needed when the
+ * lead's is no install segment (a dealer's order has none).
  */
 export const CreateProjectInput = z
   .object({
@@ -90,6 +90,23 @@ export const DraftProjectDto = z.discriminatedUnion('outcome', [
   z.object({ outcome: z.literal('skipped'), because: DraftSkipReasonSchema }).strict(),
 ]);
 export type DraftProjectDto = z.infer<typeof DraftProjectDto>;
+
+/**
+ * `projects.project.cancel_for_order` (the platform, on `sales.order.cancelled`): the project of a
+ * cancelled order is cancelled while none of its steps is done, else kept for its Project Manager
+ * to close; `none` when the order has no project to close.
+ */
+export const CancelForOrderInput = z
+  .object({ entityId: EntityIdSchema, orderId: IdSchema })
+  .strict();
+export type CancelForOrderInput = z.input<typeof CancelForOrderInput>;
+
+export const CancelForOrderDto = z.discriminatedUnion('outcome', [
+  z.object({ outcome: z.literal('cancelled'), projectId: IdSchema }).strict(),
+  z.object({ outcome: z.literal('kept'), projectId: IdSchema }).strict(),
+  z.object({ outcome: z.literal('none') }).strict(),
+]);
+export type CancelForOrderDto = z.infer<typeof CancelForOrderDto>;
 
 /** A project of a company: `projects.project.resume` and `.complete`. */
 export const ProjectRefInput = z.object({ entityId: EntityIdSchema, projectId: IdSchema }).strict();

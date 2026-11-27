@@ -151,6 +151,7 @@ import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
 // J1 projects
 import { assignProject } from '../commands/projects/assign-project';
+import { cancelForOrder } from '../commands/projects/cancel-for-order';
 import { createProject, draftProject } from '../commands/projects/create-project';
 import {
   cancelProject,
@@ -444,6 +445,7 @@ export const commands = Object.freeze({
   [cancelProject.name]: cancelProject,
   [assignProject.name]: assignProject,
   [publishProjectTemplate.name]: publishProjectTemplate,
+  [cancelForOrder.name]: cancelForOrder,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

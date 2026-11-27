@@ -287,6 +287,7 @@ const ACTIONS = {
   'projects.project.cancel': 'projectCancel',
   'projects.project.assign': 'projectAssign',
   'projects.template.publish': 'projectStepsPublish',
+  'projects.project.cancel_for_order': 'projectCancelForOrder',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -375,6 +376,7 @@ const EVENT_NAMES = {
   'projects.project.held': 'projectHeld',
   'projects.project.completed': 'projectCompleted',
   'projects.project.cancelled': 'projectCancelled',
+  'projects.project.order_cancelled': 'projectOrderCancelled',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];

@@ -2011,6 +2011,7 @@
       "projectResume": "Project resumed",
       "projectComplete": "Project completed",
       "projectCancel": "Project cancelled",
+      "projectCancelForOrder": "Project closed with its cancelled order",
       "projectAssign": "Project people changed",
       "projectStepsPublish": "Project steps published"
     },
@@ -2082,7 +2083,8 @@
       "milestoneCompleted": "Project step done",
       "projectHeld": "Project put on hold",
       "projectCompleted": "Project completed",
-      "projectCancelled": "Project cancelled"
+      "projectCancelled": "Project cancelled",
+      "projectOrderCancelled": "A project's order was cancelled"
     },
     "sheet": {
       "title": "{action}",
@@ -5413,7 +5415,8 @@
       "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
-      "enquiry_attached": "A customer of your lead in nurture asked again"
+      "enquiry_attached": "A customer of your lead in nurture asked again",
+      "project_order_cancelled": "The order of your project was cancelled"
     },
     "settings": {
       "title": "Notification settings",
@@ -5592,6 +5595,10 @@
     "enquiry_attached": {
       "title": "A customer asked again",
       "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
+    },
+    "project_order_cancelled": {
+      "title": "A project's order was cancelled",
+      "body": "Work on the project was already recorded, so it was left open for you to close. Tap to open the project."
     }
   },
   "orders": {
@@ -6939,6 +6946,7 @@
     "emptyOwn": "No projects for you yet. A project shows here once you are named on it.",
     "noCustomer": "Customer details removed",
     "noStep": "All steps done",
+    "suryaGharStep": "Tracked in the PM Surya Ghar steps",
     "columns": {
       "project": "Project",
       "customer": "Customer",
@@ -6996,6 +7004,7 @@
       "peopleNone": "Nobody named yet",
       "holdReason": "On hold because: {reason}",
       "cancelReason": "Cancelled because: {reason}",
+      "cancelledWithOrder": "Cancelled because its order was cancelled.",
       "suryaGhar": "This project follows the PM Surya Ghar subsidy steps, which are tracked apart from this checklist.",
       "orderLabel": "Order"
     },
@@ -7012,7 +7021,6 @@
       "next": "Next step",
       "markDone": "Mark done",
       "markedDone": "Step marked done.",
-      "missing": "Collect these documents first: {documents}",
       "empty": "This project has no steps.",
       "doneBadge": "Done"
     },

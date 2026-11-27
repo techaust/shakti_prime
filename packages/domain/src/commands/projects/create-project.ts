@@ -202,8 +202,8 @@ export const draftProject = defineCommand({
 /**
  * `projects.project.create` (docs/03-roadmap-appendix/phase4.md §6.1): a Project Manager or
  * General Manager (`projects.write` for the company) makes the project of any confirmed order of
- * the company, with the order's lead's segment, or the one they name when that is no install
- * segment (a dealer's order), and becomes its owner. An order has one project that is not
+ * the company, with the segment they name, else the order's lead's (a dealer's order has none, so
+ * its maker names one), and becomes its owner. An order has one project that is not
  * cancelled. People only: no agent makes a project.
  */
 export const createProject = defineCommand({
@@ -229,7 +229,8 @@ export const createProject = defineCommand({
     if (facts.liveProjectId !== null) {
       throw new DomainError('conflict', 'the order has its project', { reason: 'project_exists' });
     }
-    const segment = installSegment(facts.segment) ?? input.segment;
+    // The business line the person chose stands; without one, the order's lead's (J1 review 4).
+    const segment = input.segment ?? installSegment(facts.segment);
     if (segment === null) {
       throw new DomainError('validation_failed', 'the project needs a segment', {
         reason: 'project_segment_missing',

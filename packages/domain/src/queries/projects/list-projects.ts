@@ -185,7 +185,9 @@ export async function listProjects(
 
 /**
  * The projects of a company a caller owns or is on (`projects_owner_idx`,
- * `project_assignments_person_idx`), each read under the policies; at most 1,000.
+ * `project_assignments_person_idx`), each read under the policies; at most 1,000, those still open
+ * (in progress or on hold) first, then the newest change, so a person on many finished projects
+ * over the years never loses an open one from their list.
  */
 export async function ownProjectIds(ctx: ProjectReadContext, entityId: number): Promise<string[]> {
   checkProjectRead(ctx);
@@ -193,7 +195,7 @@ export async function ownProjectIds(ctx: ProjectReadContext, entityId: number): 
   const p = schema.projects;
   const a = schema.projectAssignments;
   const me = ctx.principal.id;
-  const rows = await ctx.tx
+  const mine = ctx.tx
     .select({ id: p.id })
     .from(p)
     .where(and(eq(p.entityId, entityId), eq(p.ownerId, me)))
@@ -202,7 +204,12 @@ export async function ownProjectIds(ctx: ProjectReadContext, entityId: number): 
         .select({ id: a.projectId })
         .from(a)
         .where(and(eq(a.entityId, entityId), eq(a.personId, me))),
-    )
+    );
+  const rows = await ctx.tx
+    .select({ id: p.id })
+    .from(p)
+    .where(and(eq(p.entityId, entityId), inArray(p.id, mine)))
+    .orderBy(sql`${p.state} in ('completed', 'cancelled')`, desc(p.updatedAt), desc(p.id))
     .limit(1000);
   return rows.map((r) => r.id);
 }
@@ -252,8 +259,11 @@ export function projectListQuery(
 }
 
 /**
- * The list's filter choices: the people who own a project of the company and the keys of the
- * steps the company's projects have, the default steps first.
+ * The list's filter choices: the people who own a project the caller reads in the company, and
+ * the keys of the steps the company's projects have, the default steps first, each with the
+ * newest title the Executive published for it. A caller reading at `own` scope only is led by
+ * their own projects (`ownProjectIds()`), named by id, as the list is, so the row policy's `own`
+ * predicate runs for those rows only.
  */
 export async function listProjectFilters(
   ctx: ProjectReadContext,
@@ -262,25 +272,49 @@ export async function listProjectFilters(
   const input = parseQueryInput(ProjectFiltersInput, rawInput, 'projects.filters');
   checkProjectRead(ctx);
   requireCompany(ctx, input.entityId);
+  const only = hasGrant(ctx.principal.permissions, 'projects.read', 'entity')
+    ? undefined
+    : await ownProjectIds(ctx, input.entityId);
   const p = schema.projects;
-  const owners = await ctx.tx
-    .selectDistinct({ id: schema.principals.id, name: schema.principals.displayName })
-    .from(p)
-    .innerJoin(schema.principals, eq(schema.principals.id, p.ownerId))
-    .where(eq(p.entityId, input.entityId))
-    .orderBy(asc(schema.principals.displayName), asc(schema.principals.id))
-    .limit(200);
+  const owners =
+    only?.length === 0
+      ? []
+      : await ctx.tx
+          .selectDistinct({ id: schema.principals.id, name: schema.principals.displayName })
+          .from(p)
+          .innerJoin(schema.principals, eq(schema.principals.id, p.ownerId))
+          .where(
+            and(
+              eq(p.entityId, input.entityId),
+              only === undefined ? undefined : sql`${p.id} = any(${`{${only.join(',')}}`}::uuid[])`,
+            ),
+          )
+          .orderBy(asc(schema.principals.displayName), asc(schema.principals.id))
+          .limit(200);
   const t = schema.projectFlowTemplates;
   const templates = await ctx.tx
     .select({ steps: t.stepsJson })
     .from(t)
-    .where(eq(t.entityId, input.entityId));
-  const keys = new Set<string>(WORKSHOP_DEFAULTS.projects.standardSteps);
+    .where(eq(t.entityId, input.entityId))
+    .orderBy(desc(t.publishedAt), desc(t.id));
+  const titles = new Map<string, string | null>(
+    WORKSHOP_DEFAULTS.projects.standardSteps.map((key) => [key, null]),
+  );
+  const named = new Set<string>();
+  // Newest version first: a key takes the first title it is published with.
   for (const row of templates) {
     const parsed = ProjectStepsSchema.safeParse(row.steps);
-    if (parsed.success) for (const step of parsed.data) keys.add(step.key);
+    if (!parsed.success) continue;
+    for (const step of parsed.data) {
+      if (named.has(step.key)) continue;
+      named.add(step.key);
+      titles.set(step.key, step.title);
+    }
   }
-  return ProjectFiltersDto.parse({ owners, steps: [...keys] });
+  return ProjectFiltersDto.parse({
+    owners,
+    steps: [...titles].map(([key, title]) => ({ key, title })),
+  });
 }
 
 /**

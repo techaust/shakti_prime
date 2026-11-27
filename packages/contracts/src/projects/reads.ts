@@ -54,8 +54,14 @@ export const ProjectPersonDto = z.object({ id: IdSchema, name: z.string() }).str
 export type ProjectPersonDto = z.infer<typeof ProjectPersonDto>;
 
 /** What the list's filters offer: the owners and the steps of the company's projects. */
+/** A step the list filters by: its key, and the newest title published for it, if any. */
+export const ProjectStepChoiceDto = z
+  .object({ key: StepKeySchema, title: z.string().nullable() })
+  .strict();
+export type ProjectStepChoiceDto = z.infer<typeof ProjectStepChoiceDto>;
+
 export const ProjectFiltersDto = z
-  .object({ owners: z.array(ProjectPersonDto), steps: z.array(StepKeySchema) })
+  .object({ owners: z.array(ProjectPersonDto), steps: z.array(ProjectStepChoiceDto) })
   .strict();
 export type ProjectFiltersDto = z.infer<typeof ProjectFiltersDto>;
 

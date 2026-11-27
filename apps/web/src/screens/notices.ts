@@ -6,6 +6,7 @@ import type { Route } from 'next';
 import { customerHref } from './customers';
 import { messagesHref } from './messaging/links';
 import { orderHref } from './orders';
+import { projectHref } from './projects';
 import { quoteHref } from './quotes';
 
 /** What a notice's link is made from. */
@@ -24,7 +25,7 @@ export interface NoticeLinkFacts {
  * WhatsApp after it lapsed (where its order is, or the re-quote), or sent on WhatsApp but not
  * delivered (where its PDF is), their Agent Inbox for an enquiry passed to them
  * (where its interest and note are, and Done), the order for one held for credit (where the
- * Executive releases it), the chat for a WhatsApp customer waiting for a reply, and the customer's
+ * Executive releases it), the project kept for a cancelled order (where its manager closes it), the chat for a WhatsApp customer waiting for a reply, and the customer's
  * Account 360, in the notice's
  * company, for a lead given to them, a possible duplicate or a late first call.
  */
@@ -37,6 +38,8 @@ export function noticeHref(notice: NoticeLinkFacts): Route {
       return '/inbox';
     case 'order_credit_held':
       return orderHref(notice.entityId, notice.subjectId);
+    case 'project_order_cancelled':
+      return projectHref(notice.entityId, notice.subjectId);
     case 'whatsapp_reply_waiting':
       return messagesHref(notice.entityId, notice.subjectId);
     case 'quote_expiring':
