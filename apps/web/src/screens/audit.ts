@@ -365,6 +365,13 @@ const EVENT_NAMES = {
   'procurement.vendor.archived': 'vendorArchived',
   'procurement.quote.recorded': 'vendorQuoteRecorded',
   'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
+  // H2 reservations
+  'inventory.reservation.filled': 'reservationFilled',
+  'inventory.reservation.extended': 'reservationExtended',
+  'inventory.reservation.released': 'reservationReleased',
+  'inventory.reservation.moved': 'reservationMoved',
+  'inventory.reservation.lapsed': 'reservationLapsed',
+  'inventory.reservation.expiring': 'reservationExpiring',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];

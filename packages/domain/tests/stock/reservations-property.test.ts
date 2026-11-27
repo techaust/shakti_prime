@@ -123,23 +123,19 @@ async function violations(orders: readonly string[]): Promise<Violation[]> {
                 from reservation_needs n where n.sales_order_line_id = l.id) as needs
         from sales_order_lines l where l.sales_order_id = any (${orders}::uuid[])`;
     for (const l of lines) {
-      const list = (l.needs ?? []) as { needed: number; short: number }[];
+      const list = ((l.needs ?? []) as { needed: number | string; short: number | string }[]).map(
+        (n) => ({ needed: Number(n.needed), short: Number(n.short) }),
+      );
       const qty = Number(l.qty);
       let expected = 0;
-      if (list.length > 0 && list.some((n) => Number(n.short) > 0)) {
+      if (list.length > 0 && list.some((n) => n.short > 0)) {
         expected =
           l.kit_id === null
-            ? Number(list[0]?.short ?? 0)
+            ? (list[0]?.short ?? 0)
             : qty -
               Math.min(
                 qty,
-                Math.floor(
-                  Math.min(
-                    ...list.map(
-                      (n) => ((Number(n.needed) - Number(n.short)) * qty) / Number(n.needed),
-                    ),
-                  ),
-                ),
+                Math.floor(Math.min(...list.map((n) => ((n.needed - n.short) * qty) / n.needed))),
               );
       }
       if (Math.abs(Number(l.qty_backordered) - expected) > 0.0005) {

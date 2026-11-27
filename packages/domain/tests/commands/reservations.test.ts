@@ -174,16 +174,21 @@ describe('availability on an order', () => {
       { itemId: f.inverter, qty: '1' },
       { itemId: f.service, qty: '1' },
     ]);
-    const read = (who: Principal) =>
+    const read = (who: Principal): Promise<LineAvailabilityDto> =>
       asPrincipal(who, (ctx) =>
         readLineAvailability(ctx, { entityId: E, kind: 'order', id: orderId }),
-      ) as Promise<LineAvailabilityDto>;
+      );
     // A draft reads the free stock: half of what the line needs is free in storage.
     const draft = await read(lc);
     expect(draft).toEqual({
       withCounts: false,
       lines: [
-        { lineId: expect.any(String), position: 1, status: 'partly_covered', expectedOn: null },
+        {
+          lineId: expect.any(String) as unknown,
+          position: 1,
+          status: 'partly_covered',
+          expectedOn: null,
+        },
       ],
     });
     for (const line of draft.lines) {
@@ -191,7 +196,10 @@ describe('availability on an order', () => {
     }
     const counted = await read(manager);
     expect(counted.withCounts).toBe(true);
-    expect(counted.lines[0]).toMatchObject({ status: 'partly_covered', free: expect.any(String) });
+    expect(counted.lines[0]).toMatchObject({
+      status: 'partly_covered',
+      free: expect.any(String) as unknown,
+    });
 
     await confirm(orderId);
     const confirmed = await read(lc);
@@ -218,9 +226,9 @@ describe('availability on an order', () => {
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
     // Accounts reads stock in its company, and so the counts.
-    const view = (await asPrincipal(accounts, (ctx) =>
+    const view: LineAvailabilityDto = await asPrincipal(accounts, (ctx) =>
       readLineAvailability(ctx, { entityId: E, kind: 'order', id: orderId }),
-    )) as LineAvailabilityDto;
+    );
     expect(view.withCounts).toBe(true);
   });
 });

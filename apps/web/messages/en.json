@@ -2074,6 +2074,12 @@
       "vendorArchived": "Vendor archived",
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
+      "reservationFilled": "Stock set aside for waiting orders",
+      "reservationExtended": "Stock hold extended",
+      "reservationReleased": "Stock hold released",
+      "reservationMoved": "Stock hold moved to another hub",
+      "reservationLapsed": "Stock holds ended",
+      "reservationExpiring": "Stock holds end soon",
       "stockMoved": "Stock moved"
     },
     "sheet": {

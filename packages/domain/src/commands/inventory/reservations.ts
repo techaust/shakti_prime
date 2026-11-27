@@ -57,7 +57,7 @@ async function readReservation(
     .from(r)
     .where(eq(r.id, reservationId))
     .limit(1);
-  if (!row || row.entityId !== entityId) {
+  if (row?.entityId !== entityId) {
     throw new DomainError('not_found', `reservation ${reservationId} is not visible`, {
       reason: 'reservation_missing',
     });
@@ -80,7 +80,7 @@ export const extendReservation = defineCommand({
   name: 'inventory.reservation.extend',
   permission: {
     keys: ['inventory.stock.adjust', 'sales.order.cancel'],
-    of: (input: ExtendReservationInput) => EXTEND_BY[input.authority as ExtendAuthority] ?? null,
+    of: (input: ExtendReservationInput) => EXTEND_BY[input.authority],
   },
   peopleOnly: true,
   input: ExtendReservationInput,

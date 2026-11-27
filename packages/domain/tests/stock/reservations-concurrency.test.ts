@@ -72,7 +72,9 @@ function reserveAndHold(orderId: string, holdMs: number) {
 function reasonOf(result: PromiseSettledResult<unknown>): string | undefined {
   if (result.status === 'fulfilled') return undefined;
   const e: unknown = result.reason;
-  return e instanceof DomainError ? String(e.details?.reason ?? e.code) : String(e);
+  if (!(e instanceof DomainError)) return String(e);
+  const reason = e.details?.reason;
+  return typeof reason === 'string' ? reason : e.code;
 }
 
 beforeAll(async () => {
