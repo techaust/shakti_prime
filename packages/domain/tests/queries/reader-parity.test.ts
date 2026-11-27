@@ -137,6 +137,8 @@ import {
   listStockBalances,
   readStockValuation,
 } from '../../src/queries/inventory/stock';
+// H2 reservations and availability
+import { readLineAvailability } from '../../src/queries/inventory/availability';
 import {
   accountSalesOrders,
   getSalesOrder,
@@ -375,6 +377,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // H2 reservations and availability
+  readLineAvailability: (ctx) =>
+    readLineAvailability(ctx, { entityId: 1, kind: 'quote', id: newId() }),
 };
 
 /**

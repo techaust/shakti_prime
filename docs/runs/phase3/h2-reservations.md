@@ -5,9 +5,9 @@
 | Branch | `feat/h2-reservations` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock, the ledger's definers, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC |
-| State | briefed |
-| Next step | the builder |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high, from 14:20 UTC to the early check at 16:15 UTC |
+| State | early check |
+| Next step | the lead reads the early check; then the builder continues with the workers and screens |
 
 ## Brief
 Build [phase3 §7.1](../../03-roadmap-appendix/phase3.md#71-h2-reservations-and-availability) as written, with questions 3 (a) and 4 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) for each table and [AGENTS §5](../../../AGENTS.md#5-domain-commands) for each command. Points the design leaves to you, settled here:
@@ -73,6 +73,70 @@ Review checklist: no count reaches a holder of only `sales.quote.create` (DTO, r
 Shared registration points take one line or one block each, kept together under a comment naming your slice; the lead merges them. They are `en.json`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event catalogue and worker registry, the state machine registry, the import kinds' registry, the print document registry, the testing lists, `nav.ts`, `turbo.json` and `.env.example`.
 
 ## Report
+
+### 27-11-2026, cloud (the lead's VM, worktree `h2-reservations`, port 54332): early check
+Built on H1's `app.stock_move()` of 0231: X4 had not merged (`main` at `2d8be80`, last migration 0239). Skills loaded: `add-table`, `add-command`.
+
+**What is built (schema, definers, commands and their tests):**
+- Migrations `0240_h2_reservations` (generated) and `0241_h2_reservations_rls` (custom); the numbers follow 0239 and the lead renumbers them.
+  - Tables `reservation_needs` and `reservations` (`packages/db/src/schema/reservations.ts`), row security forced, read by company with `inventory.stock.read:entity` (app_user and app_reader), no insert, update or delete grant for any request role.
+  - `sales_order_lines.qty_backordered` (0 ≤ it ≤ `qty`; the insert policy holds it at 0; the append-only trigger, same name, now lets that one column change); `warehouses.pin_codes text[]` (six-digit codes, empty by default); `stock_balances_reserved_on_hand_check` (`qty_reserved <= qty_on_hand`).
+  - `app.platform_only_permissions()` redefined with every key of 0222 plus `inventory.reservations.process`.
+- `app.stock_move()` redefined with one rule: an outbound line may not leave its bin below `qty_reserved` (`stock_reserved_insufficient`, with the item, SKU, bin and bin code). Diffed against `main`'s latest (0231): the only changes are the `v_reserved` declaration, the balance read taking `qty_reserved` too, and the new check after `stock_insufficient`.
+- The definers (all `security definer`, `search_path = ''`, revoked from `public` and `readonly_reporter`):
+
+  | Signature | Who may call it | What it does |
+  |---|---|---|
+  | `app.stock_reserve(p_need uuid, p_qty numeric, p_hubs uuid[], p_whole boolean, p_expires_at timestamptz) returns numeric` | no request role (the entry points below) | takes up to `p_qty` (at most the need's backorder) from the free stock of the company's storage bins, hub by hub in the order given, the bin with most free first; one active reservation per bin; adds to `qty_reserved`; lowers the need's and the line's backorder; `p_whole` refuses a short take (`reservation_stock_short`) |
+  | `app.stock_unreserve(p_ids uuid[], p_state text, p_kind text, p_reason text) returns table (reservation_id, sales_order_id, item_id, qty)` | no request role | ends each active reservation as `lapsed` or `released` (`by_hand`, `order_cancelled`, `moved`), takes it off `qty_reserved`, puts it back on order (behind the queue for a lapse or a release by hand; in place for a move; not at all for a cancellation) |
+  | `app.reserve_order(p_order uuid, p_expires_at timestamptz) returns table (need_id, sales_order_line_id, item_id, qty_reserved, qty_backordered)` | `app.may_confirm_order()` on a confirmed order with no needs | confirmation's reservations |
+  | `app.release_order_reservations(p_order uuid, p_reason text) returns integer` | `sales.order.cancel:entity`, on a cancelled order | the cancellation's release; nothing left backordered |
+  | `app.fill_backorders(p_entity smallint, p_item uuid, p_expires_at timestamptz, p_limit integer) returns table (need_id, sales_order_id, qty_reserved)` | `inventory.reservations.process:all` | backorders of the item and company in queue order, each from its order's hubs |
+  | `app.lapse_reservations(p_entity smallint, p_limit integer) returns table (reservation_id, sales_order_id, item_id)` | `inventory.reservations.process:all` | lapses what is past `expires_at` |
+  | `app.reservation_reminders(p_entity smallint, p_before timestamptz, p_limit integer) returns table (reservation_id, sales_order_id, owner_id, expires_at)` | `inventory.reservations.process:all` | marks those due a reminder, once per reservation and extension |
+  | `app.reservation_release(p_id uuid, p_reason text)`, `app.reservation_extend(p_id uuid, p_days integer, p_reason text) returns timestamptz`, `app.reservation_move(p_id uuid, p_hub uuid) returns uuid[]` | `inventory.stock.adjust:entity` (the extension also `sales.order.cancel:entity`) | a person's change, the order locked first |
+  | `app.line_availability(p_kind text, p_id uuid) returns table (line_id, line_position, status, expected_on, qty_free, qty_reserved, qty_backordered)` | `inventory.stock.read:entity` (with quantities), or `sales.quote.create` with the lead's (or a dealer's order's customer's) read scope (quantities null) | availability per line; app_user and app_reader |
+  | `app.stock_lock_free()`, `app.sync_line_backorders()`, `app.order_hubs()`, `app.reservation_for_change()` | no request role | the lock in H1's order over an item's storage balances, a line's backorder from its needs, an order's hubs, a reservation's order locked first |
+- The lock order on every path: the sales orders touched (a person's command holds its order `for update`; the fill and the lapse take theirs `for share`, by id), then H1's order (hubs `for share` by id, bins `for share` by id, balances `for update` by company, hub, bin, item), then needs and reservations, then the order lines.
+- `sales.order.confirm` reserves through `app.reserve_order()` (the `reservation` machine's `reserve`, then the sales order machine's `request_reservations`); the answer and the audit row carry no quantity. `sales.order.cancel` of a confirmed order releases through `app.release_order_reservations()` (`order_cancel`). The confirm suite's cleanup removes its orders' needs.
+- Commands `inventory.reservation.extend` (`PermissionByInput`: `authority: 'stock'` → `inventory.stock.adjust:entity`, `'order'` → `sales.order.cancel:entity`), `.release`, `.move` (people only), and the platform's `inventory.reservation.fill` and `.scan` (`inventory.reservations.process:all`); events `inventory.reservation.filled`, `.extended`, `.released`, `.moved`, `.lapsed`, `.expiring` (ids and dates only, `subscribed: false` until the workers).
+- The `reservation` machine (`docs/state-machines/reservation.md`), in `MACHINES_IN_USE`.
+- `packages/domain/src/stock/atp.ts` (pure: `itemAvailability`, `kitAvailability`, `lineAvailability`, thousandths), `stock/reserve.ts` (the definer calls), `queries/inventory/availability.ts` (`readLineAvailability`: two DTOs; the one without counts is selected without naming the count columns).
+- `WORKSHOP_DEFAULTS.stock.reservationHoldDays` 15 and `.reservationReminderDays` 2; `inventory.reservations.process` in the catalogue, `PLATFORM_ONLY_PERMISSIONS`, `SYSTEM_MATRIX`, the seed and SECURITY §3.1 to §3.3; the Lead Converter's `inventory.stock.read` taken off in the seed (the oracle) and SECURITY §3.2, with the note for customised roles in SECURITY §4.
+- The testing lists (`ENTITY_TABLES`, a fixture row per company, the role × company rule, `NARROWER`, `enum-sync`), the reader definer list, the agent refusal sweep's people-only inputs, the audit labels and event names in `apps/web` and `en.json`, the error sentences, DATABASE §4.1 and §6.5, `pnpm db:docs` and `machines:docs` regenerated.
+
+**Tests added:**
+- `packages/domain/src/stock/atp.test.ts` (8, three of them property tests on generated balances, kits and lines); `state-machines/machines/reservation.test.ts` (3) and the machine's fixture in `machines.test.ts`.
+- `packages/domain/tests/commands/reservations.test.ts` (16): confirmation reserves the PIN code's hub first, a kit by its components, the short backordered, nothing for a service, never from a receiving bin; a second confirmation refused; the Lead Converter's availability in the shape with no count and the Inventory Manager's with counts; a Field Engineer refused; the cancellation's release; `stock_reserved_insufficient` on a loss and a transfer; extend, release and move each denied, wrong company and happy path (extend once, by the Inventory Manager and the General Manager; move refused when short and to the same hub); the jobs refused to every person and outside the request; the fill in order of confirmation; a lapse whose stock the next backorder takes, the lapsed order waiting behind; the reminder once to the order's owner.
+- `packages/domain/tests/stock/reservations-concurrency.test.ts` (4): two confirmations of the last unit (one reserves, the other waits and backorders), three orders confirmed at once through the command, a loss racing a confirmation both ways.
+- `packages/domain/tests/stock/reservations-property.test.ts` (1, 60 seeded steps of confirm, cancel, lapse, release, gain, loss and fill): `qty_reserved` equals the active reservations and never exceeds on hand; a need is its reservations plus its backorder; a cancelled order holds and waits for nothing; each line's backorder is what its needs leave; after the fill no backorder waits beside free stock.
+- `packages/db/tests/security/reservations.test.ts` (15): no write by any request role; the reserved and backorder checks for the table owner; the lines append-only but for the backorder; the six helpers not callable; each entry point's grant; the platform-only key held by `system:workers` alone and the three jobs refused to every staff and agent role and outside the request; availability refused without either grant.
+
+**Checks run (this worktree, its Postgres on 54332, through `heavy.sh`):**
+- `pnpm --filter @shakti/contracts --filter @shakti/db --filter @shakti/domain --filter web typecheck`: exit 0.
+- `pnpm exec eslint --max-warnings 0` over `packages/contracts/src`, `packages/db/src`, `packages/db/tests`, `packages/db/seeds`, `packages/domain/src`, `packages/domain/tests`, `apps/web/src/screens`, `apps/web/src/components/activity`: exit 0.
+- Unit tests: `@shakti/contracts` 340 passed, `@shakti/db` 162 passed, `@shakti/domain` (after the two fixes) passed; `web`: RESULT_WEB.
+- `pnpm copy-lint`: exit 0.
+- `pnpm test:security`: `@shakti/db` 63 files, 1808 tests passed; `@shakti/domain` 1539 passed, 1 failed (the reader parity list lacked `readLineAvailability`), fixed and rerun alone: RESULT_PARITY; the `web` suite did not run after the domain failure: RESULT_SECURITY_WEB.
+- `pnpm db:docs`, `pnpm --filter @shakti/domain machines:docs`: regenerated and committed.
+- Not run yet: `pnpm build`, `js-budget`, the whole-repository `pnpm lint`, journeys (no screen yet).
+
+**EXPLAIN:** no list or search yet; the backorder queue (`reservation_needs_queue_idx`), the lapse scan (`reservations_expiry_idx`) and the stock card's backorders get their plans at volume with the screens.
+
+**Decisions the brief did not settle:**
+1. **A table `reservation_needs`** beside `reservations`: what each confirmed line needs of each item (a kit's components at the kit's quantities when the order was confirmed, so a later kit edit leaves a sold order as it was), its backorder, and its place in the queue (`queued_at`). `sales_order_lines.qty_backordered` is derived from it (a kit line: the kits not yet wholly reserved).
+2. **`reservations.bin_id`** besides `warehouse_id`: a reservation is a quantity in one storage bin, so each bin's `qty_reserved` is exactly its active reservations and a move between bins of a hub is refused rather than silently under-reserving.
+3. **The default hub:** the data has none, so the hubs whose `pin_codes` list the site's PIN come first, then every other godown and factory by code, until the client names which hub serves which districts (§12 question 5). A `warehouses.is_default` flag is one column if the lead prefers it.
+4. **A lapse or a release by hand re-queues the quantity at the back** (`queued_at` = now), so "the next backorder takes it"; a move keeps its place; a cancellation clears it.
+5. **The fill is its own transaction**, run on the event that freed or brought stock (stock into a storage bin, a lapse, a release, a move), never inside the scan, so each transaction takes its locks in the one order.
+6. **Quantities are reserved, not serials:** the `serial` machine's `reserve` stays proposed; D2 picks serials against a reservation.
+7. **The extension's two grants** are one command with `authority: 'stock' | 'order'` in the input (`PermissionByInput`), since a command declares one permission; the definer accepts either grant.
+8. **Availability's visibility** for a holder of only `sales.quote.create` mirrors the read policies (the lead's `crm.lead.read` scope, or a dealer's order's customer's `crm.account.read` scope); a holder of `inventory.stock.read:entity` reads any document of the company with counts. A kit line counts whole kits; a line with nothing stocked and a cancelled order answer no row; `expected_on` is null until U2.
+9. **No quantity in `SalesOrderDto`**: the order page's reserved, backordered and dispatched quantities come with the screens, from a query gated on `inventory.stock.read`.
+10. **Cascading foreign keys** from needs and reservations to the order and its lines, since the suites delete orders (no request role can).
+11. **An opening-stock rollback** over a bin that holds reserved stock is refused (`stock_reserved_insufficient`) until the holds are released or moved.
+
+**Unfinished, for the next lane:** the workers (the `inventory.stock.moved` subscription and the freed-stock events to `inventory.reservation.fill`; the daily scan's schedule; the notification of `inventory.reservation.expiring` to the order's owner and the Inventory Manager); a cancelled order's freed stock to the fill (the cancel emits no reservation event yet); the hub form's PIN codes and `inventory.hub.create`/`.update` taking them; the screens (availability on the quote builder and the order page, the order page's reservations with Extend, Release and Move, backorders on the stock card); journeys; EXPLAIN; phase3.md's Built record.
 
 ## Review
 
