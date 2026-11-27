@@ -87,9 +87,13 @@ const U1_QUOTE_INPUTS: Record<string, unknown> = {
   'procurement.quote.withdraw': { quoteId: newId() },
 };
 
-/** U2's approval of a purchase order: restricted (procurement.rate.read) and for people only. */
+/**
+ * U2's approval of a purchase order and its Download PDF: restricted (procurement.rate.read) and
+ * for people only.
+ */
 const U2_APPROVE_INPUTS: Record<string, unknown> = {
   'procurement.po.approve': { purchaseOrderId: newId() },
+  'procurement.po.pdf.request': { purchaseOrderId: newId() },
 };
 
 const INPUTS: Record<string, unknown> = {
