@@ -15,7 +15,7 @@ import { seededUsers } from './support/users';
 
 /** The order's Payments tab, by its heading. */
 function paymentsTab(page: Page) {
-  return page.getByRole('region', { name: 'Payments' });
+  return page.getByRole('region', { name: 'Payments', exact: true });
 }
 
 /** A table by its caption: the table on wider screens, the list of cards on a phone. */
@@ -108,23 +108,36 @@ test.describe('as an Executive, Settings › Payment terms', () => {
     await page.goto('/settings/payment-terms');
     await expect(page.getByRole('heading', { level: 1, name: 'Payment terms' })).toBeVisible();
     // RCREF's commercial projects: a company and a kind of order no other journey changes.
-    await page.getByLabel('Company').selectOption({ label: 'RCREF' });
-    await page.getByLabel('Kind of order').selectOption({ label: 'Commercial EPC' });
+    await page.getByLabel('Company', { exact: true }).selectOption({ label: 'RCREF' });
+    await page
+      .getByLabel('Kind of order', { exact: true })
+      .selectOption({ label: 'Commercial EPC' });
     await expect(rows(page, 'Payments of these terms').getByText('Advance')).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'finance-payment-terms', {
-      mask: [page.getByRole('region', { name: 'Current terms' }).locator('p.text-sm')],
+      mask: [page.getByRole('region', { name: 'Current terms', exact: true }).locator('p.text-sm')],
     });
 
     await page.getByRole('button', { name: 'Change terms' }).click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByText('The percentages add up to 100 %.')).toBeVisible();
+    // From whatever the current version holds, down to its first payment.
+    await expect(dialog.getByLabel('Payment name').first()).toBeVisible();
+    const remove = dialog.getByRole('button', { name: /^Remove payment/ });
+    // Each payment has a Remove button while there are two or more.
+    for (let rows = await remove.count(); rows > 1; rows -= 1) {
+      await remove.last().click();
+      await expect(remove).toHaveCount(rows - 1 > 1 ? rows - 1 : 0);
+    }
+    await dialog.getByLabel('Payment name').fill('Advance');
+    await dialog.getByLabel('Kind').selectOption({ label: 'Percentage' });
+    await dialog.getByLabel('Percentage or amount').fill('60');
     await dialog.getByRole('button', { name: 'Add payment' }).click();
+    // 60 + nothing yet: the total is said before it is sent.
+    await expect(
+      dialog.getByText('The percentages add up to 60 %. They must add up to 100 %.'),
+    ).toBeVisible();
     await dialog.getByLabel('Payment name').last().fill('After installation');
-    // 50 + 50 + 0: the total is said before it is sent.
-    await expect(dialog.getByText(/must add up to 100/)).toBeVisible();
-    await dialog.getByLabel('Percentage or amount').nth(1).fill('40');
-    await dialog.getByLabel('Percentage or amount').last().fill('10');
+    await dialog.getByLabel('Percentage or amount').last().fill('40');
     await dialog.getByLabel('When it is due').last().selectOption({ label: 'On installation' });
     await expect(dialog.getByText('The percentages add up to 100 %.')).toBeVisible();
     await expectNoAxeViolations(page);
@@ -133,6 +146,10 @@ test.describe('as an Executive, Settings › Payment terms', () => {
     await expect(
       rows(page, 'Payments of these terms').first().getByText('After installation'),
     ).toBeVisible();
-    await expect(page.getByText(/^Version \d+, published/)).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: 'Current terms', exact: true })
+        .getByText(/^Version \d+, published/),
+    ).toBeVisible();
   });
 });

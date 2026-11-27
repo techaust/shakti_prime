@@ -112,11 +112,18 @@ export async function ensureFinanceJourneys(
     const numbers = ORDER_NO[project];
     const forAccounts = await ensureDealer(executiveId, converterId, names.accounts);
     const forConverter = await ensureDealer(executiveId, converterId, names.converter);
+    const accountsOrder = await ensureConfirmedOrder(converterId, forAccounts, numbers.accounts);
+    // Accounts issues this order's proforma each run: an earlier run's is removed first.
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`delete from proforma_lines where proforma_id in
+                   (select id from proformas where sales_order_id = ${accountsOrder})`;
+        await tx`delete from proformas where sales_order_id = ${accountsOrder}`;
+      }),
+    );
     orders[project] = {
-      accounts: {
-        orderId: await ensureConfirmedOrder(converterId, forAccounts, numbers.accounts),
-        soNo: numbers.accounts,
-      },
+      accounts: { orderId: accountsOrder, soNo: numbers.accounts },
       converter: {
         orderId: await ensureConfirmedOrder(converterId, forConverter, numbers.converter),
         soNo: numbers.converter,
